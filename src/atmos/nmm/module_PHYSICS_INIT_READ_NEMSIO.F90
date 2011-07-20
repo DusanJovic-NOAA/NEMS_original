@@ -703,7 +703,9 @@
       DEALLOCATE(TMP)
 !
        etime=timef()
-!       write(0,*)'PHYSICS_READ_INPUT_NEMSIO,time=',etime-stime
+      if(mype==0)then
+        write(0,*)'PHYSICS_READ_INPUT_NEMSIO,time=',etime-stime
+      endif
 !
 !-----------------------------------------------------------------------
 !

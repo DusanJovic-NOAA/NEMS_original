@@ -108,8 +108,9 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: NEMS_GRID_COMP                  !<-- The NEMS gridded component
-      INTEGER            ,INTENT(OUT)   :: RC_REG                          !<-- Error return code
+      TYPE(ESMF_GridComp) :: NEMS_GRID_COMP                                !<-- The NEMS gridded component
+!
+      INTEGER,INTENT(OUT) :: RC_REG                                        !<-- Error return code
 !
 !---------------------
 !***  Local Variables
@@ -226,11 +227,14 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: NEMS_GRID_COMP                  !<-- The NEMS component
-      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The NEMS import state
-      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The NEMS export state
-      TYPE(ESMF_Clock)                  :: CLOCK_MAIN                      !<-- The main Clock
-      INTEGER            ,INTENT(OUT)   :: RC_INIT                         !<-- Error return code
+      TYPE(ESMF_GridComp) :: NEMS_GRID_COMP                                !<-- The NEMS component
+!
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The NEMS import state
+                         ,EXP_STATE                                        !<-- The NEMS export state
+!
+      TYPE(ESMF_Clock) :: CLOCK_MAIN                                       !<-- The main Clock
+!
+      INTEGER,INTENT(OUT) :: RC_INIT                                       !<-- Error return code
 !
 !-----------------------------------------------------------------------
 !
@@ -442,7 +446,7 @@
 ! 
         CALL ESMF_ConfigGetAttribute(config = CF_NEMS                   &
                                     ,value  = PE_MEMBER(I)              &
-                                    ,label  = PELAB                     &
+                                    ,label  = TRIM(PELAB)               &
                                     ,rc     = RC)
 !
         IF(PE_MEMBER(I) == 0) PE_MEMBER(i) = TASKS / TOTAL_MEMBER
@@ -806,11 +810,14 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: NEMS_GRID_COMP                  !<-- The NEMS component
-      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The NEMS import state
-      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The NEMS export state
-      TYPE(ESMF_Clock)                  :: CLOCK_MAIN                      !<-- The main Clock
-      INTEGER            ,INTENT(OUT)   :: RC_RUN                          !<-- Error return code
+      TYPE(ESMF_GridComp) :: NEMS_GRID_COMP                                !<-- The NEMS component
+!
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The NEMS import state
+                         ,EXP_STATE                                        !<-- The NEMS export state
+!
+      TYPE(ESMF_Clock) :: CLOCK_MAIN                                       !<-- The main Clock
+!
+      INTEGER,INTENT(OUT) :: RC_RUN                                        !<-- Error return code
 !
 !---------------------
 !***  Local Variables
@@ -839,7 +846,7 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Execute the Run step of the EARTH component"
+      MESSAGE_CHECK="Execute the Run step of the EARTH components"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -940,7 +947,7 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Execute the Run step of the EARTH components"
+          MESSAGE_CHECK="Execute the Run step of the EARTH component"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -1004,11 +1011,14 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: NEMS_GRID_COMP                  !<-- The NEMS component
-      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The NEMS import state
-      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The NEMS export state
-      TYPE(ESMF_Clock)                  :: CLOCK_MAIN                      !<-- The main Clock
-      INTEGER            ,INTENT(OUT)   :: RC_FINALIZE                     !<-- Error return code
+      TYPE(ESMF_GridComp) :: NEMS_GRID_COMP                                !<-- The NEMS component
+!
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The NEMS import state
+                         ,EXP_STATE                                        !<-- The NEMS export state
+!
+      TYPE(ESMF_Clock) :: CLOCK_MAIN                                       !<-- The main Clock
+!
+      INTEGER,INTENT(OUT) :: RC_FINALIZE                                   !<-- Error return code
 !
 !---------------------
 !***  Local Variables

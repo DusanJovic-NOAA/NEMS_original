@@ -4,8 +4,8 @@
 !
 !-----------------------------------------------------------------------
 !
-!***  LIST THE CLOCKTIME COUNTERS FOR THE VARIOUS PARTS OF
-!***  THE INTEGRATION AND PRINT THEM AS DESIRED.
+!***  List the clocktime counters for the various parts of
+!***  the integration and print them as desired.
 !
 !-----------------------------------------------------------------------
 !
@@ -16,7 +16,7 @@
       REAL(kind=KDBL) :: total_integ_tim,totalsum_tim
 !
 !-----------------------------------------------------------------------
-!***  ASSOCIATED WITH DYNAMICS
+!***  Associated with Dynamics
 !-----------------------------------------------------------------------
 !
       REAL(kind=KDBL) :: adv1_tim,adv2_tim,bocoh_tim,bocov_tim          &
@@ -34,7 +34,7 @@
                         ,vadv2_tim,vsound_tim,vtoa_tim
 !
 !-----------------------------------------------------------------------
-!***  ASSOCIATED WITH PHYSICS
+!***  Associated with Physics
 !-----------------------------------------------------------------------
 !
       REAL(kind=KDBL) :: adjppt_tim,cucnvc_tim,exch_phy_tim             &
@@ -44,10 +44,17 @@
                         ,turbl_tim,update_phy_int_state_tim    
 !
 !-----------------------------------------------------------------------
-!***  ASSOCIATED WITH DYNAMICS-PHYSICS COUPLER
+!***  Associated with Dynamics-Physics coupler
 !-----------------------------------------------------------------------
 !
       REAL(kind=KDBL) :: add_fld_tim,cpl_dyn_phy_tim,get_fld_tim
+!
+!-----------------------------------------------------------------------
+!***  Associated with moving nests
+!-----------------------------------------------------------------------
+!
+      REAL(kind=KDBL) :: update_interior_from_nest_tim                  &
+                        ,update_interior_from_parent_tim
 !
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&

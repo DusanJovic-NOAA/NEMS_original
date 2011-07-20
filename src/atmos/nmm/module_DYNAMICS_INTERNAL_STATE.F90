@@ -42,6 +42,8 @@
 !
         INTEGER(kind=KINT), POINTER :: IM,JM,LM
         INTEGER(kind=KINT) :: INPES,JNPES                               &
+                             ,DFIHR_BOCO                                &
+                             ,FILTER_METHOD                             &
                              ,MINUTES_HISTORY                           &
                              ,MINUTES_RESTART                           &
                              ,NHOURS_FCST                               &
@@ -53,9 +55,7 @@
                              ,START_DAY                                 &
                              ,START_HOUR                                &
                              ,START_MINUTE                              &
-                             ,START_SECOND                              &
-                             ,FILTER_METHOD                             &
-                             ,DFIHR_BOCO 
+                             ,START_SECOND
 !
         REAL(kind=KFPT), POINTER :: DT,SBD,TSTART,TPH0D,TLM0D,WBD
         REAL(kind=KFPT) :: CODAMP                                       &
@@ -284,8 +284,8 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  THE INTERNAL_STATE TYPE IS SUPPORTED BY A C POINTER (NOT AN F90
-!***  POINTER) AND THEREFORE THE FOLLOWING TYPE IS NEEDED.
+!***  The INTERNAL_STATE type is supported by a C pointer (not an F90
+!***  pointer) and therefore the following type is needed.
 !-----------------------------------------------------------------------
 !
       TYPE WRAP_DYN_INT_STATE
@@ -410,12 +410,12 @@
         int_state%F_QI=.TRUE.
         int_state%F_QG=.FALSE.
       ENDIF
-
+!
       int_state%NUM_TRACERS_TOTAL=                                      &  !<-- # of 3-D arrays in 4-D TRACERS array
                                   int_state%NUM_TRACERS_MET             &  !<-- # of water, etc. tracers specified now (see below)
                                  +int_state%NUM_TRACERS_CHEM            &  !<-- # of specified scalars (chem, aerosol, etc.)
                                  +int_state%NUM_WATER                      !<-- # of water types
-
+!
 !------------------------------------------------
 !***  Read and store the specifications for each
 !***  internal state variable listed by the user
@@ -435,8 +435,8 @@
       CALL SET_DYN_VAR_PTR(INT_STATE, .TRUE., LM)
 !
 !-----------------------------------------------------------------------
-!***  WE CAN RETRIEVE LM FROM THE INTERNAL STATE SINCE IT WAS
-!***  PLACED THERE ALREADY FROM THE CONFIG FILE.
+!***  We can retrieve LM from the internal state since it was
+!***  placed there already from the config file.
 !-----------------------------------------------------------------------
 !
       I_CYCLE=IDE-3
@@ -488,11 +488,11 @@
       ALLOCATE(int_state%NFFTRH(1:15))             ;int_state%NFFTRH = I4_IN  !<-- FFT working field, h points
       ALLOCATE(int_state%NFFTRW(1:15))             ;int_state%NFFTRW = I4_IN  !<-- FFT working field, v points
 !
-      ALLOCATE(int_state%F     (IMS:IME,JMS:JME))  ;int_state%F      = R4_IN  !<-- Coriolis parameter  (s-1)
-      ALLOCATE(int_state%HDACX (IMS:IME,JMS:JME))  ;int_state%HDACX  = R4_IN  !<-- Lateral diffusion coefficient, h points  (s m-1)
-      ALLOCATE(int_state%HDACY (IMS:IME,JMS:JME))  ;int_state%HDACY  = R4_IN  !<-- Lateral diffusion coefficient, h points  (s m-1)
-      ALLOCATE(int_state%HDACVX(IMS:IME,JMS:JME))  ;int_state%HDACVX = R4_IN  !<-- Lateral diffusion coefficient, v points  (s m-1)
-      ALLOCATE(int_state%HDACVY(IMS:IME,JMS:JME))  ;int_state%HDACVY = R4_IN  !<-- Lateral diffusion coefficient, v points  (s m-1)
+!     ALLOCATE(int_state%F     (IMS:IME,JMS:JME))  ;int_state%F      = R4_IN  !<-- Coriolis parameter  (s-1)
+!     ALLOCATE(int_state%HDACX (IMS:IME,JMS:JME))  ;int_state%HDACX  = R4_IN  !<-- Lateral diffusion coefficient, h points  (s m-1)
+!     ALLOCATE(int_state%HDACY (IMS:IME,JMS:JME))  ;int_state%HDACY  = R4_IN  !<-- Lateral diffusion coefficient, h points  (s m-1)
+!     ALLOCATE(int_state%HDACVX(IMS:IME,JMS:JME))  ;int_state%HDACVX = R4_IN  !<-- Lateral diffusion coefficient, v points  (s m-1)
+!     ALLOCATE(int_state%HDACVY(IMS:IME,JMS:JME))  ;int_state%HDACVY = R4_IN  !<-- Lateral diffusion coefficient, v points  (s m-1)
 !
 !-----------------------------------------------------------------------
 !***  Local horizontal subdomain limits for all forecast tasks.
@@ -791,11 +791,16 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'SGM'       ,int_state%SGM     ,1, LM+1  )
 
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'FIS'       ,int_state%FIS     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'F'         ,int_state%F       ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'GLAT'      ,int_state%GLAT    ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'GLON'      ,int_state%GLON    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'HDACX'     ,int_state%HDACX   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'HDACY'     ,int_state%HDACY   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PD'        ,int_state%PD      ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'VLAT'      ,int_state%VLAT    ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'VLON'      ,int_state%VLON    ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'HDACVX'    ,int_state%HDACVX  ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'HDACVY'    ,int_state%HDACVY  ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PDO'       ,int_state%PDO     ,(/ IMS,JMS /),(/ IME,JME /) )
 
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'T'         ,int_state%T       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )

@@ -97,7 +97,7 @@
 !
         REAL(kind=KFPT) :: DLMD,DPHD                                    &
                           ,DYH,DYV                                      &
-                          ,fres,fr,fsl,fss                              &
+                          ,FRES,FR,FSL,FSS                              &
                           ,PDTOP,PT                                     &
                           ,RDYH,RDYV
 !
@@ -134,10 +134,12 @@
                                                     ,NCFRCV,NCFRST
 !
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: T,U,V               &
-                                                   ,DUDT,DVDT           &
+                                                   ,DUDT,DVDT,DWDT      &
                                                    ,Q,CW                &
-                                                   ,Q2,OMGALF           &
-                                                   ,O3,PINT,DWDT,W,Z
+                                                   ,Q2,O3               &
+                                                   ,OMGALF              &
+                                                   ,PINT                &
+                                                   ,W,Z
 !
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RLWTT,RSWTT
 !
@@ -233,14 +235,20 @@
 !***  GFS physics additional arrays
 !-----------------------------------------------------------------------
 !
-        REAL(kind=KDBL)                              :: SOLCON, SLAG, SDEC, CDEC
+        REAL(kind=KDBL)                              :: CDEC,SDEC       &
+                                                       ,SLAG,SOLCON
         INTEGER        ,DIMENSION(:)      ,POINTER   :: JINDX1,JINDX2
         REAL(kind=KDBL),DIMENSION(:)      ,POINTER   :: DDY
         REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: TMPMIN,TMPMAX
         REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: DUGWD,DVGWD
-        REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: SFALB,TSFLW,SEMIS,SFCDLW,SFCDSW,SFCNSW
-        REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: ZORFCS,SIHFCS,SICFCS,SLPFCS  &
-                                                       ,TG3FCS,VEGFCS,VETFCS,SOTFCS
+        REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: SEMIS,SFALB     &
+                                                       ,SFCDLW,SFCDSW   &
+                                                       ,SFCNSW,TSFLW 
+        REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: SICFCS,SIHFCS   &
+                                                       ,SLPFCS,SOTFCS   &
+                                                       ,TG3FCS          &
+                                                       ,VEGFCS,VETFCS   &
+                                                       ,ZORFCS
         REAL(kind=KDBL),DIMENSION(:,:,:)  ,POINTER   :: ALBFC1,ALFFC1
         REAL(kind=KDBL),DIMENSION(:,:,:)  ,POINTER   :: PHY_F2DV   ! save last time step 2Ds
         REAL(kind=KDBL),DIMENSION(:,:,:,:),POINTER   :: PHY_F3DV   ! save last time step 3Ds
@@ -310,8 +318,8 @@
       END TYPE PHYSICS_INTERNAL_STATE
 !
 !-----------------------------------------------------------------------
-!***  THE INTERNAL_STATE TYPE IS SUPPORTED BY A C POINTER (NOT AN F90
-!***  POINTER) AND THEREFORE THE FOLLOWING TYPE IS NEEDED.
+!***  The internal_state type is supported by a C pointer (not an F90
+!***  pointer) and therefore the following type is needed.
 !-----------------------------------------------------------------------
 !
       TYPE WRAP_PHY_INT_STATE
@@ -346,12 +354,16 @@
 !
 !-----------------------------------------------------------------------
 !
+!------------------------
+!***  Argument Variables
+!------------------------
+!
       TYPE(PHYSICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE             !<-- The Physics internal state
       INTEGER, INTENT(IN) :: LM
 !      
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local variables
+!---------------------
 !
       INTEGER :: I,J,L,N,NSTEPS_PER_HOUR,NUM_PES
       INTEGER :: LATSOZP,TIMEOZ,LEVOZP,PL_COEFF,KOZPL=28
@@ -361,12 +373,12 @@
 !
 
 !-----------------------------------------------------------------------
-!***  THE ARRAY CALLED WATER IS A SPECIAL CASE NEEDED TO SATISFY
-!***  VARIOUS WRF PHYSICS OPTIONS.  THE IS SET TO 1+Number_of_species
-!***  INCLUDING VAPOR.  THE "1+" IS NEEDED BECAUSE WRF NEVER TOUCHES
-!***  THE FIRST LEVEL.
+!***  The array called WATER is a special case needed to satisfy
+!***  various WRF physics options.  The 4th index limit is set to
+!***  1+Number_of_species INCLUDING VAPOR.  The "1+" is needed because
+!***  WRF never touches the first level.
 !
-!***  SET THE P_ and F_ VARIABLES.
+!***  Set the P_ AND F_ variables.
 !***  V=>vapor; C=>cloudwater; R=>rain; I=>cloudice; S=>snow; G=>graupel
 !***  Set the appropriate value for the logical F_ variables.
 !***  For each species that is .TRUE., set the integer P_ variable
@@ -408,8 +420,10 @@
         int_state%P_QG=1
       ENDIF
 !
-!-- Moved the initiation of the int_state%F_Q logicals to 
-!   be defined by a series of IF tests below
+!-----------------------------------------------------------------------
+!***  Moved the initiation of the int_state%F_Q logicals to 
+!***  be defined by a series of IF tests below.
+!-----------------------------------------------------------------------
 !
       IF(int_state%P_QV <= 1) THEN
          int_state%F_QV=.FALSE.
@@ -643,14 +657,22 @@
 !***  Point all unallocated internal state variables into allocated
 !***  memory from Dynamics.  Do fundamental initialization.
 !-----------------------------------------------------------------------
-
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
       TYPE(PHYSICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE
       INTEGER, INTENT(IN) :: LM
-
-      INTEGER :: INDX, I, J, L
-
-!-----------------------------------------------------------------------
 !
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      INTEGER :: INDX, I, J, L
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
 !-----------------------------------------------------------------------
 !***  Loop through the Physics' internal state variables listed in
 !***  the user's text file and re-point them into the composite VARS
@@ -672,7 +694,7 @@
       int_state%Q=>int_state%VARS(I)%R3D
 !
 !-----------------------------------------------------------------------
-!***  ADDITIONAL TRACERS.
+!***  Additional tracers:
 !-----------------------------------------------------------------------
 !
 !--------------------------------
@@ -714,7 +736,7 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE SET_PHY_VAR_PTR(INT_STATE,AF,LM)
-
+!
 !--------------------------------------------------------------
 !***  We must allocate memory within the composite VARS array
 !***  for each Physics internal state variable that is 'Owned'
@@ -725,16 +747,32 @@
 !***  unowned variables will be pointing at allocated memory
 !***  for the owned variable in Dynamics.
 !--------------------------------------------------------------
-
+!
       USE MODULE_DM_PARALLEL,ONLY: IMS,IME,JMS,JME
-
+!
+!--------------------------------------------------------------
+!
       IMPLICIT NONE
-
+!
+!--------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
       TYPE(PHYSICS_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE
       LOGICAL, INTENT(IN) :: AF                                  ! ALLOC_FLAG
       INTEGER, INTENT(IN) :: LM
-
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
       INTEGER :: N,NV
+!
+!--------------------------------------------------------------
+!**************************************************************
+!--------------------------------------------------------------
 
       NV=int_state%NUM_VARS
 

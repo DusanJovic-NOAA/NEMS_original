@@ -49,9 +49,14 @@
 'FIS'        H       R       O      -      X   -  'Surface geopotential (m2 s-2)'
 'GLAT'       H       R       O      -      -   -  'Latitudes of h points  (radians)'
 'GLON'       H       R       O      -      -   -  'Longitudes of h points (radians)'
+'HDACX'      -       -       O      -      -   -  'Lateral diffusion H coefficient in X'
+'HDACY'      -       -       O      -      -   -  'Lateral diffusion H coefficient in Y'
 'PD'         H       R       -      I      -   -  'Pressure difference, sigma range  (Pa)'
+'F'          -       -       O      -      -   -   Vx  'Coriolis parameter (s-1)'
 'VLAT'       H       R       O      -      -   -  'Latitudes of V points  (radians)'
 'VLON'       H       R       O      -      -   -  'Longitudes of V points (radians)'
+'HDACVX'     -       -       O      -      -   -  'Lateral diffusion V coefficient in X'
+'HDACVY'     -       -       O      -      -   -  'Lateral diffusion V coefficient in Y'
 'PDO'        -       R       O      -      -   -  'Previous pressure difference, sigma range  (Pa)'
 
 ###    3D real

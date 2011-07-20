@@ -1362,10 +1362,10 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifdef ESMF_520rbs
-          CALL ESMF_FieldBundleGet(Fieldbundle=HISTORY_BUNDLE                &  !<-- The write component's history data Bundle
-                                  ,Fieldname  =wrt_int_state%FIELD_NAME(N)   &  !<-- The ESMF Field's name
-                                  ,field =FIELD_WORK1                        &  !<-- The ESMF Field data pointer
-                                  ,rc    =RC)
+          CALL ESMF_FieldBundleGet(fieldbundle=HISTORY_BUNDLE                &  !<-- The write component's history data Bundle
+                                  ,fieldname  =wrt_int_state%FIELD_NAME(N)   &  !<-- The ESMF Field's name
+                                  ,field      =FIELD_WORK1                   &  !<-- The ESMF Field data pointer
+                                  ,rc         =RC)
 #else
           CALL ESMF_FieldBundleGet(bundle=HISTORY_BUNDLE                &  !<-- The write component's history data Bundle
                                   ,name  =wrt_int_state%FIELD_NAME(N)   &  !<-- The ESMF Field's name
@@ -1611,10 +1611,10 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifdef ESMF_520rbs
-          CALL ESMF_FieldBundleGet(Fieldbundle=RESTART_BUNDLE                  &  !<-- The write component's restart data Bundle
-                                  ,Fieldname  =wrt_int_state%RST_FIELD_NAME(N) &  !<-- The ESMF Field's name
-                                  ,field =FIELD_WORK1                          &  !<-- The ESMF Field data pointer
-                                  ,rc    =RC)
+          CALL ESMF_FieldBundleGet(fieldbundle=RESTART_BUNDLE                  &  !<-- The write component's restart data Bundle
+                                  ,fieldname  =wrt_int_state%RST_FIELD_NAME(N) &  !<-- The ESMF Field's name
+                                  ,field      =FIELD_WORK1                     &  !<-- The ESMF Field data pointer
+                                  ,rc         =RC)
 #else
           CALL ESMF_FieldBundleGet(bundle=RESTART_BUNDLE                  &  !<-- The write component's restart data Bundle
                                   ,name  =wrt_int_state%RST_FIELD_NAME(N) &  !<-- The ESMF Field's name

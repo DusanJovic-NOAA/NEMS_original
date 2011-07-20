@@ -4,6 +4,7 @@
 
 core: nmm                   # Introduce ourselves to the NEMS
 
+
 #################################
 #####  Grid Specifications  #####
 #################################
@@ -66,8 +67,8 @@ tstart:       0.            # The starting forecast hour
 #############################################################
 
 nhours_fcst:      _FCSTL_   # Length of the forecast (hours)
-minutes_history:  60       # Frequency of history output (minutes)
-nhours_dfini:       0
+minutes_history:  60        # Frequency of history output (minutes)
+nhours_dfini:      0
 
 restart:          _RSTRT_   # True--> A restarted run
 minutes_restart:  720       # Frequency of restart output (minutes)
@@ -76,6 +77,7 @@ avg_max_length: 3600        # Time in seconds when averaged fields are reset
 
 rst_out_00:          false  # True--> Write 00h history in restarted run
 write_last_restart:  true   # True--> Write last restart file
+
 freerun:             true   # True--> Original
                             # False--> 5X divergence dumping in NDAS forec.
 
@@ -87,6 +89,16 @@ freerun:             true   # True--> Original
 global:    false            # True--> Global ; False--> Regional
 hydro:     false            # True--> Hydrostatic ;  False--> Nonhydrostatic
 adiabatic: false            # True--> Adiabatic ;  False--> Diabatic
+
+
+####################
+##### Ensemble #####
+####################
+
+ENS_SPS:       false
+RUN_CONTINUE:  false
+total_member:  1
+PE_MEMBER01:   0
 
 
 ######################
@@ -220,16 +232,16 @@ fr:       1.00               # land factor for dsp's (dafault)
 fsl:      0.85               # reduction factor for "slow" dsp's over land (dafault)
 fss:      0.85               # reduction factor for "slow" dsp's over water (dafault)
 
-#fres:     0.80               # resolution factor for dsp's
-#fr:       1.00               # land factor for dsp's
-#fsl:      0.85               # reduction factor for "slow" dsp's over land
-#fss:      0.85               # reduction factor for "slow" dsp's over water
+#fres:     0.80              # resolution factor for dsp's
+#fr:       1.00              # land factor for dsp's
+#fsl:      0.85              # reduction factor for "slow" dsp's over land
+#fss:      0.85              # reduction factor for "slow" dsp's over water
 
-entrain:    .false.         # Entrainment
-newall:     .true.          # New cloud used at all shallow points
-newswap:    .true.          # New clouds at swap shallow points
-newupup:    .true.          # New cloud used for both heat and moisture up shallow pts.
-nodeep:     .false.         # All deep convection diverted to shallow swap algorythm
+entrain:    false            # Entrainment
+newall:     true             # New cloud used at all shallow points
+newswap:    true             # New clouds at swap shallow points
+newupup:    true             # New cloud used for both heat and moisture up shallow pts.
+nodeep:     false            # All deep convection diverted to shallow swap algorythm
 
 
 ###############################
@@ -250,6 +262,7 @@ nprecip:    2               # Number of dynamics timesteps between calls to conv
 
 nhrs_udef:  true            # User defined when fluxes are emptied.
                             # False--> Auto ; True--> User defined:
+
 nhrs_prec:  3               # Frequency in hours between times when precip arrays are emptied
 nhrs_heat:  3               # Frequency in hours between times when heating arrays are emptied
 nhrs_clod:  3               # Frequency in hours between times when cloud arrays are emptied
@@ -264,17 +277,17 @@ nhrs_srfc:  3               # Frequency in hours between times when sfc evap/flu
 
 nemsio_input: _NEMSI_
 
-write_hst_bin:           .TRUE.      # True--> Write history files in binary format
-write_hst_nemsio:        .TRUE.      # True--> Write history files in NEMSIO format
-write_rst_bin:           .TRUE.      # True--> Write restart files in binary format
-write_rst_nemsio:        .TRUE.      # True--> Write restart files in NEMSIO format
+write_hst_bin:       true   # True--> Write history files in binary format
+write_hst_nemsio:    true   # True--> Write history files in NEMSIO format
+write_rst_bin:       true   # True--> Write restart files in binary format
+write_rst_nemsio:    true   # True--> Write restart files in NEMSIO format
 
-write_nemsioctl:         .TRUE.      # True--> Yes write ctl for nemsio run history files
-write_donefileflag:      .FALSE.
+write_nemsioctl:     true   # True--> Yes write ctl for nemsio run history files
+write_donefileflag:  false
 write_fsyncflag:         .FALSE.     # True--> Yes write fsync
 
-io_hst_unit:             -999
-io_rst_unit:             -999
+io_hst_unit:          -999
+io_rst_unit:          -999
 
 
 #-------------------------------------------------
@@ -283,19 +296,19 @@ io_rst_unit:             -999
 # file names.
 #-------------------------------------------------
 
-io_hst_file:             'DEFERRED'
-io_rst_file:             'DEFERRED'
-hst_name_base:           'nmm_b_history'
-rst_name_base:           'nmm_b_restart'
+io_hst_file:     'DEFERRED'
+io_rst_file:     'DEFERRED'
+hst_name_base:   'nmm_b_history'
+rst_name_base:   'nmm_b_restart'
 
-io_status:               'REPLACE'
-io_access:               'SEQUENTIAL'
-io_form:                 'UNFORMATTED'
-io_recl:                 100
-io_position:             ' '
-io_action:               'WRITE'
-io_delim:                ' '
-io_pad:                  ' '
+io_status:       'REPLACE'
+io_access:       'SEQUENTIAL'
+io_form:         'UNFORMATTED'
+io_recl:         100
+io_position:     ' '
+io_action:       'WRITE'
+io_delim:        ' '
+io_pad:          ' '
 
 
 ##################################
@@ -305,11 +318,14 @@ io_pad:                  ' '
 my_domain_id: 1              # The ID number of this domain (uppermost domain must have ID=1)
 my_parent_id: -999           # The ID number of this domain's parent
 n_children:  _NCHILD_        # How many child domains does this domain have?
+num_domains_total: 3         # The total number of domains in this run (only needed in domain #1's configure file)
 i_parent_start:   75         # Nest southwest corner at this parent I
 j_parent_start:   27         # Nest southwest corner at this parent J
 parent_child_space_ratio: 3  # Ratio of parent grid increment to nests's
+my_domain_moves:  false      # Does this domain move?
+ratio_sfc_files:  0          # Ratio of uppermost parent grid increment to this moving nest's
 
-input_ready:  .FALSE.        # Nest has pre-generated input file
+input_ready:  false          # Nest has pre-generated input file
 
 
 #######################
@@ -319,12 +335,3 @@ input_ready:  .FALSE.        # Nest has pre-generated input file
 nhours_clocktime:   1        # Frequency in hours between clocktime diagnostic prints.
 npe_print:          1        # The MPI task that will provide the clocktimes.
 
-
-##########################
-####  Ensemble flags  ####
-##########################
-
-ENS_SPS:            .FALSE.
-total_member:       1
-RUN_CONTINUE:       .FALSE.
-PE_MEMBER01:        0

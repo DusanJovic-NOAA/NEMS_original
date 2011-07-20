@@ -53,8 +53,8 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      INTEGER(KIND=KINT),PARAMETER :: MYJPBLSCHEME=2
-      INTEGER(KIND=KINT),PARAMETER :: GFSPBLSCHEME=9
+      INTEGER(kind=KINT),PARAMETER :: MYJPBLSCHEME=2
+      INTEGER(kind=KINT),PARAMETER :: GFSPBLSCHEME=9
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -62,7 +62,7 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      INTEGER(KIND=KINT),PARAMETER :: JSFCSCHEME=2
+      INTEGER(kind=KINT),PARAMETER :: JSFCSCHEME=2
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -70,7 +70,7 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      INTEGER(KIND=KINT),PARAMETER :: LSMSCHEME   =2                    &
+      INTEGER(kind=KINT),PARAMETER :: LSMSCHEME   =2                    &
                                      ,LISSSCHEME  =101
 !
 !-----------------------------------------------------------------------
@@ -159,207 +159,211 @@
 !
 !-----------------------------------------------------------------------
 !
-      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
-                           ,IMS,IME,JMS,JME                             &
-                           ,ITS,ITE,JTS,JTE                             &
-                           ,NPHS,NSOIL,NTSD,NUM_WATER                   &
-                           ,UCMCALL,IGBP
+      INTEGER(kind=KINT),INTENT(IN) :: IDS,IDE,JDS,JDE,LM               &
+                                      ,IMS,IME,JMS,JME                  &
+                                      ,ITS,ITE,JTS,JTE                  &
+                                      ,NPHS,NSOIL,NTSD,NUM_WATER        &
+                                      ,UCMCALL,IGBP
 !
-      INTEGER,INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
+      INTEGER(kind=KINT),INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
 !
-      INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: ISLTYP,IVGTYP
+      INTEGER(kind=KINT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: ISLTYP &
+                                                                 ,IVGTYP
 !
-      INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: LPBL
+      INTEGER(kind=KINT),DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: LPBL
 !
-      REAL,INTENT(IN) :: DT,PT
+      REAL(kind=KFPT),INTENT(IN) :: DT,PT
 !
-      REAL,DIMENSION(1:LM),INTENT(IN) :: DSG2,PDSG1,PSGML1,SGML2
+      REAL(kind=KFPT),DIMENSION(1:LM),INTENT(IN) :: DSG2,PDSG1,PSGML1   &
+                                                   ,SGML2
 !
-      REAL,DIMENSION(1:LM+1),INTENT(IN) :: PSG1,SG2
+      REAL(kind=KFPT),DIMENSION(1:LM+1),INTENT(IN) :: PSG1,SG2
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: ALBASE,MXSNAL
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: ALBASE &
+                                                                 ,MXSNAL
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: CROT,SROT           &
-                      ,HSTDV,HCNVX,HASYW,HASYS,HASYSW,HASYNW,HLENW      &
-                      ,HLENS,HLENSW,HLENNW,HANGL,HANIS,HSLOP,HZMAX
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: CROT,SROT &
+                           ,HSTDV,HCNVX,HASYW,HASYS,HASYSW,HASYNW,HLENW  &
+                           ,HLENS,HLENSW,HLENNW,HANGL,HANIS,HSLOP,HZMAX
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: CZEN,CZMEAN         &
-                                                   ,FIS,PD              &
-                                                   ,RLWIN,RLWTOA        &
-                                                   ,RSWIN,RSWOUT,RSWTOA &
-                                                   ,SICE,SIGT4          &
-                                                   ,SST,TG,VEGFRC
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: CZEN     &
+                                                              ,CZMEAN   &
+                                                              ,FIS,PD   &
+                                                              ,RLWIN    &
+                                                              ,RLWTOA   &
+                                                              ,RSWIN    &
+                                                              ,RSWOUT   &
+                                                              ,RSWTOA   &
+                                                              ,SICE     &
+                                                              ,SIGT4    &
+                                                              ,SST,TG   &
+                                                              ,VEGFRC
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: SM,EPSR,SR         !Bandaid
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: EPSR  &
+                                                                 ,SM,SR
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: GRNFLX,QWBS,RADOT  &
-                                                    ,SFCEXC,SMSTAV      &
-                                                    ,SOILTB,TWBS
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: GRNFLX,QWBS,RADOT  &
+                                                               ,SFCEXC,SMSTAV      &
+                                                               ,SOILTB,TWBS
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: ACSNOM,ACSNOW    &
-                                                      ,AKHS,AKMS        &
-                                                      ,ALBEDO           &
-                                                      ,MAVAIL           &
-                                                      ,BGROFF,CMC       &
-                                                      ,PBLH,POTEVP      &
-                                                      ,POTFLX,PREC      &
-                                                      ,QCG,QS,QSG       &
-                                                      ,QVG,QZ0,RMOL     &
-                                                      ,SFCEVP           &
-                                                      ,SFCLHX,SFCSHX    &
-                                                      ,SI,SMSTOT        &
-                                                      ,SNO,SNOPCX       &
-                                                      ,SOILT1           &
-                                                      ,SSROFF,SUBSHX    &
-                                                      ,T2,THS,THZ0      &
-                                                      ,TSFC,TSNAV       &
-                                                      ,USTAR,UZ0,VZ0    &
-                                                      ,Z0,Z0BASE        &
-                                                      ,APHTIM,ARDSW     & !<-- Were scalars
-                                                      ,ARDLW,ASRFC        !<-- Were scalars
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: ACSNOM,ACSNOW    &
+                                                                 ,AKHS,AKMS        &
+                                                                 ,ALBEDO           &
+                                                                 ,MAVAIL           &
+                                                                 ,BGROFF,CMC       &
+                                                                 ,PBLH,POTEVP      &
+                                                                 ,POTFLX,PREC      &
+                                                                 ,QCG,QS,QSG       &
+                                                                 ,QVG,QZ0,RMOL     &
+                                                                 ,SFCEVP           &
+                                                                 ,SFCLHX,SFCSHX    &
+                                                                 ,SI,SMSTOT        &
+                                                                 ,SNO,SNOPCX       &
+                                                                 ,SOILT1           &
+                                                                 ,SSROFF,SUBSHX    &
+                                                                 ,T2,THS,THZ0      &
+                                                                 ,TSFC,TSNAV       &
+                                                                 ,USTAR,UZ0,VZ0    &
+                                                                 ,Z0,Z0BASE        &
+                                                                 ,APHTIM,ARDSW     & !<-- Were scalars
+                                                                 ,ARDLW,ASRFC        !<-- Were scalars
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: AKHS_OUT,AKMS_OUT  &
-                                                    ,ALWIN,ALWOUT       &
-                                                    ,ALWTOA,ASWIN       &
-                                                    ,ASWOUT,ASWTOA      &
-                                                    ,MIXHT,PSHLTR       &
-                                                    ,Q10,QSHLTR         &
-                                                    ,TH10,TSHLTR        &
-                                                    ,U10,V10
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: AKHS_OUT,AKMS_OUT  &
+                                                               ,ALWIN,ALWOUT       &
+                                                               ,ALWTOA,ASWIN       &
+                                                               ,ASWOUT,ASWTOA      &
+                                                               ,MIXHT,PSHLTR       &
+                                                               ,Q10,QSHLTR         &
+                                                               ,TH10,TSHLTR        &
+                                                               ,U10,V10
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CWM         &
-                                                           ,EXCH_H      &
-                                                           ,Q,Q2        &
-                                                           ,T,U,V
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CWM    &
+                                                                      ,EXCH_H &
+                                                                      ,Q,Q2   &
+                                                                      ,T,U,V
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,NUM_WATER),INTENT(INOUT) :: WATER
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM,NUM_WATER),INTENT(INOUT) :: WATER
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) ::  F_ICE      &
-                                                            ,F_RAIN
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) ::  F_ICE  &
+                                                                       ,F_RAIN
 
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(INOUT) ::  RQVBLTEN &
-                                                              ,RTHBLTEN
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(INOUT) ::  RQVBLTEN &
+                                                                         ,RTHBLTEN
 
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: DUDT,DVDT     &
-                                                         ,XLEN_MIX
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: DUDT,DVDT &
+                                                                    ,XLEN_MIX
 !
-      REAL,DIMENSION(NSOIL),INTENT(IN) :: DZSOIL,SLDPTH
+      REAL(kind=KFPT),DIMENSION(NSOIL),INTENT(IN) :: DZSOIL,SLDPTH
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,NSOIL),INTENT(INOUT) :: SH2O,SMC,STC
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,NSOIL),INTENT(INOUT) :: SH2O,SMC,STC
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) ::  RSWTT, RLWTT
 !
       CHARACTER(99),INTENT(IN) :: LAND_SURFACE,MICROPHYSICS             &
                                  ,SFC_LAYER,TURBULENCE
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) ::  RSWTT, RLWTT
-
 !
 !  For precip assimilation:
 !
-      LOGICAL,INTENT(IN) :: GWDFLG,PCPFLG
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: DDATA
-      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: DDATA
+      LOGICAL(kind=KLOG),INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
+      LOGICAL(kind=KLOG),INTENT(IN) :: GWDFLG,PCPFLG
 !
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      REAL(kind=KFPT),PARAMETER :: XLV=ELWV
+!
+      INTEGER(kind=KINT) :: I,I_M,IEND,IJ,ISTR,IW,J,K,KFLIP,KOUNT_ALL   &
+                           ,LENGTH_ROW,N,NRDL,NRL,NWL,SST_UPDATE
+!
+      INTEGER(kind=KINT) :: PBL_PHYSICS,SFCLAY_PHYSICS,SURFACE_PHYSICS
+!
+      INTEGER(kind=KINT) :: NUM_ROAD_LAYERS                             &
+                           ,NUM_ROOF_LAYERS                             &
+                           ,NUM_WALL_LAYERS
+!
+      INTEGER(kind=KINT),DIMENSION(IMS:IME,JMS:JME) :: KPBL             &
+                                                      ,UTYPE_URB2D
+!
+      REAL(kind=KFPT) :: ALTITUDE,DECLIN_URB,DQDT,DTBL,DTDT,DTMIN,DTPHS,DZHALF &
+                        ,FACTOR,FACTRL,G_INV,PDSL,PLM,PLYR,PSFC                &
+                        ,QI,QL,QLOWX,QOLD,QR,QW                                &
+                        ,RATIOMX,RDTPHS,ROG,RXNER,SNO_FACTR                    &
+                        ,TL,TLMH,TSFC2,XLVRW
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME) :: BR,CHKLOWQ,CHS,CHS2,CPM,CQS2  &
+                                                   ,CT,CWMLOW                     &
+                                                   ,ELFLX,EXNSFC,FACTRS,FLHC,FLQC &
+                                                   ,GZ1OZ0,ONE,PSFC_OUT,PSIH,PSIM &
+                                                   ,Q2X,QGH,QLOW,RAIN,RAINBL      &
+                                                   ,RLW_DN_SFC,RSW_NET_SFC        &
+                                                   ,RSW_DN_SFC                    &
+                                                   ,SFCEVPX,SFCZ,SNOW,SNOWC,SNOWH &
+                                                   ,TH2X,THLOW,TLOW               &
+                                                   ,VGFRCK,XLAND
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: DELP                    &
+                                                          ,DUDT_PHY,DVDT_PHY,DZ    &
+                                                          ,EXNER,PINT,PMID         &
+                                                          ,RQCBLTEN,RQIBLTEN       &
+                                                          ,RR,U_PHY,V_PHY,TH,TKE,Z
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: RQRBLTEN, RQSBLTEN,RQGBLTEN
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,1:LM+1,JMS:JME) :: DP_GWD,EXNR_GWD         &
+                                                          ,PINT_GWD,PMID_GWD,Q_GWD &
+                                                          ,T_GWD,U_GWD,V_GWD,Z_GWD
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,1:LM+1,JMS:JME) :: DUDT_GWD,DVDT_GWD
 
-!-----------------------------------------------------------------------
-!***
-!***  LOCAL VARIABLES
-!***
-!-----------------------------------------------------------------------
+      REAL(kind=KFPT),DIMENSION(1:NSOIL) :: DZB,DZR,DZG
 !
-      REAL,PARAMETER :: XLV=ELWV
+      REAL(kind=KFPT),DIMENSION(IMS:IME,1:NSOIL,JMS:JME) :: TBL_URB3D   &
+                                                           ,TGL_URB3D   &
+                                                           ,TRL_URB3D
 !
-      INTEGER :: I,I_M,IEND,IJ,ISTR,J,K,KFLIP,KOUNT_ALL                 &
-                ,LENGTH_ROW,N,NRDL,NRL,NWL,SST_UPDATE,IW
-!
-      INTEGER :: PBL_PHYSICS,SFCLAY_PHYSICS,SURFACE_PHYSICS
-!
-      INTEGER :: NUM_ROAD_LAYERS                                        &
-                ,NUM_ROOF_LAYERS                                        &
-                ,NUM_WALL_LAYERS
-!
-!
-      INTEGER,DIMENSION(IMS:IME,JMS:JME) :: KPBL                        &
-                                           ,UTYPE_URB2D
-!
-      REAL :: ALTITUDE,DECLIN_URB,DQDT,DTBL,DTDT,DTMIN,DTPHS,DZHALF     &
-             ,FACTOR,FACTRL,G_INV,PDSL,PLM,PLYR,PSFC                    &
-             ,QI,QL,QLOWX,QOLD,QR,QW                                    &
-             ,RATIOMX,RDTPHS,ROG,RXNER,SNO_FACTR                        &
-             ,TL,TLMH,TSFC2,XLVRW
-!
-      REAL,DIMENSION(IMS:IME,JMS:JME) :: BR,CHKLOWQ,CHS,CHS2,CPM,CQS2   &
-                                        ,CT,CWMLOW                      &
-                                        ,ELFLX,EXNSFC,FACTRS,FLHC,FLQC  &
-                                        ,GZ1OZ0,ONE,PSFC_OUT,PSIH,PSIM  &
-                                        ,Q2X,QGH,QLOW,RAIN,RAINBL       &
-                                        ,RLW_DN_SFC,RSW_NET_SFC         &
-                                        ,RSW_DN_SFC                     &
-                                        ,SFCEVPX,SFCZ,SNOW,SNOWC,SNOWH  &
-                                        ,TH2X,THLOW,TLOW                &
-                                        ,VGFRCK,XLAND
-!
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: DELP                    &
-                                               ,DUDT_PHY,DVDT_PHY,DZ    &
-                                               ,EXNER,PINT,PMID         &
-                                               ,RQCBLTEN,RQIBLTEN       &
-                                               ,RR,U_PHY,V_PHY,TH,TKE,Z
-!
-!
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: RQRBLTEN, RQSBLTEN,RQGBLTEN
-      REAL,DIMENSION(IMS:IME,1:LM+1,JMS:JME) :: DP_GWD,EXNR_GWD         &
-                                               ,PINT_GWD,PMID_GWD,Q_GWD &
-                                               ,T_GWD,U_GWD,V_GWD,Z_GWD
-!
-      REAL,DIMENSION(IMS:IME,1:LM+1,JMS:JME) :: DUDT_GWD,DVDT_GWD
+      REAL(kind=KFPT), DIMENSION( IMS:IME, JMS:JME ) :: AKMS_URB2D      &
+                                                       ,COSZ_URB2D      &
+                                                       ,FRC_URB2D       &
+                                                       ,G_URB2D         &
+                                                       ,GZ1OZ0_URB2D    &
+                                                       ,LH_URB2D        &
+                                                       ,OMG_URB2D       &
+                                                       ,PSIH_URB2D      &
+                                                       ,PSIM_URB2D      &
+                                                       ,Q2_URB2D        &
+                                                       ,QC_URB2D        &
+                                                       ,RN_URB2D        &
+                                                       ,SH_URB2D        &
+                                                       ,TB_URB2D        &
+                                                       ,TC_URB2D        &
+                                                       ,TG_URB2D        &
+                                                       ,TH2_URB2D       &
+                                                       ,TR_URB2D        &
+                                                       ,TS_URB2D        &
+                                                       ,U10_URB2D       &
+                                                       ,UC_URB2D        &
+                                                       ,UST_URB2D       &
+                                                       ,V10_URB2D       &
+                                                       ,XLAT_URB2D      &
+                                                       ,XXXB_URB2D      &
+                                                       ,XXXC_URB2D      &
+                                                       ,XXXG_URB2D      &
+                                                       ,XXXR_URB2D
 
-      REAL, DIMENSION(1:NSOIL) :: DZR
-      REAL, DIMENSION(1:NSOIL) :: DZB
-      REAL, DIMENSION(1:NSOIL) :: DZG
+      REAL(kind=KFPT), DIMENSION( IMS:IME, JMS:JME )  :: RIB   ! Bulk Richardson Number
 !
-      REAL, DIMENSION( IMS:IME , 1:NSOIL, JMS:JME ) :: TRL_URB3D
-      REAL, DIMENSION( IMS:IME , 1:NSOIL, JMS:JME ) :: TBL_URB3D
-      REAL, DIMENSION( IMS:IME , 1:NSOIL, JMS:JME ) :: TGL_URB3D
-!
-      REAL, DIMENSION( IMS:IME, JMS:JME ) :: AKMS_URB2D                 &
-                                            ,COSZ_URB2D                 &
-                                            ,FRC_URB2D                  &
-                                            ,G_URB2D                    &
-                                            ,GZ1OZ0_URB2D               &
-                                            ,LH_URB2D                   &
-                                            ,OMG_URB2D                  &
-                                            ,PSIH_URB2D                 &
-                                            ,PSIM_URB2D                 &
-                                            ,Q2_URB2D                   &
-                                            ,QC_URB2D                   &
-                                            ,RN_URB2D                   &
-                                            ,SH_URB2D                   &
-                                            ,TB_URB2D                   &
-                                            ,TC_URB2D                   &
-                                            ,TG_URB2D                   &
-                                            ,TH2_URB2D                  &
-                                            ,TR_URB2D                   &
-                                            ,TS_URB2D                   &
-                                            ,U10_URB2D                  &
-                                            ,UC_URB2D                   &
-                                            ,UST_URB2D                  &
-                                            ,V10_URB2D                  &
-                                            ,XLAT_URB2D                 &
-                                            ,XXXB_URB2D                 &
-                                            ,XXXC_URB2D                 &
-                                            ,XXXG_URB2D                 &
-                                            ,XXXR_URB2D 
-
-      REAL, DIMENSION( IMS:IME, JMS:JME )  :: RIB   ! Bulk Richardson Number
-!
-      LOGICAL :: FRPCPN,MYJ,WARM_RAIN
-      LOGICAL :: E_BDY,N_BDY,S_BDY,W_BDY
+      LOGICAL(kind=KLOG) :: FRPCPN,MYJ,WARM_RAIN
+      LOGICAL(kind=KLOG) :: E_BDY,N_BDY,S_BDY,W_BDY
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!***  TRANSLATE THE PACKAGE OPTIONS IN THE CONFIG FILE NEEDED BY
-!***  THE TURBULENCE TO THEIR ANALOGS IN THE WRF REGISTRY SO THAT
-!***  THE WRF SURFACE AND PBL DRIVERS REMAIN UNTOUCHED.
+!***  Translate the package options in the config file needed by
+!***  the Turbulence to their analogs in the WRF Registry so that
+!***  the WRF surface and PBL drivers remain untouched.
 !-----------------------------------------------------------------------
 !
       SELECT CASE (TRIM(TURBULENCE))
@@ -494,9 +498,7 @@
 !.......................................................................
 !
 !-----------------------------------------------------------------------
-!
-!***  PREPARE NEEDED ARRAYS
-!
+!***  Prepare needed arrays
 !-----------------------------------------------------------------------
 !
 !.......................................................................
@@ -530,7 +532,7 @@
         Q2X(I,J)=Q(I,J,LM)
 !
 !-----------------------------------------------------------------------
-!*** modify z0 if snow on the ground
+!*** Modify z0 if snow on the ground
 !-----------------------------------------------------------------------
 !
 !        if(snow(i,j).gt.0.) then  !zj
@@ -540,7 +542,7 @@
 !        endif                     !zj
 !
 !-----------------------------------------------------------------------
-!*** LONG AND SHORTWAVE FLUX AT GROUND SURFACE
+!*** Long and shortwave flux at ground surface
 !-----------------------------------------------------------------------
 !
         IF(CZMEAN(I,J)>0.)THEN
@@ -566,14 +568,14 @@
         RSW_DN_SFC(I,J)=RSWIN(I,J)*FACTRS(I,J)
 !
 !-----------------------------------------------------------------------
-!***  FILL THE ARRAYS FOR CALLING THE INNER DRIVER.
+!***  Fill the arrays for calling the inner driver.
 !-----------------------------------------------------------------------
 !
         Z(I,J,LM+1)=SFCZ(I,J)
         Z_GWD(I,1,J)=Z(I,J,LM+1)
 !
 !-----------------------------------------------------------------------
-!***  FILL VERTICAL WORKING ARRAYS.
+!***  Fill vertical working arrays.
 !-----------------------------------------------------------------------
 !
         DO K=LM,1,-1
@@ -646,7 +648,7 @@
 !.......................................................................
 !
 !-----------------------------------------------------------------------
-!***  COMPUTE VELOCITY COMPONENTS AT MASS POINTS
+!***  Compute velocity components at mass points.
 !-----------------------------------------------------------------------
 !
 !.......................................................................
@@ -670,7 +672,7 @@
 !$omp end parallel do
 !.......................................................................
 !-----------------------------------------------------------------------
-!***  MOISTURE AVAILABILITY
+!***  Moisture availability
 !-----------------------------------------------------------------------
 !
       IF(TRIM(LAND_SURFACE)=='nmm')THEN
@@ -688,7 +690,7 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  SYNCHRONIZE MIXING RATIO IN WATER ARRAY WITH SPECIFIC HUMIDITY.
+!***  Synchronize mixing ratio in Water array with specific humidity.
 !-----------------------------------------------------------------------
 !
 !.......................................................................
@@ -707,7 +709,7 @@
 !.......................................................................
 !-----------------------------------------------------------------------
 !
-!***  CALL SURFACE LAYER AND LAND SURFACE PHYSICS
+!***  Call surface layer and land surface physics.
 !
 !-----------------------------------------------------------------------
 !
@@ -949,10 +951,10 @@
 !$omp end parallel do
 !.......................................................................
 !
-!***  THE SURFACE EXCHANGE COEFFICIENTS AKHS AND AKMS ARE ACTUALLY
-!***  MULTIPLIED BY HALF THE DEPTH OF THE LOWEST LAYER.  WE MUST RETAIN
-!***  THOSE VALUES FOR THE NEXT TIMESTEP SO USE AUXILLIARY ARRAYS FOR
-!***  THE OUTPUT.
+!***  The surface exchange coefficients AKHS and AKMS are actually
+!***  multiplied by half the depth of the lowest layer.  We must retain
+!***  those values for the next timestep so use auxilliary arrays for
+!***  the output.
 !
       DO J=JTS,JTE
       DO I=ITS,ITE
@@ -1062,16 +1064,16 @@
       END SELECT pbl_select
 
 !-----------------------------------------------------------------------
-!
-!***  NOTE THAT THE EXCHANGE COEFFICIENTS FOR HEAT EXCH_H COMING OUT OF
-!***  PBL_DRIVER ARE DEFINED AT THE TOPS OF THE LAYERS KTS TO KTE-1
-!***  IF MODULE_BL_MYJPBL WAS INVOKED.
-!
-!-----------------------------------------------------------------------
-!***  UNCOMPUTED LOCATIONS MUST BE FILLED IN FOR THE POST-PROCESSOR
+!***  Note that the exchange coefficients for heat EXCH_H coming out of
+!***  PBL_DRIVER are defined at the tops of the layers KTS to KTE-1
+!***  if MODULE_BL_MYJPBL was invoked.
 !-----------------------------------------------------------------------
 !
-!***  EASTERN GLOBAL BOUNDARY
+!-----------------------------------------------------------------------
+!***  Uncomputed locations must be filled in for the post-processor.
+!-----------------------------------------------------------------------
+!
+!***  Eastern global boundary
 !
       IF(E_BDY)THEN
         DO J=JDS,JDE
@@ -1086,7 +1088,7 @@
         ENDDO
       ENDIF
 !
-!***  SOUTHERN GLOBAL BOUNDARY
+!***  Southern global boundary
 !
       IF(S_BDY)THEN
         DO I=IDS,IDE
@@ -1101,7 +1103,7 @@
         ENDDO
       ENDIF
 !
-!***  NORTHERN GLOBAL BOUNDARY
+!***  Northern global boundary
 !
       IF(N_BDY)THEN
         DO I=IDS,JDE
@@ -1129,7 +1131,7 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  COMPUTE MODEL LAYER CONTAINING THE TOP OF THE BOUNDARY LAYER
+!***  Compute model layer containing the top of the boundary layer.
 !-----------------------------------------------------------------------
 !
       IF(TRIM(TURBULENCE)/='myj')THEN
@@ -1177,7 +1179,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  DIAGNOSTIC RADIATION ACCUMULATION
+!***  Diagnostic radiation accumulation.
 !-----------------------------------------------------------------------
 !
 !.......................................................................
@@ -1246,7 +1248,7 @@
 !=======================================================================
 !
 !-----------------------------------------------------------------------
-!***  UPDATE TEMPERATURE, SPECIFIC HUMIDITY, CLOUD, AND TKE.
+!***  Update temperature, specific humidity, cloud, and tke.
 !-----------------------------------------------------------------------
 !
 
@@ -1326,7 +1328,7 @@
 !.......................................................................
 !
 !-----------------------------------------------------------------------
-!***  TRANSFER THE WIND TENDENCIES.
+!***  Transfer the wind tendencies.
 !-----------------------------------------------------------------------
 !
       gwd_update: IF(GWDFLG) THEN
@@ -1366,7 +1368,7 @@
 !
 !-----------------------------------------------------------------------
 !***
-!***  SAVE SURFACE-RELATED FIELDS.
+!***  Save surface-related fields.
 !***
 !-----------------------------------------------------------------------
 !
@@ -1378,17 +1380,17 @@
       DO I=ITS_B1,ITE_B1
 !
 !-----------------------------------------------------------------------
-!***  INSTANTANEOUS SENSIBLE AND LATENT HEAT FLUX
+!***  Instantaneous sensible and latent heat fluX
 !-----------------------------------------------------------------------
 !
         TWBS(I,J)=-TWBS(I,J)
         QWBS(I,J)= -QWBS(I,J)*XLV*CHKLOWQ(I,J)
 !
 !-----------------------------------------------------------------------
-!***  ACCUMULATED QUANTITIES.
-!***  IN OPNL LSM, SFCEVP APPEARS TO BE IN UNITS OF
-!***  METERS OF LIQUID WATER.  IT IS COMING FROM
-!***  WRF MODULE AS KG/M**2.
+!***  Accumulated quantities.
+!***  In opnl LSM, SFCEVP appears to be in units of
+!***  meters of liquid water.  It is coming from
+!***  WRF module as kg/m**2.
 !-----------------------------------------------------------------------
 !
         SFCSHX(I,J)=SFCSHX(I,J)+TWBS(I,J)

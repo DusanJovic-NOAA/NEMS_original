@@ -17,17 +17,20 @@
 !                       routines when adding digital filters.
 !   2009-07-09  Black - Condense all three NMM integrate routines
 !                       into one when when merging with nesting.
-!   2010-03-24  Black - Revised for new structure.
-!   2010-10-xx  Pyle  - Revised for digital filters.
+!   2010_03_24  Black - Revised for new structure.
+!   2010-11-03  Pyle  - Revised for digital filters.
 !   2011-02     Yang  - Updated to use both the ESMF 4.0.0rp2 library,
 !                       ESMF 5 series library and the the
 !                       ESMF 3.1.0rp2 library.
 !   2011-05     Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!   2011-07     Black - Revised for moving nests.
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
 !
-      USE module_CLOCKTIMES,ONLY: PRINT_CLOCKTIMES
+      USE module_CLOCKTIMES,ONLY: PRINT_CLOCKTIMES                      &
+                                 ,update_interior_from_nest_tim         &
+                                 ,update_interior_from_parent_tim
 !
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
@@ -38,14 +41,14 @@
 !
       USE module_WRITE_ROUTINES,ONLY: WRITE_ASYNC
 !
-      USE module_NESTING,ONLY: BOUNDARY_DATA_STATE_TO_STATE
+      USE module_NESTING,ONLY: BOUNDARY_DATA_STATE_TO_STATE             &
+                              ,INTERIOR_DATA_STATE_TO_STATE
 !
       USE module_CONTROL,ONLY: TIMEF
 !
-      USE module_PARENT_CHILD_CPL_COMP, ONLY: NSTEP_CHILD_RECV
+      USE module_PARENT_CHILD_CPL_COMP,ONLY: NSTEP_CHILD_RECV
 !
       USE module_INCLUDE
-!
 !
 !-----------------------------------------------------------------------
 !
@@ -82,7 +85,11 @@
                         ,cpl2_send_tim                                  &
                         ,cpl2_comp_tim                                  &
                         ,cpl2_wait_tim                                  &
-                        ,phase1_tim
+                        ,parent_bookkeep_moving_tim                     &
+                        ,parent_update_moving_tim                       &
+                        ,phase1_tim                                     &
+                        ,phase3_tim                                     &
+                        ,t0_recv_move_tim
 !
 !-----------------------------------------------------------------------
 !
@@ -122,6 +129,7 @@
                               ,IMP_STATE_CPL_NEST                       &
                               ,EXP_STATE_CPL_NEST                       &
                               ,PAR_CHI_TIME_RATIO                       &
+                              ,MY_DOMAIN_MOVES                          &
                               ,MYPE)
 !
 !-----------------------------------------------------------------------
@@ -161,7 +169,7 @@
       TYPE(ESMF_Logical),INTENT(IN) :: I_AM_A_FCST_TASK                 &  !<-- Am I in a forecast task?
                                       ,I_AM_A_NEST                         !<-- Am I in a nested domain?
 #else
-      LOGICAL,           INTENT(IN) :: I_AM_A_FCST_TASK                 &  !<-- Am I in a forecast task?
+      LOGICAL(kind=KLOG),INTENT(IN) :: I_AM_A_FCST_TASK                 &  !<-- Am I in a forecast task?
                                       ,I_AM_A_NEST                         !<-- Am I in a nested domain?
 #endif
 
@@ -195,6 +203,8 @@
                                                ,NDFISTEP                &
                                                ,PAR_CHI_TIME_RATIO         !<-- Ratio of parent's timestep to this domain's
 !
+      LOGICAL(kind=KLOG),INTENT(IN),OPTIONAL :: MY_DOMAIN_MOVES            !<-- Does my domain move?
+!
       TYPE(ESMF_Time),INTENT(IN),OPTIONAL :: HALFDFITIME
 !
       TYPE(ESMF_TimeInterval),INTENT(IN),OPTIONAL :: HALFDFIINTVAL      &
@@ -211,12 +221,15 @@
       INTEGER(kind=KINT) :: YY,MM,DD,H,M,S
       INTEGER(kind=KINT) :: I,KOUNT_STEPS,N
       INTEGER(kind=KINT) :: IERR,RC,RC_INTEG
-      INTEGER(kind=KINT), ALLOCATABLE :: LOC_PAR_CHILD_TIME_RATIO(:)
 !
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF                         !<-- The current forecast timestep (ESMF_INT)
 !
-      CHARACTER(2)  :: INT_TO_CHAR
-      CHARACTER(6)  :: FMT
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: LOC_PAR_CHILD_TIME_RATIO
+!
+      CHARACTER(2) :: INT_TO_CHAR
+      CHARACTER(6) :: FMT
+!
+      LOGICAL(kind=KLOG),SAVE :: TS_INITIALIZED = .FALSE.
 !
       TYPE(ESMF_Time) :: ALARM_HISTORY_RING                             &
                         ,ALARM_RESTART_RING                             &
@@ -242,13 +255,12 @@
 !
       TYPE(PHYSICS_INTERNAL_STATE),POINTER :: PHY_INT_STATE
 !
-      LOGICAL, SAVE :: TS_INITIALIZED = .FALSE.
-!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
       phase1_tim      =0
+      phase3_tim      =0
       atm_drv_run_1   =0.
       atm_drv_run_2   =0.
       atm_drv_run_3   =0.
@@ -328,17 +340,63 @@
 !
       timeloop_drv: DO WHILE (.NOT.ESMF_ClockIsStopTime(CLOCK_INTEGRATE &
                                                        ,rc=RC) )
-
 !
+!!!   if(mype==0)then
+!!!     write(0,*)' NMM_INTEGRATE in timeloop_drv ntimestep=',ntimestep
+!!!     write(6,*)' begin timeloop memory ntimestep=',ntimestep
+!!!   endif
+!!!   call print_memory()
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Call the 1st Phase of the Parent_Child coupler where children
+!***  will recv data from their parents.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***   Children receive data from their parents at the beginning
+!***   of child timesteps that coincide with the beginning of
+!***   parent timesteps.
+!
+!***   (1) At the beginning of every such timestep the children
+!***       receive new boundary data that is sent by their parents
+!***       from the end of that parent timestep so the children can
+!***       compute boundary value tendencies to be used for the
+!***       integration through the next N child timesteps where
+!***       N is the number of child timesteps per parent timestep.
+!***       The handling of these new boundary values is the only
+!***       action in this phase of the Parent-Child coupler for
+!***       domains that are static nests.
+!
+!***   (2) If a child is a moving nest that has decided it must move:
+!***       (a) It ISends a message to its parent informing it of that
+!***           fact along with the location to which it is moving on
+!***           the parent grid.  That move must happen one or two
+!***           parent timesteps in the future because the parent
+!***           must provide data to some internal child points
+!***           following a move and since the parent must always
+!***           run ahead of its children (to provide the boundary
+!***           data from the future) then the new data for those
+!***           internal child points must also originate at a
+!***           future timestep.
+!***       (b) If the child did send the parent a message in (a) that
+!***           it wants to move then it now Recvs from the parent the
+!***           timestep of the parent at which the child will actually
+!***           execute the move, i.e., the step at which the parent
+!***           will provide the data for the child's interior points
+!***           that have moved over a new region of the parent domain.
+!***       (c) If the current timestep was determined one or two
+!***           parent timesteps ago to be one at which a child moves
+!***           then the child now Recvs the parent data for its
+!***           internal gridpoints that have moved over a new portion
+!***           of the parent grid as well as the first boundary data
+!***           at the new location.
+!***       (d) The child Recvs the new boundary data sent by the parent
+!***           from the future [see (1) above].
 !-----------------------------------------------------------------------
 !
         btim0=timef()
 !
-!-----------------------------------------------------------------------
-!***  Call the 1st Phase of the Parent_Child coupler where children
-!***  will recv from their parents.
-!-----------------------------------------------------------------------
-
 #ifdef ESMF_3
         IF(I_AM_A_NEST==ESMF_TRUE.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
 #else
@@ -350,8 +408,13 @@
 !                               ,rc   =RC)                              &
 !            .or.ntimestep==0)  &        !<-- bandaid
           IF(MOD(KOUNT_STEPS,PAR_CHI_TIME_RATIO)==0                     &
-                            .AND.                                       &
+                         .AND.                                          &
              COMM_TO_MY_PARENT/=-999)THEN
+!
+!-----------------------------------------------------------------------
+!***  Call the Run step for Phase 1 of the Parent-Child coupler.
+!***  The name of the subroutine is PARENT_CHILD_CPL_RUN_RECV.
+!-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Call Coupler: Children Recv from Parents"
@@ -374,16 +437,31 @@
 !***  coupler into the nests' DOMAIN components.
 !-----------------------------------------------------------------------
 !
-
             CALL BOUNDARY_DATA_STATE_TO_STATE(state_in =EXP_STATE_CPL_NEST &  !<-- The Nesting coupler export state
                                              ,state_out=IMP_STATE_DOMAIN)     !<-- The DOMAIN import state
-
+!
+!-----------------------------------------------------------------------
+!***  If the nest is movable then the DOMAIN component must be 
+!***  informed if the nest does or does not want to move now.
+!***  If it does want to move now then all of the interior update
+!***  data generated by the parent must be transferred to the DOMAIN
+!***  import state.
+!-----------------------------------------------------------------------
+!
+            IF(MY_DOMAIN_MOVES)THEN
+!
+              CALL INTERIOR_DATA_STATE_TO_STATE(EXP_STATE_CPL_NEST      &
+                                               ,IMP_STATE_DOMAIN )
+!
+            ENDIF
 !
 !-----------------------------------------------------------------------
 !
           ENDIF
 !
         ENDIF
+!
+!-----------------------------------------------------------------------
 !
         atm_drv_run_cpl1=atm_drv_run_cpl1+(timef()-btim0)
 !
@@ -489,17 +567,38 @@
 !
 !-----------------------------------------------------------------------
 !***  Call the 2nd Phase of the Parent_Child coupler where parents
-!***  send data to their children (at the end of all parents'
-!***  timesteps, but before any potential filter averaging).
+!***  send data to their children at the end of all parents'
+!***  timesteps but before any potential filter averaging.
+!***
+!***  (1) For static nests the parents compute only once the association
+!***      between their tasks and their children's boundary tasks then
+!***      send those child tasks the information they need in order to
+!***      be able to properly receive forecast data.  Then the parents
+!***      send the new boundary data to the child boundary tasks.
+!***  (2) For moving nests the parents are sent the new location of
+!***      any of their children who moved.  The parents then recompute
+!***      the association between their tasks and their children's
+!***      boundary tasks as well as with child tasks in the new
+!***      region of the parent into which the children moved.  Parents
+!***      send the pertinent child tasks information they need in
+!***      order to receive forecast data.  Finally the parents send
+!***      their children new boundary data plus new internal data
+!***      for the new area of the parent newly covered by the most
+!***      recent motion of the nests.
 !-----------------------------------------------------------------------
 !
         btim0=timef()
 !
         IF(NUM_CHILDREN>0)THEN                                             !<-- Call the coupler if there are children
 !
+!-----------------------------------------------------------------------
+!***  Call the Run step for Phase 2 of the Parent-Child coupler.
+!***  The name of the subroutine is PARENT_CHILD_CPL_RUN_SEND.
+!-----------------------------------------------------------------------
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Call Coupler: Parents Send to Children"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Call Coupler: Parents Send to Children"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             CALL ESMF_CplCompRun(            PARENT_CHILD_CPL           &  !<-- The Nesting coupler component
@@ -510,14 +609,13 @@
                                 ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         ENDIF
 !
-!-----------------------------------------------------------------------
-!
         atm_drv_run_cpl2=atm_drv_run_cpl2+(timef()-btim0)
+!
 !-----------------------------------------------------------------------
 !***  If there is filtering, execute Phase 2 of the DOMAIN Run step.
 !-----------------------------------------------------------------------
@@ -557,14 +655,16 @@
 !
         CALL ESMF_ClockAdvance(clock=CLOCK_INTEGRATE                    &
                               ,rc   =RC)
-        kount_steps=kount_steps+1
-        IF(FILTER_METHOD > 0 .AND. MYPE == 0) THEN
-          write(0,*) 'filter running, kount_steps: ', kount_steps
-        ENDIF
+!
+        KOUNT_STEPS=KOUNT_STEPS+1
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        IF(FILTER_METHOD > 0 .AND. MYPE == 0) THEN
+          WRITE(0,*)'Filter is running, KOUNT_STEPS= ',KOUNT_STEPS,' for method=',FILTER_METHOD
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Retrieve the timestep from the DOMAIN clock and
@@ -577,17 +677,18 @@
 !
         NTIMESTEP=NTIMESTEP_ESMF
 !
-!
 !-----------------------------------------------------------------------
 !***  Write timeseries data for this timestep on this domain.
 !-----------------------------------------------------------------------
 !
-        IF(FILTER_METHOD==0 .and. MYPE<domain_int_state%NUM_PES_FCST)THEN
+        IF(MYPE<domain_int_state%NUM_PES_FCST.AND.FILTER_METHOD==0)THEN
+!
           CALL TIMESERIES_RUN(DYN_INT_STATE                             &
                              ,PHY_INT_STATE                             &
                              ,MY_DOMAIN_ID                              &
                              ,NTIMESTEP                                 &
                              ,IERR)
+!
           IF (IERR /= 0) THEN
             CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
           END IF
@@ -601,25 +702,28 @@
 !***  so we call Phase 3 of the Run step for the DOMAIN components.
 !-----------------------------------------------------------------------
 !
-!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="NMM_INTEGRATE: Call Run3 for History Output"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         btim0=timef()
-        CALL ESMF_GridCompRun(gridcomp   =DOMAIN_GRID_COMP              &  !<-- The DOMAIN gridded component
-                             ,importState=IMP_STATE_DOMAIN              &  !<-- The DOMAIN import state
-                             ,exportState=EXP_STATE_DOMAIN              &  !<-- The DOMAIN export state
-                             ,clock      =CLOCK_INTEGRATE               &  !<-- The ESMF Clock for "mini" forecast
-                             ,phase      =3                             &  !<-- The phase (subroutine) of DOMAIN Run to execute
-                             ,rc         =RC)
+!
+        IF(FILTER_METHOD==0)THEN
+!
+          CALL ESMF_GridCompRun(gridcomp   =DOMAIN_GRID_COMP            &  !<-- The DOMAIN gridded component
+                               ,importState=IMP_STATE_DOMAIN            &  !<-- The DOMAIN import state
+                               ,exportState=EXP_STATE_DOMAIN            &  !<-- The DOMAIN export state
+                               ,clock      =CLOCK_INTEGRATE             &  !<-- The ESMF Clock for "mini" forecast
+                               ,phase      =3                           &  !<-- The phase (subroutine) of DOMAIN Run to execute
+                               ,rc         =RC)
+        ENDIF
+!
+        atm_drv_run_3=atm_drv_run_3+(timef()-btim0)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        atm_drv_run_3=atm_drv_run_3+(timef()-btim0)
 !
 !-----------------------------------------------------------------------
 !***  Lead forecast task prints timestep information in free forecast.
@@ -631,28 +735,34 @@
                  ' hours: elapsed integration time ',g10.4)
         ENDIF
 !
+!-----------------------------------------------------------------------
+!***  Print clocktimes of integration sections on MPI task of choice.
+!-----------------------------------------------------------------------
+!
+        IF(FILTER_METHOD==0)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Filter Method=0  Is ALARM_CLOCKTIME ringing?"
+          CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          IF(ESMF_AlarmIsRinging(alarm=ALARM_CLOCKTIME                  &  !<-- The alarm to print clocktimes used by model parts
+                                ,rc   =RC))THEN
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!-----------------------------------------------------------------------
-!***  Print clocktimes of integration sections
-!***  on MPI task of choice.
-!-----------------------------------------------------------------------
+            CALL PRINT_CLOCKTIMES(NTIMESTEP,MYPE,NPE_PRINT)
 !
-
-        IF (FILTER_METHOD == 0) THEN
-        IF(ESMF_AlarmIsRinging(alarm=ALARM_CLOCKTIME                    &  !<-- The alarm to print clocktimes used by model parts
-                              ,rc   =RC))THEN
-!
-          CALL PRINT_CLOCKTIMES(NTIMESTEP,MYPE,NPE_PRINT)
+          ENDIF
 !
         ENDIF
-        ENDIF
-!
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
+!!!!  write(6,*)' end timeloop memory ntimestep=',ntimestep
+!!!!  call print_memory()
 !
       ENDDO timeloop_drv
 !
@@ -665,13 +775,13 @@
 !***  Extract Clocktimes of the Parent-Child Coupler from that
 !***  component's export state and print them.
 !-----------------------------------------------------------------------
-
+!
 #ifdef ESMF_3
         IF(I_AM_A_NEST==ESMF_TRUE.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
 #else
         IF(I_AM_A_NEST.AND.I_AM_A_FCST_TASK) THEN
 #endif
-
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract Cpl1 Recv Time from Parent-Child Cpl Export State"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
@@ -732,105 +842,210 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+          MESSAGE_CHECK="Extract parent_bookkeep_moving_tim from Parent-Child Cpl Export State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler export state
+                                ,name ='parent_bookkeep_moving_tim'     &  !<-- Name of the attribute to extract
+                                ,value=parent_bookkeep_moving_tim       &  !<-- moving nest bookeeping time
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          MESSAGE_CHECK="Extract parent_update_moving_tim from Parent-Child Cpl Export State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler export state
+                                ,name ='parent_update_moving_tim'       &  !<-- Name of the attribute to extract
+                                ,value=parent_update_moving_tim         &  !<-- moving nest update time
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          MESSAGE_CHECK="Extract t0_recv_move_tim from Parent-Child Cpl Export State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler export state
+                                ,name ='t0_recv_move_tim'               &  !<-- Name of the attribute to extract
+                                ,value=t0_recv_move_tim                 &  !<-- task 0 time to process receive of move flag
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
         ENDIF
 !
 !-----------------------------------------------------------------------
 !
-        IF(.not. NESTING) then                                                        ! parent only run
-         if (atm_drv_run_1 .lt. 1.0) then                                              ! an I/O task
-          WRITE(0,899)atm_drv_run_3
-         else 
-          if (atm_drv_run_2 >1.0) then                                                 ! digital filter
-           WRITE(0,900)atm_drv_run_1,atm_drv_run_2,atm_drv_run_3
-          else
-           WRITE(0,901)atm_drv_run_1,atm_drv_run_3                                     ! primary compute task
-          endif
-         endif
+        IF (MYPE == 0) WRITE(0,897)
+!
+        IF(.NOT. NESTING) THEN                                             !<-- Parent only run
+          IF (atm_drv_run_1 < 1.0) THEN                                    !<-- An I/O task
+            WRITE(0,899)atm_drv_run_3
+          ELSE 
+            IF (atm_drv_run_2 > 1.0) THEN                                  !<-- Digital filter
+              WRITE(0,900)atm_drv_run_1,atm_drv_run_2,atm_drv_run_3
+            ELSE
+              WRITE(0,901)atm_drv_run_1,atm_drv_run_3                      !<-- Primary compute task
+            ENDIF
+          ENDIF
+!
         ELSE  
-
 #ifdef ESMF_3
-         IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
+          IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN                               !<-- Nested run and a forecast task
 #else
-         IF(I_AM_A_FCST_TASK) THEN
+          IF(I_AM_A_FCST_TASK)THEN                                          !<-- Nested run and a forecast task
 #endif
-
-          IF(NUM_CHILDREN == 0)THEN                                                    ! just a nest and not a parent nest
-           if (cpl1_recv_tim > 1.0) then                                               ! child compute task that is a boundary
-            if (atm_drv_run_2 >1.0) then                                               ! digital filter 
-             WRITE(0,902)atm_drv_run_1,atm_drv_run_2,atm_drv_run_3, &
-                         (atm_drv_run_cpl1-cpl1_recv_tim),cpl1_recv_tim 
-            else
-             WRITE(0,903)atm_drv_run_1,atm_drv_run_3,(atm_drv_run_cpl1-cpl1_recv_tim), &
-                         cpl1_recv_tim
-            endif
-           else                                                                         ! child compute task that is not a boundary
-            if (atm_drv_run_2 >1.0) then                                                ! digital filter 
-             WRITE(0,904)atm_drv_run_1,atm_drv_run_2,atm_drv_run_3
-            else
-             WRITE(0,905)atm_drv_run_1,atm_drv_run_3                                    ! no digital filter
-            endif
-           endif
-          ENDIF
+            IF(NUM_CHILDREN == 0)THEN                                       !<-- A nest with no children
+              IF (cpl1_recv_tim > 1.0) THEN                                 !<-- Child compute task on the boundary
+                IF (atm_drv_run_2 > 1.0) THEN                               !<-- Digital filter 
+                  WRITE(0,902)atm_drv_run_1                              &
+                             ,atm_drv_run_2                              &
+                             ,atm_drv_run_3                              &
+                             ,(atm_drv_run_cpl1-cpl1_recv_tim)           &
+                             ,cpl1_recv_tim                              &
+                             ,update_interior_from_nest_tim              &
+                             ,update_interior_from_parent_tim
+                ELSE
+                  WRITE(0,903)atm_drv_run_1                              &
+                             ,atm_drv_run_3                              &
+                             ,(atm_drv_run_cpl1-cpl1_recv_tim)           &
+                             ,cpl1_recv_tim                              &
+                             ,update_interior_from_nest_tim              &
+                             ,update_interior_from_parent_tim
+                ENDIF
+              ELSE                                                           !<-- Child compute task not on a boundary
+                IF (atm_drv_run_2 > 1.0) THEN                                !<-- Digital filter 
+                  WRITE(0,904)atm_drv_run_1,atm_drv_run_2,atm_drv_run_3
+                ELSE
+                  WRITE(0,905)atm_drv_run_1,atm_drv_run_3                    !<-- No digital filter
+                ENDIF
+              ENDIF
+            ENDIF
 !
+!           WRITE(0,*)'   Total Cpl Phase 1=',atm_drv_run_cpl1*1.e-3
 !
-          IF(NUM_CHILDREN>0)THEN                                                       ! parent task that has a child nest
-
+            IF(NUM_CHILDREN>0)THEN                                           !<-- Parent task that has a child nest
+              IF (MYPE == 0) WRITE(0,898)t0_recv_move_tim
 #ifdef ESMF_3
-           IF(I_AM_A_NEST==ESMF_TRUE)THEN
+              IF(I_AM_A_NEST==ESMF_TRUE)THEN
 #else
-           IF(I_AM_A_NEST)           THEN
+              IF(I_AM_A_NEST)THEN            
 #endif
-
-            if (cpl1_recv_tim > 1.0) then                                               ! child compute task that is a boundary
-             if (atm_drv_run_2 >1.0) then                                               ! digital filter 
-              WRITE(0,902)atm_drv_run_1,atm_drv_run_2,atm_drv_run_3, &
-                          (atm_drv_run_cpl1-cpl1_recv_tim),cpl1_recv_tim 
-             else
-              WRITE(0,903)atm_drv_run_1,atm_drv_run_3,(atm_drv_run_cpl1-cpl1_recv_tim), &
-                          cpl1_recv_tim
-             endif
-            endif
-           ENDIF
-           if( cpl2_comp_tim >2.0) then
-            if (atm_drv_run_2 >1.0) then                                               ! digital filter 
-             WRITE(0,906)atm_drv_run_1,atm_drv_run_2,atm_drv_run_3,        &
-                         atm_drv_run_cpl2,cpl2_comp_tim,cpl2_wait_tim,     &
-                         cpl2_send_tim
-            else 
-              WRITE(0,907)atm_drv_run_1,atm_drv_run_3,atm_drv_run_cpl2,    &
-                         cpl2_comp_tim,cpl2_wait_tim, cpl2_send_tim
-            endif
-           else                                                                        ! parent compute task without a boundary
-            if (atm_drv_run_2 >1.0) then                                               ! digital filter 
-             WRITE(0,900)atm_drv_run_1,atm_drv_run_2,atm_drv_run_3
-            else
-             WRITE(0,901)atm_drv_run_1,atm_drv_run_3
-            endif
-           endif
-          ENDIF
+                IF (cpl1_recv_tim > 1.0) THEN                              !<-- Child compute task that is on a boundary
+                  IF (atm_drv_run_2 > 1.0) THEN                            !<-- Digital filter 
+                    WRITE(0,902)atm_drv_run_1                           &
+                               ,atm_drv_run_2                           &
+                               ,atm_drv_run_3                           &
+                               ,(atm_drv_run_cpl1-cpl1_recv_tim)        &
+                               ,cpl1_recv_tim                           &
+                               ,update_interior_from_nest_tim           &
+                               ,update_interior_from_parent_tim
+                  ELSE
+                    WRITE(0,903)atm_drv_run_1                           &
+                               ,atm_drv_run_3                           &
+                               ,(atm_drv_run_cpl1-cpl1_recv_tim)        &
+                               ,cpl1_recv_tim                           &
+                               ,update_interior_from_nest_tim           &
+                               ,update_interior_from_parent_tim
+                  ENDIF
+                ENDIF
+              ENDIF
 !
-        ELSE                                                                           ! I/O tasks
-          WRITE(0,899)atm_drv_run_3
+              IF( cpl2_comp_tim > 0.1) THEN                                !<-- Parent tasks that send boundary data
+                IF (atm_drv_run_2 >1.0) THEN                               !<-- Digital filter 
+                  WRITE(0,906)atm_drv_run_1                             &
+                             ,atm_drv_run_2                             &
+                             ,atm_drv_run_3                             &
+                             ,cpl2_comp_tim                             &
+                             ,cpl2_wait_tim                             &
+                             ,parent_update_moving_tim
+                ELSE 
+                  WRITE(0,907)atm_drv_run_1                             &
+                             ,atm_drv_run_3                             &
+                             ,cpl2_comp_tim                             &
+                             ,cpl2_wait_tim                             &
+                             ,parent_update_moving_tim
+                ENDIF
+!
+              ELSE                                                         !<-- Parent compute task not on a boundary
+                IF (atm_drv_run_2 > 1.0) THEN                              !<-- Digital filter 
+                  IF (parent_update_moving_tim> 1.0e-2) THEN               !<-- Parent tasks that update moving nests
+                    WRITE(0,900)atm_drv_run_1                           &
+                               ,atm_drv_run_2                           &
+                               ,atm_drv_run_3
+                  ELSE
+                    WRITE(0,908)atm_drv_run_1                           &
+                               ,atm_drv_run_2                           &
+                               ,atm_drv_run_3
+                  ENDIF
+!
+                ELSE
+                  IF (parent_update_moving_tim> 1.0e-2) THEN               !<-- Parent tasks that update moving nests
+                    WRITE(0,901)atm_drv_run_1,atm_drv_run_3             &
+                               ,parent_update_moving_tim
+                  ELSE
+                    WRITE(0,909)atm_drv_run_1,atm_drv_run_3
+                  ENDIF
+                ENDIF
+              ENDIF
+            ENDIF
+!
+          ELSE                                                               !<-- I/O tasks
+            WRITE(0,899)atm_drv_run_3
+          ENDIF
         ENDIF
-       ENDIF
- 899    FORMAT(' I/O task Phase 3= ',g10.4)       
- 900    FORMAT(' Integrate time = ',g10.4,' Filter time = ',g10.4,     &
-               ' Phase 3 time = ',g10.4)
- 901    FORMAT(' Integrate time = ',g10.4,' Phase 3 time = ',g10.4)
- 902    FORMAT(' Integrate time = ',g10.4,' Filter time ',g10.4,       &
-               ' Phase 3 time = ',g10.4,' Cpl compute time = ',g10.4,  &
-               ' Cpl recv time = ',g10.4)
- 903    FORMAT(' Integrate time = ',g10.4,' Phase 3 time = ',g10.4,    &
-               ' Cpl compute time = ',g10.4,' Cpl recv time = ',g10.4)
- 904    FORMAT(' Integrate time = ',g10.4,' Filter time ',g10.4,       &
-               ' Phase 3 time = ',g10.4)
- 905    FORMAT(' Integrate time = ',g10.4,' Phase 3 time = ',g10.4)
- 906    FORMAT(' Integrate time = ',g10.4,' Filter time ',g10.4,       &
-               ' Phase 3 time = ',g10.4,' Total Phase 2= ',g10.4,      &
-               ' Compute= ',g10.4,' Wait= ',g10.4,' Send = ',g10.4)
- 907    FORMAT(' Integrate time = ',g10.4,                             &
-               ' Phase 3 time = ',g10.4,' Total Phase 2= ',g10.4,      &
-               ' Compute= ',g10.4,' Wait= ',g10.4,' Send = ',g10.4)
+!
+ 897    FORMAT(' The timers that may be printed include: '/          &
+               ' Integrate - timers around gridcomp_run phase=1 for parent tasks in NMM_Integrate ',/&
+               ' Filter - timers around gridcomp_run phase=2 in NMM_Integrate ',/&
+               ' Phase 3(I/O) - timers around gridcomp_run phase=3 in NMM_Integrate ',/&
+               ' cpl compute - timers around gridcomp_run phase=1 for nest tasks in NMM_Integrate or ',/&
+               ' cpl compute - time for parent tasks to compute boundary updates ',/&
+               ' cpl recv - time nest tasks spend waiting to receive boundary updates from parents ',/&
+               ' update interior nest - time nest task spends updating from other nest tasks in a moving nest ',/&
+               ' update interior parent - time nest task spends updating from parent tasks in a moving nest ',/&
+               ' update parent move- time parent task spends updating nest internal points in a moving nest ',/&
+               ' cpl wait - time parent task spends waiting for nest tasks to receive boundary data ')
+
+ 898    FORMAT(' Task 0 time to process move flag = ',g9.3)
+ 899    FORMAT(' I/O task Phase 3= ',g9.3)
+ 900    FORMAT(' Integrate = ',g9.3,' Filter = ',g9.3,                  &
+               ' Phase 3 = ',g9.3,' update parent move = ',g9.3)
+ 901    FORMAT(' Integrate = ',g9.3,' Phase 3 = ',g9.3,                 &
+               ' update parent move = ',g9.3)
+ 902    FORMAT(' Integrate = ',g9.3,' Filter = ',g9.3,                  &
+               ' Phase 3 = ',g9.3,' cpl compute = ',g9.3,               &
+               ' cpl recv = ',g9.3,                                     &
+               ' upd interior nest = ',g9.3,                            &
+               ' upd interior parent = ',g9.3)
+
+ 903    FORMAT(' Integrate = ',g9.3,' Phase 3 = ',g9.3,                 &
+               ' cpl compute = ',g9.3,' cpl recv = ',g9.3,              &
+               ' upd interior nest = ',g9.3,                            &
+               ' upd interior parent = ',g9.3)
+ 904    FORMAT(' Integrate = ',g9.3,' Filter = ',g9.3,                  &
+               ' Phase 3 = ',g9.3)
+ 905    FORMAT(' Integrate = ',g9.3,' Phase 3 = ',g9.3)
+ 906    FORMAT(' Integrate = ',g9.3,' Filter = ',g9.3,                  &
+               ' Phase 3 = ',g9.3,                                      &
+               ' cpl compute = ',g9.3,' cpl wait = ',g9.3,              &
+               ' update parent move = ',g9.3)
+ 907    FORMAT(' Integrate = ',g9.3,                                    &
+               ' Phase 3 = ',g9.3,                                      &
+               ' cpl compute = ',g9.3,' cpl wait = ',g9.3,              &
+               ' update parent move = ',g9.3)
+ 908    FORMAT(' Integrate = ',g9.3,' Filter = ',g9.3,                  &
+               ' Phase 3 = ',g9.3)
+ 909    FORMAT(' Integrate = ',g9.3,' Phase 3 = ',g9.3)
 !
 !-----------------------------------------------------------------------
 !
@@ -841,7 +1056,7 @@
 !***  the Clock and times.
 !-----------------------------------------------------------------------
 !
-        IF(CLOCK_DIRECTION=='Bckward ')THEN
+        IF(CLOCK_DIRECTION=='Bckward')THEN
 !
 !-----------------------------------------------------------------------
 !
@@ -864,6 +1079,7 @@
 !-----------------------------------------------------------------------
           filter_method_block : IF(FILTER_METHOD==3)THEN
 !-----------------------------------------------------------------------
+!
             ndfiloop: DO I=1,NDFISTEP
 !
 !-----------------------------------------------------------------------
@@ -872,16 +1088,15 @@
 !***  since it will provide the proper tag to the MPI data sent.
 !-----------------------------------------------------------------------
 !
-!-----------------------------------------------------------------------
 
               parents_only: IF(NUM_CHILDREN>0                           &
                                    .AND.                                &
 #ifdef ESMF_3
-                               I_AM_A_FCST_TASK==ESMF_TRUE) THEN
+                               I_AM_A_FCST_TASK==ESMF_TRUE)THEN
 #else
-                               I_AM_A_FCST_TASK)            THEN
+                               I_AM_A_FCST_TASK)THEN
 #endif
-
+!
 !-----------------------------------------------------------------------
 !
                 IF(.NOT.ALLOCATED(LOC_PAR_CHILD_TIME_RATIO)) THEN
@@ -892,7 +1107,7 @@
       MESSAGE_CHECK="NMM_INTEGRATE: Parent/child DT Ratio for TDFI"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
+!
 #ifdef ESMF_3
                 CALL ESMF_AttributeGet(state    =IMP_STATE_CPL_NEST        &  !<-- The parent-child coupler import state
                                       ,name     ='Parent-Child Time Ratio' &  !<-- Name of the attribute to extract
@@ -906,7 +1121,7 @@
                                       ,valueList=LOC_PAR_CHILD_TIME_RATIO  &  !<-- Ratio of parent to child DTs
                                       ,rc       =RC)
 #endif
-
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1048,7 +1263,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Get time from ALARM_HISTORY_RING."
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_TimeGet(time=ALARM_HISTORY_RING                         &  !<-- Extract the time from this variable
@@ -1070,7 +1285,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Reset time in ALARM_HISTORY_RING."
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_TimeSet(time=ALARM_HISTORY_RING                       &  !<-- Reset the time for initial history output
@@ -1094,7 +1309,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Get time from ALARM_RESTART_RING."
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_TimeGet(time=ALARM_RESTART_RING                         &  !<-- Extract the time from this variable
@@ -1116,7 +1331,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Reset time in ALARM_RESTART_RING."
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_TimeSet(time=ALARM_RESTART_RING                       &  !<-- Reset the time for initial restart output
@@ -1140,7 +1355,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Get time from ALARM_CLOCKTIME_RING."
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_TimeGet(time=ALARM_CLOCKTIME_RING                       &  !<-- Extract the time from this variable
@@ -1162,7 +1377,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Reset time in ALARM_CLOCKTIME_RING."
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+        CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_TimeSet(time=ALARM_CLOCKTIME_RING                     &  !<-- Reset the time for clocktime prints
@@ -1185,8 +1400,8 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Creating the Alarms."
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+      MESSAGE_CHECK="RESET_ALARMS: Create ALARM_HISTORY"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       ALARM_HISTORY=ESMF_AlarmCreate(name             ='ALARM_HISTORY'     &
@@ -1197,6 +1412,15 @@
                                     ,sticky           =.false.             &  !<-- Alarm does not ring until turned off
                                     ,rc               =RC)
 !
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="RESET_ALARMS: Create ALARM_RESTART"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
       ALARM_RESTART=ESMF_AlarmCreate(name             ='ALARM_RESTART'     &
                                     ,clock            =CLOCK_INTEGRATE     &  !<-- DOMAIN Clock
                                     ,ringTime         =ALARM_RESTART_RING  &  !<-- Forecast/Restart start time (ESMF)
@@ -1204,6 +1428,15 @@
                                     ,ringTimeStepCount=1                   &  !<-- The Alarm rings for this many timesteps
                                     ,sticky           =.false.             &  !<-- Alarm does not ring until turned off
                                     ,rc               =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="RESET_ALARMS: Create ALARM_CLOCKTIME"
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       ALARM_CLOCKTIME=ESMF_AlarmCreate(name             ='ALARM_CLOCKTIME'     &
                                       ,clock            =CLOCK_INTEGRATE       &  !<-- DOMAIN Clock

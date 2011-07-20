@@ -3707,8 +3707,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !.......................................................................
  1300 format(' **** advecmx=',f9.5,' kp=',i6,' imx=',i4,' jmx=',i4,' lmx=',i2)
  1400 format(' **** advecmn=',f9.5,' kn=',i6,' imn=',i4,' jmn=',i4,' lmn=',i2)
-!      if(mype.eq.192) write(0,1300) dwdtmx,kp,imx,jmx,lmx
-!      if(mype.eq.192) write(0,1400) dwdtmn,kp,imn,jmn,lmn
         do l=1,lm
           why(l)=-99.
         enddo
@@ -3812,7 +3810,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
         btim=timef()
         call swaphn(dwdt,ims,ime,jms,jme,lm,inpes)
         swaphn_tim=swaphn_tim+(timef()-btim)
-!!!   if(mype==23)write(0,*)' in cdwdt swaphn_tim=',swaphn_tim
 !
         btim=timef()
         call polehn(dwdt,ims,ime,jms,jme,lm,inpes,jnpes)
@@ -3862,8 +3859,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
       enddo
  1100 format(' dwdtmx=',f9.5,' kp=',i6,' imx=',i4,' jmx=',i4,' lmx=',i2)
  1200 format(' dwdtmn=',f9.5,' kn=',i6,' imn=',i4,' jmn=',i4,' lmn=',i2)
-!      if(mype.eq.192) write(0,1100) dwdtmx,kp,imx,jmx,lmx
-!      if(mype.eq.192) write(0,1200) dwdtmn,kp,imn,jmn,lmn
 !-----------------------------------------------------------------------
 !
       if(.not.global) then 

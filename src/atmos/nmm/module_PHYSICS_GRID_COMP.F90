@@ -29,8 +29,8 @@
 !   2009-12-15  Sarah Lu - GBPHYS calling argument modified: add dqdt
 !   2009-11     Jovic    - Modified for ownership/import/export specification
 !   2010-02-08  Weiguo Wang  - Add wsm6 microphysics
-!   2010-03-10  Weiguo Wang  - ADD species advection option
-!   2010-10-06  Weiguo Wang  - add RSWTT, RLWTT to TURBL, used for GFSPBL option
+!   2010-03-10  Weiguo Wang  - Add species advection option
+!   2010-10-06  Weiguo Wang  - Add RSWTT, RLWTT to TURBL, used for GFSPBL option
 !   2011-02-25  M. Pyle  - Adds call to MAX_FIELDS diagnostic routine
 !   2011-02     Weiyu Yang   - Updated to use both the ESMF 4.0.0rp2 library,
 !                              ESMF 5 series library and the the
@@ -940,8 +940,8 @@
                                             ,NUM_P2D,NUM_P3D
  
       USE OZNE_DEF,                   ONLY : LEVOZP,PL_COEFF,PL_PRES
-      use module_radsw_parameters,    only : topfsw_type, sfcfsw_type
-      use module_radlw_parameters,    only : topflw_type, sfcflw_type
+      USE MODULE_RADSW_PARAMETERS,    ONLY : TOPFSW_TYPE, SFCFSW_TYPE
+      USE MODULE_RADLW_PARAMETERS,    ONLY : TOPFLW_TYPE, SFCFLW_TYPE
 !
 !------------------------
 !***  Argument variables
@@ -1726,6 +1726,29 @@
           exch_phy_tim=exch_phy_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
+!***  Exchange other variables that are needed for parents' 
+!***  interpolations to interior points of moving nests.
+!-----------------------------------------------------------------------
+!
+          CALL HALO_EXCH(int_state%ALBEDO,1                             &
+                        ,int_state%EPSR,1                               &
+                        ,int_state%QSH,1                                &
+                        ,int_state%QWBS,1,1,1)
+          CALL HALO_EXCH(int_state%QZ0,1                                &
+                        ,int_state%SOILTB,1                             &
+                        ,int_state%THS,1                                &
+                        ,int_state%THZ0,1,1,1)
+          CALL HALO_EXCH(int_state%USTAR,1                              &
+                        ,int_state%UZ0,1                                &
+                        ,int_state%VZ0,1                                &
+                        ,int_state%Z0,1,1,1)
+          CALL HALO_EXCH(int_state%TSKIN,1                              &
+                        ,int_state%CMC,1,1,1)
+          CALL HALO_EXCH(int_state%SMC,NUM_SOIL_LAYERS                  &
+                        ,int_state%SH2O,NUM_SOIL_LAYERS                 &
+                        ,int_state%STC,NUM_SOIL_LAYERS,1,1)
+!
+!-----------------------------------------------------------------------
 !
         ENDIF turbulence
 !
@@ -1806,10 +1829,8 @@
                        ,int_state%AVCNVC,int_state%ACUTIM                 &
                        ,int_state%RSWIN,int_state%RSWOUT                  &
                        ,int_state%CONVECTION                              &
-!!!SAS 10-26
                       ,int_state%SICE,int_state%QWBS,int_state%TWBS       &
                       ,int_state%PBLH,int_state%DUDT,int_state%DVDT       &
-!!!SAS
                        ,IDS,IDE,JDS,JDE,LM                                &
                        ,IMS,IME,JMS,JME                                   &
                        ,ITS,ITE,JTS,JTE)
@@ -1877,49 +1898,63 @@
 !
             pole_swap_phy_tim=pole_swap_phy_tim+(timef()-btim)
           ENDIF
-
-!!! WANG, SAS convection changes dudt, dvdt, 11-02-2010
-          if (int_state%CONVECTION=='sas') then              !!SAS update UV
+!
 !-----------------------------------------------------------------------
-!***  Exchange wind tendencies.
+!***  Exchange wind tendencies for SAS scheme.
 !-----------------------------------------------------------------------
-          btim=timef()
-          CALL HALO_EXCH(int_state%DUDT,LM,int_state%DVDT,LM,1,1)
-          exch_phy_tim=exch_phy_tim+(timef()-btim)
+!
+          sas_wind: IF (int_state%CONVECTION=='sas') THEN   
+!
+!-----------------------------------------------------------------------
+!
+            btim=timef()
+            CALL HALO_EXCH(int_state%DUDT,LM,int_state%DVDT,LM,1,1)
+            exch_phy_tim=exch_phy_tim+(timef()-btim)
+!
 !-----------------------------------------------------------------------
 !***  Now interpolate wind tendencies from H to V points.
 !-----------------------------------------------------------------------
-          btim=timef()
-          CALL H_TO_V_TEND(int_state%DUDT,int_state%DT,int_state%NPRECIP,LM &
-                          ,int_state%U)
-          CALL H_TO_V_TEND(int_state%DVDT,int_state%DT,int_state%NPRECIP,LM &
-                          ,int_state%V)
-          h_to_v_tim=h_to_v_tim+(timef()-btim)
+!
+            btim=timef()
+            CALL H_TO_V_TEND(int_state%DUDT,int_state%DT                &
+                            ,int_state%NPRECIP,LM                       &
+                            ,int_state%U)
+            CALL H_TO_V_TEND(int_state%DVDT,int_state%DT                &
+                            ,int_state%NPRECIP,LM                       &
+                            ,int_state%V)
+            h_to_v_tim=h_to_v_tim+(timef()-btim)
+!
 !-----------------------------------------------------------------------
 !***  Poles and East-West boundary.
 !-----------------------------------------------------------------------
 !
-          IF(int_state%GLOBAL)THEN
-            btim=timef()
+            IF(int_state%GLOBAL)THEN
+              btim=timef()
 !
-            CALL SWAPWN(int_state%U,IMS,IME,JMS,JME,LM,int_state%INPES)
-            CALL SWAPWN(int_state%V,IMS,IME,JMS,JME,LM,int_state%INPES)
-            CALL POLEWN(int_state%U,int_state%V,IMS,IME,JMS,JME,LM      &
-                       ,int_state%INPES,int_state%JNPES)
+              CALL SWAPWN(int_state%U,IMS,IME,JMS,JME,LM                &
+                         ,int_state%INPES)
+              CALL SWAPWN(int_state%V,IMS,IME,JMS,JME,LM                &
+                         ,int_state%INPES)
+              CALL POLEWN(int_state%U,int_state%V,IMS,IME,JMS,JME,LM    &
+                         ,int_state%INPES,int_state%JNPES)
 !
-            pole_swap_phy_tim=pole_swap_phy_tim+(timef()-btim)
-          ENDIF
+              pole_swap_phy_tim=pole_swap_phy_tim+(timef()-btim)
+            ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Exchange wind components.
 !-----------------------------------------------------------------------
-          btim=timef()
-          CALL HALO_EXCH(int_state%U,LM,int_state%V,LM                  &
-                        ,2,2)
-          exch_phy_tim=exch_phy_tim+(timef()-btim)
+!
+            btim=timef()
+            CALL HALO_EXCH(int_state%U,LM,int_state%V,LM                &
+                          ,2,2)
+            exch_phy_tim=exch_phy_tim+(timef()-btim)
+!
 !-----------------------------------------------------------------------
-          endif                                              !!SAS update UV
-!!! END OF SAS  WANG 11-2-2010
+!
+          ENDIF sas_wind       
+!
+!-----------------------------------------------------------------------
 !
         ENDIF convection
 !
@@ -2045,8 +2080,11 @@
 !
         CALL HALO_EXCH(int_state%T,LM                                   &
                       ,1,1)
-!If advection is on, cloud species are advected
-        IF( specadv == 1) THEN
+!-----------------------------------------------------------------------
+!***  If advection is on, cloud species are advected.
+!-----------------------------------------------------------------------
+!
+        IF( SPECADV == 1) THEN
           CALL HALO_EXCH(int_state%WATER,LM,int_state%NUM_WATER,2       &
                        ,2,2)
         ENDIF
@@ -2936,13 +2974,6 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!     if(ntimestep<=5)then
-!       call twr(int_state%t,lm,'t_phy',ntimestep,mype,num_pes,mpi_comm_comp &
-!               ,ids,ide,jds,jde &
-!               ,ims,ime,jms,jme &
-!               ,its,ite,jts,jte)
-!     endif
-!-----------------------------------------------------------------------
 !
       IF(RC_RUN==ESMF_SUCCESS)THEN
 !       WRITE(0,*)'PHY RUN STEP SUCCEEDED'
@@ -2981,9 +3012,11 @@
 !-----------------------
 !
       TYPE(ESMF_GridComp) :: GRID_COMP                                     !<-- The Physics gridded component
-      TYPE(ESMF_State)    :: IMP_STATE                                     !<-- The Physics import state
-      TYPE(ESMF_State)    :: EXP_STATE                                     !<-- The Physics export state
-      TYPE(ESMF_Clock)    :: CLOCK_ATM                                     !<-- The ATM component's ESMF Clock.
+!
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The Physics import state
+                         ,EXP_STATE                                        !<-- The Physics export state
+!
+      TYPE(ESMF_Clock) :: CLOCK_ATM                                        !<-- The ATM component's ESMF Clock.
 !
       INTEGER,INTENT(OUT) :: RCFINAL
 !      
@@ -3060,16 +3093,16 @@
                                  ,KOZPL,LEVOZP,PL_TIME,PL_LAT,PL_PRES   &
                                  ,KOZC,DPHIOZC,LATSOZC,PL_COEFF
  
-      USE N_NAMELIST_PHYSICS_DEF, ONLY: ISOL,ICO2,IALB,IEMS,IAER,ICTM     &
-                                       ,IOVR_SW,IOVR_LW,LSSAV,LDIAG3D     &
-                                       ,FHCYC,SASHAL,PRE_RAD,RAS,LSM      &
-                                       ,CDMBGWD,DLQF,CTEI_RM,LGGFS3D      &
-                                     ,BKGD_VDIF_M, SHAL_CNV             &
-                                     ,BKGD_VDIF_H,BKGD_VDIF_S           &
-                                     ,PSAUTCO,PRAUTCO,EVPCO             &
-                                     ,CAL_PRE,MOM4ICE,MSTRAT            &
-                                     ,TRANS_TRAC,NST_FCST               &
-                                     ,MOIST_ADJ
+      USE N_NAMELIST_PHYSICS_DEF, ONLY: ISOL,ICO2,IALB,IEMS,IAER,ICTM   &
+                                       ,IOVR_SW,IOVR_LW,LSSAV,LDIAG3D   &
+                                       ,FHCYC,SASHAL,PRE_RAD,RAS,LSM    &
+                                       ,CDMBGWD,DLQF,CTEI_RM,LGGFS3D    &
+                                       ,BKGD_VDIF_M, SHAL_CNV           &
+                                       ,BKGD_VDIF_H,BKGD_VDIF_S         &
+                                       ,PSAUTCO,PRAUTCO,EVPCO           &
+                                       ,CAL_PRE,MOM4ICE,MSTRAT          &
+                                       ,TRANS_TRAC,NST_FCST             &
+                                       ,MOIST_ADJ
 !
 !-----------------------------------------------------------------------
 !
@@ -4485,7 +4518,7 @@
 !
       INTEGER :: I,J,K
 !
-      REAL :: LIQW, OLDCWM, fraction
+      REAL :: FRACTION, LIQW, OLDCWM
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -4504,13 +4537,16 @@
            ENDDO
           ENDDO
        ENDIF
-
+!
+!-----------------------------------------------------------------------
+!
       micro_update:  IF (IMICRO <= 0) THEN
 !
 !-----------------------------------------------------------------------
 !***  Update condensate fields in water array for 
 !***  Ferrier microphysics only.
 !-----------------------------------------------------------------------
+!
          DO K=1,LM
            DO J=JMS,JME
              DO I=IMS,IME
@@ -4549,8 +4585,9 @@
            ENDDO
          ENDDO
 !
-     !! ELSE IF (IMICRO == 1) then micro_update
-      ELSE IF (IMICRO == 1 .or. IMICRO ==3) then micro_update   !! imicro=3 is for gfsmp
+!-----------------------------------------------------------------------
+!
+      ELSE IF (IMICRO == 1 .or. IMICRO ==3) THEN   micro_update   !! imicro=3 is for gfsmp
 !
 !-----------------------------------------------------------------------
 !***  Update CWM, F_rain, F_ice, F_RIMEF from WATER array
@@ -4586,12 +4623,12 @@
                 OLDCWM = WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)+WATER(I,J,K,P_QI)  &
                           +WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
                   IF (OLDCWM > EPSQ) THEN
-                    fraction = CWM(i,j,k)/OLDCWM
-                    WATER(I,J,K,P_QC) = fraction * WATER(I,J,K,P_QC)
-                    WATER(I,J,K,P_QR) = fraction * WATER(I,J,K,P_QR)
-                    WATER(I,J,K,P_QI) = fraction * WATER(I,J,K,P_QI)
-                    WATER(I,J,K,P_QS) = fraction * WATER(I,J,K,P_QS)
-                    WATER(I,J,K,P_QG) = fraction * WATER(I,J,K,P_QG)
+                    FRACTION = CWM(I,J,K)/OLDCWM
+                    WATER(I,J,K,P_QC) = FRACTION * WATER(I,J,K,P_QC)
+                    WATER(I,J,K,P_QR) = FRACTION * WATER(I,J,K,P_QR)
+                    WATER(I,J,K,P_QI) = FRACTION * WATER(I,J,K,P_QI)
+                    WATER(I,J,K,P_QS) = FRACTION * WATER(I,J,K,P_QS)
+                    WATER(I,J,K,P_QG) = FRACTION * WATER(I,J,K,P_QG)
                    ELSE
                      WATER(I,J,K,P_QC)=0.0
                      WATER(I,J,K,P_QR)=0.0
@@ -4631,6 +4668,8 @@
            ENDDO
          ENDDO
 !
+!-----------------------------------------------------------------------
+!
       ELSE IF (IMICRO == 2) then micro_update
 !
 !-----------------------------------------------------------------------
@@ -4658,6 +4697,9 @@
              ENDDO
            ENDDO
          ENDDO
+!
+!-----------------------------------------------------------------------
+!
       ENDIF  micro_update
 !
 !----------------------------------------------------------------------

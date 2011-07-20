@@ -634,7 +634,7 @@
 
    DO J=jts,jte
 
-      IF(ITIMESTEP.EQ.0)THEN
+!!!   IF(ITIMESTEP.EQ.0)THEN
 
         DO 50 I=its,ite
 
@@ -663,7 +663,7 @@
           ENDIF                                                         
 !                                                                       
    50   CONTINUE                                                        
-      ENDIF                                                               ! end of initialization over ocean
+!!!   ENDIF                                                               ! end of initialization over ocean
 
 !-----------------------------------------------------------------------
       DO 100 I=its,ite                                                    

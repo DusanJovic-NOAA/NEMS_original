@@ -332,6 +332,11 @@
       ENDDO
 !
       ALLOCATE(TEMP1(IDS:IDE,JDS:JDE),STAT=I)
+      IF(I/=0)THEN
+        WRITE(0,*)' Failed to allocate TEMP1 in PHYSICS_READ_INPUT_BINARY'
+        CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                          ,rc             =RC)
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Proceed with getting fields from input file.

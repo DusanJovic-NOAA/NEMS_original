@@ -11,7 +11,7 @@
 !***  for a 3-D or 4-D  array.
 !***  Currently there are routines for these combinations:
 !***
-!***  2, 22, 23, 223, 3, 33, 333, 3333, 4
+!***  2, 22, 222, 2222, 23, 223, 3, 33, 333, 3333, 4
 !
 !***  A generic interface exists so that all of the routines
 !***  may be called with the name "halo_exch".  If new routines
@@ -68,6 +68,8 @@ use module_dm_parallel,only : its,ite,jts,jte &
       interface halo_exch
         module procedure exch2
         module procedure exch22
+        module procedure exch222
+        module procedure exch2222
         module procedure exch23
         module procedure exch223
         module procedure exch3
@@ -940,6 +942,827 @@ use module_dm_parallel,only : its,ite,jts,jte &
 !-----------------------------------------------------------------------
 !
       end subroutine exch23
+!
+!-----------------------------------------------------------------------
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!-----------------------------------------------------------------------
+!
+      subroutine exch222(arr1,ll1,arr2,ll2,arr3,ll3,ihalo,jhalo)
+!
+!-----------------------------------------------------------------------
+!
+!***  Exchange haloes for three 2-D arrays.
+!
+!-----------------------------------------------------------------------
+!***  Argument variables
+!-----------------------------------------------------------------------
+!
+      integer(kind=kint),intent(in) :: &
+!
+ ll1 &                  ! vertical dimension of 1st 2-D array (=1)
+,ll2 &                  ! vertical dimension of 2nd 2-D array (=1)
+,ll3 &                  ! vertical dimension of 3rd 2-D array (=1)
+,ihalo &                ! number of halo rows in i direction
+,jhalo                  ! number of halo rows in j direction
+!
+      real(kind=kfpt),dimension(ims:ime,jms:jme),intent(inout) :: &
+ arr1 &                 ! 2-D array whose haloes are exchanged
+,arr2 &                 ! 2-D array whose haloes are exchanged
+,arr3                   ! 2-D array whose haloes are exchanged
+!
+!-----------------------------------------------------------------------
+!***  Local variables
+!-----------------------------------------------------------------------
+!
+      integer(kind=kint) :: i,ibeg,ic,iend,ierr,irecv,isend,j,jbeg,jend
+!
+      integer(kind=kint),dimension(mpi_status_size) :: istat
+!
+      integer(kind=kint),dimension(4) :: ihandle
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      mype=mype_share
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***
+!***  North/South
+!***
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Receive from north
+!-----------------------------------------------------------------------
+!
+      if(my_neb(1)>=0)then
+        call mpi_irecv(buf0,ibufexch,mpi_real,my_neb(1),my_neb(1) &
+                      ,mpi_comm_comp,ihandle(1),irecv)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Receive from south
+!-----------------------------------------------------------------------
+!
+      if(my_neb(3)>=0)then
+        call mpi_irecv(buf1,ibufexch,mpi_real,my_neb(3),my_neb(3) &
+                      ,mpi_comm_comp,ihandle(2),irecv)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Send to north
+!-----------------------------------------------------------------------
+!     
+      ibeg=max(its-ihalo,ids)
+      iend=min(ite+ihalo,ide)
+!     
+      if(my_neb(1)>=0)then
+        ic=0
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          buf2(ic)=arr1(i,jte-j)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          buf2(ic)=arr2(i,jte-j)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          buf2(ic)=arr3(i,jte-j)
+        enddo
+        enddo
+!
+        call mpi_isend(buf2,ic,mpi_real,my_neb(1),mype &
+                      ,mpi_comm_comp,ihandle(3),isend)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Send to south
+!-----------------------------------------------------------------------
+!    
+      if(my_neb(3)>=0)then
+        ic=0
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          buf3(ic)=arr1(i,jts+j)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          buf3(ic)=arr2(i,jts+j)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          buf3(ic)=arr3(i,jts+j)
+        enddo
+        enddo
+!
+        call mpi_isend(buf3,ic,mpi_real,my_neb(3),mype &
+                      ,mpi_comm_comp,ihandle(4),isend)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Store results from south
+!-----------------------------------------------------------------------
+!
+      if(my_neb(3)>=0)then
+        ic=0 
+        call mpi_wait(ihandle(2),istat,ierr)
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          arr1(i,jts-j-1)=buf1(ic)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          arr2(i,jts-j-1)=buf1(ic)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          arr3(i,jts-j-1)=buf1(ic)
+        enddo
+        enddo
+!
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Store from north
+!-----------------------------------------------------------------------
+!
+      if(my_neb(1)>=0)then
+        ic=0
+        call mpi_wait(ihandle(1),istat,ierr)
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          arr1(i,jte+j+1)=buf0(ic)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          arr2(i,jte+j+1)=buf0(ic)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          arr3(i,jte+j+1)=buf0(ic)
+        enddo
+        enddo
+!
+      endif
+!
+      if(my_neb(1)>=0)then
+        call mpi_wait(ihandle(3),istat,ierr)
+      endif
+!
+      if(my_neb(3)>=0)then
+        call mpi_wait(ihandle(4),istat,ierr)
+      endif
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***
+!***  East/West
+!***
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Receive from west
+!-----------------------------------------------------------------------
+!    
+      if(my_neb(4)>=0)then
+        call mpi_irecv(buf0,ibufexch,mpi_real,my_neb(4),my_neb(4) &
+                      ,mpi_comm_comp,ihandle(1),irecv)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Receive from east
+!-----------------------------------------------------------------------
+!    
+      if(my_neb(2)>=0)then
+        call mpi_irecv(buf1,ibufexch,mpi_real,my_neb(2),my_neb(2) &
+                      ,mpi_comm_comp,ihandle(2),irecv)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Send to east
+!-----------------------------------------------------------------------
+!      
+      jbeg=max(jts-jhalo,jds)
+      jend=min(jte+jhalo,jde)
+!      
+      if(my_neb(2)>=0)then
+        ibeg=ite-ihalo+1
+        iend=ite
+        ic=0
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          buf2(ic)=arr1(i,j)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          buf2(ic)=arr2(i,j)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          buf2(ic)=arr3(i,j)
+        enddo
+        enddo
+!
+        call mpi_isend(buf2,ic,mpi_real,my_neb(2),mype &
+                      ,mpi_comm_comp,ihandle(3),isend)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Send to west
+!-----------------------------------------------------------------------
+!       
+      if(my_neb(4)>=0)then
+        ibeg=its
+        iend=its+ihalo-1
+        ic=0
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          buf3(ic)=arr1(i,j)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          buf3(ic)=arr2(i,j)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          buf3(ic)=arr3(i,j)
+        enddo
+        enddo
+!
+       call mpi_isend(buf3,ic,mpi_real,my_neb(4),mype &
+                     ,mpi_comm_comp,ihandle(4),isend)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Store from west
+!-----------------------------------------------------------------------
+!
+      if(my_neb(4)>=0)then
+        ibeg=its-ihalo
+        iend=its-1
+        ic=0
+        call mpi_wait(ihandle(1),istat,ierr)
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          arr1(i,j)=buf0(ic)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          arr2(i,j)=buf0(ic)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          arr3(i,j)=buf0(ic)
+        enddo
+        enddo
+!
+      endif
+!   
+!-----------------------------------------------------------------------
+!***  Store from east
+!-----------------------------------------------------------------------
+!    
+      if(my_neb(2)>=0)then
+        ibeg=ite+1
+        iend=ite+ihalo
+        ic=0
+        call mpi_wait(ihandle(2),istat,ierr)
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          arr1(i,j)=buf1(ic)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          arr2(i,j)=buf1(ic)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          arr3(i,j)=buf1(ic)
+        enddo
+        enddo
+!
+      endif
+!
+      if(my_neb(4)>=0)then
+        call mpi_wait(ihandle(4),istat,ierr)
+      endif
+!
+      if(my_neb(2)>=0)then
+        call mpi_wait(ihandle(3),istat,ierr)
+      endif
+!
+!-----------------------------------------------------------------------
+!
+      end subroutine exch222
+!
+!-----------------------------------------------------------------------
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!-----------------------------------------------------------------------
+!
+      subroutine exch2222(arr1,ll1,arr2,ll2,arr3,ll3,arr4,ll4           &
+                         ,ihalo,jhalo)
+!
+!-----------------------------------------------------------------------
+!
+!***  Exchange halos for four 2-D arrays.
+!
+!-----------------------------------------------------------------------
+!***  Argument variables
+!-----------------------------------------------------------------------
+!
+      integer(kind=kint),intent(in) :: &
+!
+ ll1 &                  ! vertical dimension of 1st 2-D array (=1)
+,ll2 &                  ! vertical dimension of 2nd 2-D array (=1)
+,ll3 &                  ! vertical dimension of 3rd 2-D array (=1)
+,ll4 &                  ! vertical dimension of 3rd 2-D array (=1)
+,ihalo &                ! number of halo rows in i direction
+,jhalo                  ! number of halo rows in j direction
+!
+      real(kind=kfpt),dimension(ims:ime,jms:jme),intent(inout) :: &
+ arr1 &                 ! 2-D array whose haloes are exchanged
+,arr2 &                 ! 2-D array whose haloes are exchanged
+,arr3 &                 ! 2-D array whose haloes are exchanged
+,arr4                   ! 2-D array whose haloes are exchanged
+!
+!-----------------------------------------------------------------------
+!***  Local variables
+!-----------------------------------------------------------------------
+!
+      integer(kind=kint) :: i,ibeg,ic,iend,ierr,irecv,isend,j,jbeg,jend
+!
+      integer(kind=kint),dimension(mpi_status_size) :: istat
+!
+      integer(kind=kint),dimension(4) :: ihandle
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      mype=mype_share
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***
+!***  North/South
+!***
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Receive from north
+!-----------------------------------------------------------------------
+!
+      if(my_neb(1)>=0)then
+        call mpi_irecv(buf0,ibufexch,mpi_real,my_neb(1),my_neb(1) &
+                      ,mpi_comm_comp,ihandle(1),irecv)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Receive from south
+!-----------------------------------------------------------------------
+!
+      if(my_neb(3)>=0)then
+        call mpi_irecv(buf1,ibufexch,mpi_real,my_neb(3),my_neb(3) &
+                      ,mpi_comm_comp,ihandle(2),irecv)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Send to north
+!-----------------------------------------------------------------------
+!     
+      ibeg=max(its-ihalo,ids)
+      iend=min(ite+ihalo,ide)
+!     
+      if(my_neb(1)>=0)then
+        ic=0
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          buf2(ic)=arr1(i,jte-j)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          buf2(ic)=arr2(i,jte-j)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          buf2(ic)=arr3(i,jte-j)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          buf2(ic)=arr4(i,jte-j)
+        enddo
+        enddo
+!
+        call mpi_isend(buf2,ic,mpi_real,my_neb(1),mype &
+                      ,mpi_comm_comp,ihandle(3),isend)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Send to south
+!-----------------------------------------------------------------------
+!    
+      if(my_neb(3)>=0)then
+        ic=0
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          buf3(ic)=arr1(i,jts+j)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          buf3(ic)=arr2(i,jts+j)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          buf3(ic)=arr3(i,jts+j)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          buf3(ic)=arr4(i,jts+j)
+        enddo
+        enddo
+!
+        call mpi_isend(buf3,ic,mpi_real,my_neb(3),mype &
+                      ,mpi_comm_comp,ihandle(4),isend)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Store results from south
+!-----------------------------------------------------------------------
+!
+      if(my_neb(3)>=0)then
+        ic=0 
+        call mpi_wait(ihandle(2),istat,ierr)
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          arr1(i,jts-j-1)=buf1(ic)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          arr2(i,jts-j-1)=buf1(ic)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          arr3(i,jts-j-1)=buf1(ic)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          arr4(i,jts-j-1)=buf1(ic)
+        enddo
+        enddo
+!
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Store from north
+!-----------------------------------------------------------------------
+!
+      if(my_neb(1)>=0)then
+        ic=0
+        call mpi_wait(ihandle(1),istat,ierr)
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          arr1(i,jte+j+1)=buf0(ic)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          arr2(i,jte+j+1)=buf0(ic)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          arr3(i,jte+j+1)=buf0(ic)
+        enddo
+        enddo
+!
+        do j=0,jhalo-1
+        do i=ibeg,iend
+          ic=ic+1
+          arr4(i,jte+j+1)=buf0(ic)
+        enddo
+        enddo
+!
+      endif
+!
+      if(my_neb(1)>=0)then
+        call mpi_wait(ihandle(3),istat,ierr)
+      endif
+!
+      if(my_neb(3)>=0)then
+        call mpi_wait(ihandle(4),istat,ierr)
+      endif
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***
+!***  East/West
+!***
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Receive from west
+!-----------------------------------------------------------------------
+!    
+      if(my_neb(4)>=0)then
+        call mpi_irecv(buf0,ibufexch,mpi_real,my_neb(4),my_neb(4) &
+                      ,mpi_comm_comp,ihandle(1),irecv)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Receive from east
+!-----------------------------------------------------------------------
+!    
+      if(my_neb(2)>=0)then
+        call mpi_irecv(buf1,ibufexch,mpi_real,my_neb(2),my_neb(2) &
+                      ,mpi_comm_comp,ihandle(2),irecv)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Send to east
+!-----------------------------------------------------------------------
+!      
+      jbeg=max(jts-jhalo,jds)
+      jend=min(jte+jhalo,jde)
+!      
+      if(my_neb(2)>=0)then
+        ibeg=ite-ihalo+1
+        iend=ite
+        ic=0
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          buf2(ic)=arr1(i,j)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          buf2(ic)=arr2(i,j)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          buf2(ic)=arr3(i,j)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          buf2(ic)=arr4(i,j)
+        enddo
+        enddo
+!
+        call mpi_isend(buf2,ic,mpi_real,my_neb(2),mype &
+                      ,mpi_comm_comp,ihandle(3),isend)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Send to west
+!-----------------------------------------------------------------------
+!       
+      if(my_neb(4)>=0)then
+        ibeg=its
+        iend=its+ihalo-1
+        ic=0
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          buf3(ic)=arr1(i,j)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          buf3(ic)=arr2(i,j)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          buf3(ic)=arr3(i,j)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          buf3(ic)=arr4(i,j)
+        enddo
+        enddo
+!
+       call mpi_isend(buf3,ic,mpi_real,my_neb(4),mype &
+                     ,mpi_comm_comp,ihandle(4),isend)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  Store from west
+!-----------------------------------------------------------------------
+!
+      if(my_neb(4)>=0)then
+        ibeg=its-ihalo
+        iend=its-1
+        ic=0
+        call mpi_wait(ihandle(1),istat,ierr)
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          arr1(i,j)=buf0(ic)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          arr2(i,j)=buf0(ic)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          arr3(i,j)=buf0(ic)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          arr4(i,j)=buf0(ic)
+        enddo
+        enddo
+!
+      endif
+!   
+!-----------------------------------------------------------------------
+!***  Store from east
+!-----------------------------------------------------------------------
+!    
+      if(my_neb(2)>=0)then
+        ibeg=ite+1
+        iend=ite+ihalo
+        ic=0
+        call mpi_wait(ihandle(2),istat,ierr)
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          arr1(i,j)=buf1(ic)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          arr2(i,j)=buf1(ic)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          arr3(i,j)=buf1(ic)
+        enddo
+        enddo
+!
+        do j=jbeg,jend
+        do i=ibeg,iend
+          ic=ic+1
+          arr4(i,j)=buf1(ic)
+        enddo
+        enddo
+!
+      endif
+!
+      if(my_neb(4)>=0)then
+        call mpi_wait(ihandle(4),istat,ierr)
+      endif
+!
+      if(my_neb(2)>=0)then
+        call mpi_wait(ihandle(3),istat,ierr)
+      endif
+!
+!-----------------------------------------------------------------------
+!
+      end subroutine exch2222
 !
 !-----------------------------------------------------------------------
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

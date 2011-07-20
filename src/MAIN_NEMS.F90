@@ -28,7 +28,7 @@
 !   2010-03     Jovic/Black - Revised to create NEMS gridded component
 !                             for new structure.
 !   2010-04     Yang    - Add GEFS and GFS for the revised NEMS.
-!   2010-11     Yang    - Add the "Generic Core" in the NEMS.
+!   2010-11     Yang    - Add the "Generic Core" to NEMS
 !   2011-02     Yang    - Updated to use both the ESMF 4.0.0rp2 library,
 !                         ESMF 5 series library and the the 
 !                         ESMF 3.1.0rp2 library.
@@ -107,8 +107,6 @@
 #endif
 !
 !-----------------------------------------------------------------------
-!!
-!-----------------------------------------------------------------------
 !***  Initialize the final error signal.
 !-----------------------------------------------------------------------
 !
@@ -141,9 +139,11 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!-----------------------------------------------------------------------
+!
 #if defined (SVN_INFO) && defined (CMP_YEAR) && defined (CMP_JD)
-      if (mype==0) call w3tagb('NEMS '//SVN_INFO                        &
-                  ,CMP_YEAR, CMP_JD, 0000, 'NEMS')
+      if (mype==0) call w3tagb('NEMS '//SVN_INFO,                       &
+                               CMP_YEAR, CMP_JD, 0000, 'NEMS')
 #else
       if (mype==0) call w3tagb('nems     ',0000,0000,0000,'np23   ')
 #endif
@@ -194,8 +194,8 @@
 !
       CF_MAIN=ESMF_ConfigCreate(rc=RC)
 !
-      CALL ESMF_ConfigLoadFile(config  =CF_MAIN            & !<-- The Configure object
-                              ,filename='model_configure'  & !<-- The name of the configure file 
+      CALL ESMF_ConfigLoadFile(config  =CF_MAIN                         &  !<-- The Configure object
+                              ,filename='model_configure'               &  !<-- The name of the configure file 
                               ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -204,7 +204,7 @@
 !
 !-----------------------------------------------------------------------
 !***  Create the NEMS gridded component which will create and
-!***  control the ATM (atmosphere), OCN (ocean), ICE (sea ice), etc.
+!***  control the ATM (atmoshpere), OCN (ocean), ICE (sea ice), etc.
 !***  gridded components.
 !-----------------------------------------------------------------------
 !
@@ -213,8 +213,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      NEMS_GRID_COMP=ESMF_GridCompCreate(name        ='NEMS Grid Comp'  & !<-- NEMS component name
-                                        ,configFile  ='model_configure'  & !<-- Link the user-created configure file.
+      NEMS_GRID_COMP=ESMF_GridCompCreate(name        ='NEMS Grid Comp'  &  !<-- NEMS component name
+                                        ,configFile  ='model_configure' &  !<-- Link the user-created configure file.
                                         ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -474,8 +474,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompInitialize(gridcomp   =NEMS_GRID_COMP           &  !<-- The NEMS component
-                                  ,importState=NEMS_IMP_STATE           &  !<-- The NEMS component import state
-                                  ,exportState=NEMS_EXP_STATE           &  !<-- The NEMS component export state
+                                  ,importState=NEMS_IMP_STATE           &  !<-- The NEMS import state
+                                  ,exportState=NEMS_EXP_STATE           &  !<-- The NEMS export state
                                   ,clock      =CLOCK_MAIN               &  !<-- The ESMF clock
                                   ,phase      =ESMF_SINGLEPHASE         &
                                   ,rc         =RC)
@@ -494,8 +494,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompRun(gridcomp   =NEMS_GRID_COMP                  &  !<-- The NEMS component
-                           ,importState=NEMS_IMP_STATE                  &  !<-- The NEMS component import state
-                           ,exportState=NEMS_EXP_STATE                  &  !<-- The NEMS component export state
+                           ,importState=NEMS_IMP_STATE                  &  !<-- The NEMS import state
+                           ,exportState=NEMS_EXP_STATE                  &  !<-- The NEMS export state
                            ,clock      =CLOCK_MAIN                      &  !<-- The ESMF clock
                            ,phase      =ESMF_SINGLEPHASE                &
                            ,rc         =RC)
@@ -657,13 +657,15 @@
 !***  Shut down the ESMF system.
 !-----------------------------------------------------------------------
 !
-      CALL ESMF_Finalize()
-!
       IF(RC_MAIN==ESMF_SUCCESS)THEN
-!       WRITE(0,*)'MODEL FORECAST RUN SUCCEEDED'
+!       IF(MYPE==0)WRITE(0,*)'MODEL FORECAST RUN SUCCEEDED'
       ELSE
         WRITE(0,*)'MODEL FORECAST RUN FAILED  RC_MAIN=',RC_MAIN
       ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      CALL ESMF_Finalize()
 !
 !-----------------------------------------------------------------------
 !

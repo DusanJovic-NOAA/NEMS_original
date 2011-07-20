@@ -30,7 +30,7 @@
 !
       PRIVATE
 !
-      PUBLIC :: NMM_SETUP       !<-- An NMM-specific routine to set up parallelism and ESMF Grid
+      PUBLIC :: DOMAIN_SETUP       !<-- An NMM-specific routine to set up parallelism and ESMF Grid
 !
 !-----------------------------------------------------------------------
 !
@@ -40,12 +40,12 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE NMM_SETUP(MYPE_IN                                      &
-                          ,MPI_INTRA                                    &
-                          ,CF                                           &
-                          ,DOMAIN_GRID_COMP                             &
-                          ,DOMAIN_INT_STATE                             &
-                          ,GRID_DOMAIN)
+      SUBROUTINE DOMAIN_SETUP(MYPE_IN                                   &
+                             ,MPI_INTRA                                 &
+                             ,CF                                        &
+                             ,DOMAIN_GRID_COMP                          &
+                             ,DOMAIN_INT_STATE                          &
+                             ,GRID_DOMAIN)
 ! 
 !-----------------------------------------------------------------------
 !***  This routine contains NMM-specific code for the DOMAIN component:
@@ -369,17 +369,17 @@
         ALLOCATE(domain_int_state%LOCAL_JEND  (0:NUM_PES_FCST-1))
 !
         DO N=0,NUM_PES_FCST-1
-          domain_int_state%LOCAL_ISTART(N)=LOCAL_ISTART(N)                 !<-- Starting I for all forecasts' subdomains
-          domain_int_state%LOCAL_IEND  (N)=LOCAL_IEND  (N)                 !<-- Ending I for all forecasts' subdomains
-          domain_int_state%LOCAL_JSTART(N)=LOCAL_JSTART(N)                 !<-- Starting J for all forecasts' subdomains
-          domain_int_state%LOCAL_JEND  (N)=LOCAL_JEND  (N)                 !<-- Ending J for all forecasts' subdomains
+          domain_int_state%LOCAL_ISTART(N)=LOCAL_ISTART(N)                 !<-- Starting I for all forecast tasks' subdomains
+          domain_int_state%LOCAL_IEND  (N)=LOCAL_IEND  (N)                 !<-- Ending I for all forecast tasks' subdomains
+          domain_int_state%LOCAL_JSTART(N)=LOCAL_JSTART(N)                 !<-- Starting J for all forecast tasks' subdomains
+          domain_int_state%LOCAL_JEND  (N)=LOCAL_JEND  (N)                 !<-- Ending J for all forecast tasks' subdomains
         ENDDO
 !
       ENDIF
 !
 !-----------------------------------------------------------------------
 !
-      END SUBROUTINE NMM_SETUP
+      END SUBROUTINE DOMAIN_SETUP
 !
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&

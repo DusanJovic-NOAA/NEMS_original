@@ -78,8 +78,9 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: EARTH_GRID_COMP                 !<-- The EARTH component
-      INTEGER            ,INTENT(OUT)   :: RC_REG                          !<-- Error return code
+      TYPE(ESMF_GridComp) :: EARTH_GRID_COMP                               !<-- The EARTH component
+!
+      INTEGER,INTENT(OUT) :: RC_REG                                        !<-- Error return code
 !
 !---------------------
 !***  Local Variables
@@ -197,11 +198,14 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: EARTH_GRID_COMP                 !<-- The EARTH component
-      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The EARTH import state
-      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The EARTH export state
-      TYPE(ESMF_Clock)                  :: CLOCK_NEMS                      !<-- The Clock of the NEMS component
-      INTEGER            ,INTENT(OUT)   :: RC_INIT                         !<-- Error return code
+      TYPE(ESMF_GridComp) :: EARTH_GRID_COMP                               !<-- The EARTH component
+!
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The EARTH import state
+                         ,EXP_STATE                                        !<-- The EARTH export state
+!
+      TYPE(ESMF_Clock) :: CLOCK_NEMS                                       !<-- The NEMS component ESMF Clock
+!
+      INTEGER,INTENT(OUT) :: RC_INIT                                       !<-- Error return code
 !
 !-----------------------------------------------------------------------
 !
@@ -382,11 +386,14 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: EARTH_GRID_COMP                 !<-- The EARTH component
-      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The EARTH import state
-      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The EARTH export state
-      TYPE(ESMF_Clock)                  :: CLOCK_NEMS                      !<-- The Clock of the NEMS component
-      INTEGER            ,INTENT(OUT)   :: RC_RUN                          !<-- Error return code
+      TYPE(ESMF_GridComp) :: EARTH_GRID_COMP                               !<-- The EARTH component
+!
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The EARTH import state
+                         ,EXP_STATE                                        !<-- The EARTH export state
+!
+      TYPE(ESMF_Clock) :: CLOCK_NEMS                                       !<-- The NEMS component ESMF Clock
+!
+      INTEGER,INTENT(OUT) :: RC_RUN                                        !<-- Error return code
 !
 !---------------------
 !***  Local Variables
@@ -478,11 +485,14 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: EARTH_GRID_COMP                 !<-- The EARTH component
-      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The EARTH import state
-      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The EARTH export state
-      TYPE(ESMF_Clock)                  :: CLOCK_NEMS                      !<-- The Clock of the NEMS component
-      INTEGER            ,INTENT(OUT)   :: RC_FINALIZE                     !<-- Error return code
+      TYPE(ESMF_GridComp) :: EARTH_GRID_COMP                               !<-- The EARTH component
+!
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The EARTH import state
+                         ,EXP_STATE                                        !<-- The EARTH export state
+!
+      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_NEMS                      !<-- The NEMS component ESMF Clock
+!
+      INTEGER,INTENT(OUT) :: RC_FINALIZE                                   !<-- Error return code
 !
 !---------------------
 !***  Local Variables

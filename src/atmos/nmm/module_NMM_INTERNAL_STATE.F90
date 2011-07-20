@@ -16,7 +16,8 @@
 !
       PRIVATE
 !
-      PUBLIC :: NMM_INTERNAL_STATE,WRAP_NMM_INTERNAL_STATE
+      PUBLIC :: NMM_INTERNAL_STATE                                      &
+               ,WRAP_NMM_INTERNAL_STATE
 !
 !-----------------------------------------------------------------------
 

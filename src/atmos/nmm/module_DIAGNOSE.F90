@@ -49,7 +49,7 @@
       REAL(KIND=KFPT),ALLOCATABLE,DIMENSION(:) :: VALUES
       CHARACTER(5) :: TIMESTEP
       CHARACTER(6) :: FMT
-      CHARACTER(12) :: FILENAME
+      CHARACTER(15) :: FILENAME
       integer :: isee=055,jsee=138,lsee=10,pesee=6
 !----------------------------------------------------------------------
 !**********************************************************************
@@ -209,7 +209,7 @@
       REAL(KIND=KFPT),ALLOCATABLE,DIMENSION(:) :: VALUES
       CHARACTER(5) :: TIMESTEP
       CHARACTER(6) :: FMT
-      CHARACTER(12) :: FILENAME
+      CHARACTER(15) :: FILENAME
       integer :: isee=055,jsee=138,lsee=10,pesee=6
 !----------------------------------------------------------------------
 !**********************************************************************
@@ -379,7 +379,7 @@
   205     FORMAT(' EXIT ',A,' TEMPERATURE=',E12.5                      &
                 ,' AT (',I3,',',I2,',',I3,')',' MYPE=',I3)
 !         CALL MPI_ABORT(MPI_COMM_WORLD,1,IERR)
-        ELSEIF(Q(I,J,K)<-1.E-4.OR.Q(I,J,K)>30.E-3                      &
+        ELSEIF(Q(I,J,K)<-1.5E-4.OR.Q(I,J,K)>30.E-3                     &
                .OR.Q(I,J,K)/=Q(I,J,K))THEN
           WRITE(0,100)NAME,NTSD
           WRITE(0,300)I,J,K,Q(I,J,K),MYPE,NTSD
@@ -485,7 +485,7 @@
   205     FORMAT(' EXIT ',A,' TEMPERATURE=',E12.5                      &
                 ,' AT (',I3,',',I2,',',I3,')',' MYPE=',I3)
 !         CALL MPI_ABORT(MPI_COMM_WORLD,1,IERR)
-        ELSEIF(Q(I,J,K)<-1.E-4.OR.Q(I,J,K)>30.E-3                      &
+        ELSEIF(Q(I,J,K)<-1.5E-4.OR.Q(I,J,K)>30.E-3                     &
                .OR.Q(I,J,K)/=Q(I,J,K))THEN
           WRITE(0,100)NAME,NTSD
           WRITE(0,300)I,J,K,Q(I,J,K),MYPE,NTSD
@@ -497,7 +497,8 @@
   305     FORMAT(' EXIT ',A,' SPEC HUMIDITY=',E12.5                    &
                 ,' AT (',I3,',',I2,',',I3,')',' MYPE=',I3)
 !         CALL MPI_ABORT(MPI_COMM_WORLD,1,IERR)
-        ELSEIF(Q2(I,J,K)<-1.E-4.OR.Q2(I,J,K)>100.                      &
+!       ELSEIF(Q2(I,J,K)<-1.E-4.OR.Q2(I,J,K)>100.                      &
+        ELSEIF(Q2(I,J,K)<-0.15.OR.Q2(I,J,K)>100.                      &
                .OR.Q2(I,J,K)/=Q2(I,J,K))THEN
           WRITE(0,100)NAME,NTSD
           WRITE(0,310)I,J,K,Q2(I,J,K),MYPE,NTSD

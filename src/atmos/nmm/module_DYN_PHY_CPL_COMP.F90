@@ -70,7 +70,7 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_CplComp)               :: CPL_COMP                        !<-- Coupler component
+      TYPE(ESMF_CplComp) :: CPL_COMP                                      !<-- Coupler component
 !
       INTEGER(kind=KINT),INTENT(OUT) :: RC_REG                            !<-- Return code for register
 !
@@ -202,12 +202,12 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_CplComp)               :: CPL_COMP                         !<-- The Dyn-Phy Coupler Component
+      TYPE(ESMF_CplComp) :: CPL_COMP                                       !<-- The Dyn-Phy Coupler Component
 !
-      TYPE(ESMF_State)               :: IMP_STATE                          !<-- The Coupler's Import State
-      TYPE(ESMF_State)               :: EXP_STATE                          !<-- The Coupler's Export State
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The Coupler's Import State
+                         ,EXP_STATE                                        !<-- The Coupler's Export State
 !
-      TYPE(ESMF_Clock)            :: CLOCK                                 !<-- The ESMF Clock
+      TYPE(ESMF_Clock) :: CLOCK                                            !<-- The ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_CPL
 !
@@ -224,10 +224,10 @@
 !
       TYPE(ESMF_StateItemType) :: stateItemType
 
-      LOGICAL,SAVE :: FROM_EXP_DYN_TO_IMP_PHY=.FALSE.
-      LOGICAL,SAVE :: FROM_EXP_PHY_TO_IMP_DYN=.FALSE.
-      LOGICAL,SAVE :: FROM_IMP_DYN_TO_EXP_DYN=.FALSE.
-      LOGICAL,SAVE :: FROM_IMP_PHY_TO_EXP_PHY=.FALSE.
+      LOGICAL,SAVE :: FROM_EXP_DYN_TO_IMP_PHY=.FALSE.                   &
+                     ,FROM_EXP_PHY_TO_IMP_DYN=.FALSE.                   &
+                     ,FROM_IMP_DYN_TO_EXP_DYN=.FALSE.                   &
+                     ,FROM_IMP_PHY_TO_EXP_PHY=.FALSE.
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -345,12 +345,12 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_CplComp)               :: CPL_COMP                         !<-- The Dyn-Phy Coupler Component
+      TYPE(ESMF_CplComp) :: CPL_COMP                                       !<-- The Dyn-Phy Coupler Component
 !
-      TYPE(ESMF_State)               :: IMP_STATE                       &  !<-- The Coupler's Import State
-                                       ,EXP_STATE                          !<-- The Coupler's Export State
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The Coupler's Import State
+                         ,EXP_STATE                                        !<-- The Coupler's Export State
 !
-      TYPE(ESMF_Clock)            :: CLOCK                                 !<-- The ESMF Clock
+      TYPE(ESMF_Clock) :: CLOCK                                            !<-- The ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_CPL
 !
@@ -663,12 +663,12 @@
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_CplComp)               :: CPL_COMP                         !<-- The Dyn-Phy Coupler Component
+      TYPE(ESMF_CplComp) :: CPL_COMP                                       !<-- The Dyn-Phy Coupler Component
 !
-      TYPE(ESMF_State)               :: IMP_STATE                          !<-- The Coupler's Import State
-      TYPE(ESMF_State)               :: EXP_STATE                          !<-- The Coupler's Export State
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The Coupler's Import State
+                         ,EXP_STATE                                        !<-- The Coupler's Export State
 !
-      TYPE(ESMF_Clock)             ::CLOCK                                 !<-- The ESMF Clock
+      TYPE(ESMF_Clock),INTENT(IN) :: CLOCK                                 !<-- The ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_CPL
 !      

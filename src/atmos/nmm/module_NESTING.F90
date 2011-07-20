@@ -1,5 +1,4 @@
 #include "../../ESMFVersionDefine.h"
-
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
 #undef ESMF_520rbs
 #else
@@ -12,8 +11,8 @@
 !
 !-----------------------------------------------------------------------
 !
-!***  THIS MODULE CONTAINS ROUTINES THAT PERFORM VARIOUS INTERACTIONS
-!***  BETWEEN PARENT DOMAINS AND THEIR CHILDREN.
+!***  This module contains routines that perform various interactions
+!***  between parent domains and their children.
 !
 !-----------------------------------------------------------------------
 !
@@ -28,8 +27,8 @@
 !   2008-08-14  Black - Added BOUNDARY_DATA_STATE_TO_STATE
 !   2009-03-12  Black - Added Z0BASE and STDH now needed for NPS.
 !   2009-10-12  Black - Fix for generalized of parent-child space ratios.
-!   2010-08-25  Yang  - Updated to use both the ESMF 4.0.0rp2 library
-!                       and the the ESMF 3.1.0rp2 library.
+!   2010-03-31  Black - Add parent computation of child boundary topo.
+!   2010-07-16  Black - Moving nest capability.
 !   2011-05-17  Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !
 !-----------------------------------------------------------------------
@@ -40,11 +39,21 @@
 !
       USE ESMF_MOD
 !
-      USE MODULE_INCLUDE
+      USE module_INCLUDE
 !
-      USE MODULE_LS_NOAHLSM ,ONLY: NUM_SOIL_LAYERS
+      USE module_CONTROL,ONLY: E_BDY,N_BDY,S_BDY,W_BDY
 !
-      USE MODULE_ERR_MSG    ,ONLY: ERR_MSG,MESSAGE_CHECK
+      USE module_VARS,ONLY: VAR
+!
+      USE module_LS_NOAHLSM,ONLY: NUM_SOIL_LAYERS
+!
+      USE module_CONSTANTS,ONLY: P608,R_D
+!
+      USE module_CONTROL,ONLY: TIMEF
+!
+      USE module_EXCHANGE,ONLY: HALO_EXCH
+!
+      USE module_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
 !-----------------------------------------------------------------------
 !
@@ -54,11 +63,76 @@
 !
       PRIVATE
 !
-      PUBLIC :: BOUNDARY_DATA_STATE_TO_STATE                            &
+      PUBLIC :: BNDS_2D                                                 &
+               ,BOUNDARY_DATA_STATE_TO_STATE                            &
+               ,BUNDLE_X                                                &
+               ,CHECK_REAL                                              &
+               ,CHILD_UPDATE_LINK                                       &
+               ,PARENT_UPDATES_HALOS                                    &
+               ,INTERIOR_DATA_FROM_PARENT                               &
+               ,INTERIOR_DATA_STATE_TO_STATE                            &
+               ,INTERNAL_DATA_TO_DOMAIN                                 &
+               ,LATLON_TO_IJ                                            &
+               ,MIXED_DATA                                              &
+               ,MIXED_DATA_TASKS                                        &
+               ,MOVING_NEST_BOOKKEEPING                                 &
+               ,MOVING_NEST_RECV_DATA                                   &
+               ,PARENT_BOOKKEEPING_MOVING                               &
                ,PARENT_CHILD_COMMS                                      &
-               ,PARENT_DATA_TO_DOMAIN                                   &
+               ,PARENT_READS_MOVING_CHILD_TOPO                          &
                ,PARENT_TO_CHILD_INIT_NMM                                &
+               ,PARENT_UPDATES_MOVING                                   &
+               ,REAL_DATA                                               &
+               ,REAL_DATA_2D                                            &
+               ,REAL_DATA_TASKS                                         &
                ,SET_NEST_GRIDS
+!
+!-----------------------------------------------------------------------
+!
+      TYPE MIXED_DATA
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: DATA_INTEGER
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: DATA_REAL
+      END TYPE MIXED_DATA
+!
+      TYPE MIXED_DATA_TASKS
+        TYPE(MIXED_DATA),DIMENSION(:),POINTER :: TASKS
+      END TYPE MIXED_DATA_TASKS
+!
+      TYPE REAL_DATA
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: DATA
+      END TYPE REAL_DATA
+!
+      TYPE REAL_DATA_2D
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: DATA
+      END TYPE REAL_DATA_2D
+!
+      TYPE REAL_DATA_TASKS
+        TYPE(REAL_DATA),DIMENSION(:),POINTER :: TASKS
+      END TYPE REAL_DATA_TASKS
+!
+      TYPE BNDS_2D
+        INTEGER(kind=KINT) :: LBND1
+        INTEGER(kind=KINT) :: UBND1
+        INTEGER(kind=KINT) :: LBND2
+        INTEGER(kind=KINT) :: UBND2
+      END TYPE BNDS_2D
+!
+      TYPE :: INTERIOR_DATA_FROM_PARENT
+        INTEGER(kind=KINT) :: ID 
+        INTEGER(kind=KINT) :: NPTS
+        INTEGER(kind=KINT),DIMENSION(1:2) :: ISTART
+        INTEGER(kind=KINT),DIMENSION(1:2) :: IEND
+        INTEGER(kind=KINT),DIMENSION(1:2) :: JSTART
+        INTEGER(kind=KINT),DIMENSION(1:2) :: JEND
+      END TYPE INTERIOR_DATA_FROM_PARENT
+!
+      TYPE :: CHILD_UPDATE_LINK
+        INTEGER(kind=KINT),POINTER :: TASK_ID
+        INTEGER(kind=KINT),POINTER :: NUM_PTS_UPDATE_HZ
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: IL
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: JL
+        TYPE(CHILD_UPDATE_LINK),POINTER :: NEXT_LINK
+      END TYPE CHILD_UPDATE_LINK
 !
 !-----------------------------------------------------------------------
 !
@@ -69,6 +143,18 @@
 !
       INTEGER(kind=KINT),SAVE :: LM
 !
+      REAL(kind=KFPT),SAVE :: CHILD_PARENT_SPACE_RATIO                  &
+                             ,EPS=1.E-4 
+!
+      CHARACTER(len=5) :: BUNDLE_X='-move'
+!
+!-----------------------------------------------------------------------
+!
+      REAL(kind=KDBL) :: btim,btim0
+!
+      TYPE(CHILD_UPDATE_LINK),POINTER,SAVE :: TAIL
+!
+      integer(kind=kint) :: iprt=01,jprt=61
 !-----------------------------------------------------------------------
 !
       CONTAINS
@@ -154,11 +240,11 @@
                            ,TASK_X                                      &
                            ,TOTAL_TASKS                                 &
                            ,WRITE_GROUPS                                &
-                           ,WRITE_TASKS_PER_GROUP 
+                           ,WRITE_TASKS_PER_GROUP
 !
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: EXCLUDE_TASKS      &  !<-- Tasks excluded from each parent-child couplet
                                                     ,LAST_TASK          &  !<-- ID of last task on each domain
-                                                    ,LEAD_TASK          &  !<-- ID od first task on each domain
+                                                    ,LEAD_TASK          &  !<-- ID of first task on each domain
                                                     ,PARENT_OF_DOMAIN      !<-- IDs of parents of each domain
 !
       CHARACTER(2)      :: NUM_DOMAIN
@@ -175,13 +261,13 @@
 !
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(ID_DOMAINS      (1:NUM_DOMAINS))       
-      ALLOCATE(ID_PARENTS      (1:NUM_DOMAINS))       
-      ALLOCATE(LEAD_TASK       (1:NUM_DOMAINS))       
-      ALLOCATE(LAST_TASK       (1:NUM_DOMAINS))       
-      ALLOCATE(FTASKS_DOMAIN   (1:NUM_DOMAINS))       
-      ALLOCATE(NTASKS_DOMAIN   (1:NUM_DOMAINS))       
-      ALLOCATE(NUM_CHILDREN    (1:NUM_DOMAINS))                          
+      ALLOCATE(ID_DOMAINS   (1:NUM_DOMAINS))       
+      ALLOCATE(ID_PARENTS   (1:NUM_DOMAINS))       
+      ALLOCATE(LEAD_TASK    (1:NUM_DOMAINS))       
+      ALLOCATE(LAST_TASK    (1:NUM_DOMAINS))       
+      ALLOCATE(FTASKS_DOMAIN(1:NUM_DOMAINS))       
+      ALLOCATE(NTASKS_DOMAIN(1:NUM_DOMAINS))       
+      ALLOCATE(NUM_CHILDREN (1:NUM_DOMAINS))                          
 !
       TOTAL_TASKS=0
 !
@@ -245,7 +331,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  How many forecast/write tasks will be active on each domain?
+!***  How many Forecast/Write tasks will be active on each domain?
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -328,7 +414,7 @@
         ID_DOM=RANK_TO_DOMAIN_ID(N)
 !
 !-----------------------------------------------------------------------
-!***  We must assign a "COLOR" to each task.
+!***  We must assign a "color" to each task.
 !***  Simply set the color equal to the domain ID.
 !***  At the same time we are determining the global IDs
 !***  of the lead and last tasks on each domain which
@@ -343,13 +429,13 @@
 !
         LAST_TASK(ID_DOM)=LEAD_TASK(ID_DOM)+NTASKS_DOMAIN(ID_DOM)-1        !<-- The last task on each domain
 !
-        IF(MYPE>=LEAD_TASK(ID_DOM).AND.MYPE<=LAST_TASK(ID_DOM))THEN        !<-- Associate tasks with each domain              
+        IF(MYPE>=LEAD_TASK(ID_DOM).AND.MYPE<=LAST_TASK(ID_DOM))THEN        !<-- Associate tasks with each domain
           I_COLOR=ID_DOM                                                   !<-- Set color to domain ID
-          MY_DOMAIN_ID=ID_DOM                                              !<-- Tell this task the ID of the domain it is on 
+          MY_DOMAIN_ID=ID_DOM                                              !<-- Tell this task the ID of the domain it is on
         ENDIF
 !
         KOUNT_TASKS=0
-        DO N2=LEAD_TASK(ID_DOM),LAST_TASK(ID_DOM)     
+        DO N2=LEAD_TASK(ID_DOM),LAST_TASK(ID_DOM)
           KOUNT_TASKS=KOUNT_TASKS+1
           PETLIST_ATM(KOUNT_TASKS,ID_DOM)=N2
         ENDDO
@@ -401,7 +487,7 @@
 !***  All domain IDs will be searched in the configure files to find 
 !***  matches between the current domain's ID and the parent IDs of 
 !***  the other domains.
-!***  Matches will identify parent-child couplets.
+!***  Matches will identify Parent-Child couplets.
 !-----------------------------------------------------------------------
 !
         NN=0                                                               !<-- Index of children of the parent domain
@@ -433,7 +519,7 @@
 !
         I_AM_PARENT=.FALSE.
 !
-        IF(MYPE>=LEAD_TASK(ID_DOM).AND.MYPE<=LAST_TASK(ID_DOM))THEN        !<-- Select parent tasks              
+        IF(MYPE>=LEAD_TASK(ID_DOM).AND.MYPE<=LAST_TASK(ID_DOM))THEN        !<-- Select parent tasks
           ALLOCATE(COMM_TO_MY_CHILDREN(1:N_CHILDREN))                      !<-- Parent allocates parent-to-child intercommunicators
           I_AM_PARENT=.TRUE.
 !
@@ -454,11 +540,11 @@
 !
         IF(I_AM_PARENT)THEN
           LEAD_REMOTE=NTASKS_PARENT                                        !<-- The lead child task as seen by its parent is always
-                                                                           !      relative to the parent/child groupsize (starting 
-                                                                           !      with the parent) and NOT to the global task ranks.
+                                                                           !    relative to the parent/child groupsize (starting 
+                                                                           !    with the parent) and NOT to the global task ranks.
         ELSE
           LEAD_REMOTE=0                                                    !<-- The lead parent task as seen from its children;
-                                                                           !      it is relative to groupsize and thus is always 0.
+                                                                           !     it is relative to groupsize and thus is always 0.
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -511,7 +597,7 @@
           ENDIF exclude
 !
 !-----------------------------------------------------------------------
-!***  We now have array EXCLUDE_TASKS holding the IDs OF ALL tasks
+!***  We now have array EXCLUDE_TASKS holding the IDs of all tasks
 !***  that are not part of the union of child "N" and its parent.
 !***  The number of these excluded tasks is KOUNT_EXCLUDE.
 !
@@ -538,7 +624,7 @@
 !***  The intracommunicator called COMM_INTRA excludes all tasks
 !***  outside the union of the current parent and its child "N".
 !***  Create an intercommunicator between this parent and its child "N"
-!***  Through a process in which only those tasks can participate.
+!***  through a process in which only those tasks can participate.
 !***  Save the intercommunicator in an array holding all of the
 !***  intercommunicators between the current parent and its children.
 !-----------------------------------------------------------------------
@@ -547,11 +633,11 @@
             CALL MPI_INTERCOMM_CREATE(COMM_MY_DOMAIN                    &  !<-- Each task's local intracommunicator
                                      ,0                                 &  !<-- Rank of lead task in each local intracommunicator
                                      ,COMM_INTRA                        &  !<-- Intracommunicator between tasks of current domain
-                                                                           !      and child "N"
+                                                                           !    and child "N"
                                      ,LEAD_REMOTE                       &  !<-- Rank of leader in the remote group in COMM_INTRA
                                      ,0                                 &  !<-- A tag
                                      ,COMM_PARENT_CHILD                 &  !<-- The new intercommunicator between tasks of current
-                                                                           !      domain and those of its child "N"
+                                                                           !    domain and those of its child "N"
                                      ,IERR )
 !
             IF(I_AM_PARENT)THEN                                  
@@ -610,95 +696,102 @@
 !
 !-----------------------------------------------------------------------
 !
-      INTEGER,INTENT(IN)                         :: MYPE                &  !<-- My MPI task rank
-                                                   ,MY_DOMAIN_ID        &  !<-- IDs of each domain
-                                                   ,THIS_CHILD_ID       &  !<-- ID of the current child
-                                                   ,COMM_MY_DOMAIN         !<-- MPI intracommunicator for individual domains
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: MYPE                             &  !<-- My MPI task rank
+                                      ,MY_DOMAIN_ID                     &  !<-- IDs of each domain
+                                      ,THIS_CHILD_ID                    &  !<-- ID of the current child
+                                      ,COMM_MY_DOMAIN                      !<-- MPI intracommunicator for individual domains
 !
       TYPE(ESMF_Config),DIMENSION(*),INTENT(INOUT) :: CF                   !<-- The config objects (one per domain)
 !
       TYPE(ESMF_GridComp),INTENT(INOUT)          :: DYN_GRID_COMP       &  !<-- The parent's Dynamics gridded component
                                                    ,PHY_GRID_COMP          !<-- The parent's Physics gridded component
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local Variables
+!---------------------
 !
-      INTEGER :: I,J,L,M,N,NCHILD,NFCST,RC,RC_CHILD,LNSH=1    ! Tom, change lnsh value later
-      INTEGER :: INPES,JNPES
-      INTEGER :: IDS,IDE,JDS,JDE
-      INTEGER :: IMS,IME,JMS,JME
-      INTEGER :: ITS,ITE,JTS,JTE
-      INTEGER :: NUM_PES_PARENT
-      INTEGER :: IM_CHILD,JM_CHILD
-      INTEGER :: IM_PARENT,JM_PARENT
-      INTEGER :: I_PARENT_START,J_PARENT_START
-      INTEGER :: IHREND,NTSD
-      INTEGER :: PARENT_CHILD_SPACE_RATIO
+      INTEGER(kind=KINT) :: I,J,L,M,N,NCHILD,NFCST,RC,RC_CHILD,LNSH=1    ! Tom, change lnsh value later
+      INTEGER(kind=KINT) :: INPES,JNPES
+      INTEGER(kind=KINT) :: IDS,IDE,JDS,JDE
+      INTEGER(kind=KINT) :: IMS,IME,JMS,JME
+      INTEGER(kind=KINT) :: ITS,ITE,JTS,JTE
+      INTEGER(kind=KINT) :: NUM_PES_PARENT
+      INTEGER(kind=KINT) :: IM_CHILD,JM_CHILD
+      INTEGER(kind=KINT) :: IM_PARENT,JM_PARENT
+      INTEGER(kind=KINT) :: I_PARENT_START,J_PARENT_START
+      INTEGER(kind=KINT) :: IHREND,NLEV,NTSD
+      INTEGER(kind=KINT) :: PARENT_CHILD_SPACE_RATIO
 !
-      INTEGER,DIMENSION(:),POINTER      :: LOCAL_ISTART                 &
-                                          ,LOCAL_IEND                   &
-                                          ,LOCAL_JSTART                 &
-                                          ,LOCAL_JEND
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: LOCAL_ISTART           &
+                                                ,LOCAL_IEND             &
+                                                ,LOCAL_JSTART           &
+                                                ,LOCAL_JEND
 !
-      INTEGER,ALLOCATABLE,DIMENSION(:,:)   :: IDUMMY_2D
+      INTEGER(kind=KINT),ALLOCATABLE,DIMENSION(:,:) :: IDUMMY_2D
 !
-      REAL                              :: CHILD_PARENT_SPACE_RATIO     &
-                                          ,COL_0                        &
-                                          ,DLMD                         &
-                                          ,DLMD_CHILD                   &
-                                          ,DLMD_PARENT                  &
-                                          ,DPHD                         &
-                                          ,DPHD_CHILD                   &
-                                          ,DPHD_PARENT                  &
-                                          ,ROW_0                        &
-                                          ,SBD                          &
-                                          ,SBD_CHILD                    &
-                                          ,SBD_PARENT                   &
-                                          ,SW_LATD_CHILD                &
-                                          ,SW_LOND_CHILD                &
-                                          ,TLM0D_CHILD                  &
-                                          ,TLM0D_PARENT                 &
-                                          ,TPH0D_CHILD                  &
-                                          ,TPH0D_PARENT                 &
-                                          ,WBD                          &
-                                          ,WBD_CHILD                    &
-                                          ,WBD_PARENT
+      REAL(kind=KFPT) :: CHILD_PARENT_SPACE_RATIO                       &
+                        ,COL_0                                          &
+                        ,DLMD                                           &
+                        ,DLMD_CHILD                                     &
+                        ,DLMD_PARENT                                    &
+                        ,DPHD                                           &
+                        ,DPHD_CHILD                                     &
+                        ,DPHD_PARENT                                    &
+                        ,ROW_0                                          &
+                        ,SBD                                            &
+                        ,SBD_CHILD                                      &
+                        ,SBD_PARENT                                     &
+                        ,SW_LATD_CHILD                                  &
+                        ,SW_LOND_CHILD                                  &
+                        ,TLM0D_CHILD                                    &
+                        ,TLM0D_PARENT                                   &
+                        ,TPH0D_CHILD                                    &
+                        ,TPH0D_PARENT                                   &
+                        ,WBD                                            &
+                        ,WBD_CHILD                                      &
+                        ,WBD_PARENT
 !
-      REAL,ALLOCATABLE,DIMENSION(:)     :: DUMMY_SOIL
+      REAL(kind=KFPT),ALLOCATABLE,DIMENSION(:) :: DUMMY_SOIL
 !
-      REAL,ALLOCATABLE,DIMENSION(:,:)   :: SEA_MASK,SEA_ICE
+      REAL(kind=KFPT),ALLOCATABLE,DIMENSION(:,:) :: SEA_MASK,SEA_ICE
 !
-      REAL,ALLOCATABLE,DIMENSION(:,:,:) :: DUMMY_2D_IN                  &
-                                          ,DUMMY_2D_OUT                 &
-                                          ,DUMMY_3D                     &
-                                          ,DUMMY_3DS                    &
-                                          ,PD_BILINEAR                  &
-                                          ,PD_NEAREST                   &
-                                          ,TEMPSOIL
+      REAL(kind=KFPT),ALLOCATABLE,DIMENSION(:,:,:) :: DUMMY_2D_IN       &
+                                                     ,DUMMY_2D_OUT      &
+                                                     ,DUMMY_3D          &
+                                                     ,DUMMY_3DS         &
+                                                     ,PD_BILINEAR       &
+                                                     ,PD_NEAREST        &
+                                                     ,TEMPSOIL
 !
-      CHARACTER(2)  :: INT_TO_CHAR
-      CHARACTER(6)  :: FMT
-      CHARACTER(50) :: GLOBAL_FLAG                                      &
-                      ,OUTFILE    
+      CHARACTER(len=2)  :: INT_TO_CHAR
+      CHARACTER(len=6)  :: FMT
+      CHARACTER(len=50) :: GLOBAL_FLAG                                  &
+                          ,OUTFILE    
 !
-      LOGICAL :: GLOBAL,OPENED
-      LOGICAL,ALLOCATABLE,DIMENSION(:,:) :: LOWER_TOPO
+      LOGICAL(kind=KLOG) :: GLOBAL,OPENED
+      LOGICAL(kind=KLOG),ALLOCATABLE,DIMENSION(:,:) :: LOWER_TOPO
 !
       TYPE(WRAP_DYN_INT_STATE)  :: WRAP_DYN
+!
       TYPE(WRAP_PHY_INT_STATE)  :: WRAP_PHY
+!
       TYPE(DYNAMICS_INTERNAL_STATE),POINTER :: DYN_INT_STATE
+!
       TYPE(PHYSICS_INTERNAL_STATE) ,POINTER :: PHY_INT_STATE
 !
 !-----------------------------------------------------------------------
-!***  THIS ROUTINE PROVIDES DATA TO A CHILD DOMAIN WHEN NO NORMAL
-!***  PRE-PROCESSED INPUT HAS BEEN PREPARED.  THIS IS DONE BY SIMPLE
-!***  BILINEAR INTERPOLATION FROM THE PARENT DOMAIN'S DATA.
+!***  This routine provides data to a child domain when no normal
+!***  pre-processed input has been prepared.  This is done by simple
+!***  bilinear interpolation from the parent domain's data.
 !
-!***  THE RECORD ORDER OF THE PARENT'S INPUT IS DUPLICATED AND THOSE 
-!***  RECORDS ARE WRITTEN TO A FILE SO THAT THE CHILD CAN READ IN AND 
-!***  DISTRIBUTE THE DATA JUST AS IF A NORMAL PRE-PROCESSED FILE WERE 
-!***  BEING USED.
+!***  The record order of the parent's input is duplicated and those 
+!***  records are written to a file so that the child can read in and 
+!***  distribute the data just as if a normal pre-processed file were 
+!***  being used.
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -710,10 +803,10 @@
       NULLIFY(PHY_INT_STATE)
 !
 !-----------------------------------------------------------------------
-!***  ONLY FORECAST TASKS ARE RELEVANT AND HAVE CORRECT DATA
-!***  FOR THIS WORK.  FIND THE NUMBER OF FORECAST TASKS FROM
-!***  CONFIGURE FILE (ALL FORECAST TASKS ALREADY HAVE THIS
-!***  IN THEIR INTERNAL STATE BUT THE WRITE TASKS DO NOT).
+!***  Only forecast tasks are relevant and have correct data
+!***  for this work.  Find the number of forecast tasks from
+!***  configure file (all forecast tasks already have this
+!***  in their internal state but the write tasks do not).
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -751,8 +844,8 @@
       IF(MYPE>=NUM_PES_PARENT)RETURN                                       !<-- Parent's quilt/write tasks may leave
 !
 !-----------------------------------------------------------------------
-!***  WE NEED THE SPATIAL RESOLUTION OF THE PARENT GRID SO EXTRACT
-!***  ITS DIMENSIONS AND ITS BOUNDS.
+!***  We need the spatial resolution of the parent grid so extract
+!***  its dimensions and its bounds.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -854,7 +947,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  THE PARENT GRID RESOLUTION.
+!***  The parent grid resolution.
 !-----------------------------------------------------------------------
 !
       IF(TRIM(GLOBAL_FLAG)=='true')THEN                                    !<-- Parent is global 
@@ -875,8 +968,8 @@
       COL_0=0.5*(IDE+1)
 !
 !-----------------------------------------------------------------------
-!***  EXTRACT THE DYNAMICS AND PHYSICS INTERNAL STATES OF THE PARENT
-!***  SO WE CAN USE THEIR DATA FOR THE NESTS.
+!***  Extract the Dynamics and Physics internal states of the parent
+!***  so we can use their data for the nests.
 !-----------------------------------------------------------------------
 !
       CALL ESMF_GridCompGetInternalState(DYN_GRID_COMP                  &
@@ -910,8 +1003,8 @@
       LOCAL_JEND  =>dyn_int_state%LOCAL_JEND                               !<--
 !
 !-----------------------------------------------------------------------
-!***  DPHD/DLMD AND SBD/WBD ARE USED ONLY FOR STAND-ALONE, INDEPENDENT
-!***  ROTATED PARENT/NEST GRIDS (I.E., NOT GRID-ASSOCIATED NESTS).
+!***  DPHD/DLMD and SBD/WBD are used only for stand-alone, independent
+!***  rotated parent/nest grids (i.e., not grid-associated nests).
 !-----------------------------------------------------------------------
 !
       DPHD_PARENT=dyn_int_state%DPHD
@@ -920,12 +1013,9 @@
       WBD_PARENT=dyn_int_state%WBD
       TPH0D_PARENT=dyn_int_state%TPH0D
       TLM0D_PARENT=dyn_int_state%TLM0D
-!     write(0,*)' _INIT_NMM dphd_parent=',dphd_parent,' dlmd_parent=',dlmd_parent
-!     write(0,*)' _INIT_NMM sbd_parent=',sbd_parent,' wbd_parent=',wbd_parent &
-!              ,' tph0d_parent=',tph0d_parent,' tlm0d_parent=',tlm0d_parent
 !
 !-----------------------------------------------------------------------
-!***  EXTRACT RELEVANT INFORMATION FROM THIS CHILD'S CONFIGURE FILE.
+!***  Extract relevant information from this child's configure file.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1001,11 +1091,11 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  ONLY FOR FREE-STANDING NESTS:
+!***  Only for free-standing nests:
 !
-!***  WHAT IS THE PARENT LAT/LON OF THE SW CORNER H POINT OF THE
-!***  CHILD GRID?
-!***  FIND THE RESOLUTION, BOUNDS, AND CENTER OF THE CHILD GRID.
+!***  What is the parent lat/lon of the SW corner H point of the
+!***  child grid?
+!***  Find the resolution, bounds, and center of the child grid.
 !-----------------------------------------------------------------------
 !
 !     CALL CONVERT_IJ_TO_LATLON  (I_PARENT_START                        &
@@ -1018,9 +1108,6 @@
 !                                ,DLMD_PARENT                           &
 !                                ,SW_LATD_CHILD                         &
 !                                ,SW_LOND_CHILD )
-!     write(0,*)' I_PARENT_START=',I_PARENT_START,' J_PARENT_START=',J_PARENT_START,' IM_PARENT=',IM_PARENT,' JM_PARENT=',JM_PARENT
-!     write(0,*)' TPH0D_PARENT=',TPH0D_PARENT,' TLM0D_PARENT=',TLM0D_PARENT,' DPHD_PARENT=',DPHD_PARENT,' DLMD_PARENT=',DLMD_PARENT &
-!              ,' global=',global
 !
 !!!   DPHD_CHILD=DPHD_PARENT*CHILD_PARENT_SPACE_RATIO
 !!!   DLMD_CHILD=DLMD_PARENT*CHILD_PARENT_SPACE_RATIO
@@ -1036,7 +1123,7 @@
 !!!                   ,TLM0D_CHILD )
 !
 !-----------------------------------------------------------------------
-!***  ALLOCATE 2-D AND 3-D DUMMY ARRAYS FOR CHILD QUANTITIES.
+!***  Allocate 2-D and 3-D dummy arrays for child quantities.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(SEA_MASK(1:IM_CHILD,1:JM_CHILD))
@@ -1061,7 +1148,7 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  PARENT TASK 0 OPENS A FILE FOR WRITING OUT THE CHILD'S INPUT.
+!***  Parent task 0 opens a file for writing out the child's input.
 !-----------------------------------------------------------------------
 !
       IF(MYPE==0)THEN
@@ -1079,11 +1166,10 @@
         OUTFILE='input_domain_'//INT_TO_CHAR
 !
         OPEN(unit=NFCST,file=OUTFILE,status='replace',form='unformatted')
-        write(0,*)' PARENT_CHILD_INIT opened file ',trim(outfile),' unit ',nfcst
 !
 !-----------------------------------------------------------------------
-!***  THE FOLLOWING VARIABLES ARE FOR THE VERTICAL GRID STRUCTURE
-!***  AND ARE SHARED BY THE PARENT AND ITS CHILDREN.
+!***  The following variables are for the vertical grid structure
+!***  and are shared by the parent and its children.
 !-----------------------------------------------------------------------
 !
         IHREND=0                                                           !<-- Not used 
@@ -1131,6 +1217,8 @@
 !
       ENDIF
 !
+      NLEV=1
+!
 !-----------------------------------------------------------------------
 !***  Sea Mask
 !-----------------------------------------------------------------------
@@ -1151,7 +1239,8 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
                                ,'SeaMask'                               &
                                ,DUMMY_2D_OUT                            &
                                ,NEAREST)
@@ -1174,7 +1263,8 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
                                ,'FIS'                                   &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
@@ -1200,7 +1290,8 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
                                ,'STDH'                                  &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
@@ -1227,12 +1318,14 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
                                ,'PD'                                    &
                                ,PD_BILINEAR                             &
                                ,BILINEAR)
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &  !<-- Save nearest neighbors for topo adjustment
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &  !<-- Save nearest neighbors for topo adjustment
+                               ,NLEV                                    &
                                ,'PD'                                    &
                                ,PD_NEAREST                              &
                                ,NEAREST) 
@@ -1424,8 +1517,9 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                           &
-                               ,'ALBEDO'                                 &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
+                               ,'ALBEDO'                                &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
 !
@@ -1442,13 +1536,12 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                           &
-                               ,'ALBASE'                                 &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &
+                               ,'ALBASE'                                &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
 !
       IF(MYPE==0)WRITE(NFCST)DUMMY_2D_OUT
-!     write(0,*)' after Albase'
 !
 !-----------------------------------------------------------------------
 !***  EPSR
@@ -1460,8 +1553,9 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                           &
-                               ,'EPSR'                                   &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
+                               ,'EPSR'                                  &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
 !
@@ -1478,7 +1572,8 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
                                ,'MXSNAL'                                &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
@@ -1497,7 +1592,8 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
                                ,'TSKIN'                                 &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
@@ -1530,7 +1626,8 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
                                ,'SST'                                   &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
@@ -1548,8 +1645,9 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                           &
-                               ,'SNO'                                    &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
+                               ,'SNO'                                   &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
 !
@@ -1566,8 +1664,9 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                           &
-                               ,'SI'                                     &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
+                               ,'SI'                                    &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
 !
@@ -1586,8 +1685,9 @@
 !
 !     write(0,*)' PARENT_TO_CHILD_INIT SICE max=',maxval(DUMMY_2D_IN(IMS:IME,JMS:JME,1)) &
 !              ,' min=',minval(DUMMY_2D_IN(IMS:IME,JMS:JME,1))
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                           &
-                               ,'SICE'                                   &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
+                               ,'SICE'                                  &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
 !
@@ -1612,7 +1712,8 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
                                ,'TG'                                    &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
@@ -1630,7 +1731,8 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
                                ,'CMC'                                   &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
@@ -1648,7 +1750,8 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
                                ,'SR'                                    &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
@@ -1666,7 +1769,8 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
                                ,'USTAR'                                 &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
@@ -1684,7 +1788,8 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
                                ,'Z0'                                    &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
@@ -1702,7 +1807,8 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
                                ,'Z0BASE'                                &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
@@ -1832,7 +1938,8 @@
       ENDDO
       ENDDO
 !
-      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN, 1                          &
+      CALL PARENT_TO_CHILD_FILL(DUMMY_2D_IN                             &
+                               ,NLEV                                    &
                                ,'VEGFRC'                                &
                                ,DUMMY_2D_OUT                            &
                                ,BILINEAR)
@@ -1896,41 +2003,49 @@
 !***  tasks are needed in this routine.
 !-----------------------------------------------------------------------
 !
-      INTEGER,INTENT(IN) :: NLEV                                           !<-- Vertical dimension of the data array 
+!------------------------
+!***  Argument Variables
+!------------------------
 !
-!!!   REAL,DIMENSION(IMS:IME,JMS:JME,1:NLEV),INTENT(INOUT) :: DATA_ARRAY   !<-- The parent array that will initialize the child array
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:NLEV),INTENT(IN) :: PARENT_ARRAY    !<-- The parent array that will initialize the child array
+      INTEGER(kind=KINT),INTENT(IN) :: METHOD                            &  !<-- Interpolaton method (bilinear or nearest neighbor)
+                                      ,NLEV                                 !<-- Vertical dimension of the data array 
+!
+!!!   REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:NLEV),INTENT(INOUT) :: &
+!!!                                                           DATA_ARRAY    !<-- The parent array that will initialize the child array
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:NLEV),INTENT(IN) ::    &
+                                                              PARENT_ARRAY  !<-- The parent array that will initialize the child array
 !
       CHARACTER(*),INTENT(IN) :: VBL_NAME
 !
-      REAL,DIMENSION(1:IM_CHILD,1:JM_CHILD,1:NLEV),INTENT(OUT) ::       &  !<-- Data from parent tasks interpolated to child grid
-                                                           CHILD_ARRAY     !      but still on parent task 0
-                                                                  
+      REAL(kind=KFPT),DIMENSION(1:IM_CHILD,1:JM_CHILD,1:NLEV),INTENT(OUT) :: &  !<-- Data from parent tasks interpolated to child grid
+                                                              CHILD_ARRAY       !    but still on parent task 0
 !
-      INTEGER,INTENT(IN) :: METHOD                                         !<-- Interpolaton method (bilinear or nearest neighbor)
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local Variables
+!---------------------
 !
-      INTEGER :: I,IERR,II,IPE,IPE_LOCAL,ISTAT,J,JJ,L,N,NN
-      INTEGER :: I_COPY,I_END,I_END_COPY,I_EXTENT,I_PARENT_END          &
+      INTEGER(kind=KINT) :: I,IERR,II,IPE,IPE_LOCAL,ISTAT,J,JJ,L,N,NN
+      INTEGER(kind=KINT) :: I_COPY,I_END,I_END_COPY,I_EXTENT,I_PARENT_END  &
                 ,I_START_COPY
-      INTEGER :: J_COPY,J_END,J_END_COPY,J_EXTENT,J_PARENT_END          &
+      INTEGER(kind=KINT) :: J_COPY,J_END,J_END_COPY,J_EXTENT,J_PARENT_END  &
                 ,J_START_COPY
-      INTEGER :: INDX_EAST,INDX_NORTH,INDX_SOUTH,INDX_WEST
-      INTEGER :: NWORDS_RECV,NWORDS_SEND
+      INTEGER(kind=KINT) :: INDX_EAST,INDX_NORTH,INDX_SOUTH,INDX_WEST
+      INTEGER(kind=KINT) :: NWORDS_RECV,NWORDS_SEND
 !
-      INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
+      INTEGER(kind=KINT),DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
-      REAL :: DELTA_I_EAST,DELTA_I_WEST,DELTA_J_NORTH,DELTA_J_SOUTH
-      REAL :: RATIO,REAL_INDX_I_PARENT,REAL_INDX_J_PARENT
-      REAL :: WEIGHT_EAST,WEIGHT_NORTH,WEIGHT_SOUTH,WEIGHT_WEST
-      REAL :: WEIGHT_NE,WEIGHT_NW,WEIGHT_SE,WEIGHT_SW
-      REAL :: WEIGHT_MAX,WEIGHT_SUM
+      REAL(kind=KFPT) :: DELTA_I_EAST,DELTA_I_WEST                       &
+                        ,DELTA_J_NORTH,DELTA_J_SOUTH
+      REAL(kind=KFPT) :: RATIO,REAL_INDX_I_PARENT,REAL_INDX_J_PARENT
+      REAL(kind=KFPT) :: WEIGHT_EAST,WEIGHT_NORTH                        &
+                        ,WEIGHT_SOUTH,WEIGHT_WEST
+      REAL(kind=KFPT) :: WEIGHT_NE,WEIGHT_NW,WEIGHT_SE,WEIGHT_SW
+      REAL(kind=KFPT) :: WEIGHT_MAX,WEIGHT_SUM
 !
-      REAL,DIMENSION(:)    ,ALLOCATABLE :: DATA_BUFFER
-      REAL,DIMENSION(:,:,:),ALLOCATABLE :: ARRAY_STAGE_PARENT    
+      REAL(kind=KFPT),DIMENSION(:)    ,ALLOCATABLE :: DATA_BUFFER
+      REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE :: ARRAY_STAGE_PARENT    
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -2307,36 +2422,40 @@
 !***  tasks are needed in this routine.
 !-----------------------------------------------------------------------
 !
-      INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: PARENT_ARRAY        !<-- The parent array that will initialize the child array
+!------------------------
+!***  Argument Variables
+!------------------------
 !
-      CHARACTER(*)                      ,INTENT(IN) :: VBL_NAME            !<-- The variable's name
+      INTEGER(kind=KINT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) ::       &
+                                                          PARENT_ARRAY      !<-- The parent array that will initialize the child array
 !
-      INTEGER,DIMENSION(1:IM_CHILD,1:JM_CHILD),INTENT(OUT) ::           &  !<-- Data from parent tasks interpolated to child grid
-                                                          CHILD_ARRAY      !      but still on parent task 0
-                                                                  
+      INTEGER(kind=KINT),DIMENSION(1:IM_CHILD,1:JM_CHILD),INTENT(OUT) :: &  !<-- Data from parent tasks interpolated to child grid
+                                                           CHILD_ARRAY      !      but still on parent task 0
 !
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+      CHARACTER(*),INTENT(IN) :: VBL_NAME                                   !<-- The variable's name
 !
-      INTEGER :: I,IERR,II,IPE,IPE_LOCAL,J,JJ,N,NN
-      INTEGER :: I_COPY,I_END,I_END_COPY,I_EXTENT,I_PARENT_END          &
-                ,I_START_COPY
-      INTEGER :: J_COPY,J_END,J_END_COPY,J_EXTENT,J_PARENT_END          &
-                ,J_START_COPY
-      INTEGER :: INDX_EAST,INDX_NORTH,INDX_SOUTH,INDX_WEST
-      INTEGER :: NWORDS_RECV,NWORDS_SEND
+!---------------------
+!***  Local Variables
+!---------------------
 !
-      INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
+      INTEGER(kind=KINT) :: I,IERR,II,IPE,IPE_LOCAL,J,JJ,N,NN
+      INTEGER(kind=KINT) :: I_COPY,I_END,I_END_COPY,I_EXTENT,I_PARENT_END  &
+                           ,I_START_COPY
+      INTEGER(kind=KINT) :: J_COPY,J_END,J_END_COPY,J_EXTENT,J_PARENT_END  &
+                           ,J_START_COPY
+      INTEGER(kind=KINT) :: INDX_EAST,INDX_NORTH,INDX_SOUTH,INDX_WEST
+      INTEGER(kind=KINT) :: NWORDS_RECV,NWORDS_SEND
 !
-      REAL :: DELTA_I_EAST,DELTA_I_WEST,DELTA_J_NORTH,DELTA_J_SOUTH
-      REAL :: RATIO,REAL_INDX_I_PARENT,REAL_INDX_J_PARENT
-      REAL :: WEIGHT_EAST,WEIGHT_NORTH,WEIGHT_SOUTH,WEIGHT_WEST
-      REAL :: WEIGHT_NE,WEIGHT_NW,WEIGHT_SE,WEIGHT_SW
-      REAL :: WEIGHT_MAX
+      INTEGER(kind=KINT),DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
       INTEGER,DIMENSION(:)  ,ALLOCATABLE :: DATA_BUFFER
       INTEGER,DIMENSION(:,:),ALLOCATABLE :: ARRAY_STAGE_PARENT
+!
+      REAL(kind=KFPT) :: DELTA_I_EAST,DELTA_I_WEST,DELTA_J_NORTH,DELTA_J_SOUTH
+      REAL(kind=KFPT) :: RATIO,REAL_INDX_I_PARENT,REAL_INDX_J_PARENT
+      REAL(kind=KFPT) :: WEIGHT_EAST,WEIGHT_NORTH,WEIGHT_SOUTH,WEIGHT_WEST
+      REAL(kind=KFPT) :: WEIGHT_NE,WEIGHT_NW,WEIGHT_SE,WEIGHT_SW
+      REAL(kind=KFPT) :: WEIGHT_MAX
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -2631,42 +2750,44 @@
 !***  Only parent tasks participate in this work.
 !-----------------------------------------------------------------------
 !
-!---------------
-!***  Arguments
-!---------------
+!------------------------
+!***  Argument Variables
+!------------------------
 !
-      INTEGER,INTENT(IN) :: NLEV                                           !<-- Vertical dimension of the data array 
+      INTEGER(kind=KINT),INTENT(IN) :: NLEV                                !<-- Vertical dimension of the data array 
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:NLEV),INTENT(IN) :: PARENT_ARRAY    !<-- The parent array that will initialize the child array
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:NLEV),INTENT(IN) ::   &
+                                                            PARENT_ARRAY   !<-- The parent array that will initialize the child array
 !
       CHARACTER(*),INTENT(IN) :: VBL_NAME                                  !<-- The variable's name 
 !
-      REAL,DIMENSION(1:IM_CHILD,1:JM_CHILD,1:NLEV),INTENT(OUT) :: CHILD_ARRAY  !<-- Data from parent tasks interpolated to child grid
+      REAL(kind=KFPT),DIMENSION(1:IM_CHILD,1:JM_CHILD,1:NLEV),INTENT(OUT) :: &
+                                                            CHILD_ARRAY    !<-- Data from parent tasks interpolated to child grid
 !
 !---------------------
-!***  Local variables
+!***  Local Variables
 !---------------------
 !
-      INTEGER(KIND=KINT) :: I,I_END,ISTART,J,J_END,JSTART               &
+      INTEGER(kind=KINT) :: I,I_END,ISTART,J,J_END,JSTART               &
                            ,KOUNT,L,NIJ,NN,NTOT                         &
                            ,NUM_DATA                                    &
                            ,NUM_CHILD_POINTS                            &
                            ,NUM_IJ                                      &
                            ,NUM_POINTS_REMOTE
 !
-      INTEGER(KIND=KINT) :: I_PARENT_SW,I_PARENT_SE                     &
+      INTEGER(kind=KINT) :: I_PARENT_SW,I_PARENT_SE                     &
                            ,I_PARENT_NW,I_PARENT_NE                     &
                            ,J_PARENT_SW,J_PARENT_SE                     &
                            ,J_PARENT_NW,J_PARENT_NE
 !
-      INTEGER(KIND=KINT) :: IERR,IPE,ISTAT
+      INTEGER(kind=KINT) :: IERR,IPE,ISTAT
 !
-      INTEGER(KIND=KINT),DIMENSION(:),ALLOCATABLE :: CHILD_POINT_INDICES &
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: CHILD_POINT_INDICES &
                                                     ,IJ_REMOTE
 !
       INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
-      REAL(KIND=KFPT) :: CHILD_LATD_ON_PARENT                           &
+      REAL(kind=KFPT) :: CHILD_LATD_ON_PARENT                           &
                         ,CHILD_LOND_ON_PARENT                           &
                         ,DIST                                           &
                         ,R_DLMD,R_DPHD                                  &
@@ -2681,9 +2802,9 @@
                         ,WEIGHT_NW,WEIGHT_NE                            &
                         ,WEIGHT_SUM,WEIGHT_SUM_RECIP
 !
-      REAL(KIND=KFPT),DIMENSION(4) :: RLATD,RLOND,WGT
+      REAL(kind=KFPT),DIMENSION(4) :: RLATD,RLOND,WGT
 !
-      REAL(KIND=KFPT),DIMENSION(:),ALLOCATABLE :: CHILD_STRING          &
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: CHILD_STRING          &
                                                  ,DATA_REMOTE
 !
 !-----------------------------------------------------------------------
@@ -3014,42 +3135,44 @@
 !***  Only parent tasks participate in this work.
 !-----------------------------------------------------------------------
 !
-!---------------
-!***  Arguments
-!---------------
+!------------------------
+!***  Argument Variables
+!------------------------
 !
-      INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: PARENT_ARRAY        !<-- The parent array that will initialize the child array
+      INTEGER(kind=KINT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) ::        &
+                                                           PARENT_ARRAY    !<-- The parent array that will initialize the child array
 !
       CHARACTER(*),INTENT(IN) :: VBL_NAME                                  !<-- The variable's name 
 !
-      INTEGER,DIMENSION(1:IM_CHILD,1:JM_CHILD),INTENT(OUT) :: CHILD_ARRAY  !<-- Data from parent tasks interpolated to child grid
+      INTEGER(kind=KINT),DIMENSION(1:IM_CHILD,1:JM_CHILD),INTENT(OUT) :: &
+                                                           CHILD_ARRAY     !<-- Data from parent tasks interpolated to child grid
 !
 !---------------------
-!***  Local variables
+!***  Local Variables
 !---------------------
 !
-      INTEGER(KIND=KINT) :: I,I_END,ISTART,J,J_END,JSTART               &
+      INTEGER(kind=KINT) :: I,I_END,ISTART,J,J_END,JSTART               &
                            ,KOUNT,NIJ,NN,NTOT                           &
                            ,NUM_DATA                                    &
                            ,NUM_CHILD_POINTS                            &
                            ,NUM_IJ                                      &
                            ,NUM_POINTS_REMOTE
 !
-      INTEGER(KIND=KINT) :: I_PARENT_SW,I_PARENT_SE                     &
+      INTEGER(kind=KINT) :: I_PARENT_SW,I_PARENT_SE                     &
                            ,I_PARENT_NW,I_PARENT_NE                     &
                            ,J_PARENT_SW,J_PARENT_SE                     &
                            ,J_PARENT_NW,J_PARENT_NE
 !
-      INTEGER(KIND=KINT) :: IERR,IPE,ISTAT
+      INTEGER(kind=KINT) :: IERR,IPE,ISTAT
 !
-      INTEGER(KIND=KINT),DIMENSION(:),ALLOCATABLE :: CHILD_POINT_INDICES &
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: CHILD_POINT_INDICES &
                                                     ,CHILD_STRING        &
                                                     ,DATA_REMOTE         &
                                                     ,IJ_REMOTE  
 !
       INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
-      REAL(KIND=KFPT) :: CHILD_LATD_ON_PARENT                           &
+      REAL(kind=KFPT) :: CHILD_LATD_ON_PARENT                           &
                         ,CHILD_LOND_ON_PARENT                           &
                         ,DIST                                           &
                         ,R_DLMD,R_DPHD                                  &
@@ -3064,7 +3187,7 @@
                         ,WEIGHT_NW,WEIGHT_NE                            &
                         ,WEIGHT_MAX
 !
-      REAL(KIND=KFPT),DIMENSION(4) :: RLATD,RLOND,WGT
+      REAL(kind=KFPT),DIMENSION(4) :: RLATD,RLOND,WGT
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -3407,40 +3530,44 @@
                                        ,RLOND)
 !
 !-----------------------------------------------------------------------
-!
-!***  GIVEN THE (I,J) OF MASS POINTS ON AN ARAKAWA B-GRID,
-!***  COMPUTE THE LATITUDES AND LONGITUDES BEFORE ROTATION.
-!
+!***  Given the (I,J) of mass points on an Arakawa B-Grid,
+!***  compute the latitudes and longitudes before rotation.
 !-----------------------------------------------------------------------
 !
-      INTEGER(KIND=KINT),INTENT(IN) :: I_INDEX                          &  !<-- I value on the grid
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: I_INDEX                          &  !<-- I value on the grid
                                       ,J_INDEX                          &  !<-- J value on the grid
                                       ,IM                               &  !<-- Full I dimension
                                       ,JM                                  !<-- Full J dimension
 !
-      REAL(KIND=KFPT),INTENT(IN) :: DPHD                                &  !<-- Latitude grid increment (degrees)
+      REAL(kind=KFPT),INTENT(IN) :: DPHD                                &  !<-- Latitude grid increment (degrees)
                                    ,DLMD                                &  !<-- Longitude grid increment (degrees)
                                    ,TPH0D                               &  ! Central latitude (deg, positive north), unrotated system
                                    ,TLM0D                                  ! Central longitude (deg, positive east), unrotated system
 !
-      REAL,INTENT(OUT) :: RLATD                                         &  !<-- Latitude (deg, positive north) of point, unrotated system
-                         ,RLOND                                            !<-- Longitude (deg, positive east) of point, unrotated system
+      REAL(kind=KFPT),INTENT(OUT) :: RLATD                              &  !<-- Latitude (deg, positive north) of point, unrotated system
+                                    ,RLOND                                 !<-- Longitude (deg, positive east) of point, unrotated system
 !
 !-----------------------------------------------------------------------
 !
-      INTEGER :: I,IEND,ISTART,J,JEND,JSTART
+!---------------------
+!***  Local Variables
+!---------------------
 !
-      REAL(KIND=DOUBLE) :: ARG1,ARG2,COL_MID,D2R,FCTR,GLATR,GLATD,GLOND &
-                          ,HALF,ONE,PI,R2D,ROW_MID,TLATD,TLOND          &
-                          ,TLATR,TLONR,TLM0,TPH0
+      INTEGER(kind=KINT) :: I,IEND,ISTART,J,JEND,JSTART
+!
+      REAL(kind=KDBL) :: ARG1,ARG2,COL_MID,D2R,FCTR,GLATR,GLATD,GLOND   &
+                        ,HALF,ONE,PI,R2D,ROW_MID,TLATD,TLOND            &
+                        ,TLATR,TLONR,TLM0,TPH0
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!***
-!***  CONVERT FROM TRANSFORMED GRID LOCATION (I,J) 
-!***  TO GEOGRAPHIC COORDINATES (DEGREES).
-!***
+!***  Convert from transformed grid location (I,J) 
+!***  to geographic coordinates (degrees).
 !-----------------------------------------------------------------------
 !
       ONE=1.0
@@ -3460,8 +3587,8 @@
       I=I_INDEX
 !
 !-----------------------------------------------------------------------
-!***  FIND THE ROTATED LATITUDE (POSITIVE NORTH) AND 
-!***  LONGITUDE (POSITIVE EAST).
+!***  Find the rotated latitude (positive north) and 
+!***  longitude (positive east).
 !-----------------------------------------------------------------------
 !
       TLATD=(J-ROW_MID)*DPHD
@@ -3474,8 +3601,8 @@
                               ,4X,'LONGITUDE IS',F8.3)
 !
 !-----------------------------------------------------------------------
-!***  NOW CONVERT TO GEOGRAPHIC LATITUDE (POSITIVE NORTH) AND
-!***  LONGITUDE (POSITIVE WEST) IN DEGREES.
+!***  Now convert to geographic latitude (positive north) and
+!***  longitude (positive west) in degrees.
 !-----------------------------------------------------------------------
 !
       TLATR=TLATD*D2R
@@ -3516,17 +3643,17 @@
                                    ,DISTANCE )                  
 !
 !-----------------------------------------------------------------------
-!***  COMPUTE THE GREAT CIRCLE DISTANCE BETWEEN TWO POINTS ON THE EARTH.
+!***  Compute the great circle distance between two points on the earth.
 !-----------------------------------------------------------------------
 !
-!---------------
-!***  Arguments
-!---------------
+!------------------------
+!***  Argument Variables
+!------------------------
 !
-      REAL(KIND=KFPT),INTENT(IN) :: RLAT_1,RLON_1                       &  !<-- Lat/lon (deg, +east) of point 1
+      REAL(kind=KFPT),INTENT(IN) :: RLAT_1,RLON_1                       &  !<-- Lat/lon (deg, +east) of point 1
                         ,RLAT_2,RLON_2                                     !<-- Lat/lon (deg, +east) of point 2
 !
-      REAL(KIND=KFPT),INTENT(OUT) :: DISTANCE                              !<-- Distance (radians) between points 1 and 2
+      REAL(kind=KFPT),INTENT(OUT) :: DISTANCE                              !<-- Distance (radians) between points 1 and 2
 !
 !-----------------------------------------------------------------------
 !
@@ -3534,7 +3661,7 @@
 !*** Local Variables
 !--------------------
 !
-      REAL(KIND=KDBL) :: ALPHA,ARG,BETA,CROSS,DLON,DTR                  &
+      REAL(kind=KDBL) :: ALPHA,ARG,BETA,CROSS,DLON,DTR                  &
                         ,PHI1,PHI2,PI,PI_H
 !
 !-----------------------------------------------------------------------
@@ -3574,22 +3701,22 @@
                             ,TPH0D_DOMAIN                               &
                             ,TLM0D_DOMAIN )
 !-----------------------------------------------------------------------
-!***  GIVEN THE SOUTHERN AND WESTERN BOUNDARIES OF A ROTATED LAT/LON
-!***  GRID AS WELL AS THE COORDINATES OF THE SOUTHWEST CORNER POINT,
-!***  FIND THE CORRDINATES OF THE GRID'S CENTRAL POINT WITH RESPECT
-!***  TO THE GRID UPON WHICH THE ROTATED GRID LIES.
+!***  Given the southern and western boundaries of a rotated lat/lon
+!***  grid as well as the coordinates of the southwest corner point,
+!***  find the coordinates of the grid's central point with respect
+!***  to the grid upon which the rotated grid lies.
 !-----------------------------------------------------------------------
 !
 !---------------
 !***  Arguments
 !---------------
 !
-      REAL(KIND=KFPT),INTENT(IN) :: SBD_DOMAIN                          &  !<-- Latitude (deg) of domain's southern boundary
+      REAL(kind=KFPT),INTENT(IN) :: SBD_DOMAIN                          &  !<-- Latitude (deg) of domain's southern boundary
                                    ,WBD_DOMAIN                          &  !<-- Longitude (deg, +east) of domain's western boundary
                                    ,SW_CORNER_LATD                      &  !<-- Latitude (deg) of domain's southwest corner point
                                    ,SW_CORNER_LOND                         !<-- Longitude (deg, +east) of domain's southwest corner point
 !
-      REAL(KIND=KFPT),INTENT(OUT) :: TPH0D_DOMAIN                       &  !<-- Latitude (deg) of domain's center
+      REAL(kind=KFPT),INTENT(OUT) :: TPH0D_DOMAIN                       &  !<-- Latitude (deg) of domain's center
                                     ,TLM0D_DOMAIN                          !<-- Longitude (deg) of domain's center
 !
 !-----------------------------------------------------------------------
@@ -3598,10 +3725,10 @@
 !***  Local Variables
 !---------------------
 !
-      REAL :: ALPHA,BETA,CENTRAL_LAT,CENTRAL_LON                        &
-             ,DEG_RAD,DELTA,GAMMA                                       &
-             ,PI_2,SB_R,SIDE1,SIDE2,SIDE3,SIDE4,SIDE5                   &
-             ,SW_LAT,SW_LON,WB_R
+      REAL(kind=KFPT) :: ALPHA,BETA,CENTRAL_LAT,CENTRAL_LON             &
+                        ,DEG_RAD,DELTA,GAMMA                            &
+                        ,PI_2,SB_R,SIDE1,SIDE2,SIDE3,SIDE4,SIDE5        &
+                        ,SW_LAT,SW_LON,WB_R
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -3611,14 +3738,14 @@
       DEG_RAD=PI_2/90.
 !
 !-----------------------------------------------------------------------
-!***  SOUTHERN AND WESTERN BOUNDARIES OF THE ROTATED DOMAIN IN RADIANS.
+!***  Southern and western boundaries of the rotated domain in radians.
 !-----------------------------------------------------------------------
 !
       SB_R=-SBD_DOMAIN*DEG_RAD
       WB_R=-WBD_DOMAIN*DEG_RAD
 !
 !-----------------------------------------------------------------------
-!***  SOUTHWEST CORNER OF THE DOMAIN IN RADIANS.
+!***  Southwest corner of the domain in radians.
 !-----------------------------------------------------------------------
 !
       SW_LAT=SW_CORNER_LATD*DEG_RAD
@@ -3627,78 +3754,78 @@
                ,' SW_CORNER_LATD=',SW_CORNER_LATD,' SW_CORNER_LOND=',SW_CORNER_LOND
 !
 !-----------------------------------------------------------------------
-!***  SIDE1 IS THE ARC FROM THE SOUTHWEST CORNER TO THE CENTER 
-!***  OF THE DOMAIN.
+!***  SIDE1 is the arc from the southwest corner to the center 
+!***  of the domain.
 !-----------------------------------------------------------------------
 !
       SIDE1=ACOS(COS(SB_R)*COS(WB_R))
 !
 !-----------------------------------------------------------------------
-!***  ALPHA IS THE ANGLE BETWEEN SIDE1 AND THE DOMAIN'S EQUATOR WEST OF
-!***  THE CENTRAL POINT.
+!***  ALPHA is the angle between SIDE1 and the domain's equator west of
+!***  the central point.
 !-----------------------------------------------------------------------
 !
       ALPHA=ATAN(TAN(SB_R)/SIN(WB_R))
 !
 !-----------------------------------------------------------------------
-!***  BETA IS THE ANGLE BETWEEN SIDE1 AND THE DOMAIN'S PRIME MERIDIAN
-!***  SOUTH OF THE CENTRAL POINT.
+!***  BETA is the angle between SIDE1 and the domain's prime meridian
+!***  south of the central point.
 !-----------------------------------------------------------------------
 !
       BETA=PI_2-ALPHA
 !
 !-----------------------------------------------------------------------
-!***  SIDE2 IS THE ARC FROM THE CENTRAL POINT SOUTHWARD ALONG THE 
-!***  DOMAIN'S PRIME MERIDIAN TO THE GREAT CIRCLE THAT INTERSECTS 
-!***  BOTH THE SW AND SE CORNERS OF THE DOMAIN.
+!***  SIDE2 is the arc from the central point southward along the 
+!***  domain's prime meridian to the great circle that intersects 
+!***  both the SW and SE corners of the domain.
 !-----------------------------------------------------------------------
 !
       SIDE2=ATAN(COS(BETA)*TAN(SIDE1))
 !
 !-----------------------------------------------------------------------
-!***  SIDE3 IS THE ARC BETWEEN THE DOMAIN'S PRIME MERIDIAN AND THE SW
-!***  CORNER ALONG THE GREAT CIRCLE THAT CONNECTS THE DOMAIN'S SW AND
-!***  SE CORNERS.
+!***  SIDE3 is the arc between the domain's prime meridian and the SW
+!***  corner along the great circle that connects the domain's SW and
+!***  SE corners.
 !-----------------------------------------------------------------------
 !
       SIDE3=ASIN(SIN(BETA)*SIN(SIDE1))
 !
 !-----------------------------------------------------------------------
-!***  SIDE4 IS THE ARC ALONG THE OUTER GRID'S EQUATOR THAT LIES BETWEEN 
-!***  ITS WESTERN INTERSECTION WITH THE ABOVE MENTIONED GREAT CIRCLE 
-!***  AND THE OUTER GRID'S MERIDIAN THAT PASSES THROUGH THE DOMAIN'S 
-!***  SW CORNER.
+!***  SIDE4 is the arc along the outer grid's equator that lies between 
+!***  its western intersection with the above mentioned great circle 
+!***  and the outer grid's meridian that passes through the domain's 
+!***  SW corner.
 !-----------------------------------------------------------------------
 !
       SIDE4=ACOS(SIN(SIDE3)/COS(SW_LAT))
 !
 !-----------------------------------------------------------------------
-!***  GAMMA IS THE ANGLE BETWEEN THE OUTER GRID'S EQUATOR AND THE ARC 
-!***  THAT CONNECTS THE DOMAIN'S SW CORNER WITH THE POINT WHERE THE 
-!***  DOMAIN'S CENTRAL MERIDIAN CROSSES THE OUTER GRID'S EQUATOR.
+!***  GAMMA is the angle between the outer grid's equator and the arc 
+!***  that connects the domain's SW corner with the point where the 
+!***  domain's central meridian crosses the outer grid's equator.
 !-----------------------------------------------------------------------
 !
       GAMMA=ATAN(TAN(SW_LAT)/COS(SIDE4))
 !
 !-----------------------------------------------------------------------
-!***  DELTA IS THE ANGLE BETWEEN THE ARC THAT CONNECTS THE DOMAIN'S SW
-!***  CORNER WITH THE POINT WHERE THE DOMAIN'S CENTRAL MERIDIAN CROSSES
-!***  THE OUTER GRID'S EQUATOR AND THE DOMAIN'S CENTRAL MERIDIAN ITSELF.
+!***  DELTA is the angle between the arc that connects the domain's SW
+!***  corner with the point where the domain's central meridian crosses
+!***  the outer grid's equator and the domain's central meridian itself.
 !-----------------------------------------------------------------------
 !
       DELTA=PI_2-GAMMA
 !
 !-----------------------------------------------------------------------
-!***  SIDE5 IS THE ARC ALONG THE DOMAIN'S CENTRAL MERIDIAN THAT LIES
-!***  BETWEEN THE OUTER GRID'S EQUATOR AND THE GREAT CIRCLE THAT PASSES
-!***  THROUGH THE SW AND SE CORNERS OF THE DOMAIN.
+!***  SIDE5 is the arc along the domain's central meridian that lies
+!***  between the outer grid's equator and the great circle that passes
+!***  through the SW and SE corners of the domain.
 !-----------------------------------------------------------------------
 !
       SIDE5=ASIN(TAN(SIDE3)/TAN(DELTA))
 !
 !-----------------------------------------------------------------------
-!***  THE CENTRAL LATITUDE AND LONGITUDE OF THE DOMAIN IN TERMS OF
-!***  THE COORDINATES OF THE OUTER GRID.
+!***  The central latitude and longitude of the domain in terms of
+!***  the coordinates of the outer grid.
 !-----------------------------------------------------------------------
 !
       CENTRAL_LAT=SIDE2+SIDE5
@@ -3718,52 +3845,53 @@
 !
       SUBROUTINE SET_NEST_GRIDS(DOMAIN_ID_MINE                          &
                                ,TPH0D,TLM0D                             &
-                               ,SBD_MINE,WBD_MINE                       &
+!!!                            ,SBD_MINE,WBD_MINE                       &
                                ,DPHD_MINE,DLMD_MINE)
 ! 
 !-----------------------------------------------------------------------
-!***  BASIC GRID CHARACTERISTICS FOR NESTS ARE BASED UPON THOSE OF
-!***  THE UPPERMOST PARENT GRID.  USE THOSE PARENT VALUES TO COMPUTE
-!***  APPROPRIATE ANALOGS FOR THE NESTS.
-!***  THIS SUBROUTINE IS RELEVANT ONLY TO GRID-ASSOCIATED NESTS.
+!***  Basic grid characteristics for nests are based upon those of
+!***  the uppermost parent grid.  Use those parent values to compute
+!***  appropriate analogs for the nests.
+!***  This subroutine is relevant only to grid-associated nests.
 !-----------------------------------------------------------------------
 !
-!---------------
-!***  Arguments
-!---------------
+!------------------------
+!***  Argument Variables
+!------------------------
 !
-      INTEGER,INTENT(IN) :: DOMAIN_ID_MINE                                 !<-- Domain ID for this nested domain
+      INTEGER(kind=KINT),INTENT(IN) :: DOMAIN_ID_MINE                      !<-- Domain ID for this nested domain
 !
-      REAL,INTENT(OUT) :: DPHD_MINE                                     &  !<-- Delta phi of this nested domain (degrees)
-                         ,DLMD_MINE                                     &  !<-- Delta lambda of this nested domain (degrees)
-                         ,TLM0D                                         &  !<-- Central rotated longitude of all domains (degrees)
-                         ,TPH0D                                         &  !<-- Central rotated latitude of all domains (degrees)
-                         ,SBD_MINE                                      &  !<-- Southern boundary this nested domain (degrees)
-                         ,WBD_MINE                                         !<-- Western boundary this nested domain (degrees)
+      REAL(kind=KFPT),INTENT(OUT) :: DPHD_MINE                          &  !<-- Delta phi of this nested domain (degrees)
+                                    ,DLMD_MINE                          &  !<-- Delta lambda of this nested domain (degrees)
+                                    ,TLM0D                              &  !<-- Central rotated longitude of all domains (degrees)
+                                    ,TPH0D                                 !<-- Central rotated latitude of all domains (degrees)
+!!!                                 ,SBD_MINE                           &  !<-- Southern boundary this nested domain (degrees)
+!!!                                 ,WBD_MINE                              !<-- Western boundary this nested domain (degrees)
 !
-!-----------------------------------------------------------------------
+!---------------------
 !***  Local Variables
-!-----------------------------------------------------------------------
+!---------------------
 !
-      INTEGER,PARAMETER :: MAX_DOMAINS=99
+      INTEGER(kind=KINT),PARAMETER :: MAX_DOMAINS=99
 !
-      INTEGER :: IM_1,JM_1                                              &
-                ,ID_ANCESTOR,ID_DOMAIN                                  &
-                ,IDE_1,JDE_1                                            &
-                ,I_BOUND,J_BOUND                                        &
-                ,I_PARENT_SW,J_PARENT_SW                                &
-                ,I_START_SW,J_START_SW                                  &
-                ,N,NUM_ANCESTORS
+      INTEGER(kind=KINT) :: IM_1,JM_1                                   &
+                           ,ID_ANCESTOR,ID_DOMAIN                       &
+                           ,IDE_1,JDE_1                                 &
+                           ,I_BOUND,J_BOUND                             &
+                           ,I_PARENT_SW,J_PARENT_SW                     &
+                           ,I_START_SW,J_START_SW                       &
+                           ,N,NUM_ANCESTORS
 !
-      INTEGER :: RC,RC_SET
+      INTEGER(kind=KINT) :: RC,RC_SET
 !
-      INTEGER,DIMENSION(MAX_DOMAINS) :: ID_ANCESTORS=0
-      INTEGER,DIMENSION(MAX_DOMAINS) :: PARENT_CHILD_SPACE_RATIO
+      INTEGER(kind=KINT),DIMENSION(MAX_DOMAINS) :: ID_ANCESTORS=0
 !
-      INTEGER,DIMENSION(2,MAX_DOMAINS) :: SW_CORNER
+      INTEGER(kind=KINT),DIMENSION(MAX_DOMAINS) :: PARENT_CHILD_SPACE_RATIO
 !
-      REAL :: DPHD_1,DLMD_1,TLM_BASE_1,TPH_BASE_1,SBD_1,WBD_1
-      REAL :: DPHD_X,DLMD_X,TLM_BASE,TPH_BASE,SBD_X,WBD_X
+      INTEGER(kind=KINT),DIMENSION(2,MAX_DOMAINS) :: SW_CORNER
+!
+      REAL(kind=KFPT) :: DPHD_1,DLMD_1,TLM_BASE_1,TPH_BASE_1,SBD_1,WBD_1
+      REAL(kind=KFPT) :: DPHD_X,DLMD_X,TLM_BASE,TPH_BASE,SBD_X,WBD_X
 !
       CHARACTER(2)  :: INT_TO_CHAR
       CHARACTER(6)  :: FMT='(I2.2)'
@@ -3780,7 +3908,7 @@
       RC_SET=ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
-!***  FIRST LOAD ALL OF THE DOMAINS' CONFIGURE FILES.
+!***  First load all of the domains' configure files.
 !-----------------------------------------------------------------------
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -3801,13 +3929,12 @@
         IF(RC/=0)EXIT                                                      !<-- Exit loop after running out of config files
       ENDDO
 !
-!
 !-----------------------------------------------------------------------
-!***  WE MUST LOOP THROUGH THE CONFIGURE FILES OF ALL OF THE CURRENT
-!***  DOMAIN'S ANCESTORS TO COLLECT INFORMATION NEEDED TO PROPERLY
-!***  DESCRIBE THE CURRENT GRID.  THIS IS NECESSARY BECAUSE ALL
-!***  GRIDS' ROWS AND COLUMNS LIE PARALLEL TO THOSE OF THE UPPERMOST
-!***  GRID.
+!***  We must loop through the configure files of all of the current
+!***  domain's ancestors to collect information needed to properly
+!***  describe the current grid.  This is necessary because all
+!***  grids' rows and columns lie parallel to those of the uppermost
+!***  grid.
 !-----------------------------------------------------------------------
 !
       ID_DOMAIN=DOMAIN_ID_MINE
@@ -3898,9 +4025,9 @@
       NUM_ANCESTORS=N                                                        !<-- How many ancestors are there?
 !
 !-----------------------------------------------------------------------
-!***  ROWS AND COLUMNS OF ALL NESTS' GRIDS LIE PARALLEL TO THOSE OF 
-!***  UPPERMOST PARENT GRID.  THUS THE CENTRAL ROTATED LATITUDE AND
-!***  LONGITUDE OF ALL NESTS MUST BE THOSE OF THE UPPERMOST DOMAIN.
+!***  Rows and columns of all nests' grids lie parallel to those of 
+!***  uppermost parent grid.  Thus the central rotated latitude and
+!***  longitude of all nests must be those of the uppermost domain.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3923,9 +4050,9 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  GET DIMENSIONS OF UPPERMOST DOMAIN AS THE BASELINE.
-!***  WE MUST ALSO KNOW SOUTHERN AND WESTERN BOUNDARY LOCATIONS
-!***  AS WELL AS WHETHER IT IS GLOBAL OR NOT.
+!***  Get dimensions of uppermost domain as the baseline.
+!***  We must also know southern and western boundary locations
+!***  as well as whether it is global or not.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3981,8 +4108,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  FULL GRID DIMENSIONS; DELTA PHI AND DELTA LAMBDA 
-!***  FOR UPPERMOST DOMAIN.
+!***  Full grid dimensions; delta phi and delta lambda 
+!***  for uppermost domain.
 !-----------------------------------------------------------------------
 !
       IF(TRIM(GLOBAL)=='true')THEN                                         !<-- Uppermost domain is global
@@ -4002,13 +4129,12 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  LOOP THROUGH THIS NEST'S ANCESTORS IN ORDER TO OBTAIN ITS:
-!***  (1) DELTA PHI AND DELTA LAMBDA
-!***  (2) SOUTHERN/WESTERN BOUNDARY LOCATIONS 
+!***  Loop through this nest's ancestors in order to obtain its:
+!***  (1) delta phi and delta lambda
+!***  (2) southern/western boundary locations 
 !
-!***  WE MUST WORK DOWNWARD THROUGH THE ANCESTORS BECAUSE
-!***  THE UPPERMOST DOMAIN IS THE FOUNDATION.
-!
+!***  We must work downward through the ancestors because
+!***  the uppermost domain is the foundation.
 !-----------------------------------------------------------------------
 !
       DPHD_X=DPHD_1
@@ -4036,8 +4162,8 @@
 !
       DPHD_MINE=DPHD_X
       DLMD_MINE=DLMD_X
-      SBD_MINE=SBD_X
-      WBD_MINE=WBD_X
+!!!   SBD_MINE=SBD_X
+!!!   WBD_MINE=WBD_X
 !
 !-----------------------------------------------------------------------
 !
@@ -4046,69 +4172,431 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-!
-      SUBROUTINE PARENT_DATA_TO_DOMAIN(EXP_STATE_DYN                    &
-                                      ,EXP_STATE_PHY                    &
-                                      ,EXP_STATE_DOMAIN )
+! 
+      SUBROUTINE WATERFALLS(FIS                                         &
+                           ,SEA_MASK                                    &
+                           ,LOWER_TOPO                                  &
+                           ,IDS,IDE,JDS,JDE)
 !
 !-----------------------------------------------------------------------
-!***  Transfer from Dynamics/Physics export states to DOMAIN export 
+!***  When a parent initializes its child, the sea mask had to be done
+!***  with nearest neighbor logic while FIS should be done bilinearly.
+!***  This can lead to adjacent water points having different values
+!***  of FIS.  when that is the case, make the elevation of all
+!***  adjacent water points equal to the lowest of their values.
+!***  Save the I,J of all lowered points so the atmospheric column
+!***  can ultimately be adjusted.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: IDS,IDE,JDS,JDE                     !<-- Lateral dimensions of nest grid
+!
+      REAL(kind=KFPT),DIMENSION(IDS:IDE,JDS:JDE),INTENT(IN) :: SEA_MASK    !<-- Sea mask of nest grid points
+!
+      REAL(kind=KFPT),DIMENSION(IDS:IDE,JDS:JDE,1),INTENT(INOUT) :: FIS    !<-- Sfc geopotential on nest grid points
+!
+      LOGICAL(kind=KLOG),DIMENSION(IDS:IDE,JDS:JDE),INTENT(OUT) ::      &
+                                                              LOWER_TOPO   !<-- Flag points where topography is lowered
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: I,ITER,J,KOUNT_CHANGE
+!
+      REAL(kind=KFPT) :: FIS_0                                          &
+                        ,FIS_E,FIS_N,FIS_W,FIS_S                        &
+                        ,FIS_NE,FIS_NW,FIS_SW,FIS_SE                    &
+                        ,FIS_NEW
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      iter_loop: DO ITER=1,500
+!
+        KOUNT_CHANGE=0
+!
+!-----------------------------------------------------------------------
+!
+        DO J=JDS,JDE
+        DO I=IDS,IDE
+!
+          IF(SEA_MASK(I,J)<0.01)CYCLE                                      !<-- We are adjusting only water points 
+!
+!-----------------------------------------------------------------------
+!
+          FIS_0=FIS(I,J,1)
+!
+!----------
+!***  East
+!----------
+!
+          FIS_E=FIS_0
+!
+          IF(I+1<=IDE)THEN
+            IF(SEA_MASK(I+1,J)>0.99)FIS_E=FIS(I+1,J,1)
+          ENDIF
+!
+!---------------
+!***  Northeast
+!---------------
+!
+          FIS_NE=FIS_0
+!
+          IF(I+1<=IDE.AND.J+1<=JDE)THEN
+            IF(SEA_MASK(I+1,J+1)>0.99)FIS_NE=FIS(I+1,J+1,1)
+          ENDIF
+!
+!-----------
+!***  North
+!-----------
+!
+          FIS_N=FIS_0
+!
+          IF(J+1<=JDE)THEN
+            IF(SEA_MASK(I,J+1)>0.99)FIS_N=FIS(I,J+1,1)
+          ENDIF
+!
+!---------------
+!***  Northwest
+!---------------
+!
+          FIS_NW=FIS_0
+!
+          IF(I-1>=IDS.AND.J+1<=JDE)THEN
+            IF(SEA_MASK(I-1,J+1)>0.99)FIS_NW=FIS(I-1,J+1,1)
+          ENDIF
+!
+!----------
+!***  West
+!----------
+!
+          FIS_W=FIS_0
+!
+          IF(I-1>=IDS)THEN
+            IF(SEA_MASK(I-1,J)>0.99)FIS_W=FIS(I-1,J,1)
+          ENDIF
+!
+!---------------
+!***  Southwest
+!---------------
+!
+          FIS_SW=FIS_0
+!
+          IF(I-1>=IDS.AND.J-1>=JDS)THEN
+            IF(SEA_MASK(I-1,J-1)>0.99)FIS_SW=FIS(I-1,J-1,1)
+          ENDIF
+!
+!-----------
+!***  South
+!-----------
+!
+          FIS_S=FIS_0
+!
+          IF(J-1>=JDS)THEN
+            IF(SEA_MASK(I,J-1)>0.99)FIS_S=FIS(I,J-1,1)
+          ENDIF
+!
+!---------------
+!***  Southeast
+!---------------
+!
+          FIS_SE=FIS_0
+!
+          IF(I+1<=IDE.AND.J-1>=JDS)THEN
+            IF(SEA_MASK(I+1,J-1)>0.99)FIS_SE=FIS(I+1,J-1,1)
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Lower the point in question to the lowest value of itself and 
+!***  its neighbors if it is a water point.
+!***  Also save all I,J locations where FIS is changed so that we
+!***  can adjust the atmospheric column appropriately later.
+!-----------------------------------------------------------------------
+!
+          FIS_NEW=MIN(FIS_0                                             &
+                     ,FIS_E,FIS_N,FIS_W,FIS_E                           &
+                     ,FIS_NE,FIS_NW,FIS_SW,FIS_SE)
+!
+          IF(FIS_NEW+0.1<FIS_0)THEN
+            KOUNT_CHANGE=KOUNT_CHANGE+1
+            FIS(I,J,1)=FIS_NEW
+            LOWER_TOPO(I,J)=.TRUE.
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!
+        ENDDO
+        ENDDO
+!
+!
+        IF(KOUNT_CHANGE==0)EXIT iter_loop
+        IF(ITER==100)THEN
+          WRITE(0,*)' Reached 100 iterations and KOUNT_CHANGE='         &
+                   ,KOUNT_CHANGE
+        ENDIF
+!
+      ENDDO iter_loop
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE WATERFALLS
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+! 
+      SUBROUTINE ADJUST_COLUMNS(PD_NEAREST                              &
+                               ,PD_BILINEAR                             &
+                               ,LOWER_TOPO                              &
+                               ,DUMMY_3D                                &
+                               ,PT                                      &
+                               ,PDTOP                                   &
+                               ,SG1                                     &
+                               ,SG2                                     &
+                               ,IM_CHILD                                &
+                               ,JM_CHILD                                &
+                                         )
+!
+!-----------------------------------------------------------------------
+!***  When the surface elevation of a nested domain is changed due to
+!***  leveling of adjacent water points, adjust the atmospheric column
+!***  at each of those points.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: IM_CHILD                         &
+                                      ,JM_CHILD
+!
+      REAL(kind=KFPT),INTENT(IN) :: PDTOP,PT
+!
+      REAL(kind=KFPT),DIMENSION(1:LM+1),INTENT(IN) :: SG1,SG2
+!
+      REAL(kind=KFPT),DIMENSION(1:IM_CHILD,1:JM_CHILD,1),INTENT(IN) ::  &
+                                                            PD_NEAREST  &
+                                                           ,PD_BILINEAR
+!
+      LOGICAL(kind=KLOG),DIMENSION(1:IM_CHILD,1:JM_CHILD),INTENT(IN) :: &
+                                                            LOWER_TOPO
+!
+      REAL(kind=KFPT),DIMENSION(1:IM_CHILD,1:JM_CHILD,LM),INTENT(INOUT) :: &
+                                                                  DUMMY_3D
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: I,J,L,NUM_LEVS_SEC,NUM_LEVS_SPLINE
+!
+      REAL(kind=KFPT) :: COEFF_1,DELP_EXTRAP,PBOT_IN,PBOT_TARGET        &
+                        ,PDTOP_PT,PTOP_IN,PTOP_TARGET,R_DELP
+!
+      REAL(kind=KFPT),DIMENSION(1:LM) :: PMID_TARGET                    &
+                                        ,VBL_COLUMN
+!
+      REAL(kind=KFPT),DIMENSION(1:LM+1) :: PMID_IN                      &
+                                          ,SEC_DERIV                    &
+                                          ,VBL_INPUT
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      DO L=1,LM+1
+        SEC_DERIV(L)=0.
+      ENDDO
+!
+      NUM_LEVS_SPLINE=LM+1
+      NUM_LEVS_SEC   =LM+1
+!
+!-----------------------------------------------------------------------
+!***  Compute the input and target mid-layer pressures for the
+!***  spline interpolation.
+!-----------------------------------------------------------------------
+!
+      DO J=1,JM_CHILD
+      DO I=1,IM_CHILD
+!
+!-----------------------------------------------------------------------
+!
+        adjust: IF(LOWER_TOPO(I,J))THEN
+!
+          PTOP_IN=SG2(1)*PD_BILINEAR(I,J,1)+SG1(1)*PDTOP+PT
+          PTOP_TARGET=SG2(1)*PD_NEAREST(I,J,1)+SG1(1)*PDTOP+PT
+!
+          DO L=1,LM
+!
+            PDTOP_PT=SG1(L+1)*PDTOP+PT
+!
+            PBOT_IN   =SG2(L+1)*PD_BILINEAR(I,J,1)+PDTOP_PT
+            PMID_IN(L)=0.5*(PTOP_IN+PBOT_IN)
+            PTOP_IN   =PBOT_IN
+            VBL_INPUT(L)=DUMMY_3D(I,J,L)
+!
+            PBOT_TARGET   =SG2(L+1)*PD_NEAREST(I,J,1)+PDTOP_PT
+            PMID_TARGET(L)=0.5*(PTOP_TARGET+PBOT_TARGET)
+            PTOP_TARGET   =PBOT_TARGET
+!
+          ENDDO
+!
+!***  We know the target mid-layer pressure is greater than that in
+!***  the original column since the sfc elevation has been lowered.
+!***  Add a new input level by extrapolating linearly in pressure
+!***  to obtain a value at the lowest output mid-layer then fill
+!***  in all output levels with the spline.
+!
+          PMID_IN(LM+1)=PMID_TARGET(LM)
+          R_DELP=1./(PMID_IN(LM)-PMID_IN(LM-1))
+          DELP_EXTRAP=PMID_TARGET(LM)-PMID_IN(LM)
+          COEFF_1=(VBL_INPUT(LM)-VBL_INPUT(LM-1))*R_DELP
+          VBL_INPUT(LM+1)=VBL_INPUT(LM)+COEFF_1*DELP_EXTRAP                !<-- Create extrapolated value at nest's lowest mid-layer
+!                                                                               in input array.
+!-----------------------------------------------------------------------
+!
+          IF(ABS(PMID_IN(LM+1)-PMID_IN(LM))<10.)EXIT
+!
+          CALL SPLINE(NUM_LEVS_SPLINE                                   &  !<-- # of input levels
+                     ,PMID_IN                                           &  !<-- Input mid-layer pressures
+                     ,VBL_INPUT                                         &  !<-- Input mid-layer mass variable value
+                     ,SEC_DERIV                                         &  !<-- Specified 2nd derivatives (=0) at input levels
+                     ,NUM_LEVS_SEC                                      &  !<-- Vertical dimension of SEC_DERIV
+                     ,LM                                                &  !<-- # of mid-layers to which to interpolate
+                     ,PMID_TARGET                                       &  !<-- Mid-layer pressures to which to interpolate 
+                     ,VBL_COLUMN )                                         !<-- Mid-layer variable value returned
+!
+          DO L=1,LM
+            DUMMY_3D(I,J,L)=VBL_COLUMN(L)
+          ENDDO
+!
+        ENDIF adjust
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE ADJUST_COLUMNS
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE INTERNAL_DATA_TO_DOMAIN(EXP_STATE_DYN                  &
+                                        ,EXP_STATE_PHY                  &
+                                        ,EXP_STATE_DOMAIN               &
+                                        ,LM )
+!
+!-----------------------------------------------------------------------
+!***  Transfer from Dynamics/Physics export states to the DOMAIN export 
 !***  state the data needed for parent generation of child boundary 
-!***  data.
+!***  data as well as internal updates and shift decisions in
+!***  moving nests.
 !-----------------------------------------------------------------------
 !
 !------------------------
-!***  Argument variables
+!***  Argument Variables
 !------------------------
 !
-
+      INTEGER(kind=KINT),INTENT(OUT) :: LM                                 !<-- # of model layers
+!
 #ifdef ESMF_3
-      TYPE(ESMF_State),INTENT(IN)    :: EXP_STATE_DYN                   &   !<-- Dynamics export state
-                                       ,EXP_STATE_PHY                       !<-- Physics export state
+      TYPE(ESMF_State),INTENT(IN) :: EXP_STATE_DYN                      &  !<-- Dynamics export state
+                                    ,EXP_STATE_PHY                         !<-- Physics export state
 #else
       TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_DYN                   &   !<-- Dynamics export state
                                        ,EXP_STATE_PHY                       !<-- Physics export state
 #endif
-
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_DOMAIN                    !<-- DOMAIN export state into which fcst Arrays are transferred
+      TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_DOMAIN                   !<-- DOMAIN export state into which fcst Arrays are transferred
 !
 !---------------------
-!***  Local variables
+!***  Local Variables
 !---------------------
 !
-      INTEGER :: ITS,ITE,JTS,JTE                                        &
-                ,IDS,IDE,JDS,JDE                                        &
-                ,INDX_CW,INDX_Q                                         &
-                ,LNSH,LNSV                                              &      
-                ,NHALO
+      INTEGER(kind=KINT) :: ITS,ITE,JTS,JTE                             &
+                           ,IDS,IDE,JDS,JDE                             &
+                           ,INDX_CW,INDX_Q                              &
+                           ,LMP1,LNSH,LNSV                              &      
+                           ,NHALO,NKOUNT,NUM_DIMS
 !
-      INTEGER :: RC,RC_TRANS
+      INTEGER(kind=KINT) :: RC,RC_TRANS
 !
-      REAL :: PDTOP,PT
+      INTEGER(kind=KINT),DIMENSION(1:2) :: LBND_2D,UBND_2D
 !
-      REAL,DIMENSION(:),ALLOCATABLE :: ARRAY_1D
+      INTEGER(kind=KINT),DIMENSION(1:3) :: LBND_3D,UBND_3D
+!
+      INTEGER(kind=KINT),DIMENSION(1:4) :: LBND_4D,UBND_4D
+!
+      REAL(kind=KFPT) :: DYH,PDTOP,PT
+!
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ARRAY_1D
+!
+      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ARRAY_2D
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: ARRAY_3D
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: ARRAY_4D
 !
       TYPE(ESMF_StateItemType) :: STATEITEMTYPE
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
-      integer :: n
-      INTEGER :: LMP1
+      TYPE(ESMF_Grid) :: GRID_X
 !
-      CHARACTER(LEN=8), DIMENSION(5) :: EXP_FIELD
+      CHARACTER(len=8), DIMENSION(7) :: EXP_FIELD
+!
+      integer :: itemcount,n
+      character(len=14),dimension(1:25) :: itemnamelist
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
       RC_TRANS=ESMF_SUCCESS
 !
+!-----------------------------------------------------------------------
+!***  First find out the width of the haloes which is needed in
+!***  renaming the ESMF Fields associated with nest boundary updates.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract NHALO from the Dynamics export state"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+                            ,name ='NHALO'                              &  !<-- Name of Attribute to extract
+                            ,value=NHALO                                &  !<-- Put the extracted Attribute here
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Dynamics export state
+                        ,itemCount   =itemcount                         &  !<-- # of items in the state
+                        ,itemnamelist=itemnamelist                      &  !<-- List of item names
+                        ,rc          =RC)
+!
+!-----------------------------------------------------------------------
+!
 #if 1
       EXP_FIELD = (/ 'PD      '                                         &
+                    ,'PINT    '                                         &
                     ,'T       '                                         &
                     ,'U       '                                         &
                     ,'V       '                                         &
                     ,'TRACERS '                                         &
+                    ,'SM      '                                         &
                                /)
 !
 !-----------------------------------------------------------------------
@@ -4118,8 +4606,8 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Test the presence of "//TRIM(EXP_FIELD(N))//" in Dynamics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+        MESSAGE_CHECK="Test the presence of "//TRIM(EXP_FIELD(N))//" in Dynamics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifdef ESMF_520rbs
@@ -4135,14 +4623,14 @@
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         IF (STATEITEMTYPE /= ESMF_STATEITEM_NOTFOUND) THEN
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract "//TRIM(EXP_FIELD(N))//" from Dynamics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Extract "//TRIM(EXP_FIELD(N))//" from Dynamics Export State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_StateGet(state   =EXP_STATE_DYN                     &  !<-- The Dynamics export state
@@ -4151,14 +4639,14 @@
                             ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         ELSE
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract "//TRIM(EXP_FIELD(N))//" from Physics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Extract "//TRIM(EXP_FIELD(N))//" from Physics Export State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_StateGet(state   =EXP_STATE_PHY                     &  !<-- The Physics export state
@@ -4167,14 +4655,28 @@
                             ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         END IF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert PD into DOMAIN Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+        MESSAGE_CHECK="Obtain Grid and Dimensions from the Field"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_FieldGet(field   =HOLD_FIELD                          &  !<-- The ESMF Field we are looking at
+                          ,grid    =GRID_X                              &  !<-- The Field is on this ESMF Grid
+                          ,dimCount=NUM_DIMS                            &  !<-- The Field has this many dimensions
+                          ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert "//TRIM(EXP_FIELD(N))//" into DOMAIN Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateAdd(state=EXP_STATE_DOMAIN                       &  !<-- Insert PD into DOMAIN export state
@@ -4182,11 +4684,20 @@
                           ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+        CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                &  !<-- The Dynamics export state
+                          ,itemCount   =itemcount                       &  !<-- # of items in the state
+                          ,itemnamelist=itemnamelist                    &  !<-- List of item names
+                          ,rc          =RC)
+!
       END DO  item_loop
+!
+!-----------------------------------------------------------------------
 #else
+!-----------------------------------------------------------------------
+!
 !-----------------
 !***  Transfer PD 
 !-----------------
@@ -4211,6 +4722,37 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_StateAdd(state=EXP_STATE_DOMAIN                         &  !<-- Insert PD into DOMAIN export state
+                        ,field=HOLD_FIELD                               &  !<-- The Field to be inserted
+                        ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!---------------------------------
+!***  Transfer Interface Pressure
+!---------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract PINT from Dynamics Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Dynamics export state
+                        ,itemName='PINT'                                &  !<-- Extract T
+                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
+                        ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert PINT into DOMAIN Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateAdd(state=EXP_STATE_DOMAIN                         &  !<-- Insert T into DOMAIN export state
                         ,field=HOLD_FIELD                               &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
@@ -4342,7 +4884,43 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!-----------------------------
+!***  Transfer Sea Mask Array
+!-----------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Sea Mask from Dynamics Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Dynamics export state
+                        ,itemName='SM'                                  &  !<-- Extract Sea Mask
+                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
+                        ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert Sea Mask into DOMAIN Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateAdd(state=EXP_STATE_DOMAIN                         &  !<-- Insert Sea Mask into DOMAIN export state
+                        ,field=HOLD_FIELD                               &  !<-- The Field to be inserted
+                        ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 #endif
+      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Dynamics export state
+                        ,itemCount   =itemcount                         &  !<-- # of items in the state
+                        ,itemnamelist=itemnamelist                      &  !<-- List of item names
+                        ,rc          =RC)
+!
 !---------------------
 !***  Transfer INDX_Q
 !---------------------
@@ -4407,6 +4985,11 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Dynamics export state
+                        ,itemCount   =itemcount                         &  !<-- # of items in the state
+                        ,itemnamelist=itemnamelist                      &  !<-- List of item names
+                        ,rc          =RC)
+!
 !------------------
 !***  Transfer FIS
 !------------------
@@ -4434,9 +5017,89 @@
                         ,field=HOLD_FIELD                               &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
+      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Dynamics export state
+                        ,itemCount   =itemcount                         &  !<-- # of items in the state
+                        ,itemnamelist=itemnamelist                      &  !<-- List of item names
+                        ,rc          =RC)
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-------------------
+!***  Transfer GLAT
+!-------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract GLAT from Dynamics Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateGet(state   =EXP_STATE_DYN                     &  !<-- The Dynamics export state
+                        ,itemName='GLAT'                            &  !<-- Extract GLAT
+                        ,field   =HOLD_FIELD                        &  !<-- Put the extracted Field here
+                        ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert GLAT into DOMAIN Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateAdd(state=EXP_STATE_DOMAIN                         &  !<-- Insert GLAT into DOMAIN export state
+                        ,field=HOLD_FIELD                               &  !<-- The Field to be inserted
+                        ,rc   =RC)
+!
+      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                  &  !<-- The Dynamics export state
+                        ,itemCount=itemcount                        &  !<-- # of items in the state
+                        ,itemnamelist=itemnamelist                  &  !<-- List of item names
+                        ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-------------------
+!***  Transfer GLON
+!-------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract GLON from Dynamics Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateGet(state   =EXP_STATE_DYN                     &  !<-- The Dynamics export state
+                        ,itemName='GLON'                            &  !<-- Extract GLON
+                        ,field   =HOLD_FIELD                        &  !<-- Put the extracted Field here
+                        ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert GLON into DOMAIN Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateAdd(state=EXP_STATE_DOMAIN                         &  !<-- Insert GLON into DOMAIN export state
+                        ,field=HOLD_FIELD                               &  !<-- The Field to be inserted
+                        ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateAdd(state=EXP_STATE_DOMAIN                         &  !<-- Insert GLAT into DOMAIN export state
+                        ,field=HOLD_FIELD                               &  !<-- The Field to be inserted
+                        ,rc   =RC)
+      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                  &  !<-- The Dynamics export state
+                        ,itemCount=itemcount                        &  !<-- # of items in the state
+                        ,itemnamelist=itemnamelist                  &  !<-- List of item names
+                        ,rc      =RC)
 !
 !--------------------------------------
 !***  LM is needed but not transferred
@@ -4456,9 +5119,9 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!--------------------------------------------
-!***  Transfer PT,PDTOP,PSGML1,SG1,SG2,SGML2
-!--------------------------------------------
+!-------------------------------------------------------
+!***  Transfer PT,PDTOP,PSGML1,SG1,SG2,SGML2,DSG2,PDSG1
+!-------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert PT into DOMAIN Export State"
@@ -4466,136 +5129,184 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
-                            ,name ='PT'                                 &  !<-- Name of Attribute to extract
+                            ,name ='PT'                                 &  !<-- Extract PT
                             ,value=PT                                   &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !
       CALL ESMF_AttributeSet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
-                            ,name ='PT'                                 &  !<-- The name of the Attribute to insert
+                            ,name ='PT'                                 &  !<-- Set PT
                             ,value=PT                                   &  !<-- The Attribute to be inserted
                             ,rc   =RC)
 !
       CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
-                            ,name ='PDTOP'                              &  !<-- Name of Attribute to extract
+                            ,name ='PDTOP'                              &  !<-- Extract PDTOP
                             ,value=PDTOP                                &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !
-      CALL ESMF_AttributeSet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
-                            ,name ='PDTOP'                              &  !<-- Name of Attribute to extract
+      CALL ESMF_AttributeSet(state=EXP_STATE_DOMAIN                     &  !<-- The Parent's DOMAIN export state
+                            ,name ='PDTOP'                              &  !<-- Set PDTOP
                             ,value=PDTOP                                &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !
       ALLOCATE(ARRAY_1D(1:LM))
-
+!
 #ifdef ESMF_3
-      CALL ESMF_AttributeGet(state        =EXP_STATE_DYN                &  !<-- The Dynamics export state
-                            ,name         ='PSGML1'                     &  !<-- Extract PGMSL1
-                            ,count        =LM                           &  !<-- # of words in data list
-                            ,valueList    =ARRAY_1D                     &  !<-- Put extracted values ehre
-                            ,rc           =RC)
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+                            ,name     ='PSGML1'                         &  !<-- Extract PGMSL1
+                            ,count    =LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc       =RC)
 !
-      CALL ESMF_AttributeSet(state        =EXP_STATE_DOMAIN             &  !<-- The DOMAIN export state
-                            ,name         ='PSGML1'                     &  !<-- Extract PGMSL1
-                            ,count        =LM                           &  !<-- # of words in data list
-                            ,valueList    =ARRAY_1D                     &  !<-- Put extracted values ehre
-                            ,rc           =RC)
+      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's DOMAIN export state
+                            ,name     ='PSGML1'                         &  !<-- Extract PGMSL1
+                            ,count    =LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc       =RC)
 !
-      CALL ESMF_AttributeGet(state        =EXP_STATE_DYN                &  !<-- The Dynamics export state
-                            ,name         ='SGML2'                      &  !<-- Extract PGMSL1
-                            ,count        =LM                           &  !<-- # of words in data list
-                            ,valueList    =ARRAY_1D                     &  !<-- Put extracted values ehre
-                            ,rc           =RC)
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+                            ,name     ='SGML2'                          &  !<-- Extract SGML2
+                            ,count    =LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc       =RC)
 !
-      CALL ESMF_AttributeSet(state        =EXP_STATE_DOMAIN             &  !<-- The DOMAIN export state
-                            ,name         ='SGML2'                      &  !<-- Extract PGMSL1
-                            ,count        =LM                           &  !<-- # of words in data list
-                            ,valueList    =ARRAY_1D                     &  !<-- Put extracted values ehre
-                            ,rc           =RC)
+      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's DOMAIN export state
+                            ,name     ='SGML2'                          &  !<-- Set SGML2
+                            ,count    =LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+                            ,name     ='DSG2'                           &  !<-- Extract DSG2   
+                            ,count    =LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's DOMAIN export state
+                            ,name     ='DSG2'                           &  !<-- Set DSG2
+                            ,count    =LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+                            ,name     ='PDSG1'                          &  !<-- Extract PDSG1
+                            ,count    =LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's DOMAIN export state
+                            ,name     ='PDSG1'                          &  !<-- Set PDSG1
+                            ,count    =LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc       =RC)
 #else
-      CALL ESMF_AttributeGet(state        =EXP_STATE_DYN                &  !<-- The Dynamics export state
-                            ,name         ='PSGML1'                     &  !<-- Extract PGMSL1
-                            ,itemCount    =LM                           &  !<-- # of words in data list
-                            ,valueList    =ARRAY_1D                     &  !<-- Put extracted values ehre
-                            ,rc           =RC)
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+                            ,name     ='PSGML1'                         &  !<-- Extract PGMSL1
+                            ,itemCount=LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc       =RC)
 !
-      CALL ESMF_AttributeSet(state        =EXP_STATE_DOMAIN             &  !<-- The DOMAIN export state
-                            ,name         ='PSGML1'                     &  !<-- Extract PGMSL1
-                            ,itemCount    =LM                           &  !<-- # of words in data list
-                            ,valueList    =ARRAY_1D                     &  !<-- Put extracted values ehre
-                            ,rc           =RC)
+      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's DOMAIN export state
+                            ,name     ='PSGML1'                         &  !<-- Extract PGMSL1
+                            ,itemCount=LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc       =RC)
 !
-      CALL ESMF_AttributeGet(state        =EXP_STATE_DYN                &  !<-- The Dynamics export state
-                            ,name         ='SGML2'                      &  !<-- Extract PGMSL1
-                            ,itemCount    =LM                           &  !<-- # of words in data list
-                            ,valueList    =ARRAY_1D                     &  !<-- Put extracted values ehre
-                            ,rc           =RC)
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+                            ,name     ='SGML2'                          &  !<-- Extract SGML2
+                            ,itemCount=LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc       =RC)
 !
-      CALL ESMF_AttributeSet(state        =EXP_STATE_DOMAIN             &  !<-- The DOMAIN export state
-                            ,name         ='SGML2'                      &  !<-- Extract PGMSL1
-                            ,itemCount    =LM                           &  !<-- # of words in data list
-                            ,valueList    =ARRAY_1D                     &  !<-- Put extracted values ehre
-                            ,rc           =RC)
+      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's DOMAIN export state
+                            ,name     ='SGML2'                          &  !<-- Set SGML2
+                            ,itemCount=LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+                            ,name     ='DSG2'                           &  !<-- Extract DSG2   
+                            ,itemCount=LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's DOMAIN export state
+                            ,name     ='DSG2'                           &  !<-- Set DSG2
+                            ,itemCount=LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+                            ,name     ='PDSG1'                          &  !<-- Extract PDSG1
+                            ,itemCount=LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc       =RC)
+!
+      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's DOMAIN export state
+                            ,name     ='PDSG1'                          &  !<-- Set PDSG1
+                            ,itemCount=LM                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc       =RC)
 #endif
-
-      LMP1 = LM + 1
+!
+      LMP1=LM+1
       DEALLOCATE(ARRAY_1D)
       ALLOCATE(ARRAY_1D(1:LMP1))
-
+!
 #ifdef ESMF_3
       CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
                             ,name     ='SG1'                            &  !<-- Extract PGMSL1
                             ,count    =LMP1                             &  !<-- # of words in data list
-                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
+      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's DOMAIN export state
                             ,name     ='SG1'                            &  !<-- Extract PGMSL1
                             ,count    =LMP1                             &  !<-- # of words in data list
-                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
 !
       CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
                             ,name     ='SG2'                            &  !<-- Extract PGMSL1
                             ,count    =LMP1                             &  !<-- # of words in data list
-                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
+      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's DOMAIN export state
                             ,name     ='SG2'                            &  !<-- Extract PGMSL1
                             ,count    =LMP1                             &  !<-- # of words in data list
-                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
 #else
       CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
                             ,name     ='SG1'                            &  !<-- Extract PGMSL1
                             ,itemCount=LMP1                             &  !<-- # of words in data list
-                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
+      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's DOMAIN export state
                             ,name     ='SG1'                            &  !<-- Extract PGMSL1
                             ,itemCount=LMP1                             &  !<-- # of words in data list
-                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
 !
       CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
                             ,name     ='SG2'                            &  !<-- Extract PGMSL1
                             ,itemCount=LMP1                             &  !<-- # of words in data list
-                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
+      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's DOMAIN export state
                             ,name     ='SG2'                            &  !<-- Extract PGMSL1
                             ,itemCount=LMP1                             &  !<-- # of words in data list
-                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values ehre
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
 #endif
-
-      DEALLOCATE(ARRAY_1D)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      DEALLOCATE(ARRAY_1D)
 !
 !-------------------------------------------
 !***  Transfer Subdomain Integration Limits
@@ -4762,12 +5473,81 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!------------------------
+!***  Transfer DX and DY 
+!------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract DYH from Dynamics Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+                            ,name ='DYH'                                &  !<-- Name of DYH scalar
+                            ,value=DYH                                  &  !<-- Put the extracted Attribute here
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
+                            ,name ='DYH'                                &  !<-- Name of DYH scalar
+                            ,value=DYH                                  &  !<-- Put the extracted Attribute here
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      NKOUNT=JDE-JDS+1
+      ALLOCATE(ARRAY_1D(JDS:JDE))
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract DXH from Dynamics Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+                            ,name ='DXH'                                &  !<-- Name of DXH array
+                            ,count=NKOUNT                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
+                            ,name ='DXH'                                &  !<-- Name of DXH array
+                            ,count=NKOUNT                               &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc   =RC)
+!
+#else
+      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+                            ,name ='DXH'                                &  !<-- Name of DXH array
+                            ,itemCount=NKOUNT                           &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
+                            ,name ='DXH'                                &  !<-- Name of DXH array
+                            ,itemCount=NKOUNT                           &  !<-- # of words in data list
+                            ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
+                            ,rc   =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      DEALLOCATE(ARRAY_1D)
+!
+      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                  &  !<-- The Dynamics export state
+                        ,itemCount=itemcount                        &  !<-- # of items in the state
+                        ,itemnamelist=itemnamelist                  &  !<-- List of item names
+                        ,rc      =RC)
+!
 !-----------------------------------------------------------------------
 !
-      END SUBROUTINE PARENT_DATA_TO_DOMAIN
+      END SUBROUTINE INTERNAL_DATA_TO_DOMAIN
 !
 !-----------------------------------------------------------------------
-!***********************************************************************
+!#######################################################################
 !-----------------------------------------------------------------------
 !
       SUBROUTINE BOUNDARY_DATA_STATE_TO_STATE(CLOCK                     &
@@ -4776,32 +5556,54 @@
                                              ,STATE_OUT )
 !
 !-----------------------------------------------------------------------
-!***  THIS ROUTINE MOVES NEW BOUNDARY DATA FOR NESTED DOMAINS FROM
-!***  ONE IMPORT/EXPORT STATE TO ANOTHER.
+!***  This routine moves new boundary data for nested domains from
+!***  one import/export state to another.
 !-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
 !
       TYPE(ESMF_Clock),INTENT(IN),OPTIONAL :: CLOCK                        !<-- ESMF Clock
 !
-      INTEGER,INTENT(IN),OPTIONAL          :: RATIO                        !<-- # of child timesteps per parent timestep          
+      INTEGER(kind=KINT),INTENT(IN),OPTIONAL :: RATIO                      !<-- # of child timesteps per parent timestep          
 !
-      TYPE(ESMF_State),INTENT(INOUT)       :: STATE_IN                     !<-- Input ESMF State
+      TYPE(ESMF_State),INTENT(INOUT) :: STATE_IN                        &  !<-- Input ESMF State
+                                       ,STATE_OUT                          !<-- Output ESMF State
 !
-      TYPE(ESMF_State),INTENT(INOUT)       :: STATE_OUT                    !<-- Output ESMF State
-!
-!-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local Variables
+!---------------------
 !
       TYPE SIDES_1D_REAL
-        REAL,DIMENSION(:),ALLOCATABLE :: SOUTH
-        REAL,DIMENSION(:),ALLOCATABLE :: NORTH
-        REAL,DIMENSION(:),ALLOCATABLE :: WEST
-        REAL,DIMENSION(:),ALLOCATABLE :: EAST
+        REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: SOUTH
+        REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: NORTH
+        REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: WEST
+        REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: EAST
       END TYPE SIDES_1D_REAL
 !
-      INTEGER :: ISTAT,KOUNT,NTIMESTEP,RC,RC_BND_MV
+      INTEGER(kind=KINT) :: I_SHIFT,ISTAT,J_SHIFT,KOUNT,LIMIT           &
+                           ,NTIMESTEP,NTYPE,RC,RC_BND_MV
 !
-      INTEGER(KIND=ESMF_KIND_I8) :: NTIMESTEP_ESMF
+      INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF
+!
+      CHARACTER(len=7) :: TIME
+!
+      LOGICAL(kind=KLOG),SAVE :: EXTRACTED_FLAGS=.FALSE.
+!
+#ifdef ESMF_3
+      TYPE(ESMF_Logical),SAVE :: I_AM_A_NEST                            &
+                                ,MY_DOMAIN_MOVES
+#else
+      LOGICAL(kind=KLOG),SAVE :: I_AM_A_NEST                            &
+                                ,MY_DOMAIN_MOVES
+#endif
+!
+#ifdef ESMF_3
+      TYPE(ESMF_Logical) :: MOVE_NOW
+#else
+      LOGICAL(kind=KLOG) :: MOVE_NOW
+#endif
 !
       TYPE(SIDES_1D_REAL),SAVE :: BOUNDARY_H                            &
                                  ,BOUNDARY_V
@@ -4812,8 +5614,8 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  IF THE CLOCK WAS SENT IN THEN THIS TRANSFER OF DATA IS 
-!***  DEPENDENT UPON THE TIMESTEP.  
+!***  If the Clock was sent in then this transfer of data is 
+!***  dependent upon the timestep.  
 !-----------------------------------------------------------------------
 !
       IF(PRESENT(CLOCK))THEN
@@ -4833,711 +5635,946 @@
 !
         NTIMESTEP=NTIMESTEP_ESMF
 !
-        IF(MOD(NTIMESTEP,RATIO)/=0)RETURN
+        IF(MOD(NTIMESTEP,RATIO)/=0)RETURN                                  !<-- There is new bndry data only at parent timesteps
 !
       ENDIF
+!
 !-----------------------------------------------------------------------
-!***  CHECK EACH SIDE OF THE CHILD BOUNDARY.  IF DATA IS PRESENT FROM
-!***  THAT SIDE IN THE INPUT STATE THEN MOVE IT TO THE OUTPUT STATE.
+!***  Extract only once the Nest flag and the Moving Nest flag since
+!***  they never change.
 !-----------------------------------------------------------------------
+!
+      IF(.NOT.EXTRACTED_FLAGS)THEN
+!
+        EXTRACTED_FLAGS=.TRUE.
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Check the Nest Flag in BOUNDARY_DATA_STATE_TO_STATE"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=STATE_IN                           &  !<-- Look at the input state
+                              ,name ='I-Am-A-Nest Flag'                 &  !<-- Extract Attribute with this name
+                              ,value=I_AM_A_NEST                        &  !<-- Is this domain a nest?
+                              ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert the Nest Flag in BOUNDARY_DATA_STATE_TO_STATE"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- Look at the output state
+                              ,name ='I-Am-A-Nest Flag'                 &  !<-- Insert Attribute with this name
+                              ,value=I_AM_A_NEST                        &  !<-- Is this domain a nest?
+                              ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+        IF(I_AM_A_NEST==ESMF_TRUE)THEN
+#else
+        IF(I_AM_A_NEST)THEN
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract the Moving Nest Flag in BOUNDARY_DATA_STATE_TO_STATE"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(state=STATE_IN                         &  !<-- Look at the input state
+                                ,name ='MY_DOMAIN_MOVES'                &  !<-- Extract Attribute with this name
+                                ,value=MY_DOMAIN_MOVES                  &  !<-- Does the nest move?
+                                ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert the Moving Nest Flag in BOUNDARY_DATA_STATE_TO_STATE"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state=STATE_OUT                        &  !<-- Look at the output state
+                                ,name ='MY_DOMAIN_MOVES'                &  !<-- Insert Attribute with this name
+                                ,value=MY_DOMAIN_MOVES                  &  !<-- Does the nest move?
+                                ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        ENDIF
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  There are two 'types' of nest boundary data that must be
+!***  considered.  The first is the standard data coming from the
+!***  parent at the end of each parent timestep that is sent back
+!***  to all of the children at the beginning of that timestep so
+!***  the children can form time tendencies of their boundary variables.
+!***  The second is new boundary data from the parent generated at the
+!***  end of a timestep at which it has received a move signal from
+!***  a child.  Simply put, the first data is X(N+1) and the second is
+!***  X(N) used in the children's computation of boundary tendencies
+!***  where dX/dt=[X(N+1)-X(N)]/DT(parent).  If the MOVE_NOW flag from
+!***  STATE_IN is false then only the first type of boundary data is
+!***  present and needs to be moved into STATE_OUT but if MOVE_NOW is 
+!***  true then both types are present and must be transfered.
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+      MOVE_NOW=ESMF_FALSE
+!
+      IF(I_AM_A_NEST==ESMF_TRUE.AND.MY_DOMAIN_MOVES==ESMF_TRUE)THEN
+#else
+      MOVE_NOW=.FALSE.
+!
+      IF(I_AM_A_NEST.AND.MY_DOMAIN_MOVES)THEN
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract the MOVE_NOW Flag in BOUNDARY_DATA_STATE_TO_STATE"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=STATE_IN                           &  !<-- Look at the input state
+                              ,name ='MOVE_NOW'                         &  !<-- Is this name present?
+                              ,value=MOVE_NOW                           &  !<-- Is the child moving right now?
+                              ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert MOVE_NOW Flag into the Output State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- Insert data into output state
+                              ,name ='MOVE_NOW'                         &  !<-- The name of the data 
+                              ,value=MOVE_NOW                           &  !<-- Is the child moving right now?
+                              ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+        IF(MOVE_NOW==ESMF_TRUE)THEN
+#else
+        IF(MOVE_NOW)THEN
+#endif
+!
+!-----------------------------------------------------------------------
+!***  Also move the nest's shift in I and J on the parent grid
+!***  from the input state to the output state.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract Nest Shift from Input State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(state=STATE_IN                         &  !<-- Extract data from input state
+                                ,name ='I_SHIFT'                        &  !<-- The name of the data 
+                                ,value=I_SHIFT                          &  !<-- Nest's shift in I on its grid
+                                ,rc   =RC )
+!
+          CALL ESMF_AttributeGet(state=STATE_IN                         &  !<-- Extract data from input state
+                                ,name ='J_SHIFT'                        &  !<-- The name of the data 
+                                ,value=J_SHIFT                          &  !<-- Nest's shift in J on its grid
+                                ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert Nest Shift into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state=STATE_OUT                        &  !<-- Insert data into output state
+                                ,name ='I_SHIFT'                        &  !<-- The name of the data 
+                                ,value=I_SHIFT                          &  !<-- Nest's shift in I on its grid
+                                ,rc   =RC )
+!
+          CALL ESMF_AttributeSet(state=STATE_OUT                        &  !<-- Insert data into output state
+                                ,name ='J_SHIFT'                        &  !<-- The name of the data 
+                                ,value=J_SHIFT                          &  !<-- Nest's shift in J on its grid
+                                ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+      IF(MOVE_NOW==ESMF_FALSE)THEN
+#else
+      IF(.NOT.MOVE_NOW)THEN
+#endif
+        LIMIT=1                                                            !<-- Only normal boundary data present at time N+1
+      ELSE
+        LIMIT=2                                                            !<-- Boundary data also present after move for time N
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      type_loop: DO NTYPE=1,LIMIT
+!
+!-----------------------------------------------------------------------
+!
+        IF(NTYPE==1)THEN
+          TIME='Future'
+        ELSE
+          TIME='Current'
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Move boundary data on the nest boundary tasks from STATE_IN
+!***  to STATE_OUT.
+!-----------------------------------------------------------------------
+!
+        south_boundary: IF(S_BDY)THEN
 !
 !-------------
 !***  South H
 !-------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Check Input State for South H Data"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Find # of Words in South H Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
 #ifdef ESMF_3
-      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
-                            ,name     ='SOUTH_H'                        &   !<-- Is this name present?
-                            ,count    =KOUNT                            &   !<-- How many items present?
-                            ,rc       =RC )
+          CALL ESMF_AttributeGet(state=STATE_IN                         &  !<-- Look at the input state
+                                ,name ='SOUTH_H_'//TIME                 &  !<-- Is this name present?
+                                ,count=KOUNT                            &  !<-- How many words present?
+                                ,rc   =RC )
 #else
-      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
-                            ,name     ='SOUTH_H'                        &   !<-- Is this name present?
-                            ,itemCount=KOUNT                            &   !<-- How many items present?
-                            ,rc       =RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Look at the input state
+                                ,name     ='SOUTH_H_'//TIME             &  !<-- Is this name present?
+                                ,itemCount=KOUNT                        &  !<-- How many words present?
+                                ,rc       =RC )
 #endif
-
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      south_h: IF(KOUNT>0.AND.RC==ESMF_SUCCESS)THEN                         !<-- True => South boundary H point data is present
-!
-        IF(.NOT.ALLOCATED(BOUNDARY_H%SOUTH))THEN
-          ALLOCATE(BOUNDARY_H%SOUTH(1:KOUNT),stat=ISTAT)
-          IF(ISTAT/=0)WRITE(0,*)' Failed to allocate BOUNDARY_H%SOUTH stat=',ISTAT
-        ENDIF
+          IF(.NOT.ALLOCATED(BOUNDARY_H%SOUTH))THEN
+            ALLOCATE(BOUNDARY_H%SOUTH(1:KOUNT),stat=ISTAT)
+            IF(ISTAT/=0)WRITE(0,*)' Failed to allocate BOUNDARY_H%SOUTH stat=',ISTAT
+          ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract South H Data from Input State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Extract South H Data from Input State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
 #ifdef ESMF_3
-        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
-                              ,name     ='SOUTH_H'                      &   !<-- The name of the data
-                              ,count    =KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_H%SOUTH               &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Extract data from input state
+                                ,name     ='SOUTH_H_'//TIME             &  !<-- The name of the data
+                                ,count    =KOUNT                        &  !<-- The data has this many items
+                                ,valueList=BOUNDARY_H%SOUTH             &  !<-- The new combined boundary data
+                                ,rc       =RC )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert South H Data into Output State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Insert South H Data into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
-                              ,name     ='SOUTH_H'                      &   !<-- The name of the data 
-                              ,count    =KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_H%SOUTH               &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='SOUTH_H_'//TIME             &  !<-- The name of the data 
+                                ,count    =KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_H%SOUTH             &  !<-- The new combined boundary data
+                                ,rc       =RC )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
 #else
-        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
-                              ,name     ='SOUTH_H'                      &   !<-- The name of the data
-                              ,itemCount=KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_H%SOUTH               &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Extract data from input state
+                                ,name     ='SOUTH_H_'//TIME             &  !<-- The name of the data
+                                ,itemCount=KOUNT                        &  !<-- The data has this many items
+                                ,valueList=BOUNDARY_H%SOUTH             &  !<-- The new combined boundary data
+                                ,rc       =RC )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert South H Data into Output State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Insert South H Data into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
-                              ,name     ='SOUTH_H'                      &   !<-- The name of the data 
-                              ,itemCount=KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_H%SOUTH               &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='SOUTH_H_'//TIME             &  !<-- The name of the data 
+                                ,itemCount=KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_H%SOUTH             &  !<-- The new combined boundary data
+                                ,rc       =RC )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
 #endif
-
-      ENDIF south_h
 !
 !-------------
 !***  South V
 !-------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Check Input State for South V Data"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Find # of Words in South V Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
 #ifdef ESMF_3
-      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
-                            ,name     ='SOUTH_V'                        &   !<-- Is this name present?
-                            ,count    =KOUNT                            &   !<-- How many items present?
-                            ,rc       =RC )
+          CALL ESMF_AttributeGet(state=STATE_IN                         &  !<-- Look at the input state
+                                ,name ='SOUTH_V_'//TIME                 &  !<-- Is this name present?
+                                ,count=KOUNT                            &  !<-- How many words present?
+                                ,rc   =RC )
 #else
-      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
-                            ,name     ='SOUTH_V'                        &   !<-- Is this name present?
-                            ,itemCount=KOUNT                            &   !<-- How many items present?
-                            ,rc       =RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Look at the input state
+                                ,name     ='SOUTH_V_'//TIME             &  !<-- Is this name present?
+                                ,itemCount=KOUNT                        &  !<-- How many words present?
+                                ,rc       =RC )
 #endif
-
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      south_v: IF(KOUNT>0.AND.RC==ESMF_SUCCESS)THEN                         !<-- True => South boundary V point data is present
-!
-        IF(.NOT.ALLOCATED(BOUNDARY_V%SOUTH))THEN
-          ALLOCATE(BOUNDARY_V%SOUTH(1:KOUNT),stat=ISTAT)
-          IF(ISTAT/=0)WRITE(0,*)' Failed to allocate BOUNDARY_V%SOUTH stat=',ISTAT
-        ENDIF
+          IF(.NOT.ALLOCATED(BOUNDARY_V%SOUTH))THEN
+            ALLOCATE(BOUNDARY_V%SOUTH(1:KOUNT),stat=ISTAT)
+            IF(ISTAT/=0)WRITE(0,*)' Failed to allocate BOUNDARY_V%SOUTH stat=',ISTAT
+          ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract South V Data from Input State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Extract South V Data from Input State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
 #ifdef ESMF_3
-        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
-                              ,name     ='SOUTH_V'                      &   !<-- The name of the data
-                              ,count    =KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_V%SOUTH               &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Extract data from input state
+                                ,name     ='SOUTH_V_'//TIME             &  !<-- The name of the data
+                                ,count    =KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_V%SOUTH             &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert South V Data into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='SOUTH_V_'//TIME             &  !<-- The name of the data 
+                                ,count    =KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_V%SOUTH             &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 #else
-        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
-                              ,name     ='SOUTH_V'                      &   !<-- The name of the data
-                              ,itemCount=KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_V%SOUTH               &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Extract data from input state
+                                ,name     ='SOUTH_V_'//TIME             &  !<-- The name of the data
+                                ,itemCount=KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_V%SOUTH             &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert South V Data into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='SOUTH_V_'//TIME             &  !<-- The name of the data 
+                                ,itemCount=KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_V%SOUTH             &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 #endif
-
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        ENDIF south_boundary
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert South V Data into Output State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!-----------------------------------------------------------------------
 !
-
-#ifdef ESMF_3
-        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
-                              ,name     ='SOUTH_V'                      &   !<-- The name of the data 
-                              ,count    =KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_V%SOUTH               &   !<-- The new combined boundary data
-                              ,rc=RC )
-#else
-        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
-                              ,name     ='SOUTH_V'                      &   !<-- The name of the data 
-                              ,itemCount=KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_V%SOUTH               &   !<-- The new combined boundary data
-                              ,rc=RC )
-#endif
-
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDIF south_v
+        north_boundary: IF(N_BDY)THEN
 !
 !-------------
 !***  North H
 !-------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Check Input State for North H Data"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Find # of Words in North H Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
 #ifdef ESMF_3
-      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at input state
-                            ,name     ='NORTH_H'                        &   !<-- Is this name present?
-                            ,count    =KOUNT                            &   !<-- How many items present?
-                            ,rc       =RC )
+          CALL ESMF_AttributeGet(state=STATE_IN                         &  !<-- Look at input state
+                                ,name ='NORTH_H_'//TIME                 &  !<-- Is this name present?
+                                ,count=KOUNT                            &  !<-- How many words present?
+                                ,rc   =RC )
 #else
-      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at input state
-                            ,name     ='NORTH_H'                        &   !<-- Is this name present?
-                            ,itemCount=KOUNT                            &   !<-- How many items present?
-                            ,rc       =RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Look at input state
+                                ,name     ='NORTH_H_'//TIME             &  !<-- Is this name present?
+                                ,itemCount=KOUNT                        &  !<-- How many words present?
+                                ,rc       =RC )
 #endif
-
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      north_h: IF(KOUNT>0.AND.RC==ESMF_SUCCESS)THEN                         !<-- True => North boundary H point data is present
-!
-        IF(.NOT.ALLOCATED(BOUNDARY_H%NORTH))THEN
-          ALLOCATE(BOUNDARY_H%NORTH(1:KOUNT),stat=ISTAT)
-          IF(ISTAT/=0)WRITE(0,*)' Failed to allocate BOUNDARY_H%NORTH stat=',ISTAT
-        ENDIF
+          IF(.NOT.ALLOCATED(BOUNDARY_H%NORTH))THEN
+            ALLOCATE(BOUNDARY_H%NORTH(1:KOUNT),stat=ISTAT)
+            IF(ISTAT/=0)WRITE(0,*)' Failed to allocate BOUNDARY_H%NORTH stat=',ISTAT
+          ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract North H Data from Input State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Extract North H Data from Input State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
 #ifdef ESMF_3
-        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
-                              ,name     ='NORTH_H'                      &   !<-- The name of the data
-                              ,count    =KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_H%NORTH               &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Extract data from input state
+                                ,name     ='NORTH_H_'//TIME             &  !<-- The name of the data
+                                ,count    =KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_H%NORTH             &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert North H Data into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='NORTH_H_'//TIME             &  !<-- The name of the data 
+                                ,count    =KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_H%NORTH             &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 #else
-        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
-                              ,name     ='NORTH_H'                      &   !<-- The name of the data
-                              ,itemCount=KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_H%NORTH               &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Extract data from input state
+                                ,name     ='NORTH_H_'//TIME             &  !<-- The name of the data
+                                ,itemCount=KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_H%NORTH             &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert North H Data into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='NORTH_H_'//TIME             &  !<-- The name of the data 
+                                ,itemCount=KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_H%NORTH             &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 #endif
-
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert North H Data into Output State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-
-#ifdef ESMF_3
-        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
-                              ,name     ='NORTH_H'                      &   !<-- The name of the data 
-                              ,count    =KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_H%NORTH               &   !<-- The new combined boundary data
-                              ,rc=RC )
-#else
-        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
-                              ,name     ='NORTH_H'                      &   !<-- The name of the data 
-                              ,itemCount=KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_H%NORTH               &   !<-- The new combined boundary data
-                              ,rc=RC )
-#endif
-
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDIF north_h
 !
 !-------------
-!***  North V
+!***    North V
 !-------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Check Input State for North V Data"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Find # of Words in North V Data"
+!          CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
 #ifdef ESMF_3
-      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
-                            ,name     ='NORTH_V'                        &   !<-- Is this name present?
-                            ,count    =KOUNT                            &   !<-- How many items present?
-                            ,rc       =RC )
+          CALL ESMF_AttributeGet(state=STATE_IN                         &  !<-- Look at the input state
+                                ,name ='NORTH_V_'//TIME                 &  !<-- Is this name present?
+                                ,count=KOUNT                            &  !<-- How many words present?
+                                ,rc   =RC )
 #else
-      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
-                            ,name     ='NORTH_V'                        &   !<-- Is this name present?
-                            ,itemCount=KOUNT                            &   !<-- How many items present?
-                            ,rc       =RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Look at the input state
+                                ,name     ='NORTH_V_'//TIME             &  !<-- Is this name present?
+                                ,itemCount=KOUNT                        &  !<-- How many words present?
+                                ,rc       =RC )
 #endif
-
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      north_v: IF(KOUNT>0.AND.RC==ESMF_SUCCESS)THEN                         !<-- True => North boundary V point data is present
-!
-        IF(.NOT.ALLOCATED(BOUNDARY_V%NORTH))THEN
-          ALLOCATE(BOUNDARY_V%NORTH(1:KOUNT),stat=ISTAT)
-          IF(ISTAT/=0)WRITE(0,*)' Failed to allocate BOUNDARY_V%NORTH stat=',ISTAT
-        ENDIF
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract North V Data from Input State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-
-#ifdef ESMF_3
-        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
-                              ,name     ='NORTH_V'                      &   !<-- The name of the data
-                              ,count    =KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_V%NORTH               &   !<-- The new combined boundary data
-                              ,rc=RC )
-#else
-        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
-                              ,name     ='NORTH_V'                      &   !<-- The name of the data
-                              ,itemCount=KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_V%NORTH               &   !<-- The new combined boundary data
-                              ,rc=RC )
-#endif
-
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+          IF(.NOT.ALLOCATED(BOUNDARY_V%NORTH))THEN
+            ALLOCATE(BOUNDARY_V%NORTH(1:KOUNT),stat=ISTAT)
+            IF(ISTAT/=0)WRITE(0,*)' Failed to allocate BOUNDARY_V%NORTH stat=',ISTAT
+          ENDIF
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert North V Data into Output State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Extract North V Data from Input State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
 #ifdef ESMF_3
-        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
-                              ,name     ='NORTH_V'                      &   !<-- The name of the data 
-                              ,count    =KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_V%NORTH               &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Extract data from input state
+                                ,name     ='NORTH_V_'//TIME             &  !<-- The name of the data
+                                ,count    =KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_V%NORTH             &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert North V Data into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='NORTH_V_'//TIME             &  !<-- The name of the data 
+                                ,count    =KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_V%NORTH             &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 #else
-        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
-                              ,name     ='NORTH_V'                      &   !<-- The name of the data 
-                              ,itemCount=KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_V%NORTH               &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Extract data from input state
+                                ,name     ='NORTH_V_'//TIME             &  !<-- The name of the data
+                                ,itemCount=KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_V%NORTH             &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert North V Data into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='NORTH_V_'//TIME             &  !<-- The name of the data 
+                                ,itemCount=KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_V%NORTH             &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 #endif
-
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        ENDIF north_boundary
 !
-      ENDIF north_v
+!-----------------------------------------------------------------------
+!
+        west_boundary: IF(W_BDY)THEN
 !
 !------------
 !***  West H
 !------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Check Input State for West H Data"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Find # of Words in West H Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
 #ifdef ESMF_3
-      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
-                            ,name     ='WEST_H'                         &   !<-- Is this name present?
-                            ,count    =KOUNT                            &   !<-- How many items present?
-                            ,rc       =RC )
+          CALL ESMF_AttributeGet(state=STATE_IN                         &  !<-- Look at the input state
+                                ,name ='WEST_H_'//TIME                  &  !<-- Is this name present?
+                                ,count=KOUNT                            &  !<-- How many words present?
+                                ,rc   =RC )
 #else
-      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
-                            ,name     ='WEST_H'                         &   !<-- Is this name present?
-                            ,itemCount=KOUNT                            &   !<-- How many items present?
-                            ,rc       =RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Look at the input state
+                                ,name     ='WEST_H_'//TIME              &  !<-- Is this name present?
+                                ,itemCount=KOUNT                        &  !<-- How many words present?
+                                ,rc       =RC )
 #endif
-
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      west_h: IF(KOUNT>0.AND.RC==ESMF_SUCCESS)THEN                          !<-- True => West boundary H point data is present
-!
-        IF(.NOT.ALLOCATED(BOUNDARY_H%WEST))THEN
-          ALLOCATE(BOUNDARY_H%WEST(1:KOUNT),stat=ISTAT)
-          IF(ISTAT/=0)WRITE(0,*)' Failed to allocate BOUNDARY_H%WEST stat=',ISTAT
-        ENDIF
+          IF(.NOT.ALLOCATED(BOUNDARY_H%WEST))THEN
+            ALLOCATE(BOUNDARY_H%WEST(1:KOUNT),stat=ISTAT)
+            IF(ISTAT/=0)WRITE(0,*)' Failed to allocate BOUNDARY_H%WEST stat=',ISTAT
+          ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract West H Data from Input State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Extract West H Data from Input State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
 #ifdef ESMF_3
-        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
-                              ,name     ='WEST_H'                       &   !<-- The name of the data
-                              ,count    =KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_H%WEST                &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Extract data from input state
+                                ,name     ='WEST_H_'//TIME              &  !<-- The name of the data
+                                ,count    =KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_H%WEST              &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert West H Data into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='WEST_H_'//TIME              &  !<-- The name of the data 
+                                ,count    =KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_H%WEST              &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 #else
-        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
-                              ,name     ='WEST_H'                       &   !<-- The name of the data
-                              ,itemCount=KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_H%WEST                &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Extract data from input state
+                                ,name     ='WEST_H_'//TIME              &  !<-- The name of the data
+                                ,itemCount=KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_H%WEST              &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert West H Data into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='WEST_H_'//TIME              &  !<-- The name of the data 
+                                ,itemCount=KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_H%WEST              &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 #endif
-
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert West H Data into Output State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-
-#ifdef ESMF_3
-        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
-                              ,name     ='WEST_H'                       &   !<-- The name of the data 
-                              ,count    =KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_H%WEST                &   !<-- The new combined boundary data
-                              ,rc=RC )
-#else
-        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
-                              ,name     ='WEST_H'                       &   !<-- The name of the data 
-                              ,itemCount=KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_H%WEST                &   !<-- The new combined boundary data
-                              ,rc=RC )
-#endif
-
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDIF west_h
 !
 !------------
-!***  West V
+!***    West V
 !------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Check Input State for West V Data"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Find # of Words in West V Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
 #ifdef ESMF_3
-      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
-                            ,name     ='WEST_V'                         &   !<-- Is this name present?
-                            ,count    =KOUNT                            &   !<-- How many items present?
-                            ,rc       =RC )
+          CALL ESMF_AttributeGet(state=STATE_IN                         &  !<-- Look at the input state
+                                ,name ='WEST_V_'//TIME                  &  !<-- Is this name present?
+                                ,count=KOUNT                            &  !<-- How many words present?
+                                ,rc   =RC )
 #else
-      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
-                            ,name     ='WEST_V'                         &   !<-- Is this name present?
-                            ,itemCount=KOUNT                            &   !<-- How many items present?
-                            ,rc       =RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Look at the input state
+                                ,name     ='WEST_V_'//TIME              &  !<-- Is this name present?
+                                ,itemCount=KOUNT                        &  !<-- How many words present?
+                                ,rc       =RC )
 #endif
-
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      west_v: IF(KOUNT>0.AND.RC==ESMF_SUCCESS)THEN                          !<-- True => West boundary V point data is present
-!
-        IF(.NOT.ALLOCATED(BOUNDARY_V%WEST))THEN
-          ALLOCATE(BOUNDARY_V%WEST(1:KOUNT),stat=ISTAT)
-          IF(ISTAT/=0)WRITE(0,*)' Failed to allocate BOUNDARY_V%WEST stat=',ISTAT
-        ENDIF
+          IF(.NOT.ALLOCATED(BOUNDARY_V%WEST))THEN
+            ALLOCATE(BOUNDARY_V%WEST(1:KOUNT),stat=ISTAT)
+            IF(ISTAT/=0)WRITE(0,*)' Failed to allocate BOUNDARY_V%WEST stat=',ISTAT
+          ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract West V Data from Input State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Extract West V Data from Input State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
 #ifdef ESMF_3
-        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data input state
-                              ,name     ='WEST_V'                       &   !<-- The name of the data
-                              ,count    =KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_V%WEST                &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Extract data input state
+                                ,name     ='WEST_V_'//TIME              &  !<-- The name of the data
+                                ,count    =KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_V%WEST              &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert West V Data into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='WEST_V_'//TIME              &  !<-- The name of the data 
+                                ,count    =KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_V%WEST              &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 #else
-        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data input state
-                              ,name     ='WEST_V'                       &   !<-- The name of the data
-                              ,itemCount=KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_V%WEST                &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Extract data input state
+                                ,name     ='WEST_V_'//TIME              &  !<-- The name of the data
+                                ,itemCount=KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_V%WEST              &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert West V Data into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='WEST_V_'//TIME              &  !<-- The name of the data 
+                                ,itemCount=KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_V%WEST              &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 #endif
-
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        ENDIF west_boundary
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert West V Data into Output State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!-----------------------------------------------------------------------
 !
-
-#ifdef ESMF_3
-        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
-                              ,name     ='WEST_V'                       &   !<-- The name of the data 
-                              ,count    =KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_V%WEST                &   !<-- The new combined boundary data
-                              ,rc=RC )
-#else
-        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
-                              ,name     ='WEST_V'                       &   !<-- The name of the data 
-                              ,itemCount=KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_V%WEST                &   !<-- The new combined boundary data
-                              ,rc=RC )
-#endif
-
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDIF west_v
+        east_boundary: IF(E_BDY)THEN
 !
 !------------
 !***  East H
 !------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Check Input State for East H Data"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Find # of Words in East H Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
 #ifdef ESMF_3
-      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
-                            ,name     ='EAST_H'                         &   !<-- Is this name present?
-                            ,count    =KOUNT                            &   !<-- How many items present?
-                            ,rc       =RC )
+          CALL ESMF_AttributeGet(state=STATE_IN                         &  !<-- Look at the input state
+                                ,name ='EAST_H_'//TIME                  &  !<-- Is this name present?
+                                ,count=KOUNT                            &  !<-- How many words present?
+                                ,rc   =RC )
 #else
-      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
-                            ,name     ='EAST_H'                         &   !<-- Is this name present?
-                            ,itemCount=KOUNT                            &   !<-- How many items present?
-                            ,rc       =RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Look at the input state
+                                ,name     ='EAST_H_'//TIME              &  !<-- Is this name present?
+                                ,itemCount=KOUNT                        &  !<-- How many words present?
+                                ,rc       =RC )
 #endif
-
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      east_h: IF(KOUNT>0.AND.RC==ESMF_SUCCESS)THEN                          !<-- True => East boundary H point data is present
-!
-        IF(.NOT.ALLOCATED(BOUNDARY_H%EAST))THEN
-          ALLOCATE(BOUNDARY_H%EAST(1:KOUNT),stat=ISTAT)
-          IF(ISTAT/=0)WRITE(0,*)' Failed to allocate BOUNDARY_H%EAST stat=',ISTAT
-        ENDIF
+          IF(.NOT.ALLOCATED(BOUNDARY_H%EAST))THEN
+            ALLOCATE(BOUNDARY_H%EAST(1:KOUNT),stat=ISTAT)
+            IF(ISTAT/=0)WRITE(0,*)' Failed to allocate BOUNDARY_H%EAST stat=',ISTAT
+          ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract East H Data from Input State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Extract East H Data from Input State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
 #ifdef ESMF_3
-        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
-                              ,name     ='EAST_H'                       &   !<-- The name of the data
-                              ,count    =KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_H%EAST                &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Extract data from input state
+                                ,name     ='EAST_H_'//TIME              &  !<-- The name of the data
+                                ,count    =KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_H%EAST              &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert East H Data into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='EAST_H_'//TIME              &  !<-- The name of the data 
+                                ,count    =KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_H%EAST              &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 #else
-        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
-                              ,name     ='EAST_H'                       &   !<-- The name of the data
-                              ,itemCount=KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_H%EAST                &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Extract data from input state
+                                ,name     ='EAST_H_'//TIME              &  !<-- The name of the data
+                                ,itemCount=KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_H%EAST              &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert East H Data into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='EAST_H_'//TIME              &  !<-- The name of the data 
+                                ,itemCount=KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_H%EAST              &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 #endif
-
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert East H Data into Output State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-
-#ifdef ESMF_3
-        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
-                              ,name     ='EAST_H'                       &   !<-- The name of the data 
-                              ,count    =KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_H%EAST                &   !<-- The new combined boundary data
-                              ,rc=RC )
-#else
-        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
-                              ,name     ='EAST_H'                       &   !<-- The name of the data 
-                              ,itemCount=KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_H%EAST                &   !<-- The new combined boundary data
-                              ,rc=RC )
-#endif
-
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDIF east_h
 !
 !------------
-!***  East V
+!***    East V
 !------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Check Input State for East V Data"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Fins # of Words in East V Data"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
 #ifdef ESMF_3
-      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
-                            ,name     ='EAST_V'                         &   !<-- Is this name present?
-                            ,count    =KOUNT                            &   !<-- How many items present?
-                            ,rc       =RC )
+          CALL ESMF_AttributeGet(state=STATE_IN                         &  !<-- Look at the input state
+                                ,name ='EAST_V_'//TIME                  &  !<-- Is this name present?
+                                ,count=KOUNT                            &  !<-- How many words present?
+                                ,rc   =RC )
 #else
-      CALL ESMF_AttributeGet(state    =STATE_IN                         &   !<-- Look at the input state
-                            ,name     ='EAST_V'                         &   !<-- Is this name present?
-                            ,itemCount=KOUNT                            &   !<-- How many items present?
-                            ,rc       =RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Look at the input state
+                                ,name     ='EAST_V_'//TIME              &  !<-- Is this name present?
+                                ,itemCount=KOUNT                        &  !<-- How many words present?
+                                ,rc       =RC )
 #endif
-
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      east_v: IF(KOUNT>0.AND.RC==ESMF_SUCCESS)THEN                          !<-- True => East boundary V point data is present
-!
-        IF(.NOT.ALLOCATED(BOUNDARY_V%EAST))THEN
-          ALLOCATE(BOUNDARY_V%EAST(1:KOUNT),stat=ISTAT)
-          IF(ISTAT/=0)WRITE(0,*)' Failed to allocate BOUNDARY_V%EAST stat=',ISTAT
-        ENDIF
+          IF(.NOT.ALLOCATED(BOUNDARY_V%EAST))THEN
+            ALLOCATE(BOUNDARY_V%EAST(1:KOUNT),stat=ISTAT)
+            IF(ISTAT/=0)WRITE(0,*)' Failed to allocate BOUNDARY_V%EAST stat=',ISTAT
+          ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract East V Data from Input State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+          MESSAGE_CHECK="Extract East V Data from Input State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-
 #ifdef ESMF_3
-        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
-                              ,name     ='EAST_V'                       &   !<-- The name of the data
-                              ,count    =KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_V%EAST                &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Extract data from input state
+                                ,name     ='EAST_V_'//TIME              &  !<-- The name of the data
+                                ,count    =KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_V%EAST              &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert East V Data into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='EAST_V_'//TIME              &  !<-- The name of the data 
+                                ,count    =KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_V%EAST              &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 #else
-        CALL ESMF_AttributeGet(state    =STATE_IN                       &   !<-- Extract data from input state
-                              ,name     ='EAST_V'                       &   !<-- The name of the data
-                              ,itemCount=KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_V%EAST                &   !<-- The new combined boundary data
-                              ,rc=RC )
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Extract data from input state
+                                ,name     ='EAST_V_'//TIME              &  !<-- The name of the data
+                                ,itemCount=KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_V%EAST              &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert East V Data into Output State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='EAST_V_'//TIME              &  !<-- The name of the data 
+                                ,itemCount=KOUNT                        &  !<-- The data has this many words
+                                ,valueList=BOUNDARY_V%EAST              &  !<-- The new combined boundary data
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 #endif
-
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        ENDIF east_boundary
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert East V Data into Output State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!-----------------------------------------------------------------------
 !
-
-#ifdef ESMF_3
-        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
-                              ,name     ='EAST_V'                       &   !<-- The name of the data 
-                              ,count    =KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_V%EAST                &   !<-- The new combined boundary data
-                              ,rc=RC )
-#else
-        CALL ESMF_AttributeSet(state    =STATE_OUT                      &   !<-- Insert data into output state
-                              ,name     ='EAST_V'                       &   !<-- The name of the data 
-                              ,itemCount=KOUNT                          &   !<-- The data has this many items
-                              ,valueList=BOUNDARY_V%EAST                &   !<-- The new combined boundary data
-                              ,rc=RC )
-#endif
-
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDIF east_v
+      ENDDO type_loop
 !
 !-----------------------------------------------------------------------
 !
@@ -5546,324 +6583,5682 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-! 
-      SUBROUTINE WATERFALLS(FIS                                         &
-                           ,SEA_MASK                                    &
-                           ,LOWER_TOPO                                  &
-                           ,IDS,IDE,JDS,JDE)
+!
+      SUBROUTINE INTERIOR_DATA_STATE_TO_STATE(STATE_IN                  &
+                                             ,STATE_OUT )
 !
 !-----------------------------------------------------------------------
-!***  WHEN A PARENT INITIALIZES ITS CHILD, THE SEA MASK HAD TO BE DONE
-!***  WITH NEAREST NEIGHBOR LOGIC WHILE FIS SHOULD BE DONE BILINEARLY.
-!***  THIS CAN LEAD TO ADJACENT WATER POINTS HAVING DIFFERENT VALUES
-!***  OF FIS.  WHEN THAT IS THE CASE, MAKE THE ELEVATION OF ALL
-!***  ADJACENT WATER POINTS EQUAL TO THE LOWEST OF THEIR VALUES.
-!***  SAVE THE I,J OF ALL LOWERED POINTS SO THE ATMOSPHERIC COLUMN
-!***  CAN ULTIMATELY BE ADJUSTED.
+!***  This routine moves from the input to the output state the new
+!***  interior update data that was sent from the parent to this
+!***  moving nest.  As of now this routine is used only for moving 
+!***  the data from the Parent-Child coupler export state (STATE_IN)
+!***  to the DOMAIN import state (STATE_OUT).
 !-----------------------------------------------------------------------
 !
-      IMPLICIT NONE
+!------------------------
+!***  Argument Variables
+!------------------------
 !
-!-----------------------------------------------------------------------
+      TYPE(ESMF_State),INTENT(INOUT) :: STATE_IN                           !<-- Input ESMF State
 !
-      INTEGER(KIND=KINT),INTENT(IN) :: IDS,IDE,JDS,JDE                     !<-- Lateral dimensions of nest grid
+      TYPE(ESMF_State),INTENT(INOUT) :: STATE_OUT                          !<-- Output ESMF State
 !
-      REAL(KIND=KFPT),DIMENSION(IDS:IDE,JDS:JDE),INTENT(IN) :: SEA_MASK    !<-- Sea mask of nest grid points
-!
-      REAL(KIND=KFPT),DIMENSION(IDS:IDE,JDS:JDE,1),INTENT(INOUT) :: FIS    !<-- Sfc geopotential on nest grid points
-!
-      LOGICAL,DIMENSION(IDS:IDE,JDS:JDE),INTENT(OUT) :: LOWER_TOPO         !<-- Flag points where topography is lowered
-!
-!-----------------------------------------------------------------------
+!---------------------
 !***  Local Variables
-!-----------------------------------------------------------------------
+!---------------------
 !
-      INTEGER(KIND=KINT) :: I,J
-      INTEGER(KIND=KINT) :: ITER,KOUNT_CHANGE
+      INTEGER(kind=KINT) :: I_SHIFT,J_SHIFT                             &
+                           ,N,N8,NUM_PTASK_UPDATE                       &
+                           ,NUM_INTEGER_WORDS                           &
+                           ,NUM_REAL_WORDS
 !
-      REAL(KIND=KFPT) :: FIS_0                                          &
-                        ,FIS_E,FIS_N,FIS_W,FIS_S                        &
-                        ,FIS_NE,FIS_NW,FIS_SW,FIS_SE                    &
-                        ,FIS_NEW
+      INTEGER(kind=KINT) :: RC,RC_S2S
 !
-!-----------------------------------------------------------------------
+      INTEGER(kind=KINT),DIMENSION(1:8) :: INDICES_H,INDICES_V
+!
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: UPDATE_INTEGER_DATA
+!
+      REAL(kind=KFPT),DIMENSION(:),POINTER :: UPDATE_REAL_DATA
+!
+      CHARACTER(len=1)  :: N_PTASK
+      CHARACTER(len=12) :: NAME
+      CHARACTER(len=17) :: NAME_REAL
+      CHARACTER(len=20) :: NAME_INTEGER
+!
+#ifdef ESMF_3
+      TYPE(ESMF_Logical) :: MOVE_NOW
+#else
+      LOGICAL(kind=KLOG) :: MOVE_NOW
+#endif
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      iter_loop: DO ITER=1,500
+      RC    =ESMF_SUCCESS
+      RC_S2S=ESMF_SUCCESS
 !
-        KOUNT_CHANGE=0
-!
-!-----------------------------------------------------------------------
-!
-        DO J=JDS,JDE
-        DO I=IDS,IDE
-!
-          IF(SEA_MASK(I,J)<0.01)CYCLE                                      !<-- We are adjusting only water points 
+      N8=8
 !
 !-----------------------------------------------------------------------
 !
-          FIS_0=FIS(I,J,1)
+!-----------------------------------------------------------------------
+!***  The Run step of the DOMAIN component needs to know each timestep
+!***  whether or not a moving domain wants to move at that time.
+!***  So we must transfer the current value of the MOVE_NOW flag to the
+!***  DOMAIN import state every timestep.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Unload MOVE_NOW Flag from P-C-Cpl Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=STATE_IN                             &  !<-- The input State
+                            ,name ='MOVE_NOW'                           &  !<-- Extract MOVE_NOW flag
+                            ,value=MOVE_NOW                             &  !<-- Put the flag here
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Load MOVE_NOW Flag into DOMAIN Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(state=STATE_OUT                            &  !<-- The output State
+                            ,name ='MOVE_NOW'                           &  !<-- Name of MOVE_NOW flag
+                            ,value=MOVE_NOW                             &  !<-- Inserting MOVE_NOW flag into STATE_OUT
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  If this moving nest does want to move now and this task is
+!***  to receive interior update data from its parent then proceed
+!***  with transferring additional required data from the Parent-Child
+!***  coupler export state to the DOMAIN import state.
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+      move_check: IF(MOVE_NOW==ESMF_TRUE)THEN
+#else
+      move_check: IF(MOVE_NOW)THEN
+#endif
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Unload I_SHIFT from P-C Cpl Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=STATE_IN                           &  !<-- The input State
+                              ,name ='I_SHIFT'                          &  !<-- Name of the variable
+                              ,value=I_SHIFT                            &  !<-- Nest moves this far in I in its space
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Load I_SHIFT into DOMAIN Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- The output State
+                              ,name ='I_SHIFT'                          &  !<-- Name of the variable
+                              ,value=I_SHIFT                            &  !<-- Load this into STATE_OUT
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Unload J_SHIFT from P-C Cpl Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=STATE_IN                           &  !<-- The input State
+                              ,name ='J_SHIFT'                          &  !<-- Name of the variable
+                              ,value=J_SHIFT                            &  !<-- Nest moves this far in J in its space
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Load J_SHIFT into DOMAIN Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- The output State
+                              ,name ='J_SHIFT'                          &  !<-- Name of the variable
+                              ,value=J_SHIFT                            &  !<-- Load this into STATE_OUT
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Unload # of Parent Tasks Sending Interior Updates"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=STATE_IN                           &  !<-- The input State
+                              ,name ='Num Parent Tasks Update'          &  !<-- Name of the variable
+                              ,value=NUM_PTASK_UPDATE                   &  !<-- # of parent tasks that update this nest task
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="INTERIOR_DATA_STATE_TO_STATE: Load # of Parent Tasks Sending Interior Updates"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- The output State
+                              ,name ='Num Parent Tasks Update'          &  !<-- Name of the variable
+                              ,value=NUM_PTASK_UPDATE                   &  !<-- # of parent tasks that update this nest task
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+        transfer: IF(NUM_PTASK_UPDATE>0)THEN
+!
+!-----------------------------------------------------------------------
+!
+          parent_tasks: DO N=1,NUM_PTASK_UPDATE
+!
+!-----------------------------------------------------------------------
+!
+            WRITE(N_PTASK,'(I1)')N
+!
+            NAME_INTEGER='PTASK_INTEGER_DATA_'//N_PTASK
+            NAME_REAL   ='PTASK_REAL_DATA_'//N_PTASK
+            NAME        ='PTASK_DATA_'//N_PTASK
+!
+!-----------------------------------------------------------------------
+!
+!------------
+!*** Integer
+!------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Unload # of Words in Integer Update Data from Parent"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeGet(state=STATE_IN                       &  !<-- The input State
+                                  ,name =NAME_INTEGER//' Words'         &  !<-- Name of the variable
+                                  ,value=NUM_INTEGER_WORDS              &  !<-- # of words in integer update data from Nth parent task
+                                  ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Load # of Words in Integer Update Data from Parent"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeSet(state=STATE_OUT                      &  !<-- The output State
+                                  ,name =NAME_INTEGER//' Words'         &  !<-- Name of the variable
+                                  ,value=NUM_INTEGER_WORDS              &  !<-- # of words in integer update data from Nth parent task
+                                  ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+            transfer_int: IF(NUM_INTEGER_WORDS>0)THEN
+!
+!-----------------------------------------------------------------------
+!
+              ALLOCATE(UPDATE_INTEGER_DATA(1:NUM_INTEGER_WORDS))
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              MESSAGE_CHECK="Unload Interior Integer Update Data from Input State"
+!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+              CALL ESMF_AttributeGet(state    =STATE_IN                 &  !<-- The input State
+                                    ,name     =NAME_INTEGER             &  !<-- Name of the variable
+                                    ,count    =NUM_INTEGER_WORDS        &  !<-- # of words in integer update data from Nth parent task
+                                    ,valueList=UPDATE_INTEGER_DATA      &  !<-- The integer update data from Nth parent task
+                                    ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              MESSAGE_CHECK="Load Interior Integer Update Data into Output State"
+!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              CALL ESMF_AttributeSet(state    =STATE_OUT                &  !<-- The output State
+                                    ,name     =NAME_INTEGER             &  !<-- Name of the variable
+                                    ,count    =NUM_INTEGER_WORDS        &  !<-- # of words in integer update data from Nth parent task
+                                    ,valueList=UPDATE_INTEGER_DATA      &  !<-- The integer update data from Nth parent task
+                                    ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+#else
+              CALL ESMF_AttributeGet(state    =STATE_IN                 &  !<-- The input State
+                                    ,name     =NAME_INTEGER             &  !<-- Name of the variable
+                                    ,itemCount=NUM_INTEGER_WORDS        &  !<-- # of words in integer update data from Nth parent task
+                                    ,valueList=UPDATE_INTEGER_DATA      &  !<-- The integer update data from Nth parent task
+                                    ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              MESSAGE_CHECK="Load Interior Integer Update Data into Output State"
+!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              CALL ESMF_AttributeSet(state    =STATE_OUT                &  !<-- The output State
+                                    ,name     =NAME_INTEGER             &  !<-- Name of the variable
+                                    ,itemCount=NUM_INTEGER_WORDS        &  !<-- # of words in integer update data from Nth parent task
+                                    ,valueList=UPDATE_INTEGER_DATA      &  !<-- The integer update data from Nth parent task
+                                    ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+#endif
+!
+              DEALLOCATE(UPDATE_INTEGER_DATA)
+!
+!-----------------------------------------------------------------------
+!
+            ENDIF transfer_int
+!
+!-----------------------------------------------------------------------
 !
 !----------
-!***  East
+!***  Real
 !----------
 !
-          FIS_E=FIS_0
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Unload # of Words in Real Update Data from Parent"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          IF(I+1<=IDE)THEN
-            IF(SEA_MASK(I+1,J)>0.99)FIS_E=FIS(I+1,J,1)
-          ENDIF
+            CALL ESMF_AttributeGet(state=STATE_IN                       &  !<-- The input State
+                                  ,name =NAME_REAL//' Words'            &  !<-- Name of the variable
+                                  ,value=NUM_REAL_WORDS                 &  !<-- # of words in real update data from Nth parent task
+                                  ,rc   =RC)
 !
-!---------------
-!***  Northeast
-!---------------
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          FIS_NE=FIS_0
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Load # of Words in Real Update Data from Parent"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          IF(I+1<=IDE.AND.J+1<=JDE)THEN
-            IF(SEA_MASK(I+1,J+1)>0.99)FIS_NE=FIS(I+1,J+1,1)
-          ENDIF
+            CALL ESMF_AttributeSet(state=STATE_OUT                      &  !<-- The output State
+                                  ,name =NAME_REAL//' Words'            &  !<-- Name of the variable
+                                  ,value=NUM_REAL_WORDS                 &  !<-- # of words in real update data from Nth parent task
+                                  ,rc   =RC)
 !
-!-----------
-!***  North
-!-----------
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          FIS_N=FIS_0
+            ALLOCATE(UPDATE_REAL_DATA(1:NUM_REAL_WORDS))
 !
-          IF(J+1<=JDE)THEN
-            IF(SEA_MASK(I,J+1)>0.99)FIS_N=FIS(I,J+1,1)
-          ENDIF
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Unload Interior Real Update Data from Input State"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!---------------
-!***  Northwest
-!---------------
+#ifdef ESMF_3
+            CALL ESMF_AttributeGet(state    =STATE_IN                   &  !<-- The input State
+                                  ,name     =NAME_REAL                  &  !<-- Name of the variable
+                                  ,count    =NUM_REAL_WORDS             &  !<-- # of words in real update data from Nth parent task
+                                  ,valueList=UPDATE_REAL_DATA           &  !<-- The real update data from Nth parent task
+                                  ,rc       =RC)
 !
-          FIS_NW=FIS_0
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          IF(I-1>=IDS.AND.J+1<=JDE)THEN
-            IF(SEA_MASK(I-1,J+1)>0.99)FIS_NW=FIS(I-1,J+1,1)
-          ENDIF
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Load Interior Real Update Data into Output State"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!----------
-!***  West
-!----------
+            CALL ESMF_AttributeSet(state    =STATE_OUT                  &  !<-- The output State
+                                  ,name     =NAME_REAL                  &  !<-- Name of the variable
+                                  ,count    =NUM_REAL_WORDS             &  !<-- # of words in real update data from Nth parent task
+                                  ,valueList=UPDATE_REAL_DATA           &  !<-- The real update data from Nth parent task
+                                  ,rc       =RC)
 !
-          FIS_W=FIS_0
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+#else
+            CALL ESMF_AttributeGet(state    =STATE_IN                   &  !<-- The input State
+                                  ,name     =NAME_REAL                  &  !<-- Name of the variable
+                                  ,itemCount=NUM_REAL_WORDS             &  !<-- # of words in real update data from Nth parent task
+                                  ,valueList=UPDATE_REAL_DATA           &  !<-- The real update data from Nth parent task
+                                  ,rc       =RC)
 !
-          IF(I-1>=IDS)THEN
-            IF(SEA_MASK(I-1,J)>0.99)FIS_W=FIS(I-1,J,1)
-          ENDIF
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!---------------
-!***  Southwest
-!---------------
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Load Interior Real Update Data into Output State"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          FIS_SW=FIS_0
+            CALL ESMF_AttributeSet(state    =STATE_OUT                  &  !<-- The output State
+                                  ,name     =NAME_REAL                  &  !<-- Name of the variable
+                                  ,itemCount=NUM_REAL_WORDS             &  !<-- # of words in real update data from Nth parent task
+                                  ,valueList=UPDATE_REAL_DATA           &  !<-- The real update data from Nth parent task
+                                  ,rc       =RC)
 !
-          IF(I-1>=IDS.AND.J-1>=JDS)THEN
-            IF(SEA_MASK(I-1,J-1)>0.99)FIS_SW=FIS(I-1,J-1,1)
-          ENDIF
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+#endif
 !
-!-----------
-!***  South
-!-----------
-!
-          FIS_S=FIS_0
-!
-          IF(J-1>=JDS)THEN
-            IF(SEA_MASK(I,J-1)>0.99)FIS_S=FIS(I,J-1,1)
-          ENDIF
-!
-!---------------
-!***  Southeast
-!---------------
-!
-          FIS_SE=FIS_0
-!
-          IF(I+1<=IDE.AND.J-1>=JDS)THEN
-            IF(SEA_MASK(I+1,J-1)>0.99)FIS_SE=FIS(I+1,J-1,1)
-          ENDIF
-!
-!-----------------------------------------------------------------------
-!***  LOWER THE POINT IN QUESTION TO THE LOWEST VALUE OF ITSELF AND 
-!***  ITS NEIGHBORS IF IT IS A WATER POINT.
-!***  ALSO SAVE ALL I,J LOCATIONS WHERE FIS IS CHANGED SO THAT WE
-!***  CAN ADJUST THE ATMOSPHERIC COLUMN APPROPRIATELY LATER.
-!-----------------------------------------------------------------------
-!
-          FIS_NEW=MIN(FIS_0                                             &
-                     ,FIS_E,FIS_N,FIS_W,FIS_E                           &
-                     ,FIS_NE,FIS_NW,FIS_SW,FIS_SE)
-!
-          IF(FIS_NEW+0.1<FIS_0)THEN
-            KOUNT_CHANGE=KOUNT_CHANGE+1
-            FIS(I,J,1)=FIS_NEW
-            LOWER_TOPO(I,J)=.TRUE.
-          ENDIF
+            DEALLOCATE(UPDATE_REAL_DATA)
 !
 !-----------------------------------------------------------------------
+!***  Transfer the H and V loop limits for the nest update regions.
+!-----------------------------------------------------------------------
 !
-        ENDDO
-        ENDDO
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Unload Index Limits for H Update Data from Parent"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
+            CALL ESMF_AttributeGet(state    =STATE_IN                   &  !<-- The input State
+                                  ,name     =NAME//' Indices H'         &  !<-- Name of the variable
+                                  ,count    =8                          &  !<-- # of words in index limits of update data
+                                  ,valueList=INDICES_H                  &  !<-- The update data index specifications for H
+                                  ,rc       =RC)
 !
-        IF(KOUNT_CHANGE==0)EXIT iter_loop
-        IF(ITER==100)THEN
-          WRITE(0,*)' Reached 100 iterations and KOUNT_CHANGE='         &
-                   ,KOUNT_CHANGE
-        ENDIF
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      ENDDO iter_loop
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Load Index Limits for H Update Data from Parent"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeSet(state    =STATE_OUT                  &  !<-- The output State
+                                  ,name     =NAME//' Indices H'         &  !<-- Name of the variable
+                                  ,count    =8                          &  !<-- # of words in index limits of update data
+                                  ,valueList=INDICES_H                  &  !<-- The update data index specifications for H
+                                  ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Unload Index Limits for V Update Data from Parent"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeGet(state    =STATE_IN                   &  !<-- The input State
+                                  ,name     =NAME//' Indices V'         &  !<-- Name of the variable
+                                  ,count    =8                          &  !<-- # of words in index limits of update data
+                                  ,valueList=INDICES_V                  &  !<-- The update data index specifications for V
+                                  ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Load Index Limits for V Update Data from Parent"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- The output State
+                                  ,name     =NAME//' Indices V'           &  !<-- Name of the variable
+                                  ,count    =8                            &  !<-- # of words in index limits of update data
+                                  ,valueList=INDICES_V                    &  !<-- The update data index specifications for V
+                                  ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+#else
+            CALL ESMF_AttributeGet(state    =STATE_IN                   &  !<-- The input State
+                                  ,name     =NAME//' Indices H'         &  !<-- Name of the variable
+                                  ,itemCount=N8                         &  !<-- # of words in index limits of update data
+                                  ,valueList=INDICES_H                  &  !<-- The update data index specifications for H
+                                  ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Load Index Limits for H Update Data from Parent"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeSet(state    =STATE_OUT                  &  !<-- The output State
+                                  ,name     =NAME//' Indices H'         &  !<-- Name of the variable
+                                  ,itemCount=N8                         &  !<-- # of words in index limits of update data
+                                  ,valueList=INDICES_H                  &  !<-- The update data index specifications for H
+                                  ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Unload Index Limits for V Update Data from Parent"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeGet(state    =STATE_IN                   &  !<-- The input State
+                                  ,name     =NAME//' Indices V'         &  !<-- Name of the variable
+                                  ,itemCount=N8                         &  !<-- # of words in index limits of update data
+                                  ,valueList=INDICES_V                  &  !<-- The update data index specifications for V
+                                  ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Load Index Limits for V Update Data from Parent"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- The output State
+                                  ,name     =NAME//' Indices V'           &  !<-- Name of the variable
+                                  ,itemCount=N8                           &  !<-- # of words in index limits of update data
+                                  ,valueList=INDICES_V                    &  !<-- The update data index specifications for V
+                                  ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+#endif
 !
 !-----------------------------------------------------------------------
 !
-      END SUBROUTINE WATERFALLS
+          ENDDO parent_tasks
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF transfer
+!
+!-----------------------------------------------------------------------
+!
+      ENDIF move_check
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE INTERIOR_DATA_STATE_TO_STATE
 !
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-! 
-      SUBROUTINE ADJUST_COLUMNS(PD_NEAREST                              &
-                               ,PD_BILINEAR                             &
-                               ,LOWER_TOPO                              &
-                               ,DUMMY_3D                                &
-                               ,PT                                      &
-                               ,PDTOP                                   &
-                               ,SG1                                     &
-                               ,SG2                                     &
-                               ,IM_CHILD                                &
-                               ,JM_CHILD                                &
-                                         )
+!
+      SUBROUTINE MOVING_NEST_BOOKKEEPING(I_SHIFT_CHILD                  &
+                                        ,J_SHIFT_CHILD                  &
+                                        ,I_SW_PARENT_NEW                &
+                                        ,J_SW_PARENT_NEW                &
+                                        ,NUM_TASKS_PARENT               &
+                                        ,INPES_PARENT                   &
+                                        ,ITS_PARENT                     &
+                                        ,ITE_PARENT                     &
+                                        ,JTS_PARENT                     &
+                                        ,JTE_PARENT                     &
+                                        ,SPACE_RATIO_MY_PARENT          &
+                                        ,NROWS_P_UPD_W                  &
+                                        ,NROWS_P_UPD_E                  &
+                                        ,NROWS_P_UPD_S                  &
+                                        ,NROWS_P_UPD_N                  &
+                                        ,SEND_TASK                      &
+                                        ,ITS,ITE,JTS,JTE                &
+                                        ,IMS,IME,JMS,JME                &
+                                        ,IDS,IDE,JDS,JDE                &
+                                          )
 !
 !-----------------------------------------------------------------------
-!***  WHEN THE SURFACE ELEVATION OF A NESTED DOMAIN IS CHANGED DUE TO
-!***  LEVELING OF ADJACENT WATER POINTS, ADJUST THE ATMOSPHERIC COLUMN
-!***  AT EACH OF THOSE POINTS.
+!***  Nest tasks determine which parent tasks will send them update
+!***  data and on which points following a move by the nest domain.
+!***  The data is for all nest task subdomain points including haloes 
+!***  that lie outside of the footprint of the nest domain's location 
+!***  preceding the move.
 !-----------------------------------------------------------------------
 !
-!--------
-!***  In
-!--------
+!------------------------
+!***  Argument Variables
+!------------------------
 !
-      INTEGER,INTENT(IN) :: IM_CHILD                                    &
-                           ,JM_CHILD
+      INTEGER(kind=KINT),INTENT(IN) :: I_SHIFT_CHILD                    &  !<-- Nest domain moved this far in I in nest space    
+                                      ,J_SHIFT_CHILD                    &  !<-- Nest domain moved this far in J in nest space    
+                                      ,I_SW_PARENT_NEW                  &  !<-- SW corner of nest on this parent I after the move
+                                      ,J_SW_PARENT_NEW                  &  !<-- SW corner of nest on this parent J after the move
+                                      ,INPES_PARENT                     &  !<-- # of tasks in E/W direction on parent domain
+                                      ,NROWS_P_UPD_W                    &  !<-- Moving nest footprint W bndry rows updated by parent
+                                      ,NROWS_P_UPD_E                    &  !<-- Moving nest footprint E bndry rows updated by parent
+                                      ,NROWS_P_UPD_S                    &  !<-- Moving nest footprint S bndry rows updated by parent
+                                      ,NROWS_P_UPD_N                    &  !<-- Moving nest footprint N bndry rows updated by parent
+                                      ,NUM_TASKS_PARENT                 &  !<-- Number of fcst tasks on this nest's parent domain
+                                      ,SPACE_RATIO_MY_PARENT            &  !<-- Ratio of parent grid increment to this child's
 !
-      REAL,INTENT(IN) :: PDTOP,PT
+                                      ,ITS,ITE,JTS,JTE                  &  !<-- Integration limits of nest task
+                                      ,IMS,IME,JMS,JME                  &  !<-- Memory limits of nest task
+                                      ,IDS,IDE,JDS,JDE                     !<-- Nest's domain limits
 !
-      REAL,DIMENSION(1:LM+1),INTENT(IN) :: SG1,SG2
+      INTEGER(kind=KINT),DIMENSION(0:NUM_TASKS_PARENT-1),INTENT(IN) ::  &
+                                                           ITS_PARENT   &  !<-- Starting I of all parent integration subdomains 
+                                                          ,ITE_PARENT   &  !<-- Ending I of all parent integration subdomains 
+                                                          ,JTS_PARENT   &  !<-- Starting J of all parent integration subdomains 
+                                                          ,JTE_PARENT      !<-- Ending J of all parent integration subdomains 
 !
-      REAL,DIMENSION(1:IM_CHILD,1:JM_CHILD,1),INTENT(IN) :: PD_NEAREST  &
-                                                           ,PD_BILINEAR
-!
-      LOGICAL,DIMENSION(1:IM_CHILD,1:JM_CHILD),INTENT(IN) :: LOWER_TOPO
-!
-!-----------
-!***  Inout
-!-----------
-!
-      REAL,DIMENSION(1:IM_CHILD,1:JM_CHILD,LM),INTENT(INOUT) :: DUMMY_3D
+      TYPE(INTERIOR_DATA_FROM_PARENT),DIMENSION(1:4),INTENT(OUT) ::     &
+                                                            SEND_TASK      !<-- Specifics about interior data from sending parent tasks
 !
 !---------------------
 !***  Local Variables
 !---------------------
 !
-      INTEGER :: I,J,L,NUM_LEVS_SPLINE
+      INTEGER(kind=KINT) :: I_END_X,I_SHIFT,I_START_X                   &
+                           ,ID_1,ID_E,ID_N,ID_NE                        &
+                           ,J_END_X,J_SHIFT,J_START_X                   &
+                           ,KOUNT_PARENT_TASKS,KP,N,NI,NJ
 !
-      REAL :: COEFF_1,DELP_EXTRAP,PBOT_IN,PBOT_TARGET,PDTOP_PT          &
-             ,PTOP_IN,PTOP_TARGET,R_DELP
+      INTEGER(kind=KINT),DIMENSION(1:4) :: I_UPDATE                     &
+                                          ,J_UPDATE
 !
-      REAL,DIMENSION(1:LM) :: PMID_TARGET                               &
-                             ,VBL_COLUMN
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE,SAVE ::                  &
+                                                   ITS_PARENT_ON_CHILD  &
+                                                  ,ITE_PARENT_ON_CHILD  &
+                                                  ,JTS_PARENT_ON_CHILD  &
+                                                  ,JTE_PARENT_ON_CHILD 
 !
-      REAL,DIMENSION(1:LM+1) :: PMID_IN                                 &
-                               ,SEC_DERIV                               &
-                               ,VBL_INPUT
+      CHARACTER(2) :: CORNER
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      DO L=1,LM+1
-        SEC_DERIV(L)=0.
+!-----------------------------------------------------------------------
+!***  Initialize working variables.
+!-----------------------------------------------------------------------
+!
+      DO N=1,4                                                             !<-- 4 is maximum # of parent tasks that can send data
+        SEND_TASK(N)%ID=-9999
+        SEND_TASK(N)%ISTART(1)=-9999
+        SEND_TASK(N)%IEND  (1)=-9999
+        SEND_TASK(N)%JSTART(1)=-9999
+        SEND_TASK(N)%JEND  (1)=-9999
+        SEND_TASK(N)%ISTART(2)=-9999
+        SEND_TASK(N)%IEND  (2)=-9999
+        SEND_TASK(N)%JSTART(2)=-9999
+        SEND_TASK(N)%JEND  (2)=-9999
       ENDDO
 !
-      NUM_LEVS_SPLINE=LM+1
+!-----------------------------------------------------------------------
+!***  Each nest task needs to determine if it has moved outside of
+!***  the footprint of the nest domain's previous position.  If it
+!***  has then that task next finds out from which parent tasks it
+!***  must receive data.  Finally it receives and incorporates that
+!***  data.
+!
+!***  If no part of a nest task's subdomain has moved outside of the 
+!***  footprint of the nest domain's previous location then that task
+!***  may RETURN now from this routine since none of its points will
+!***  be updated by the parent.
+!***  
+!***  Note that the north and east domain limits are not considered
+!***  to be part of the nest's pre-move footprint because those points
+!***  cannot be updated by intra-task or inter-task shifts.  The reason
+!***  is that V-pt variables at those points are not part of the nest's
+!***  integration thus their values are not valid.  Although the H-pt
+!***  variables are valid at those points, we cannot use them for
+!***  intra- or inter-task updates or else the nest tasks being updated
+!***  for H pounts would sometimes differ from the nest tasks being
+!***  updated for V points.  We do not allow that to happen or else
+!***  the bookkeeping would be even more complex.  Therefore the
+!***  parent updates nest points that would otherwise have been updated
+!***  from the north and east domain limits of the nest's pre-move
+!***  footprint.  But since a variety of variables do not have valid
+!***  integration values on the domain boundary then we also must not
+!***  allow the intra- and inter-task shift to handle the updating
+!***  of the southern and western boundaries of the nest but instead
+!***  must let the parent handle those points as well.  Moreover some
+!***  key dynamical tendenies are not computed one row inside the
+!***  domain boundary which thus means that the parent must provide
+!***  updates for all nest points that not only move beyond the
+!***  nest's pre-move footprint but also for those nest points that
+!***  move onto IDE and IDE-1 and JDE and JDE-1.  Variables read
+!***  from the configure file now specify how deeply the parent will
+!***  update nest points with respect to the pre-move footprint.
+!-----------------------------------------------------------------------
+!
+      I_START_X=MAX(IMS,IDS)
+      I_END_X  =MIN(IME,IDE)
+      J_START_X=MAX(JMS,JDS)
+      J_END_X  =MIN(JME,JDE)
+!
+      IF(I_START_X>=IDS+NROWS_P_UPD_W-I_SHIFT_CHILD                     &  !<-- If the entire nest task subdomain including its
+                   .AND.                                                &  !    halo is inside the footprint of the nest domain
+         I_END_X<=IDE-NROWS_P_UPD_E-I_SHIFT_CHILD                       &  !    (the domain's position prior to the move) then
+                   .AND.                                                &  !    no update from the parent is done.
+         J_START_X>=JDS+NROWS_P_UPD_S-J_SHIFT_CHILD                     &  !   
+                   .AND.                                                &  !
+         J_END_X<=JDE-NROWS_P_UPD_N-J_SHIFT_CHILD )THEN                    !<---
+!
+        RETURN                                                             !<-- Therefore exit.
+!     
+      ENDIF
 !
 !-----------------------------------------------------------------------
-!***  COMPUTE THE INPUT AND TARGET MID-LAYER PRESSURES FOR THE
-!***  SPLINE INTERPOLATION.
+!
+      I_SHIFT=I_SHIFT_CHILD
+      J_SHIFT=J_SHIFT_CHILD
+      CORNER='  '
+      KOUNT_PARENT_TASKS=0
+!
+!-----------------------------------------------------------------------
+!***  The parent is going to send data interpolated to the nest grid
+!***  since that is simpler than handling sparse parent grid data on
+!***  the nest domain.  Which points on this nest task now lie outside
+!***  the footprint of the pre-move nest domain?  Do a search relative
+!***  to the indices on the post-move nest task position since it is
+!***  that location at which parent data are received.
 !-----------------------------------------------------------------------
 !
-      DO J=1,JM_CHILD
-      DO I=1,IM_CHILD
+!-----------------------------------------------------------------------
+!***  Following the move most nest tasks that lie along the boundary
+!***  of the footprint of the nest domain will have simple
+!***  rectangular update regions in which they will receive
+!***  update data from parent tasks.  However if a nest task's new 
+!***  position is over a corner of the nest domain's pre-move footprint
+!***  then there will be an update region in the nest task that has a 
+!***  wedge missing in the intersection with the footprint corner.
+!***  This greatly complicates the situation.
+!
+!***  The diagram below shows a nest task after the nest has moved.
+!***  That task now lies over the northeast corner of the footprint
+!***  of the domain's pre-move position.  In this case the task
+!***  receives update data from four parent tasks (the maximum).
+!***  Note that the southwest update region in that nest task 
+!***  subdomain has the missing wedge.  To handle this situation
+!***  when it arises, the I and J limits on the nest task subdomain
+!***  update region will be dimensioned (1:4).  See how the missing
+!***  wedge in the update region goes from I_UPDATE(1) to I_UPDATE(2)
+!***  and from J_UPDATE(1) to J_UPDATE(2).  The 3rd and 4th elements
+!***  of these arrays are filled only for tasks that are on the
+!***  footprint's corners.
+!-----------------------------------------------------------------------
+!
+!                                         '                
+!                                         '
+!                                         '                
+!                                         '<-- parent task boundary
+!                                         '                       
+!                                         '                      
+!                                   + + + + + + + + + + + + + + + + + + + + + --- J_UPDATE(4)   
+!                                   +     '                                 + 
+!   ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' '
+!             ^                     +     '                                 +
+!             |                     +     '      nest task position         +
+!        parent task                +     '        after the move           +
+!         boundary                  +     '                                 + --- J_UPDATE(3)
+!  ------------------------------------------                               + --- J_UPDATE(2)
+!                                  /        /|                              +
+!                       I_UPDATE(1)        / |                              +
+!                               I_UPDATE(2)  |+ + + + + + + + + + + + + + + + --- J_UPDATE(1)
+!                                            | \                             \
+!         footprint of the nest domain       |  \                             \
+!           in its pre-move location         | I_UPDATE(3)                 I_UPDATE(4)
+!                                            |             
+!                                            |          
+!                                            |             
+!
+!-----------------------------------------------------------------------
+!***  Compute I_UPDATE(1-2) and J_UPDATE(1-2) as well as I_UPDATE(3-4)
+!***  and J_UPDATE(3-4) if they exist.
+!-----------------------------------------------------------------------
+!
+      update_limits: IF(                                                  &
+                        I_START_X<IDS+NROWS_P_UPD_W-I_SHIFT               &  !<-- If this IF test is true then this nest task lies
+                                     .AND.                                &  !    entirely outside of the pre-move footprint and
+                        I_END_X  <IDS+NROWS_P_UPD_W-I_SHIFT               &  !    thus all its points will be updated by parent
+                                       .OR.                               &  !    tasks.  Since footprint corners are not involved
+                        I_START_X>IDE-NROWS_P_UPD_E-I_SHIFT               &  !    then we only have I and J indices 1 and 2 which
+                                     .AND.                                &  !    are the starting and ending indices for the
+                        I_END_X  >IDE-NROWS_P_UPD_E-I_SHIFT               &  !    nest task's entire subdomain including the halo.
+                                       .OR.                               &  !
+                        J_START_X<JDS+NROWS_P_UPD_S-J_SHIFT               &  !
+                                     .AND.                                &  ! 
+                        J_END_X  <JDS+NROWS_P_UPD_S-J_SHIFT               &  !
+                                       .OR.                               &  !
+                        J_START_X>JDE-NROWS_P_UPD_N-J_SHIFT               &  !
+                                     .AND.                                &  !
+                        J_END_X  >JDE-NROWS_P_UPD_N-J_SHIFT               &  !<--
+                                                                )THEN 
+!
+        I_UPDATE(1)=I_START_X
+        I_UPDATE(2)=I_END_X
+        I_UPDATE(3)=-9999
+        I_UPDATE(4)=-9999
+!
+        J_UPDATE(1)=J_START_X
+        J_UPDATE(2)=J_END_X
+        J_UPDATE(3)=-9999
+        J_UPDATE(4)=-9999
 !
 !-----------------------------------------------------------------------
 !
-        adjust: IF(LOWER_TOPO(I,J))THEN
+      ELSE update_limits                                                   !<-- Nest task lies on footprint boundary after move
+! 
+!-----------------------------------------------------------------------
 !
-          PTOP_IN=SG2(1)*PD_BILINEAR(I,J,1)+SG1(1)*PDTOP+PT
-          PTOP_TARGET=SG2(1)*PD_NEAREST(I,J,1)+SG1(1)*PDTOP+PT
+        i_block: IF(I_SHIFT>0)THEN                                         !<-- Shift has eastward component
+! 
+!-----------------------------------------------------------------------
 !
-          DO L=1,LM
+!---------------------
+!***  Northeast shift
+!---------------------
+!
+          IF(J_SHIFT>0)THEN    
+!
+            IF(I_END_X>IDE-NROWS_P_UPD_E-I_SHIFT)THEN                      !<-- NE shift, nest task on east side of footprint
+              I_UPDATE(1)=IDE-NROWS_P_UPD_E+1-I_SHIFT                      !<-- Begin on east edge of footprint
+              I_UPDATE(2)=I_END_X
+              J_UPDATE(1)=J_START_X
+              J_UPDATE(2)=J_END_X
+!
+              IF(J_END_X>JDE-NROWS_P_UPD_N-J_SHIFT)THEN                    !<-- NE shift, nest task on NE corner of footprint
+                CORNER='NE'
+                I_UPDATE(1)=I_START_X
+                I_UPDATE(2)=IDE-NROWS_P_UPD_E-I_SHIFT
+                I_UPDATE(3)=I_UPDATE(2)+1
+                I_UPDATE(4)=I_END_X
+                J_UPDATE(2)=JDE-NROWS_P_UPD_N-J_SHIFT
+                J_UPDATE(3)=J_UPDATE(2)+1
+                J_UPDATE(4)=J_END_X
+              ENDIF
+!
+            ELSEIF(I_END_X<=IDE-NROWS_P_UPD_E-I_SHIFT)THEN                 !<-- NE shift, nest task on north side of footprint; not corner
+              I_UPDATE(1)=I_START_X
+              I_UPDATE(2)=I_END_X
+              J_UPDATE(1)=JDE-NROWS_P_UPD_N+1-J_SHIFT                      !<-- Begin on north edge of footprint
+              J_UPDATE(2)=J_END_X
+!
+            ENDIF
+!
+!---------------------
+!***  Southeast shift
+!---------------------
+!
+          ELSEIF(J_SHIFT<0)THEN 
+!
+            IF(I_END_X>IDE-NROWS_P_UPD_E-I_SHIFT)THEN                      !<-- SE shift, nest task on east side of footprint; not corner
+              I_UPDATE(1)=IDE-NROWS_P_UPD_E+1-I_SHIFT                      !<-- Begin on east edge of footprint
+              I_UPDATE(2)=I_END_X
+              J_UPDATE(1)=J_START_X
+              J_UPDATE(2)=J_END_X
+!
+              IF(J_START_X<JDS+NROWS_P_UPD_S-J_SHIFT)THEN                  !<-- SE shift, nest task on SE corner of footprint
+                CORNER='SE'
+                I_UPDATE(1)=I_START_X
+                I_UPDATE(2)=IDE-NROWS_P_UPD_E-I_SHIFT
+                I_UPDATE(3)=I_UPDATE(2)+1
+                I_UPDATE(4)=I_END_X
+                J_UPDATE(2)=JDS+NROWS_P_UPD_S-1-J_SHIFT
+                J_UPDATE(3)=J_UPDATE(2)+1
+                J_UPDATE(4)=J_END_X
+              ENDIF
+!
+            ELSEIF(I_END_X<=IDE-NROWS_P_UPD_E-I_SHIFT)THEN                 !<-- SE shift, nest tasks on south side of footprint; not corner
+              I_UPDATE(1)=I_START_X
+              I_UPDATE(2)=I_END_X
+              J_UPDATE(1)=J_START_X
+              J_UPDATE(2)=JDS+NROWS_P_UPD_S-1-J_SHIFT 
+!
+            ENDIF
+!
+!-----------------------
+!***  Shift is due east
+!-----------------------
+!
+          ELSEIF(J_SHIFT==0)THEN  
+            IF(JTE==JDE)THEN
+              IF(I_END_X<IDE-NROWS_P_UPD_E+1-I_SHIFT)THEN                  !<-- Nest task on N bndry of footprint; no part east of it
+                I_UPDATE(1)=I_START_X
+                I_UPDATE(2)=I_END_X  
+                J_UPDATE(1)=JDE-NROWS_P_UPD_N+1
+                J_UPDATE(2)=J_END_X  
+              ELSE                                                         !<-- Nest task on N bndry of footprint; extends east of it
+                CORNER='NE'
+                I_UPDATE(1)=I_START_X
+                I_UPDATE(2)=IDE-NROWS_P_UPD_E-I_SHIFT
+                I_UPDATE(3)=I_UPDATE(2)+1
+                I_UPDATE(4)=I_END_X
+                J_UPDATE(1)=J_START_X
+                J_UPDATE(2)=J_END_X-NROWS_P_UPD_N
+                J_UPDATE(3)=J_UPDATE(2)+1
+                J_UPDATE(4)=J_END_X
+              ENDIF
+!
+            ELSEIF(JTS>JDS)THEN                                            !<-- Nest task only on east edge of footprint
+              I_UPDATE(1)=IDE-NROWS_P_UPD_E+1-I_SHIFT                      !<-- Begin on east edge of footprint
+              I_UPDATE(2)=I_END_X
+              J_UPDATE(1)=J_START_X
+              J_UPDATE(2)=J_END_X
+!
+            ELSEIF(JTS==JDS)THEN
+              IF(I_END_X<IDE-NROWS_P_UPD_E+1-I_SHIFT)THEN                  !<-- Nest task on S bndry of footprint; no part east of it
+                I_UPDATE(1)=I_START_X
+                I_UPDATE(2)=I_END_X  
+                J_UPDATE(1)=JDS
+                J_UPDATE(2)=JDS+NROWS_P_UPD_S-1
+              ELSE                                                         !<-- Nest task on S bndry of footprint; extends east of it
+                CORNER='SE'
+                I_UPDATE(1)=I_START_X
+                I_UPDATE(2)=IDE-NROWS_P_UPD_E-I_SHIFT
+                I_UPDATE(3)=I_UPDATE(2)+1
+                I_UPDATE(4)=I_END_X
+                J_UPDATE(1)=J_START_X
+                J_UPDATE(2)=JDS+NROWS_P_UPD_S-1
+                J_UPDATE(3)=J_UPDATE(2)+1
+                J_UPDATE(4)=J_END_X
+              ENDIF
+!
+            ENDIF
+!
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!
+        ELSEIF(I_SHIFT<0)THEN i_block                                      !<-- Shift has westard component
+!
+!-----------------------------------------------------------------------
+!
+!---------------------
+!***  Northwest shift
+!---------------------
+!
+          IF(J_SHIFT>0)THEN
+!
+            IF(I_START_X<IDS+NROWS_P_UPD_W-I_SHIFT)THEN                    !<-- NW shift, nest tasks on west side of footprint; not corner
+              I_UPDATE(1)=I_START_X        
+              I_UPDATE(2)=IDS+NROWS_P_UPD_W-1-I_SHIFT 
+              J_UPDATE(1)=J_START_X
+              J_UPDATE(2)=J_END_X
+!
+              IF(J_END_X>JDE-NROWS_P_UPD_N-J_SHIFT)THEN                    !<-- NW shift, nest task on NW corner of footprint
+                CORNER='NW'
+                I_UPDATE(3)=I_UPDATE(2)+1
+                I_UPDATE(4)=I_END_X
+                J_UPDATE(2)=JDE-NROWS_P_UPD_N-J_SHIFT
+                J_UPDATE(3)=J_UPDATE(2)+1
+                J_UPDATE(4)=J_END_X
+              ENDIF
+!
+            ELSEIF(I_START_X>=IDS+NROWS_P_UPD_W-I_SHIFT)THEN               !<-- NW shift, nest tasks on north side of footprint; not corner
+              I_UPDATE(1)=I_START_X
+              I_UPDATE(2)=I_END_X
+              J_UPDATE(1)=JDE-NROWS_P_UPD_N+1-J_SHIFT                      !<-- Begin on north edge of footprint
+              J_UPDATE(2)=J_END_X
+!
+            ENDIF
+!
+!---------------------
+!***  Southwest shift
+!---------------------
+!
+          ELSEIF(J_SHIFT<0)THEN 
+!
+            IF(I_START_X<IDS+NROWS_P_UPD_W-I_SHIFT)THEN                    !<-- SW shift, nest tasks on west side of footprint
+              I_UPDATE(1)=I_START_X     
+              I_UPDATE(2)=IDS+NROWS_P_UPD_W-1-I_SHIFT
+              J_UPDATE(1)=J_START_X
+              J_UPDATE(2)=J_END_X
+!
+              IF(J_START_X<JDS+NROWS_P_UPD_S-J_SHIFT)THEN                  !<-- SW shift, nest task(s) on SW corner of footprint
+                CORNER='SW'
+                I_UPDATE(3)=I_UPDATE(2)+1
+                I_UPDATE(4)=I_END_X
+                J_UPDATE(2)=JDS+NROWS_P_UPD_S-1-J_SHIFT
+                J_UPDATE(3)=J_UPDATE(2)+1
+                J_UPDATE(4)=J_END_X
+              ENDIF
+!
+            ELSEIF(I_START_X>=IDS+NROWS_P_UPD_W-I_SHIFT)THEN               !<-- SW shift, nest tasks on south side; not corner
+              I_UPDATE(1)=I_START_X
+              I_UPDATE(2)=I_END_X
+              J_UPDATE(1)=J_START_X
+              J_UPDATE(2)=JDS+NROWS_P_UPD_S-1-J_SHIFT
+!
+            ENDIF
+!
+!-----------------------
+!***  Shift is due west
+!-----------------------
+!
+          ELSEIF(J_SHIFT==0)THEN
+            IF(JTE==JDE)THEN
+              IF(I_START_X>=IDS+NROWS_P_UPD_W-I_SHIFT)THEN                 !<-- Nest task on N bndry of footprint; no part west of it
+                I_UPDATE(1)=I_START_X
+                I_UPDATE(2)=I_END_X  
+                J_UPDATE(1)=JDE-NROWS_P_UPD_N+1
+                J_UPDATE(2)=J_END_X  
+              ELSE                                                         !<-- Nest task on N bndry of footprint; extends west of it
+                CORNER='NW'
+                I_UPDATE(1)=I_START_X
+                I_UPDATE(2)=IDS+NROWS_P_UPD_W-1-I_SHIFT
+                I_UPDATE(3)=I_UPDATE(2)+1
+                I_UPDATE(4)=I_END_X
+                J_UPDATE(1)=J_START_X
+                J_UPDATE(2)=J_END_X-1
+                J_UPDATE(2)=JDE-NROWS_P_UPD_N
+                J_UPDATE(3)=J_UPDATE(2)+1
+                J_UPDATE(4)=J_END_X
+              ENDIF
+!
+            ELSEIF(JTS>JDS)THEN                                            !<-- Nest task only on west edge of footprint
+              I_UPDATE(1)=I_START_X
+              I_UPDATE(2)=IDS+NROWS_P_UPD_W-1-I_SHIFT                      !<-- End on the west edge of footprint
+              J_UPDATE(1)=J_START_X
+              J_UPDATE(2)=J_END_X
+!
+            ELSEIF(JTS==JDS)THEN
+              IF(I_START_X>=IDS+NROWS_P_UPD_W-I_SHIFT)THEN                 !<-- Nest task on S bndry of footprint; no part west of it
+                I_UPDATE(1)=I_START_X
+                I_UPDATE(2)=I_END_X  
+                J_UPDATE(1)=JDS
+                J_UPDATE(2)=JDS+NROWS_P_UPD_S-1
+              ELSE                                                         !<-- Nest task on S bndry of footprint; extends west of it
+                CORNER='SW'
+                I_UPDATE(1)=I_START_X
+                I_UPDATE(2)=IDS+NROWS_P_UPD_W-1-I_SHIFT
+                I_UPDATE(3)=I_UPDATE(2)+1
+                I_UPDATE(4)=I_END_X
+                J_UPDATE(1)=JDS
+                J_UPDATE(2)=JDS+NROWS_P_UPD_S-1
+                J_UPDATE(3)=J_UPDATE(2)+1
+                J_UPDATE(4)=J_END_X
+              ENDIF
+!
+            ENDIF
+!
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!
+        ELSEIF(I_SHIFT==0)THEN                                             !<-- Shift has no eastward or westward component
+!
+!------------------------
+!***  Shift is due north
+!------------------------
+!
+          IF(J_SHIFT>0)THEN 
+            IF(ITE==IDE)THEN   
+              IF(J_END_X<JDE-NROWS_P_UPD_N+1-J_SHIFT)THEN                  !<-- Nest task on E bndry of footprint; no part north of it
+                I_UPDATE(1)=IDE-NROWS_P_UPD_E+1
+                I_UPDATE(2)=I_END_X
+                J_UPDATE(1)=J_START_X
+                J_UPDATE(2)=J_END_X
+              ELSE                                                         !<-- Nest task on E bndry of footprint; extends north of it
+                CORNER='NE'
+                I_UPDATE(1)=I_START_X
+                I_UPDATE(2)=IDE-NROWS_P_UPD_E
+                I_UPDATE(3)=I_UPDATE(2)+1
+                I_UPDATE(4)=I_END_X
+                J_UPDATE(1)=J_START_X
+                J_UPDATE(2)=JDE-NROWS_P_UPD_N-J_SHIFT
+                J_UPDATE(3)=J_UPDATE(2)+1
+                J_UPDATE(4)=J_END_X
+              ENDIF
+!
+            ELSEIF(ITS>IDS)THEN                                            !<-- Nest task only on north edge of footprint
+              I_UPDATE(1)=I_START_X
+              I_UPDATE(2)=I_END_X
+              J_UPDATE(1)=JDE-NROWS_P_UPD_N+1-J_SHIFT                      !<-- Begin on north edge of footprint
+              J_UPDATE(2)=J_END_X
+!
+            ELSEIF(ITS==IDS)THEN   
+              IF(J_END_X<JDE-NROWS_P_UPD_N+1-J_SHIFT)THEN                  !<-- Nest task on W bndry of footprint; no part north of it
+                I_UPDATE(1)=IDS     
+                I_UPDATE(2)=IDS+NROWS_P_UPD_W-1
+                J_UPDATE(1)=J_START_X
+                J_UPDATE(2)=J_END_X
+              ELSE                                                         !<-- Nest task on W bndry of footprint; extends north of it
+                CORNER='NW'
+                I_UPDATE(1)=IDS
+                I_UPDATE(2)=IDS+NROWS_P_UPD_W-1
+                I_UPDATE(3)=I_UPDATE(2)+1
+                I_UPDATE(4)=I_END_X
+                J_UPDATE(1)=J_START_X
+                J_UPDATE(2)=JDE-NROWS_P_UPD_N-J_SHIFT
+                J_UPDATE(3)=J_UPDATE(2)+1
+                J_UPDATE(4)=J_END_X
+              ENDIF
+!
+            ENDIF
+!
+!------------------------
+!***  Shift is due south
+!------------------------
+!
+          ELSEIF(J_SHIFT<0)THEN 
+            IF(ITE==IDE)THEN   
+              IF(J_START_X>=JDS+NROWS_P_UPD_S-J_SHIFT)THEN                 !<-- Nest task on E bndry of footprint; no part south of it
+                I_UPDATE(1)=IDE-NROWS_P_UPD_E+1
+                I_UPDATE(2)=I_END_X
+                J_UPDATE(1)=J_START_X
+                J_UPDATE(2)=J_END_X
+              ELSE                                                         !<-- Nest task on E bndry of footprint; extends south of it
+                CORNER='SE'
+                I_UPDATE(1)=I_START_X
+                I_UPDATE(2)=IDE-NROWS_P_UPD_E
+                I_UPDATE(3)=I_UPDATE(2)+1
+                I_UPDATE(4)=I_END_X
+                J_UPDATE(1)=J_START_X
+                J_UPDATE(2)=JDS+NROWS_P_UPD_S-1-J_SHIFT
+                J_UPDATE(2)=JDS+NROWS_P_UPD_S-1-J_SHIFT
+                J_UPDATE(3)=J_UPDATE(2)+1
+                J_UPDATE(4)=J_END_X
+              ENDIF
+!
+            ELSEIF(ITS>IDS)THEN                                            !<-- Nest task only on south edge of footprint
+              I_UPDATE(1)=I_START_X
+              I_UPDATE(2)=I_END_X   
+              J_UPDATE(1)=J_START_X
+              J_UPDATE(2)=JDS+NROWS_P_UPD_S-1-J_SHIFT                      !<-- End on south edge of footprint
+!
+            ELSEIF(ITS==IDS)THEN   
+              IF(J_START_X>=JDS+NROWS_P_UPD_S-J_SHIFT)THEN                 !<-- Nest task on W bndry of footprint; no part south of it
+                I_UPDATE(1)=IDS    
+                I_UPDATE(2)=IDS+NROWS_P_UPD_W-1
+                J_UPDATE(1)=J_START_X
+                J_UPDATE(2)=J_END_X
+              ELSE                                                         !<-- Nest task on W bndry of footprint; extends south of it
+                CORNER='SW'
+                I_UPDATE(1)=I_START_X
+                I_UPDATE(2)=IDS+NROWS_P_UPD_W-1
+                I_UPDATE(3)=I_UPDATE(2)+1
+                I_UPDATE(4)=I_END_X
+                J_UPDATE(1)=J_START_X
+                J_UPDATE(2)=JDS+NROWS_P_UPD_S-1-J_SHIFT
+                J_UPDATE(3)=J_UPDATE(2)+1
+                J_UPDATE(4)=J_END_X
+              ENDIF
+!
+            ENDIF
+!
+          ENDIF 
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF i_block
+!
+!-----------------------------------------------------------------------
+!
+      ENDIF update_limits
+!
+!-----------------------------------------------------------------------
+!***  Now we know which portion of each task's subdomain on the
+!***  moving nest lies outside of the nest domain's pre-move
+!***  footprint location and it is that portion that must be
+!***  updated from the parent tasks.
+!
+!***  To receive data from its parent, each moving nest task must
+!***  know how many parent tasks it will receive from.  Nest tasks
+!***  could do this blindly by receiving a message from all parent
+!***  tasks which would inform them which parent tasks had actual
+!***  data, or they could receive all that information from parent
+!***  task 0 if that task had first been sent all that information
+!***  from the other parent tasks, or each nest task could compute
+!***  which parent tasks will send it data and how much.  The third
+!***  option involves the least overall communication and serves to
+!***  double check the parent's bookkeeping therefore that option 
+!***  is the one used here.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  The nest tasks determine all of their parent tasks' integration
+!***  limits in terms of their own (the nest tasks') indices so they
+!***  will know where to put the data they receive from the parent.
+!***  This must be done for all parent tasks since the nest tasks
+!***  can make no assumptions about which parent tasks will have
+!***  update data for them and that is because there is no limit
+!***  imposed on the distance the nest can traverse in any single
+!***  move.
+!
+!***  See the explanation and accompanying diagrams in subroutine
+!***  PARENT_BOOKKEEPING_MOVING for more details.  The results must
+!***  be the same for both H and V points.
+!-----------------------------------------------------------------------
+!
+      IF(.NOT.ALLOCATED(ITS_PARENT_ON_CHILD))THEN
+        ALLOCATE(ITS_PARENT_ON_CHILD(0:NUM_TASKS_PARENT-1))
+        ALLOCATE(ITE_PARENT_ON_CHILD(0:NUM_TASKS_PARENT-1))
+        ALLOCATE(JTS_PARENT_ON_CHILD(0:NUM_TASKS_PARENT-1))
+        ALLOCATE(JTE_PARENT_ON_CHILD(0:NUM_TASKS_PARENT-1))
+      ENDIF
+!
+      DO N=0,NUM_TASKS_PARENT-1
+!
+        ITS_PARENT_ON_CHILD(N)=REAL(IDS                                 &  !<-- ITS of parent task N in child's coordinate space
+                                   -(I_SW_PARENT_NEW-ITS_PARENT(N))     &
+                                     *SPACE_RATIO_MY_PARENT)
+!
+        ITE_PARENT_ON_CHILD(N)=REAL(IDS                                 &  !<-- ITE of parent task N in child's coordinate space
+                                   -(I_SW_PARENT_NEW-ITE_PARENT(N))     & 
+                                     *SPACE_RATIO_MY_PARENT             &
+                                     +SPACE_RATIO_MY_PARENT-1)             !<-- Filling in gap beyond last parent point on nest grid
+!
+        JTS_PARENT_ON_CHILD(N)=REAL(JDS                                 &  !<-- JTS of parent task N in child's coordinate space
+                                   -(J_SW_PARENT_NEW-JTS_PARENT(N))     &
+                                     *SPACE_RATIO_MY_PARENT)
+!
+        JTE_PARENT_ON_CHILD(N)=REAL(JDS                                 &  !<-- JTE of parent task N in child's coordinate space
+                                   -(J_SW_PARENT_NEW-JTE_PARENT(N))     &
+                                     *SPACE_RATIO_MY_PARENT             &
+                                     +SPACE_RATIO_MY_PARENT-1)             !<-- Filling in gap beyond last parent point on nest grid
+!
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Find the parent task whose subdomain contains the nest point
+!***  [I_UPDATE(1),J_UPDATE(1)].  This parent task will be referred
+!***  to as parent task #1 since up to four parent tasks might
+!***  provide update data to the nest task.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+      search_i:  DO NI=0,INPES_PARENT-1                                    !<-- Look eastward for parent task.
+!-----------------------------------------------------------------------
+!
+         update_i: IF(REAL(I_UPDATE(1))>=ITS_PARENT_ON_CHILD(NI)-EPS    &  !<-- Search for 1st parent task that covers
+                                  .AND.                                 &  !    nest index I_UPDATE(1).
+                      REAL(I_UPDATE(1))<=ITE_PARENT_ON_CHILD(NI)+EPS)   &
+                                                                   THEN    !<--
+!
+!-----------------------------------------------------------------------
+          search_j: DO NJ=NI,NUM_TASKS_PARENT-1,INPES_PARENT               !<-- Look northward for parent task.
+!-----------------------------------------------------------------------
+!
+            update_j: IF(REAL(J_UPDATE(1))>=JTS_PARENT_ON_CHILD(NJ)-EPS  &  !<-- Search for parent task that covers nest point
+                                     .AND.                               &  !    I_UPDATE(1),J_UPDATE(1).
+                         REAL(J_UPDATE(1))<=JTE_PARENT_ON_CHILD(NJ)+EPS) &  !<--
+                                                                    THEN    !<--
+!
+              SEND_TASK(1)%ID=NJ                                           !<-- Store the ID of this parent task who will send data.
+              ID_1=NJ                                                      !<-- Local task ID of the identified parent task.
+              KOUNT_PARENT_TASKS=1                                         !<-- Count how many parent tasks send to this nest task.
+!
+!-----------------------------------------------------------------------
+!***  First consider all nest tasks that either lie totally outside 
+!***  of the footprint or lie on the footprint's edge but not on a 
+!***  corner.  Corners can be very complicated and are each treated
+!***  separately.
+!-----------------------------------------------------------------------
+!
+              not_a_corner: IF(CORNER=='  ')THEN
+!
+!-----------------------------------------------------------------------
+!***  I and J limits on the nest task of data received from the
+!***  parent task #1 that covers [I_UPDATE(1),J_UPDATE(1)].
+!-----------------------------------------------------------------------
+!
+                SEND_TASK(1)%ISTART(1)=I_UPDATE(1)                         !<-- Nest index limits updated by parent task 1.
+                SEND_TASK(1)%IEND  (1)=MIN(I_UPDATE(2)                  &  !
+                                      ,NINT(ITE_PARENT_ON_CHILD(ID_1)))    !
+                SEND_TASK(1)%JSTART(1)=J_UPDATE(1)                         !
+                SEND_TASK(1)%JEND  (1)=MIN(J_UPDATE(2)                  &  !
+                                      ,NINT(JTE_PARENT_ON_CHILD(ID_1)))    !<--
+!
+!-----------------------------------------------------------------------
+!***  Is there a parent task to the the north of the first that covers
+!***  points on this nest task's subdomain?
+!-----------------------------------------------------------------------
+!
+                IF(JTE_PARENT_ON_CHILD(ID_1)+EPS<J_UPDATE(2))THEN          !<-- If so, there is a parent task to the north with data.
+                  KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                  !<-- Increment parent task counter.
+                  KP=KOUNT_PARENT_TASKS
+                  SEND_TASK(KP)%ID=ID_1+INPES_PARENT                       !<-- Store the ID of this parent task to the north.
+                  ID_N=SEND_TASK(KP)%ID
+                  SEND_TASK(KP)%ISTART(1)=SEND_TASK(1)%ISTART(1)           !<-- Nest index limits updated by parent task ID_N.
+                  SEND_TASK(KP)%IEND  (1)=SEND_TASK(1)%IEND  (1)           !
+                  SEND_TASK(KP)%JSTART(1)=SEND_TASK(1)%JEND  (1)+1         !
+                  SEND_TASK(KP)%JEND  (1)=J_UPDATE(2)                      !<--
+!
+!-----------------------------------------------------------------------
+!***  Is there a parent task to the the northeast of the first that 
+!***  covers points on this nest task's subdomain?  If there is then
+!***  its southern and northern update limits are the same as the 
+!***  parent task's to the north.
+!-----------------------------------------------------------------------
+!
+                  IF(ITE_PARENT_ON_CHILD(ID_N)+EPS<I_UPDATE(2))THEN        !<-- If so, there is a parent task to the NE with data. 
+                    KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                !<-- Increment parent task counter.
+                    KP=KOUNT_PARENT_TASKS
+                    SEND_TASK(KP)%ID=ID_N+1                                !<-- Store the ID of this parent task to the northeast.
+                    ID_NE=SEND_TASK(KP)%ID
+                    SEND_TASK(KP)%ISTART(1)=SEND_TASK(KP-1)%IEND(1)+1      !<-- Nest index limits updated by parent task ID_NE.
+                    SEND_TASK(KP)%IEND  (1)=I_UPDATE(2)                    !
+                    SEND_TASK(KP)%JSTART(1)=SEND_TASK(KP-1)%JSTART(1)      !
+                    SEND_TASK(KP)%JEND  (1)=SEND_TASK(KP-1)%JEND  (1)      !<--
+                  ENDIF
+!
+                ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Finally is there a parent task to the east of the first parent
+!***  task?  Its southern and northern update limits are the same as
+!***  the first parent task's.
+!-----------------------------------------------------------------------
+!
+                IF(ITE_PARENT_ON_CHILD(ID_1)+EPS<I_UPDATE(2))THEN          !<-- If so, there is a parent task to the E with data. 
+                  KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                  !<-- Increment parent task counter.
+                  KP=KOUNT_PARENT_TASKS
+                  SEND_TASK(KP)%ID=ID_1+1                                  !<-- Store the ID of this parent task to the east.
+                  ID_E=SEND_TASK(KP)%ID
+                  SEND_TASK(KP)%ISTART(1)=SEND_TASK(1)%IEND(1)+1           !<-- Nest index limits updated by parent task ID_E.
+                  SEND_TASK(KP)%IEND  (1)=I_UPDATE(2)                      !
+                  SEND_TASK(KP)%JSTART(1)=SEND_TASK(1)%JSTART(1)           !
+                  SEND_TASK(KP)%JEND  (1)=SEND_TASK(1)%JEND  (1)           !<--
+!
+                ENDIF
+!
+                EXIT search_i
+!
+              ENDIF not_a_corner
+!
+!------------------------------------------------------
+!------------------------------------------------------
+!***  The nest task on the SW corner of the footprint.
+!------------------------------------------------------
+!------------------------------------------------------
+!
+              sw: IF(CORNER=='SW')THEN
+!
+                SEND_TASK(1)%ISTART(1)=I_START_X                           !<-- Nest I where parent task 1 begins updating nest task.
+                SEND_TASK(1)%IEND(1)=MIN(I_UPDATE(4)                    &  !<-- Nest I where parent task 1 ends updating nest task.
+                                     ,NINT(ITE_PARENT_ON_CHILD(ID_1))) 
+!
+                SEND_TASK(1)%JSTART(1)=J_START_X                           !<-- Nest J where parent task 1 begins updating nest task.
+!
+                IF(JTE_PARENT_ON_CHILD(ID_1)-EPS<=J_UPDATE(2))THEN
+                  SEND_TASK(1)%JEND(1)=NINT(JTE_PARENT_ON_CHILD(ID_1))     !<-- Nest J where parent task 1 ends updating nest task.
+!
+                ELSEIF(JTE_PARENT_ON_CHILD(ID_1)+EPS>=J_UPDATE(3))THEN
+!
+                  IF(ITE_PARENT_ON_CHILD(ID_1)-EPS<=I_UPDATE(2))THEN
+                    SEND_TASK(1)%JEND(1)=MIN(J_END_X                    &  !<-- Nest J where parent task 1 ends updating nest task.
+                                         ,NINT(JTE_PARENT_ON_CHILD(ID_1))) !<-- 
+!
+                  ELSEIF(ITE_PARENT_ON_CHILD(ID_1)+EPS>=I_UPDATE(3))THEN   !<-- Parent task 1 covers SW corner of footprint too.
+!
+                    SEND_TASK(1)%JEND(1)=J_UPDATE(2)                       !<-- Nest J where parent task 1 ends updating nest task's
+                                                                           !    first region.
+                    SEND_TASK(1)%ISTART(2)=I_START_X                       !<-- 2nd region on nest task updated by parent task 1
+                    SEND_TASK(1)%IEND(2)=I_UPDATE(2)                       !
+                    SEND_TASK(1)%JSTART(2)=J_UPDATE(3)                     !
+                    SEND_TASK(1)%JEND(2)=MIN(J_END_X                    &  !
+                                         ,NINT(JTE_PARENT_ON_CHILD(ID_1))) !<--
+!
+                  ENDIF
+!
+                ENDIF
+!
+!-----------------------------------------------------------------------
+!***  The points in this nest task subdomain being updated by the first
+!***  identified parent task have been demarcated.  Now identify any
+!***  other parent tasks updating this nest task lying on the SW corner
+!***  of the footprint.
+!-----------------------------------------------------------------------
+!                  
+!------------------------------------------------------
+!***  Is there a parent task to the north of the first
+!***  that provides update data?
+!------------------------------------------------------
+!
+                sw_north: IF(JTE_PARENT_ON_CHILD(ID_1)+EPS<J_END_X)THEN     !<-- If true there is another parent task north of the first.
+!
+                  KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                   !<-- Increment parent task counter.
+                  KP=KOUNT_PARENT_TASKS
+                  SEND_TASK(KP)%ID=ID_1+INPES_PARENT                        !<-- Store the ID of this parent task to the north.
+                  ID_N=SEND_TASK(KP)%ID  
+!
+                  SEND_TASK(KP)%ISTART(1)=I_START_X                         !<-- Starting I on nest task where parent task ID_N updates.
+!
+                  IF(JTS_PARENT_ON_CHILD(ID_N)+EPS>=J_UPDATE(3))THEN        !<-- Parent task ID_N does not cover SW corner of footprint.
+!
+                    SEND_TASK(KP)%IEND(1)=MIN(I_UPDATE(2)               &   !<-- Ending I on nest task where parent task ID_N updates.
+                                         ,NINT(ITE_PARENT_ON_CHILD(ID_N)))  !<--
+                    SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_N)) !<-- Starting J on nest task where parent task ID_N updates.
+                    SEND_TASK(KP)%JEND(1)=J_END_X                           !<-- Ending J on nest task where parent task ID_N updates.
+!
+                  ELSEIF(JTS_PARENT_ON_CHILD(ID_N)-EPS<=J_UPDATE(2))THEN    !<-- Parent task ID_N covers SW corner of footprint too.
+!
+!                                         |
+!                                         |
+!                                         |
+!                                         |
+!                 + + + + + + + + + + + +.|     footprint of nest domain
+!                 +                      .|     in its pre-move location
+!                 +   parent task 2's    .|
+!                 +   2nd update region  .|
+!                 +                      .|
+!                 +.......................----------------------------------
+!                 +..............................       +
+!                 +     parent task 2's         '    <------- parent task 3's update region
+!                 +     1st update region       '       +
+!   ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' <--- parent task boundary
+!                 +                             '       +
+!                 +      parent task 1's        '    <------- parent task 4's update region
+!                 +      update region          '       +
+!                 +                             '       +
+!                 + + + + + + + + + + + + + + + ' + + + +
+!                                 ^             '
+!                                 |             '
+!                             nest task         '<--- parent task boundary
+!                             boundary          '
+!                             after move        '
+!                                               '
+!
+                    SEND_TASK(KP)%IEND(1)=MIN(I_END_X                     &  !<-- Ending I on nest task where parent task ID_N updates
+                                         ,NINT(ITE_PARENT_ON_CHILD(ID_N)))   !<-- in nest task's 1st region.
+                    SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_N))  !<-- Starting J of parent task ID_N in nest task 1st region.
+                    SEND_TASK(KP)%JEND  (1)=J_UPDATE(2)                      !<-- Ending J of parent task ID_N in nest task 1st region.
+                    SEND_TASK(KP)%ISTART(2)=I_START_X                        !<-- Starting I of parent task ID_N in nest task 2nd region.
+                    SEND_TASK(KP)%IEND  (2)=MIN(I_UPDATE(2)               &  !<-- Ending I of parent task ID_N in nest task 2nd region.
+                                           ,NINT(ITE_PARENT_ON_CHILD(ID_N))) !<--
+                    SEND_TASK(KP)%JSTART(2)=J_UPDATE(3)                      !<-- Starting J of parent task ID_N in nest task 2nd region.
+                    SEND_TASK(KP)%JEND  (2)=J_END_X                          !<-- Ending J of parent task ID_N in nest task 2nd region.
+!
+                  ENDIF                                                      !<-- End contingencies of parent task north of first one.
+!
+!-----------------------------------------------
+!***  Does a parent task northeast of the first 
+!***  provide any update data?  This can only
+!***  happen if there was already a parent task
+!***  to the north of the first one providing
+!***  update data.
+!-----------------------------------------------
+!
+!
+                  IF(ITE_PARENT_ON_CHILD(ID_N)+EPS<I_UPDATE(2)            &  !<-- 1st scenario of parent update task to northeast of 
+                                  .AND.                                   &  !    the first parent update task.  The NE parent does
+                     JTS_PARENT_ON_CHILD(ID_N)+EPS>=J_UPDATE(3))THEN         !<-- not cover the SW corner of the footprint.
+!
+                    KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                  !<-- Increment parent task counter.
+                    KP=KOUNT_PARENT_TASKS
+                    SEND_TASK(KP)%ID=ID_N+1                                  !<-- Store the ID of this parent task northeast of the first
+                    ID_NE=SEND_TASK(KP)%ID                                   !    (i.e. east of the parent task to the north of the first).
+                    SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_NE)) !<-- Starting I where parent task ID_NE updates nest task.
+                    SEND_TASK(KP)%IEND  (1)=I_UPDATE(2)                      !<-- Ending I where parent task ID_NE updates nest task.
+                    SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_NE)) !<-- Starting J where parent task ID_NE updates nest task.
+                    SEND_TASK(KP)%JEND  (1)=J_END_X                          !<-- Ending J where parent task ID_NE updates nest task.
+!
+                  ENDIF
+!
+                  IF(ITE_PARENT_ON_CHILD(ID_N)+EPS>=I_UPDATE(2)           &  !<-- 2nd scenario of parent update task to northeast of
+                                  .AND.                                   &  !    the first update parent task.  The NE parent task
+                     ITE_PARENT_ON_CHILD(ID_N)+EPS< I_END_X               &  !    does not cover the SW corner of the footprint.
+                                  .AND.                                   &  !   
+                     JTS_PARENT_ON_CHILD(ID_N)-EPS<=J_UPDATE(2))THEN         !<--
+!
+                    KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                  !<-- Increment parent task counter.
+                    KP=KOUNT_PARENT_TASKS
+                    SEND_TASK(KP)%ID=ID_N+1                                  !<-- Store the ID of this parent task northeast of the first.
+                    ID_NE=SEND_TASK(KP)%ID
+                    SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_NE)) !<-- Starting I where parent task ID_NE updates nest task.
+                    SEND_TASK(KP)%IEND  (1)=I_END_X                          !<-- Ending I where parent task ID_NE updates nest task.
+                    SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_NE)) !<-- Starting J where parent task ID_NE updates nest task.
+                    SEND_TASK(KP)%JEND  (1)=J_UPDATE(2)                      !<-- Ending J where parent task ID_NE updates nest task.
+!
+                  ENDIF
+!
+                  IF(ITE_PARENT_ON_CHILD(ID_N)+EPS<I_UPDATE(2)            &  !<-- 3rd scenario of parent update task to northeast of
+                                  .AND.                                   &  !    the first update parent task.  In this case the
+                     JTS_PARENT_ON_CHILD(ID_N)-EPS<=J_UPDATE(2))THEN         !    parent task to the NE is on the footprint corner.
+!
+!
+!                                                           |
+!                                   '                       |
+!                                   '                       |
+!                                   '                       |
+!                         + + + + + ' + + + + + + + + + + +.|     footprint of nest domain
+!                         +         '                      .|     in its pre-move location
+!                         +         '   parent task 3's    .|
+!   parent task 2's       +         '   2nd update region  .|
+!    update region  ---------->     '                      .|
+!                         +         '.......................----------------------------------
+!                         +         '.................................+
+!                         +         '          parent task 3's        +
+!                         +         '         1st update region       +
+!           ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' '  ' ' ' ' <--- parent task boundary
+!                         +         '                                 +
+!   parent task 1's       +         '          parent task 4's        +
+!    update region  ---------->     '           update region         +
+!                         +         '                                 + <--- nest task boundary after move
+!                         + + + + + ' + + + + + + + + + + + + + + + + +
+!                                   '
+!                                   '
+!                                   '<----- parent task boundary
+!                                   '
+!                                   '
+!
+!
+                    KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                  !<-- Increment the parent task counter.
+                    KP=KOUNT_PARENT_TASKS
+                    SEND_TASK(KP)%ID=ID_N+1                                  !<-- Store the ID of this parent task northeast of the first.
+                    ID_NE=SEND_TASK(KP)%ID
+                    SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_NE)) !<-- Starting I in nest task's 1st region updated by parent.
+                    SEND_TASK(KP)%IEND  (1)=I_END_X                          !<-- Ending I in nest task's 1st region updated by parent.
+                    SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_NE)) !<-- Starting J in nest task's 1st region updated by parent.
+                    SEND_TASK(KP)%JEND  (1)=J_UPDATE(2)                      !<-- Ending J in nest task's 1st region updated by parent.
+                    SEND_TASK(KP)%ISTART(2)=NINT(ITS_PARENT_ON_CHILD(ID_NE)) !<-- Starting I in nest task's 2nd region updated by parent.
+                    SEND_TASK(KP)%IEND  (2)=I_UPDATE(2)                      !<-- Ending I in nest task's 2nd region updated by parent.
+                    SEND_TASK(KP)%JSTART(2)=J_UPDATE(3)                      !<-- Starting J in nest task's 2nd region updated by parent.
+                    SEND_TASK(KP)%JEND  (2)=J_END_X                          !<-- Ending J in nest task's 2nd region updated by parent.
+!
+                  ENDIF
+!
+                ENDIF sw_north
+!
+!----------------------------------------------
+!***  Is there a parent task east of the first
+!***  that provides update data?
+!----------------------------------------------
+!
+                sw_east: IF(ITE_PARENT_ON_CHILD(ID_1)+EPS<I_END_X)THEN      !<-- If true there is another parent task east of the first.
+!
+                  KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                   !<-- Increment the parent task counter.
+                  KP=KOUNT_PARENT_TASKS
+                  SEND_TASK(KP)%ID=ID_1+1                                   !<-- Store the ID of this parent task to the east.
+                  ID_E=SEND_TASK(KP)%ID
+                  SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_E))   !<-- Starting I where parent task ID_E updates nest task.
+!
+                  IF(JTE_PARENT_ON_CHILD(ID_E)-EPS<=J_UPDATE(2))THEN        !<-- 1st scenario of parent update task to east of first.
+!
+                    SEND_TASK(KP)%IEND(1)=I_END_X
+                    SEND_TASK(KP)%JSTART(1)=J_START_X
+                    SEND_TASK(KP)%JEND(1)=NINT(JTE_PARENT_ON_CHILD(ID_E))
+!
+                  ELSEIF(JTE_PARENT_ON_CHILD(ID_E)+EPS>=J_UPDATE(3))THEN 
+!
+                    IF(ITS_PARENT_ON_CHILD(ID_E)+EPS>=I_UPDATE(3))THEN      !<-- 2nd scenario of parent update task to east of first.
+!
+!                                         |
+!                                         |
+!                                         |
+!                                         |
+!                 + + + + + + + + + + + +.|     footprint of nest domain
+!                 +                      .|     in its pre-move location
+!                 +   parent task 1's    .|
+!                 +   2nd update region  .|
+!                 +                      .|
+!                 +.......................----------------------------------
+!                 +..............................       +
+!                 +                             '       +
+!                 +                             '       +
+!                 +     parent task 1's         '       +        
+!                 +     1st upate region        '    <------- parent task 2's update region
+!                 +                             '       +
+!                 +                             '       +
+!                 +                             '       +
+!                 + + + + + + + + + + + + + + + ' + + + +
+!                                 ^             '
+!                                 |             '
+!                             nest task         '<--- parent task boundary
+!                             boundary          '
+!                             after move        '
+!                                               '
+!
+                      SEND_TASK(KP)%IEND(1)=I_END_X
+                      SEND_TASK(KP)%JSTART(1)=J_START_X
+                      SEND_TASK(KP)%JEND(1)=J_UPDATE(2)                       
+!
+                    ELSEIF(ITS_PARENT_ON_CHILD(ID_E)-EPS<=I_UPDATE(2))THEN  !<-- 3rd scenario of parent update task to east of first.
+!
+!                                                           |
+!                                   '                       |
+!                                   '                       |
+!                                   '                       |
+!                         + + + + + ' + + + + + + + + + + +.|
+!    parent task 2's      +         '                      .|
+!    update region  ---------->     '   parent task 3's    .|     footprint of nest domain
+!                         +         '    update region     .|     in its pre-move location
+!                         +         '                      .|
+!           ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' ' '
+!                  ^      +         '                      .|
+!      parent task |      +         '   parent task 4's    .|
+!         boundary        +         '  2nd update region   .|
+!                         +         '                      .|
+!                         +         '.......................----------------------------------
+!    parent task 1's      +         '.................................+
+!    update region  ---------->     '                                 +
+!                         +         '                                 +
+!                         +         '         parent task 4's         +
+!                         +         '        1st update region        +
+!                         +         '                                 + <--- nest task boundary after move
+!                         +         '                                 +
+!                         +         '                                 +
+!                         + + + + + ' + + + + + + + + + + + + + + + + +
+!                                   '
+!                                   '
+!                                   '<----- parent task boundary
+!                                   '
+!                                   '
+!
+!
+                      SEND_TASK(KP)%IEND  (1)=I_END_X                          !<-- Ending I of 1st update region in nest task by parent.
+                      SEND_TASK(KP)%JSTART(1)=J_START_X                        !<-- Starting J of 1st update region in nest task by parent.
+                      SEND_TASK(KP)%JEND  (1)=J_UPDATE(2)                      !<-- Ending J of 1st update region in nest task by parent.
+                      SEND_TASK(KP)%ISTART(2)=NINT(ITS_PARENT_ON_CHILD(ID_E))  !<-- Starting I of 2nd update region in nest task by parent.
+                      SEND_TASK(KP)%IEND  (2)=I_UPDATE(2)                      !<-- Ending I of 2nd update region in nest task by parent.
+                      SEND_TASK(KP)%JSTART(2)=J_UPDATE(3)                      !<-- Starting J of 2nd update region in nest task by parent.
+                      SEND_TASK(KP)%JEND  (2)=MIN(J_END_X                    & !<-- Ending J of 2nd update region in nest task by parent.
+                                             ,NINT(JTE_PARENT_ON_CHILD(ID_E)))
+                    ENDIF
+!
+                  ENDIF 
+!
+                ENDIF sw_east
+!
+                EXIT search_i
+!
+              ENDIF sw
+!
+!------------------------------------------------------
+!------------------------------------------------------
+!***  The nest task on the SE corner of the footprint.
+!------------------------------------------------------
+!------------------------------------------------------
+!
+              se: IF(CORNER=='SE')THEN                                      !<-- This nest task lies on the SE corner of the footprint.
+!
+                SEND_TASK(1)%ISTART(1)=I_START_X                            !<-- Nest I where parent task 1 begins updating nest task.
+                SEND_TASK(1)%IEND(1)=MIN(I_UPDATE(4)                     &  !<-- Nest I where parent task 1 ends updating nest task.
+                                    ,NINT(ITE_PARENT_ON_CHILD(ID_1))) 
+!
+                SEND_TASK(1)%JSTART(1)=J_START_X                            !<-- Nest J where parent task 1 begins updating nest task.
+!
+                IF(JTE_PARENT_ON_CHILD(ID_1)-EPS<=J_UPDATE(2))THEN
+                  SEND_TASK(1)%JEND(1)=NINT(JTE_PARENT_ON_CHILD(ID_1))      !<-- Nest J where parent task 1 ends updating nest task.
+!
+                ELSEIF(JTE_PARENT_ON_CHILD(ID_1)+EPS>=J_UPDATE(3))THEN
+                  SEND_TASK(1)%JEND(1)=J_UPDATE(2)                          !<-- Nest J where parent task 1 ends updating nest task.
+!
+                  IF(ITE_PARENT_ON_CHILD(ID_1)+EPS>=I_UPDATE(3))THEN        !<-- Parent task 1 covers SE corner of footprint too.
+!
+                    SEND_TASK(1)%ISTART(2)=I_UPDATE(3)                      !<-- 2nd region on nest task updated by parent task 1
+                    SEND_TASK(1)%IEND(2)=MIN(I_END_X                     &  !
+                                        ,NINT(ITE_PARENT_ON_CHILD(ID_1)))   !
+                    SEND_TASK(1)%JSTART(2)=J_UPDATE(3)                      !
+                    SEND_TASK(1)%JEND(2)=MIN(J_END_X                     &  !
+                                        ,NINT(JTE_PARENT_ON_CHILD(ID_1)))   !<--
+!
+                  ENDIF
+                ENDIF
+!
+!-----------------------------------------------------------------------
+!***  The points in this nest task subdomain being updated by the first
+!***  identified parent task have been demarcated.  Now identify any
+!***  other parent tasks updating this nest task lying on the SE corner
+!***  of the footprint.
+!-----------------------------------------------------------------------
+!                  
+!------------------------------------------------------
+!***  Is there a parent task to the north of the first
+!***  that provides update data?
+!------------------------------------------------------
+!
+                se_north: IF(JTE_PARENT_ON_CHILD(ID_1)+EPS<J_END_X          &  !<-- If true there is another parent task north of the first.
+                                      .AND.                                 &  !
+                             ITE_PARENT_ON_CHILD(ID_1)+EPS>=I_UPDATE(3))THEN   !<--
+!
+                  KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                  !<-- Increment parent task counter.
+                  KP=KOUNT_PARENT_TASKS
+                  SEND_TASK(KP)%ID=ID_1+INPES_PARENT                       !<-- Store the ID of this parent task to the north.
+                  ID_N=SEND_TASK(KP)%ID 
+!
+                  IF(JTS_PARENT_ON_CHILD(ID_N)+EPS>=J_UPDATE(3))THEN         !<-- Parent task ID_N does not cover SE corner of footprint.
+                    SEND_TASK(KP)%ISTART(1)=I_UPDATE(3)                      !<-- Starting I on nest task where parent task ID_N updates.
+                    SEND_TASK(KP)%IEND(1)=MIN(I_UPDATE(4)                 &  !<-- Ending I on nest task where parent task ID_N updates.
+                                         ,NINT(ITE_PARENT_ON_CHILD(ID_N)))   !<--
+                    SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_N))  !<-- Starting J on nest task where parent task ID_N updates.
+                    SEND_TASK(KP)%JEND(1)=J_END_X                            !<-- Ending J on nest task where parent task ID_N updates.
+!
+                  ELSEIF(JTS_PARENT_ON_CHILD(ID_N)-EPS<=J_UPDATE(2))THEN     !<-- Parent task ID_N covers SE corner of footprint too.
+!
+                    SEND_TASK(KP)%ISTART(1)=I_START_X                        !<-- Starting I on nest task where parent task ID_N updates
+                    SEND_TASK(KP)%IEND(1)=MIN(I_END_X                     &  !<-- Ending I on nest task where parent task ID_N updates
+                                         ,NINT(ITE_PARENT_ON_CHILD(ID_N)))   !<-- in nest task's 1st region.
+                    SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_N))  !<-- Starting J of parent task ID_N in nest task 1st region.
+                    SEND_TASK(KP)%JEND  (1)=J_UPDATE(2)                      !<-- Ending J of parent task ID_N in nest task 1st region.
+                    SEND_TASK(KP)%ISTART(2)=I_UPDATE(3)                      !<-- Starting I of parent task ID_N in nest task 2nd region.
+                    SEND_TASK(KP)%IEND  (2)=MIN(I_UPDATE(4)               &  !<-- Ending I of parent task ID_N in nest task 2nd region.
+                                           ,NINT(ITE_PARENT_ON_CHILD(ID_N))) !<--
+                    SEND_TASK(KP)%JSTART(2)=J_UPDATE(3)                      !<-- Starting J of parent task ID_N in nest task 2nd region.
+                    SEND_TASK(KP)%JEND  (2)=J_END_X                          !<-- Ending J of parent task ID_N in nest task 2nd region.
+!
+                  ENDIF                                                      !<-- End contingencies of parent task north of first one.
+!
+                ENDIF se_north
+!
+!-----------------------------------------------
+!***  Does a parent task northeast of the first 
+!***  provide any update data?  The presence of
+!***  a parent task to the north of the first 
+!***  that is providing update data is not 
+!***  required for a parent task to exist to
+!***  the northeast that sends update data
+!***  to this nest task.  That is because a
+!***  parent task to the north might be totally
+!***  covered by the footprint's SE corner.
+!-----------------------------------------------
+!
+                IF(ITE_PARENT_ON_CHILD(ID_1)+EPS<I_END_X                &  !<-- 1st scenario of parent update task to northeast of 
+                                .AND.                                   &  !    the first parent update task.  The NE parent task
+                   ITE_PARENT_ON_CHILD(ID_1)+EPS>=I_UPDATE(2)           &  !    does not cover the SE corner of the footprint.
+                                .AND.                                   &  !
+                   JTE_PARENT_ON_CHILD(ID_1)+EPS<J_END_X)THEN              !<--
+!
+                  KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                  !<-- Increment parent task counter.
+                  KP=KOUNT_PARENT_TASKS
+                  SEND_TASK(KP)%ID=ID_1+INPES_PARENT+1                     !<-- Store the ID of this parent task northeast of the first
+                  ID_NE=SEND_TASK(KP)%ID
+                  SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_NE)) !<-- Starting I where parent task ID_NE updates nest task.
+                  SEND_TASK(KP)%IEND  (1)=I_END_X                          !<-- Ending I where parent task ID_NE updates nest task.
+                  SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_NE)) !<-- Starting J where parent task ID_NE updates nest task.
+                  SEND_TASK(KP)%JEND  (1)=J_END_X                          !<-- Ending J where parent task ID_NE updates nest task.
+!
+                ENDIF
+!
+                IF(ITE_PARENT_ON_CHILD(ID_1)+EPS<I_UPDATE(2)            &  !<-- 2nd scenario of parent update task to northeast of
+                                .AND.                                   &  !    the first update parent task.  The NE parent task
+                   JTE_PARENT_ON_CHILD(ID_1)+EPS<J_UPDATE(2))THEN          !<-- covers the SE corner of the footprint.
+!
+                  KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                  !<-- Increment parent task counter.
+                  KP=KOUNT_PARENT_TASKS
+                  SEND_TASK(KP)%ID=ID_1+INPES_PARENT+1                     !<-- Store the ID of this parent task northeast of the first.
+                  ID_NE=SEND_TASK(KP)%ID
+                  SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_NE)) !<-- Starting I in nest task's 1st region updated by parent.
+                  SEND_TASK(KP)%IEND  (1)=I_END_X                          !<-- Ending I in nest task's 1st region updated by parent.
+                  SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_NE)) !<-- Starting J in nest task's 1st region updated by parent.
+                  SEND_TASK(KP)%JEND  (1)=J_UPDATE(2)                      !<-- Ending J in nest task's 1st region updated by parent.
+                  SEND_TASK(KP)%ISTART(2)=I_UPDATE(3)                      !<-- Starting I in nest task's 2nd region updated by parent.
+                  SEND_TASK(KP)%IEND  (2)=I_END_X                          !<-- Ending I in nest task's 2nd region updated by parent.
+                  SEND_TASK(KP)%JSTART(2)=J_UPDATE(3)                      !<-- Starting J in nest task's 2nd region updated by parent.
+                  SEND_TASK(KP)%JEND  (2)=J_END_X                          !<-- Ending J in nest task's 2nd region updated by parent.
+!
+                ENDIF
+!
+                IF(ITE_PARENT_ON_CHILD(ID_1)+EPS<I_UPDATE(2)            &  !<-- 3rd scenario of parent update task to northeast of
+                                .AND.                                   &  !    the first update parent task.  The NE parent task
+                   JTE_PARENT_ON_CHILD(ID_1)+EPS>=J_UPDATE(2)           &  !<-- is north of the SE corner of the footprint.
+                                .AND.                                   &  !
+                   JTE_PARENT_ON_CHILD(ID_1)+EPS<J_END_X)THEN    
+!
+                  KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                  !<-- Increment parent task counter.
+                  KP=KOUNT_PARENT_TASKS
+                  SEND_TASK(KP)%ID=ID_1+INPES_PARENT+1                     !<-- Store the ID of this parent task northeast of the first.
+                  ID_NE=SEND_TASK(KP)%ID
+                  SEND_TASK(KP)%ISTART(1)=I_UPDATE(3)                      !<-- Starting I in nest task's 1st region updated by parent.
+                  SEND_TASK(KP)%IEND  (1)=I_END_X                          !<-- Ending I in nest task's 1st region updated by parent.
+                  SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_NE)) !<-- Starting J in nest task's 1st region updated by parent.
+                  SEND_TASK(KP)%JEND  (1)=J_END_X                          !<-- Ending J in nest task's 1st region updated by parent.
+!
+                ENDIF
+!
+!----------------------------------------------
+!***  Is there a parent task east of the first
+!***  that provides update data?
+!----------------------------------------------
+!
+                se_east: IF(ITE_PARENT_ON_CHILD(ID_1)+EPS<I_END_X)THEN     !<-- If true there is another parent task east of the first.
+!
+                  KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                  !<-- Increment the parent task counter.
+                  KP=KOUNT_PARENT_TASKS
+                  SEND_TASK(KP)%ID=ID_1+1                                  !<-- Store the ID of this parent task to the east.
+                  ID_E=SEND_TASK(KP)%ID
+                  SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_E))  !<-- Starting I where parent task ID_E updates nest task.
+                  SEND_TASK(KP)%IEND(1)=I_END_X                            !<-- Ending I where parent task ID_E updates nest task.
+                  SEND_TASK(KP)%JSTART(1)=J_START_X                        !<-- Starting J where parent task ID_E updates nest task.
+!
+                  IF(JTE_PARENT_ON_CHILD(ID_E)-EPS<=J_UPDATE(2))THEN       !<-- 1st scenario of parent update task E of first.  No corner.
+!
+                    SEND_TASK(KP)%JEND(1)=NINT(JTE_PARENT_ON_CHILD(ID_E))
+!
+                  ELSEIF(ITS_PARENT_ON_CHILD(ID_E)+EPS>=I_UPDATE(3))THEN     !<-- 2nd scenario of parent update task E of first.  No corner.
+!
+                    SEND_TASK(KP)%JEND(1)=MIN(J_END_X                     &  !<-- Ending J of 2nd update region in nest task by parent.
+                                         ,NINT(JTE_PARENT_ON_CHILD(ID_E)))   !<--
+!
+                  ELSEIF(ITS_PARENT_ON_CHILD(ID_E)-EPS<=I_UPDATE(2)       &  !<-- 2nd scenario of parent update task to E of first.
+                                     .AND.                                &  !    The east parent task covers the SE corner of the
+                         JTE_PARENT_ON_CHILD(ID_E)+EPS>=J_UPDATE(3))THEN     !<-- footprint.
+!
+                    SEND_TASK(KP)%JEND  (1)=J_UPDATE(2)                      !<-- Ending J of 1st update region in nest task by parent.
+                    SEND_TASK(KP)%ISTART(2)=I_UPDATE(3)                      !<-- Starting I of 2nd update region in nest task by parent.
+                    SEND_TASK(KP)%IEND  (2)=I_END_X                          !<-- Ending I of 2nd update region in nest task by parent.
+                    SEND_TASK(KP)%JSTART(2)=J_UPDATE(3)                      !<-- Starting J of 2nd update region in nest task by parent.
+                    SEND_TASK(KP)%JEND  (2)=MIN(J_END_X                   &  !<-- Ending J of 2nd update region in nest task by parent.
+                                           ,NINT(JTE_PARENT_ON_CHILD(ID_E))) !<--
+                  ENDIF                                                      !<-- Finished with parent task east of the first one.
+!
+                ENDIF se_east
+!
+                EXIT search_i
+!
+              ENDIF se
+!
+!-----------------------------------------------------------------------
+!
+!------------------------------------------------------
+!------------------------------------------------------
+!***  The nest task on the NW corner of the footprint.
+!------------------------------------------------------
+!------------------------------------------------------
+!
+              nw: IF(CORNER=='NW')THEN                                     !<-- This nest task lies on the NW corner of the footprint.
+!
+                SEND_TASK(1)%ISTART(1)=I_START_X                           !<-- Nest I where parent task 1 begins updating nest task.
+                SEND_TASK(1)%JSTART(1)=J_START_X                           !<-- Nest J where parent task 1 begins updating nest task.
+!
+                IF(ITE_PARENT_ON_CHILD(ID_1)-EPS<=I_UPDATE(2))THEN
+                  SEND_TASK(1)%IEND(1)=NINT(ITE_PARENT_ON_CHILD(ID_1))     !<-- Nest I where parent task 1 ends updating nest task.
+                  SEND_TASK(1)%JEND(1)=MIN(J_END_X                      &  !<-- Nest J where parent task 1 ends updating nest task.
+                                      ,NINT(JTE_PARENT_ON_CHILD(ID_1)))    !<--
+!
+                ELSEIF(ITE_PARENT_ON_CHILD(ID_1)+EPS>=I_UPDATE(3))THEN
+                  SEND_TASK(1)%IEND(1)=I_UPDATE(2)                         !<-- Nest J where parent task 1 ends updating nest task.
+                  SEND_TASK(1)%JEND(1)=MIN(J_UPDATE(2)                  &  !<-- Nest J where parent task 1 ends updating nest task.
+                                      ,NINT(JTE_PARENT_ON_CHILD(ID_1)))    !<--
+!
+                  IF(JTE_PARENT_ON_CHILD(ID_1)+EPS>=J_UPDATE(3))THEN       !<-- Parent task 1 covers NW corner of footprint too.
+                    SEND_TASK(1)%ISTART(2)=I_START_X                       !<-- 2nd region on nest task updated by parent task 1
+                    SEND_TASK(1)%IEND(2)=MIN(I_END_X                    &  !
+                                        ,NINT(ITE_PARENT_ON_CHILD(ID_1)))  !
+                    SEND_TASK(1)%JSTART(2)=J_UPDATE(3)                     !
+                    SEND_TASK(1)%JEND(2)=MIN(J_END_X                    &  !
+                                        ,NINT(JTE_PARENT_ON_CHILD(ID_1)))  !<--
+                  ENDIF
+                ENDIF
+!
+!-----------------------------------------------------------------------
+!***  The points in this nest task subdomain being updated by the first
+!***  identified parent task have been demarcated.  Now identify any
+!***  other parent tasks updating this nest task lying on the NW corner
+!***  of the footprint.
+!-----------------------------------------------------------------------
+!                  
+!------------------------------------------------------
+!***  Is there a parent task to the north of the first
+!***  that provides update data?
+!------------------------------------------------------
+!
+                nw_north: IF(JTE_PARENT_ON_CHILD(ID_1)+EPS<J_END_X)THEN      !<-- If true there is another parent task north of the first.
+!
+                  KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                    !<-- Increment parent task counter.
+                  KP=KOUNT_PARENT_TASKS
+                  SEND_TASK(KP)%ID=ID_1+INPES_PARENT                         !<-- Store the ID of this parent task to the north.
+                  ID_N=SEND_TASK(KP)%ID 
+                  SEND_TASK(KP)%ISTART(1)=I_START_X                          !<-- Starting I on nest task where parent task ID_N updates.
+                  SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_N))    !<-- Starting J on nest task where parent task ID_N updates.
+!
+                  IF(JTS_PARENT_ON_CHILD(ID_N)+EPS>=J_UPDATE(3)           &  !<-- Parent task ID_N does not cover NW corner of footprint.
+                                     .OR.                                 &  !
+                     ITE_PARENT_ON_CHILD(ID_N)-EPS<=I_UPDATE(2))THEN         !<--
+!
+                    SEND_TASK(KP)%IEND(1)=MIN(I_UPDATE(4)                 &  !<-- Ending I on nest task where parent task ID_N updates.
+                                         ,NINT(ITE_PARENT_ON_CHILD(ID_N)))   !<--
+                    SEND_TASK(KP)%JEND(1)=J_END_X                            !<-- Ending J on nest task where parent task ID_N updates.
+!
+                  ELSEIF(JTS_PARENT_ON_CHILD(ID_N)-EPS<=J_UPDATE(2)       &  !<-- Parent task ID_N covers NW corner of footprint too.
+                                     .AND.                                &
+                         ITE_PARENT_ON_CHILD(ID_N)+EPS>=I_UPDATE(3))THEN
+!
+                    SEND_TASK(KP)%IEND(1)=MIN(I_UPDATE(2)                 &  !<-- Ending I on nest task where parent task ID_N updates
+                                         ,NINT(ITE_PARENT_ON_CHILD(ID_N)))   !<-- in nest task's 1st region.
+                    SEND_TASK(KP)%JEND  (1)=J_UPDATE(2)                      !<-- Ending J of parent task ID_N in nest task 1st region.
+                    SEND_TASK(KP)%ISTART(2)=I_START_X                        !<-- Starting I of parent task ID_N in nest task 2nd region.
+                    SEND_TASK(KP)%IEND  (2)=MIN(I_UPDATE(4)               &  !<-- Ending I of parent task ID_N in nest task 2nd region.
+                                           ,NINT(ITE_PARENT_ON_CHILD(ID_N))) !<--
+                    SEND_TASK(KP)%JSTART(2)=J_UPDATE(3)                      !<-- Starting J of parent task ID_N in nest task 2nd region.
+                    SEND_TASK(KP)%JEND  (2)=J_END_X                          !<-- Ending J of parent task ID_N in nest task 2nd region.
+                  ENDIF                                                      !<-- End contingencies of parent task north of first one.
+!
+!-----------------------------------------------
+!***  Does a parent task northeast of the first 
+!***  provide any update data?  For this to be
+!***  true there must be a parent task to the
+!***  north of the first so we remain in the
+!***  nw_north IF block.
+!-----------------------------------------------
+!
+                  IF(ITE_PARENT_ON_CHILD(ID_N)+EPS<I_END_X                 &  !<-- 1st scenario of parent update task to northeast of 
+                                  .AND.                                    &  !    the first parent update task.  Not on corner.
+                     ITE_PARENT_ON_CHILD(ID_N)+EPS>=I_UPDATE(2))THEN          !<--
+!
+                    KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                   !<-- Increment parent task counter.
+                    KP=KOUNT_PARENT_TASKS
+                    SEND_TASK(KP)%ID=ID_N+1                                   !<-- Store the ID of this parent task northeast of the first
+                    ID_NE=SEND_TASK(KP)%ID                                 
+                    SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_NE))  !<-- Starting I where parent task ID_NE updates nest task.
+                    SEND_TASK(KP)%IEND  (1)=I_END_X                           !<-- Ending I where parent task ID_NE updates nest task.
+                    SEND_TASK(KP)%JSTART(1)=MAX(J_UPDATE(3)                &  !<-- Starting J where parent task ID_NE updates nest task.
+                                           ,NINT(JTS_PARENT_ON_CHILD(ID_NE))) !<-- Starting J where parent task ID_NE updates nest task.
+                    SEND_TASK(KP)%JEND  (1)=J_END_X                           !<-- Ending J where parent task ID_NE updates nest task.
+!
+                  ENDIF
+!
+                  IF(ITE_PARENT_ON_CHILD(ID_N)+EPS<I_UPDATE(2)            &  !<-- 2nd scenario of parent update task to northeast of
+                                  .AND.                                   &  !    the first update parent task.  On the corner.
+                     JTS_PARENT_ON_CHILD(ID_N)+EPS<=J_UPDATE(2))THEN         !<--
+!
+                    KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                  !<-- Increment parent task counter.
+                    KP=KOUNT_PARENT_TASKS
+                    SEND_TASK(KP)%ID=ID_N+1                                  !<-- Store the ID of this parent task northeast of the first.
+                    ID_NE=SEND_TASK(KP)%ID
+                    SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_NE)) !<-- Starting I in nest task's 1st region updated by parent.
+                    SEND_TASK(KP)%IEND  (1)=I_UPDATE(2)                      !<-- Ending I in nest task's 1st region updated by parent.
+                    SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_NE)) !<-- Starting J in nest task's 1st region updated by parent.
+                    SEND_TASK(KP)%JEND  (1)=J_UPDATE(2)                      !<-- Ending J in nest task's 1st region updated by parent.
+                    SEND_TASK(KP)%ISTART(2)=SEND_TASK(KP)%ISTART(1)          !<-- Starting I in nest task's 2nd region updated by parent.
+                    SEND_TASK(KP)%IEND  (2)=I_END_X                          !<-- Ending I in nest task's 2nd region updated by parent.
+                    SEND_TASK(KP)%JSTART(2)=J_UPDATE(3)                      !<-- Starting J in nest task's 2nd region updated by parent.
+                    SEND_TASK(KP)%JEND  (2)=J_END_X                          !<-- Ending J in nest task's 2nd region updated by parent.
+!
+                  ENDIF
+!
+                ENDIF nw_north
+!
+!----------------------------------------------
+!***  Is there a parent task east of the first
+!***  that provides update data?
+!----------------------------------------------
+!
+                nw_east: IF(ITE_PARENT_ON_CHILD(ID_1)+EPS<I_END_X)THEN         !<-- Necessary, not sufficient for parent task east of first.
+!
+                  IF(ITE_PARENT_ON_CHILD(ID_1)+EPS<I_UPDATE(2))THEN            !<-- 1st scenario of parent task east of the first.
+!
+                    KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                    !<-- Increment the parent task counter.
+                    KP=KOUNT_PARENT_TASKS
+                    SEND_TASK(KP)%ID=ID_1+1                                    !<-- Store the ID of this parent task to the east.
+                    ID_E=SEND_TASK(KP)%ID
+                    SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_E))    !<-- Starting I where parent task ID_E updates nest task.
+                    SEND_TASK(KP)%IEND  (1)=I_UPDATE(2)                        !<-- Ending I where parent task ID_E updates nest task.
+                    SEND_TASK(KP)%JSTART(1)=J_START_X                          !<-- Starting J where parent task ID_E updates nest task.
+                    SEND_TASK(KP)%JEND  (1)=MIN(J_UPDATE(2)                 &  !<-- Ending J where parent task ID_E updates nest task.
+                                           ,NINT(JTE_PARENT_ON_CHILD(ID_E)))   !
+!
+                    IF(JTE_PARENT_ON_CHILD(ID_E)+EPS>=J_UPDATE(3))THEN
+                      SEND_TASK(KP)%ISTART(2)=NINT(ITS_PARENT_ON_CHILD(ID_E))  !<-- Starting I for east parent in 2nd update region.
+                      SEND_TASK(KP)%IEND  (2)=I_END_X                          !<-- Ending I for east parent in 2nd update region.
+                      SEND_TASK(KP)%JSTART(2)=J_UPDATE(3)                      !<-- Starting J for east parent in 2nd update region.
+                      SEND_TASK(KP)%JEND  (2)=MIN(J_END_X                   &  !<-- Ending J for east parent in 2nd update region.
+                                             ,NINT(JTE_PARENT_ON_CHILD(ID_E)))
+                    ENDIF
+!
+                  ENDIF
+!
+                  IF(ITE_PARENT_ON_CHILD(ID_1)+EPS>=I_UPDATE(2)             &  !<-- 2nd scenario of a parent task to the east of
+                                    .AND.                                   &  !    the first parent task.
+                     JTE_PARENT_ON_CHILD(ID_1)+EPS>=J_UPDATE(3))THEN           !<--
+!
+                    KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                    !<-- Increment the parent task counter.
+                    KP=KOUNT_PARENT_TASKS
+                    SEND_TASK(KP)%ID=ID_1+1                                    !<-- Store the ID of this parent task to the east.
+                    ID_E=SEND_TASK(KP)%ID
+                    SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_E))    !<-- Starting I where parent task ID_E updates nest task.
+                    SEND_TASK(KP)%IEND  (1)=I_END_X                            !<-- Ending I where parent task ID_E updates nest task.
+                    SEND_TASK(KP)%JSTART(1)=J_UPDATE(3)                        !<-- Starting J where parent task ID_E updates nest task.
+                    SEND_TASK(KP)%JEND  (1)=MIN(J_END_X                     &  !<-- Ending J where parent task ID_E updates nest task.
+                                           ,NINT(JTE_PARENT_ON_CHILD(ID_E))) 
+                  ENDIF
+!
+                ENDIF nw_east
+!
+                EXIT search_i
+!
+              ENDIF nw
+!
+!------------------------------------------------------
+!------------------------------------------------------
+!***  The nest task on the NE corner of the footprint.
+!------------------------------------------------------
+!------------------------------------------------------
+!
+              ne: IF(CORNER=='NE')THEN                                     !<-- This nest task lies on the NE corner of the footprint.
+!
+!-----------------------------------------------------------------------
+!***  The northeast corner of the footprint is even more involved
+!***  than the other three because [I_UPDATE(1),J_UPDATE(1)] on this
+!***  nest task is within the footprint of the nest's previous location
+!***  and thus is not updated by parent task 1.  In fact parent task 1
+!***  might not update any points on this nest task if that region of
+!***  the nest task covered by parent task 1 lies entirely within the
+!***  footprint.  
+!-----------------------------------------------------------------------
+!
+                KOUNT_PARENT_TASKS=0                                       !<-- Parent task ID_1 might not send any data.
+!
+                IF(ITE_PARENT_ON_CHILD(ID_1)+EPS>=I_UPDATE(3))THEN               
+!
+                  KOUNT_PARENT_TASKS=1                                     !<-- Parent task ID_1 does send data.
+                  SEND_TASK(1)%ISTART(1)=I_UPDATE(3)                       !<-- Nest I where parent task 1 begins updating nest task.
+                  SEND_TASK(1)%IEND(1)=MIN(I_END_X                      &  !<-- Nest I where parent task 1 ends updating nest task.
+                                      ,NINT(ITE_PARENT_ON_CHILD(ID_1))) 
+                  SEND_TASK(1)%JSTART(1)=J_START_X                         !<-- Nest J where parent task 1 begins updating nest task.
+                  SEND_TASK(1)%JEND  (1)=MIN(J_UPDATE(2)                &  !<-- Nest J where parent task 1 ends updating nest task.
+                                        ,NINT(JTE_PARENT_ON_CHILD(ID_1)))
+!
+                  IF(JTE_PARENT_ON_CHILD(ID_1)+EPS>=J_UPDATE(3))THEN
+                    SEND_TASK(1)%ISTART(2)=I_START_X                       !<-- Nest I where parent task 1 begins updating 2nd region.
+                    SEND_TASK(1)%IEND  (2)=SEND_TASK(1)%IEND(1)            !<-- Nest I where parent task 1 ends updating 2nd region.
+                    SEND_TASK(1)%JSTART(2)=J_UPDATE(3)                     !<-- Nest J where parent task 1 begins updating 2nd region.
+                    SEND_TASK(1)%JEND  (2)=MIN(J_END_X                  &  !<-- Nest J where parent task 1 ends updating 2nd region.
+                                          ,NINT(JTE_PARENT_ON_CHILD(ID_1)))
+                  ENDIF
+!
+                ELSEIF(JTE_PARENT_ON_CHILD(ID_1)+EPS>=J_UPDATE(3))THEN
+!
+                  KOUNT_PARENT_TASKS=1                                     !<-- Parent task ID_1 does send data.
+                  SEND_TASK(1)%ISTART(1)=I_UPDATE(1)                       !<-- Nest I where parent task 1 begins updating nest task.
+                  SEND_TASK(1)%IEND(1)=NINT(ITE_PARENT_ON_CHILD(ID_1))     !<-- Nest I where parent task 1 ends updating nest task.
+                  SEND_TASK(1)%JSTART(1)=J_UPDATE(3)                       !<-- Nest J where parent task 1 begins updating nest task.
+                  SEND_TASK(1)%JEND(1)=MIN(J_END_X                      &  !<-- Nest J where parent task 1 ends updating 2nd region.
+                                      ,NINT(JTE_PARENT_ON_CHILD(ID_1)))
+!
+                ENDIF
+!
+!-----------------------------------------------------------------------
+!***  The points in this nest task subdomain being updated by the first
+!***  identified parent task have been demarcated.  Now identify any
+!***  other parent tasks updating this nest task lying on the NE corner
+!***  of the footprint.
+!-----------------------------------------------------------------------
+!                  
+!------------------------------------------------------
+!***  Is there a parent task to the north of the first
+!***  that provides update data?  
+!------------------------------------------------------
+!
+                ne_north: IF(JTE_PARENT_ON_CHILD(ID_1)+EPS<J_END_X)THEN     !<-- If true there is another parent task north of the first.
+!
+                  KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                   !<-- Increment parent task counter.
+                  KP=KOUNT_PARENT_TASKS
+                  SEND_TASK(KP)%ID=ID_1+INPES_PARENT                        !<-- Store the ID of this parent task to the north.
+                  ID_N=SEND_TASK(KP)%ID
+!
+                  IF(ITE_PARENT_ON_CHILD(ID_N)<=I_UPDATE(2))THEN            !<-- 1st scenario of parent task north of the first.
+                    SEND_TASK(KP)%ISTART(1)=I_START_X                       !<-- Nest I where parent task ID_N begins updating this region.
+                    SEND_TASK(KP)%IEND  (1)=NINT(ITE_PARENT_ON_CHILD(ID_N)) !<-- Nest I where parent task ID_N ends updating this region.
+                    SEND_TASK(KP)%JSTART(1)=MAX(J_UPDATE(3)              &  !<-- Nest J where parent task ID_N begins updating this region.
+                                           ,NINT(JTS_PARENT_ON_CHILD(ID_N)))
+                    SEND_TASK(KP)%JEND  (1)=J_END_X                         !<-- Nest J where parent task ID_N ends updating this region.
+                  ENDIF
+!
+                  IF(ITE_PARENT_ON_CHILD(ID_N)>=I_UPDATE(3))THEN 
+                    SEND_TASK(KP)%IEND  (1)=MIN(I_END_X                    &  !<-- Nest I where parent task ID_N ends updating this region.
+                                           ,NINT(ITE_PARENT_ON_CHILD(ID_N)))
+                    IF(JTS_PARENT_ON_CHILD(ID_N)<=J_UPDATE(2))THEN            !<-- 2nd scenario of parent task north of the first.
+                      SEND_TASK(KP)%ISTART(1)=I_UPDATE(3)                     !<-- Nest I where parent task ID_N begins updating this region.
+                      SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_N)) !<-- Nest J where parent task ID_N begins updating this region.
+                      SEND_TASK(KP)%JEND  (1)=J_UPDATE(2)                     !<-- Nest J where parent task ID_N ends updating this region.
+                      SEND_TASK(KP)%ISTART(2)=I_START_X                       !<-- Nest I where parent task ID_N begins updating 2nd region.
+                      SEND_TASK(KP)%IEND  (2)=SEND_TASK(KP)%IEND(1)           !<-- Nest I where parent task ID_N ends updating 2nd region.
+                      SEND_TASK(KP)%JSTART(2)=J_UPDATE(3)                     !<-- Nest J where parent task ID_N begins updating 2nd region.
+                      SEND_TASK(KP)%JEND  (2)=J_END_X                         !<-- Nest J where parent task ID_N ends updating 2nd region.
+                    ELSEIF(JTS_PARENT_ON_CHILD(ID_N)>=J_UPDATE(3))THEN        !<-- 3rd scenario of parent task north of the first.
+                      SEND_TASK(KP)%ISTART(1)=I_START_X                       !<-- Nest I where parent task ID_N begins updating this region.
+                      SEND_TASK(KP)%JSTART(1)=MAX(J_UPDATE(3)              &  !<-- Nest J where parent task ID_N begins updating this region.
+                                             ,NINT(JTS_PARENT_ON_CHILD(ID_N)))
+                      SEND_TASK(KP)%JEND  (1)=J_END_X                         !<-- Nest J where parent task ID_N begins updating this region.
+                    ENDIF
+                  ENDIF
+!
+!-----------------------------------------------
+!***  Does a parent task northeast of the first
+!***  provide any update data?  This can only
+!***  happen if there was a parent task to
+!***  the north of the first therefore we
+!***  remain in the ne_north IF block.
+!-----------------------------------------------
+!
+                  ne_ne: IF(ITE_PARENT_ON_CHILD(ID_N)+EPS<I_END_X)THEN         !<-- If so, a parent task NE of the first provides data.
+!
+                    KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                    !<-- Increment parent task counter.
+                    KP=KOUNT_PARENT_TASKS
+                    SEND_TASK(KP)%ID=ID_N+1                                    !<-- Store the ID of this parent task to the northeast.
+                    ID_NE=SEND_TASK(KP)%ID
+!
+                    IF(JTS_PARENT_ON_CHILD(ID_NE)+EPS>=J_UPDATE(3)          &  !<-- 1st scenario of parent task to the NE of the first.
+                                      .OR.                                  &  !
+                       ITS_PARENT_ON_CHILD(ID_NE)+EPS>=I_UPDATE(3)          &  !
+                                      .AND.                                 &  !
+                       JTS_PARENT_ON_CHILD(ID_NE)-EPS<=J_UPDATE(2))THEN        !<--
+!
+                      SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_NE)) !<-- Nest I where parent task ID_NE begins updating this region.
+                      SEND_TASK(KP)%IEND  (1)=I_END_X                          !<-- Nest I where parent task ID_NE ends updating this region.
+                      SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_NE)) !<-- Nest J where parent task ID_NE begins updating this region.
+                      SEND_TASK(KP)%JEND  (1)=J_END_X                          !<-- Nest J where parent task ID_NE ends updating this region.
+                    ENDIF
+!
+                    IF(ITS_PARENT_ON_CHILD(ID_NE)-EPS<=I_UPDATE(2)          &  !<-- 2nd scenario of parent task to the NE of the first.
+                                   .AND.                                    &  !
+                       JTS_PARENT_ON_CHILD(ID_NE)-EPS<=J_UPDATE(2))THEN        !<--
+!                    
+                      SEND_TASK(KP)%ISTART(1)=I_UPDATE(3)                      !<-- Nest I where parent task ID_NE begins updating this region
+                      SEND_TASK(KP)%IEND  (1)=I_END_X                          !<-- Nest I where parent task ID_NE ends updating this region.
+                      SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_NE)) !<-- Nest J where parent task ID_NE begins updating this region
+                      SEND_TASK(KP)%JEND  (1)=J_UPDATE(2)                      !<-- Nest J where parent task ID_NE ends updating this region.
+                      SEND_TASK(KP)%ISTART(2)=NINT(ITS_PARENT_ON_CHILD(ID_NE)) !<-- Nest I where parent task ID_NE begins updating 2nd region.
+                      SEND_TASK(KP)%IEND  (2)=I_END_X                          !<-- Nest I where parent task ID_NE ends updating 2nd region.
+                      SEND_TASK(KP)%JSTART(2)=J_UPDATE(3)                      !<-- Nest J where parent task ID_NE begins updating 2nd region.
+                      SEND_TASK(KP)%JEND  (2)=J_END_X                          !<-- Nest J where parent task ID_NE ends updating 2nd region.
+                    ENDIF
+!
+                  ENDIF ne_ne
+!
+                ENDIF ne_north
+!
+!----------------------------------------------
+!***  Is there a parent task east of the first
+!***  that provides update data?
+!----------------------------------------------
+!
+                ne_east: IF(ITE_PARENT_ON_CHILD(ID_1)+EPS<I_END_X)THEN      !<-- If so, a parent task east of the first provides data.
+!
+                  KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                   !<-- Increment parent task counter.
+                  KP=KOUNT_PARENT_TASKS
+                  SEND_TASK(KP)%ID=ID_1+1                                   !<-- Store the ID of this parent task to the north.
+                  ID_E=SEND_TASK(KP)%ID
+!
+                  IF(ITS_PARENT_ON_CHILD(ID_E)+EPS>=I_UPDATE(3))THEN        !<-- 1st scenario of parent task east of the first.
+                    SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_E)) !<-- Starting I where parent task ID_E updates nest task.
+                    SEND_TASK(KP)%IEND  (1)=I_END_X                         !<-- Ending I where parent task ID_E updates nest task.
+                    SEND_TASK(KP)%JSTART(1)=J_START_X                       !<-- Starting J where parent task ID_E updates nest task.
+                    SEND_TASK(KP)%JEND  (1)=MIN(J_END_X                  &  !<-- Ending J where parent task ID_E updates nest task.
+                                           ,NINT(JTE_PARENT_ON_CHILD(ID_E))) 
+                  ENDIF
+!
+                  IF(ITS_PARENT_ON_CHILD(ID_E)-EPS<=I_UPDATE(2))THEN 
+                    SEND_TASK(KP)%ISTART(1)=I_UPDATE(3)                       !<-- Nest I where parent task ID_E begins updating 1st region.
+                    SEND_TASK(KP)%IEND  (1)=I_END_X                           !<-- Nest I where parent task ID_E ends updating 1st region.
+                    SEND_TASK(KP)%JSTART(1)=J_START_X                         !<-- Nest J where parent task ID_E begins updating 1st region.
+                    SEND_TASK(KP)%JEND  (1)=MIN(J_UPDATE(2)                &  !<-- Nest J where parent task ID_E ends updating 1st region.
+                                           ,NINT(JTE_PARENT_ON_CHILD(ID_E)))
+!
+                    IF(JTE_PARENT_ON_CHILD(ID_E)+EPS>=J_UPDATE(3))THEN
+                      SEND_TASK(KP)%ISTART(2)=NINT(ITS_PARENT_ON_CHILD(ID_E)) !<-- Nest I where parent task ID_E begins updating 2nd region.
+                      SEND_TASK(KP)%IEND  (2)=I_END_X                         !<-- Nest I where parent task ID_E ends updating 2nd region.
+                      SEND_TASK(KP)%JSTART(2)=J_UPDATE(3)                     !<-- Nest J where parent task ID_E begins updating 2nd region.
+                      SEND_TASK(KP)%JEND  (2)=MIN(J_END_X                  &  !<-- Nest I where parent task ID_E ends updating 2nd region.
+                                             ,NINT(JTE_PARENT_ON_CHILD(ID_E))) 
+                    ENDIF
+                  ENDIF
+!
+                ENDIF ne_east
+!
+                EXIT search_i
+!
+              ENDIF ne
+!
+!-----------------------------------------------------------------------
+!
+            ENDIF update_j
+!
+          ENDDO search_j
+!
+        ENDIF update_i
+!
+      ENDDO search_i
+!
+!-----------------------------------------------------------------------
+!***  Add up the number of points being updated by each parent task.
+!-----------------------------------------------------------------------
+!
+      DO KP=1,KOUNT_PARENT_TASKS
+!
+        SEND_TASK(KP)%NPTS=(SEND_TASK(KP)%IEND(1)                       & 
+                           -SEND_TASK(KP)%ISTART(1)+1)*                 & 
+                           (SEND_TASK(KP)%JEND(1)                       &
+                           -SEND_TASK(KP)%JSTART(1)+1)
+!
+        IF(SEND_TASK(KP)%ISTART(2)>=IMS)THEN                               !<-- Add points for 2nd regions on corners if present.
+          SEND_TASK(KP)%NPTS=SEND_TASK(KP)%NPTS                         &
+                           +(SEND_TASK(KP)%IEND(2)                      &
+                            -SEND_TASK(KP)%ISTART(2)+1)*                &
+                            (SEND_TASK(KP)%JEND(2)                      &
+                            -SEND_TASK(KP)%JSTART(2)+1)
+
+        ENDIF
+!
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE MOVING_NEST_BOOKKEEPING
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE MOVING_NEST_RECV_DATA(COMM_TO_MY_PARENT                &
+                                      ,NTIMESTEP                        &
+                                      ,NUM_FIELDS_MOVE_2D_H_I           &
+                                      ,NUM_FIELDS_MOVE_2D_X_I           &
+                                      ,NUM_FIELDS_MOVE_2D_H_R           &
+                                      ,NUM_FIELDS_MOVE_2D_X_R           &
+                                      ,NUM_LEVELS_MOVE_3D_H             &
+                                      ,NUM_FIELDS_MOVE_2D_V             &
+                                      ,NUM_LEVELS_MOVE_3D_V             &
+                                      ,SEND_TASK                        &
+                                      ,EXPORT_STATE                     &
+                                          )
+!
+!-----------------------------------------------------------------------
+!***  After having determined which of their internal gridpoints
+!***  need to be updated by which parent tasks following a nest's
+!***  move, the nest's forecast tasks now receive the update data
+!***  from the parent.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: COMM_TO_MY_PARENT                &  !<-- MPI communicator from this nest to its parent
+                                      ,NTIMESTEP                        &  !<-- Nest's current timestep
+                                      ,NUM_FIELDS_MOVE_2D_H_I           &  !<-- # of 2-D internal state integer H variables to be updated
+                                      ,NUM_FIELDS_MOVE_2D_X_I           &  !<-- # of 2-D integer H variables updated from external files
+                                      ,NUM_FIELDS_MOVE_2D_H_R           &  !<-- # of 2-D internal state real H variables to be updated
+                                      ,NUM_FIELDS_MOVE_2D_X_R           &  !<-- # of 2-D real H variables updated from external files
+                                      ,NUM_LEVELS_MOVE_3D_H             &  !<-- # of 2-D levels in all 3-D H update variables
+                                      ,NUM_FIELDS_MOVE_2D_V             &  !<-- # of 2-D internal state V variables to be updated
+                                      ,NUM_LEVELS_MOVE_3D_V                !<-- # of 2-D levels in all 3-D V update variables
+!
+      TYPE(INTERIOR_DATA_FROM_PARENT),DIMENSION(1:4),INTENT(IN) ::      &
+                                                              SEND_TASK    !<-- Specifics about interior data from sending parent tasks
+!
+      TYPE(ESMF_State),INTENT(INOUT) :: EXPORT_STATE                       !<-- The Parent-Child coupler export state
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: ITAG,N,N8,NUM_PTASK_UPDATE,NUM_WORDS
+!
+      INTEGER(kind=KINT) :: IERR,RC,RC_RECV
+!
+      INTEGER(kind=KINT),DIMENSION(1:8) :: INDICES_H,INDICES_V
+!
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: UPDATE_INTEGER_DATA
+!
+      INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
+!
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: UPDATE_REAL_DATA
+!
+      CHARACTER(len=1)  :: N_PTASK
+      CHARACTER(len=12) :: NAME
+      CHARACTER(len=17) :: NAME_REAL
+      CHARACTER(len=20) :: NAME_INTEGER
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      RC     =ESMF_SUCCESS
+      RC_RECV=ESMF_SUCCESS
+!
+      N8=8
+!
+!-----------------------------------------------------------------------
+!***  First load into the Parent-Child coupler export state the
+!***  number of parent tasks that send update data to this nest task.
+!***  We insist that the same parent tasks will update H and V points.
+!-----------------------------------------------------------------------
+!
+      NUM_PTASK_UPDATE=0
+!
+      DO N=1,4                                                             !<-- No more than 4 parent tasks will send data.
+        IF(SEND_TASK(N)%ID<0)THEN
+          EXIT
+        ELSE
+          NUM_PTASK_UPDATE=NUM_PTASK_UPDATE+1
+        ENDIF
+      ENDDO
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="MOVING_NEST_RECV_DATA: Load # of Parent Tasks Sending Interior Updates"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(state=EXPORT_STATE                         &  !<-- The Parent-Child coupler export state
+                            ,name ='Num Parent Tasks Update'            &  !<-- Name of the variable
+                            ,value=NUM_PTASK_UPDATE                     &  !<-- # of parent tasks that update this nest task
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RECV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  If no parent tasks are sending update data to this nest task
+!***  then there is nothing more to do so RETURN.
+!-----------------------------------------------------------------------
+!
+      IF(NUM_PTASK_UPDATE==0)RETURN                    
+!
+!-----------------------------------------------------------------------
+!
+      parent_tasks: DO N=1,NUM_PTASK_UPDATE
+!
+!-----------------------------------------------------------------------
+!
+        NUM_WORDS=(NUM_FIELDS_MOVE_2D_H_R-NUM_FIELDS_MOVE_2D_X_R        &  !<-- Total # of real words coming from Nth parent task
+                  +NUM_LEVELS_MOVE_3D_H)*SEND_TASK(N)%NPTS              &
+                 +(NUM_FIELDS_MOVE_2D_V+NUM_LEVELS_MOVE_3D_V)           &                                 
+                  *SEND_TASK(N)%NPTS
+!
+        ALLOCATE(UPDATE_REAL_DATA(1:NUM_WORDS))                            !<-- Allocate the Recv buffer
+!
+        ITAG=NUM_WORDS+NTIMESTEP                                           !<-- Tag that changes for both data size and time
+!
+!-----------------------------------------------------------------------
+!***  Receive the interior update data sent by parent task N.
+!***  We insist that the same parent tasks update both H and V points.
+!-----------------------------------------------------------------------
+!
+        CALL MPI_RECV(UPDATE_REAL_DATA                                  &  !<-- Real update data from Nth parent task
+                     ,NUM_WORDS                                         &  !<-- # of real words received
+                     ,MPI_REAL                                          &  !<-- The data is Real
+                     ,SEND_TASK(N)%ID                                   &  !<-- Receive from parent task with this rank
+                     ,ITAG                                              &  !<-- Unique MPI tag
+                     ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator from this nest to its parent
+                     ,JSTAT                                             &  !<-- MPI status object
+                     ,IERR )
+!
+!-----------------------------------------------------------------------
+!***  Load the update data and associated index limits into the
+!***  Parent-Child coupler export state so it can be sent back into
+!***  the DOMAIN component for incorporation.
+!-----------------------------------------------------------------------
+!
+        WRITE(N_PTASK,'(I1)')N
+        NAME_REAL='PTASK_REAL_DATA_'//N_PTASK
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Load # of Words in Real Update Data from Parent"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXPORT_STATE                       &  !<-- The Parent-Child coupler export state
+                              ,name =NAME_REAL//' Words'                &  !<-- Name of the variable
+                              ,value=NUM_WORDS                          &  !<-- Put # of real words here
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RECV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Load Real Update Data from Parent into P-C Cpl Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+        CALL ESMF_AttributeSet(state    =EXPORT_STATE                   &  !<-- The Parent-Child coupler export state
+                              ,name     =NAME_REAL                      &  !<-- Name of the variable
+                              ,count    =NUM_WORDS                      &  !<-- # of words in real update data from parent task N
+                              ,valueList=UPDATE_REAL_DATA               &  !<-- The real update data from parent task N
+                              ,rc       =RC)
+#else
+        CALL ESMF_AttributeSet(state    =EXPORT_STATE                   &  !<-- The Parent-Child coupler export state
+                              ,name     =NAME_REAL                      &  !<-- Name of the variable
+                              ,itemCount=NUM_WORDS                      &  !<-- # of words in real update data from parent task N
+                              ,valueList=UPDATE_REAL_DATA               &  !<-- The real update data from parent task N
+                              ,rc       =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RECV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        DEALLOCATE(UPDATE_REAL_DATA)
+!
+!-----------------------------------------------------------------------
+!***  There may or may not be integer variable updates at this time.
+!-----------------------------------------------------------------------
+!
+        NUM_WORDS=(NUM_FIELDS_MOVE_2D_H_I-NUM_FIELDS_MOVE_2D_X_I)       &   !<-- Total # of integer words coming from
+                  *SEND_TASK(N)%NPTS                                        !    the Nth parent task
+!
+!-----------------------------------------------------------------------
+!***  Load into the Parent-Child coupler export state the number
+!***  of integer words to be updated so the value can be sent to
+!***  the DOMAIN component for incorporation of the integer data.
+!-----------------------------------------------------------------------
+!
+        WRITE(N_PTASK,'(I1)')N
+        NAME_INTEGER='PTASK_INTEGER_DATA_'//N_PTASK
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Load # of Words in Integer Update Data from Parent"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXPORT_STATE                       &  !<-- The Parent-Child coupler export state
+                              ,name =NAME_INTEGER//' Words'             &  !<-- Name of the variable
+                              ,value=NUM_WORDS                          &  !<-- Put # of integer words here
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RECV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+        recv_int: IF(NUM_WORDS>0)THEN
+!
+!-----------------------------------------------------------------------
+!
+          ALLOCATE(UPDATE_INTEGER_DATA(1:NUM_WORDS))                       !<-- Allocate the Recv buffer
+!
+          ITAG=NUM_WORDS+NTIMESTEP                                         !<-- Tag that changes for both data size and time
+!
+!-----------------------------------------------------------------------
+!***  Receive the interior update data sent by parent task N.
+!***  We insist that the same parent tasks update both H and V points.
+!-----------------------------------------------------------------------
+!
+          CALL MPI_RECV(UPDATE_INTEGER_DATA                             &  !<-- Integer update data from Nth parent task
+                       ,NUM_WORDS                                       &  !<-- # of integer words received
+                       ,MPI_INTEGER                                     &  !<-- The data is Integer
+                       ,SEND_TASK(N)%ID                                 &  !<-- Receive from parent task with this rank
+                       ,ITAG                                            &  !<-- Unique MPI tag
+                       ,COMM_TO_MY_PARENT                               &  !<-- MPI communicator from this nest to its parent
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR )
+!
+!-----------------------------------------------------------------------
+!***  Load the update data and associated index limits into the
+!***  Parent-Child coupler export state so it can be sent back into
+!***  the DOMAIN component for incorporation.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Load Integer Update Data from Parent into P-C Cpl Export State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+          CALL ESMF_AttributeSet(state    =EXPORT_STATE                 &  !<-- The Parent-Child coupler export state
+                                ,name     =NAME_INTEGER                 &  !<-- Name of the variable
+                                ,count    =NUM_WORDS                    &  !<-- # of words in integer update data from parent task N
+                                ,valueList=UPDATE_INTEGER_DATA          &  !<-- The integer update data from parent task N
+                                ,rc       =RC)
+#else
+          CALL ESMF_AttributeSet(state    =EXPORT_STATE                 &  !<-- The Parent-Child coupler export state
+                                ,name     =NAME_INTEGER                 &  !<-- Name of the variable
+                                ,itemCount=NUM_WORDS                    &  !<-- # of words in integer update data from parent task N
+                                ,valueList=UPDATE_INTEGER_DATA          &  !<-- The integer update data from parent task N
+                                ,rc       =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RECV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          DEALLOCATE(UPDATE_INTEGER_DATA)
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF recv_int
+!
+!-----------------------------------------------------------------------
+!
+        INDICES_H(1)=SEND_TASK(N)%ISTART(1)
+        INDICES_H(2)=SEND_TASK(N)%ISTART(2)
+        INDICES_H(3)=SEND_TASK(N)%IEND(1)
+        INDICES_H(4)=SEND_TASK(N)%IEND(2)
+        INDICES_H(5)=SEND_TASK(N)%JSTART(1)
+        INDICES_H(6)=SEND_TASK(N)%JSTART(2)
+        INDICES_H(7)=SEND_TASK(N)%JEND(1)
+        INDICES_H(8)=SEND_TASK(N)%JEND(2)
+!
+        INDICES_V(1)=SEND_TASK(N)%ISTART(1)
+        INDICES_V(2)=SEND_TASK(N)%ISTART(2)
+        INDICES_V(3)=SEND_TASK(N)%IEND(1)
+        INDICES_V(4)=SEND_TASK(N)%IEND(2)
+        INDICES_V(5)=SEND_TASK(N)%JSTART(1)
+        INDICES_V(6)=SEND_TASK(N)%JSTART(2)
+        INDICES_V(7)=SEND_TASK(N)%JEND(1)
+        INDICES_V(8)=SEND_TASK(N)%JEND(2)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Load Index Limits for Update Data from Parent"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        WRITE(N_PTASK,'(I1)')N
+        NAME='PTASK_DATA_'//N_PTASK
+!
+#ifdef ESMF_3
+        CALL ESMF_AttributeSet(state    =EXPORT_STATE                   &  !<-- The Parent-Child coupler export state
+                              ,name     =NAME//' Indices H'             &  !<-- Name of the variable
+                              ,count    =8                              &  !<-- # of words in index limits of update data
+                              ,valueList=INDICES_H                      &  !<-- The update data index specifications for H
+                              ,rc       =RC)
+!
+        CALL ESMF_AttributeSet(state    =EXPORT_STATE                   &  !<-- The Parent-Child coupler export state
+                              ,name     =NAME//' Indices V'             &  !<-- Name of the variable
+                              ,count    =8                              &  !<-- # of words in index limits of update data
+                              ,valueList=INDICES_V                      &  !<-- The update data index specifications for V
+                              ,rc       =RC)
+#else
+        CALL ESMF_AttributeSet(state    =EXPORT_STATE                   &  !<-- The Parent-Child coupler export state
+                              ,name     =NAME//' Indices H'             &  !<-- Name of the variable
+                              ,itemCount=N8                             &  !<-- # of words in index limits of update data
+                              ,valueList=INDICES_H                      &  !<-- The update data index specifications for H
+                              ,rc       =RC)
+!
+        CALL ESMF_AttributeSet(state    =EXPORT_STATE                   &  !<-- The Parent-Child coupler export state
+                              ,name     =NAME//' Indices V'             &  !<-- Name of the variable
+                              ,itemCount=N8                             &  !<-- # of words in index limits of update data
+                              ,valueList=INDICES_V                      &  !<-- The update data index specifications for V
+                              ,rc       =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RECV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO parent_tasks
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE MOVING_NEST_RECV_DATA
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE PARENT_UPDATES_HALOS(FLAG_H_OR_V                       &
+                                     ,MOVE_BUNDLE                       &
+                                     ,NFLDS_3DR                         &
+                                     ,NFLDS_2DR                         &
+                                     ,NFLDS_2DI                         &
+                                       )
+!
+!-----------------------------------------------------------------------
+!***  Before a parent can update locations on its moving nests' domains
+!***  it must perform halo exchanges for all those variables specified
+!***  for use in updates but which do not have their halos exchanged
+!***  during the normal integration.  Use of the parent tasks halo
+!***  regions cannot be avoided during the nest point updates.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      CHARACTER(len=1),INTENT(IN) :: FLAG_H_OR_V
+!
+      TYPE(ESMF_FieldBundle),INTENT(INOUT) :: MOVE_BUNDLE                  !<-- ESMF Bundle of 2-D and 3-D arrays specified for updating
+!
+      INTEGER(kind=KINT),INTENT(IN) :: NFLDS_2DR                        &  !<-- # of 2-D real arrays specified for updating
+                                      ,NFLDS_3DR                           !<-- # of 3-D real arrays specified for updating
+!
+      INTEGER(kind=KINT),INTENT(IN),OPTIONAL :: NFLDS_2DI                  !<-- # of 2-D integer arrays specified for updating
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: N_FIELD,N_REMOVE,NUM_DIMS                   &
+                           ,NUM_FIELDS_MOVE,NUM_LEVELS                  &
+                           ,RC,RC_FINAL
+!
+      INTEGER(kind=KINT),DIMENSION(1:3) :: LIMITS_HI                    &
+                                          ,LIMITS_LO
+!
+      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ARRAY_2D
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: ARRAY_3D
+!
+      CHARACTER(len=30) :: FIELD_NAME
+!
+      TYPE(ESMF_Field) :: HOLD_FIELD
+!
+      TYPE(ESMF_TypeKind) :: DATATYPE
+!
+#ifdef ESMF_3
+      TYPE(ESMF_Logical) :: EXCH_NEEDED
+#else
+      LOGICAL(kind=KLOG) :: EXCH_NEEDED
+#endif
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  What is the total number of Fields in the update data BUNDLE?
+!-----------------------------------------------------------------------
+!
+      IF(FLAG_H_OR_V=='H')THEN
+        NUM_FIELDS_MOVE=NFLDS_2DI+NFLDS_2DR+NFLDS_3DR
+!
+      ELSEIF(FLAG_H_OR_V=='V')THEN
+        NUM_FIELDS_MOVE=NFLDS_2DR+NFLDS_3DR
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Check each Field to see if its array has its halo exchanged
+!***  during the integration.
+!-----------------------------------------------------------------------
+!
+      field_loop: DO N_FIELD=1,NUM_FIELDS_MOVE
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Each Field From Move_Bundle"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_520rbs
+        CALL ESMF_FieldBundleGet(fieldBundle=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
+                                ,fieldIndex =N_FIELD                    &  !<-- Index of the Field in the Bundle
+                                ,field      =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
+                                ,rc         =RC)
+#else
+        CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE                 &  !<-- Bundle holding the arrays for move updates
+                                ,fieldIndex=N_FIELD                     &  !<-- Index of the Field in the Bundle
+                                ,field     =HOLD_FIELD                  &  !<-- Field N_FIELD in the Bundle
+                                ,rc        =RC )
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Type, Dimensions, Name of the Field"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_FieldGet(field   =HOLD_FIELD                          &  !<-- Field N_FIELD in the Bundle
+                          ,dimCount=NUM_DIMS                            &  !<-- Is this Field 2-D or 3-D?
+                          ,typeKind=DATATYPE                            &  !<-- Is this Field integer or real?
+                          ,name    =FIELD_NAME                          &  !<-- This Field's name
+                          ,rc      =RC )
+!
+        N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
+        FIELD_NAME=FIELD_NAME(1:N_REMOVE-1)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  None of the variables needed by the parent for updating its
+!***  moving nests are type integer so we can skip those outright.
+!-----------------------------------------------------------------------
+!
+        IF(DATATYPE==ESMF_TYPEKIND_I4)THEN
+          CYCLE field_loop
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract the Halo Exchange Flag"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(field=HOLD_FIELD                         &  !<-- Take Attribute from this Field
+                              ,name ='EXCH_NEEDED'                      &  !<-- The Attribute's name
+                              ,value=EXCH_NEEDED                        &  !<-- The Attribute's value
+                              ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Move to the next Field if a halo exchange is not needed.
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+        IF(EXCH_NEEDED==ESMF_FALSE)THEN
+#else
+        IF(.NOT.EXCH_NEEDED)THEN
+#endif
+          CYCLE field_loop
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  2-D Fields 
+!-----------------------------------------------------------------------
+!
+        dims_2_or_3: IF(NUM_DIMS==2)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract the 2-D Array from Field"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+          CALL ESMF_FieldGet(field  =HOLD_FIELD                         &  !<-- Field N_FIELD in the Bundle
+                            ,localDe=0                                  &
+                            ,farray =ARRAY_2D                           &  !<-- Dummy 2-D real array with Field's data
+                            ,rc     =RC )
+#else
+          CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field N_FIELD in the Bundle
+                            ,localDe  =0                                &
+                            ,farrayPtr=ARRAY_2D                         &  !<-- Dummy 2-D real array with Field's data
+                            ,rc       =RC )
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL HALO_EXCH(ARRAY_2D,1,1,1)
+!
+!-----------------------------------------------------------------------
+!***  3-D Fields 
+!-----------------------------------------------------------------------
+!
+        ELSEIF(NUM_DIMS==3)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract the 3-D Array from Field"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+          CALL ESMF_FieldGet(field      =HOLD_FIELD                     &  !<-- Field N_FIELD in the Bundle
+                            ,localDe    =0                              &
+                            ,farray     =ARRAY_3D                       &  !<-- Dummy 3-D real array with Field's data
+                            ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
+                            ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
+                            ,rc         =RC )
+#else
+          CALL ESMF_FieldGet(field      =HOLD_FIELD                     &  !<-- Field N_FIELD in the Bundle
+                            ,localDe    =0                              &
+                            ,farrayPtr  =ARRAY_3D                       &  !<-- Dummy 3-D real array with Field's data
+                            ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
+                            ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
+                            ,rc     =RC )
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          NUM_LEVELS=LIMITS_HI(3)-LIMITS_LO(3)+1
+!
+          CALL HALO_EXCH(ARRAY_3D,NUM_LEVELS,1,1)
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF dims_2_or_3
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO field_loop
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE PARENT_UPDATES_HALOS
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE PARENT_BOOKKEEPING_MOVING(I_PARENT_SW_NEW              &
+                                          ,J_PARENT_SW_NEW              &
+                                          ,I_PARENT_SW_OLD              &
+                                          ,J_PARENT_SW_OLD              &
+                                          ,ITS,ITE,JTS,JTE              &
+                                          ,NUM_CHILD_TASKS              &
+                                          ,CHILD_TASK_LIMITS            &
+                                          ,PARENT_CHILD_SPACE_RATIO     &
+                                          ,NHALO                        &
+                                          ,NROWS_P_UPD_W                &
+                                          ,NROWS_P_UPD_E                &
+                                          ,NROWS_P_UPD_S                &
+                                          ,NROWS_P_UPD_N                &
+                                          ,N_UPDATE_CHILD_TASKS         &
+                                          ,TASK_UPDATE_SPECS            &
+                                          ,HANDLE_UPDATE                &
+                                          ,CHILD_UPDATE_DATA            &
+                                            )
+!
+!-----------------------------------------------------------------------
+!***  This parent has learned that one of its children wants to move
+!***  to a new location therefore the parent must determine which 
+!***  points on which child tasks need to be updated by which of its
+!***  own tasks.  Update points on nests are those that lie outside
+!***  of the nest's pre-move footprint following the move.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: I_PARENT_SW_NEW                  &  !<-- SW corner of nest on this parent I after move
+                                      ,I_PARENT_SW_OLD                  &  !<-- SW corner of nest on this parent I before move
+                                      ,J_PARENT_SW_NEW                  &  !<-- SW corner of nest on this parent J after move
+                                      ,J_PARENT_SW_OLD                  &  !<-- SW corner of nest on this parent J before move
+!
+                                      ,ITS,ITE,JTS,JTE                  &  !<-- Subdomain integration limits of parent task
+!
+                                      ,NHALO                            &  !<-- # of halo points
+                                      ,NROWS_P_UPD_W                    &  !<-- Moving nest footprint W bndry rows updated by parent
+                                      ,NROWS_P_UPD_E                    &  !<-- Moving nest footprint E bndry rows updated by parent
+                                      ,NROWS_P_UPD_S                    &  !<-- Moving nest footprint S bndry rows updated by parent
+                                      ,NROWS_P_UPD_N                    &  !<-- Moving nest footprint N bndry rows updated by parent
+                                      ,NUM_CHILD_TASKS                  &  !<-- # of child forecast tasks
+                                      ,PARENT_CHILD_SPACE_RATIO            !<-- # of child grid increments in one of parent's
+!
+      INTEGER(kind=KINT),DIMENSION(1:4,NUM_CHILD_TASKS),INTENT(IN) ::   &
+                                                     CHILD_TASK_LIMITS     !<-- ITS,ITE,JTS,JTE for each child forecast task
+!
+      INTEGER(kind=KINT),INTENT(INOUT) :: N_UPDATE_CHILD_TASKS             !<-- # of moving nest tasks to be updated by this parent task
+!
+      INTEGER(kind=KINT),DIMENSION(1:NUM_CHILD_TASKS),INTENT(IN) ::     &
+                                                      HANDLE_UPDATE        !<-- MPI Handles for ISends to the child tasks
+!
+      TYPE(CHILD_UPDATE_LINK),TARGET,INTENT(INOUT) :: TASK_UPDATE_SPECS    !<-- Linked list with nest task update region specifications
+!
+      TYPE(MIXED_DATA_TASKS),INTENT(INOUT) :: CHILD_UPDATE_DATA            !<-- Composite of all update data from parent for nest tasks
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: I_SHIFT,I1,I2                               &
+                           ,IDE_CHILD,IDS_CHILD                         &
+                           ,IMS_CHILD,IME_CHILD                         &
+                           ,IDE_FOOTPRINT,IDS_FOOTPRINT                 &
+                           ,ITE_PARENT_ON_CHILD,ITS_PARENT_ON_CHILD     &
+                           ,J_SHIFT,J1,J2                               &
+                           ,JDE_CHILD,JDS_CHILD                         &
+                           ,JMS_CHILD,JME_CHILD                         &
+                           ,JDE_FOOTPRINT,JDS_FOOTPRINT                 &
+                           ,JTE_PARENT_ON_CHILD,JTS_PARENT_ON_CHILD     &
+                           ,KOUNT_TASKS,N,NN
+!
+      INTEGER(kind=KINT) :: IERR,ISTAT
+!
+      INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
+!
+      REAL(kind=KFPT) :: I1R,I2R                                        &
+                        ,ITE_PARENT_ON_CHILD_R,ITS_PARENT_ON_CHILD_R    &
+                        ,J1R,J2R                                        &
+                        ,JTE_PARENT_ON_CHILD_R,JTS_PARENT_ON_CHILD_R
+!
+      TYPE(CHILD_UPDATE_LINK),POINTER :: PTR,PTR_X
+!
+      integer(kind=kint) :: kountx
+      integer(kind=kint) :: kount_h_links,kount_v_links
+      type(child_update_link),pointer :: xxx
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Prior to doing anything related to updating nest tasks 
+!***  following the latest move, be sure that all update data
+!***  that this parent task might have sent to any nest tasks
+!***  following the preceding move has indeed been received
+!***  by all of those tasks whether or not this parent task
+!***  will send to any of the same nest tasks this time.
+!-----------------------------------------------------------------------
+!
+      PTR=>TASK_UPDATE_SPECS                                               !<-- Start at the top of the list of updated nest tasks
+!
+     kountx=0
+      DO WHILE(ASSOCIATED(PTR%TASK_ID))                                    !<-- A link exists if TASK_ID is associated.
+        CALL MPI_WAIT(HANDLE_UPDATE(PTR%TASK_ID+1)                      &  !<-- Handle for ISend from parent task to child task
+                     ,JSTAT                                             &  !<-- MPI status
+                     ,IERR )
+     kountx=kountx+1
+        IF(ASSOCIATED(PTR%NEXT_LINK))THEN
+          PTR=>PTR%NEXT_LINK
+        ELSE
+          EXIT
+        ENDIF
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!***  All nest tasks have received data from the previous move
+!***  so proceed with removing those data.
+!-----------------------------------------------------------------------
+!
+      PTR_X=>TASK_UPDATE_SPECS                                            !<-- Go back to the top of the list of updated nest tasks
+      KOUNT_TASKS=0
+      TAIL=>NULL()
+!
+      DO WHILE(ASSOCIATED(PTR_X%TASK_ID))                                 !<-- An old link exists if TASK_ID is associated.
+        KOUNT_TASKS=KOUNT_TASKS+1
+        DEALLOCATE(PTR_X%TASK_ID,stat=ISTAT)
+        IF(ISTAT/=0)THEN
+          WRITE(0,*)' Failed to deallocate TASK_UPDATE_SPECS%TASK_ID for nest task #',KOUNT_TASKS,' stat=',istat
+        ENDIF
+        DEALLOCATE(PTR_X%NUM_PTS_UPDATE_HZ,stat=ISTAT)
+        DEALLOCATE(PTR_X%IL,stat=ISTAT)
+        DEALLOCATE(PTR_X%JL,stat=ISTAT)
+!
+        IF(ASSOCIATED(PTR_X%NEXT_LINK))THEN                               !<-- If another links exists, point to it.
+          TAIL=>PTR_X%NEXT_LINK
+        ENDIF
+!
+        IF(KOUNT_TASKS>1)THEN                                      !<-- The top of TASK_UPDATE_SPECS is allocatable array element N 
+          DEALLOCATE(PTR_X,stat=ISTAT)                             !    (for the Nth moving child) and is not a pointer.
+          IF(ISTAT/=0)THEN
+            WRITE(0,*)' Failed to deallocate TASK_UPDATE_SPECS for nest task #',KOUNT_TASKS,' stat=',istat
+          ENDIF
+        ENDIF
+!
+!---------------------------------------------------------------
+!***  Precisely the same nest tasks are updated for both
+!***  H and V points therefore the deallocation of working
+!***  pointers for nest tasks in the following block is 
+!***  removing all data for both types of points and not
+!***  leaving some behind of one type or the other.
+!---------------------------------------------------------------
+!
+        IF(ASSOCIATED(CHILD_UPDATE_DATA%TASKS(KOUNT_TASKS)%DATA_INTEGER))THEN
+          DEALLOCATE(CHILD_UPDATE_DATA%TASKS(KOUNT_TASKS)%DATA_INTEGER,stat=ISTAT)
+          IF(ISTAT/=0)then
+            WRITE(0,*)' Failed to deallocate CHILD_UPDATE_DATA%TASKS(KOUNT_TASKS)%DATA_INTEGER' &
+                     ,' for KOUNT_TASKS=',kount_tasks,' stat=',istat
+          ENDIF
+        ENDIF
+!
+        IF(ASSOCIATED(CHILD_UPDATE_DATA%TASKS(KOUNT_TASKS)%DATA_REAL))THEN
+          DEALLOCATE(CHILD_UPDATE_DATA%TASKS(KOUNT_TASKS)%DATA_REAL,stat=ISTAT)
+          IF(ISTAT/=0)then
+            WRITE(0,*)' Failed to deallocate CHILD_UPDATE_DATA%TASKS(KOUNT_TASKS)%DATA_REAL' &
+                     ,' for KOUNT_TASKS=',kount_tasks,' stat=',istat
+          ENDIF
+        ENDIF
+!
+        IF(ASSOCIATED(TAIL))THEN
+          PTR_X=>TAIL                                                      !<-- There is still another old link
+        ELSE
+          EXIT                                                             !<-- The last link in this list has been deallocated
+        ENDIF
+!
+      ENDDO
+!
+      IF(ASSOCIATED(CHILD_UPDATE_DATA%TASKS))THEN
+        DEALLOCATE(CHILD_UPDATE_DATA%TASKS)
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  How far did the nest move on the parent grid?
+!-----------------------------------------------------------------------
+!
+      I_SHIFT=I_PARENT_SW_NEW-I_PARENT_SW_OLD
+      J_SHIFT=J_PARENT_SW_NEW-J_PARENT_SW_OLD
+!
+!-----------------------------------------------------------------------
+!***  What are this parent task's integration limits
+!***  in terms of the moving nest's grid indices?
+!***  To figure that out begin with the values of the
+!***  index limits of the entire moving nest domain.
+!-----------------------------------------------------------------------
+!
+      IDS_CHILD=CHILD_TASK_LIMITS(1,1)                                     !<-- Index limits of the moving nest on
+      IDE_CHILD=CHILD_TASK_LIMITS(2,NUM_CHILD_TASKS)                       !    its own grid.
+      JDS_CHILD=CHILD_TASK_LIMITS(3,1)                                     !
+      JDE_CHILD=CHILD_TASK_LIMITS(4,NUM_CHILD_TASKS)                       !<--
+!
+!-----------------------------------------------------------------------
+!***  In the following diagram 'H' represents mass points on the
+!***  parent grid while 'h' represents mass points on the nest grid.
+!***  Gridpoint values on the top are with respect to the nest.
+!***  Gridpoint values on the bottom are with respect to the parent.
+!***  The Parent-Child space ratio is 3.  The given parent task must
+!***  cover the gap between its ITE and the next parent task's ITS.
+!***  'Hh' indicates that parent and nest points coincide.
+!-----------------------------------------------------------------------
+!
+!
+!  ITS_PARENT_ON_CHILD=-5     I=1                     ITE_PARENT_ON_CHILD=9
+!    |                         |                                 |    
+!    |                         |                                 |          
+!   Hh   h   h   Hh   h   h   Hh   h   h   Hh   h   h   Hh   h   h   Hh
+!   |                         |                         |
+!   |                         |                         |<--gap-->
+!  ITS_PARENT=1           I_PARENT_SW=3           ITE_PARENT=5
+!
+!
+!-----------------------------------------------------------------------
+!
+      ITS_PARENT_ON_CHILD=IDS_CHILD-(I_PARENT_SW_NEW-ITS)               &  !<-- ITS of parent task in child's coordinate space
+                                    *PARENT_CHILD_SPACE_RATIO              !    for H points
+!
+      ITE_PARENT_ON_CHILD=IDS_CHILD-(I_PARENT_SW_NEW-ITE)               &  !<-- ITE of parent task in child's coordinate space
+                                    *PARENT_CHILD_SPACE_RATIO           &  !    for H points
+                                    +PARENT_CHILD_SPACE_RATIO-1            !<-- Filling in gap beyond last parent point on nest grid
+!
+      JTS_PARENT_ON_CHILD=JDS_CHILD-(J_PARENT_SW_NEW-JTS)               &  !<-- JTS of parent task in child's coordinate space
+                                    *PARENT_CHILD_SPACE_RATIO              !    for H points
+!
+      JTE_PARENT_ON_CHILD=JDS_CHILD-(J_PARENT_SW_NEW-JTE)               &  !<-- JTE of parent task in child's coordinate space
+                                    *PARENT_CHILD_SPACE_RATIO           &  !    for H points
+                                    +PARENT_CHILD_SPACE_RATIO-1            !<-- Filling in gap beyond last parent point on nest grid
+!
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  The situation for V points is necessarily more complex.
+!***  In the following diagram 'H' represents mass points on the
+!***  parent grid and 'h' represents mass points on the nest grid
+!***  while 'V' and 'v' represent the velocity points on the respective
+!***  grids.  Gridpoint values on the top are with respect to the
+!***  nest's v points.  The Parent-Child space ratio is 3.
+!***  'Hh' and 'Vv' indicate that parent and nest points coincide.
+!***  Note the correspondence of the V diagram below with the H diagram
+!***  above.  The nest's v points for which a parent task is responsible
+!***  have exactly the same indices as the nest h points for which that
+!***  parent task is responsible.  Although doing this means that 
+!***  ITS_PARENT_ON_CHILD is not at the same location as ITS_PARENT,
+!***  it is required for exactly the same nest tasks to be updated by
+!***  a parent task for both the h and v points.  Likewise for
+!***  ITE_PARENT_ON_CHILD, etc.
+!***  The reason the  relationships on velocity points are much more
+!***  complicated than on mass points is that the SW corner point
+!***  which serves as the anchor of the nest is always an H/h point.
+!-----------------------------------------------------------------------
+!
+!
+!  ITS_PARENT_ON_CHILD_R=-5.    I=1                     ITE_PARENT_ON_CHILD_R=9.
+!      |                         |                                 |        
+!      |                         |                                 |        
+!   Hh | h   h   Hh   h   h   Hh | h   h   Hh   h   h   Hh   h   h | Hh     
+!   |  |                         v   v   v               |<-gap->| |        
+!   |  |                                                           |        
+!   |  v   Vv  v    v   Vv  v    v   Vv  v   v   Vv   v    v   Vv  v   v   Vv
+!   |      |                         |                         |
+!   |      |                     v   |   v                     |            
+!   Hh   h | h   Hh   h   h   Hh   h | h   Hh   h   h   Hh   h | h   Hh
+!   |      |                  |      |                  |      |
+!   |      |                  |      |                  |      |
+!   |  ITS_PARENT=1           | I_PARENT_SW=3           | ITE_PARENT=5
+!   |     on V                |     on V                |    on V
+!   |                         |                         |
+!   |                         |                         |
+!  ITS_PARENT=1           I_PARENT_SW=3           ITE_PARENT=5
+!     on H                    on H                   on H
+!
+!
+!-----------------------------------------------------------------------
+!***  However the logic has been constructed such that the index limits
+!***  on each moving nest task subdomain for which each parent task
+!***  must provide update data are identical for H and V points so we
+!***  need only use the simpler perspective of H points to find those
+!***  limits.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Boundary of the nest's pre-move footprint in terms of the
+!***  nest's new position.
+!-----------------------------------------------------------------------
+!
+      IDS_FOOTPRINT=IDS_CHILD-I_SHIFT*PARENT_CHILD_SPACE_RATIO
+      IDE_FOOTPRINT=IDE_CHILD-I_SHIFT*PARENT_CHILD_SPACE_RATIO
+      JDS_FOOTPRINT=JDS_CHILD-J_SHIFT*PARENT_CHILD_SPACE_RATIO
+      JDE_FOOTPRINT=JDE_CHILD-J_SHIFT*PARENT_CHILD_SPACE_RATIO
+!
+!-----------------------------------------------------------------------
+!***  Loop through the nest's task subdomains.
+!-----------------------------------------------------------------------
+!
+      child_tasks: DO N=1,NUM_CHILD_TASKS
+!
+!-----------------------------------------------------------------------
+!***  What are child task N's memory limits?  We use those limits
+!***  since the parent task updates both integration and halo points
+!***  on the child's subdomains in order to avoid all of the 
+!***  communication involved in doing halo exchanges following the
+!***  updates.  The parent uses only its integration points (no halo
+!***  points) to do the updating.
+!-----------------------------------------------------------------------
+!
+        IMS_CHILD=MAX(CHILD_TASK_LIMITS(1,N)-NHALO,IDS_CHILD)
+        IME_CHILD=MIN(CHILD_TASK_LIMITS(2,N)+NHALO,IDE_CHILD)
+        JMS_CHILD=MAX(CHILD_TASK_LIMITS(3,N)-NHALO,JDS_CHILD)
+        JME_CHILD=MIN(CHILD_TASK_LIMITS(4,N)+NHALO,JDE_CHILD)
+!
+!-----------------------------------------------------------------------
+!***  Do any of child task N's H points lie within this parent task's
+!***  subdomain for the new nest position?
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!
+        limits: IF((IMS_CHILD>=ITS_PARENT_ON_CHILD                      &
+                                .AND.                                   &
+                    IMS_CHILD<=ITE_PARENT_ON_CHILD                      &
+                                .OR.                                    &
+                    IME_CHILD>=ITS_PARENT_ON_CHILD                      &
+                                .AND.                                   &
+                    IME_CHILD<=ITE_PARENT_ON_CHILD)                     &
+                                .AND.                                   &
+                   (JMS_CHILD>=JTS_PARENT_ON_CHILD                      &
+                                .AND.                                   &
+                    JMS_CHILD<=JTE_PARENT_ON_CHILD                      &
+                                .OR.                                    &
+                    JME_CHILD>=JTS_PARENT_ON_CHILD                      &
+                                .AND.                                   &
+                    JME_CHILD<=JTE_PARENT_ON_CHILD))THEN                   !<-- If so, some of child task N's points are within
+!                                                                          !    this parent task's region of responsibility for
+                                                                           !    updating post-move nest points.        
+!-----------------------------------------------------------------------
+!***  The intersection of child task N's subdomain with this parent
+!***  task's region.
+!-----------------------------------------------------------------------
+!
+          I1=MAX(IMS_CHILD,ITS_PARENT_ON_CHILD)                            !<-- I limits of child task N's subdomain that lies
+          I2=MIN(IME_CHILD,ITE_PARENT_ON_CHILD)                            !    within this parent task's subdomain.
+!
+          J1=MAX(JMS_CHILD,JTS_PARENT_ON_CHILD)                            !<-- J limits of child task N's subdomain that lies
+          J2=MIN(JME_CHILD,JTE_PARENT_ON_CHILD)                            !    within this parent task's subdomain.
+!
+!-----------------------------------------------------------------------
+!***  The parent task will update only those nest H points that lie
+!***  outside of the footprint of the nest domain's pre-move position.
+!***  If all the nest points in child task N's subdomain lie within
+!***  the footprint then the parent task has nothing to do so move on
+!***  to the next child task.
+!
+!***  NOTE:  The north and east limits of the nest domain's pre-move
+!***         footprint cannot be used as a source for post-move updates
+!***         in the intra-task and inter-task shifts of data.  That is
+!***         because the V-pt variables there are not part of the nest
+!***         integration therefore their values are not valid.  So we 
+!***         also must not use the H-pt variables at those same limits
+!***         or else occasions would arise when nest tasks receiving
+!***         H-pt updates would not be exactly the same as the nest
+!***         tasks receiving V-pt updates.  That situation is avoided
+!***         or else the bookkeeping would be even more complicated.
+!***         The parent will update H-pt and V-pt variables along the
+!***         nest domain's pre-move footprint's north and east limits.
+!***         But the intra- and inter-task shifts also cannot do the
+!***         updating of the nest domain's southern and western boundary
+!***         because many of the nest variables do not have valid
+!***         integration values there so the parent must also update
+!***         those nest boundaries following a shift.  Moreover the
+!***         dynamical tendencies for T, U, and V are not computed in
+!***         the next to the outermost row of the domain which means the
+!***         parent will have to update all nest points that move to
+!***         IDE and IDE-1 and JDE and JDE-1 on the pre-move footprint.
+!***         Use variables for the depth to which the parent will 
+!***         provide update data to nest points within the footprint
+!***         in case that depth needs to change in the future.
+!-----------------------------------------------------------------------
+!
+          IF(I1>=IDS_FOOTPRINT+NROWS_P_UPD_W                            &
+                         .AND.                                          &
+             I2<=IDE_FOOTPRINT-NROWS_P_UPD_E                            &
+                         .AND.                                          &
+             J1>=JDS_FOOTPRINT+NROWS_P_UPD_S                            &
+                         .AND.                                          &
+             J2<=JDE_FOOTPRINT-NROWS_P_UPD_N )THEN                         !<-- If so, these nest points lie entirely within the footprint.
+!
+              CYCLE child_tasks                                            !<-- So this child task receives no updating from this
+!                                                                          !    parent task.
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Now we know this parent task is updating at least some H points
+!***  within child task N's subdomain so allocate a link in the
+!***  linked list that holds update information about task N.
+!***  We use a linked list because we do not know a priori how many
+!***  child tasks need updates from each parent task and that number
+!***  will change with each shift of the nest.
+!-----------------------------------------------------------------------
+!
+          N_UPDATE_CHILD_TASKS=N_UPDATE_CHILD_TASKS+1
+!
+          CALL PARENT_FINDS_UPDATE_LIMITS
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF limits
+!
+!-----------------------------------------------------------------------
+!***  The parent task now knows which H points on child task N's
+!***  subdomain that it must update following the nest's move.
+!***  Those same index limits will apply to V point updates even
+!***  though the physical locations differ.
+!-----------------------------------------------------------------------
+!
+      ENDDO child_tasks
+!
+!-----------------------------------------------------------------------
+!
+      CONTAINS
+!
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE PARENT_FINDS_UPDATE_LIMITS
+!
+!-----------------------------------------------------------------------
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: ISTAT,NLOC
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Add a link to this parent task's linked list of moving nest
+!***  specifications.  Each new link is associated with another
+!***  nest task that needs updating by this parent task on the
+!***  current moving nest.
+!-----------------------------------------------------------------------
+!
+      IF(N_UPDATE_CHILD_TASKS==1)THEN
+        TAIL=>TASK_UPDATE_SPECS                                            !<-- For the 1st link, point at the top of the list.
+        NULLIFY(TAIL%NEXT_LINK)
+      ELSE
+        ALLOCATE(TAIL%NEXT_LINK,stat=ISTAT)
+        TAIL=>TAIL%NEXT_LINK
+        NULLIFY(TAIL%NEXT_LINK)
+      ENDIF
+!
+      ALLOCATE(TAIL%TASK_ID)
+      ALLOCATE(TAIL%NUM_PTS_UPDATE_HZ)
+      ALLOCATE(TAIL%IL(1:4))
+      ALLOCATE(TAIL%JL(1:4))
+!
+      TAIL%TASK_ID=N-1                                                     !<-- Local ID of Nth task on the moving nest
+!
+      DO NLOC=1,4
+        TAIL%IL(NLOC)=-999
+        TAIL%JL(NLOC)=-999
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!***  The simplest case occurs when all of child task N's subdomain
+!***  that intersects this parent task's subdomain lies outside of
+!***  the pre-move footprint.  The parent task then just updates 
+!***  all those nest points.
+!-----------------------------------------------------------------------
+!
+      parent_updates: IF(I2<=IDS_FOOTPRINT+NROWS_P_UPD_W-1              &
+                                     .OR.                               &
+                         I1>=IDE_FOOTPRINT-NROWS_P_UPD_E+1              &
+                                     .OR.                               &
+                         J2<=JDS_FOOTPRINT+NROWS_P_UPD_S-1              &
+                               .OR.                                     &
+                         J1>=JDE_FOOTPRINT-NROWS_P_UPD_N+1 )THEN
+!
+!-----------------------------------------------------------------------
+!
+        TAIL%IL(1)=I1                                                      !<-- I limits of nest task N's update region by parent task
+        TAIL%IL(2)=I2                                                      !    in terms of the nest's grid.
+!
+        TAIL%JL(1)=J1                                                      !<-- J limits of nest task N's update region by parent task
+        TAIL%JL(2)=J2                                                      !    in terms of the nest's grid.
+!
+!-----------------------------------------------------------------------
+!***  What remains are intersections between child task N's subdomain
+!***  and this parent task's subdomain that lie along the edge of the
+!***  pre-move footprint.  Usually these regions will be a rectangle.
+!***  However if both child task N and this parent task cover a corner 
+!***  of the footprint then the update region of the child task's
+!***  subdomain is not a simple rectangle; essentially it is two 
+!***  rectangles.
+!***  See diagrams in subroutine RECV_INTERIOR_DATA_FROM_PARENT
+!***  in this module.
+!-----------------------------------------------------------------------
+!
+      ELSE parent_updates
+!
+        IF(I1>=IDS_FOOTPRINT+NROWS_P_UPD_W                              &
+                  .AND.                                                 &  
+           I2<=IDE_FOOTPRINT-NROWS_P_UPD_E )THEN                           !<-- Rectangular update region on S/N edge of footprint.
+!
+          TAIL%IL(1)=I1
+          TAIL%IL(2)=I2
+!
+          IF(J1<=JDS_FOOTPRINT+NROWS_P_UPD_S-1)THEN                        !<-- Rectangular update region on south edge of footprint.
+            TAIL%JL(1)=J1
+            TAIL%JL(2)=JDS_FOOTPRINT+NROWS_P_UPD_S-1
+!
+          ELSEIF(J2>=JDE_FOOTPRINT-NROWS_P_UPD_N+1)THEN                    !<-- Rectangular update region on north edge of footprint.
+            TAIL%JL(1)=JDE_FOOTPRINT-NROWS_P_UPD_N+1
+            TAIL%JL(2)=J2
+          ENDIF
+!
+        ELSEIF(J1>=JDS_FOOTPRINT+NROWS_P_UPD_S                          &  
+                     .AND.                                              & 
+               J2<=JDE_FOOTPRINT-NROWS_P_UPD_N )THEN                       !<-- Rectangular update region on W/E edge of footprint.
+!
+          TAIL%JL(1)=J1
+          TAIL%JL(2)=J2
+!
+          IF(I1<=IDS_FOOTPRINT+NROWS_P_UPD_W-1)THEN                        !<-- Rectangular update region on west edge of footprint.
+            TAIL%IL(1)=I1
+            TAIL%IL(2)=IDS_FOOTPRINT+NROWS_P_UPD_W-1
+!
+          ELSEIF(I2>=IDE_FOOTPRINT-NROWS_P_UPD_N+1)THEN                    !<-- Rectangular update region on east edge of footprint.
+            TAIL%IL(1)=IDE_FOOTPRINT-NROWS_P_UPD_N+1
+            TAIL%IL(2)=I2
+          ENDIF
+!
+        ELSEIF(I1<=IDS_FOOTPRINT+NROWS_P_UPD_W-1                        &
+                            .AND.                                       &
+               I2>=IDS_FOOTPRINT+NROWS_P_UPD_W )THEN                       !<-- Child task update region on SW/NW corner of footprint.
+!
+          IF(J1<=JDS_FOOTPRINT+NROWS_P_UPD_S-1)THEN                        !<-- Child task update region on SW corner of footprint.
+            TAIL%IL(1)=I1
+            TAIL%IL(2)=I2
+            TAIL%IL(3)=I1
+            TAIL%IL(4)=IDS_FOOTPRINT+NROWS_P_UPD_W-1
+            TAIL%JL(1)=J1
+            TAIL%JL(2)=JDS_FOOTPRINT+NROWS_P_UPD_S-1
+            TAIL%JL(3)=TAIL%JL(2)+1
+            TAIL%JL(4)=J2
+!
+          ELSEIF(J2>=JDE_FOOTPRINT-NROWS_P_UPD_N-1)THEN                    !<-- Child task update region on NW corner of footprint.
+            TAIL%IL(1)=I1
+            TAIL%IL(2)=IDS_FOOTPRINT+NROWS_P_UPD_W-1
+            TAIL%IL(3)=I1
+            TAIL%IL(4)=I2
+            TAIL%JL(1)=J1
+            TAIL%JL(2)=JDE_FOOTPRINT-NROWS_P_UPD_N
+            TAIL%JL(3)=TAIL%JL(2)+1
+            TAIL%JL(4)=J2
+          ENDIF
+!
+        ELSEIF(I1<=IDE_FOOTPRINT-NROWS_P_UPD_E                          &
+                       .AND.                                            &
+               I2>=IDE_FOOTPRINT-NROWS_P_UPD_E+1 )THEN                     !<-- Child task update region on SE/NE corner of footprint
+!
+          IF(J1<=JDS_FOOTPRINT+NROWS_P_UPD_S-1)THEN                        !<-- Child task update region on SE corner of footprint.
+            TAIL%IL(1)=I1
+            TAIL%IL(2)=I2
+            TAIL%IL(3)=IDE_FOOTPRINT-NROWS_P_UPD_E+1
+            TAIL%IL(4)=I2
+            TAIL%JL(1)=J1
+            TAIL%JL(2)=JDS_FOOTPRINT+NROWS_P_UPD_S-1
+            TAIL%JL(3)=TAIL%JL(2)+1
+            TAIL%JL(4)=J2
+!
+          ELSEIF(J2>=JDE_FOOTPRINT-NROWS_P_UPD_N+1)THEN                    !<-- Child task update region on NE corner of footprint.
+            TAIL%IL(1)=IDE_FOOTPRINT-NROWS_P_UPD_E+1
+            TAIL%IL(2)=I2
+            TAIL%IL(3)=I1
+            TAIL%IL(4)=I2
+            TAIL%JL(1)=J1
+            TAIL%JL(2)=JDE_FOOTPRINT-NROWS_P_UPD_N
+            TAIL%JL(3)=TAIL%JL(2)+1
+            TAIL%JL(4)=J2
+          ENDIF
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      ENDIF parent_updates
+!
+!-----------------------------------------------------------------------
+!
+      TAIL%NUM_PTS_UPDATE_HZ=(TAIL%IL(2)-TAIL%IL(1)+1)                  &
+                            *(TAIL%JL(2)-TAIL%JL(1)+1)
+!
+      IF(TAIL%IL(3)>0)THEN
+        TAIL%NUM_PTS_UPDATE_HZ=(TAIL%IL(4)-TAIL%IL(3)+1)                &
+                              *(TAIL%JL(4)-TAIL%JL(3)+1)                &
+                              +TAIL%NUM_PTS_UPDATE_HZ
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE PARENT_FINDS_UPDATE_LIMITS
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE PARENT_BOOKKEEPING_MOVING
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE PARENT_UPDATES_MOVING(FLAG_H_OR_V                      &
+                                      ,N_UPDATE_CHILD_TASKS             &
+                                      ,PARENT_CHILD_SPACE_RATIO         &
+                                      ,PARENT_CHILD_TIME_RATIO          &
+                                      ,NTIMESTEP_CHILD                  &
+                                      ,I_PARENT_SW                      &
+                                      ,J_PARENT_SW                      &
+                                      ,PT,PDTOP,PSGML1,SGML2,SG1,SG2    &
+                                      ,DSG2,PDSG1                       &
+                                      ,FIS,PD                           &
+                                      ,T,Q,CW                           &
+                                      ,NUM_CHILD_TASKS                  &
+                                      ,CHILD_TASK_LIMITS                &
+                                      ,IMS,IME,JMS,JME                  &
+                                      ,IDS,IDE,JDS,JDE                  &
+                                      ,NUM_LYRS                         &
+                                      ,LBND1,UBND1,LBND2,UBND2          &
+                                      ,FIS_CHILD                        &
+                                      ,COMM_TO_MY_CHILD                 &
+                                      ,HANDLE_UPDATE                    &
+                                      ,MOVE_BUNDLE                      &
+                                      ,NUM_FIELDS_MOVE_2D_H_I           &
+                                      ,NUM_FIELDS_MOVE_2D_X_I           &
+                                      ,NUM_FIELDS_MOVE_2D_H_R           &
+                                      ,NUM_FIELDS_MOVE_2D_X_R           &
+                                      ,NUM_FIELDS_MOVE_3D_H             &
+                                      ,NUM_LEVELS_MOVE_3D_H             &
+                                      ,NUM_FIELDS_MOVE_2D_V             &
+                                      ,NUM_FIELDS_MOVE_3D_V             &
+                                      ,NUM_LEVELS_MOVE_3D_V             &
+!!!                                   ,TASK_UPDATE_SPECS_H              &
+!!!                                   ,TASK_UPDATE_SPECS_V              &
+                                      ,TASK_UPDATE_SPECS                &
+                                      ,CHILD_UPDATE_DATA                &
+                                        )
+!
+!-----------------------------------------------------------------------
+!***  Each parent task knows which moving nest tasks if any that it
+!***  must update and which points on those tasks.  Now the bilinear
+!***  interpolation weights can be computed and then all specified
+!***  2-D and 3-D variables are interpolated from the parent grid
+!***  to the nest's.  Finally the parent tasks send the data to the
+!***  appropriate nest tasks.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: COMM_TO_MY_CHILD                 &  !<-- MPI communicator to the current nest/child
+                                      ,I_PARENT_SW,J_PARENT_SW          &  !<-- SW corner of nest on this parent I,J after move
+                                      ,IDS,IDE,JDS,JDE                  &  !<-- Parent domain index limits
+                                      ,IMS,IME,JMS,JME                  &  !<-- Parent task memory index limits
+                                      ,N_UPDATE_CHILD_TASKS             &  !<-- # of moving nest tasks updated by this parent task
+                                      ,NTIMESTEP_CHILD                  &  !<-- Child's timestep at which it recvs parent data
+                                      ,NUM_LYRS                         &  !<-- # of model layers
+                                      ,NUM_CHILD_TASKS                  &  !<-- # of forecast tasks on all of this parent's children
+                                      ,NUM_FIELDS_MOVE_2D_H_I           &  !<-- # of 2-D integer H arrays specified for updating
+                                      ,NUM_FIELDS_MOVE_2D_X_I           &  !<-- # of 2-D integer H arrays updated from external files
+                                      ,NUM_FIELDS_MOVE_2D_H_R           &  !<-- # of 2-D real H arrays specified for updating
+                                      ,NUM_FIELDS_MOVE_2D_X_R           &  !<-- # of 2-D real H arrays updated from external files
+                                      ,NUM_FIELDS_MOVE_3D_H             &  !<-- # of 3-D H arrays specified for updating
+                                      ,NUM_LEVELS_MOVE_3D_H             &  !<-- # of 2-D levels in all 3-D H update arrays
+                                      ,NUM_FIELDS_MOVE_2D_V             &  !<-- # of 2-D V arrays specified for updating
+                                      ,NUM_FIELDS_MOVE_3D_V             &  !<-- # of 3-D V arrays specified for updating
+                                      ,NUM_LEVELS_MOVE_3D_V             &  !<-- # of 2-D levels in all 3-D V update arrays
+                                      ,PARENT_CHILD_SPACE_RATIO         &  !<-- Ratio of parent's grid increment to its child's
+                                      ,PARENT_CHILD_TIME_RATIO          &  !<-- Ratio of parent's time step to its child's
+                                      ,LBND1,UBND1,LBND2,UBND2             !<-- Array bounds of nest-resolution FIS on parent
+!
+      INTEGER(kind=KINT),DIMENSION(:),POINTER,INTENT(IN) ::             &
+                                                  HANDLE_UPDATE            !<-- MPI Handles for ISends to the child tasks
+!
+      INTEGER(kind=KINT),DIMENSION(1:4,NUM_CHILD_TASKS),INTENT(IN) ::   &
+                                                     CHILD_TASK_LIMITS     !<-- ITS,ITE,JTS,JTE for each child forecast task
+!
+      REAL(kind=KFPT),INTENT(IN) :: PDTOP                               &  !<-- Pressure at top of sigma domain (Pa)
+                                   ,PT                                     !<-- Top pressure of model domain (Pa)
+!
+      REAL(kind=KFPT),DIMENSION(1:NUM_LYRS),INTENT(IN) :: DSG2          &  !<-- Vertical structure coefficients for midlayers
+                                                         ,PDSG1         &  !
+                                                         ,PSGML1        &  !
+                                                         ,SGML2            !<--
+!
+      REAL(kind=KFPT),DIMENSION(1:NUM_LYRS+1),INTENT(IN) :: SG1,SG2        !<-- Vertical structure coefficients for interfaces
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: FIS      &  !<-- Sfc geopotential on parent mass points
+                                                              ,PD          !<-- Parent PD
+!
+      REAL(kind=KFPT),DIMENSION(LBND1:UBND1,LBND2:UBND2),INTENT(IN) ::  &
+                                                             FIS_CHILD     !<-- Moving nest's full res FIS distributed on the parent
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:NUM_LYRS)             &
+                                                      ,INTENT(IN) :: T  &  !<-- Parent sensible temperature (K)
+                                                                    ,Q  &  !<-- Parent specific humidity (kg/kg)
+                                                                    ,CW    !<-- Parent cloud condensate (kg/kg)
+!
+      CHARACTER(len=1),INTENT(IN) :: FLAG_H_OR_V                           !<-- Are we updating H or V points?
+!
+      TYPE(MIXED_DATA_TASKS),INTENT(INOUT) :: CHILD_UPDATE_DATA            !<-- Composite of all update data from parent for each nest task
+!
+      TYPE(CHILD_UPDATE_LINK),TARGET,INTENT(INOUT) ::                   &
+!!!                                               TASK_UPDATE_SPECS_H   &  !<-- Linked list with nest task update H-point specifications
+!!!                                              ,TASK_UPDATE_SPECS_V      !<-- Linked list with nest task update V-point specifications
+                                                  TASK_UPDATE_SPECS        !<-- Linked list with nest task update specifications
+!
+      TYPE(ESMF_FieldBundle),INTENT(INOUT) :: MOVE_BUNDLE                  !<-- ESMF Bundle of 2-D and 3-D arrays specified for updating
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      INTEGER(kind=KINT),SAVE :: I,I1,I2                                &
+                                ,I_EAST,I_OFFSET,I_WEST                 &
+                                ,IDS_CHILD,ISTART,ITAG,ITER             &
+                                ,J,J1,J2                                &
+                                ,J_NORTH,J_OFFSET,J_SOUTH               &
+                                ,JDS_CHILD,JSTART                       &
+                                ,KHI,KLO                                &
+                                ,L,LOC_1,LOC_2                          &
+                                ,N,N_ADD,N_FIELD,N_REMOVE,N_STRIDE      &
+                                ,NPOINTS_HORIZ                          &
+                                ,NPOINTS_HORIZ_H                        &
+                                ,NPOINTS_HORIZ_V                        &
+                                ,NUM_DIMS                               &
+                                ,NUM_FIELDS_MOVE                        &
+                                ,NUM_LEVS_IN                            &
+                                ,NUM_LEVS_SEC                           &
+                                ,NUM_LEVELS                             &
+                                ,NUM_INTEGER_WORDS_SEND                 &
+                                ,NUM_REAL_WORDS_SEND                    &
+                                ,UPDATE_TYPE_INT
+!
+      INTEGER(kind=KINT) :: I_TRANS,IERR,ISTAT,IVAL,J_TRANS,KNT_DUMMY   &
+                           ,RC,RC_UPDATE
+!
+      INTEGER(kind=KINT),DIMENSION(1:3) :: LIMITS_HI                    &
+                                          ,LIMITS_LO
+!
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE,TARGET ::             &
+                                                         I_PARENT_EAST  &
+                                                        ,I_PARENT_WEST  &
+                                                        ,J_PARENT_NORTH &
+                                                        ,J_PARENT_SOUTH  
+!
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: I_PARENT_EAST_H        &
+                                                ,I_PARENT_WEST_H        &
+                                                ,J_PARENT_NORTH_H       &
+                                                ,J_PARENT_SOUTH_H
+!
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE,SAVE ::               &
+                                                       KNT_INTEGER_PTS  &
+                                                      ,KNT_REAL_PTS     &
+                                                      ,NUM_ITER
+!
+      INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: IARRAY_2D
+!
+      REAL(kind=KFPT) :: CHILD_PARENT_SPACE_RATIO                       &
+                        ,COEFF_1,COEFF_2,CW_INTERP                      &
+                        ,D_LNP_DFI,DELP_EXTRAP,DP                       &
+                        ,IDIFF_EAST,IDIFF_WEST                          &
+                        ,JDIFF_NORTH,JDIFF_SOUTH                        &
+                        ,LOG_P1_PARENT                                  &
+                        ,MAX_WGHT                                       &
+                        ,PDTOP_PT,PHI_DIFF                              &
+                        ,PSFC_CHILD                                     &
+                        ,PSFC_PARENT_NE,PSFC_PARENT_NW                  &
+                        ,PSFC_PARENT_SE,PSFC_PARENT_SW                  &
+                        ,PX_NE,PX_NW,PX_SE,PX_SW                        &
+                        ,Q_INTERP,R_DELP,R_INC                          &
+                        ,RECIP_SUM_WGT,SUM_PROD,SUM_WGT                 &
+                        ,T_INTERP,TMP                                   &
+                        ,X_NE,X_NW,X_SE,X_SW
+!
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: P_OUTPUT
+!
+      REAL(kind=KFPT),DIMENSION(1:NUM_LYRS+2) :: P_INPUT                &
+                                                ,VBL_INPUT
+!
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: I_PARENT              &
+                                                 ,J_PARENT              &
+                                                 ,SEC_DERIV
+!
+      REAL(kind=KFPT),DIMENSION(:),POINTER :: I_CHILD_ON_PARENT_H       &
+                                             ,J_CHILD_ON_PARENT_H
+!
+      REAL(kind=KFPT),DIMENSION(:),POINTER :: VBL_COL_CHILD             &
+                                             ,VBL_COL_X
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME) :: LMASK
+!
+      REAL(kind=KFPT),DIMENSION(1:NUM_LYRS+2,1:4) :: C_TMP                 !<-- Working array for ESSL spline call
+!
+      REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE :: LOG_PBOT            &
+                                                   ,LOG_PTOP            &
+                                                   ,PD_CHILD            &
+                                                   ,PD_INTERP           &
+                                                   ,PROD_LWGT_NE        &
+                                                   ,PROD_LWGT_NW        &
+                                                   ,PROD_LWGT_SE        &
+                                                   ,PROD_LWGT_SW        &
+                                                   ,PROD_SWGT_NE        &
+                                                   ,PROD_SWGT_NW        &
+                                                   ,PROD_SWGT_SE        &
+                                                   ,PROD_SWGT_SW
+!
+      REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE,TARGET :: WGHT_NE      &
+                                                          ,WGHT_NW      &
+                                                          ,WGHT_SE      &
+                                                          ,WGHT_SW
+!
+      REAL(kind=KFPT),DIMENSION(:,:),POINTER,SAVE :: PDO                &
+                                                    ,SMASK
+!
+      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ARRAY_2D                &
+                                               ,WGHT_NE_H               &
+                                               ,WGHT_NW_H               &
+                                               ,WGHT_SE_H               &
+                                               ,WGHT_SW_H
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE,TARGET :: PINT_CHILD  &
+                                                            ,PINT_INTERP &
+                                                            ,PMID_CHILD  &
+                                                            ,PMID_INTERP
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE :: PHI_INTERP        &
+                                                     ,VBL_INTERP
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: ARRAY_3D              &
+                                                 ,P3D_INPUT             &
+                                                 ,P3D_OUTPUT
+!
+      LOGICAL(kind=KLOG) :: INTERFACES                                  &
+                           ,MIDLAYERS
+!
+      CHARACTER(len=1) :: UPDATE_TYPE_CHAR
+!
+      CHARACTER(len=4) :: FNAME
+!
+      CHARACTER(len=30) :: FIELD_NAME
+!
+      TYPE(CHILD_UPDATE_LINK),POINTER,SAVE :: PTR_H,PTR_V
+!
+      TYPE(CHILD_UPDATE_LINK),POINTER :: PTR_X
+!
+      TYPE(ESMF_Field) :: HOLD_FIELD
+!
+      TYPE(ESMF_TypeKind) :: DATATYPE
+!
+      integer(kind=kint) :: kount,kount1,locn !<-- for debugging only
+      integer(kind=kint) :: kount_h_links,kount_v_links
+      real(kind=kfpt),dimension(1:num_lyrs+1) :: phi_l
+      type(child_update_link),pointer :: xxx
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      btim=timef()
+!
+      RC       =ESMF_SUCCESS
+      RC_UPDATE=ESMF_SUCCESS
+!
+      CHILD_PARENT_SPACE_RATIO=1./PARENT_CHILD_SPACE_RATIO
+!
+!-----------------------------------------------------------------------
+!***  This update routine is called first for H points and then 
+!***  a second time for V points.  To save time on communication
+!***  all H and V point data will be sent together at the end of
+!***  the 2nd (V-point) call.  First do some prep work that only 
+!***  once to be done once for both H and V at this move.
+!-----------------------------------------------------------------------
+!
+      prep_block: IF(FLAG_H_OR_V=='H')THEN  
+!
+!-----------------------------------------------------------------------
+!
+        ALLOCATE(KNT_REAL_PTS(1:N_UPDATE_CHILD_TASKS)                   &
+                                                     ,stat=ISTAT)
+        ALLOCATE(KNT_INTEGER_PTS(1:N_UPDATE_CHILD_TASKS)                &
+                                                     ,stat=ISTAT)
+        ALLOCATE(CHILD_UPDATE_DATA%TASKS(1:N_UPDATE_CHILD_TASKS)        &
+                                                     ,stat=ISTAT)
+        ALLOCATE(NUM_ITER(1:N_UPDATE_CHILD_TASKS)                       &
+                                                     ,stat=ISTAT)
+!
+        LM=NUM_LYRS
+!
+!-----------------------------------------------------------------------
+!***  Start at the top of the linked lists that hold the task ID
+!***  and index limits for all update H and V points on each nest
+!***  task for the current nest.  Remember that each link in the
+!***  lists corresponds to a nest task that this parent task must
+!***  update.
+!-----------------------------------------------------------------------
+!
+!!!     PTR_H=>TASK_UPDATE_SPECS_H
+!!!     PTR_V=>TASK_UPDATE_SPECS_V
+        PTR_H=>TASK_UPDATE_SPECS
+        PTR_V=>TASK_UPDATE_SPECS
+!
+!-----------------------------------------------------------------------
+!***  Find the total number of words to be updated on each nest task
+!***  for both H and V points.
+!-----------------------------------------------------------------------
+!
+        prep_loop: DO N=1,N_UPDATE_CHILD_TASKS
+!
+!-----------------------------------------------------------------------
+!
+          IF(N>1)THEN                                                      !<-- Point to the next link (the next task to be updated).
+            PTR_H=>PTR_H%NEXT_LINK
+            PTR_V=>PTR_V%NEXT_LINK
+          ENDIF
+!
+          NPOINTS_HORIZ_H=(PTR_H%IL(2)-PTR_H%IL(1)+1)                   &
+                         *(PTR_H%JL(2)-PTR_H%JL(1)+1)
+!
+          NPOINTS_HORIZ_V=(PTR_V%IL(2)-PTR_V%IL(1)+1)                   &
+                         *(PTR_V%JL(2)-PTR_V%JL(1)+1)
+!
+          NUM_INTEGER_WORDS_SEND=(NUM_FIELDS_MOVE_2D_H_I                &
+                                 -NUM_FIELDS_MOVE_2D_X_I)               &
+                                 *NPOINTS_HORIZ_H
+!
+          NUM_REAL_WORDS_SEND=(NUM_FIELDS_MOVE_2D_H_R                   &
+                              -NUM_FIELDS_MOVE_2D_X_R                   &
+                              +NUM_LEVELS_MOVE_3D_H)                    &
+                              *NPOINTS_HORIZ_H                          &
+                             +(NUM_FIELDS_MOVE_2D_V                     &
+                              +NUM_LEVELS_MOVE_3D_V)                    &
+                              *NPOINTS_HORIZ_V
+!
+!-----------------------------------------------------------------------
+!***  If there is a 2nd region on nest task N updated by the current
+!***  parent task then we need to iterate twice through the updating
+!***  process.  These 2nd regions exist only when the parent task 
+!***  and the nest task it is updating both lie on the corner of the
+!***  nest's pre-move footprint.
+!-----------------------------------------------------------------------
+!
+          NUM_ITER(N)=1
+!
+          IF(PTR_H%IL(3)>0)THEN                                            !<-- If true then there must be a 2nd update region.               
+            IF(PTR_V%IL(3)<0)THEN
+              WRITE(0,*)' A 2nd update region exists for H points but not V!!  ABORT!!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+            NUM_ITER(N)=2                           
+            NPOINTS_HORIZ_H=(PTR_H%IL(4)-PTR_H%IL(3)+1)                 &
+                           *(PTR_H%JL(4)-PTR_H%JL(3)+1)
+!
+            NPOINTS_HORIZ_V=(PTR_V%IL(4)-PTR_V%IL(3)+1)                 &
+                           *(PTR_V%JL(4)-PTR_V%JL(3)+1)
+!
+            NUM_INTEGER_WORDS_SEND=(NUM_FIELDS_MOVE_2D_H_I              &  !<-- Total # of integer words in parent's update 
+                                   -NUM_FIELDS_MOVE_2D_X_I)             &  !    of nest task N.
+                                   *NPOINTS_HORIZ_H                     &
+                                   +NUM_INTEGER_WORDS_SEND
+!
+            NUM_REAL_WORDS_SEND=(NUM_FIELDS_MOVE_2D_H_R                 &  !<-- Total # of real words in parent's update
+                                -NUM_FIELDS_MOVE_2D_X_R                 &  !    of nest task N.
+                                +NUM_LEVELS_MOVE_3D_H)                  &
+                                *NPOINTS_HORIZ_H                        &
+                               +(NUM_FIELDS_MOVE_2D_V                   &
+                                +NUM_LEVELS_MOVE_3D_V)                  &
+                                *NPOINTS_HORIZ_V                        &
+                                +NUM_REAL_WORDS_SEND
+          ENDIF                                 
+!                                            
+!-----------------------------------------------------------------------
+!***  Now we know how many words will be sent from the current parent 
+!***  task to nest task N so allocate the objects that will hold this
+!***  data.  There may or may not be any integer variables updated at
+!***  this time.
+!-----------------------------------------------------------------------
+!
+          ALLOCATE(CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL(1:NUM_REAL_WORDS_SEND)) 
+!
+          IF(NUM_INTEGER_WORDS_SEND>0)THEN
+            ALLOCATE(CHILD_UPDATE_DATA%TASKS(N)%DATA_INTEGER(1:NUM_INTEGER_WORDS_SEND))
+          ELSE
+            CHILD_UPDATE_DATA%TASKS(N)%DATA_INTEGER=>NULL()
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!
+          KNT_REAL_PTS(N)=0                                                !<-- Initialize the counter of real update data words.
+          KNT_INTEGER_PTS(N)=0                                             !<-- Initialize the counter of integer update data words.
+!
+          ISTART=MAX(IMS,IDS)
+          JSTART=MAX(JMS,JDS)
+!
+          I_OFFSET=(I_PARENT_SW-ISTART)*PARENT_CHILD_SPACE_RATIO        &  !<-- I offset of child SW corner in full topo array on parent
+                   +LBND1-1
+          J_OFFSET=(J_PARENT_SW-JSTART)*PARENT_CHILD_SPACE_RATIO        &  !<-- J offset of child SW corner in full topo array on parent
+                   +LBND2-1
+!
+!-----------------------------------------------------------------------
+!
+        ENDDO prep_loop
+!
+!-----------------------------------------------------------------------
+!***  We need PD and PDO on the parent for building the
+!***  pressure structure from which to interpolate to the nest
+!***  update points.  PD was already sent into this routine via
+!***  the argument list since it was needed earlier in the coupler.
+!***  Unload PDO now.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract PDO Field From H Move_Bundle"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_520rbs
+        CALL ESMF_FieldBundleGet(fieldBundle=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
+                                ,fieldName  ='PDO'//BUNDLE_X            &  !<-- Get the Field with this name
+                                ,field      =HOLD_FIELD                 &  !<-- Put the Field here
+                                ,rc         =RC)
+#else
+        CALL ESMF_FieldBundleGet(bundle=MOVE_BUNDLE                     &  !<-- Bundle holding the arrays for move updates
+                                ,name  ='PDO'//BUNDLE_X                 &  !<-- Get the Field with this name
+                                ,field =HOLD_FIELD                      &  !<-- Put the Field here
+                                ,rc    =RC )
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract PDO Array from Field"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field holding PDO
+                          ,localDe=0                                    &
+                          ,farray =PDO                                  &  !<-- Put array here
+                          ,rc     =RC )
+#else
+        CALL ESMF_FieldGet(field    =HOLD_FIELD                         &  !<-- Field holding PDO
+                          ,localDe  =0                                  &
+                          ,farrayPtr=PDO                                &  !<-- Put array here
+                          ,rc       =RC )
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  We need the parent's Sea Mask for generating surface variable
+!***  updates in order to exclude either sea or land point values 
+!***  in the bilinear interpolation.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract the Sea Mask from the H Move_Bundle"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_520rbs
+        CALL ESMF_FieldBundleGet(fieldBundle=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
+                                ,fieldName  ='SM'//BUNDLE_X             &  !<-- The parent's sea mask
+                                ,field      =HOLD_FIELD                 &  !<-- Put the Field here
+                                ,rc         =RC)
+#else
+        CALL ESMF_FieldBundleGet(bundle=MOVE_BUNDLE                     &  !<-- Bundle holding the arrays for move updates
+                                ,name  ='SM'//BUNDLE_X                  &  !<-- The parent's sea mask
+                                ,field =HOLD_FIELD                      &  !<-- Put the Field here
+                                ,rc    =RC )
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Sea Mask Array from Field"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field holding PDO
+                          ,localDe=0                                    &
+                          ,farray =SMASK                                &  !<-- Put the sea mask array here
+                          ,rc     =RC )
+#else
+        CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field holding PDO
+                          ,localDe  =0                                    &
+                          ,farrayPtr=SMASK                                &  !<-- Put the sea mask array here
+                          ,rc       =RC )
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  'Flip' the seamask values (1=>sea) for use as a landmask (0=>sea).
+!-----------------------------------------------------------------------
+!
+        DO J=JMS,JME
+        DO I=IMS,IME
+          IF(SMASK(I,J)>0.5)THEN
+            LMASK(I,J)=0.
+          ELSE
+            LMASK(I,J)=1.
+          ENDIF
+        ENDDO
+        ENDDO
+!
+!-----------------------------------------------------------------------
+!
+      ENDIF prep_block
+!
+!-----------------------------------------------------------------------
+!***  As we prepare to interpolate from the parent to the child,
+!***  we need to be aware of another distinction between the H
+!***  and the V point locations on those domains' grids regarding
+!***  I=1 on the nest relative to I_PARENT_SW.  For H points
+!***  I=1 on the nest coincides with I_PARENT_SW on the parent.
+!***  However for V points I=1 is to the west of I_PARENT_SW.
+!***  See the diagram at the beginning of the FLAG_H_OR_V==V
+!***  section of PARENT_BOOKKEEPING_MOVING.  Specifically
+!***  v(1) on the nest is
+!***  (0.5*PARENT_CHILD_SPACE_RATIO-0.5)/PARENT_CHILD_SPACE_RATIO
+!***  to the west of V(I_PARENT_SW) on the parent grid.  Compute
+!***  that increment here then use it below when we need the
+!***  Real values for parent I's and J's on the parent grid
+!***  that coincide with the update locations on the nest grid.
+!-----------------------------------------------------------------------
+!
+      PTR_X=>TASK_UPDATE_SPECS
+!
+      IF(FLAG_H_OR_V=='H')THEN
+!!!     PTR_X=>TASK_UPDATE_SPECS_H
+        NUM_FIELDS_MOVE=NUM_FIELDS_MOVE_2D_H_I                          &
+                       +NUM_FIELDS_MOVE_2D_H_R                          &
+                       +NUM_FIELDS_MOVE_3D_H
+        R_INC=0.
+!
+      ELSEIF(FLAG_H_OR_V=='V')THEN
+!!!     PTR_X=>TASK_UPDATE_SPECS_V
+        NUM_FIELDS_MOVE=NUM_FIELDS_MOVE_2D_V                            &
+                       +NUM_FIELDS_MOVE_3D_V
+        R_INC=-(0.5*PARENT_CHILD_SPACE_RATIO-0.5)                       &
+               *CHILD_PARENT_SPACE_RATIO
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      DO L=1,NUM_LYRS+2
+        P_INPUT(L)=0.
+        VBL_INPUT(L)=0.
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Loop through each of the moving nest tasks whose subdomains 
+!***  contain points that must be updated by this parent task
+!***  after the nest moved.
+!-----------------------------------------------------------------------
+!
+      ctask_loop: DO N=1,N_UPDATE_CHILD_TASKS
+!
+!-----------------------------------------------------------------------
+!
+        iter_loop: DO ITER=1,NUM_ITER(N)                                   !<-- Either one or two regions on the nest task must be updated.
+!
+!-----------------------------------------------------------------------
+!
+          IF(ITER==1)THEN
+            I1=PTR_X%IL(1)                                                 !<-- I limits of nest task's update region by parent task
+            I2=PTR_X%IL(2)                                                 !     in terms of the nest's grid.
+            J1=PTR_X%JL(1)                                                 !<-- J limits of nest task's update region by parent task
+            J2=PTR_X%JL(2)                                                 !     in terms of the nest's grid.
+          ELSE
+            I1=PTR_X%IL(3)                                                 !<-- I limits of nest task's update region by parent task
+            I2=PTR_X%IL(4)                                                 !     in terms of the nest's grid for 2nd update region.
+            J1=PTR_X%JL(3)                                                 !<-- J limits of nest task's update region by parent task
+            J2=PTR_X%JL(4)                                                 !     in terms of the nest's grid for 2nd update region.
+          ENDIF
+!
+          ALLOCATE(I_PARENT(I1:I2))
+          ALLOCATE(I_PARENT_EAST(I1:I2))
+          ALLOCATE(I_PARENT_WEST(I1:I2))
+!
+          ALLOCATE(J_PARENT(J1:J2))
+          ALLOCATE(J_PARENT_NORTH(J1:J2))
+          ALLOCATE(J_PARENT_SOUTH(J1:J2))
+!
+          ALLOCATE(WGHT_SW(I1:I2,J1:J2))
+          ALLOCATE(WGHT_NW(I1:I2,J1:J2))
+          ALLOCATE(WGHT_NE(I1:I2,J1:J2))
+          ALLOCATE(WGHT_SE(I1:I2,J1:J2))
+!
+          ALLOCATE(PINT_INTERP(I1:I2,J1:J2,1:NUM_LYRS+1))
+          ALLOCATE( PHI_INTERP(I1:I2,J1:J2,1:NUM_LYRS+1))
+          ALLOCATE(   PD_CHILD(I1:I2,J1:J2))
+          ALLOCATE(  PD_INTERP(I1:I2,J1:J2))
+          ALLOCATE(   LOG_PBOT(I1:I2,J1:J2))
+          ALLOCATE(   LOG_PTOP(I1:I2,J1:J2))
+!
+          NPOINTS_HORIZ=(I2-I1+1)*(J2-J1+1)
+          ALLOCATE(PMID_INTERP(I1:I2,J1:J2,1:NUM_LYRS))
+          ALLOCATE( PMID_CHILD(I1:I2,J1:J2,1:NUM_LYRS))
+          ALLOCATE( PINT_CHILD(I1:I2,J1:J2,1:NUM_LYRS+1))
+!
+          IDS_CHILD=CHILD_TASK_LIMITS(1,1)                                 !<-- Child task's starting I on grid of moving nest
+          JDS_CHILD=CHILD_TASK_LIMITS(3,1)                                 !<-- Child task's starting J on grid of moving nest
+!
+          DO I=I1,I2
+            I_PARENT(I)=I_PARENT_SW+R_INC                               &  !<-- Real Parent I's on parent grid for these nest I's
+                        +(I-IDS_CHILD)*CHILD_PARENT_SPACE_RATIO            !    in the nest grid's Update region.
+          ENDDO
+!
+          DO J=J1,J2
+            J_PARENT(J)=J_PARENT_SW+R_INC                               &  !<-- Real Parent J's on parent grid for these nest J's
+                        +(J-JDS_CHILD)*CHILD_PARENT_SPACE_RATIO            !    in the nest grid's update region.
+          ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Loop through this nest's update points and determine the four
+!***  parent points that surround each nest point as well and the
+!***  bilinear interpolation weight associated with each of those
+!***  four parent points for the given nest point.
+!-----------------------------------------------------------------------
+!
+          DO J=J1,J2
+            J_PARENT_SOUTH(J)=INT(J_PARENT(J)+EPS)                         !<-- Parent J at or immediately south of nest point
+            J_PARENT_NORTH(J)=J_PARENT_SOUTH(J)+1                          !<-- Parent J immediately north of nest point
+!
+            DO I=I1,I2
+              I_PARENT_WEST(I)=INT(I_PARENT(I)+EPS)                        !<-- Parent I at or immediately west of nest point
+              I_PARENT_EAST(I)=I_PARENT_WEST(I)+1                          !<-- Parent I immediately east of nest point
+!
+              IDIFF_EAST=I_PARENT_EAST(I)-I_PARENT(I)
+              IDIFF_WEST=I_PARENT(I)-I_PARENT_WEST(I)
+              JDIFF_NORTH=J_PARENT_NORTH(J)-J_PARENT(J)
+              JDIFF_SOUTH=J_PARENT(J)-J_PARENT_SOUTH(J)
+!
+              WGHT_SW(I,J)=IDIFF_EAST*JDIFF_NORTH                          !<-- Bilinear weight for parent's point SW of child's point
+              WGHT_NW(I,J)=IDIFF_EAST*JDIFF_SOUTH                          !<-- Bilinear weight for parent's point NW of child's point
+              WGHT_NE(I,J)=IDIFF_WEST*JDIFF_SOUTH                          !<-- Bilinear weight for parent's point NE of child's point
+              WGHT_SE(I,J)=IDIFF_WEST*JDIFF_NORTH                          !<-- Bilinear weight for parent's point SE of child's point
+!
+            ENDDO
+          ENDDO
+!
+!-----------------------------------------------------------------------
+!***  The parent computes its layer interface pressures at the 
+!***  locations of the moving nest update points.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  If we are updating mass point variables then those variables
+!***  obviously coincide with the pressure information.  In other
+!***  words we are interpolating from parent H points to nest h points.
+!-----------------------------------------------------------------------
+!
+          h_v_block: IF(FLAG_H_OR_V=='H')THEN
+!
+            I_PARENT_EAST_H=>I_PARENT_EAST
+            I_PARENT_WEST_H=>I_PARENT_WEST
+            J_PARENT_NORTH_H=>J_PARENT_NORTH
+            J_PARENT_SOUTH_H=>J_PARENT_SOUTH
+!
+            WGHT_NE_H=>WGHT_NE
+            WGHT_NW_H=>WGHT_NW
+            WGHT_SE_H=>WGHT_SE
+            WGHT_SW_H=>WGHT_SW
+!
+!-----------------------------------------------------------------------
+!***  If we are updating wind components then we need to know
+!***  T, Q, and FIS at V points in order to compute sfc pressure
+!***  and ultimately midlayer pressure at the V points.
+!***  Base the bilinear interpolation to nest v points on the 
+!***  values at parent H points (where T, Q, and FIS are defined)
+!***  in order to minimize horizontal interpolation.
+!-----------------------------------------------------------------------
+!
+          ELSEIF(FLAG_H_OR_V=='V')THEN
+!
+            ALLOCATE(I_PARENT_EAST_H(I1:I2))
+            ALLOCATE(I_PARENT_WEST_H(I1:I2))
+            ALLOCATE(J_PARENT_NORTH_H(J1:J2))
+            ALLOCATE(J_PARENT_SOUTH_H(J1:J2))
+!
+            ALLOCATE(I_CHILD_ON_PARENT_H(I1:I2))
+            ALLOCATE(J_CHILD_ON_PARENT_H(J1:J2))
+!
+            ALLOCATE(WGHT_NE_H(I1:I2,J1:J2))
+            ALLOCATE(WGHT_NW_H(I1:I2,J1:J2))
+            ALLOCATE(WGHT_SE_H(I1:I2,J1:J2))
+            ALLOCATE(WGHT_SW_H(I1:I2,J1:J2))
+!
+            DO I=I1,I2     
+!
+              I_CHILD_ON_PARENT_H(I)=I_PARENT_SW                        &
+                                   +(I-IDS_CHILD+0.5)                   &
+                                    *CHILD_PARENT_SPACE_RATIO
+!
+              I_PARENT_WEST_H(I)=INT(I_CHILD_ON_PARENT_H(I))               !<-- Parent I on H immediately west of nest V point
+              I_PARENT_EAST_H(I)=I_PARENT_WEST_H(I)+1                      !<-- Parent I on H immediately east of nest V point
+!
+            ENDDO    
+!
+            DO J=J1,J2     
+!
+              J_CHILD_ON_PARENT_H(J)=J_PARENT_SW                        &
+                                   +(J-JDS_CHILD+0.5)                   &
+                                    *CHILD_PARENT_SPACE_RATIO
+!
+              J_PARENT_SOUTH_H(J)=INT(J_CHILD_ON_PARENT_H(J))              !<-- Parent J on H immediately south of nest V point
+              J_PARENT_NORTH_H(J)=J_PARENT_SOUTH_H(J)+1                    !<-- Parent J on H immediately north of nest V point
+!
+            ENDDO
+!
+            DO J=J1,J2
+            DO I=I1,I2
+              WGHT_SW_H(I,J)=(I_PARENT_EAST_H(I)-I_CHILD_ON_PARENT_H(I)) &
+                            *(J_PARENT_NORTH_H(J)-J_CHILD_ON_PARENT_H(J))
+              WGHT_SE_H(I,J)=(I_CHILD_ON_PARENT_H(I)-I_PARENT_WEST_H(I)) &
+                            *(J_PARENT_NORTH_H(J)-J_CHILD_ON_PARENT_H(J))
+              WGHT_NW_H(I,J)=(I_PARENT_EAST_H(I)-I_CHILD_ON_PARENT_H(I)) &
+                            *(J_CHILD_ON_PARENT_H(J)-J_PARENT_SOUTH_H(J))
+              WGHT_NE_H(I,J)=(I_CHILD_ON_PARENT_H(I)-I_PARENT_WEST_H(I)) &
+                            *(J_CHILD_ON_PARENT_H(J)-J_PARENT_SOUTH_H(J))
+            ENDDO
+            ENDDO
+!
+          ENDIF h_v_block
+!
+!-----------------------------------------------------------------------
+!***  When the parent generates Real soil variable updates for its
+!***  moving nests it uses bilinear interpolation but also must use
+!***  the sea/land mask in order to avoid including sea values in
+!***  land variables and vice versa.  This means the bilinear
+!***  interpolation weighting needs to be adjusted to account for
+!***  the exclusion of sea or land points in the 4-pt summation.
+!-----------------------------------------------------------------------
+!
+          soil_wgts: IF(FLAG_H_OR_V=='H')THEN
+!
+            ALLOCATE(PROD_LWGT_SW(I1:I2,J1:J2))
+            ALLOCATE(PROD_LWGT_SE(I1:I2,J1:J2))
+            ALLOCATE(PROD_LWGT_NW(I1:I2,J1:J2))
+            ALLOCATE(PROD_LWGT_NE(I1:I2,J1:J2))
+            ALLOCATE(PROD_SWGT_SW(I1:I2,J1:J2))
+            ALLOCATE(PROD_SWGT_SE(I1:I2,J1:J2))
+            ALLOCATE(PROD_SWGT_NW(I1:I2,J1:J2))
+            ALLOCATE(PROD_SWGT_NE(I1:I2,J1:J2))
+!
+            DO J=J1,J2
+              J_SOUTH=J_PARENT_SOUTH(J)
+              J_NORTH=J_PARENT_NORTH(J)
+!
+              DO I=I1,I2
+                I_WEST=I_PARENT_WEST(I)
+                I_EAST=I_PARENT_EAST(I)
+!
+                X_SW=WGHT_SW(I,J)*LMASK(I_WEST,J_SOUTH)
+                X_SE=WGHT_SE(I,J)*LMASK(I_EAST,J_SOUTH)
+                X_NW=WGHT_NW(I,J)*LMASK(I_WEST,J_NORTH)
+                X_NE=WGHT_NE(I,J)*LMASK(I_EAST,J_NORTH)
+!
+                SUM_WGT=X_SW+X_SE+X_NW+X_NE
+!
+                IF(ABS(SUM_WGT)>1.E-6)THEN
+                  RECIP_SUM_WGT=1./(X_SW+X_SE+X_NW+X_NE)
+                ELSE
+                  RECIP_SUM_WGT=0.
+                ENDIF
+!
+                PROD_LWGT_SW(I,J)=X_SW*RECIP_SUM_WGT                       !<-- These are the adjusted bilinear interpolation
+                PROD_LWGT_SE(I,J)=X_SE*RECIP_SUM_WGT                       !    weights that take into account the presence
+                PROD_LWGT_NW(I,J)=X_NW*RECIP_SUM_WGT                       !    of sea points that must be excluded in the
+                PROD_LWGT_NE(I,J)=X_NE*RECIP_SUM_WGT                       !    summation.
+!
+                X_SW=WGHT_SW(I,J)*SMASK(I_WEST,J_SOUTH)
+                X_SE=WGHT_SE(I,J)*SMASK(I_EAST,J_SOUTH)
+                X_NW=WGHT_NW(I,J)*SMASK(I_WEST,J_NORTH)
+                X_NE=WGHT_NE(I,J)*SMASK(I_EAST,J_NORTH)
+!
+                SUM_WGT=X_SW+X_SE+X_NW+X_NE
+!
+                IF(ABS(SUM_WGT)>1.E-6)THEN
+                  RECIP_SUM_WGT=1./(X_SW+X_SE+X_NW+X_NE)
+                ELSE
+                  RECIP_SUM_WGT=0.
+                ENDIF
+!
+                PROD_SWGT_SW(I,J)=X_SW*RECIP_SUM_WGT                       !<-- These are the adjusted bilinear interpolation
+                PROD_SWGT_SE(I,J)=X_SE*RECIP_SUM_WGT                       !    weights that take into account the presence
+                PROD_SWGT_NW(I,J)=X_NW*RECIP_SUM_WGT                       !    of land points that must be excluded in the
+                PROD_SWGT_NE(I,J)=X_NE*RECIP_SUM_WGT                       !    summation.
+              ENDDO
+            ENDDO
+!
+          ENDIF soil_wgts
+!
+!-----------------------------------------------------------------------
+!***  Some of the primary Dynamics integration variables are valid
+!***  at the previous time step (PDO,TP,UP,VP).  Update those at
+!***  the appropriate nest gridpoints as well.  Since the parent's
+!***  time step is larger than the child's, approximate the child's
+!***  previous time step value as
+!***  (PARENT_CHILD_TIME_RATIO-1.)/PARENT_CHILD_TIME_RATIO 
+!***  between the old and current parent values.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Compute the parent's Psfc at the nest H or V update points.
+!-----------------------------------------------------------------------
+!
+          DO J=J1,J2
+          DO I=I1,I2
+!
+            PSFC_PARENT_SW=PD(I_PARENT_WEST_H(I),J_PARENT_SOUTH_H(J))+PT
+            PSFC_PARENT_SE=PD(I_PARENT_EAST_H(I),J_PARENT_SOUTH_H(J))+PT
+            PSFC_PARENT_NW=PD(I_PARENT_WEST_H(I),J_PARENT_NORTH_H(J))+PT
+            PSFC_PARENT_NE=PD(I_PARENT_EAST_H(I),J_PARENT_NORTH_H(J))+PT
+!
+            PINT_INTERP(I,J,LM+1)=WGHT_SW_H(I,J)*PSFC_PARENT_SW          &  !<-- Parent's Psfc at nest point at parent's sfc elevation
+                                 +WGHT_SE_H(I,J)*PSFC_PARENT_SE          &  !
+                                 +WGHT_NW_H(I,J)*PSFC_PARENT_NW          &  !
+                                 +WGHT_NE_H(I,J)*PSFC_PARENT_NE             !<--
+!
+            LOG_PBOT(I,J)=LOG(PINT_INTERP(I,J,LM+1))
+!
+            PHI_INTERP(I,J,LM+1)=WGHT_SW_H(I,J)*FIS(I_PARENT_WEST_H(I)   &  !<-- Parent's sfc geopotential at nest point
+                                                   ,J_PARENT_SOUTH_H(J)) &  !
+                                +WGHT_SE_H(I,J)*FIS(I_PARENT_EAST_H(I)   &  !
+                                                   ,J_PARENT_SOUTH_H(J)) &  !
+                                +WGHT_NW_H(I,J)*FIS(I_PARENT_WEST_H(I)   &  !
+                                                   ,J_PARENT_NORTH_H(J)) &  !
+                                +WGHT_NE_H(I,J)*FIS(I_PARENT_EAST_H(I)   &  !
+                                                   ,J_PARENT_NORTH_H(J))    !<--
+!
+          ENDDO
+          ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Parent computes its layer interface pressures and geopotentials
+!***  at the locations of the moving nest update points.  The input
+!***  and target values of pressure locations for the vertical
+!***  interpolations from parent to nest are the hydrostatic midlayer
+!***  and interface pressures.
+!-----------------------------------------------------------------------
+!
+          DO J=J1,J2                                                       !<-- J limits of child task update region on parent task
+            J_SOUTH=J_PARENT_SOUTH_H(J)
+            J_NORTH=J_PARENT_NORTH_H(J)
+!
+            DO I=I1,I2                                                     !<-- I limits of child task update region on parent task
+              I_WEST=I_PARENT_WEST_H(I)
+              I_EAST=I_PARENT_EAST_H(I)
+!
+              PD_INTERP(I,J)=WGHT_SW_H(I,J)*PD(I_WEST,J_SOUTH)          &  !<-- Parent's PD interp'd to child task update points
+                            +WGHT_SE_H(I,J)*PD(I_EAST,J_SOUTH)          &
+                            +WGHT_NW_H(I,J)*PD(I_WEST,J_NORTH)          &
+                            +WGHT_NE_H(I,J)*PD(I_EAST,J_NORTH)
+!
+            ENDDO
+          ENDDO
+!
+          DO L=NUM_LYRS,1,-1
 !
             PDTOP_PT=SG1(L+1)*PDTOP+PT
 !
-            PBOT_IN   =SG2(L+1)*PD_BILINEAR(I,J,1)+PDTOP_PT
-            PMID_IN(L)=0.5*(PTOP_IN+PBOT_IN)
-            PTOP_IN   =PBOT_IN
-            VBL_INPUT(L)=DUMMY_3D(I,J,L)
+            DO J=J1,J2                                                     !<-- J limits of child task update region on parent task
+              J_SOUTH=J_PARENT_SOUTH_H(J)
+              J_NORTH=J_PARENT_NORTH_H(J)
 !
-            PBOT_TARGET   =SG2(L+1)*PD_NEAREST(I,J,1)+PDTOP_PT
-            PMID_TARGET(L)=0.5*(PTOP_TARGET+PBOT_TARGET)
-            PTOP_TARGET   =PBOT_TARGET
+              DO I=I1,I2                                                   !<-- I limits of child task update region on parent task
+                I_WEST=I_PARENT_WEST_H(I)
+                I_EAST=I_PARENT_EAST_H(I)
+!
+                PX_SW=SG2(L)*PD(I_WEST,J_SOUTH)+PDTOP_PT                   !<-- Pressure, top of layer L, parent point SW of nest point
+                PX_SE=SG2(L)*PD(I_EAST,J_SOUTH)+PDTOP_PT                   !<-- Pressure, top of layer L, parent point SE of nest point
+                PX_NW=SG2(L)*PD(I_WEST,J_NORTH)+PDTOP_PT                   !<-- Pressure, top of layer L, parent point NW of nest point
+                PX_NE=SG2(L)*PD(I_EAST,J_NORTH)+PDTOP_PT                   !<-- Pressure, top of layer L, parent point NE of nest point
+!
+                PINT_INTERP(I,J,L)=WGHT_SW_H(I,J)*PX_SW                 &  !<-- Top interface hydrostatic pressure interpolated to
+                                  +WGHT_SE_H(I,J)*PX_SE                 &  !    update point for child task N.  These are the source
+                                  +WGHT_NW_H(I,J)*PX_NW                 &  !    pressures for interface variables.
+                                  +WGHT_NE_H(I,J)*PX_NE                    !<--
+!
+                PMID_INTERP(I,J,L)=0.5*(PINT_INTERP(I,J,L)              &  !<-- Parent's midlayer hydrostatic pressure at nest update
+                                       +PINT_INTERP(I,J,L+1))              !    points.  Source pressures for midlayer variables. 
+!
+                T_INTERP=WGHT_SW_H(I,J)*T(I_WEST,J_SOUTH,L)             &  !<-- T interp'd to update point for child task N
+                        +WGHT_SE_H(I,J)*T(I_EAST,J_SOUTH,L)             &  !
+                        +WGHT_NW_H(I,J)*T(I_WEST,J_NORTH,L)             &  !
+                        +WGHT_NE_H(I,J)*T(I_EAST,J_NORTH,L)                !<--
+!
+                Q_INTERP=WGHT_SW_H(I,J)*Q(I_WEST,J_SOUTH,L)             &  !<-- Q interp'd to update point for child task N
+                        +WGHT_SE_H(I,J)*Q(I_EAST,J_SOUTH,L)             &  !
+                        +WGHT_NW_H(I,J)*Q(I_WEST,J_NORTH,L)             &  !
+                        +WGHT_NE_H(I,J)*Q(I_EAST,J_NORTH,L)                !<--
+!
+                CW_INTERP=WGHT_SW_H(I,J)*CW(I_WEST,J_SOUTH,L)           &  !<-- CW interp'd to update point for child task N
+                         +WGHT_SE_H(I,J)*CW(I_EAST,J_SOUTH,L)           &  !
+                         +WGHT_NW_H(I,J)*CW(I_WEST,J_NORTH,L)           &  !
+                         +WGHT_NE_H(I,J)*CW(I_EAST,J_NORTH,L)              !<--
+!
+                DP=DSG2(L)*PD_INTERP(I,J)+PDSG1(L)
+!
+                TMP=R_D*T_INTERP*((1.-CW_INTERP)+P608*Q_INTERP)
+                LOG_PTOP(I,J)=LOG(PINT_INTERP(I,J,L))
+!
+                PHI_INTERP(I,J,L)=PHI_INTERP(I,J,L+1)                   &  !<-- Top interface geopotl of parent at child update point I,J
+                                 +TMP*(LOG_PBOT(I,J)-LOG_PTOP(I,J))
+!
+                LOG_PBOT(I,J)=LOG_PTOP(I,J)
+!
+              ENDDO
+            ENDDO
 !
           ENDDO
 !
-!***  WE KNOW THE TARGET MID-LAYER PRESSURE IS GREATER THAN THAT IN
-!***  THE ORIGINAL COLUMN SINCE THE SFC ELEVATION HAS BEEN LOWERED.
-!***  ADD A NEW INPUT LEVEL BY EXTRAPOLATING LINEARLY IN PRESSURE
-!***  TO OBTAIN A VALUE AT THE LOWEST OUTPUT MID-LAYER THEN FILL
-!***  IN ALL OUTPUT LEVELS WITH THE SPLINE.
+!-----------------------------------------------------------------------
+!***  Use the sfc geopotential at the nest points to derive the 
+!***  value of PD at the nest points based on the parent's heights
+!***  and pressures on the parent's layer interfaces over the
+!***  child's points.
 !
-          PMID_IN(LM+1)=PMID_TARGET(LM)
-          R_DELP=1./(PMID_IN(LM)-PMID_IN(LM-1))
-          DELP_EXTRAP=PMID_TARGET(LM)-PMID_IN(LM)
-          COEFF_1=(VBL_INPUT(LM)-VBL_INPUT(LM-1))*R_DELP
-          VBL_INPUT(LM+1)=VBL_INPUT(LM)+COEFF_1*DELP_EXTRAP                !<-- Create extrapolated value at nest's lowest mid-layer
-!                                                                               in input array.
+!***  If the child's terrain is lower than the value of the parent's
+!***  terrain interpolated to the child point then extrapolate the
+!***  parent's interpolated sfc pressure down to the child's terrain
+!***  quadratically.
 !-----------------------------------------------------------------------
 !
-          IF(ABS(PMID_IN(LM+1)-PMID_IN(LM))<10.)EXIT
+          DO J=J1,J2
+!!!         J_TRANS=J+(J_PARENT_SW-JDS_CHILD)*PARENT_CHILD_SPACE_RATIO     !<-- J on full nest resolution of parent at given nest J
+            J_TRANS=J+J_OFFSET                                             !<-- J on full nest resolution of parent at given nest J
 !
-          CALL SPLINE(NUM_LEVS_SPLINE                                   &  !<-- # of input levels
-                     ,PMID_IN                                           &  !<-- Input mid-layer pressures
-                     ,VBL_INPUT                                         &  !<-- Input mid-layer mass variable value
-                     ,SEC_DERIV                                         &  !<-- Specified 2nd derivatives (=0) at input levels
-                     ,LM                                                &  !<-- # of mid-layers to which to interpolate
-                     ,PMID_TARGET                                       &  !<-- Mid-layer pressures to which to interpolate 
-                     ,VBL_COLUMN )                                         !<-- Mid-layer variable value returned
+            DO I=I1,I2
+!!!           I_TRANS=I+(I_PARENT_SW-IDS_CHILD)*PARENT_CHILD_SPACE_RATIO   !<-- I on full nest resolution of parent at given nest I
+              I_TRANS=I+I_OFFSET                                           !<-- I on full nest resolution of parent at given nest I
 !
-          DO L=1,LM
-            DUMMY_3D(I,J,L)=VBL_COLUMN(L)
+      if(i_trans<lbnd1.or.i_trans>ubnd1.or.j_trans<lbnd2.or.j_trans>ubnd2)then
+        write(0,*)' PARENT_UPDATES fis_child 1 out-of-bounds i=',i,' i_trans=',i_trans,' i_offset=',i_offset &
+                 ,' j=',j,' j_trans=',j_trans,' j_offset=',j_offset
+        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+      endif
+              IF(FIS_CHILD(I_TRANS,J_TRANS)<PHI_INTERP(I,J,LM+1))THEN      !<-- If so, child's terrain lies below parent's 
+!
+                COEFF_1=(PINT_INTERP(I,J,LM+1)-PINT_INTERP(I,J,LM))     &  !<-- Coefficient for linear term
+                       /(PHI_INTERP(I,J,LM+1)-PHI_INTERP(I,J,LM))
+!
+                COEFF_2=(COEFF_1                                        &  !<-- Coefficient for quadratic term
+                        -(PINT_INTERP(I,J,LM)-PINT_INTERP(I,J,LM-1))    &  !
+                        /(PHI_INTERP(I,J,LM)-PHI_INTERP(I,J,LM-1)))     &  !
+                        /(PHI_INTERP(I,J,LM+1)-PHI_INTERP(I,J,LM-1))       !
+!
+                PHI_DIFF=FIS_CHILD(I_TRANS,J_TRANS)-PHI_INTERP(I,J,LM+1)   !<-- Diff between nest sfc geopotential and parent's interp'd
+!
+                PSFC_CHILD=COEFF_2*PHI_DIFF*PHI_DIFF                    &  !<-- Parent pressure at child's surface elevation
+                          +COEFF_1*PHI_DIFF                             &
+                          +PINT_INTERP(I,J,LM+1)
+!
+              ELSE                                                         !<-- Child's terrain is at or above parent's
+      if(i_trans<lbnd1.or.i_trans>ubnd1.or.j_trans<lbnd2.or.j_trans>ubnd2)then
+        write(0,*)' PARENT_UPDATES fis_child 2 out-of-bounds i=',i,' i_trans=',i_trans,' i_offset=',i_offset &
+                 ,' j=',j,' j_trans=',j_trans,' j_offset=',j_offset
+        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+      endif
+                DO L=NUM_LYRS,1,-1
+                  IF(FIS_CHILD(I_TRANS,J_TRANS)<PHI_INTERP(I,J,L))THEN
+                    LOG_P1_PARENT=LOG(PINT_INTERP(I,J,L+1))                !<-- Log pressure on bottom of parent model layer
+                    D_LNP_DFI=(LOG_P1_PARENT-LOG(PINT_INTERP(I,J,L)))   &  !<-- d[ln(p)]/d[fi] in parent layer L
+                             /(PHI_INTERP(I,J,L+1)-PHI_INTERP(I,J,L))
+                    PSFC_CHILD=EXP(LOG_P1_PARENT                        &  !<-- Parent pressure at child's surface elevation
+                                  +D_LNP_DFI                            &
+                                   *(FIS_CHILD(I_TRANS,J_TRANS)         &
+                                    -PHI_INTERP(I,J,L+1)))
+                    EXIT
+                  ENDIF
+                ENDDO
+              ENDIF
+!
+              PD_CHILD(I,J)=PSFC_CHILD-PT                                  !<-- Parent's approx. of child PD on child's update point
+!
+              PINT_CHILD(I,J,NUM_LYRS+1)=PSFC_CHILD                        !<-- Parent's approx. of child pressure at child's sfc
+!
+            ENDDO
           ENDDO
 !
-        ENDIF adjust
+!-----------------------------------------------------------------------
+!***  The nest's interface and midlayer hydrostatic pressures
+!***  at the update locations.  These are the target pressures
+!***  for the interface and midlayer variables, respectively.
+!-----------------------------------------------------------------------
+!
+          DO L=NUM_LYRS,1,-1
+            PDTOP_PT=SG1(L+1)*PDTOP+PT
+!
+            DO J=J1,J2
+            DO I=I1,I2
+              PINT_CHILD(I,J,L)=SG2(L)*PD_CHILD(I,J)+PDTOP_PT
+              PMID_CHILD(I,J,L)=0.5*(PINT_CHILD(I,J,L)                  &
+                                    +PINT_CHILD(I,J,L+1))
+            ENDDO
+            ENDDO
+!
+          ENDDO
+!
+!-----------------------------------------------------------------------
+!***  The parent extracts each update variable from the Move Bundle
+!***  that will be sent to those nest points that have moved beyond
+!***  the footprint of the nest domain's previous location and onto
+!***  a new region of the parent domain then updates these variables 
+!***  by: (1) selecting the nearest neighbor (integers); (2) simple
+!***  bilinear interpolation; (3) bilinear interpolation that accounts
+!***  for the presence of the sea mask; (4) bilinear interpolation that
+!***  accounts for the presence of the land mask.  A fifth method of
+!***  updates in these regions is done by reading the values directly
+!***  from external files but that is done by the moving nest tasks
+!***  themselves in UPDATE_INTERIOR_FROM_PARENT.
+!-----------------------------------------------------------------------
+!
+          field_loop: DO N_FIELD=1,NUM_FIELDS_MOVE
 !
 !-----------------------------------------------------------------------
 !
-      ENDDO
-      ENDDO
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Extract N_Fieldth Field From Move_Bundle"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_520rbs
+        CALL ESMF_FieldBundleGet(fieldBundle=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
+                                ,fieldIndex =N_FIELD                    &  !<-- Index of the Field in the Bundle
+                                ,field      =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
+                                ,rc         =RC)
+#else
+            CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE             &  !<-- Bundle holding the arrays for move updates
+                                    ,fieldIndex=N_FIELD                 &  !<-- Index of the Field in the Bundle
+                                    ,field     =HOLD_FIELD              &  !<-- Field N_FIELD in the Bundle
+                                    ,rc        =RC )
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Type and Dimensions of the Field"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_FieldGet(field   =HOLD_FIELD                      &  !<-- Field N_FIELD in the Bundle
+                              ,dimCount=NUM_DIMS                        &  !<-- Is this Field 2-D or 3-D?
+                              ,typeKind=DATATYPE                        &  !<-- Is this Field integer or real?
+                              ,name    =FIELD_NAME                      &  !<-- This Field's name
+                              ,rc      =RC )
+!
+            N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
+            FIELD_NAME=FIELD_NAME(1:N_REMOVE-1)                            !<-- Remove Move Bundle Fieldname's suffix '-move'
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Extract Type of Update by the Parent"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeGet(field=HOLD_FIELD                     &  !<-- Take Attribute from this Field
+                                  ,name ='UPDATE_TYPE'                  &  !<-- The Attribute's name
+                                  ,value=UPDATE_TYPE_INT                &  !<-- The Attribute's value
+                                  ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            IF(UPDATE_TYPE_INT==1)THEN
+              UPDATE_TYPE_CHAR='H'                                         !<-- Ordinary H-pt variable 
+            ELSEIF(UPDATE_TYPE_INT==2)THEN
+              UPDATE_TYPE_CHAR='L'                                         !<-- H-pt land sfc variable 
+            ELSEIF(UPDATE_TYPE_INT==3)THEN
+              UPDATE_TYPE_CHAR='W'                                         !<-- H-pt water sfc variable 
+            ELSEIF(UPDATE_TYPE_INT==4)THEN
+              UPDATE_TYPE_CHAR='F'                                         !<-- H-pt variable updated from external file
+            ELSEIF(UPDATE_TYPE_INT==5)THEN
+              UPDATE_TYPE_CHAR='V'                                         !<-- Ordinary V-pt variable
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Variables that nests will read from external files are 
+!***  simply skipped here.
+!-----------------------------------------------------------------------
+!
+            IF(UPDATE_TYPE_CHAR=='F')THEN
+!
+              CYCLE field_loop
+!
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Interpolate the parent's update variables to the nest update
+!***  locations.  Of course this is simple bilinear interpolation
+!***  for many 2-D variables.  Since we now have the parent's and the
+!***  nest's vertical pressure distributions at each of the nest's
+!***  horizontal update locations the 3-D update variables can be
+!***  interpolated to the nest's locations using bilinear in the
+!***  horizontal and cubic spline in the vertical.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***  2-D Fields 
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+            dims_2_or_3: IF(NUM_DIMS==2)THEN
+!
+!--------------------------------
+!***  Integer - Nearest Neighbor
+!--------------------------------
+!
+              type_2d : IF(DATATYPE==ESMF_TYPEKIND_I4)THEN                 !<-- Field N holds an integer array
+!
+#ifdef ESMF_3
+                CALL ESMF_FieldGet(field  =HOLD_FIELD                   &  !<-- Field N_FIELD in the Bundle
+                                  ,localDe=0                            &
+                                  ,farray =IARRAY_2D                    &  !<-- Dummy 2-D integer array with Field's data
+                                  ,rc     =RC )
+#else
+                CALL ESMF_FieldGet(field    =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
+                                  ,localDe  =0                          &
+                                  ,farrayPtr=IARRAY_2D                  &  !<-- Dummy 2-D integer array with Field's data
+                                  ,rc       =RC )
+#endif
+!
+                DO J=J1,J2
+                  J_SOUTH=J_PARENT_SOUTH(J)
+                  J_NORTH=J_PARENT_NORTH(J)
+!
+                  DO I=I1,I2
+                    I_WEST =I_PARENT_WEST(I)
+                    I_EAST =I_PARENT_EAST(I)
+
+                    KNT_INTEGER_PTS(N)=KNT_INTEGER_PTS(N)+1                !<-- Total integer points updated in composite output.
+!
+                    MAX_WGHT=MIN(WGHT_SW(I,J),WGHT_SE(I,J)              &  !<-- What is the greatest weight of parent points?
+                                ,WGHT_NW(I,J),WGHT_NE(I,J))
+!
+                    IF(MAX_WGHT==WGHT_SW(I,J))THEN                         !<-- Assign integer parent value with greatest weight.
+                      IVAL=IARRAY_2D(I_WEST,J_SOUTH)                       !
+                    ELSEIF(MAX_WGHT==WGHT_SE(I,J))THEN                     !
+                      IVAL=IARRAY_2D(I_EAST,J_SOUTH)                       !
+                    ELSEIF(MAX_WGHT==WGHT_NW(I,J))THEN                     !
+                      IVAL=IARRAY_2D(I_WEST,J_NORTH)                       !
+                    ELSEIF(MAX_WGHT==WGHT_NE(I,J))THEN                     !
+                      IVAL=IARRAY_2D(I_EAST,J_NORTH)                       !
+                    ENDIF                                                  !<--
+!
+                    CHILD_UPDATE_DATA%TASKS(N)%DATA_INTEGER(KNT_INTEGER_PTS(N))=IVAL
+                  ENDDO
+                ENDDO
+!
+!---------------------
+!***  Real - Bilinear
+!---------------------
+!
+              ELSEIF(DATATYPE==ESMF_TYPEKIND_R4)THEN  type_2d              !<-- Field N holds a real array
+!
+#ifdef ESMF_3
+                CALL ESMF_FieldGet(field  =HOLD_FIELD                   &  !<-- Field N_FIELD in the Bundle
+                                  ,localDe=0                            &
+                                  ,farray =ARRAY_2D                     &  !<-- Dummy 2-D real array with Field's data
+                                  ,rc     =RC )
+#else
+                CALL ESMF_FieldGet(field    =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
+                                  ,localDe  =0                          &
+                                  ,farrayPtr=ARRAY_2D                   &  !<-- Dummy 2-D real array with Field's data
+                                  ,rc       =RC )
+#endif
+!
+!-----------------------------------------------------------------------
+!***  Latitude and longitude and variables directly related to them
+!***  will be computed by the moving nests in the parent update regions
+!***  so the parent does not update those variables.  However they must
+!***  be designated as shift variables in order for the intra- and
+!***  inter-task shifts to be executed by the nest therefore we must
+!***  insert dummy values and increment the total word count of the
+!***  parent update data object.
+!-----------------------------------------------------------------------
+!
+!!!             IF(TRIM(FIELD_NAME)=='GLAT'                             &
+!!!                       .OR.                                          &
+!!!                TRIM(FIELD_NAME)=='GLON'                             &
+!!!                       .OR.                                          &
+!!!                TRIM(FIELD_NAME)=='VLAT'                             &
+!!!                       .OR.                                          &
+!!!                TRIM(FIELD_NAME)=='VLON')THEN
+                IF(FIELD_NAME=='GLAT'.OR.FIELD_NAME=='GLON'             &
+                         .OR.                                           &
+                   FIELD_NAME=='VLAT'.OR.FIELD_NAME=='VLON'             &
+                         .OR.                                           &
+                   FIELD_NAME=='HDACX'.OR.FIELD_NAME=='HDACY'           &
+                         .OR.                                           &
+                   FIELD_NAME=='HDACVX'.OR.FIELD_NAME=='HDACVY'         &
+                         .OR.                                           &
+                   FIELD_NAME=='F') THEN
+!
+                  KNT_DUMMY=0
+!
+                  DO J=J1,J2
+                  DO I=I1,I2
+                    KNT_DUMMY=KNT_DUMMY+1
+                    CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL(KNT_REAL_PTS(N)+KNT_DUMMY)=  &  !<-- Dummy values needed for correct word count
+                                                                               -999.0
+                  ENDDO
+                  ENDDO
+!
+                  KNT_REAL_PTS(N)=KNT_REAL_PTS(N)+(I2-I1+1)*(J2-J1+1)        !<-- # of dummy values added to composite output.
+!
+                  CYCLE field_loop
+!
+                ENDIF
+!
+!-----------------------------------------------------------------------
+!***  The parent has already computed its approximation of the
+!***  child's PD so just insert it into the composite data object.
+!***  NOTE:  For the time being the parent will use its generated
+!***         values of PD on the nest in filling the nest's PDO.
+!-----------------------------------------------------------------------
+!
+!--------
+!***  PD
+!--------
+!
+!!!             IF(TRIM(FIELD_NAME)=='PD')THEN
+!!!             IF(TRIM(FIELD_NAME)=='PD'.OR.TRIM(FIELD_NAME)=='PDO')THEN
+                IF(FIELD_NAME=='PD'.OR.FIELD_NAME=='PDO')THEN
+!
+                  DO J=J1,J2
+                    J_SOUTH=J_PARENT_SOUTH(J)
+                    J_NORTH=J_PARENT_NORTH(J)
+!
+                    DO I=I1,I2
+                      I_WEST=I_PARENT_WEST(I)
+                      I_EAST=I_PARENT_EAST(I)
+!
+                      KNT_REAL_PTS(N)=KNT_REAL_PTS(N)+1                          !<-- Total real points updated in composite output.
+!
+                      CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL(KNT_REAL_PTS(N))=  &  !<-- Save the parent's computation of the nest's
+                                                                 PD_CHILD(I,J)   !    new PD into the data object.
+!
+                    ENDDO
+                  ENDDO
+!
+                  CYCLE field_loop
+!
+                ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Nest-resolution values of FIS and SM were read by the parent
+!***  tasks and sent into this routine since they are required by
+!***  the parent for generating update values for its moving children.
+!***  Insert them directly into the data object of update values.
+!-----------------------------------------------------------------------
+!
+!!!             ELSEIF(TRIM(FIELD_NAME)=='FIS')THEN
+!
+!!!               DO J=J1,J2
+!!!                 J_SOUTH=J_PARENT_SOUTH(J)
+!!!                 J_NORTH=J_PARENT_NORTH(J)
+!!!                 J_TRANS=J+(J_PARENT_SW-JDS_CHILD)*PARENT_CHILD_SPACE_RATIO   !<-- J on full nest resolution of parent at given nest J
+!
+!!!                 DO I=I1,I2
+!!!                   I_WEST=I_PARENT_WEST(I)
+!!!                   I_EAST=I_PARENT_EAST(I)
+!!!                   I_TRANS=I+(I_PARENT_SW-IDS_CHILD)*PARENT_CHILD_SPACE_RATIO !<-- I on full nest resolution of parent at given nest I
+!
+!!!                   KNT_REAL_PTS(N)=KNT_REAL_PTS(N)+1                          !<-- Total real points updated in composite output.
+!
+!!!                   CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL(KNT_REAL_PTS(N))=  &  !<-- Insert the nest-resolution values of FIS
+!!!                                               FIS_CHILD(I_TRANS,J_TRANS)     !    that the parent had read in earlier.
+!
+!!!                 ENDDO
+!!!               ENDDO
+!
+!               ELSEIF(TRIM(FIELD_NAME)=='SM')THEN
+!
+!                 DO J=J1,J2
+!                   J_SOUTH=J_PARENT_SOUTH(J)
+!                   J_NORTH=J_PARENT_NORTH(J)
+!
+!                   DO I=I1,I2
+!                     I_WEST=I_PARENT_WEST(I)
+!                     I_EAST=I_PARENT_EAST(I)
+!
+!                     KNT_REAL_PTS(N)=KNT_REAL_PTS(N)+1                          !<-- Total real points updated in composite output.
+!
+!                     CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL(KNT_REAL_PTS(N))=  &  !<-- Insert the nest-resolution values of SM
+!                                                                SM_CHILD(I,J)   !    that the parent had read in earlier.
+!
+!                   ENDDO
+!                 ENDDO
+!
+!----------------------------------
+!***  All other 2-D Real variables
+!----------------------------------
+!
+!-----------------------------------------------------------------------
+!***  If the 2-D Real variable is not related to the land/sea surface
+!***  then bilinearly interpolate it to the nest points' locations
+!***  and insert it into the data object.
+!-----------------------------------------------------------------------
+!
+                IF(UPDATE_TYPE_CHAR/='L'.AND.UPDATE_TYPE_CHAR/='W')THEN
 !
 !-----------------------------------------------------------------------
 !
-      END SUBROUTINE ADJUST_COLUMNS
+                  DO J=J1,J2
+                    J_SOUTH=J_PARENT_SOUTH(J)
+                    J_NORTH=J_PARENT_NORTH(J)
+!
+                    DO I=I1,I2
+                      I_WEST=I_PARENT_WEST(I)
+                      I_EAST=I_PARENT_EAST(I)
+!
+                      KNT_REAL_PTS(N)=KNT_REAL_PTS(N)+1                          !<-- Total real points updated in composite output.
+!
+                      CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL(KNT_REAL_PTS(N))=  &  !<-- Parent's 2-D real variable interpolated 
+                                       WGHT_SW(I,J)*ARRAY_2D(I_WEST,J_SOUTH)  &  !    horizontally to the moving nest's
+                                      +WGHT_SE(I,J)*ARRAY_2D(I_EAST,J_SOUTH)  &  !    update location on nest task N's
+                                      +WGHT_NW(I,J)*ARRAY_2D(I_WEST,J_NORTH)  &  !    subdomain.
+                                      +WGHT_NE(I,J)*ARRAY_2D(I_EAST,J_NORTH)     !<--
+                    ENDDO
+                  ENDDO
+!
+                  CYCLE field_loop
+!
+                ENDIF
+!
+!-----------------------------------------------------------------------
+!***  If the 2-D Real variable is related to the land/sea surface
+!***  then the bilinear interpolation must also take into account
+!***  the exclusion of either sea or land points in the final
+!***  4-pt summation.
+!-----------------------------------------------------------------------
+!
+                IF(UPDATE_TYPE_CHAR=='L')THEN                              !<-- If true, a 2-D land surface real variable
+!
+!-----------------------------------------------------------------------
+!
+                  DO J=J1,J2
+                    J_SOUTH=J_PARENT_SOUTH(J)
+                    J_NORTH=J_PARENT_NORTH(J)
+!
+                    DO I=I1,I2
+                      I_WEST=I_PARENT_WEST(I)
+                      I_EAST=I_PARENT_EAST(I)
+!
+                      KNT_REAL_PTS(N)=KNT_REAL_PTS(N)+1                          !<-- Total real points updated in composite output.
+!
+                      CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL(KNT_REAL_PTS(N))=  &  !<-- Parent's 2-D real land variable interpolated 
+                                 PROD_LWGT_SW(I,J)*ARRAY_2D(I_WEST,J_SOUTH)   &  !    horizontally to the moving nest's
+                                +PROD_LWGT_SE(I,J)*ARRAY_2D(I_EAST,J_SOUTH)   &  !    update location using the land mask.
+                                +PROD_LWGT_NW(I,J)*ARRAY_2D(I_WEST,J_NORTH)   &  !
+                                +PROD_LWGT_NE(I,J)*ARRAY_2D(I_EAST,J_NORTH)      !<--
+                    ENDDO
+                  ENDDO
+!
+!-----------------------------------------------------------------------
+!
+                ELSEIF(UPDATE_TYPE_CHAR=='W')THEN                          !<-- If true, a 2-D water surface real variable
+!
+!-----------------------------------------------------------------------
+!
+                  DO J=J1,J2
+                    J_SOUTH=J_PARENT_SOUTH(J)
+                    J_NORTH=J_PARENT_NORTH(J)
+!
+                    DO I=I1,I2
+                      I_WEST=I_PARENT_WEST(I)
+                      I_EAST=I_PARENT_EAST(I)
+!
+                      KNT_REAL_PTS(N)=KNT_REAL_PTS(N)+1                          !<-- Total real points updated in composite output.
+!
+                      CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL(KNT_REAL_PTS(N))=  &  !<-- Parent's 2-D real sea variable interpolated 
+                                 PROD_SWGT_SW(I,J)*ARRAY_2D(I_WEST,J_SOUTH)   &  !    horizontally to the moving nest's
+                                +PROD_SWGT_SE(I,J)*ARRAY_2D(I_EAST,J_SOUTH)   &  !    update location using the land mask.
+                                +PROD_SWGT_NW(I,J)*ARRAY_2D(I_WEST,J_NORTH)   &  !
+                                +PROD_SWGT_NE(I,J)*ARRAY_2D(I_EAST,J_NORTH)      !<--
+                    ENDDO
+                  ENDDO
+!
+!-----------------------------------------------------------------------
+!
+                ENDIF
+!
+!-----------------------------------------------------------------------
+!
+              ENDIF  type_2d
+!
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***  3-D Fields --> Bilinear interpolation
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+            ELSEIF(NUM_DIMS==3)THEN  dims_2_or_3
+!
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+              CALL ESMF_FieldGet(field      =HOLD_FIELD                 &  !<-- Field N in the Bundle
+                                ,localDe    =0                          &
+                                ,farray     =ARRAY_3D                   &  !<-- Dummy 3-D array with Field's data
+                                ,totalLBound=LIMITS_LO                  &  !<-- Starting index in each dimension
+                                ,totalUBound=LIMITS_HI                  &  !<-- Ending index in each dimension
+                                ,rc         =RC )
+#else
+              CALL ESMF_FieldGet(field      =HOLD_FIELD                 &  !<-- Field N in the Bundle
+                                ,localDe    =0                          &
+                                ,farrayPtr  =ARRAY_3D                   &  !<-- Dummy 3-D array with Field's data
+                                ,totalLBound=LIMITS_LO                  &  !<-- Starting index in each dimension
+                                ,totalUBound=LIMITS_HI                  &  !<-- Ending index in each dimension
+                                ,rc         =RC )
+#endif
+!
+              KLO=LIMITS_LO(3)
+              KHI=LIMITS_HI(3)
+              NUM_LEVELS=KHI-KLO+1                                         !<-- # of levels in this 3-D Real variable
+!
+!-----------------------------------------------------------------------
+!***  The nature of the unique Q2 and E2 arrays complicates how the
+!***  parent must interpolate its values to the nest gridpoints.
+!***  Q2 and E2 are 3-D arrays that lie on the layer interfaces
+!***  BUT their level K=1 is the BOTTOM of the uppermost model layer
+!***  and not the top of the uppermost layer.  Thus while there are
+!***  NUM_LYRS+1 layer interfaces there are only NUM_LYRS levels
+!***  in Q2 and E2 that correspond with interfaces 2->NUM_LYRS+1.
+!***  Rather than insert an assortment of confusing IF tests to
+!***  make a single set of code be generic, separate Q2 and E2
+!***  from the rest of the variables and deal with them inside
+!***  their own block.
+!-----------------------------------------------------------------------
+!
+!!!           q2_e2: IF(TRIM(FIELD_NAME)=='Q2'.OR.                      &
+!!!                     TRIM(FIELD_NAME)=='E2')THEN
+              q2_e2: IF(FIELD_NAME=='Q2'.OR.FIELD_NAME=='E2')THEN
+!
+!-----------------------------------------------------------------------
+!***  We must add a new level to the top of the Q2 or E2 data in case
+!***  their pressures at the bottom of the uppermost layer are less
+!***  than on the bottom of the uppermost layer in the parent.
+!-----------------------------------------------------------------------
+!
+                IF(ALLOCATED(P_OUTPUT))DEALLOCATE(P_OUTPUT)
+                ALLOCATE(P_OUTPUT(KLO:KHI+1))
+!
+                IF(ALLOCATED(VBL_INTERP))DEALLOCATE(VBL_INTERP)
+                ALLOCATE(VBL_INTERP(I1:I2,J1:J2,KLO:KHI+1+1))
+                ALLOCATE(VBL_COL_X(KLO:KHI+1)) 
+!
+                DO L=KLO,KHI+2
+                  P_INPUT(L)=0.         
+                  VBL_INPUT(L)=0.      
+                ENDDO
+!
+                DO J=J1,J2                        
+                DO I=I1,I2                       
+                  VBL_INTERP(I,J,KHI+1+1)=0.    
+                ENDDO
+                ENDDO                          
+!
+                DO L=KLO,KHI
+                  DO J=J1,J2
+                    J_SOUTH=J_PARENT_SOUTH(J)
+                    J_NORTH=J_PARENT_NORTH(J)
+!
+                    DO I=I1,I2
+                      I_WEST=I_PARENT_WEST(I)
+                      I_EAST=I_PARENT_EAST(I)
+!
+                      VBL_INTERP(I,J,L+1)=                              &  !<-- Parent's 3-D variable interpolated
+                               WGHT_SW(I,J)*ARRAY_3D(I_WEST,J_SOUTH,L)  &  !    horizontally to the moving nest's
+                              +WGHT_SE(I,J)*ARRAY_3D(I_EAST,J_SOUTH,L)  &  !    update location.
+                              +WGHT_NW(I,J)*ARRAY_3D(I_WEST,J_NORTH,L)  &  !
+                              +WGHT_NE(I,J)*ARRAY_3D(I_EAST,J_NORTH,L)     !<--
+                    ENDDO
+                  ENDDO
+                ENDDO
+!
+                DO J=J1,J2
+                DO I=I1,I2
+                  VBL_INTERP(I,J,1)=VBL_INTERP(I,J,2)                      !<-- Fill in the artificial top level.
+                ENDDO
+                ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Use cubic spline interpolation to move variables to child update
+!***  point levels from their original vertical locations in the column
+!***  following horizontal interpolation from the surrounding parent 
+!***  points.  The target locations are the new interface pressures 
+!***  in the nest update point columns based on the new surface
+!***  pressure for the nest's terrain. 
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  If the target location lies below the lowest parent pressure 
+!***  level in the newly created child column then extrapolate linearly
+!***  in pressure to obtain a value at the lowest child level and
+!***  fill in the remaining 'underground' levels using the call to
+!***  'SPLINE' just as with all the other levels above it.
+!-----------------------------------------------------------------------
+!
+                N_STRIDE=NPOINTS_HORIZ
+                N_ADD   =NPOINTS_HORIZ*(NUM_LEVELS-1)
+!
+                NUM_LEVS_SEC=NUM_LEVELS+1+1                                !<-- Use this many levels in the 2nd derivative array
+                ALLOCATE(SEC_DERIV(1:NUM_LEVS_SEC))                        !<-- Allocate 1 longer in case we increase the
+!                                                                          !    # of input levels below.
+                LOC_1=KNT_REAL_PTS(N)
+        kount1=knt_real_pts(n)
+!
+                P3D_INPUT=>PINT_INTERP
+                P3D_OUTPUT=>PINT_CHILD
+!
+                DO J=J1,J2
+                DO I=I1,I2
+!
+                  DO L=1,NUM_LEVELS+1                                      !<-- We are adding a temporary top level to Q2 and E2
+                    P_INPUT  (L)=P3D_INPUT(I,J,L)                          !<-- Parent input pressures over nest update point
+                    P_OUTPUT (L)=P3D_OUTPUT(I,J,L)                         !<-- Nest target pressures over nest update point
+                    VBL_INPUT(L)=VBL_INTERP(I,J,L)                         !<-- Values of parent variable values over nest update point
+                  ENDDO
+!
+                  NUM_LEVS_IN=NUM_LEVELS+1
+                  LOC_1=LOC_1+1
+                  LOC_2=LOC_1+N_ADD
+                  VBL_COL_CHILD=>CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL(LOC_1:LOC_2:N_STRIDE) !<-- Point working column pointer into
+                                                                                            !    the 1-D rendering of this 3-D real 
+                                                                                            !    update variable in the composite output.
+!
+                  IF(P_OUTPUT(NUM_LEVELS+1)>P_INPUT(NUM_LEVELS+1))THEN     !<-- The nest's bottom level is below the parent's
+                    NUM_LEVS_IN=NUM_LEVELS+1+1                             !    so add another input level that is the same
+                    P_INPUT(NUM_LEVELS+1+1)=P_OUTPUT(NUM_LEVELS+1)         !    as the nest's lowest level.
+                    R_DELP=1./(P_INPUT(NUM_LEVELS+1)-P_INPUT(NUM_LEVELS))
+                    DELP_EXTRAP=P_OUTPUT(NUM_LEVELS+1)                  &
+                               -P_INPUT(NUM_LEVELS+1)
+!
+                    COEFF_1=(VBL_INPUT(NUM_LEVELS+1)                    &
+                            -VBL_INPUT(NUM_LEVELS))*R_DELP
+                    VBL_INPUT(NUM_LEVELS+1+1)=VBL_INPUT(NUM_LEVELS+1)   &  !<-- Create extrapolated value at parent's new lowest
+                                             +COEFF_1*DELP_EXTRAP          !    level for input to the spline.
+                  ENDIF
+#ifdef IBM
+                  CALL SCSINT(P_INPUT                                   &  !<-- Input variable is at these input pressure values
+                             ,VBL_INPUT                                 &  !<-- The column of input variable values
+                             ,C_TMP                                     &  !<-- Auxiliary matrix, C(1:NUM_LYRS+2,1:4)
+                             ,NUM_LEVS_IN                               &  !<-- # of input levels
+                             ,0                                         &  !<-- Natural boundary conditions;
+                                                                           !     nothing precomputed (zero or negative integer)
+                             ,P_OUTPUT                                  &  !<-- Child target pressures to interpolate to
+                             ,VBL_COL_X                                 &  !<-- Child values of variable returned on P_OUTPUT levels
+                             ,NUM_LEVELS+1)                                !<-- # of child target levels to interpolate to
+#else
+!
+                  DO L=1,NUM_LEVS_SEC  
+                    SEC_DERIV(L)=0.                                        !<-- Initialize 2nd derivatives of the spline to zero.
+                  ENDDO
+!
+                  CALL SPLINE(NUM_LEVS_IN                               &  !<-- # of input levels
+                             ,P_INPUT                                   &  !<-- Input variable is at these input pressure values
+                             ,VBL_INPUT                                 &  !<-- The column of input variable values
+                             ,SEC_DERIV                                 &  !<-- Specified 2nd derivatives (=0) at parent levels
+                             ,NUM_LEVS_SEC                              &  !<-- Vertical dimension of SEC_DERIV
+                             ,NUM_LEVELS+1                              &  !<-- # of child target levels to interpolate to
+                             ,P_OUTPUT                                  &  !<-- Child target pressure values to interpolate to
+                             ,VBL_COL_X)                                   !<-- Child values of variable returned on P_OUTPUT levels
+#endif
+!
+                  DO L=KLO,KHI
+                    VBL_COL_CHILD(L)=VBL_COL_X(L+1)                        !<-- Eliminate the artificial level on top of layer 1.
+                  ENDDO
+!
+                ENDDO
+                ENDDO
+!
+                KNT_REAL_PTS(N)=KNT_REAL_PTS(N)+NPOINTS_HORIZ*NUM_LEVELS   !<-- Total points updated in composite output after 
+!                                                                          !    this 3-D real variable was done.
+                DEALLOCATE(VBL_COL_X)
+                DEALLOCATE(SEC_DERIV)
+!
+!-----------------------------------------------------------------------
+!
+              ELSE q2_e2                                                   !<-- All 3-D variables that are not Q2 or E2
+!
+!-----------------------------------------------------------------------
+!
+                MIDLAYERS=.FALSE.
+                INTERFACES=.FALSE.
+!
+                IF(NUM_LEVELS==NUM_LYRS)THEN
+                  MIDLAYERS=.TRUE.
+                ELSEIF(NUM_LEVELS==NUM_LYRS+1)THEN
+                  INTERFACES=.TRUE.
+                ENDIF
+!
+                IF(ALLOCATED(P_OUTPUT))DEALLOCATE(P_OUTPUT)
+                ALLOCATE(P_OUTPUT(KLO:KHI))
+!
+                IF(ALLOCATED(VBL_INTERP))DEALLOCATE(VBL_INTERP)
+                ALLOCATE(VBL_INTERP(I1:I2,J1:J2,KLO:KHI+1))
+!
+!-----------------------------------------------------------------------
+!***  Use cubic spline interpolation to move variables to child update
+!***  point levels from their original vertical locations in the column
+!***  following horizontal interpolation from the surrounding parent 
+!***  points.  The target locations are the new pressures values
+!***  in the nest update point columns based on the new surface
+!***  pressure for the nest's terrain.  However this is obviously
+!***  done only for atmospheric variables.  Of course it is not
+!***  done for 3-D land surface variables.
+!-----------------------------------------------------------------------
+!
+                soil_or_not: IF(UPDATE_TYPE_CHAR/='L')THEN                 !<-- 3-D H-pt variable that is not soil.
+!
+!-----------------------------------------------------------------------
+!
+                  DO L=1,NUM_LYRS+2                                        !<-- Maximum # of levels to be used.
+                    P_INPUT(L)=0.  
+                    VBL_INPUT(L)=0.
+                  ENDDO
+!
+                  DO J=J1,J2                           
+                  DO I=I1,I2                          
+                    VBL_INTERP(I,J,KHI+1)=0.         
+                  ENDDO
+                  ENDDO                             
+!
+                  DO L=KLO,KHI
+                    DO J=J1,J2
+                      J_SOUTH=J_PARENT_SOUTH(J)
+                      J_NORTH=J_PARENT_NORTH(J)
+!
+                      DO I=I1,I2
+                        I_WEST=I_PARENT_WEST(I)
+                        I_EAST=I_PARENT_EAST(I)
+!
+                        VBL_INTERP(I,J,L)=                              &  !<-- Parent's 3-D variable interpolated
+                               WGHT_SW(I,J)*ARRAY_3D(I_WEST,J_SOUTH,L)  &  !    horizontally to the moving nest's
+                              +WGHT_SE(I,J)*ARRAY_3D(I_EAST,J_SOUTH,L)  &  !    update location.
+                              +WGHT_NW(I,J)*ARRAY_3D(I_WEST,J_NORTH,L)  &  !
+                              +WGHT_NE(I,J)*ARRAY_3D(I_EAST,J_NORTH,L)     !<--
+                      ENDDO
+                    ENDDO
+                  ENDDO
+!
+!-----------------------------------------------------------------------
+!***  If the target location lies below the lowest parent pressure
+!***  level in the newly created child column then extrapolate linearly
+!***  in pressure to obtain a value at the lowest child level and
+!***  fill in the remaining 'underground' levels using the call to
+!***  'SPLINE' just as with all the other levels above it.
+!-----------------------------------------------------------------------
+!
+                  N_STRIDE=NPOINTS_HORIZ
+                  N_ADD   =NPOINTS_HORIZ*(NUM_LEVELS-1)
+!
+!!!               NUM_LEVS_IN=NUM_LEVELS
+                  NUM_LEVS_SEC=NUM_LEVELS+1                                !<-- Use this many levels in the 2nd derivative array
+                  ALLOCATE(SEC_DERIV(1:NUM_LEVS_SEC))                      !<-- Allocate 1 longer in case we increase the
+!                                                                          !    # of input levels below.
+                  LOC_1=KNT_REAL_PTS(N)
+!
+                  IF(MIDLAYERS)THEN                                        !<-- Input/output pressures are at midlayers
+                    P3D_INPUT=>PMID_INTERP
+                    P3D_OUTPUT=>PMID_CHILD
+!
+                  ELSEIF(INTERFACES)THEN                                   !<-- Input/output pressures are at interfaces
+                    P3D_INPUT=>PINT_INTERP
+                    P3D_OUTPUT=>PINT_CHILD
+!
+                  ELSE
+                    WRITE(0,*)' # of levels in 3-D variable is ',NUM_LEVELS
+                    WRITE(0,*)' That is not midlayer, interface, or soil.'
+                    WRITE(0,*)' ABORT!!'
+                    CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+!
+                  ENDIF
+!
+                  DO J=J1,J2
+                  DO I=I1,I2
+!
+                    DO L=1,NUM_LEVELS                                      !<-- Variable has NUM_LEVELS levels in parent and nest
+                      P_INPUT  (L)=P3D_INPUT(I,J,L)                        !<-- Parent input pressures over nest update point
+                      P_OUTPUT (L)=P3D_OUTPUT(I,J,L)                       !<-- Nest target pressures over nest update point
+                      VBL_INPUT(L)=VBL_INTERP(I,J,L)                       !<-- Values of parent variable values over nest update point
+                    ENDDO
+!
+                    NUM_LEVS_IN=NUM_LEVELS
+                    LOC_1=LOC_1+1
+                    LOC_2=LOC_1+N_ADD
+                    VBL_COL_CHILD=>CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL(LOC_1:LOC_2:N_STRIDE) !<-- Point working column pointer into
+                                                                                              !    the 1-D rendering of this 3-D real 
+                                                                                              !    update variable in the composite output.
+!
+                    IF(P_OUTPUT(NUM_LEVELS)>P_INPUT(NUM_LEVELS))THEN       !<-- The nest's bottom level is below the parent's
+                      NUM_LEVS_IN=NUM_LEVELS+1                             !    so add another input level that is the same
+                      P_INPUT(NUM_LEVELS+1)=P_OUTPUT(NUM_LEVELS)           !    as the nest's lowest level.
+                      R_DELP=1./(P_INPUT(NUM_LEVELS)-P_INPUT(NUM_LEVELS-1))
+                      DELP_EXTRAP=P_OUTPUT(NUM_LEVELS)                  &
+                                 -P_INPUT(NUM_LEVELS)
+!
+                      COEFF_1=(VBL_INPUT(NUM_LEVELS)                    &
+                              -VBL_INPUT(NUM_LEVELS-1))*R_DELP
+                      VBL_INPUT(NUM_LEVELS+1)=VBL_INPUT(NUM_LEVELS)     &  !<-- Create extrapolated value at parent's new lowest
+                                             +COEFF_1*DELP_EXTRAP          !    level for input to the spline.
+                    ENDIF
+!
+#ifdef IBM
+                    CALL SCSINT(P_INPUT                                   &  !<-- Input variable is at these input pressure values
+                               ,VBL_INPUT                                 &  !<-- The column of input variable values
+                               ,C_TMP                                     &  !<-- Auxiliary matrix, C(1:NUM_LYRS+2,1:4)
+                               ,NUM_LEVS_IN                               &  !<-- # of input levels
+                               ,0                                         &  !<-- Natural boundary conditions;
+                                                                             !     nothing precomputed (zero or negative integer)
+                               ,P_OUTPUT                                  &  !<-- Child target pressures to interpolate to
+                               ,VBL_COL_CHILD                             &  !<-- Child values of variable returned on P_OUTPUT levels
+                               ,NUM_LEVELS)                                  !<-- # of child target levels to interpolate to
+#else
+                    DO L=1,NUM_LEVS_SEC  
+                      SEC_DERIV(L)=0.                                      !<-- Initialize 2nd derivatives of the spline to zero.
+                    ENDDO
+!
+                    CALL SPLINE(NUM_LEVS_IN                             &  !<-- # of input levels
+                               ,P_INPUT                                 &  !<-- Input variable is at these input pressure values
+                               ,VBL_INPUT                               &  !<-- The column of input variable values
+                               ,SEC_DERIV                               &  !<-- Specified 2nd derivatives (=0) at parent levels
+                               ,NUM_LEVS_SEC                            &  !<-- Vertical dimension of SEC_DERIV
+                               ,NUM_LEVELS                              &  !<-- # of child target levels to interpolate to
+                               ,P_OUTPUT                                &  !<-- Child target pressure values to interpolate to
+                               ,VBL_COL_CHILD)                             !<-- Child values of variable returned on P_OUTPUT levels
+#endif
+!
+                  ENDDO
+                  ENDDO
+!
+                  KNT_REAL_PTS(N)=KNT_REAL_PTS(N)+NPOINTS_HORIZ*NUM_LEVELS !<-- Total points updated in composite output after 
+!                                                                          !    this 3-D real variable was done.
+                  DEALLOCATE(SEC_DERIV)
+!
+!-----------------------------------------------------------------------
+!***  For 3-D soil variables the parent uses bilinear interpolation
+!***  but must also use the land mask.  The bilinear interpolation
+!***  weighting needs to be adjusted to account for water points that
+!***  are excluded from the summation.  The code assumes there are
+!***  no 3-D water point variables to update (UPDATE_TYPE_CHAR=='S').
+!-----------------------------------------------------------------------
+!
+                ELSEIF(UPDATE_TYPE_CHAR=='L')THEN                          !<-- 3-D H-pt variable that is soil
+!
+!-----------------------------------------------------------------------
+!
+!!!               FNAME=TRIM(FIELD_NAME)
+                  FNAME=FIELD_NAME
+!
+                  DO L=KLO,KHI                                             !<-- Loop through the soil layers
+!
+                    DO J=J1,J2
+                      J_SOUTH=J_PARENT_SOUTH(J)
+                      J_NORTH=J_PARENT_NORTH(J)
+!
+                      DO I=I1,I2
+                        I_WEST=I_PARENT_WEST(I)
+                        I_EAST=I_PARENT_EAST(I)
+!
+                        KNT_REAL_PTS(N)=KNT_REAL_PTS(N)+1                  !<-- Total real points updated in composite output.
+!
+!!!                     CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL(KNT_REAL_PTS(N))=  &  !<-- Parent's 3-D soil variable interpolated 
+                        SUM_PROD=PROD_LWGT_SW(I,J)+PROD_LWGT_SE(I,J)            &
+                                +PROD_LWGT_NW(I,J)+PROD_LWGT_NE(I,J)
+!
+                        IF(ABS(SUM_PROD)<1.E-5)THEN
+                          IF(FNAME=='SMC'.OR.FNAME=='SH2O')THEN
+                            CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL(KNT_REAL_PTS(N))=1.0
+                          ELSEIF(FNAME=='STC')THEN
+                            CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL(KNT_REAL_PTS(N))=273.16
+                          ENDIF
+                        ELSE
+                          CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL(KNT_REAL_PTS(N))= &  !<---
+                                    PROD_LWGT_SW(I,J)*ARRAY_3D(I_WEST,J_SOUTH,L) &  !    Parent's 3-D soil variable interpolated 
+                                   +PROD_LWGT_SE(I,J)*ARRAY_3D(I_EAST,J_SOUTH,L) &  !    horizontally to the moving nest's
+                                   +PROD_LWGT_NW(I,J)*ARRAY_3D(I_WEST,J_NORTH,L) &  !    update location using the land mask.
+                                   +PROD_LWGT_NE(I,J)*ARRAY_3D(I_EAST,J_NORTH,L)    !<--
+                        ENDIF
+!
+                    ENDDO
+                  ENDDO
+                ENDDO
+!
+!-----------------------------------------------------------------------
+!
+                ENDIF  soil_or_not
+!
+!-----------------------------------------------------------------------
+!
+              ENDIF q2_e2
+!
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!
+            ENDIF dims_2_or_3
+!
+!-----------------------------------------------------------------------
+!
+          ENDDO field_loop
+!
+!-----------------------------------------------------------------------
+!
+          DEALLOCATE(I_PARENT)
+          DEALLOCATE(I_PARENT_EAST)
+          DEALLOCATE(I_PARENT_WEST)
+!
+          DEALLOCATE(J_PARENT)
+          DEALLOCATE(J_PARENT_NORTH)
+          DEALLOCATE(J_PARENT_SOUTH)
+!
+          DEALLOCATE(WGHT_SW)
+          DEALLOCATE(WGHT_NW)
+          DEALLOCATE(WGHT_NE)
+          DEALLOCATE(WGHT_SE)
+!
+          DEALLOCATE(LOG_PBOT   )
+          DEALLOCATE(LOG_PTOP   )
+          DEALLOCATE(PINT_INTERP)
+          DEALLOCATE( PHI_INTERP)
+          DEALLOCATE(PMID_INTERP)
+          DEALLOCATE(PMID_CHILD )
+          DEALLOCATE(PINT_CHILD )
+          DEALLOCATE(PD_CHILD   )
+          DEALLOCATE(PD_INTERP  )
+          DEALLOCATE(VBL_INTERP )
+!
+          NULLIFY(P3D_INPUT)
+          NULLIFY(P3D_OUTPUT)
+!
+          IF(FLAG_H_OR_V=='H')THEN
+            DEALLOCATE(PROD_LWGT_NE)
+            DEALLOCATE(PROD_LWGT_NW)
+            DEALLOCATE(PROD_LWGT_SE)
+            DEALLOCATE(PROD_LWGT_SW)
+            DEALLOCATE(PROD_SWGT_NE)
+            DEALLOCATE(PROD_SWGT_NW)
+            DEALLOCATE(PROD_SWGT_SE)
+            DEALLOCATE(PROD_SWGT_SW)
+          ENDIF
+!
+          IF(FLAG_H_OR_V=='V')THEN
+!
+            DEALLOCATE(I_PARENT_EAST_H)
+            DEALLOCATE(I_PARENT_WEST_H)
+            DEALLOCATE(J_PARENT_NORTH_H)
+            DEALLOCATE(J_PARENT_SOUTH_H)
+!
+            DEALLOCATE(I_CHILD_ON_PARENT_H)
+            DEALLOCATE(J_CHILD_ON_PARENT_H)
+!
+            DEALLOCATE(WGHT_NE_H)
+            DEALLOCATE(WGHT_NW_H)
+            DEALLOCATE(WGHT_SE_H)
+            DEALLOCATE(WGHT_SW_H)
+!
+          ENDIF
+!
+        ENDDO iter_loop
+!
+!-----------------------------------------------------------------------
+!***  The parent task sends its update data to this moving nest task.
+!***  The parent only sends to a moving nest after updating both H
+!***  and V points so that all data can be sent to each nest task
+!***  in a single message.
+!-----------------------------------------------------------------------
+!
+        IF(FLAG_H_OR_V=='V')THEN
+!
+          ITAG=KNT_REAL_PTS(N)+NTIMESTEP_CHILD                             !<-- Tag that changes for data size and time
+!
+          CALL MPI_ISEND(CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL           &  !<-- Internal real update data for moving nest task N
+                        ,KNT_REAL_PTS(N)                                &  !<-- # of real words in the data string
+                        ,MPI_REAL                                       &  !<-- Datatype
+                        ,PTR_X%TASK_ID                                  &  !<-- Local rank of nest task to recv data
+                        ,ITAG                                           &  !<-- Unique MPI tag
+                        ,COMM_TO_MY_CHILD                               &  !<-- MPI communicator
+                        ,HANDLE_UPDATE(PTR_X%TASK_ID+1)                 &  !<-- Handle for ISend to child task
+                        ,IERR )
+!
+          IF(KNT_INTEGER_PTS(N)>0)THEN
+            ITAG=KNT_INTEGER_PTS(N)+NTIMESTEP_CHILD                        !<-- Tag that changes for data size and time
+!
+            CALL MPI_ISEND(CHILD_UPDATE_DATA%TASKS(N)%DATA_INTEGER      &  !<-- Internal integer update data for moving nest task N
+                          ,KNT_INTEGER_PTS(N)                           &  !<-- # of integer words in the data string
+                          ,MPI_INTEGER                                  &  !<-- Datatype
+                          ,PTR_X%TASK_ID                                &  !<-- Local rank of nest task to recv data
+                          ,ITAG                                         &  !<-- Unique MPI tag
+                          ,COMM_TO_MY_CHILD                             &  !<-- MPI communicator
+                          ,HANDLE_UPDATE(PTR_X%TASK_ID+1)               &  !<-- Handle for ISend to child task
+                          ,IERR )
+          ENDIF
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Point at the next link of the linked list holding the 
+!***  update task ID and index limits on the next task.
+!-----------------------------------------------------------------------
+!
+        PTR_X=>PTR_X%NEXT_LINK
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO ctask_loop
+!
+!-----------------------------------------------------------------------
+!***  All of the combined H and V update data has been sent by this
+!***  parent task to each appropriate task on this nest so deallocate
+!***  the array holding the number of update points on each nest task.
+!-----------------------------------------------------------------------
+!
+      IF(FLAG_H_OR_V=='V')THEN
+        DEALLOCATE(KNT_REAL_PTS)
+        DEALLOCATE(KNT_INTEGER_PTS)
+        DEALLOCATE(NUM_ITER)
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE PARENT_UPDATES_MOVING
 !
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-      SUBROUTINE SPLINE(NOLD,XOLD,YOLD,Y2,NNEW,XNEW,YNEW)
+!
+      SUBROUTINE PARENT_READS_MOVING_CHILD_TOPO(NUM_MOVING_CHILDREN     &
+                                               ,LINK_MRANK_RATIO        &
+                                               ,LIST_OF_RATIOS          &
+                                               ,M_NEST_RATIO            &
+                                               ,KOUNT_RATIOS_MN         &
+                                               ,IM_1,JM_1               &
+                                               ,TPH0_1,TLM0_1           &
+                                               ,SB_1,WB_1               &
+                                               ,RECIP_DPH_1,RECIP_DLM_1 &
+                                               ,GLAT,GLON               &
+                                               ,NEST_FIS_ON_PARENT_BNDS &
+                                               ,NEST_FIS_ON_PARENT      &
+                                               ,NEST_FIS_V_ON_PARENT    &
+                                               ,IDS,IDE,IMS,IME,ITS,ITE &
+                                               ,JDS,JDE,JMS,JME,JTS,JTE)
+!
+!-----------------------------------------------------------------------
+!***  Parents of moving nests must fill their own domains with the
+!***  full resolution topography of those children.  That data spans
+!***  the entire domain of the uppermost parent.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: IM_1,JM_1                        &  !<-- Dimensions of the uppermost parent domain
+                                      ,IDS,IDE,JDS,JDE                  &  !<-- This parent domain's index limits
+                                      ,IMS,IME,JMS,JME                  &  !<-- This parent tasks's memory limits
+                                      ,ITS,ITE,JTS,JTE                  &  !<-- This parent tasks's integration limits
+                                      ,KOUNT_RATIOS_MN                  &  !<-- # of space ratios of children to upper parent
+                                      ,NUM_MOVING_CHILDREN                 !<-- # of moving children on this parent domain
+!
+      INTEGER(kind=KINT),DIMENSION(1:NUM_MOVING_CHILDREN),INTENT(IN) :: &
+                                                       LINK_MRANK_RATIO &  !<-- Each child asociated with rank of space ratio in list
+                                                      ,LIST_OF_RATIOS   &  !<-- The list of different space ratios
+                                                      ,M_NEST_RATIO        !<-- Associate each child with its upper parent space ratio
+!
+      REAL(kind=KFPT),INTENT(IN) :: RECIP_DPH_1,RECIP_DLM_1             &  !<-- Reciprocal of uppermost domain grid increments (radians)
+                                   ,TLM0_1,TPH0_1                       &  !<-- Central geo lat/lon of uppermost domain (radians; east/north)
+                                   ,SB_1,WB_1                              !<-- Rotated lat/lon of south/west boundary (radians; north/east)
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: GLAT,GLON   !<-- Geographic lat/lon (radians) on parent grid
+!
+      TYPE(BNDS_2D),DIMENSION(1:KOUNT_RATIOS_MN),INTENT(OUT) ::         &
+                                               NEST_FIS_ON_PARENT_BNDS     !<-- Parent subdomain index limits of nest-res topo data
+!
+      TYPE(REAL_DATA_2D),DIMENSION(1:KOUNT_RATIOS_MN),INTENT(INOUT) ::  &
+                                                   NEST_FIS_ON_PARENT   &  !<-- Nest-res topo data on the parent task subdomain
+                                                  ,NEST_FIS_V_ON_PARENT    !<-- Nest-res topo data at V on the parent task subdomain
+!
+!--------------------
+!***  Local Variables
+!--------------------
+!
+      INTEGER(kind=KINT) :: I,ICORNER,IDIM,IEND,ISTART,IUNIT_FIS_NEST   &
+                           ,J,JCORNER,JDIM,JEND,JSTART,JSTOP,LOR,N,NN
+!
+      INTEGER(kind=KINT) :: IERR,ISTAT
+!
+      REAL(kind=KFPT) :: REAL_I,REAL_J
+!
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ROW1,ROW2
+!
+      CHARACTER(len=2) :: ID_TOPO_FILE
+      CHARACTER(len=9) :: FILENAME
+!
+      LOGICAL(kind=KLOG) :: OPENED
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Parents with moving nests need to know those nests' topography
+!***  at the nests' own resolutions for the hydrostatic adjustment
+!***  that must take place when the parents interpolate their data
+!***  to moving nest grid points.  For the sake of generality all
+!***  of those nest-resolution datasets must span the domain of the
+!***  uppermost parent which is the true maximum range of any nest's
+!***  motion.
+!
+!***  So each parent with moving nests must:
+!***   (1) Know how many different space resolutions its moving
+!***       children use;
+!***   (2) Associate each resolution with the appropriate moving
+!***       child using the nest-to-uppermost parent space ratio
+!***       that the user specified in each moving nest's configure
+!***       file;
+!***   (3) Have each of its forecast tasks read in its own piece of
+!***       each different resolution of topography data needed by
+!***       all of its moving children.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+      nr_loop: DO N=1,KOUNT_RATIOS_MN                                      !<-- Loop through the different parent-child space ratios
+!-----------------------------------------------------------------------
+!
+        LOR=LIST_OF_RATIOS(N)
+!
+!-----------------------------------------------------------------------
+!***  Each parent task obtains the real I,J on the uppermost parent
+!***  of the SW and NE corners of each of their subdomains.  Given
+!***  the known resolution of the nest topography data the parent
+!***  tasks can then extract and save only that data which covers
+!***  their own subdomain.
+!-----------------------------------------------------------------------
+!
+!----------------------------------------
+!***  SW corner of parent task subdomain
+!----------------------------------------
+!
+        ICORNER=MAX(IMS,IDS)                                               !<-- Parent task covers its halos with data too since
+        JCORNER=MAX(JMS,JDS)                                               !    the moving nest boundaries can extend into them.
+!
+        CALL LATLON_TO_IJ(GLAT(ICORNER,JCORNER)                         &
+                         ,GLON(ICORNER,JCORNER)                         &
+                         ,TPH0_1,TLM0_1                                 &
+                         ,SB_1,WB_1                                     &
+                         ,RECIP_DPH_1,RECIP_DLM_1                       &
+                         ,REAL_I                                        &
+                         ,REAL_J)
+!
+        ISTART=NINT((REAL_I-1.)*LOR+1.)                                    !<-- I index in sfc data at W bndry of this parent task
+        JSTART=NINT((REAL_J-1.)*LOR+1.)                                    !<-- J index in sfc data at S bndry of this parent task
+!
+!----------------------------------------
+!***  NE corner of parent task subdomain
+!----------------------------------------
+!
+        ICORNER=MIN(IME,IDE)                                               !<-- Parent task covers its halos with data too since
+        JCORNER=MIN(JME,JDE)                                               !    the moving nest boundaries can extend into them.
+!
+        CALL LATLON_TO_IJ(GLAT(ICORNER,JCORNER)                         &
+                         ,GLON(ICORNER,JCORNER)                         &
+                         ,TPH0_1,TLM0_1                                 &
+                         ,SB_1,WB_1                                     &
+                         ,RECIP_DPH_1,RECIP_DLM_1                       &
+                         ,REAL_I                                        &
+                         ,REAL_J)
+!
+        IEND=NINT((REAL_I-1.)*LOR+1.)                                      !<-- I index in nest sfc data at E bndry of this parent task
+        JEND=NINT((REAL_J-1.)*LOR+1.)                                      !<-- J index in nest sfc data at N bndry of this parent task
+!
+!-----------------------------------------------------------------------
+!
+        NEST_FIS_ON_PARENT_BNDS(N)%LBND1=ISTART                            !<-- Array limits in nest-resolution topography data
+        NEST_FIS_ON_PARENT_BNDS(N)%UBND1=IEND                              !    for region covering this parent task's subdomain.
+        NEST_FIS_ON_PARENT_BNDS(N)%LBND2=JSTART                            !
+        NEST_FIS_ON_PARENT_BNDS(N)%UBND2=JEND                              !<--
+!
+!-----------------------------------------------------------------------
+!***  Each parent task opens and reads the topography file.
+!-----------------------------------------------------------------------
+!
+        IF(N<=9)THEN
+          NN=LOR
+          IF(NN<=9)THEN
+            WRITE(ID_TOPO_FILE,'(I1.1)')NN
+          ELSEIF(NN>=10)THEN
+            WRITE(ID_TOPO_FILE,'(I2.2)')NN
+          ENDIF
+        ELSE
+          WRITE(0,*)' USER SPECIFIED MORE THAN 9 DIFFERENT'            &
+                   ,' MOVING NEST RESOLUTIONS!!!'
+          WRITE(0,*)' ABORTING'
+          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        ENDIF
+!
+        FILENAME='FIS_ij_'//ID_TOPO_FILE
+!
+        DO NN=51,99
+          INQUIRE(NN,opened=OPENED)
+          IF(.NOT.OPENED)THEN
+            IUNIT_FIS_NEST=NN
+            EXIT
+          ENDIF
+        ENDDO
+!
+        OPEN(unit  =IUNIT_FIS_NEST                                        &
+            ,file  =TRIM(FILENAME)                                        &
+            ,form  ='unformatted'                                         &
+            ,status='old'                                                 &
+            ,iostat=IERR)
+!
+        IF(IERR/=0)THEN
+          WRITE(0,*)' There is no file named ',TRIM(FILENAME)
+          WRITE(0,*)' User did not properly provide an external file'    &
+                   ,' with sfc geopotential of moving nest with ratio '  &
+                   ,LOR,' on the uppermost parent domain.'
+          WRITE(0,*)' ABORTING!!!'
+          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Each task allocates its space for holding its moving children's
+!***  topography at their resolution.
+!-----------------------------------------------------------------------
+!
+        IF(ASSOCIATED(NEST_FIS_ON_PARENT(N)%DATA))THEN
+          DEALLOCATE(NEST_FIS_ON_PARENT(N)%DATA,stat=ISTAT)
+        ENDIF
+        IF(ASSOCIATED(NEST_FIS_V_ON_PARENT(N)%DATA))THEN
+          DEALLOCATE(NEST_FIS_V_ON_PARENT(N)%DATA,stat=ISTAT)
+        ENDIF
+!
+        ALLOCATE(NEST_FIS_ON_PARENT(N)%DATA(ISTART:IEND,JSTART:JEND))
+        ALLOCATE(NEST_FIS_V_ON_PARENT(N)%DATA(ISTART:IEND,JSTART:JEND))
+!
+!-----------------------------------------------------------------------
+!***  Save only those points in the topography data for resolution N
+!***  that cover this parent task's subdomain.  Data is read row-by-row
+!***  from the external file.
+!-----------------------------------------------------------------------
+!
+        IDIM=(IM_1-1)*LOR+1                                                !<-- # of points in I on full upper parent grid for space ratio N
+        JDIM=(JM_1-1)*LOR+1                                                !<-- # of points in J on full upper parent grid for space ratio N
+!
+        ALLOCATE(ROW1(1:IDIM))
+        ALLOCATE(ROW2(1:IDIM))
+!
+        DO J=1,JSTART-1
+          READ(IUNIT_FIS_NEST)
+        ENDDO
+!
+        READ(IUNIT_FIS_NEST)ROW1
+!
+        JSTOP=MIN(JEND+1,JDIM)
+        DO J=JSTART+1,JSTOP
+          IF(JEND<JDIM)THEN
+            READ(IUNIT_FIS_NEST)ROW2
+!
+            NEST_FIS_ON_PARENT(N)%DATA(IEND,J-1)=ROW1(IEND)
+!
+            DO I=ISTART,IEND-1
+              NEST_FIS_ON_PARENT(N)%DATA(I,J-1)=ROW1(I)
+              NEST_FIS_V_ON_PARENT(N)%DATA(I,J-1)=(ROW1(I)              &
+                                                  +ROW1(I+1)            &
+                                                  +ROW2(I)              &
+                                                  +ROW2(I+1))*0.25
+              ROW1(I)=ROW2(I)
+            ENDDO
+!
+            IF(ITE<IDE)THEN
+              NEST_FIS_V_ON_PARENT(N)%DATA(IEND,J-1)=(ROW1(IEND)        &
+                                                     +ROW1(IEND+1)      &
+                                                     +ROW2(IEND)        &
+                                                     +ROW2(IEND+1))     &
+                                                    *0.25
+            ENDIF
+!
+            ROW1(IEND)=ROW2(IEND)
+          ENDIF
+!
+        ENDDO
+!
+        IF(JSTOP==JDIM)THEN
+          DO I=ISTART,IEND
+            NEST_FIS_ON_PARENT(N)%DATA(I,JEND)=ROW1(I)
+          ENDDO
+        ENDIF
+!
+        DEALLOCATE(ROW1,ROW2)
+        CLOSE(IUNIT_FIS_NEST)
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO nr_loop
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE PARENT_READS_MOVING_CHILD_TOPO
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE LATLON_TO_IJ(GLAT,GLON                                 &
+                             ,TPH0_1,TLM0_1                             &
+                             ,SB_1,WB_1                                 &
+                             ,RECIP_DPH_1,RECIP_DLM_1                   &
+                             ,REAL_I,REAL_J)
+! 
+!-----------------------------------------------------------------------
+!***  Determine the Real values of I and J on a rotated B Grid given
+!***  the geographic latitude/longitude.  In this routine the domain
+!***  is specifically that of the uppermost parent.
+!-----------------------------------------------------------------------
+!
+      INTEGER, PARAMETER :: DOUBLE=SELECTED_REAL_KIND(P=13,R=200)
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      REAL(kind=KFPT),INTENT(IN) :: GLAT                                &  !<-- Geographic latitude (radians, positive north)
+                                   ,GLON                                &  !<-- Geographic longitude (radians, positive east)
+                                   ,TPH0_1                              &  !<-- Central latitude of uppermost parent (radians, north)
+                                   ,TLM0_1                              &  !<-- Central longitude of uppermost parent (radians, east)
+                                   ,SB_1                                &  !<-- Rotated lat of upper parent's south boundary (radians, north)
+                                   ,WB_1                                &  !<-- Rotated lon of upper parent's west boundary (radians, east)
+                                   ,RECIP_DPH_1                         &  !<-- Reciprocal of upper parent's grid increment (radians) in J
+                                   ,RECIP_DLM_1                            !<-- Reciprocal of upper parent's grid increment (radians) in I
+!
+      REAL(kind=KFPT),INTENT(OUT) :: REAL_I                             &  !<-- Real I on uppermost parent grid for GLAT,GLON
+                                    ,REAL_J                                !<-- Real J on uppermost parent grid for GLAT,GLON
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      REAL(kind=KFPT) :: TLAT,TLON                                      &
+                        ,X,Y,Z
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      X=COS(TPH0_1)*COS(GLAT)*COS(GLON-TLM0_1)+SIN(TPH0_1)*SIN(GLAT)
+      Y=COS(GLAT)*SIN(GLON-TLM0_1)
+      Z=COS(TPH0_1)*SIN(GLAT)-SIN(TPH0_1)*COS(GLAT)*COS(GLON-TLM0_1)
+      TLAT=ATAN(Z/SQRT(X*X+Y*Y))
+      TLON=ATAN(Y/X)
+!
+      REAL_I=(TLON-WB_1)*RECIP_DLM_1+1
+      REAL_J=(TLAT-SB_1)*RECIP_DPH_1+1
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE LATLON_TO_IJ
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+      SUBROUTINE SPLINE(NOLD,XOLD,YOLD,Y2,Y2_K,NNEW,XNEW,YNEW)
 !-----------------------------------------------------------------------
 !
 !     ******************************************************************
@@ -5880,6 +12275,7 @@
 !     *  Y2   - The second derivatives at the points XOLD.  If natural *
 !     *         spline is fitted Y2(1)=0 and Y2(nold)=0. Must be       *
 !     *         specified.                                             *
+!     *  Y2_K - Vertical dimension of Y2 array.                        *
 !     *  NNEW - Number of values of the function to be calculated.     *
 !     *  XNEW - Locations of the points at which the values of the     *
 !     *         function are calculated.  XNEW(K) must be >= XOLD(1)   *
@@ -5892,12 +12288,12 @@
 !***  Arguments
 !-----------------------------------------------------------------------
 !
-      INTEGER,INTENT(IN) :: NNEW,NOLD
+      INTEGER,INTENT(IN) :: NNEW,NOLD,Y2_K
 !
       REAL,DIMENSION(1:NOLD),INTENT(IN) :: XOLD,YOLD
       REAL,DIMENSION(1:NNEW),INTENT(IN) :: XNEW
 !
-      REAL,DIMENSION(1:NOLD),INTENT(INOUT) :: Y2
+      REAL,DIMENSION(1:Y2_K),INTENT(INOUT) :: Y2
 !
       REAL,DIMENSION(1:NNEW),INTENT(OUT) :: YNEW
 !
@@ -6003,6 +12399,49 @@
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE SPLINE
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE CHECK_REAL(P_IN,NAME)
+!
+!-----------------------------------------------------------------------
+!***  Check the status of pointer P_IN and deallocate or nullify.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      REAL(kind=KFPT),DIMENSION(:),POINTER,INTENT(INOUT) :: P_IN
+!
+      CHARACTER(len=*),INTENT(IN) :: NAME
+!
+!--------------------
+!*** Local Variables
+!--------------------
+!
+      INTEGER(kind=KINT) :: ISTAT
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      IF(ASSOCIATED(P_IN))THEN
+        DEALLOCATE(P_IN,stat=ISTAT)
+        IF(ISTAT/=0)THEN
+          NULLIFY(P_IN)
+          WRITE(0,*)NAME,' was associated but not allocated. '          &
+                        ,' It has now been nullified.'
+        ELSE
+          WRITE(0,*)' Forced to deallocate ',NAME
+        ENDIF
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE CHECK_REAL
 !
 !-----------------------------------------------------------------------
 !

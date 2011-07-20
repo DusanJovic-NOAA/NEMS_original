@@ -113,7 +113,7 @@
 'SI'         H       R       O      -      -   T  'Snow depth  (m)'
 'SICE'       H       R       O      -      -   T  'Sea ice fraction'
 'SIGT4'      H       R       O      -      -   T  'Sigma*T**4  (W m-2)'
-'SM'         H       R       O      -      -   -  'Sea mask (1=>sea ; 0=>land)'
+'SM'         H       R       O      -      X   -  'Sea mask (1=>sea ; 0=>land)'
 'SMSTAV'     H       R       O      -      -   T  'Soil moisture availability for evapotranspiration'
 'SMSTOT'     H       R       O      -      -   T  'Total soil moisture  (?)'
 'SNO'        H       R       O      -      -   T  'Liquid water snow amount  (m)'

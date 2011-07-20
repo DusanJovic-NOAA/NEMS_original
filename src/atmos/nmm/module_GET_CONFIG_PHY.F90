@@ -774,8 +774,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  Shallow convection switches: (fres,fr,fsl,fss,
-!***                                ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP)
+!***  Shallow convection switches: (FRES,FR,FSL,FSS,ENTRAIN
+!***                               ,NEWALL,NEWSWAP,NEWUPUP,NODEEP)
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
