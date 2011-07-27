@@ -3360,7 +3360,7 @@
         int_state%Q02(I,J)   = 0.
         int_state%Q10(I,J)   = 0.
         int_state%QSHLTR(I,J)= 0.
-        int_state%T2(I,J)    = 0.
+        int_state%T2(I,J)    = 273.
         int_state%TH02(I,J)  = 0.
         int_state%TH10(I,J)  = 273.
         int_state%TSHLTR(I,J)= 273.
