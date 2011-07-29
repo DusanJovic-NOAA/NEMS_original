@@ -51,6 +51,9 @@ src:  The Main program for NEMS.
       - ENS_Cpl
         - The Ensemble coupler directory.
 
+      - post
+        - The post directory, only contains subroutines to conenct NEMS and POST, no unified post source code included 
+
    -- chem 
       - gocart
         - The GOCART source files.
@@ -91,6 +94,9 @@ To compile and load the model(s):
        gmake fim_gfs GOCART_MODE=full     --- for both FIM and GFS core only - with GOCART
        gmake gen                          --- for GEN core only
        gmake gen_nmm_gfs GOCART_MODE=full --- for GEN, NMM and GFS cores - with GOCART
+       gmake nmm_post                     --- for NMM core, run with post on quilt
+       gmake gfs_post                     --- for GFS core, run with post on quilt
+       gmake nmm_gfs_gen_post GOCART_MODE=full --- for GEN, NMM and GFS cores - with post
 
  (5) The executable NEMS.x will appear in /exe .
 

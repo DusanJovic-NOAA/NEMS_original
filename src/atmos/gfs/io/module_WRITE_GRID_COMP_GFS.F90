@@ -28,16 +28,17 @@
 !       15 Aug 2008:  J. Wang  - Revised for GFS write grid component from NMMB
 !       16 Sep 2008:  J. Wang  - Output array reverts from 3-D to 2-D
 !       03 Sep 2009:  W. Yang  - Ensemble GEFS.
-!       29 Sep 2020:  J. Wang  - reset mutiple files data sending to let fcst pes 
+!       29 Sep 2010:  J. Wang  - reset mutiple files data sending to let fcst pes 
 !                                return without waiting for wrt pes 
 !                                receiving data
-!       16 Dec 2020:  J. Wang  - change to nemsio library
+!       16 Dec 2010:  J. Wang  - change to nemsio library
 !          Feb 2011:  W. Yang  - Updated to use both the ESMF 4.0.0rp2 library,
 !                                ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !       05 May 2011:  W. Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !       25 Jun 2011:  J. Wang  - Writing output grib file with either w3_d or 
 !                                w3_4 lib
-
+!       05 May 2011:  J. Wang  - add run post option on write quilt
+!
 !---------------------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -641,6 +642,10 @@
       LOGICAL                               :: WRITE_LOGICAL
       LOGICAL,SAVE                          :: FIRST=.TRUE.
       LOGICAL,SAVE                          :: FILE_FIRST=.true.
+!
+!-- post variables
+      CHARACTER                             :: POST_GRIDTYPE
+      INTEGER                               :: POST_MAPTYPE,NSOIL
 !
       CHARACTER(ESMF_MAXSTR)                :: NAME,GFNAME
 !
@@ -1509,6 +1514,10 @@
 !***  SCALAR/1D HISTORY DATA AND CAN GO AHEAD AND WRITE THEM.
 !-----------------------------------------------------------------------
 !
+!-----------------------------------------------------------------------
+!***  RALL WRITE TASKS GET FORECAST TIMES
+!-----------------------------------------------------------------------
+!
       IF(wrt_int_state%WRITE_NEMSIOFLAG) THEN
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1577,6 +1586,38 @@
           wrt_int_state%NFHOUR=NF_HOURS
 !
         ENDIF
+!
+!-----------------------------------------------------------------------
+!***  DO POST:
+!***  Call post processors to compute post variables
+!----------------------------------------------------------------------
+!
+      write(0,*)'before init_do post,',wrt_int_state%write_dopost
+!-----------------------------------------------------------------------
+      hst_dopost: IF(wrt_int_state%WRITE_DOPOST.and.NF_HOURS>0)THEN       !<-- do post
+!-----------------------------------------------------------------------
+!
+        IF(MYPE>=LEAD_WRITE_TASK)THEN
+!
+          IF(trim(wrt_int_state%FILENAME_BASE(NBDL))=='SIG.F'.or.         &
+             trim(wrt_int_state%FILENAME_BASE(NBDL))=='FLX.F') THEN
+!
+            POST_GRIDTYPE='A'
+            POST_MAPTYPE=255
+            NSOIL=4
+!
+            write(0,*)'bf post_run_gfs,nbdl=',nbdl,'NF_HOURS=',NF_HOURS, &
+             'NF_MINUTES=',NF_MINUTES,'NF_SECONDS=',NF_SECONDS,'NBDL=',NBDL
+            CALL POST_RUN_GFS(wrt_int_state,MYPE,MPI_COMM_COMP,           &
+                        LEAD_WRITE_TASK,post_gridtype,   &
+                        post_maptype,NSOIL,NBDL,NF_HOURS,NF_MINUTES)
+            write(0,*)'af post_run_gfs'
+!
+          ENDIF
+!
+        ENDIF
+
+      ENDIF hst_dopost
 !
 !-----------------------------------------------------------------------
 !***  WE WILL NOW ASSEMBLE THE FULL DOMAIN 2-D HISTORY DATA ONTO
@@ -1933,6 +1974,7 @@
 !***  HISTORY
 !       xx Feb 2007:  W. Yang - Originator
 !       13 Jun 2007:  T. Black - Name revisions
+!       06 Jun 2011:  J. Wang  - deallocate vars  when dopost on quilt
 !
 !-----------------------------------------------------------------------
 !
@@ -1949,12 +1991,43 @@
 !
       INTEGER :: RC
 !
+      TYPE(WRITE_WRAP_GFS)                        :: WRAP
+      TYPE(WRITE_INTERNAL_STATE_GFS),POINTER      :: WRT_INT_STATE
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
       RC     =ESMF_SUCCESS
       RCFINAL=ESMF_SUCCESS
+!
+!-----------------------------------------------------------------------
+!***  RETRIEVE THE WRITE COMPONENT'S ESMF INTERNAL STATE.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Retrieve Write Component's Internal State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompGetInternalState(WRT_COMP                       &  !<-- The write component
+                                        ,WRAP                           &  !<-- Pointer to internal state
+                                        ,RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RCFINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      WRT_INT_STATE=>wrap%WRITE_INT_STATE                                  !<-- Local working pointer to internal state
+!
+!-----------------------------------------------------------------------
+!*** if run post, deaoolcate vars
+!-----------------------------------------------------------------------
+!
+      if(WRT_INT_STATE%WRITE_DOPOST.and.                                   &
+        wrt_int_state%MYPE>wrt_int_state%NUM_PES_FCST) then
+          call de_allocate
+      endif
 !
 !-----------------------------------------------------------------------
 !

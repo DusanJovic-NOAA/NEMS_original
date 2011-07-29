@@ -51,6 +51,7 @@
 !          Feb 2011:  W. Yang  - Updated to use both the ESMF 4.0.0rp2 library,
 !                                ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !       12 May 2011   W. Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!       23 May 2011   J. Wang  - add do post option
 !---------------------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -1113,6 +1114,15 @@
       INTEGER(kind=KINT) :: IO_HST_UNIT,IO_RST_UNIT,FFSYNC
 !
       INTEGER(kind=KINT) :: IERR,ISTAT,RC
+!
+!--posts
+      INTEGER(kind=KINT) :: IEOF,NSOIL,POST_MAPTYPE
+      CHARACTER(1)       :: POST_GRIDTYPE
+      LOGICAL(kind=KLOG) :: LOG_PESET
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JSTAGRP,JENDGRP
+      INTEGER(kind=KINT) :: KPO,KTH,KPV
+      real(kind=KFPT),dimension(70) :: PO,TH,PV
+!--poste
 !
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
@@ -2467,7 +2477,19 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-      hst_time_get: IF(MYPE==LEAD_WRITE_TASK)THEN                          !<-- The lead write task
+!***  for dopost, all write tasks need to know the time
+!-----------------------------------------------------------------------
+!
+
+       if(wrt_int_state%write_dopost) then
+         LOG_PESET=MYPE>=LEAD_WRITE_TASK
+       else
+         LOG_PESET=MYPE==LEAD_WRITE_TASK
+       endif
+       print *,'in write grid, dopost=',wrt_int_state%write_dopost,'LOG_PESET=',LOG_PESET
+!
+!-----------------------------------------------------------------------
+      hst_time_get: IF(LOG_PESET)THEN                                   !<-- The lead write task
 !-----------------------------------------------------------------------
 !
         IF(wrt_int_state%WRITE_HST_BIN.OR.                              &
@@ -2544,6 +2566,34 @@
         ENDIF
 !
       ENDIF hst_time_get
+!
+!-----------------------------------------------------------------------
+!***  DO POST:
+!***  Call post processors to compute post variables
+!----------------------------------------------------------------------
+!
+      write(0,*)'before init_do post,',wrt_int_state%write_dopost,     &
+       'NFHOURS=',wrt_int_state%NFHOURS
+!-----------------------------------------------------------------------
+      hst_dopost: IF(wrt_int_state%WRITE_DOPOST.and.                    &
+                     wrt_int_state%WRITE_HST_NEMSIO.and.NF_HOURS>0 )THEN               !<-- do post
+!-----------------------------------------------------------------------
+!
+
+        IF(LOG_PESET)THEN                                               !<-- The write tasks
+!
+          POST_gridtype='B'
+          POST_MAPTYPE=205
+          NSOIL=4
+!
+          CALL POST_RUN_NMM(wrt_int_state,MYPE,MPI_COMM_COMP,               &
+                        LEAD_WRITE_TASK,post_gridtype,   &
+                        post_maptype,NSOIL,NF_HOURS,NF_MINUTES)
+            print *,'af post_run_nmm,NF_HOURS=',NF_HOURS
+!
+        ENDIF
+
+      ENDIF hst_dopost
 !
 !-----------------------------------------------------------------------
 !***  The lead Write task now opens the history file(s) and writes

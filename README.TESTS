@@ -18,6 +18,7 @@ How to create new baselines :
  - use RT.sh script with one argument: nmm, gfs or all
    ./RT.sh nmm - will create baselines for NMMB
    ./RT.sh gfs - will create baselines for GFS
+   ./RT.sh post- will create baselines for post
    ./RT.sh all - will create baselines for both GFS & NMMB
 
  - results will be stored on /stmp/${LOGIN}/REGRESSION_TEST directory

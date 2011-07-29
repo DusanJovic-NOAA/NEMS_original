@@ -56,6 +56,21 @@ cp $SRCDIR/job/regression_tests/phy_state.txt .
 cp $SRCDIR/job/regression_tests/moving_nest_shift_*.txt .
 _TS_cp $SRCDIR/job/regression_tests/ts_locations.nml .
 
+#for post
+_POST_export CTLFILE=${CTLFILE:-/meso/noscrub/wx20hc/test_nceppost/case_NAM/nam_cntrl_cmaq.parm}
+_POST_export PGBOUT=nmm_pgb
+_POST_export IGEN=82
+_POST_cat <<EOF >postgp.inp.nml$$
+_POST_ &NAMPGB
+_POST_ $POSTGPVARS
+_POST_  /
+_POST_EOF
+_POST_cat ${CTLFILE} >./nmmb_cntrl.parm
+_POST_ln -sf ./nmmb_cntrl.parm fort.14
+_POST_ln -sf griddef.out fort.110
+_POST_cp /nwprod/parm/nam_micro_lookup.dat ./eta_micro_lookup.dat
+
+
 echo "Model started:  " `date`
 
 LDR_CNTRL=DATAPSIZE=64K@TEXTPSIZE=64K@STACKPSIZE=64K \

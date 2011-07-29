@@ -82,7 +82,6 @@ OBJS_IO=                       \
 	  read_fix.o           \
 	  GFS_simple_scatter.o \
 	  wrtout_physics.o     \
-	  gribit.o             \
 	  fld_collect.o        \
 	  fld_collect_nst.o    \
 	  para_fixio_w.o       \

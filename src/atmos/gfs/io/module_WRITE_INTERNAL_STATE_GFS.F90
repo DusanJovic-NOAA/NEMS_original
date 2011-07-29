@@ -168,8 +168,12 @@
       LOGICAL :: WRITE_NEMSIOFLAG
       LOGICAL :: WRITE_NEMSIOCTL
 !
+!-----------------------------------------
+!***  POST flags 
+!-----------------------------------------
+!
       LOGICAL :: WRITE_DOPOST
-      LOGICAL :: WRITE_STANDALONEPOST
+      CHARACTER(ESMF_MAXSTR) :: POST_GRIBVERSION
  
 !-----------------------------------------------------------------------
 !

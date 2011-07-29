@@ -5,7 +5,8 @@ ESMF_LIBS = /gpfs/t3/global/save/wx20wy/BASELIBS/esmf_5_1_0_src/AIX/lib/libO/lib
 
 #EXTLIBS   = $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lw3_d -lsp_d -lessl_r -lmass -lmassvp6
 #EXTLIBS   = -L/climate/save/wx20wa/gfsio/w3/sorc_opn_gblevent -lw3_d $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lsp_d -lessl_r -lmass -lmassvp6
-EXTLIBS   = -L/climate/save/wx20wa/gfsio/w3/sorc_opn -lw3_d -L/climate/save/wx20wa/gfsio/lib/nemsio -lnemsio $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lsp_d -lessl_r -lmass -lmassvp6 
+EXTLIBS   = -L/climate/save/wx20wa/gfsio/w3/sorc_opn -lw3_d -L/climate/save/wx20wa/gfsio/lib/nemsio -lnemsio $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lsp_d -lessl_r -lmass -lmassvp6
+EXTLIBS_POST   = -L/climate/save/wx20wa/gfsio/lib/nemsio -lnemsio -L/climate/save/wx20wa/esmf/nems/unipost_r14561 -lnceppost -L/global/save/wx20ml/CRTM_REL-2.0/REL-2.0.2.JCSDA_CRTM/lib -lCRTM -L/climate/save/wx20wa/gfsio/w3/sorc_opn -lw3_4 $(ESMF_LIBS) -L/nwprod/util/sorc/g2tmpl.fd -lg2tmpl -L/usrx/local/64bit/lib -ljasper -lpng -lz -L/nwprod/lib -lbacio_4 -lsigio_4 -lsfcio_4 -lsp_d -lg2_4 -lessl_r -lmass -lmassvp6 /climate/save/wx20wa/esmf/nems/unipost_r14561/trunk/xml/xml_fortran/xmlparse.a
 NEMSIO_INC  = -I/climate/save/wx20wa/gfsio/lib/nemsio/incmod
 
 FC        = mpxlf95_r 

@@ -235,8 +235,9 @@
 !***  Call the Write component if it is time.
 !-----------------------------------------------------------------------
 !
-           LSPC= NTIMESTEP==1.OR.LDFI.and.LDFIFLTO.and.NTIMESTEP==NTIMESTEPH &
-                 .or.LDFI.and..not.LDFIFLTO.and.NTIMESTEP==NTIMESTEPH+1
+           LSPC= NTIMESTEP==1.OR.LDFI.and.LDFIFLTO.and.NTIMESTEP==NTIMESTEPH 
+!           LSPC= NTIMESTEP==1.OR.LDFI.and.LDFIFLTO.and.NTIMESTEP==NTIMESTEPH &
+!                 .or.LDFI.and..not.LDFIFLTO.and.NTIMESTEP==NTIMESTEPH+1
 
  outputdyn: IF(((ESMF_AlarmIsEnabled(alarm = ALARM_OUTPUT, rc = RC) .AND. &
                ESMF_AlarmIsRinging(alarm = ALARM_OUTPUT,rc = Rc)) .OR.    & !<-- The history output alarm

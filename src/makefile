@@ -20,6 +20,7 @@ LIBS = atmos/share/libshare.a           \
        atmos/fim/libfim.a               \
        atmos/gen/libgen.a               \
        atmos/libatmos.a                 \
+       atmos/post/libpost.a             \
        ENS_Cpl/ENS_Cpl.a
 
 LIBS_NMM = atmos/libatmos.a             \
@@ -29,6 +30,7 @@ LIBS_NMM = atmos/libatmos.a             \
            atmos/gen/libgen.a           \
            atmos/phys/libphys.a         \
            atmos/share/libshare.a       \
+           atmos/post/libpost.a         \
            ENS_Cpl/ENS_Cpl.a
 
 LIBS_GEN = atmos/libatmos.a             \
@@ -38,6 +40,7 @@ LIBS_GEN = atmos/libatmos.a             \
            atmos/gen/libgen.a           \
            atmos/phys/libphys.a         \
            atmos/share/libshare.a       \
+           atmos/post/libpost.a         \
            ENS_Cpl/ENS_Cpl.a
 
 MAKEFILE = makefile
@@ -78,13 +81,17 @@ all:
 	@echo " or"
 	@echo "gmake gen --- for GEN core only"
 	@echo " or"
-	@echo "gmake nmm_gfs_gen GOCART_MODE=full --- for GEN, NMM and GFS cores - with the GOCART"
+	@echo "gmake nmm_gfs_gen_post GOCART_MODE=full --- for GEN, NMM and GFS cores - with the GOCART and post"
 	@echo " or"
 	@echo "gmake nmm_gfs GOCART_MODE=full --- for both NMM and GFS core - with the GOCART"
 	@echo " or"
 	@echo "gmake nmm --- for NMM core only"
 	@echo " or"
+	@echo "gmake nmm_post --- for NMM core only - with post"
+	@echo " or"
 	@echo "gmake gfs --- for GFS core only - without the GOCART"
+	@echo " or"
+	@echo "gmake gfs_post --- for GFS core only - with post without the GOCART"
 	@echo " or"
 	@echo "gmake gfs GOCART_MODE=full --- for GFS core only - with the GOCART"
 	@echo " or"
@@ -113,6 +120,30 @@ nmm_libs:
 	cd atmos/gfs           && gmake stub
 	cd atmos/gen           && gmake stub
 	cd atmos/fim           && gmake stub
+	cd atmos/post          && gmake stub
+	cd atmos               && gmake
+	cd ENS_Cpl             && gmake stub
+
+################################################################################
+#
+# NMM with post
+#
+################################################################################
+
+nmm_post: nmm_post_libs $(OBJS) $(MAIN)
+nmm_post_libs:
+	$(FC) $(FFLAGS_NMM) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_NMM) $(EXTLIBS_POST) $(LIB_GOCART)
+	@echo "$(TARGET) is created for NMM core."
+
+nmm_post_libs:
+	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
+	cd atmos/share         && gmake
+	cd atmos/phys          && gmake
+	cd atmos/nmm           && gmake
+	cd atmos/gfs           && gmake stub
+	cd atmos/gen           && gmake stub
+	cd atmos/fim           && gmake stub
+	cd atmos/post          && gmake gfs_stub
 	cd atmos               && gmake
 	cd ENS_Cpl             && gmake stub
 
@@ -134,6 +165,29 @@ gfs_libs:
 	cd atmos/gen           && gmake stub
 	cd atmos/gfs           && gmake
 	cd atmos/fim           && gmake stub
+	cd atmos/post          && gmake stub
+	cd atmos               && gmake
+	cd ENS_Cpl             && gmake
+
+################################################################################
+#
+# GFS with post
+#
+################################################################################
+
+gfs_post: gfs_post_libs $(OBJS) $(MAIN)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS_POST) $(LIB_GOCART)
+	@echo "nems.x is created for GFS core."
+
+gfs_post_libs:
+	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
+	cd atmos/share         && gmake
+	cd atmos/phys          && gmake
+	cd atmos/nmm           && gmake stub
+	cd atmos/gen           && gmake stub
+	cd atmos/gfs           && gmake
+	cd atmos/fim           && gmake stub
+	cd atmos/post          && gmake nmm_stub
 	cd atmos               && gmake
 	cd ENS_Cpl             && gmake
 
@@ -155,6 +209,7 @@ gen_libs:
 	cd atmos/gfs           && gmake stub
 	cd atmos/fim           && gmake stub
 	cd atmos/gen           && gmake
+	cd atmos/post          && gmake stub
 	cd atmos               && gmake
 	cd ENS_Cpl             && gmake
 
@@ -177,6 +232,29 @@ nmm_gfs_gen_libs:
 	cd atmos/gfs           && gmake
 	cd atmos/gen           && gmake 
 	cd atmos/fim           && gmake stub
+	cd atmos/post          && gmake stub
+	cd atmos               && gmake
+	cd ENS_Cpl             && gmake
+
+################################################################################
+#
+# GEN, NMM and GFS with post
+#
+################################################################################
+
+nmm_gfs_gen_post: nmm_gfs_gen_post_libs $(OBJS) $(MAIN)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS_POST) $(LIB_GOCART)
+	@echo "nems.x is created for GEN, NMM and GFS core."
+
+nmm_gfs_gen_post_libs:
+	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
+	cd atmos/share         && gmake
+	cd atmos/phys          && gmake
+	cd atmos/nmm           && gmake
+	cd atmos/gfs           && gmake
+	cd atmos/gen           && gmake
+	cd atmos/fim           && gmake stub
+	cd atmos/post          && gmake 
 	cd atmos               && gmake
 	cd ENS_Cpl             && gmake
 
@@ -217,6 +295,7 @@ fim_libs:
 	cd atmos/gfs           && gmake stub 
 	cd atmos/fim           && gmake
 	cd atmos/gen           && gmake stub
+	cd atmos/post          && gmake stub
 	cd atmos               && gmake
 
 ################################################################################
@@ -235,6 +314,7 @@ fim_gfs_libs:
 	cd atmos/gfs           && gmake
 	cd atmos/fim           && gmake
 	cd atmos/gen           && gmake stub
+	cd atmos/post          && gmake stub
 	cd atmos               && gmake
 
 ################################################################################

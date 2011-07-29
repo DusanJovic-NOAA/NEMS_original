@@ -22,6 +22,7 @@
 !       15 Sep 2010:  T. Black - Changed many components to pointers
 !          Feb 2011:  W. Yang  - Updated to use both the ESMF 4.0.0rp2 library,
 !                                ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!          May 2011:  J. Wang  - add dopost and post_gribversion option to run post
 !
 !---------------------------------------------------------------------------------
 !
@@ -261,6 +262,8 @@
       CHARACTER(ESMF_MAXSTR) :: IO_DELIM
       CHARACTER(ESMF_MAXSTR) :: IO_PAD
 !
+      CHARACTER(ESMF_MAXSTR) :: POST_GRIBVERSION
+!
 !-------------------------------------
 !***  Times used in history filenames
 !-------------------------------------
@@ -277,6 +280,7 @@
       LOGICAL(kind=KLOG) :: WRITE_NEMSIOCTL
       LOGICAL(kind=KLOG) :: WRITE_FSYNCFLAG
       LOGICAL(kind=KLOG) :: WRITE_DONEFILEFLAG
+      LOGICAL(kind=KLOG) :: WRITE_DOPOST
  
 !-----------------------------------------------------------------------
 !

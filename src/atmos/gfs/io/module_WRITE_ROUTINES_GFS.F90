@@ -29,6 +29,7 @@
 !       07 Mar 2011:  S. Lu - idvm is determined from sfcpress and thermodyn
 !       27 Mar 2011:  J. Wang - set idsl for hybrid and sigms coord
 !       13 May 2011:  W. yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!       05 May 2011:  J. Wang - add run post option on write quilt
 !--------------------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -384,7 +385,7 @@
 !-----------------------------------------------------------------------
 !----------------------------------------------------------------------
 !***  FORECAST TASK 0 SENDS THE DOMAIN SIZE INFORMATION
-!***  TO THE FIRST WRITE TASK IN EACH WRITE GROUP BECAUSE 
+!***  TO THE WRITE TASKS IN EACH WRITE GROUP BECAUSE
 !***  THE WRITE TASKS NEED TO KNOW THIS TO ASSEMBLE THE
 !***  FINAL GRIDDED DATA.
 !***  FIRST WE NEED THE VM.
@@ -1192,7 +1193,7 @@
       ENDIF
 !
 !
-      else   !for 1 tasks
+      else   !for 1 task
 !
         IF(wrt_int_state%NCOUNT_FIELDS(1)==0)NO_FIELDS(1)=ESMF_TRUE        !<-- Reset flag saying there are no history quantities
 
@@ -1615,7 +1616,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      write_task_recvs: IF(MYPE>=LEAD_WRITE_TASK)THEN                      !<-- 1st write task in this group receives
+      write_task_recvs: IF(MYPE>=LEAD_WRITE_TASK)THEN                      !<-- write tasks in this group receives
                                                                            !    all of the data just sent to it by
                                                                            !    fcst task 0
 !-----------------------------------------------------------------------

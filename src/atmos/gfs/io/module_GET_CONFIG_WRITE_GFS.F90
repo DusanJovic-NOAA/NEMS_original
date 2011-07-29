@@ -177,17 +177,33 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!jw      MESSAGE_CHECK="GET_CONFIG_WRITE: Extract WRITE_DOPOST from Config File"
+      MESSAGE_CHECK="GET_CONFIG_WRITE: Extract WRITE_DOPOST from Config File"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!jw      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-!jw                                  ,value =int_state%WRITE_DOPOST        &  !<-- Put extracted quantity here
-!jw                                  ,label ='write_dopost:'               &  !<-- The quantity's label in the configure file
-!jw                                  ,rc    =RC)
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
+                                  ,value =int_state%WRITE_DOPOST        &  !<-- Put extracted quantity here
+                                  ,label ='write_dopost:'               &  !<-- The quantity's label in the configure file
+                                  ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!jw      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="GET_CONFIG_WRITE: Extract WRITE_DOPOST from Config File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
+                                  ,value =int_state%POST_GRIBVERSION    &  !<-- Put extracted quantity here
+                                  ,label ='post_gribversion:'           &  !<-- The quantity's label in the configure file
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------

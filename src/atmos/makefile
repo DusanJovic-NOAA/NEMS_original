@@ -27,6 +27,7 @@ clean:
 	cd gfs          && gmake clean
 	cd fim          && gmake clean
 	cd gen          && gmake clean
+	cd post         && gmake clean
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst depend
 
 include ../conf/make.rules

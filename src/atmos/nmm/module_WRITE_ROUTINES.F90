@@ -39,6 +39,7 @@
 !       16 Dec 2010:  J. Wang  - Change to nemsio library
 !          Feb 2011:  W. Yang  - Updated to use both the ESMF 4.0.0rp2 library,
 !                                ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!          May 2011:  J. Wang  - add run post on quilt option
 !
 !---------------------------------------------------------------------------------
 !
@@ -55,6 +56,7 @@
       USE MODULE_DOMAIN_INTERNAL_STATE,ONLY: DOMAIN_INTERNAL_STATE
 !
       USE MODULE_DM_PARALLEL,ONLY : PARA_RANGE,MPI_COMM_INTER_ARRAY     &
+                                   ,MPI_COMM_COMP                       &
                                    ,LOCAL_ISTART,LOCAL_IEND             &
                                    ,LOCAL_JSTART,LOCAL_JEND
 !
@@ -2317,6 +2319,78 @@
 !-----------------------------------------------------------------------
 !
       ENDDO n_groups_3
+!
+!-----------------------------------------------------------------------
+!***  when run post on quilt, all the write tasks need to know the
+!***  variables in history bundle that first forecast task sent to
+!***  lead write tasks
+!-----------------------------------------------------------------------
+!
+      write(0,*)'lead write task, OUTPUT_FLAG=',OUTPUT_FLAG,'dopost=', &
+            WRT_INT_STATE%WRITE_DOPOST
+      IF(WRT_INT_STATE%WRITE_DOPOST.and.OUTPUT_FLAG=='History')THEN
+!
+      n_groups_4: DO N=1,NUM_WRITE_GROUPS
+!-----------------------------------------------------------------------
+!
+        N1=LEAD_WRITE_TASK(N)
+        N2=LAST_WRITE_TASK(N)
+!
+        IF(MYPE_DOMAIN>=N1.AND.MYPE_DOMAIN<=N2)THEN
+
+           write(0,*)'bf broadcast NCHAR_I2D'
+          CALL MPI_BCAST(NCHAR_I2D,1,MPI_INTEGER,0,MPI_COMM_COMP,IERR)
+           write(0,*)'af broadcast NCHAR_I2D=',NCHAR_I2D
+          CALL MPI_BCAST(NAMES_I2D_STRING,NCHAR_I2D(1),MPI_CHARACTER,0,   &
+                         MPI_COMM_COMP,IERR)
+           write(0,*)'af broadcast NAMES_I2D_STRING=',NAMES_I2D_STRING(1:30)
+          CALL MPI_BCAST(NCHAR_R2D,1,MPI_INTEGER,0,MPI_COMM_COMP,IERR)
+           write(0,*)'af broadcast NCHAR_R2D=',NCHAR_R2D
+          CALL MPI_BCAST(NAMES_R2D_STRING,NCHAR_R2D(1),MPI_CHARACTER,0,   &
+                         MPI_COMM_COMP,IERR)
+!integer
+          CALL MPI_BCAST(KOUNT_I1D,1,MPI_INTEGER,0,MPI_COMM_COMP,IERR)
+          CALL MPI_BCAST(LENGTH_SUM_I1D,1,MPI_INTEGER,0,MPI_COMM_COMP,   &
+                          IERR)
+           write(0,*)'af broadcast LENGTH_SUM_I1D=',LENGTH_SUM_I1D(1)
+          CALL MPI_BCAST(LENGTH_DATA_I1D,KOUNT_I1D(1),MPI_INTEGER,0,     &
+                          MPI_COMM_COMP,IERR)
+           write(0,*)'af broadcast LENGTH_DATA_I1D=',LENGTH_DATA_I1D(1)
+          NCHAR_I1D=KOUNT_I1D(1)*ESMF_MAXSTR
+          CALL MPI_BCAST(NAMES_I1D_STRING,NCHAR_I1D,MPI_CHARACTER,0,     &
+                          MPI_COMM_COMP,IERR)
+           write(0,*)'af broadcast NAMES_I1D_STRING=',NAMES_I1D_STRING(1:30)
+          CALL MPI_BCAST(ALL_DATA_I1D,LENGTH_SUM_I1D(1),MPI_LOGICAL,0,   &
+                          MPI_COMM_COMP,IERR)
+           write(0,*)'af broadcast ALL_DATA_I1D=',ALL_DATA_I1D(1:5)
+!real
+          CALL MPI_BCAST(KOUNT_R1D,1,MPI_INTEGER,0,MPI_COMM_COMP,IERR)
+           write(0,*)'af broadcast NCHAR_R1D=',KOUNT_R1D
+          CALL MPI_BCAST(LENGTH_SUM_R1D,1,MPI_INTEGER,0,MPI_COMM_COMP,   &
+                          IERR)
+          CALL MPI_BCAST(LENGTH_DATA_R1D,KOUNT_R1D(1),MPI_INTEGER,0,     &
+                          MPI_COMM_COMP,IERR)
+          NCHAR_R1D=KOUNT_R1D(1)*ESMF_MAXSTR
+          CALL MPI_BCAST(NAMES_R1D_STRING,NCHAR_R1D,MPI_CHARACTER,0,     &
+                          MPI_COMM_COMP,IERR)
+          CALL MPI_BCAST(ALL_DATA_R1D,LENGTH_SUM_R1D(1),MPI_LOGICAL,0,   &
+                 MPI_COMM_COMP,IERR)
+!logical
+          CALL MPI_BCAST(KOUNT_LOG,1,MPI_INTEGER,0,MPI_COMM_COMP,IERR)
+           write(0,*)'af broadcast NCHAR_LOG=',KOUNT_LOG
+          CALL MPI_BCAST(LENGTH_SUM_LOG,1,MPI_INTEGER,0,MPI_COMM_COMP,   &
+                          IERR)
+          NCHAR_LOG=KOUNT_LOG(1)*ESMF_MAXSTR
+          CALL MPI_BCAST(NAMES_LOG_STRING,NCHAR_LOG,MPI_CHARACTER,0,     &
+                          MPI_COMM_COMP,IERR)
+          CALL MPI_BCAST(ALL_DATA_LOG,LENGTH_SUM_LOG(1),MPI_LOGICAL,0,   &
+                          MPI_COMM_COMP,IERR)
+!
+          ENDIF
+!
+        ENDDO n_groups_4
+!
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !

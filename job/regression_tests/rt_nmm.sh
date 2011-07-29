@@ -16,6 +16,7 @@ cat nmm_${GBRG}_ll.IN   | sed s:_JBNME_:${JBNME}:g   \
                         | sed s:_THRD_:${THRD}:g     \
                         | sed s:_TS_:${TS}:g         \
                         | sed s:_CPPCP_:${CPPCP}:g   \
+                        | sed s:_POST_:${POST}:g   \
                         | sed s:_RTPWD_:${RTPWD}:g   \
                         | sed s:_SRCD_:${PATHTR}:g   \
                         | sed s:_RUND_:${RUNDIR}:g   >  nmm_ll

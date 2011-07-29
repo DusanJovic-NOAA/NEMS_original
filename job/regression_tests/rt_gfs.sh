@@ -46,6 +46,7 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_lsoil_:${lsoil}:g   \
                     | sed s:_MEMBER_NAMES_:${MEMBER_NAMES}:g   \
                     | sed s:_CP2_:${CP2}:g       \
+                    | sed s:_POST_:${POST}:g       \
                     | sed s:_RUNDIR_:${RUNDIR}:g \
                     | sed s:_PATHTR_:${PATHTR}:g \
                     | sed s:_FDFI_:${FDFI}:g \

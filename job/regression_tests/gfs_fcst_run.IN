@@ -4,7 +4,7 @@ set -x
 #
 #
  export CDATE=2010010100
-
+ cyc=`echo $CDATE|cut -c9-10`
 #***************************************************************
 #
 #    Set up horizontal and vertical resolution ; default will be T6264
@@ -347,6 +347,13 @@ fi
     export SFCI=$RUNDIR/sfcanl.$CDATE
     export FHINI=00
   fi
+#
+# ------------------------ post varables ----------------
+#
+_POST_ln -sf /nwprod/parm/gfs_cntrl.parm fort.14
+_POST_ln -sf griddef.out fort.110
+_POST_cp /nwprod/parm/nam_micro_lookup.dat ./eta_micro_lookup.dat
+
 #
 # ---------------------------------------- fcst ----------------------
 #

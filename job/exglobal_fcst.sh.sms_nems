@@ -995,6 +995,8 @@ num_file:                 $NUM_FILE                   #
 filename_base:            $FILENAME_BASE
 file_io_form:             $FILE_IO_FORM                     
 file_io:                  'DEFERRED' 'DEFERRED' 'DEFERRED' 'DEFERRED'  #
+write_dopost:             .TRUE.       # True--> run do on quilt
+post_gribversion:         'grib1'      # True--> grib version for post output files
 write_nemsioflag:         .TRUE.       # True--> Write nemsio run history files
 nfhout:                   $FHOUT
 nsout:                    $nsout
