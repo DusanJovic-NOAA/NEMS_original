@@ -1555,6 +1555,7 @@ fi
 ################################################################################################
   fi
 ################################################################################################
+  if [ ${RT_FULL} = true ]; then
 #
 ################################################################################################
 ####
@@ -1590,7 +1591,7 @@ cd $PATHRT
 #################################################################################################
 ###
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen ]; then
+if [ ${CREATE_BASELINE} = true -a ${CB_arg} != gfs -o ${RT_FULL} = true -a $argn -eq 2 ]; then
 
 export TEST_DESCR="NMMB-regional run with post on quilt"
 
@@ -1607,8 +1608,7 @@ nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s  nmm_
 nmm_b_restart.024h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s \
 BGDAWP.GrbF03 BGDAWP.GrbF06 BGDAWP.GrbF12 BGDAWP.GrbF24 BGDAWP.GrbF48 \
 BGRD3D.GrbF03 BGRD3D.GrbF06 BGRD3D.GrbF12 BGRD3D.GrbF24 BGRD3D.GrbF48 \
-BGRDSF.GrbF03 BGRDSF.GrbF06 BGRDSF.GrbF12 BGRDSF.GrbF24 BGRDSF.GrbF48 \
-fort.41  fort.42  fort.43  fort.44  fort.45  fort.46  fort.47"
+BGRDSF.GrbF03 BGRDSF.GrbF06 BGRDSF.GrbF12 BGRDSF.GrbF24 BGRDSF.GrbF48"
 #---------------------
 export_nmm
 export GBRG=reg ; export WLCLK=10 ; export WPREC=true
@@ -1635,7 +1635,7 @@ cd $PATHRT
 #################################################################################################
 ###
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen ]; then
+if [ ${CREATE_BASELINE} = true -a ${CB_arg} != nmm -o ${RT_FULL} = true -a $argn -eq 2 ]; then
 
 export TEST_DESCR="Compare GFS results with previous trunk version"
 
@@ -1661,6 +1661,11 @@ export POST=''
 
 
 fi
+
+####################################################################
+#end regression test for POST
+fi
+#####################################################################
 
 ####################################################################################################
 #

@@ -1,11 +1,11 @@
-Fri Jul 29 08:08:28 EDT 2011
+Fri Jul 29 15:22:46 EDT 2011
 Start Regression test
 
 
 
-Fri Jul 29 08:08:28 EDT 2011
+Fri Jul 29 15:22:46 EDT 2011
 Compilation ALL
-Fri Jul 29 08:44:08 EDT 2011
+Fri Jul 29 16:09:50 EDT 2011
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -32,7 +32,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  152.52
+ Original timing:  151.20  , test_glob timing:  152.38
 
 
 Test 002
@@ -373,90 +373,4 @@ Checking test 016 results ....
 
 
 
-Fri Jul 29 10:44:17 EDT 2011
-Compilation ALL
-Fri Jul 29 11:25:44 EDT 2011
-Test 017
-NMMB-regional run with post on quilt
-
-
-Checking test 017 results ....
- Comparing nmm_b_history.000h_00m_00.00s.........OK
- Comparing nmm_b_history.003h_00m_00.00s.........OK
- Comparing nmm_b_history.006h_00m_00.00s.........OK
- Comparing nmm_b_history.012h_00m_00.00s.........OK
- Comparing nmm_b_history.024h_00m_00.00s.........OK
- Comparing nmm_b_history.027h_00m_00.00s.........OK
- Comparing nmm_b_history.030h_00m_00.00s.........OK
- Comparing nmm_b_history.036h_00m_00.00s.........OK
- Comparing nmm_b_history.048h_00m_00.00s.........OK
- Comparing nmm_b_history_nemsio.000h_00m_00.00s.........OK
- Comparing nmm_b_history_nemsio.003h_00m_00.00s.........OK
- Comparing nmm_b_history_nemsio.006h_00m_00.00s.........OK
- Comparing nmm_b_history_nemsio.012h_00m_00.00s.........OK
- Comparing nmm_b_history_nemsio.024h_00m_00.00s.........OK
- Comparing nmm_b_history_nemsio.048h_00m_00.00s.........OK
- Comparing nmm_b_restart.024h_00m_00.00s.........OK
- Comparing nmm_b_restart_nemsio.024h_00m_00.00s.........OK
- Comparing BGDAWP.GrbF03.........OK
- Comparing BGDAWP.GrbF06.........OK
- Comparing BGDAWP.GrbF12.........OK
- Comparing BGDAWP.GrbF24.........OK
- Comparing BGDAWP.GrbF48.........OK
- Comparing BGRD3D.GrbF03.........OK
- Comparing BGRD3D.GrbF06.........OK
- Comparing BGRD3D.GrbF12.........OK
- Comparing BGRD3D.GrbF24.........OK
- Comparing BGRD3D.GrbF48.........OK
- Comparing BGRDSF.GrbF03.........OK
- Comparing BGRDSF.GrbF06.........OK
- Comparing BGRDSF.GrbF12.........OK
- Comparing BGRDSF.GrbF24.........OK
- Comparing BGRDSF.GrbF48.........OK
- Comparing fort.41.........OK
- Comparing fort.42.........OK
- Comparing fort.43.........OK
- Comparing fort.44.........OK
- Comparing fort.45.........OK
- Comparing fort.46.........OK
- Comparing fort.47.........OK
- Test 017 passed 
-
-
-
- Original timing:  240.82  , test_reg timing:  247.12
-
-
-Test 018
-Compare GFS results with previous trunk version
-GFS, 32 proc, 1 thread
-
-
-
-
-Checking test 018 results ....
- Comparing sigf00.........OK
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sigf48.........OK
- Comparing sfcf00.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing sfcf48.........OK
- Comparing flxf00.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
- Comparing flxf48.........OK
- Comparing GFSPRS.GrbF03.........OK
- Comparing GFSPRS.GrbF06.........OK
- Comparing GFSPRS.GrbF12.........OK
- Comparing GFSPRS.GrbF24.........OK
- Comparing GFSPRS.GrbF48.........OK
- Test 018 passed 
-Fri Jul 29 11:40:46 EDT 2011
+Fri Jul 29 18:03:15 EDT 2011
