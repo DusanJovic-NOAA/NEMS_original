@@ -2326,8 +2326,8 @@
 !***  lead write tasks
 !-----------------------------------------------------------------------
 !
-      write(0,*)'lead write task, OUTPUT_FLAG=',OUTPUT_FLAG,'dopost=', &
-            WRT_INT_STATE%WRITE_DOPOST
+!     write(0,*)'lead write task, OUTPUT_FLAG=',OUTPUT_FLAG,'dopost=', &
+!           WRT_INT_STATE%WRITE_DOPOST
       IF(WRT_INT_STATE%WRITE_DOPOST.and.OUTPUT_FLAG=='History')THEN
 !
       n_groups_4: DO N=1,NUM_WRITE_GROUPS

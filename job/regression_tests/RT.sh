@@ -827,7 +827,7 @@ fi
 
 ####################################################################################################
 #
-# TEST   - NMM-B nesting: Regional parent with two children and one grandchild
+# TEST   - NMM-B static nests: Regional parent with two children and one grandchild
 #        - Compute tasks - Upper parent 2x3 | Child #1 4x8 | Child #2 2x4 | Grandchild 7x10
 #        - 1 thread / opnl physics / free fcst / pure binary input
 #
@@ -835,7 +835,7 @@ fi
 
 if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
 
-export TEST_DESCR="Test NMMB-regional with nesting"
+export TEST_DESCR="Test NMMB-regional with static nests"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
@@ -880,7 +880,7 @@ fi
 
 ####################################################################################################
 #
-# TEST   - NMM-B restart nesting: Regional parent with two children and one grandchild
+# TEST   - NMM-B restart static nests: Regional parent with two children and one grandchild
 #        - Compute tasks - Upper parent 2x3 | Child #1 4x8 | Child #2 2x4 | Grandchild 7x10
 #        - 1 thread / opnl physics / free fcst / pure binary input
 #
@@ -888,7 +888,7 @@ fi
 
 if [ ${CREATE_BASELINE} = false ]; then
 
-export TEST_DESCR="Test NMMB-regional nesting with restart"
+export TEST_DESCR="Test NMMB-regional static nests with restart"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
@@ -913,7 +913,7 @@ fi
 
 ####################################################################################################
 #
-# TEST   - Regional NMM-B nesting with filter
+# TEST   - Regional NMM-B static nests with filter
 #        - Compute tasks - Upper parent 2x2 | Child #1 3x5 | Grandchild 6x7
 #        - 1 thread / opnl physics / free fcst / nemsio binary input
 #
@@ -922,7 +922,7 @@ fi
 
 if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
 
-export TEST_DESCR="Test NMMB-regional digital filter with nests"
+export TEST_DESCR="Test NMMB-regional digital filter with static nests"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
@@ -937,6 +937,59 @@ export_nmm
 export GBRG=fltr  ; export TPN=64   ; export FCSTL=03
 export INPES=02   ; export JNPES=02 ; export WTPG=1
 export NEMSI=true ; export WLCLK=06 ; export NCHILD=01
+#---------------------
+  ./rt_nmm.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
+####################################################################################################
+#
+# TEST   - NMM-B moving nests: Regional parent with two children and one grandchild
+#        - Compute tasks - Upper parent 8x8 | Child #1 2x6 | Child #2 2x6 | Grandchild 5x6
+#        - 1 thread / opnl physics / free fcst / nemsio and pure binary input
+#
+####################################################################################################
+
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${RT_FULL} = true ]; then
+
+export TEST_DESCR="Test NMMB-regional with moving nests"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_mvg_nests
+export CNTL_DIR=NMMB_mvg_nests
+export LIST_FILES=" \
+nmm_b_history.000h_00m_00.00s  nmm_b_history.003h_00m_00.00s  nmm_b_history.006h_00m_00.00s \
+nmm_b_history.012h_00m_00.00s  nmm_b_history.024h_00m_00.00s \
+nmm_b_history_nemsio.000h_00m_00.00s  nmm_b_history_nemsio.003h_00m_00.00s  nmm_b_history_nemsio.006h_00m_00.00s \
+nmm_b_history_nemsio.012h_00m_00.00s  nmm_b_history_nemsio.024h_00m_00.00s \
+nmm_b_restart.012h_00m_00.00s  nmm_b_restart.024h_00m_00.00s \
+nmm_b_restart_nemsio.012h_00m_00.00s  nmm_b_restart_nemsio.024h_00m_00.00s  \
+nmm_b_history.02.000h_00m_00.00s  nmm_b_history.02.003h_00m_00.00s  nmm_b_history.02.006h_00m_00.00s \
+nmm_b_history.02.012h_00m_00.00s  nmm_b_history.02.024h_00m_00.00s \
+nmm_b_history.02_nemsio.000h_00m_00.00s  nmm_b_history.02_nemsio.003h_00m_00.00s  nmm_b_history.02_nemsio.006h_00m_00.00s \
+nmm_b_history.02_nemsio.012h_00m_00.00s  nmm_b_history.02_nemsio.024h_00m_00.00s \
+nmm_b_restart.02.012h_00m_00.00s  nmm_b_restart.02.024h_00m_00.00s \
+nmm_b_restart.02_nemsio.012h_00m_00.00s  nmm_b_restart.02_nemsio.024h_00m_00.00s  \
+nmm_b_history.03.000h_00m_00.00s  nmm_b_history.03.003h_00m_00.00s  nmm_b_history.03.006h_00m_00.00s \
+nmm_b_history.03.012h_00m_00.00s  nmm_b_history.03.024h_00m_00.00s \
+nmm_b_history.03_nemsio.000h_00m_00.00s  nmm_b_history.03_nemsio.003h_00m_00.00s  nmm_b_history.03_nemsio.006h_00m_00.00s \
+nmm_b_history.03_nemsio.012h_00m_00.00s  nmm_b_history.03_nemsio.024h_00m_00.00s \
+nmm_b_restart.03.012h_00m_00.00s  nmm_b_restart.03.024h_00m_00.00s \
+nmm_b_restart.03_nemsio.012h_00m_00.00s  nmm_b_restart.03_nemsio.024h_00m_00.00s  \
+nmm_b_history.04.000h_00m_00.00s  nmm_b_history.04.003h_00m_00.00s  nmm_b_history.04.006h_00m_00.00s \
+nmm_b_history.04.012h_00m_00.00s  nmm_b_history.04.024h_00m_00.00s \
+nmm_b_history.04_nemsio.000h_00m_00.00s  nmm_b_history.04_nemsio.003h_00m_00.00s  nmm_b_history.04_nemsio.006h_00m_00.00s \
+nmm_b_history.04_nemsio.012h_00m_00.00s  nmm_b_history.04_nemsio.024h_00m_00.00s \
+nmm_b_restart.04.012h_00m_00.00s  nmm_b_restart.04.024h_00m_00.00s \
+nmm_b_restart.04_nemsio.012h_00m_00.00s  nmm_b_restart.04_nemsio.024h_00m_00.00s"
+#---------------------
+export_nmm
+export GBRG=mnests ; export TPN=64   ; export FCSTL=24
+export INPES=08    ; export JNPES=08 ; export WTPG=4
+export NEMSI=true  ; export WLCLK=10 ; export NCHILD=02
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi

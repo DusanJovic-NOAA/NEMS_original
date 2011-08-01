@@ -1073,6 +1073,21 @@
 !***  Uncomputed locations must be filled in for the post-processor.
 !-----------------------------------------------------------------------
 !
+!***  Western global boundary
+!
+      IF(W_BDY)THEN
+        DO J=JDS,JDE
+        IF(J>=JTS.AND.J<=JTE)THEN
+          TH10(IDS,J)=TH10(IDS+1,J)
+          Q10(IDS,J)=Q10(IDS+1,J)
+          U10(IDS,J)=U10(IDS+1,J)
+          V10(IDS,J)=V10(IDS+1,J)
+          TSHLTR(IDS,J)=TSHLTR(IDS+1,J)
+          QSHLTR(IDS,J)=QSHLTR(IDS+1,J)
+        ENDIF
+        ENDDO
+      ENDIF
+!
 !***  Eastern global boundary
 !
       IF(E_BDY)THEN
@@ -1106,7 +1121,7 @@
 !***  Northern global boundary
 !
       IF(N_BDY)THEN
-        DO I=IDS,JDE
+        DO I=IDS,IDE
           IF(I>=ITS.AND.I<=ITE)THEN
             TH10(I,JDE)=TH10(I,JDE-1)
             Q10(I,JDE)=Q10(I,JDE-1)

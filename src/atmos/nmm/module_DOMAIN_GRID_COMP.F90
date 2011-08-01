@@ -494,7 +494,8 @@
 !
       REAL(kind=DOUBLE) :: D2R,D_ONE,D_180,PI
 !
-      LOGICAL(kind=KLOG) :: CFILE_EXIST                                 &
+      LOGICAL(kind=KLOG) :: CALL_BUILD_MOVE_BUNDLE                      &
+                           ,CFILE_EXIST                                 &
                            ,INPUT_READY_MY_CHILD                        &
                            ,NEMSIO_INPUT                                &
                            ,OPENED
@@ -2040,11 +2041,6 @@
 !
         LM=dyn_int_state%LM
 !
-!-----------------------------------------------------------------------
-!***  Fill the Bundles with the variables to be shifted after nests
-!***  move.
-!-----------------------------------------------------------------------
-!
         NUM_FIELDS_MOVE_2D_H_I=0
         NUM_FIELDS_MOVE_2D_H_R=0
         NUM_FIELDS_MOVE_3D_H=0
@@ -2054,37 +2050,88 @@
         NUM_LEVELS_MOVE_3D_H=0
         NUM_LEVELS_MOVE_3D_V=0
 !
-        UBOUND_VARS=SIZE(dyn_int_state%VARS)
+!-----------------------------------------------------------------------
+!***  Fill the Bundles with the variables to be shifted after nests
+!***  move.  All moving domains and parents of moving domains must
+!***  fill the Move Bundles. 
+!-----------------------------------------------------------------------
 !
-        CALL BUILD_MOVE_BUNDLE(GRID_DOMAIN                              &
-                              ,UBOUND_VARS                              &
-                              ,dyn_int_state%VARS                       &
-                              ,MOVE_BUNDLE_H                            &
-                              ,NUM_FIELDS_MOVE_2D_H_I                   &
-                              ,NUM_FIELDS_MOVE_2D_H_R                   &
-                              ,NUM_FIELDS_MOVE_3D_H                     &
-                              ,NUM_LEVELS_MOVE_3D_H                     &
-                              ,MOVE_BUNDLE_V                            &
-                              ,NUM_FIELDS_MOVE_2D_V                     &
-                              ,NUM_FIELDS_MOVE_3D_V                     &
-                              ,NUM_LEVELS_MOVE_3D_V                     &
-                              ,'dyn')                                      !<-- Adding Dynamics variables to H and V Move Bundles
+        CALL_BUILD_MOVE_BUNDLE=.FALSE.
 !
-        UBOUND_VARS=SIZE(phy_int_state%VARS)
+!-----------------------------------------------------------------------
+!***  Does this domain have any moving children?   
+!-----------------------------------------------------------------------
 !
-        CALL BUILD_MOVE_BUNDLE(GRID_DOMAIN                              &
-                              ,UBOUND_VARS                              &
-                              ,phy_int_state%VARS                       &
-                              ,MOVE_BUNDLE_H                            &
-                              ,NUM_FIELDS_MOVE_2D_H_I                   &
-                              ,NUM_FIELDS_MOVE_2D_H_R                   &
-                              ,NUM_FIELDS_MOVE_3D_H                     &
-                              ,NUM_LEVELS_MOVE_3D_H                     &
-                              ,MOVE_BUNDLE_V                            &
-                              ,NUM_FIELDS_MOVE_2D_V                     &
-                              ,NUM_FIELDS_MOVE_3D_V                     &
-                              ,NUM_LEVELS_MOVE_3D_V                     &
-                              ,'phy')                                      !<-- Adding Physics variables to H and V Move Bundles
+        child_loop: DO N=1,NUM_CHILDREN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract the Child's Flag Indicating Movability"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_ConfigGetAttribute(config=CF(N)                       &  !<-- The child's config object
+                                      ,value =DOMAIN_MOVES                &  !<-- The variable filled (will the child move?)
+                                      ,label ='my_domain_moves:'          &  !<-- Give this label's value to the previous variable
+                                      ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          IF(DOMAIN_MOVES)THEN                                               !<-- If true then child N moves.
+!
+            CALL_BUILD_MOVE_BUNDLE=.TRUE.
+            EXIT child_loop
+!
+          ENDIF
+!
+        ENDDO child_loop
+!
+#ifdef ESMF_3
+        IF(MY_DOMAIN_MOVES==ESMF_TRUE)THEN
+#else
+        IF(MY_DOMAIN_MOVES)THEN
+#endif
+!
+          CALL_BUILD_MOVE_BUNDLE=.TRUE.
+!
+        ENDIF
+!
+        IF(CALL_BUILD_MOVE_BUNDLE)THEN
+!
+          UBOUND_VARS=SIZE(dyn_int_state%VARS)
+!
+          CALL BUILD_MOVE_BUNDLE(GRID_DOMAIN                            &
+                                ,UBOUND_VARS                            &
+                                ,dyn_int_state%VARS                     &
+                                ,MOVE_BUNDLE_H                          &
+                                ,NUM_FIELDS_MOVE_2D_H_I                 &
+                                ,NUM_FIELDS_MOVE_2D_H_R                 &
+                                ,NUM_FIELDS_MOVE_3D_H                   &
+                                ,NUM_LEVELS_MOVE_3D_H                   &
+                                ,MOVE_BUNDLE_V                          &
+                                ,NUM_FIELDS_MOVE_2D_V                   &
+                                ,NUM_FIELDS_MOVE_3D_V                   &
+                                ,NUM_LEVELS_MOVE_3D_V                   &
+                                ,'dyn')                                    !<-- Adding Dynamics variables to H and V Move Bundles
+!
+          UBOUND_VARS=SIZE(phy_int_state%VARS)
+!
+          CALL BUILD_MOVE_BUNDLE(GRID_DOMAIN                            &
+                                ,UBOUND_VARS                            &
+                                ,phy_int_state%VARS                     &
+                                ,MOVE_BUNDLE_H                          &
+                                ,NUM_FIELDS_MOVE_2D_H_I                 &
+                                ,NUM_FIELDS_MOVE_2D_H_R                 &
+                                ,NUM_FIELDS_MOVE_3D_H                   &
+                                ,NUM_LEVELS_MOVE_3D_H                   &
+                                ,MOVE_BUNDLE_V                          &
+                                ,NUM_FIELDS_MOVE_2D_V                   &
+                                ,NUM_FIELDS_MOVE_3D_V                   &
+                                ,NUM_LEVELS_MOVE_3D_V                   &
+                                ,'phy')                                    !<-- Adding Physics variables to H and V Move Bundles
+!
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Since the parents will also update some of the moving nests'
@@ -3787,7 +3834,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       MESSAGE_CHECK="CALL_WRITE_ASYNC: Is ALARM_HISTORY ringing?"
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
       IF(ESMF_AlarmIsRinging(alarm=ALARM_HISTORY                        &  !<-- The history output alarm
@@ -3839,7 +3886,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       MESSAGE_CHECK="CALL_WRITE_ASYNC: Is ALARM_RESTART ringing?"
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
       IF(ESMF_AlarmIsRinging(alarm=ALARM_RESTART                        &  !<-- The restart output alarm

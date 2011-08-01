@@ -1,5 +1,11 @@
 #include "../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520rbs
+#else
+#define ESMF_520rbs
+#endif
+
 !-----------------------------------------------------------------------
 !
       MODULE module_DYNAMICS_GRID_COMP

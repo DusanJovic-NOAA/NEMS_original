@@ -1,11 +1,11 @@
-Fri Jul 29 15:22:46 EDT 2011
+Mon Aug  1 07:07:08 EDT 2011
 Start Regression test
 
 
 
-Fri Jul 29 15:22:46 EDT 2011
+Mon Aug  1 07:07:08 EDT 2011
 Compilation ALL
-Fri Jul 29 16:09:50 EDT 2011
+Mon Aug  1 07:40:03 EDT 2011
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -32,7 +32,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  152.38
+ Original timing:  151.20  , test_glob timing:  152.35
 
 
 Test 002
@@ -142,7 +142,7 @@ Checking test 007 results ....
 
 
 Test 008
-Test NMMB-regional nesting with restart
+Test NMMB-regional static nests with restart
 
 
 Checking test 008 results ....
@@ -373,4 +373,4 @@ Checking test 016 results ....
 
 
 
-Fri Jul 29 18:03:15 EDT 2011
+Mon Aug  1 09:16:41 EDT 2011

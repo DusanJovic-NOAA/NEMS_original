@@ -10871,14 +10871,14 @@
 !***  H or V, points, etc.  Thus the MPI tag will indicate
 !***  the boundary's side and variable type.
 !
-!      101 --> South H
-!      102 --> South V
-!      103 --> North H
-!      104 --> North V
-!      105 --> West H  
-!      106 --> West V
-!      107 --> East H  
-!      108 --> East V
+!      11111 --> South H
+!      22222 --> South V
+!      33333 --> North H
+!      44444 --> North V
+!      55555 --> West H  
+!      66666 --> West V
+!      77777 --> East H  
+!      88888 --> East V
 !
 !*** (The child tasks know which side of their domain's boundary they
 !***  are on of course but since a corner task is on more than one side,
@@ -10922,7 +10922,7 @@
               INFO(4)=CHILDTASK_H_SAVE(N)%I_HI_SOUTH(NTX)                  !<-- Save the ending index of expanded boundary segment on child
 !
               CALL MPI_SEND(INFO,4,MPI_INTEGER,ID_CHILDTASK             &  !<-- Parent task sends the key data to the child Sbndry task
-                           ,101                                         &  !<-- Tag for south boundary H points
+                           ,11111                                       &  !<-- Tag for south boundary H points
                            ,COMM_TO_MY_CHILDREN(N),IERR)
 !
               CYCLE sh_loop                                                !<-- Move on to next child task
@@ -10933,7 +10933,7 @@
 !
         ID_CHILDTASK=NT                                                    !<-- This child task has no south boundary H points
         CALL MPI_SEND(INFO,4,MPI_INTEGER,ID_CHILDTASK                   &  !<-- So send this child task some dummy information
-                     ,101                                               &  !<-- Tag for south boundary H points
+                     ,11111                                             &  !<-- Tag for south boundary H points
                      ,COMM_TO_MY_CHILDREN(N),IERR)
 !
       ENDDO sh_loop
@@ -10957,7 +10957,7 @@
               INFO(3)=CHILDTASK_V_SAVE(N)%I_HI_SOUTH(NTX)                  !<-- Save the ending index of boundary segment on child
 !
               CALL MPI_SEND(INFO,3,MPI_INTEGER,ID_CHILDTASK             &  !<-- Parent task sends the key data to the child Sbndry task
-                           ,102                                         &  !<-- Tag for south boundary V points
+                           ,22222                                       &  !<-- Tag for south boundary V points
                            ,COMM_TO_MY_CHILDREN(N),IERR)
 !
               CYCLE sv_loop                                                !<-- Move on to next child task
@@ -10968,7 +10968,7 @@
 !
         ID_CHILDTASK=NT                                                    !<-- This child task has no south boundary H points
         CALL MPI_SEND(INFO,3,MPI_INTEGER,ID_CHILDTASK                   &  !<-- So send this child task some dummy information
-                     ,102                                               &  !<-- Tag for south boundary V points
+                     ,22222                                             &  !<-- Tag for south boundary V points
                      ,COMM_TO_MY_CHILDREN(N),IERR)
 !
       ENDDO sv_loop
@@ -10993,7 +10993,7 @@
               INFO(4)=CHILDTASK_H_SAVE(N)%I_HI_NORTH(NTX)                  !<-- Save the ending index of expanded boundary segment on child
 !
               CALL MPI_SEND(INFO,4,MPI_INTEGER,ID_CHILDTASK             &  !<-- Parent task sends the key data to the child Nbndry task
-                           ,103                                         &  !<-- Tag for north boundary H points
+                           ,33333                                       &  !<-- Tag for north boundary H points
                            ,COMM_TO_MY_CHILDREN(N),IERR)
 !
               CYCLE nh_loop                                                !<-- Move on to next child task
@@ -11004,7 +11004,7 @@
 !
         ID_CHILDTASK=NT                                                    !<-- This child task has no north boundary H points
         CALL MPI_SEND(INFO,4,MPI_INTEGER,ID_CHILDTASK                   &  !<-- So send this child task some dummy information
-                     ,103                                               &  !<-- Tag for north boundary H points
+                     ,33333                                             &  !<-- Tag for north boundary H points
                      ,COMM_TO_MY_CHILDREN(N),IERR)
 !
       ENDDO nh_loop
@@ -11028,7 +11028,7 @@
               INFO(3)=CHILDTASK_V_SAVE(N)%I_HI_NORTH(NTX)                  !<-- Save the ending index of boundary segment on child
 !
               CALL MPI_SEND(INFO,3,MPI_INTEGER,ID_CHILDTASK             &  !<-- Parent task sends the key data to the child Nbndry task
-                           ,104                                         &  !<-- Tag for north boundary V points
+                           ,44444                                       &  !<-- Tag for north boundary V points
                            ,COMM_TO_MY_CHILDREN(N),IERR)
 !
               CYCLE nv_loop                                                !<-- Move on to next child task
@@ -11039,7 +11039,7 @@
 !
         ID_CHILDTASK=NT                                                    !<-- This child task has no north boundary V points
         CALL MPI_SEND(INFO,3,MPI_INTEGER,ID_CHILDTASK                   &  !<-- So send this child task some dummy information
-                     ,104                                               &  !<-- Tag for north boundary V points
+                     ,44444                                             &  !<-- Tag for north boundary V points
                      ,COMM_TO_MY_CHILDREN(N),IERR)
 !
       ENDDO nv_loop
@@ -11064,7 +11064,7 @@
               INFO(4)=CHILDTASK_H_SAVE(N)%J_HI_WEST(NTX)                   !<-- Save the ending index of expanded boundary segment on child
 !
               CALL MPI_SEND(INFO,4,MPI_INTEGER,ID_CHILDTASK             &  !<-- Parent task sends the key data to the child Wbndry task
-                           ,105                                         &  !<-- Tag for west boundary H points
+                           ,55555                                       &  !<-- Tag for west boundary H points
                            ,COMM_TO_MY_CHILDREN(N),IERR)
 !
               CYCLE wh_loop                                                !<-- Move on to next child task
@@ -11075,7 +11075,7 @@
 !
         ID_CHILDTASK=NT                                                    !<-- This child task has no west boundary H points
         CALL MPI_SEND(INFO,4,MPI_INTEGER,ID_CHILDTASK                   &  !<-- So send this child task some dummy information
-                     ,105                                               &  !<-- Tag for west boundary H points
+                     ,55555                                             &  !<-- Tag for west boundary H points
                      ,COMM_TO_MY_CHILDREN(N),IERR)
 !
       ENDDO wh_loop
@@ -11099,7 +11099,7 @@
               INFO(3)=CHILDTASK_V_SAVE(N)%J_HI_WEST(NTX)                   !<-- Save the ending index of boundary segment on child
 !
               CALL MPI_SEND(INFO,3,MPI_INTEGER,ID_CHILDTASK             &  !<-- Parent task sends the key data to the child Wbndry task
-                           ,106                                         &  !<-- Tag for west boundary V points
+                           ,66666                                       &  !<-- Tag for west boundary V points
                            ,COMM_TO_MY_CHILDREN(N),IERR)
 !
               CYCLE wv_loop                                                !<-- Move on to next child task
@@ -11110,7 +11110,7 @@
 !
         ID_CHILDTASK=NT                                                    !<-- This child task has no west boundary V points
         CALL MPI_SEND(INFO,3,MPI_INTEGER,ID_CHILDTASK                   &  !<-- So send this child task some dummy information
-                     ,106                                               &  !<-- Tag for west boundary V points
+                     ,66666                                             &  !<-- Tag for west boundary V points
                      ,COMM_TO_MY_CHILDREN(N),IERR)
 !
       ENDDO wv_loop
@@ -11135,7 +11135,7 @@
               INFO(4)=CHILDTASK_H_SAVE(N)%J_HI_EAST(NTX)                   !<-- Save the ending index of expanded boundary segment on child
 !
               CALL MPI_SEND(INFO,4,MPI_INTEGER,ID_CHILDTASK             &  !<-- Parent task sends the key data to the child Ebndry task
-                           ,107                                         &  !<-- Tag for east boundary H points
+                           ,77777                                       &  !<-- Tag for east boundary H points
                            ,COMM_TO_MY_CHILDREN(N),IERR)
 !
               CYCLE eh_loop                                                !<-- Move on to next child task
@@ -11146,7 +11146,7 @@
 !
         ID_CHILDTASK=NT                                                    !<-- This child task has no east boundary H points
         CALL MPI_SEND(INFO,4,MPI_INTEGER,ID_CHILDTASK                   &  !<-- So send this child task some dummy information
-                     ,107                                               &  !<-- Tag for east boundary H points
+                     ,77777                                             &  !<-- Tag for east boundary H points
                      ,COMM_TO_MY_CHILDREN(N),IERR)
 !
       ENDDO eh_loop
@@ -11170,7 +11170,7 @@
               INFO(3)=CHILDTASK_V_SAVE(N)%J_HI_EAST(NTX)                   !<-- Save the ending index of boundary segment on child
 !
               CALL MPI_SEND(INFO,3,MPI_INTEGER,ID_CHILDTASK             &  !<-- Parent task sends the key data to the child Ebndry task
-                           ,108                                         &  !<-- Tag for east boundary V points
+                           ,88888                                       &  !<-- Tag for east boundary V points
                            ,COMM_TO_MY_CHILDREN(N),IERR)
 !
               CYCLE ev_loop                                                !<-- Move on to next child task
@@ -11181,7 +11181,7 @@
 !
         ID_CHILDTASK=NT                                                    !<-- This child task has no east boundary V points
         CALL MPI_SEND(INFO,3,MPI_INTEGER,ID_CHILDTASK                   &  !<-- So send this child task some dummy information
-                     ,108                                               &  !<-- Tag for east boundary V points
+                     ,88888                                             &  !<-- Tag for east boundary V points
                      ,COMM_TO_MY_CHILDREN(N),IERR)
 !
       ENDDO ev_loop
@@ -11270,7 +11270,7 @@
                      ,4                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
                      ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
-                     ,101                                               &  !<-- Tag used for south boundary H points
+                     ,11111                                             &  !<-- Tag used for south boundary H points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
                      ,IERR)
@@ -11407,7 +11407,7 @@
                      ,3                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
                      ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
-                     ,102                                               &  !<-- Tag used for south boundary V points
+                     ,22222                                             &  !<-- Tag used for south boundary V points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
                      ,IERR)
@@ -11541,7 +11541,7 @@
                      ,4                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
                      ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
-                     ,103                                               &  !<-- Tag used for north boundary H points
+                     ,33333                                             &  !<-- Tag used for north boundary H points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
                      ,IERR)
@@ -11679,7 +11679,7 @@
                      ,3                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
                      ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
-                     ,104                                               &  !<-- Tag used for north boundary V points
+                     ,44444                                             &  !<-- Tag used for north boundary V points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
                      ,IERR)
@@ -11820,7 +11820,7 @@
                      ,4                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
                      ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
-                     ,105                                               &  !<-- Tag used for west boundary H points
+                     ,55555                                             &  !<-- Tag used for west boundary H points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
                      ,IERR)
@@ -11957,7 +11957,7 @@
                      ,3                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
                      ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
-                     ,106                                               &  !<-- Tag used for west boundary V points
+                     ,66666                                             &  !<-- Tag used for west boundary V points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
                      ,IERR)
@@ -12091,7 +12091,7 @@
                      ,4                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
                      ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
-                     ,107                                               &  !<-- Tag used for east boundary H points
+                     ,77777                                             &  !<-- Tag used for east boundary H points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
                      ,IERR)
@@ -12228,7 +12228,7 @@
                      ,3                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
                      ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
-                     ,108                                               &  !<-- Tag used for east boundary V points
+                     ,88888                                             &  !<-- Tag used for east boundary V points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
                      ,IERR)
