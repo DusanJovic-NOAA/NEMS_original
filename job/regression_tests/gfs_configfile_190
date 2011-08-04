@@ -240,8 +240,8 @@ io_rst_file:             'DEFERRED'
 # If IO_FILE == 'DEFERRED', use FILENAME_BASE
 # as the first part of the history file names.
 #-------------------------------------------------
-hst_name_base:           'nmm_b_history.'
-rst_name_base:           'nmm_b_restart.'
+hst_name_base:           'nmmb_hst.'
+rst_name_base:           'nmmb_rst.'
 io_status:               'REPLACE'
 io_access:               'SEQUENTIAL'
 io_form:                 'UNFORMATTED'

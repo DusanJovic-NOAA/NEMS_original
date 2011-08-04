@@ -2708,11 +2708,11 @@
       IF(wrt_int_state%IO_HST_FILE=='DEFERRED')THEN
         INT_SEC=INT(wrt_int_state%NFSECONDS)
         FRAC_SEC=NINT((wrt_int_state%NFSECONDS-INT_SEC)*100.)
-        WRITE(FILENAME,100)TRIM(wrt_int_state%HST_NAME_BASE)//'.'       &
+        WRITE(FILENAME,100)TRIM(wrt_int_state%HST_NAME_BASE)//'_bin_'   &
                           ,wrt_int_state%NFHOURS,'h_'                   &
                           ,wrt_int_state%NFMINUTES,'m_'                 &
                           ,INT_SEC,'.',FRAC_SEC,'s'
-  100   FORMAT(A,I3.3,A,I2.2,A,I2.2,A,I2.2,A)
+  100   FORMAT(A,I4.4,A,I2.2,A,I2.2,A,I2.2,A)
 !!!     WRITE(0,*)' Created filename=',filename,' HST_NAME_BASE=',wrt_int_state%HST_NAME_BASE
       ELSE
         FILENAME=wrt_int_state%IO_HST_FILE
@@ -2805,11 +2805,11 @@
       IF(wrt_int_state%IO_RST_FILE=='DEFERRED')THEN
         INT_SEC=INT(wrt_int_state%NFSECONDS)
         FRAC_SEC=NINT((wrt_int_state%NFSECONDS-INT_SEC)*100.)
-        WRITE(FILENAME,100)TRIM(wrt_int_state%RST_NAME_BASE)//'.'       &
+        WRITE(FILENAME,100)TRIM(wrt_int_state%RST_NAME_BASE)//'_bin_'   &
                           ,wrt_int_state%NFHOURS,'h_'                   &
                           ,wrt_int_state%NFMINUTES,'m_'                 &
                           ,INT_SEC,'.',FRAC_SEC,'s'
-  100   FORMAT(A,I3.3,A,I2.2,A,I2.2,A,I2.2,A)
+  100   FORMAT(A,I4.4,A,I2.2,A,I2.2,A,I2.2,A)
       ELSE
         FILENAME=wrt_int_state%IO_RST_FILE
       ENDIF
@@ -3704,16 +3704,15 @@
           trim(wrt_int_state%IO_HST_FILE)
 !
       IF(wrt_int_state%IO_HST_FILE=='DEFERRED')THEN
-!!!     N=LEN_TRIM(wrt_int_state%HST_NAME_BASE)-1
         N=LEN_TRIM(wrt_int_state%HST_NAME_BASE)
         INT_SEC=INT(wrt_int_state%NFSECONDS)
         FRAC_SEC=NINT((wrt_int_state%NFSECONDS-INT_SEC)*100.)
-        WRITE(FILENAME,100)wrt_int_state%HST_NAME_BASE(1:N)//'_nemsio.' &
+        WRITE(FILENAME,100)wrt_int_state%HST_NAME_BASE(1:N)//'_nio_'    &
                           ,wrt_int_state%NFHOURS,'h_'                   &
                           ,wrt_int_state%NFMINUTES,'m_'                 &
                           ,INT_SEC,'.',FRAC_SEC,'s'
         write(0,*)'FILENAME=',trim(FILENAME),'n=',n
-  100   FORMAT(A,I3.3,A,I2.2,A,I2.2,A,I2.2,A)
+  100   FORMAT(A,I4.4,A,I2.2,A,I2.2,A,I2.2,A)
       ELSE
         FILENAME=wrt_int_state%IO_HST_FILE//'_nemsio'
       ENDIF
@@ -4457,16 +4456,15 @@
           trim(wrt_int_state%IO_RST_FILE)
 !
       IF(wrt_int_state%IO_RST_FILE=='DEFERRED')THEN
-!!!     N=LEN_TRIM(wrt_int_state%RST_NAME_BASE)-1
         N=LEN_TRIM(wrt_int_state%RST_NAME_BASE)
         INT_SEC=INT(wrt_int_state%NFSECONDS)
         FRAC_SEC=NINT((wrt_int_state%NFSECONDS-INT_SEC)*100.)
-        WRITE(FILENAME,100)wrt_int_state%RST_NAME_BASE(1:N)//'_nemsio.' &
+        WRITE(FILENAME,100)wrt_int_state%RST_NAME_BASE(1:N)//'_nio_'    &
                           ,wrt_int_state%NFHOURS,'h_'                   &
                           ,wrt_int_state%NFMINUTES,'m_'                 &
                           ,INT_SEC,'.',FRAC_SEC,'s'
         write(0,*)'FILENAME=',trim(FILENAME),'n=',n
-  100   FORMAT(A,I3.3,A,I2.2,A,I2.2,A,I2.2,A)
+  100   FORMAT(A,I4.4,A,I2.2,A,I2.2,A,I2.2,A)
       ELSE
         FILENAME=wrt_int_state%IO_RST_FILE//'_nemsio'
       ENDIF

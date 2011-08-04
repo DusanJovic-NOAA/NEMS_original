@@ -300,8 +300,8 @@ io_rst_unit:          -999
 
 io_hst_file:     'DEFERRED'
 io_rst_file:     'DEFERRED'
-hst_name_base:   'nmm_b_history'
-rst_name_base:   'nmm_b_restart'
+hst_name_base:   'nmmb_hst'
+rst_name_base:   'nmmb_rst'
 
 io_status:       'REPLACE'
 io_access:       'SEQUENTIAL'

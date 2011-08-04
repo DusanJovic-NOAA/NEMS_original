@@ -363,10 +363,8 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      IF(RC==0.AND.ID_DOMAIN>1)THEN                                        !<-- Append domain ID to history filename for nests
-        WRITE(INT_TO_CHAR,FMT)ID_DOMAIN
-        int_state%HST_NAME_BASE=TRIM(int_state%HST_NAME_BASE)//'.'//INT_TO_CHAR
-      ENDIF
+      WRITE(INT_TO_CHAR,FMT)ID_DOMAIN
+      int_state%HST_NAME_BASE=TRIM(int_state%HST_NAME_BASE)//'_'//INT_TO_CHAR
 !
 !-----------------------------------------------------------------------
 !
@@ -384,10 +382,8 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      IF(RC==0.AND.ID_DOMAIN>1)THEN                                        !<-- Append domain ID to restart filename for nests
-        WRITE(INT_TO_CHAR,FMT)ID_DOMAIN
-        int_state%RST_NAME_BASE=TRIM(int_state%RST_NAME_BASE)//'.'//INT_TO_CHAR
-      ENDIF
+      WRITE(INT_TO_CHAR,FMT)ID_DOMAIN
+      int_state%RST_NAME_BASE=TRIM(int_state%RST_NAME_BASE)//'_'//INT_TO_CHAR
 !
 !-----------------------------------------------------------------------
 !

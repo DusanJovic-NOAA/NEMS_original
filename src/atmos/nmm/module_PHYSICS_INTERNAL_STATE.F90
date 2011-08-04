@@ -394,6 +394,14 @@
         int_state%P_QS=5
         int_state%P_QI=1
         int_state%P_QG=1
+      ELSEIF(TRIM(int_state%MICROPHYSICS)=='fer_hires')THEN
+        int_state%NUM_WATER=1+4
+        int_state%P_QV=2
+        int_state%P_QC=3
+        int_state%P_QR=4
+        int_state%P_QS=5
+        int_state%P_QI=1
+        int_state%P_QG=1
       ELSEIF(TRIM(int_state%MICROPHYSICS)=='wsm3')THEN
         int_state%NUM_WATER=1+3
         int_state%P_QV=2

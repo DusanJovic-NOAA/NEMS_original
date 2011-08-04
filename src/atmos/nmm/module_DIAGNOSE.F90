@@ -1290,7 +1290,7 @@
       DO J=MAX(JTS,2),MIN(JTE,JDE-1)
         R2DX=1./(2.*DX(J))
         DO I=MAX(ITS,2),MIN(ITE,IDE-1)
-  L_LOOP:  DO L=1,LM
+  L_LOOP:  DO L=1,LM-1
              ZMIDLOC=Z(I,J,L)
              IF ( (ZMIDLOC - ZINTSFC(I,J)) .ge. HLOWER  .AND. &
                   (ZMIDLOC - ZINTSFC(I,J)) .le. HUPPER ) THEN
@@ -1865,7 +1865,7 @@
       DO J=MAX(JTS,2),MIN(JTE,JDE-1)
         R2DX=1./(2.*DX(J))
         DO I=MAX(ITS,2),MIN(ITE,IDE-1)
-  L_LOOP:  DO L=1,LM
+  L_LOOP:  DO L=1,LM-1
              ZMIDLOC=Z(I,J,L)
              IF ( (ZMIDLOC - ZINTSFC(I,J)) .ge. HLOWER  .AND. &
                   (ZMIDLOC - ZINTSFC(I,J)) .le. HUPPER ) THEN

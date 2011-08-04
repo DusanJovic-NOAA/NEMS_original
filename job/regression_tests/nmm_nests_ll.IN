@@ -37,10 +37,10 @@ rm -rf $RUNDIR/*
 
 cp _RTPWD_/NMMB_nests/input_nmmb_regional.d01           input_domain_01
 cp _RTPWD_/NMMB_nests/input_nmmb_regional.d01_nemsio    input_domain_01_nemsio
-cp _RTPWD_/NMMB_nests/nmm_b_restart.012h_00m_00.00s     restart_file_01
-cp _RTPWD_/NMMB_nests/nmm_b_restart.02.012h_00m_00.00s  restart_file_02
-cp _RTPWD_/NMMB_nests/nmm_b_restart.03.012h_00m_00.00s  restart_file_03
-cp _RTPWD_/NMMB_nests/nmm_b_restart.04.012h_00m_00.00s  restart_file_04
+cp _RTPWD_/NMMB_nests/nmmb_rst_01_bin_0012h_00m_00.00s  restart_file_01
+cp _RTPWD_/NMMB_nests/nmmb_rst_02_bin_0012h_00m_00.00s  restart_file_02
+cp _RTPWD_/NMMB_nests/nmmb_rst_03_bin_0012h_00m_00.00s  restart_file_03
+cp _RTPWD_/NMMB_nests/nmmb_rst_04_bin_0012h_00m_00.00s  restart_file_04
 cp _RTPWD_/NMMB_nests/boco.* .
 cp _RTPWD_/data/* .
 cp _RTPWD_/NMMB_nests/GWD_bin_* .
