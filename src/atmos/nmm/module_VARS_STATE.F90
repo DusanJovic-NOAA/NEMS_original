@@ -155,7 +155,10 @@
               ENDIF
             CASE DEFAULT
               write(0,*)' TKR = ', VARS(N)%TKR, TRIM(VARS(N)%VBL_NAME)
-              stop 9
+              write(0,*)' This TKR Case not available in PUT_VARS_IN_STATE'
+              write(0,*)' ABORTING!'
+              CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                     &
+                                ,rc             =RC)
           END SELECT
 
         ENDIF
@@ -205,13 +208,25 @@
           SELECT CASE(VARS(N)%TKR)
             CASE(TKR_I0D)
               CALL ESMF_AttributeGet(state=STATE ,name=VARS(N)%VBL_NAME, value=VARS(N)%I0D, rc=RC)
-              if (rc/=ESMF_SUCCESS) stop 990
+              if (rc/=ESMF_SUCCESS) then
+                write(0,*)' Unable to get VBL_NAME for CASE(TKR_I0D) in GET_VARS_FROM_STATE'
+                write(0,*)' ABORTING!'
+                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                                  ,rc             =RC)
+              end if
             CASE(TKR_I1D)
               write(0,*)' not implemented TKR_I1D in GET_VARS_FROM_STATE '
-              stop
+              write(0,*)' ABORTING!'
+              CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                     &
+                                ,rc             =RC)
             CASE(TKR_I2D)
               CALL ESMF_StateGet(STATE ,VBL_NAME ,FIELD ,rc=RC)
-              if (rc/=ESMF_SUCCESS) stop 991
+              if (rc/=ESMF_SUCCESS) then
+                write(0,*)' Unable to get VBL_NAME for CASE(TKR_I2D) in GET_VARS_FROM_STATE'
+                write(0,*)' ABORTING!'
+                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                                  ,rc             =RC)
+              end if
 
 #ifdef ESMF_3
               CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farray   =HOLD_I2D ,rc=RC)
@@ -219,16 +234,31 @@
               CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farrayPtr=HOLD_I2D ,rc=RC)
 #endif
 
-              if (rc/=ESMF_SUCCESS) stop 992
+              if (rc/=ESMF_SUCCESS) then
+                write(0,*)' Unable to get 2D integer array from Field in GET_VARS_FROM_STATE'
+                write(0,*)' ABORTING!'
+                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                                  ,rc             =RC)
+              end if
               IF (VARS(N)%OWNED ) THEN
-                if (size(VARS(N)%I2D) /= size(HOLD_I2D) ) stop 2
+                if (size(VARS(N)%I2D) /= size(HOLD_I2D) ) then
+                  write(0,*)' size(VARS(N)%I2D) /= size(HOLD_I2D) in GET_VARS_FROM_STATE'
+                  write(0,*)' ABORTING!'
+                  CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+                                    ,rc             =RC)
+                end if
                 VARS(N)%I2D =  HOLD_I2D        !<-- Both Dynamics and Physics own the variable thus transfer data
               ELSE
                 VARS(N)%I2D => HOLD_I2D        !<-- Point the appropriate unallocated VARS location at allocated pointer
               END IF
             CASE(TKR_R0D)
               CALL ESMF_AttributeGet(state=STATE ,name=VARS(N)%VBL_NAME, value=VARS(N)%R0D, rc=RC)
-              if (rc/=ESMF_SUCCESS) stop 993
+              if (rc/=ESMF_SUCCESS) then
+                write(0,*)' Unable to get VBL_NAME for CASE(TKR_R0D) in GET_VARS_FROM_STATE'
+                write(0,*)' ABORTING!'
+                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                                  ,rc             =RC)
+              end if
             CASE(TKR_R1D)
               KOUNT=SIZE(VARS(N)%R1D)
 #ifdef ESMF_3
@@ -240,7 +270,12 @@
 !!!           stop
             CASE(TKR_R2D)
               CALL ESMF_StateGet(state=STATE ,itemName=VBL_NAME ,field=FIELD ,rc=RC)
-              if (rc/=ESMF_SUCCESS) stop 996
+              if (rc/=ESMF_SUCCESS) then
+                write(0,*)' Unable to get VBL_NAME for CASE(TKR_R2D) in GET_VARS_FROM_STATE'
+                write(0,*)' ABORTING!'
+                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                                  ,rc             =RC)
+              end if
 
 #ifdef ESMF_3
               CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farray   =HOLD_R2D ,rc=RC)
@@ -248,16 +283,31 @@
               CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farrayPtr=HOLD_R2D ,rc=RC)
 #endif
 
-              if (rc/=ESMF_SUCCESS) stop 997
+              if (rc/=ESMF_SUCCESS) then
+                write(0,*)' Unable to get 2D real array from Field in GET_VARS_FROM_STATE'
+                write(0,*)' ABORTING!'
+                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                                  ,rc             =RC)
+              end if
               IF (VARS(N)%OWNED ) THEN
-                if (size(VARS(N)%R2D) /= size(HOLD_R2D) ) stop 4
+                if (size(VARS(N)%R2D) /= size(HOLD_R2D) ) then
+                  write(0,*)' size(VARS(N)%R2D) /= size(HOLD_R2D) in GET_VARS_FROM_STATE'
+                  write(0,*)' ABORTING!'
+                  CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+                                    ,rc             =RC)
+                end if
                 VARS(N)%R2D =  HOLD_R2D         !<-- Both Dynamics and Physics own the variable thus transfer data
               ELSE
                 VARS(N)%R2D => HOLD_R2D         !<-- Point the appropriate unallocated VARS location at allocated pointer
               END IF
             CASE(TKR_R3D)
               CALL ESMF_StateGet(STATE ,VBL_NAME ,FIELD ,rc=RC)
-              if (rc/=ESMF_SUCCESS) stop 998
+              if (rc/=ESMF_SUCCESS) then
+                write(0,*)' Unable to get VBL_NAME for CASE(TKR_R3D) in GET_VARS_FROM_STATE'
+                write(0,*)' ABORTING!'
+                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                                  ,rc             =RC)
+              end if
 
 #ifdef ESMF_3
               CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farray   =HOLD_R3D ,rc=RC)
@@ -265,13 +315,21 @@
               CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farrayPtr=HOLD_R3D ,rc=RC)
 #endif
 
-              if (rc/=ESMF_SUCCESS) stop 999
+              if (rc/=ESMF_SUCCESS) then
+                write(0,*)' Unable to get 3D real array from Field in GET_VARS_FROM_STATE'
+                write(0,*)' ABORTING!'
+                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                                  ,rc             =RC)
+              end if
               IF (VARS(N)%OWNED ) THEN
                 if (size(VARS(N)%R3D) /= size(HOLD_R3D) ) then
                   write(0,*)TRIM(VARS(N)%VBL_NAME), size(VARS(N)%R3D), size(HOLD_R3D)
                   write(0,*)TRIM(VARS(N)%VBL_NAME), 'lbound ',lbound(VARS(N)%R3D), lbound(HOLD_R3D)
                   write(0,*)TRIM(VARS(N)%VBL_NAME), 'ubound ',ubound(VARS(N)%R3D), ubound(HOLD_R3D)
-                  stop 5
+                  write(0,*)' VARS(N)%R3D) /= size(HOLD_R3D in GET_VARS_FROM_STATE'
+                  write(0,*)' ABORTING!'
+                  CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+                                    ,rc             =RC)
                 end if
                 VARS(N)%R3D =  HOLD_R3D         !<-- Both Dynamics and Physics own the variable thus transfer data
               ELSE
@@ -279,7 +337,12 @@
               END IF
             CASE(TKR_R4D)
               CALL ESMF_StateGet(STATE ,VBL_NAME ,FIELD ,rc=RC)
-              if (rc/=ESMF_SUCCESS) stop 1998
+              if (rc/=ESMF_SUCCESS) then
+                write(0,*)' Unable to get VBL_NAME for CASE(TKR_R4D) in GET_VARS_FROM_STATE'
+                write(0,*)' ABORTING!'
+                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                                  ,rc             =RC)
+              end if
 
 #ifdef ESMF_3
               CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farray   =HOLD_R4D ,rc=RC)
@@ -287,13 +350,21 @@
               CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farrayPtr=HOLD_R4D ,rc=RC)
 #endif
 
-              if (rc/=ESMF_SUCCESS) stop 1999
+              if (rc/=ESMF_SUCCESS) then
+                write(0,*)' Unable to get 4D real array from Field in GET_VARS_FROM_STATE'
+                write(0,*)' ABORTING!'
+                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                                  ,rc             =RC)
+              end if
               IF (VARS(N)%OWNED ) THEN
                 if (size(VARS(N)%R4D) /= size(HOLD_R4D) ) then
                   write(0,*)TRIM(VARS(N)%VBL_NAME), size(VARS(N)%R4D), size(HOLD_R4D)
                   write(0,*)TRIM(VARS(N)%VBL_NAME), 'lbound ',lbound(VARS(N)%R4D), lbound(HOLD_R4D)
                   write(0,*)TRIM(VARS(N)%VBL_NAME), 'ubound ',ubound(VARS(N)%R4D), ubound(HOLD_R4D)
-                  stop 5
+                  write(0,*)' size(VARS(N)%R4D) /= size(HOLD_R4D) in GET_VARS_FROM_STATE'
+                  write(0,*)' ABORTING!'
+                  CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+                                    ,rc             =RC)
                 end if
                 VARS(N)%R4D =  HOLD_R4D         !<-- Both Dynamics and Physics own the variable thus transfer data
               ELSE
@@ -301,7 +372,10 @@
               END IF
             CASE DEFAULT
               write(0,*)' TKR = ', VARS(N)%TKR, TRIM(VARS(N)%VBL_NAME)
-              stop 9
+              write(0,*)' This TKR Case is not available in GET_VARS_FROM_STATE'
+              write(0,*)' ABORTING!'
+              CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                     &
+                                ,rc             =RC)
           END SELECT
 
         END IF

@@ -74,6 +74,8 @@
 'DNVVELMAX'  H       -       O      -      -   T  'hourly maximum downard vertical motion 400 hPa to sfc  (m s-1)'
 'EPSR'       H       R       O      -      -   -  'Surface longwave emissivity'
 'FIS'        -       -       O      -      -   T  'Surface geopotential  (m2 s-2)'
+'GLAT'       -       -       -      I      -   -  'Latitudes of h points  (radians)'
+'GLON'       -       -       -      I      -   -  'Longitudes of h points (radians)'
 'GRNFLX'     H       R       O      -      -   T  'Deep soil heat flux  (W m-2)'
 'HBOTD'      H       R       O      -      -   T  'Bottom model layer of deep convective cloud for output'
 'HBOTS'      H       R       O      -      -   T  'Bottom model layer of shallow convective cloud for output'

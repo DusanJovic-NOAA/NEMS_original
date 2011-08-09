@@ -5496,7 +5496,7 @@
 !
         I_TEST=I_START+I_SHIFT                                             !<-- Footprint I index of W/E side of task subdomain after move.
 !
-        IF(I_TEST>=ITS_X.AND.I_TEST<=ITE_X.OR.I_SHIFT==0)THEN              !<-- Is W/E side of this task inside of footprint after move?
+        IF(I_TEST>=ITS  .AND.I_TEST<=ITE  .OR.I_SHIFT==0)THEN              !<-- Is W/E side of this task inside of footprint after move?
 !
           IF(J_SHIFT>0)THEN                                                !<-- For northward move, search to the south.
             J_ID_END_SEARCH=MOD(I_TASK,INPES)                              !<-- Task on south end of I_TASK's column.
@@ -5511,7 +5511,6 @@
             J_ID_INC_SEARCH=1                                              !<-- Task rank search increment
           ENDIF
 !
-!
           DO J_TASK=I_TASK,J_ID_END_SEARCH,J_ID_INC_SEARCH                 !<-- If so then search north/south.
 !         
             IF(J_SHIFT>=0)THEN                                             !<-- For northward or no south/north motion ....
@@ -5523,11 +5522,10 @@
 !
             J_TEST=J_START+J_SHIFT                                         !<-- Footprint J index of S/N side of task subdomain after move.
 !
-            IF(J_TEST>=JTS_X.AND.J_TEST<=JTE_X.OR.J_SHIFT==0)THEN          !<-- Is S/N side of this task inside of footprint after move?
+            IF(J_TEST>=JTS  .AND.J_TEST<=JTE  .OR.J_SHIFT==0)THEN          !<-- Is S/N side of this task inside of footprint after move?
               ID_RECV(5)=J_TASK                                            !<-- If so then we found subdomain #5.
               EXIT search
             ENDIF
-!
 !
             IF(ABS(J_TASK-J_ID_END_SEARCH)<ABS(J_INC))THEN
               WRITE(0,*)' Failed to find central task in J for inter-task ISend'
@@ -6085,11 +6083,9 @@
 !-----------------------------------------------------------------------
 !
         IF(I_SHIFT>=0)THEN                                                 !<-- For eastward or no west/east motion ....
-          I_START=MIN(domain_int_state%LOCAL_IEND(I_TASK)               &  !<-- East side of footprint #5 will lie in subdomain. 
-                                                   ,IDE-NROWS_P_UPD_E)
+          I_START=MIN(domain_int_state%LOCAL_IEND(I_TASK),IDE)             !<-- East side of footprint #5 will lie in subdomain. 
         ELSEIF(I_SHIFT<0)THEN                                              !<-- For westward motion ....
-          I_START=MAX(domain_int_state%LOCAL_ISTART(I_TASK)             &  !<-- West side of footprint #5 will lie in subdomain.
-                                                   ,IDS+NROWS_P_UPD_W)
+          I_START=MAX(domain_int_state%LOCAL_ISTART(I_TASK),IDS)           !<-- West side of footprint #5 will lie in subdomain.
         ENDIF
 !
         I_TEST=I_START-I_SHIFT                                             !<-- Subdomain I index of W/E side of task footprint after move.
@@ -6112,11 +6108,9 @@
           DO J_TASK=I_TASK,J_ID_END_SEARCH,J_ID_INC_SEARCH                 !<-- If so then search north/south.
 !
             IF(J_SHIFT>=0)THEN                                             !<-- For northward or no south/north motion ....
-              J_START=MIN(domain_int_state%LOCAL_JEND(J_TASK)           &  !<-- North side of footprint #5 will lie in subdomain.
-                                                   ,JDE-NROWS_P_UPD_N)
+              J_START=MIN(domain_int_state%LOCAL_JEND(J_TASK),JDE)         !<-- North side of footprint #5 will lie in subdomain.
             ELSEIF(J_SHIFT<0)THEN                                          !<-- For southward motion ....
-              J_START=MAX(domain_int_state%LOCAL_JSTART(J_TASK)         &  !<-- South side of footprint #5 will lie in subdomain.
-                                                   ,JDS+NROWS_P_UPD_S)
+              J_START=MAX(domain_int_state%LOCAL_JSTART(J_TASK),JDS)       !<-- South side of footprint #5 will lie in subdomain.
             ENDIF
 !
             J_TEST=J_START-J_SHIFT                                         !<-- Subdomain J index of S/N side of task footprint after move.

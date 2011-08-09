@@ -1874,8 +1874,10 @@
 !
           ELSE
 !
-            write(0,*)' Invalid selection for convection scheme'
-          STOP
+            WRITE(0,*)' Invalid selection for convection scheme'
+            WRITE(0,*)' ABORTING!'
+            CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+                              ,rc             =RC)
 !
           ENDIF
 !
@@ -3700,75 +3702,13 @@
       ALLOCATE(RDXV(JDS:JDE),STAT=I) !zj
 !
 !----------------------------------------------------------------------
-!***  Geographic latitude/longitude
-!----------------------------------------------------------------------
 !
       SB=int_state%SBD*DTR
       WB=int_state%WBD*DTR
-!     SB=SBD*DTR
-!     WB=WBD*DTR
-      TPH0=int_state%TPH0D*DTR
-!     TPH0=TPH0D*DTR
-      STPH0=SIN(TPH0)
-      CTPH0=COS(TPH0)
-!
-      IF(int_state%GLOBAL)THEN
-!
-        I_LO=MAX(IMS,IDS)
-        I_HI=MIN(IME,IDE)
-        J_LO=MAX(JMS,JDS)
-        J_HI=MIN(JME,JDE)
-!
-        DPHD=int_state%DPHD
-        DLMD=int_state%DLMD
-        DPH=DPHD*DTR
-        DLM=DLMD*DTR
-        TPH_BASE=SB-DPH-DPH
-!
-        DO J=J_LO,J_HI
-          TLM_BASE=WB-DLM-DLM
-          APH=TPH_BASE+(J-JDS+1)*DPH
-          DO I=I_LO,I_HI
-            ALM=TLM_BASE+(I-IDS+1)*DLM
-            IF(ALM> PI) ALM=ALM-PI-PI
-            IF(ALM<-PI) ALM=ALM+PI+PI
-            int_state%GLAT(I,J)=APH
-            int_state%GLON(I,J)=ALM
-          ENDDO
-        ENDDO
-!
-      ELSE  ! regional
-
-        DPHD=int_state%DPHD
-        DLMD=int_state%DLMD
-        DPH=DPHD*DTR
-        DLM=DLMD*DTR
-        TPH_BASE=SB-DPH
-!
-        DO J=JTS,JTE
-          TPH=TPH_BASE+(J-JDS+1)*DPH
-          STPH=SIN(TPH)
-          CTPH=COS(TPH)
-!
-          TLM_BASE=WB-DLM
-          DO I=ITS,ITE
-            TLM=TLM_BASE+(I-IDS+1)*DLM
-            STLM=SIN(TLM)
-            CTLM=COS(TLM)
-            SPH=CTPH0*STPH+STPH0*CTPH*CTLM
-            APH=ASIN(SPH)
-            int_state%GLAT(I,J)=APH
-            ANUM=CTPH*STLM
-            DENOM=(CTLM*CTPH-STPH0*SPH)/CTPH0
-            RELM=ATAN2(ANUM,DENOM)
-            ALM=RELM+int_state%TLM0D*DTR
-            IF(ALM>PI)ALM=ALM-PI-PI
-            IF(ALM<-PI)ALM=ALM+PI+PI
-            int_state%GLON(I,J)=ALM
-          ENDDO
-        ENDDO
-!
-      ENDIF
+      DPHD=int_state%DPHD
+      DLMD=int_state%DLMD
+      DPH=DPHD*DTR
+      DLM=DLMD*DTR
 !
 !----------------------------------------------------------------------
 !***  Delta X and Y

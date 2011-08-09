@@ -526,9 +526,6 @@
       ALLOCATE(int_state%DXH(JDS:JDE))          ;int_state%DXH    = R4_IN ! DX for H point rows
       ALLOCATE(int_state%DXV(JDS:JDE))          ;int_state%DXV    = R4_IN ! DX for V point rows
 !
-      ALLOCATE(int_state%GLAT(IMS:IME,JMS:JME)) ;int_state%GLAT   = R4_IN ! Geographic latitude (radians)
-      ALLOCATE(int_state%GLON(IMS:IME,JMS:JME)) ;int_state%GLON   = R4_IN ! Geographic longitude (radians, positive east)
-!
 !-----------------------------------------------------------------------
 !***  Local horizontal subdomain limits for all forecast tasks.
 !-----------------------------------------------------------------------
@@ -776,7 +773,7 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER :: N,NV
+      INTEGER :: N,NV,RC
 !
 !--------------------------------------------------------------
 !**************************************************************
@@ -837,6 +834,8 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'DNVVELMAX'  ,int_state%DNVVELMAX,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'EPSR'       ,int_state%EPSR     ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'FIS'        ,int_state%FIS      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'GLAT'       ,int_state%GLAT     ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'GLON'       ,int_state%GLON     ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'GRNFLX'     ,int_state%GRNFLX   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'HBOTD'      ,int_state%HBOTD    ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'HBOTS'      ,int_state%HBOTS    ,(/ IMS,JMS /),(/ IME,JME /) )
