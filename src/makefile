@@ -1,3 +1,6 @@
+#revision history:
+#   Aug,2011  J. Wang  compile GOCART only when GOCART_MODE is full
+
 TARGET = ../exe/NEMS.x
 
 include ./conf/configure.nems
@@ -71,6 +74,14 @@ ifdef CMP_JD
   CPPFLAGS += -D'CMP_JD=$(CMP_JD)'
 endif
 
+#for gocart:
+ifeq ($(GOCART_MODE),stub)
+	LIBGOCART=
+else
+	LIBGOCART=$(LIB_GOCART)
+endif
+export GOCART_MODE
+
 ################################################################################
 #
 # Ask user which target he/she wants to build
@@ -109,13 +120,12 @@ all:
 ################################################################################
 
 nmm: nmm_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_NMM) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_NMM) $(EXTLIBS) $(LIB_GOCART)
+	$(FC) $(FFLAGS_NMM) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_NMM) $(EXTLIBS) 
 	@echo "$(TARGET) is created for NMM core."
 
 nmm_libs:
-	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake
+	cd atmos/phys          && gmake GOCART_stub
 	cd atmos/nmm           && gmake
 	cd atmos/gfs           && gmake stub
 	cd atmos/gen           && gmake stub
@@ -131,14 +141,12 @@ nmm_libs:
 ################################################################################
 
 nmm_post: nmm_post_libs $(OBJS) $(MAIN)
-nmm_post_libs:
-	$(FC) $(FFLAGS_NMM) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_NMM) $(EXTLIBS_POST) $(LIB_GOCART)
+	$(FC) $(FFLAGS_NMM) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_NMM) $(EXTLIBS_POST) 
 	@echo "$(TARGET) is created for NMM core."
 
 nmm_post_libs:
-	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake
+	cd atmos/phys          && gmake GOCART_stub
 	cd atmos/nmm           && gmake
 	cd atmos/gfs           && gmake stub
 	cd atmos/gen           && gmake stub
@@ -154,16 +162,22 @@ nmm_post_libs:
 ################################################################################
 
 gfs: gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIB_GOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART)
 	@echo "nems.x is created for GFS core."
 
 gfs_libs:
+ifeq ($(GOCART_MODE),full)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
+endif
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake
+	cd atmos/phys          && gmake GOCART_$(GOCART_MODE)
 	cd atmos/nmm           && gmake stub
 	cd atmos/gen           && gmake stub
-	cd atmos/gfs           && gmake
+ifeq ($(GOCART_MODE),full)
+	cd atmos/gfs           && gmake gocart_full
+else
+	cd atmos/gfs           && gmake gocart_stub
+endif
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake stub
 	cd atmos               && gmake
@@ -176,16 +190,22 @@ gfs_libs:
 ################################################################################
 
 gfs_post: gfs_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS_POST) $(LIB_GOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS_POST) $(LIBGOCART)
 	@echo "nems.x is created for GFS core."
 
 gfs_post_libs:
+ifeq ($(GOCART_MODE),full)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
+endif
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake
+	cd atmos/phys          && gmake GOCART_$(GOCART_MODE)
 	cd atmos/nmm           && gmake stub
 	cd atmos/gen           && gmake stub
-	cd atmos/gfs           && gmake
+ifeq ($(GOCART_MODE),full)
+	cd atmos/gfs           && gmake gocart_full
+else
+	cd atmos/gfs           && gmake gocart_stub
+endif
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake nmm_stub
 	cd atmos               && gmake
@@ -198,11 +218,10 @@ gfs_post_libs:
 ################################################################################
 
 gen: gen_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_GEN) $(EXTLIBS) $(LIB_GOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_GEN) $(EXTLIBS)
 	@echo "nems.x is created for GEN core."
 
 gen_libs:
-	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
 	cd atmos/share         && gmake
 	cd atmos/phys          && gmake
 	cd atmos/nmm           && gmake stub
@@ -221,15 +240,21 @@ gen_libs:
 ################################################################################
 
 nmm_gfs_gen: nmm_gfs_gen_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIB_GOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART)
 	@echo "nems.x is created for GEN, NMM and GFS core."
 
 nmm_gfs_gen_libs:
+ifeq ($(GOCART_MODE),full)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
+endif
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake
+	cd atmos/phys          && gmake GOCART_$(GOCART_MODE)
 	cd atmos/nmm           && gmake
-	cd atmos/gfs           && gmake
+ifeq ($(GOCART_MODE),full)
+	cd atmos/gfs           && gmake gocart_full
+else
+	cd atmos/gfs           && gmake gocart_stub
+endif
 	cd atmos/gen           && gmake 
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake stub
@@ -243,15 +268,21 @@ nmm_gfs_gen_libs:
 ################################################################################
 
 nmm_gfs_gen_post: nmm_gfs_gen_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS_POST) $(LIB_GOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS_POST) $(LIBGOCART)
 	@echo "nems.x is created for GEN, NMM and GFS core."
 
 nmm_gfs_gen_post_libs:
+ifeq ($(GOCART_MODE),full)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
+endif
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake
+	cd atmos/phys          && gmake GOCART_$(GOCART_MODE)
 	cd atmos/nmm           && gmake
-	cd atmos/gfs           && gmake
+ifeq ($(GOCART_MODE),full)
+	cd atmos/gfs           && gmake gocart_full
+else
+	cd atmos/gfs           && gmake gocart_stub
+endif
 	cd atmos/gen           && gmake
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake 
@@ -265,15 +296,21 @@ nmm_gfs_gen_post_libs:
 ################################################################################
 
 nmm_gfs: nmm_gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIB_GOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART)
 	@echo "nems.x is created for NMM and GFS core."
 
 nmm_gfs_libs:
+ifeq ($(GOCART_MODE),full)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
+endif
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake
+	cd atmos/phys          && gmake GOCART_$(GOCART_MODE)
 	cd atmos/nmm           && gmake
-	cd atmos/gfs           && gmake
+ifeq ($(GOCART_MODE),full)
+	cd atmos/gfs           && gmake gocart_full
+else
+	cd atmos/gfs           && gmake gocart_stub
+endif
 	cd atmos/fim           && gmake stub
 	cd atmos/gen           && gmake stub
 	cd atmos               && gmake

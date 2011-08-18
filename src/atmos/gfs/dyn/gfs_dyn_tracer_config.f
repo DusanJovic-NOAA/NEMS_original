@@ -14,12 +14,13 @@
 !   Feb 09 2009   Sarah Lu, ri/cpi added to gfs_dyn_tracer_type
 !   Aug 17 2010   Sarah Lu, remove debug print
 !   Aug 30 2010   Sarah Lu, set glbsum default as F
+!   Aug 08 2011   Jun Wang, compile gocart only when running GOCART
 ! -------------------------------------------------------------------------
 !
       module gfs_dyn_tracer_config
       use gfs_dyn_machine , only : kind_grid
       use gfs_dyn_tracer_const, only : cpi,ri
-      use Chem_RegistryMod
+
       implicit none
       SAVE
 !
@@ -68,20 +69,15 @@ c
       integer, intent(inout)  :: ntrac
 ! local
       integer                 :: i, status, ierr
-      type(Chem_Registry)     :: reg
-
-! Read Chem_Registry
-      reg = Chem_RegistryCreate ( ierr )
-!     call Chem_RegistryPrint (reg)
 
 ! ntrac_chem = number of chem tracers
-      gfs_dyn_tracer%ntrac_chem = reg%nq
-      gfs_dyn_tracer%doing_OC = reg%doing_OC
-      gfs_dyn_tracer%doing_BC = reg%doing_BC
-      gfs_dyn_tracer%doing_DU = reg%doing_DU
-      gfs_dyn_tracer%doing_SS = reg%doing_SS
-      gfs_dyn_tracer%doing_SU = reg%doing_SU
-      gfs_dyn_tracer%doing_GOCART = reg%doing_GOCART
+      gfs_dyn_tracer%ntrac_chem = 0
+      gfs_dyn_tracer%doing_OC = .false.
+      gfs_dyn_tracer%doing_BC = .false.
+      gfs_dyn_tracer%doing_DU = .false.
+      gfs_dyn_tracer%doing_SS = .false.
+      gfs_dyn_tracer%doing_SU = .false.
+      gfs_dyn_tracer%doing_GOCART = .false.
 
 ! ntrac_met = number of met tracers
       if ( ntoz < ntcw ) then                       
@@ -114,37 +110,35 @@ c
       gfs_dyn_tracer%vname(1,    3) = 'spfh_m'   
       gfs_dyn_tracer%vname(1,    4) = 'spfh_q6'   
       gfs_dyn_tracer%vname(1,    5) = 'spfh_m6'   
-      gfs_dyn_tracer%vname(ntoz, 1) = 'o3mr'  
-      gfs_dyn_tracer%vname(ntoz, 2) = 'o3mr_q'  
-      gfs_dyn_tracer%vname(ntoz, 3) = 'o3mr_m'  
-      gfs_dyn_tracer%vname(ntoz, 4) = 'o3mr_q6'  
-      gfs_dyn_tracer%vname(ntoz, 5) = 'o3mr_m6'  
-      gfs_dyn_tracer%vname(ntcw, 1) = 'clwmr' 
-      gfs_dyn_tracer%vname(ntcw, 2) = 'clwmr_q' 
-      gfs_dyn_tracer%vname(ntcw, 3) = 'clwmr_m' 
-      gfs_dyn_tracer%vname(ntcw, 4) = 'clwmr_q6' 
-      gfs_dyn_tracer%vname(ntcw, 5) = 'clwmr_m6' 
+      if(ntoz>1) then
+        gfs_dyn_tracer%vname(ntoz, 1) = 'o3mr'  
+        gfs_dyn_tracer%vname(ntoz, 2) = 'o3mr_q'  
+        gfs_dyn_tracer%vname(ntoz, 3) = 'o3mr_m'  
+        gfs_dyn_tracer%vname(ntoz, 4) = 'o3mr_q6'  
+        gfs_dyn_tracer%vname(ntoz, 5) = 'o3mr_m6'  
+      endif
+      if(ntcw>1) then
+        gfs_dyn_tracer%vname(ntcw, 1) = 'clwmr' 
+        gfs_dyn_tracer%vname(ntcw, 2) = 'clwmr_q' 
+        gfs_dyn_tracer%vname(ntcw, 3) = 'clwmr_m' 
+        gfs_dyn_tracer%vname(ntcw, 4) = 'clwmr_q6' 
+        gfs_dyn_tracer%vname(ntcw, 5) = 'clwmr_m6' 
+      endif
 
       gfs_dyn_tracer%cpi(0:gfs_dyn_tracer%ntrac_met) =
      &               cpi(0:gfs_dyn_tracer%ntrac_met)
       gfs_dyn_tracer%ri(0:gfs_dyn_tracer%ntrac_met) =
      &               ri(0:gfs_dyn_tracer%ntrac_met)
 
-!--- fill in chem tracers
-      do i = 1,gfs_dyn_tracer%ntrac_chem
-       gfs_dyn_tracer%vname(i+gfs_dyn_tracer%ntrac_met, 1)=reg%vname(i)
-       gfs_dyn_tracer%vname(i+gfs_dyn_tracer%ntrac_met, 2)=reg%vname(i) // '_q'
-       gfs_dyn_tracer%vname(i+gfs_dyn_tracer%ntrac_met, 3)=reg%vname(i) // '_m'
-       gfs_dyn_tracer%vname(i+gfs_dyn_tracer%ntrac_met, 4)=reg%vname(i) // '_q6'
-       gfs_dyn_tracer%vname(i+gfs_dyn_tracer%ntrac_met, 5)=reg%vname(i) // '_m6'
-       gfs_dyn_tracer%cpi(i+gfs_dyn_tracer%ntrac_met) = 0.
-       gfs_dyn_tracer%ri(i+gfs_dyn_tracer%ntrac_met) = 0.
-      enddo
-
       endif
-
-! Destroy Chem_Registry
-      call Chem_RegistryDestroy ( reg, ierr )
+!      write(0,*)'in trac_config,vname=',
+!     &  gfs_dyn_tracer%vname(1:3,1),'ntoz=',ntoz,'ntcw=',ntcw
+!
+!-- call chem tracer if gocart is running
+      call dyn_gocart_tracer_config(gfs_dyn_tracer,ntrac,
+     &                               ntoz,ntcw,ncld,me)
+!      write(0,*)'in trac_config,af gocart,vname=',
+!     &  gfs_dyn_tracer%vname(1:3,1),'ntoz=',ntoz,'ntcw=',ntcw
 
       return
 

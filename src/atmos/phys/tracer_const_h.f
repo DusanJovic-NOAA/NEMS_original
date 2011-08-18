@@ -20,7 +20,7 @@
       integer ntrac,me,nlunit
       namelist /tracer_constant/ ri,cpi
 
-c
+!
       if( ntrac.ne.num_tracer ) then
         if( me.eq.0 ) then
           write(0,*) ' Error ; inconsistent number of tracer '

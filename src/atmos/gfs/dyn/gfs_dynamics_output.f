@@ -24,6 +24,8 @@
 !***  Feb 20 2011, Henry Juang  use gfs_dyn_write_state for more related name
 !***  February 2011 Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !***                            ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!***  Aug 2011      Jun Wang   remove hardcode of adiabetic tracer when setting
+!***                           diabetic tracer names
 !***
 !-----------------------------------------------------------------------
 !
@@ -651,7 +653,7 @@
 !
       INTEGER                     :: K,LENGTH,i,mype                    &
                                     ,N,NDIM3,NFIND,NUM_2D_FIELDS        &
-                                    ,LONF,LEV                           &
+                                    ,LONF,LEV,NTRACS                    &
                                     ,RC,RC_DYN_OUT
 !
       INTEGER                     :: LDIM1,LDIM2                        &
@@ -980,16 +982,21 @@
       DO II =1,MAX_KOUNT                                                 
          DYN_INT_STATE_3D_R_DIAB(1:3,II) = '**********'
       ENDDO
-
+!
+!! find first tracer, !!! first tracer will always be "spfh'
+      DO II =1,MAX_KOUNT
+         if(trim(DYN_INT_STATE_3D_R_ADIAB(1,II))=='spfh') then
+           NTRACS=II
+           exit
+         endif
+      ENDDO
 !  fill in met fields
-      DYN_INT_STATE_3D_R_DIAB(1,1) = 'dpres     '
-      DYN_INT_STATE_3D_R_DIAB(1,2) = 'pres      '
-      DYN_INT_STATE_3D_R_DIAB(1,3) = 'ugrd      '
-      DYN_INT_STATE_3D_R_DIAB(1,4) = 'vgrd      '
-      DYN_INT_STATE_3D_R_DIAB(1,5) = 'tmp       '
+      DO II=1,NTRACS-1
+         DYN_INT_STATE_3D_R_DIAB(1,II) = DYN_INT_STATE_3D_R_ADIAB(1,II)
+      ENDDO
 
 !  fill in tracer fields
-      II = 5
+      II = NTRACS-1
       DO IJ=1, gfs_dyn_tracer%ntrac
         DYN_INT_STATE_3D_R_DIAB(1,II+IJ) = gfs_dyn_tracer%vname(IJ, 1)
       ENDDO                                        

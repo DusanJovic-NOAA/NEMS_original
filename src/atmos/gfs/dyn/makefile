@@ -9,10 +9,13 @@ GOCARTINCS = -I../../../chem/gocart/AIX/include/Chem_Base \
 
 LIBRARY  = gfs_dynamics.a
 
-OPTS     = $(FFLAGS_GFS) $(R8) -O3 $(UTILINCS) $(GOCARTINCS)
+OPTS     = $(FFLAGS_GFS) $(R8) -O3 $(UTILINCS)
+OPTSGOCART     = $(FFLAGS_GFS) $(R8) -O3 $(UTILINCS) $(GOCARTINCS)
 
 FFLAG90  = $(OPTS) $(FREE)
 FFLAGS1  = $(OPTS) $(FIXED)
+FFLAG90GOCART  = $(OPTSGOCART) $(FREE)
+FFLAGS1GOCART  = $(OPTSGOCART) $(FIXED)
 
 OBJS0	= \
 	  gfs_dynamics_err_msg_mod.o		\
@@ -28,12 +31,12 @@ OBJS0	= \
 	  gfs_dynamics_finalize_mod.o		\
 	  gfs_dynamics_add_get_state_ESMFField_mod.o	\
 	  gfs_dyn_states_mod.o                  \
+	  gfs_dyn_physcons.o          	\
 	  gfs_dynamics_grid_comp_mod.o
 	  
 
 OBJ_MOD	= \
 	  gfs_dyn_machine.o             \
-	  gfs_dyn_physcons.o          	\
 	  gfs_dyn_resol_def.o           \
 	  gfs_dyn_gg_def.o              \
 	  gfs_dyn_vert_def.o            \
@@ -54,6 +57,10 @@ OBJ_MOD	= \
 	  gfs_dyn_dfi_mod.o             \
 	  nemsio_def.o	                \
 	  wrtout_dynamics.o 
+
+OBJ_TRAC= dyn_gocart_tracer_config.o
+
+OBJ_TRAC_stub= dyn_gocart_tracer_config_stub.o
 
 OBJS   = \
 	get_cd_hyb.o \
@@ -166,15 +173,33 @@ OBJS_IO= \
 	setsig.o               \
 	spect_to_grid_inp.o    
 
-DEPEND_FILES = ${OBJS0:.o=.f} ${OBJ_MOD:.o=.f} ${OBJS:.o=.f} ${OBJS_PORT:.o=.f} ${OBJS_IO:.o=.f}
+ifeq ($(GOCART_MODE),full)
+	DEPEND_FILES = ${OBJS0:.o=.f} ${OBJ_MOD:.o=.f} ${OBJ_TRAC:.o=.f} ${OBJS:.o=.f} ${OBJS_PORT:.o=.f} ${OBJS_IO:.o=.f}
+else
+	DEPEND_FILES = ${OBJS0:.o=.f} ${OBJ_MOD:.o=.f} ${OBJ_TRAC_stub:.o=.f} ${OBJS:.o=.f} ${OBJS_PORT:.o=.f} ${OBJS_IO:.o=.f}
+endif
 
 all default: depend
 	@gmake -f $(MAKEFILE) $(LIBRARY)
 
-$(LIBRARY): $(OBJ_MOD) $(OBJS0) $(OBJS) $(OBJS_IO)
+OBJALL= $(OBJ_MOD) $(OBJS) $(OBJS_IO)
+
+$(LIBRARY): $(OBJ_MOD) $(OBJ_TRAC_stub) $(OBJS0) $(OBJS) $(OBJS_IO)
 	$(AR) $(ARFLAGS) $@ $?
 
-.f.o: %.o: %.f
+GOCART_stub: $(OBJ_MOD) $(OBJ_TRAC_stub) $(OBJS0) $(OBJS) $(OBJS_IO)
+	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_ALL)
+
+GOCART_full: $(OBJ_MOD) $(OBJ_TRAC) $(OBJS0) $(OBJS) $(OBJS_IO)
+	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_GOCART)
+
+$(OBJALL): %.o: %.f
+	$(FC) $(FFLAGS1) -c $*.f
+$(OBJS_PORT): %.o: %.f
+	$(FC) $(FFLAGS1) -c $*.f
+$(OBJ_TRAC): %.o: %.f
+	$(FC) $(FFLAGS1GOCART) -c $*.f
+$(OBJ_TRAC_stub): %.o: %.f
 	$(FC) $(FFLAGS1) -c $*.f
 
 clean:

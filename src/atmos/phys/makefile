@@ -112,10 +112,18 @@ MODULES_GFSF=                                \
 	           get_prs.o                 \
 	           gsmddrive.o
 
-MODULES_ALL = $(MODULES) $(MODULES_NMM) $(MODULES_GFS) $(MODULES_GFSF) $(MODULES_NMM_SMP) $(MODULES_NMM_RRTM)
+MODULES_TRAC=      gocart_tracer_config.o
 
-DEPEND_FILES = ${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_NMM_SMP:.o=.F90} ${MODULES_NMM_RRTM:.o=.f}
+MODULES_TRAC_stub= gocart_tracer_config_stub.o
 
+MODULES_ALL = $(MODULES_NMM) $(MODULES_GFS) $(MODULES_TRAC_stub) $(MODULES_GFSF) $(MODULES_NMM_SMP) $(MODULES_NMM_RRTM)
+MODULES_GOCART = $(MODULES_NMM) $(MODULES_GFS) $(MODULES_TRAC) $(MODULES_GFSF) $(MODULES_NMM_SMP) $(MODULES_NMM_RRTM)
+
+ifeq ($(GOCART_MODE),full)
+	DEPEND_FILES = ${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC:.o=.f} ${MODULES_NMM_SMP:.o=.F90} ${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f}
+else
+	DEPEND_FILES = ${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC_stub:.o=.f} ${MODULES_NMM_SMP:.o=.F90} ${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f}
+endif
 
 all default: depend
 	@gmake -f $(MAKEFILE) $(LIBRARY)
@@ -123,8 +131,11 @@ all default: depend
 $(LIBRARY): $(MODULES_ALL)
 	$(AR) $(ARFLAGS) $@ $(MODULES_ALL)
 
-$(MODULES): %.o: %.f90
-	$(FC) $(FFLAGS) $(UTILINCS) -c $*.f90
+GOCART_stub: $(MODULES_ALL)
+	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_ALL)
+
+GOCART_full: $(MODULES_GOCART)
+	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_GOCART)
 
 $(MODULES_NMM): %.o: %.f90
 	$(FC) $(FFLAGS_NMM) $(UTILINCS) -c $*.f90
@@ -138,8 +149,14 @@ $(MODULES_NMM_RRTM): %.o: %.f
 $(MODULES_GFS): %.o: %.f
 	$(FC) $(FFLAGS_GFS) $(UTILINCS) $(R8) -c $*.f
 
-$(MODULES_GFSF): %.o: %.f
+$(MODULES_TRAC): %.o: %.f
 	$(FC) $(FFLAGS_GFSF) $(UTILINCS) $(GOCARTINCS) $(R8) -c $*.f
+
+$(MODULES_TRAC_stub): %.o: %.f
+	$(FC) $(FFLAGS_GFSF) $(UTILINCS) $(R8) -c $*.f
+
+$(MODULES_GFSF): %.o: %.f
+	$(FC) $(FFLAGS_GFSF) $(UTILINCS) $(R8) -c $*.f
 
 clean:
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map depend

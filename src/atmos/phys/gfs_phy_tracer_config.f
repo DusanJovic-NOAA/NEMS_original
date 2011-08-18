@@ -11,13 +11,13 @@
 !   Feb 08 2009   Sarah Lu, ri/cpi added to gfs_phy_tracer_type
 !   Aug 17 2010   Sarah Lu, remove debug print
 !   Oct 16 2010   Sarah Lu, add fscav
+!   Aug 08 2011   Jun Wang, remove gocart dependency when not running GOCART
 ! -------------------------------------------------------------------------
 !
       module gfs_phy_tracer_config
       use machine , only : kind_phys
       use tracer_const, only : cpi,ri
 
-      use Chem_RegistryMod
       implicit none
       SAVE
 !
@@ -56,9 +56,10 @@
        subroutine tracer_config_init (gfs_phy_tracer,ntrac,          
      &                                     ntoz,ntcw,ncld,me)
 
-c  
-c  This subprogram sets up gfs_phy_tracer
-c 
+!  
+!  This subprogram sets up gfs_phy_tracer, when not run GOCART, set
+!  do chem_tracers to false
+! 
       implicit none
 ! input
       integer, intent(in)    ::  me, ntoz,ntcw,ncld
@@ -68,22 +69,16 @@ c
       integer, intent(inout)  :: ntrac
 ! local
       integer                 :: i, status, ierr
-      type(Chem_Registry)     :: reg
 
-
-! Read Chem_Registry
-      reg = Chem_RegistryCreate ( ierr )
-
-!!    if ( me == 0) call Chem_RegistryPrint (reg)
 
 ! ntrac_chem = number of chem tracers
-      gfs_phy_tracer%ntrac_chem = reg%nq
-      gfs_phy_tracer%doing_OC = reg%doing_OC
-      gfs_phy_tracer%doing_BC = reg%doing_BC
-      gfs_phy_tracer%doing_DU = reg%doing_DU
-      gfs_phy_tracer%doing_SS = reg%doing_SS
-      gfs_phy_tracer%doing_SU = reg%doing_SU
-      gfs_phy_tracer%doing_GOCART = reg%doing_GOCART
+      gfs_phy_tracer%ntrac_chem = 0
+      gfs_phy_tracer%doing_OC = .false.
+      gfs_phy_tracer%doing_BC = .false.
+      gfs_phy_tracer%doing_DU = .false.
+      gfs_phy_tracer%doing_SS = .false.
+      gfs_phy_tracer%doing_SU = .false.
+      gfs_phy_tracer%doing_GOCART = .false.
 
 ! ntrac_met = number of met tracers
       if ( ntoz < ntcw ) then                       
@@ -115,23 +110,20 @@ c
 
 !--- fill in met tracers
       gfs_phy_tracer%vname(1) = 'spfh'   
-      gfs_phy_tracer%vname(ntoz) = 'o3mr'  
-      gfs_phy_tracer%vname(ntcw) = 'clwmr' 
-!--- fill in chem tracers
-      do i = 1,gfs_phy_tracer%ntrac_chem
-       gfs_phy_tracer%vname(i+gfs_phy_tracer%ntrac_met)=reg%vname(i)
-      enddo
+      if(ntoz>0) gfs_phy_tracer%vname(ntoz) = 'o3mr'  
+      if(ntcw>0)gfs_phy_tracer%vname(ntcw) = 'clwmr' 
 !--- fill in default values for fscav
       gfs_phy_tracer%fscav(:) = 0.
 
       endif
-
-! Destroy Chem_Registry
-      call Chem_RegistryDestroy ( reg, ierr )
-
+!
+!-- call chem tracer if gocart is running
+      call gocart_tracer_config(gfs_phy_tracer,ntrac,
+     &                               ntoz,ntcw,ncld,me)
+!
       return
 
-999   print *,'LU_TRC: error in allocate gfs_phy_tracer :',status,me
+999   print *,'TRACER CONFIG: error in allocate gfs_phy_tracer :',status,me
 
       end subroutine tracer_config_init
 
