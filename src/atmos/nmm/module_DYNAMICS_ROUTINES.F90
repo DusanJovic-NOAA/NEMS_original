@@ -2637,7 +2637,7 @@ real(kind=kfpt):: &
 ,deft &                      ! component of deformation
 ,defvp &
 ,defhp &
-
+,facdif &                    ! diffusion factor
 ,hkfx &                      ! def with slope factor
 ,hkfy &                      ! def with slope factor
 ,q2trm &                     !
@@ -2673,8 +2673,10 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !-----------------------------------------------------------------------
       if(global) then
         defm=1.6875e-4 ! 1.35e-3/2./4. ! deformation cap, /4. for smag2=0.4
+        facdif=1.0
       else
         defm=9999.
+        facdif=4.0
       endif
 !-----------------------------------------------------------------------
 !
@@ -2902,8 +2904,8 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
             do i=its_b1,ite_b1
               t (i,j,l)=t (i,j,l)+tdif (i,j)
 !-- Enhanced diffusion for Q & CWM (doubling smag2 = 4X diffusion)
-              q (i,j,l)=q (i,j,l)+4.*qdif (i,j)
-              cw(i,j,l)=cw(i,j,l)+4.*cdif (i,j)
+              q (i,j,l)=q (i,j,l)+facdif*qdif (i,j)
+              cw(i,j,l)=cw(i,j,l)+facdif*cdif (i,j)
               q2(i,j,l)=q2(i,j,l)+q2dif(i,j)
             enddo
           enddo

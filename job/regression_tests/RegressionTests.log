@@ -1,11 +1,11 @@
-Wed Aug 17 16:01:13 EDT 2011
+Fri Aug 26 21:28:33 EDT 2011
 Start Regression test
 
 
 
-Wed Aug 17 16:01:13 EDT 2011
+Fri Aug 26 21:28:33 EDT 2011
 Compilation ALL
-Wed Aug 17 16:27:50 EDT 2011
+Fri Aug 26 22:04:00 EDT 2011
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  152.51
+ Original timing:  151.20  , test_glob timing:  152.84
 
 
 Test 002
@@ -334,4 +334,4 @@ Checking test 016 results ....
 
 
 
-Wed Aug 17 17:46:03 EDT 2011
+Fri Aug 26 23:11:26 EDT 2011

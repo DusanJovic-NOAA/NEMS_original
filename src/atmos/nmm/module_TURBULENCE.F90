@@ -713,15 +713,15 @@
 !
 !-----------------------------------------------------------------------
 !
-      QGH = 0.
-      CHS = 0.
-      CPM = 0.
-      CHS2 = 0.
       DTMIN = 0.
-      DTBL = 0.
+      DTBL  = 0.
 !
       DO J=JTS_B1,JTE_B1
       DO I=ITS_B1,ITE_B1
+        QGH(I,J)  = 0.
+        CHS(I,J)  = 0.
+        CPM(I,J)  = 0.
+        CHS2(I,J) = 0.
         RAINBL(I,J) = RAINBL(I,J) + RAIN(I,J)
         RAINBL(I,J) = MAX (RAINBL(I,J), 0.0)
       ENDDO
@@ -942,8 +942,6 @@
       DO I=IMS,IME
         DUDT_PHY(I,J,K)=0.
         DVDT_PHY(I,J,K)=0.
-!jaa        DUDT_GWD(I,K,J)=0.
-!jaa        DVDT_GWD(I,K,J)=0.
       ENDDO
       ENDDO
       ENDDO
@@ -976,11 +974,24 @@
 
           IF (NTSD == 1 .OR. MOD(NTSD,NPHS) == 0) THEN
 
-              RTHBLTEN = 0.
-              DUDT_PHY = 0.
-              DVDT_PHY = 0.
-              RQCBLTEN = 0.
-              RQVBLTEN = 0.
+!.......................................................................
+!$omp parallel do                                                       &
+!$omp& private(i,j,k)
+!.......................................................................
+            DO K=1,LM+1
+              DO J=JTS,JTE
+              DO I=ITS,ITE
+                RTHBLTEN(I,J,K) = 0.
+                DUDT_PHY(I,J,K) = 0.
+                DVDT_PHY(I,J,K) = 0.
+                RQCBLTEN(I,J,K) = 0.
+                RQVBLTEN(I,J,K) = 0.
+              ENDDO
+              ENDDO
+            ENDDO
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
 
               CALL MYJPBL(DT=DT,NPHS=NPHS,HT=SFCZ,DZ=DZ                 &
                          ,PMID=PMID,PINT=PINT,TH=TH,T=T,EXNER=EXNER     &
@@ -1010,15 +1021,28 @@
 
           IF (NTSD == 1 .OR. MOD(NTSD,NPHS) == 0) THEN
 
-              RTHBLTEN = 0.
-              DUDT_PHY = 0.
-              DVDT_PHY = 0.
-              RQCBLTEN = 0.
-              RQVBLTEN = 0.
-              RQIBLTEN = 0.
-              RQRBLTEN = 0.
-              RQSBLTEN = 0.
-              RQGBLTEN = 0.
+!.......................................................................
+!$omp parallel do                                                       &
+!$omp& private(i,j,k)
+!.......................................................................
+            DO K=1,LM+1
+              DO J=JTS,JTE
+              DO I=ITS,ITE
+                RTHBLTEN(I,J,K) = 0.
+                DUDT_PHY(I,J,K) = 0.
+                DVDT_PHY(I,J,K) = 0.
+                RQCBLTEN(I,J,K) = 0.
+                RQVBLTEN(I,J,K) = 0.
+                RQIBLTEN(I,J,K) = 0.
+                RQRBLTEN(I,J,K) = 0.
+                RQSBLTEN(I,J,K) = 0.
+                RQGBLTEN(I,J,K) = 0.
+              ENDDO
+              ENDDO
+            ENDDO
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
 !!
               CALL GFSPBL(DT=DT,NPHS=NPHS,DP=DELP,AIRDEN=RR              &
                          ,RIB=RIB                            &

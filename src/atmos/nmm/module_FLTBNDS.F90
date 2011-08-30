@@ -291,7 +291,6 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
                   hfilt(k2,j)=0.
                 enddo
 !
-!!!!!           if(mype.eq.0) print*,j,khfilt(j)
                 cycle h_filters
               endif
 !
@@ -299,9 +298,6 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
             endif
 !
             hfilt(k,j)=flt
-!
-!!!!   if(mype.eq.0.and.j.lt.10) &
-!!!!   print*,'hfilt ',j,k,nsmud,hfilt(k,j)
 !
           enddo
 !
@@ -394,8 +390,6 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
                   vfilt(k2,j)=0.
                 enddo
 !
-!!!!            if(mype.eq.0.and.j.lt.10) &
-!!!!            print*,'vfilt ',j,k,nsmud,vfilt(k,j),vfilt(k+1,j)
                 cycle v_filters
               endif
 !
@@ -403,9 +397,6 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
             endif
 !
             vfilt(k  ,j)=flt
-!
-!!!!   if(mype.eq.0.and.j.lt.10) &
-!!!!   print*,'vfilt ',j,k,nsmud,vfilt(k,j)
 !
           enddo
 !
@@ -1114,7 +1105,6 @@ integer(kind=kint) :: &
                         ,lm_fft,k1_fft,k2_fft &
                         ,local_istart,local_iend &
                         ,local_jstart,local_jend &
-!!!                     ,jh_start_fft,jh_end_fft &
                         ,my_jrow_start_h(mype),my_jrow_end_h(mype) &
                         ,my_jrow_start_h,my_jrow_end_h &
                         ,ipe_start,ipe_end &
@@ -1123,13 +1113,9 @@ integer(kind=kint) :: &
 !
 !-----------------------------------------------------------------------
 !
-!jaa      n=0
       nend=k2-k1+1
-!jaa      kloop1: do l=k1,k2
       kloop1: do n=1,nend
 !
-!-----------------------------------------------------------------------
-!jaa        n=n+1
 !-----------------------------------------------------------------------
         if(fft_south)then
 !-----------------------------------------------------------------------
@@ -1241,13 +1227,11 @@ integer(kind=kint) :: &
                          ,lm_fft,k1_fft,k2_fft &
                          ,local_istart,local_iend &
                          ,local_jstart,local_jend &
-!!!                      ,jh_start_fft,jh_end_fft &
                          ,my_jrow_start_h(mype),my_jrow_end_h(mype) &
                          ,my_jrow_start_h,my_jrow_end_h &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_h &
                          ,field_h)
-!!!   call mpi_abort(mpi_intra,1,ierr)
 !
 !-----------------------------------------------------------------------
 !
@@ -1372,7 +1356,6 @@ integer(kind=kint) :: &
                         ,lm_fft,k1_fft,k2_fft &
                         ,local_istart,local_iend &
                         ,local_jstart,local_jend &
-!!!                     ,jv_start_fft,jv_end_fft &
                         ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
                         ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
@@ -1446,7 +1429,6 @@ integer(kind=kint) :: &
                          ,lm_fft,k1_fft,k2_fft &
                          ,local_istart,local_iend &
                          ,local_jstart,local_jend &
-!!!                      ,jv_start_fft,jv_end_fft &
                          ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
                          ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
@@ -1562,8 +1544,6 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
         jv_end_fft=jv_end_fft_south
         ipe_start=ipe_start_south
         ipe_end=ipe_end_south
-!!!   endif
-!!!   if(fft_north)then
       elseif(fft_north)then
         jv_start_fft=jv_start_fft_north
         jv_end_fft=jv_end_fft_north
@@ -1580,7 +1560,6 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
                         ,lm_fft,k1_fft,k2_fft &
                         ,local_istart,local_iend &
                         ,local_jstart,local_jend &
-!!!                     ,jv_start_fft,jv_end_fft &
                         ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
                         ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
@@ -1590,7 +1569,6 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
                         ,lm_fft,k1_fft,k2_fft &
                         ,local_istart,local_iend &
                         ,local_jstart,local_jend &
-!!!                     ,jv_start_fft,jv_end_fft &
                         ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
                         ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
@@ -1710,7 +1688,6 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
                          ,lm_fft,k1_fft,k2_fft &
                          ,local_istart,local_iend &
                          ,local_jstart,local_jend &
-!!!                      ,jv_start_fft,jv_end_fft &
                          ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
                          ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
@@ -1720,7 +1697,6 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
                          ,lm_fft,k1_fft,k2_fft &
                          ,local_istart,local_iend &
                          ,local_jstart,local_jend &
-!!!                      ,jv_start_fft,jv_end_fft &
                          ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
                          ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
@@ -1789,16 +1765,22 @@ integer(kind=kint) :: &
 ,jmax_south &
 ,k &
 ,k2 &
+,kount_layers &
 ,kount_pes &
 ,ks &
 ,l_remain &
 ,lyr_frac_north &
 ,lyr_frac_south &
 ,n &
+,n_extra &
 ,n_factor &
 ,n_group1 &
 ,n_group2 &
 ,n_remain &
+,n_remainder_h_group1 &
+,n_remainder_h_group2 &
+,n_remainder_v_group1 &
+,n_remainder_v_group2 &
 ,nnew &
 ,npe &
 ,npe_next &
@@ -2101,7 +2083,6 @@ real(kind=kfpt) :: &
             vfilt(k  ,j)=rcycle
           enddo
         endif
-!!!!!   print*,j,kvfilt(j)
 !-----------------------------------------------------------------------
 !
       enddo v_filters
@@ -2729,7 +2710,8 @@ integer(kind=kint) :: &
 ,k1 &
 ,k2 &
 ,l &
-,n
+,n &
+,nend
 
 real(kind=kfpt) :: &
  an &
@@ -2786,7 +2768,6 @@ integer :: ierr,ixx,jxx,kxx
                         ,lm_fft,k1_fft,k2_fft &
                         ,local_istart,local_iend &
                         ,local_jstart,local_jend &
-!!!                     ,jh_start_fft,jh_end_fft &
                         ,my_jrow_start_h(mype),my_jrow_end_h(mype) &
                         ,my_jrow_start_h,my_jrow_end_h &
                         ,ipe_start,ipe_end &
@@ -2795,16 +2776,13 @@ integer :: ierr,ixx,jxx,kxx
 !
 !-----------------------------------------------------------------------
 !
-      n=0
-      kloop1: do l=k1,k2
+      nend=k2-k1+1
+      kloop1: do n=1,nend
 !
-!-----------------------------------------------------------------------
-        as=0.
-        an=0.
-        n=n+1
 !-----------------------------------------------------------------------
         if(fft_south)then
 !-----------------------------------------------------------------------
+          as=0.
 !
           if(lbound(hn,2)==jds+1)then
             do i=ids+1,ide-2
@@ -2821,6 +2799,7 @@ integer :: ierr,ixx,jxx,kxx
 !-----------------------------------------------------------------------
         elseif(fft_north)then
 !-----------------------------------------------------------------------
+          an=0.
 !
           if(ubound(hn,2)==jde-1)then
             do i=ids+1,ide-2
@@ -2850,13 +2829,12 @@ integer :: ierr,ixx,jxx,kxx
 !
 !-----------------------------------------------------------------------
 !
-      n=0
-      kloop2: do l=k1,k2
+      kloop2: do n=1,nend
 !
 !-----------------------------------------------------------------------
-        n=n+1
 !
         do j=jstart,jend
+!
 !-----------------------------------------------------------------------
           if(khfilt(j)<=icycle) then
 !-----------------------------------------------------------------------
@@ -2898,12 +2876,11 @@ integer :: ierr,ixx,jxx,kxx
                          ,lm_fft,k1_fft,k2_fft &
                          ,local_istart,local_iend &
                          ,local_jstart,local_jend &
-                         ,jh_start_fft,jh_end_fft &
+                         ,my_jrow_start_h(mype),my_jrow_end_h(mype) &
                          ,my_jrow_start_h,my_jrow_end_h &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_h &
                          ,field_h)
-!!!   call mpi_abort(mpi_intra,1,ierr)
 !
 !-----------------------------------------------------------------------
 !
@@ -2959,7 +2936,8 @@ integer(kind=kint) :: &
 ,k1 &
 ,k2 &
 ,l &
-,n
+,n &
+,nend
 
 real(kind=kfpt) :: &
  rcycle
@@ -3016,7 +2994,6 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                         ,lm_fft,k1_fft,k2_fft &
                         ,local_istart,local_iend &
                         ,local_jstart,local_jend &
-!!!                     ,jv_start_fft,jv_end_fft &
                         ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
                         ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
@@ -3033,12 +3010,11 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
 !
 !-----------------------------------------------------------------------
 !
-      n=0
-      kloop: do l=k1,k2
-!
-        n=n+1
+      nend=k2-k1+1
+      kloop1: do n=1,nend
 !
         do j=jstart,jend
+!
 !-----------------------------------------------------------------------
           if(kvfilt(j)<=icycle) then
 !-----------------------------------------------------------------------
@@ -3067,7 +3043,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
 !-----------------------------------------------------------------------
         enddo
 !-----------------------------------------------------------------------
-      enddo kloop
+      enddo kloop1
 !-----------------------------------------------------------------------
 !***  Now scatter the model layer data from full latitude circles
 !***  back to the appropriate tasks.
@@ -3077,7 +3053,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                          ,lm_fft,k1_fft,k2_fft &
                          ,local_istart,local_iend &
                          ,local_jstart,local_jend &
-                         ,jv_start_fft,jv_end_fft &
+                         ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
                          ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
@@ -3180,8 +3156,6 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
         jv_end_fft=jv_end_fft_south
         ipe_start=ipe_start_south
         ipe_end=ipe_end_south
-!!!   endif
-!!!   if(fft_north)then
       elseif(fft_north)then
         jv_start_fft=jv_start_fft_north
         jv_end_fft=jv_end_fft_north
@@ -3198,7 +3172,6 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                         ,lm_fft,k1_fft,k2_fft &
                         ,local_istart,local_iend &
                         ,local_jstart,local_jend &
-!!!                     ,jv_start_fft,jv_end_fft &
                         ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
                         ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
@@ -3208,7 +3181,6 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                         ,lm_fft,k1_fft,k2_fft &
                         ,local_istart,local_iend &
                         ,local_jstart,local_jend &
-!!!                     ,jv_start_fft,jv_end_fft &
                         ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
                         ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
@@ -3323,7 +3295,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                          ,lm_fft,k1_fft,k2_fft &
                          ,local_istart,local_iend &
                          ,local_jstart,local_jend &
-                         ,jv_start_fft,jv_end_fft &
+                         ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
                          ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
@@ -3332,7 +3304,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                          ,lm_fft,k1_fft,k2_fft &
                          ,local_istart,local_iend &
                          ,local_jstart,local_jend &
-                         ,jv_start_fft,jv_end_fft &
+                         ,my_jrow_start_v(mype),my_jrow_end_v(mype) &
                          ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
