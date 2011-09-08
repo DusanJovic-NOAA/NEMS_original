@@ -2770,7 +2770,7 @@
                          ,FTASKS_DOMAIN(MY_DOMAIN_ID)                   &  !<-- # of fcst tasks on parent domain
                          ,MPI_INTEGER                                   &  !<-- Indices are integers
                          ,0                                             &  !<-- Send to each child's task 0
-                         ,1                                             &  !<-- MYPE tag
+                         ,10001                                         &  !<-- MYPE tag
                          ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator to child N
                          ,IERR )
 !
@@ -2778,7 +2778,7 @@
                          ,FTASKS_DOMAIN(MY_DOMAIN_ID)                   &  !<-- # of fcst tasks on parent domain
                          ,MPI_INTEGER                                   &  !<-- Indices are integers
                          ,0                                             &  !<-- Send to each child's task 0
-                         ,2                                             &  !<-- MYPE tag
+                         ,10002                                         &  !<-- MYPE tag
                          ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator to child N
                          ,IERR )
 !
@@ -2786,7 +2786,7 @@
                          ,FTASKS_DOMAIN(MY_DOMAIN_ID)                   &  !<-- # of fcst tasks on parent domain
                          ,MPI_INTEGER                                   &  !<-- Indices are integers
                          ,0                                             &  !<-- Send to each child's task 0
-                         ,3                                             &  !<-- MYPE tag
+                         ,10003                                         &  !<-- MYPE tag
                          ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator to child N
                          ,IERR )
 !
@@ -2794,7 +2794,7 @@
                          ,FTASKS_DOMAIN(MY_DOMAIN_ID)                   &  !<-- # of fcst tasks on parent domain
                          ,MPI_INTEGER                                   &  !<-- Indices are integers
                          ,0                                             &  !<-- Send to each child's task 0
-                         ,4                                             &  !<-- MYPE tag
+                         ,10004                                         &  !<-- MYPE tag
                          ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator to child N
                          ,IERR )
 !
@@ -2863,7 +2863,7 @@
                        ,NUM_TASKS_PARENT                                &  !<-- Total words received
                        ,MPI_INTEGER                                     &  !<-- Indices are integers
                        ,0                                               &  !<-- Receive from this parent task
-                       ,1                                               &  !<-- MPI tag
+                       ,10001                                           &  !<-- MPI tag
                        ,COMM_TO_MY_PARENT                               &  !<-- The MPI communicator
                        ,JSTAT                                           &  !<-- MPI status object
                        ,IERR )
@@ -2872,7 +2872,7 @@
                        ,NUM_TASKS_PARENT                                &  !<-- Total words received
                        ,MPI_INTEGER                                     &  !<-- Indices are integers
                        ,0                                               &  !<-- Receive from this parent task
-                       ,2                                               &  !<-- MPI tag
+                       ,10002                                           &  !<-- MPI tag
                        ,COMM_TO_MY_PARENT                               &  !<-- The MPI communicator
                        ,JSTAT                                           &  !<-- MPI status object
                        ,IERR )
@@ -2881,7 +2881,7 @@
                        ,NUM_TASKS_PARENT                                &  !<-- Total words received
                        ,MPI_INTEGER                                     &  !<-- Indices are integers
                        ,0                                               &  !<-- Receive from this parent task
-                       ,3                                               &  !<-- MPI tag
+                       ,10003                                           &  !<-- MPI tag
                        ,COMM_TO_MY_PARENT                               &  !<-- The MPI communicator
                        ,JSTAT                                           &  !<-- MPI status object
                        ,IERR )
@@ -2890,7 +2890,7 @@
                        ,NUM_TASKS_PARENT                                &  !<-- Total words received
                        ,MPI_INTEGER                                     &  !<-- Indices are integers
                        ,0                                               &  !<-- Receive from this parent task
-                       ,4                                               &  !<-- MPI tag
+                       ,10004                                           &  !<-- MPI tag
                        ,COMM_TO_MY_PARENT                               &  !<-- The MPI communicator
                        ,JSTAT                                           &  !<-- MPI status object
                        ,IERR )
@@ -8377,18 +8377,15 @@
 !***  Child tasks send their subdomain limits to parent task 0.
 !-----------------------------------------------------------------------
 !
-      IHANDLE_SEND=MPI_REQUEST_NULL
-!
       IF(COMM_TO_MY_PARENT/=-999)THEN                                      !<-- Select child tasks
         CALL MPI_COMM_RANK(COMM_TO_MY_PARENT,MYPE,IERR)                    !<-- Obtain my rank
-        CALL MPI_ISEND(LIMITS                                           &  !<-- Child task sends its subdomain limits
-                      ,4                                                &  !<-- # of indices sent
-                      ,MPI_INTEGER                                      &  !<-- Indices are integers
-                      ,0                                                &  !<-- Indices sent to parent fcst task 0
-                      ,MYPE                                             &  !<-- This task's rank
-                      ,COMM_TO_MY_PARENT                                &  !<-- MPI communicator between parent and child
-                      ,IHANDLE_SEND                                     &  !<-- MPI handle for this ISend
-                      ,IERR)
+        CALL MPI_SEND(LIMITS                                            &  !<-- Child task sends its subdomain limits
+                     ,4                                                 &  !<-- # of indices sent
+                     ,MPI_INTEGER                                       &  !<-- Indices are integers
+                     ,0                                                 &  !<-- Indices sent to parent fcst task 0
+                     ,MYPE                                              &  !<-- This task's rank
+                     ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between parent and child
+                     ,IERR)
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -8428,55 +8425,10 @@
                            ,IERR)
             ENDDO
 !
-            DO NN=1,FTASKS_DOMAIN(ID_DOM)
-!
-              CALL MPI_SEND(domain_int_state%LOCAL_ISTART               &  !<-- Subdomain starting I of fcst tasks on parent domain
-                           ,FTASKS_DOMAIN(MY_DOMAIN_ID)                 &  !<-- # of fcst tasks on parent domain
-                           ,MPI_INTEGER                                 &  !<-- Indices are integers
-                           ,NN-1                                        &  !<-- Local index of child fcst task NN (the sender)
-                           ,NN-1                                        &  !<-- MPI tag
-                           ,COMM_TO_MY_CHILDREN(N)                      &  !<-- MPI communicator between parent and child N
-                           ,IERR)
-!
-              CALL MPI_SEND(domain_int_state%LOCAL_IEND                 &  !<-- Subdomain ending I of fcst tasks on parent domain
-                           ,FTASKS_DOMAIN(MY_DOMAIN_ID)                 &  !<-- # of fcst tasks on parent domain
-                           ,MPI_INTEGER                                 &  !<-- Indices are integers
-                           ,NN-1                                        &  !<-- Local index of child fcst task NN (the sender)
-                           ,NN-1                                        &  !<-- MPI tag
-                           ,COMM_TO_MY_CHILDREN(N)                      &  !<-- MPI communicator between parent and child N
-                           ,IERR)
-!
-              CALL MPI_SEND(domain_int_state%LOCAL_JSTART               &  !<-- Subdomain starting J of fcst tasks on parent domain
-                           ,FTASKS_DOMAIN(MY_DOMAIN_ID)                 &  !<-- # of fcst tasks on parent domain
-                           ,MPI_INTEGER                                 &  !<-- Indices are integers
-                           ,NN-1                                        &  !<-- Local index of child fcst task NN (the sender)
-                           ,NN-1                                        &  !<-- MPI tag
-                           ,COMM_TO_MY_CHILDREN(N)                      &  !<-- MPI communicator between parent and child N
-                           ,IERR)
-!
-              CALL MPI_SEND(domain_int_state%LOCAL_JEND                 &  !<-- Subdomain ending J of fcst tasks on parent domain
-                           ,FTASKS_DOMAIN(MY_DOMAIN_ID)                 &  !<-- # of fcst tasks on parent domain
-                           ,MPI_INTEGER                                 &  !<-- Indices are integers
-                           ,NN-1                                        &  !<-- Local index of child fcst task NN (the sender)
-                           ,NN-1                                        &  !<-- MPI tag
-                           ,COMM_TO_MY_CHILDREN(N)                      &  !<-- MPI communicator between parent and child N
-                           ,IERR)
-!
-            ENDDO
-!
           ENDIF
 !
         ENDDO
 !
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Do not proceed until we are certain the preceding communications
-!***  completed successfully.
-!-----------------------------------------------------------------------
-!
-      IF(COMM_TO_MY_PARENT/=-999)THEN                                      !<-- Child tasks satisfy ISends
-        CALL MPI_WAIT(IHANDLE_SEND,JSTAT,IERR)
       ENDIF
 !
 !-----------------------------------------------------------------------
