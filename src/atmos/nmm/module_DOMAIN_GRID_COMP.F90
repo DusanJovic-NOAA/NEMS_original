@@ -2855,7 +2855,8 @@
 !-----------------------------------------------------------------------
 !
               CALL UPDATE_GRID_ARRAYS(IMP_STATE                         &  !<-- The Domain component import state
-                                     ,domain_int_state%DYN_GRID_COMP)      !<-- The Dynamics component 
+                                     ,domain_int_state%DYN_GRID_COMP    &  !<-- The Dynamics component 
+                                     ,domain_int_state%PHY_GRID_COMP)      !<-- The Physics component 
 !
 !-----------------------------------------------------------------------
 !
@@ -4485,7 +4486,8 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE UPDATE_GRID_ARRAYS(DOMAIN_IMP_STATE                    &
-                                   ,DYN_GRID_COMP)
+                                   ,DYN_GRID_COMP                       &
+                                   ,PHY_GRID_COMP)
 !
 !-----------------------------------------------------------------------
 !***  When a nest moves we must update the 1-D (in J) grid-dependent
@@ -4498,7 +4500,8 @@
 !
       TYPE(ESMF_State),INTENT(INOUT) :: DOMAIN_IMP_STATE                   !<-- The Domain component's import state
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: DYN_GRID_COMP                   !<-- The Dynamics Gridded Component
+      TYPE(ESMF_GridComp),INTENT(INOUT) :: DYN_GRID_COMP                &  !<-- The Dynamics Gridded Component
+                                          ,PHY_GRID_COMP                   !<-- The Physics Gridded Component
 !
 !---------------------
 !***  Local Variables
@@ -4513,8 +4516,10 @@
       REAL(kind=KFPT),DIMENSION(JDS:JDE) :: TLAT_H,TLAT_V
 !
       TYPE(WRAP_DYN_INT_STATE) :: WRAP_DYN
+      TYPE(WRAP_PHY_INT_STATE) :: WRAP_PHY
 !
       TYPE(DYNAMICS_INTERNAL_STATE),POINTER :: DYN_INT_STATE
+      TYPE(PHYSICS_INTERNAL_STATE),POINTER :: PHY_INT_STATE
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -4565,6 +4570,27 @@
       DYN_INT_STATE=>wrap_dyn%INT_STATE
 !
 !-----------------------------------------------------------------------
+!***  Extract the Physics internal state so we can access its contents.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Physics Internal State for Move Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompGetInternalState(PHY_GRID_COMP                  &  !<-- The Dynamics component
+                                        ,WRAP_PHY                       &
+                                        ,RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+      PHY_INT_STATE=>wrap_phy%INT_STATE
+!
+!-----------------------------------------------------------------------
 !***  The arrays are tied to the nest grid's transformed latitude.
 !***  After determining the transformed latitude of the subdomain's
 !***  SW corner following the move the rest can be filled in.
@@ -4591,6 +4617,11 @@
 !-----------------------------------------------------------------------
 !
       DO J=JDS,JDE
+        phy_int_state%DXH(J)=A*DLM*COS(TLAT_H(J))
+        phy_int_state%RDXH(J)=1./phy_int_state%DXH(J)
+        phy_int_state%DXV(J)=A*DLM*COS(TLAT_V(J))
+        phy_int_state%RDXV(J)=1./phy_int_state%DXV(J)
+
         dyn_int_state%DXH(J)=A*DLM*COS(TLAT_H(J))
         dyn_int_state%RDXH(J)=1./dyn_int_state%DXH(J)
         dyn_int_state%DXV(J)=A*DLM*COS(TLAT_V(J))
