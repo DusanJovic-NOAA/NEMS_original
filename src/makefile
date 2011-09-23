@@ -125,7 +125,7 @@ nmm: nmm_libs $(OBJS) $(MAIN)
 
 nmm_libs:
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake GOCART_stub
+	cd atmos/phys          && gmake gocart_stub
 	cd atmos/nmm           && gmake
 	cd atmos/gfs           && gmake stub
 	cd atmos/gen           && gmake stub
@@ -146,7 +146,7 @@ nmm_post: nmm_post_libs $(OBJS) $(MAIN)
 
 nmm_post_libs:
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake GOCART_stub
+	cd atmos/phys          && gmake gocart_stub
 	cd atmos/nmm           && gmake
 	cd atmos/gfs           && gmake stub
 	cd atmos/gen           && gmake stub
@@ -170,7 +170,7 @@ ifeq ($(GOCART_MODE),full)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
 endif
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake GOCART_$(GOCART_MODE)
+	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
 	cd atmos/nmm           && gmake stub
 	cd atmos/gen           && gmake stub
 ifeq ($(GOCART_MODE),full)
@@ -198,7 +198,7 @@ ifeq ($(GOCART_MODE),full)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
 endif
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake GOCART_$(GOCART_MODE)
+	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
 	cd atmos/nmm           && gmake stub
 	cd atmos/gen           && gmake stub
 ifeq ($(GOCART_MODE),full)
@@ -248,7 +248,7 @@ ifeq ($(GOCART_MODE),full)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
 endif
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake GOCART_$(GOCART_MODE)
+	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
 	cd atmos/nmm           && gmake
 ifeq ($(GOCART_MODE),full)
 	cd atmos/gfs           && gmake gocart_full
@@ -276,7 +276,7 @@ ifeq ($(GOCART_MODE),full)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
 endif
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake GOCART_$(GOCART_MODE)
+	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
 	cd atmos/nmm           && gmake
 ifeq ($(GOCART_MODE),full)
 	cd atmos/gfs           && gmake gocart_full
@@ -304,7 +304,7 @@ ifeq ($(GOCART_MODE),full)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
 endif
 	cd atmos/share         && gmake
-	cd atmos/phys          && gmake GOCART_$(GOCART_MODE)
+	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
 	cd atmos/nmm           && gmake
 ifeq ($(GOCART_MODE),full)
 	cd atmos/gfs           && gmake gocart_full

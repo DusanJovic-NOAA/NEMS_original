@@ -43,8 +43,8 @@ all default: depend
 	cd $(DIR_PHY) && gmake && cd ..
 	@gmake -f makefile $(LIBRARY)
 
-$(LIBRARY): $(OBJSGOC) $(OBJS)
-	$(AR) $(ARFLAGS) $@ $(OBJSGOC) $(OBJS)
+$(LIBRARY): $(OBJSGOC_stub) $(OBJS)
+	$(AR) $(ARFLAGS) $@ $(OBJSGOC_stub) $(OBJS)
 
 stub: $(MODULES_STUB)
 	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_STUB)
@@ -55,7 +55,7 @@ gocart_full: gfs_gocart_full_libs  $(OBJSGOC) $(OBJS)
 gfs_gocart_full_libs:
 	cd $(DIR_LIBUTIL) && gmake gocart_full && cd ..
 	cd $(DIR_IO) && gmake && cd ..
-	cd $(DIR_DYN) && gmake && cd ..
+	cd $(DIR_DYN) && gmake gocart_full && cd ..
 	cd $(DIR_PHY) && gmake && cd ..
 
 gocart_stub: gfs_gocart_stub_libs  $(OBJSGOC_STUB) $(OBJS)

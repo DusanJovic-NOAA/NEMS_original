@@ -6,11 +6,15 @@ set -x
 
 # -------------------------------------------------------------
 # SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
- export SFCPRESS_ID=2
+#  export SFCPRESS_ID=2
 # THERMODYN_ID=3 for enthalphy, 0 or 1 for virtual T, 2 for T
  export THERMODYN_ID=3
- export hybrid=NO
- export GEN_COORD_HYBRID=YES
+# export hybrid=NO
+# export GEN_COORD_HYBRID=YES
+ export hybrid=YES
+ export GEN_COORD_HYBRID=NO 
+ export SFCPRESS_ID=2
+ export THERMODYN_ID=0
 #***************************************************************
 #                    N2 ,    H2O,     O3,        CLW,    O,      O2
 #export RIlist="  296.8034, 461.50, 173.2247,    0.0,  519.674, 259.837 "
@@ -23,8 +27,8 @@ export RIlist="  286.05,   461.50, 173.2247,    0.0"
 #
 #    Set up horizontal and vertical resolution ; default will be T6264
 #
- export wavecoef=188 ; export wavegrid=126 ; export lm=64 ; export lsoil=4
-#export wavecoef=92  ; export wavegrid=62 ; export lm=64 ; export lsoil=2 ; export lsm=0
+# export wavecoef=188 ; export wavegrid=126 ; export lm=64 ; export lsoil=4
+ export wavecoef=62  ; export wavegrid=62 ; export lm=64 ; export lsoil=4
 #
 export NCP=cp
 export FTSFS=0.0
@@ -98,7 +102,11 @@ elif [ $GEN_COORD_HYBRID = YES ] ; then
   Apercent=${Apercent:-100}
 # ---- sigma-theta ---------
 # Apercent=${Apercent:-000}
+  if [ $lm -eq 64 ]; then
   export SIGLEVEL=$TOPDIR/wx23hh/00wkgfs/fix/global_hyblev3.ipa$Apercent.txt
+  else
+  export SIGLEVEL=$TOPDIR/wx23sm/2jif/f2006/fix/global_hyblev3.l$lm.txt
+  fi
 fi
 #
 export IDVM=1 ; export IDSL=1
@@ -131,7 +139,7 @@ fi
 # export CHGRESDIR=$TOPDIR/wx23hh/00wkgfs/src/global_chgres-moorthi.fd
 # export CHGRESEXEC=$CHGRESDIR/global_chgres
 # export CHGRESSH=$TOPDIR/wx23hh/00wkgfs/ush/global_chgres-moorthi.sh
- export CHGRESEXEC=/climate/save/wx20wa/gfsio/chgres_nems/global_chgres
+ export CHGRESEXEC=/climate/save/wx20wa/gfsio/chgres_test3/global_chgres
  export CHGRESSH=/climate/save/wx20wa/gfsio/chgres_nems_test/test/global_chgres_opn.sh
 #
 export LANDICE_OPT=2
@@ -203,8 +211,8 @@ export VERBOSE=YES
 #
   export GFSOUT=$RUNDIR/gfsanl.$CDATE
   export SIGOUT=$RUNDIR/siganl.$CDATE
-  export SFCOUT=$RUNDIR/sfcanl.$CDATE
-  export SFCOUT=$RUNDIR/sfnanl.$CDATE
+  export SFCOUT=$RUNDIR/sfcout.$CDATE
+  export SFNOUT=$RUNDIR/sfcanl.$CDATE
 #
   echo ${change_res}
   if [[ ${change_res} = YES ]] ; then
@@ -220,5 +228,5 @@ export VERBOSE=YES
   fi
   export SIGI=$SIGOUT
   export GFSI=$GFSOUT
-  export SFCI=$SFCOUT
+  export SFCI=$SFNOUT
 

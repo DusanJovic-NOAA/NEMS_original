@@ -42,8 +42,8 @@
       IMPLICIT NONE
       character*(*) cfile
       INTEGER             IDATE(4),
-     &                    latbi, lonbi, levsi, jcapi,
-     &                    latgi, lonfi, latri, lonri,idate7(7)
+     &                    levsi, jcapi,
+     &                    latgi, lonfi, idate7(7)
 !!
       real(kind=kind_evod)  epse(len_trie_ls)
       real(kind=kind_evod)  epso(len_trio_ls)
@@ -121,13 +121,13 @@
       stime=timef()
       call nemsio_open(gfile_in,trim(cfile),'read',iret)
       etime=timef()
-      print *,'in read nemsio file, open time=',timef()-stime
+!      print *,'in read nemsio file, open time=',timef()-stime
 !
       call nemsio_getfilehead(gfile_in,iret=iret,
      &  version=ivsupa,idate=idate7,
      &  nfhour=nfhour,nfminute=nfminute,
      &  nfsecondn=nfsecondn,nfsecondd=nfsecondd,
-     &  dimy=latb,dimx=lonb,dimz=levsi,jcap=jcapi,
+     &  dimy=latgi,dimx=lonfi,dimz=levsi,jcap=jcapi,
      &  idvc=idvc,
      &  ncldt=ncldt,tlmeta=tlmeta)
        idate(1)=idate7(4)
@@ -137,10 +137,8 @@
       call nemsio_getheadvar(gfile_in,'iorder',iorder,iret=iret)
       call nemsio_getheadvar(gfile_in,'irealf',irealf,iret=iret)
       call nemsio_getheadvar(gfile_in,'igen',igen,iret=iret)
-      call nemsio_getheadvar(gfile_in,'latg',latgi,iret=iret)
-      call nemsio_getheadvar(gfile_in,'lonf',lonfi,iret=iret)
-      call nemsio_getheadvar(gfile_in,'latr',latri,iret=iret)
-      call nemsio_getheadvar(gfile_in,'lonr',lonri,iret=iret)
+      call nemsio_getheadvar(gfile_in,'dimx',lonb,iret=iret)
+      call nemsio_getheadvar(gfile_in,'dimy',latb,iret=iret)
       call nemsio_getheadvar(gfile_in,'icen2',icen2,iret=iret)
       call nemsio_getheadvar(gfile_in,'iens',iens,iret=iret)
       call nemsio_getheadvar(gfile_in,'idpp',idpp,iret=iret)
@@ -172,20 +170,24 @@
           call mpi_quit(555)
         endif
         if ( gen_coord_hybrid ) then
-          print *, ' Use sigma-theta-p hybrid coordinate'
+          if(me==0) print *, ' Use sigma-theta-p hybrid coordinate'
           if (idvc == 3 ) then
-           print *, ' Cold_start input is consistent, run continues'
+           if(me==0)   
+     &       print *, ' Cold_start input is consistent, run continues'
           else 
-           print *, ' Cold_start input is different, run aborted'
+           if(me==0)
+     &       print *, ' Cold_start input is different, run aborted'
            call mpi_quit(556)
           endif
         endif   
         if ( hybrid ) then
-          print *, ' Use sigma-p hybrid coordinate'
+          if(me==0)print *, ' Use sigma-p hybrid coordinate'
           if (idvc == 2 ) then
-           print *, ' Cold_start input is consistent, run continues'
+           if(me==0)
+     &      print *, ' Cold_start input is consistent, run continues'
           else 
-           print *, ' Cold_start input is different, run aborted'
+           if(me==0)
+     &       print *, ' Cold_start input is different, run aborted'
            call mpi_quit(557)
           endif
         endif   
@@ -217,7 +219,7 @@
       call nemsio_getfilehead(gfile_in,iret=iret,recname=recnamei,
      &                       reclevtyp=reclevtypi,reclev=reclevi)
        stime=timef()
-        print *,'after nemsioheader,time=',stime-etime
+!        print *,'after nemsioheader,time=',stime-etime
 
 !
       if (gen_coord_hybrid) then                                        ! hmhj
@@ -331,7 +333,7 @@
      &, ' idvc=',idvc,' jcap=',jcap, ' pdryini=',pdryini
       ENDIF
 !
-      allocate (nemsio_data(lonb*latb))
+      allocate (nemsio_data(lonf*latg))
 !  Read orog
        stime=timef()
 
@@ -345,8 +347,8 @@
      &    iret=iret)
       endif
 
-      print *,'in treadeo,time=',timef()-stime,'hgt=',
-     &  maxval(nemsio_data),minval(nemsio_data), 'iret=',iret
+!      print *,'in treadeo,time=',timef()-stime,'hgt=',
+!     &  maxval(nemsio_data),minval(nemsio_data), 'iret=',iret
       call split2d(nemsio_data,buffo,global_lats_a)
 !      print *,'in treadeo,buffo=',maxval(buffo),minval(buffo)
       CALL interpred(1,kmsk,buffo,zsg,global_lats_a,lonsperlat)
@@ -453,7 +455,7 @@
         enddo
       enddo       
        etime=timef()
-        print *,'after nemsioheader,time=',etime-stime
+!        print *,'after nemsioheader,time=',etime-stime
 !
 !   Convert from Gaussian grid to spectral space
 !   including converting to model_uvtp if necessary

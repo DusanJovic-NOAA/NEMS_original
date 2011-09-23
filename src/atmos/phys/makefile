@@ -131,10 +131,10 @@ all default: depend
 $(LIBRARY): $(MODULES_ALL)
 	$(AR) $(ARFLAGS) $@ $(MODULES_ALL)
 
-GOCART_stub: $(MODULES_ALL)
+gocart_stub: $(MODULES_ALL)
 	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_ALL)
 
-GOCART_full: $(MODULES_GOCART)
+gocart_full: $(MODULES_GOCART)
 	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_GOCART)
 
 $(MODULES_NMM): %.o: %.f90

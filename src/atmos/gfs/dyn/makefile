@@ -187,11 +187,11 @@ OBJALL= $(OBJ_MOD) $(OBJS) $(OBJS_IO)
 $(LIBRARY): $(OBJ_MOD) $(OBJ_TRAC_stub) $(OBJS0) $(OBJS) $(OBJS_IO)
 	$(AR) $(ARFLAGS) $@ $?
 
-GOCART_stub: $(OBJ_MOD) $(OBJ_TRAC_stub) $(OBJS0) $(OBJS) $(OBJS_IO)
-	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_ALL)
+gocart_stub: $(OBJ_MOD) $(OBJ_TRAC_stub) $(OBJS0) $(OBJS) $(OBJS_IO)
+	$(AR) $(ARFLAGS) $(LIBRARY) $(OBJ_MOD) $(OBJ_TRAC_stub) $(OBJS0) $(OBJS) $(OBJS_IO)
 
-GOCART_full: $(OBJ_MOD) $(OBJ_TRAC) $(OBJS0) $(OBJS) $(OBJS_IO)
-	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_GOCART)
+gocart_full: $(OBJ_MOD) $(OBJ_TRAC) $(OBJS0) $(OBJS) $(OBJS_IO)
+	$(AR) $(ARFLAGS) $(LIBRARY) $(OBJ_MOD) $(OBJ_TRAC) $(OBJS0) $(OBJS) $(OBJS_IO)
 
 $(OBJALL): %.o: %.f
 	$(FC) $(FFLAGS1) -c $*.f

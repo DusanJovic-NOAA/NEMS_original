@@ -107,7 +107,7 @@
       character*(*) cfile
       integer kmsk(lonr,latr),kmskcv(lonr,latr)
       CHARACTER*8 labfix(4)
-      real t1,t2,timef,rsnow
+      real t1,t2,rsnow
       real(4) fhour
       integer nfhour,nfminute,nfsecondn,nfsecondd
       type(nemsio_gfile) gfile_in
@@ -125,19 +125,21 @@
       stime=timef()
       call nemsio_open(gfile_in,trim(cfile),'read',iret=iret)
        etime=timef()
-        print *,'in read_sfc,nemsio open time=',etime-stime
+!        print *,'in read_sfc,nemsio open time=',etime-stime
 !
       IF (me == 0) THEN
 
-        call nemsio_getheadvar(gfile_in,'lonb',lonb4,iret=iret)
-        call nemsio_getheadvar(gfile_in,'latb',latb4,iret=iret)
+        call nemsio_getheadvar(gfile_in,'dimx',lonb4,iret=iret)
+        call nemsio_getheadvar(gfile_in,'dimy',latb4,iret=iret)
         call nemsio_getheadvar(gfile_in,'nsoil',nsoil4,iret=iret)
         call nemsio_getheadvar(gfile_in,'ivs',ivs4,iret=iret)
+        if(iret/=0) then
+          call nemsio_getheadvar(gfile_in,'ivssfc',ivs4,iret=iret)
+        endif
         call nemsio_getfilehead(gfile_in,idate=idate7,nfhour=nfhour,    
      &       nfminute=nfminute,nfsecondn=nfsecondn,nfsecondd=nfsecondd,
      &       iret=iret)   
         if(iret/=0) print *,' after sfcio_srohdc,iret=',iret
-        print *,'in read sfc, nemsio head time=',timef()-etime
 
         FHOUR     = real(nfhour,8)+real(nfminute,8)/60.+        
      &              real(nfsecondn,8)/(real(nfsecondd,8)*3600.)
@@ -423,7 +425,7 @@
 !           buff1=data%orog
            needoro = 1
            if(all(buff1.ne.-9999.)) needoro=0
-           print *,'read sfc orography'
+!           print *,'read sfc orography'
          endif
          call split2d_phys(buff1, buffo,global_lats_r)
          CALL interpred_phys(1,kmsk,buffo,sfc_fld%ORO,
@@ -431,7 +433,7 @@
          call skip(needoro)
        endif
        etime=timef()
-        print *,'in read_sfc,nemsio read time=',etime-stime
+!      print *,'in read_sfc,nemsio read time=',etime-stime
 !
 !Wei initialize snow fraction(sheleg is in mm)
       DO j=1,lats_node_r
@@ -459,7 +461,7 @@
        IF (me == 0) then
 !         call sfcio_axdata(data,iret)
          t2 = timef()
-         print *,'FIXIO TIME ',t2-t1,t1,t2
+!         print *,'FIXIO TIME ',t2-t1,t1,t2
        endif
 !
       call nemsio_close(gfile_in,iret=iret)
