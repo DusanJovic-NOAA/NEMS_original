@@ -15,6 +15,7 @@
 !   Aug 17 2010   Sarah Lu, remove debug print
 !   Aug 30 2010   Sarah Lu, set glbsum default as F
 !   Aug 08 2011   Jun Wang, compile gocart only when running GOCART
+!   Sep 16 2011   Sarah Lu, revise chem tracer initialization 
 ! -------------------------------------------------------------------------
 !
       module gfs_dyn_tracer_config
@@ -27,6 +28,7 @@
 ! tracer specification
 !
       type    gfs_dyn_tracer_type
+        character*20,         pointer      :: chem_name(:)   ! chem_tracer name
         character*20,         pointer      :: vname(:, :)    ! variable name
         real(kind=kind_grid), pointer      :: ri(:)
         real(kind=kind_grid), pointer      :: cpi(:)
@@ -45,7 +47,7 @@
 !
 ! misc tracer options
 !
-      logical, save                  :: glbsum  = .false.
+      logical, save                        :: glbsum  = .false.
 !
 
 ! --- public interface
@@ -65,19 +67,18 @@ c
       integer, intent(in)    ::  me, ntoz,ntcw,ncld
 ! output
       type (gfs_dyn_tracer_type), intent(out)    ::  gfs_dyn_tracer
-!
+! input/output
       integer, intent(inout)  :: ntrac
 ! local
-      integer                 :: i, status, ierr
+      integer                   :: i, j, status, ierr
+      character*20              :: rgname
 
-! ntrac_chem = number of chem tracers
+! initialize ntrac_chem (the default is no chemistry)
       gfs_dyn_tracer%ntrac_chem = 0
-      gfs_dyn_tracer%doing_OC = .false.
-      gfs_dyn_tracer%doing_BC = .false.
-      gfs_dyn_tracer%doing_DU = .false.
-      gfs_dyn_tracer%doing_SS = .false.
-      gfs_dyn_tracer%doing_SU = .false.
       gfs_dyn_tracer%doing_GOCART = .false.
+
+! initialize chem tracers
+      call dyn_gocart_tracer_config(gfs_dyn_tracer,me)
 
 ! ntrac_met = number of met tracers
       if ( ntoz < ntcw ) then                       
@@ -88,13 +89,19 @@ c
       if ( gfs_dyn_tracer%ntrac_met /= ntrac ) then
         print *,'LU_TRC: ERROR ! inconsistency in ntrac:',
      &           ntrac, gfs_dyn_tracer%ntrac_met
-        stop     
+        stop  222
       endif
 
 ! update ntrac = total number of tracers
       gfs_dyn_tracer%ntrac = gfs_dyn_tracer%ntrac_met +     
      &                       gfs_dyn_tracer%ntrac_chem
       ntrac = gfs_dyn_tracer%ntrac
+
+      if(me==0) then
+       print *, 'LU_TRC: ntrac_met =',gfs_dyn_tracer%ntrac_met
+       print *, 'LU_TRC: ntrac_chem=',gfs_dyn_tracer%ntrac_chem
+       print *, 'LU_TRC: ntrac     =',gfs_dyn_tracer%ntrac
+      endif
 
 ! Set up tracer name, cpi, and ri
       if ( gfs_dyn_tracer%ntrac > 0 ) then      
@@ -104,6 +111,7 @@ c
            if( status .ne. 0 ) go to 999
        allocate(gfs_dyn_tracer%cpi(0:ntrac), stat=status)
            if( status .ne. 0 ) go to 999
+
 !--- fill in met tracers
       gfs_dyn_tracer%vname(1,    1) = 'spfh'   
       gfs_dyn_tracer%vname(1,    2) = 'spfh_q'   
@@ -130,15 +138,24 @@ c
       gfs_dyn_tracer%ri(0:gfs_dyn_tracer%ntrac_met) =
      &               ri(0:gfs_dyn_tracer%ntrac_met)
 
-      endif
-!      write(0,*)'in trac_config,vname=',
-!     &  gfs_dyn_tracer%vname(1:3,1),'ntoz=',ntoz,'ntcw=',ntcw
-!
-!-- call chem tracer if gocart is running
-      call dyn_gocart_tracer_config(gfs_dyn_tracer,ntrac,
-     &                               ntoz,ntcw,ncld,me)
-!      write(0,*)'in trac_config,af gocart,vname=',
-!     &  gfs_dyn_tracer%vname(1:3,1),'ntoz=',ntoz,'ntcw=',ntcw
+! 
+!--- fill in chem tracers
+      if ( gfs_dyn_tracer%ntrac_chem > 0 ) then      
+       do i = 1,gfs_dyn_tracer%ntrac_chem
+        j = i + gfs_dyn_tracer%ntrac_met
+        rgname = trim(gfs_dyn_tracer%chem_name(i))
+        if(me==0)print *, 'LU_TRC_dyn: vname=',j,rgname
+        gfs_dyn_tracer%vname(j, 1)=rgname
+        gfs_dyn_tracer%vname(j, 2)=rgname//'_q'
+        gfs_dyn_tracer%vname(j, 3)=rgname//'_m'
+        gfs_dyn_tracer%vname(j, 4)=rgname//'_q6'
+        gfs_dyn_tracer%vname(j, 5)=rgname//'_m6'
+        gfs_dyn_tracer%cpi(j) = 0.
+        gfs_dyn_tracer%ri (j) = 0.
+       enddo
+       endif
+
+      endif     !!
 
       return
 

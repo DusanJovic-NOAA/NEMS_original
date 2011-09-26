@@ -93,6 +93,7 @@
 !                               compute dqdt_v if inline gocart is on   !
 !      feb  2011  - sarah lu    add the option to update surface diag   !
 !                               fields (t2m,q2m,u10m,v10m) at the end   !
+!      sep  2011  - sarah lu    correct dqdt_v calculations             !
 !                                                                       !
 !                                                                       !
 !  ====================  defination of variables  ====================  !
@@ -438,8 +439,8 @@
        real(kind=kind_phys) dxmax, dxmin, dxinv
 
 !  ---  inputs:
-!  note: lgocart is the logical for in-line gocart;
-!        lggfs3d is the logical for off-line gocart 
+!  note: lgocart is the logical flag for in-line gocart;
+!        lggfs3d is the logical flag for off-line gocart 
       integer, intent(in) :: ix,   im,   levs, lsoil,   lsm,     ntrac, &
      &                       ncld, ntoz, ntcw, nmtvr,   nrcm,    ko3,   &
      &                       lonf, latg, jcap, num_p3d, num_p2d, kdt,   &
@@ -1158,6 +1159,7 @@
      &       evbs,evcw,trans,sbsno,snowc,soilm,                         &
      &       snohf,smcwlt2,smcref2                                      &
      &     )
+
         endif
 
 !       if (lprnt) print *,' tseabeficemodel =',tsea(ipr),' me=',me     &
@@ -1320,6 +1322,7 @@
 !       endif
 
       endif   ! end if_old_monin
+
 !     if (lprnt) then
 !       print *,' dusfc1=',dusfc1(ipr)
 !       print *,' dtsfc1=',dtsfc1(ipr)
@@ -1365,13 +1368,13 @@
           enddo
         endif
 ! update dqdt_v to include moisture tendency due to vertical diffusion
-        if (lgocart) then
-          do k = 1, levs
-            do i = 1, im
-              dqdt_v(i,k)  = dqdt(i,k,1) * dtf
-            enddo
-          enddo
-        endif
+!        if (lgocart) then
+!          do k = 1, levs
+!            do i = 1, im
+!              dqdt_v(i,k)  = dqdt(i,k,1) * dtf
+!            enddo
+!          enddo
+!        endif
         if (ldiag3d .or. lggfs3d) then
           do k = 1, levs
             do i = 1, im
@@ -1582,7 +1585,8 @@
         enddo
 
       endif   ! end if_ldiag3d/cnvgwd
-      if (ldiag3d .or. lggfs3d) then
+!     if (ldiag3d .or. lggfs3d) then
+      if (ldiag3d .or. lggfs3d .or. lgocart) then
         do k = 1, levs
           do i = 1, im
             dqdt(i,k,1)   = gq0(i,k,1)
@@ -1797,6 +1801,7 @@
      &,             phy_f2d(1,num_p2d), flipv, pa2mb                    &
      &,             me, garea, lmh, ccwfac, nrcm, rhc                   &
      &,             ud_mf, dd_mf, dt_mf, dlqfac, lprnt, ipr, kdt, fscav)
+
 !  --- ...  check print
 
 !       if (lprnt) print *,' rain1=',rain1(ipr),' rann=',rann(ipr,1)
@@ -1885,8 +1890,9 @@
         if (lgocart) then
           do k = 1, levs
             do i = 1, im
-              tem          = (gq0(i,k,1)-dqdt(i,k,1)) * frain
-              dqdt_v(i,k)  = dqdt_v(i,k)  + tem
+!             tem          = (gq0(i,k,1)-dqdt(i,k,1)) * frain
+!             dqdt_v(i,k)  = dqdt_v(i,k)  + tem
+              dqdt_v(i,k)  = (gq0(i,k,1)-dqdt(i,k,1)) * frain
             enddo
           enddo
         endif
@@ -2096,7 +2102,8 @@
           enddo
         enddo
       endif
-      if (ldiag3d .or. lggfs3d) then
+!     if (ldiag3d .or. lggfs3d) then
+      if (ldiag3d .or. lggfs3d .or. lgocart) then
         do k = 1, levs
           do i = 1, im
             dqdt(i,k,1) = gq0(i,k,1)
@@ -2300,15 +2307,15 @@
             enddo
 ! update dqdt_v to include moisture tendency due to surface processes
 ! dqdt_v : instaneous moisture tendency (kg/kg/sec)
-            if (lgocart) then
-              do k=1,levs
-                do i=1,im
-                  tem = (gq0(i,k,1)-dqdt(i,k,1)) * frain
-                  dqdt_v(i,k) = dqdt_v(i,k) + tem
-                  dqdt_v(i,k) = dqdt_v(i,k) / dtf
-                enddo
-              enddo
-            endif
+!            if (lgocart) then
+!              do k=1,levs
+!                do i=1,im
+!                  tem = (gq0(i,k,1)-dqdt(i,k,1)) * frain
+!                  dqdt_v(i,k) = dqdt_v(i,k) + tem
+!                  dqdt_v(i,k) = dqdt_v(i,k) / dtf
+!                enddo
+!              enddo
+!            endif
             if (ldiag3d) then
               do k=1,levs
                 do i=1,im
@@ -2344,7 +2351,8 @@
               enddo
             enddo
           ENDIF
-!
+
+! 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !         if (me .eq. 0) then
 !           DO K=1,LEVS
@@ -2363,6 +2371,15 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
         endif               !       moist convective adjustment over
+
+! dqdt_v : instaneous moisture tendency (kg/kg/sec)
+        if (lgocart) then
+            do k=1,levs
+              do i=1,im
+                dqdt_v(i,k) = dqdt_v(i,k) / dtf
+              enddo
+            enddo
+        endif
 !
 
         if (num_p3d == 3) then    ! call brad ferrier's microphysics
@@ -2407,6 +2424,7 @@
         endif   ! end if_num_p3d
 
       endif   ! end if_ncld
+
 !     if (lprnt) print *,' rain1=',rain1(ipr),' rainc=',rainc(ipr)
 
 
@@ -2449,6 +2467,7 @@
           end if
         enddo
       endif
+
       if (lssav) then
         do i = 1, im
           totprcp(i) = totprcp(i) + rain(i)

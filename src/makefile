@@ -363,7 +363,7 @@ fim_gfs_libs:
 clean:
 	cd atmos               && gmake clean
 	cd ENS_Cpl             && gmake clean
-	cd chem                && gmake clean
+	cd chem                && gmake clean GOCART_MODE=full
 	$(RM) -f *.f90 *.lst *.o *.mod lm map $(TARGET)
 
 .SUFFIXES:

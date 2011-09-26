@@ -114,6 +114,11 @@
            i2 = gis_phy%gfs_phy_tracer%ntrac         ! last chemical tracer (excluding o3)
            gis_phy%fscav(2:gis_phy%ntrac-gis_phy%ncld-1) =      &
                   gis_phy%gfs_phy_tracer%fscav(i1:i2)
+       
+           if ( gis_phy%kdt .eq. 2 ) then
+	      print *, 'LU_TRC:',i1,i2,                        &
+                  gis_phy%gfs_phy_tracer%fscav(i1:i2)
+           endif
         endif
  
 !

@@ -57,6 +57,7 @@
 !
 !  16Sep2003 da Silva  First crack.
 !  16Aug2005 da Silva  Passed ESMF grid to MPread().
+!  22Sep2011 Lu        Add NEMS option
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -65,6 +66,7 @@
         character(len=255) :: name
         type(Chem_Mie), pointer :: mie_tables  ! aod LUTs
         integer       :: rhFlag
+        integer       :: doing_scav     ! compute tracer scavenging
         real, pointer :: src(:,:)       ! Ginoux dust sources
         real, pointer :: radius(:)      ! particle effective radius [um]
         real, pointer :: rlow(:)        ! particle effective radius lower bound [um]
@@ -132,6 +134,7 @@ CONTAINS
    real :: qmax, qmin
    real :: radius, rlow, rup, rmrat, rmin, rhop, fscav
    integer :: irhFlag
+   integer :: idoing_scav  ! option to re-activate convective removal 
    character(len=255) :: CARMA_Services = ' '
 
 
@@ -295,6 +298,29 @@ CONTAINS
       call final_(50)
       return
    end if
+
+!                          -------
+!  Option to compute convective rainout/washout in GOCART
+!  ---------------
+
+   gcDU%doing_scav = 0     ! Default is to compute convective
+!                          ! rainout/washout in GFS physics
+#ifdef NEMS
+   call i90_label ( 'doing_scav:', ier(1) )
+   idoing_scav                 = i90_gint ( ier(2) )
+   gcDU%doing_scav             = idoing_scav
+   if ( any(ier(1:2) /= 0) ) then
+      call final_(50)
+      return
+   end if
+   if ( idoing_scav == 1 ) then
+     do n = 1, nbins
+      w_c%reg%fscav(n1+n-1)   = 0.
+      w_c%qa(n1+n-1)%fscav    = 0.
+     end do
+   endif
+#endif
+
 
 !  Initialize date for BCs
 !  -----------------------
@@ -1011,13 +1037,17 @@ CONTAINS
 !  GEOS-4 to GEOS-5.  Adjust this coefficient to give reasonably
 !  similar dust emissions in both.  In principle this number should
 !  probably come from a resource file
-#ifdef GEOS5
-   real, parameter ::  Ch_DU = 0.175e-9    ! Model dependent coefficient for dust
+#ifdef NEMS
+   real, parameter ::  Ch_DU = 0.80e-9   ! Model dependent coefficient for dust
+                                         ! emissions [kg s2 m-5]
+#elif defined GEOS5
+   real, parameter ::  Ch_DU = 0.175e-9  ! Model dependent coefficient for dust
                                          ! emissions [kg s2 m-5]
 #else
    real, parameter ::  Ch_DU = 0.375e-9  ! Model dependent coefficient for dust
                                          ! emissions [kg s2 m-5]
 #endif
+
 
 !  Initialize local variables
 !  --------------------------
@@ -1172,7 +1202,11 @@ CONTAINS
 
 !  Efficiency of dust wet removal (since dust is really not too hygroscopic)
 !  Applied only to in-cloud scavenging
+#ifdef NEMS
+   real, parameter :: effRemoval = 0.8
+#else
    real, parameter :: effRemoval = 0.3
+#endif
 
    rc=0
 
@@ -1193,7 +1227,11 @@ CONTAINS
 
 !  Duration of rain: ls = model timestep, cv = 1800 s (<= cdt)
    Td_ls = cdt
+#ifdef NEMS
+   Td_cv = cdt
+#else
    Td_cv = 1800.
+#endif
 
 !  Accumulate the 3-dimensional arrays of rhoa and pdog
    pdog = w_c%delp/grav
@@ -1231,6 +1269,9 @@ CONTAINS
      do k = LH, km
       qls(k) = -dqcond(i,j,k)*pls/pac*rhoa(i,j,k)
 !      qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
+#ifdef NEMS
+      qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
+#endif
      end do
 
 !    Loop over vertical to do the scavenging!

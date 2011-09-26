@@ -11,6 +11,8 @@
 #
 #--------------------------------------------------------------------------
 
+DOING_NEMS = TRUE
+
 I = -I
 LIB_SDF = /usrx/local/netcdf.3.5.0/lib/libnetcdf.a
 

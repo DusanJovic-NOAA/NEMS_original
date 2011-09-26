@@ -12,22 +12,24 @@
 !   Aug 17 2010   Sarah Lu, remove debug print
 !   Oct 16 2010   Sarah Lu, add fscav
 !   Aug 08 2011   Jun Wang, remove gocart dependency when not running GOCART
+!   Sep 17 2011   Sarah Lu, revise chem tracer initialization
 ! -------------------------------------------------------------------------
 !
       module gfs_phy_tracer_config
-      use machine , only : kind_phys
+      use machine , only     : kind_phys
       use tracer_const, only : cpi,ri
 
       implicit none
       SAVE
 !
-! tracer specification
+! tracer specification: add fscav 
 !
       type    gfs_phy_tracer_type
-        character*20        , pointer      :: vname(:)    ! variable name
+        character*20        , pointer      :: chem_name(:) ! chem_tracer name
+        character*20        , pointer      :: vname(:)     ! variable name
         real(kind=kind_phys), pointer      :: ri(:)
         real(kind=kind_phys), pointer      :: cpi(:)
-        real(kind=kind_phys), pointer      :: fscav(:)
+        real(kind=kind_phys), pointer      :: fscav(:)    
         integer                  :: ntrac
         integer                  :: ntrac_met
         integer                  :: ntrac_chem
@@ -53,32 +55,29 @@
 
 ! -------------------------------------------------------------------   
 ! -------------------------------------------------------------------   
-       subroutine tracer_config_init (gfs_phy_tracer,ntrac,          
-     &                                     ntoz,ntcw,ncld,me)
+      subroutine tracer_config_init (gfs_phy_tracer,ntrac,
+     &                               ntoz,ntcw,ncld,me)
 
-!  
-!  This subprogram sets up gfs_phy_tracer, when not run GOCART, set
-!  do chem_tracers to false
-! 
+c  
+c  This subprogram sets up gfs_phy_tracer
+c 
       implicit none
 ! input
       integer, intent(in)    ::  me, ntoz,ntcw,ncld
 ! output
       type (gfs_phy_tracer_type), intent(out)    ::  gfs_phy_tracer
-!
+! input/output
       integer, intent(inout)  :: ntrac
 ! local
-      integer                 :: i, status, ierr
+      integer                 :: i, j, status, ierr
+      character*20            :: rgname
 
-
-! ntrac_chem = number of chem tracers
+! initialize ntrac_chem (the default is no chemistry)
       gfs_phy_tracer%ntrac_chem = 0
-      gfs_phy_tracer%doing_OC = .false.
-      gfs_phy_tracer%doing_BC = .false.
-      gfs_phy_tracer%doing_DU = .false.
-      gfs_phy_tracer%doing_SS = .false.
-      gfs_phy_tracer%doing_SU = .false.
       gfs_phy_tracer%doing_GOCART = .false.
+
+! initialize chem tracers
+      call gocart_tracer_config(gfs_phy_tracer,me)
 
 ! ntrac_met = number of met tracers
       if ( ntoz < ntcw ) then                       
@@ -87,46 +86,64 @@
         gfs_phy_tracer%ntrac_met = ntoz                              
       endif                                          
       if ( gfs_phy_tracer%ntrac_met /= ntrac ) then
-        print *,'LU_TRC: ERROR ! inconsistency in ntrac:',    
-     &                 ntrac, gfs_phy_tracer%ntrac_met
-        stop     
+        print *,'LU_TRC: ERROR ! inconsistency in ntrac:',
+     &           ntrac, gfs_phy_tracer%ntrac_met
+        stop 222   
       endif
 
 ! update ntrac = total number of tracers
-      gfs_phy_tracer%ntrac = gfs_phy_tracer%ntrac_met +       
+      gfs_phy_tracer%ntrac = gfs_phy_tracer%ntrac_met +     
      &                       gfs_phy_tracer%ntrac_chem
       ntrac = gfs_phy_tracer%ntrac
 
-! Set up tracer name and allocate ri, cpi, fscav
+      if(me==0) then
+       print *, 'LU_TRCp: ntrac_met =',gfs_phy_tracer%ntrac_met
+       print *, 'LU_TRCp: ntrac_chem=',gfs_phy_tracer%ntrac_chem
+       print *, 'LU_TRCp: ntrac     =',gfs_phy_tracer%ntrac
+      endif
+
+! Set up tracer name, cpi, and ri
       if ( gfs_phy_tracer%ntrac > 0 ) then      
        allocate(gfs_phy_tracer%vname(ntrac), stat=status)
            if( status .ne. 0 ) go to 999         
-       allocate(gfs_phy_tracer%ri(0:ntrac), stat=status)
-           if( status .ne. 0 ) go to 999         
+       allocate(gfs_phy_tracer%ri(0:ntrac),  stat=status)
+           if( status .ne. 0 ) go to 999
        allocate(gfs_phy_tracer%cpi(0:ntrac), stat=status)
-           if( status .ne. 0 ) go to 999         
+           if( status .ne. 0 ) go to 999
        allocate(gfs_phy_tracer%fscav(ntrac), stat=status)
-           if( status .ne. 0 ) go to 999         
+           if( status .ne. 0 ) go to 999
 
 !--- fill in met tracers
       gfs_phy_tracer%vname(1) = 'spfh'   
-      if(ntoz>0) gfs_phy_tracer%vname(ntoz) = 'o3mr'  
-      if(ntcw>0)gfs_phy_tracer%vname(ntcw) = 'clwmr' 
-!--- fill in default values for fscav
-      gfs_phy_tracer%fscav(:) = 0.
+      if(ntoz>0) gfs_phy_tracer%vname(ntoz) = 'o3mr'   
+      if(ntcw>0) gfs_phy_tracer%vname(ntcw) = 'clwmr'   
 
+      gfs_phy_tracer%cpi(0:gfs_phy_tracer%ntrac_met) =
+     &               cpi(0:gfs_phy_tracer%ntrac_met)
+      gfs_phy_tracer%ri(0:gfs_phy_tracer%ntrac_met) =
+     &               ri(0:gfs_phy_tracer%ntrac_met)
+      gfs_phy_tracer%fscav(1:gfs_phy_tracer%ntrac_met)=0.
+! 
+
+!--- fill in chem tracers
+      if ( gfs_phy_tracer%ntrac_chem > 0 ) then      
+       do i = 1,gfs_phy_tracer%ntrac_chem
+        j = i + gfs_phy_tracer%ntrac_met
+        rgname = trim(gfs_phy_tracer%chem_name(i))
+        if(me==0)print *, 'LU_TRC_phy: vname=',j,rgname
+        gfs_phy_tracer%vname(j)=rgname
+        gfs_phy_tracer%cpi(j) = 0.
+        gfs_phy_tracer%ri (j) = 0.
+       enddo
       endif
-!
-!-- call chem tracer if gocart is running
-      call gocart_tracer_config(gfs_phy_tracer,ntrac,
-     &                               ntoz,ntcw,ncld,me)
-!
+
+      endif     !!
+
       return
 
-999   print *,'TRACER CONFIG: error in allocate gfs_phy_tracer :',status,me
+999   print *,'LU_TRC: error in allocate gfs_phy_tracer :',status,me
 
       end subroutine tracer_config_init
-
 ! -------------------------------------------------------------------
 ! -------------------------------------------------------------------
       function trcindx( specname, tracer )
