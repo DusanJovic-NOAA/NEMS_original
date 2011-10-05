@@ -1829,6 +1829,7 @@
                        ,int_state%AVCNVC,int_state%ACUTIM                 &
                        ,int_state%RSWIN,int_state%RSWOUT                  &
                        ,int_state%CONVECTION                              &
+                       ,int_state%MICROPHYSICS                            &  ! BSF 6/22/2011
                       ,int_state%SICE,int_state%QWBS,int_state%TWBS       &
                       ,int_state%PBLH,int_state%DUDT,int_state%DVDT       &
                        ,IDS,IDE,JDS,JDE,LM                                &

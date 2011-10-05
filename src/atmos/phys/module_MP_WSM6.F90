@@ -2,7 +2,7 @@
 MODULE module_mp_wsm6
 !
 !
-   REAL, PARAMETER, PRIVATE :: dtcldcr     = 10.0 !30.  ! 120.
+   REAL, PARAMETER, PRIVATE :: dtcldcr     = 120.
    REAL, PARAMETER, PRIVATE :: n0r = 8.e6
    REAL, PARAMETER, PRIVATE :: n0g = 4.e6
    REAL, PARAMETER, PRIVATE :: avtr = 841.9

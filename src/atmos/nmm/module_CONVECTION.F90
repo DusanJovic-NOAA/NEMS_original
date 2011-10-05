@@ -73,6 +73,7 @@
                        ,AVCNVC,ACUTIM                                   &
                        ,RSWIN,RSWOUT                                    &
                        ,CONVECTION                                      &
+                       ,MICROPHYSICS                                    &  ! BSF 6/22/2011
 !!!! added for SAS
                        ,SICE,QWBS,TWBS,PBLH,DUDT,DVDT                   &
 !!!
@@ -94,6 +95,7 @@
 !   06-10-11  BLACK      - BUILT INTO UMO PHYSICS COMPONENT
 !   08-08     JANJIC     - Synchronize WATER array and Q.
 !   10-10-26  WEIGUO WANG - add GFS SAS convection
+!   11-06-22  Ferrier    - Update CWM, F_ice, F_rain arrays (BSF 6/22/2011)
 !     
 ! USAGE: CALL CUCNVC FROM PHY_RUN
 !
@@ -136,14 +138,13 @@
                                                       ,PREC,CPRATE      &
                                                       ,ACUTIM,AVCNVC       !<-- Were scalars
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: F_ICE          &
-                                                        ,F_RAIN
-!
       REAL,DIMENSION(IMS:IME,1:LM+1,JMS:JME),INTENT(INOUT) :: W0AVG
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: Q,T         &
                                                            ,CWM         &
-                                                           ,TCUCN
+                                                           ,TCUCN       &
+                                                           ,F_ICE       &  ! BSF 6/22/2011
+                                                           ,F_RAIN         ! BSF 6/22/2011
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: OMGALF,U,V
 !
@@ -154,7 +155,7 @@
 !
       LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
 !
-      CHARACTER(99),INTENT(IN) :: CONVECTION
+      CHARACTER(99),INTENT(IN) :: CONVECTION,MICROPHYSICS
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: SICE,QWBS,TWBS,PBLH  !For SAS
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: DUDT, DVDT               ! SAS
 !
@@ -168,7 +169,7 @@
       INTEGER,DIMENSION(IMS:IME,JMS:JME) :: KPBL,LBOT,LOWLYR,LTOP
 !
       REAL :: CAPA,CF_HI,DQDT,DTCNVC,DTDT,FICE,FRAIN,G_INV              &
-             ,PCPCOL,PDSL,PLYR,QI,QL_K,QR,QW,RDTCNVC,WC
+             ,PCPCOL,PDSL,PLYR,QI,QL_K,QR,QW,QSN,QGR,RDTCNVC,WC   ! BSF 6/22/2011
 !
       REAL  :: QL,TL
 !
@@ -192,6 +193,9 @@
 !-----------------------------------------------------------------------
 !zj      REAL :: DTEMP_CHECK=1.0
       REAL :: TCHANGE
+
+!dbg
+REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -489,7 +493,7 @@
 !-----------------------------------------------------------------------
 !.......................................................................
 !$omp parallel do                                                       &
-!$omp& private(j,k,i,dqdt,dtdt,tchange,pcpcol,ncubot,ncutop)
+!$omp& private(j,k,i,dqdt,dtdt,tchange,pcpcol,ncubot,ncutop,qw,qr,qi,qsn,qgr) ! BSF 6/22/2011
 !.......................................................................
 !-----------------------------------------------------------------------
       DO J=JTS,JTE
@@ -519,13 +523,44 @@
           TCUCN(I,J,K)=TCUCN(I,J,K)+DTDT
           WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))       !Convert to mixing ratio
 !!! WANG, 11-2-2010 SAS convection
-                IF(CONVECTION=='sas') THEN
-                 WATER(I,J,K,P_QC)=WATER(I,J,K,P_QC)+DTCNVC*RQCCUTEN(I,J,K)
-                 WATER(I,J,K,P_QR)=WATER(I,J,K,P_QR)+DTCNVC*RQRCUTEN(I,J,K)
-                 WATER(I,J,K,P_QI)=WATER(I,J,K,P_QI)+DTCNVC*RQICUTEN(I,J,K)
-                 WATER(I,J,K,P_QS)=WATER(I,J,K,P_QS)+DTCNVC*RQSCUTEN(I,J,K)
-                 WATER(I,J,K,P_QG)=WATER(I,J,K,P_QG)+DTCNVC*RQGCUTEN(I,J,K)
-                ENDIF
+          SAS_test: IF (CONVECTION=='sas') THEN
+!-- Update dummy scalars (BSF 6/22/2011)
+            QW=MAX(0.,WATER(I,J,K,P_QC)+RQCCUTEN(I,J,K)*DTCNVC)
+            QR=MAX(0.,WATER(I,J,K,P_QR)+RQRCUTEN(I,J,K)*DTCNVC)
+            QI=0.
+            QSN=0.
+            QGR=0.
+            IF(TRIM(MICROPHYSICS)=='fer')THEN
+              QI=(RQICUTEN(I,J,K)+RQSCUTEN(I,J,K))*DTCNVC
+              QI=MAX(0.,WATER(I,J,K,P_QS)+QI)
+            ELSE
+              QI =MAX(0.,WATER(I,J,K,P_QI)+RQICUTEN(I,J,K)*DTCNVC)
+              QSN=MAX(0.,WATER(I,J,K,P_QS)+RQSCUTEN(I,J,K)*DTCNVC)
+              QGR=MAX(0.,WATER(I,J,K,P_QG)+RQGCUTEN(I,J,K)*DTCNVC)
+            ENDIF
+!-- Update 4D WATER array, CWM array, and possibly F_ice,F_rain (BSF 6/22/2011)
+            CWM(I,J,K)=QW+QR+QI+QSN+QGR
+            WATER(I,J,K,P_QC)=QW
+            WATER(I,J,K,P_QR)=QR
+            Micro_test: IF(TRIM(MICROPHYSICS)=='fer')THEN
+!-- Update Ferrier-based F_rain, F_ice arrays (BSF 6/22/2011)
+              WATER(I,J,K,P_QS)=QI
+              IF(QI<=EPSQ)THEN
+                F_ICE(I,J,K)=0.
+              ELSE
+                F_ICE(I,J,K)=MAX(0.,MIN(1.,QI/CWM(I,J,K)))
+              ENDIF
+              IF(QR<=EPSQ)THEN
+                F_RAIN(I,J,K)=0.
+              ELSE
+                F_RAIN(I,J,K)=MAX(0.,MIN(1.,QR/(QW+QR)))
+              ENDIF
+            ELSE  Micro_test
+              WATER(I,J,K,P_QI)=QI
+              IF (F_QS) WATER(I,J,K,P_QS)=QSN
+              IF (F_QG) WATER(I,J,K,P_QG)=QGR
+            ENDIF  Micro_test
+          ENDIF  SAS_test
 !!! wang, 11-2-2010
 !
 !zj          TCHANGE=DTDT*DTCNVC
@@ -579,6 +614,21 @@
 !.......................................................................
 !$omp end parallel do
 !.......................................................................
+
+!dbg
+!IF (CONVECTION=='sas') THEN
+!   CUQC=MAX(CUQC, MAXVAL(RQCCUTEN))
+ !  CUQR=MAX(CUQR, MAXVAL(RQRCUTEN))
+ !  CUQI=MAX(CUQI, MAXVAL(RQICUTEN))
+ !  CUQS=MAX(CUQS, MAXVAL(RQSCUTEN))
+ !  CUQG=MAX(CUQG, MAXVAL(RQGCUTEN))
+ !  write(0,*)                                              &
+ !  'NTSD, Max of CUTENQC/R/I/S/G, QC/R/I/S/G=',NTSD,       &
+ !  CUQC,CUQR,CUQI,CUQS,CUQG, MAXVAL(WATER(:,:,:,P_QC)),    &
+ !  MAXVAL(WATER(:,:,:,P_QR)),MAXVAL(WATER(:,:,:,P_QI)),    &
+ !  MAXVAL(WATER(:,:,:,P_QS)),MAXVAL(WATER(:,:,:,P_QG))
+!ENDIF
+
 !
 !-----------------------------------------------------------------------
 !

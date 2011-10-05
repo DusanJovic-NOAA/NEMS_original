@@ -387,6 +387,15 @@
                  ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=LM    &
                  ,ITS=itsloc,ITE=iteloc, JTS=jtsloc,JTE=jteloc, KTS=1,KTE=LM &
                                                                     )
+                DO K=1,LM
+                DO J=JMS,JME
+                DO I=IMS,IME
+                 CWM(I,J,K)=water(i,j,k,p_qc)+water(i,j,k,p_qr)+water(i,j,k,p_qi) &
+                           +water(i,j,k,p_qs)+water(i,j,k,p_qg)
+                ENDDO
+                ENDDO
+                ENDDO
+
           CASE DEFAULT
             WRITE(0,*)' The microphysics option does not exist: MICROPHYSICS = ',TRIM(MICROPHYSICS)
             CALL NMMB_FINALIZE
