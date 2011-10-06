@@ -5,6 +5,7 @@
 ! !revision history:
 !  Sep      2010   Jun Wang  change to nemsio file
 !  Dec      2010   Jun Wang  change to nemsio library
+!  Sep      2011   Jun Wang  add cv/cvt/cvb fields to sfc restart file
 !
       use resol_def,     ONLY: latr, lonr, levs, lsoil, ivssfc_restart,
      &                         num_p2d, num_p3d
@@ -56,7 +57,7 @@
 !@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 !
 !      print *,'in para_fix_w'
-      nsfcrec=31
+      nsfcrec=34
       fieldsize=sum(lonsperlar)
       nphyfld=nsfcrec+3*lsoil+num_p2d+num_p3d*levs
       allocate(bfo(fieldsize,nphyfld))
@@ -113,38 +114,38 @@
           RECNAME(2)='weasd'
           RECNAME(3)='tg3'
           RECNAME(4)='sfcr'
-!          RECNAME(5)='tcdc'
-!          RECNAME(6)='pres'
-!          RECNAME(7)='pres'
-          RECNAME(5)='alvsf'
-          RECNAME(6)='alvwf'
-          RECNAME(7)='alnsf'
-          RECNAME(8)='alnwf'
-          RECNAME(9)='land'
-          RECNAME(10)='veg'
-          RECNAME(11)='cnwat'
-          RECNAME(12)='f10m'
+          RECNAME(5)='tcdc'
+          RECNAME(6)='pres'
+          RECNAME(7)='pres'
+          RECNAME(8)='alvsf'
+          RECNAME(9)='alvwf'
+          RECNAME(10)='alnsf'
+          RECNAME(11)='alnwf'
+          RECNAME(12)='land'
+          RECNAME(13)='veg'
+          RECNAME(14)='cnwat'
+          RECNAME(15)='f10m'
 !          RECNAME(13)='tmp'
 !          RECNAME(14)='spfh'
-          RECNAME(13)='vtype'
-          RECNAME(14)='sotyp'
-          RECNAME(15)='facsf'
-          RECNAME(16)='facwf'
-          RECNAME(17)='fricv'
-          RECNAME(18)='ffhh'
-          RECNAME(19)='ffmm'
-          RECNAME(20)='icetk'
-          RECNAME(21)='icec'
-          RECNAME(22)='tisfc'
-          RECNAME(23)='tprcp'
-          RECNAME(24)='crain'
-          RECNAME(25)='snod'
-          RECNAME(26)='shdmin'
-          RECNAME(27)='shdmax'
-          RECNAME(28)='sltyp'
-          RECNAME(29)='salbd'
-          RECNAME(30)='orog'
-          RECNAME(31)='sncovr'
+          RECNAME(16)='vtype'
+          RECNAME(17)='sotyp'
+          RECNAME(18)='facsf'
+          RECNAME(19)='facwf'
+          RECNAME(20)='fricv'
+          RECNAME(21)='ffhh'
+          RECNAME(22)='ffmm'
+          RECNAME(23)='icetk'
+          RECNAME(24)='icec'
+          RECNAME(25)='tisfc'
+          RECNAME(26)='tprcp'
+          RECNAME(27)='crain'
+          RECNAME(28)='snod'
+          RECNAME(29)='shdmin'
+          RECNAME(30)='shdmax'
+          RECNAME(31)='sltyp'
+          RECNAME(32)='salbd'
+          RECNAME(33)='orog'
+          RECNAME(34)='sncovr'
 !
           RECNAME(nrecs1:nrecs+NSOIL)='smc'
           RECNAME(NSOIL+nrecs1:nrecs+2*NSOIL)='stc'
@@ -161,7 +162,10 @@
 !          print *,'after recname=',recname(36:40),recname(46:50)
 !
           RECLEVTYP(1:nrecs)='sfc'
-          RECLEVTYP(12)='10 m above gnd'
+          RECLEVTYP(5)='convect-cld laye'
+          RECLEVTYP(6)='convect-cld top'
+          RECLEVTYP(7)='convect-cld bot'
+          RECLEVTYP(15)='10 m above gnd'
           RECLEVTYP(nrecs1:nrecs+3*nsoil)='soil layer'
           RECLEVTYP(nrecs1+3*nsoil:nrecs+3*nsoil+num_p2d)='sfc'
           RECLEVTYP(nrecs1+3*nsoil+num_p2d:nrecs+

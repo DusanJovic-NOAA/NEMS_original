@@ -1510,6 +1510,10 @@ c
 !
 !***********************************************************************
 !
+! !REVISION HISTORY:
+!
+!  2011/9/26   Jun Wang add cv/cvt/cvb
+
       use resol_def,      ONLY: latr, lonr, latr2, lsoil,levs
       use layout1,        ONLY: me, nodes, lats_node_r,ipt_lats_node_r
       USE machine,        ONLY: kind_ior, kind_io8, kind_rad
@@ -1596,11 +1600,24 @@ c
       call split2d_rst(buff1,sfc_fld%zorl,fieldsize,global_lats_r,
      &  lonsperlar)
 !
-      sfc_fld%cv  = 0
-      sfc_fld%cvb = 0
-      sfc_fld%cvt = 0
+!--cv
+      call nemsio_readrecv(gfile,'tcdc','convect-cld laye',1,
+     &  buff1,iret=iret)
+      call split2d_rst(buff1,sfc_fld%cv,fieldsize,global_lats_r,
+     &  lonsperlar)
+      if(me==0) print *,'read inrst from rst,cwafter cv=',
+     &  maxval(sfc_fld%cv),minval(sfc_fld%cv)
+!--cvb
+      call nemsio_readrecv(gfile,'pres','convect-cld bot',1,
+     &  buff1,iret=iret)
+      call split2d_rst(buff1,sfc_fld%cvb,fieldsize,global_lats_r,
+     &  lonsperlar)
+!--cvt
+      call nemsio_readrecv(gfile,'pres','convect-cld top',1,
+     &  buff1,iret=iret)
+      call split2d_rst(buff1,sfc_fld%cvt,fieldsize,global_lats_r,
+     &  lonsperlar)
 !        print *,'read inrst,cwafter cvt'
-
 !-- alvsf
       call nemsio_readrecv(gfile,'alvsf','sfc',1,buff1,iret=iret)
       call split2d_rst(buff1,sfc_fld%alvsf,fieldsize,global_lats_r,

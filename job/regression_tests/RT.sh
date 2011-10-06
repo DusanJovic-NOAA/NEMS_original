@@ -1383,9 +1383,44 @@ export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2l
 export RUNDIR=${RUNDIR_ROOT}/GFS_hyb_2loop
 export CNTL_DIR=GFS_DFI_hyb_2loop
 export LIST_FILES=" \
-	sigf03 sigf06 sigf12 sigf24 sigf48 \
-	sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-	flxf03 flxf06 flxf12 flxf24 flxf48"
+	sigf03 sigf06 sigf12 sigf24 \
+	sfcf03 sfcf06 sfcf12 sfcf24 \
+	flxf03 flxf06 flxf12 flxf24"
+#---------------------
+export_gfs
+export TASKS=16 ; export PE1=12 ; export WRTGP=2 ; export THRD=2
+export FDFI=3   ; export CP2=.true.
+export IDVC=2   ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=2
+export NDAYS=1
+#---------------------
+  ./rt_gfs.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+#
+###################################################################################################
+#
+#
+# TEST   - GFS hyb 2 loop with digital filter restart
+#        - 12 compute tasks / 2 thread ,2 WrtGrp x 2 WrtPePerGrp
+#
+###################################################################################################
+#
+
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
+
+export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter
+on reduced grid"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GFS_hyb_2loop
+export CNTL_DIR=GFS_DFI_hyb_2loop
+export LIST_FILES=" \
+        sigf03 sigf06 sigf12 sigf24 sigf48 \
+        sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+        flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export_gfs
 export TASKS=16 ; export PE1=12 ; export WRTGP=2 ; export THRD=2

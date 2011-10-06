@@ -24,6 +24,7 @@ cc
 ! Feb 2011    S Moorthi rearranged glbsum
 ! Feb 2011:   Hann-Ming Henry Juang add non-iteration dimensional-split
 !             Semi-Lagrangain (NDSL) advection with mass_dp option.
+! Sep 2011    Jun Wang: restart file
 !----------------------------------------------
 cc
       use gfs_dyn_resol_def
@@ -282,6 +283,35 @@ c
      &         epse,epso,epsedn,epsodn,
      &         snnp1ev,snnp1od,plnev_a,plnod_a)
           reset_step = .false.
+! -------------------------------------------------------
+        else if( restart_step ) then
+! --------------------------------------------------------------
+          if(me==0)print *,'in restart step'
+          fwd_step = .false.
+          dt   = deltim
+          dt2  = cons2*dt
+          rdt2 = 1./dt2
+          if( gen_coord_hybrid ) then
+            if( mass_dp ) then
+              call get_cd_hyb_gcdp(dt)
+            else
+              call get_cd_hyb_gc(dt)
+            endif
+          else if( hybrid ) then
+            call get_cd_hyb(dt)
+          else
+            call get_cd_sig(am,bm,dt,tov,sv)
+          endif
+!
+          zfirst=.false.
+!
+          call spect_to_grid
+     &          (trie_ls,trio_ls,
+     &           syn_gr_a_1,syn_gr_a_2,
+     &           ls_node,ls_nodes,max_ls_nodes,
+     &           lats_nodes_a,global_lats_a,lonsperlat,
+     &           epse,epso,epsedn,epsodn,
+     &           snnp1ev,snnp1od,plnev_a,plnod_a)
 ! -------------------------------------------------------
         else	! end start_step, begin not start_step 
 ! ------------------------------------------------------
@@ -812,7 +842,7 @@ c
               call get_cd_sig(am,bm,dt,tov,sv)
             endif
           endif
-
+!
 ! ------------------------------------------------
         endif 	! end not start_step
 ! ------------------------------------------------
@@ -827,8 +857,13 @@ c
         call gfs_dficoll_dynamics(grid_gr,grid_gr_dfi)
       endif
 !
+! =====================================================================
+      IF(.not.restart_step) THEN
+!
+!       print *,'in two loop,lsout=',lsout,'kdt=',kdt,
+!     &   'nsres=',nsres
 !--------------------------------------------
-      IF (lsout.and.kdt.ne.0) THEN
+       IF (lsout.and.kdt.ne.0) THEN
 !--------------------------------------------
 CC
         CALL f_hpmstart(32,"wrtout_dynamics")
@@ -847,21 +882,27 @@ c
         CALL f_hpmstop(32)
 CC
         CALL countperf(1,18,0.)
-CC
 !!
-!       IF (mod(kdt,nsres).eq.0.and.kdt.ne.0) THEN
-!!
-!         CALL wrt_restart_dynamics(TRIE_LS,TRIO_LS,grid_gr,
-!    &        SI,SL,fhour,idate,
-!    &        igen,pdryini,
-!    &        ls_node,ls_nodes,max_ls_nodes,
-!    &        global_lats_a,lonsperlat,SNNP1EV,SNNP1OD,
-!    &        ngptc,  nblck, ens_nam)
+! ----------------------------------
+       ENDIF ! if ls_out
+! ----------------------------------
 !
-!       ENDIF
-! ----------------------------------
-      ENDIF ! if ls_out
-! ----------------------------------
+       IF (mod(kdt,nsres).eq.0.and.kdt.ne.0) THEN
+!!
+         CALL wrt_restart_dynamics(TRIE_LS,TRIO_LS,grid_gr,
+     &        SI,fhour,idate,
+     &        igen,pdryini,
+     &        ls_node,ls_nodes,max_ls_nodes,
+     &        global_lats_a,lonsperlat,lats_nodes_a,ens_nam,
+     &        kdt,nfcstdate7)
+
+       ENDIF
+!
+!-- end of restart step
+      ELSE
+          restart_step=.false.
+      ENDIF
+
 ! =====================================================================
 !
 !      print *,'in two loop, af wrt,end_step=',end_step,'dfiend_step=', 
