@@ -2335,7 +2335,7 @@ nsteps = 0
 !-----------------------------------------------------------------------
 !
 9061 CONTINUE
-      WRITE(0,*)' module_mp_etanew: error opening ETAMPNEW_DATA on unit ',etampnew_unit1
+      WRITE(0,*)' module_mp_etanew: error opening ETAMPNEW_DATA.expanded_rain on unit ',etampnew_unit1
       STOP
 !
 !-----------------------------------------------------------------------

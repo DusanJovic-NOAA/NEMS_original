@@ -48,12 +48,12 @@ stub: $(MODULES_STUB)
 .f90.o: %.o: %.f90
 	$(FC) $(FFLAGS1) -c $*.f90
 
-$(MODULES_STUB): %.o: %.f
-	$(FC) $(FFLAGS) -c $*.f
+$(MODULES_STUB): %.o: %.f90
+	$(FC) $(FFLAGS) -c $*.f90
 
 
 clean:
-	$(RM) -f $(LIBRARY) *.o *.mod *.lst lm map depend
+	$(RM) -f $(LIBRARY) ENS_CplComp_ESMFMod_STUB.f90 *.o *.mod *.lst lm map depend
 
 #
 # *****************************************************************
@@ -95,9 +95,6 @@ ENS_GetParameterFromStateMod.o: ENS_GetParameterFromStateMod.f
 
 ENS_CplComp_ESMFMod.o:	ENS_CplComp_ESMFMod.f
 	$(FC) $(FFLAG90) -c ENS_CplComp_ESMFMod.f
-
-ENS_CplComp_ESMFMod_STUB.o:     ENS_CplComp_ESMFMod_STUB.f
-	$(FC) $(FFLAG90) -c ENS_CplComp_ESMFMod_STUB.f
 
 kinds.o: kinds.f90
 	$(FC) $(FFLAG90) -c kinds.f90

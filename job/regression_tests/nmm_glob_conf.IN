@@ -286,6 +286,8 @@ write_rst_nemsio:    true      # True--> Write restart files in NEMSIO format
 write_nemsioctl:     true      # True--> Yes write ctl for nemsio run history files
 write_donefileflag:  false
 write_fsyncflag:     false     # True--> Yes write fsync
+write_dopost:        false     # True--> Yes run post on quilt
+post_gribversion:   'grib1'    # grib version for post output
 
 io_hst_unit:          -999
 io_rst_unit:          -999

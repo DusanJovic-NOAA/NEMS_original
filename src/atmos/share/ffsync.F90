@@ -6,6 +6,7 @@
             !  This function should be called just before closing
             !  a file to make sure everything flushed to disk.
 
+            IMPLICIT NONE
 
             ! Declare the interface for POSIX fsync function
             interface
@@ -16,7 +17,6 @@
               end function fsync
             end interface
 
-            IMPLICIT NONE
             ! Variable declaration
             ! rc, return code to send back to caller from fsync
             integer :: rc

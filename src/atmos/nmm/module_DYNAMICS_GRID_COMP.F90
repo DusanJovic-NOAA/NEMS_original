@@ -163,7 +163,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
- #ifdef ESMF_3
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- The gridded component
                                      ,ESMF_SETINIT                      &  !<-- Predefined subroutine type
                                      ,DYN_INITIALIZE_1                  &  !<-- User's subroutineName
@@ -186,7 +186,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
- #ifdef ESMF_3
+#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GRID_COMP                         &  !<-- The gridded component
                                      ,ESMF_SETINIT                      &  !<-- Predefined subroutine type
                                      ,DYN_INITIALIZE_2                  &  !<-- User's subroutineName
