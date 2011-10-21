@@ -2340,7 +2340,7 @@
              ,2,2)
 !
           CALL WRITE_BC(LM,LNSH,LNSV,NTIMESTEP,DT                       &
-                       ,RUNBC,IDATBC,IHRSTBC                            &
+                       ,RUNBC                                           &
                        ,TBOCO+int_state%DFIHR_BOCO/2.                   &
                        ,int_state%PDBS,int_state%PDBN                   &
                        ,int_state%PDBW,int_state%PDBE                   &
@@ -2782,7 +2782,7 @@
 !
                 TBOCO=PARENT_CHILD_TIME_RATIO*DT
                 CALL WRITE_BC(LM,LNSH,LNSV,NTIMESTEP,DT                 &
-                             ,RUNBC,IDATBC,IHRSTBC,TBOCO                &
+                             ,RUNBC,TBOCO                               &
                              ,int_state%PDBS,int_state%PDBN             &
                              ,int_state%PDBW,int_state%PDBE             &
                              ,int_state%TBS,int_state%TBN               &
@@ -2860,7 +2860,7 @@
 !
                   IF (NTIMESTEP==0) THEN
                     CALL WRITE_BC(LM,LNSH,LNSV,NTIMESTEP,DT             &
-                            ,RUNBC,IDATBC,IHRSTBC,TBOCO                 &
+                            ,RUNBC,TBOCO                                &
                             ,int_state%PDBS,int_state%PDBN              &
                             ,int_state%PDBW,int_state%PDBE              &
                             ,int_state%TBS,int_state%TBN                &

@@ -137,6 +137,8 @@
 
 ! !EOP
 !------------------------------------------------------------------------- 
+
+ rcfinal = ESMF_SUCCESS
  
  END SUBROUTINE Cpl_Initialize
 
@@ -177,6 +179,7 @@
 !EOP
 !-------------------------------------------------------------------------
 
+ rcfinal = ESMF_SUCCESS
 !
  END SUBROUTINE Cpl_Run
 
@@ -213,6 +216,7 @@
 !----------------------------------
  INTEGER,            INTENT(out)    :: rcfinal
 
+ rcfinal = ESMF_SUCCESS
 
  END SUBROUTINE Cpl_Finalize
 

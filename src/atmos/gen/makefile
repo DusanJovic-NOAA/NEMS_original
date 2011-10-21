@@ -27,8 +27,8 @@ stub: $(MODULES_STUB)
 $(OBJS): %.o: %.f90
 	$(FC) $(FFLAG90) -c $*.f90
 
-$(MODULES_STUB): %.o: %.F90
-	$(FC) $(FFLAGS_GEN) $(UTILINCS) -c $*.F90
+$(MODULES_STUB): %.o: %.f90
+	$(FC) $(FFLAGS_GEN) $(UTILINCS) -c $*.f90
 
 clean:
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map depend

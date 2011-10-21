@@ -1,4 +1,4 @@
-       INTEGER FUNCTION FFSYNC(fn)
+            INTEGER FUNCTION FFSYNC(fn)
 
             ! USAGE: rc=ffsync(fn) where fn is an input 
             !        FORTRAN file unit and rc is the return
@@ -27,6 +27,7 @@
             ! getfd :: Fortran function to get C file descriptor 
             integer :: getfd
           
+#ifdef IBM
             !Get file descriptor for interlanguage call to C fsync
             cfd=getfd(fn)
 
@@ -35,7 +36,9 @@
 
             !Call fsync
             rc=fsync(cfd)
-
+#else
+            rc = 0
+#endif
             ! pass back return code
             ffsync=rc
             RETURN

@@ -543,7 +543,7 @@
 !
       TYPE(ESMF_CplComp) :: CPL_COMP                                      !<-- Coupler component
 !
-      INTEGER(kind=KINT) :: RC_NEST_REG                                   !<-- Return code for register
+      INTEGER(kind=KINT),INTENT(OUT) :: RC_NEST_REG                                   !<-- Return code for register
 !
 !---------------------
 !***  Local variables

@@ -2396,6 +2396,7 @@ contains
       if (present(nmetaaryi) ) nmetaaryi=gfile%nmetaaryi
       if (present(nmetaaryr) ) nmetaaryr=gfile%nmetaaryr
       if (present(nmetaaryl) ) nmetaaryl=gfile%nmetaaryl
+      if (present(nmetaaryc) ) nmetaaryc=gfile%nmetaaryc
       if (present(nmetaaryr8) ) nmetaaryr8=gfile%nmetaaryr8
       if ( gfile%nmetavari.gt.0 ) then
          if (present(variname).and.size(variname).eq.nmetavari) &
@@ -2441,7 +2442,7 @@ contains
       endif
       if ( gfile%nmetaaryr.gt.0 ) then
          if (present(aryrname).and.size(aryrname).eq.nmetaaryr) &
-             aryiname=gfile%aryiname
+             aryrname=gfile%aryrname
          if (present(aryrlen).and.size(aryrlen).eq.nmetaaryr) &
              aryrlen=gfile%aryrlen
          if (present(aryrval).and.size(aryrval).eq.nmetaaryr*maxval(gfile%aryrlen) ) &

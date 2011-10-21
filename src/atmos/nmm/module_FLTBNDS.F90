@@ -5841,7 +5841,7 @@ logical(kind=klog) :: opened
 !-----------------------------------------------------------------------
                         subroutine write_bc &
 (lm,lnsh,lnsv,ntsd,dt &
-,runbc,idatbc,ihrstbc,tboco &
+,runbc,tboco &
 ,pdbs,pdbn,pdbw,pdbe &
 ,tbs,tbn,tbw,tbe &
 ,qbs,qbn,qbw,qbe &
@@ -5867,12 +5867,6 @@ integer(kind=kint),intent(in):: &
 ,lnsv &                      ! # of boundary v lines for bc in reg. setup
 ,ntsd &                      ! current timestep
 ,my_domain_id                ! the domain ID
-
-integer(kind=kint),intent(out):: &
- ihrstbc                     ! boundary conditions starting time
-
-integer(kind=kint),dimension(1:3),intent(out):: &
- idatbc                      ! date of boundary data, day, month, year
 
 real(kind=kfpt),intent(in):: &
  dt                          ! dynamics time step

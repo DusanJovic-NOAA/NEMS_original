@@ -76,8 +76,8 @@ $(OBJSGOC_STUB): %.o: %.f90
 $(OBJSGOC): %.o: %.f90
 	$(FC) $(FFLAG90GOC) -c $*.f90
 
-$(MODULES_STUB): %.o: %.F90
-	$(FC) $(FFLAGS_GFS) $(UTILINCS) -c $*.F90
+$(MODULES_STUB): %.o: %.f90
+	$(FC) $(FFLAGS_GFS) $(UTILINCS) -c $*.f90
 
 clean:
 	cd $(DIR_LIBUTIL) && gmake clean && cd ..

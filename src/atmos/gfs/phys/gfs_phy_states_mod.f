@@ -297,14 +297,14 @@
 #endif
 
 ! ---  Fill in ri/cpi local array
-!d       if(.not.allocated(ri)) then
-!d         allocate(ri(0:int_state%ntrac), stat=status)
-!d         if( status .ne. 0 ) print *, 'ERROR: Fail to allocate ri'
-!d       endif
-!d       if(.not.allocated(cpi)) then
-!d         allocate(cpi(0:int_state%ntrac), stat=status)
-!d         if( status .ne. 0 ) print *, 'ERROR: Fail to allocate cpi'
-!d       endif
+       if(.not.allocated(ri)) then
+         allocate(ri(0:int_state%ntrac), stat=status)
+         if( status .ne. 0 ) print *, 'ERROR: Fail to allocate ri'
+       endif
+       if(.not.allocated(cpi)) then
+         allocate(cpi(0:int_state%ntrac), stat=status)
+         if( status .ne. 0 ) print *, 'ERROR: Fail to allocate cpi'
+       endif
        cpi(0:int_state%ntrac) =                                       &
               int_state%gfs_phy_tracer%cpi(0:int_state%ntrac)
        ri(0:int_state%ntrac) =                                        &
