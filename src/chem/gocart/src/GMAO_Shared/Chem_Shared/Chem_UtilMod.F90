@@ -62,6 +62,7 @@
 !
 !  29oct2003  da Silva  First crack.
 !  16aug2005  da Silva  Introduced scatter from MAPL_CommsMod.
+!  03oct2011  Wang/Lu   Add NEMS option
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -780,12 +781,16 @@ end subroutine Chem_UtilGetTimeInfo
          pmin = min(pmin, qmin(j))
       enddo
 
+!
+
+#ifndef NEMS
       pm1(1) = pmax
       pm1(2) = -pmin
       maxop_ = maxop
       call parcollective(commglobal, maxop_, two, pm1  )
       pmax=pm1(1)
       pmin=-pm1(2)
+#endif
      
       if ( fac /= 0.0 ) then  ! trick to prevent printing
       if ( MAPL_am_I_root() ) then
@@ -1046,6 +1051,7 @@ end subroutine Chem_UtilGetTimeInfo
 ! Cap q
 ! -----
   where ( q < qmin_ ) q = qmin_
+
 
 ! Enforce conservation of column mass
 ! -----------------------------------

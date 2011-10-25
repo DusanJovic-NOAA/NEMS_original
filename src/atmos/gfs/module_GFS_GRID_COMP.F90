@@ -55,6 +55,7 @@
 !                       ESMF 5 series library and the the
 !                       ESMF 3.1.0rp2 library.
 !   2011-05-11  Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!   2011-10-01  Wang/Lu  - MYPE added to GOCART_INIT argument
 !
 ! USAGE: GFS Gridded component parts called from subroutines within
 !        module_ATM_GRID_COMP.F90.
@@ -1200,6 +1201,7 @@
                           ,gfs_int_state%GC_PHY2CHEM_CPL           &
                           ,gfs_int_state%GC_CHEM2PHY_CPL           &
                           ,gfs_int_state%CLOCK_GFS                 &
+                          ,gfs_int_state%MYPE                      &
                           ,RC                                      &
                               )
 

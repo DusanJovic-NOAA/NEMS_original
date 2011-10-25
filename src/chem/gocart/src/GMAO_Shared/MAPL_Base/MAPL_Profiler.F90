@@ -6,6 +6,10 @@
 !BOP
 
 ! !MODULE: MAPL_Profiler -- A Module to instrument codes for profiling
+! !REVISION HISTORY:
+!
+!  03Oct2011 Wang/Lu        Add NEMS option
+
 
 
 ! !INTERFACE:
@@ -64,6 +68,7 @@
 
       character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_ProfClockOn"
 
+      type(ESMF_VM) :: VMC
       integer :: I, NN
       integer :: status
 
@@ -83,8 +88,13 @@
             print *, NAME
             RETURN_(ESMF_FAILURE)
          end if
-      
+
+#ifdef NEMS
+          call ESMF_VMGetCurrent(VMC, rc=STATUS)
+          call ESMF_VMBarrier(VMC, rc=status)
+#else      
          call ESMF_VMBarrier(VM, rc=status)
+#endif
          call SYSTEM_CLOCK(TIMES(I)%START_TIME)  
 
       end if
@@ -102,6 +112,7 @@
 
       character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_ProfClockOff"
 
+      type(ESMF_VM) :: VMC
       integer :: COUNTS
       integer :: I, NN
       integer :: status
@@ -123,7 +134,12 @@
             RETURN_(ESMF_FAILURE)
          end if
 
+#ifdef NEMS
+         call ESMF_VMGetCurrent(VMC, rc=STATUS)
+         call ESMF_VMBarrier(VMC, rc=status)
+#else
          call ESMF_VMBarrier(VM, rc=status)
+#endif
          call SYSTEM_CLOCK(COUNTS)
 
          COUNTS = COUNTS-TIMES(I)%START_TIME
@@ -151,10 +167,16 @@
       character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_ProfSet"
       type (MAPL_Prof), pointer :: TMP(:)
       integer :: I, STATUS
+      integer :: ndes
 
       if (FIRSTTIME) then
          FIRSTTIME = .false.
+#ifdef NEMS
+         call ESMF_VMGetCurrent(VM, rc=STATUS)
+         call ESMF_VmGet(VM, petCount=ndes, rc=status)
+#else
          call ESMF_VMGetGlobal(VM, rc=STATUS)
+#endif
          VERIFY_(STATUS)
          call SYSTEM_CLOCK(COUNT_RATE=COUNT_RATE,COUNT_MAX=COUNT_MAX)
          CRI = 1._8/real(COUNT_RATE,kind=8)

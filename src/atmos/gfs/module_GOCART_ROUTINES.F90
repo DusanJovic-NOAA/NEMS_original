@@ -27,7 +27,7 @@
 !   2010-03-06  Lu    - 2-phased GOCART initialization
 !   2010-08-17  Lu    - Call Chem_RegistryPrint only for master PE
 !   2011-05-11  Theurich & Yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
-!
+!   2011-10-01  Wang/Lu - exit GOCART_INIT and GOCART_INTEGRATE for IO PE
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -277,6 +277,7 @@
                               ,GC_PHY2CHEM_CPL                          &
                               ,GC_CHEM2PHY_CPL                          &
                               ,CLOCK_ATM                                &
+                              ,MYPE                                     &
                               ,RC_INIT                                  &
                               )
 
@@ -292,15 +293,27 @@
       TYPE(ESMF_CplComp), INTENT(INOUT) :: GC_PHY2CHEM_CPL                 !<-- The Phys to Chem coupler component
       TYPE(ESMF_CplComp), INTENT(INOUT) :: GC_CHEM2PHY_CPL                 !<-- The Chem to Phys coupler component
       TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_ATM                       !<-- The ESMF Clock from the ATM Driver component
+      INTEGER,            INTENT(OUT)   :: MYPE                            !<-- MPI task ID
       INTEGER,OPTIONAL,   INTENT(OUT)   :: RC_INIT                         !<-- Return code for the INIT step
 !
 !---------------------
 !***  Local variables
 !---------------------
 !
-      INTEGER :: RC, gridRank
+      INTEGER :: RC, gridRank, I
+      LOGICAL :: IOPE
 
       RC=ESMF_SUCCESS       ! Error signal variable
+
+!-----------------------------------------------------------------------
+!***  If io pe, return 
+!-----------------------------------------------------------------------
+!
+      IOPE=.true.
+      DO I=1,size(PETLIST_FCST)
+         IF (PETLIST_FCST(I)== MYPE) IOPE=.false.
+      ENDDO
+      IF ( IOPE ) RETURN
 
 !------------------------
 !*** Attach the grid to GOCART Component
@@ -392,7 +405,7 @@
                                   GC_CHEM2PHY_CPL,                     &
                                   EXP_GFS_PHY,                         &
                                   IMP_GFS_CHEM, EXP_GFS_CHEM,          &
-                                  CLOCK_ATM, RC_LOOP                     )
+                                  CLOCK_ATM, MYPE, RC_LOOP             )
 
 !-----------------------------------------------------------------------
 !
@@ -401,6 +414,7 @@
 !
 !-----------------------------------------------------------------------
 
+      INTEGER,INTENT(IN)               :: MYPE
       TYPE(ESMF_GridComp),INTENT(INOUT):: GC_GFS_CHEM                 !<-- The GOCART grid component
       TYPE(ESMF_CplComp),INTENT(INOUT) :: GC_PHY2CHEM_CPL             !<-- The Phy-to-Chem coupler component
       TYPE(ESMF_CplComp),INTENT(INOUT) :: GC_CHEM2PHY_CPL             !<-- The Chem-to-Phy coupler component
@@ -409,12 +423,24 @@
                                           IMP_GFS_CHEM,EXP_GFS_CHEM   !<-- The imp/exp states for Chemistry component
       TYPE(ESMF_Clock),INTENT(INOUT)   :: CLOCK_ATM                   !<-- The ATM Component's ESMF Clock
 
+
       INTEGER,INTENT(OUT) :: RC_LOOP                                  !<-- Return code
 
 ! Locals
-      INTEGER                  :: RC=ESMF_SUCCESS  
+      INTEGER                  :: I, RC=ESMF_SUCCESS  
       TYPE(ESMF_FieldBundle)   :: Bundle
+      LOGICAL                  :: IOPE
 
+!
+!-----------------------------------------------------------------------
+!***  If io pe, return
+!-----------------------------------------------------------------------
+!
+       IOPE=.true.
+       DO I=1,size(PETLIST_FCST)
+         IF (PETLIST_FCST(I)== MYPE) IOPE=.false.
+       ENDDO
+       IF (IOPE ) RETURN
 !-----------------------------------------------------------------------
 !***  Couple Physics export state to Chemistry import State
 !-----------------------------------------------------------------------

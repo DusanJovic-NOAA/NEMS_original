@@ -5,6 +5,7 @@
 #
 # 3mar2004  Zaslavsky  Initial imlementation.
 # 20oct2004  da Silva  Standardization.
+# 03oct2011  Lu        Add NEMS option
 #
 
 # Make sure ESMADIR is defined
@@ -22,6 +23,8 @@ BINS = # Chem_SettlingCalculator.x
   include $(ESMADIR)/Config/ESMA_base.mk  # Generic stuff
   include $(ESMADIR)/Config/ESMA_arch.mk  # System dependencies
   include $(ESMADIR)/Config/GMAO_base.mk  # GMAO stuff
+  include $(ESMADIR)/Config/NCEP_base.mk  # NCEP stuff
+
 
 #                  ---------------------
 #                  Standard ESMA Targets
@@ -69,6 +72,10 @@ else
       CHEM_UTIL = Chem_UtilMod_geos4.F90 
 endif
 
+ifeq ($(DOING_NEMS),TRUE)
+  DNEMS = $(D)NEMS
+endif
+
 SRCS = $(FVGCM_SRCS) Chem_ConstMod.F90 Chem_SettlingMod.F90 \
        Chem_DepositionMod.F90 $(CHEM_UTIL)
 OBJS := $(addsuffix .o, $(basename $(SRCS)))
@@ -91,7 +98,8 @@ MOD_DIRS = . $(INC_ESMF) $(INC_MPEU) $(INC_CHEM_BASE) \
              $(INC_MAPL_BASE) $(INC_GEOS_SHARED)
 
 USER_FFLAGS = $(BIG_ENDIAN) 
-USER_FDEFS  = $(DEBUG) $(SPMD) $(D)FVCHEM 
+##USER_FDEFS  = $(DEBUG) $(SPMD) $(D)FVCHEM 
+USER_FDEFS  = $(DEBUG) $(SPMD) $(D)FVCHEM ${DNEMS}
 USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir)) 
 USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
 

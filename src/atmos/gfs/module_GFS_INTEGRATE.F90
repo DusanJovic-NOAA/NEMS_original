@@ -24,6 +24,7 @@
 !                       ESMF 3.1.0rp2 library.
 !   2011-03   W Yang  - Modified the digiter filter code for turning off
 !                       the digiter filter case.
+!   2011-10-01  Wang/Lu - MYPE added to GOCART_INTEGRATE argument
 !-----------------------------------------------------------------------
 
       USE ESMF_MOD
@@ -265,6 +266,7 @@
 !***  Bring export data from the Dynamics into the coupler
 !***  and export it to the Physics.
 !-----------------------------------------------------------------------
+
 !
          call esmf_cplcomprun(cplcomp     = gc_gfs_cpl          &
                              ,importstate = exp_gfs_dyn         &
@@ -307,7 +309,7 @@
                                    GC_CHEM2PHY_CPL,                     &
                                    EXP_GFS_PHY,                         &
                                    IMP_GFS_CHEM, EXP_GFS_CHEM,          &
-                                   CLOCK_GFS, RC                    )
+                                   CLOCK_GFS, MYPE, RC                  )
 
               CALL ERR_MSG(RC,MESSAGE_CHECK,RC_LOOP)
 

@@ -7,6 +7,7 @@
 # 23Aug2006  da Silva  Driver for making either MAPL or GEOS_Base.
 # 26Aug2008  Stassi    No longer builds GEOS_Base; merged with MAPL_base.mk
 # 27Oct2008  da SIlva  Some clean up for ESMF v3
+# 03oct2011  Lu        Add NEMS option
 #
 # -------------------------------------------------------------------------
 
@@ -25,6 +26,8 @@ LIB  = lib$(THIS).a
   include $(ESMADIR)/Config/ESMA_base.mk  # Generic stuff
   include $(ESMADIR)/Config/ESMA_arch.mk  # System dependencies
   include $(ESMADIR)/Config/GMAO_base.mk
+  include $(ESMADIR)/Config/NCEP_base.mk  # NCEP stuff
+
 
 #                  ---------------------
 #                  Standard ESMA Targets
@@ -61,6 +64,9 @@ esma_distclean distclean: clean
 #                  --------------------
 #                  User Defined Targets
 #                  --------------------
+ifeq ($(DOING_NEMS),TRUE)
+  DNEMS = $(D)NEMS
+endif
 
 INCS :=  MAPL_ErrLog.h            MAPL_ErrLogMain.h      MAPL_Generic.h \
          MAPL_Exceptions.h
@@ -92,7 +98,8 @@ MOD_DIRS = $(INC_DIRS) $(INC_CFIO) $(INC_MPEU)
 
 USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir)) 
 USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
-USER_FFLAGS = $(D)MAPL  $(D)ESMF_2_2_2_or_newer $(D)DO_COMMAS
+##USER_FFLAGS = $(D)MAPL  $(D)ESMF_2_2_2_or_newer $(D)DO_COMMAS
+USER_FFLAGS = $(D)MAPL  $(D)ESMF_2_2_2_or_newer $(D)DO_COMMAS  ${DNEMS}
 
 FREAL = $(FREAL4) # for now, require 32 bit reals (R4)
 THIS_CFIO = MAPL_cfio_r4
