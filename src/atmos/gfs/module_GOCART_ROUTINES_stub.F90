@@ -93,6 +93,7 @@
                               ,GC_PHY2CHEM_CPL                          &
                               ,GC_CHEM2PHY_CPL                          &
                               ,CLOCK_ATM                                &
+                              ,MYPE                                     &
                               ,RC_INIT                                  &
                               )
 
@@ -101,6 +102,7 @@
 !***  Argument variables
 !------------------------
 !
+      INTEGER,            INTENT(IN)   :: MYPE
       TYPE(ESMF_GridComp),INTENT(INOUT) :: GC_GFS_CHEM                     !<-- The gocart gridded component
       TYPE(ESMF_State),   INTENT(INOUT) :: EXP_GFS_PHY                     !<-- The physics component's export
       TYPE(ESMF_State),   INTENT(INOUT) :: IMP_GFS_CHEM                    !<-- The chemistry component' import
@@ -131,10 +133,17 @@
                                   GC_CHEM2PHY_CPL,                     &
                                   EXP_GFS_PHY,                         &
                                   IMP_GFS_CHEM, EXP_GFS_CHEM,          &
-                                  CLOCK_ATM, RC_LOOP                     )
+                                  CLOCK_ATM, MYPE, RC_LOOP             )
 
 !-----------------------------------------------------------------------
+!
+! PROGRAM HISTORY LOG:
+!   2011-10-30  Lu    MYPE added
+!
+!-----------------------------------------------------------------------
 
+
+      INTEGER,INTENT(IN)               :: MYPE
       TYPE(ESMF_GridComp),INTENT(INOUT):: GC_GFS_CHEM                 !<-- The GOCART grid component
       TYPE(ESMF_CplComp),INTENT(INOUT) :: GC_PHY2CHEM_CPL             !<-- The Phy-to-Chem coupler component
       TYPE(ESMF_CplComp),INTENT(INOUT) :: GC_CHEM2PHY_CPL             !<-- The Chem-to-Phy coupler component
