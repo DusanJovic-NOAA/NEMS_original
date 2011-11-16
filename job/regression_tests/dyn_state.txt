@@ -46,6 +46,7 @@
 
 ###    2D real
 
+'BARO'       -       -       O      -      -   -  'Barotropic part of W'
 'FIS'        H       R       O      -      X   -  'Surface geopotential (m2 s-2)'
 'GLAT'       H       R       O      -      X   -  'Latitudes of h points  (radians)'
 'GLON'       H       R       O      -      X   -  'Longitudes of h points (radians)'
@@ -68,6 +69,7 @@
 'Q2'         -       -       -      I      -   T  '2*tke  (m2 s-2)'
 'CW'         -       -       -      -      -   T  ''
 'W'          H       R       O      -      X   T  'Vertical velocity at midlayers  (m s-1)'
+'W_TOT'      H       -       O      -      X   -  'Total Vertical velocity at midlayers  (m s-1)'
 'DWDT'       -       -       -      I      -   T  'Vertical acceleration, correction factor  (m s-2)'
 'PINT'       -       -       -      I      -   T  'Nonhydrostatic interface pressure  (Pa)'
 'OMGALF'     H       R       O      -      X   -  'Omega-alpha  (K)'

@@ -74,6 +74,7 @@
 !
 !
       LOGICAL(kind=KLOG) :: RESTARTED_RUN                               &  !<-- Flag indicating if this is a restarted run
+                           ,PRINT_TIMING                                &  !<-- Print timing flag
                            ,RST_OUT_00                                     !<-- Shall we write 00h history in restarted run?
 !
       TYPE(ESMF_VM),SAVE :: VM                                             !<-- The ESMF virtual machine.
@@ -1492,6 +1493,24 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
+!***  Get print_timing flag from config file.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Get print_timing flag"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)              &  !<-- The configure object
+                                  ,value =PRINT_TIMING                  &  !<-- Fill this variable (this task prints its clocktimes)
+                                  ,label ='print_timing:'               &  !<-- Give the variable this label's value from the config file
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
 !***  Create the alarm for printing clocktimes used by model routines.
 !***  Read in forecast time interval for clocktime output as well as
 !***  the selected task ID that will provide the clocktimes.
@@ -1772,6 +1791,7 @@
                         ,interval_history  =INTERVAL_HISTORY(MY_DOMAIN_ID) &
                         ,interval_restart  =INTERVAL_RESTART(MY_DOMAIN_ID) &
                         ,filter_method     =FILTER_METHOD                  &
+                        ,print_timing      =PRINT_TIMING                   &
                         ,npe_print         =NPE_PRINT                      &
                         ,restarted_run     =RESTARTED_RUN                  &
                         ,rst_out_00        =RST_OUT_00                     &
@@ -1964,6 +1984,7 @@
                           ,ntimestep         =NTIMESTEP                 &
                           ,dt                =DT(MY_DOMAIN_ID)          &
                           ,filter_method     =FILTER_METHOD             &
+                          ,print_timing      =PRINT_TIMING              &
                           ,halfdfiintval     =HALFDFIINTVAL             &
                           ,halfdfitime       =HALFDFITIME               &
                           ,npe_print         =NPE_PRINT                 &
@@ -2125,6 +2146,7 @@
                           ,ntimestep         =NTIMESTEP                 &
                           ,dt                =DT(MY_DOMAIN_ID)          &
                           ,filter_method     =FILTER_METHOD             &
+                          ,print_timing      =PRINT_TIMING              &
                           ,ndfistep          =NDFISTEP                  &
                           ,npe_print         =NPE_PRINT                 &
                           ,restarted_run     =RESTARTED_RUN             &
@@ -2240,13 +2262,13 @@
                           ,exp_state_domain  =EXP_STATE_DOMAIN          &
                           ,clock_integrate   =CLOCK_FILTER              &
                           ,currtime          =CURRTIME                  &
-!!!                       ,starttime         =STARTTIME                 &
                           ,starttime         =CURRTIME                  &  !<-- CURRTIME was set or reset at end of backward piece
                           ,timestep          =TIMESTEP(MY_DOMAIN_ID)    &
                           ,ntimestep         =NTIMESTEP                 &
                           ,ndfistep          =NDFISTEP                  &
                           ,dt                =DT(MY_DOMAIN_ID)          &
                           ,filter_method     =FILTER_METHOD             &
+                          ,print_timing      =PRINT_TIMING              &
                           ,halfdfiintval     =HALFDFIINTVAL             &
                           ,halfdfitime       =HALFDFITIME               &
                           ,npe_print         =NPE_PRINT                 &
@@ -2386,6 +2408,7 @@
                           ,ntimestep         =NTIMESTEP                 &
                           ,dt                =DT(MY_DOMAIN_ID)          &
                           ,filter_method     =FILTER_METHOD             &
+                          ,print_timing      =PRINT_TIMING              &
                           ,halfdfiintval     =HALFDFIINTVAL             &
                           ,ndfistep          =NDFISTEP                  &
                           ,npe_print         =NPE_PRINT                 &
@@ -2537,6 +2560,7 @@
                           ,ndfistep          =NDFISTEP                  &
                           ,dt                =DT(MY_DOMAIN_ID)          &
                           ,filter_method     =FILTER_METHOD             &
+                          ,print_timing      =PRINT_TIMING              &
                           ,halfdfiintval     =HALFDFIINTVAL             &
                           ,halfdfitime       =HALFDFITIME               &
                           ,npe_print         =NPE_PRINT                 &

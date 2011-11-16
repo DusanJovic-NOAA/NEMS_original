@@ -313,6 +313,8 @@
 !
       TYPE(ESMF_VM) :: VM                                                  !<-- The ESMF Virtual Machine
 !
+      TYPE(ESMF_Config) :: CF                                              !<-- ESMF configure object
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -428,6 +430,39 @@
                               ,int_state%MICROPHYSICS                   &
                               ,int_state%LNSH, int_state%LNSV           &
                               ,RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  In phase 1 of the Init step for Dynamics we must know whether
+!***  or not this is a global domain.  Get the configure object
+!***  from the Dynamics component and extract the value of 'global'.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="DYN_INIT_1: Retrieve Config Object from Dynamics Component"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompGet(gridcomp=GRID_COMP                          &   !<--- The Dynamics gridded component
+                           ,config  =CF                                 &   !<--- The configure (namelist) object
+                           ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="GET_CONFIG_DYN: Extract GLOBAL from Config File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
+                                  ,value =int_state%GLOBAL              &  !<-- Put extracted quantity here
+                                  ,label ='global:'                     &  !<-- The quantity's label in the configure file
+                                  ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -833,6 +868,7 @@
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%Q2(I,J,L)=0.02
+          int_state%W_TOT(I,J,L)=0.
         ENDDO
         ENDDO
         ENDDO
@@ -940,6 +976,20 @@
                   ,int_state%I_PAR_STA,int_state%J_PAR_STA )
 !
         ENDIF
+!rv
+!  Use this (OPER) for operational run, for having vertical velocity
+!  in history file (00hr) when starting from restart file
+!rv
+        IF(int_state%OPER) THEN
+          DO L=1,LM
+            DO J=JMS,JME
+              DO I=IMS,IME
+                int_state%W_TOT(I,J,L)=int_state%W(I,J,L)
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!rv
 !
         if (mype==-9999) then
           write(0,*)'dynamics'
@@ -978,6 +1028,7 @@
           write(0,*)'vp=',minval(int_state%vp),maxval(int_state%vp)
           write(0,*)'e2=',minval(int_state%e2),maxval(int_state%e2)
           write(0,*)'w=',minval(int_state%w),maxval(int_state%w)
+          write(0,*)'w_tot=',minval(int_state%w_tot),maxval(int_state%w_tot)
           write(0,*)'pint=',minval(int_state%pint),maxval(int_state%pint)
           write(0,*)'water=',minval(int_state%water),minval(int_state%water)
           write(0,*)'tracers=',minval(int_state%tracers),maxval(int_state%tracers)
@@ -3572,7 +3623,7 @@
         ,int_state%PSGDT                                                &
         ,int_state%CW,int_state%Q,int_state%RTOP,int_state%T            & 
         ,int_state%PINT                                                 &
-        ,int_state%DWDT,int_state%PDWDT,int_state%W                     &
+        ,int_state%DWDT,int_state%PDWDT,int_state%W,int_state%BARO      &
         ,int_state%Z                                                    &
 !
 !***  temporary arguments
@@ -3692,7 +3743,8 @@
         ,CP,DT,PT,DSG2,PDSG1                                            &
         ,int_state%PD                                                   &
         ,int_state%CW,int_state%Q,int_state%RTOP                        &
-        ,int_state%DWDT,int_state%T,int_state%W                         &
+        ,int_state%DWDT,int_state%T,int_state%W,int_state%W_TOT         &
+        ,int_state%BARO                                                 &
         ,int_state%PINT)
 !
       vsound_tim=vsound_tim+(timef()-btim)
@@ -4153,6 +4205,7 @@
 !
       IF(MOD(ABS(NTIMESTEP)+1,N_PRINT_STATS)==0)THEN
 !
+        IF(int_state%PRINT_DIAG .OR. int_state%PRINT_ALL) &
         CALL FIELD_STATS(INT_STATE%T,MYPE,MPI_COMM_COMP,LM              &
                         ,ITS,ITE,JTS,JTE                                &
                         ,IMS,IME,JMS,JME                                &

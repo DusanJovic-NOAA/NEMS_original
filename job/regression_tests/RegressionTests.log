@@ -1,11 +1,11 @@
-Fri Nov  4 20:52:17 EDT 2011
+Tue Nov 15 08:57:37 EST 2011
 Start Regression test
 
 
 
-Fri Nov  4 20:52:17 EDT 2011
+Tue Nov 15 08:57:37 EST 2011
 Compilation ALL
-Fri Nov  4 21:33:13 EDT 2011
+Tue Nov 15 09:43:57 EST 2011
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -334,4 +334,4 @@ Checking test 016 results ....
 
 
 
-Fri Nov  4 22:29:52 EDT 2011
+Tue Nov 15 10:50:47 EST 2011

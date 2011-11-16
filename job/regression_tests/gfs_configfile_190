@@ -88,7 +88,18 @@ nhours_restart: 12          # Frequency of restart output (hours)
 global:    true             # True--> Global ;      False--> Regional
 hydro:     false            # True--> Hydrostatic ; False--> Nonhydrostatic
 adiabatic: false            # True--> Adiabatic ;   False--> Diabatic
-nemsio_input: .false.
+oper:      false
+
+
+###########################
+#####  Printouts      #####
+###########################
+
+print_all:     false        # Print all statements to err file
+print_diag:    false        # Print diagnostics (CALL FIELD_STATS)
+print_esmf:    false        # Print ESMF return signals
+print_output:  false        # Print info on records written into history/restart file
+print_timing:  true         # Print timing info (CPU time)
 
 
 ##############################
@@ -223,6 +234,8 @@ nhrs_srfc:   3              # Frequency in hours between times when sfc evap/flu
 #################################################
 ####  Write History & Restart Specifications ####
 #################################################
+
+nemsio_input: .false.
 
 write_hst_flag:          .TRUE.       # True--> Yes write history files
 write_rst_flag:          .TRUE.       # True--> Yes write restart files

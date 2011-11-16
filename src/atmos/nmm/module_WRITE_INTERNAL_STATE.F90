@@ -281,6 +281,10 @@
       LOGICAL(kind=KLOG) :: WRITE_FSYNCFLAG
       LOGICAL(kind=KLOG) :: WRITE_DONEFILEFLAG
       LOGICAL(kind=KLOG) :: WRITE_DOPOST
+      LOGICAL(kind=KLOG) :: PRINT_ALL
+      LOGICAL(kind=KLOG) :: PRINT_OUTPUT
+      LOGICAL(kind=KLOG) :: PRINT_DIAG
+      LOGICAL(kind=KLOG) :: PRINT_ESMF
  
 !-----------------------------------------------------------------------
 !

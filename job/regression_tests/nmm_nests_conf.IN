@@ -90,6 +90,18 @@ freerun:             true   # True--> Original
 global:    false            # True--> Global ; False--> Regional
 hydro:     false            # True--> Hydrostatic ;  False--> Nonhydrostatic
 adiabatic: false            # True--> Adiabatic ;  False--> Diabatic
+oper:      false
+
+
+###########################
+#####  Printouts      #####
+###########################
+
+print_all:     false        # Print all statements to err file
+print_diag:    false        # Print diagnostics (CALL FIELD_STATS)
+print_esmf:    false        # Print ESMF return signals
+print_output:  false        # Print info on records written into history/restart file
+print_timing:  true         # Print timing info (CPU time)
 
 
 ####################

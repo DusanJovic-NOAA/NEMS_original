@@ -2939,7 +2939,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 ,psgdt &
 ,cw,q,rtop,t &
 ,pint &
-,dwdt,pdwdt,w &
+,dwdt,pdwdt,w,baro &
 ,z &
 !---temporary arguments-------------------------------------------------
 ,pfne,pfnw,pfx,pfy)
@@ -2991,6 +2991,9 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
 ,pdwdt &                     ! previous nonhydrostatic correction factor
 ,w                           ! w wind component
            
+real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1),intent(out):: &
+ baro
+
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(out):: &
  z                           ! heights in the middle of the layers
 !-----------------------------------------------------------------------
@@ -3246,28 +3249,33 @@ real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1):: &
 !-----------------------------------------------------------------------
       do j=jts_b1,jte_b1
         do i=its_b1,ite_b1
-          ttb(i,j)=0.
+!         ttb(i,j)=0.
+          baro(i,j)=0.
         enddo
       enddo
 !
       do l=1,lm
         do j=jts_b1,jte_b1
           do i=its_b1,ite_b1
-            ttb(i,j)=(dsg2(l)*pdo(i,j)+pdsg1(l))*w(i,j,l)+ttb(i,j)
+!           ttb(i,j)=(dsg2(l)*pdo(i,j)+pdsg1(l))*w(i,j,l)+ttb(i,j)
+            baro(i,j)=(dsg2(l)*pdo(i,j)+pdsg1(l))*w(i,j,l)         &
+                      +baro(i,j)
           enddo
         enddo
       enddo
 !
       do j=jts_b1,jte_b1
         do i=its_b1,ite_b1
-          ttb(i,j)=ttb(i,j)/pdo(i,j)
+!         ttb(i,j)=ttb(i,j)/pdo(i,j)
+          baro(i,j)=baro(i,j)/pdo(i,j)
         enddo
       enddo
 !
       do l=1,lm
         do j=jts_b1,jte_b1
           do i=its_b1,ite_b1
-            w(i,j,l)=w(i,j,l)-ttb(i,j)
+!           w(i,j,l)=w(i,j,l)-ttb(i,j)
+            w(i,j,l)=w(i,j,l)-baro(i,j)
           enddo
         enddo
       enddo
@@ -3917,7 +3925,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 ,dsg2,pdsg1 &
 ,pd &
 ,cw,q,rtop &
-,dwdt,t,w &
+,dwdt,t,w,w_tot,baro &
 ,pint)
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -3948,6 +3956,9 @@ real(kind=kfpt),dimension(1:lm),intent(in):: &
  dsg2 &                      ! delta sigmas
 ,pdsg1                       ! delta pressures
 
+real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1),intent(in):: &
+ baro 
+
 real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
  pd                          ! sigma range pressure difference
 
@@ -3960,6 +3971,9 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
  dwdt &                      ! nonhydrostatic correction factor
 ,t &                         ! previous nonhydrostatic correction factor
 ,w                           ! w wind component
+
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(out):: &
+ w_tot                       ! total w wind component for output
 
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm+1),intent(inout):: &
  pint
@@ -4169,6 +4183,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm+1):: &
             t(i,j,l)=(dptu(i,j)+dptl)*rtop(i,j,l)*rcph+t(i,j,l)
             delp=(pnp1(i,j,l+1)-pnp1(i,j,l))*rdpp(i,j,l)
             w(i,j,l)=(delp-dwdt(i,j,l))*gdt+w(i,j,l)
+            w_tot(i,j,l)=w(i,j,l)+baro(i,j)
             dwdt(i,j,l)=delp
             dptu(i,j)=dptl
           enddo

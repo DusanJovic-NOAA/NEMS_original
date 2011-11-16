@@ -113,6 +113,7 @@
                               ,INTERVAL_HISTORY                         &
                               ,INTERVAL_RESTART                         &
                               ,FILTER_METHOD                            &
+                              ,PRINT_TIMING                             &
                               ,HALFDFIINTVAL                            &
                               ,HALFDFITIME                              &
                               ,NDFISTEP                                 &
@@ -160,6 +161,7 @@
       REAL(kind=KFPT),INTENT(IN) :: DT                                     !<-- Fundamental timestep of this domain (REAL) (s)
 !
       LOGICAL(kind=KLOG),INTENT(IN) :: NESTING                          &  !<-- Are there any nested domains?
+                                      ,PRINT_TIMING                     &  !<-- Shall we print timing in err file?
                                       ,RESTARTED_RUN                    &  !<-- Is this a restarted run?
                                       ,RST_OUT_00                          !<-- Shall we write 00h history in restarted run?
 !
@@ -732,7 +734,7 @@
         IF(MYPE==0.AND.FILTER_METHOD==0)THEN
           WRITE(0,25)NTIMESTEP-1,NTIMESTEP*DT/3600.,phase1_tim
    25     FORMAT(' Finished Timestep ',i5,' ending at ',f7.3,           &
-                 ' hours: elapsed integration time ',g10.4)
+                 ' hours: elapsed integration time ',f9.5)
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -753,6 +755,7 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+            IF(PRINT_TIMING) &
             CALL PRINT_CLOCKTIMES(NTIMESTEP,MYPE,NPE_PRINT)
 !
           ENDIF
@@ -885,15 +888,18 @@
 !
 !-----------------------------------------------------------------------
 !
-        IF (MYPE == 0) WRITE(0,897)
+        IF (MYPE == 0 .AND. NESTING) WRITE(0,897)
 !
         IF(.NOT. NESTING) THEN                                             !<-- Parent only run
           IF (atm_drv_run_1 < 1.0) THEN                                    !<-- An I/O task
+            IF(PRINT_TIMING) &
             WRITE(0,899)atm_drv_run_3
           ELSE 
             IF (atm_drv_run_2 > 1.0) THEN                                  !<-- Digital filter
+              IF(PRINT_TIMING) &
               WRITE(0,900)atm_drv_run_1,atm_drv_run_2,atm_drv_run_3
             ELSE
+              IF(PRINT_TIMING) &
               WRITE(0,901)atm_drv_run_1,atm_drv_run_3                      !<-- Primary compute task
             ENDIF
           ENDIF

@@ -2749,11 +2749,13 @@
           ,iostat=RC)
 !
       IF(RC==0)THEN
-        WRITE(0,*)' Opened IO_HST_UNIT=',IO_HST_UNIT,' for history'
-        write(0,*)' iostat=',rc,' file=',trim(filename)
-        write(0,*)' status=',trim(wrt_int_state%IO_STATUS), &
-                  ' access=',trim(wrt_int_state%IO_ACCESS), &
-                  ' form='  ,trim(wrt_int_state%IO_FORM)
+        IF(wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) THEN
+          WRITE(0,*)' Opened IO_HST_UNIT=',IO_HST_UNIT,' for history'
+          write(0,*)' iostat=',rc,' file=',trim(filename)
+          write(0,*)' status=',trim(wrt_int_state%IO_STATUS), &
+                    ' access=',trim(wrt_int_state%IO_ACCESS), &
+                    ' form='  ,trim(wrt_int_state%IO_FORM)
+        ENDIF
       ELSE
         WRITE(0,*)' Failed to OPEN IO_HST_UNIT=',IO_HST_UNIT,' for history'
       ENDIF
@@ -2844,12 +2846,14 @@
           ,form  =wrt_int_state%IO_FORM                                 &
           ,iostat=RC)
 !
-      IF(RC==0)THEN
-        WRITE(0,*)' Opened IO_RST_UNIT=',IO_RST_UNIT,' for restart'
-        write(0,*)' iostat=',rc,' file=',trim(filename)
-        write(0,*)' status=',trim(wrt_int_state%IO_STATUS), &
-                  ' access=',trim(wrt_int_state%IO_ACCESS), &
-                  ' form='  ,trim(wrt_int_state%IO_FORM)
+      IF(RC==0) THEN
+        IF(wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) THEN
+          WRITE(0,*)' Opened IO_RST_UNIT=',IO_RST_UNIT,' for restart'
+          write(0,*)' iostat=',rc,' file=',trim(filename)
+          write(0,*)' status=',trim(wrt_int_state%IO_STATUS), &
+                    ' access=',trim(wrt_int_state%IO_ACCESS), &
+                    ' form='  ,trim(wrt_int_state%IO_FORM)
+        ENDIF
       ELSE
         WRITE(0,*)' Failed to OPEN IO_RST_UNIT=',IO_RST_UNIT,' for restart'
       ENDIF
@@ -3040,6 +3044,8 @@
                 ,WRITE_GROUPS,WRITE_TASKS_PER_GROUP                     &
                 ,RC,RC_ASYNC
 !
+      LOGICAL :: PRINT_OUTPUT, PRINT_ALL                                  !<-- Prints to err file flags
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -3093,6 +3099,16 @@
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file
                                   ,value =WRITE_TASKS_PER_GROUP         &  !<-- Number of write tasks per group
                                   ,label ='write_tasks_per_group:'      &
+                                  ,rc    =RC)
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file
+                                  ,value =PRINT_OUTPUT                  &  !<-- Print output flag
+                                  ,label ='print_output:'               &
+                                  ,rc    =RC)
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file
+                                  ,value =PRINT_ALL                     &  !<-- Print output flag
+                                  ,label ='print_all:'                  &
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3189,6 +3205,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           IF(I==NUM_PES_FCST+1)THEN                                          !<-- The first write task tells us the history output time
+            IF(PRINT_OUTPUT .OR. PRINT_ALL) &
             WRITE(0,101)TRIM(CWRT),YY,MM,DD,H,M,S
   101       FORMAT(' Wrote ',A7,' File at ',I4.4,'_',I2.2,'_',I2.2,'_',I2.2,':',I2.2,':',I2.2)
           ENDIF
@@ -3281,6 +3298,7 @@
 !-----------------------------------------------------------------------
 !
       CALL OPEN_HST_FILE(WRT_INT_STATE)
+      IF( wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL ) &
       WRITE(0,*)' Opened unit=',wrt_int_state%IO_HST_UNIT,' for history output'
 !
       WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)IYEAR_FCST
@@ -3293,7 +3311,7 @@
       WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)NF_MINUTES
       WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)NF_SECONDS
 !
-      IF(HST_FIRST)THEN
+      IF(HST_FIRST .AND. (wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) )THEN
         WRITE(0,*)' Wrote IYEAR_FCST to history file unit ',wrt_int_state%IO_HST_UNIT
         WRITE(0,*)' Wrote IMONTH_FCST to history file unit ',wrt_int_state%IO_HST_UNIT
         WRITE(0,*)' Wrote IDAY_FCST to history file unit ',wrt_int_state%IO_HST_UNIT
@@ -3326,8 +3344,8 @@
 !
         WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)WORK_ARRAY_I1D          !<-- Write out the data
 !
-        IF(HST_FIRST)THEN
-!         WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
+        IF(HST_FIRST .AND. (wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) )THEN
+          WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
         ENDIF
 !
         DEALLOCATE(WORK_ARRAY_I1D)
@@ -3355,8 +3373,8 @@
 !
         WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)WORK_ARRAY_R1D          !<-- Write out the data
 !
-        IF(HST_FIRST)THEN
-!         WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
+        IF(HST_FIRST .AND. (wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) )THEN
+          WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
         ENDIF
 !
         DEALLOCATE(WORK_ARRAY_R1D)
@@ -3382,8 +3400,8 @@
 !
         WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)WRITE_LOGICAL           !<-- Write out the data
 !
-        IF(HST_FIRST)THEN
-!         WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
+        IF(HST_FIRST .AND. (wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) )THEN
+          WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
         ENDIF
 !
       ENDDO
@@ -3573,7 +3591,7 @@
             IDATE(7)=100.
           ENDIF
 !
-            write(0,*)'in I1D array,aryival=',aryival(:,N2IARY)
+!           write(0,*)'in I1D array,aryival=',aryival(:,N2IARY)
         ENDIF
 !
       ENDDO
@@ -3700,6 +3718,7 @@
 !***  Now open NEMSIO file.
 !-----------------------------------------------------------------------
 !
+      IF(wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL)       &
       write(0,*)' OPEN_NEMSIO_FILE wrt_int_state%IO_NEMSIOFILE=',       &
           trim(wrt_int_state%IO_HST_FILE)
 !
@@ -3711,6 +3730,7 @@
                           ,wrt_int_state%NFHOURS,'h_'                   &
                           ,wrt_int_state%NFMINUTES,'m_'                 &
                           ,INT_SEC,'.',FRAC_SEC,'s'
+        IF(wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL)     &
         write(0,*)'FILENAME=',trim(FILENAME),'n=',n
   100   FORMAT(A,I4.4,A,I2.2,A,I2.2,A,I2.2,A)
       ELSE
@@ -3828,7 +3848,7 @@
           RECNAME(NREC)=NAME(1:INDX_2D-4)
           RECLEVTYP(NREC)='mid layer'
           IF (RECNAME(NREC)=='SMC') NSOIL=NSOIL+1
-          IF (RECNAME(NREC)=='W') RECNAME(NREC)='vvel'
+          IF (RECNAME(NREC)=='W_TOT') RECNAME(NREC)='vvel'
           IF (RECNAME(NREC)=='CW') RECNAME(NREC)='clwmr'
           IF (RECNAME(NREC)=='U') RECNAME(NREC)='ugrd'
           IF (RECNAME(NREC)=='V') RECNAME(NREC)='vgrd'
@@ -4025,6 +4045,7 @@
 !-----------------------------------------------------------------------
 !
       CALL OPEN_RST_FILE(WRT_INT_STATE)
+      IF( wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL ) &
       WRITE(0,*)' Opened unit=',wrt_int_state%IO_RST_UNIT,' for restart output'
 !
       WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)IYEAR_FCST
@@ -4035,7 +4056,7 @@
       WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)SECOND_FCST
       WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)NTIMESTEP
 !
-      IF(RST_FIRST)THEN
+      IF(RST_FIRST .AND. (wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) )THEN
         WRITE(0,*)' Wrote IYEAR_FCST to restart file unit ',wrt_int_state%IO_RST_UNIT
         WRITE(0,*)' Wrote IMONTH_FCST to restart file unit ',wrt_int_state%IO_RST_UNIT
         WRITE(0,*)' Wrote IDAY_FCST to restart file unit ',wrt_int_state%IO_RST_UNIT
@@ -4066,8 +4087,8 @@
 !
           WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)WORK_ARRAY_I1D         !<-- Write out the data
 !
-          IF(RST_FIRST)THEN
-!           WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT
+          IF(RST_FIRST .AND. (wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) )THEN
+            WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT
           ENDIF
 !
           DEALLOCATE(WORK_ARRAY_I1D)
@@ -4095,8 +4116,8 @@
 !
           WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)WORK_ARRAY_R1D         !<-- Write out the data
 !
-          IF(RST_FIRST)THEN
-!           WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT
+          IF(RST_FIRST .AND. (wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) )THEN
+            WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT
           ENDIF
 !
           DEALLOCATE(WORK_ARRAY_R1D)
@@ -4121,8 +4142,8 @@
 !
           WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)WRITE_LOGICAL          !<-- Write out the data
 !
-          IF(RST_FIRST)THEN
-!           WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT
+          IF(RST_FIRST .AND. (wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) )THEN
+            WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT
           ENDIF
 !
         ENDDO
@@ -4315,7 +4336,7 @@
             IDATE(7)=100.
           ENDIF
 !
-            write(0,*)'in I1D array,aryival=',aryival(:,N2IARY)
+!           write(0,*)'in I1D array,aryival=',aryival(:,N2IARY)
         ENDIF
 !
       ENDDO
@@ -4326,7 +4347,7 @@
      N2ISCALAR= N2ISCALAR+1
      VARINAME(N2ISCALAR)='NTIMESTEP'
      VARIVAL(N2ISCALAR)=NTIMESTEP
-      write(0,*)'in I1D scalar,varival=',varival,'varname=',variname
+!     write(0,*)'in I1D scalar,varival=',varival,'varname=',variname
 !
 !
 !------------------------------
@@ -4452,6 +4473,7 @@
 !***  Now open NEMSIO file.
 !-----------------------------------------------------------------------
 !
+      IF(wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL)       &
       write(0,*)' OPEN_NEMSIO_FILE wrt_int_state%IO_NEMSIOFILE=',       &
           trim(wrt_int_state%IO_RST_FILE)
 !
@@ -4463,6 +4485,7 @@
                           ,wrt_int_state%NFHOURS,'h_'                   &
                           ,wrt_int_state%NFMINUTES,'m_'                 &
                           ,INT_SEC,'.',FRAC_SEC,'s'
+        IF(wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL)     &
         write(0,*)'FILENAME=',trim(FILENAME),'n=',n
   100   FORMAT(A,I4.4,A,I2.2,A,I2.2,A,I2.2,A)
       ELSE

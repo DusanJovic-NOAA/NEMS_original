@@ -69,6 +69,11 @@
                              ,GLOBAL                                    &
                              ,HYDRO                                     &
                              ,NEMSIO_INPUT                              &
+                             ,OPER                                      &
+                             ,PRINT_ALL                                 &
+                             ,PRINT_OUTPUT                              &
+                             ,PRINT_DIAG                                &
+                             ,PRINT_ESMF                                &
                              ,RESTART                                   &
                              ,SECADV                                    &
                              ,SPEC_ADV                                  &
@@ -144,14 +149,15 @@
 !
         INTEGER(kind=KINT),DIMENSION(:), POINTER :: IDAT
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: PINT,RTOP           &
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: BARO                &
+                                                   ,PINT,RTOP           &
                                                    ,T,U,V               &
                                                    ,Q,CW,O3             &
                                                    ,Q2,E2               &
                                                    ,DIV                 &
                                                    ,DEF                 &
                                                    ,TDIV                &
-                                                   ,W,Z                 &
+                                                   ,W,W_TOT,Z           &
                                                    ,DWDT,PDWDT          &
                                                    ,OMGALF              &
                                                    ,PSGDT               &
@@ -824,6 +830,8 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'Q2'        ,int_state%Q2      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'CW'        ,int_state%CW      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'W'         ,int_state%W       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'W_TOT'     ,int_state%W_TOT   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'BARO'      ,int_state%BARO    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'DWDT'      ,int_state%DWDT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'PINT'      ,int_state%PINT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM+1 /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'OMGALF'    ,int_state%OMGALF  ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )

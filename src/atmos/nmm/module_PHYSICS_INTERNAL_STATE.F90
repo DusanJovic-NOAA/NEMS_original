@@ -70,7 +70,8 @@
         REAL(kind=KFPT) :: DT,SBD,WBD,TPH0D,TLM0D
 !
         LOGICAL :: GLOBAL,GWDFLG,HYDRO,NEMSIO_INPUT,NESTED,NHRS_UDEF    &
-                  ,PCPFLG,RESTART,SPECIFIED,WRITE_PREC_ADJ              &
+                  ,OPER,PCPFLG,RESTART,SPECIFIED,WRITE_PREC_ADJ         &
+                  ,PRINT_ALL,PRINT_OUTPUT,PRINT_DIAG,PRINT_ESMF         &
                   ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP,RST_OUT_00     &
                   ,SPEC_ADV                                                ! Cloud water species advection option
 !
@@ -139,7 +140,7 @@
                                                    ,Q2,O3               &
                                                    ,OMGALF              &
                                                    ,PINT                &
-                                                   ,W,Z
+                                                   ,W,W_TOT,Z
 !
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RLWTT,RSWTT
 !
@@ -935,6 +936,7 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'U'          ,int_state%U	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'V'          ,int_state%V	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'W'          ,int_state%W	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,AF,'W_TOT'      ,int_state%W_TOT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'Z'          ,int_state%Z	     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RLWTT'      ,int_state%RLWTT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,AF,'RSWTT'      ,int_state%RSWTT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))

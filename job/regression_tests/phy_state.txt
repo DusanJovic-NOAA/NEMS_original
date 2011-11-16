@@ -184,6 +184,7 @@
 'U'          H       R       O      -      X   -  'U wind component  (m s-1)'
 'V'          H       R       O      -      X   -  'V wind component  (m s-1)'
 'W'          -       -       -      I      -   -  'W wind component  (m s-1)'
+'W_TOT'      -       -       -      I      -   -  'Total W wind component  (m s-1)'
 'Z'          -       -       -      I      -   -  'Nonhydrostatic geopotential height (m)'
 'XLEN_MIX'   H       R       O      -      -   T  'Mixing length  (m)'
 'F_ICE'      H       R       O      -      -   T  'Fraction of condensate that is ice'

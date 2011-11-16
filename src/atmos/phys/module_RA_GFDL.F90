@@ -402,7 +402,7 @@
      &                ,TSK2D,GLW,RSWIN,GSW,RSWINC                       &
      &                ,RSWTOA,RLWTOA,CZMEAN                             & 
      &                ,GLAT,GLON,HTOP,HBOT,ALBEDO,CUPPT                 &
-     &                ,SNOW,G,GMT                                       &
+     &                ,SNOW,G,GMT,OPER                                  &
 !BSF => for NAMX changes, pass in surface emissivity (SFCEMS) [different for snow]
      &                ,NSTEPRA,NPHS,ITIMESTEP                           &
      &                ,XTIME,JULIAN                                     &
@@ -446,7 +446,7 @@
       REAL,INTENT(OUT),DIMENSION(ims:ime, jms:jme):: CZMEAN             &
      &                                           ,RSWIN,RSWINC        &
      &                                           ,CFRACL,CFRACM,CFRACH
-      LOGICAL, INTENT(IN) :: gfdl_lw,gfdl_sw
+      LOGICAL, INTENT(IN) :: gfdl_lw,gfdl_sw,OPER
       REAL, OPTIONAL, INTENT(IN), DIMENSION(ims:ime, jms:jme, kts:kte):: QI
 
       REAL, DIMENSION(ims:ime, jms:jme, kms:kme):: PFLIP,QIFLIP,QFLIP,  &
@@ -514,7 +514,7 @@
      &            PFLIP,P8W,XLAND,TSK2D,                                &
      &            GLAT,GLON,CUTOP,CUBOT,ALBEDO,CUPPT,                   &
      &            ACFRCV,NCFRCV,ACFRST,NCFRST,                          &
-     &            SNOW,GLW,GSW,RSWIN,RSWINC,                            &
+     &            SNOW,GLW,GSW,RSWIN,RSWINC,OPER,                       &
 !BSF => for NAMX changes, pass in surface emissivity (SFCEMS) [different for snow]
      &            IDAT,IHRST,XTIME,JULIAN,                              &
      &            NSTEPRA,NSTEPRA,NPHS,ITIMESTEP,                       &
@@ -597,7 +597,7 @@
      &                 PFLIP,P8W,XLAND,TSK2D,                           &
      &                 GLAT,GLON,CUTOP,CUBOT,ALB,CUPPT,                 &
      &                 ACFRCV,NCFRCV,ACFRST,NCFRST,                     &
-     &                 SNO,GLW,GSW,RSWIN,RSWINC,                        &
+     &                 SNO,GLW,GSW,RSWIN,RSWINC,OPER,                   &
 !BSF => for NAMX changes, pass in surface emissivity (SFCEMS) [different for snow]
      &                 IDAT,IHRST,XTIME,JULIAN,                         &
      &                 NRADS,NRADL,NPHS,NTSD,                           &
@@ -739,6 +739,7 @@
       LOGICAL :: BITX,BITY,BITZ,BITW,BIT1,BIT2,BITC,BITCP1,BITSP1
       LOGICAL, SAVE :: CNCLD=.TRUE.
       LOGICAL :: NEW_CLOUD
+      LOGICAL, INTENT(IN) :: OPER
 !-----------------------------------------------------------------------
       REAL, INTENT(IN), DIMENSION(ims:ime,jms:jme) :: XLAND,TSK2D
       REAL, INTENT(IN), DIMENSION(ims:ime, jms:jme, kms:kme):: P8W      &
@@ -778,13 +779,6 @@
 
       REAL,DIMENSION(10),SAVE :: CC,PPT
 !-----------------------------------------------------------------------
-!rv------------------------------------
-!rv   This should be temporary fix!!!!!
-!rv   New (currently operational) calculation of cloud fraction is
-!rv   causing different results with different decomposition
-!rv   We should find cause of this!!!!!
-      LOGICAL :: OPER=.false.
-!rv------------------------------------
       REAL,SAVE :: ABCFF(NB)
       INTEGER,DIMENSION(its:ite,jts:jte) :: LVL
       REAL,   DIMENSION(its:ite, jts:jte):: PDSL,FNE,FSE,TL
@@ -1055,6 +1049,11 @@
             LL=L+LVLIJ
             WV=QMID(I,LL)/(1.-QMID(I,LL))       !--- Water vapor mixing ratio
             QCLD=QWMID(I,LL)+QIMID(I,LL)        !--- Total cloud water + ice mixing ratio
+!rv------------------------------------
+!rv   This should be temporary fix!!!!!
+!rv   New (currently operational) calculation of cloud fraction is
+!rv   causing different results with different decomposition
+!rv   We should find cause of this!!!!!
 !rv------------------------------------
           if (oper) then
 !rv------------------------------------

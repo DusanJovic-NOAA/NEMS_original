@@ -71,13 +71,6 @@ logical(kind=klog),allocatable,dimension(:) :: &
  my_domain_has_fft_lats_h &
 ,my_domain_has_fft_lats_v
 !
-character(3) :: &
- ide_char &
-,jde_char
-!
-character(6) :: &
- fmt='(i3.3)'
-!
 !-----------------------------------------------------------------------
       contains
 !-----------------------------------------------------------------------
@@ -5714,8 +5707,7 @@ logical(kind=klog) :: opened
 !
       ihr=nint(ntsd*dt/3600.)
       ihrbc=ihr
-!     write(infile,'(a,i3.3)')'boco.01.',ihrbc
-      write(infile,'(a,i3.3,a,i2.2)')'boco.',ihrbc
+      write(infile,'(a,i4.4,a,i2.2)')'boco.',ihrbc
 !
       select_unit: do l=51,59
         inquire(l,opened=opened)
@@ -5950,8 +5942,6 @@ integer(kind=kint):: &
 ,n3 &                        ! dimension 3 of working arrays
 ,n4                          ! dimension 4 of working arrays
 
-character(64) :: infile
-logical(kind=klog) :: opened
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------

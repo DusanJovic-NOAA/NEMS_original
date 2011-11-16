@@ -2486,7 +2486,7 @@
        else
          LOG_PESET=MYPE==LEAD_WRITE_TASK
        endif
-       print *,'in write grid, dopost=',wrt_int_state%write_dopost,'LOG_PESET=',LOG_PESET
+!      print *,'in write grid, dopost=',wrt_int_state%write_dopost,'LOG_PESET=',LOG_PESET
 !
 !-----------------------------------------------------------------------
       hst_time_get: IF(LOG_PESET)THEN                                   !<-- The lead write task
@@ -2572,8 +2572,8 @@
 !***  Call post processors to compute post variables
 !----------------------------------------------------------------------
 !
-      write(0,*)'before init_do post,',wrt_int_state%write_dopost,     &
-       'NFHOURS=',wrt_int_state%NFHOURS
+!     write(0,*)'before init_do post,',wrt_int_state%write_dopost,     &
+!      'NFHOURS=',wrt_int_state%NFHOURS
 !-----------------------------------------------------------------------
       hst_dopost: IF(wrt_int_state%WRITE_DOPOST.and.                    &
                      wrt_int_state%WRITE_HST_NEMSIO.and.NF_HOURS>0 )THEN               !<-- do post
@@ -2747,8 +2747,8 @@
 !
             WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)wrt_int_state%OUTPUT_ARRAY_I2D  !<-- Lead write task writes out the 2D real data
 !
-            IF(HST_FIRST)THEN
-!!!           WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
+            IF(HST_FIRST .AND. (wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) )THEN
+              WRITE(0,*)'Wrote ',TRIM(NAME),' to history file unit ',wrt_int_state%IO_HST_UNIT
             ENDIF
           ENDIF
 !
@@ -2933,11 +2933,11 @@
 !
             WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)wrt_int_state%OUTPUT_ARRAY_R2D   !<-- Lead write task writes out the 2D real data
 !
-            IF(HST_FIRST)THEN
-!             WRITE(0,*)'Wrote ',TRIM(NAME)                                &
-!                      ,' to history file unit ',wrt_int_state%IO_HST_UNIT &
-!                      ,MAXVAL(wrt_int_state%OUTPUT_ARRAY_R2D)             &
-!                      ,MINVAL(wrt_int_state%OUTPUT_ARRAY_R2D)
+            IF(HST_FIRST .AND. (wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) )THEN
+              WRITE(0,*)'Wrote ',TRIM(NAME)                                &
+                       ,' to history file unit ',wrt_int_state%IO_HST_UNIT &
+                       ,MAXVAL(wrt_int_state%OUTPUT_ARRAY_R2D)             &
+                       ,MINVAL(wrt_int_state%OUTPUT_ARRAY_R2D)
             ENDIF
           ENDIF
 !
@@ -3025,7 +3025,7 @@
 !
           IF(wrt_int_state%WRITE_HST_BIN)THEN
             WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)FACT10                    !<-- Lead write task writes out the 2D real data
-            IF(HST_FIRST)THEN
+            IF(HST_FIRST .AND. (wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) )THEN
               WRITE(0,*)'Wrote FACT10 to history file unit ',wrt_int_state%IO_HST_UNIT &
                         ,maxval(fact10),minval(fact10)
             ENDIF
@@ -3119,19 +3119,11 @@
         INT_SEC=INT(NF_SECONDS)
         FRAC_SEC=NINT((NF_SECONDS-INT_SEC)*100.)
 !
-	IF (ID_DOMAIN > 1) THEN                                   
-          WRITE(FILENAME,'(A,I2.2,A,I3.3,A,I2.2,A,I2.2,A,I2.2,A)' )     &  
-                                           'fcstdone.',ID_DOMAIN,'.'    &  !<-- Insert the domain ID for nests
-                                           ,NF_HOURS,'h_'               & 
-                                           ,NF_MINUTES,'m_'             &
-                                           ,INT_SEC,'.',FRAC_SEC,'s'
-        ELSE
-          WRITE(FILENAME,'(A,I3.3,A,I2.2,A,I2.2,A,I2.2,A)')             &  !<-- Use plain flag name for uppermost domain
-                                           'fcstdone.'                  &
-                                           ,NF_HOURS,'h_'               &
-                                           ,NF_MINUTES,'m_'             &
-                                           ,INT_SEC,'.',FRAC_SEC,'s'
-        ENDIF
+        WRITE(FILENAME,'(A,I2.2,A,I4.4,A,I2.2,A,I2.2,A,I2.2,A)' )       &  
+                                         'fcstdone.',ID_DOMAIN,'.'      &  !<-- Insert the domain ID for nests
+                                         ,NF_HOURS,'h_'                 & 
+                                         ,NF_MINUTES,'m_'               &
+                                         ,INT_SEC,'.',FRAC_SEC,'s'
 !
         DO N=51,99
           INQUIRE(N,opened=OPENED)
@@ -3584,9 +3576,9 @@
 !
           WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)wrt_int_state%RST_OUTPUT_ARRAY_I2D   !<-- Lead write task writes out the 2D integer data
 !
-          IF(RST_FIRST)THEN
-!           WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT, &
-!            maxval(wrt_int_state%RST_OUTPUT_ARRAY_I2D),minval(wrt_int_state%RST_OUTPUT_ARRAY_I2D)
+          IF(RST_FIRST .AND. (wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) )THEN
+            WRITE(0,*)'Wrote ',TRIM(NAME),' to restart file unit ',wrt_int_state%IO_RST_UNIT, &
+             maxval(wrt_int_state%RST_OUTPUT_ARRAY_I2D),minval(wrt_int_state%RST_OUTPUT_ARRAY_I2D)
           ENDIF
          ENDIF
 !
@@ -3771,6 +3763,13 @@
 !
             WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)wrt_int_state%RST_OUTPUT_ARRAY_R2D   !<-- Lead write task writes out the 2D real data
 !
+            IF(RST_FIRST .AND. (wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) )THEN
+              WRITE(0,*)'Wrote ',TRIM(NAME)                                &
+                       ,' to restart file unit ',wrt_int_state%IO_RST_UNIT &
+                       ,MAXVAL(wrt_int_state%RST_OUTPUT_ARRAY_R2D)         &
+                       ,MINVAL(wrt_int_state%RST_OUTPUT_ARRAY_R2D)
+            ENDIF
+!
           ENDIF
 !
 !-----------------------------------------------------------------------
@@ -3853,6 +3852,10 @@
 !
           IF(wrt_int_state%WRITE_RST_BIN)THEN
             WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)FACT10                !<-- Lead write task writes out the 2D real data
+            IF(RST_FIRST .AND. (wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) )THEN
+              WRITE(0,*)'Wrote FACT10 to restart file unit ',wrt_int_state%IO_RST_UNIT &
+                        ,maxval(fact10),minval(fact10)
+            ENDIF
           ENDIF
 
           IF(wrt_int_state%WRITE_RST_NEMSIO)THEN
@@ -3926,19 +3929,11 @@
         INT_SEC=INT(NF_SECONDS)
         FRAC_SEC=NINT((NF_SECONDS-INT_SEC)*100.)
 !
-	IF (ID_DOMAIN > 1) THEN
-          WRITE(FILENAME,'(A,I2.2,A,I3.3,A,I2.2,A,I2.2,A,I2.2,A)' )     &
-                                           'restartdone.',ID_DOMAIN,'.' &  !<-- Insert domain ID for nests
-                                           ,NF_HOURS,'h_'               &  
-                                           ,NF_MINUTES,'m_'             &
-                                           ,INT_SEC,'.',FRAC_SEC,'s'
-        ELSE
-          WRITE(FILENAME,'(A,I3.3,A,I2.2,A,I2.2,A,I2.2,A)')             &  !<-- Use plain flag name for uppermost domain
-                                           'restartdone.'               &  
-                                           ,NF_HOURS,'h_'               &  
-                                           ,NF_MINUTES,'m_'             &
-                                           ,INT_SEC,'.',FRAC_SEC,'s'
-        ENDIF
+        WRITE(FILENAME,'(A,I2.2,A,I4.4,A,I2.2,A,I2.2,A,I2.2,A)' )       &
+                                         'restartdone.',ID_DOMAIN,'.'   &  !<-- Insert domain ID for nests
+                                         ,NF_HOURS,'h_'                 &  
+                                         ,NF_MINUTES,'m_'               &
+                                         ,INT_SEC,'.',FRAC_SEC,'s'
 !
         DO N=51,99
           INQUIRE(N,opened=OPENED)
@@ -3973,7 +3968,8 @@
       write_run_tim=write_run_tim+(timef()-btim0)
 !
       IF(MYPE==LEAD_WRITE_TASK)THEN
-        WRITE(0,*)' Write Time is ',write_run_tim*1.e-3 &
+        IF(wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL)   &
+        WRITE(0,*)' Write Time is ',write_run_tim*1.e-3               &
                  ,' at Fcst ',NF_HOURS,':',NF_MINUTES,':',NF_SECONDS
       ENDIF
 !

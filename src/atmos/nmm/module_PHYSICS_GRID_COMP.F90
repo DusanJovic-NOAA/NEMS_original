@@ -1188,7 +1188,7 @@
                          ,int_state%V,int_state%CW                       &
                          ,int_state%F_RAIN,int_state%F_ICE               &
                          ,int_state%F_RIMEF,int_state%Z                  &
-                         ,int_state%W,int_state%PINT                     &
+                         ,int_state%W_TOT,int_state%PINT                 &
                          ,int_state%PD                                   &
                          ,int_state%CPRATE,int_state%HTOP                &
                          ,int_state%T2,int_state%U10,int_state%V10       &
@@ -1222,7 +1222,7 @@
                             ,int_state%V,int_state%CW                    &
                             ,int_state%F_RAIN,int_state%F_ICE            &
                             ,int_state%F_RIMEF,int_state%Z               &
-                            ,int_state%W,int_state%PINT                  &
+                            ,int_state%W_TOT,int_state%PINT              &
                             ,int_state%PD                                &
                             ,int_state%CPRATE,int_state%HTOP             &
                             ,int_state%T2,int_state%U10,int_state%V10    &
@@ -1443,6 +1443,7 @@
                         ,int_state%CUPPT,int_state%SNO                  &
                         ,int_state%HTOP,int_state%HBOT                  &
                         ,int_state%SHORTWAVE,int_state%LONGWAVE         &
+                        ,int_state%OPER                                 &
 !---- RRTM part ---------------------------------------------------------
                         ,int_state%DT_INT,JDAT                          &
                         ,int_state%CW,int_state%O3                      &
@@ -3272,7 +3273,7 @@
         int_state%CNVBOT(I,J)  =0.0
         int_state%CNVTOP(I,J)  =0.0
         int_state%CMC(I,J)     =-1.E6
-        int_state%CPRATE(I,J)  =-1.E6
+        int_state%CPRATE(I,J)  =0.0
         int_state%CUPPT(I,J)   =-1.E6
         int_state%CZMEAN(I,J)  =-1.E6
         int_state%CZEN(I,J)    =-1.E6

@@ -87,6 +87,7 @@
      &                    ,CUPPT,SNOW                                   &
      &                    ,HTOP,HBOT                                    &
      &                    ,SHORTWAVE,LONGWAVE                           &
+     &                    ,OPER                                         &
 !
      &                    ,DT_INT,JDAT                                  &
      &                    ,CW,O3                                        &
@@ -178,7 +179,8 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: CLDFRA
 !
-      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
+      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG  &
+                           ,OPER
 !
       CHARACTER(99),INTENT(IN) :: LONGWAVE,SHORTWAVE
 !
@@ -511,7 +513,7 @@
                  ,ACFRCV=acfrcv,NCFRCV=ncfrcv                       &
                  ,RSWTOA=rswtoa,RLWTOA=rlwtoa,CZMEAN=czmean         &
                  ,THRATEN=thraten,THRATENLW=thratenlw               &
-                 ,THRATENSW=thratensw                               &
+                 ,THRATENSW=thratensw,OPER=oper                     &
                  ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=lm+1  &     
                  ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=lm+1  &
                  ,ITS=iqs,ITE=iqe, JTS=jqs,JTE=jqe, KTS=1,KTE=lm    &
@@ -567,7 +569,7 @@
                  ,ACFRCV=acfrcv,NCFRCV=ncfrcv                       &
                  ,RSWTOA=rswtoa,RLWTOA=rlwtoa,CZMEAN=czmean         &
                  ,THRATEN=thraten,THRATENLW=thratenlw               &
-                 ,THRATENSW=thratensw                               &
+                 ,THRATENSW=thratensw,OPER=oper                     &
                  ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=lm+1  &     
                  ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=lm+1  &
                  ,ITS=iqs,ITE=iqe, JTS=jqs,JTE=jqe, KTS=1,KTE=lm    &
