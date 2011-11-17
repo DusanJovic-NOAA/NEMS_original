@@ -2280,19 +2280,23 @@
           WPDAR(J)=int_state%WPDAR(J)
         ENDDO
 !
-        DO J=JMS,JME
-        DO I=IMS,IME
+        DO J=JTS,JTE
+        DO I=ITS,ITE
           int_state%HDACX(I,J)=IFACT*int_state%HDACX(I,J)
           int_state%HDACY(I,J)=IFACT*int_state%HDACY(I,J)
           int_state%HDACVX(I,J)=IFACT*int_state%HDACVX(I,J)
           int_state%HDACVY(I,J)=IFACT*int_state%HDACVY(I,J)
-!
-          F(I,J)=int_state%F(I,J)
-          FIS(I,J)=int_state%FIS(I,J)
           HDACX(I,J)=int_state%HDACX(I,J)
           HDACY(I,J)=int_state%HDACY(I,J)
           HDACVX(I,J)=int_state%HDACVX(I,J)
           HDACVY(I,J)=int_state%HDACVY(I,J)
+        ENDDO
+        ENDDO
+!
+        DO J=JMS,JME
+        DO I=IMS,IME
+          F(I,J)=int_state%F(I,J)
+          FIS(I,J)=int_state%FIS(I,J)
           SICE(I,J)=int_state%SICE(I,J)
           SM(I,J)=int_state%SM(I,J)
         ENDDO
@@ -2347,8 +2351,8 @@
             WPDAR(J)=int_state%WPDAR(J)
           ENDDO
 !
-          DO J=JMS,JME
-          DO I=IMS,IME
+          DO J=JTS,JTE
+          DO I=ITS,ITE
             int_state%HDACX(I,J)=IFACT*int_state%HDACX(I,J)
             int_state%HDACY(I,J)=IFACT*int_state%HDACY(I,J)
             int_state%HDACVX(I,J)=IFACT*int_state%HDACVX(I,J)

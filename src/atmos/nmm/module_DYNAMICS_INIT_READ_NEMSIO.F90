@@ -565,8 +565,8 @@ real(8) :: stime,etime,stime1
         call halo_exch(tp,lm,up,lm,vp,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
-          do j=jts,jte
-            do i=its,ite
+          do j=jms,jme
+            do i=ims,ime
               q2(i,j,l)=0.02
               o3(i,j,l)=0.
               if(i.ge.ide  /2+1- 6.and.i.le.ide  /2+1+ 6.and. &

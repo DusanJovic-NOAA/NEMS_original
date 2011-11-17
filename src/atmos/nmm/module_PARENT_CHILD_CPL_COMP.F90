@@ -13148,11 +13148,9 @@
                                              ,FIS_CHILD_BND             &
                                              ,PDB
 !
-#ifdef IBM
       INTEGER(kind=KINT) :: LOG_LENGTH
 !
       REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE :: TMP
-#endif
 !
       integer,dimension(8) :: values
 !
