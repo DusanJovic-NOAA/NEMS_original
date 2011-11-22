@@ -5,7 +5,7 @@
 !----------------------------------------------------------------------
 !
       USE ESMF_MOD
-      USE MODULE_NEMSIO_MPI
+      USE NEMSIO_MODULE_MPI
       USE MODULE_INCLUDE
       USE MODULE_PHYSICS_INTERNAL_STATE,ONLY: PHYSICS_INTERNAL_STATE
       USE MODULE_DM_PARALLEL,ONLY : IDS,IDE,JDS,JDE                     &
@@ -270,28 +270,28 @@
 !***  PINT (test add)
 !-----------------------------------------------------------------------
 
-      DO L=1,LM+1
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%PINT(I,J,L)=0.
-      ENDDO
-      ENDDO
-      ENDDO
+!      DO L=1,LM+1
+!      DO J=JMS,JME
+!      DO I=IMS,IME
+!        int_state%PINT(I,J,L)=0.
+!      ENDDO
+!      ENDDO
+!      ENDDO
 
-      DO K=1,LM
+!      DO K=1,LM
+!
+!          do j=jts,jte
+!            do i=its,ite
+!          if (K .eq. 1) then
+!            int_state%PINT(i,j,k)=pt
+!          endif
+!            int_state%PINT(i,j,k+1)=int_state%PINT(i,j,k)+dsg2(K)*int_state%PD(i,j)+pdsg1(K)
+!            enddo
+!          enddo
+!
+!      ENDDO
 
-          do j=jts,jte
-            do i=its,ite
-          if (K .eq. 1) then
-            int_state%PINT(i,j,k)=pt
-          endif
-            int_state%PINT(i,j,k+1)=int_state%PINT(i,j,k)+dsg2(K)*int_state%PD(i,j)+pdsg1(K)
-            enddo
-          enddo
-
-      ENDDO
-
-      CALL HALO_EXCH(int_state%PINT,LM+1,2,2)
+!      CALL HALO_EXCH(int_state%PINT,LM+1,2,2)
 
 !       if (MYPE .eq. 0) then
 !     DO L=1,LM+1

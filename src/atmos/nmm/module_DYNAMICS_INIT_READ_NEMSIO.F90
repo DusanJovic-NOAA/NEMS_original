@@ -13,7 +13,7 @@ use module_dm_parallel,only : ids,ide,jds,jde &
                              ,dstrb
 use module_exchange
 use module_constants
-use module_nemsio_mpi
+use nemsio_module_mpi
 use module_control,only : timef
 !
 !-----------------------------------------------------------------------

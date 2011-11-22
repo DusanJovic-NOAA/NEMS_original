@@ -3489,7 +3489,7 @@
       LOGICAL,DIMENSION(:),POINTER :: VARLVAL
 !
       CHARACTER(6)  :: MODEL_LEVEL
-      CHARACTER(16) :: VLEVTYP
+      CHARACTER(16) :: VLEVTYP,FILE_ENDIAN
 !
       CHARACTER(16),DIMENSION(:),POINTER :: ARYINAME                    &
                                            ,ARYRNAME                    &
@@ -3954,7 +3954,7 @@
 !-----------------------------------------------------------------------
 !
       IF(wrt_int_state%WRITE_NEMSIOCTL.AND.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
-        CALL NEMSIO_GETFILEHEAD(NEMSIOFILE,TLMETA=TLMETA)
+        CALL NEMSIO_GETFILEHEAD(NEMSIOFILE,TLMETA=TLMETA,FILE_ENDIAN=FILE_ENDIAN)
         DXCTL=MAXVAL(DX)*180./(A*PI)
         DYCTL=MAXVAL(DY)*180./(A*PI)
         CNT=INI1+(INI2/LM)+(INI3/(LM+1))+IND1+(IND2/LM)+(IND3/(LM+1))+(IND4/NSOIL)+1  !fact10 is calculated in write grid comp
@@ -3965,7 +3965,7 @@
 !
         CALL WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST,       &
           IYEAR_FCST,FILENAME,TLMETA,IM,JM,LM,NSOIL,TLM0D,TPH0D,DXCTL,  &
-          DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,CNT)
+          DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,CNT,FILE_ENDIAN)
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -4233,7 +4233,7 @@
       LOGICAL,DIMENSION(:),POINTER :: VARLVAL
 !
       CHARACTER(6)  :: MODEL_LEVEL
-      CHARACTER(16) :: VLEVTYP
+      CHARACTER(16) :: VLEVTYP,FILE_ENDIAN
 !
       CHARACTER(16),DIMENSION(:),POINTER :: ARYINAME                    &
                                            ,ARYRNAME                    &
@@ -4717,7 +4717,7 @@
 !-----------------------------------------------------------------------
 !
       IF(wrt_int_state%WRITE_NEMSIOCTL.AND.wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
-        CALL NEMSIO_GETFILEHEAD(NEMSIOFILE,TLMETA=TLMETA)
+        CALL NEMSIO_GETFILEHEAD(NEMSIOFILE,TLMETA=TLMETA,FILE_ENDIAN=FILE_ENDIAN)
         DXCTL=MAXVAL(DX)*180./(A*PI)
         DYCTL=MAXVAL(DY)*180./(A*PI)
         CNT=INI1+(INI2/LM)+(INI3/(LM+1))+IND1+(IND2/LM)+(IND3/(LM+1))+(IND4/NSOIL)+2  !fact10 is calculated in write grid comp
@@ -4730,7 +4730,7 @@
 !
         CALL WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST,       &
           IYEAR_FCST,FILENAME,TLMETA,IM,JM,LM,NSOIL,TLM0D,TPH0D,DXCTL,  &
-          DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,CNT)
+          DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,CNT,FILE_ENDIAN)
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -4752,7 +4752,7 @@
 !
       SUBROUTINE WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST, &
         IYEAR_FCST,FILENAME,TLMETA,DIM1,DIM2,LM,NSOIL,TLM0D,TPH0D,DXCTL,  &
-        DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,KOUNT_R2D)
+        DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,KOUNT_R2D,FILE_ENDIAN)
 !
 !-----------------------------------------------------------------------
 !***  Write out ctl file.
@@ -4773,6 +4773,7 @@
       CHARACTER(*) ,INTENT(IN) :: FILENAME
       CHARACTER(16),INTENT(IN) :: RECNAME(:)
       CHARACTER(16),INTENT(IN) :: RECLEVTYP(:)
+      CHARACTER(16),INTENT(IN) :: FILE_ENDIAN
 !
 !---------------------
 !***  Local Variables
@@ -4808,7 +4809,7 @@
 !
       WRITE(IO_UNIT,105)TRIM(FILENAME)
       WRITE(IO_UNIT,106)
-      WRITE(IO_UNIT,107)
+      WRITE(IO_UNIT,107)FILE_ENDIAN
       WRITE(IO_UNIT,108)TLMETA
       WRITE(IO_UNIT,109)
 !
@@ -4826,7 +4827,7 @@
 !
  105  FORMAT('dset ^',A)
  106  FORMAT('undef -9.E+20')
- 107  FORMAT('options big_endian sequential')
+ 107  FORMAT('options ',A16,' sequential')
  108  FORMAT('fileheader',I12.0)
  109  FORMAT('title EXP1')
 

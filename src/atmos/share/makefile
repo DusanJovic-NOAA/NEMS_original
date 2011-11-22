@@ -7,7 +7,6 @@ LIBRARY  = libshare.a
 MODULES  = module_ERR_MSG.o \
            module_INCLUDE.o \
            module_CONSTANTS.o \
-           module_NEMSIO_MPI.o \
 	   ffsync.o 
 
 MODULES_F90 = ${MODULES:.o=.F90}
