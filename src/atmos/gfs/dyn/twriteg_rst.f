@@ -8,6 +8,7 @@
 !*** Dec, 2009 Jun Wang:  write spectral variables for restart
 !*** Dec, 2010 Jun Wang:  change to nemsio library
 !*** Feb, 2011 Henry Juang: add option for mass_dp and  NDSL
+!*** Nov, 2011 Jun Wang:  remove nvcoord in restart file (not used)
 !-------------------------------------------------------------------
 !
       use gfs_dyn_resol_def
@@ -198,14 +199,14 @@
           vcoord4=0.
           idvt    = (ntoz-1) + 10 * (ntcw-1)
 
-          nmetavari=16
+          nmetavari=15
           allocate(variname(nmetavari),varival(nmetavari))
           variname(1:nmetavari)=(/"latb     ","lonb     ","itrun    ", 
      &   "iorder   ","irealf   ","igen     ","latf     ","lonf     ",
      &   "icen2    ","idpp     ","idvt     ","idrun    ","idusr    ",
-     &   "ivs      ","nvcoord  ","NTIMESTEP"/)
+     &   "ivs      ","NTIMESTEP"/)
           varival(1:nmetavari-1)=(/latb,lonb,itrun,2,2,igen,
-     &    latg,lonf,icen2,0,idvt,0,0,200509,nvcoord /)
+     &    latg,lonf,icen2,0,idvt,0,0,200509 /)
 
           nmetaaryi=2
           allocate(aryiname(nmetaaryi),aryilen(nmetaaryi))

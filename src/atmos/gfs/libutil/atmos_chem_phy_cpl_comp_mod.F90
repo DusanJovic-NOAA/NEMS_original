@@ -25,6 +25,7 @@
 !! 10Aug 2010     Sarah Lu,   Modify chem2phy run routine to accumulate g2d_fld
 !! 10Oct 2010     Sarah Lu,   Move GetPointer_diag_ to phy2chem coupler
 !! 2011-05-11     Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!! 2011-11-27     Sarah Lu,   Specify i, j dimension in mapping aerosol arrays
 !------------------------------------------------------------------------------
 
       use ESMF_MOD
@@ -429,36 +430,36 @@
 ! ---  data copy between phy export state and chem export state
 
         if ( run_DU ) then
-          p_du001(:,:,1:km) = c_du001(:,:,km:1:-1) 
-          p_du002(:,:,1:km) = c_du002(:,:,km:1:-1) 
-          p_du003(:,:,1:km) = c_du003(:,:,km:1:-1) 
-          p_du004(:,:,1:km) = c_du004(:,:,km:1:-1) 
-          p_du005(:,:,1:km) = c_du005(:,:,km:1:-1) 
+          p_du001(1:im,1:jm,1:km) = c_du001(1:im,1:jm,km:1:-1) 
+          p_du002(1:im,1:jm,1:km) = c_du002(1:im,1:jm,km:1:-1) 
+          p_du003(1:im,1:jm,1:km) = c_du003(1:im,1:jm,km:1:-1) 
+          p_du004(1:im,1:jm,1:km) = c_du004(1:im,1:jm,km:1:-1) 
+          p_du005(1:im,1:jm,1:km) = c_du005(1:im,1:jm,km:1:-1) 
         endif
 
         if ( run_SS ) then
-          p_ss001(:,:,1:km) = c_ss001(:,:,km:1:-1) 
-          p_ss002(:,:,1:km) = c_ss002(:,:,km:1:-1) 
-          p_ss003(:,:,1:km) = c_ss003(:,:,km:1:-1) 
-          p_ss004(:,:,1:km) = c_ss004(:,:,km:1:-1) 
-          p_ss005(:,:,1:km) = c_ss005(:,:,km:1:-1) 
+          p_ss001(1:im,1:jm,1:km) = c_ss001(1:im,1:jm,km:1:-1) 
+          p_ss002(1:im,1:jm,1:km) = c_ss002(1:im,1:jm,km:1:-1) 
+          p_ss003(1:im,1:jm,1:km) = c_ss003(1:im,1:jm,km:1:-1) 
+          p_ss004(1:im,1:jm,1:km) = c_ss004(1:im,1:jm,km:1:-1) 
+          p_ss005(1:im,1:jm,1:km) = c_ss005(1:im,1:jm,km:1:-1) 
         endif
 
         if ( run_BC ) then
-          p_bcphilic(:,:,1:km) = c_bcphilic(:,:,km:1:-1) 
-          p_bcphobic(:,:,1:km) = c_bcphobic(:,:,km:1:-1) 
+          p_bcphilic(1:im,1:jm,1:km) = c_bcphilic(1:im,1:jm,km:1:-1) 
+          p_bcphobic(1:im,1:jm,1:km) = c_bcphobic(1:im,1:jm,km:1:-1) 
         endif
 
         if ( run_OC ) then
-          p_ocphilic(:,:,1:km) = c_ocphilic(:,:,km:1:-1) 
-          p_ocphobic(:,:,1:km) = c_ocphobic(:,:,km:1:-1) 
+          p_ocphilic(1:im,1:jm,1:km) = c_ocphilic(1:im,1:jm,km:1:-1) 
+          p_ocphobic(1:im,1:jm,1:km) = c_ocphobic(1:im,1:jm,km:1:-1) 
         endif
 
         if ( run_SU ) then
-          p_msa(:,:,1:km) = c_msa(:,:,km:1:-1) 
-          p_so2(:,:,1:km) = c_so2(:,:,km:1:-1) 
-          p_so4(:,:,1:km) = c_so4(:,:,km:1:-1) 
-          p_dms(:,:,1:km) = c_dms(:,:,km:1:-1) 
+          p_msa(1:im,1:jm,1:km) = c_msa(1:im,1:jm,km:1:-1) 
+          p_so2(1:im,1:jm,1:km) = c_so2(1:im,1:jm,km:1:-1) 
+          p_so4(1:im,1:jm,1:km) = c_so4(1:im,1:jm,km:1:-1) 
+          p_dms(1:im,1:jm,1:km) = c_dms(1:im,1:jm,km:1:-1) 
         endif
 
        endif

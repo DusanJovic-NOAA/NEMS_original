@@ -13,11 +13,11 @@
 !   Oct 16 2010   Sarah Lu, add fscav
 !   Aug 08 2011   Jun Wang, remove gocart dependency when not running GOCART
 !   Sep 17 2011   Sarah Lu, revise chem tracer initialization
+!   Nov 11 2011   Sarah Lu, allocate but not assign value for cpi/ri array
 ! -------------------------------------------------------------------------
 !
       module gfs_phy_tracer_config
       use machine , only     : kind_phys
-      use tracer_const, only : cpi,ri
 
       implicit none
       SAVE
@@ -118,12 +118,7 @@ c
       if(ntoz>0) gfs_phy_tracer%vname(ntoz) = 'o3mr'   
       if(ntcw>0) gfs_phy_tracer%vname(ntcw) = 'clwmr'   
 
-      gfs_phy_tracer%cpi(0:gfs_phy_tracer%ntrac_met) =
-     &               cpi(0:gfs_phy_tracer%ntrac_met)
-      gfs_phy_tracer%ri(0:gfs_phy_tracer%ntrac_met) =
-     &               ri(0:gfs_phy_tracer%ntrac_met)
       gfs_phy_tracer%fscav(1:gfs_phy_tracer%ntrac_met)=0.
-! 
 
 !--- fill in chem tracers
       if ( gfs_phy_tracer%ntrac_chem > 0 ) then      
@@ -132,8 +127,6 @@ c
         rgname = trim(gfs_phy_tracer%chem_name(i))
         if(me==0)print *, 'LU_TRC_phy: vname=',j,rgname
         gfs_phy_tracer%vname(j)=rgname
-        gfs_phy_tracer%cpi(j) = 0.
-        gfs_phy_tracer%ri (j) = 0.
        enddo
       endif
 

@@ -54,6 +54,8 @@
 !!   Feb 2011     Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !!                            ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !! 12May 2011     Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!! 27Nov 2011     Sarah Lu,   Modified to pass kdt from phys_exp to chem_imp;
+!!                            specify i,j dimension in mapping aerosol array
 !------------------------------------------------------------------------------
 
       use ESMF_MOD
@@ -365,6 +367,8 @@
       logical, save                    :: first =  .true.
       real(ESMF_KIND_R8), pointer      :: Array(:,:,:)
       type(ESMF_Field)                 :: Field
+!
+      integer                          :: kdt
 
 !
       integer, parameter               :: nfld_2d  = 18          
@@ -593,6 +597,17 @@
 !* Get Fortran array from phy export state
 !---------------------------------------------
 
+!  --- transfer kdt
+      MESSAGE_CHECK="PHY2CHEM_RUN: Get kdt from phy export state"
+      CALL ESMF_AttributeGet(PHY_EXP_STATE, name = 'kdt',  &
+                             value = kdt , rc=RC)
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+      MESSAGE_CHECK="PHY2CHEM_RUN: Add kdt to chem import state"
+      CALL ESMF_AttributeSet(CHEM_IMP_STATE, name = 'kdt',  &
+                             value = kdt , rc=RC)
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
+
+
       t1_i=rtc()
       MESSAGE_CHECK="PHY2CHEM_RUN: Get ItemCount from phy export state"
       call ESMF_StateGet(PHY_EXP_STATE                    &
@@ -762,42 +777,42 @@
 
 
 ! --- fill in default values
-!      call FillDefault_
+      call FillDefault_
 
 !
 ! --- Aerosol tracer fields: flip from bottom-up to top-down
 !
        if ( run_DU ) then
-          p_du001(:,:,1:km) = p_du001(:,:,km:1:-1) 
-          p_du002(:,:,1:km) = p_du002(:,:,km:1:-1) 
-          p_du003(:,:,1:km) = p_du003(:,:,km:1:-1) 
-          p_du004(:,:,1:km) = p_du004(:,:,km:1:-1) 
-          p_du005(:,:,1:km) = p_du005(:,:,km:1:-1) 
+          p_du001(1:im,1:jm,1:km) = p_du001(1:im,1:jm,km:1:-1) 
+          p_du002(1:im,1:jm,1:km) = p_du002(1:im,1:jm,km:1:-1) 
+          p_du003(1:im,1:jm,1:km) = p_du003(1:im,1:jm,km:1:-1) 
+          p_du004(1:im,1:jm,1:km) = p_du004(1:im,1:jm,km:1:-1) 
+          p_du005(1:im,1:jm,1:km) = p_du005(1:im,1:jm,km:1:-1) 
        endif
 
        if ( run_SS ) then
-          p_ss001(:,:,1:km) = p_ss001(:,:,km:1:-1) 
-          p_ss002(:,:,1:km) = p_ss002(:,:,km:1:-1) 
-          p_ss003(:,:,1:km) = p_ss003(:,:,km:1:-1) 
-          p_ss004(:,:,1:km) = p_ss004(:,:,km:1:-1) 
-          p_ss005(:,:,1:km) = p_ss005(:,:,km:1:-1) 
+          p_ss001(1:im,1:jm,1:km) = p_ss001(1:im,1:jm,km:1:-1) 
+          p_ss002(1:im,1:jm,1:km) = p_ss002(1:im,1:jm,km:1:-1) 
+          p_ss003(1:im,1:jm,1:km) = p_ss003(1:im,1:jm,km:1:-1) 
+          p_ss004(1:im,1:jm,1:km) = p_ss004(1:im,1:jm,km:1:-1) 
+          p_ss005(1:im,1:jm,1:km) = p_ss005(1:im,1:jm,km:1:-1) 
        endif
 
        if ( run_OC ) then
-          p_ocphobic(:,:,1:km) = p_ocphobic(:,:,km:1:-1) 
-          p_ocphilic(:,:,1:km) = p_ocphilic(:,:,km:1:-1) 
+          p_ocphobic(1:im,1:jm,1:km) = p_ocphobic(1:im,1:jm,km:1:-1) 
+          p_ocphilic(1:im,1:jm,1:km) = p_ocphilic(1:im,1:jm,km:1:-1) 
        endif
 
        if ( run_BC ) then
-          p_bcphobic(:,:,1:km) = p_bcphobic(:,:,km:1:-1) 
-          p_bcphilic(:,:,1:km) = p_bcphilic(:,:,km:1:-1) 
+          p_bcphobic(1:im,1:jm,1:km) = p_bcphobic(1:im,1:jm,km:1:-1) 
+          p_bcphilic(1:im,1:jm,1:km) = p_bcphilic(1:im,1:jm,km:1:-1) 
        endif
 
        if ( run_SU ) then
-          p_msa (:,:,1:km) = p_msa (:,:,km:1:-1) 
-          p_so2 (:,:,1:km) = p_so2 (:,:,km:1:-1) 
-          p_so4 (:,:,1:km) = p_so4 (:,:,km:1:-1) 
-          p_dms (:,:,1:km) = p_dms (:,:,km:1:-1) 
+          p_msa (1:im,1:jm,1:km) = p_msa (1:im,1:jm,km:1:-1) 
+          p_so2 (1:im,1:jm,1:km) = p_so2 (1:im,1:jm,km:1:-1) 
+          p_so4 (1:im,1:jm,1:km) = p_so4 (1:im,1:jm,km:1:-1) 
+          p_dms (1:im,1:jm,1:km) = p_dms (1:im,1:jm,km:1:-1) 
        endif
 
 ! --- 2D array: data copy
@@ -805,40 +820,43 @@
         c_fraci  = 0.                  ! ice_covered_fraction_of_tile (1)
         c_lai    = 3.                  ! leaf_area_index (1)
 !
-        c_zpbl   = p_hpbl              ! boundary layer height (m)
-        c_grn    = p_vfrac             ! greeness_fraction (1)
-        c_sh     = p_dtsfci            ! sensible heat flux (W/m^2)
-        c_ta     = p_tsea              ! surface air Temperature (K)
-        c_tsoil1 = p_stc1              ! soil temperatures layer_1 (k)
-        c_u10m   = p_u10m              ! 10-meter eastward_wind (m s-1)
-        c_v10m   = p_v10m              ! 10-meter northward_wind (m s-1)
-        c_ustar  = p_ustar             ! surface velocity scale (m s-1)
-        c_lwi    = p_slmsk             ! land-ocean-ice mask  (1)
-        c_ps     = p_ps                ! surface pressure (Pa)
+        c_zpbl(1:im,1:jm)   = p_hpbl(1:im,1:jm)              ! boundary layer height (m)
+        c_grn(1:im,1:jm)    = p_vfrac(1:im,1:jm)             ! greeness_fraction (1)
+        c_sh(1:im,1:jm)     = p_dtsfci(1:im,1:jm)            ! sensible heat flux (W/m^2)
+        c_ta(1:im,1:jm)     = p_tsea(1:im,1:jm)              ! surface air Temperature (K)
+        c_tsoil1(1:im,1:jm) = p_stc1(1:im,1:jm)              ! soil temperatures layer_1 (k)
+        c_u10m(1:im,1:jm)   = p_u10m(1:im,1:jm)              ! 10-meter eastward_wind (m s-1)
+        c_v10m(1:im,1:jm)   = p_v10m(1:im,1:jm)              ! 10-meter northward_wind (m s-1)
+        c_ustar(1:im,1:jm)  = p_ustar(1:im,1:jm)             ! surface velocity scale (m s-1)
+        c_lwi(1:im,1:jm)    = p_slmsk(1:im,1:jm)             ! land-ocean-ice mask  (1)
+        c_ps(1:im,1:jm)     = p_ps(1:im,1:jm)                ! surface pressure (Pa)
+        c_wet1(1:im,1:jm)   = p_wet1(1:im,1:jm)              ! soil wetness (1)
 
-        c_wet1   = p_wet1              ! soil wetness (1)
 !
 ! --- 2D array: data copy with unit conversion
-        c_cn_prcp  = 1.E3*p_rainc /deltim            ! surface conv. rain flux (kg/m^2/s)
-        c_ncn_prcp = 1.E3*(p_rain - p_rainc)/deltim  ! Non-conv. precip rate (kg/m^2/s)
-        c_z0h      = p_zorl / 1.E2                   ! surface roughness (m)
+        c_cn_prcp(1:im,1:jm)  = 1.E3*p_rainc(1:im,1:jm) /deltim     ! surface conv. rain flux (kg/m^2/s)
+        c_z0h(1:im,1:jm)      = p_zorl(1:im,1:jm) / 1.E2            ! surface roughness (m)
+
 
 ! --- 3D array: filp vertical index from bottom-up to top-down
-        c_t (:,:,1:km)      = p_t (:,:,km:1:-1)       ! air temp at mid-layer (K)
-        c_u (:,:,1:km)      = p_u (:,:,km:1:-1)       ! zonal wind at mid-layer (m/s)
-        c_v (:,:,1:km)      = p_v (:,:,km:1:-1)       ! meridian wind at mid-layer (m/s)
-        c_o3(:,:,1:km)      = p_o3mr(:,:,km:1:-1)     ! ozone mixing ratio at mid-layer (kg/kg)
-        c_fcld(:,:,1:km)    = p_fcld(:,:,km:1:-1)     ! cloud cover  (1)
-        c_dqdt(:,:,1:km)    = p_dqdt(:,:,km:1:-1)     ! total moisture tendency (kg/kg/s)
+        c_t (1:im,1:jm,1:km)      = p_t (1:im,1:jm,km:1:-1)       ! air temp at mid-layer (K)
+        c_u (1:im,1:jm,1:km)      = p_u (1:im,1:jm,km:1:-1)       ! zonal wind at mid-layer (m/s)
+        c_v (1:im,1:jm,1:km)      = p_v (1:im,1:jm,km:1:-1)       ! meridian wind at mid-layer (m/s)
+        c_o3(1:im,1:jm,1:km)      = p_o3mr(1:im,1:jm,km:1:-1)     ! ozone mixing ratio at mid-layer (kg/kg)
+        c_fcld(1:im,1:jm,1:km)    = p_fcld(1:im,1:jm,km:1:-1)     ! cloud cover  (1)
+        c_dqdt(1:im,1:jm,1:km)    = p_dqdt(1:im,1:jm,km:1:-1)     ! total moisture tendency (kg/kg/s)
+
 ! 
 ! --- Compute ple, zle, airdens, rh2, tropp, wet1
         do j = 1, jm
         do i = 1, im
+!
+          c_ncn_prcp(i,j) = 1.E3*(p_rain(i,j)-p_rainc(i,j))/deltim ! Non-conv. precip rate (kg/m^2/s)
 
 !         local array
-          sh(:) = max( p_spfh(i,j,:), qmin )
+          sh(1:km) = max( p_spfh(i,j,1:km), qmin )
 
-!         compute air pressure at interface
+!         compute air pressure at interface (bottom-up)
           pi(0)=p_ps(i,j)
           do k=1,km-1
             pi(k) = pi(k-1) - p_dp(i,j,k)

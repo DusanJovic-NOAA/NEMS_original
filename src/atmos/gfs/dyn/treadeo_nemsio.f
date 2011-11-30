@@ -21,6 +21,8 @@
 !                 warm-start (from replay) ICs
 !  Jun    2011    Jun Wang   reading fields from grib file with either w3_d 
 !                 or w3_4 lib
+!  Nov 11 2011    Sarah Lu, change floor value for tracer initial values;
+!                 remove nvcoord read-in and check              
 !  
  
       use gfs_dyn_resol_def
@@ -146,7 +148,6 @@
       call nemsio_getheadvar(gfile_in,'itrun',itrun,iret=iret)
       call nemsio_getheadvar(gfile_in,'idusr',idusr,iret=iret)
       call nemsio_getheadvar(gfile_in,'pdryini',pdryini,iret=iret)
-      call nemsio_getheadvar(gfile_in,'nvcoord',nvcoord,iret=iret)
 
 !      call gfsio_getfilehead(gfile_in,iret=iret,
 !     &  version=ivsupa,fhour=fhour4,idate=idate,
@@ -157,7 +158,7 @@
 !     &  idusr=idusr,pdryini=pdryini4,ncldt=ncldt,nvcoord=nvcoord)
 !
       if (me == 0) then
-        print *,'iret=',iret,' nvcoord=',nvcoord,
+        print *,'iret=',iret,
      &     ' levsi=',levsi,' idate=',idate,
      &   'lonf=',lonf,'lonfi=',lonfi,'latg=',latg,'latgi=',latgi,
      &   'jcap=',jcap,'jcapi=',jcapi,'levs=',levs,'levsi=',levsi,
@@ -422,7 +423,7 @@
 !  Initial Tracers with zero
 !
 !*    rqg(:,:,:) = 0.0
-      rqg(:,:,:) = 1.e-15
+      rqg(:,:,:) = 1.e-20
 
 !! Generalized tracers: 
 !! Loop through ntrac to read in met + chem tracers

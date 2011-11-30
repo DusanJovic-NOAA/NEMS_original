@@ -7,8 +7,9 @@
 !---------------------------------------------------------------------------
 ! !REVISION HISTORY:
 !
-!  2009/12/08      Sarah Lu,  Initial code.
+!  2009/12/08      Sarah Lu, Initial code.
 !  2009/12/14      Sarah Lu, dqdt type changed from kind_rad to kind_phys;
+!  2011/12/14      Sarah Lu, initialize fcld and dqdt
 !
 ! !INTERFACE:
 !
@@ -43,6 +44,10 @@ allocate(                                    &
            g3d_fld%dqdt    (dim1,dim2,dim3), &
                                stat = iret)
     if(iret.ne.0) iret=-3
+
+    g3d_fld%fcld(1:dim1, 1:dim2, 1:dim3) = 0.
+    g3d_fld%dqdt(1:dim1, 1:dim2, 1:dim3) = 0.
+
 
     return
   end subroutine

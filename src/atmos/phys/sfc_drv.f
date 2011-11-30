@@ -28,6 +28,7 @@
 !                     effect on lw radiation. replaced the comfussing   !
 !                     slrad (net sw + dlw) with sfc net sw snet=dsw-usw !
 !    sep  2009  -- s. moorthi modification to remove rcl and unit change!
+!    nov  2011  -- sarah lu    corrected wet1 calculation               !
 !                                                                       !
 !  ====================  defination of variables  ====================  !
 !                                                                       !
@@ -198,6 +199,9 @@
         flag(i) = (slimsk(i) == 1.0)
       enddo
 
+!
+      wet1(1:im) = 0.
+
 !  --- ...  save land-related prognostic fields for guess run
 
       do i = 1, im
@@ -278,8 +282,6 @@
 !    zlvl    - height (m) above ground of atmospheric forcing variables
 !    nsoil   - number of soil layers (at least 2)
 !    sldpth  - the thickness of each soil layer (m)
-
-        WET1(I) = SMSOIL(1) / SMCMAX !Sarah Lu added 09/09/2010 (for GOCART)
 
           couple = 1                      ! run noah lsm in 'couple' mode
 
@@ -439,6 +441,8 @@
             smc(i,k) = smsoil(k)
             slc(i,k) = slsoil(k)
           enddo
+
+          WET1(I) = SMSOIL(1) / SMCMAX !Sarah Lu added 09/09/2010 (for GOCART)
 
 !  --- ...  unit conversion (from m s-1 to mm s-1)
           runoff(i)  = runoff1 * 1000.0

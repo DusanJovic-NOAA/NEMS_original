@@ -31,6 +31,7 @@
 !  Dec 23 2010      Sarah Lu, modify fscav initialization 
 !  Mar 30 2011      Weiyu Yang, modified code to avoid ESMF log error.
 !  May 05 2011      Weiyu Yang, modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!  Nov 27 2011      Sarah Lu, add kdt to physics export state
 !                           
 !
 ! !interface:
@@ -721,6 +722,13 @@
                int_state%gfs_phy_tracer%fscav = 0.0
            END IF
        endif
+
+!
+      CALL ESMF_AttributeSet(state=exp_gfs_phy        &  !<-- The physics export state
+                            ,name ='kdt'              &  !<-- Name of the attribute to insert
+                            ,value= int_state%kdt     & !<-- Value of the attribute
+                            ,rc   =RC)
+
 
 !
 !

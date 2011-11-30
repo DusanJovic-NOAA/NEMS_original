@@ -9,6 +9,8 @@
 !*** Dec, 2010 Jun Wang:  change to nemsio library 
 !*** Feb, 2011 Henry Juang: add dpg for mass_dp and ndsl
 !*** Feb, 2011 Sarah Lu: change for new nemsio file header
+!*** Nov, 2011 Jun Wang: remove nvccord from restart file
+!*** Nov, 2011 Sarah Lu: change floor value for tracer initial values
 !-------------------------------------------------------------------
 !
 !!
@@ -97,11 +99,10 @@
       call nemsio_getheadvar(gfile_in,'idpp',idpp,iret=iret)
       call nemsio_getheadvar(gfile_in,'idrun',idrun,iret=iret)
       call nemsio_getheadvar(gfile_in,'itrun',itrun,iret=iret)
-      call nemsio_getheadvar(gfile_in,'nvcoord',nvcoord,iret=iret)
       call nemsio_getheadvar(gfile_in,'pdryini',pdryini,iret=iret)
 !
       if (me == 0) then
-        print *,'iret=',iret,' nvcoord=',nvcoord,
+        print *,'iret=',iret,
      &     ' levsi=',levsi,'idate7=',idate7,
      &   'lonf=',lonf,'lonfi=',lonfi,'latg=',latg,'latgi=',latgi,
      &   'jcap=',jcap,'jcapi=',jcapi,'levs=',levs,'levsi=',levsi,
@@ -136,11 +137,11 @@
       endif
 !
       allocate (vcoord4(levsi+1,3,2))
-      if(.not.allocated(vcoord)) allocate (vcoord(levsi+1,nvcoord))
+      if(.not.allocated(vcoord)) allocate (vcoord(levsi+1,3))
       call nemsio_getfilehead(gfile_in,iret=iret,vcoord=vcoord4)
 !
-      vcoord(:,1:nvcoord) = vcoord4(:,1:nvcoord,1)
-!      if (me .eq. 0) print *,' vcoord=',vcoord(1:10,1:nvcoord)
+      vcoord(:,1:3) = vcoord4(:,1:3,1)
+!      if (me .eq. 0) print *,' vcoord1=',vcoord(1:,1:3)
       deallocate (vcoord4)
 !
 !---  for generalized tracers
@@ -313,7 +314,8 @@
 !
 !  Initial Tracers with zero
 !
-      rqg(:,:,:) = 0.0
+!     rqg(:,:,:) = 0.0
+      rqg(:,:,:) = 1.0E-20
 
 !! Generalized tracers: 
 !! Loop through ntrac to read in met + chem tracers

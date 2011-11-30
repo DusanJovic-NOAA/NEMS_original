@@ -6,42 +6,35 @@
       implicit none
       SAVE
 !
-!     integer, parameter :: nrcmax=12 ! Maximum # of random clouds per 1200s
-!     integer, parameter :: nrcmax=15 ! Maximum # of random clouds per 1200s
-!!!   integer, parameter :: nrcmax=20 ! Maximum # of random clouds per 1200s
-!     integer, parameter :: nrcmax=30 ! Maximum # of random clouds per 1200s
-!     integer, parameter :: nrcmax=40 ! Maximum # of random clouds per 1200s
-!     integer, parameter :: nrcmax=20 ! Maximum # of random clouds per 600s
-!     integer, parameter :: nrcmax=25 ! Maximum # of random clouds per 600s
-!     integer, parameter :: nrcmax=24 ! Maximum # of random clouds per 360s
-!
-      integer, parameter :: nrcmax=30 ! Maximum # of random clouds per 1200s
+      integer, parameter :: nrcmax=32 ! Maximum # of random clouds per 1200s
 
       real (kind=kind_phys), parameter :: delt_c=1800.0/3600.0          &
-     &,     adjts_d=2.0, adjts_s=0.5   ! Adjustment time scales in hrs
+!     Adjustment time scales in hrs for deep and shallow clouds
+!    &,                                   adjts_d=3.0, adjts_s=0.5
+!    &,                                   adjts_d=2.5, adjts_s=0.5
+     &,                                   adjts_d=2.0, adjts_s=0.5
 !
       logical,               parameter :: fix_ncld_hr=.true.
 !
-      real(kind=kind_phys) ZERO, HALF, ONE, TWO
-      real(kind=kind_phys) FOUR_P2,FOUR
-      real(kind=kind_phys) ONE_M1,ONE_M2,ONE_M5,ONE_M6,ONE_M10
-      PARAMETER (ZERO=0.0, HALF=0.5,  ONE=1.0, TWO=2.0)
-      PARAMETER (FOUR_P2=4.E2,FOUR=4.,ONE_M10=1.E-10,ONE_M6=1.E-6       &
-     &,          ONE_M5=1.E-5,ONE_M2=1.E-2,ONE_M1=1.E-1)
+      real(kind=kind_phys), parameter  :: ZERO=0.0, HALF=0.5,  ONE=1.0, &
+     &                                    TWO=2.0,  FOUR_P2=4.E2,       &
+     &                                    FOUR=4.,  ONE_M10=1.E-10,     &
+     &                                    ONE_M6=1.E-6, ONE_M5=1.E-5,   &
+     &                                    ONE_M2=1.E-2, ONE_M1=1.E-1
 !
-      real(kind=kind_phys), parameter :: cmb2pa = 100.0  ! Conversion from MB to PA
-      real(kind=kind_phys) onebg, gravcon, gravfac, elocp, elfocp,      &
-     &                     rkapi, rkpp1i,  zfac,    cmpor
+      real(kind=kind_phys), parameter  :: cmb2pa = 100.0  ! Conversion from Mb to Pa
 !
-      parameter (ONEBG   = ONE / GRAV,    GRAVCON = cmb2pa * ONEBG      &
+      real(kind=kind_phys), parameter  ::                               &
+     &           ONEBG   = ONE / GRAV,    GRAVCON = cmb2pa * ONEBG      &
      &,          GRAVFAC = GRAV / CMB2PA, ELOCP   = ALHL / CP           &
      &,          ELFOCP  = (ALHL+ALHF) / CP                             &
      &,          RKAPI   = ONE / RKAP,    RKPP1I  = ONE / (ONE+RKAP)    &
      &,          CMPOR   = CMB2PA / RGAS                                &
-     &,          zfac    = 0.28888889E-4 * ONEBG)
+     &,          zfac    = 0.28888889E-4 * ONEBG
 !
 !     logical, parameter :: advcld=.true., advups=.true., advtvd=.false.
       logical, parameter :: advcld=.true., advups=.false., advtvd=.true.
+!     logical, parameter :: advcld=.true., advups=.false.,advtvd=.false.
 !
       real(kind=kind_phys)  RHMAX,  qudfac, QUAD_LAM, RHRAM, TESTMB,    &
      &                      TSTMBI, HCRITD, DD_DP,    RKNOB,  AFC, EKNOB&
@@ -49,18 +42,14 @@
 
 !     PARAMETER (DD_DP=1000.0, RKNOB=1.0, EKNOB=1.0)   ! No downdraft!
       PARAMETER (DD_DP=500.0,  RKNOB=1.0, EKNOB=1.0)
-!     PARAMETER (DD_DP=500.0,  RKNOB=1.5, EKNOB=1.0)
+!     PARAMETER (DD_DP=500.0,  RKNOB=2.0, EKNOB=1.0)
 !
-      PARAMETER (RHMAX=1.0   )  !  MAX RELATIVE HUMIDITY
-      PARAMETER (QUAD_LAM=1.0)  !  MASK FOR QUADRATIC LAMBDA
-!     PARAMETER (RHRAM=0.15)    !  PBL RELATIVE HUMIDITY RAMP
-      PARAMETER (RHRAM=0.05)    !  PBL RELATIVE HUMIDITY RAMP
-!     PARAMETER (HCRIT=8000.0)  !  Critical Moist Static Energy
-!     PARAMETER (HCRIT=5000.0)  !  Critical Moist Static Energy
-      PARAMETER (HCRITD=4000.0) !  Critical Moist Static Energy
-      PARAMETER (HCRITS=2000.0) !  Critical Moist Static Energy
-!     PARAMETER (HCRIT=3000.0)  !  Critical Moist Static Energy
-!     PARAMETER (HCRIT=2000.0)  !  Critical Moist Static Energy
+      PARAMETER (RHMAX=1.0   )   ! MAX RELATIVE HUMIDITY
+      PARAMETER (QUAD_LAM=1.0)   ! MASK FOR QUADRATIC LAMBDA
+!     PARAMETER (RHRAM=0.15)     ! PBL RELATIVE HUMIDITY RAMP
+      PARAMETER (RHRAM=0.05)     ! PBL RELATIVE HUMIDITY RAMP
+      PARAMETER (HCRITD=4000.0)  ! Critical Moist Static Energy
+      PARAMETER (HCRITS=2000.0)  ! Critical Moist Static Energy
 
 !     parameter (hpert_fac=1.01) ! Perturbation on hbl when ctei=.true.
 !     parameter (hpert_fac=1.005)! Perturbation on hbl when ctei=.true.
@@ -199,7 +188,8 @@
      &,                                  rhfacs=0.70, rhfacl=0.70       &
      &,                                  face=5.0,    delx=10000.0      &
      &,                                  ddfac=face*delx*0.001          &
-     &,                                  max_neg_bouy=0.25
+     &,                                  max_neg_bouy=0.15
+!    &,                                  max_neg_bouy=0.25
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!    real(kind=kind_phys) FRAC, CRTMSF, MAX_NEG_BOUY, rhfacs, rhfacl   &
@@ -408,6 +398,7 @@
           IF (SGC .LE. 0.600) kblmx = L    ! 
 !         IF (SGC .LE. 0.650) kblmx = L    ! Commented on 20060202
         ENDDO
+        krmin = max(krmin,2)
 
 !     if (lprnt .and. ipt .eq. ipr) print *,' krmin=',krmin,' krmax=',
 !    &krmax,' kfmax=',kfmax,' lmhij=',lmhij,' tem=',tem
@@ -424,7 +415,7 @@
           NCRND = min(nrcmax, (KRMAX-KRMIN+1))
           facdt = 1.0 / 3600.0
         endif
-        NCRND   = max(NCRND, 1)
+        NCRND   = min(nrcm,max(NCRND, 1))
 !
         KCR     = MIN(LMHIJ,KRMAX)
         KTEM    = MIN(LMHIJ,KFMAX)
@@ -486,10 +477,13 @@
 !                          Transfer input prognostic data into local variable
           toi(l)     = tin(ipt,ll)
           qoi(l)     = qin(ipt,ll)
-          uvi(l,trac+1) = uin(ipt,ll)
-          uvi(l,trac+2) = vin(ipt,ll)
 !
-          if (trac > 0) then
+          if (ntrc > trac) then               ! CUMFRC is true 
+            uvi(l,trac+1) = uin(ipt,ll)
+            uvi(l,trac+2) = vin(ipt,ll)
+          endif
+!
+          if (trac > 0) then                  ! tracers such as O3, dust etc
             do n=1,trac
               uvi(l,n) = ccin(ipt,ll,n+2)
               if (abs(uvi(l,n)) < 1.0e-20) uvi(l,n) = 0.0
@@ -500,7 +494,7 @@
         flx(k+1)  = 0.0
         flxd(k+1) = 0.0
 !
-        if (ccin(ipt,1,2) .le. -999.0) then
+        if (ccin(ipt,1,2) .le. -999.0) then  ! input ice/water are together 
           do l=1,k
             ll = l
             if (flipv) ll = kp1 -l ! Input variables are bottom to top!
@@ -672,7 +666,7 @@
         DO NC=1,NCMX
 !
           IB = IC(NC)
-          if (ib .gt. kbl) cycle
+          if (ib > kbl) cycle
 
 !         lprint = lprnt .and. ipt .eq. ipr
 !         lprint = lprnt .and. ipt .eq. ipr .and. ib .eq. 41
@@ -866,7 +860,11 @@
         kcnv(ipt) = 0
 
         do l=lmhij-1,1,-1
-          if (sgcs(l,ipt) < 0.85 .and. tcu(l) .ne. 0.0) then
+          if (sgcs(l,ipt) < 0.93 .and. tcu(l) .ne. 0.0) then
+!         if (sgcs(l,ipt) < 0.90 .and. tcu(l) .ne. 0.0) then
+!         if (sgcs(l,ipt) < 0.85 .and. tcu(l) .ne. 0.0) then
+!         if (sgcs(l,ipt) < 0.70 .and. tcu(l) .ne. 0.0) then
+!         if (sgcs(l,ipt) < 0.60 .and. tcu(l) .ne. 0.0) then
 !         if (tcu(l) .ne. 0.0) then
              kcnv(ipt) = 1
           endif
@@ -949,7 +947,7 @@
 !
 !===>  TOI(K)     INOUT   TEMPERATURE             KELVIN
 !===>  QOI(K)     INOUT   SPECIFIC HUMIDITY       NON-DIMENSIONAL
-!===>  ROI(K,M)   INOUT   TRACER                  ARBITRARY
+!===>  ROI(K,NTRC)INOUT   TRACER                  ARBITRARY
 !===>  QLI(K)     INOUT   LIQUID WATER            NON-DIMENSIONAL
 !===>  QII(K)     INOUT   ICE                     NON-DIMENSIONAL
 
@@ -970,7 +968,7 @@
 !
 !===>  TCU(K  )   UPDATE  TEMPERATURE TENDENCY       DEG
 !===>  QCU(K  )   UPDATE  WATER VAPOR TENDENCY       (G/G)
-!===>  RCU(K,M)   UPDATE  TRACER TENDENCIES          ND
+!===>  RCU(K,NTRC)UPDATE  TRACER TENDENCIES          ND
 !===>  PCU(K-1)   UPDATE  PRECIP @ BASE OF LAYER     KG/M^2
 !===>  FLX(K  )   UPDATE  MASS FLUX @ TOP OF LAYER   KG/M^2
 !===>  CUP        UPDATE  PRECIPITATION AT THE SURFACE KG/M^2
@@ -1314,7 +1312,8 @@
 
          ii  = max(kbl,kd1)
          kbl = max(klcl,kd1)
-         if (prl(kmaxp1) - prl(ii) > 50.0 .and. ii > kbl) kbl = ii
+         tem = min(50.0,max(10.0,(prl(kmaxp1)-prl(kd))*0.10))
+         if (prl(kmaxp1) - prl(ii) > tem .and. ii > kbl) kbl = ii
 
 !        if(lprnt) print *,' kbl2=',kbl,' ii=',ii
 
@@ -1763,7 +1762,8 @@
         rel_fac = (dt * facdt) / (tem1*adjts_d + (1-tem1)*adjts_s)
       endif
 !
-      rel_fac = max(zero, min(one,rel_fac))
+!     rel_fac = max(zero, min(one,rel_fac))
+      rel_fac = max(zero, min(half,rel_fac))
       
       IF (CRTFUN) THEN
         CALL CRTWRK(TEM, CCWF, ST1)
@@ -2484,11 +2484,14 @@
 !      tem1 = max(1.0, min(100.0,(7.5E10/max(garea,one))))
 !      tem1 = max(1.0, min(100.0,(5.0E10/max(garea,one))))
 !      tem1 = max(1.0, min(100.0,(4.0E10/max(garea,one))))
-       tem1 = sqrt(max(1.0, min(100.0,(4.0E10/max(garea,one))))) ! 20100902
+!!     tem1 = sqrt(max(1.0, min(100.0,(4.0E10/max(garea,one))))) ! 20100902
+       tem1 = sqrt(max(1.0, min(100.0,(6.25E10/max(garea,one))))) ! 20110530
 
 !      if (lprnt) print *,' clfr0=',clf(tem),' tem=',tem,' tem1=',tem1
 
-       clfrac = max(ZERO, min(ONE, rknob*clf(tem)*tem1))
+!      clfrac = max(ZERO, min(ONE, rknob*clf(tem)*tem1))
+!      clfrac = max(ZERO, min(0.25, rknob*clf(tem)*tem1))
+       clfrac = max(ZERO, min(half, rknob*clf(tem)*tem1))
 
 !      if (lprnt) then
 !        print *,' cldfrd=',cldfrd,' amb=',amb,' clfrac=',clfrac
@@ -2655,7 +2658,7 @@
             ROI(L,N) = HOL(L)   + ST1
             RCU(L,N) = RCU(L,N) + ST1
           ENDDO
-        ENDDO                             ! Tracer loop M
+        ENDDO                             ! Tracer loop NTRC
       endif
 
 !     if (lprnt) print *,' toio=',toi

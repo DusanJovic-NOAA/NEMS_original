@@ -24,6 +24,7 @@
 !  Aug 25  2010       Jun Wang, add zhour_dfi for filtered dfi fields output
 !  Oct 18  2010       s. moorthi added fscav to do tstep
 !  Dec 23  2010       Sarah Lu, setup fscav from gfs_phy_tracer 
+!  Nov 27  2011       Sarah Lu, zerout fcld, dqdt, and wet1
 !
 ! !interface:
 !
@@ -45,7 +46,7 @@
       integer, optional,                          intent(out)   :: rc
 
       real , save	:: timestep=0.0
-      integer		rc1, k , i1, i2
+      integer		rc1, k , i1, i2, i3
 
 !***********************************************************************
 !
@@ -119,7 +120,16 @@
 	      print *, 'LU_TRC:',i1,i2,                        &
                   gis_phy%gfs_phy_tracer%fscav(i1:i2)
            endif
+!
+
+           i1 = gis_phy%lonr
+           i2 = gis_phy%lats_node_r_max
+           i3 = gis_phy%levs
+           gis_phy%flx_fld%wet1(1:i1,1:i2) = 0.
+           gis_phy%g3d_fld%fcld(1:i1,1:i2,1:i3) = 0.
+           gis_phy%g3d_fld%dqdt(1:i1,1:i2,1:i3) = 0.
         endif
+
  
 !
 ! ======================================================================

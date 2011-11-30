@@ -13,6 +13,7 @@
 !  Apr 2009        Y.-T. Hou         add surface lw emissivity (sfcemis)
 !  Nov 2009        Sarah Lu, add rain and rainc
 !  Sep 2010        Sarah Lu, add wet1
+!  Nov 2011        Sarah Lu, init wet1
 !
 ! !INTERFACE:
 !
@@ -210,6 +211,8 @@ allocate(                                  &
     flx_fld%gv10m   = 0.
     flx_fld%gzorl   = 0.
     flx_fld%goro    = 0.
+!for gocart
+    flx_fld%wet1    = 0.
 
      return
   end subroutine
