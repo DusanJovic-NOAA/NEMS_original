@@ -1029,7 +1029,7 @@
                                                    ,UPHLMAX,T10,AKHSAVG     &
                                                    ,AKMSAVG,SNOAVG 
 
-      REAL, INTENT(IN) :: DYH, DXH(JMS:JME)
+      REAL, INTENT(IN) :: DYH, DXH(1:JDE)
       LOGICAL,INTENT(INOUT) :: FIRST_NMM
       REAL, INTENT(IN) :: SGML2(LM),PSGML1(LM), DT
  
@@ -1226,9 +1226,9 @@
       ENDDO
       ENDDO
 
-      CALL CALC_UPHLCY(U,V,W,Z,ZINTSFC,UPHLMAX,DXH,DYH            &
-                            ,IMS,IME,JMS,JME                          &
-                            ,ITS,ITE,JTS,JTE,IDE,JDE,LM)
+      CALL CALC_UPHLCY(U,V,W,Z,ZINTSFC,UPHLMAX,DXH,DYH          &
+                      ,IMS,IME,JMS,JME                          &
+                      ,ITS,ITE,JTS,JTE,IDE,JDE,LM)
 
       NCOUNT=NCOUNT+1
       DO J=JTS,JTE
@@ -1268,7 +1268,7 @@
       REAL,INTENT(IN) :: Z(IMS:IME,JMS:JME,LM)
       REAL,INTENT(IN) :: ZINTSFC(IMS:IME,JMS:JME)
       REAL,INTENT(INOUT) :: UPHLMAX(IMS:IME,JMS:JME)
-      REAL,INTENT(IN) :: DX(JMS:JME),DY
+      REAL,INTENT(IN) :: DX(1:JDE),DY
 
 ! local variables
 
@@ -1604,7 +1604,7 @@
                                                    ,UPHLMAX,T10,AKHSAVG     &
                                                    ,AKMSAVG,SNOAVG 
 
-      REAL, INTENT(IN) :: DYH, DXH(JMS:JME)
+      REAL, INTENT(IN) :: DYH, DXH(1:JDE)
       LOGICAL,INTENT(INOUT) :: FIRST_NMM
       REAL, INTENT(IN) :: SGML2(LM),PSGML1(LM), DT
  
@@ -1801,9 +1801,9 @@
       ENDDO
       ENDDO
 
-      CALL CALC_UPHLCY_HR(U,V,W,Z,ZINTSFC,UPHLMAX,DXH,DYH          & 
-                         ,IMS,IME,JMS,JME                          &
-                         ,ITS,ITE,JTS,JTE,IDE,JDE,LM)
+      CALL CALC_UPHLCY(U,V,W,Z,ZINTSFC,UPHLMAX,DXH,DYH          & 
+                      ,IMS,IME,JMS,JME                          &
+                      ,ITS,ITE,JTS,JTE,IDE,JDE,LM)
 
       NCOUNT=NCOUNT+1
       DO J=JTS,JTE
@@ -1829,66 +1829,6 @@
       ENDDO
 
       END SUBROUTINE MAX_FIELDS_HR
-!
-!----------------------------------------------------------------------
-      SUBROUTINE CALC_UPHLCY_HR(U,V,W,Z,ZINTSFC,UPHLMAX,DX,DY         &
-                               ,IMS,IME,JMS,JME                       &
-                               ,ITS,ITE,JTS,JTE,IDE,JDE,LM)
-
-      INTEGER, INTENT(IN) :: IMS,IME,JMS,JME,ITS,ITE
-      INTEGER, INTENT(IN) :: JTS,JTE,IDE,JDE,LM
-      REAL,INTENT(IN) :: U(IMS:IME,JMS:JME,LM)
-      REAL,INTENT(IN) :: V(IMS:IME,JMS:JME,LM)
-      REAL,INTENT(IN) :: W(IMS:IME,JMS:JME,LM)
-      REAL,INTENT(IN) :: Z(IMS:IME,JMS:JME,LM)
-      REAL,INTENT(IN) :: ZINTSFC(IMS:IME,JMS:JME)
-      REAL,INTENT(INOUT) :: UPHLMAX(IMS:IME,JMS:JME)
-      REAL,INTENT(IN) :: DX(JMS:JME),DY
-
-! local variables
-
-      REAL :: UPHL   (IMS:IME,JMS:JME)
-      INTEGER :: I,J,L
-      REAL :: R2DX,R2DY,DZ,ZMIDLOC
-      REAL :: DUDY,DVDX
-
-      REAL, PARAMETER:: HLOWER=2000.
-      REAL, PARAMETER:: HUPPER=5000.
-
-      do J=JMS,JME
-       do I=IMS,IME
-          UPHL(I,J)=0.
-       enddo
-      enddo
-
-      R2DY=1./(2.*DY)
-      DO J=MAX(JTS,2),MIN(JTE,JDE-1)
-        R2DX=1./(2.*DX(J))
-        DO I=MAX(ITS,2),MIN(ITE,IDE-1)
-  L_LOOP:  DO L=1,LM-1
-             ZMIDLOC=Z(I,J,L)
-             IF ( (ZMIDLOC - ZINTSFC(I,J)) .ge. HLOWER  .AND. &
-                  (ZMIDLOC - ZINTSFC(I,J)) .le. HUPPER ) THEN
-               DZ=(Z(I,J,L)-Z(I,J,L+1))
-!
-!*             ANY DOWNWARD MOTION IN 2-5 km LAYER KILLS COMPUTATION AND
-!*             SETS RESULTANT UPDRAFT HELICTY TO ZERO
-!
-               IF (W(I,J,L) .lt. 0) THEN
-                 UPHL(I,J)=0.
-                 EXIT l_loop
-               ENDIF
-
-               DVDX=(V(I+1,J,L)-V(I-1,J,L))*R2DX
-               DUDY=(U(I,J+1,L)-U(I,J-1,L))*R2DY
-               UPHL(I,J)=UPHL(I,J)+(DVDX-DUDY)*W(I,J,L)*DZ
-             ENDIF
-           ENDDO L_LOOP
-           UPHLMAX(I,J)=MAX(UPHL(I,J),UPHLMAX(I,J))
-        ENDDO
-      ENDDO
-     
-      END SUBROUTINE CALC_UPHLCY_HR
 !
 !----------------------------------------------------------------------
 !
