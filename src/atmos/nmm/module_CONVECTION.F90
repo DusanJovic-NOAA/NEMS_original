@@ -185,7 +185,7 @@
                                                ,RQGCUTEN
 
 !
-      LOGICAL :: RESTART,WARM_RAIN
+      LOGICAL :: RESTART,WARM_RAIN,FER_test
       LOGICAL,DIMENSION(IMS:IME,JMS:JME) :: CU_ACT_FLAG
 !
 !-----------------------------------------------------------------------
@@ -205,6 +205,11 @@ REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
 !***  analogs in the WRF Registry.
 !-----------------------------------------------------------------------
 !
+      IF(TRIM(MICROPHYSICS)=='fer' .OR. TRIM(MICROPHYSICS)=='fer_hires')THEN
+         FER_test=.TRUE.
+      ELSE
+         FER_test=.FALSE.
+      ENDIF
       SELECT CASE (TRIM(CONVECTION))
         CASE ('bmj')
           CU_PHYSICS=2
@@ -530,7 +535,7 @@ REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
             QI=0.
             QSN=0.
             QGR=0.
-            IF(TRIM(MICROPHYSICS)=='fer')THEN
+            IF (FER_test) THEN
               QI=(RQICUTEN(I,J,K)+RQSCUTEN(I,J,K))*DTCNVC
               QI=MAX(0.,WATER(I,J,K,P_QS)+QI)
             ELSE
@@ -542,7 +547,7 @@ REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
             CWM(I,J,K)=QW+QR+QI+QSN+QGR
             WATER(I,J,K,P_QC)=QW
             WATER(I,J,K,P_QR)=QR
-            Micro_test: IF(TRIM(MICROPHYSICS)=='fer')THEN
+            Micro_test: IF (FER_test) THEN
 !-- Update Ferrier-based F_rain, F_ice arrays (BSF 6/22/2011)
               WATER(I,J,K,P_QS)=QI
               IF(QI<=EPSQ)THEN
