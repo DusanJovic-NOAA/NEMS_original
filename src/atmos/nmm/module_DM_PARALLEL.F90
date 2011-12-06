@@ -1460,25 +1460,34 @@ integer(kind=kint) :: &
 ,mype &
 ,n &
 ,nbuf &
-,nn &
-,npe &
-,numvals
+,npe 
 !
-integer(kind=kint),dimension(0:npes-1) :: &
- ncount_recv &
-,ncount_send &
-,ndisplace_recv &
-,ndisplace_send
+integer(kind=kint),dimension(mpi_status_size) :: jstat
+integer(kind=kint),dimension(:),allocatable,target,save :: handle
 !
-real(kind=kfpt),dimension(msize_dummy_fft*npes) :: &
- dummy_recv &
-,dummy_send
+real(kind=kfpt),dimension(:),allocatable,save :: &
+ dummy_recv 
+real(kind=kfpt),dimension(:,:),allocatable,save :: &
+ dummy_send
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
       mype=mype_share
+!
+!-----------------------------------------------------------------------
+!***  Handles are needed for the mpi_waits associated with mpi_isend.
+!***  Allocate the handle array and initialize it.
+!-----------------------------------------------------------------------
+!
+      if(.not.allocated(handle))then
+        allocate(handle(0:npes-1))
+        do n=0,npes-1
+          handle(n)=mpi_request_null
+        enddo
+        allocate(dummy_recv(msize_dummy_fft))
+      endif
 !
 !-----------------------------------------------------------------------
 !***  Each task is responsible for multiple full layers (the entire
@@ -1497,57 +1506,6 @@ real(kind=kfpt),dimension(msize_dummy_fft*npes) :: &
 !
 !***  We gather into array array_lyrs which will hold full latitude
 !***  circles of data in each task's own set of assigned model layers.
-!-----------------------------------------------------------------------
-!
-!***  Compute the number of words received by mype from everyone.
-!***  Only those tasks containing FFT latitude circles will be
-!***  sending more than zero words.
-!***  The receiver uses its K extent, the sender's full I extent,
-!***  and the sender's J extent over which its subdomain has
-!***  FFT latitude circles.
-!***  Everyone receives since FFT work is shared by all.
-!
-!-----------------------------------------------------------------------
-!
-!***  Initialize the word counts sent/received and displacements send/receive
-!***  for every task
-!
-      do npe=0,npes-1
-        ncount_recv(npe)=0
-        ndisplace_recv(npe)=0
-        ncount_send(npe)=0
-        ndisplace_send(npe)=0
-      enddo
-!
-!------------------------------------------------------------------------
-!***  Loop through the tasks in each hemisphere from which mype receives.
-!------------------------------------------------------------------------
-!
-!***  We need to specify which points each task will receive from tasks with FFT latitudes.
-!
-      k1=k1_fft(mype)
-      k2=k2_fft(mype)
-      k_extent=k2-k1+1
-!
-      recv_from_npe: do npe=ipe_start,ipe_end    !<--- Tasks with FFT lats in this task's hemisphere will send
-!
-        if(my_domain_has_fft_lats(npe))then
-          istart=local_istart(npe)
-          iend=local_iend(npe)
-          jstart_fft_local=max(local_jstart(npe),my_jrow_start(mype))
-          jend_fft_local=min(local_jend(npe),my_jrow_end(mype))
-!
-          i_extent=iend-istart+1
-          j_extent=jend_fft_local-jstart_fft_local+1
-          if(j_extent<=0)cycle
-          n=j_extent*k_extent*i_extent          !<--- Total # of 3-D FFT points coming from remote task
-          ncount_recv(npe)=n
-          if(npe>0)then
-            ndisplace_recv(npe)=ndisplace_recv(npe-1)+ncount_recv(npe-1)
-          endif
-        endif
-!
-      enddo recv_from_npe
 !
 !-----------------------------------------------------------------------
 !***  Compute the number of words sent by mype to everyone else.
@@ -1559,49 +1517,81 @@ real(kind=kfpt),dimension(msize_dummy_fft*npes) :: &
 !
       if(my_domain_has_fft_lats(mype))then
 !
-        nbuf=0                                  !<--- This counts the words we are inserting into the send buffer.
+        allocate(dummy_send(msize_dummy_fft,ipe_start:ipe_end))
 !
-        send_to_npe: do npe=ipe_start,ipe_end   !<--- Send subsets of my FFT points to all other tasks in this hemisphere
+        send_to_npe: do npe=ipe_start,ipe_end     !<--- Send subsets of my FFT points to all
+                                                  !     other tasks in this hemisphere.
 !
+          nbuf=0                                  !<--- This counts the words we are inserting
+                                                  !     into the send buffer.
           jstart_fft_local=max(jts,my_jrow_start(npe))
           jend_fft_local=min(jte,my_jrow_end(npe))
 !
-          nn=0                                    !<--- This counts words going to each task.
-!
           if(jstart_fft_local<=jend_fft_local)then
+!
             k1=k1_fft(npe)
             k2=k2_fft(npe)
-            k_extent=k2-k1+1
-!
             do k=k1,k2
               do j=jstart_fft_local,jend_fft_local
               do i=its,ite
-                nn=nn+1
                 nbuf=nbuf+1                       !<-- This counts words going to all tasks.
-                dummy_send(nbuf)=field(i,j,k)
+                dummy_send(nbuf,npe)=field(i,j,k)
               enddo
               enddo
             enddo
-          endif
 !
-          ncount_send(npe)=nn
-          if(npe>0)then
-            ndisplace_send(npe)=ndisplace_send(npe-1)+ncount_send(npe-1)
+            call mpi_isend(dummy_send(1,npe),nbuf,mpi_real,     &
+                           npe,mype,mpi_comm_comp,              &
+                           handle(npe),ierr)
+!
           endif
 !
         enddo send_to_npe
 !
       endif
+
+!-----------------------------------------------------------------------
+!***  Compute the number of words received by mype from everyone.
+!***  Only those tasks containing FFT latitude circles will be
+!***  sending more than zero words.
+!***  The receiver uses its K extent, the sender's full I extent,
+!***  and the sender's J extent over which its subdomain has
+!***  FFT latitude circles.
+!***  Everyone receives since FFT work is shared by all.
+!
+!------------------------------------------------------------------------
+!***  Loop through the tasks in each hemisphere from which mype receives.
+!------------------------------------------------------------------------
+!
+!***  We need to specify which points each task will receive from tasks with FFT latitudes.
+!
+      k1=k1_fft(mype)
+      k2=k2_fft(mype)
+      k_extent=k2-k1+1
+!
+      recv_from_npe: do npe=ipe_start,ipe_end    !<--- Tasks with FFT lats in this task's
+                                                 !     hemisphere will send
+!
+        from_senders: if(my_domain_has_fft_lats(npe))then
+          jstart_fft_local=max(local_jstart(npe),my_jrow_start(mype))
+          jend_fft_local=min(local_jend(npe),my_jrow_end(mype))
+          j_extent=jend_fft_local-jstart_fft_local+1
+          if(j_extent<=0)cycle
+          istart=local_istart(npe)
+          iend=local_iend(npe)
+          i_extent=iend-istart+1
+          n=j_extent*k_extent*i_extent      !<--- Total # of 3-D FFT points coming from remote
+                                            !     task
 !
 !-----------------------------------------------------------------------
-!***  Transmit the data among all tasks.
+!***  Receive data only from tasks with FFT latitudes
 !-----------------------------------------------------------------------
 !
-      call mpi_alltoallv(dummy_send,ncount_send,ndisplace_send &
-                        ,mpi_real &
-                        ,dummy_recv,ncount_recv,ndisplace_recv &
-                        ,mpi_real &
-                        ,mpi_comm_comp,ierr)
+          call mpi_recv(dummy_recv,n,mpi_real &
+                       ,npe,npe &
+                       ,mpi_comm_comp &
+                       ,jstat &
+                       ,ierr)
 !
 !-----------------------------------------------------------------------
 !***  Fill in the working array.
@@ -1611,33 +1601,37 @@ real(kind=kfpt),dimension(msize_dummy_fft*npes) :: &
 !***  into full circles.
 !-----------------------------------------------------------------------
 !
-      k1=k1_fft(mype)
-      k2=k2_fft(mype)
 !
-      nbuf=0      !<---  This counts the words we are receiving from the recv buffer.
-!
-      do npe=ipe_start,ipe_end
-!
-        if(my_domain_has_fft_lats(npe))then
-          istart=local_istart(npe)
-          iend=local_iend(npe)
-          jstart_fft_local=max(local_jstart(npe),my_jrow_start(mype))
-          jend_fft_local=min(local_jend(npe),my_jrow_end(mype))
-          if(jstart_fft_local>jend_fft_local)cycle
+          nbuf=0      !<---  This counts the words we are receiving from the recv buffer.
 !
           n=0
           do k=k1,k2
-            n=n+1
-            do j=jstart_fft_local,jend_fft_local
-            do i=istart,iend
-              nbuf=nbuf+1
-              array_lyrs(i,j,n)=dummy_recv(nbuf)
-            enddo
-            enddo
+             n=n+1
+             do j=jstart_fft_local,jend_fft_local
+             do i=istart,iend
+                nbuf=nbuf+1
+                array_lyrs(i,j,n)=dummy_recv(nbuf)
+             enddo
+             enddo
           enddo
-        endif
 !
-      enddo
+        endif from_senders
+!
+      enddo recv_from_npe
+!
+!-----------------------------------------------------------------------
+!***  Clear the ISend request handles.
+!-----------------------------------------------------------------------
+!
+      if(my_domain_has_fft_lats(mype))then
+!
+        do npe=ipe_start,ipe_end  
+          call mpi_wait(handle(npe),jstat,ierr)
+        enddo
+!
+        deallocate(dummy_send)
+!
+      endif
 !
 !-----------------------------------------------------------------------
 !
@@ -1716,26 +1710,38 @@ integer(kind=kint) :: &
 ,k2 &
 ,mype &
 ,n &
+,ncount_recv &
 ,nbuf &
 ,nn &
-,npe &
-,numvals
+,npe
 !
-integer(kind=kint),dimension(0:npes-1) :: &
- ncount_recv &
-,ncount_send &
-,ndisplace_recv &
-,ndisplace_send
+integer(kind=kint),dimension(mpi_status_size) :: jstat
+integer(kind=kint),dimension(:),allocatable,target,save :: handle
 !
-real(kind=kfpt),dimension(msize_dummy_fft*npes) :: &
- dummy_recv &
-,dummy_send
+real(kind=kfpt),dimension(:),allocatable,save :: &
+ dummy_recv 
+real(kind=kfpt),dimension(:,:),allocatable,save :: &
+ dummy_send
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
       mype=mype_share
+!
+!-----------------------------------------------------------------------
+!***  Handles are needed for the mpi_waits associated with mpi_isend.
+!***  Allocate the handle array and initialize it.
+!-----------------------------------------------------------------------
+!
+      if(.not.allocated(handle))then
+        allocate(handle(0:npes-1))
+        do n=0,npes-1
+          handle(n)=mpi_request_null
+        enddo
+!
+        allocate(dummy_recv(msize_dummy_fft))
+      endif
 !
 !-----------------------------------------------------------------------
 !***  Each task holds full latitude circles of data within its own
@@ -1750,109 +1756,59 @@ real(kind=kfpt),dimension(msize_dummy_fft*npes) :: &
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  Compute the number of words received by mype from everyone.
-!***  Only those tasks containing FFT latitude circles in their
-!***  subdomains will be receiving more than zero words.
-!***  The receiver uses the sender's K extent and its own I extent
-!***  and the J extent for which its subdomain has FFT latitudes.
-!-----------------------------------------------------------------------
-!
-      do npe=0,npes-1
-        ncount_recv(npe)=0
-        ndisplace_recv(npe)=0
-        ncount_send(npe)=0
-        ndisplace_send(npe)=0
-      enddo
-!
-!-----------------------------------------------------------------------
-!
-      if(my_domain_has_fft_lats(mype))then
-!
-!-----------------------------------------------------------------------
-!
-        i_extent=ite-its+1
-!
-        recv_from_npe: do npe=ipe_start,ipe_end       !<---  Tasks with FFT lats recv from everyone in the hemisphere
-!                                                            who has computed any FFTs within this task's FFT lats.
-          jstart_fft_local=max(jts,my_jrow_start(npe))
-          jend_fft_local=min(jte,my_jrow_end(npe))
-          j_extent=jend_fft_local-jstart_fft_local+1
-!
-          iprod=max(i_extent*j_extent,0)
-!
-          k1=k1_fft(npe)
-          k2=k2_fft(npe)
-          k_extent=k2-k1+1
-!
-          ncount_recv(npe)=iprod*k_extent
-          if(npe>0)then
-            ndisplace_recv(npe)=ndisplace_recv(npe-1)+ncount_recv(npe-1)
-          endif
-!
-        enddo recv_from_npe
-!
-      endif
-!
-!-----------------------------------------------------------------------
 !***  Compute the number of words sent by mype to everyone.  A task
 !***  will only send to tasks that have FFT latitude circles that
 !***  were specified to be handled by the sending task.
 !***  The sender uses its own K extent and the receiver's I extent
-!***  and the receiver's J extent that spans the apprpriate 
+!***  and the receiver's J extent that spans the appropriate
 !***  FFT latitude rows computed by the sender.
 !-----------------------------------------------------------------------
+!
+      allocate(dummy_send(msize_dummy_fft,ipe_start:ipe_end))
 !
       k1=k1_fft(mype)
       k2=k2_fft(mype)
       k_extent=k2-k1+1
 !
-      nbuf=0                                      !<--- Counter for number of words inserted into send buffer
+      send_to_npe: do npe=ipe_start,ipe_end       !<-- Tasks with FFT lats in this task's
+                                                  !    hemisphere will receive
 !
-      send_to_npe: do npe=ipe_start,ipe_end
-!
-        if(my_domain_has_fft_lats(npe))then       !<--- Send back to only those tasks with FFT lats in this hemisphere
+        if(my_domain_has_fft_lats(npe))then       !<--- Send back to only those tasks with FFT
+                                                  !     lats in this hemisphere
           istart=local_istart(npe)
           iend=local_iend(npe)
           i_extent=iend-istart+1
           jstart_fft_local=max(local_jstart(npe),my_jrow_start(mype))
           jend_fft_local=min(local_jend(npe),my_jrow_end(mype))
           j_extent=jend_fft_local-jstart_fft_local+1
-!         numvals=j_extent*k_extent*i_extent
 !
-          nn=0                                    !<--- Counter for number of words sent to each task
-!
+          nn=0                                    !<--- Counter for number of words sent to
+                                                  !     each task
           if(j_extent>0)then
+!
             n=0
+            nbuf=0                                !<--- Counter for number of words inserted 
+                                                  !     into send buffer
+!
             do k=k1,k2
               n=n+1
               do j=jstart_fft_local,jend_fft_local
               do i=istart,iend
                 nn=nn+1
                 nbuf=nbuf+1
-                dummy_send(nbuf)=array_lyrs(i,j,n)
+                dummy_send(nbuf,npe)=array_lyrs(i,j,n)
               enddo
               enddo
             enddo
-          endif
 !
-          ncount_send(npe)=nn
-          if(npe>0)then
-            ndisplace_send(npe)=ndisplace_send(npe-1)+ncount_send(npe-1)
+            call mpi_isend(dummy_send(1,npe),nbuf,mpi_real              &
+                          ,npe,npe,mpi_comm_comp                        &
+                          ,handle(npe),ierr)
           endif
 !
         endif
 !
       enddo send_to_npe
-!
-!-----------------------------------------------------------------------
-!***  Transmit the data among all tasks.
-!-----------------------------------------------------------------------
-!
-      call mpi_alltoallv(dummy_send,ncount_send,ndisplace_send &
-                        ,mpi_real &
-                        ,dummy_recv,ncount_recv,ndisplace_recv &
-                        ,mpi_real &
-                        ,mpi_comm_comp,ierr)
 !
 !-----------------------------------------------------------------------
 !***  Each task with FFT latitudes now fills in its output array.
@@ -1863,16 +1819,34 @@ real(kind=kfpt),dimension(msize_dummy_fft*npes) :: &
 !
       if(my_domain_has_fft_lats(mype))then
 !
-        nbuf=0                                   !<---  Counter for words in recv buffer
+!-----------------------------------------------------------------------
 !
-        remote_npes: do npe=ipe_start,ipe_end    !<---  Tasks with FFT lats recv from all tasks in the hemisphere
+        i_extent=ite-its+1
 !
+        recv_from_npe: do npe=ipe_start,ipe_end       !<---  Tasks with FFT lats recv from 
+                                                      ! evryone in the hemisphere
+                                                      ! who has computed any FFTs within 
+                                                      ! this task's FFT lats.
           jstart_fft_local=max(jts,my_jrow_start(npe))
           jend_fft_local=min(jte,my_jrow_end(npe))
           if(jstart_fft_local>jend_fft_local)cycle
+          j_extent=jend_fft_local-jstart_fft_local+1
+!
+          iprod=max(i_extent*j_extent,0)
 !
           k1=k1_fft(npe)
           k2=k2_fft(npe)
+          k_extent=k2-k1+1
+!
+          ncount_recv=iprod*k_extent               !<--  # of words to receive from task npe
+!
+          nbuf=0                                   !<---  Counter for words in recv buffer
+!
+          call mpi_recv(dummy_recv,ncount_recv,mpi_real               &
+                       ,npe,mype                                      &
+                       ,mpi_comm_comp                                 &
+                       ,jstat                                         &
+                       ,ierr)
 !
           do k=k1,k2
             do j=jstart_fft_local,jend_fft_local
@@ -1883,9 +1857,23 @@ real(kind=kfpt),dimension(msize_dummy_fft*npes) :: &
             enddo
           enddo
 !
-        enddo remote_npes
+        enddo recv_from_npe
 !
       endif
+!
+!-----------------------------------------------------------------------
+!***  Clear the ISend request handles.
+!-----------------------------------------------------------------------
+!
+      do npe=ipe_start,ipe_end
+!
+        if(my_domain_has_fft_lats(npe))then       !<--- Send back to only those tasks with FFT
+          call mpi_wait(handle(npe),jstat,ierr)
+        endif
+!
+      enddo
+!
+      deallocate(dummy_send)
 !
 !-----------------------------------------------------------------------
 !
