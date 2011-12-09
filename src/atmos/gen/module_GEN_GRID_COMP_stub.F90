@@ -32,7 +32,7 @@
 !
       PRIVATE
 !
-      PUBLIC :: GEN_REGISTER 
+      PUBLIC :: GEN_REGISTER
 !
 !-----------------------------------------------------------------------
 !
@@ -48,7 +48,7 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE GEN_REGISTER(GEN_GRID_COMP,RC_REG)
-! 
+!
 !-----------------------------------------------------------------------
 !***  Register the GEN gridded component's initialize, run, and finalize
 !***  routines.
@@ -57,7 +57,7 @@
       TYPE(ESMF_GridComp),INTENT(INOUT) :: GEN_GRID_COMP                   !<-- GEN gridded component
 !
       INTEGER,INTENT(OUT) :: RC_REG                                        !<-- Return code for register
-!     
+!
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
@@ -71,9 +71,9 @@
       RC=ESMF_SUCCESS       ! Error signal variable
 !
 !-----------------------------------------------------------------------
-!***  Register the GEN INITIALIZE subroutine.  Since it is just one 
+!***  Register the GEN INITIALIZE subroutine.  Since it is just one
 !***  subroutine, use ESMF_SINGLEPHASE.  The second argument is
-!***  a pre-defined subroutine type, such as ESMF_SETINIT, ESMF_SETRUN, 
+!***  a pre-defined subroutine type, such as ESMF_SETINIT, ESMF_SETRUN,
 !***  or ESMF_SETFINAL.
 !-----------------------------------------------------------------------
 !
@@ -97,18 +97,18 @@
                                      ,rc=RC)
 #endif
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Register the Run step of the GEN component.
 !-----------------------------------------------------------------------
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Set 1st Entry Point for GEN Run"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifdef ESMF_3
         CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
@@ -124,19 +124,19 @@
                                        ,rc=RC)
 #endif
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !
 !-----------------------------------------------------------------------
 !***  Register the GEN FINALIZE subroutine.
 !-----------------------------------------------------------------------
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set Entry Point for GEN Finalize"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
@@ -152,9 +152,9 @@
                                      ,rc=RC)
 #endif
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Check the error signal variable and print out the result.
@@ -190,12 +190,11 @@
       TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_ATM                       !<-- The ESMF Clock from the ATM component.
       INTEGER            ,INTENT(OUT)   :: RC_INIT                         !<-- Return code for Initialize step
 !
-!---------------------
-!***  Local variables
-!---------------------
-
-      INTEGER       :: IERR
-      INTEGER       :: RC
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      RC_INIT=ESMF_SUCCESS       ! Error signal variable
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -227,12 +226,16 @@
       TYPE(ESMF_Clock),   INTENT(INOUT) :: CLOCK_ATM                       !<-- The ATM ESMF Clock
       INTEGER,            INTENT(OUT)   :: RC_RUN                          !<-- Return code for the Run step
 !
-!---------------------
-!***  Local variables
-!---------------------
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
 !
-      INTEGER            :: RC                                             !<-- Error signal variables.
-
+      RC_RUN=ESMF_SUCCESS       ! Error signal variable
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
       END SUBROUTINE GEN_RUN
 !
 !-----------------------------------------------------------------------
@@ -257,10 +260,14 @@
       INTEGER,            INTENT(OUT)   :: RC_FINAL                        !<-- Return code for the Finalize step
 !
 !-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
+!***********************************************************************
 !-----------------------------------------------------------------------
 !
-      INTEGER :: RC                                                        ! The final error signal variables.
+      RC_FINAL=ESMF_SUCCESS       ! Error signal variable
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
 !
       END SUBROUTINE GEN_FINALIZE
 !

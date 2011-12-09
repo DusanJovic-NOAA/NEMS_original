@@ -1,0 +1,23 @@
+#! /bin/sh -l
+
+#PBS -o out
+#PBS -e err
+#PBS -N _JBNME_
+#PBS -l procs=_TPN_
+#PBS -l walltime=00:_WLCLK_:00
+
+set -aeux
+export MPI_GROUP_MAX=96
+
+cd _RUND_
+
+echo "Model started:  " `date`
+
+module load intel
+module load mpt
+module load adaptive
+mpiexec_mpt -np _TPN_ ./NEMS.x
+
+echo "Model ended:    " `date`
+
+exit

@@ -1,32 +1,6 @@
-#!/bin/ksh
-#
-#@ output = out
-#@ error = err
-#@ job_type = parallel
-#@ job_name = _JBNME_
-#@ task_affinity = core(1)
-#@ node_usage = not_shared
-#@ tasks_per_node = _TPN_
-#@ node = 1
-#@ node_resources= ConsumableMemory(110GB)
-#@ class = _CLASS_
-#@ group = _GROUP_
-#@ wall_clock_limit = 00:_WLCLK_:00
-#@ parallel_threads = _THRD_
-#@ preferences = Feature == "dev"
-#@ network.MPI = sn_all,not_shared,us
-#@ account_no=_ACCNR_
-#@ queue
-#
-set -x
-#
-export MP_EAGER_LIMIT=65536
-export MP_SHARED_MEMORY=yes
-export MP_LABELIO=yes
-export MP_STDOUTMODE=ordered
-export MP_COREFILE_FORMAT=core.txt
-export XLSMPOPTS=stack=128000000
-export AIXTHREAD_SCOPE=S
+#!/bin/sh
+
+#set -aeux
 
 RUNDIR=_RUND_
 SRCDIR=_SRCD_
@@ -35,21 +9,20 @@ mkdir -p $RUNDIR
 cd $RUNDIR
 rm -rf $RUNDIR/*
 
-cp _RTPWD_/NMMB_reg/input_nmmb_regional.d01           input_domain_01
-cp _RTPWD_/NMMB_reg/input_nmmb_regional.d01_nemsio    input_domain_01_nemsio
+cp _RTPWD_/NMMB_reg/input_nmmb_regional.d01               input_domain_01
+cp _RTPWD_/NMMB_reg/input_nmmb_regional.d01_nemsio        input_domain_01_nemsio
 cp _RTPWD_/NMMB_reg/nmmb_rst_01_bin_0024h_00m_00.00s  restart_file_01
 cp _RTPWD_/NMMB_reg/nmmb_rst_01_nio_0024h_00m_00.00s  restart_file_01_nemsio
 cp _RTPWD_/NMMB_reg/GWD_bin_01 .
 cp _RTPWD_/NMMB_reg/boco.* .
-cp _RTPWD_/data/* .
 _CPPCP_cp ../NMM_REG_CTL/fort.4* .
 
 cp $SRCDIR/job/regression_tests/atmos.configure_nmm atmos.configure
 cp $SRCDIR/job/regression_tests/configure_file_01 .
 cp configure_file_01 model_configure
-
-ln -sf /nwprod/fix/global_o3prdlos.f77 fort.28
-ln -sf /nwprod/fix/global_o3clim.txt fort.48
+cp _RTPWD_/data/* .
+ln -sf global_o3prdlos.f77 fort.28
+ln -sf global_o3clim.txt fort.48
 
 cp $SRCDIR/job/regression_tests/dyn_state.txt .
 cp $SRCDIR/job/regression_tests/phy_state.txt .
@@ -70,11 +43,17 @@ _POST_ln -sf griddef.out fort.110
 _POST_cp /nwprod/parm/nam_micro_lookup.dat ./eta_micro_lookup.dat
 
 
-echo "Model started:  " `date`
+cp $SRCDIR/exe/NEMS.x .
 
-LDR_CNTRL=DATAPSIZE=64K@TEXTPSIZE=64K@STACKPSIZE=64K \
-poe $SRCDIR/exe/NEMS.x
-
-echo "Model ended:    " `date`
+if [ $SCHEDULER = 'loadleveler' ]; then
+  cp $SRCDIR/job/regression_tests/nmm_ll .
+  llsubmit nmm_ll 2>&1 | grep submitted > /dev/null
+elif [ $SCHEDULER = 'moab' ]; then
+  cp $SRCDIR/job/regression_tests/nmm_msub .
+  msub nmm_msub > /dev/null
+elif [ $SCHEDULER = 'pbs' ]; then
+  cp $SRCDIR/job/regression_tests/nmm_qsub .
+  qsub nmm_qsub > /dev/null
+fi
 
 exit

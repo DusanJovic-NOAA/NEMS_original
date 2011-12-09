@@ -9,27 +9,44 @@
 export MACHINE_ID=`hostname | cut -c1`
 
 if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
-# export CLASS=devhigh
-# export GROUP=devonprod
   export CLASS=dev
   export GROUP=dev
-# export CLASS=1
-# export GROUP=class1onprod
-# export ACCNR=NAM-T2O
   export ACCNR=GFS-T2O
-  export DISKNM=meso
+  export DISKNM=/meso
+  export STMP=/stmp
+  export PTMP=/ptmp
+  export SCHEDULER=loadleveler
+  STMP=/stpm
 elif [ ${MACHINE_ID} = v ]; then 
   export CLASS=mtb
   export ACCNR=MTB003-RES
-  export DISKNM=mtb
+  export DISKNM=/mtb
+  export STMP=/stmp
+  export PTMP=/ptmp
+  export SCHEDULER=loadleveler
+  STMP=/stpm
+elif [ ${MACHINE_ID} = g ]; then 
+  export CLASS=dev
+  export ACCNR=NAM-T2O
+  export DISKNM=/lustre/ltfs/scratch/Ratko.Vasic
+  export STMP=/lustre/fs/scratch
+  export PTMP=/lustre/fs/scratch
+  export SCHEDULER=moab
+elif [ ${MACHINE_ID} = t ]; then 
+  export CLASS=dev
+  export ACCNR=NAM-T2O
+  export DISKNM=/scratch2/users/NCEPDEV/meso
+  export STMP=/scratch2/users/NCEPDEV/stmp
+  export PTMP=/scratch2/users/NCEPDEV/ptmp
+  export SCHEDULER=pbs
 fi
 
 ############################################################
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 
-  export RTPWD=/${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
-#  export RTPWD=/stmp/${LOGIN}/REGRESSION_TEST
+  export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+#  export RTPWD=${STMP}/${USER}/REGRESSION_TEST
 
 #########################################################################
 # Check if running regression test or creating baselines.
@@ -56,52 +73,52 @@ if [ $argn -eq 1 ]; then
   #
   # prepare new regression test directory
   #
-  rm -rf /stmp/${LOGIN}/REGRESSION_TEST
-  cp -r /${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines \
-	/stmp/${LOGIN}/REGRESSION_TEST
+  rm -rf ${STMP}/${USER}/REGRESSION_TEST
+  cp -r ${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines \
+	${STMP}/${USER}/REGRESSION_TEST
   if [ ${CB_arg} = nmm ]; then
-    cp ${RTPWD}/GEFS_data_2008082500/*      /stmp/${LOGIN}/REGRESSION_TEST/GEFS_data_2008082500/.
-    cp ${RTPWD}/GEFS_m4/*                   /stmp/${LOGIN}/REGRESSION_TEST/GEFS_m4/.
-    cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*       /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
-    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/*   /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_HYB/.
-    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_NDSL/*  /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_NDSL/.
-    cp ${RTPWD}/GFS_DFI_hyb_2loop/*         /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_hyb_2loop/.
-    cp ${RTPWD}/GFS_DFI_hyb_2loop_nst/*     /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_hyb_2loop_nst/.
-    cp ${RTPWD}/GFS_NODFI/*                 /stmp/${LOGIN}/REGRESSION_TEST/GFS_NODFI/.
-    cp ${RTPWD}/GFS_OPAC/*                  /stmp/${LOGIN}/REGRESSION_TEST/GFS_OPAC/.
-    cp ${RTPWD}/GFS_DFI_POST/*              /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_POST/.
+    cp ${RTPWD}/GEFS_data_2008082500/*      ${STMP}/${USER}/REGRESSION_TEST/GEFS_data_2008082500/.
+    cp ${RTPWD}/GEFS_m4/*                   ${STMP}/${USER}/REGRESSION_TEST/GEFS_m4/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*       ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/*   ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_HYB/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_NDSL/*  ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_NDSL/.
+    cp ${RTPWD}/GFS_DFI_hyb_2loop/*         ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_hyb_2loop/.
+    cp ${RTPWD}/GFS_DFI_hyb_2loop_nst/*     ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_hyb_2loop_nst/.
+    cp ${RTPWD}/GFS_NODFI/*                 ${STMP}/${USER}/REGRESSION_TEST/GFS_NODFI/.
+    cp ${RTPWD}/GFS_OPAC/*                  ${STMP}/${USER}/REGRESSION_TEST/GFS_OPAC/.
+    cp ${RTPWD}/GFS_DFI_POST/*              ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_POST/.
   elif [ ${CB_arg} = gfs ]; then
-    cp ${RTPWD}/NMMB_gfsP_glob/*            /stmp/${LOGIN}/REGRESSION_TEST/NMMB_gfsP_glob/.
-    cp ${RTPWD}/NMMB_gfsP_reg/*             /stmp/${LOGIN}/REGRESSION_TEST/NMMB_gfsP_reg/.
-    cp ${RTPWD}/NMMB_glob/*                 /stmp/${LOGIN}/REGRESSION_TEST/NMMB_glob/.
-    cp ${RTPWD}/NMMB_mvg_nests/*            /stmp/${LOGIN}/REGRESSION_TEST/NMMB_mvg_nests/.
-    cp ${RTPWD}/NMMB_nests/*                /stmp/${LOGIN}/REGRESSION_TEST/NMMB_nests/.
-    cp ${RTPWD}/NMMB_reg/*                  /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg/.
-    cp ${RTPWD}/NMMB_reg_filt/*             /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg_filt/.
-    cp ${RTPWD}/NMMB_reg_pcpadj/*           /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg_pcpadj/.
-    cp ${RTPWD}/NMMB_reg_sel_phy/*          /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg_sel_phy/.
-    cp ${RTPWD}/NMMB_reg_timesr/*           /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg_timesr/.
-    cp ${RTPWD}/NMMB_reg_post/*             /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg_post/.
+    cp ${RTPWD}/NMMB_gfsP_glob/*            ${STMP}/${USER}/REGRESSION_TEST/NMMB_gfsP_glob/.
+    cp ${RTPWD}/NMMB_gfsP_reg/*             ${STMP}/${USER}/REGRESSION_TEST/NMMB_gfsP_reg/.
+    cp ${RTPWD}/NMMB_glob/*                 ${STMP}/${USER}/REGRESSION_TEST/NMMB_glob/.
+    cp ${RTPWD}/NMMB_mvg_nests/*            ${STMP}/${USER}/REGRESSION_TEST/NMMB_mvg_nests/.
+    cp ${RTPWD}/NMMB_nests/*                ${STMP}/${USER}/REGRESSION_TEST/NMMB_nests/.
+    cp ${RTPWD}/NMMB_reg/*                  ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg/.
+    cp ${RTPWD}/NMMB_reg_filt/*             ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_filt/.
+    cp ${RTPWD}/NMMB_reg_pcpadj/*           ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_pcpadj/.
+    cp ${RTPWD}/NMMB_reg_sel_phy/*          ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_sel_phy/.
+    cp ${RTPWD}/NMMB_reg_timesr/*           ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_timesr/.
+    cp ${RTPWD}/NMMB_reg_post/*             ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_post/.
   elif [ ${CB_arg} = post ]; then
-    cp ${RTPWD}/GEFS_data_2008082500/*      /stmp/${LOGIN}/REGRESSION_TEST/GEFS_data_2008082500/.
-    cp ${RTPWD}/GEFS_m4/*                   /stmp/${LOGIN}/REGRESSION_TEST/GEFS_m4/.
-    cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*       /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
-    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/*   /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_HYB/.
-    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_NDSL/*  /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_NDSL/.
-    cp ${RTPWD}/GFS_DFI_hyb_2loop/*         /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_hyb_2loop/.
-    cp ${RTPWD}/GFS_DFI_hyb_2loop_nst/*     /stmp/${LOGIN}/REGRESSION_TEST/GFS_DFI_hyb_2loop_nst/.
-    cp ${RTPWD}/GFS_NODFI/*                 /stmp/${LOGIN}/REGRESSION_TEST/GFS_NODFI/.
-    cp ${RTPWD}/GFS_OPAC/*                  /stmp/${LOGIN}/REGRESSION_TEST/GFS_OPAC/.
-    cp ${RTPWD}/NMMB_gfsP_glob/*            /stmp/${LOGIN}/REGRESSION_TEST/NMMB_gfsP_glob/.
-    cp ${RTPWD}/NMMB_gfsP_reg/*             /stmp/${LOGIN}/REGRESSION_TEST/NMMB_gfsP_reg/.
-    cp ${RTPWD}/NMMB_glob/*                 /stmp/${LOGIN}/REGRESSION_TEST/NMMB_glob/.
-    cp ${RTPWD}/NMMB_mvg_nests/*            /stmp/${LOGIN}/REGRESSION_TEST/NMMB_mvg_nests/.
-    cp ${RTPWD}/NMMB_nests/*                /stmp/${LOGIN}/REGRESSION_TEST/NMMB_nests/.
-    cp ${RTPWD}/NMMB_reg/*                  /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg/.
-    cp ${RTPWD}/NMMB_reg_filt/*             /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg_filt/.
-    cp ${RTPWD}/NMMB_reg_pcpadj/*           /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg_pcpadj/.
-    cp ${RTPWD}/NMMB_reg_sel_phy/*          /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg_sel_phy/.
-    cp ${RTPWD}/NMMB_reg_timesr/*           /stmp/${LOGIN}/REGRESSION_TEST/NMMB_reg_timesr/.
+    cp ${RTPWD}/GEFS_data_2008082500/*      ${STMP}/${USER}/REGRESSION_TEST/GEFS_data_2008082500/.
+    cp ${RTPWD}/GEFS_m4/*                   ${STMP}/${USER}/REGRESSION_TEST/GEFS_m4/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*       ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/*   ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_HYB/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_NDSL/*  ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_NDSL/.
+    cp ${RTPWD}/GFS_DFI_hyb_2loop/*         ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_hyb_2loop/.
+    cp ${RTPWD}/GFS_DFI_hyb_2loop_nst/*     ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_hyb_2loop_nst/.
+    cp ${RTPWD}/GFS_NODFI/*                 ${STMP}/${USER}/REGRESSION_TEST/GFS_NODFI/.
+    cp ${RTPWD}/GFS_OPAC/*                  ${STMP}/${USER}/REGRESSION_TEST/GFS_OPAC/.
+    cp ${RTPWD}/NMMB_gfsP_glob/*            ${STMP}/${USER}/REGRESSION_TEST/NMMB_gfsP_glob/.
+    cp ${RTPWD}/NMMB_gfsP_reg/*             ${STMP}/${USER}/REGRESSION_TEST/NMMB_gfsP_reg/.
+    cp ${RTPWD}/NMMB_glob/*                 ${STMP}/${USER}/REGRESSION_TEST/NMMB_glob/.
+    cp ${RTPWD}/NMMB_mvg_nests/*            ${STMP}/${USER}/REGRESSION_TEST/NMMB_mvg_nests/.
+    cp ${RTPWD}/NMMB_nests/*                ${STMP}/${USER}/REGRESSION_TEST/NMMB_nests/.
+    cp ${RTPWD}/NMMB_reg/*                  ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg/.
+    cp ${RTPWD}/NMMB_reg_filt/*             ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_filt/.
+    cp ${RTPWD}/NMMB_reg_pcpadj/*           ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_pcpadj/.
+    cp ${RTPWD}/NMMB_reg_sel_phy/*          ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_sel_phy/.
+    cp ${RTPWD}/NMMB_reg_timesr/*           ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_timesr/.
   fi
 fi
 
@@ -139,6 +156,7 @@ fi
 # CNTL_DIR    - control directory name for current test
 # LIST_FILES  - list of files for comparison
 # TPN         - number of tasks per node
+# NODE        - number of nodes
 # TASKS       - total number of tasks
 # PE1         - number of computing tasks
 # WRTGP       - number of write groups
@@ -204,6 +222,9 @@ fi
 # MEMBER_NAMES  - ensemble member names (c00 if only one member)
 # GEFS_ENSEMBLE - GEFS ensemble (=1 true, =0 false)
 # GEN_ENSEMBLE  - GEN ensemble (=1 true, =0 false)
+# STMP/PTMP     - temporary directory names 
+# SCHEDULER     - machine scheduler name
+# AFFN          - IBM specific - task affinity (core or cpu)
 #
 ################################################
 
@@ -220,7 +241,8 @@ export PATHRT=`pwd`
 cd ../../
 export PATHTR=`pwd`
 
-export RUNDIR_ROOT=/ptmp/${LOGIN}/RT_$$
+export RUNDIR_ROOT=${PTMP}/${USER}/RT_$$
+mkdir -p ${RUNDIR_ROOT}
 typeset -Z3 TEST_NR
 export TEST_NR=0
 
@@ -230,13 +252,28 @@ clear;echo;echo
 #
 # Export variables to the default values
 #  - first common variables, then model specific ones
+#  - different machines, different defaults:
 #
 ####################################################################################################
+
+if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s -o ${MACHINE_ID} = v ]; then
+  WTPGm=2
+  TPNm=32
+  TPNn=64
+  INPm=06
+  JNPm=05
+elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = t ]; then 
+  WTPGm=3
+  TPNm=48
+  TPNn=128
+  INPm=05
+  JNPm=09
+fi
 
 export_common ()
 {
 export THRD=1
-export WTPG=2
+export WTPG=$WTPGm
 export WLCLK=05
 export GEFS_ENSEMBLE=0
 export GEN_ENSEMBLE=0
@@ -246,10 +283,11 @@ export POST=#
 export_nmm ()
 {
 export_common
-export GBRG=reg     ; export TPN=32      ; export INPES=06   ; export JNPES=05
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false ; export FCSTL=48
-export PCPFLG=false ; export WPREC=false ; export CPPCP=#    ; export TS=#
-export NCHILD=0     ; export CONVC=bmj   ; export MICRO=fer  ; export TURBL=myj
+export GBRG=reg     ; export TPN=$TPNm   ; export INPES=$INPm ; export JNPES=$JNPm
+export AFFN=core    ; export NODE=1
+export NEMSI=false  ; export RSTRT=false ; export gfsP=false  ; export FCSTL=48
+export PCPFLG=false ; export WPREC=false ; export CPPCP=#     ; export TS=#
+export NCHILD=0     ; export CONVC=bmj   ; export MICRO=fer   ; export TURBL=myj
 }
 
 export_gfs ()
@@ -289,7 +327,11 @@ echo "Compilation ALL"                   >> ${PATHRT}/RegressionTests.log
 rm -f ../exe/NEMS.x
 gmake clean                              >  ${PATHRT}/Compile.log 2>&1
 esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
-gmake nmm_gfs_gen GOCART_MODE=full       >> ${PATHRT}/Compile.log 2>&1
+if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s -o ${MACHINE_ID} = v ]; then
+  gmake nmm_gfs_gen GOCART_MODE=full     >> ${PATHRT}/Compile.log 2>&1
+elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = t ]; then 
+  gmake nmm                              >> ${PATHRT}/Compile.log 2>&1
+fi
 date                                     >> ${PATHRT}/RegressionTests.log
 
 if [ -f ../exe/NEMS.x ] ; then
@@ -329,12 +371,17 @@ export GBRG=glob ; export WLCLK=04
   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-export timing1=`grep total_integration_tim $PATHRT/err | tail -1 | awk '{ print $5 }'`
+if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s -o ${MACHINE_ID} = v ]; then
+  export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
+elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = t ]; then 
+  export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
+fi
 export timingc=`cat ${RTPWD}/NMMB_glob/timing.txt`
 (echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo)>> RegressionTests.log
  echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo
 
 fi
+
 
 ####################################################################################################
 #
@@ -364,6 +411,7 @@ export GBRG=glob ; export NEMSI=true
 #---------------------
 
 fi
+
 
 ####################################################################################################
 #
@@ -439,8 +487,8 @@ nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
 nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s"
 #---------------------
 export_nmm
-export GBRG=glob ; export TPN=16   ; export FCSTL=24
-export INPES=03  ; export JNPES=05 ; export WTPG=1
+export GBRG=glob   ; export FCSTL=24
+export INPES=$JNPm ; export JNPES=$INPm
 export WLCLK=04
 #---------------------
   ./rt_nmm.sh
@@ -536,7 +584,11 @@ export GBRG=reg ; export WLCLK=06 ; export WPREC=true
   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-export timing1=`grep total_integration_tim $PATHRT/err | tail -1 | awk '{ print $5 }'`
+if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s -o ${MACHINE_ID} = v ]; then
+  export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
+elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = t ]; then 
+  export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
+fi
 export timingc=`cat ${RTPWD}/NMMB_reg/timing.txt`
 (echo " Original timing: " $timingc " , test_reg timing: " $timing1;echo;echo)>> RegressionTests.log
  echo " Original timing: " $timingc " , test_reg timing: " $timing1;echo;echo
@@ -644,8 +696,8 @@ export LIST_FILES=" \
 nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0012h_00m_00.00s"
 #---------------------
 export_nmm
-export TPN=16   ; export GBRG=reg ; export FCSTL=12
-export INPES=03 ; export JNPES=05 ; export WTPG=1
+export GBRG=reg    ; export FCSTL=12
+export INPES=$JNPm ; export JNPES=$INPm
 export WLCLK=04
 #---------------------
   ./rt_nmm.sh
@@ -830,9 +882,10 @@ nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
 nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
 #---------------------
 export_nmm
-export GBRG=nests ; export TPN=64   ; export FCSTL=24
-export INPES=02   ; export JNPES=03 ; export WTPG=1
-export WLCLK=16   ; export NCHILD=02
+export GBRG=nests ; export TPN=$TPNn ; export FCSTL=24
+export AFFN=cpu   ; export NODE=2
+export INPES=02   ; export JNPES=03  ; export WTPG=1
+export WLCLK=20   ; export NCHILD=02
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -863,9 +916,10 @@ nmmb_hst_03_bin_0024h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
 nmmb_hst_04_bin_0024h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s"
 #---------------------
 export_nmm
-export GBRG=nests ; export TPN=64   ; export FCSTL=24
-export INPES=02   ; export JNPES=03 ; export WTPG=1
-export RSTRT=true ; export WLCLK=10 ; export NCHILD=02
+export GBRG=nests ; export TPN=$TPNn ; export FCSTL=24
+export AFFN=cpu   ; export NODE=2
+export INPES=02   ; export JNPES=03  ; export WTPG=1
+export RSTRT=true ; export WLCLK=12  ; export NCHILD=02
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -899,6 +953,7 @@ export_nmm
 export GBRG=fltr  ; export TPN=64   ; export FCSTL=03
 export INPES=02   ; export JNPES=02 ; export WTPG=1
 export NEMSI=true ; export WLCLK=06 ; export NCHILD=01
+export AFFN=cpu
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -937,9 +992,10 @@ nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
 nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
 #---------------------
 export_nmm
-export GBRG=mnests ; export TPN=64   ; export FCSTL=24
-export INPES=08    ; export JNPES=08 ; export WTPG=4
-export NEMSI=true  ; export WLCLK=10 ; export NCHILD=02
+export GBRG=mnests ; export TPN=$TPNn ; export FCSTL=24
+export AFFN=cpu    ; export NODE=2
+export INPES=08    ; export JNPES=08  ; export WTPG=4
+export NEMSI=true  ; export WLCLK=10  ; export NCHILD=02
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -2296,7 +2352,7 @@ fi # end FULL test
 # Finalize
 ####################################################################################################
 
-rm -f err out configure_file* nmm_ll gfs_fcst_run  gfs_ll gen_fcst_run gen_ll
+rm -f err out configure_file* nmm_ll nmm_msub nmm_run gfs_fcst_run  gfs_ll gen_fcst_run gen_ll
 
 cd ${PATHTR}/src
 gmake clean          > /dev/null 2>&1

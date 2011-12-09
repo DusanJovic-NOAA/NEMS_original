@@ -1,5 +1,5 @@
-#!/bin/ksh
-set -ua
+#!/bin/sh
+#set -uaex
 
 ####################################################################################################
 # Make configure and run files
@@ -7,19 +7,13 @@ set -ua
 
 JBNME=NEMS_RT_${TEST_NR}_$$
 
-cat nmm_${GBRG}_ll.IN   | sed s:_JBNME_:${JBNME}:g   \
-                        | sed s:_CLASS_:${CLASS}:g   \
-                        | sed s:_GROUP_:${GROUP}:g   \
-                        | sed s:_ACCNR_:${ACCNR}:g   \
-                        | sed s:_WLCLK_:${WLCLK}:g   \
-                        | sed s:_TPN_:${TPN}:g       \
-                        | sed s:_THRD_:${THRD}:g     \
+cat nmm_${GBRG}_run.IN  | sed s:_JBNME_:${JBNME}:g   \
                         | sed s:_TS_:${TS}:g         \
                         | sed s:_CPPCP_:${CPPCP}:g   \
-                        | sed s:_POST_:${POST}:g   \
+                        | sed s:_POST_:${POST}:g     \
                         | sed s:_RTPWD_:${RTPWD}:g   \
                         | sed s:_SRCD_:${PATHTR}:g   \
-                        | sed s:_RUND_:${RUNDIR}:g   >  nmm_ll
+                        | sed s:_RUND_:${RUNDIR}:g   >  nmm_run
 
 cat nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g   \
                         | sed s:_JNPES_:${JNPES}:g   \
@@ -34,6 +28,35 @@ cat nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g   \
                         | sed s:_PCPFLG_:${PCPFLG}:g \
                         | sed s:_WPREC_:${WPREC}:g   \
                         | sed s:_NCHILD_:${NCHILD}:g >  configure_file_01
+
+if [ $SCHEDULER = 'loadleveler' ]; then
+
+cat nmm_ll.IN           | sed s:_JBNME_:${JBNME}:g   \
+                        | sed s:_CLASS_:${CLASS}:g   \
+                        | sed s:_GROUP_:${GROUP}:g   \
+                        | sed s:_ACCNR_:${ACCNR}:g   \
+                        | sed s:_WLCLK_:${WLCLK}:g   \
+                        | sed s:_TPN_:${TPN}:g       \
+                        | sed s:_THRD_:${THRD}:g     \
+                        | sed s:_AFFNP_:${AFFN}:g    \
+                        | sed s:_NODE_:${NODE}:g     >  nmm_ll
+
+elif [ $SCHEDULER = 'moab' ]; then
+
+cat nmm_msub.IN         | sed s:_JBNME_:${JBNME}:g   \
+                        | sed s:_WLCLK_:${WLCLK}:g   \
+                        | sed s:_TPN_:${TPN}:g       \
+                        | sed s:_THRD_:${THRD}:g     >  nmm_msub
+
+elif [ $SCHEDULER = 'pbs' ]; then
+
+cat nmm_qsub.IN         | sed s:_JBNME_:${JBNME}:g   \
+                        | sed s:_WLCLK_:${WLCLK}:g   \
+                        | sed s:_TPN_:${TPN}:g       \
+                        | sed s:_THRD_:${THRD}:g     \
+                        | sed s:_RUND_:${RUNDIR}:g   >  nmm_qsub
+
+fi
 
 if [ ${GBRG} = nests ]; then
   cat ${RTPWD}/NMMB_nests/configure_file_02.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_02
@@ -58,7 +81,7 @@ fi
 # Submit test
 ####################################################################################################
 
-llsubmit nmm_ll 2>&1 | grep submitted > /dev/null
+sh ./nmm_run
 
 echo "Test ${TEST_NR}" >> RegressionTests.log
 echo "Test ${TEST_NR}"
@@ -71,7 +94,11 @@ job_running=0
 until [ $job_running -eq 1 ]
 do
 echo "TEST is waiting to enter the queue"
-job_running=`llq -u ${LOGIN} -f %st %jn | grep ${JBNME} | wc -l`;sleep 5
+if [ $SCHEDULER = 'loadleveler' ]; then
+job_running=`llq -u ${USER} -f %st %jn | grep ${JBNME} | wc -l`;sleep 5
+elif [ $SCHEDULER = 'moab' -o $SCHEDULER = 'pbs' ]; then
+job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
+fi
 done
 
 
@@ -82,20 +109,37 @@ n=1
 until [ $job_running -eq 0 ]
 do
 
-export status=`llq -u ${LOGIN} -f %st %jn | grep ${JBNME} | awk '{ print $1}'` ; export status=${status:--}
+if [ $SCHEDULER = 'loadleveler' ]; then
 
-if [ -f $PATHRT/err ] ; then FnshHrs=`grep Finished $PATHRT/err | tail -1 | awk '{ print $7 }'` ; fi
-export FnshHrs=${FnshHrs:-0}
+  status=`llq -u ${USER} -f %st %jn | grep ${JBNME} | awk '{ print $1}'` ; status=${status:--}
+  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $7 }'` ; fi
+  FnshHrs=${FnshHrs:-0}
+  if   [ $status = 'I' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
+  elif [ $status = 'R' ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
+  elif [ $status = 'ST' ]; then echo $n "min. TEST ${TEST_NR} is ready to run,       Status: " $status
+  elif [ $status = 'C' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status
+  else                          echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
+  fi
 
-if   [ $status = 'I' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
-elif [ $status = 'R' ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
-elif [ $status = 'ST' ]; then echo $n "min. TEST ${TEST_NR} is ready to run,       Status: " $status
-elif [ $status = 'C' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status
-else                          echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
+elif [ $SCHEDULER = 'moab' -o $SCHEDULER = 'pbs' ]; then
+
+  status=`showq -u ${USER} -n | grep ${JBNME} | awk '{print $3}'` ; status=${status:--}
+  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $6 }'` ; fi
+  FnshHrs=${FnshHrs:-0}
+  if   [ $status = 'Idle' ];       then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
+  elif [ $status = 'Running' ];    then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
+  elif [ $status = 'Starting' ];   then echo $n "min. TEST ${TEST_NR} is ready to run,       Status: " $status  ", Finished " $FnshHrs "hours"
+  elif [ $status = 'Completed' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status
+  else                                  echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
+  fi
+
 fi
-
 sleep 60
-job_running=`llq -u ${LOGIN} -f %st %jn | grep ${JBNME} | wc -l`
+if [ $SCHEDULER = 'loadleveler' ]; then
+  job_running=`llq -u ${USER} -f %st %jn | grep ${JBNME} | wc -l`
+elif [ $SCHEDULER = 'moab' -o $SCHEDULER = 'pbs' ]; then
+  job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`
+fi
   (( n=n+1 ))
 done
 
@@ -153,7 +197,7 @@ for i in ${LIST_FILES}
 do
   printf %s " Moving " $i "....."
   if [ -f ${RUNDIR}/$i ] ; then
-    cp ${RUNDIR}/${i} /stmp/${LOGIN}/REGRESSION_TEST/${CNTL_DIR}/${i}
+    cp ${RUNDIR}/${i} /stmp/${USER}/REGRESSION_TEST/${CNTL_DIR}/${i}
   else
     echo "Missing " ${RUNDIR}/$i " output file"
     echo;echo " Set ${TEST_NR} failed "
