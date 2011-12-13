@@ -1287,7 +1287,12 @@
       enddo
 
       R2DY=1./(2.*DY)
-      DO J=MAX(JTS,2),MIN(JTE,JDE-1)
+ J_LOOP: DO J=MAX(JTS,2),MIN(JTE,JDE-1)
+
+	IF (DX(J) .LT. 0.1) THEN
+        CYCLE J_LOOP
+	ENDIF
+
         R2DX=1./(2.*DX(J))
         DO I=MAX(ITS,2),MIN(ITE,IDE-1)
   L_LOOP:  DO L=1,LM-1
@@ -1311,7 +1316,7 @@
            ENDDO L_LOOP
            UPHLMAX(I,J)=MAX(UPHL(I,J),UPHLMAX(I,J))
         ENDDO
-      ENDDO
+      ENDDO J_LOOP
      
       END SUBROUTINE CALC_UPHLCY
 !

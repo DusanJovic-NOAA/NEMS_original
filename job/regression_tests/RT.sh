@@ -16,7 +16,7 @@ if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
   export STMP=/stmp
   export PTMP=/ptmp
   export SCHEDULER=loadleveler
-  STMP=/stpm
+  STMP=/stmp
 elif [ ${MACHINE_ID} = v ]; then 
   export CLASS=mtb
   export ACCNR=MTB003-RES
@@ -24,7 +24,7 @@ elif [ ${MACHINE_ID} = v ]; then
   export STMP=/stmp
   export PTMP=/ptmp
   export SCHEDULER=loadleveler
-  STMP=/stpm
+  STMP=/stmp
 elif [ ${MACHINE_ID} = g ]; then 
   export CLASS=dev
   export ACCNR=NAM-T2O
