@@ -1,11 +1,11 @@
-Sat Dec 10 17:27:03 EST 2011
+Wed Dec 21 12:06:34 EST 2011
 Start Regression test
 
 
 
-Sat Dec 10 17:27:03 EST 2011
+Wed Dec 21 12:06:34 EST 2011
 Compilation ALL
-Sat Dec 10 18:01:19 EST 2011
+Wed Dec 21 13:20:54 EST 2011
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  152.26
+ Original timing:  151.20  , test_glob timing:  152.54
 
 
 Test 002
@@ -128,7 +128,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  247.04
+ Original timing:  240.82  , test_reg timing:  245.05
 
 
 Test 009
@@ -845,9 +845,9 @@ Checking test 042 results ....
 
 
 
-Sat Dec 10 21:12:10 EST 2011
+Wed Dec 21 16:57:08 EST 2011
 Compilation ALL
-Sat Dec 10 21:46:09 EST 2011
+Wed Dec 21 17:48:16 EST 2011
 Test 043
 NMMB-regional run with post on quilt
 
@@ -898,9 +898,9 @@ Checking test 044 results ....
  Comparing GFSPRS.GrbF24.........OK
  Comparing GFSPRS.GrbF48.........OK
  Test 044 passed 
-Sat Dec 10 21:59:04 EST 2011
+Wed Dec 21 18:02:00 EST 2011
 Compilation ESMF 4
-Sat Dec 10 22:20:55 EST 2011
+Wed Dec 21 18:57:03 EST 2011
 Test 045
 Compare NMMB-global results with previous trunk version ESMF4
 
@@ -1012,9 +1012,9 @@ Checking test 048 results ....
 
 
 
-Sat Dec 10 22:36:34 EST 2011
+Wed Dec 21 19:14:09 EST 2011
 Compilation ESMF 5
-Sat Dec 10 22:58:58 EST 2011
+Wed Dec 21 20:03:35 EST 2011
 Test 049
 Compare NMMB-global results with previous trunk version ESMF5
 
@@ -1126,9 +1126,9 @@ Checking test 052 results ....
 
 
 
-Sat Dec 10 23:14:47 EST 2011
+Wed Dec 21 20:20:35 EST 2011
 Compilation ESMF 5.2
-Sat Dec 10 23:37:32 EST 2011
+Wed Dec 21 20:56:21 EST 2011
 Test 053
 Compare NMMB-global results with previous trunk version ESMF5
 
@@ -1240,9 +1240,9 @@ Checking test 056 results ....
 
 
 
-Sat Dec 10 23:52:22 EST 2011
+Wed Dec 21 21:12:17 EST 2011
 Compilation only NMM
-Sun Dec 11 00:05:22 EST 2011
+Wed Dec 21 21:31:57 EST 2011
 Test 057
 Compare NMMB-global results with previous trunk version, only NMM compiled
 
@@ -1258,9 +1258,9 @@ Checking test 057 results ....
 
 
 
-Sun Dec 11 00:07:49 EST 2011
+Wed Dec 21 21:34:59 EST 2011
 Compilation NMM with TRAPS on
-Sun Dec 11 00:31:15 EST 2011
+Wed Dec 21 22:03:02 EST 2011
 Test 058
 Compare NMMB-global results with previous trunk version, TRAPS on
 
@@ -1271,9 +1271,9 @@ Checking test 058 results ....
 
 
 
-Sun Dec 11 00:34:32 EST 2011
+Wed Dec 21 22:06:28 EST 2011
 Compilation only GFS
-Sun Dec 11 00:55:09 EST 2011
+Wed Dec 21 22:59:16 EST 2011
 Test 059
 Compare GFS results with previous trunk version, only GFS compiled
 GFS, 32 proc, 1 thread
@@ -1301,4 +1301,4 @@ Checking test 059 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 059 passed 
-Sun Dec 11 00:58:15 EST 2011
+Wed Dec 21 23:03:14 EST 2011

@@ -139,11 +139,8 @@
 !*** The following USEs are needed for NMM-B time series output.
 !-----------------------------------------------------------------------
 !
-      USE MODULE_DYNAMICS_INTERNAL_STATE, ONLY: DYNAMICS_INTERNAL_STATE &
-                                               ,WRAP_DYN_INT_STATE
-!
-      USE MODULE_PHYSICS_INTERNAL_STATE, ONLY: PHYSICS_INTERNAL_STATE   &
-                                             , WRAP_PHY_INT_STATE
+      USE MODULE_SOLVER_INTERNAL_STATE, ONLY: SOLVER_INTERNAL_STATE &
+                                             ,WRAP_SOLVER_INT_STATE
 !
       USE MODULE_TIMESERIES
 !
@@ -249,13 +246,9 @@
 !
       TYPE(WRAP_DOMAIN_INTERNAL_STATE) :: WRAP
 !
-      TYPE(WRAP_DYN_INT_STATE) :: WRAP_DYN
+      TYPE(WRAP_SOLVER_INT_STATE) :: WRAP_SOLVER
 !
-      TYPE(WRAP_PHY_INT_STATE) :: WRAP_PHY
-!
-      TYPE(DYNAMICS_INTERNAL_STATE),POINTER :: DYN_INT_STATE
-!
-      TYPE(PHYSICS_INTERNAL_STATE),POINTER :: PHY_INT_STATE
+      TYPE(SOLVER_INTERNAL_STATE),POINTER :: SOLVER_INT_STATE
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -318,17 +311,11 @@
 !
       IF(MYPE<domain_int_state%NUM_PES_FCST)THEN
 !
-        CALL ESMF_GridCompGetInternalState(domain_int_state%DYN_GRID_COMP &  !<-- The Dynamics component
-                                          ,WRAP_DYN                       &  !<-- The F90 wrap of the Dynamics internal state
+        CALL ESMF_GridCompGetInternalState(domain_int_state%SOLVER_GRID_COMP &  !<-- The Dynamics component
+                                          ,WRAP_SOLVER                       &  !<-- The F90 wrap of the Solver internal state
                                           ,RC)
 !
-        DYN_INT_STATE => wrap_dyn%INT_STATE
-!
-        CALL ESMF_GridCompGetInternalState(domain_int_state%PHY_GRID_COMP &  !<-- The Physics component
-                                          ,WRAP_PHY                       &  !<-- The F90 wrap of the Physics internal state
-                                          ,RC)
-!
-        PHY_INT_STATE => wrap_phy%INT_STATE
+        SOLVER_INT_STATE => wrap_solver%INT_STATE
 !
       END IF
 !
@@ -516,8 +503,7 @@
 !
           IF(MYPE<domain_int_state%NUM_PES_FCST)THEN
 !
-            CALL TIMESERIES_INITIALIZE(DYN_INT_STATE                    &
-                                      ,PHY_INT_STATE                    &
+            CALL TIMESERIES_INITIALIZE(SOLVER_INT_STATE                 &
                                       ,MY_DOMAIN_ID                     &
                                       ,NTIMESTEP                        &
                                       ,IERR)
@@ -526,8 +512,7 @@
               CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
             END IF
 !
-            CALL TIMESERIES_RUN(DYN_INT_STATE                           &
-                               ,PHY_INT_STATE                           &
+            CALL TIMESERIES_RUN(SOLVER_INT_STATE                        &
                                ,MY_DOMAIN_ID                            &
                                ,NTIMESTEP                               &
                                ,IERR)
@@ -685,8 +670,7 @@
 !
         IF(MYPE<domain_int_state%NUM_PES_FCST.AND.FILTER_METHOD==0)THEN
 !
-          CALL TIMESERIES_RUN(DYN_INT_STATE                             &
-                             ,PHY_INT_STATE                             &
+          CALL TIMESERIES_RUN(SOLVER_INT_STATE                          &
                              ,MY_DOMAIN_ID                              &
                              ,NTIMESTEP                                 &
                              ,IERR)

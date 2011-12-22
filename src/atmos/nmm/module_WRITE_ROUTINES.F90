@@ -3165,7 +3165,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state      =domain_int_state%EXP_STATE_DYN     &  !<-- The Dyn component's export state
+      CALL ESMF_StateGet(state      =domain_int_state%EXP_STATE_SOLVER  &  !<-- The Solver component's export state
                         ,itemName   ="Write Import State"               &  !<-- Name of state to be extracted
                         ,nestedState=domain_int_state%IMP_STATE_WRITE   &  !<-- The extracted state
                         ,rc         =RC)

@@ -7,23 +7,16 @@
 
 !-----------------------------------------------------------------------
 !
-      MODULE MODULE_DYNAMICS_OUTPUT
+      MODULE MODULE_OUTPUT
 !
 !-----------------------------------------------------------------------
-!***  Insert quantities from the Dynamics internal state into the
+!***  Insert quantities from the Solver internal state into the
 !***  Write import state for output.
-!-----------------------------------------------------------------------
-!***  WHEN NEW QUANTITIES ARE ADDED TO THE DYNAMICS INTERNAL STATE
-!***  THAT ARE CANDIDATES FOR HISTORY OUTPUT THEN THEY NEED TO BE
-!***  ADDED IN TWO PLACES BELOW: 
-!*    (1) THE APPROPRIATE DATA LIST PRECEDING THE 'CONTAINS' STATEMENT
-!*    (2) 'THE DYNAMICS INTERNAL STATE POINTER BLOCK'
-!*        IN SUBROUTINE POINT_DYNAMICS_OUPUT
 !-----------------------------------------------------------------------
 !
       USE ESMF_Mod
       USE MODULE_INCLUDE
-      USE MODULE_DYNAMICS_INTERNAL_STATE,ONLY: DYNAMICS_INTERNAL_STATE 
+      USE MODULE_SOLVER_INTERNAL_STATE,ONLY: SOLVER_INTERNAL_STATE 
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
       USE MODULE_VARS
       USE MODULE_VARS_STATE
@@ -36,7 +29,7 @@
 !
       PRIVATE
 !
-      PUBLIC :: POINT_DYNAMICS_OUTPUT
+      PUBLIC :: POINT_OUTPUT
 !
 !-----------------------------------------------------------------------
 !
@@ -45,7 +38,7 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE POINT_DYNAMICS_OUTPUT(GRID,INT_STATE,IMP_STATE_WRITE)
+      SUBROUTINE POINT_OUTPUT(GRID,INT_STATE,IMP_STATE_WRITE)
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -58,7 +51,7 @@
 !
       TYPE(ESMF_Grid) ,INTENT(IN) :: GRID                                  !<-- The ESMF Grid
 !
-      TYPE(DYNAMICS_INTERNAL_STATE),POINTER,INTENT(IN) :: INT_STATE        !<-- The Dynamics internal state
+      TYPE(SOLVER_INTERNAL_STATE),POINTER,INTENT(IN) :: INT_STATE          !<-- The Solver internal state
 !
       TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE_WRITE                    !<-- Import state for the Write components
 !
@@ -74,6 +67,10 @@
                 ,UDIM1,UDIM2
 !
       INTEGER :: ITWO=2
+
+      INTEGER(kind=KINT) :: MP_PHYSICS                                  &
+                           ,SF_SURFACE_PHYSICS
+
 !
       REAL(KIND=KFPT),DIMENSION(:,:),POINTER :: TEMP_R2D
 !
@@ -94,7 +91,7 @@
 #ifdef ESMF_3
 
 !-----------------------------------------------------------------------
-!***  ESMF versions of the logicals in the Dynamics internal state.
+!***  ESMF versions of the logicals in the Solver internal state.
 !-----------------------------------------------------------------------
 !
       TYPE(ESMF_Logical),TARGET :: ADIABATIC_ESMF                       &
@@ -415,6 +412,132 @@
                               ,RESTART_BUNDLE)
 !
 !-----------------------------------------------------------------------
+!***  The microphysics scheme specification is needed in the output
+!***  so add it directly.
+!-----------------------------------------------------------------------
+!
+      IF(int_state%MICROPHYSICS=='fer')THEN
+        MP_PHYSICS=5
+      ELSEIF(int_state%MICROPHYSICS=='kes')THEN
+        MP_PHYSICS=1
+      ELSEIF(int_state%MICROPHYSICS=='lin')THEN
+        MP_PHYSICS=2
+      ELSEIF(int_state%MICROPHYSICS=='tho')THEN
+        MP_PHYSICS=8
+      ELSEIF(int_state%MICROPHYSICS=='wsm3')THEN
+        MP_PHYSICS=3
+      ELSEIF(int_state%MICROPHYSICS=='wsm6')THEN
+        MP_PHYSICS=6
+      ELSEIF(int_state%MICROPHYSICS=='gfs')THEN
+        MP_PHYSICS=9
+      ENDIF
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert Microphysics Scheme Specification into History Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeSet(bundle     =HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
+                            ,name       ='MP_PHYSICS'                   &  !<-- Name of microphysics scheme variable
+                            ,value      =MP_PHYSICS                     &  !<-- The microphysics scheme integer specification
+                            ,rc         =RC)
+#else
+      CALL ESMF_AttributeSet(fieldbundle=HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
+                            ,name       ='MP_PHYSICS'                   &  !<-- Name of microphysics scheme variable
+                            ,value      =MP_PHYSICS                     &  !<-- The microphysics scheme integer specification
+                            ,rc         =RC)
+#endif
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert Microphysics Scheme Specification into Restart Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeSet(bundle     =RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
+                            ,name       ='MP_PHYSICS'                   &  !<-- Name of microphysics scheme variable
+                            ,value      =MP_PHYSICS                     &  !<-- The microphysics scheme integer specification
+                            ,rc         =RC)
+#else
+      CALL ESMF_AttributeSet(fieldbundle=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
+                            ,name       ='MP_PHYSICS'                   &  !<-- Name of microphysics scheme variable
+                            ,value      =MP_PHYSICS                     &  !<-- The microphysics scheme integer specification
+                            ,rc         =RC)
+#endif
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  The land surface scheme specification is needed in the output
+!***  so add it directly.
+!-----------------------------------------------------------------------
+!
+      IF(int_state%LAND_SURFACE=='noah')THEN
+        SF_SURFACE_PHYSICS=2
+      ELSEIF(int_state%LAND_SURFACE=='slab')THEN
+        SF_SURFACE_PHYSICS=1
+      ELSEIF(int_state%LAND_SURFACE=='ruc')THEN
+        SF_SURFACE_PHYSICS=3
+      ELSEIF(int_state%LAND_SURFACE=='nmm')THEN
+        SF_SURFACE_PHYSICS=99
+      ENDIF
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert Surface Physics Scheme Specification into History Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeSet(bundle     =HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
+                            ,name       ='SF_SURFACE_PHYSICS'           &  !<-- Name of land surface scheme variable
+                            ,value      =SF_SURFACE_PHYSICS             &  !<-- The land surface scheme integer specification
+                            ,rc         =RC)
+#else
+      CALL ESMF_AttributeSet(fieldbundle=HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
+                            ,name       ='SF_SURFACE_PHYSICS'           &  !<-- Name of land surface scheme variable
+                            ,value      =SF_SURFACE_PHYSICS             &  !<-- The land surface scheme integer specification
+                            ,rc         =RC)
+#endif
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert Surface Physics Scheme Specification into Restart Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+#ifdef ESMF_3
+      CALL ESMF_AttributeSet(bundle     =RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
+                            ,name       ='SF_SURFACE_PHYSICS'           &  !<-- Name of land surface scheme variable
+                            ,value      =SF_SURFACE_PHYSICS             &  !<-- The land surface scheme integer specification
+                            ,rc         =RC)
+#else
+      CALL ESMF_AttributeSet(fieldbundle=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
+                            ,name       ='SF_SURFACE_PHYSICS'           &  !<-- Name of land surface scheme variable
+                            ,value      =SF_SURFACE_PHYSICS             &  !<-- The land surface scheme integer specification
+                            ,rc         =RC)
+#endif
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL PUT_VARS_IN_BUNDLES_P(int_state%VARS                         &
+                              ,int_state%NUM_VARS                       &
+                              ,GRID                                     &
+                              ,HISTORY_BUNDLE                           &
+                              ,RESTART_BUNDLE)
+!
+!-----------------------------------------------------------------------
 !***  Load the two output Bundles into the working array which is used
 !***  to add them to the Write component's import state.
 !-----------------------------------------------------------------------
@@ -425,7 +548,7 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Dynamics: Insert Bundle Array into the Write Import State"
+      MESSAGE_CHECK="Solver: Insert Bundle Array into the Write Import State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -440,10 +563,10 @@
 !
 !-----------------------------------------------------------------------
 !
-      END SUBROUTINE POINT_DYNAMICS_OUTPUT
+      END SUBROUTINE POINT_OUTPUT
 !
 !-----------------------------------------------------------------------
 !
-      END MODULE MODULE_DYNAMICS_OUTPUT
+      END MODULE MODULE_OUTPUT
 !
 !-----------------------------------------------------------------------

@@ -61,15 +61,13 @@
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !-----------------------------------------------------------------------
 
-      subroutine timeseries_initialize(dyn_state,phy_state,domain_id,ntsd,ierr)
+      subroutine timeseries_initialize(solver_state,domain_id,ntsd,ierr)
 
-      use module_dynamics_internal_state, only : dynamics_internal_state
-      use module_physics_internal_state, only : physics_internal_state
+      use module_solver_internal_state, only : solver_internal_state
 
       implicit none
 
-      type(dynamics_internal_state),intent(in) :: dyn_state
-      type(physics_internal_state),intent(in) :: phy_state
+      type(solver_internal_state),intent(in) :: solver_state
       integer, intent(in) :: domain_id
       integer, intent(in) :: ntsd
       integer, intent(out) :: ierr
@@ -128,19 +126,19 @@
          return
       end if
 
-      im = dyn_state%im
-      jm = dyn_state%jm
-      lm = dyn_state%lm
-      tlm0d = dyn_state%tlm0d
-      tph0d = dyn_state%tph0d
-      dlmd = dyn_state%dlmd
-      dphd = dyn_state%dphd
-      wbd = dyn_state%wbd
-      sbd = dyn_state%sbd
+      im = solver_state%im
+      jm = solver_state%jm
+      lm = solver_state%lm
+      tlm0d = solver_state%tlm0d
+      tph0d = solver_state%tph0d
+      dlmd = solver_state%dlmd
+      dphd = solver_state%dphd
+      wbd = solver_state%wbd
+      sbd = solver_state%sbd
 
 !! calculate forecast time for this time step
 
-      secfcst = dyn_state%dt * ntsd
+      secfcst = solver_state%dt * ntsd
       nf_hours = int(secfcst/3600)
       ihr = nf_hours
       nf_minutes = int( mod(secfcst,3600.0)/60.0 )
@@ -148,7 +146,7 @@
       if (nf_seconds< 0.000001) nf_seconds=0.0
       ten_thousandth = nint((secfcst-int(secfcst))*10000)
 
-      call valid(dyn_state%idat,dyn_state%ihrst,nf_hours,idatv,ihrv,idaywk)
+      call valid(solver_state%idat,solver_state%ihrst,nf_hours,idatv,ihrv,idaywk)
 
       year = idatv(3)
       month = idatv(2)
@@ -173,23 +171,23 @@
       var3d_number = 0
 
 
-!! loop over all dynamics state variables and find which ones are selected for timeseries output.
+!! loop over all solver state variables and find which ones are selected for timeseries output.
 !! currently only 2d and 3d real variables are supported. this is due to limitations of used
 !! timeseries binary file format
 
-      do n=1,dyn_state%num_vars
-        if (dyn_state%vars(n)%tseries) then
-        select case(dyn_state%vars(n)%tkr)
+      do n=1,solver_state%num_vars
+        if (solver_state%vars(n)%tseries) then
+        select case(solver_state%vars(n)%tkr)
           case(tkr_r2d)
             var2d_number = var2d_number + 1
-            var2d_name(var2d_number) = trim(dyn_state%vars(n)%vbl_name)
+            var2d_name(var2d_number) = trim(solver_state%vars(n)%vbl_name)
             var2d_units(var2d_number) = ""
-            var2d_description(var2d_number) = trim(dyn_state%vars(n)%description)
+            var2d_description(var2d_number) = trim(solver_state%vars(n)%description)
           case(tkr_r3d)
             var3d_number = var3d_number + 1
-            var3d_name(var3d_number) = trim(dyn_state%vars(n)%vbl_name)
+            var3d_name(var3d_number) = trim(solver_state%vars(n)%vbl_name)
             var3d_units(var3d_number) = ""
-            var3d_description(var3d_number) = trim(dyn_state%vars(n)%description)
+            var3d_description(var3d_number) = trim(solver_state%vars(n)%description)
             var3d_lvlind(var3d_number) = 'H   '
 
             !! for 3d variables, level indicator is set to 'H' by default which means 'half' level
@@ -204,43 +202,12 @@
                end if
             end do
           case default
-            write(0,*)' unknown tkr = ', dyn_state%vars(n)%tkr, trim(dyn_state%vars(n)%vbl_name)
+            write(0,*)' unknown tkr = ', solver_state%vars(n)%tkr, trim(solver_state%vars(n)%vbl_name)
             ierr = -1
             return
         end select
         end if
       end do
-
-!! do similar search for physics internal state variables as for dynamics above.
-
-      do n=1,phy_state%num_vars
-        if (phy_state%vars(n)%tseries) then
-        select case(phy_state%vars(n)%tkr)
-          case(tkr_r2d)
-            var2d_number = var2d_number + 1
-            var2d_name(var2d_number) = trim(phy_state%vars(n)%vbl_name)
-            var2d_units(var2d_number) = ""
-            var2d_description(var2d_number) = trim(phy_state%vars(n)%description)
-          case(tkr_r3d)
-            var3d_number = var3d_number + 1
-            var3d_name(var3d_number) = trim(phy_state%vars(n)%vbl_name)
-            var3d_units(var3d_number) = ""
-            var3d_description(var3d_number) = trim(phy_state%vars(n)%description)
-            var3d_lvlind(var3d_number) = 'H   '
-            do l=1,max_fulllevel_vars
-               if (trim(fulllevel_vars(l))==trim(var3d_name(var3d_number))) then
-                  var3d_lvlind(var3d_number) = 'F   '
-                  exit
-               end if
-            end do
-          case default
-            write(0,*)' unknown tkr = ', phy_state%vars(n)%tkr, trim(phy_state%vars(n)%vbl_name)
-            ierr = -1
-            return
-        end select
-        end if
-      end do
-
 
 !! loop over number of points specified in ts_locations namelist and calculate i,j
 !! indexes of the nearest H point
@@ -263,12 +230,12 @@
             j = jpnt(np)
             iq = i - ims + 1
             jq = j - jms + 1
-            zint(np,lm+1)=dyn_state%fis(i,j)/g
+            zint(np,lm+1)=solver_state%fis(i,j)/g
 
             do k=lm,1,-1
-                  zint(np,k)=zint(np,k+1)+dyn_state%t(i,j,k)*(0.608*max(dyn_state%q(iq,jq,k),epsq)+1.)*r_d        &
-                            *(dyn_state%pint(i,j,k+1)-dyn_state%pint(i,j,k))                                     &
-                            /((dyn_state%sgml2(k)*dyn_state%pd(i,j)+dyn_state%psgml1(k))*g)
+                  zint(np,k)=zint(np,k+1)+solver_state%t(i,j,k)*(0.608*max(solver_state%q(iq,jq,k),epsq)+1.)*r_d        &
+                            *(solver_state%pint(i,j,k+1)-solver_state%pint(i,j,k))                                     &
+                            /((solver_state%sgml2(k)*solver_state%pd(i,j)+solver_state%psgml1(k))*g)
                   zmid(np,k)=0.5*(zint(np,k+1)+zint(np,k))
             end do
 
@@ -284,7 +251,7 @@
             end if
 
 !! header
-            write(tsunit(np)) dyn_state%dt
+            write(tsunit(np)) solver_state%dt
             write(tsunit(np)) modelstarttime
             write(tsunit(np)) 0  ! avgyn
             write(tsunit(np)) 0  ! avgfrq
@@ -330,15 +297,13 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 
-      subroutine timeseries_run(dyn_state,phy_state,domain_id,ntsd,ierr)
+      subroutine timeseries_run(solver_state,domain_id,ntsd,ierr)
 
-      use module_dynamics_internal_state, only : dynamics_internal_state
-      use module_physics_internal_state, only : physics_internal_state
+      use module_solver_internal_state, only : solver_internal_state
 
       implicit none
 
-      type(dynamics_internal_state),intent(in) :: dyn_state
-      type(physics_internal_state),intent(in) :: phy_state
+      type(solver_internal_state),intent(in) :: solver_state
       integer,intent(in) :: domain_id
       integer,intent(in) :: ntsd
       integer, intent(out) :: ierr
@@ -365,13 +330,13 @@
         return
       end if
 
-      tlm0d = dyn_state%tlm0d
-      tph0d = dyn_state%tph0d
-      lm = dyn_state%lm
+      tlm0d = solver_state%tlm0d
+      tph0d = solver_state%tph0d
+      lm = solver_state%lm
 
 !! calculate forecast time for this time step
 
-      secfcst = dyn_state%dt * ntsd
+      secfcst = solver_state%dt * ntsd
       nf_hours = int(secfcst/3600)
       ihr = nf_hours
       nf_minutes = int( mod(secfcst,3600.0)/60.0 )
@@ -379,7 +344,7 @@
       if (nf_seconds< 0.000001) nf_seconds=0.0
       ten_thousandth = nint((secfcst-int(secfcst))*10000)
 
-      call valid(dyn_state%idat,dyn_state%ihrst,nf_hours,idatv,ihrv,idaywk)
+      call valid(solver_state%idat,solver_state%ihrst,nf_hours,idatv,ihrv,idaywk)
 
       year = idatv(3)
       month = idatv(2)
@@ -417,25 +382,19 @@
             write(tsunit(np)) year,month,day,hour,minute,second,ten_thousandth,ntsd
 
 ! 2d
-            do n=1,dyn_state%num_vars
-              if (dyn_state%vars(n)%tseries .and. dyn_state%vars(n)%tkr==tkr_r2d) then
-                write(tsunit(np)) dyn_state%vars(n)%r2d(i,j)
-              end if
-            end do
-
-            do n=1,phy_state%num_vars
-              if (phy_state%vars(n)%tseries .and. phy_state%vars(n)%tkr==tkr_r2d) then
-                write(tsunit(np)) phy_state%vars(n)%r2d(i,j)
+            do n=1,solver_state%num_vars
+              if (solver_state%vars(n)%tseries .and. solver_state%vars(n)%tkr==tkr_r2d) then
+                write(tsunit(np)) solver_state%vars(n)%r2d(i,j)
               end if
             end do
 
 !3d
-            do n=1,dyn_state%num_vars
-              if (dyn_state%vars(n)%tseries .and. dyn_state%vars(n)%tkr==tkr_r3d) then
-                if (trim(dyn_state%vars(n)%vbl_name)=="Q" .or. &
-                    trim(dyn_state%vars(n)%vbl_name)=="CW" .or. &
-                    trim(dyn_state%vars(n)%vbl_name)=="E2" .or. &
-                    trim(dyn_state%vars(n)%vbl_name)=="O3" ) then
+            do n=1,solver_state%num_vars
+              if (solver_state%vars(n)%tseries .and. solver_state%vars(n)%tkr==tkr_r3d) then
+                if (trim(solver_state%vars(n)%vbl_name)=="Q" .or. &
+                    trim(solver_state%vars(n)%vbl_name)=="CW" .or. &
+                    trim(solver_state%vars(n)%vbl_name)=="E2" .or. &
+                    trim(solver_state%vars(n)%vbl_name)=="O3" ) then
                   ip = iq
                   jp = jq
                 else
@@ -444,39 +403,13 @@
                 end if
                 lmax = lm
                 do l=1,max_fulllevel_vars
-                  if (trim(fulllevel_vars(l))==trim(dyn_state%vars(n)%vbl_name)) then
+                  if (trim(fulllevel_vars(l))==trim(solver_state%vars(n)%vbl_name)) then
                     lmax = lm+1
                     exit
                   end if
                 end do
                 do k=1,lmax
-                  write(tsunit(np)) dyn_state%vars(n)%r3d(ip,jp,k)
-                end do
-                if(lmax==lm) write(tsunit(np)) 0.0
-              end if
-            end do
-
-            do n=1,phy_state%num_vars
-              if (phy_state%vars(n)%tseries .and. phy_state%vars(n)%tkr==tkr_r3d) then
-                if (trim(phy_state%vars(n)%vbl_name)=="Q" .or. &
-                    trim(phy_state%vars(n)%vbl_name)=="CW" .or. &
-                    trim(phy_state%vars(n)%vbl_name)=="E2" .or. &
-                    trim(phy_state%vars(n)%vbl_name)=="O3" ) then
-                  ip = iq
-                  jp = jq
-                else
-                  ip = i
-                  jp = j
-                end if
-                lmax = lm
-                do l=1,max_fulllevel_vars
-                  if (trim(fulllevel_vars(l))==trim(phy_state%vars(n)%vbl_name)) then
-                    lmax = lm+1
-                    exit
-                  end if
-                end do
-                do k=1,lmax
-                  write(tsunit(np)) phy_state%vars(n)%r3d(ip,jp,k)
+                  write(tsunit(np)) solver_state%vars(n)%r3d(ip,jp,k)
                 end do
                 if(lmax==lm) write(tsunit(np)) 0.0
               end if

@@ -23,7 +23,7 @@
                         ,cdwdt_tim,cdzdt_tim,consts_tim                 &
                         ,ddamp_tim,dht_tim                              &
                         ,dyn_init_tim,dyn_run_tim                       &
-                        ,exch_dyn_tim                                   &
+                        ,exch_tim                                       &
                         ,fftfhn_tim,fftfwn_tim,hadv2_tim                &
                         ,hdiff_tim,init_tim,mono_tim                    &
                         ,pdtsdt_tim,pgforce_tim,poavhn_tim              &
@@ -37,7 +37,7 @@
 !***  Associated with Physics
 !-----------------------------------------------------------------------
 !
-      REAL(kind=KDBL) :: adjppt_tim,cucnvc_tim,exch_phy_tim             &
+      REAL(kind=KDBL) :: adjppt_tim,cucnvc_tim                          &
                         ,gsmdrive_tim,h_to_v_tim,gfs_phy_tim            &
                         ,phy_init_tim,phy_run_tim,phy_sum_tim           &
                         ,pole_swap_phy_tim,radiation_tim,rdtemp_tim     &
@@ -96,7 +96,7 @@
 !jaa                  +consts_tim                                       &
                   +dht_tim                                              &
                   +ddamp_tim                                            &
-                  +exch_dyn_tim                                         &
+                  +exch_tim                                             &
 !jaa                  +init_tim                                         &
                   +fftfhn_tim                                           &
                   +fftfwn_tim                                           &
@@ -119,7 +119,6 @@
 !
       totalsum_tim=totalsum_tim                                         &
                   +cucnvc_tim                                           &
-                  +exch_phy_tim                                         &
                   +gsmdrive_tim                                         &
                   +h_to_v_tim                                           &
                   +pole_swap_phy_tim                                    &
@@ -254,10 +253,8 @@
 !
         write(0,*)' EXCHANGE TIMES '
 !
-        write(0,FMT='("   exch_dyn=             ",g10.5," pct= ",f7.2)') exch_dyn_tim*factor &
-                ,exch_dyn_tim/total_integ_tim*100.
-        write(0,FMT='("   exch_phy=             ",g10.5," pct= ",f7.2)') exch_phy_tim*factor &
-                ,exch_phy_tim/total_integ_tim*100.
+        write(0,FMT='("   exch_dyn=             ",g10.5," pct= ",f7.2)') exch_tim*factor &
+                ,exch_tim/total_integ_tim*100.
 !
         if(swaphn_tim/=0.)then
           write(0,FMT='("   swaphn=               ",g10.5," pct= ",f7.2)') swaphn_tim*factor &

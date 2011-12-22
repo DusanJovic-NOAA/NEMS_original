@@ -17,7 +17,6 @@
 !***  internal state variables into that memory.
 !-----------------------------------------------------------------------
 
-      USE ESMF_MOD
       USE MODULE_INCLUDE
       USE module_DM_PARALLEL,ONLY: MYPE_SHARE
 
@@ -36,11 +35,14 @@
      
         CHARACTER(LEN=32)                  :: VBL_NAME = ''
         LOGICAL                            :: HISTORY  = .FALSE.
+        LOGICAL                            :: HISTORY_P= .FALSE.
         LOGICAL                            :: RESTART  = .FALSE.
+        LOGICAL                            :: RESTART_P= .FALSE.
         LOGICAL                            :: OWNED    = .FALSE.
         LOGICAL                            :: IMPORT   = .FALSE.
         LOGICAL                            :: EXPORT   = .FALSE.
         LOGICAL                            :: TSERIES  = .FALSE.
+        LOGICAL                            :: TSERIES_P= .FALSE.
         CHARACTER(LEN=128)                 :: DESCRIPTION = ''
 
         INTEGER                            :: TKR      = 0
@@ -80,7 +82,7 @@
 
 !#######################################################################
 
-      SUBROUTINE READ_CONFIG(FNAME,VARS,NUM_VARS)
+      SUBROUTINE READ_CONFIG(FNAME,VARS,NUM_VARS,RC)
 
 !-----------------------------------------------------------------------
 !***  Read the text file for Dynamics or Physics that specifies 
@@ -92,12 +94,15 @@
         CHARACTER(LEN=*), INTENT(IN) :: FNAME
         TYPE(VAR), DIMENSION(:), INTENT(INOUT) :: VARS
         INTEGER, INTENT(OUT) :: NUM_VARS
+        INTEGER, INTENT(OUT) :: RC
 
-        INTEGER :: IERR,N,IOS,NVARS,RC
+        INTEGER :: IERR,N,IOS,NVARS
         CHARACTER(LEN=256) :: STRING
         CHARACTER(LEN=1) :: CH_H,CH_R,CH_O,CH_I,CH_X,CH_T
 
 !-----------------------------------------------------------------------
+
+        RC = 0
 
         NVARS = SIZE(VARS)                                                 !<-- Max # of variables MAX_VARS set in internal state modules
         N = 0
@@ -105,9 +110,8 @@
         IF(IERR/=0)THEN
           WRITE(0,*)' Unable to open file ',TRIM(FNAME)                 &
                    ,' in READ_CONFIG'
-          WRITE(0,*)' ABORTING!'
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
-                            ,rc             =RC)
+          RC = -1
+          RETURN
         ENDIF
 
         read_specs: DO WHILE(.TRUE.)
@@ -145,11 +149,14 @@
 !------------------------------------------------
 
           IF (CH_H=='H') VARS(N)%HISTORY=.TRUE.
+          IF (CH_H=='P') VARS(N)%HISTORY_P=.TRUE.
           IF (CH_R=='R') VARS(N)%RESTART=.TRUE.
+          IF (CH_R=='S') VARS(N)%RESTART_P=.TRUE.
           IF (CH_O=='O') VARS(N)%OWNED  =.TRUE.
           IF (CH_I=='I') VARS(N)%IMPORT =.TRUE.
           IF (CH_X=='X') VARS(N)%EXPORT =.TRUE.
           IF (CH_T=='T') VARS(N)%TSERIES=.TRUE.
+          IF (CH_T=='t') VARS(N)%TSERIES_P=.TRUE.
 
         END DO  read_specs
 
@@ -164,7 +171,7 @@
 
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
-      SUBROUTINE SET_VAR_PTR_I0D (VARS,NUM_VARS,ALLOC_FLAG,VBL_NAME,I0D)
+      SUBROUTINE SET_VAR_PTR_I0D (VARS,NUM_VARS,VBL_NAME,I0D)
 
 !--------------------------------------------------------------------
 !***  Allocate memory for 'Owned' integer scalars in the Dynamics or
@@ -175,7 +182,6 @@
         IMPLICIT NONE
         TYPE(VAR), DIMENSION(:), INTENT(INOUT) :: VARS
         INTEGER, INTENT(IN)                    :: NUM_VARS
-        LOGICAL, INTENT(IN)                    :: ALLOC_FLAG
         CHARACTER(LEN=*), INTENT(IN)           :: VBL_NAME
         INTEGER    ,POINTER                    :: I0D
 
@@ -184,7 +190,7 @@
 !-----------------------------------------------------------------------
 
         CALL FIND_VAR_INDX(VBL_NAME,VARS,NUM_VARS,INDX)
-        IF (ALLOC_FLAG .AND. VARS(INDX)%OWNED) THEN
+        IF (VARS(INDX)%OWNED) THEN
           ALLOCATE(VARS(INDX)%I0D)                                         !<-- Allocate an integer scalar pointer for input I0D
           VARS(INDX)%I0D=I4_IN
         END IF
@@ -195,7 +201,7 @@
 
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
-      SUBROUTINE SET_VAR_PTR_R0D (VARS,NUM_VARS,ALLOC_FLAG,VBL_NAME,R0D)
+      SUBROUTINE SET_VAR_PTR_R0D (VARS,NUM_VARS,VBL_NAME,R0D)
 
 !--------------------------------------------------------------------
 !***  Allocate memory for 'Owned' real scalars in the Dynamics or
@@ -206,7 +212,6 @@
         IMPLICIT NONE
         TYPE(VAR), DIMENSION(:), INTENT(INOUT) :: VARS
         INTEGER, INTENT(IN)                    :: NUM_VARS
-        LOGICAL, INTENT(IN)                    :: ALLOC_FLAG
         CHARACTER(LEN=*), INTENT(IN)           :: VBL_NAME
         REAL       ,POINTER                    :: R0D
 
@@ -215,7 +220,7 @@
 !-----------------------------------------------------------------------
 
         CALL FIND_VAR_INDX(VBL_NAME,VARS,NUM_VARS,INDX)
-        IF (ALLOC_FLAG .AND. VARS(INDX)%OWNED) THEN
+        IF (VARS(INDX)%OWNED) THEN
           ALLOCATE(VARS(INDX)%R0D)
           VARS(INDX)%R0D=R4_IN
         END IF
@@ -226,7 +231,7 @@
 
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
-      SUBROUTINE SET_VAR_PTR_I1D (VARS,NUM_VARS,ALLOC_FLAG,VBL_NAME,I1D,lowbound,upbound)
+      SUBROUTINE SET_VAR_PTR_I1D (VARS,NUM_VARS,VBL_NAME,I1D,lowbound,upbound)
 
 !-----------------------------------------------------------------------
 !***  Allocate memory for 'Owned' integer 1-D arrays in the Dynamics 
@@ -237,7 +242,6 @@
         IMPLICIT NONE
         TYPE(VAR), DIMENSION(:), INTENT(INOUT) :: VARS
         INTEGER, INTENT(IN)                    :: NUM_VARS
-        LOGICAL, INTENT(IN)                    :: ALLOC_FLAG
         CHARACTER(LEN=*), INTENT(IN)           :: VBL_NAME
         INTEGER, DIMENSION(:), POINTER         :: I1D
         INTEGER, INTENT(IN)                    :: lowbound,upbound
@@ -247,7 +251,7 @@
 !-----------------------------------------------------------------------
 
         CALL FIND_VAR_INDX(VBL_NAME,VARS,NUM_VARS,INDX)
-        IF (ALLOC_FLAG .AND. VARS(INDX)%OWNED) THEN
+        IF (VARS(INDX)%OWNED) THEN
           ALLOCATE (VARS(INDX)%I1D(lowbound:upbound))
           VARS(INDX)%I1D=I4_IN
         END IF
@@ -258,7 +262,7 @@
 
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
-      SUBROUTINE SET_VAR_PTR_I2D (VARS,NUM_VARS,ALLOC_FLAG,VBL_NAME,I2D,lowbound,upbound)
+      SUBROUTINE SET_VAR_PTR_I2D (VARS,NUM_VARS,VBL_NAME,I2D,lowbound,upbound)
 
 !-----------------------------------------------------------------------
 !***  Allocate memory for 'Owned' integer 2-D arrays in the Dynamics
@@ -269,7 +273,6 @@
         IMPLICIT NONE
         TYPE(VAR), DIMENSION(:), INTENT(INOUT) :: VARS
         INTEGER, INTENT(IN)                    :: NUM_VARS
-        LOGICAL, INTENT(IN)                    :: ALLOC_FLAG
         CHARACTER(LEN=*), INTENT(IN)           :: VBL_NAME
         INTEGER,DIMENSION(:,:)  ,POINTER       :: I2D
         INTEGER, DIMENSION(2), INTENT(IN)      :: lowbound,upbound
@@ -279,7 +282,7 @@
 !-----------------------------------------------------------------------
 
         CALL FIND_VAR_INDX(VBL_NAME,VARS,NUM_VARS,INDX)
-        IF (ALLOC_FLAG .AND. VARS(INDX)%OWNED) THEN
+        IF (VARS(INDX)%OWNED) THEN
           ALLOCATE (VARS(INDX)%I2D(lowbound(1):upbound(1), &
                                    lowbound(2):upbound(2) ))
           VARS(INDX)%I2D=I4_IN
@@ -291,7 +294,7 @@
 
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
-      SUBROUTINE SET_VAR_PTR_R1D (VARS,NUM_VARS,ALLOC_FLAG,VBL_NAME,R1D,lowbound,upbound)
+      SUBROUTINE SET_VAR_PTR_R1D (VARS,NUM_VARS,VBL_NAME,R1D,lowbound,upbound)
 
 !-----------------------------------------------------------------------
 !***  Allocate memory for 'Owned' real 1-D arrays in the Dynamics
@@ -302,7 +305,6 @@
         IMPLICIT NONE
         TYPE(VAR), DIMENSION(:), INTENT(INOUT) :: VARS
         INTEGER, INTENT(IN)                    :: NUM_VARS
-        LOGICAL, INTENT(IN)                    :: ALLOC_FLAG
         CHARACTER(LEN=*), INTENT(IN)           :: VBL_NAME
         REAL, DIMENSION(:), POINTER            :: R1D
         INTEGER, INTENT(IN)                    :: lowbound,upbound
@@ -312,7 +314,7 @@
 !-----------------------------------------------------------------------
 
         CALL FIND_VAR_INDX(VBL_NAME,VARS,NUM_VARS,INDX)
-        IF (ALLOC_FLAG .AND. VARS(INDX)%OWNED) THEN
+        IF (VARS(INDX)%OWNED) THEN
           ALLOCATE (VARS(INDX)%R1D(lowbound:upbound))
           VARS(INDX)%R1D=R4_IN
         END IF
@@ -323,7 +325,7 @@
 
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
-      SUBROUTINE SET_VAR_PTR_R2D (VARS,NUM_VARS,ALLOC_FLAG,VBL_NAME,R2D,lowbound,upbound)
+      SUBROUTINE SET_VAR_PTR_R2D (VARS,NUM_VARS,VBL_NAME,R2D,lowbound,upbound)
 
 !-----------------------------------------------------------------------
 !***  Allocate memory for 'Owned' real 2-D arrays in the Dynamics
@@ -334,7 +336,6 @@
         IMPLICIT NONE
         TYPE(VAR), DIMENSION(:), INTENT(INOUT) :: VARS
         INTEGER, INTENT(IN)                    :: NUM_VARS
-        LOGICAL, INTENT(IN)                    :: ALLOC_FLAG
         CHARACTER(LEN=*), INTENT(IN)           :: VBL_NAME
         REAL   ,DIMENSION(:,:)  ,POINTER       :: R2D
         INTEGER, DIMENSION(2), INTENT(IN)      :: lowbound,upbound
@@ -344,7 +345,7 @@
 !-----------------------------------------------------------------------
 
         CALL FIND_VAR_INDX(VBL_NAME,VARS,NUM_VARS,INDX)
-        IF (ALLOC_FLAG .AND. VARS(INDX)%OWNED) THEN
+        IF (VARS(INDX)%OWNED) THEN
           ALLOCATE (VARS(INDX)%R2D(lowbound(1):upbound(1), &
                                    lowbound(2):upbound(2) ))
           VARS(INDX)%R2D=R4_IN
@@ -356,7 +357,7 @@
 
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
-      SUBROUTINE SET_VAR_PTR_R3D (VARS,NUM_VARS,ALLOC_FLAG,VBL_NAME,R3D,lowbound,upbound)
+      SUBROUTINE SET_VAR_PTR_R3D (VARS,NUM_VARS,VBL_NAME,R3D,lowbound,upbound)
 
 !-----------------------------------------------------------------------
 !***  Allocate memory for 'Owned' real 3-D arrays in the Dynamics
@@ -367,7 +368,6 @@
         IMPLICIT NONE
         TYPE(VAR), DIMENSION(:), INTENT(INOUT) :: VARS
         INTEGER, INTENT(IN)                    :: NUM_VARS
-        LOGICAL, INTENT(IN)                    :: ALLOC_FLAG
         CHARACTER(LEN=*), INTENT(IN)           :: VBL_NAME
         REAL   ,DIMENSION(:,:,:),POINTER       :: R3D
         INTEGER, DIMENSION(3), INTENT(IN)      :: lowbound,upbound
@@ -377,7 +377,7 @@
 !-----------------------------------------------------------------------
 
         CALL FIND_VAR_INDX(VBL_NAME,VARS,NUM_VARS,INDX)
-        IF (ALLOC_FLAG .AND. VARS(INDX)%OWNED) THEN
+        IF (VARS(INDX)%OWNED) THEN
           ALLOCATE (VARS(INDX)%R3D(lowbound(1):upbound(1), &
                                    lowbound(2):upbound(2), &
                                    lowbound(3):upbound(3) ))
@@ -390,7 +390,7 @@
 
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
-      SUBROUTINE SET_VAR_PTR_R4D (VARS,NUM_VARS,ALLOC_FLAG,VBL_NAME,R4D,lowbound,upbound)
+      SUBROUTINE SET_VAR_PTR_R4D (VARS,NUM_VARS,VBL_NAME,R4D,lowbound,upbound)
 
 !-----------------------------------------------------------------------
 !***  Allocate memory for 'Owned' real 4-D arrays in the Dynamics
@@ -401,7 +401,6 @@
         IMPLICIT NONE
         TYPE(VAR), DIMENSION(:), INTENT(INOUT) :: VARS
         INTEGER, INTENT(IN)                    :: NUM_VARS
-        LOGICAL, INTENT(IN)                    :: ALLOC_FLAG
         CHARACTER(LEN=*), INTENT(IN)           :: VBL_NAME
         REAL   ,DIMENSION(:,:,:,:),POINTER     :: R4D
         INTEGER, DIMENSION(4), INTENT(IN)      :: lowbound,upbound
@@ -411,7 +410,7 @@
 !-----------------------------------------------------------------------
 
         CALL FIND_VAR_INDX(VBL_NAME,VARS,NUM_VARS,INDX)
-        IF (ALLOC_FLAG .AND. VARS(INDX)%OWNED) THEN
+        IF (VARS(INDX)%OWNED) THEN
           ALLOCATE (VARS(INDX)%R4D(lowbound(1):upbound(1), &
                                    lowbound(2):upbound(2), &
                                    lowbound(3):upbound(3), &

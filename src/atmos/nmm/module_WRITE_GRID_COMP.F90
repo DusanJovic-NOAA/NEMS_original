@@ -4313,20 +4313,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(state      =domain_int_state%EXP_STATE_DYN     & !<-- Dynamics export state receives a state
-                        ,nestedState=domain_int_state%IMP_STATE_WRITE   & !<-- Add the write components' import state
-                        ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert Write Import State into Physics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateAdd(state      =domain_int_state%EXP_STATE_PHY     & !<-- Physics export state receives a state
+      CALL ESMF_StateAdd(state      =domain_int_state%EXP_STATE_SOLVER  & !<-- Solver export state receives a state
                         ,nestedState=domain_int_state%IMP_STATE_WRITE   & !<-- Add the write components' import state
                         ,rc         =RC)
 !
@@ -4358,97 +4345,49 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 #ifdef ESMF_3
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_DYN &  !<-- Dynamics import state receives an attribute
+        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
                               ,name     ='LOCAL_ISTART'                 &  !<-- The attribute's name
                               ,count    =NUM_PES_FCST                   &  !<-- The attribute's length
                               ,valueList=domain_int_state%LOCAL_ISTART  &  !<-- Insert this quantity as an attribute
                               ,rc       =RC)
 !
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_DYN &  !<-- Dynamics import state receives an attribute
+        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
                               ,name     ='LOCAL_IEND'                   &  !<-- The attribute's name
                               ,count    =NUM_PES_FCST                   &  !<-- The attribute's length
                               ,valueList=domain_int_state%LOCAL_IEND    &  !<-- Insert this quantity as an attribute
                               ,rc       =RC)
 !
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_DYN &  !<-- Dynamics import state receives an attribute
+        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
                               ,name     ='LOCAL_JSTART'                 &  !<-- The attribute's name
                               ,count    =NUM_PES_FCST                   &  !<-- The attribute's length
                               ,valueList=domain_int_state%LOCAL_JSTART  &  !<-- Insert this quantity as an attribute
                               ,rc       =RC)
 !
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_DYN &  !<-- Dynamics import state receives an attribute
-                              ,name     ='LOCAL_JEND'                   &  !<-- The attribute's name
-                              ,count    =NUM_PES_FCST                   &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_JEND    &  !<-- Insert this quantity as an attribute
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_PHY &  !<-- Physics import state receives an attribute
-                              ,name     ='LOCAL_ISTART'                 &  !<-- The attribute's name
-                              ,count    =NUM_PES_FCST                   &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_ISTART  &  !<-- Insert this quantity as an attribute
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_PHY &  !<-- Physics import state receives an attribute
-                              ,name     ='LOCAL_IEND'                   &  !<-- The attribute's name
-                              ,count    =NUM_PES_FCST                   &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_IEND    &  !<-- Insert this quantity as an attribute
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_PHY &  !<-- Physics import state receives an attribute
-                              ,name     ='LOCAL_JSTART'                 &  !<-- The attribute's name
-                              ,count    =NUM_PES_FCST                   &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_JSTART  &  !<-- Insert this quantity as an attribute
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_PHY &  !<-- Physics import state receives an attribute
+        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
                               ,name     ='LOCAL_JEND'                   &  !<-- The attribute's name
                               ,count    =NUM_PES_FCST                   &  !<-- The attribute's length
                               ,valueList=domain_int_state%LOCAL_JEND    &  !<-- Insert this quantity as an attribute
                               ,rc       =RC)
 #else
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_DYN &  !<-- Dynamics import state receives an attribute
+        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
                               ,name     ='LOCAL_ISTART'                 &  !<-- The attribute's name
                               ,itemCount=NUM_PES_FCST                   &  !<-- The attribute's length
                               ,valueList=domain_int_state%LOCAL_ISTART  &  !<-- Insert this quantity as an attribute
                               ,rc       =RC)
 !
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_DYN &  !<-- Dynamics import state receives an attribute
+        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
                               ,name     ='LOCAL_IEND'                   &  !<-- The attribute's name
                               ,itemCount=NUM_PES_FCST                   &  !<-- The attribute's length
                               ,valueList=domain_int_state%LOCAL_IEND    &  !<-- Insert this quantity as an attribute
                               ,rc       =RC)
 !
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_DYN &  !<-- Dynamics import state receives an attribute
+        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
                               ,name     ='LOCAL_JSTART'                 &  !<-- The attribute's name
                               ,itemCount=NUM_PES_FCST                   &  !<-- The attribute's length
                               ,valueList=domain_int_state%LOCAL_JSTART  &  !<-- Insert this quantity as an attribute
                               ,rc       =RC)
 !
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_DYN &  !<-- Dynamics import state receives an attribute
-                              ,name     ='LOCAL_JEND'                   &  !<-- The attribute's name
-                              ,itemCount=NUM_PES_FCST                   &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_JEND    &  !<-- Insert this quantity as an attribute
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_PHY &  !<-- Physics import state receives an attribute
-                              ,name     ='LOCAL_ISTART'                 &  !<-- The attribute's name
-                              ,itemCount=NUM_PES_FCST                   &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_ISTART  &  !<-- Insert this quantity as an attribute
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_PHY &  !<-- Physics import state receives an attribute
-                              ,name     ='LOCAL_IEND'                   &  !<-- The attribute's name
-                              ,itemCount=NUM_PES_FCST                   &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_IEND    &  !<-- Insert this quantity as an attribute
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_PHY &  !<-- Physics import state receives an attribute
-                              ,name     ='LOCAL_JSTART'                 &  !<-- The attribute's name
-                              ,itemCount=NUM_PES_FCST                   &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_JSTART  &  !<-- Insert this quantity as an attribute
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_PHY &  !<-- Physics import state receives an attribute
+        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
                               ,name     ='LOCAL_JEND'                   &  !<-- The attribute's name
                               ,itemCount=NUM_PES_FCST                   &  !<-- The attribute's length
                               ,valueList=domain_int_state%LOCAL_JEND    &  !<-- Insert this quantity as an attribute

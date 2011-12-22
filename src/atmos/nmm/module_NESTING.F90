@@ -677,8 +677,7 @@
                                          ,CF                            &
                                          ,MY_DOMAIN_ID                  &
                                          ,THIS_CHILD_ID                 &
-                                         ,DYN_GRID_COMP                 &
-                                         ,PHY_GRID_COMP                 & 
+                                         ,SOLVER_GRID_COMP              &
                                          ,COMM_MY_DOMAIN )
 !
 !-----------------------------------------------------------------------
@@ -688,11 +687,8 @@
 !***  Only parent tasks are needed for this.
 !-----------------------------------------------------------------------
 !
-      USE MODULE_DYNAMICS_INTERNAL_STATE,ONLY: DYNAMICS_INTERNAL_STATE  &
-                                              ,WRAP_DYN_INT_STATE
-!
-      USE MODULE_PHYSICS_INTERNAL_STATE ,ONLY: PHYSICS_INTERNAL_STATE   &
-                                              ,WRAP_PHY_INT_STATE
+      USE MODULE_SOLVER_INTERNAL_STATE,ONLY: SOLVER_INTERNAL_STATE  &
+                                            ,WRAP_SOLVER_INT_STATE
 !
 !-----------------------------------------------------------------------
 !
@@ -707,8 +703,7 @@
 !
       TYPE(ESMF_Config),DIMENSION(*),INTENT(INOUT) :: CF                   !<-- The config objects (one per domain)
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT)          :: DYN_GRID_COMP       &  !<-- The parent's Dynamics gridded component
-                                                   ,PHY_GRID_COMP          !<-- The parent's Physics gridded component
+      TYPE(ESMF_GridComp),INTENT(INOUT)          :: SOLVER_GRID_COMP       !<-- The parent's Solver gridded component
 !
 !---------------------
 !***  Local Variables
@@ -775,13 +770,9 @@
       LOGICAL(kind=KLOG) :: GLOBAL,OPENED
       LOGICAL(kind=KLOG),ALLOCATABLE,DIMENSION(:,:) :: LOWER_TOPO
 !
-      TYPE(WRAP_DYN_INT_STATE)  :: WRAP_DYN
+      TYPE(WRAP_SOLVER_INT_STATE)  :: WRAP_SOLVER
 !
-      TYPE(WRAP_PHY_INT_STATE)  :: WRAP_PHY
-!
-      TYPE(DYNAMICS_INTERNAL_STATE),POINTER :: DYN_INT_STATE
-!
-      TYPE(PHYSICS_INTERNAL_STATE) ,POINTER :: PHY_INT_STATE
+      TYPE(SOLVER_INTERNAL_STATE),POINTER :: SOLVER_INT_STATE
 !
 !-----------------------------------------------------------------------
 !***  This routine provides data to a child domain when no normal
@@ -799,8 +790,7 @@
       RC      =ESMF_SUCCESS
       RC_CHILD=ESMF_SUCCESS
 !
-      NULLIFY(DYN_INT_STATE)
-      NULLIFY(PHY_INT_STATE)
+      NULLIFY(solver_int_state)
 !
 !-----------------------------------------------------------------------
 !***  Only forecast tasks are relevant and have correct data
@@ -968,51 +958,46 @@
       COL_0=0.5*(IDE+1)
 !
 !-----------------------------------------------------------------------
-!***  Extract the Dynamics and Physics internal states of the parent
+!***  Extract the Solver internal state of the parent
 !***  so we can use their data for the nests.
 !-----------------------------------------------------------------------
 !
-      CALL ESMF_GridCompGetInternalState(DYN_GRID_COMP                  &
-                                        ,WRAP_DYN                       &
-                                        ,RC )
-!
-      CALL ESMF_GridCompGetInternalState(PHY_GRID_COMP                  &
-                                        ,WRAP_PHY                       &
+      CALL ESMF_GridCompGetInternalState(SOLVER_GRID_COMP               &
+                                        ,WRAP_SOLVER                    &
                                         ,RC )
 !
 !-----------------------------------------------------------------------
 !
-      DYN_INT_STATE=>wrap_dyn%INT_STATE
-      PHY_INT_STATE=>wrap_phy%INT_STATE
+      SOLVER_INT_STATE=>wrap_solver%INT_STATE
 !
-      IMS=dyn_int_state%IMS                                                !<-- Horizontal memory limits on parent tasks
-      IME=dyn_int_state%IME                                                !
-      JMS=dyn_int_state%JMS                                                !
-      JME=dyn_int_state%JME                                                !<--
+      IMS=solver_int_state%IMS                                                !<-- Horizontal memory limits on parent tasks
+      IME=solver_int_state%IME                                                !
+      JMS=solver_int_state%JMS                                                !
+      JME=solver_int_state%JME                                                !<--
 !
-      ITS=dyn_int_state%ITS                                                !<-- Horizontal integration limits on parent tasks
-      ITE=dyn_int_state%ITE                                                !
-      JTS=dyn_int_state%JTS                                                !
-      JTE=dyn_int_state%JTE                                                !<--
+      ITS=solver_int_state%ITS                                                !<-- Horizontal integration limits on parent tasks
+      ITE=solver_int_state%ITE                                                !
+      JTS=solver_int_state%JTS                                                !
+      JTE=solver_int_state%JTE                                                !<--
 !
-      LM=dyn_int_state%LM                                                  !<-- Number of atmospheric layers
+      LM=solver_int_state%LM                                                  !<-- Number of atmospheric layers
 !
-      LOCAL_ISTART=>dyn_int_state%LOCAL_ISTART                             !<-- Local integration limits for all parent tasks
-      LOCAL_IEND  =>dyn_int_state%LOCAL_IEND                               !
-      LOCAL_JSTART=>dyn_int_state%LOCAL_JSTART                             !
-      LOCAL_JEND  =>dyn_int_state%LOCAL_JEND                               !<--
+      LOCAL_ISTART=>solver_int_state%LOCAL_ISTART                             !<-- Local integration limits for all parent tasks
+      LOCAL_IEND  =>solver_int_state%LOCAL_IEND                               !
+      LOCAL_JSTART=>solver_int_state%LOCAL_JSTART                             !
+      LOCAL_JEND  =>solver_int_state%LOCAL_JEND                               !<--
 !
 !-----------------------------------------------------------------------
 !***  DPHD/DLMD and SBD/WBD are used only for stand-alone, independent
 !***  rotated parent/nest grids (i.e., not grid-associated nests).
 !-----------------------------------------------------------------------
 !
-      DPHD_PARENT=dyn_int_state%DPHD
-      DLMD_PARENT=dyn_int_state%DLMD
-      SBD_PARENT=dyn_int_state%SBD
-      WBD_PARENT=dyn_int_state%WBD
-      TPH0D_PARENT=dyn_int_state%TPH0D
-      TLM0D_PARENT=dyn_int_state%TLM0D
+      DPHD_PARENT=solver_int_state%DPHD
+      DLMD_PARENT=solver_int_state%DLMD
+      SBD_PARENT=solver_int_state%SBD
+      WBD_PARENT=solver_int_state%WBD
+      TPH0D_PARENT=solver_int_state%TPH0D
+      TLM0D_PARENT=solver_int_state%TLM0D
 !
 !-----------------------------------------------------------------------
 !***  Extract relevant information from this child's configure file.
@@ -1175,24 +1160,24 @@
         IHREND=0                                                           !<-- Not used 
         NTSD  =0                                                           !<-- Not used
 !
-        WRITE(NFCST)dyn_int_state%RUN                                   &
-                   ,dyn_int_state%IDAT                                  &
-                   ,dyn_int_state%IHRST                                 &
-!                  ,dyn_int_state%IHREND                                &
-!                  ,dyn_int_state%NTSD
+        WRITE(NFCST)solver_int_state%RUN                                   &
+                   ,solver_int_state%IDAT                                  &
+                   ,solver_int_state%IHRST                                 &
+!                  ,solver_int_state%IHREND                                &
+!                  ,solver_int_state%NTSD
                    ,IHREND                                              &
                    ,NTSD
 !
-        WRITE(NFCST)dyn_int_state%PT                                    &
-                   ,dyn_int_state%PDTOP                                 &
-                   ,dyn_int_state%LPT2                                  &
-                   ,dyn_int_state%SGM                                   &
-                   ,dyn_int_state%SG1                                   &
-                   ,dyn_int_state%DSG1                                  &
-                   ,dyn_int_state%SGML1                                 &
-                   ,dyn_int_state%SG2                                   &
-                   ,dyn_int_state%DSG2                                  &
-                   ,dyn_int_state%SGML2
+        WRITE(NFCST)solver_int_state%PT                                    &
+                   ,solver_int_state%PDTOP                                 &
+                   ,solver_int_state%LPT2                                  &
+                   ,solver_int_state%SGM                                   &
+                   ,solver_int_state%SG1                                   &
+                   ,solver_int_state%DSG1                                  &
+                   ,solver_int_state%SGML1                                 &
+                   ,solver_int_state%SG2                                   &
+                   ,solver_int_state%DSG2                                  &
+                   ,solver_int_state%SGML2
 !
         WRITE(NFCST)I_PARENT_START,J_PARENT_START
 !
@@ -1235,7 +1220,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=dyn_int_state%SM(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%SM(I,J)
       ENDDO
       ENDDO
 !
@@ -1259,7 +1244,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=dyn_int_state%FIS(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%FIS(I,J)
       ENDDO
       ENDDO
 !
@@ -1286,7 +1271,7 @@
 
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%STDH(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%STDH(I,J)
       ENDDO
       ENDDO
 !
@@ -1314,7 +1299,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=dyn_int_state%PD(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%PD(I,J)
       ENDDO
       ENDDO
 !
@@ -1350,7 +1335,7 @@
 !***  U
 !-----------------------------------------------------------------------
 !
-      CALL PARENT_TO_CHILD_FILL(dyn_int_state%U, LM                     &
+      CALL PARENT_TO_CHILD_FILL(solver_int_state%U, LM                     &
                                ,'Uwind'                                 &
                                ,DUMMY_3D                                &
                                ,BILINEAR)
@@ -1360,10 +1345,10 @@
                            ,PD_BILINEAR                                 &
                            ,LOWER_TOPO                                  &
                            ,DUMMY_3D                                    &
-                           ,dyn_int_state%PT                            &
-                           ,dyn_int_state%PDTOP                         &
-                           ,dyn_int_state%SG1                           &
-                           ,dyn_int_state%SG2                           &
+                           ,solver_int_state%PT                            &
+                           ,solver_int_state%PDTOP                         &
+                           ,solver_int_state%SG1                           &
+                           ,solver_int_state%SG2                           &
                            ,IM_CHILD,JM_CHILD)
       ENDIF
 !
@@ -1376,7 +1361,7 @@
 !***  V
 !-----------------------------------------------------------------------
 !
-      CALL PARENT_TO_CHILD_FILL(dyn_int_state%V, LM                     &
+      CALL PARENT_TO_CHILD_FILL(solver_int_state%V, LM                     &
                                ,'Vwind'                                 &
                                ,DUMMY_3D                                &
                                ,BILINEAR)
@@ -1386,10 +1371,10 @@
                            ,PD_BILINEAR                                 &
                            ,LOWER_TOPO                                  &
                            ,DUMMY_3D                                    &
-                           ,dyn_int_state%PT                            &
-                           ,dyn_int_state%PDTOP                         &
-                           ,dyn_int_state%SG1                           &
-                           ,dyn_int_state%SG2                           &
+                           ,solver_int_state%PT                            &
+                           ,solver_int_state%PDTOP                         &
+                           ,solver_int_state%SG1                           &
+                           ,solver_int_state%SG2                           &
                            ,IM_CHILD,JM_CHILD)
       ENDIF
 !
@@ -1402,7 +1387,7 @@
 !***  T
 !-----------------------------------------------------------------------
 !
-      CALL PARENT_TO_CHILD_FILL(dyn_int_state%T, LM                     &
+      CALL PARENT_TO_CHILD_FILL(solver_int_state%T, LM                     &
                                ,'Temperature'                           &
                                ,DUMMY_3D                                &
                                ,BILINEAR)
@@ -1412,10 +1397,10 @@
                            ,PD_BILINEAR                                 &
                            ,LOWER_TOPO                                  &
                            ,DUMMY_3D                                    &
-                           ,dyn_int_state%PT                            &
-                           ,dyn_int_state%PDTOP                         &
-                           ,dyn_int_state%SG1                           &
-                           ,dyn_int_state%SG2                           &
+                           ,solver_int_state%PT                            &
+                           ,solver_int_state%PDTOP                         &
+                           ,solver_int_state%SG1                           &
+                           ,solver_int_state%SG2                           &
                            ,IM_CHILD,JM_CHILD)
       ENDIF
 !
@@ -1428,7 +1413,7 @@
 !***  Q
 !-----------------------------------------------------------------------
 !
-      CALL PARENT_TO_CHILD_FILL(dyn_int_state%Q, LM                     &
+      CALL PARENT_TO_CHILD_FILL(solver_int_state%Q, LM                     &
                                ,'SpecHum'                               &
                                ,DUMMY_3D                                &
                                ,BILINEAR)
@@ -1438,10 +1423,10 @@
                            ,PD_BILINEAR                                 &
                            ,LOWER_TOPO                                  &
                            ,DUMMY_3D                                    &
-                           ,dyn_int_state%PT                            &
-                           ,dyn_int_state%PDTOP                         &
-                           ,dyn_int_state%SG1                           &
-                           ,dyn_int_state%SG2                           &
+                           ,solver_int_state%PT                            &
+                           ,solver_int_state%PDTOP                         &
+                           ,solver_int_state%SG1                           &
+                           ,solver_int_state%SG2                           &
                            ,IM_CHILD,JM_CHILD)
       ENDIF
 !
@@ -1454,7 +1439,7 @@
 !***  CW
 !-----------------------------------------------------------------------
 !
-      CALL PARENT_TO_CHILD_FILL(dyn_int_state%CW, LM                    &
+      CALL PARENT_TO_CHILD_FILL(solver_int_state%CW, LM                    &
                                ,'CW'                                    &
                                ,DUMMY_3D                                &
                                ,BILINEAR)
@@ -1464,10 +1449,10 @@
                            ,PD_BILINEAR                                 &
                            ,LOWER_TOPO                                  &
                            ,DUMMY_3D                                    &
-                           ,dyn_int_state%PT                            &
-                           ,dyn_int_state%PDTOP                         &
-                           ,dyn_int_state%SG1                           &
-                           ,dyn_int_state%SG2                           &
+                           ,solver_int_state%PT                            &
+                           ,solver_int_state%PDTOP                         &
+                           ,solver_int_state%SG1                           &
+                           ,solver_int_state%SG2                           &
                            ,IM_CHILD,JM_CHILD)
       ENDIF
 !
@@ -1480,7 +1465,7 @@
 !***  O3
 !-----------------------------------------------------------------------
 !
-!     CALL PARENT_TO_CHILD_FILL(dyn_int_state%O3, LM                    &
+!     CALL PARENT_TO_CHILD_FILL(solver_int_state%O3, LM                    &
 !                              ,'O3'                                    &
 !                              ,DUMMY_3D                                &
 !                              ,BILINEAR)
@@ -1490,10 +1475,10 @@
 !                          ,PD_BILINEAR                                 &
 !                          ,LOWER_TOPO                                  &
 !                          ,DUMMY_3D                                    &
-!                          ,dyn_int_state%PT                            &
-!                          ,dyn_int_state%PDTOP                         &
-!                          ,dyn_int_state%SG1                           &
-!                          ,dyn_int_state%SG2                           &
+!                          ,solver_int_state%PT                            &
+!                          ,solver_int_state%PDTOP                         &
+!                          ,solver_int_state%SG1                           &
+!                          ,solver_int_state%SG2                           &
 !                          ,IM_CHILD,JM_CHILD)
 !     ENDIF
 !
@@ -1513,7 +1498,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%ALBEDO(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%ALBEDO(I,J)
       ENDDO
       ENDDO
 !
@@ -1532,7 +1517,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%ALBASE(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%ALBASE(I,J)
       ENDDO
       ENDDO
 !
@@ -1549,7 +1534,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%EPSR(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%EPSR(I,J)
       ENDDO
       ENDDO
 !
@@ -1568,7 +1553,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%MXSNAL(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%MXSNAL(I,J)
       ENDDO
       ENDDO
 !
@@ -1588,7 +1573,7 @@
 !     write(0,*)' before TSKIN'
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%TSKIN(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%TSKIN(I,J)
       ENDDO
       ENDDO
 !
@@ -1622,7 +1607,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%SST(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%SST(I,J)
       ENDDO
       ENDDO
 !
@@ -1641,7 +1626,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%SNO(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%SNO(I,J)
       ENDDO
       ENDDO
 !
@@ -1660,7 +1645,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%SI(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%SI(I,J)
       ENDDO
       ENDDO
 !
@@ -1679,7 +1664,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%SICE(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%SICE(I,J)
       ENDDO
       ENDDO
 !
@@ -1708,7 +1693,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%TG(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%TG(I,J)
       ENDDO
       ENDDO
 !
@@ -1727,7 +1712,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%CMC(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%CMC(I,J)
       ENDDO
       ENDDO
 !
@@ -1746,7 +1731,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%SR(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%SR(I,J)
       ENDDO
       ENDDO
 !
@@ -1765,7 +1750,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%USTAR(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%USTAR(I,J)
       ENDDO
       ENDDO
 !
@@ -1784,7 +1769,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%Z0(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%Z0(I,J)
       ENDDO
       ENDDO
 !
@@ -1803,7 +1788,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%Z0BASE(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%Z0BASE(I,J)
       ENDDO
       ENDDO
 !
@@ -1820,7 +1805,7 @@
 !***  STC
 !-----------------------------------------------------------------------
 !
-      CALL PARENT_TO_CHILD_FILL(phy_int_state%STC, NUM_SOIL_LAYERS      &
+      CALL PARENT_TO_CHILD_FILL(solver_int_state%STC, NUM_SOIL_LAYERS      &
                                ,'STC'                                   &
                                ,DUMMY_3DS                               &
                                ,BILINEAR)
@@ -1842,7 +1827,7 @@
 !***  SMC
 !-----------------------------------------------------------------------
 !
-      CALL PARENT_TO_CHILD_FILL(phy_int_state%SMC, NUM_SOIL_LAYERS      &
+      CALL PARENT_TO_CHILD_FILL(solver_int_state%SMC, NUM_SOIL_LAYERS      &
                                ,'SMC'                                   &
                                ,DUMMY_3DS                               &
                                ,BILINEAR)
@@ -1864,7 +1849,7 @@
 !***  SH2O
 !-----------------------------------------------------------------------
 !
-      CALL PARENT_TO_CHILD_FILL(phy_int_state%SH2O, NUM_SOIL_LAYERS     &
+      CALL PARENT_TO_CHILD_FILL(solver_int_state%SH2O, NUM_SOIL_LAYERS     &
                                ,'SH2O'                                  &
                                ,DUMMY_3DS                               &
                                ,BILINEAR)
@@ -1886,7 +1871,7 @@
 !***  ISLTYP
 !-----------------------------------------------------------------------
 !
-      CALL PARENT_TO_CHILD_IFILL(phy_int_state%ISLTYP                   &
+      CALL PARENT_TO_CHILD_IFILL(solver_int_state%ISLTYP                   &
                                 ,'ISLTYP'                               &
                                 ,IDUMMY_2D )
 !
@@ -1908,10 +1893,10 @@
 !***  IVGTYP
 !-----------------------------------------------------------------------
 !
-!     write(0,*)' PARENT_TO_CHILD_INIT IVGTYP max=',maxval(phy_int_state%IVGTYP) &
-!              ,' min=',minval(phy_int_state%IVGTYP),' maxloc=',maxloc(phy_int_state%IVGTYP) &
-!              ,' minloc=',minloc(phy_int_state%IVGTYP)
-      CALL PARENT_TO_CHILD_IFILL(phy_int_state%IVGTYP                   &
+!     write(0,*)' PARENT_TO_CHILD_INIT IVGTYP max=',maxval(solver_int_state%IVGTYP) &
+!              ,' min=',minval(solver_int_state%IVGTYP),' maxloc=',maxloc(solver_int_state%IVGTYP) &
+!              ,' minloc=',minloc(solver_int_state%IVGTYP)
+      CALL PARENT_TO_CHILD_IFILL(solver_int_state%IVGTYP                   &
                                 ,'IVGTYP'                               &
                                 ,IDUMMY_2D )
 !
@@ -1934,7 +1919,7 @@
 !
       DO J=JMS,JME
       DO I=IMS,IME
-        DUMMY_2D_IN(I,J,1)=phy_int_state%VEGFRC(I,J)
+        DUMMY_2D_IN(I,J,1)=solver_int_state%VEGFRC(I,J)
       ENDDO
       ENDDO
 !
@@ -4492,7 +4477,6 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE INTERNAL_DATA_TO_DOMAIN(EXP_STATE_DYN                  &
-                                        ,EXP_STATE_PHY                  &
                                         ,EXP_STATE_DOMAIN               &
                                         ,LM )
 !
@@ -4510,11 +4494,9 @@
       INTEGER(kind=KINT),INTENT(OUT) :: LM                                 !<-- # of model layers
 !
 #ifdef ESMF_3
-      TYPE(ESMF_State),INTENT(IN) :: EXP_STATE_DYN                      &  !<-- Dynamics export state
-                                    ,EXP_STATE_PHY                         !<-- Physics export state
+      TYPE(ESMF_State),INTENT(IN) :: EXP_STATE_DYN                         !<-- Dynamics export state
 #else
-      TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_DYN                   &   !<-- Dynamics export state
-                                       ,EXP_STATE_PHY                       !<-- Physics export state
+      TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_DYN                      !<-- Dynamics export state
 #endif
 !
       TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_DOMAIN                   !<-- DOMAIN export state into which fcst Arrays are transferred
@@ -4589,7 +4571,6 @@
 !
 !-----------------------------------------------------------------------
 !
-#if 1
       EXP_FIELD = (/ 'PD      '                                         &
                     ,'PINT    '                                         &
                     ,'T       '                                         &
@@ -4626,8 +4607,6 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        IF (STATEITEMTYPE /= ESMF_STATEITEM_NOTFOUND) THEN
-!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract "//TRIM(EXP_FIELD(N))//" from Dynamics Export State"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
@@ -4640,26 +4619,6 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        ELSE
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Extract "//TRIM(EXP_FIELD(N))//" from Physics Export State"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_StateGet(state   =EXP_STATE_PHY                     &  !<-- The Physics export state
-                            ,itemName=TRIM(EXP_FIELD(N))                &  !<-- Extract this Field
-                            ,field   =HOLD_FIELD                        &  !<-- Put the extracted Field here
-                            ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        END IF
-!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Obtain Grid and Dimensions from the Field"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
@@ -4695,227 +4654,7 @@
       END DO  item_loop
 !
 !-----------------------------------------------------------------------
-#else
-!-----------------------------------------------------------------------
 !
-!-----------------
-!***  Transfer PD 
-!-----------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract PD from Dynamics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Dynamics export state
-                        ,itemName='PD'                                  &  !<-- Extract PD
-                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert PD into DOMAIN Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateAdd(state=EXP_STATE_DOMAIN                         &  !<-- Insert PD into DOMAIN export state
-                        ,field=HOLD_FIELD                               &  !<-- The Field to be inserted
-                        ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!---------------------------------
-!***  Transfer Interface Pressure
-!---------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract PINT from Dynamics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Dynamics export state
-                        ,itemName='PINT'                                &  !<-- Extract T
-                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert PINT into DOMAIN Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateAdd(state=EXP_STATE_DOMAIN                         &  !<-- Insert T into DOMAIN export state
-                        ,field=HOLD_FIELD                               &  !<-- The Field to be inserted
-                        ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!--------------------------
-!***  Transfer Temperature
-!--------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract T from Dynamics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Dynamics export state
-                        ,itemName='T'                                   &  !<-- Extract T
-                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert T into DOMAIN Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateAdd(state=EXP_STATE_DOMAIN                         &  !<-- Insert T into DOMAIN export state
-                        ,field=HOLD_FIELD                               &  !<-- The Field to be inserted
-                        ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!---------------------
-!***  Transfer U Wind
-!---------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract U from Dynamics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Dynamics export state
-                        ,itemName='U'                                   &  !<-- Extract U
-                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert U into DOMAIN Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateAdd(state=EXP_STATE_DOMAIN                         &  !<-- Insert U into DOMAIN export state
-                        ,field=HOLD_FIELD                               &  !<-- The Field to be inserted
-                        ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!---------------------
-!***  Transfer V Wind
-!---------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract V from Dynamics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Dynamics export state
-                        ,itemName='V'                                   &  !<-- Extract V
-                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert V into DOMAIN Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateAdd(state=EXP_STATE_DOMAIN                         &  !<-- Insert V into DOMAIN export state
-                        ,field=HOLD_FIELD                               &  !<-- The Field to be inserted
-                        ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!---------------------------
-!***  Transfer TRACER Array
-!---------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract TRACERS from Dynamics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Dynamics export state
-                        ,itemName='TRACERS'                             &  !<-- Extract Tracers
-                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert TRACERS into DOMAIN Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateAdd(state=EXP_STATE_DOMAIN                         &  !<-- Insert Tracers into DOMAIN export state
-                        ,field=HOLD_FIELD                               &  !<-- The Field to be inserted
-                        ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------
-!***  Transfer Sea Mask Array
-!-----------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract Sea Mask from Dynamics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateGet(state   =EXP_STATE_DYN                         &  !<-- The Dynamics export state
-                        ,itemName='SM'                                  &  !<-- Extract Sea Mask
-                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
-                        ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert Sea Mask into DOMAIN Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_StateAdd(state=EXP_STATE_DOMAIN                         &  !<-- Insert Sea Mask into DOMAIN export state
-                        ,field=HOLD_FIELD                               &  !<-- The Field to be inserted
-                        ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-#endif
       CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Dynamics export state
                         ,itemCount   =itemcount                         &  !<-- # of items in the state
                         ,itemnamelist=itemnamelist                      &  !<-- List of item names
@@ -4930,7 +4669,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_PHY                        &  !<-- The Physics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Physics export state
                             ,name ='INDX_Q'                             &  !<-- Name of Attribute to extract
                             ,value=INDX_Q                               &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
@@ -4962,7 +4701,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_PHY                        &  !<-- The Physics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Physics export state
                             ,name ='INDX_CW'                            &  !<-- Name of Attribute to extract
                             ,value=INDX_CW                              &  !<-- Put the extracted Attribute here
                             ,rc   =RC)

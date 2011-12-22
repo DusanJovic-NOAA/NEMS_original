@@ -1,8 +1,5 @@
 !-----------------------------------------------------------------------
 !
-#include "nmm_loop_basemacros.h"
-#include "nmm_loop_macros.h"
-!
       MODULE MODULE_PRECIP_ADJUST
 !
 ! This module contains 3 subroutines:
@@ -17,7 +14,7 @@
 !***  and the PE_WRF.
 !***
 !
-      USE MODULE_DM_PARALLEL,ONLY : DSTRB
+      USE MODULE_DM_PARALLEL,ONLY : DSTRB, ITS_B1,ITE_B1,JTS_B2,JTE_B2
       
       INTEGER :: ITEST=346,JTEST=256,TESTPE=53
 !-----------------------------------------------------------------------
@@ -25,6 +22,9 @@
       CONTAINS
 !
 !-----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+!
       SUBROUTINE READPCP(MYPE,PPTDAT,DDATA,LSPA,PCPHR                   &
                         ,IDS,IDE,JDS,JDE,LM                             &
                         ,IMS,IME,JMS,JME                                &
@@ -46,9 +46,9 @@
 !
 
       IMPLICIT NONE
-      INTEGER,INTENT(IN) :: MYPE,IDS,IDE,JDS,JDE,LM                    &
-     &                      ,IMS,IME,JMS,JME                    &
-     &                      ,ITS,ITE,JTS,JTE
+      INTEGER,INTENT(IN) :: MYPE,IDS,IDE,JDS,JDE,LM                      &
+                           ,IMS,IME,JMS,JME                              &
+                           ,ITS,ITE,JTS,JTE
       INTEGER,INTENT(IN) :: PCPHR
       REAL,DIMENSION(IDS:IDE,JDS:JDE) :: TEMPG
       REAL,DIMENSION(IMS:IME,JMS:JME) :: TEMPL
@@ -66,7 +66,6 @@
       write(0,*)'PCPHR=',PCPHR
       write(0,*)'IDS,IDE,JDS,JDE in ADJPCP=',IDS,IDE,JDS,JDE
       ENDIF
-      
 !
       DO IHR=1,PCPHR
         IF(MYPE==0)THEN
@@ -112,10 +111,14 @@
 !
       END SUBROUTINE READPCP
 !
+!-----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+!
       SUBROUTINE CHKSNOW(MYPE,NTSD,DT,NPHS,SR,PPTDAT,PCPHR              &
-     &  ,IDS,IDE,JDS,JDE,LM                                        &
-     &  ,IMS,IME,JMS,JME                                        &
-     &  ,ITS,ITE,JTS,JTE)
+                        ,IDS,IDE,JDS,JDE,LM                             &
+                        ,IMS,IME,JMS,JME                                &
+                        ,ITS,ITE,JTS,JTE)
 !
 ! AT THE FIRST PHYSICS TIME STEP AFTER THE TOP OF EACH HOUR, CHECK THE SNOW
 ! ARRAY AGAINST THE SR (SNOW/TOTAL PRECIP RATIO).  IF SR .GE. 0.9, SET THIS
@@ -129,8 +132,8 @@
 !
       INTEGER,INTENT(IN) :: MYPE,NTSD,NPHS
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                    &
-     &,                      IMS,IME,JMS,JME                    &
-     &,                      ITS,ITE,JTS,JTE
+     &,                     IMS,IME,JMS,JME                    &
+     &,                     ITS,ITE,JTS,JTE
       INTEGER,INTENT(IN) :: PCPHR
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: SR
       REAL,DIMENSION(IMS:IME,JMS:JME,1:PCPHR),INTENT(INOUT) :: PPTDAT
@@ -142,15 +145,14 @@
       TIMES=NTSD*DT
       IF (MOD(TIMES,3600.) < NPHS*DT) THEN
         IHR=INT(TIMES)/3600+1
-        IF (IHR > PCPHR) go to 10
-        DO J=MYJS2,MYJE2
-        DO I=MYIS1,MYIE1
+        IF (IHR > PCPHR) GO TO 10
+        DO J=JTS_B2,JTE_B2
+        DO I=ITS_B1,ITE_B1
           IF (SR(I,J) >= 0.9) PPTDAT(I,J,IHR) = 999.
         ENDDO
         ENDDO
 !
 ! Get the value of MYPE:
-!
 !
         IF (MYPE==0) THEN
           WRITE(0,1010) TIMES,SR(1,1)
@@ -160,10 +162,14 @@
  10   CONTINUE
       END SUBROUTINE CHKSNOW
 !
-      SUBROUTINE ADJPPT(MYPE,NTSD,DT,NPHS,PREC,LSPA,PPTDAT,DDATA,PCPHR       &
-     &  ,IDS,IDE,JDS,JDE,LM                                        &
-     &  ,IMS,IME,JMS,JME                                        &
-     &  ,ITS,ITE,JTS,JTE)
+!-----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE ADJPPT(MYPE,NTSD,DT,NPHS,PREC,LSPA,PPTDAT,DDATA,PCPHR  &
+                       ,IDS,IDE,JDS,JDE,LM                              &
+                       ,IMS,IME,JMS,JME                                 &
+                       ,ITS,ITE,JTS,JTE)
 
 !***********************************************************************
 !$$$  SUBPROGRAM DOCUMENTATION BLOCK
@@ -191,9 +197,9 @@
 !
 !-----------------------------------------------------------------------
       INTEGER,INTENT(IN) :: MYPE,NPHS, NTSD
-      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                    &
-     &,                      IMS,IME,JMS,JME                    &
-     &,                      ITS,ITE,JTS,JTE
+      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
+     &,                     IMS,IME,JMS,JME                             &
+     &,                     ITS,ITE,JTS,JTE
       REAL,INTENT(IN) :: DT
       INTEGER,INTENT(IN) :: PCPHR
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: PREC
@@ -259,8 +265,9 @@
 !-----------------------------------------------------------------------
 !   SET UP OBSERVED PRECIP FOR THIS TIMESTEP IN DDATA
 !-----------------------------------------------------------------------
-      DO J=MYJS2,MYJE2
-      DO I=MYIS1,MYIE1
+!
+      DO J=JTS_B2,JTE_B2
+      DO I=ITS_B1,ITE_B1
 ! Note sometimes IHR1=IHR2.  
         IF (PPTDAT(I,J,IHR1).GT.900..OR.PPTDAT(I,J,IHR2).GT.900.) THEN
           DDATA(I,J) = 999.
@@ -288,5 +295,11 @@
  200  CONTINUE
 
       END SUBROUTINE ADJPPT
-
+!
+!-----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+!
       END MODULE MODULE_PRECIP_ADJUST
+!
+!-----------------------------------------------------------------------

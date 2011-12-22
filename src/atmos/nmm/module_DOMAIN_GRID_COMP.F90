@@ -13,7 +13,7 @@
 !-----------------------------------------------------------------------
 !
 !***  This is the DOMAIN gridded component module.
-!***  It will set up Dynamics, Physics, and coupler subcomponents
+!***  It will set up Solver subcomponents
 !***  and run their Initialize, Run, and Finalize routines.
 !
 !-----------------------------------------------------------------------
@@ -26,26 +26,11 @@
 !   2007-12-11  Black - Generalized for easier use by any dynamics core.
 !   2008-08     Colon - Added conditional checks multiple dynamics cores.
 !   2008-10-14  Vasic - Added restart Alarm.
-!   2009-05-29  Wang  - Added GFS write grid component
-!   2009-07-23  Lu    - Added GOCART grid component
 !   2009-08-03  Black - Merging with nesting.
 !   2009-08-12  Black - Fixed logic for Physics export when direction of
 !                       integration switches from backward to forward.
 !   2009-10-05  Wang  - Added GFS ensemble member name and output data at
 !                       every nsout timesteps.
-!   2009-10-08  W Yang - Ensemble GEFS.
-!   2009-11-03  Lu    - Add GOCART and ChemRegistry modules
-!   2009-12-17  Lu    - Modify GFS_ATM_INIT routine to create, register,
-!                       and initialize GOCART grid component
-!   2009-12-22  Lu    - Modify GFS_ATM_INIT routine to create and register
-!                       dyn2chem and phy2chem coupler components
-!   2009-12-23  Lu    - Modify GFS_INTEGRATE routine to loop thru dyn, phy,
-!   2010-02-01  Lu    - Remove dyn2chem coupler component
-!   2010-02-05  Wang  - Added restart file for GFS
-!   2010-03-04  Lu    - Modify GFS_ATM_INIT (initialization is changed from
-!                       DYN-PHY-CPL to DYN-CPL-PHY)
-!   2010-03-05  Lu    - Add GOCART_SETUP (to create and register GOCART) and
-!                       GOCART_INIT (to initialize GOCART)
 !   2010-03-24  Black - Converted to DOMAIN component for NMM-B only.
 !   2010-11-03  Pyle  - Revised for digital filters.
 !   2010-12-16  Pyle  - Change to nemsio library
@@ -69,7 +54,7 @@
       USE MODULE_DOMAIN_INTERNAL_STATE,ONLY: DOMAIN_INTERNAL_STATE      &
                                             ,WRAP_DOMAIN_INTERNAL_STATE
 !
-      USE MODULE_DYNAMICS_GRID_COMP,ONLY: DYN_REGISTER
+      USE MODULE_SOLVER_GRID_COMP,ONLY: SOLVER_REGISTER
 !
       USE MODULE_DM_PARALLEL,ONLY : IDS,IDE,JDS,JDE                     &
                                    ,IMS,IME,JMS,JME                     &
@@ -78,12 +63,7 @@
                                    ,MPI_COMM_COMP                       &
                                    ,MPI_COMM_INTER_ARRAY
 !
-      USE MODULE_PHYSICS_GRID_COMP,ONLY: PHY_REGISTER
-!
-      USE MODULE_DYN_PHY_CPL_COMP,ONLY: DYN_PHY_CPL_REGISTER 
-!
-      USE MODULE_GET_CONFIG_DYN
-      USE MODULE_GET_CONFIG_PHY
+      USE MODULE_GET_CONFIG
       USE MODULE_GET_CONFIG_WRITE
 !
       USE MODULE_CONTROL,ONLY: TIMEF
@@ -92,15 +72,10 @@
 ! 
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
-      USE MODULE_NMM_CORE_SETUP,ONLY: DOMAIN_SETUP
-!
       USE MODULE_VARS,ONLY: VAR,FIND_VAR_INDX
 !
-      USE module_DYNAMICS_INTERNAL_STATE,ONLY: DYNAMICS_INTERNAL_STATE  &
-                                              ,WRAP_DYN_INT_STATE
-!
-      USE module_PHYSICS_INTERNAL_STATE ,ONLY: PHYSICS_INTERNAL_STATE   &
-                                              ,WRAP_PHY_INT_STATE
+      USE module_SOLVER_INTERNAL_STATE,ONLY: SOLVER_INTERNAL_STATE      &
+                                            ,WRAP_SOLVER_INT_STATE
 !
       USE MODULE_NESTING,ONLY: BUNDLE_X                                 &
                               ,LATLON_TO_IJ                             &
@@ -154,8 +129,7 @@
 !
       TYPE(WRAP_DOMAIN_INTERNAL_STATE),SAVE :: WRAP                        !<-- The F90 wrap of the NMM DOMAIN internal state
 !
-      TYPE(DYNAMICS_INTERNAL_STATE),POINTER :: DYN_INT_STATE
-      TYPE(PHYSICS_INTERNAL_STATE),POINTER :: PHY_INT_STATE
+      TYPE(SOLVER_INTERNAL_STATE),POINTER :: SOLVER_INT_STATE
 !
       TYPE(ESMF_Time),SAVE :: DFITIME                                   &
                              ,HALFDFITIME 
@@ -494,7 +468,7 @@
 !
       REAL(kind=DOUBLE) :: D2R,D_ONE,D_180,PI
 !
-      LOGICAL(kind=KLOG) :: CALL_BUILD_MOVE_BUNDLE                      &
+      LOGICAL(kind=KLOG) :: CALL_BUILD_MOVE_BUNDLE                      & 
                            ,CFILE_EXIST                                 &
                            ,INPUT_READY_MY_CHILD                        &
                            ,NEMSIO_INPUT                                &
@@ -512,10 +486,8 @@
 !
       TYPE(ESMF_Grid) :: GRID_DOMAIN                                       !<-- The ESMF GRID for the integration attached to
                                                                            !     the NMM DOMAIN component.
-      TYPE(ESMF_Grid) :: GRID_DYN                                          !<-- The ESMF GRID for the integration attached to
-                                                                           !     the NMM Dynamics gridded component.
-      TYPE(ESMF_Grid) :: GRID_PHY                                          !<-- The ESMF GRID for the integration attached to
-                                                                           !     the NMM Physics gridded component.
+      TYPE(ESMF_Grid) :: GRID_SOLVER                                       !<-- The ESMF GRID for the integration attached to
+                                                                           !     the NMM Solver gridded component.
 #ifdef ESMF_3
       LOGICAL(kind=KLOG) :: INPUT_READY_FLAG
       TYPE(ESMF_Logical) :: I_AM_A_FCST_TASK                            &
@@ -527,11 +499,7 @@
 !
       TYPE(NEMSIO_GFILE) :: GFILE
 !
-!!!   TYPE(DYNAMICS_INTERNAL_STATE),POINTER :: DYN_INT_STATE
-      TYPE(WRAP_DYN_INT_STATE) :: WRAP_DYN
-!
-!!!   TYPE(PHYSICS_INTERNAL_STATE) ,POINTER :: PHY_INT_STATE
-      TYPE(WRAP_PHY_INT_STATE) :: WRAP_PHY
+      TYPE(WRAP_SOLVER_INT_STATE) :: WRAP_SOLVER
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -1235,8 +1203,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      domain_int_state%DYN_GRID_COMP=ESMF_GridCompCreate(               &
-                                  name   ="Dynamics component"          &  !<-- Name of the new Dynamics gridded component
+      domain_int_state%SOLVER_GRID_COMP=ESMF_GridCompCreate(            &
+                                  name   ="Solver component"            &  !<-- Name of the new Solver gridded component
                                  ,config =CF(MY_DOMAIN_ID)              &  !<-- Attach this configure file to the component
                                  ,petList=domain_int_state%PETLIST_FCST &  !<-- The forecast task IDs
                                  ,rc     =RC)
@@ -1255,12 +1223,12 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifdef ESMF_3
-      CALL ESMF_GridCompSetServices(domain_int_state%DYN_GRID_COMP      &  ! <-- The Dynamics gridded component
-                                   ,DYN_REGISTER                        &  ! <-- The user's subroutineName for Register
+      CALL ESMF_GridCompSetServices(domain_int_state%SOLVER_GRID_COMP      &  ! <-- The Dynamics gridded component
+                                   ,SOLVER_REGISTER                        &  ! <-- The user's subroutineName for Register
                                    ,RC)
 #else
-      CALL ESMF_GridCompSetServices(domain_int_state%DYN_GRID_COMP      &  ! <-- The Dynamics gridded component
-                                   ,DYN_REGISTER                        &  ! <-- The user's subroutineName for Register
+      CALL ESMF_GridCompSetServices(domain_int_state%SOLVER_GRID_COMP      &  ! <-- The Dynamics gridded component
+                                   ,SOLVER_REGISTER                        &  ! <-- The user's subroutineName for Register
                                    ,rc = RC)
 #endif
 !
@@ -1277,15 +1245,15 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      GRID_DYN=GRID_DOMAIN                                                 !<-- For now the Dyn Grid is the same as the DOMAIN Grid
+      GRID_SOLVER=GRID_DOMAIN                                              !<-- For now the Dyn Grid is the same as the DOMAIN Grid
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Register the NMM Dynamics Init, Run, Finalize"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_GridCompSet(gridcomp=domain_int_state%DYN_GRID_COMP     &  !<-- The Dynamics component
-                           ,grid    =GRID_DYN                           &  !<-- The Dynamics ESMF grid
+      CALL ESMF_GridCompSet(gridcomp=domain_int_state%SOLVER_GRID_COMP  &  !<-- The Dynamics component
+                           ,grid    =GRID_SOLVER                        &  !<-- The Dynamics ESMF grid
                            ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1302,22 +1270,22 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifdef ESMF_520rbs
-      domain_int_state%IMP_STATE_DYN=ESMF_StateCreate(                  &
+      domain_int_state%IMP_STATE_SOLVER=ESMF_StateCreate(               &
                                                  Name="Dynamics Import" &  !<-- The Dynamics import state name
                                            ,statetype=ESMF_STATE_IMPORT &
                                            ,rc       =RC)
 !
-      domain_int_state%EXP_STATE_DYN=ESMF_StateCreate(                  &
+      domain_int_state%EXP_STATE_SOLVER=ESMF_StateCreate(               &
                                                  Name="Dynamics Export" &  !<-- The Dynamics export state name
                                            ,statetype=ESMF_STATE_EXPORT &
                                            ,rc       =RC)
 #else
-      domain_int_state%IMP_STATE_DYN=ESMF_StateCreate(                  &
+      domain_int_state%IMP_STATE_SOLVER=ESMF_StateCreate(               &
                                             stateName="Dynamics Import" &  !<-- The Dynamics import state name
                                            ,statetype=ESMF_STATE_IMPORT &
                                            ,rc       =RC)
 !
-      domain_int_state%EXP_STATE_DYN=ESMF_StateCreate(                  &
+      domain_int_state%EXP_STATE_SOLVER=ESMF_StateCreate(               &
                                             stateName="Dynamics Export" &  !<-- The Dynamics export state name
                                            ,statetype=ESMF_STATE_EXPORT &
                                            ,rc       =RC)
@@ -1361,161 +1329,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!
-#ifdef ESMF_3
-      physics_0: IF(PHYSICS_ON == ESMF_TRUE)THEN
-#else
-      physics_0: IF(PHYSICS_ON)THEN
-#endif
-!
-!-------------------------------
-!***  Create Physics component
-!-------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Create the NMM Physics Component"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        domain_int_state%PHY_GRID_COMP=ESMF_GridCompCreate(             &
-                                  name   ="Physics component"           &  !<-- Name of the new Physics gridded component
-                                 ,config =CF(MY_DOMAIN_ID)              &  !<-- Attach this configure file to the component
-                                 ,petList=domain_int_state%PETLIST_FCST &  !<-- The forecast task IDs
-                                 ,rc     =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!------------------------------------------------
-!***  Register the Init, Run, and Finalize steps
-!------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Register the NMM Physics Init, Run, Finalize"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-#ifdef ESMF_3
-        CALL ESMF_GridCompSetServices(domain_int_state%PHY_GRID_COMP  &  ! <-- The Physics gridded component
-                                     ,PHY_REGISTER                    &  ! <-- The user's subroutineName
-                                     ,RC)
-#else
-        CALL ESMF_GridCompSetServices(domain_int_state%PHY_GRID_COMP  &  ! <-- The Physics gridded component
-                                     ,PHY_REGISTER                    &  ! <-- The user's subroutineName
-                                     ,rc = RC)
-#endif
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------
-!***  Attach the ESMF Grid to the Physics
-!-----------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Attach the ESMF Grid to the Physics Component"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        GRID_PHY=GRID_DOMAIN                                               !<-- For now the Physics Grid is the same as the DOMAIN Grid
-!
-        CALL ESMF_GridCompSet(gridcomp=domain_int_state%PHY_GRID_COMP   &  !<-- The NMM Physics component
-                             ,grid    =GRID_PHY                         &  !<-- The ESMF grid of the Physics component
-                             ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!------------------------------------------------------------------------
-!
-      ENDIF physics_0
-!
-!------------------------------------------------------------------------
-!***  Create empty Import and Export states for the Physics subcomponent
-!------------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create Empty Import/Export States for Physics"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-#ifdef ESMF_520rbs
-      domain_int_state%IMP_STATE_PHY=ESMF_StateCreate(                  &
-                                                 Name="Physics Import"  &  !<-- The Physics import state
-                                           ,statetype=ESMF_STATE_IMPORT &
-                                           ,rc       =RC)
-!
-      domain_int_state%EXP_STATE_PHY=ESMF_StateCreate(                  &
-                                                 Name="Physics Export"  &  !<-- The Physics export state
-                                           ,statetype=ESMF_STATE_EXPORT &
-                                           ,rc       =RC)
-#else
-      domain_int_state%IMP_STATE_PHY=ESMF_StateCreate(                  &
-                                            stateName="Physics Import"  &  !<-- The Physics import state
-                                           ,statetype=ESMF_STATE_IMPORT &
-                                           ,rc       =RC)
-!
-      domain_int_state%EXP_STATE_PHY=ESMF_StateCreate(                  &
-                                            stateName="Physics Export"  &  !<-- The Physics export state
-                                           ,statetype=ESMF_STATE_EXPORT &
-                                           ,rc       =RC)
-#endif
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!***  Create the Dynamics-Physics coupler subcomponent.
-!***  Register the Initialize, Run, and Finalize steps for it.
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!
-!----------------------------
-!***  Create Dyn-Phy Coupler
-!----------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create the Dynamics-Physics Coupler Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      domain_int_state%COUPLER_DYN_PHY_COMP=ESMF_CplCompCreate          &
-                                (name   ="Dyn-Phy coupler component"    &
-                                ,petList=domain_int_state%PETLIST_FCST  &  !<-- The forecast task IDs
-                                ,rc     =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!------------------------------------------------
-!***  Register the Init, Run, and Finalize steps
-!------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Register the Dyn-Phy Coupler's Init, Run, Finalize"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-#ifdef ESMF_3
-      CALL ESMF_CplCompSetServices(domain_int_state%COUPLER_DYN_PHY_COMP &  ! <-- The Dyn-Phy coupler component
-                                  ,DYN_PHY_CPL_REGISTER                  &  ! <-- The user's subroutineName
-                                  ,RC)
-#else
-      CALL ESMF_CplCompSetServices(domain_int_state%COUPLER_DYN_PHY_COMP &  ! <-- The Dyn-Phy coupler component
-                                  ,DYN_PHY_CPL_REGISTER                  &  ! <-- The user's subroutineName
-                                  ,rc = RC)
-#endif
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
 !***  The Dynamics and Physics import states have already been created.  
 !***  Add some key flags to those import states prior to Initialization.
 !-----------------------------------------------------------------------
@@ -1525,21 +1338,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_DYN       &  !<-- The Dynamics component import state
-                            ,name ='DOMAIN_ID'                          &  !<-- Use this name inside the state
-                            ,value=MY_DOMAIN_ID                         &  !<-- The scalar being inserted into the import state
-                            ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Add Domain ID to the Phy Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_PHY       &  !<-- The Dynamics component import state
+      CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER    &  !<-- The Solver component import state
                             ,name ='DOMAIN_ID'                          &  !<-- Use this name inside the state
                             ,value=MY_DOMAIN_ID                         &  !<-- The scalar being inserted into the import state
                             ,rc   =RC)
@@ -1560,21 +1359,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_DYN       &  !<-- The Dynamics component import state
-                            ,name ='I-Am-A-Nest Flag'                   &  !<-- Use this name inside the state
-                            ,value=I_AM_A_NEST                          &  !<-- The logical being inserted into the import state
-                            ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="DOMAIN_INIT: Add Nest Flag to the Phy Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_PHY       &  !<-- The Physics component import state
+      CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER       &  !<-- The Dynamics component import state
                             ,name ='I-Am-A-Nest Flag'                   &  !<-- Use this name inside the state
                             ,value=I_AM_A_NEST                          &  !<-- The logical being inserted into the import state
                             ,rc   =RC)
@@ -1605,7 +1390,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_DYN     &  !<-- The Dynamics component import state
+        CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER     &  !<-- The Dynamics component import state
                               ,name ='Parent-Child Time Ratio'          &  !<-- Use this name inside the state
                               ,value=PARENT_CHILD_TIME_RATIO            &  !<-- Put the Attribute here
                               ,rc   =RC)
@@ -1619,21 +1404,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_DYN     &  !<-- The Dynamics component import state
-                              ,name ='Input Ready'                      &  !<-- Use this name inside the state
-                              ,value=INPUT_READY                        &  !<-- Does this nest's input file already exist?
-                              ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="DOMAIN_INIT: Add Input-Ready Flag to the Phy Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_PHY     &  !<-- The Physics component import state
+        CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER     &  !<-- The Dynamics component import state
                               ,name ='Input Ready'                      &  !<-- Use this name inside the state
                               ,value=INPUT_READY                        &  !<-- Does this nest's input file already exist?
                               ,rc   =RC)
@@ -1647,7 +1418,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_DYN     &  !<-- The Dynamics component import state
+        CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER     &  !<-- The Dynamics component import state
                               ,name ='My Domain Moves'                  &  !<-- Use this name inside the state
                               ,value=MY_DOMAIN_MOVES                    &  !<-- Does this nest move?
                               ,rc   =RC)
@@ -1706,144 +1477,19 @@
 !--------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Initialize the NMM Dynamics Component phase 1"
+      MESSAGE_CHECK="Initialize the NMM Dynamics Component"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_GridCompInitialize(gridcomp   =domain_int_state%DYN_GRID_COMP  &  !<-- The dynamics gridded component
-                                  ,importState=domain_int_state%IMP_STATE_DYN  &  !<-- The dynamics import state
-                                  ,exportState=domain_int_state%EXP_STATE_DYN  &  !<-- The dynamics export state
-                                  ,clock      =CLOCK_DOMAIN                    &  !<-- The DOMAIN clock
-                                  ,phase      =1                               &
+      CALL ESMF_GridCompInitialize(gridcomp   =domain_int_state%SOLVER_GRID_COMP  &  !<-- The dynamics gridded component
+                                  ,importState=domain_int_state%IMP_STATE_SOLVER  &  !<-- The dynamics import state
+                                  ,exportState=domain_int_state%EXP_STATE_SOLVER  &  !<-- The dynamics export state
+                                  ,clock      =CLOCK_DOMAIN                       &  !<-- The DOMAIN clock
                                   ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-#ifdef ESMF_3
-      physics_1: IF(PHYSICS_ON == ESMF_True)THEN
-#else
-      physics_1: IF(PHYSICS_ON)THEN
-#endif
-!
-!-----------------------------------------------------------------------
-!
-!-------------
-!***  Physics
-!-------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Initialize Physics Component phase 1"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_GridCompInitialize(gridcomp   =domain_int_state%PHY_GRID_COMP  &  !<-- The physics gridded component
-                                    ,importState=domain_int_state%IMP_STATE_PHY  &  !<-- The physics import state
-                                    ,exportState=domain_int_state%EXP_STATE_PHY  &  !<-- The physics export state
-                                    ,clock      =CLOCK_DOMAIN                    &  !<-- The DOMAIN clock
-                                    ,phase      =1                               &
-                                    ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-      ENDIF physics_1
-!
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!***  Initialize the Dyn-Phy coupler subcomponent.
-!***  The choice of import and export state does not matter
-!***  for the initialize step.
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Initialize Dyn-Phy Coupler"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_CplCompInitialize(cplcomp    =domain_int_state%COUPLER_DYN_PHY_COMP &  !<-- The dyn_phy coupler component
-                                 ,importState=domain_int_state%EXP_STATE_DYN        &  !<-- The dyn-phy coupler import state
-                                 ,exportState=domain_int_state%IMP_STATE_PHY        &  !<-- The dyn-phy coupler export state
-                                 ,clock      =CLOCK_DOMAIN                          &  !<-- The DOMAIN Clock
-                                 ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_CplCompInitialize(cplcomp    =domain_int_state%COUPLER_DYN_PHY_COMP &  !<-- The dyn_phy coupler component
-                                 ,importState=domain_int_state%EXP_STATE_PHY        &  !<-- The dyn-phy coupler import state
-                                 ,exportState=domain_int_state%IMP_STATE_DYN        &  !<-- The dyn-phy coupler export state
-                                 ,clock      =CLOCK_DOMAIN                          &  !<-- The DOMAIN Clock
-                                 ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!
-!--------------
-!***  Dynamics
-!--------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Initialize the NMM Dynamics Component phase 2"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_GridCompInitialize(gridcomp   =domain_int_state%DYN_GRID_COMP  &  !<-- The dynamics gridded component
-                                  ,importState=domain_int_state%IMP_STATE_DYN  &  !<-- The dynamics import state
-                                  ,exportState=domain_int_state%EXP_STATE_DYN  &  !<-- The dynamics export state
-                                  ,clock      =CLOCK_DOMAIN                    &  !<-- The DOMAIN clock
-                                  ,phase      =2                               &
-                                  ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-#ifdef ESMF_3
-      physics_2: IF(PHYSICS_ON == ESMF_True)THEN
-#else
-      physics_2: IF(PHYSICS_ON)THEN
-#endif
-!
-!-----------------------------------------------------------------------
-!
-!-------------
-!***  Physics
-!-------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Initialize Physics Component phase 2"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_GridCompInitialize(gridcomp   =domain_int_state%PHY_GRID_COMP  &  !<-- The physics gridded component
-                                    ,importState=domain_int_state%IMP_STATE_PHY  &  !<-- The physics import state
-                                    ,exportState=domain_int_state%EXP_STATE_PHY  &  !<-- The physics export state
-                                    ,clock      =CLOCK_DOMAIN                    &  !<-- The DOMAIN clock
-                                    ,phase      =2                               &
-                                    ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-      ENDIF physics_2
-!
-!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  If quilting was selected for the generation of output,
@@ -1971,8 +1617,7 @@
 !
 !-----------------------------------------------------------------------
 !
-        CALL INTERNAL_DATA_TO_DOMAIN(domain_int_state%EXP_STATE_DYN     &  !<-- The Dynamics export state
-                                    ,domain_int_state%EXP_STATE_PHY     &  !<-- The Physics export state
+        CALL INTERNAL_DATA_TO_DOMAIN(domain_int_state%EXP_STATE_SOLVER  &  !<-- The Dynamics export state
                                     ,EXP_STATE                          &  !<-- The DOMAIN export state
                                     ,NLAYRS )                              !<-- # of model layers
 !
@@ -2013,21 +1658,8 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_GridCompGetInternalState(domain_int_state%DYN_GRID_COMP &  !<-- The Dynamics component
-                                          ,WRAP_DYN                       &
-                                          ,RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Physics Internal State for Move Bundle"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_GridCompGetInternalState(domain_int_state%PHY_GRID_COMP &  !<-- The Physics component
-                                          ,WRAP_PHY                       &
+        CALL ESMF_GridCompGetInternalState(domain_int_state%SOLVER_GRID_COMP &  !<-- The Dynamics component
+                                          ,WRAP_SOLVER                    &
                                           ,RC )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2036,10 +1668,9 @@
 !
 !-----------------------------------------------------------------------
 !
-        DYN_INT_STATE=>wrap_dyn%INT_STATE
-        PHY_INT_STATE=>wrap_phy%INT_STATE
+        SOLVER_INT_STATE=>wrap_solver%INT_STATE
 !
-        LM=dyn_int_state%LM
+        LM=solver_int_state%LM
 !
         NUM_FIELDS_MOVE_2D_H_I=0
         NUM_FIELDS_MOVE_2D_H_R=0
@@ -2053,13 +1684,13 @@
 !-----------------------------------------------------------------------
 !***  Fill the Bundles with the variables to be shifted after nests
 !***  move.  All moving domains and parents of moving domains must
-!***  fill the Move Bundles. 
+!***  fill the Move Bundles.
 !-----------------------------------------------------------------------
 !
         CALL_BUILD_MOVE_BUNDLE=.FALSE.
 !
 !-----------------------------------------------------------------------
-!***  Does this domain have any moving children?   
+!***  Does this domain have any moving children?
 !-----------------------------------------------------------------------
 !
         child_loop: DO N=1,NUM_CHILDREN
@@ -2099,11 +1730,11 @@
 !
         IF(CALL_BUILD_MOVE_BUNDLE)THEN
 !
-          UBOUND_VARS=SIZE(dyn_int_state%VARS)
+          UBOUND_VARS=SIZE(solver_int_state%VARS)
 !
           CALL BUILD_MOVE_BUNDLE(GRID_DOMAIN                            &
                                 ,UBOUND_VARS                            &
-                                ,dyn_int_state%VARS                     &
+                                ,solver_int_state%VARS                  &
                                 ,MOVE_BUNDLE_H                          &
                                 ,NUM_FIELDS_MOVE_2D_H_I                 &
                                 ,NUM_FIELDS_MOVE_2D_H_R                 &
@@ -2115,11 +1746,9 @@
                                 ,NUM_LEVELS_MOVE_3D_V                   &
                                 ,'dyn')                                    !<-- Adding Dynamics variables to H and V Move Bundles
 !
-          UBOUND_VARS=SIZE(phy_int_state%VARS)
-!
           CALL BUILD_MOVE_BUNDLE(GRID_DOMAIN                            &
                                 ,UBOUND_VARS                            &
-                                ,phy_int_state%VARS                     &
+                                ,solver_int_state%VARS                  &
                                 ,MOVE_BUNDLE_H                          &
                                 ,NUM_FIELDS_MOVE_2D_H_I                 &
                                 ,NUM_FIELDS_MOVE_2D_H_R                 &
@@ -2131,6 +1760,8 @@
                                 ,NUM_LEVELS_MOVE_3D_V                   &
                                 ,'phy')                                    !<-- Adding Physics variables to H and V Move Bundles
 !
+          CALL ESMF_FieldBundlePrint(MOVE_BUNDLE_H)
+          CALL ESMF_FieldBundlePrint(MOVE_BUNDLE_V)
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -2282,12 +1913,12 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeGet(state=domain_int_state%EXP_STATE_DYN     &  !<-- The Dynamics export state
+        CALL ESMF_AttributeGet(state=domain_int_state%EXP_STATE_SOLVER     &  !<-- The Dynamics export state
                               ,name ='DPHD'                             &  !<-- Name of the Attribute to extract
                               ,value=DPHD                               &  !<-- Angular grid increment in X (degrees)
                               ,rc   =RC)
 !
-        CALL ESMF_AttributeGet(state=domain_int_state%EXP_STATE_DYN     &  !<-- The Dynamics export state
+        CALL ESMF_AttributeGet(state=domain_int_state%EXP_STATE_SOLVER     &  !<-- The Dynamics export state
                               ,name ='DLMD'                             &  !<-- Name of the Attribute to extract
                               ,value=DLMD                               &  !<-- Angular grid increment in Y (degrees)
                               ,rc   =RC)
@@ -2305,12 +1936,12 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeGet(state=domain_int_state%EXP_STATE_DYN     &  !<-- The Dynamics export state
+        CALL ESMF_AttributeGet(state=domain_int_state%EXP_STATE_SOLVER     &  !<-- The Dynamics export state
                               ,name ='TPH0D'                            &  !<-- Name of the Attribute to extract
                               ,value=TPH0D                              &  !<-- Central latitude (degrees) of rotated system
                               ,rc   =RC)
 !
-        CALL ESMF_AttributeGet(state=domain_int_state%EXP_STATE_DYN     &  !<-- The Dynamics export state
+        CALL ESMF_AttributeGet(state=domain_int_state%EXP_STATE_SOLVER     &  !<-- The Dynamics export state
                               ,name ='TLM0D'                            &  !<-- Name of the Attribute to extract
                               ,value=TLM0D                              &  !<-- Central longitude (degrees) of rotated system
                               ,rc   =RC)
@@ -2518,8 +2149,7 @@
                                          ,CF                              &  !<-- Array of configure files (in)
                                          ,MY_DOMAIN_ID                    &  !<-- Each domain's ID (in)
                                          ,MY_CHILDREN_ID(N)               &  !<-- The child's domain ID
-                                         ,domain_int_state%DYN_GRID_COMP  &  !<-- The parent's Dynamics Component (inout)
-                                         ,domain_int_state%PHY_GRID_COMP  &  !<-- The parent's Physics Component (inout)
+                                         ,domain_int_state%SOLVER_GRID_COMP  &  !<-- The parent's Dynamics Component (inout)
                                          ,COMM_MY_DOMAIN )                   !<-- Each domain's intracommunicator
 !
           ENDIF
@@ -2745,7 +2375,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_DYN     &  !<-- The Dynamics component import state
+        CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER     &  !<-- The Dynamics component import state
                               ,name ='HDIFF'                            &  !<-- Use this name inside the state
                               ,value=HDIFF_ON                           &  !<-- The scalar being inserted into the import state
                               ,rc   =RC)
@@ -2759,7 +2389,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_PHY     &  !<-- The Dynamics component import state
+        CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER     &  !<-- The Dynamics component import state
                               ,name ='Filter_Method'                    &  !<-- Use this name inside the state
                               ,value=FILTER_METHOD                      &  !<-- The scalar being inserted into the import state
                               ,rc   =RC)
@@ -2795,7 +2425,7 @@
           CALL BOUNDARY_DATA_STATE_TO_STATE(clock    =CLOCK_DOMAIN                  &  !<-- The DOMAIN Clock
                                            ,ratio    =PARENT_CHILD_TIME_RATIO       &  !<-- # of child timesteps per parent timestep
                                            ,state_in =IMP_STATE                     &  !<-- DOMAIN component's import state
-                                           ,state_out=domain_int_state%IMP_STATE_DYN)  !<-- The Dynamics import state
+                                           ,state_out=domain_int_state%IMP_STATE_SOLVER)  !<-- The Dynamics import state
 !         call print_memory()
 !
 !-----------------------------------------------------------------------
@@ -2827,7 +2457,7 @@
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_DYN &  !<-- The Dynamics component import state
+            CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER &  !<-- The Dynamics component import state
                                   ,name ='MOVE_NOW'                     &  !<-- Use this name inside the state
                                   ,value=MOVE_NOW                       &  !<-- Did this nest move this timestep?
                                   ,rc   =RC)
@@ -2855,8 +2485,7 @@
 !-----------------------------------------------------------------------
 !
               CALL UPDATE_GRID_ARRAYS(IMP_STATE                         &  !<-- The Domain component import state
-                                     ,domain_int_state%DYN_GRID_COMP    &  !<-- The Dynamics component 
-                                     ,domain_int_state%PHY_GRID_COMP)      !<-- The Physics component 
+                                     ,domain_int_state%SOLVER_GRID_COMP)      !<-- The Dynamics component 
 !
 !-----------------------------------------------------------------------
 !
@@ -2911,7 +2540,7 @@
                                               ,MOVE_BUNDLE_V            &  !<-- The Bundle of pointers to update V variables
                                               ,NUM_FIELDS_MOVE_2D_V     &  !<-- Total # of 2-D V Fields in the Bundle
                                               ,NUM_FIELDS_MOVE_3D_V     &  !<-- Total # of 3-D V Fields in the Bundle
-                                      ,domain_int_state%EXP_STATE_DYN )    !<-- The Dynamics export state
+                                      ,domain_int_state%EXP_STATE_SOLVER )    !<-- The Dynamics export state
 !
       update_interior_from_parent_tim=update_interior_from_parent_tim+(timef()-btim)
 !
@@ -2955,9 +2584,9 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
 !       call print_memory()
-        CALL ESMF_GridCompRun(gridcomp   =domain_int_state%DYN_GRID_COMP  &  !<-- The dynamics component
-                             ,importState=domain_int_state%IMP_STATE_DYN  &  !<-- The dynamics import state
-                             ,exportState=domain_int_state%EXP_STATE_DYN  &  !<-- The dynamics export state
+        CALL ESMF_GridCompRun(gridcomp   =domain_int_state%SOLVER_GRID_COMP  &  !<-- The dynamics component
+                             ,importState=domain_int_state%IMP_STATE_SOLVER  &  !<-- The dynamics import state
+                             ,exportState=domain_int_state%EXP_STATE_SOLVER  &  !<-- The dynamics export state
                              ,clock      =CLOCK_DOMAIN                    &  !<-- The DOMAIN Clock
                              ,rc         =RC)        
 !       call print_memory()
@@ -2965,113 +2594,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
-!-----------------------------------------------------------------------
-!***  If integration is forward and Physics is turned on then proceed
-!***  with Physics and the associated coupling to Dynamics.
-!-----------------------------------------------------------------------
-!
-#ifdef ESMF_3
-        physics: IF(INTEGER_DT>0.AND.PHYSICS_ON == ESMF_TRUE)THEN          !<-- Physics is active
-#else
-        physics: IF(INTEGER_DT>0.AND.PHYSICS_ON)THEN                       !<-- Physics is active
-#endif
-
-!-----------------------------------------------------------------------
-!***  Bring export data from the Dynamics into the Coupler and
-!***  point the Physics import state at it.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-          MESSAGE_CHECK="Coupler Moves Data from Dynamics to Physics"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
-          CALL ESMF_CplCompRun(cplcomp    =domain_int_state%COUPLER_DYN_PHY_COMP &  !<-- The Dynamics-Physics coupler component
-                              ,importState=domain_int_state%EXP_STATE_DYN        &  !<-- The Coupler import state = Dynamics export state
-                              ,exportState=domain_int_state%IMP_STATE_PHY        &  !<-- The Coupler export state = Physics import state
-                              ,clock      =CLOCK_DOMAIN                          &  !<-- The DOMAIN clock
-                              ,rc         =RC)        
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!ratko    CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
-! - FIX later
- RC=ESMF_SUCCESS
- RC_RUN=ESMF_SUCCESS
-!ratko
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
-!-----------------------------------------------------------------------
-!***  Execute the Run step of the Physics.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-          MESSAGE_CHECK="Execute the Run Step for Physics"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
-          CALL ESMF_GridCompRun(gridcomp   =domain_int_state%PHY_GRID_COMP &  !<-- The physics component
-                               ,importState=domain_int_state%IMP_STATE_PHY &  !<-- The physics import state 
-                               ,exportState=domain_int_state%EXP_STATE_PHY &  !<-- The physics export state
-                               ,clock      =CLOCK_DOMAIN                   &  !<-- The DOMAIN Clock
-                               ,rc         =RC)        
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
-!-----------------------------------------------------------------------
-!***  Bring export data from the Physics into the Coupler and
-!***  point the Dynamics import state at it.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-          MESSAGE_CHECK="DOMAIN_RUN: Coupler Moves Data from Physics to Dynamics"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
-          CALL ESMF_CplCompRun(cplcomp    =domain_int_state%COUPLER_DYN_PHY_COMP &  !<-- The Dynamics-Physics coupler component
-                              ,importState=domain_int_state%EXP_STATE_PHY        &  !<-- The Coupler import state = Physics export state
-                              ,exportState=domain_int_state%IMP_STATE_DYN        &  !<-- The Coupler export state = Dynamics import state
-                              ,clock      =CLOCK_DOMAIN                          &  !<-- The DOMAIN Clock
-                              ,rc         =RC)        
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!ratko    CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
-! - FIX later
- RC=ESMF_SUCCESS
- RC_RUN=ESMF_SUCCESS
-!ratko
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
-!-----------------------------------------------------------------------
-!
-        ELSE  physics                                                      !<-- Physics is not active
-!
-!-----------------------------------------------------------------------
-!***  If integration is backward or the user has requested that
-!***  the forecast be run without Physics then simply redirect
-!***  the export data of the Dynamics back to the import state.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-          MESSAGE_CHECK="Execute Dyn-Phy Coupler w/o Physics"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
-          CALL ESMF_CplCompRun(cplcomp    =domain_int_state%COUPLER_DYN_PHY_COMP &  !<-- The Dynamics-Physics coupler component
-                              ,importState=domain_int_state%EXP_STATE_DYN        &  !<-- The Coupler import state = Dynamics export state
-                              ,exportState=domain_int_state%IMP_STATE_DYN        &  !<-- The Coupler export state = Dynamics import state
-                              ,clock      =CLOCK_DOMAIN                          &  !<-- The DOMAIN Clock
-                              ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
-!-----------------------------------------------------------------------
-!
-        ENDIF  physics
 !
 !-----------------------------------------------------------------------
 !
@@ -3231,9 +2753,9 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_GridCompFinalize(gridcomp   =domain_int_state%DYN_GRID_COMP &
-                                ,importState=domain_int_state%IMP_STATE_DYN &
-                                ,exportState=domain_int_state%EXP_STATE_DYN &
+      CALL ESMF_GridCompFinalize(gridcomp   =domain_int_state%SOLVER_GRID_COMP &
+                                ,importState=domain_int_state%IMP_STATE_SOLVER &
+                                ,exportState=domain_int_state%EXP_STATE_SOLVER &
                                 ,clock      =CLOCK_DOMAIN                &
                                 ,rc         =RC)
 !
@@ -3245,55 +2767,6 @@
 !ratko
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-      IF(PHYSICS_ON == ESMF_TRUE)THEN
-#else
-      IF(PHYSICS_ON)THEN
-#endif
-!
-!-------------
-!***  Physics
-!-------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Finalize Physics Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_GridCompFinalize(gridcomp   =domain_int_state%PHY_GRID_COMP &
-                                  ,importState=domain_int_state%IMP_STATE_PHY &
-                                  ,exportState=domain_int_state%EXP_STATE_PHY &
-                                  ,clock      =CLOCK_DOMAIN                   &
-                                  ,rc         =RC)
-      ENDIF 
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!ratko    CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINALIZE)
-! - FIX later
- RC=ESMF_SUCCESS
- RC_FINALIZE=ESMF_SUCCESS
-!ratko
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!------------------------------
-!***  Dynamics-Physics coupler
-!------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Finalize Dynamics-Physics Coupler"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_CplCompFinalize(cplcomp    =domain_int_state%COUPLER_DYN_PHY_COMP &
-                               ,importState=domain_int_state%EXP_STATE_DYN        &
-                               ,exportState=domain_int_state%IMP_STATE_PHY        &
-                               ,clock      =CLOCK_DOMAIN                          &
-                               ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINALIZE)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
 !-----------------------------------------------------------------------
 !***  Destroy all States.
 !-----------------------------------------------------------------------
@@ -3303,24 +2776,11 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateDestroy(state=domain_int_state%IMP_STATE_DYN       &
+      CALL ESMF_StateDestroy(state=domain_int_state%IMP_STATE_SOLVER       &
                             ,rc   =RC)
 !
-      CALL ESMF_StateDestroy(state=domain_int_state%EXP_STATE_DYN       &
+      CALL ESMF_StateDestroy(state=domain_int_state%EXP_STATE_SOLVER       &
                             ,rc   =RC)
-!
-#ifdef ESMF_3
-      IF(PHYSICS_ON == ESMF_TRUE)THEN
-#else
-      IF(PHYSICS_ON)THEN
-#endif
-!
-        CALL ESMF_StateDestroy(state=domain_int_state%IMP_STATE_PHY     &
-                              ,rc   =RC)
-!
-        CALL ESMF_StateDestroy(state=domain_int_state%EXP_STATE_PHY     &
-                              ,rc   =RC)
-      ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINALIZE)
@@ -3368,48 +2828,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_GridCompDestroy(gridcomp=domain_int_state%DYN_GRID_COMP & 
+      CALL ESMF_GridCompDestroy(gridcomp=domain_int_state%SOLVER_GRID_COMP & 
                                ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINALIZE)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-------------
-!***  Physics
-!-------------
-!
-#ifdef ESMF_3
-      IF(PHYSICS_ON == ESMF_TRUE)THEN
-#else
-      IF(PHYSICS_ON)THEN
-#endif
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Destroy Physics Component"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_GridCompDestroy(gridcomp=domain_int_state%PHY_GRID_COMP  &
-                                 ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINALIZE)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDIF
-!
-!------------------------------
-!***  Dynamics-Physics coupler
-!------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Destroy Dynamics-Physics Coupler"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_CplCompDestroy(cplcomp=domain_int_state%COUPLER_DYN_PHY_COMP &
-                              ,rc     =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINALIZE)
@@ -3428,6 +2848,350 @@
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE DOMAIN_FINALIZE
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE DOMAIN_SETUP(MYPE_IN                                   &
+                             ,MPI_INTRA                                 &
+                             ,CF                                        &
+                             ,DOMAIN_GRID_COMP                          &
+                             ,DOMAIN_INT_STATE                          &
+                             ,GRID_DOMAIN)
+! 
+!-----------------------------------------------------------------------
+!***  This routine contains NMM-specific code for the DOMAIN component:
+!***    (1) Setting up distributed memory parallelism in the NMM;
+!***    (2) Creating the ESMF Grid for the DOMAIN components;
+!***    (3) Sharing local subdomain index limits among tasks.
+!-----------------------------------------------------------------------
+!
+      USE module_DOMAIN_INTERNAL_STATE
+!
+      USE module_DM_PARALLEL,ONLY : DECOMP                              &
+                                   ,LOCAL_ISTART,LOCAL_IEND             &
+                                   ,LOCAL_JSTART,LOCAL_JEND             &
+                                   ,SETUP_SERVERS
+!
+      USE module_INCLUDE
+!
+!------------------------
+!***  Argument variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: MYPE_IN                          &  !<-- Each MPI task's rank
+                                      ,MPI_INTRA                           !<-- The communicator with the domain's fcst and quilt tasks.
+!
+      TYPE(ESMF_Config),INTENT(INOUT) :: CF                                !<-- This domain's configure object
+!
+      TYPE(ESMF_GridComp),INTENT(INOUT) :: DOMAIN_GRID_COMP                !<-- The DOMAIN component
+!
+      TYPE(DOMAIN_INTERNAL_STATE),INTENT(INOUT) :: DOMAIN_INT_STATE        !<-- The DOMAIN Internal State
+!
+      TYPE(ESMF_Grid),INTENT(OUT) :: GRID_DOMAIN                           !<-- The ESMF Grid for the NMM integration grid
+!
+!---------------------
+!***  Local variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: I,IERR,J,K,N,NUM_PES,RC,RC_DOMAIN
+!
+      INTEGER(kind=KINT) :: IM,JM                                       &  !<-- Horizontal dimensions of the full integration grid
+                           ,INPES,JNPES                                 &  !<-- MPI tasks in I and J directions
+                           ,LM                                          &  !<-- Number of atmospheric model layers
+                           ,MPI_INTRA_B                                 &  !<-- The MPI intra-communicator
+                           ,MYPE                                        &  !<-- My MPI task ID
+                           ,NUM_PES_FCST                                &  !<-- Number of MPI tasks applied to the forecast
+                           ,NUM_PES_TOT                                 &  !<-- Total # of MPI tasks in the job
+                           ,WRITE_GROUPS                                &  !<-- Number of groups of write tasks
+                           ,WRITE_TASKS_PER_GROUP                          !<-- #of tasks in each write group
+!
+      INTEGER(kind=KINT),DIMENSION(2) :: I1                             &  !<-- # of I and J points in each fcst task's subdomain
+                                        ,MIN,MAX                        &  !<-- Set start/end of each Grid dimension
+                                        ,NCOUNTS                           !<-- Array with I/J limits of MPI task subdomains
+!
+      CHARACTER(50) :: MODE                                                !<-- Flag for global or regional run
+!
+      LOGICAL(kind=KLOG) :: GLOBAL                                         !<-- .TRUE. => global ; .FALSE. => regional
+!
+      TYPE(ESMF_VM)       :: VM                                            !<-- The ESMF virtual machine.
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      MYPE=MYPE_IN
+!
+!-----------------------------------------------------------------------
+!***  Set up parameters for MPI communications on this domain's grid.
+!-----------------------------------------------------------------------
+!
+      CALL MPI_COMM_SIZE(MPI_INTRA,NUM_PES_TOT,IERR)
+!
+      NUM_PES=NUM_PES_TOT
+!
+!-----------------------------------------------------------------------
+!***  Establish the task layout including the Write tasks.
+!***  The MPI communicator was provided as input and
+!***  the forecast tasks in the I and J directions are
+!***  extracted from a configure file.
+!***  Give those to SETUP_SERVERS which will split the
+!***  communicator between Forecast and Quilt/Write tasks.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="NMM_SETUP: Get INPES/JNPES from Config File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL MPI_COMM_DUP(MPI_INTRA,MPI_INTRA_B,RC)                          !<-- Use a duplicate of the communicator for safety
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &
+                                  ,value =INPES                         &  !<-- # of fcst tasks in I direction
+                                  ,label ='inpes:'                      &
+                                  ,rc    =RC)
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &
+                                  ,value =JNPES                         &  !<-- # of fcst tasks in J direction
+                                  ,label ='jnpes:'                      &
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DOMAIN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Set up Quilt/Write task specifications.
+!***  First retrieve the task and group counts from the config file.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="NMM_SETUP: Get Write Task/Group Info from Config File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(CF                                   &  !<-- The configure file
+                                  ,WRITE_GROUPS                         &  !<-- Number of write groups from config file
+                                  ,label ='write_groups:'               &
+                                  ,rc    =RC)
+!
+      CALL ESMF_ConfigGetAttribute(CF                                   &  !<-- The configure file
+                                  ,WRITE_TASKS_PER_GROUP                &  !<-- Number of write tasks per group from config file
+                                  ,label ='write_tasks_per_group:'      &
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DOMAIN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Segregate the Forecast tasks from the Quilt/Write tasks.
+!-----------------------------------------------------------------------
+!
+      CALL SETUP_SERVERS(MYPE,INPES,JNPES,NUM_PES                       &
+                        ,WRITE_GROUPS,WRITE_TASKS_PER_GROUP             &
+                        ,MPI_INTRA_B)
+!
+!***
+!***  NOTE: At this point, NUM_PES is the number of Forecast tasks only.
+!***
+!-----------------------------------------------------------------------
+!
+      NUM_PES_FCST=INPES*JNPES                                             !<-- Number of forecast tasks
+      domain_int_state%NUM_PES_FCST=NUM_PES_FCST                           !<-- Save this for DOMAIN's Run step
+!
+!-----------------------------------------------------------------------
+!***  Allocate and fill the task list that holds the IDs of
+!***  the Forecast tasks.
+!-----------------------------------------------------------------------
+!
+      ALLOCATE(domain_int_state%PETLIST_FCST(NUM_PES_FCST))                !<-- Task IDs of the forecast tasks
+!
+      DO N=0,NUM_PES_FCST-1
+        domain_int_state%PETLIST_FCST(N+1)=N                               !<-- Collect just the forecast task IDs
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Retrieve the VM (Virtual Machine) of the DOMAIN component.
+!***  We need VM now to set up the DE layout.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="NMM_SETUP: Retrieve VM from DOMAIN Component"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompGet(gridcomp=DOMAIN_GRID_COMP                   &  !<-- The DOMAIN component
+                           ,vm      =VM                                 &  !<-- The ESMF Virtual Machine
+                           ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DOMAIN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Create DE layout based on the I tasks by J tasks specified in
+!***  the config file.
+!***  This refers only to Forecast tasks.
+!-----------------------------------------------------------------------
+!
+!d      IF(MYPE<NUM_PES_FCST)THEN                                            !<-- Select only the forecast tasks
+!d        MY_DE_LAYOUT=ESMF_DELayoutCreate(            VM                 &  !<-- The ESMF virtual machine
+!d                                        ,deCountList=(/INPES,JNPES/)    &  !<-- User-specified I-task by J-task layout
+!d                                        ,rc         =RC)
+!d      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Create the ESMF Grid.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Extract the dimensions of the domain from the configure file.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="NMM_SETUP: Get IM,JM,LM from Config File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file
+                                  ,value =IM                            &  !<-- I dimension of full domain
+                                  ,label ='im:'                         &  !<-- The label in the configure file
+                                  ,rc    =RC)
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file
+                                  ,value =JM                            &  !<-- J dimension of full domain
+                                  ,label ='jm:'                         &  !<-- The label in the configure file
+                                  ,rc    =RC)
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file
+                                  ,value =LM                            &  !<-- Vertical dimension of full domain
+                                  ,label ='lm:'                         &  !<-- The label in the configure file
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DOMAIN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!------------------------------------------------------------
+!***  Retrieve the forecast domain mode from the config file.
+!------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="NMM_SETUP: Get GLOBAL/REGIONAL Mode from Config File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file
+                                  ,value =MODE                          &  !<-- Flag for global (true) or regional (false) run
+                                  ,label ='global:'                     &  !<-- The label in the configure file
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DOMAIN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      IF(TRIM(MODE)=='true')THEN
+        GLOBAL=.TRUE.
+      ELSE
+        GLOBAL=.FALSE.
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  If this is a global mode forecast, extend IM and JM.
+!***  The first dimension of NCOUNTS is the I dimension for parallelization.
+!***  The second dimension of NCOUNTS is the J dimension.
+!-----------------------------------------------------------------------
+!
+      IF(GLOBAL)THEN      !<-- Global mode horizontal dimensions.
+        NCOUNTS(1)=IM+2
+        NCOUNTS(2)=JM+2
+      ELSE                !<-- Regional mode horizontal dimensions.
+        NCOUNTS(1)=IM
+        NCOUNTS(2)=JM
+      ENDIF
+!
+      MAX(1)=NCOUNTS(1)
+      MAX(2)=NCOUNTS(2)
+!
+      MIN(1)=1
+      MIN(2)=1
+!
+!-----------------------------------------------------------------------
+!***  Now create the DOMAIN component's ESMF Grid
+!***  for the NMM's integration grid.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="NMM_SETUP: Create the ESMF Grid"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      GRID_DOMAIN=ESMF_GridCreateShapeTile(regDecomp     =(/INPES,JNPES/)    &  !<-- I x J task layout
+                                       ,minIndex      =(/MIN(1),MIN(2)/)  &  !<-- Min indices in I and J
+                                       ,maxIndex      =(/MAX(1),MAX(2)/)  &  !<-- Max indices in I and J
+                                       ,gridEdgeLWidth=(/0,0/)            &  !<-- Padding, lower edges for noncentered stagger
+                                       ,gridEdgeUWidth=(/0,0/)            &  !<-- Padding, upper edges for noncentered stagger
+                                       ,name          ="GRID"             &  !<-- Name of the Grid
+                                       ,indexflag     =ESMF_INDEX_GLOBAL  &
+                                       ,rc            =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DOMAIN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Get the local array sizes for the DOMAIN Grid.
+!***  Only forecast tasks are relevant here.
+!-----------------------------------------------------------------------
+!
+      IF(MYPE<NUM_PES_FCST)THEN                                              !<-- Select only fcst tasks
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="NMM_SETUP: Get EMSF Sizes of Local Subdomains"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_GridGet(grid              =GRID_DOMAIN                &
+                         ,localDe           =0                          &
+                         ,staggerloc        =ESMF_STAGGERLOC_CENTER     &
+                         ,computationalCount=I1                         & !<-- # of local points in I and J on each task
+                         ,rc                =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DOMAIN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Using 'computationalCount' from array I1 obtained in the
+!***  previous call, generate all of the local task index limits
+!***  for all Forecast tasks.  
+!***  The user, not ESMF, does this work.
+!-----------------------------------------------------------------------
+!
+      IF(MYPE<NUM_PES_FCST)THEN                                            !<-- Select only the forecast tasks
+        CALL DECOMP(MYPE,INPES,JNPES,NUM_PES_FCST,IM,JM,LM,GLOBAL,I1)
+!
+        ALLOCATE(domain_int_state%LOCAL_ISTART(0:NUM_PES_FCST-1))
+        ALLOCATE(domain_int_state%LOCAL_IEND  (0:NUM_PES_FCST-1))
+        ALLOCATE(domain_int_state%LOCAL_JSTART(0:NUM_PES_FCST-1))
+        ALLOCATE(domain_int_state%LOCAL_JEND  (0:NUM_PES_FCST-1))
+!
+        DO N=0,NUM_PES_FCST-1
+          domain_int_state%LOCAL_ISTART(N)=LOCAL_ISTART(N)                 !<-- Starting I for all forecast tasks' subdomains
+          domain_int_state%LOCAL_IEND  (N)=LOCAL_IEND  (N)                 !<-- Ending I for all forecast tasks' subdomains
+          domain_int_state%LOCAL_JSTART(N)=LOCAL_JSTART(N)                 !<-- Starting J for all forecast tasks' subdomains
+          domain_int_state%LOCAL_JEND  (N)=LOCAL_JEND  (N)                 !<-- Ending J for all forecast tasks' subdomains
+        ENDDO
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE DOMAIN_SETUP
 !
 !-----------------------------------------------------------------------
 !#######################################################################
@@ -3630,7 +3394,7 @@
 !
           INTEGER_DT=ABS(INTEGER_DT)
 !
-          CALL DIGITAL_FILTER_DYN_INIT_NMM(domain_int_state%IMP_STATE_DYN &
+          CALL DIGITAL_FILTER_DYN_INIT_NMM(domain_int_state%IMP_STATE_SOLVER &
                                           ,NDFISTEP                       &
                                           ,INTEGER_DT                     &
                                           ,NUMERATOR_DT                   &
@@ -3638,7 +3402,7 @@
                                           ,NUM_TRACERS_MET                &
                                           ,NUM_TRACERS_CHEM)
 !
-          CALL DIGITAL_FILTER_PHY_INIT_NMM(domain_int_state%IMP_STATE_PHY)
+          CALL DIGITAL_FILTER_PHY_INIT_NMM(domain_int_state%IMP_STATE_SOLVER)
 !
         ENDIF
 !
@@ -3676,7 +3440,7 @@
 !
           IF(CURRTIME>=STARTTIME)THEN
 !
-            CALL DIGITAL_FILTER_DYN_SUM_NMM(domain_int_state%IMP_STATE_DYN &
+            CALL DIGITAL_FILTER_DYN_SUM_NMM(domain_int_state%IMP_STATE_SOLVER &
                                            ,MEAN_ON                        &
                                            ,NUM_TRACERS_MET                &
                                            ,NUM_TRACERS_CHEM)
@@ -3686,7 +3450,7 @@
 !
           IF(CURRTIME==HALFDFITIME)THEN
 !
-            CALL DIGITAL_FILTER_PHY_SAVE_NMM(domain_int_state%IMP_STATE_PHY)
+            CALL DIGITAL_FILTER_PHY_SAVE_NMM(domain_int_state%IMP_STATE_SOLVER)
 !
           ENDIF
 !
@@ -3698,7 +3462,7 @@
 !
           IF(TESTTIME==DFITIME)THEN
 !
-            CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(domain_int_state%IMP_STATE_DYN &
+            CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(domain_int_state%IMP_STATE_SOLVER &
                                                ,NUM_TRACERS_MET                &
                                                ,NUM_TRACERS_CHEM)
 !
@@ -3706,7 +3470,7 @@
 !!!         of import/export states in general in deciding what needs to be filtered
 !!!         or save for physics restoration
 !
-!mptest            CALL DIGITAL_FILTER_PHY_RESTORE_NMM(domain_int_state%IMP_STATE_PHY)
+!mptest            CALL DIGITAL_FILTER_PHY_RESTORE_NMM(domain_int_state%IMP_STATE_SOLVER)
 !
 !           write(0,*) 'ignored  DIGITAL_FILTER_PHY_RESTORE_NMM'
 !
@@ -3738,7 +3502,7 @@
 !-------------------------
 !
           IF(CURRTIME<=STARTTIME)THEN
-            CALL DIGITAL_FILTER_DYN_SUM_NMM(domain_int_state%IMP_STATE_DYN &
+            CALL DIGITAL_FILTER_DYN_SUM_NMM(domain_int_state%IMP_STATE_SOLVER &
                                            ,MEAN_ON                        &
                                            ,NUM_TRACERS_MET                &
                                            ,NUM_TRACERS_CHEM)
@@ -3752,7 +3516,7 @@
 !
           IF(TESTTIME==DFITIME)THEN
             IF (FILTER_METHOD == 3) THEN
-              CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(domain_int_state%IMP_STATE_DYN &
+              CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(domain_int_state%IMP_STATE_SOLVER &
                                                  ,NUM_TRACERS_MET                &
                                                  ,NUM_TRACERS_CHEM)
 
@@ -3835,7 +3599,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       MESSAGE_CHECK="CALL_WRITE_ASYNC: Is ALARM_HISTORY ringing?"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
       IF(ESMF_AlarmIsRinging(alarm=ALARM_HISTORY                        &  !<-- The history output alarm
@@ -3887,7 +3651,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       MESSAGE_CHECK="CALL_WRITE_ASYNC: Is ALARM_RESTART ringing?"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
       IF(ESMF_AlarmIsRinging(alarm=ALARM_RESTART                        &  !<-- The restart output alarm
@@ -4486,8 +4250,7 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE UPDATE_GRID_ARRAYS(DOMAIN_IMP_STATE                    &
-                                   ,DYN_GRID_COMP                       &
-                                   ,PHY_GRID_COMP)
+                                   ,SOLVER_GRID_COMP)
 !
 !-----------------------------------------------------------------------
 !***  When a nest moves we must update the 1-D (in J) grid-dependent
@@ -4500,8 +4263,7 @@
 !
       TYPE(ESMF_State),INTENT(INOUT) :: DOMAIN_IMP_STATE                   !<-- The Domain component's import state
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: DYN_GRID_COMP                &  !<-- The Dynamics Gridded Component
-                                          ,PHY_GRID_COMP                   !<-- The Physics Gridded Component
+      TYPE(ESMF_GridComp),INTENT(INOUT) :: SOLVER_GRID_COMP                   !<-- The Dynamics Gridded Component
 !
 !---------------------
 !***  Local Variables
@@ -4515,11 +4277,9 @@
 !
       REAL(kind=KFPT),DIMENSION(JDS:JDE) :: TLAT_H,TLAT_V
 !
-      TYPE(WRAP_DYN_INT_STATE) :: WRAP_DYN
-      TYPE(WRAP_PHY_INT_STATE) :: WRAP_PHY
+      TYPE(WRAP_SOLVER_INT_STATE) :: WRAP_SOLVER
 !
-      TYPE(DYNAMICS_INTERNAL_STATE),POINTER :: DYN_INT_STATE
-      TYPE(PHYSICS_INTERNAL_STATE),POINTER :: PHY_INT_STATE
+      TYPE(SOLVER_INTERNAL_STATE),POINTER :: SOLVER_INT_STATE
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -4557,8 +4317,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_GridCompGetInternalState(DYN_GRID_COMP                  &  !<-- The Dynamics component
-                                        ,WRAP_DYN                       &
+      CALL ESMF_GridCompGetInternalState(SOLVER_GRID_COMP               &  !<-- The Dynamics component
+                                        ,WRAP_SOLVER                    &
                                         ,RC )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4567,28 +4327,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      DYN_INT_STATE=>wrap_dyn%INT_STATE
-!
-!-----------------------------------------------------------------------
-!***  Extract the Physics internal state so we can access its contents.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract Physics Internal State for Move Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_GridCompGetInternalState(PHY_GRID_COMP                  &  !<-- The Dynamics component
-                                        ,WRAP_PHY                       &
-                                        ,RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-      PHY_INT_STATE=>wrap_phy%INT_STATE
+      SOLVER_INT_STATE=>wrap_solver%INT_STATE
 !
 !-----------------------------------------------------------------------
 !***  The arrays are tied to the nest grid's transformed latitude.
@@ -4596,8 +4335,8 @@
 !***  SW corner following the move the rest can be filled in.
 !-----------------------------------------------------------------------
 !
-      CALL GEO_TO_ROT(dyn_int_state%GLAT(ITS,JTS)                       &
-                     ,dyn_int_state%GLON(ITS,JTS)                       &
+      CALL GEO_TO_ROT(solver_int_state%GLAT(ITS,JTS)                       &
+                     ,solver_int_state%GLON(ITS,JTS)                       &
                      ,TLAT_H(JTS)                                       &
                      ,TLON_H )
 !
@@ -4617,27 +4356,22 @@
 !-----------------------------------------------------------------------
 !
       DO J=JDS,JDE
-        phy_int_state%DXH(J)=A*DLM*COS(TLAT_H(J))
-        phy_int_state%RDXH(J)=1./phy_int_state%DXH(J)
-        phy_int_state%DXV(J)=A*DLM*COS(TLAT_V(J))
-        phy_int_state%RDXV(J)=1./phy_int_state%DXV(J)
-
-        dyn_int_state%DXH(J)=A*DLM*COS(TLAT_H(J))
-        dyn_int_state%RDXH(J)=1./dyn_int_state%DXH(J)
-        dyn_int_state%DXV(J)=A*DLM*COS(TLAT_V(J))
-        dyn_int_state%RDXV(J)=1./dyn_int_state%DXV(J)
-        dyn_int_state%DARE(J)=dyn_int_state%DXH(J)*DY
-        dyn_int_state%RARE(J)=1./dyn_int_state%DARE(J)
-        dyn_int_state%WPDAR(J)=-1.E-5*WCOR*DY*DY                        &
-                               /(DT_REAL*dyn_int_state%DXH(J)*DY)
-        dyn_int_state%CURV(J)=TAN(TLAT_V(J))/A
-        dyn_int_state%FAH(J)=-DT_REAL/(3.*dyn_int_state%DXH(J)*DY)
-        dyn_int_state%FAD(J)=-0.25*DT_REAL/(3.*dyn_int_state%DXV(J)*DY)
-        dyn_int_state%FCP(J)=DT_REAL/(3.*dyn_int_state%DXH(J)*DY*CP)
-        dyn_int_state%FDIV(J)=2./(3.*dyn_int_state%DXH(J)*DY)
-        dyn_int_state%DDV(J)=SQRT(dyn_int_state%DXV(J)**2+DY*DY)
-        dyn_int_state%RDDV(J)=1./dyn_int_state%DDV(J)
-        dyn_int_state%DDMPU(J)=0.5*CDDAMP*DY/dyn_int_state%DXV(J)
+        solver_int_state%DXH(J)=A*DLM*COS(TLAT_H(J))
+        solver_int_state%RDXH(J)=1./solver_int_state%DXH(J)
+        solver_int_state%DXV(J)=A*DLM*COS(TLAT_V(J))
+        solver_int_state%RDXV(J)=1./solver_int_state%DXV(J)
+        solver_int_state%DARE(J)=solver_int_state%DXH(J)*DY
+        solver_int_state%RARE(J)=1./solver_int_state%DARE(J)
+        solver_int_state%WPDAR(J)=-1.E-5*WCOR*DY*DY                        &
+                               /(DT_REAL*solver_int_state%DXH(J)*DY)
+        solver_int_state%CURV(J)=TAN(TLAT_V(J))/A
+        solver_int_state%FAH(J)=-DT_REAL/(3.*solver_int_state%DXH(J)*DY)
+        solver_int_state%FAD(J)=-0.25*DT_REAL/(3.*solver_int_state%DXV(J)*DY)
+        solver_int_state%FCP(J)=DT_REAL/(3.*solver_int_state%DXH(J)*DY*CP)
+        solver_int_state%FDIV(J)=2./(3.*solver_int_state%DXH(J)*DY)
+        solver_int_state%DDV(J)=SQRT(solver_int_state%DXV(J)**2+DY*DY)
+        solver_int_state%RDDV(J)=1./solver_int_state%DDV(J)
+        solver_int_state%DDMPU(J)=0.5*CDDAMP*DY/solver_int_state%DXV(J)
       ENDDO
 !
 !-----------------------------------------------------------------------
@@ -6523,7 +6257,7 @@
                                             ,MOVE_BUNDLE_V              &
                                             ,NUM_FIELDS_2D_V            &
                                             ,NUM_FIELDS_3D_V            &
-                                            ,EXP_STATE_DYN )
+                                            ,EXP_STATE_SOLVER )
 !
 !-----------------------------------------------------------------------
 !***  After the nest has moved update all nest gridpoints in that
@@ -6542,7 +6276,7 @@
                                       ,NUM_FIELDS_3D_V                     !<-- # of 3-D V variables to update
 !
       TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                       &  !<-- The DOMAIN import state
-                                       ,EXP_STATE_DYN                      !<-- The Dynamics export state
+                                       ,EXP_STATE_SOLVER                      !<-- The Dynamics export state
 !
       TYPE(ESMF_FieldBundle),INTENT(INOUT) :: MOVE_BUNDLE_H             &  !<-- Bundle of internal state H arrays needing updates
                                              ,MOVE_BUNDLE_V                !<-- Bundle of internal state V arrays needing updates
@@ -6953,7 +6687,7 @@
           LBND=LBOUND(GLON_H)
           UBND=UBOUND(GLON_H)
           CALL UPDATE_LATLON(IMP_STATE                                  &  !<-- Lat/lon is now recomputed directly
-                            ,EXP_STATE_DYN                              &  !    in the parent update region.
+                            ,EXP_STATE_SOLVER                              &  !    in the parent update region.
                             ,LBND(1),UBND(1)                            &  !    The HDAC variables are also
                             ,LBND(2),UBND(2)                            &  !    computed.
                             ,I_START,I_END                              &  !
@@ -7640,7 +7374,7 @@
                 LBND=LBOUND(GLON_V)
                 UBND=UBOUND(GLON_V)
                 CALL UPDATE_LATLON(IMP_STATE                            &  !<-- Lat/lon is now recomputed directly
-                                  ,EXP_STATE_DYN                        &  !    in the parent update region.
+                                  ,EXP_STATE_SOLVER                        &  !    in the parent update region.
                                   ,LBND(1),UBND(1)                      &  !    The HDAC variables are also 
                                   ,LBND(2),UBND(2)                      &  !    computed.
                                   ,I_START,I_END                        &
@@ -7887,7 +7621,7 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE UPDATE_LATLON(IMP_STATE                                &
-                              ,EXP_STATE_DYN                            &
+                              ,EXP_STATE_SOLVER                            &
                               ,I_LBND,I_UBND                            &
                               ,J_LBND,J_UBND                            &
                               ,I_START,I_END                            &
@@ -7917,7 +7651,7 @@
 !
       TYPE(ESMF_State),INTENT(IN) :: IMP_STATE                             !<-- The DOMAIN import state
 !
-      TYPE(ESMF_State),INTENT(IN) :: EXP_STATE_DYN                         !<-- The Dynamics export state
+      TYPE(ESMF_State),INTENT(IN) :: EXP_STATE_SOLVER                         !<-- The Dynamics export state
 !
       REAL(kind=KFPT),DIMENSION(I_LBND:I_UBND,J_LBND:J_UBND)            &
                                               ,INTENT(INOUT) :: GLAT_X  &  !<-- Geographic latitude on nest

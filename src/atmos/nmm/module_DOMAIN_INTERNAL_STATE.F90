@@ -28,16 +28,12 @@
 !
         TYPE(ESMF_GridComp),ALLOCATABLE,DIMENSION(:) :: DOMAIN_CHILD_COMP      !<-- DOMAIN components of child domains
 !
-        TYPE(ESMF_GridComp) :: DYN_GRID_COMP                                   !<-- The Dynamics gridded component
-        TYPE(ESMF_GridComp) :: PHY_GRID_COMP                                   !<-- The Physics gridded component
-        TYPE(ESMF_CplComp)  :: COUPLER_DYN_PHY_COMP                            !<-- The Dynamics-Physics coupler component
+        TYPE(ESMF_GridComp) :: SOLVER_GRID_COMP                                !<-- The Solver gridded component
 !
-        TYPE(ESMF_State) :: IMP_STATE_DYN                                      !<-- The import state of the Dynamics component
-        TYPE(ESMF_State) :: IMP_STATE_PHY                                      !<-- The import state of the Physics component
+        TYPE(ESMF_State) :: IMP_STATE_SOLVER                                   !<-- The import state of the Solver component
         TYPE(ESMF_State) :: IMP_STATE_WRITE                                    !<-- The import state of the write components
 !
-        TYPE(ESMF_State) :: EXP_STATE_DYN                                      !<-- The export state of the Dynamics component
-        TYPE(ESMF_State) :: EXP_STATE_PHY                                      !<-- The export state of the Physics component
+        TYPE(ESMF_State) :: EXP_STATE_SOLVER                                   !<-- The export state of the Solver component
         TYPE(ESMF_State) :: EXP_STATE_WRITE                                    !<-- The export state of the write components
 !
         INTEGER :: LEAD_TASK_DOMAIN                                            !<-- The first task on a given domain
@@ -56,7 +52,7 @@
         INTEGER :: WRITE_GROUP_READY_TO_GO                                     !<-- The active group of write tasks
         INTEGER :: WRITE_TASKS_PER_GROUP                                       !<-- The number of write tasks in each write group
 !
-        INTEGER,DIMENSION(:)  ,POINTER :: PETLIST_FCST                         !<-- Task ID list of fcst tasks (for Dyn and Phy components)
+        INTEGER,DIMENSION(:)  ,POINTER :: PETLIST_FCST                         !<-- Task ID list of fcst tasks (for Core component)
         INTEGER,DIMENSION(:,:),POINTER :: PETLIST_WRITE                        !<-- Task ID list of fcst tasks w/ write tasks by group
 !
         INTEGER,DIMENSION(:),POINTER :: LOCAL_ISTART,LOCAL_IEND             &  !<-- The local I,J limits of the forecast tasks

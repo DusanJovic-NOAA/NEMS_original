@@ -62,7 +62,7 @@
       INTEGER(kind=KINT) :: MYPE                                        &  !<-- Each MPI task ID
                            ,NHOURS_CLOCKTIME                            &  !<-- Hours between clocktime prints
                            ,NPE_PRINT                                   &  !<-- Clocktime diagnostics from this MPI task
-                           ,NTIMESTEP                                   &  !<-- The integration timestep
+!d not used                           ,NTIMESTEP                                   &  !<-- The integration timestep
                            ,TIMESTEP_SEC_WHOLE                          &
                            ,TIMESTEP_SEC_NUMERATOR                      &
                            ,TIMESTEP_SEC_DENOMINATOR

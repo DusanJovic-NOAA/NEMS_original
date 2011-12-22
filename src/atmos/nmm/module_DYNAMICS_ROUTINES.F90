@@ -11,7 +11,7 @@ use module_clocktimes,only : adv1_tim,adv2_tim,bocoh_tim,bocov_tim &
                             ,cdwdt_tim,cdzdt_tim,consts_tim &
                             ,ddamp_tim,dht_tim &
                             ,dyn_init_tim,dyn_run_tim &
-                            ,exch_dyn_tim &
+                            ,exch_tim &
                             ,fftfhn_tim,fftfwn_tim,hadv2_tim &
                             ,hdiff_tim,init_tim,mono_tim &
                             ,pdtsdt_tim,pgforce_tim,poavhn_tim &
@@ -42,7 +42,7 @@ use module_exchange,only: halo_exch
 use module_fltbnds,only: polehn,polewn,swaphn,swapwn
 use module_constants
 
-use esmf_mod, only:  esmf_abort, esmf_finalize
+!d use esmf_mod, only:  esmf_abort, esmf_finalize
 
 !
 !
@@ -3784,7 +3784,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !
       btim=timef()
       call halo_exch(dwdt,lm,1,1)
-      exch_dyn_tim=exch_dyn_tim+(timef()-btim)
+      exch_tim=exch_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !------------spatial filtering of dwdt----------------------------------
@@ -6336,7 +6336,7 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
 !
       btim=timef()
       call halo_exch(q1,lm,w1,lm,g1,lm,e1,lm,1,1)
-      exch_dyn_tim=exch_dyn_tim+(timef()-btim)
+      exch_tim=exch_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !--------------anti-filtering limiters----------------------------------
@@ -7390,7 +7390,7 @@ real(kind=kfpt),dimension(2,1:lm) :: gsums_single
 !
       btim=timef()
       call halo_exch(s1,lm,1,1)
-      exch_dyn_tim=exch_dyn_tim+(timef()-btim)
+      exch_tim=exch_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !--------------anti-filtering limiters----------------------------------
