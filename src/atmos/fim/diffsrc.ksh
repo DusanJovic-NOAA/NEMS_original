@@ -1,7 +1,7 @@
 #!/bin/ksh
 
-diffcmd=xxdiff
-#diffcmd=diff
+#diffcmd=xxdiff
+diffcmd=diff
 
 #fimsrcnems=/export/Tasks/FIMtoNEMSrepo/FIM_r1710_WORK/FIMsrc/fim/framework/nems
 #fimsrcnems=FIMsrc/fim/framework/nems
