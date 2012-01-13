@@ -20,7 +20,7 @@ LIBS = atmos/share/libshare.a           \
        atmos/gfs/phys/gfs_physics.a     \
        atmos/gfs/dyn/gfs_dynamics.a     \
        atmos/gfs/libgfs.a               \
-       atmos/fim/libfim.a               \
+       atmos/fim/libfimtop.a            \
        atmos/gen/libgen.a               \
        atmos/libatmos.a                 \
        atmos/post/libpost.a             \
@@ -29,7 +29,7 @@ LIBS = atmos/share/libshare.a           \
 LIBS_NMM = atmos/libatmos.a             \
            atmos/nmm/libnmm.a           \
            atmos/gfs/libgfs.a           \
-           atmos/fim/libfim.a           \
+           atmos/fim/libfimtop.a        \
            atmos/gen/libgen.a           \
            atmos/phys/libphys.a         \
            atmos/share/libshare.a       \
@@ -39,12 +39,40 @@ LIBS_NMM = atmos/libatmos.a             \
 LIBS_GEN = atmos/libatmos.a             \
            atmos/nmm/libnmm.a           \
            atmos/gfs/libgfs.a           \
-           atmos/fim/libfim.a           \
+           atmos/fim/libfimtop.a        \
            atmos/gen/libgen.a           \
            atmos/phys/libphys.a         \
            atmos/share/libshare.a       \
            atmos/post/libpost.a         \
            ENS_Cpl/ENS_Cpl.a
+
+#TODO:  DRY these settings, they are redundant with atmos/fim/makefile and 
+#TODO:  atmos/fim/FIMsrc ...  
+SMS      = /gpfs/t3/global/save/wx20tbh/SMS/SMS_r237
+SMSLIB   = $(SMS)/lib/libsms.a
+# libraries created during build inside atmos/fim/FIM_src_devccs
+FIMSRCLIBS = atmos/fim/FIMsrc_devccs/lib/libfim.a      \
+             atmos/fim/FIMsrc_devccs/lib/libwrfio.a    \
+             atmos/fim/FIMsrc_devccs/lib/libgribio.a   \
+             atmos/fim/FIMsrc_devccs/lib/libvlint.a    \
+             atmos/fim/FIMsrc_devccs/lib/libsp_4.a     \
+             atmos/fim/FIMsrc_devccs/lib/libslint.a    \
+             atmos/fim/FIMsrc_devccs/lib/libsigio_4.a  \
+             atmos/fim/FIMsrc_devccs/lib/libsfcio_4.a  \
+             atmos/fim/FIMsrc_devccs/lib/libw3_4.a     \
+             atmos/fim/FIMsrc_devccs/lib/libbacio_4.a  \
+             atmos/fim/FIMsrc_devccs/lib/libcntl.a     \
+             atmos/fim/FIMsrc_devccs/lib/libsysshare.a
+
+LIBS_FIM = atmos/libatmos.a                     \
+           atmos/nmm/libnmm.a                   \
+           atmos/gfs/libgfs.a                   \
+           atmos/fim/libfimtop.a                \
+           $(SMSLIB) $(FIMSRCLIBS)              \
+           atmos/gen/libgen.a                   \
+           atmos/share/libshare.a               \
+           ENS_Cpl/ENS_Cpl.a                    \
+           -L/nwprod/lib -lnetcdf_64
 
 MAKEFILE = makefile
 
@@ -107,10 +135,10 @@ all:
 	@echo "gmake gfs GOCART_MODE=full --- for GFS core only - with the GOCART"
 	@echo " or"
 	@echo "gmake fim --- for FIM core only"
-	@echo " or"
-	@echo "gmake fim_gfs --- for both FIM and GFS core only - without the GOCART"
-	@echo " or"
-	@echo "gmake fim_gfs GOCART_MODE=full --- for both FIM and GFS core only - with the GOCART"
+#	@echo " or"
+#	@echo "gmake fim_gfs --- for both FIM and GFS core only - without the GOCART"
+#	@echo " or"
+#	@echo "gmake fim_gfs GOCART_MODE=full --- for both FIM and GFS core only - with the GOCART"
 
 
 ################################################################################
@@ -322,8 +350,10 @@ endif
 #
 ################################################################################
 
+# TODO:  Change to re-use NEMS standard $(EXTLIBS) instead of FIM versions 
+# TODO:  currently in $(LIBS_FIM) .  
 fim: fim_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_FIM) $(ESMF_LIBS)
 	@echo "nems.x is created for FIM core."
 
 fim_libs:
@@ -334,16 +364,20 @@ fim_libs:
 	cd atmos/gen           && gmake stub
 	cd atmos/post          && gmake stub
 	cd atmos               && gmake
+	cd ENS_Cpl             && gmake
 
 ################################################################################
 #
 # FIM and GFS
+#TBH:  not yet integrated with FIM build
 #
 ################################################################################
 
 fim_gfs: fim_gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS)
-	@echo "nems.x is created for FIM and GFS core."
+#	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS)
+#	@echo "nems.x is created for FIM and GFS core."
+	@echo "ERROR:  Cannot build FIM with other cores yet.  nems.x is NOT created for FIM and GFS core."
+	@exit -1
 
 fim_gfs_libs:
 	cd atmos/share         && gmake
@@ -353,6 +387,7 @@ fim_gfs_libs:
 	cd atmos/gen           && gmake stub
 	cd atmos/post          && gmake stub
 	cd atmos               && gmake
+	cd ENS_Cpl             && gmake
 
 ################################################################################
 #

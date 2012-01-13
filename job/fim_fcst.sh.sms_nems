@@ -1,0 +1,227 @@
+#!/bin/sh
+################################################################################
+####  UNIX Script Documentation Block
+#                      .                                             .
+# Script name:         fim_fcst.sh.sms_nems
+# Script description:  Runs the FIM core component nems model.
+#
+# Author:        Mark Iredell       Org: NP23         Date: 1999-05-01
+#
+# Abstract: This script runs a single FIM core component nems model.
+#
+# Script history log:
+# 1999-05-01  Mark Iredell
+# 2005-01-03  Cheng-Hsuan Lu :add namelist SOIL_VEG
+#                             set FSMCL(2:4) = FSMCL2
+#                             add FNVMNC,FNVMXC,FNSLPC,FNABSC
+# 2006-02     Shrinivas Moorthi Modified to run ESMF - Stand Alone
+#                             version of ATM - Only filestyle "L"
+#                             allowed - Added a ESMF config file
+#                             The script can run up to 21 ENS members
+#                             concurrently.
+# 2006-06     Shrinivas Moorthi : Added default PE$n values to 0
+# 2009-05     Jun Wang, add write grid component option
+# 2009-10     Sarah Lu, ESMF_State_Namelist modified:
+#                       tracer added; (q, oz, cld) removed
+# 2009-11     Jun Wang, activate reduced grid option and digital filter option
+# 2009-12     Jun Wang, link atm_namelist.rc to configure_file
+# 2010-01     Weiyu Yang, modified for the ensemble GEFS.
+# 2010-01-14  Sarah Lu : Added GOCART_CLIM and GOCART_LUTS
+# 2010-02     Jun Wang  Add restart
+# 2010-02-06  Sarah Lu : modify phy_namelist.rc (set p_export/dp_export to 1)
+# 2010-03-23  Sarah Lu : add passive_tracer to atm_namelist.rc 
+# 2010-05-31  Sarah Lu : use wildcard to copy files from GOCART_CLIM to DATA
+# 2010-07-23  Sarah Lu : use wildcard to copy files from GOCART_CLIM to DATA
+# 2010-07-23  Sarah Lu : add AER, modify filename_base, file_io_form, file_io
+# 2010-12-08  Weiyu Yang, modified for the generic core component test run.
+# 2011-08-04  Tom Henderson, modified for the FIM core component test run.
+#
+#   Imported Shell Variables:
+#     NCP           Copy command
+#                   defaults to cp
+#     FCSTEXEC      Forecast executable
+#                   defaults to ${EXECGLOBAL}/global_fcst$XC
+#     VERBOSE       Verbose flag (YES or NO)
+#                   defaults to NO
+#
+#   Exported Shell Variables:
+#     PGM           Current program name
+#     ERR           Last return code
+#     err
+#
+#   Modules and files referenced:
+#
+#     programs   : $FCSTEXEC
+#
+# Remarks:
+#
+#   Condition codes
+#      0 - no problem encountered
+#     >0 - some problem encountered
+#
+#  Control variable resolution priority
+#    1 Command line argument.
+#    2 Environment variable.
+#    3 Inline default.
+#
+# Attributes:
+#   Language: POSIX shell
+#   Machine: IBM SP
+#
+####
+################################################################################
+#  Set environment.
+
+echo ' START TO RUN fim_fcst.sh.sms_nems'
+
+   set -x
+
+#  Command line arguments.
+export ENS_NUM=${ENS_NUM:-1}
+#  Directories.
+export EXECGLOBAL=${EXECGLOBAL:-/nwprod/exec}
+export DATA=${DATA:-$(pwd)}
+export COMOUT=${COMOUT:-$(pwd)}
+#jw
+export NUM_FILE=${NUM_FILE:-3}
+export nemsioget=${nemsioget:-/climate/save/wx20wa/gfsio/nems/nemsio_get}
+#
+export FCSTEXEC=${FCSTEXEC:-${EXECGLOBAL}/global_fcst$XC}
+#
+export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
+export LOGSCRIPT=${LOGSCRIPT}
+export ENDSCRIPT=${ENDSCRIPT}
+#  Other variables.
+export NTHREADS=${NTHREADS:-1}
+export NTHSTACK=${NTHSTACK:-128000000}
+export XLSMPOPTS=${XLSMPOPTS:-"parthds=$NTHREADS:stack=$NTHSTACK"}
+export FILESTYLE=${FILESTYLE:-'L'}
+export FIM_USE_NEMS=${FIM_USE_NEMS:-true}
+################################################################################
+#  Preprocessing
+pwd=$(pwd)
+if [[ -d $DATA ]]
+then
+   mkdata=NO
+else
+   mkdir -p $DATA
+   mkdata=YES
+fi
+cd $DATA||exit 99
+[[ -d $COMOUT ]]||mkdir -p $COMOUT
+################################################################################
+#  Make forecast
+export XLFRTEOPTS="unit_vars=yes"
+export PGM=$DATA/$(basename $FCSTEXEC)
+$LOGSCRIPT
+${NCP:-cp} $FCSTEXEC $DATA
+rm -f NULL
+cd $DATA
+#
+# Create Configure file (i.e. .rc file) here
+# PE$n are to be imported from outside.  If PE$n are not set from outside, the
+# model would give equal processors for all ensembel members.
+#
+c=1
+while [ $c -le $ENS_NUM ] ; do
+ eval export PE$c=\${PE$c:-0}
+ c=$((c+1))
+done
+
+export ENS_SPS=${ENS_SPS:-.false.}
+
+export wgrib=${wgrib:-/nwprod/util/exec/wgrib}
+
+cat << EOF > atm_namelist.rc
+
+core: fim
+
+total_member:            $ENS_NUM
+grib_input:              $GB
+PE_MEMBER01:             $PE1
+PE_MEMBER02:             $PE2
+PE_MEMBER03:             $PE3
+PE_MEMBER04:             $PE4
+PE_MEMBER05:             $PE5
+PE_MEMBER06:             $PE6
+PE_MEMBER07:             $PE7
+PE_MEMBER08:             $PE8
+PE_MEMBER09:             $PE9
+PE_MEMBER10:             $PE10
+PE_MEMBER11:             $PE11
+PE_MEMBER12:             $PE12
+PE_MEMBER13:             $PE13
+PE_MEMBER14:             $PE14
+PE_MEMBER15:             $PE15
+PE_MEMBER16:             $PE16
+PE_MEMBER17:             $PE17
+PE_MEMBER18:             $PE18
+PE_MEMBER19:             $PE19
+PE_MEMBER20:             $PE20
+PE_MEMBER21:             $PE21
+
+HH_INCREASE:             6
+HH_FINAL:                24
+HH_START:                0
+ADVANCECOUNT_SETUP:      0
+
+ENS_SPS:              $ENS_SPS
+RUN_CONTINUE:         .false.
+
+start_year:           2007
+start_month:          07
+start_day:            17
+start_hour:           0
+start_minute:         0
+start_second:         0
+nhours_fcst:          24
+nhours_fcst1:         6
+
+###############################
+#### Specify the I/O tasks ####
+###############################
+
+quilting:              .false.
+read_groups:           0
+read_tasks_per_group:  0
+write_groups:         0
+write_tasks_per_group:0
+
+EOF
+
+#
+#
+#   WARNING WARNING FILESTYLE "C" will not work for Component Ensembles!!!
+#
+
+ln -sf atm_namelist.rc ./model_configure
+
+#DEBUG
+ls -al /usr/bin/ksh
+ls -al /usr/bin/ksh93
+ls -al /bin/ksh
+ls -al /bin/ksh93
+whence ksh
+whence ksh93
+echo $HOST
+echo $PATH
+#END DEBUG
+
+. ./functions.ksh # Most function definitions can be found here.
+ksh_fix # Modify run scripts to use ksh93, if necessary.
+
+#TBH hard-code batchTemplate for now
+#eval hpmcount -o fim_test $PGM > FIM.out
+
+if [ $FIM_USE_NEMS = true ]; then
+  env NEMSX=${DATA}/NEMS.x ./batchTemplate > FIM.out
+else
+  ./batchTemplate > FIM.out
+fi
+
+export ERR=$?
+export err=$ERR
+$ERRSCRIPT||exit 2
+
+
+exit $err

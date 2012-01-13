@@ -60,13 +60,14 @@ argn=$#
 if [ $argn -eq 1 ]; then
   export CREATE_BASELINE=true
   CB_arg=$1
-  if [ ${CB_arg} != nmm -a ${CB_arg} != gfs -a ${CB_arg} != gen -a  ${CB_arg} != post -a ${CB_arg} != all ]; then
+  if [ ${CB_arg} != nmm -a ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != fim -a  ${CB_arg} != post -a ${CB_arg} != all ]; then
     echo "Wrong CB_arg choice: " $CB_arg
     echo "  Options are: "
     echo "          RT.sh  nmm  (create baselines for NMM)"
     echo "          RT.sh  gfs  (create baselines for GFS)"
     echo "          RT.sh  gen  (create baselines for GEN)"
-    echo "          RT.sh  all  (create baselines for both NMM & GFS)"
+    echo "          RT.sh  fim  (create baselines for FIM)"
+    echo "          RT.sh  all  (create baselines for NMM & GFS & FIM)"
     echo "          RT.sh  post  (create baselines for post)"
     exit
   fi
@@ -76,30 +77,28 @@ if [ $argn -eq 1 ]; then
   rm -rf ${STMP}/${USER}/REGRESSION_TEST
   cp -r ${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines \
 	${STMP}/${USER}/REGRESSION_TEST
+  CP_nmm=false
+  CP_gfs=false
+  CP_fim=false
+  CP_post=false
   if [ ${CB_arg} = nmm ]; then
-    cp ${RTPWD}/GEFS_data_2008082500/*      ${STMP}/${USER}/REGRESSION_TEST/GEFS_data_2008082500/.
-    cp ${RTPWD}/GEFS_m4/*                   ${STMP}/${USER}/REGRESSION_TEST/GEFS_m4/.
-    cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*       ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
-    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/*   ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_HYB/.
-    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_NDSL/*  ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_NDSL/.
-    cp ${RTPWD}/GFS_DFI_hyb_2loop/*         ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_hyb_2loop/.
-    cp ${RTPWD}/GFS_DFI_hyb_2loop_nst/*     ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_hyb_2loop_nst/.
-    cp ${RTPWD}/GFS_NODFI/*                 ${STMP}/${USER}/REGRESSION_TEST/GFS_NODFI/.
-    cp ${RTPWD}/GFS_OPAC/*                  ${STMP}/${USER}/REGRESSION_TEST/GFS_OPAC/.
-    cp ${RTPWD}/GFS_DFI_POST/*              ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_POST/.
+    CP_gfs=true
+    CP_fim=true
+    CP_post=true
   elif [ ${CB_arg} = gfs ]; then
-    cp ${RTPWD}/NMMB_gfsP_glob/*            ${STMP}/${USER}/REGRESSION_TEST/NMMB_gfsP_glob/.
-    cp ${RTPWD}/NMMB_gfsP_reg/*             ${STMP}/${USER}/REGRESSION_TEST/NMMB_gfsP_reg/.
-    cp ${RTPWD}/NMMB_glob/*                 ${STMP}/${USER}/REGRESSION_TEST/NMMB_glob/.
-    cp ${RTPWD}/NMMB_mvg_nests/*            ${STMP}/${USER}/REGRESSION_TEST/NMMB_mvg_nests/.
-    cp ${RTPWD}/NMMB_nests/*                ${STMP}/${USER}/REGRESSION_TEST/NMMB_nests/.
-    cp ${RTPWD}/NMMB_reg/*                  ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg/.
-    cp ${RTPWD}/NMMB_reg_filt/*             ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_filt/.
-    cp ${RTPWD}/NMMB_reg_pcpadj/*           ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_pcpadj/.
-    cp ${RTPWD}/NMMB_reg_sel_phy/*          ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_sel_phy/.
-    cp ${RTPWD}/NMMB_reg_timesr/*           ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_timesr/.
-    cp ${RTPWD}/NMMB_reg_post/*             ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_post/.
+    CP_nmm=true
+    CP_fim=true
+    CP_post=true
+  elif [ ${CB_arg} = fim ]; then
+    CP_nmm=true
+    CP_gfs=true
+    CP_post=true
   elif [ ${CB_arg} = post ]; then
+    CP_nmm=true
+    CP_gfs=true
+    CP_fim=true
+  fi
+  if [ ${CP_gfs} = true ]; then
     cp ${RTPWD}/GEFS_data_2008082500/*      ${STMP}/${USER}/REGRESSION_TEST/GEFS_data_2008082500/.
     cp ${RTPWD}/GEFS_m4/*                   ${STMP}/${USER}/REGRESSION_TEST/GEFS_m4/.
     cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*       ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
@@ -109,6 +108,7 @@ if [ $argn -eq 1 ]; then
     cp ${RTPWD}/GFS_DFI_hyb_2loop_nst/*     ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_hyb_2loop_nst/.
     cp ${RTPWD}/GFS_NODFI/*                 ${STMP}/${USER}/REGRESSION_TEST/GFS_NODFI/.
     cp ${RTPWD}/GFS_OPAC/*                  ${STMP}/${USER}/REGRESSION_TEST/GFS_OPAC/.
+  elif [ ${CP_nmm} = true ]; then
     cp ${RTPWD}/NMMB_gfsP_glob/*            ${STMP}/${USER}/REGRESSION_TEST/NMMB_gfsP_glob/.
     cp ${RTPWD}/NMMB_gfsP_reg/*             ${STMP}/${USER}/REGRESSION_TEST/NMMB_gfsP_reg/.
     cp ${RTPWD}/NMMB_glob/*                 ${STMP}/${USER}/REGRESSION_TEST/NMMB_glob/.
@@ -119,6 +119,15 @@ if [ $argn -eq 1 ]; then
     cp ${RTPWD}/NMMB_reg_pcpadj/*           ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_pcpadj/.
     cp ${RTPWD}/NMMB_reg_sel_phy/*          ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_sel_phy/.
     cp ${RTPWD}/NMMB_reg_timesr/*           ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_timesr/.
+  elif [ ${CP_fim} = true ]; then
+    mkdir -p ${STMP}/${USER}/REGRESSION_TEST/FIMdata
+    cp ${RTPWD}/FIMdata/*                   ${STMP}/${USER}/REGRESSION_TEST/FIMdata/.
+    #TODO:  generalize with $GLVL (see below)
+    mkdir -p ${STMP}/${USER}/REGRESSION_TEST/FIM_G4L38_24hr
+    cp ${RTPWD}/FIM_G4L38_24hr/*        ${STMP}/${USER}/REGRESSION_TEST/FIM_G4L38_24hr/.
+  elif [ ${CP_post} = true ]; then
+    cp ${RTPWD}/GFS_DFI_POST/*              ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_POST/.
+    cp ${RTPWD}/NMMB_reg_post/*             ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_post/.
   fi
 fi
 
@@ -190,6 +199,7 @@ fi
 # CB_arg      - baseline arguments:
 #                 =nmm - create nmm baselines only
 #                 =gfs - create gfs baselines only
+#                 =fim - create fim baselines only
 #                 =all - create all baselines
 # CP2         - 2-copy option
 # FDFI	      - half of digital filter window in hours (e.g. 3)
@@ -302,6 +312,12 @@ export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPEC
 export NST_FCST=0  ; export NDSLFV=.false.
 }
 
+export_fim ()
+{
+export_common
+export FIM_USE_NEMS=true
+}
+
 export_nmm ; export_gfs
 
 ############################################################################
@@ -351,7 +367,7 @@ cd $PATHRT
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != post ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post ]; then
 
 export TEST_DESCR="Compare NMMB-global results with previous trunk version"
 
@@ -533,7 +549,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
  
 export TEST_DESCR="Test NMMB-global with GFS physics package "
 
@@ -562,7 +578,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Compare NMMB-regional results with previous trunk version"
 
@@ -742,7 +758,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != post ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post ]; then
 
 export TEST_DESCR="Test NMMB-regional with GFS physics package "
 
@@ -771,7 +787,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test NMMB-regional with selected GFS physics schemes "
 
@@ -801,7 +817,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test NMMB-regional with precipitation adjustment on"
 
@@ -831,7 +847,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test NMMB-regional writing time series"
 
@@ -859,7 +875,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test NMMB-regional with static nests"
 
@@ -936,7 +952,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test NMMB-regional digital filter with static nests"
 
@@ -969,7 +985,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${RT_FULL} = true ]; then
+if [ ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test NMMB-regional with moving nests"
 
@@ -1013,7 +1029,7 @@ cd $PATHRT
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != post ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post ]; then
 
 export TEST_DESCR="Compare GFS results with previous trunk version"
 
@@ -1281,7 +1297,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
 
 export TEST_DESCR="GFS,32 total proc (tasks), 1 thread, quilt, digital filter on reduced grid"
 
@@ -1370,7 +1386,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
 
 export TEST_DESCR="GFS, use the OPAC climo scheme for SW and LW"
 
@@ -1399,7 +1415,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != post ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post ]; then
 
 export TEST_DESCR="GFS, 16tasks, 2threads, quilt, dfi3hr, reduced grid, NDSL"
 
@@ -1430,7 +1446,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
 
 export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid"
 
@@ -1464,7 +1480,7 @@ fi
 ###################################################################################################
 #
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
 
 export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter
 on reduced grid"
@@ -1496,7 +1512,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != post ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post ]; then
 
 export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid with nst"
 
@@ -1528,7 +1544,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != post ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post ]; then
 
 export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 1loop digital filter on reduced grid"
 
@@ -1559,7 +1575,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != post ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gen -a ${CB_arg} != fim -a ${CB_arg} != post ]; then
 
 export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28."
 
@@ -1600,7 +1616,7 @@ cd $PATHRT
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gfs -a ${CB_arg} != post ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gfs -a ${CB_arg} != fim -a ${CB_arg} != post ]; then
 
 export TEST_DESCR="GEN, 1 members."
 
@@ -1626,7 +1642,7 @@ cd $PATHRT
 #
 ####################################################################################################
 
-if [ ${CB_arg} != nmm -a ${CB_arg} != gfs -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
+if [ ${CB_arg} != nmm -a ${CB_arg} != gfs -a ${CB_arg} != fim -a ${CB_arg} != post -a ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Concurrency GEN, 4 members."
 
@@ -1648,10 +1664,96 @@ fi
 # run nmm gfs gen without post 
 ################################################################################################
   fi
+
+
 ################################################################################################
   if [ ${RT_FULL} = true ]; then
 #
 ################################################################################################
+
+#########################################################################
+#########################################################################
+#
+# FIM-only tests
+#
+#########################################################################
+#########################################################################
+
+################################################################################################
+if [ ${CB_arg} != nmm -a ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != post ]; then
+#
+################################################################################################
+
+#########################################################################
+#########################################################################
+#
+# Clean and compile only FIM core
+#
+#########################################################################
+#########################################################################
+
+echo "Preparing model code for regression tests"
+printf %s "Compiling model code (this will take some time)......."
+cd ${PATHTR}/src
+
+date                                     >> ${PATHRT}/RegressionTests.log
+echo "Compilation only FIM"              >> ${PATHRT}/RegressionTests.log
+rm -f ../exe/NEMS.x
+gmake clean                              >> ${PATHRT}/Compile.log 2>&1
+esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
+gmake fim                                >> ${PATHRT}/Compile.log 2>&1
+date                                     >> ${PATHRT}/RegressionTests.log
+
+if [ -f ../exe/NEMS.x ] ; then
+  echo "   Model code Compiled";echo;echo
+else
+  echo "   Model code is NOT compiled" >> ${PATHRT}/RegressionTests.log
+  echo "   Model code is NOT compiled"
+  exit
+fi
+
+cd $PATHRT
+
+
+####################################################################################################
+#
+# TEST   - FIM
+#        - 40 compute tasks / 1 thread, 1 node.  
+#
+####################################################################################################
+
+export TEST_DESCR="Compare FIM results with previous trunk version, only FIM compiled"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export TASKS=40
+export GLVL=4
+export RUNDIR=${RUNDIR_ROOT}/FIM_G${GLVL}L38P${TASKS}_24hr
+export CNTL_DIR=FIM_G${GLVL}L38_24hr
+export LIST_FILES=" \
+        fim_out_2D__000000hr fim_out_2D__000003hr fim_out_2D__000006hr \
+        fim_out_2D__000009hr fim_out_2D__000012hr fim_out_2D__000015hr \
+        fim_out_2D__000018hr fim_out_2D__000021hr fim_out_2D__000024hr \
+        fim_out_da3D000024hr fim_out_db3D000024hr fim_out_dp3D000024hr \
+        fim_out_hgtP000024hr fim_out_mp3D000024hr fim_out_oz3D000024hr \
+        fim_out_ph3D000024hr fim_out_pr3D000024hr fim_out_qv3D000024hr \
+        fim_out_qw3D000024hr fim_out_rh3D000024hr fim_out_rp3P000024hr \
+        fim_out_td3D000024hr fim_out_th3D000024hr fim_out_tk3D000024hr \
+        fim_out_tmpP000024hr fim_out_up3P000024hr fim_out_us3D000024hr \
+        fim_out_vo3D000024hr fim_out_vp3P000024hr fim_out_vs3D000024hr \
+        fim_out_ws3D000024hr"
+#---------------------
+export_fim
+export WLCLK=15
+#---------------------
+  ./rt_fim.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi  # ${CB_arg} "if" statement
+
+
+
 #
 #   Now test post options for nmm and gfs
 #     - nmm_gfs_gen_post GOCART_MODE=full (ESMF4)
@@ -1682,7 +1784,7 @@ cd $PATHRT
 #
 #################################################################################################
 
-if [ ${CREATE_BASELINE} = true -a ${CB_arg} != gfs -o ${RT_FULL} = true -a $argn -eq 2 ]; then
+if [ ${CREATE_BASELINE} = true -a ${CB_arg} != gfs -a ${CB_arg} != fim -o ${RT_FULL} = true -a $argn -eq 2 ]; then
 
 export TEST_DESCR="NMMB-regional run with post on quilt"
 
@@ -1714,7 +1816,7 @@ cd $PATHRT
 #
 #################################################################################################
 
-if [ ${CREATE_BASELINE} = true -a ${CB_arg} != nmm -o ${RT_FULL} = true -a $argn -eq 2 ]; then
+if [ ${CREATE_BASELINE} = true -a ${CB_arg} != nmm -a ${CB_arg} != fim -o ${RT_FULL} = true -a $argn -eq 2 ]; then
 
 export TEST_DESCR="Compare GFS results with previous trunk version"
 
@@ -2352,7 +2454,7 @@ fi # end FULL test
 # Finalize
 ####################################################################################################
 
-rm -f err out configure_file* nmm_ll nmm_msub nmm_run gfs_fcst_run  gfs_ll gen_fcst_run gen_ll
+rm -f err out configure_file* nmm_ll nmm_msub nmm_run gfs_fcst_run gfs_ll gen_fcst_run gen_ll fim_fcst_run fim_ll
 
 cd ${PATHTR}/src
 gmake clean          > /dev/null 2>&1
