@@ -101,7 +101,9 @@ esac
 
 check
 cd ..
-rsync -au FIMsrc/ FIMsrc_$FTNMPI
+#TBH Hack since IBM does not include rsync in default path
+#TBH rsync -au FIMsrc/ FIMsrc_$FTNMPI
+cp -rf FIMsrc/ FIMsrc_$FTNMPI
 cd FIMsrc_$FTNMPI
 
 #JR If a macros.make.$FTNMPI file exists, use it.

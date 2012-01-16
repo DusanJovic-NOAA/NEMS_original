@@ -6,7 +6,9 @@
 function queuefile { queue="$queue $1 "; } # note trailing space in string
 #TODO:  DRY with FIMrun/functions.ksh
 function fail { test -n "$1" && print "ERROR: $@"; exit 1 ; }
-function update { rsync -ut $1 . || fail ; }
+#TBH Hack since IBM does not include rsync in default path
+#TBH function update { rsync -ut $1 . || fail ; }
+function update { cp -f $1 . || fail ; }
 
 
 toplevel_objs_file="FIM_HORIZONTAL_OBJS_TOP"
