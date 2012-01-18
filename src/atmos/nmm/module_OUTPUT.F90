@@ -416,7 +416,8 @@
 !***  so add it directly.
 !-----------------------------------------------------------------------
 !
-      IF(int_state%MICROPHYSICS=='fer')THEN
+      IF(int_state%MICROPHYSICS=='fer'.OR. &
+         int_state%MICROPHYSICS=='fer_hires')THEN
         MP_PHYSICS=5
       ELSEIF(int_state%MICROPHYSICS=='kes')THEN
         MP_PHYSICS=1

@@ -1,11 +1,11 @@
-Fri Jan 13 10:44:26 EST 2012
+Wed Jan 18 09:03:19 EST 2012
 Start Regression test
 
 
 
-Fri Jan 13 10:44:27 EST 2012
+Wed Jan 18 09:03:19 EST 2012
 Compilation ALL
-Fri Jan 13 11:58:30 EST 2012
+Wed Jan 18 09:40:58 EST 2012
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  152.45
+ Original timing:  151.20  , test_glob timing:  152.31
 
 
 Test 002
@@ -334,47 +334,4 @@ Checking test 016 results ....
 
 
 
-Fri Jan 13 14:10:36 EST 2012
-Compilation only FIM
-Fri Jan 13 14:36:37 EST 2012
-Test 017
-Compare FIM results with previous trunk version, only FIM compiled
-FIM, 40 proc, 1 thread
-
-
-
-
-Checking test 017 results ....
- Comparing fim_out_2D__000000hr.........OK
- Comparing fim_out_2D__000003hr.........OK
- Comparing fim_out_2D__000006hr.........OK
- Comparing fim_out_2D__000009hr.........OK
- Comparing fim_out_2D__000012hr.........OK
- Comparing fim_out_2D__000015hr.........OK
- Comparing fim_out_2D__000018hr.........OK
- Comparing fim_out_2D__000021hr.........OK
- Comparing fim_out_2D__000024hr.........OK
- Comparing fim_out_da3D000024hr.........OK
- Comparing fim_out_db3D000024hr.........OK
- Comparing fim_out_dp3D000024hr.........OK
- Comparing fim_out_hgtP000024hr.........OK
- Comparing fim_out_mp3D000024hr.........OK
- Comparing fim_out_oz3D000024hr.........OK
- Comparing fim_out_ph3D000024hr.........OK
- Comparing fim_out_pr3D000024hr.........OK
- Comparing fim_out_qv3D000024hr.........OK
- Comparing fim_out_qw3D000024hr.........OK
- Comparing fim_out_rh3D000024hr.........OK
- Comparing fim_out_rp3P000024hr.........OK
- Comparing fim_out_td3D000024hr.........OK
- Comparing fim_out_th3D000024hr.........OK
- Comparing fim_out_tk3D000024hr.........OK
- Comparing fim_out_tmpP000024hr.........OK
- Comparing fim_out_up3P000024hr.........OK
- Comparing fim_out_us3D000024hr.........OK
- Comparing fim_out_vo3D000024hr.........OK
- Comparing fim_out_vp3P000024hr.........OK
- Comparing fim_out_vs3D000024hr.........OK
- Comparing fim_out_ws3D000024hr.........OK
- Test 017 passed 
-Fri Jan 13 14:48:33 EST 2012
+Wed Jan 18 10:37:50 EST 2012

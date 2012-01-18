@@ -535,7 +535,8 @@
 !***  For the excluded species (F_*=.FALSE.), set the P_ variable to 1.
 !-----------------------------------------------------------------------
 !
-      IF(TRIM(int_state%MICROPHYSICS)=='fer')THEN
+      IF(TRIM(int_state%MICROPHYSICS)=='fer'.OR. &
+         TRIM(int_state%MICROPHYSICS)=='fer_hires')THEN
         int_state%NUM_WATER=1+4
         int_state%P_QV=2
         int_state%P_QC=3
