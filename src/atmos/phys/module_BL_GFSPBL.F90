@@ -47,7 +47,7 @@
 !-----------------------------------------------------------------------
         SUBROUTINE GFSPBL(DT,NPHS,DP,AIRDEN                              &
      &                    ,RIB                                            &
-     &                         ,PMID,PINT,T, ZINT                              &
+     &                    ,PMID,PINT,T, ZINT                              &
      &                    ,NUM_WATER,WATER                                &
      &                    ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG                  &
      &                    ,U,V                                            &
@@ -98,11 +98,9 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE),INTENT(IN)::  RSWTT, RLWTT
 
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) ::           &
-     &                                                     PMID,PINT &
-     &                                                     ,U,V       &
-     &                                                     ,T,ZINT,DP &
-     &                                                     ,AIRDEN
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE),INTENT(IN) :: DP,PMID,AIRDEN
+      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) :: PINT,ZINT
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE),INTENT(IN) :: U,V,T
 
       REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE,NUM_WATER),INTENT(IN)::   &
      &                                                  WATER             !in z, (1:LM)
@@ -111,9 +109,9 @@
       INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: PBLK
 !
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME)                          &
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE)                            &
      &    ,INTENT(OUT) ::                                              &
-     &                                        RQCBLTEN                &
+     &                                         RQCBLTEN                &
      &                                        ,RUBLTEN,RVBLTEN         &
      &                                        ,RTHBLTEN,RQVBLTEN       &
      &                                        ,RQRBLTEN,RQIBLTEN       &

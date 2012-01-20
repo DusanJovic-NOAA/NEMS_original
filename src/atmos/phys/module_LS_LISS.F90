@@ -427,10 +427,10 @@ data brftbl &
                                                                   TH3D, &
                                                                    T3D
 
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) ::      P8W3D, &
-                                                                 RHO3D, &
-                                                                  DZ8W
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE),INTENT(IN) ::         DZ8W, &
+                                                                 RHO3D
 
+      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) ::      P8W3D
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) ::             RAINBL
 !

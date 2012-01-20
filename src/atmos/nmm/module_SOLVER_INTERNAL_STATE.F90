@@ -332,8 +332,7 @@
 !
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: EXCH_H,PPTDAT
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RQVBLTEN,RTHBLTEN   &
-                                                   ,TCUCN,W0AVG
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TCUCN,W0AVG
 !
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: CLDFRA              &
                                                    ,TRAIN,XLEN_MIX
@@ -1067,9 +1066,6 @@
 !
       ALLOCATE(int_state%DUDT(IMS:IME,JMS:JME,1:LM))       ;int_state%DUDT     = R4_IN ! U wind component tendency  (m s-2)
       ALLOCATE(int_state%DVDT(IMS:IME,JMS:JME,1:LM))       ;int_state%DVDT     = R4_IN ! V wind component tendency  (m s-2)
-!
-      ALLOCATE(int_state%RQVBLTEN(IMS:IME,JMS:JME,1:LM+1)) ;int_state%RQVBLTEN = R4_IN ! Specific humidity tendency from turbulence  (kg kg-1 s-1)
-      ALLOCATE(int_state%RTHBLTEN(IMS:IME,JMS:JME,1:LM+1)) ;int_state%RTHBLTEN = R4_IN ! Theta tendency from turbulence  (K s-1)
 !
       ALLOCATE(int_state%W0AVG(IMS:IME,1:LM+1,JMS:JME))    ;int_state%W0AVG    = R4_IN ! Time-averaged vertical velocity (for K-F)  (m s-1)
 !

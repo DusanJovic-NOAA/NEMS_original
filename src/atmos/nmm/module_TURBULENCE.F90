@@ -108,7 +108,6 @@
                       ,HLENS,HLENSW,HLENNW,HANGL,HANIS,HSLOP,HZMAX      &
                       ,RSWOUT,RSWTOA,RLWTOA                             &
                       ,ASWIN,ASWOUT,ASWTOA,ALWIN,ALWOUT,ALWTOA          &
-                      ,RTHBLTEN,RQVBLTEN                                &
                       ,GWDFLG                                           &
                       ,PCPFLG,DDATA                                     & ! PRECIP ASSIM
                       ,UCMCALL,IGBP                                     &
@@ -246,10 +245,6 @@
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) ::  F_ICE  &
                                                                        ,F_RAIN
-
-      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(INOUT) ::  RQVBLTEN &
-                                                                         ,RTHBLTEN
-
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: DUDT,DVDT &
                                                                     ,XLEN_MIX
@@ -304,19 +299,21 @@
                                                    ,TH2X,THLOW,TLOW               &
                                                    ,VGFRCK,XLAND
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: DELP                    &
-                                                          ,DUDT_PHY,DVDT_PHY,DZ    &
-                                                          ,EXNER,PINT,PMID         &
-                                                          ,RQCBLTEN,RQIBLTEN       &
-                                                          ,RR,U_PHY,V_PHY,TH,TKE,Z
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM) :: DELP                    &
+                                                        ,DZ,EXNER,PMID,RR,U_PHY,V_PHY,TH,TKE
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: RQRBLTEN, RQSBLTEN,RQGBLTEN
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: PINT,Z
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,1:LM+1,JMS:JME) :: DP_GWD,EXNR_GWD         &
-                                                          ,PINT_GWD,PMID_GWD,Q_GWD &
-                                                          ,T_GWD,U_GWD,V_GWD,Z_GWD
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM) :: DUDT_PHY,DVDT_PHY,RTHBLTEN,RQVBLTEN       &
+                                                        ,RQCBLTEN,RQIBLTEN, RQRBLTEN, RQSBLTEN,RQGBLTEN
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,1:LM+1,JMS:JME) :: DUDT_GWD,DVDT_GWD
+      REAL(kind=KFPT),DIMENSION(IMS:IME,1:LM+1,JMS:JME) :: PINT_GWD,Z_GWD
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,1:LM,JMS:JME) :: DP_GWD,EXNR_GWD         &
+                                                          ,PMID_GWD,Q_GWD &
+                                                          ,T_GWD,U_GWD,V_GWD
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,1:LM,JMS:JME) :: DUDT_GWD,DVDT_GWD
 
       REAL(kind=KFPT),DIMENSION(1:NSOIL) :: DZB,DZR,DZG
 !
@@ -403,7 +400,7 @@
 !$omp parallel do private(j,k,i)
 !.......................................................................
       DO J=JMS,JME
-      DO K=1,LM+1
+      DO K=1,LM
       DO I=IMS,IME
         U_PHY(I,J,K)=0.
         V_PHY(I,J,K)=0.
@@ -489,6 +486,20 @@
       DO I=ITS,ITE
         Z(I,J,K)=0.
         Z_GWD(I,K,J)=0.
+      ENDDO
+      ENDDO
+      ENDDO
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
+!
+!.......................................................................
+!$omp parallel do                                                       &
+!$omp& private(i,j,k)
+!.......................................................................
+      DO K=1,LM
+      DO J=JTS,JTE
+      DO I=ITS,ITE
         DZ(I,J,K)=0.
       ENDDO
       ENDDO
@@ -497,6 +508,7 @@
 !$omp end parallel do
 !.......................................................................
 !
+
 !-----------------------------------------------------------------------
 !***  Prepare needed arrays
 !-----------------------------------------------------------------------
@@ -606,7 +618,6 @@
           RQSBLTEN(I,J,K)=0.
           RQGBLTEN(I,J,K)=0.
 ! end
-
 !
           DZ(I,J,K)=T(I,J,K)*(P608*QL+1.)*R_D                           &
                     *(PINT(I,J,K+1)-PINT(I,J,K))                        &
@@ -616,6 +627,9 @@
 !
           DELP(I,J,K)=PINT(I,J,K+1)-PINT(I,J,K)
           DP_GWD(I,KFLIP,J)=DELP(I,J,K)
+!
+          DUDT_PHY(I,J,K)=0.
+          DVDT_PHY(I,J,K)=0.
 !
         ENDDO
       ENDDO
@@ -933,22 +947,6 @@
 !
 !-----------------------------------------------------------------------
 !
-!.......................................................................
-!$omp parallel do                                                       &
-!$omp& private(i,j,k)
-!.......................................................................
-      DO K=1,LM+1
-      DO J=JMS,JME
-      DO I=IMS,IME
-        DUDT_PHY(I,J,K)=0.
-        DVDT_PHY(I,J,K)=0.
-      ENDDO
-      ENDDO
-      ENDDO
-!.......................................................................
-!$omp end parallel do
-!.......................................................................
-!
 !***  The surface exchange coefficients AKHS and AKMS are actually
 !***  multiplied by half the depth of the lowest layer.  We must retain
 !***  those values for the next timestep so use auxilliary arrays for
@@ -974,25 +972,6 @@
 
           IF (NTSD == 1 .OR. MOD(NTSD,NPHS) == 0) THEN
 
-!.......................................................................
-!$omp parallel do                                                       &
-!$omp& private(i,j,k)
-!.......................................................................
-            DO K=1,LM+1
-              DO J=JTS,JTE
-              DO I=ITS,ITE
-                RTHBLTEN(I,J,K) = 0.
-                DUDT_PHY(I,J,K) = 0.
-                DVDT_PHY(I,J,K) = 0.
-                RQCBLTEN(I,J,K) = 0.
-                RQVBLTEN(I,J,K) = 0.
-              ENDDO
-              ENDDO
-            ENDDO
-!.......................................................................
-!$omp end parallel do
-!.......................................................................
-
               CALL MYJPBL(DT=DT,NPHS=NPHS,HT=SFCZ,DZ=DZ                 &
                          ,PMID=PMID,PINT=PINT,TH=TH,T=T,EXNER=EXNER     &
                          ,QV=WATER(IMS,JMS,1,P_QV)                      &
@@ -1009,11 +988,11 @@
                          ,RTHBLTEN=RTHBLTEN                             &
                          ,RQVBLTEN=RQVBLTEN                             &
                          ,RQCBLTEN=RQCBLTEN                             &
-                         ,IDS=IDS,IDE=IDE,JDS=JDS,JDE=JDE,KDS=1,KDE=LM+1 &
-                         ,IMS=IMS,IME=IME,JMS=JMS,JME=JME,KMS=1,KME=LM+1 &
+                         ,IDS=IDS,IDE=IDE,JDS=JDS,JDE=JDE               &
+                         ,IMS=IMS,IME=IME,JMS=JMS,JME=JME               &
                          ,ITS=ITS_B1,ITE=ITE_B1                         &
                          ,JTS=JTS_B1,JTE=JTE_B1                         &
-                         ,KTS=1,KTE=LM)
+                         ,LM=LM)
 
           END IF
 
@@ -1021,29 +1000,6 @@
 
           IF (NTSD == 1 .OR. MOD(NTSD,NPHS) == 0) THEN
 
-!.......................................................................
-!$omp parallel do                                                       &
-!$omp& private(i,j,k)
-!.......................................................................
-            DO K=1,LM+1
-              DO J=JTS,JTE
-              DO I=ITS,ITE
-                RTHBLTEN(I,J,K) = 0.
-                DUDT_PHY(I,J,K) = 0.
-                DVDT_PHY(I,J,K) = 0.
-                RQCBLTEN(I,J,K) = 0.
-                RQVBLTEN(I,J,K) = 0.
-                RQIBLTEN(I,J,K) = 0.
-                RQRBLTEN(I,J,K) = 0.
-                RQSBLTEN(I,J,K) = 0.
-                RQGBLTEN(I,J,K) = 0.
-              ENDDO
-              ENDDO
-            ENDDO
-!.......................................................................
-!$omp end parallel do
-!.......................................................................
-!!
               CALL GFSPBL(DT=DT,NPHS=NPHS,DP=DELP,AIRDEN=RR              &
                          ,RIB=RIB                            &
                          ,PMID=PMID,PINT=PINT,T=T, ZINT=Z                &
@@ -1276,9 +1232,9 @@
                        ,HANGL,HANIS,HSLOP,HZMAX                         &
                        ,CROT,SROT                                       &
                        ,DUDT_GWD,DVDT_GWD                               &
-                       ,IDS,IDE,JDS,JDE,1,LM                            &
-                       ,IMS,IME,JMS,JME,1,LM                            &
-                       ,ITS,ITE,JTS,JTE,1,LM )
+                       ,IDS,IDE,JDS,JDE                                 &
+                       ,IMS,IME,JMS,JME                                 &
+                       ,ITS,ITE,JTS,JTE,LM)
 
       ENDIF
 !

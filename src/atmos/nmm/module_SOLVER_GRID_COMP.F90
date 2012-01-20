@@ -5123,7 +5123,6 @@
                     ,int_state%RSWOUT,int_state%RSWTOA,int_state%RLWTOA &
                     ,int_state%ASWIN,int_state%ASWOUT,int_state%ASWTOA  &
                     ,int_state%ALWIN,int_state%ALWOUT,int_state%ALWTOA  &
-                    ,int_state%RTHBLTEN,int_state%RQVBLTEN              &
                     ,int_state%GWDFLG,LOC_PCPFLG                        &
                     ,int_state%DDATA,int_state%UCMCALL,int_state%IGBP   &
                     ,int_state%TURBULENCE,int_state%SFC_LAYER           &
@@ -9035,9 +9034,9 @@
                       ,int_state%TPH0D,int_state%TLM0D                  &
                       ,int_state%GLAT,int_state%GLON                    &
                       ,int_state%CROT,int_state%SROT,int_state%HANGL    &
-                      ,IDS,IDE,JDS,JDE,1,LM                             &
-                      ,IMS,IME,JMS,JME,1,LM                             &
-                      ,ITS,ITE,JTS,JTE,1,LM )
+                      ,IDS,IDE,JDS,JDE                                  &
+                      ,IMS,IME,JMS,JME                                  &
+                      ,ITS,ITE,JTS,JTE,LM)
 !
 ! uncomment this for output in future
 !

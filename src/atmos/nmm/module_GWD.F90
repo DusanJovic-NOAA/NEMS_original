@@ -33,9 +33,9 @@
                            ,CEN_LAT,CEN_LON                             &
                            ,GLAT,GLON                                   &
                            ,CROT,SROT,HANGL                             &
-                           ,IDS,IDE,JDS,JDE,KDS,KDE                     &
-                           ,IMS,IME,JMS,JME,KMS,KME                     &
-                           ,ITS,ITE,JTS,JTE,KTS,KTE )
+                           ,IDS,IDE,JDS,JDE                             &
+                           ,IMS,IME,JMS,JME                             &
+                           ,ITS,ITE,JTS,JTE,LM )
 
 !
       IMPLICIT NONE
@@ -64,9 +64,9 @@
       REAL, INTENT(IN), DIMENSION (ims:ime,jms:jme) :: GLON,GLAT
       REAL, INTENT(OUT), DIMENSION (ims:ime,jms:jme) :: CROT,SROT
       REAL, INTENT(INOUT), DIMENSION (ims:ime,jms:jme) :: HANGL
-      INTEGER, INTENT(IN) :: IDS,IDE,JDS,JDE,KDS,KDE                    &
-                            ,IMS,IME,JMS,JME,KMS,KME                    &
-                            ,ITS,ITE,JTS,JTE,KTS,KTE
+      INTEGER, INTENT(IN) :: IDS,IDE,JDS,JDE                            &
+                            ,IMS,IME,JMS,JME                            &
+                            ,ITS,ITE,JTS,JTE,LM
 !
 !-- Local variables:
 !
@@ -129,9 +129,9 @@
                            ,HLENW,HLENS,HLENSW,HLENNW                   &
                            ,HANGL,HANIS,HSLOP,HZMAX,CROT,SROT           &
                            ,DUDT,DVDT                                   &
-                           ,IDS,IDE,JDS,JDE,KDS,KDE                     &
-                           ,IMS,IME,JMS,JME,KMS,KME                     &
-                           ,ITS,ITE,JTS,JTE,KTS,KTE )
+                           ,IDS,IDE,JDS,JDE                             &
+                           ,IMS,IME,JMS,JME                             &
+                           ,ITS,ITE,JTS,JTE,LM )
 !
 !== INPUT:
 !-- U, V - zonal (U), meridional (V) winds at mass points (m/s)
@@ -171,37 +171,33 @@
 !-- ide           end index for i in domain
 !-- jds           start index for j in domain
 !-- jde           end index for j in domain
-!-- kds           start index for k in domain
-!-- kde           end index for k in domain
 !-- ims           start index for i in memory
 !-- ime           end index for i in memory
 !-- jms           start index for j in memory
 !-- jme           end index for j in memory
-!-- kms           start index for k in memory
-!-- kme           end index for k in memory
 !-- its           start i index for tile
 !-- ite           end i index for tile
 !-- jts           start j index for tile
 !-- jte           end j index for tile
-!-- kts           start index for k in tile
-!-- kte           end index for k in tile
 !
 !-- INPUT variables:
 !
-      REAL, INTENT(IN), DIMENSION (ims:ime, kms:kme+1, jms:jme) ::        &
-     &                                   U,V,T,Q,Z,DP,PINT,PMID,EXNR
+      REAL, INTENT(IN), DIMENSION (ims:ime, 1:lm+1, jms:jme) ::        &
+     &                                   Z,PINT
+      REAL, INTENT(IN), DIMENSION (ims:ime, 1:lm, jms:jme) ::        &
+     &                                   U,V,T,Q,DP,PMID,EXNR
       REAL, INTENT(IN), DIMENSION (ims:ime, jms:jme) :: HSTDV,HCNVX     &
      &      ,HASYW,HASYS,HASYSW,HASYNW,HLENW,HLENS,HLENSW,HLENNW,HANGL  &
      &      ,HANIS,HSLOP,HZMAX,CROT,SROT
       INTEGER, INTENT(IN), DIMENSION (ims:ime, jms:jme) :: KPBL
-      INTEGER, INTENT(IN) :: ids,ide,jds,jde,kds,kde                    &
-     &,                      ims,ime,jms,jme,kms,kme                    &
-     &,                      its,ite,jts,jte,kts,kte
+      INTEGER, INTENT(IN) :: ids,ide,jds,jde                            &
+     &,                      ims,ime,jms,jme                            &
+     &,                      its,ite,jts,jte,LM
 
 !
 !-- OUTPUT variables:
 !
-      REAL, INTENT(OUT), DIMENSION (ims:ime, kms:kme+1, jms:jme) ::       &
+      REAL, INTENT(OUT), DIMENSION (ims:ime, 1:lm, jms:jme) ::       &
      &                                                        DUDT,DVDT
 !--- when NPS is done with GWD, add wind stresses in output
       REAL,              DIMENSION (ims:ime, jms:jme) :: UGWDsfc,VGWDsfc
@@ -216,9 +212,9 @@
       REAL(KIND=KIND_PHYS), DIMENSION (IM,4) :: OA4,CLX4
       REAL(KIND=KIND_PHYS), DIMENSION (IM) :: DUsfc,DVsfc               &
      &,                              HPRIME,OC,THETA,SIGMA,GAMMA,ELVMAX
-      REAL(KIND=KIND_PHYS), DIMENSION (IM,KTS:KTE) :: DUDTcol,DVDTcol   &
+      REAL(KIND=KIND_PHYS), DIMENSION (IM,1:LM) :: DUDTcol,DVDTcol   &
      &,                    Ucol,Vcol,Tcol,Qcol,DPcol,Pcol,EXNcol,PHIcol
-      REAL(KIND=KIND_PHYS), DIMENSION (IM,KTS:KTE+1) :: PINTcol,PHILIcol
+      REAL(KIND=KIND_PHYS), DIMENSION (IM,1:LM+1) :: PINTcol,PHILIcol
       INTEGER :: I,J,IJ,K,Imid,Jmid
       REAL :: Ugeo,Vgeo,Umod,Vmod, TERRtest,TERRmin
       REAL(KIND=KIND_PHYS) :: TEST
@@ -228,7 +224,7 @@
 !-- Initialize variables
 !
       DO J=JMS,JME
-      DO K=KMS,KME+1
+      DO K=1,LM
       DO I=IMS,IME
         DUDT(I,K,J)=0.
         DVDT(I,K,J)=0.
@@ -247,7 +243,7 @@
 !
       DO J=JTS,JTE
         DO I=ITS,ITE
-          if (kpbl(i,j)<kts .or. kpbl(i,j)>kte) go to 100
+          if (kpbl(i,j)<1 .or. kpbl(i,j)>LM) go to 100
 !
 !-- Initial test to see if GWD calculations should be made, otherwise skip
 !
@@ -257,7 +253,7 @@
 !
 !-- For debugging:
 !
-          DO K=KTS,KTE
+          DO K=1,LM
             DUDTcol(IM,K)=0.
             DVDTcol(IM,K)=0.
 !
@@ -283,8 +279,8 @@
             PHIcol(IM,K)=GHALF*(Z(I,K,J)+Z(I,K+1,J))-G*Z(I,1,J)
           ENDDO   !- K
 !
-          PINTcol(IM,KTE+1)=.001*PINT(I,KTE+1,J)
-          PHILIcol(IM,KTE+1)=G*(Z(I,KTE+1,J)-Z(I,1,J))
+          PINTcol(IM,LM+1)=.001*PINT(I,LM+1,J)
+          PHILIcol(IM,LM+1)=G*(Z(I,LM+1,J)-Z(I,1,J))
 !
 !-- Terrain-specific inputs:
 !
@@ -315,11 +311,11 @@
      &,              Ucol,Vcol,Tcol,Qcol,PINTcol,DPcol,Pcol,EXNcol      & ! Met input
      &,              PHILIcol,PHIcol                                    & ! Met input
      &,              HPRIME,OC,OA4,CLX4,THETA,SIGMA,GAMMA,ELVMAX        & ! Topo input
-     &,              LPBL,IM,KTS,KTE)                                     ! Indices + debugging
+     &,              LPBL,IM,LM)                                          ! Indices + debugging
 !
 !=======================================================================
 !
-          DO K=KTS,KTE
+          DO K=1,LM
             TEST=ABS(DUDTcol(IM,K))+ABS(DVDTcol(IM,K))
             IF (TEST > THRESH) THEN
 !
@@ -361,7 +357,7 @@ test=abs(dudt(i,k,j))+abs(dvdt(i,k,j))
       SUBROUTINE GWD_col (A,B, DUsfc,DVsfc                              &  !-- Output
      &, U1,V1,T1,Q1, PRSI,DEL,PRSL,PRSLK, PHII,PHIL                     &  !-- Met inputs
      &, HPRIME,OC,OA4,CLX4,THETA,SIGMA,GAMMA,ELVMAX                     &  !-- Topo inputs
-     &, KPBL,IM,KTS,KTE)                                                   !-- Input indices, debugging
+     &, KPBL,IM,LM)                                                   !-- Input indices, debugging
 !
 !-- "A", "B" (from GFS) in GWD_col are DVDTcol, DUDTcol, respectively in GWD_driver
 !
@@ -458,10 +454,10 @@ test=abs(dudt(i,k,j))+abs(dvdt(i,k,j))
 !
 !-- INPUT:
 !
-      INTEGER, INTENT(IN) :: IM,KTS,KTE
-      REAL(kind=kind_phys), INTENT(IN), DIMENSION(IM,KTS:KTE) ::        &
+      INTEGER, INTENT(IN) :: IM,LM
+      REAL(kind=kind_phys), INTENT(IN), DIMENSION(IM,1:LM) ::        &
      &                                 U1,V1,T1,Q1,DEL,PRSL,PRSLK,PHIL
-      REAL(kind=kind_phys), INTENT(IN), DIMENSION(IM,KTS:KTE+1) ::      &
+      REAL(kind=kind_phys), INTENT(IN), DIMENSION(IM,1:LM+1) ::      &
      &                                                       PRSI,PHII
       REAL(kind=kind_phys), INTENT(IN), DIMENSION(IM,4) :: OA4,CLX4
       REAL(kind=kind_phys), INTENT(IN), DIMENSION(IM) ::                &
@@ -470,7 +466,7 @@ test=abs(dudt(i,k,j))+abs(dvdt(i,k,j))
 !
 !-- OUTPUT:
 !
-      REAL(kind=kind_phys), INTENT(INOUT), DIMENSION(IM,KTS:KTE) :: A,B
+      REAL(kind=kind_phys), INTENT(INOUT), DIMENSION(IM,1:LM) :: A,B
       REAL(kind=kind_phys), INTENT(INOUT), DIMENSION(IM) :: DUsfc,DVsfc
 !
 !-----------------------------------------------------------------------
@@ -525,11 +521,11 @@ test=abs(dudt(i,k,j))+abs(dvdt(i,k,j))
      & ,YN,UBAR,VBAR,ULOW,OA,CLX,ROLL,ULOI,DTFAC,XLINV,DELKS,DELKS1     &
      & ,SCOR,BNV2bar, ELEVMX   ! ,PSTAR
 !
-      real(kind=kind_phys), DIMENSION(IM,KTS:KTE) ::                    &
+      real(kind=kind_phys), DIMENSION(IM,1:LM) ::                    &
      &                      BNV2LM,DB,ANG,UDS,BNV2,RI_N,TAUD,RO,VTK,VTJ
-      real(kind=kind_phys), DIMENSION(IM,KTS:KTE-1) :: VELCO
-      real(kind=kind_phys), DIMENSION(IM,KTS:KTE+1) :: TAUP
-      real(kind=kind_phys), DIMENSION(KTE-1) :: VELKO
+      real(kind=kind_phys), DIMENSION(IM,1:LM-1) :: VELCO
+      real(kind=kind_phys), DIMENSION(IM,1:LM+1) :: TAUP
+      real(kind=kind_phys), DIMENSION(LM-1) :: VELKO
 !
       integer, DIMENSION(IM) ::                                         &
      &                 kref,kint,iwk,iwk2,ipt,kreflm,iwklm,iptlm,idxzb
@@ -555,7 +551,7 @@ real :: rcl,rcs  !dbg
 !
 !-----------------------------------------------------------------------
 !
-      KM = KTE
+      KM = LM
       npr = 0
       DO I = 1, IM
          DUsfc(I) = 0.

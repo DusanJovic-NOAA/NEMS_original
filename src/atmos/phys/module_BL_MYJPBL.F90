@@ -134,9 +134,9 @@
      &                 ,TKE,EXCH_H,USTAR,Z0,EL_MYJ,PBLH,KPBL,CT        &
      &                 ,AKHS,AKMS,ELFLX,MIXHT                          &
      &                 ,RUBLTEN,RVBLTEN,RTHBLTEN,RQVBLTEN,RQCBLTEN     &
-     &                 ,IDS,IDE,JDS,JDE,KDS,KDE                        &
-     &                 ,IMS,IME,JMS,JME,KMS,KME                        &
-     &                 ,ITS,ITE,JTS,JTE,KTS,KTE)
+     &                 ,IDS,IDE,JDS,JDE                                &
+     &                 ,IMS,IME,JMS,JME                                &
+     &                 ,ITS,ITE,JTS,JTE,LM)
 !----------------------------------------------------------------------
       IMPLICIT NONE
 !----------------------------------------------------------------------
@@ -145,9 +145,9 @@
 !***  Argument Variables
 !------------------------
 !
-      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,KDS,KDE                    &
-     &                     ,IMS,IME,JMS,JME,KMS,KME                    &
-     &                     ,ITS,ITE,JTS,JTE,KTS,KTE
+      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE                            &
+     &                     ,IMS,IME,JMS,JME                            &
+     &                     ,ITS,ITE,JTS,JTE,LM
 !
       INTEGER,INTENT(IN) :: NPHS
 !
@@ -158,33 +158,29 @@
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: HT,SICE,SNOW       &
      &                                             ,TSK,XLAND
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) :: DZ         &
-     &                                                     ,EXNER      &
-     &                                                     ,PMID,PINT
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: DZ,EXNER,PMID
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) :: QV,CWM,U,V,T,TH
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(IN) :: PINT
+!
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: QV,CWM,U,V,T,TH
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: MIXHT,PBLH
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: AKHS,AKMS
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,KTS:KTE),INTENT(OUT) :: EL_MYJ
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: EL_MYJ
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(OUT) ::           &
-     &                                         RQCBLTEN                &
-     &                                        ,RUBLTEN,RVBLTEN         &
-     &                                        ,RTHBLTEN,RQVBLTEN
-
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: RQCBLTEN     &
+     &                                                   ,RUBLTEN      &
+     &                                                   ,RVBLTEN      &
+     &                                                   ,RTHBLTEN     &
+     &                                                   ,RQVBLTEN
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: CT,QSFC,QZ0     &
      &                                                ,THZ0,USTAR      &
      &                                                ,UZ0,VZ0,Z0
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME)                          &
-     &    ,INTENT(INOUT) ::                    EXCH_H
-!
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME)                          &
-     &    ,INTENT(INOUT) ::                    TKE
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: EXCH_H,TKE
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: CHKLOWQ,ELFLX
 !
@@ -201,21 +197,21 @@
      &       ,RATIOMX,RDTTURBL,RG,SEAMASK,THNEW,THOLD,TX               &
      &       ,ULOW,VLOW
 !
-      REAL,DIMENSION(KTS:KTE) :: CWMK,PK,Q2K,QK,THEK,TK,UK,VK
+      REAL,DIMENSION(1:LM) :: CWMK,PK,Q2K,QK,THEK,TK,UK,VK
 !
-      REAL,DIMENSION(KTS:KTE-1) :: AKHK,AKMK,EL,GH,GM
+      REAL,DIMENSION(1:LM-1) :: AKHK,AKMK,EL,GH,GM
 !
-      REAL,DIMENSION(KTS:KTE+1) :: ZHK
+      REAL,DIMENSION(1:LM+1) :: ZHK
 !
       REAL,DIMENSION(ITS:ITE,JTS:JTE) :: THSK
 !
-      REAL,DIMENSION(KTS:KTE) :: RHOK
+      REAL,DIMENSION(1:LM) :: RHOK
 !
-      REAL,DIMENSION(ITS:ITE,JTS:JTE,KTS:KTE) :: APE,THE
+      REAL,DIMENSION(ITS:ITE,JTS:JTE,1:LM) :: APE,THE
 !
-      REAL,DIMENSION(ITS:ITE,JTS:JTE,KTS:KTE-1) :: AKH,AKM
+      REAL,DIMENSION(ITS:ITE,JTS:JTE,1:LM-1) :: AKH,AKM
 !
-      REAL,DIMENSION(ITS:ITE,JTS:JTE,KTS:KTE+1) :: ZINT
+      REAL,DIMENSION(ITS:ITE,JTS:JTE,1:LM+1) :: ZINT
 !
 !***  Begin debugging
       REAL :: ZSL_DIAG
@@ -239,7 +235,7 @@
       DTDIF=DTTURBL
       RG=1./G
 !
-      DO K=KTS,KTE-1
+      DO K=1,LM-1
       DO J=JTS,JTE
       DO I=ITS,ITE
         AKM(I,J,K)=0.
@@ -247,7 +243,7 @@
       ENDDO
       ENDDO
 !
-      DO K=KTS,KTE+1
+      DO K=1,LM+1
       DO J=JTS,JTE
       DO I=ITS,ITE
         ZINT(I,J,K)=0.
@@ -257,18 +253,11 @@
 !
       DO J=JTS,JTE
       DO I=ITS,ITE
-        ZINT(I,J,KTE+1)=HT(I,J)     ! Z at bottom of lowest sigma layer
-!
-!!!!!!!!!
-!!!!!! UNCOMMENT THESE LINES IF USING ETA COORDINATES
-!!!!!!!!!
-!!!!!!  ZINT(I,J,KTE+1)=1.E-4       ! Z of bottom of lowest eta layer
-!!!!!!  ZHK(KTE+1)=1.E-4            ! Z of bottom of lowest eta layer
-!
+        ZINT(I,J,LM+1)=HT(I,J)     ! Z at bottom of lowest sigma layer
       ENDDO
       ENDDO
 !
-      DO K=KTE,KTS,-1
+      DO K=LM,1,-1
         DO J=JTS,JTE
         DO I=ITS,ITE
           ZINT(I,J,K)=ZINT(I,J,K+1)+DZ(I,J,K)
@@ -282,7 +271,7 @@
 !
       DO J=JTS,JTE
       DO I=ITS,ITE
-        EL_MYJ(I,J,KTE)=0.
+        EL_MYJ(I,J,LM)=0.
       ENDDO
       ENDDO
 !
@@ -301,7 +290,7 @@
 !
 !***  LOWEST LAYER ABOVE GROUND MUST BE FLIPPED
 !
-          LMH=KTE
+          LMH=LM
 !
           PTOP=PINT(I,J,1)
           PSFC=PINT(I,J,LMH+1)
@@ -312,7 +301,7 @@
 !
 !***  FILL 1-D VERTICAL ARRAYS
 !
-          DO K=KTE,KTS,-1
+          DO K=LM,1,-1
             TK(K)=T(I,J,K)
             THEK(K)=THE(I,J,K)
             RATIOMX=QV(I,J,K)
@@ -331,7 +320,7 @@
             ZHK(K)=ZINT(I,J,K)
 !
           ENDDO
-          ZHK(KTE+1)=HT(I,J)          ! Z at bottom of lowest sigma layer
+          ZHK(LM+1)=HT(I,J)          ! Z at bottom of lowest sigma layer
 !
 !***  Begin debugging
 !         IF(I==IMD.AND.J==JMD)THEN
@@ -349,9 +338,7 @@
           CALL MIXLEN(LMH,UK,VK,TK,THEK,QK,CWMK                        &
      &               ,Q2K,ZHK,GM,GH,EL                                 &
      &               ,PBLH(I,J),LPBL(I,J),LMXL,CT(I,J),MIXHT(I,J)      &
-     &               ,IDS,IDE,JDS,JDE,KDS,KDE                          &
-     &               ,IMS,IME,JMS,JME,KMS,KME                          &
-     &               ,ITS,ITE,JTS,JTE,KTS,KTE,I,J)
+     &               ,LM,I,J)
 !
 !----------------------------------------------------------------------
 !***
@@ -360,9 +347,7 @@
 !***
 !
           CALL PRODQ2(LMH,DTTURBL,USTAR(I,J),GM,GH,EL,Q2K              &
-     &               ,IDS,IDE,JDS,JDE,KDS,KDE                          &
-     &               ,IMS,IME,JMS,JME,KMS,KME                          &
-     &               ,ITS,ITE,JTS,JTE,KTS,KTE,I,J)
+     &               ,LM,I,J)
 !
 !----------------------------------------------------------------------
 !*** THE MODEL LAYER (COUNTING UPWARD) CONTAINING THE TOP OF THE PBL
@@ -375,16 +360,14 @@
 !***  FIND THE EXCHANGE COEFFICIENTS IN THE FREE ATMOSPHERE
 !***
           CALL DIFCOF(LMH,LMXL,GM,GH,EL,TK,Q2K,ZHK,AKMK,AKHK           &
-     &               ,IDS,IDE,JDS,JDE,KDS,KDE                          &
-     &               ,IMS,IME,JMS,JME,KMS,KME                          &
-     &               ,ITS,ITE,JTS,JTE,KTS,KTE,I,J,PRINT_DIAG)   ! debug
+     &               ,LM,I,J,PRINT_DIAG)   ! debug
 !
 !***  COUNTING DOWNWARD FROM THE TOP, THE EXCHANGE COEFFICIENTS AKH
-!***  ARE DEFINED ON THE BOTTOMS OF THE LAYERS KTS TO KTE-1.  COUNTING
+!***  ARE DEFINED ON THE BOTTOMS OF THE LAYERS 1 TO LM-1.  COUNTING
 !***  COUNTING UPWARD FROM THE BOTTOM, THOSE SAME COEFFICIENTS EXCH_H
-!***  ARE DEFINED ON THE TOPS OF THE LAYERS KTS TO KTE-1.
+!***  ARE DEFINED ON THE TOPS OF THE LAYERS 1 TO LM-1.
 !
-          DO K=KTS,KTE-1
+          DO K=1,LM-1
             AKH(I,J,K)=AKHK(K)
             AKM(I,J,K)=AKMK(K)
             DELTAZ=0.5*(ZHK(K)-ZHK(K+2))
@@ -398,16 +381,14 @@
 !***
 !
           CALL VDIFQ(LMH,DTDIF,Q2K,EL,ZHK                              &
-     &              ,IDS,IDE,JDS,JDE,KDS,KDE                           &
-     &              ,IMS,IME,JMS,JME,KMS,KME                           &
-     &              ,ITS,ITE,JTS,JTE,KTS,KTE)
+     &              ,LM)
 !
 !***  SAVE THE NEW TKE AND MIXING LENGTH.
 !
-          DO K=KTS,KTE
+          DO K=1,LM
             Q2K(K)=AMAX1(Q2K(K),EPSQ2)
             TKE(I,J,K)=0.5*Q2K(K)
-            IF(K<KTE)EL_MYJ(I,J,K)=EL(K)   ! EL IS NOT DEFINED AT KTE
+            IF(K<LM)EL_MYJ(I,J,K)=EL(K)   ! EL IS NOT DEFINED AT LM
           ENDDO
 !
         ENDDO
@@ -425,7 +406,7 @@
 !
       DO J=JTS,JTE
       DO I=ITS,ITE
-        PSFC=PINT(I,J,KTE+1)
+        PSFC=PINT(I,J,LM+1)
         THSK(I,J)=TSK(I,J)*(1.E5/PSFC)**CAPPA
       ENDDO
       ENDDO
@@ -448,7 +429,7 @@
 !
 !***  FILL 1-D VERTICAL ARRAYS
 !
-          DO K=KTE,KTS,-1
+          DO K=LM,1,-1
             THEK(K)=THE(I,J,K)
             RATIOMX=QV(I,J,K)
             QK(K)=RATIOMX/(1.+RATIOMX)
@@ -458,20 +439,20 @@
           ENDDO
 !
 !***  COUNTING DOWNWARD FROM THE TOP, THE EXCHANGE COEFFICIENTS AKH
-!***  ARE DEFINED ON THE BOTTOMS OF THE LAYERS KTS TO KTE-1.  THESE COEFFICIENTS
+!***  ARE DEFINED ON THE BOTTOMS OF THE LAYERS 1 TO LM-1.  THESE COEFFICIENTS
 !***  ARE ALSO MULTIPLIED BY THE DENSITY AT THE BOTTOM INTERFACE LEVEL.
 !
-          DO K=KTS,KTE-1
+          DO K=1,LM-1
             AKHK(K)=AKH(I,J,K)*0.5*(RHOK(K)+RHOK(K+1))
           ENDDO
 !
-          ZHK(KTE+1)=ZINT(I,J,KTE+1)
+          ZHK(LM+1)=ZINT(I,J,LM+1)
 !
           SEAMASK=XLAND(I,J)-1.
           THZ0(I,J)=(1.-SEAMASK)*THSK(I,J)+SEAMASK*THZ0(I,J)
 !
-          LLOW=KTE
-          AKHS_DENS=AKHS(I,J)*RHOK(KTE)
+          LLOW=LM
+          AKHS_DENS=AKHS(I,J)*RHOK(LM)
 !
           IF(SEAMASK<0.5)THEN
             QFC1=XLV*CHKLOWQ(I,J)*AKHS_DENS
@@ -481,7 +462,7 @@
             ENDIF
 !
             IF(QFC1>0.)THEN
-              QLOW=QK(KTE)
+              QLOW=QK(LM)
               QSFC(I,J)=QLOW+ELFLX(I,J)/QFC1
             ELSE
 !-- Convert back to specific humidity
@@ -489,7 +470,7 @@
             ENDIF
 !
           ELSE
-            PSFC=PINT(I,J,KTE+1)
+            PSFC=PINT(I,J,LM+1)
             EXNSFC=(1.E5/PSFC)**CAPPA
 
             QSFC(I,J)=PQ0SEA/PSFC                                      &
@@ -500,7 +481,7 @@
 !
 !***  LOWEST LAYER ABOVE GROUND MUST BE FLIPPED
 !
-          LMH=KTE
+          LMH=LM
 !
 !----------------------------------------------------------------------
 !***  CARRY OUT THE VERTICAL DIFFUSION OF
@@ -510,14 +491,12 @@
           CALL VDIFH(DTDIF,LMH,THZ0(I,J),QZ0(I,J)                      &
      &              ,AKHS_DENS,CHKLOWQ(I,J),CT(I,J)                    &
      &              ,THEK,QK,CWMK,AKHK,ZHK,RHOK                        &
-     &              ,IDS,IDE,JDS,JDE,KDS,KDE                           &
-     &              ,IMS,IME,JMS,JME,KMS,KME                           &
-     &              ,ITS,ITE,JTS,JTE,KTS,KTE,I,J)
+     &              ,LM,I,J)
 !----------------------------------------------------------------------
 !***
 !***  COMPUTE PRIMARY VARIABLE TENDENCIES
 !***
-          DO K=KTS,KTE
+          DO K=1,LM
             THOLD=TH(I,J,K)
             THNEW=THEK(K)+CWMK(K)*ELOCP*APE(I,J,K)
             DTDT=(THNEW-THOLD)*RDTTURBL
@@ -539,15 +518,15 @@
 !         IF(I==227.AND.J==363)PRINT_DIAG=0
 !*** End debugging
 !
-        PSFC=.01*PINT(I,J,KTE+1)
-        ZSL_DIAG=0.5*DZ(I,J,KTE)
+        PSFC=.01*PINT(I,J,LM+1)
+        ZSL_DIAG=0.5*DZ(I,J,LM)
 !
 !*** Begin debugging
 !         IF(PRINT_DIAG==1)THEN
 !
 !           write(6,"(a, 2i5, 2i3, 2f8.2, f6.2, 2f8.2)") &
 !           '{turb4 i,j, Kpbl, Kmxl, Psfc, Zsfc, Zsl, Zpbl, Zmxl = ' &
-!           , i, j, KPBL(i,j), KTE-LMXL+1, PSFC, ZHK(LMH+1), ZSL_diag  &
+!           , i, j, KPBL(i,j), LM-LMXL+1, PSFC, ZHK(LMH+1), ZSL_diag  &
 !           , PBLH(i,j), ZHK(LMXL)-ZHK(LMH+1)
 !           write(6,"(a, 2f7.2, f7.3, 3e11.4)") &
 !           '{turb4 tsk, thsk, qz0, q**2_0, akhs, exch_0 = ' &
@@ -555,7 +534,7 @@
 !           , 2.*TKE(i,1,j), akhs(i,j), akhs(i,j)*ZSL_diag
 !           write(6,"(a)") &
 !           '{turb5 k, Pmid, Pint_1, Tc, TH, DTH, GH, GM, EL, Q**2, Akh, EXCH_h, Dz, Dp'
-!           do k=kts,kte/2
+!           do k=1,LM/2
 !             write(6,"(a,i3, 2f8.2, 2f8.3, 3e12.4, 4e11.4, f7.2, f6.2)") &
 !            '{turb5 ', k, .01*pmid(i,k,j),.01*pint(i,k,j), T(i,k,j)-273.15 &
 !            , th(i,k,j), DTTURBL*rthblten(i,k,j), GH(K), GM(K) &
@@ -567,7 +546,7 @@
 !
 !           write(6,"(a, 2i5, 2i3, 2f8.2, f6.2, 2f8.2)") &
 !           '}turb4 i,j, Kpbl, Kmxl, Psfc, Zsfc, Zsl, Zpbl, Zmxl = ' &
-!           , i, j, KPBL(i,j), KTE-LMXL+1, PSFC, ZHK(LMH+1), ZSL_diag  &
+!           , i, j, KPBL(i,j), LM-LMXL+1, PSFC, ZHK(LMH+1), ZSL_diag  &
 !           , PBLH(i,j), ZHK(LMXL)-ZHK(LMH+1)
 !           write(6,"(a, 2f7.2, f7.3, 3e11.4)") &
 !           '}turb4 tsk, thsk, qz0, q**2_0, akhs, exch_0 = ' &
@@ -575,7 +554,7 @@
 !           , 2.*TKE(i,1,j), akhs(i,j), akhs(i,j)*ZSL_diag
 !           write(6,"(a)") &
 !           '}turb5 k, Pmid, Pint_1, Tc, TH, DTH, GH, GM, EL, Q**2, Akh, EXCH_h, Dz, Dp'
-!           do k=kts,kte/2
+!           do k=1,LM/2
 !             write(6,"(a,i3, 2f8.2, 2f8.3, 3e12.4, 4e11.4, f7.2, f6.2)") &
 !            '}turb5 ', k, .01*pmid(i,k,j),.01*pint(i,k,j), T(i,k,j)-273.15 &
 !            , th(i,k,j), DTTURBL*rthblten(i,k,j), GH(K), GM(K) &
@@ -589,19 +568,19 @@
 !
 !***  FILL 1-D VERTICAL ARRAYS
 !
-          DO K=KTS,KTE-1
+          DO K=1,LM-1
             AKMK(K)=AKM(I,J,K)
             AKMK(K)=AKMK(K)*(RHOK(K)+RHOK(K+1))*0.5
           ENDDO
 !
-          AKMS_DENS=AKMS(I,J)*RHOK(KTE)
+          AKMS_DENS=AKMS(I,J)*RHOK(LM)
 !
-          DO K=KTE,KTS,-1
+          DO K=LM,1,-1
             UK(K)=U(I,J,K)
             VK(K)=V(I,J,K)
             ZHK(K)=ZINT(I,J,K)
           ENDDO
-          ZHK(KTE+1)=ZINT(I,J,KTE+1)
+          ZHK(LM+1)=ZINT(I,J,LM+1)
 !
 !----------------------------------------------------------------------
 !***  CARRY OUT THE VERTICAL DIFFUSION OF
@@ -610,17 +589,13 @@
 !
           CALL VDIFV(LMH,DTDIF,UZ0(I,J),VZ0(I,J)                       &
      &              ,AKMS_DENS,UK,VK,AKMK,ZHK,RHOK                     &
-     &              ,IDS,IDE,JDS,JDE,KDS,KDE                           &
-     &              ,IMS,IME,JMS,JME,KMS,KME                           &
-     &              ,ITS,ITE,JTS,JTE,KTS,KTE,I,J)
+     &              ,LM,I,J)
 !
 !----------------------------------------------------------------------
 !***
 !***  COMPUTE PRIMARY VARIABLE TENDENCIES
 !***
-          DO K=KTS,KTE
-!d            DUDT=(UK(K)-U(I,J,K))*RDTTURBL
-!d            DVDT=(VK(K)-V(I,J,K))*RDTTURBL
+          DO K=1,LM
             RUBLTEN(I,J,K)=(UK(K)-U(I,J,K))*RDTTURBL
             RVBLTEN(I,J,K)=(VK(K)-V(I,J,K))*RDTTURBL
           ENDDO
@@ -647,29 +622,25 @@
 !   ******************************************************************
 !
      &(LMH,U,V,T,THE,Q,CWM,Q2,Z,GM,GH,EL,PBLH,LPBL,LMXL,CT,MIXHT       &
-     &,IDS,IDE,JDS,JDE,KDS,KDE                                         &
-     &,IMS,IME,JMS,JME,KMS,KME                                         &
-     &,ITS,ITE,JTS,JTE,KTS,KTE,I,J)
+     &,LM,I,J)
 !----------------------------------------------------------------------
 !
       IMPLICIT NONE
 !
 !----------------------------------------------------------------------
-      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,KDS,KDE                    &
-     &                     ,IMS,IME,JMS,JME,KMS,KME                    &
-     &                     ,ITS,ITE,JTS,JTE,KTS,KTE,I,J
+      INTEGER,INTENT(IN) :: LM,I,J
 !
       INTEGER,INTENT(IN) :: LMH
 !
       INTEGER,INTENT(OUT) :: LMXL,LPBL
 !
-      REAL,DIMENSION(KTS:KTE),INTENT(IN) :: CWM,Q,Q2,T,THE,U,V
+      REAL,DIMENSION(1:LM),INTENT(IN) :: CWM,Q,Q2,T,THE,U,V
 !
-      REAL,DIMENSION(KTS:KTE+1),INTENT(IN) :: Z
+      REAL,DIMENSION(1:LM+1),INTENT(IN) :: Z
 !
       REAL,INTENT(OUT) :: MIXHT,PBLH
 !
-      REAL,DIMENSION(KTS:KTE-1),INTENT(OUT) :: EL,GH,GM
+      REAL,DIMENSION(1:LM-1),INTENT(OUT) :: EL,GH,GM
 !
       REAL,INTENT(INOUT) :: CT
 !----------------------------------------------------------------------
@@ -681,9 +652,9 @@
       REAL :: A,ADEN,B,BDEN,AUBR,BUBR,BLMX,EL0,ELOQ2X,GHL,GML           &
      &       ,QOL2ST,QOL2UN,QDZL,RDZ,SQ,SREL,SZQ,TEM,THM,VKRMZ
 !
-      REAL,DIMENSION(KTS:KTE) :: Q1
+      REAL,DIMENSION(1:LM) :: Q1
 !
-      REAL,DIMENSION(KTS:KTE-1) :: DTH,ELM,REL
+      REAL,DIMENSION(1:LM-1) :: DTH,ELM,REL
 !
 !----------------------------------------------------------------------
 !**********************************************************************
@@ -704,7 +675,7 @@
  110  PBLH=Z(LPBL)-Z(LMH+1)
 !
 !-----------------------------------------------------------------------
-      DO K=KTS,LMH
+      DO K=1,LMH
         Q1(K)=0.
       ENDDO
 !
@@ -721,7 +692,7 @@
 !
       CT=0.
 !----------------------------------------------------------------------
-      DO K=KTS,LMH-1
+      DO K=1,LMH-1
         RDZ=2./(Z(K)-Z(K+2))
         GML=((U(K)-U(K+1))**2+(V(K)-V(K+1))**2)*RDZ*RDZ
         GM(K)=MAX(GML,EPSGM)
@@ -746,7 +717,7 @@
 !
       LMXL=LMH
 !
-      DO K=KTS,LMH-1
+      DO K=1,LMH-1
         GML=GM(K)
         GHL=GH(K)
 !
@@ -787,7 +758,7 @@
       SZQ=0.
       SQ =0.
 !
-      DO K=KTS,LMH-1
+      DO K=1,LMH-1
         QDZL=(Q1(K)+Q1(K+1))*(Z(K+1)-Z(K+2))
         SZQ=(Z(K+1)+Z(K+2)-Z(LMH+1)-Z(LMH+1))*QDZL+SZQ
         SQ=QDZL+SQ
@@ -806,7 +777,7 @@
 !
       LPBLM=MAX(LPBL-1,1)
 !
-      DO K=KTS,LPBLM
+      DO K=1,LPBLM
         EL(K)=MIN((Z(K)-Z(K+2))*ELFC,ELM(K))
         REL(K)=EL(K)/ELM(K)
       ENDDO
@@ -842,26 +813,22 @@
 !   ******************************************************************
 !
      &(LMH,DTTURBL,USTAR,GM,GH,EL,Q2                                   &
-     &,IDS,IDE,JDS,JDE,KDS,KDE                                         &
-     &,IMS,IME,JMS,JME,KMS,KME                                         &
-     &,ITS,ITE,JTS,JTE,KTS,KTE,I,J)
+     &,LM,I,J)
 !----------------------------------------------------------------------
 !
       IMPLICIT NONE
 !
 !----------------------------------------------------------------------
-      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,KDS,KDE                    &
-     &                     ,IMS,IME,JMS,JME,KMS,KME                    &
-     &                     ,ITS,ITE,JTS,JTE,KTS,KTE,I,J
+      INTEGER,INTENT(IN) :: LM,I,J
 !
       INTEGER,INTENT(IN) :: LMH
 !
       REAL,INTENT(IN) :: DTTURBL,USTAR
 !
-      REAL,DIMENSION(KTS:KTE-1),INTENT(IN) :: GH,GM
-      REAL,DIMENSION(KTS:KTE-1),INTENT(INOUT) :: EL
+      REAL,DIMENSION(1:LM-1),INTENT(IN) :: GH,GM
+      REAL,DIMENSION(1:LM-1),INTENT(INOUT) :: EL
 !
-      REAL,DIMENSION(KTS:KTE),INTENT(INOUT) :: Q2
+      REAL,DIMENSION(1:LM),INTENT(INOUT) :: Q2
 !----------------------------------------------------------------------
 !***
 !***  LOCAL VARIABLES
@@ -1045,25 +1012,21 @@
 !   *                                                                *
 !   ******************************************************************
      &(LMH,LMXL,GM,GH,EL,T,Q2,Z,AKM,AKH                                &
-     &,IDS,IDE,JDS,JDE,KDS,KDE                                         &
-     &,IMS,IME,JMS,JME,KMS,KME                                         &
-     &,ITS,ITE,JTS,JTE,KTS,KTE,I,J,PRINT_DIAG)   ! debug
+     &,LM,I,J,PRINT_DIAG)   ! debug
 !----------------------------------------------------------------------
 !
       IMPLICIT NONE
 !
 !----------------------------------------------------------------------
-      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,KDS,KDE                    &
-     &                     ,IMS,IME,JMS,JME,KMS,KME                    &
-     &                     ,ITS,ITE,JTS,JTE,KTS,KTE,I,J
+      INTEGER,INTENT(IN) :: LM,I,J
 !
       INTEGER,INTENT(IN) :: LMH,LMXL
 !
-      REAL,DIMENSION(KTS:KTE),INTENT(IN) :: Q2,T
-      REAL,DIMENSION(KTS:KTE-1),INTENT(IN) :: EL,GH,GM
-      REAL,DIMENSION(KTS:KTE+1),INTENT(IN) :: Z
+      REAL,DIMENSION(1:LM),INTENT(IN) :: Q2,T
+      REAL,DIMENSION(1:LM-1),INTENT(IN) :: EL,GH,GM
+      REAL,DIMENSION(1:LM+1),INTENT(IN) :: Z
 !
-      REAL,DIMENSION(KTS:KTE-1),INTENT(OUT) :: AKH,AKM
+      REAL,DIMENSION(1:LM-1),INTENT(OUT) :: AKH,AKM
 !----------------------------------------------------------------------
 !***
 !***  LOCAL VARIABLES
@@ -1203,26 +1166,22 @@
 !   *                                                                *
 !   ******************************************************************
      &(LMH,DTDIF,Q2,EL,Z                                               &
-     &,IDS,IDE,JDS,JDE,KDS,KDE                                         &
-     &,IMS,IME,JMS,JME,KMS,KME                                         &
-     &,ITS,ITE,JTS,JTE,KTS,KTE)
+     &,LM)
 !----------------------------------------------------------------------
 !
       IMPLICIT NONE
 !
 !----------------------------------------------------------------------
-      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,KDS,KDE                    &
-     &                     ,IMS,IME,JMS,JME,KMS,KME                    &
-     &                     ,ITS,ITE,JTS,JTE,KTS,KTE
+      INTEGER,INTENT(IN) :: LM
 !
       INTEGER,INTENT(IN) :: LMH
 !
       REAL,INTENT(IN) :: DTDIF
 !
-      REAL,DIMENSION(KTS:KTE-1),INTENT(IN) :: EL
-      REAL,DIMENSION(KTS:KTE+1),INTENT(IN) :: Z
+      REAL,DIMENSION(1:LM-1),INTENT(IN) :: EL
+      REAL,DIMENSION(1:LM+1),INTENT(IN) :: Z
 !
-      REAL,DIMENSION(KTS:KTE),INTENT(INOUT) :: Q2
+      REAL,DIMENSION(1:LM),INTENT(INOUT) :: Q2
 !----------------------------------------------------------------------
 !***
 !***  LOCAL VARIABLES
@@ -1232,7 +1191,7 @@
       REAL :: ADEN,AKQS,BDEN,BESH,BESM,CDEN,CF,DTOZS,ELL,ELOQ2,ELOQ4   &
      &       ,ELQDZ,ESH,ESM,ESQHF,GHL,GML,Q1L,RDEN,RDZ
 !
-      REAL,DIMENSION(KTS:KTE-2) :: AKQ,CM,CR,DTOZ,RSQ2
+      REAL,DIMENSION(1:LM-2) :: AKQ,CM,CR,DTOZ,RSQ2
 !----------------------------------------------------------------------
 !**********************************************************************
 !----------------------------------------------------------------------
@@ -1242,7 +1201,7 @@
 !----------------------------------------------------------------------
       ESQHF=0.5*ESQ
 !
-      DO K=KTS,LMH-2
+      DO K=1,LMH-2
         DTOZ(K)=(DTDIF+DTDIF)/(Z(K)-Z(K+2))
         AKQ(K)=SQRT((Q2(K)+Q2(K+1))*0.5)*(EL(K)+EL(K+1))*ESQHF         &
      &        /(Z(K+1)-Z(K+2))
@@ -1252,7 +1211,7 @@
       CM(1)=DTOZ(1)*AKQ(1)+1.
       RSQ2(1)=Q2(1)
 !
-      DO K=KTS+1,LMH-2
+      DO K=1+1,LMH-2
         CF=-DTOZ(K)*AKQ(K-1)/CM(K-1)
         CM(K)=-CR(K-1)*CF+(AKQ(K-1)+AKQ(K))*DTOZ(K)+1.
         RSQ2(K)=-RSQ2(K-1)*CF+Q2(K)
@@ -1267,7 +1226,7 @@
       Q2(LMH-1)=(DTOZS*AKQS*Q2(LMH)-RSQ2(LMH-2)*CF+Q2(LMH-1))          &
      &        /((AKQ(LMH-2)+AKQS)*DTOZS-CR(LMH-2)*CF+1.)
 !
-      DO K=LMH-2,KTS,-1
+      DO K=LMH-2,1,-1
         Q2(K)=(-CR(K)*Q2(K+1)+RSQ2(K))/CM(K)
       ENDDO
 !----------------------------------------------------------------------
@@ -1279,9 +1238,7 @@
 !---------------------------------------------------------------------
       SUBROUTINE VDIFH(DTDIF,LMH,THZ0,QZ0,RKHS,CHKLOWQ,CT             &
      &                ,THE,Q,CWM,RKH,Z,RHO                            &
-     &                ,IDS,IDE,JDS,JDE,KDS,KDE                        &
-     &                ,IMS,IME,JMS,JME,KMS,KME                        &
-     &                ,ITS,ITE,JTS,JTE,KTS,KTE,I,J)
+     &                ,LM,I,J)
 !     ***************************************************************
 !     *                                                             *
 !     *         VERTICAL DIFFUSION OF MASS VARIABLES                *
@@ -1292,18 +1249,16 @@
       IMPLICIT NONE
 !
 !---------------------------------------------------------------------
-      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,KDS,KDE                    &
-     &                     ,IMS,IME,JMS,JME,KMS,KME                    &
-     &                     ,ITS,ITE,JTS,JTE,KTS,KTE,I,J
+      INTEGER,INTENT(IN) :: LM,I,J
 !
       INTEGER,INTENT(IN) :: LMH
 !
       REAL,INTENT(IN) :: CHKLOWQ,CT,DTDIF,QZ0,RKHS,THZ0
 !
-      REAL,DIMENSION(KTS:KTE-1),INTENT(IN) :: RKH
-      REAL,DIMENSION(KTS:KTE),INTENT(IN) :: RHO
-      REAL,DIMENSION(KTS:KTE+1),INTENT(IN) :: Z
-      REAL,DIMENSION(KTS:KTE),INTENT(INOUT) :: CWM,Q,THE
+      REAL,DIMENSION(1:LM-1),INTENT(IN) :: RKH
+      REAL,DIMENSION(1:LM),INTENT(IN) :: RHO
+      REAL,DIMENSION(1:LM+1),INTENT(IN) :: Z
+      REAL,DIMENSION(1:LM),INTENT(INOUT) :: CWM,Q,THE
 !
 !----------------------------------------------------------------------
 !***
@@ -1314,27 +1269,27 @@
       REAL :: CF,CMB,CMCB,CMQB,CMTB,CTHF,DTOZL,DTOZS                   &
      &       ,RCML,RKHH,RKQS,RSCB,RSQB,RSTB
 !
-      REAL,DIMENSION(KTS:KTE-1) :: CM,CR,DTOZ,RKCT,RSC,RSQ,RST
+      REAL,DIMENSION(1:LM-1) :: CM,CR,DTOZ,RKCT,RSC,RSQ,RST
 !
 !----------------------------------------------------------------------
 !**********************************************************************
 !----------------------------------------------------------------------
       CTHF=0.5*CT
 !
-      DO K=KTS,LMH-1
+      DO K=1,LMH-1
         DTOZ(K)=DTDIF/(Z(K)-Z(K+1))
         CR(K)=-DTOZ(K)*RKH(K)
         RKCT(K)=RKH(K)*(Z(K)-Z(K+2))*CTHF
       ENDDO
 !
-      CM(KTS)=DTOZ(KTS)*RKH(KTS)+RHO(KTS)
+      CM(1)=DTOZ(1)*RKH(1)+RHO(1)
 !----------------------------------------------------------------------
-      RST(KTS)=-RKCT(KTS)*DTOZ(KTS)                                    &
-     &         +THE(KTS)*RHO(KTS)
-      RSQ(KTS)=Q(KTS)  *RHO(KTS)
-      RSC(KTS)=CWM(KTS)*RHO(KTS)
+      RST(1)=-RKCT(1)*DTOZ(1)                                    &
+     &         +THE(1)*RHO(1)
+      RSQ(1)=Q(1)  *RHO(1)
+      RSC(1)=CWM(1)*RHO(1)
 !----------------------------------------------------------------------
-      DO K=KTS+1,LMH-1
+      DO K=1+1,LMH-1
         DTOZL=DTOZ(K)
         CF=-DTOZL*RKH(K-1)/CM(K-1)
         CM(K)=-CR(K-1)*CF+(RKH(K-1)+RKH(K))*DTOZL+RHO(K)
@@ -1362,7 +1317,7 @@
       Q(LMH)  =(DTOZS*RKQS*QZ0 +RSQB)/CMQB
       CWM(LMH)=(                RSCB)/CMCB
 !----------------------------------------------------------------------
-      DO K=LMH-1,KTS,-1
+      DO K=LMH-1,1,-1
         RCML=1./CM(K)
         THE(K)=(-CR(K)*THE(K+1)+RST(K))*RCML
         Q(K)  =(-CR(K)*  Q(K+1)+RSQ(K))*RCML
@@ -1376,9 +1331,7 @@
 !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 !---------------------------------------------------------------------
       SUBROUTINE VDIFV(LMH,DTDIF,UZ0,VZ0,RKMS,U,V,RKM,Z,RHO           &
-     &                ,IDS,IDE,JDS,JDE,KDS,KDE                        &
-     &                ,IMS,IME,JMS,JME,KMS,KME                        &
-                      ,ITS,ITE,JTS,JTE,KTS,KTE,I,J)
+                      ,LM,I,J)
 !     ***************************************************************
 !     *                                                             *
 !     *        VERTICAL DIFFUSION OF VELOCITY COMPONENTS            *
@@ -1389,19 +1342,17 @@
       IMPLICIT NONE
 !
 !---------------------------------------------------------------------
-      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,KDS,KDE                   &
-     &                     ,IMS,IME,JMS,JME,KMS,KME                   &
-     &                     ,ITS,ITE,JTS,JTE,KTS,KTE,I,J
+      INTEGER,INTENT(IN) :: LM,I,J
 !
       INTEGER,INTENT(IN) :: LMH
 !
       REAL,INTENT(IN) :: RKMS,DTDIF,UZ0,VZ0
 !
-      REAL,DIMENSION(KTS:KTE-1),INTENT(IN) :: RKM
-      REAL,DIMENSION(KTS:KTE),INTENT(IN) :: RHO
-      REAL,DIMENSION(KTS:KTE+1),INTENT(IN) :: Z
+      REAL,DIMENSION(1:LM-1),INTENT(IN) :: RKM
+      REAL,DIMENSION(1:LM),INTENT(IN) :: RHO
+      REAL,DIMENSION(1:LM+1),INTENT(IN) :: Z
 !
-      REAL,DIMENSION(KTS:KTE),INTENT(INOUT) :: U,V
+      REAL,DIMENSION(1:LM),INTENT(INOUT) :: U,V
 !----------------------------------------------------------------------
 !***
 !***  LOCAL VARIABLES
@@ -1410,7 +1361,7 @@
 !
       REAL :: CF,DTOZAK,DTOZL,DTOZS,RCML,RCMVB,RHOK,RKMH
 !
-      REAL,DIMENSION(KTS:KTE-1) :: CM,CR,DTOZ,RSU,RSV
+      REAL,DIMENSION(1:LM-1) :: CM,CR,DTOZ,RSU,RSV
 !----------------------------------------------------------------------
 !**********************************************************************
 !----------------------------------------------------------------------
@@ -1456,8 +1407,6 @@
 !-----------------------------------------------------------------------
 !
 !=======================================================================
-!!!!  SUBROUTINE MYJPBL_INIT(RUBLTEN,RVBLTEN,RTHBLTEN,RQVBLTEN,         &
-!!!! &                       TKE,EXCH_H,RESTART,ALLOWED_TO_READ,    &
       SUBROUTINE MYJPBL_INIT(EXCH_H,RESTART                             &
      &                      ,IDS,IDE,JDS,JDE,LM                         &
      &                      ,IMS,IME,JMS,JME                            &
@@ -1465,7 +1414,6 @@
 !-----------------------------------------------------------------------
       IMPLICIT NONE
 !-----------------------------------------------------------------------
-!!!!  LOGICAL,INTENT(IN) :: ALLOWED_TO_READ,RESTART
       LOGICAL,INTENT(IN) :: RESTART
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
      &                     ,IMS,IME,JMS,JME                             &
@@ -1478,7 +1426,6 @@
 !-----------------------------------------------------------------------
 !
       JTF=MIN0(JTE,JDE-1)
-!!!   KTF=MIN0(KTE,KDE-1)
       KTF=LM
       ITF=MIN0(ITE,IDE-1)
 !

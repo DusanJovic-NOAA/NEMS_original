@@ -89,7 +89,7 @@
      &               ,PSHLTR,RIB                                       & ! Added Bulk Richardson No.
      &               ,IDS,IDE,JDS,JDE,KDS,KDE                          &
      &               ,IMS,IME,JMS,JME,KMS,KME                          &
-     &               ,ITS,ITE,JTS,JTE,KTS,KTE)
+     &               ,ITS,ITE,JTS,JTE,KTS,LM)
 !----------------------------------------------------------------------
 !
       IMPLICIT NONE
@@ -97,17 +97,18 @@
 !----------------------------------------------------------------------
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,KDS,KDE                    &
      &                     ,IMS,IME,JMS,JME,KMS,KME                    &
-     &                     ,ITS,ITE,JTS,JTE,KTS,KTE
+     &                     ,ITS,ITE,JTS,JTE,KTS,LM
 !
       INTEGER,INTENT(IN) :: NTSD
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: HT,MAVAIL,TSK      &
      &                                             ,XLAND,Z0BASE
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) :: DZ         &
-     &                                                     ,PMID,PINT
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: DZ,PMID
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) :: QV,QC,U,V,Q2,T,TH
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(IN) :: PINT
+!
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: QV,QC,U,V,Q2,T,TH
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: FLX_LH,HFX,PSHLTR &
      &                                              ,QFX,Q10,QSHLTR    &
@@ -138,15 +139,15 @@
      &       ,T02P,T10P,TEM,TH02P,TH10P,THLOW,THELOW,THM               &
      &       ,TLOW,TZ0,ULOW,VLOW,ZSL
 !
-      REAL,DIMENSION(KTS:KTE) :: CWMK,PK,Q2K,QK,THEK,THK,TK,UK,VK
+      REAL,DIMENSION(KTS:LM) :: CWMK,PK,Q2K,QK,THEK,THK,TK,UK,VK
 !
-      REAL,DIMENSION(KTS:KTE-1) :: EL,ELM
+      REAL,DIMENSION(KTS:LM-1) :: EL,ELM
 !
-      REAL,DIMENSION(KTS:KTE+1) :: ZHK
+      REAL,DIMENSION(KTS:LM+1) :: ZHK
 !
       REAL,DIMENSION(ITS:ITE,JTS:JTE) :: THSK
 !
-      REAL,DIMENSION(ITS:ITE,JTS:JTE,KTS:KTE+1) :: ZINT
+      REAL,DIMENSION(ITS:ITE,JTS:JTE,KTS:LM+1) :: ZINT
 !
 !----------------------------------------------------------------------
 !**********************************************************************
@@ -155,7 +156,7 @@
 !***  MAKE PREPARATIONS
 !
 !----------------------------------------------------------------------
-      DO K=KTS,KTE+1
+      DO K=KTS,LM+1
       DO J=JTS,JTE
       DO I=ITS,ITE
         ZINT(I,J,K)=0.
@@ -165,19 +166,19 @@
 !
       DO J=JTS,JTE
       DO I=ITS,ITE
-        ZINT(I,J,KTE+1)=HT(I,J)     ! Z at bottom of lowest sigma layer
+        ZINT(I,J,LM+1)=HT(I,J)     ! Z at bottom of lowest sigma layer
         PBLH(I,J)=-1.
 !
 !!!!!!!!!
 !!!!!! UNCOMMENT THESE LINES IF USING ETA COORDINATES
 !!!!!!!!!
-!!!!!!  ZINT(I,J,KTE+1)=1.E-4       ! Z of bottom of lowest eta layer
-!!!!!!  ZHK(KTE+1)=1.E-4            ! Z of bottom of lowest eta layer
+!!!!!!  ZINT(I,J,LM+1)=1.E-4       ! Z of bottom of lowest eta layer
+!!!!!!  ZHK(LM+1)=1.E-4            ! Z of bottom of lowest eta layer
 !
       ENDDO
       ENDDO
 !
-      DO K=KTE,KTS,-1
+      DO K=LM,KTS,-1
       DO J=JTS,JTE
         DO I=ITS,ITE
           ZINT(I,J,K)=ZINT(I,J,K+1)+DZ(I,J,K)
@@ -220,7 +221,7 @@
 !
 !***  LOWEST LAYER ABOVE GROUND MUST BE FLIPPED
 !
-          LMH=KTE
+          LMH=LM
 !
           PTOP=PINT(I,J,1)
           PSFC=PINT(I,J,LMH+1)
@@ -233,7 +234,7 @@
 !
 !***  FILL 1-D VERTICAL ARRAYS
 !
-          DO K=KTE,KTS,-1
+          DO K=LM,KTS,-1
             THK(K)=TH(I,J,K)
             TK(K)=T(I,J,K)
             RATIOMX=QV(I,J,K)
@@ -249,9 +250,9 @@
             ZHK(K)=ZINT(I,J,K)
 !
           ENDDO
-          ZHK(KTE+1)=HT(I,J)          ! Z at bottom of lowest sigma layer
+          ZHK(LM+1)=HT(I,J)          ! Z at bottom of lowest sigma layer
 !
-          DO K=KTE,KTS,-1
+          DO K=LM,KTS,-1
             UK(K)=U(I,J,K)
             VK(K)=V(I,J,K)
           ENDDO
@@ -308,7 +309,7 @@
      &               ,QSHLTR(I,J),Q10(I,J),PSHLTR(I,J)                 &
      &               ,IDS,IDE,JDS,JDE,KDS,KDE                          &
      &               ,IMS,IME,JMS,JME,KMS,KME                          &
-     &               ,ITS,ITE,JTS,JTE,KTS,KTE,I,J,ZHK(LMH+1),RIB(I,J))   ! Added Bulk Richardson No.
+     &               ,ITS,ITE,JTS,JTE,KTS,LM,I,J,ZHK(LMH+1),RIB(I,J))   ! Added Bulk Richardson No.
 !
 !***  REMOVE SUPERATURATION AT 2M AND 10M
 !
@@ -359,7 +360,7 @@
      &                 ,U10,V10,TH02,TH10,Q02,Q10,PSHLTR               &
      &                 ,IDS,IDE,JDS,JDE,KDS,KDE                        &
      &                 ,IMS,IME,JMS,JME,KMS,KME                        &
-     &                 ,ITS,ITE,JTS,JTE,KTS,KTE,I,J,ZSFC,RIB)            ! Added Bulk Richardson No.
+     &                 ,ITS,ITE,JTS,JTE,KTS,LM,I,J,ZSFC,RIB)            ! Added Bulk Richardson No.
 !     ****************************************************************
 !     *                                                              *
 !     *                       SURFACE LAYER                          *
@@ -372,7 +373,7 @@
 !----------------------------------------------------------------------
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,KDS,KDE                    &
      &                     ,IMS,IME,JMS,JME,KMS,KME                    &
-     &                     ,ITS,ITE,JTS,JTE,KTS,KTE,i,j
+     &                     ,ITS,ITE,JTS,JTE,KTS,LM,i,j
 !
       INTEGER,INTENT(IN) :: NTSD
 !
@@ -1015,7 +1016,7 @@
      &                   ,ALLOWED_TO_READ                              &
      &                   ,IDS,IDE,JDS,JDE,KDS,KDE                      &
      &                   ,IMS,IME,JMS,JME,KMS,KME                      &
-     &                   ,ITS,ITE,JTS,JTE,KTS,KTE                      &
+     &                   ,ITS,ITE,JTS,JTE,KTS,LM                      &
      &                   ,MPI_COMM_COMP)
 !----------------------------------------------------------------------
       IMPLICIT NONE
@@ -1024,7 +1025,7 @@
 !
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,KDS,KDE                    &
      &                     ,IMS,IME,JMS,JME,KMS,KME                    &
-     &                     ,ITS,ITE,JTS,JTE,KTS,KTE
+     &                     ,ITS,ITE,JTS,JTE,KTS,LM
 !
       INTEGER,INTENT(IN) :: MPI_COMM_COMP
 !
@@ -1068,7 +1069,7 @@
 !----------------------------------------------------------------------
 !
       JTF=MIN0(JTE,JDE-1)
-      KTF=MIN0(KTE,KDE-1)
+      KTF=MIN0(LM,KDE-1)
       ITF=MIN0(ITE,IDE-1)
 !
 !

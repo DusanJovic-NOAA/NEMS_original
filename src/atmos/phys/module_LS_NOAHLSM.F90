@@ -373,10 +373,11 @@
                                                         EMISS,  &
                                                         SR
 
+   REAL,    DIMENSION( ims:ime, jms:jme, 1:kte )              , &
+            INTENT(IN   )    ::                           DZ8W
 
    REAL,    DIMENSION( ims:ime, jms:jme, kms:kme )            , &
             INTENT(IN   )    ::                          p8w3D, &
-                                                          DZ8W, &
                                                            T3D, &
                                                           QV3D
 
@@ -508,8 +509,8 @@
      REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: COSZ_URB2D
      REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: OMG_URB2D
      REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN) :: XLAT_URB2D
-     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme, kms:kme ), INTENT(IN) :: U_PHY
-     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme, kms:kme ), INTENT(IN) :: V_PHY
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme, 1:kte ), INTENT(IN) :: U_PHY
+     REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme, 1:kte ), INTENT(IN) :: V_PHY
 
 ! input variables lsm --> urban
      INTEGER :: UTYPE_URB ! urban type [urban=1, suburban=2, rural=3]
