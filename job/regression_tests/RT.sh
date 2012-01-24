@@ -287,7 +287,8 @@ export WTPG=$WTPGm
 export WLCLK=05
 export GEFS_ENSEMBLE=0
 export GEN_ENSEMBLE=0
-export POST=#
+export WRITE_DOPOST=.false.
+export POST_GRIBVERSION='"grib1"'
 }
 
 export_nmm ()
@@ -310,6 +311,7 @@ export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4         ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  ; export NDSLFV=.false.
+export GOCART_AER2POST=.false.
 }
 
 export_fim ()
@@ -1800,7 +1802,7 @@ BGDAWP.GrbF48 BGRD3D.GrbF48 BGRDSF.GrbF48"
 #---------------------
 export_nmm
 export GBRG=reg ; export WLCLK=10 ; export WPREC=true
-export POST=''
+export WRITE_DOPOST=.true.
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1834,7 +1836,7 @@ export LIST_FILES=" \
 export_gfs
 #
 export FDFI=3
-export POST=''
+export WRITE_DOPOST=.true.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi

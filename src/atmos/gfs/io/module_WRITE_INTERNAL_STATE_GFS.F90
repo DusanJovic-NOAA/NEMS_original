@@ -174,6 +174,7 @@
 !
       LOGICAL :: WRITE_DOPOST
       CHARACTER(ESMF_MAXSTR) :: POST_GRIBVERSION
+      LOGICAL :: GOCART_AER2POST
  
 !-----------------------------------------------------------------------
 !

@@ -646,6 +646,7 @@
 !-- post variables
       CHARACTER                             :: POST_GRIDTYPE
       INTEGER                               :: POST_MAPTYPE,NSOIL
+      LOGICAL                               :: LOGFILEINPOST
 !
       CHARACTER(ESMF_MAXSTR)                :: NAME,GFNAME
 !
@@ -1594,13 +1595,21 @@
 !
       write(0,*)'before init_do post,',wrt_int_state%write_dopost
 !-----------------------------------------------------------------------
-      hst_dopost: IF(wrt_int_state%WRITE_DOPOST.and.NF_HOURS>0)THEN       !<-- do post
+      hst_dopost: IF(wrt_int_state%WRITE_DOPOST)THEN                    !<-- do post
 !-----------------------------------------------------------------------
 !
         IF(MYPE>=LEAD_WRITE_TASK)THEN
 !
-          IF(trim(wrt_int_state%FILENAME_BASE(NBDL))=='SIG.F'.or.         &
-             trim(wrt_int_state%FILENAME_BASE(NBDL))=='FLX.F') THEN
+          IF(wrt_int_state%GOCART_AER2POST) then
+            LOGFILEINPOST=trim(wrt_int_state%FILENAME_BASE(NBDL))=='SIG.F'&
+              .or.trim(wrt_int_state%FILENAME_BASE(NBDL))=='FLX.F'        &
+              .or.trim(wrt_int_state%FILENAME_BASE(NBDL))=='AER.F'
+          ELSE
+            LOGFILEINPOST=trim(wrt_int_state%FILENAME_BASE(NBDL))=='SIG.F'&
+              .or.trim(wrt_int_state%FILENAME_BASE(NBDL))=='FLX.F'
+          ENDIF
+!
+          IF(LOGFILEINPOST) THEN
 !
             POST_GRIDTYPE='A'
             POST_MAPTYPE=255

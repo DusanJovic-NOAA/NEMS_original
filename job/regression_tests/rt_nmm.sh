@@ -7,17 +7,20 @@
 
 JBNME=NEMS_RT_${TEST_NR}_$$
 
-cat nmm_${GBRG}_run.IN  | sed s:_JBNME_:${JBNME}:g   \
-                        | sed s:_TS_:${TS}:g         \
-                        | sed s:_CPPCP_:${CPPCP}:g   \
-                        | sed s:_POST_:${POST}:g     \
-                        | sed s:_RTPWD_:${RTPWD}:g   \
-                        | sed s:_SRCD_:${PATHTR}:g   \
+cat nmm_${GBRG}_run.IN  | sed s:_JBNME_:${JBNME}:g                  \
+                        | sed s:_TS_:${TS}:g                        \
+                        | sed s:_CPPCP_:${CPPCP}:g                  \
+                        | sed s:_wrtdopost_:${WRITE_DOPOST}:g       \
+                        | sed s:_postgrbvs_:${POST_GRIBVERSION}:g   \
+                        | sed s:_RTPWD_:${RTPWD}:g                  \
+                        | sed s:_SRCD_:${PATHTR}:g                  \
                         | sed s:_RUND_:${RUNDIR}:g   >  nmm_run
 
 cat nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g   \
                         | sed s:_JNPES_:${JNPES}:g   \
                         | sed s:_WTPG_:${WTPG}:g     \
+                        | sed s:_wrtdopost_:${WRITE_DOPOST}:g       \
+                        | sed s:_postgrbvs_:${POST_GRIBVERSION}:g   \
                         | sed s:_FCSTL_:${FCSTL}:g   \
                         | sed s:_NEMSI_:${NEMSI}:g   \
                         | sed s:_RSTRT_:${RSTRT}:g   \

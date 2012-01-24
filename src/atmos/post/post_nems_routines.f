@@ -5,6 +5,12 @@
     subroutine post_alctvars(imi,jmi,lmi,mypei,nwtlpes,mpicomp,mygridtype,  &
                mymaptype,post_gribversion,mynsoil,lead_write,jts,jte,jtsgrp,jtegrp)
 !
+!
+!   revision history:
+!    May 2011 Jun Wang: generate code from MPI_FIRST.f in post trunk
+!    Jan 2012 Lu/Wang:  add gocart variables
+!
+!
 !-----------------------------------------------------------------------
 !*** allocate post variables
 !-----------------------------------------------------------------------
@@ -425,6 +431,57 @@
       allocate(dy(im,jsta_2l:jend_2u))
 ! vrbls4d
       allocate(dust(im,jsta_2l:jend_2u,lm,5))
+      allocate(salt(im,jsta_2l:jend_2u,lm,5))
+      allocate(soot(im,jsta_2l:jend_2u,lm,2))
+      allocate(waso(im,jsta_2l:jend_2u,lm,2))
+      allocate(suso(im,jsta_2l:jend_2u,lm,1))
+      allocate(dust_dm(im,jsta_2l:jend_2u,lm,5))
+! vrbls3d
+      allocate(ext(im,jsta_2l:jend_2u,lm))
+      allocate(asy(im,jsta_2l:jend_2u,lm))
+      allocate(ssa(im,jsta_2l:jend_2u,lm))
+      allocate(duem(im,jsta_2l:jend_2u,lm))
+      allocate(dusd(im,jsta_2l:jend_2u,lm))
+      allocate(dudp(im,jsta_2l:jend_2u,lm))
+      allocate(duwt(im,jsta_2l:jend_2u,lm))
+      allocate(suem(im,jsta_2l:jend_2u,lm))
+      allocate(susd(im,jsta_2l:jend_2u,lm))
+      allocate(sudp(im,jsta_2l:jend_2u,lm))
+      allocate(suwt(im,jsta_2l:jend_2u,lm))
+      allocate(ocem(im,jsta_2l:jend_2u,lm))
+      allocate(ocsd(im,jsta_2l:jend_2u,lm))
+      allocate(ocdp(im,jsta_2l:jend_2u,lm))
+      allocate(ocwt(im,jsta_2l:jend_2u,lm))
+      allocate(bcem(im,jsta_2l:jend_2u,lm))
+      allocate(bcsd(im,jsta_2l:jend_2u,lm))
+      allocate(bcdp(im,jsta_2l:jend_2u,lm))
+      allocate(bcwt(im,jsta_2l:jend_2u,lm))
+      allocate(ssem(im,jsta_2l:jend_2u,lm))
+      allocate(sssd(im,jsta_2l:jend_2u,lm))
+      allocate(ssdp(im,jsta_2l:jend_2u,lm))
+      allocate(sswt(im,jsta_2l:jend_2u,lm))
+! vrbls2d
+      allocate(dusmass(im,jsta_2l:jend_2u))
+      allocate(ducmass(im,jsta_2l:jend_2u))
+      allocate(dusmass25(im,jsta_2l:jend_2u))
+      allocate(ducmass25(im,jsta_2l:jend_2u))
+      allocate(susmass(im,jsta_2l:jend_2u))
+      allocate(sucmass(im,jsta_2l:jend_2u))
+      allocate(susmass25(im,jsta_2l:jend_2u))
+      allocate(sucmass25(im,jsta_2l:jend_2u))
+      allocate(ocsmass(im,jsta_2l:jend_2u))
+      allocate(occmass(im,jsta_2l:jend_2u))
+      allocate(ocsmass25(im,jsta_2l:jend_2u))
+      allocate(occmass25(im,jsta_2l:jend_2u))
+      allocate(bcsmass(im,jsta_2l:jend_2u))
+      allocate(bccmass(im,jsta_2l:jend_2u))
+      allocate(bcsmass25(im,jsta_2l:jend_2u))
+      allocate(bccmass25(im,jsta_2l:jend_2u))
+      allocate(sssmass(im,jsta_2l:jend_2u))
+      allocate(sscmass(im,jsta_2l:jend_2u))
+      allocate(sssmass25(im,jsta_2l:jend_2u))
+      allocate(sscmass25(im,jsta_2l:jend_2u))
+
 !output from fixed
 !jw      allocate(lsmask(im,jsta_2l:jend_2u))
 !jw      allocate(sstsm(im,jsta_2l:jend_2u))

@@ -36,6 +36,10 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_PE1_:${PE1}:g       \
                     | sed s:_WPG_:${WTPG}:g      \
                     | sed s:_WRTGP_:${WRTGP}:g   \
+                    | sed s:_wrtdopost_:${WRITE_DOPOST}:g   \
+                    | sed s:_postgrbvs_:${POST_GRIBVERSION}:g   \
+                    | sed s:_aer2post_:${GOCART_AER2POST}:g   \
+                    | sed s:_WRTGP_:${WRTGP}:g   \
                     | sed s:_THRDS_:${THRD}:g    \
                     | sed s:_NSOUT_:${NSOUT}:g   \
                     | sed s:_QUILT_:${QUILT}:g   \
@@ -46,7 +50,6 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_lsoil_:${lsoil}:g   \
                     | sed s:_MEMBER_NAMES_:${MEMBER_NAMES}:g   \
                     | sed s:_CP2_:${CP2}:g       \
-                    | sed s:_POST_:${POST}:g       \
                     | sed s:_RUNDIR_:${RUNDIR}:g \
                     | sed s:_PATHTR_:${PATHTR}:g \
                     | sed s:_FDFI_:${FDFI}:g \

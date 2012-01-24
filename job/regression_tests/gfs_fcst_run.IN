@@ -127,6 +127,9 @@ done
 #
   export WRT_GROUP=_WRTGP_
   export WRTPE_PER_GROUP=_WPG_
+  export WRITE_DOPOST=_wrtdopost_
+  export POST_GRIBVERSION=_postgrbvs_
+  export GOCART_AER2POST=_aer2post_
    export liope=.false.
   if [[ $QUILTING = .true. ]] ; then export liope=.true. ; fi
 #
@@ -350,9 +353,17 @@ fi
 #
 # ------------------------ post varables ----------------
 #
-_POST_ln -sf /nwprod/parm/gfs_cntrl.parm fort.14
-_POST_ln -sf griddef.out fort.110
-_POST_cp /nwprod/parm/nam_micro_lookup.dat ./eta_micro_lookup.dat
+if [[ $WRITE_DOPOST = '.true.' ]] then
+ if [[ $POST_GRIBVERSION = 'grib1' ]] ; then
+   export CTLFILE=/nwprod/parm/gfs_cntrl.parm
+   ln -sf $CTLFILE fort.14
+ elif [[ $POST_GRIBVERSION = 'grib2' ]] ; then
+   export CTLFILE=/climate/noscrub/wx20wa/mygrib2/xml/post/postcntrl_gfs.xml
+   ln -sf $CTLFILE postcntrl.xml
+ fi
+ ln -sf griddef.out fort.110
+ cp /nwprod/parm/nam_micro_lookup.dat ./eta_micro_lookup.dat
+fi
 
 #
 # ---------------------------------------- fcst ----------------------

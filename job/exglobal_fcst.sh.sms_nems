@@ -561,6 +561,9 @@ fi
 export WRT_GROUP=${WRT_GROUP:-0}
 export WRTPE_PER_GROUP=${WRTPE_PER_GROUP:-1}
 export QUILTING=${QUILTING:-.true.}
+export WRITE_DOPOST=${WRITE_DOPOST:-.false.}
+export POST_GRIBVERSION=${POST_GRIBVERSION:-'"grib1"'}
+export GOCART_AER2POST=${GOCART_AER2POST:-.false.}
 
 if [ $IDVC = 1 ] ; then
  export HYBRID=.false.
@@ -995,8 +998,9 @@ num_file:                 $NUM_FILE                   #
 filename_base:            $FILENAME_BASE
 file_io_form:             $FILE_IO_FORM                     
 file_io:                  'DEFERRED' 'DEFERRED' 'DEFERRED' 'DEFERRED'  #
-write_dopost:             .TRUE.       # True--> run do on quilt
-post_gribversion:         'grib1'      # True--> grib version for post output files
+write_dopost:             $WRITE_DOPOST          # True--> run do on quilt
+post_gribversion:         $POST_GRIBVERSION      # True--> grib version for post output files
+gocart_aer2post:          $GOCART_AER2POST
 write_nemsioflag:         .TRUE.       # True--> Write nemsio run history files
 nfhout:                   $FHOUT
 nsout:                    $nsout

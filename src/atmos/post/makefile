@@ -2,9 +2,9 @@ include ../../conf/configure.nems
 
 MAKEFILE = makefile
 
-UTILINCSPOST = -I../share -I../nmm/ -I../gfs/io -I/climate/save/wx20wa/esmf/nems/unipost_r14561/incmod/post_4
-UTILINCSPOSTGFS = -I../share -I../gfs/io -I/climate/save/wx20wa/esmf/nems/unipost_r14561/incmod/post_4
-UTILINCSPOSTNMM = -I../share -I../nmm -I/climate/save/wx20wa/esmf/nems/unipost_r14561/incmod/post_4
+UTILINCSPOST = -I../share -I../nmm/ -I../gfs/io -I$(POSTMOD)
+UTILINCSPOSTGFS = -I../share -I../gfs/io -I$(POSTMOD)
+UTILINCSPOSTNMM = -I../share -I../nmm -I$(POSTMOD)
 UTILINCSPOSTSTUB = -I../share
 
 LIBRARY  = libpost.a
