@@ -656,13 +656,29 @@
           ilon = min( IMXCO2, int(      xlon(i)*raddeg /resco2) + 1 )
           ilat = min( JMXCO2, int((90.0-xlat(i)*raddeg)/resco2) + 1 )
 
-          do k = 1, LMAX
-            if ( plvl(i,k+1) >= prsco2 ) then
-              gasdat(i,k,1) = co2vmr_sav(ilon,ilat,kmonsav)
-            else
-              gasdat(i,k,1) = co2_glb + gco2cyc(kmonsav)
-            endif
-          enddo
+          !--------------------------------------------------------
+          ! iflip condition (per Yu-tai's correction) (Lin, 201109)
+          ! * correction for top down, not for bottom up
+          !--------------------------------------------------------
+
+          if ( iflip == 0 ) then          ! index from toa to sfc 
+             do k = 1, LMAX
+                if ( plvl(i,k  ) >= prsco2 ) then
+                   gasdat(i,k,1) = co2vmr_sav(ilon,ilat,kmonsav)
+                else
+                   gasdat(i,k,1) = co2_glb + gco2cyc(kmonsav)
+                endif
+             enddo
+          else                            ! index from sfc to toa
+             do k = 1, LMAX
+                if ( plvl(i,k+1) >= prsco2 ) then
+                   gasdat(i,k,1) = co2vmr_sav(ilon,ilat,kmonsav)
+                else
+                   gasdat(i,k,1) = co2_glb + gco2cyc(kmonsav)
+                endif
+             enddo
+          endif 
+             
         enddo
       endif
 

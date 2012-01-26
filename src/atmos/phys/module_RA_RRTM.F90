@@ -10,14 +10,20 @@
 !
       USE MODULE_INCLUDE
 !
-      USE MODULE_CONSTANTS,ONLY : R,CP,PI,EPSQ,STBOLT,EP_2
-      USE MODULE_n_RADIATION_DRIVER,   ONLY : n_RADINIT, n_GRRAD
-      USE MODULE_n_RADIATION_ASTRONOMY,ONLY : n_ASTRONOMY
-!     USE n_OZNE_DEF, ONLY: LEVOZC, LATSOZP, BLATC, TIMEOZC, TIMEOZ,      &
-      USE OZNE_DEF, ONLY: LEVOZC, LATSOZP, BLATC, TIMEOZC, TIMEOZ,      &
-                          KOZC, DPHIOZC, LATSOZC, PL_COEFF, LEVOZP
+      use machine,                   only : kind_phys
 
-      USE MODULE_MP_ETANEW,ONLY : RHgrd,T_ICE,FPVS
+      USE MODULE_CONSTANTS,          ONLY : R,CP,PI,EPSQ,STBOLT,EP_2
+      USE MODULE_NMMB_RADIATION_DRIVER,   ONLY : RADINIT, GRRAD_NMMB
+      USE MODULE_NMMB_RADIATION_ASTRONOMY,     ONLY : ASTRONOMY_NMMB
+
+!     USE n_OZNE_DEF, ONLY: LEVOZC, LATSOZP, BLATC, TIMEOZC, TIMEOZ,   &
+      USE OZNE_DEF,   ONLY: LEVOZC, LATSOZP, BLATC, TIMEOZC, TIMEOZ,   &
+                            KOZC, DPHIOZC, LATSOZC, PL_COEFF, LEVOZP
+
+      USE MODULE_MP_ETANEW, ONLY : RHgrd,T_ICE,FPVS
+
+      use module_radsw_parameters,  only : topfsw_type, sfcfsw_type
+      use module_radlw_parameters,  only : topflw_type, sfcflw_type
 
 !-----------------------------------------------------------------------
 !
@@ -47,8 +53,8 @@
       REAL, PARAMETER ::  &
      &   TRAD_ice=0.5*T_ice      & !--- Very tunable parameter
      &,  ABSCOEF_W=800.            & !--- Very tunable parameter
-     &,  ABSCOEF_I=0.            & !--- Very tunable parameter
-     &,  Qconv=0.01e-3            & !--- Very tunable parameter
+     &,  ABSCOEF_I=500.            & !--- Very tunable parameter
+     &,  Qconv=0.1e-3            & !--- Very tunable parameter
 
      &,  CTauCW=ABSCOEF_W*Qconv  &
      &,  CTauCI=ABSCOEF_I*Qconv
@@ -105,7 +111,7 @@
      &                     ,NPHS,NRADL,NRADS                            &
      &                     ,NUM_WATER                      
 !
-      INTEGER,INTENT(IN) :: JDAT(8)
+      INTEGER,INTENT(IN) :: IDAT(8),JDAT(8)
 !
       INTEGER,INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
 !
@@ -153,12 +159,15 @@
 !-----------------------------------------------------------------------
 !
       LOGICAL :: LSLWR, LSSAV, LDIAG3D, LPRNT, SASHAL, LSSWR
+      LOGICAL :: norad_precip, crick_proof, ccnorm
 !
       INTEGER,PARAMETER :: IFLIP=0                                         
 !
       INTEGER :: NP3D, ISOL, ICO2, ICWP, IALB, IEMS, IAER, ALBTYPE, LONR, &
                  LATS_NODE_R, LATR, IPT_LATS_NODE_R, NFXR, NTRAC, KFLIP,  &
-                 I, L, J, K, NTOZ, NCLDX, NTCW, IOVR_SW, IOVR_LW
+                 I, L, J, K, NTOZ, NCLDX, NTCW, IOVR_SW, IOVR_LW,         &
+                 ICTM, ISUBCSW, ISUBCLW, IOVRSW, IOVRLW,                  &
+                 ipt,  kdt
 !
       INTEGER,SAVE :: K1OZ, K2OZ
 !
@@ -173,12 +182,34 @@
                              SNOALB, ALVSF1, ALNSF1, ALVWF1, ALNWF1,      &
                              FACSF1, FACWF1, SFCNSW, SFCDSW, SFALB,       &
                              SFCDLW, TSFLW, TOAUSW, TOADSW, SFCCDSW,      &
-                             TOAULW, SFCUSW
+                             TOAULW, SFCUSW,                              &
+                             SEMIS
+
+                           !===================================
+                           ! SEMIS: surface lw emissivity
+                           !        is intended output in GLOOPR
+                           !        ** not NMMB in RRTM driver
+                           !===================================
+
+      INTEGER, DIMENSION(1) :: ICSDSW, ICSDLW
+
+!---  variables of instantaneous calculated toa/sfc radiation fluxes
+!      ** IM=1 for the dimension
+!
+      type (topfsw_type), dimension(1), intent(out) :: topfsw
+      type (sfcfsw_type), dimension(1), intent(out) :: sfcfsw
+
+      type (topflw_type), dimension(1), intent(out) :: topflw
+      type (sfcflw_type), dimension(1), intent(out) :: sfcflw
+
+
 !
       REAL*8,DIMENSION(LM) :: CLDCOV_V,PRSL,PRSLK,GT,GQ, VVEL,F_ICEC,     &
                                F_RAINC,R_RIME,TAUCLOUDS,CLDF
 
       REAL*8,DIMENSION(LM+1) :: PRSI , RSGM
+      real (kind=kind_phys)  :: raddt, fdaer
+
 !
       REAL*8,DIMENSION(JTS:JTE) :: COSLAT_R, SINLAT_R
 !
@@ -446,7 +477,7 @@
 ! 
 !SELECT OPTIONS IN GRRAD
 !
-       NP3D=5         ! 3: ferrier's microphysics cloud scheme (only stratiform cloud) (set iflagliq>0 in radsw_param.f and radlw_param.f)
+       NP3D=3         ! 3: ferrier's microphysics cloud scheme (only stratiform cloud) (set iflagliq>0 in radsw_param.f and radlw_param.f)
                       ! 4: zhao/carr/sundqvist microphysics cloud (not in use for NMMB)
                       ! NEW OPTIONS FOR NMMB
                       ! 5: NAM stratiform + convective cloud optical depth and fraction (set iflagliq=0 in radsw_param.f and radlw_param.f)
@@ -456,8 +487,8 @@
                       ! 1: use observed co2 annual mean value only
                       ! 2: use obs co2 monthly data with 2-d variation
        ICWP=1         ! control flag for cloud generation schemes
-                      ! 0: use diagnostic cloud scheme
-                      ! 1: use prognostic cloud scheme (use with NMMB for NP3D=3,5)  
+                      ! 0: use diagnostic cloud scheme (use with NMMB for NP3D=5)(GFDL type)
+                      ! 1: use prognostic cloud scheme (use with NMMB for NP3D=3)  
        IALB=1         ! control flag for surface albedo schemes
                       ! 0: climatology, based on surface veg types   !ONLY THIS ONE WORKS
                       ! 1: modis retrieval based surface albedo scheme
@@ -501,6 +532,38 @@
                       ! 1 sw: max-random overlap clouds
        IOVR_LW=1      ! 0 lw: random overlap clouds
                       ! 1 lw: max-random overlap clouds
+       ICTM=1         ! ictm=0 => use data at initial cond time, if not
+                      !     available, use latest, no extrapolation.
+                      ! ictm=1 => use data at the forecast time, if not
+                      !     available, use latest and extrapolation.
+                      ! ictm=yyyy0 => use yyyy data for the forecast time,
+                      !     no further data extrapolation.
+                      ! ictm=yyyy1 = > use yyyy data for the fcst.
+                      !     if needed, do extrapolation to match the fcst time.
+                      ! ictm=-1 => use user provided external data for
+                      !     the fcst time, no extrapolation.
+                      ! ictm=-2 => same as ictm=0, but add seasonal cycle
+                      !     from climatology. no extrapolation.
+
+                      ! isubcsw/isubclw 
+                      !    sub-column cloud approx control flag (sw/lw rad)
+       ISUBCSW=0      ! 0: with out sub-column cloud approximation
+                      ! 1: mcica sub-col approx. prescribed random seed
+                      ! 2: mcica sub-col approx. provided random seed
+       ISUBCLW=ISUBCSW
+
+       ICSDSW(:)=0    ! auxiliary special cloud related array for SW
+                      ! *** not used in this version of code ***
+                      ! can be any value at this moment
+       ICSDLW(:)=0    ! auxiliary special cloud related array for LW
+                      ! *** not used in this version of code ***
+                      ! can be any value at this moment
+
+       norad_precip=.FALSE.  ! flag for precip in radiation
+                             ! .true. snow/rain has no impact on radiation
+       crick_proof=.FALSE.   ! flag for eliminating CRICK
+       ccnorm=.TRUE.         ! flag for incloud condensate mixing ratio
+
 !
 !ADDITIONAL OPTIONS FOR NMMB
 !
@@ -512,6 +575,13 @@
        DTSW =FLOAT(NRADS*DT_INT)         ! [s]
        LSSWR=MOD(NTIMESTEP,NRADS)==0
        LSLWR=MOD(NTIMESTEP,NRADL)==0
+
+!
+! --- TEMPORARY SETTING FOR THE "RADDT & FDAER" FOR THE GOCART VALUE
+!     NEED TO MODIFY THIS SECTION WHEN USE THE DATA
+!
+       raddt = min(dtsw, dtlw)
+       FDAER = 0.
 !
 !INIT RADIATION
 !
@@ -519,9 +589,20 @@
         RSGM(L)=SGM(L)
        ENDDO
 
-       CALL n_RADINIT (RSGM, LM, IFLIP, NP3D, ISOL, ICO2,     &
-                      ICWP, IALB, IEMS, IAER, JDAT, MYPE,   &
-                      FHSWR, FHLWR, FHAER )
+      ! CALL n_RADINIT (RSGM, LM, IFLIP, NP3D, ISOL, ICO2,     &
+      !                ICWP, IALB, IEMS, IAER, JDAT, MYPE,     &
+                    ! =================================
+                    !  THE FOLLOWINGS ARE DUMMY INPUTS
+                    ! =================================
+      !                FHSWR, FHLWR, FHAER )
+
+      !---- for forcast purpose IDAT=JDAT
+      !
+      ! CALL RADINIT (RSGM, LM, IFLIP, IDAT, JDAT, ICTM, ISOL, ICO2,   &
+       CALL RADINIT (RSGM, LM, IFLIP, JDAT, JDAT, ICTM, ISOL, ICO2,   &
+                     IAER, IALB, IEMS, ICWP, NP3D, ISUBCSW, ISUBCLW,  &
+                     IOVR_SW, IOVR_LW, MYPE, raddt, fdaer )
+
 !
        LONR             =ITE-ITS+1
        LATS_NODE_R      =JTE-JTS+1
@@ -529,39 +610,42 @@
        IPT_LATS_NODE_R  =1
 !
        DO J=JTS,JTE
-       GLOBAL_LATS_R(J)= J-JTS+1
-       LONSPERLAR(J)   = ITE-ITS+1
-       SINLAT_R(J)     = SIN(GLAT( (ITS+ITE)/2 ,J))
-       COSLAT_R(J)     = SQRT( 1.d0 - SINLAT_R(J)*SINLAT_R(J) )
-       DO I=ITS,ITE
-       XLON(I,J)      = GLON(I,J)
-       SFCALBEDO(I,J) = ALBEDO(I,J)
-       ENDDO
+          GLOBAL_LATS_R(J)= J-JTS+1
+          LONSPERLAR(J)   = ITE-ITS+1
+          SINLAT_R(J)     = SIN(GLAT( (ITS+ITE)/2 ,J))
+          COSLAT_R(J)     = SQRT( 1.d0 - SINLAT_R(J)*SINLAT_R(J) )
+          DO I=ITS,ITE
+             XLON(I,J)      = GLON(I,J)
+             SFCALBEDO(I,J) = ALBEDO(I,J)
+          ENDDO
        ENDDO
 !
-       CALL n_ASTRONOMY                                                   &
+       CALL ASTRONOMY_NMMB                                              &
 !  --- inputs:
            ( LONSPERLAR, GLOBAL_LATS_R, SINLAT_R, COSLAT_R, XLON,       &
              FHSWR, JDAT, NRADS,                                        &
-             LONR, LATS_NODE_R, LATR, IPT_LATS_NODE_R, LSSWR,           &
+             LONR, LATS_NODE_R, LATR, IPT_LATS_NODE_R, LSSWR, MYPE,     &
 !  --- outputs:
              SOLCON, SLAG, SDEC, CDEC, COSZEN, COSZDG                   &
             )
 ! ----
 !
 !OZONE CLIMATOLOGY
-!from gfs_physics_initialize_mod.f
+!from gfs_physics_initialize_mod.f (module_PHYSICS_GRID_COMP.F90)
 !
+! there is no header in global_o3clim.txt file
+
         IF (NTOZ .LE. 0) THEN      ! DIAGNOSTIC OZONE, ONLY THIS ONE WORKS
-        LEVOZC  = 17
-        LATSOZC = 18
-        BLATC   = -85.0
-        TIMEOZC = 12
-        LATSOZP   = 2
-        LEVOZP    = 1
-        TIMEOZ    = 1
-        PL_COEFF  = 0
+           LEVOZC  = 17
+           LATSOZC = 18
+           BLATC   = -85.0
+           TIMEOZC = 12            !!!  this is not in header
+           LATSOZP   = 2
+           LEVOZP    = 1
+           TIMEOZ    = 1
+           PL_COEFF  = 0
         ENDIF
+
         DPHIOZC = -(BLATC+BLATC)/(LATSOZC-1)
 !
 !from gloobr.f
@@ -947,6 +1031,9 @@
 !
        CZMEAN(I,J)=COSZEN(I,J)
        XLAT(1)=GLAT(I,J)
+!rv
+       xlat(1)=min(max(XLAT(1),1.5707d0),-1.5707d0)
+!rv
        TSEA(1)=TSKIN(I,J)
        TISFC(1)=TSKIN(I,J)                  ! change later if necessary
        ZORL(1)=Z0(I,J)*100.d0
@@ -1045,26 +1132,32 @@
       ENDDO
 !
 !---
-      CALL n_GRRAD                                                             &
+      CALL GRRAD_NMMB                                                        &
 !  ---  INPUTS:
            ( PRSI,PRSL,PRSLK,GT,GQ,GR1,VVEL,SLMSK,                           &
              XLON(I,J),XLAT,TSEA,SNWDPH,SNCOVR,SNOALB,ZORL,HPRIME_V,         &
              ALVSF1,ALNSF1,ALVWF1,ALNWF1,FACSF1,FACWF1,FICE,TISFC,           &
              SOLCON,COSZEN(I,J),COSZDG(I,J),K1OZ,K2OZ,FACOZ,                 &
              CV,CVT,CVB,IOVR_SW, IOVR_LW, F_ICEC, F_RAINC, R_RIME, FLGMIN_L, &
+             ICSDSW, ICSDLW,                                                 &
              NP3D,NTCW,NCLDX,NTOZ,NTRAC,NFXR,                                &
-             DTLW,DTSW,LSSWR,LSLWR,LSSAV,LDIAG3D,SASHAL,                     &
+        !     DTLW,DTSW,LSSWR,LSLWR,LSSAV,LDIAG3D,SASHAL,                     &
+             DTLW,DTSW,LSSWR,LSLWR,LSSAV,SASHAL,                             &
+             norad_precip, crick_proof, ccnorm,                              &
              1, 1, LM, IFLIP, MYPE, LPRNT,                                   &
+             ipt, kdt,                                                       &
 !  ---  ADDITIONAL INPUTS:
-             LATSOZC,LEVOZC,BLATC,DPHIOZC,TIMEOZC,                           &
+        !     LATSOZC,LEVOZC,BLATC,DPHIOZC,TIMEOZC,                           &
              TAUCLOUDS,CLDF,ALBTYPE,                                         &
 !  ---  OUTPUTS:
-             SWH,SFCNSW,SFCDSW,SFALB,                                        &
-             HLW,SFCDLW,TSFLW,                                               &
+        !     SWH,SFCNSW,SFCDSW,SFALB,                                        &
+        !     HLW,SFCDLW,TSFLW,                                               &
+             SWH,TOPFSW,SFCFSW,SFALB,                                        &
+             HLW,TOPFLW,SFCFLW,TSFLW,SEMIS,CLDCOV_V,                         &
 !  ---  ADDITIONAL OUTPUT
-             TOAUSW,TOADSW,SFCCDSW,TOAULW,SFCUSW,                    & 
+        !     TOAUSW,TOADSW,SFCCDSW,TOAULW,SFCUSW,                    &
 !  ---  INPUT/OUTPUT:
-             FLUXR_V,CLDCOV_V                                        &
+             FLUXR_V                                                         &
            )
 !
       DO L=1,LM
@@ -1072,12 +1165,30 @@
         RSWTT(I,J,L)=SWH(L)
       ENDDO
 !
-      RLWIN(I,J)=SFCDLW(1)
-      RSWIN(I,J)=SFCDSW(1)
-      RSWINC(I,J)=SFCCDSW(1) 
+
+!=========================================================
+! modify this section by using TOPFSW,SFCFSW,TOPFLW,SFCFLW
+! instead of TOAUSW,TOADSW,SFCCDSW,TOAULW,SFCUSW
+!=========================================================
+
+      ! RLWIN(I,J)=SFCDLW(1)
+      ! RSWIN(I,J)=SFCDSW(1)
+      ! RSWINC(I,J)=SFCCDSW(1) 
+      ! RSWOUT(I,J)=RSWIN(I,J)*SFALB(1)
+      ! RLWTOA(I,J)=TOAULW(1)
+      ! RSWTOA(I,J)=TOAUSW(1)
+
+      RLWIN(I,J)=SFCFLW(1)%dnfxc
+      RSWIN(I,J)=SFCFSW(1)%dnfxc
+      RSWINC(I,J)=SFCFSW(1)%dnfx0
+
       RSWOUT(I,J)=RSWIN(I,J)*SFALB(1)
-      RLWTOA(I,J)=TOAULW(1)
-      RSWTOA(I,J)=TOAUSW(1)
+
+      RLWTOA(I,J)=TOPFLW(1)%upfxc
+      RSWTOA(I,J)=TOPFSW(1)%upfxc
+
+!================== END OF modification =================
+
 !
       ENDDO     ! --- END I LOOP for grrad
       ENDDO     ! --- END J LOOP for grrad

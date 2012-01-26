@@ -24,23 +24,25 @@ MODULES_NMM_SMP  = module_BL_MYJPBL.o \
                    module_RA_RRTM.o \
                    module_SF_JSFC.o
 
-MODULES_NMM_RRTM = n_machine.o \
-                   n_radiation_astronomy.o \
-                   n_radiation_gases.o \
-                   n_radiation_surface.o \
-                   n_module_bfmicrophysics.o \
-                   n_radiation_clouds.o \
-                   n_radiation_aerosols.o \
-                   n_radlw_param.o \
-                   n_radlw_main.o \
-                   n_radlw_datatb.o \
-                   n_grrad.o \
-                   n_radsw_param.o \
-                   n_radsw_main.o \
-                   n_radsw_datatb.o \
-                   physcons_v.o \
-                   funcphys_v.o \
-                   n_iounitdef.o
+MODULES_NMM_RRTM = machine.o \
+                   grrad_nmmb.o              \
+                   radiation_astronomy_nmmb.o\
+                   radiation_aerosols.o \
+                   ozphys.o \
+                   ozinterp.o \
+                   radiation_gases.o \
+                   radiation_surface.o \
+                   module_bfmicrophysics.o \
+                   radiation_clouds.o \
+                   radlw_param.o \
+                   radlw_main.o \
+                   radlw_datatb.o \
+                   radsw_param.o \
+                   radsw_main.o \
+                   radsw_datatb.o \
+                   physcons.o \
+                   funcphys.o \
+                   iounitdef.o
 
 MODULES_GFS =                                \
 	           machine.o                 \

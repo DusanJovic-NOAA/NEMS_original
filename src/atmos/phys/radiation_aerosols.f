@@ -15,7 +15,7 @@
 !                                                                      !
 !      'setaer'     -- mapping aeros profile, compute aeros opticals   !
 !         inputs:                                                      !
-!           (xlon,xlat,prsi,prsl,tlay,qlay,rhlay,                      !
+!           (xlon,xlat,prsi,prsl,tlay,qlay,rhlay,slmsk,                !
 !            prslk,oz,                                                 !
 !            IMAX,NLAY,NLP1,iflip,lsswr,lslwr)                         !
 !         outputs:                                                     !
@@ -64,7 +64,19 @@
 !     may     2010  ---  sarah lu      add geos4-gocart climo          !
 !     jul     2010  --   s. moorthi - merged NEMS version with new GFS !
 !                        version                                       !
-!                                                                      !
+!     oct 23, 2010  ---  Hsin-mu lin   modified subr setclimaer to     !
+!                   interpolate the 5 degree aerosol data to small     !
+!                   domain based on the nearby 4 points instead of     !
+!                   previous nearby assignment by using the 5 degree   !
+!                   data. this process will eliminate the dsw jagged   !
+!                   edges in the east conus where aerosol effect are   !
+!                   lagre.                                             !
+!     dec     2010  ---  y.-t. hou     modified and optimized bi-linear!
+!                   horizontal interpolation in subr setclimaer. added !
+!                   safe guard measures in lat/lon indexing and added  !
+!                   sea/land mask variable slmsk as input field to     !
+!                   help aerosol profile selection.                    !
+!                   help aerosol profile selection.                    !
 !                                                                      !
 !   references for opac climatological aerosols:                       !
 !     hou et al. 2002  (ncep office note 441)                          !
@@ -261,7 +273,7 @@
 !      kprfg (    IMXAE*JMXAE)   - aeros profile index
 !      idxcg (NXC*IMXAE*JMXAE)   - aeros component index
 !      cmixg (NXC*IMXAE*JMXAE)   - aeros component mixing ratio
-!      denng (NXC*IMXAE*JMXAE)   - aerosols number density
+!      denng ( 2 *IMXAE*JMXAE)   - aerosols number density
 
       real (kind=kind_phys), allocatable, save, dimension(:,:)   ::     &
      &       extrhi, scarhi, ssarhi, asyrhi
@@ -521,7 +533,7 @@
 !     kprfg   - aerosols profile index                IMXAE*JMXAE      !
 !     idxcg   - aerosols component index              NXC*IMXAE*JMXAE  !
 !     cmixg   - aerosols component mixing ratio       NXC*IMXAE*JMXAE  !
-!     denng   - aerosols number density               NXC*IMXAE*JMXAE  !
+!     denng   - aerosols number density                2 *IMXAE*JMXAE  !
 !     * geos-gocart climo (from sfc to toa) *                          !
 !     psclmg  - pressure in cb                      IMXG*JMXG*KMXG     !
 !     dmclmg  - aerosol dry mass in g/m3            IMXG*JMXG*KMXG*NMXG!
@@ -811,7 +823,7 @@
 !...................................
 
 !  ---  inputs:
-     &     ( xlon,xlat,prsi,prsl,tlay,qlay,rhlay,                       &
+     &     ( xlon,xlat,prsi,prsl,tlay,qlay,rhlay,slmsk,                 &
      &       prslk, ozlay,                                              &
      &       IMAX,NLAY,NLP1, iflip, lsswr,lslwr,                        &
 !  ---  outputs:
@@ -832,6 +844,7 @@
 !     tlay    - layer mean temperature             k    IMAX*NLAY      !
 !     qlay    - layer mean specific humidity       g/g  IMAX*NLAY      !
 !     rhlay   - layer mean relative humidity            IMAX*NLAY      !
+!     slmsk   - sea/land mask (sea:0,land:1,sea-ice:2)       IMAX      !
 !     prslk   - pressure                           cb   IMAX*NLAY      !
 !     ozlay   - layer tracer mass mixing ratio   g/g   IMAX*NLAY*NTRAC !
 !     IMAX    - horizontal dimension of arrays                  1      !
@@ -886,7 +899,8 @@
 
       real (kind=kind_phys), dimension(:,:), intent(in) :: prsi, prsl,  &
      &       tlay, qlay, rhlay
-      real (kind=kind_phys), dimension(:),   intent(in) :: xlon, xlat
+      real (kind=kind_phys), dimension(:),   intent(in) :: xlon, xlat,  &
+     &       slmsk
       logical, intent(in) :: lsswr, lslwr
 
 !     Added for gocart coupling (Sarah Lu)
@@ -994,7 +1008,7 @@
 
         call setclimaer                                                 &
 !  ---  inputs:
-     &     ( alon,alat,prsi,rhlay,dz,hz,NBDSWLW,                        &
+     &     ( alon,alat,prsi,rhlay,dz,hz,slmsk,NBDSWLW,                  &
      &       IMAX,NLAY,NLP1, iflip, lsswr,lslwr,                        &
 !  ---  outputs:
      &       aerosw,aerolw                                              &
@@ -1376,7 +1390,7 @@
 !     kprfg   - aerosols profile index                IMXAE*JMXAE      !
 !     idxcg   - aerosols component index              NXC*IMXAE*JMXAE  !
 !     cmixg   - aerosols component mixing ratio       NXC*IMXAE*JMXAE  !
-!     denng   - aerosols number density               NXC*IMXAE*JMXAE  !
+!     denng   - aerosols number density                2 *IMXAE*JMXAE  !
 !                                                                      !
 !  major local variables:                                              !
 !   for handling spectral band structures                              !
@@ -1449,7 +1463,7 @@
       if ( .not. allocated(kprfg) ) then
         allocate ( kprfg (    IMXAE,JMXAE) )
         allocate ( cmixg (NXC,IMXAE,JMXAE) )
-        allocate ( denng (NXC,IMXAE,JMXAE) )
+        allocate ( denng ( 2 ,IMXAE,JMXAE) )
         allocate ( idxcg (NXC,IMXAE,JMXAE) )
       endif
 
@@ -1506,6 +1520,14 @@
             else
               denng(2,i,j) = f_zero
             endif
+
+              !===========================================================
+              ! The following steps serve the purpose
+              !    1. to isloate the cmix(NXC) being taken as denng(2,i,j)
+              !       when kprf>=6
+              !    2. assign reminder to cmixg(NXC) as paired idxcg(NXC)
+              !       when kprf>=6 and conserve sum of all cmix to "1"
+              !===========================================================
 
             tem = f_one
             do k = 1, NXC-1
@@ -2020,7 +2042,7 @@
 !...................................
 
 !  ---  inputs:
-     &     ( alon,alat,prsi,rhlay,dz,hz,NBDSWLW,                        &
+     &     ( alon,alat,prsi,rhlay,dz,hz,slmsk,NBDSWLW,                  &
      &       IMAX,NLAY,NLP1, iflip, lsswr,lslwr,                        &
 !  ---  outputs:
      &       aerosw,aerolw                                              &
@@ -2039,6 +2061,7 @@
 !     rhlay   - layer mean relative humidity            IMAX*NLAY      !
 !     dz      - layer thickness                    m    IMAX*NLAY      !
 !     hz      - level high                         m    IMAX*NLP1      !
+!     slmsk   - sea/land mask (sea:0,land:1,sea-ice:2)       IMAX      !
 !     NBDSWLW - total number of sw+ir bands for aeros opt prop  1      !
 !     IMAX    - horizontal dimension of arrays                  1      !
 !     NLAY,NLP1-vertical dimensions of arrays                   1      !
@@ -2064,9 +2087,13 @@
 !                                                                      !
 !  module variable: (set by subroutine clim_aerinit)                   !
 !     kprfg   - aerosols profile index                IMXAE*JMXAE      !
+!               1:ant  2:arc  3:cnt  4:mar  5:des  6:marme 7:cntme     !
 !     idxcg   - aerosols component index              NXC*IMXAE*JMXAE  !
+!               1:inso    2:soot    3:minm    4:miam    5:micm         !
+!               6:mitr    7:waso    8:ssam    9:sscm   10:suso         !
 !     cmixg   - aerosols component mixing ratio       NXC*IMXAE*JMXAE  !
-!     denng   - aerosols number density               NXC*IMXAE*JMXAE  !
+!     denng   - aerosols number density                2 *IMXAE*JMXAE  !
+!               1:for domain-1   2:domain-2 (prof marme/cntme only)    !
 !                                                                      !
 !  usage:    call setclimaer                                           !
 !                                                                      !
@@ -2082,15 +2109,16 @@
 
       real (kind=kind_phys), dimension(:,:), intent(in) :: prsi,        &
      &       rhlay, dz, hz
-      real (kind=kind_phys), dimension(:),   intent(in) :: alon, alat
+      real (kind=kind_phys), dimension(:),   intent(in) :: alon, alat,  &
+     &       slmsk
 
 !  ---  outputs:
       real (kind=kind_phys), dimension(:,:,:,:), intent(out) ::         &
      &       aerosw, aerolw
 
 !  ---  locals:
-      real (kind=kind_phys), dimension(NXC)  :: cmix, denn
-      integer,               dimension(NXC)  :: idxc
+      real (kind=kind_phys), dimension(NCM) :: cmix
+      real (kind=kind_phys), dimension(  2) :: denn
 
       real (kind=kind_phys), dimension(NLAY) :: delz, rh1, dz1
       integer,               dimension(NLAY) :: idmaer
@@ -2098,54 +2126,188 @@
       real (kind=kind_phys), dimension(NLAY,NBDSWLW):: tauae,ssaae,asyae
 !test real (kind=kind_phys), dimension(IMAX,NLAY) :: aersav
 
-      real (kind=kind_phys) :: tmp1, tmp2
+      real (kind=kind_phys) :: tmp1, tmp2, rps, dtmp, h1
+      real (kind=kind_phys) :: wi, wj, w11, w12, w21, w22
 
-      integer               :: i, i1, i2, j1, j2, k, m, m1, kp
+      integer :: i, ii, i1, i2, i3,  j1, j2, j3,  k, m, m1,             &
+     &           kp, kpa, kpi, kpj
 
 !  ---  conversion constants
       real (kind=kind_phys), parameter :: dltg = 360.0 / float(IMXAE)
       real (kind=kind_phys), parameter :: hdlt = 0.5 * dltg
+      real (kind=kind_phys), parameter :: rdlt = 1.0 / dltg
 
 !
 !===>  ...  begin here
 !
-!  ---  map grid in longitude direction
+!  ---  map aerosol data to model grids
+
+      i1 = 1
+      i2 = 2
+      j1 = 1
+      j2 = 2
 
       lab_do_IMAX : do i = 1, IMAX
-        i2 = 1
-        j2 = 1
 
-        lab_do_IMXAE : do i1 = 1, IMXAE
-          tmp1 = dltg * (i1 - 1) + hdlt
+!  ---  map grid in longitude dir, lon from 0 to 355 deg resolution
 
-          if (abs(alon(i)-tmp1) <= hdlt) then
-            i2 = i1
-            exit lab_do_IMXAE
-          endif
+        i3 = i1
+        lab_do_IMXAE : do while ( i3 <= IMXAE )
+
+           tmp1 = dltg * (i3 - 1)
+           dtmp = alon(i) - tmp1
+
+           if ( dtmp > dltg ) then
+              i3 = i3 + 1
+              if ( i3 > IMXAE ) then
+                 print *,' ERROR! In setclimaer alon>360. ipt =',i,
+     &                 ', dltg,alon,tlon,dlon =',dltg,alon(i),tmp1,dtmp
+                 stop
+              endif
+           elseif ( dtmp >= f_zero ) then
+              i1 = i3
+              i2 = mod(i3,IMXAE) + 1     !-- 355-360 (or 0) are counted
+              wi = dtmp * rdlt
+              if ( dtmp <= hdlt ) then
+                 kpi = i3
+              else
+                 kpi = i2
+              endif
+              exit lab_do_IMXAE
+           else
+              i3 = i3 - 1
+              if ( i3 < 1 ) then
+                 print *,' ERROR! In setclimaer alon< 0. ipt =',i,
+     &                ', dltg,alon,tlon,dlon =',dltg,alon(i),tmp1,dtmp
+                 stop
+              endif
+           endif
+
         enddo  lab_do_IMXAE
 
-!  ---  map grid in latitude direction
+!  ---  map grid in latitude dir, lat from 90n to 90s in 5 deg resolution
 
-        lab_do_JMXAE : do j1 = 1, JMXAE
-          tmp2 = 90.0 - dltg * (j1 - 1)
+        j3 = j1
+        lab_do_JMXAE : do while ( j3 <= JMXAE )
+           tmp2 = 90.0 - dltg * (j3 - 1)
+           dtmp = tmp2 - alat(i)
 
-          if (abs(alat(i)-tmp2) <= hdlt) then
-            j2 = j1
-            exit lab_do_JMXAE
-          endif
+           if ( dtmp > dltg ) then
+              j3 = j3 + 1
+              if ( j3 >= JMXAE ) then
+                 print *,' ERROR! In setclimaer alat<-90. ipt =',i,
+     &                  ', dltg,alat,tlat,dlat =',dltg,alat(i),tmp2,dtmp
+                 stop
+              endif
+           elseif ( dtmp >= f_zero ) then
+              j1 = j3
+              j2 = j3 + 1
+              wj = dtmp * rdlt
+              if ( dtmp <= hdlt ) then
+                 kpj = j3
+              else
+                 kpj = j2
+              endif
+              exit lab_do_JMXAE
+           else
+              j3 = j3 - 1
+              if ( j3 < 1 ) then
+                 print *,' ERROR! In setclimaer alat>90. ipt =',i,
+     &                  ', dltg,alat,tlat,dlat =',dltg,alat(i),tmp2,dtmp
+                 stop
+              endif
+           endif
+
         enddo  lab_do_JMXAE
 
-        do m = 1, NXC
-          idxc(m) = idxcg(m,i2,j2)
-          cmix(m) = cmixg(m,i2,j2)
-          denn(m) = denng(m,i2,j2)
-        enddo
+!  ---  determin the type of aerosol profile (kp) and scale hight for domain 1 (h1)
+!       to be used at this grid point
 
-        kp = kprfg(i2,j2)
+        kp = kprfg(kpi,kpj)                     ! nearest typical aeros profile as default
+        kpa = max( kprfg(i1,j1),kprfg(i1,j2),kprfg(i2,j1),kprfg(i2,j2) )
+        h1 = haer(1,kp)
+        denn(2) = f_zero
+        ii = 1
+
+        if ( kp /= kpa ) then
+          if ( kpa == 6 ) then                  ! if ocean prof with mineral aeros overlay
+            ii = 2                              ! need 2 types of densities
+            if ( slmsk(i) > f_zero ) then       ! but actually a land/sea-ice point
+              kp = 7                            ! reset prof index to land
+              h1 = 0.5*(haer(1,6) + haer(1,7))  ! use a transition scale hight
+            else
+              kp = kpa
+              h1 = haer(1,6)
+            endif
+          elseif ( kpa == 7 ) then              ! if land prof with mineral aeros overlay
+            ii = 2                              ! need 2 types of densities
+            if ( slmsk(i) <= f_zero ) then      ! but actually an ocean point
+              kp = 6                            ! reset prof index to ocean
+              h1 = 0.5*(haer(1,6) + haer(1,7))  ! use a transition scale hight
+            else
+              kp = kpa
+              h1 = haer(1,7)
+            endif
+          else                                  ! lower atmos without mineral aeros overlay
+
+            !  h1 = 0.5*(haer(1,kp) + haer(1,kpa)) ! use a transition scale hight
+
+            !==============================================================
+            ! note: the determination of "h1" is very sensative
+            !       to the bi-liner interpolation
+            !       the "0.5" weighting is tested and the results
+            !       is not encouraged.
+            !       better approach or weighting value can be tested later
+            !       eg. h1 = 0.3*haer(1,kp) + 0.7*haer(1,kpa) ......
+            !==============================================================
+
+            h1 = haer(1,kpa)
+            kp = kpa
+          endif
+        endif
+
+!  ---  compute horizontal bi-linear interpolation weights
+
+        w11 = (f_one-wi) * (f_one-wj)
+        w12 = (f_one-wi) *       wj
+        w21 =        wi  * (f_one-wj)
+        w22 =        wi  * wj
+
+!  ---  do horizontal bi-linear interpolation on aerosol partical density (denn)
+
+        do m = 1, ii                            ! ii=1 for domain 1; =2 for domain 2.
+           denn(m) = w11*denng(m,i1,j1) + w12*denng(m,i1,j2)
+     &             + w21*denng(m,i2,j1) + w22*denng(m,i2,j2)
+        enddo  ! end_do_m_loop
+
+!  ---  do horizontal bi-linear interpolation on mixing ratios
+
+        cmix(:) = f_zero
+        do m = 1, NXC
+          ii = idxcg(m,i1,j1)
+          if ( ii > 0 ) then
+            cmix(ii) = cmix(ii) + w11*cmixg(m,i1,j1)
+          endif
+          ii = idxcg(m,i1,j2)
+          if ( ii > 0 ) then
+            cmix(ii) = cmix(ii) + w12*cmixg(m,i1,j2)
+          endif
+          ii = idxcg(m,i2,j1)
+          if ( ii > 0 ) then
+            cmix(ii) = cmix(ii) + w21*cmixg(m,i2,j1)
+          endif
+          ii = idxcg(m,i2,j2)
+          if ( ii > 0 ) then
+            cmix(ii) = cmix(ii) + w22*cmixg(m,i2,j2)
+          endif
+        enddo  ! end_do_m_loop
+
+!  ---  prepare to setup domain index array and effective layer thickness
+!       also convert pressure level to sigma level to follow the terrain
 
         do k = 1, NLAY
-          rh1(k) = rhlay(i,k)
-          dz1(k) = dz   (i,k)
+           rh1(k) = rhlay(i,k)
+           dz1(k) = dz   (i,k)
         enddo
 
 !  ---  compute vertical domain indices
@@ -2153,18 +2315,24 @@
         lab_if_flip : if (iflip == 1) then        ! input from sfc to toa
 
 !  ---  setup domain index array and effective layer thickness
+!       ** note: "prsref" is read in from data in n_clim_aerinit
 
-          i1 = 1
+          ii = 1
           do k = 1, NLAY
-            if (prsi(i,k+1) < prsref(i1,kp)) then
-              i1 = i1 + 1
-              if (i1 == 2 .and. prsref(2,kp) == prsref(3,kp)) then
-                i1 = 3
+            if (prsi(i,k+1) < prsref(ii,kp)) then
+              ii = ii + 1
+              if (ii == 2 .and. prsref(2,kp) == prsref(3,kp)) then
+                ii = 3
               endif
             endif
-            idmaer(k) = i1
+            idmaer(k) = ii
 
-            tmp1 = haer(i1,kp)
+            if ( ii > 1 ) then
+              tmp1 = haer(ii,kp)
+            else
+              tmp1 = h1
+            endif
+
             if (tmp1 > f_zero) then
               tmp2 = f_one / tmp1
               delz(k) = tmp1 * (exp(-hz(i,k)*tmp2)-exp(-hz(i,k+1)*tmp2))
@@ -2177,17 +2345,22 @@
 
 !  ---  setup domain index array and modified layer thickness
 
-          i1 = 1
+          ii = 1
           do k = NLAY, 1, -1
-            if (prsi(i,k) < prsref(i1,kp)) then
-              i1 = i1 + 1
-              if (i1 == 2 .and. prsref(2,kp) == prsref(3,kp)) then
-                i1 = 3
+            if (prsi(i,k) < prsref(ii,kp)) then
+              ii = ii + 1
+              if (ii == 2 .and. prsref(2,kp) == prsref(3,kp)) then
+                ii = 3
               endif
             endif
-            idmaer(k) = i1
+            idmaer(k) = ii
 
-            tmp1 = haer(i1,kp)
+            if ( ii > 1 ) then
+              tmp1 = haer(ii,kp)
+            else
+              tmp1 = h1
+            endif
+
             if (tmp1 > f_zero) then
               tmp2   = f_one / tmp1
               delz(k) = tmp1 * (exp(-hz(i,k+1)*tmp2)-exp(-hz(i,k)*tmp2))
@@ -2291,9 +2464,8 @@
 !  ref: wmo report wcp-112 (1986)                                      !
 !                                                                      !
 !  input variables:                                                    !
-!     idxc   - indices of aerosol components         -     NXC         !
-!     cmix   - mixing ratioes of aerosol components  -     NXC         !
-!     denn   - aerosol number densities              -     NXC         !
+!     cmix   - mixing ratioes of aerosol components  -     NCM         !
+!     denn   - aerosol number densities              -     2           !
 !     rh1    - relative humidity                     -     NLAY        !
 !     delz   - effective layer thickness             km    NLAY        !
 !     idmaer - aerosol domain index                  -     NLAY        !
@@ -2425,33 +2597,37 @@
             ssa1 = f_zero
             asy1 = f_zero
 
-            lab_do_icmp : do icmp = 1, NXC
-              ic = idxc(icmp)
+            lab_do_icmp : do icmp = 1, NCM    !-- Change from NXC to NCM
+
+              ic = icmp
               cm = cmix(icmp)
 
-              lab_if_ic : if (ic > NCM1) then
-                ic1 = ic - NCM1
+              lab_if_cm : if ( cm > f_zero ) then
 
-                ex00 = extrhd(ih1,ic1,ib)                               &
+                lab_if_ic : if ( ic <= NCM1 ) then        ! component without rh dep
+                  ext1 = ext1 + cm * extrhi(ic,ib)
+                  sca1 = sca1 + cm * scarhi(ic,ib)
+                  ssa1 = ssa1 + cm * ssarhi(ic,ib) * extrhi(ic,ib)
+                  asy1 = asy1 + cm * asyrhi(ic,ib) * scarhi(ic,ib)
+                else  lab_if_ic                           ! component with rh dep
+                  ic1 = ic - NCM1
+
+                  ex00 = extrhd(ih1,ic1,ib)                             &
      &               + rdrh * (extrhd(ih2,ic1,ib) - extrhd(ih1,ic1,ib))
-                sc00 = scarhd(ih1,ic1,ib)                               &
+                  sc00 = scarhd(ih1,ic1,ib)                             &
      &               + rdrh * (scarhd(ih2,ic1,ib) - scarhd(ih1,ic1,ib))
-                ss00 = ssarhd(ih1,ic1,ib)                               &
+                  ss00 = ssarhd(ih1,ic1,ib)                             &
      &               + rdrh * (ssarhd(ih2,ic1,ib) - ssarhd(ih1,ic1,ib))
-                as00 = asyrhd(ih1,ic1,ib)                               &
+                  as00 = asyrhd(ih1,ic1,ib)                             &
      &               + rdrh * (asyrhd(ih2,ic1,ib) - asyrhd(ih1,ic1,ib))
 
-                ext1 = ext1 + cm * ex00
-                sca1 = sca1 + cm * sc00
-                ssa1 = ssa1 + cm * ss00 * ex00
-                asy1 = asy1 + cm * as00 * sc00
-              else if (ic > 0) then     lab_if_ic
-                ext1 = ext1 + cm * extrhi(ic,ib)
-                sca1 = sca1 + cm * scarhi(ic,ib)
-                ssa1 = ssa1 + cm * ssarhi(ic,ib) * extrhi(ic,ib)
-                asy1 = asy1 + cm * asyrhi(ic,ib) * scarhi(ic,ib)
-              endif  lab_if_ic
+                  ext1 = ext1 + cm * ex00
+                  sca1 = sca1 + cm * sc00
+                  ssa1 = ssa1 + cm * ss00 * ex00
+                  asy1 = asy1 + cm * as00 * sc00
+                endif  lab_if_ic
 
+              endif  lab_if_cm
             enddo  lab_do_icmp
 
             tauae(kk,ib) = ext1 * denn(1) * delz(kk)

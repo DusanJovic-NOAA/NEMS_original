@@ -9,7 +9,7 @@
 !                                                                      !
 !      'solinit'    -- read in solar constant                          !
 !         input:                                                       !
-!           ( ISOL, iyear, me )                                        !
+!           ( ISOL, iyear, iydat, me )                                 !
 !         output:                                                      !
 !           ( none )                                                   !
 !                                                                      !
@@ -34,6 +34,8 @@
 !     dec-15-2003  ---  yu-tai hou      combined compjd and fcstim and !
 !                       rewrite in fortran 90 compatable form          !
 !     feb-15-2006  ---  yu-tai hou      add 11-yr solar constant cycle !
+!     mar-19-2009  ---  yu-tai hou      modified solinit for climate   !
+!                       hindcast situation.                            !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -42,12 +44,12 @@
 
 
 !========================================!
-      module module_n_radiation_astronomy  !
+      module module_nmmb_radiation_astronomy  !
 !........................................!
 !
-      use n_machine,                 only : kind_phys
-      use n_physcons,                only : con_solr, con_pi
-      use module_n_iounitdef,        only : NIRADSF
+      use machine,                 only : kind_phys
+      use physcons,                only : con_solr, con_pi
+      use module_iounitdef,        only : NIRADSF
 !
       implicit   none
 !
@@ -61,7 +63,7 @@
 !  ---  module variables:
       real (kind=kind_phys), public    :: solc0
 
-      public  n_solinit, n_astronomy
+      public  solinit_nmmb, astronomy_nmmb
 
 
 ! =================
@@ -69,11 +71,11 @@
 ! =================
 
 !-----------------------------------
-      subroutine n_solinit                                                &
+      subroutine solinit_nmmb                                           &
 !...................................
 
 !  ---  inputs:
-     &     ( ISOL, iyear, me )
+     &     ( ISOL, iyear, iydat, me )
 !  ---  outputs: ( none )
 
 !  ===================================================================  !
@@ -83,8 +85,11 @@
 !  inputs:                                                              !
 !     ISOL    - =0: use fixed solar constant in "physcon"               !
 !               =1: use 11-year cycle solar constant from table         !
-!     iyear   - year of the recorded data             1                 !
-!     me      - print message control flag            1                 !
+!     iyear   - year of the requested data (for ISOL=1 only)            !
+!     iydat   - usually =iyear. if not, it is for hindcast mode, and it !
+!               is usually the init cond time and serves as the upper   !
+!               limit of data can be used.                              !
+!     me      - print message control flag                              !
 !                                                                       !
 !  outputs:  (to module variable)                                       !
 !     ( none )                                                          !
@@ -101,7 +106,7 @@
       implicit none
 
 !  ---  input:
-      integer,  intent(in) :: ISOL, iyear, me
+      integer,  intent(in) :: ISOL, iyear, iydat, me
 
 !  ---  output: ( none )
 
@@ -125,7 +130,7 @@
         return
       endif
 
-!  --- ... check to see if solar constant data file existed
+!  --- ... check to see if the solar constant data file existed
 
       inquire (file=cfile0, exist=file_exist)
       if ( .not. file_exist ) then
@@ -147,6 +152,41 @@
         read (NIRADSF, 24) iyr1, iyr2, smean, cline
   24    format(i4,2x,i4,f8.2,a60)
 
+!  --- ...  check if there is a upper year limit put on the data table
+
+        if ( iyear /= iydat ) then
+          if ( iydat-iyr1 < 11 ) then    ! need data range at least 11 years
+                                         ! to perform 11-year cycle approx
+            if ( me == 0 ) then
+              print *,' - Using varying solar constant with 11-year',   &
+     &                ' cycle'
+              print *,'  *** the requested year',iyear,' and upper ',   &
+     &                'limit',iydat,' do not fit the range of data ',   &
+     &                'table of iyr1, iyr2 =',iyr1,iyr2
+              print *,'      USE FIXED SOLAR CONSTANT=',con_solr
+            endif
+
+            solc0 = con_solr
+            return
+
+          elseif ( iydat < iyr2 ) then
+
+!  --- ...  because the usage limit put on the historical data table,
+!           skip those unused data records at first
+
+            i = iyr2
+            Lab_dowhile0 : do while ( i > iydat )
+!             read (NIRADSF,26) jyr, solc1
+! 26          format(i4,f8.2)
+              read (NIRADSF,*) jyr, solc1
+              i = i - 1
+            enddo Lab_dowhile0
+
+            iyr2 = iydat   ! next record will serve the upper limit
+
+          endif   ! end if_iydat_block
+        endif   ! end if_iyear_block
+
         if ( me == 0 ) then
           print *,' - Using varying solar constant with 11-year cycle'
           print *,'   Opened solar constant data file: ',cfile0
@@ -159,7 +199,8 @@
           enddo Lab_dowhile1
 
           if ( me == 0 ) then
-            print *,'   *** Year',iyear,' out of table range!'
+            print *,'   *** Year',iyear,' out of table range!',         &
+     &              iyr1, iyr2
             print *,'       Using the 11-cycle year (',iyr,' ) value.'
           endif
         elseif ( iyr > iyr2 ) then
@@ -168,10 +209,13 @@
           enddo Lab_dowhile2
 
           if ( me == 0 ) then
-            print *,'   *** Year',iyear,' out of table range!'
+            print *,'   *** Year',iyear,' out of given table range!',   &
+     &              iyr1, iyr2
             print *,'       Using the 11-cycle year (',iyr,' ) value.'
           endif
         endif
+
+!  --- ...  locate the right record year of data
 
         i = iyr2
         Lab_dowhile3 : do while ( i >= iyr1 )
@@ -198,19 +242,19 @@
 !
       return
 !...................................
-      end subroutine n_solinit
+      end subroutine solinit_nmmb
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine n_astronomy                                              &
+      subroutine astronomy_nmmb                                         &
 !...................................
 
 !  ---  inputs:
      &     ( lons_lar,glb_lats_r,sinlat,coslat,xlon,                    &
 !    &       fhswr,jdate,deltim,                                        &
      &       fhswr,jdate,nrads,                                         &
-     &       LON2,LATD,LATR,IPT_LATR, lsswr,                            &
+     &       LON2,LATD,LATR,IPT_LATR, lsswr, me,                        &
 !  ---  outputs:
      &       solcon,slag,sdec,cdec,coszen,coszdg                        &
      &      )
@@ -248,7 +292,7 @@
       implicit none
       
 !  ---  input:
-      integer,  intent(in) :: LON2, LATD, LATR, IPT_LATR, nrads
+      integer,  intent(in) :: LON2, LATD, LATR, IPT_LATR, nrads, me
       integer,  intent(in) :: lons_lar(:), glb_lats_r(:), jdate(:)
 
       logical, intent(in) :: lsswr
@@ -269,7 +313,6 @@
 
       integer :: jd, jd1, iyear, imon, iday, ihr, imin
       integer :: iw3jdn
-      integer :: me
 
 !===>  ...  begin here
 
@@ -303,10 +346,10 @@
       if (lsswr) then
 
 !  --- ...  hour of forecast time
-!!!CARLOS changed form float to dfloat
+
         solhr = mod( float(ihr), f24 )
 
-        call n_solar                                                      &
+        call solar                                                      &
 !  ---  inputs:
      &     ( jd,fjd,                                                    &
 !  ---  outputs:
@@ -315,11 +358,11 @@
 
 !       if (me == 0) print*,'in astronomy completed sr solar'
 
-        call n_coszmn                                                     &
+        call coszmn                                                     &
 !  ---  inputs:
      &     ( lons_lar,glb_lats_r,xlon,sinlat,coslat,                    &
 !    &       fhswr,deltim,solhr,sdec,cdec,slag,                         &
-     &       nrads,fhswr,solhr,sdec,cdec,slag,                                &
+     &       fhswr,nrads ,solhr,sdec,cdec,slag,                         &
      &       LON2,LATD,IPT_LATR,                                        &
 !  ---  outputs:
      &       coszen,coszdg                                              &
@@ -337,7 +380,7 @@
 
       if (me == 0) then
 
-        call n_prtime                                                     &
+        call prtime                                                     &
 !  ---  inputs:
      &     ( jd, fjd, dlt, alp, r1, slag, solcon                        &
 !  ---  outputs: ( none )
@@ -348,12 +391,12 @@
 !
       return
 !...................................
-      end subroutine n_astronomy
+      end subroutine astronomy_nmmb
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine n_solar                                                  &
+      subroutine solar                                                  &
 !...................................
 
 !  ---  inputs:
@@ -517,18 +560,18 @@
 !
       return
 !...................................
-      end subroutine n_solar
+      end subroutine solar
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine n_coszmn                                                 &
+      subroutine coszmn                                                 &
 !...................................
 
 !  ---  inputs:
      &     ( lons_lar,glb_lats_r,xlon,sinlat,coslat,                    &
 !    &       dtswav,deltim,solhr,sdec,cdec,slag,                        &
-     &       nrads,dtswav,solhr,sdec,cdec,slag,                         &
+     &       dtswav,nrads ,solhr,sdec,cdec,slag,                        &
      &       NLON2,LATD,IPT_LATR,                                       &
 !  ---  outputs:
      &       coszen,coszdg                                              &
@@ -578,7 +621,8 @@
       real (kind=kind_phys), intent(out) :: coszen(:,:), coszdg(:,:)
 
 !  ---  locals:
-      real (kind=kind_phys) :: coszn(NLON2), pid12, cns, ss, cc, rnstp, ristp
+      real (kind=kind_phys) :: coszn(NLON2), pid12, cns, ss, cc, rnstp, &
+     &       ristp
 
       integer :: istsun(NLON2), nstp, istp, nlon, nlnsp, i, it, j, lat
 
@@ -615,6 +659,7 @@
 
         do it = 1, istp
           cns = pid12 * (solhr - 12.0 + float(it-1)*rnstp) + slag
+        !  cns = pid12 * (solhr - 12.0 + float(it-1)/float(nstp)) + slag
           ss  = sinlat(lat) * sdec
           cc  = coslat(lat) * cdec
 
@@ -629,6 +674,7 @@
 
         do i = 1, NLON2
           coszdg(i,j) = coszen(i,j)*ristp
+        !  coszdg(i,j) = coszen(i,j) / float(istp)
           if (istsun(i) > 0) coszen(i,j) = coszen(i,j) / istsun(i)
         enddo
       enddo
@@ -636,12 +682,12 @@
 !
       return
 !...................................
-      end subroutine n_coszmn
+      end subroutine coszmn
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine n_prtime                                                 &
+      subroutine prtime                                                 &
 !...................................
 
 !  ---  inputs:
@@ -746,15 +792,15 @@
       eqt  = 228.55735 * slag
       eqsec= sixty * eqt
 
-!zj      print 101, iday, month(imon), iyear, ihr, xmin, jd, fjd
+      print 101, iday, month(imon), iyear, ihr, xmin, jd, fjd
  101  format('0 FORECAST DATE',9x,i3,a5,i6,' AT',i3,' HRS',f6.2,' MINS'/&
      &       '  JULIAN DAY',12x,i8,2x,'PLUS',f11.6)
 
-!zj      print 102, r1, halp, ihalp, iyy, asec
+      print 102, r1, halp, ihalp, iyy, asec
  102  format('  RADIUS VECTOR',9x,f10.7/'  RIGHT ASCENSION OF SUN',     &
      &       f12.7,' HRS, OR',i4,' HRS',i4,' MINS',f6.1,' SECS')
 
-!zj      print 103, dltd, dsig, ltd, ltm, dlts, eqt, eqsec, slag, solc
+      print 103, dltd, dsig, ltd, ltm, dlts, eqt, eqsec, slag, solc
  103  format('  DECLINATION OF THE SUN',f12.7,' DEGS, OR ',a1,i3,       &
      &       ' DEGS',i4,' MINS',f6.1,' SECS'/'  EQUATION OF TIME',6x,   &
      &       f12.7,' MINS, OR',f10.2,' SECS, OR',f9.6,' RADIANS'/       &
@@ -763,10 +809,10 @@
 !
       return
 !...................................
-      end subroutine n_prtime
+      end subroutine prtime
 !-----------------------------------
 
 !
-!...........................................!
-      end module module_n_radiation_astronomy !
-!===========================================!
+!................................................!
+      end module module_nmmb_radiation_astronomy !
+!================================================!

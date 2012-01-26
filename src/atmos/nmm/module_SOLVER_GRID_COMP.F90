@@ -8822,6 +8822,9 @@
                           ,ITS,ITE,JTS,JTE,1,LM)
           CASE ('rrtm')
 
+            CALL GPKAP    ! for ozone by using the unified RRTM from GFS
+            CALL GPVS     ! for aerosol by using the unified RRTM from GFS
+
             DO K=1,LM
               KFLIP=LM+1-K
               SFULL_FLIP(KFLIP)=SFULL(K+1)

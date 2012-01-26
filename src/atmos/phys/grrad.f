@@ -120,6 +120,16 @@
 !                    calling program. merged carlos' nmmb modification.!
 !     07-30-10    s. moorthi - corrected some errors associated with   !
 !                    unit changes                                      !
+!     12-02-10    s. moorthi/y. hou - removed the use of aerosol flags !
+!                    'iaersw' 'iaerlw' from radiations and replaced    !
+!                    them by using the runtime variable iaerflg and    !
+!                    laswflg defined in module radiation_aerosols.     !
+!                    also replaced param nspc in grrad with the use of !
+!                    max_num_gridcomp in module radiation_aerosols.    !
+!     01-03-11    y. hou     - added sea/land madk 'slmsk' to the      !
+!                    argument list of subrotine setaer call for the    !
+!                    newly modified horizontal bi-linear interpolation !
+!                    in climatological aerosols schem.                 !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -134,13 +144,16 @@
       use machine ,                 only : kind_phys
       use physcons,                 only : con_eps,  con_epsm1
       use funcphys,                 only : fpvs
-!     use resol_def,                only : psthk
 
       use module_radiation_astronomy,only : solinit
       use module_radiation_gases,   only : NF_VGAS, getgases, getozn,   &
      &                                     gasinit
       use module_radiation_aerosols,only : NF_AESW, aerinit, setaer,    &
      &                                     NF_AELW, laswflg,            &
+! --- the following 2 lines are for the newer version at this moment
+!     the iaerflg==1 is defined here (Hsin-mu Lin, 2011-04-25)
+  !   &                                     iaerflg,                     &
+  !   &                                     NSPC=>max_num_gridcomp,      &
 ! --- add nv_aod for aerosol diag (Sarah Lu)
      &                                     nv_aod
       use module_radiation_surface, only : NF_ALBD, sfcinit, setalb,    &
@@ -148,12 +161,12 @@
       use module_radiation_clouds,  only : NF_CLDS, cldinit,            &
      &                                     progcld1, progcld2, diagcld1
 
-      use module_radsw_cntr_para,   only : iaersw
+      ! use module_radsw_cntr_para,   only : iaersw
       use module_radsw_parameters,  only : topfsw_type, sfcfsw_type,    &
      &                                     profsw_type,cmpfsw_type,NBDSW
       use module_radsw_main,        only : rswinit,  swrad
 
-      use module_radlw_cntr_para,   only : iaerlw
+      ! use module_radlw_cntr_para,   only : iaerlw
       use module_radlw_parameters,  only : topflw_type, sfcflw_type,    &
      &                                     proflw_type, NBDLW
       use module_radlw_main,        only : rlwinit,  lwrad
@@ -168,11 +181,11 @@
       parameter (QMIN=1.0e-10, QME5=1.0e-7,  QME6=1.0e-7,  EPSQ=1.0e-12)
 !     parameter (QMIN=1.0e-10, QME5=1.0e-20, QME6=1.0e-20, EPSQ=1.0e-12)
 
-!     real (kind=kind_phys), parameter :: psthk = 10.0 ! sfc air press thkness
-!                                                      ! (mb) for tsflw calc.
-
 !  ---  data input control variables
       integer :: irad1st=1,   month0=0,   iyear0=0,   monthd=0
+
+!  --- temporary defined value (Hsin-mu, 2011-04-25)
+      integer :: iaerflg=1
 
 !  ---  lw surface air/ground interface temperature setting variable
       integer :: itsfc=0
@@ -387,11 +400,11 @@
       if ( month0 /= month ) then
         month0 = month
 
-        if ( iaersw==1 .or. iaerlw==1 ) then
+        ! if ( iaersw==1 .or. iaerlw==1 ) then
 
           call aerinit ( iyear, month, iaeros, me, raddt, fdaer )
 
-        endif
+        ! endif
       endif
 
 !  --- ...  call co2 and other gases initialization routine
@@ -737,13 +750,17 @@
       implicit none
  
 !  ---  constant parameter
+!       The following need to be commented out after the newer version 
+!       (Hsin-mu Lin, 2011-04-25)
+
       integer, parameter :: NSPC = 6
+
 
 !  ---  inputs: (for rank>1 arrays, horizontal dimensioned by IX)
       integer,  intent(in) :: IX,IM, LM, NTRAC,NFXR, iflip, me,         &
      &       k1oz, k2oz, iovrsw, iovrlw, np3d, ntoz, ntcw, ncld,        &
      &       ipt,  kdt
-      integer,  intent(in) :: icsdsw(IM), icsdlw(IM)
+      integer, dimension(IM), intent(in) ::  icsdsw, icsdlw
 
       logical,  intent(in) :: lsswr,  lslwr, lssav, lprnt,              &
      &                        sashal, norad_precip, crick_proof, ccnorm
@@ -792,6 +809,11 @@
 
       real (kind=kind_phys), dimension(IM) :: tsfa, cvt1, cvb1, tem1d,  &
      &       sfcemis, tsfg, tskn
+
+! --- The following 2 lines are for newer version (Hsin-mu Lin, 2011-04-25)
+
+      ! real (kind=kind_phys), dimension(IM,   NSPC+1)  :: aod
+      ! real (kind=kind_phys), dimension(IM,LM,NSPC)    :: tau_gocart
 
       real (kind=kind_phys), dimension(IM,NSPC)       :: aod
 
@@ -1012,21 +1034,7 @@
 
 !  --- ...  setup aerosols property profile for radiation
 
-      do j=1,nf_aesw
-        do nb=1,nbdsw
-          do k=1,lm
-            do i=1,im
-               faersw(i,k,nb,j) = 0.0
-               faerlw(i,k,nb,j) = 0.0
-            enddo
-          enddo
-        enddo
-      enddo
-
-      aod       (:,:)   = 0.0
-      tau_gocart(:,:,:) = 0.0
-
-      if (iaersw==1 .or. iaerlw==1) then
+      if ( iaerflg > 0 ) then
 
 !  --- ...  prslk -> tem2da (added for gocart coupling)
 
@@ -1040,31 +1048,49 @@
 
         call setaer                                                     &
 !  ---  inputs:
-     &     ( xlon,xlat,plvl,plyr,tlyr,qlyr,rhly,tem2da,oz,              &
+     &     ( xlon,xlat,plvl,plyr,tlyr,qlyr,rhly,slmsk,tem2da,oz,        &
      &       IM,LM,LP1, iflip, lsswr,lslwr,                             &
 !  ---  outputs:
      &       faersw,faerlw,tau_gocart                                   &
      &     )
 
-      endif           ! end_if_iaersw_iaerlw
+      else
 
-      if ( laswflg ) then
- 
-!  --- ...  update aod (column integrated aerosol optical depth)
-        do i = 1, IM
-          do j = 1, NSPC
-            do k = 1, LM
-              if ( j == NSPC ) then
-                aod(i,j) = aod(i,j) + faersw(i,k,nv_aod,1)
-              else 
-                aod(i,j) = aod(i,j) + tau_gocart(i,k,j)
-              endif
-            enddo  
-          enddo    
+        do j=1,nf_aesw
+          do nb=1,nbdsw
+            do k=1,lm
+              do i=1,im
+                 faersw(i,k,nb,j) = 0.0
+                 faerlw(i,k,nb,j) = 0.0
+              enddo
+            enddo
+          enddo
         enddo
 
+      endif           ! end_if_iaerflg
 
-      endif           ! end_if_iaersw_iaersw
+      ! if ( laswflg ) then
+      if ( iaerflg==2 .and. laswflg ) then
+ 
+!  --- ...  update aod (column integrated aerosol optical depth)
+
+        do i = 1, IM
+          do j = 1, NSPC+1
+            do k = 1, LM
+              if ( j <= NSPC ) then
+                aod(i,j) = aod(i,j) + tau_gocart(i,k,j)
+              else
+                aod(i,j) = aod(i,j) + faersw(i,k,nv_aod,1)
+              endif
+            enddo
+          enddo
+        enddo
+
+      else
+
+        aod(:,:) = 0.0
+
+      endif           ! end_if_laswflg
 
 !  --- ...  obtain cloud information for radiation calculations
 
@@ -1123,8 +1149,8 @@
 !    &       clouds,cldsa,mtopa,mbota                                   &
 !    &      )
 
-      print *,' in grrad : !!! need to develop progcld3 for nmmb',      &
-     &        ' temporarily using progcld2 !!!'
+ !     print *,' in grrad : !!! need to develop progcld3 for nmmb',      &
+ !    &        ' temporarily using progcld2 !!!'
           call progcld2                                                 &
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,qlyr,qstl,rhly,clw,                         &
@@ -1231,7 +1257,7 @@
 
           endif
 
-        if (lprnt) write(0,*)' htswc=',htswc(ipt,1:5)
+        ! if (lprnt) write(0,*)' htswc=',htswc(ipt,1:5)
 
           do k = 1, LM
             do i = 1, IM
@@ -1318,7 +1344,7 @@
      &     )
 
         endif
-        if (lprnt) write(0,*)' htlwc=',htlwc(ipt,1:5)
+        ! if (lprnt) write(0,*)' htlwc=',htlwc(ipt,1:5)
 
         do i = 1, IM
           semis (i) = sfcemis(i)
@@ -1343,7 +1369,8 @@
 
       if (lssav) then
 
-        if ( iaersw==1 ) then
+        ! if ( iaersw==1 ) then
+        if ( iaerflg==2 .and. laswflg ) then
           do i = 1, IM
             fluxr(i,34) = fluxr(i,34) + dtsw*aod(i,6)  ! total aod at 550nm
             fluxr(i,35) = fluxr(i,35) + dtsw*aod(i,1)  ! DU aod at 550nm
