@@ -12,8 +12,8 @@
 !
 !-----------------------------------------------------------------------
 !
-!***  This module holds the Solver Register, Init, Run, and Finalize 
-!***  routines.  They are called from the DOMAIN gridded component
+!***  This module holds the Solver component's  Register, Init, Run, 
+!***  and Finalize routines.  They are called from the DOMAIN component
 !***  (DOMAIN_INITIALIZE calls SOLVER_INITIALIZE, etc.) 
 !***  in MODULE_DOMAIN_GRID_COMP.F90.
 !
@@ -33,8 +33,9 @@
 !   2011-02     Yang   - Updated to use both the ESMF 4.0.0rp2 library,
 !                        ESMF 5 series library and the the
 !                        ESMF 3.1.0rp2 library.
-!  2011-05-12   Yang   - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
-!
+!   2011-05-12  Yang   - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!   2011-12-22  Jovic  - Collapsed Dyn and Phy components into single
+!                        Solver component.
 !-----------------------------------------------------------------------
 !
       USE ESMF_MOD
@@ -501,17 +502,17 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  In phase 1 of the Init step for Dynamics we must know whether
-!***  or not this is a global domain.  Get the configure object
-!***  from the Dynamics component and extract the value of 'global'.
+!***  We must know whether or not this is a global domain.  Get the
+!***  configure object from the Solver component and extract the
+!***  value of 'global'.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="DYN_INIT_1: Retrieve Config Object from Dynamics Component"
+      MESSAGE_CHECK="Solver_Init: Retrieve Config Object from Solver Component"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_GridCompGet(gridcomp=GRID_COMP                          &   !<--- The Dynamics gridded component
+      CALL ESMF_GridCompGet(gridcomp=GRID_COMP                          &   !<--- The Solver component
                            ,config  =CF                                 &   !<--- The configure (namelist) object
                            ,rc      =RC)
 !
@@ -520,7 +521,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="GET_CONFIG_DYN: Extract GLOBAL from Config File"
+      MESSAGE_CHECK="Solver_Init: Extract GLOBAL from Config File"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -1486,8 +1487,6 @@
 !
 !-----------------------------------------------------------------------
 !***  Insert the value of NUM_TRACERS_TOTAL into the export state.
-!***  This will tell the Dyn-Phy Coupler how many constituents
-!***  there are to transfer in the 4-D Tracers Field.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2343,7 +2342,7 @@
       LOGICAL                                      :: LPRNT=.false.,NORAD_PRECIP=.false.,CRICK_PROOF=.false., CCNORM=.false.
       LOGICAL                                      :: LSFWD,OPENED,FLIPV,CHANGE,LSSAV_CC,LGOCART=.FALSE.
       INTEGER,PARAMETER                            :: IFLIP=1,NTRAC=3            !!!!!! later ntrac read form namelist
-      INTEGER                                      :: II, JJ, ICWP,IMJM, IDATE(4)
+      INTEGER                                      :: ICWP,IMJM, IDATE(4)
       INTEGER                                      :: ISEED,IDE_GR
       INTEGER ,SAVE                                :: ID,IDAY,IMON,MIDMON,MIDM,MIDP,K1OZ,K2OZ,SEED0
       INTEGER ,DIMENSION(1)                        :: ICSDSW,ICSDLW
@@ -4402,15 +4401,12 @@
 !
           IF(.NOT.OPERATIONAL_PHYSICS)THEN
 !
-            int_state%WATER(:,:,:,P_QV)=int_state%Q(:,:,:)/(1.-int_state%Q(:,:,:))
-!
             DO K=1,LM
             KFLIP=LM+1-K
             DO J=JTS,JTE
             DO I=ITS,ITE
-         !     int_state%WATER(I,J,K,P_QV)=int_state%Q(I,J,K)/(1.-int_state%Q(I,J,K))
-         !     WC = int_state%CW(I,J,K)
-              WC = int_state%CW(I-its+1,J-jts+1,K)
+              int_state%WATER(I,J,K,P_QV)=int_state%Q(I,J,K)/(1.-int_state%Q(I,J,K))
+              WC = int_state%CW(I,J,K)
               QI = 0.
               QR = 0.
               QW = 0.
@@ -4863,7 +4859,7 @@
           btim=timef()
 !
 !-----------------------------------------------------------------------
-!***  Temporary switch between radiation schemes placed in PHY_RUN
+!***  Temporary switch between radiation schemes placed in SOLVER_RUN
 !***  rather than inside RADIATION_DRIVER (will be done later)
 !-----------------------------------------------------------------------
 !
@@ -5274,7 +5270,7 @@
 !
 !-----------------------------------------------------------------------
 !***  Temporary switch between two convection schemes (bmj & bmj_dev)
-!***  placed here in PHY_RUN
+!***  placed here in SOLVER_RUN.
 !-----------------------------------------------------------------------
           IF(int_state%CONVECTION=='bmj' .OR. &
              int_state%CONVECTION=='sas') THEN
@@ -5864,10 +5860,8 @@
 !-----------------------------------------------------------------------
 !
           j_loop: DO J=JTS,JTE
-            JJ=J-JTS+1+JHALO   ! Pointer indices (Q & CW)
 !
             i_loop: DO I=ITS,ITE
-              II=I-ITS+1+IHALO ! Pointer indices (Q & CW)
 !
               int_state%ACUTIM(I,J) = int_state%ACUTIM(I,J) + 1.     ! advance counters
               int_state%APHTIM(I,J) = int_state%APHTIM(I,J) + 1.
@@ -6010,7 +6004,7 @@
              PRSL (KFLIP)    = (PRSI(KFLIP)+PRSI(KFLIP+1))*0.5d0             ! (pressure on mid-layer) [kPa]
              PRSLK(KFLIP)    = (PRSL(KFLIP)*0.00001d0)**RoCP
 !
-             RTvR = 1. / ( R * (int_state%Q(II,JJ,L)*0.608+1.-int_state%CW(II,JJ,L) ) * int_state%T(I,J,L) )
+             RTvR = 1. / ( R * (int_state%Q(I,J,L)*0.608+1.-int_state%CW(I,J,L) ) * int_state%T(I,J,L) )
              VVEL(KFLIP)     = int_state%OMGALF(I,J,L) * PRSL(KFLIP) * RTvR
 !
              GU(KFLIP)       = (int_state%U(I,J  ,L) + int_state%U(I-1,J  ,L) +                    &
@@ -6018,17 +6012,17 @@
              GV(KFLIP)       = (int_state%V(I,J  ,L) + int_state%V(I-1,J  ,L) +                    &
                                 int_state%V(I,J-1,L) + int_state%V(I-1,J-1,L))*0.25d0
              GT(KFLIP)       = int_state%T(I,J,L)
-             GR(KFLIP)       = int_state%Q(II,JJ,L)
-             GR3(KFLIP,1)    = int_state%Q(II,JJ,L)
+             GR(KFLIP)       = int_state%Q(I,J,L)
+             GR3(KFLIP,1)    = int_state%Q(I,J,L)
            IF (NTIMESTEP == 0 ) THEN
              GR3(KFLIP,2)    = 0.0d0
              GR3(KFLIP,3)    = 0.0d0
            ELSE
-             GR3(KFLIP,2)    = int_state%O3(II,JJ,L)
-             GR3(KFLIP,3)    = int_state%CW(II,JJ,L)
+             GR3(KFLIP,2)    = int_state%O3(I,J,L)
+             GR3(KFLIP,3)    = int_state%CW(I,J,L)
            ENDIF
              GR1(1,KFLIP,1)  = GR3(KFLIP,2)
-             GR1(1,KFLIP,2)  = int_state%CW(II,JJ,L)
+             GR1(1,KFLIP,2)  = int_state%CW(I,J,L)
          ENDDO
 !---
              DLWSFC(1)       = int_state%ALWIN(I,J)
@@ -6328,9 +6322,9 @@
              int_state%DUDT(I,J,L)        = (ADU(KFLIP) - GU(KFLIP)) / DTP
              int_state%DVDT(I,J,L)        = (ADV(KFLIP) - GV(KFLIP)) / DTP
              int_state%CLDFRA(I,J,L)      = CLDCOV_V(KFLIP) 
-             int_state%Q (II,JJ,L)        = ADR(KFLIP,1)
-             int_state%O3(II,JJ,L)        = ADR(KFLIP,2)
-             int_state%CW(II,JJ,L)        = ADR(KFLIP,3)
+             int_state%Q (I,J,L)          = ADR(KFLIP,1)
+             int_state%O3(I,J,L)          = ADR(KFLIP,2)
+             int_state%CW(I,J,L)          = ADR(KFLIP,3)
          ENDDO
 !
 !-----------------------------------------------------------------------
@@ -7946,7 +7940,7 @@
 !***  Local variables
 !---------------------
 !
-      INTEGER :: I,I_HI,I_LO,IHRST,II,IRTN,J,J_HI,J_LO,JJ,JULDAY,JULYR  &
+      INTEGER :: I,I_HI,I_LO,IHRST,IRTN,J,J_HI,J_LO,JULDAY,JULYR        &
                 ,K,KFLIP,L,LPT2,N,NFCST,NRECS_SKIP_FOR_PT               &
                 ,NSOIL,NSTEPS_PER_HOUR,NTIMESTEP
 !

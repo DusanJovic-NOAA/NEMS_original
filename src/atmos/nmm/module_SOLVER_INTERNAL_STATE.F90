@@ -3,11 +3,11 @@
       MODULE MODULE_SOLVER_INTERNAL_STATE
 
 !-----------------------------------------------------------------------
-!***  This module declares the derived datatype called INTERNAL_STATE.
-!***  For now the components of this datatype will be everything needed
-!***  to advance the model integration, i.e. everything that would be
-!***  part of a restart file.  Specifically this will include those
-!***  quantities that evolve during the integration, the namelist
+!***  Declare the derived datatype called SOLVER_INTERNAL_STATE.
+!***  For now the components of this datatype will include everything 
+!***  needed to advance the model integration, i.e. everything that 
+!***  would be part of a restart file.  Specifically this will include 
+!***  those quantities that evolve during the integration, the namelist
 !***  variables, and the grid decomposition variables.
 !-----------------------------------------------------------------------
 !
@@ -188,10 +188,13 @@
                              ,INDX_O3                                   &  !<-- Location of O3 in tracer arrays
                              ,INDX_Q2                                      !<-- Location of Q2 in tracer arrays
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS           &  !<-- Storage array for "tracer" variables.
+        REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS           &  !<-- Tracers variable
                                                      ,TRACERS_SQRT      &  !<-- Sqrt of the tracer variables (for advection)
                                                      ,TRACERS_PREV      &  !<-- Values of tracer variables in prev timestep (for advection)
                                                      ,TRACERS_TEND         !<-- Tendencies of tracer variables (for advection)
+!
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: TRACERS_ARR             &  !<-- Storage array for "tracer" variables.
+                                               ,TRACERS_PREV_ARR           !<-- Storage array for "Values of tracer variables in prev timestep"
 !
 !-----------------------------------------------------------------------
 !***  Boundary conditions.
@@ -399,9 +402,11 @@
                                                  ,UPHLMAX,REFDMAX       &
                                                  ,AKHSAVG,AKMSAVG
 !
+!-----------------------------------------------------------------------
 !***  The following are 2-D arrays needed only to hold scalars.
 !***  This is done since ESMF does not permit scalar Attributes
 !***  to evolve.
+!-----------------------------------------------------------------------
 !
         REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACUTIM                &  !<-- Counter for cloud processes, used by post0 code
                                                  ,APHTIM                &  !<-- Counter for other processes, used by post0 code
@@ -439,7 +444,7 @@
         REAL(kind=KDBL),DIMENSION(:,:,:,:),POINTER   :: OZPLIN
 !
 !-----------------------------------------------------------------------
-!***  gfs microphysics additional arrays saving surface pressure,
+!***  GFS microphysics additional arrays saving surface pressure,
 !     Temperature,water vapor at previous time steps, Weiguo Wang 11-22-2010
 !-----------------------------------------------------------------------
 !
@@ -482,11 +487,8 @@
       SUBROUTINE SET_INTERNAL_STATE_SOLVER(INT_STATE,RC)
 !
 !-----------------------------------------------------------------------
-!
-!***  Carry out all allocations of internal state quantities in this
-!***  phase.  Put export variables into the export state.
-!***  No initialization is done until phase 2.
-!
+!***  Allocate the internal state quantities in the Solver component's
+!***  Init step.  
 !-----------------------------------------------------------------------
 !
       USE module_DM_PARALLEL,ONLY: IDS,IDE,JDS,JDE                      &
@@ -513,6 +515,7 @@
 !---------------------
 !
       INTEGER(kind=KINT) :: I,I_CYCLE,J,L,LNSH,LNSV,N,NV
+      INTEGER(kind=KINT) :: TRACER_SIZE_1, TRACER_SIZE
 !
       INTEGER :: LATSOZP,TIMEOZ,LEVOZP,PL_COEFF,KOZPL=28
 !
@@ -601,18 +604,16 @@
 !------------------------------------------------
 !***  Read and store the specifications for each
 !***  internal state variable listed by the user
-!***  in the Dynamics text file. 
+!***  in the Solver text file. 
 !------------------------------------------------
 !
       CALL READ_CONFIG('solver_state.txt',int_state%VARS,int_state%NUM_VARS,RC)
       IF (RC /= 0) RETURN
 !
 !-------------------------------------------------------------------
-!***  Allocate appropriate memory within the Dynamics' composite 
+!***  Allocate appropriate memory within the Solver's composite 
 !***  VARS array for all internal state variables that are 'Owned'
-!***  by Dynamics and point those variables into that memory.
-!***  In this step, all unowned variables will be pointed at NULL
-!***  for the moment.
+!***  and point those variables into that memory.
 !-------------------------------------------------------------------
 !
       NV=int_state%NUM_VARS
@@ -854,44 +855,73 @@
         END IF
       END DO
 
+!
 !-----------------------------------------------------------------------
-!***  Point Q at level 1 of the Tracers array.
+!***  Calculate the size of the storage needed of one tracer variabale (TRACER_SIZE_1)
+!***  and the size for all tracers (TRACER_SIZE). Then allocate one-dimensional
+!***  arrays that will serve as a actual storage.  The actual storage
+!***  array must be 1-D because multi-dimensional pointers are used 
+!***  to represent the actual tracer variables.  Fortran will allow
+!***  a multi-dimensional pointer to point only into a 1-D target
+!***  when remapping the memory to the pointer's dimensions.
+!-----------------------------------------------------------------------
+!
+      TRACER_SIZE_1 = (IME-IMS+1)*(JME-JMS+1)*LM
+      TRACER_SIZE = TRACER_SIZE_1*int_state%NUM_TRACERS_TOTAL 
+
+      ALLOCATE(int_state%TRACERS_ARR     (tracer_size))           ;int_state%TRACERS_ARR      = R4_IN 
+      ALLOCATE(int_state%TRACERS_PREV_ARR(tracer_size))           ;int_state%TRACERS_PREV_ARR = R4_IN 
+!
+!-----------------------------------------------------------------------
+!***  Point TRACERS as 4D array at the TRACERS_ARR (one-dimensional storage array)
+!-----------------------------------------------------------------------
+!
+      CALL FIND_VAR_INDX('TRACERS',int_state%VARS,int_state%NUM_VARS,I)
+      int_state%VARS(I)%R4D (IMS:IME,JMS:JME,1:LM,1:int_state%NUM_TRACERS_TOTAL) => int_state%TRACERS_ARR
+      int_state%TRACERS=>int_state%VARS(I)%R4D
+!
+!-----------------------------------------------------------------------
+!***  Point TRACERS_PREV as 4D array at the TRACERS_PREV_ARR (one-dimensional storage array)
+!-----------------------------------------------------------------------
+!
+      CALL FIND_VAR_INDX('TRACERS_PREV',int_state%VARS,int_state%NUM_VARS,I)
+      int_state%VARS(I)%R4D (IMS:IME,JMS:JME,1:LM,1:int_state%NUM_TRACERS_TOTAL) => int_state%TRACERS_PREV_ARR
+      int_state%TRACERS_PREV=>int_state%VARS(I)%R4D
+      
+!-----------------------------------------------------------------------
+!***  Point Q at level 1(INDX_Q) of the Tracers array.
 !-----------------------------------------------------------------------
 !
       int_state%INDX_Q=1
       CALL FIND_VAR_INDX('Q',int_state%VARS,int_state%NUM_VARS,I)
-      int_state%VARS(I)%R3D=>int_state%TRACERS(:,:,:,int_state%INDX_Q)
+      int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_Q-1)*TRACER_SIZE_1+1 : int_state%INDX_Q*TRACER_SIZE_1)
       int_state%Q=>int_state%VARS(I)%R3D
 !
 !-----------------------------------------------------------------------
-!***  Additional tracers:
+!***  Point CW (Combined cloud water array) at level 2(INDX_CW) of the Tracers array.
 !-----------------------------------------------------------------------
-!
-!--------------------------------
-!***  Combined cloud water array
-!--------------------------------
 !
       int_state%INDX_CW=2
       CALL FIND_VAR_INDX('CW',int_state%VARS,int_state%NUM_VARS,I)
-      int_state%VARS(I)%R3D=>int_state%TRACERS(:,:,:,int_state%INDX_CW)
+      int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_CW-1)*TRACER_SIZE_1+1 : int_state%INDX_CW*TRACER_SIZE_1)
       int_state%CW=>int_state%VARS(I)%R3D
 !
-!--------------------------------
-!***  Turbulence kinetic energy
-!--------------------------------
+!-----------------------------------------------------------------------
+!***  Point E2 (Turbulence kinetic energy) at level 3(INDX_Q2) of the Tracers array.
+!-----------------------------------------------------------------------
 !
       int_state%INDX_Q2=3
       CALL FIND_VAR_INDX('E2',int_state%VARS,int_state%NUM_VARS,I)
-      int_state%VARS(I)%R3D=>int_state%TRACERS(:,:,:,int_state%INDX_Q2)
+      int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_Q2-1)*TRACER_SIZE_1+1 : int_state%INDX_Q2*TRACER_SIZE_1)
       int_state%E2=>int_state%VARS(I)%R3D
 !
-!--------------------------------
-!***  General tracer for testing
-!--------------------------------
+!-----------------------------------------------------------------------
+!***  Point O3 (General tracer for testin) at level 4(INDX_O3) of the Tracers array.
+!-----------------------------------------------------------------------
 !
       int_state%INDX_O3=4
       CALL FIND_VAR_INDX('O3',int_state%VARS,int_state%NUM_VARS,I)
-      int_state%VARS(I)%R3D=>int_state%TRACERS(:,:,:,int_state%INDX_O3)
+      int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_O3-1)*TRACER_SIZE_1+1 : int_state%INDX_O3*TRACER_SIZE_1)
       int_state%O3=>int_state%VARS(I)%R3D
 !
 !--------------------------------
@@ -900,7 +930,7 @@
 !
       int_state%INDX_WATER_START = int_state%NUM_TRACERS_MET + int_state%NUM_TRACERS_CHEM + 1
       int_state%INDX_WATER_END = int_state%INDX_WATER_START + int_state%NUM_WATER - 1
-      int_state%WATER=>int_state%TRACERS(:,:,:,int_state%INDX_WATER_START:int_state%INDX_WATER_END)
+      int_state%WATER(IMS:IME,JMS:JME,1:LM,1:int_state%NUM_WATER) => int_state%TRACERS_ARR( (int_state%INDX_WATER_START-1)*TRACER_SIZE_1+1 : int_state%INDX_WATER_END*TRACER_SIZE_1)
 !
 !-----------------------------------------------------------------------
 !***  We can retrieve LM from the internal state since it was
@@ -913,8 +943,7 @@
       LNSV=int_state%LNSV
 !
 !-----------------------------------------------------------------------
-!***  Explicitly allocate the arrays of the Dynamics internal state
-!***  that are never outside of the Dynamics component.
+!***  Explicitly allocate standard arrays in the Solver internal state.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
@@ -1019,10 +1048,10 @@
       ALLOCATE(int_state%PSDT(IMS:IME,JMS:JME))           ;int_state%PSDT    = R4_IN  !<-- Hydrostatic surface pressure tendency  (Pa s-1)
 !
 !-----------------------------------------------------------------------
-!***  THE TRACERS ARRAY HOLDS ALL GENERAL "TRACER" VARIABLES INCLUDING
-!***  WATER.  PLACE THE DESIRED VARIABLES AT THE TOP OF THE TRACERS
-!***  ARRAY, LEVEL 1 THROUGH NUM_TRACERS_MET.  ALL OTHER SCALAR VARIABLES
-!***  (e.g., chemistry and aerosols) WILL FOLLOW.
+!***  The TRACERS array holds all general "tracer" variables including
+!***  water.  Place the desired variables at the top of the TRACERS
+!***  array, level 1 through NUM_TRACERS_MET.  All other scalar variables
+!***  (e.g., chemistry and aerosols) will follow.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(int_state%TRACERS_SQRT(IMS:IME,JMS:JME,1:LM,1:int_state%NUM_TRACERS_TOTAL))  ;int_state%TRACERS_SQRT = R4_IN  !<-- Sqrt of tracers (for advection)
@@ -1072,21 +1101,21 @@
       ALLOCATE(int_state%PPTDAT(IMS:IME,JMS:JME,1:int_state%PCPHR)) ;int_state%PPTDAT = R4_IN 
 !
 !-----------------------------------------------------------------------
-!*** gfs microphysics, wang, 11-22-2010
+!*** GFS microphysics, wang, 11-22-2010
 !-----------------------------------------------------------------------
 !
-        ALLOCATE(int_state%TP1(IMS:IME,JMS:JME,1:LM))
-        ALLOCATE(int_state%QP1(IMS:IME,JMS:JME,1:LM))
-        ALLOCATE(int_state%PSP1(IMS:IME,JMS:JME))
-        DO I=IMS,IME
-        DO J=JMS,JME
-          int_state%PSP1(I,J) = -999.0
-          DO L=1,LM
-           int_state%TP1(I,J,L) = -999.0
-           int_state%QP1(I,J,L) = -999.0
-          ENDDO
+      ALLOCATE(int_state%TP1(IMS:IME,JMS:JME,1:LM))
+      ALLOCATE(int_state%QP1(IMS:IME,JMS:JME,1:LM))
+      ALLOCATE(int_state%PSP1(IMS:IME,JMS:JME))
+      DO I=IMS,IME
+      DO J=JMS,JME
+        int_state%PSP1(I,J) = -999.0
+        DO L=1,LM
+         int_state%TP1(I,J,L) = -999.0
+         int_state%QP1(I,J,L) = -999.0
         ENDDO
-        ENDDO
+      ENDDO
+      ENDDO
 !
 !-----------------------------------------------------------------------
 !***  Only for GFS physics

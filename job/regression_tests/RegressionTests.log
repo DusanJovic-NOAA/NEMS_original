@@ -1,27 +1,16 @@
-<<<<<<< .mine
-Thu Jan 19 13:17:06 EST 2012
-=======
-Thu Jan 19 16:11:09 EST 2012
->>>>>>> .r17353
+Wed Jan 25 18:10:25 EST 2012
 Start Regression test
 
 
 
-<<<<<<< .mine
-Thu Jan 19 13:17:06 EST 2012
-=======
-Thu Jan 19 16:11:09 EST 2012
->>>>>>> .r17353
+Wed Jan 25 18:10:25 EST 2012
 Compilation ALL
-<<<<<<< .mine
-Thu Jan 19 13:17:06 EST 2012
-=======
-Thu Jan 19 17:05:36 EST 2012
->>>>>>> .r17353
+Wed Jan 25 18:52:01 EST 2012
 Test 001
 Compare NMMB-global results with previous trunk version
-[39B
-[J[?25h>[?7h.
+
+
+Checking test 001 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
@@ -34,11 +23,7 @@ Compare NMMB-global results with previous trunk version
 
 
 
-<<<<<<< .mine
- Original timing:  151.20  , test_glob timing:  151.83
-=======
- Original timing:  151.20  , test_glob timing:  151.61
->>>>>>> .r17353
+ Original timing:  151.20  , test_glob timing:  152.57
 
 
 Test 002
@@ -143,7 +128,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  246.07
+ Original timing:  240.82  , test_reg timing:  246.38
 
 
 Test 009
@@ -848,7 +833,6 @@ Checking test 041 results ....
 
 
 
-<<<<<<< .mine
 Test 042
 Concurrency GEN, 4 members.
 GEN, 64 proc, 1 thread
@@ -861,9 +845,9 @@ Checking test 042 results ....
 
 
 
-Thu Jan 19 17:00:58 EST 2012
+Wed Jan 25 22:28:59 EST 2012
 Compilation only FIM
-Thu Jan 19 17:19:24 EST 2012
+Wed Jan 25 22:46:05 EST 2012
 Test 043
 Compare FIM results with previous trunk version, only FIM compiled
 FIM, 40 proc, 1 thread
@@ -904,9 +888,9 @@ Checking test 043 results ....
  Comparing fim_out_vs3D000024hr.........OK
  Comparing fim_out_ws3D000024hr.........OK
  Test 043 passed 
-Thu Jan 19 17:25:54 EST 2012
+Wed Jan 25 22:51:22 EST 2012
 Compilation ALL
-Thu Jan 19 18:09:34 EST 2012
+Wed Jan 25 23:31:57 EST 2012
 Test 044
 NMMB-regional run with post on quilt
 
@@ -957,9 +941,9 @@ Checking test 045 results ....
  Comparing GFSPRS.GrbF24.........OK
  Comparing GFSPRS.GrbF48.........OK
  Test 045 passed 
-Fri Jan 20 13:22:53 EST 2012
+Wed Jan 25 23:45:22 EST 2012
 Compilation ESMF 4
-Fri Jan 20 14:18:02 EST 2012
+Thu Jan 26 00:13:13 EST 2012
 Test 046
 Compare NMMB-global results with previous trunk version ESMF4
 
@@ -1071,9 +1055,9 @@ Checking test 049 results ....
 
 
 
-Fri Jan 20 14:46:57 EST 2012
+Thu Jan 26 00:29:38 EST 2012
 Compilation ESMF 5
-Fri Jan 20 15:36:34 EST 2012
+Thu Jan 26 00:58:33 EST 2012
 Test 050
 Compare NMMB-global results with previous trunk version ESMF5
 
@@ -1185,9 +1169,9 @@ Checking test 053 results ....
 
 
 
-Mon Jan 23 00:15:58 EST 2012
-Compilation ESMF 5
-Mon Jan 23 00:15:58 EST 2012
+Thu Jan 26 01:15:00 EST 2012
+Compilation ESMF 5.2
+Thu Jan 26 01:45:22 EST 2012
 Test 054
 Compare NMMB-global results with previous trunk version ESMF5
 
@@ -1299,11 +1283,11 @@ Checking test 057 results ....
 
 
 
-Mon Jan 23 00:32:25 EST 2012
-Compilation ESMF 5.2
-Mon Jan 23 01:03:14 EST 2012
+Thu Jan 26 02:00:54 EST 2012
+Compilation only NMM
+Thu Jan 26 02:25:13 EST 2012
 Test 058
-Compare NMMB-global results with previous trunk version ESMF5
+Compare NMMB-global results with previous trunk version, only NMM compiled
 
 
 Checking test 058 results ....
@@ -1317,144 +1301,30 @@ Checking test 058 results ....
 
 
 
-Test 059
-Compare GFS results with previous trunk version ESMF5
-GFS, 32 proc, 1 thread
-
-
-
-
-Checking test 059 results ....
- Comparing sigf00.........OK
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sigf48.........OK
- Comparing sfcf00.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing sfcf48.........OK
- Comparing flxf00.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
- Comparing flxf48.........OK
- Test 059 passed 
-Test 060
-Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5
-GFS, 64 proc, 1 thread
-
-
-
-
-Checking test 060 results ....
- Comparing SIG.F06_01.........OK
- Comparing SIG.F06_02.........OK
- Comparing SIG.F06_03.........OK
- Comparing SIG.F06_04.........OK
- Comparing SIG.F12_01.........OK
- Comparing SIG.F12_02.........OK
- Comparing SIG.F12_03.........OK
- Comparing SIG.F12_04.........OK
- Comparing SIG.F18_01.........OK
- Comparing SIG.F18_02.........OK
- Comparing SIG.F18_03.........OK
- Comparing SIG.F18_04.........OK
- Comparing SIG.F24_01.........OK
- Comparing SIG.F24_02.........OK
- Comparing SIG.F24_03.........OK
- Comparing SIG.F24_04.........OK
- Comparing SFC.F06_01.........OK
- Comparing SFC.F06_02.........OK
- Comparing SFC.F06_03.........OK
- Comparing SFC.F06_04.........OK
- Comparing SFC.F12_01.........OK
- Comparing SFC.F12_02.........OK
- Comparing SFC.F12_03.........OK
- Comparing SFC.F12_04.........OK
- Comparing SFC.F18_01.........OK
- Comparing SFC.F18_02.........OK
- Comparing SFC.F18_03.........OK
- Comparing SFC.F18_04.........OK
- Comparing SFC.F24_01.........OK
- Comparing SFC.F24_02.........OK
- Comparing SFC.F24_03.........OK
- Comparing SFC.F24_04.........OK
- Comparing FLX.F06_01.........OK
- Comparing FLX.F06_02.........OK
- Comparing FLX.F06_03.........OK
- Comparing FLX.F06_04.........OK
- Comparing FLX.F12_01.........OK
- Comparing FLX.F12_02.........OK
- Comparing FLX.F12_03.........OK
- Comparing FLX.F12_04.........OK
- Comparing FLX.F18_01.........OK
- Comparing FLX.F18_02.........OK
- Comparing FLX.F18_03.........OK
- Comparing FLX.F18_04.........OK
- Comparing FLX.F24_01.........OK
- Comparing FLX.F24_02.........OK
- Comparing FLX.F24_03.........OK
- Comparing FLX.F24_04.........OK
- Test 060 passed 
-Test 061
-Concurrency GEN, 4 members. ESMF5
-GEN, 64 proc, 1 thread
-
-
-
-
-Checking test 061 results ....
- Test 061 passed 
-
-
-
-Mon Jan 23 01:18:46 EST 2012
-Compilation only NMM
-Mon Jan 23 01:37:41 EST 2012
-Test 062
-Compare NMMB-global results with previous trunk version, only NMM compiled
-
-
-Checking test 062 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
- Test 062 passed 
-
-
-
-Mon Jan 23 01:40:23 EST 2012
+Thu Jan 26 02:27:50 EST 2012
 Compilation NMM with TRAPS on
-Mon Jan 23 02:10:30 EST 2012
-Test 063
+Thu Jan 26 02:52:34 EST 2012
+Test 059
 Compare NMMB-global results with previous trunk version, TRAPS on
 
 
-Checking test 063 results ....
+Checking test 059 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Test 063 passed 
+ Test 059 passed 
 
 
 
-Mon Jan 23 02:12:57 EST 2012
+Thu Jan 26 02:54:57 EST 2012
 Compilation only GFS
-Mon Jan 23 02:36:07 EST 2012
-Test 064
+Thu Jan 26 03:14:48 EST 2012
+Test 060
 Compare GFS results with previous trunk version, only GFS compiled
 GFS, 32 proc, 1 thread
 
 
 
 
-Checking test 064 results ....
+Checking test 060 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -1473,7 +1343,5 @@ Checking test 064 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 064 passed 
-=======
-Thu Jan 19 18:16:58 EST 2012
->>>>>>> .r17353
+ Test 060 passed 
+Thu Jan 26 03:18:22 EST 2012

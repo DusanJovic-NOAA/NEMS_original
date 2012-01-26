@@ -80,7 +80,7 @@
 
 ###    4D real
 
-'TRACERS_PREV'  -    R       O      -      -   -  'Previous step tracers'
+'TRACERS_PREV'  -    R       -      -      -   -  'Previous step tracers'
 
 ####################################################################################################################
 
@@ -266,6 +266,6 @@
 
 ###    4D real
 
-'TRACERS'       -    S       O      -      X   -  'All tracer variables'
+'TRACERS'       -    S       -      -      X   -  'All tracer variables'
 
 #EOF

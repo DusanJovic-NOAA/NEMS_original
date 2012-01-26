@@ -77,7 +77,7 @@
       integer :: im, jm, lm
       real :: tlm0d,tph0d,dlmd,dphd,wbd,sbd
       real :: tlmd,tphd
-      integer :: i,k,j, np, var, inrs,jnrs, nvar, iq, jq, n, l
+      integer :: i,k,j, np, var, inrs,jnrs, nvar, n, l
       logical :: inside
       integer, dimension(8) :: modelstarttime
       character(len=3) :: trnum
@@ -228,12 +228,10 @@
 
             i = ipnt(np)
             j = jpnt(np)
-            iq = i - ims + 1
-            jq = j - jms + 1
             zint(np,lm+1)=solver_state%fis(i,j)/g
 
             do k=lm,1,-1
-                  zint(np,k)=zint(np,k+1)+solver_state%t(i,j,k)*(0.608*max(solver_state%q(iq,jq,k),epsq)+1.)*r_d        &
+                  zint(np,k)=zint(np,k+1)+solver_state%t(i,j,k)*(0.608*max(solver_state%q(i,j,k),epsq)+1.)*r_d        &
                             *(solver_state%pint(i,j,k+1)-solver_state%pint(i,j,k))                                     &
                             /((solver_state%sgml2(k)*solver_state%pd(i,j)+solver_state%psgml1(k))*g)
                   zmid(np,k)=0.5*(zint(np,k+1)+zint(np,k))
@@ -308,7 +306,7 @@
       integer,intent(in) :: ntsd
       integer, intent(out) :: ierr
 
-      integer i,j,k, iq,jq, lm, ip,jp, lmax, l
+      integer i,j,k, lm, lmax, l
       integer n, np, var
       integer year, month, day, hour, minute, second, ten_thousandth
       real :: tlm0d,tph0d
@@ -361,14 +359,6 @@
 
           if (i.eq.ipnt(np) .and. j.eq.jpnt(np)) then
 
-!! iq, jq are i,j indexes that go from 1 to ime-ims+1 on this task and are used instead of global i,j
-!! for arrays that are pointers to a 3d subarray of other 4d array. typically these are
-!! variables that point to TRACER or WATER arrays. currently only 4 such arrays are in use 
-!! Q,CW,E2 and O3.
-
-            iq = i - ims + 1
-            jq = j - jms + 1
-
             tsunit(np) = 90 + np
             write(filename,fmt='(a,i2.2,a,i2.2,a)') "ts_p",np,"_d",domain_id,".bin"
             write(0,*) ' open file:', np,tsunit(np),filename
@@ -391,16 +381,6 @@
 !3d
             do n=1,solver_state%num_vars
               if (solver_state%vars(n)%tseries .and. solver_state%vars(n)%tkr==tkr_r3d) then
-                if (trim(solver_state%vars(n)%vbl_name)=="Q" .or. &
-                    trim(solver_state%vars(n)%vbl_name)=="CW" .or. &
-                    trim(solver_state%vars(n)%vbl_name)=="E2" .or. &
-                    trim(solver_state%vars(n)%vbl_name)=="O3" ) then
-                  ip = iq
-                  jp = jq
-                else
-                  ip = i
-                  jp = j
-                end if
                 lmax = lm
                 do l=1,max_fulllevel_vars
                   if (trim(fulllevel_vars(l))==trim(solver_state%vars(n)%vbl_name)) then
@@ -409,7 +389,7 @@
                   end if
                 end do
                 do k=1,lmax
-                  write(tsunit(np)) solver_state%vars(n)%r3d(ip,jp,k)
+                  write(tsunit(np)) solver_state%vars(n)%r3d(i,j,k)
                 end do
                 if(lmax==lm) write(tsunit(np)) 0.0
               end if
