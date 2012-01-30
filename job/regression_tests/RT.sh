@@ -6,7 +6,7 @@
 # Setup machine related variables (CLASS, ACCNR, & DISKNM)
 #########################################################################
 
-export MACHINE_ID=`hostname | cut -c1`
+. ./detect_machine.sh
 
 if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
   export CLASS=dev
@@ -32,13 +32,16 @@ elif [ ${MACHINE_ID} = g ]; then
   export STMP=/lustre/fs/scratch
   export PTMP=/lustre/fs/scratch
   export SCHEDULER=moab
-elif [ ${MACHINE_ID} = t ]; then 
+elif [ ${MACHINE_ID} = h ]; then 
   export CLASS=dev
   export ACCNR=NAM-T2O
-  export DISKNM=/scratch2/users/NCEPDEV/meso
-  export STMP=/scratch2/users/NCEPDEV/stmp
-  export PTMP=/scratch2/users/NCEPDEV/ptmp
+  export DISKNM=/tds_scratch2/users/NCEPDEV/meso
+  export STMP=/tds_scratch2/users/NCEPDEV/stmp
+  export PTMP=/tds_scratch2/users/NCEPDEV/ptmp
   export SCHEDULER=pbs
+else
+  echo "Unknown machine ID, please edit detect_machine.sh file"
+  exit
 fi
 
 ############################################################
@@ -272,7 +275,7 @@ if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s -o ${MACHINE_ID} = v ]; then
   TPNn=64
   INPm=06
   JNPm=05
-elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = t ]; then 
+elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = h ]; then 
   WTPGm=3
   TPNm=48
   TPNn=128
@@ -347,7 +350,7 @@ gmake clean                              >  ${PATHRT}/Compile.log 2>&1
 esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
 if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s -o ${MACHINE_ID} = v ]; then
   gmake nmm_gfs_gen GOCART_MODE=full     >> ${PATHRT}/Compile.log 2>&1
-elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = t ]; then 
+elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = h ]; then 
   gmake nmm                              >> ${PATHRT}/Compile.log 2>&1
 fi
 date                                     >> ${PATHRT}/RegressionTests.log
@@ -391,7 +394,7 @@ export GBRG=glob ; export WLCLK=04
 
 if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s -o ${MACHINE_ID} = v ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
-elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = t ]; then 
+elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = h ]; then 
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
 fi
 export timingc=`cat ${RTPWD}/NMMB_glob/timing.txt`
@@ -604,7 +607,7 @@ export GBRG=reg ; export WLCLK=06 ; export WPREC=true
 
 if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s -o ${MACHINE_ID} = v ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
-elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = t ]; then 
+elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = h ]; then 
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
 fi
 export timingc=`cat ${RTPWD}/NMMB_reg/timing.txt`

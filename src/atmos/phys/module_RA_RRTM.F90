@@ -111,7 +111,7 @@
      &                     ,NPHS,NRADL,NRADS                            &
      &                     ,NUM_WATER                      
 !
-      INTEGER,INTENT(IN) :: IDAT(8),JDAT(8)
+      INTEGER,INTENT(IN) :: JDAT(8)
 !
       INTEGER,INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
 !
@@ -196,11 +196,11 @@
 !---  variables of instantaneous calculated toa/sfc radiation fluxes
 !      ** IM=1 for the dimension
 !
-      type (topfsw_type), dimension(1), intent(out) :: topfsw
-      type (sfcfsw_type), dimension(1), intent(out) :: sfcfsw
+      type (topfsw_type), dimension(1) :: topfsw
+      type (sfcfsw_type), dimension(1) :: sfcfsw
 
-      type (topflw_type), dimension(1), intent(out) :: topflw
-      type (sfcflw_type), dimension(1), intent(out) :: sfcflw
+      type (topflw_type), dimension(1) :: topflw
+      type (sfcflw_type), dimension(1) :: sfcflw
 
 
 !
@@ -596,9 +596,6 @@
                     ! =================================
       !                FHSWR, FHLWR, FHAER )
 
-      !---- for forcast purpose IDAT=JDAT
-      !
-      ! CALL RADINIT (RSGM, LM, IFLIP, IDAT, JDAT, ICTM, ISOL, ICO2,   &
        CALL RADINIT (RSGM, LM, IFLIP, JDAT, JDAT, ICTM, ISOL, ICO2,   &
                      IAER, IALB, IEMS, ICWP, NP3D, ISUBCSW, ISUBCLW,  &
                      IOVR_SW, IOVR_LW, MYPE, raddt, fdaer )
