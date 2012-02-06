@@ -16,6 +16,15 @@ case `hostid` in
 
   ae0a4240)           MACHINE_ID=h ;; ### herc
 
+  ae0a2500)           MACHINE_ID=z ;; ### zeus1
+  ae0a2600)           MACHINE_ID=z ;; ### zeus2
+  ae0a2700)           MACHINE_ID=z ;; ### zeus3
+  ae0a2800)           MACHINE_ID=z ;; ### zeus4
+  ae0a2900)           MACHINE_ID=z ;; ### zeus5
+  ae0a2a00)           MACHINE_ID=z ;; ### zeus6
+  ae0a7d13)           MACHINE_ID=z ;; ### zeus7
+  ae0a7e13)           MACHINE_ID=z ;; ### zeus8
+
   b20a057e)           MACHINE_ID=j ;; ### jet1
   b20a067e)           MACHINE_ID=j ;; ### jet2
   b20a077e)           MACHINE_ID=j ;; ### jet3

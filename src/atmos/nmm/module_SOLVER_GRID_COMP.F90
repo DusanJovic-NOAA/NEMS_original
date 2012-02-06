@@ -980,6 +980,7 @@
         int_state%VZ0(I,J)     = 0.
         int_state%Z0(I,J)      =-1.E6
         int_state%Z0BASE(I,J)  =-1.E6
+        int_state%STDH(I,J)    =-1.E6
         int_state%CROT(I,J)    = 0.
         int_state%SROT(I,J)    = 0.
         int_state%HSTDV(I,J)   = 0.
@@ -4654,7 +4655,8 @@
         NCOUNT=0
       ENDIF
 !
-      IF (mod(int_state%NTSD,NSTEPS_PER_CHECK) == 0) THEN
+!     IF (mod(int_state%NTSD,NSTEPS_PER_CHECK) == 0) THEN
+      IF (mod(int_state%NTSD,NSTEPS_PER_CHECK) == 0 .and. FILTER_METHOD==0 ) THEN
 !
         IF (TRIM(int_state%MICROPHYSICS) == 'fer') THEN
 !

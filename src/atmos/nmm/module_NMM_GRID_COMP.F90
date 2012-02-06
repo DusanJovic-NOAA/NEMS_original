@@ -2000,6 +2000,7 @@
                           ,imp_state_cpl_nest=IMP_STATE_CPL_NEST        &
                           ,exp_state_cpl_nest=EXP_STATE_CPL_NEST        &
                           ,par_chi_time_ratio=PARENT_CHILD_TIME_RATIO   &
+                          ,my_domain_moves   =MY_DOMAIN_MOVES           &
                           ,mype              =MYPE)
 !
         STARTTIME=CURRTIME                                                 !<-- Start time set to halfway point of filter period
@@ -2161,6 +2162,7 @@
                           ,imp_state_cpl_nest=IMP_STATE_CPL_NEST        &
                           ,exp_state_cpl_nest=EXP_STATE_CPL_NEST        &
                           ,par_chi_time_ratio=PARENT_CHILD_TIME_RATIO   &
+                          ,my_domain_moves   =MY_DOMAIN_MOVES           &
                           ,mype              =MYPE)
 !
 !-----------------------------
@@ -2284,6 +2286,7 @@
                           ,imp_state_cpl_nest=IMP_STATE_CPL_NEST        &
                           ,exp_state_cpl_nest=EXP_STATE_CPL_NEST        &
                           ,par_chi_time_ratio=PARENT_CHILD_TIME_RATIO   &
+                          ,my_domain_moves   =MY_DOMAIN_MOVES           &
                           ,mype              =MYPE)
 !
 !-----------------------------------------------------------------------
@@ -2424,6 +2427,7 @@
                           ,imp_state_cpl_nest=IMP_STATE_CPL_NEST        &
                           ,exp_state_cpl_nest=EXP_STATE_CPL_NEST        &
                           ,par_chi_time_ratio=PARENT_CHILD_TIME_RATIO   &
+                          ,my_domain_moves   =MY_DOMAIN_MOVES           &
                           ,mype              =MYPE)
 !
 !-----------------------------
@@ -2576,6 +2580,7 @@
                           ,imp_state_cpl_nest=IMP_STATE_CPL_NEST        &
                           ,exp_state_cpl_nest=EXP_STATE_CPL_NEST        &
                           ,par_chi_time_ratio=PARENT_CHILD_TIME_RATIO   &
+                          ,my_domain_moves   =MY_DOMAIN_MOVES           &
                           ,mype              =MYPE)
 !
 !-----------------------------------------------------------------------

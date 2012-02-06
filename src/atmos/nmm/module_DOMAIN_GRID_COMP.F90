@@ -8410,12 +8410,12 @@
       INTEGER(kind=KINT) :: I,I_CENTER,ISTAT,J,J_CENTER                 &
                            ,N_WIDTH,RC
 !
-      TYPE(DIST),POINTER :: LARGE                                       &
-                           ,SMALL                                       &
-                           ,PTR                                         &
-                           ,PTR1                                        &
-                           ,PTR2                                        &
-                           ,PTRX
+      TYPE(DIST),POINTER :: LARGE   =>NULL()                            &
+                           ,SMALL   =>NULL()                            &
+                           ,PTR     =>NULL()                            &
+                           ,PTR1    =>NULL()                            &
+                           ,PTR2    =>NULL()                            &
+                           ,PTRX    =>NULL()
 !
 !-----------------------------------------------------------------------
 !***********************************************************************

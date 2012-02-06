@@ -3,6 +3,7 @@
 #PBS -o out
 #PBS -e err
 #PBS -N _JBNME_
+#PBS -A _ACCNR_
 #PBS -l procs=_TPN_
 #PBS -l walltime=00:_WLCLK_:00
 

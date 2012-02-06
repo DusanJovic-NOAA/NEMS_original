@@ -54,6 +54,7 @@ cat nmm_msub.IN         | sed s:_JBNME_:${JBNME}:g   \
 elif [ $SCHEDULER = 'pbs' ]; then
 
 cat nmm_qsub.IN         | sed s:_JBNME_:${JBNME}:g   \
+                        | sed s:_ACCNR_:${ACCNR}:g   \
                         | sed s:_WLCLK_:${WLCLK}:g   \
                         | sed s:_TPN_:${TPN}:g       \
                         | sed s:_THRD_:${THRD}:g     \

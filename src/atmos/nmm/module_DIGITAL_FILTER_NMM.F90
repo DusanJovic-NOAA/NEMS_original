@@ -152,20 +152,20 @@
 !     
       IF (tot_rank_2d > 0 .and. .not. allocated(array_save_2d)) THEN
       	allocate(array_save_2d(ITS:ITE,JTS:JTE,tot_rank_2d))
+        array_save_2d=0.
       ENDIF
 !
       IF (tot_rank_3d > 0 .and. .not. allocated(array_save_3d)) THEN
       	allocate(array_save_3d(ITS:ITE,JTS:JTE,LM,tot_rank_3d))
+        array_save_3d=0.
       ENDIF
 !
       IF (tot_rank_4d > 0 .and. .not. allocated(array_save_4d)) THEN
       	allocate(array_save_4d(ITS:ITE,JTS:JTE,LM,SPEC_MAX,tot_rank_4d))
+        array_save_4d=0.
       ENDIF
 !
       deallocate(dyn_name)
-      array_save_2d=0.
-      array_save_3d=0.
-      array_save_4d=0.
       totalsum=0.
 !-----------------------------------------------------------------------
 
