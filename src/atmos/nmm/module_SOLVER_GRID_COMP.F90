@@ -353,10 +353,6 @@
                            ,J,JEND,KOUNT,KSE,KSS,L,LL,LMP1              &
                            ,N,NUMERATOR_DT
 !
-      LOGICAL(kind=KLOG) :: RUN_LOCAL
-!
-      CHARACTER(20) :: FIELD_NAME
-!
       TYPE(ESMF_State) :: IMP_STATE_WRITE                                  !<-- The Solver import state
 !
       TYPE(ESMF_Field) :: FIELD
@@ -1054,45 +1050,7 @@
 !
         IF(.NOT.int_state%NEMSIO_INPUT)THEN
 !
-          CALL READ_BINARY(int_state,int_state%GLOBAL                   &
-                   ,KSS,KSE                                             &
-                   ,int_state%PDTOP,int_state%PT,int_state%LPT2         &
-                   ,int_state%SG1,int_state%DSG1                        &
-                   ,int_state%PSG1,int_state%PDSG1                      &
-                   ,int_state%SG2,int_state%DSG2,int_state%SGM          &
-                   ,int_state%SGML1,int_state%PSGML1,int_state%SGML2    &
-                   ,int_state%SBD,int_state%WBD                         &
-                   ,int_state%DPHD,int_state%DLMD                       &
-                   ,int_state%TPH0D,int_state%TLM0D                     &
-                   ,int_state%FIS,int_state%SM,int_state%SICE           &
-                   ,int_state%PD,int_state%PDO,int_state%PINT           &
-                   ,int_state%U,int_state%V,int_state%Q2,int_state%E2   &
-                   ,int_state%T,int_state%Q,int_state%CW                &
-                   ,int_state%TP,int_state%UP,int_state%VP              &
-                   ,int_state%O3,int_state%DWDT,int_state%W             &
-                   ,int_state%OMGALF,int_state%DIV,int_state%Z          &
-                   ,int_state%RTOP                                      &
-                   ,int_state%TCU,int_state%TCV,int_state%TCT           &
-                   ,int_state%TRACERS_PREV                              &
-                   ,int_state%INDX_Q,int_state%INDX_CW                  &
-                   ,int_state%INDX_O3,int_state%INDX_Q2                 &
-                   ,int_state%NTSTI,int_state%NTSTM                     &
-                   ,int_state%IHR,int_state%IHRST,int_state%IDAT        &
-                   ,RUN_LOCAL,int_state%RESTART                         &
-                   ,int_state%NUM_WATER,int_state%WATER                 &
-                   ,int_state%NUM_TRACERS_TOTAL,int_state%TRACERS       &
-                   ,int_state%P_QV,int_state%P_QC,int_state%P_QR        &
-                   ,int_state%P_QI,int_state%P_QS,int_state%P_QG        &
-                   ,DT,int_state%NHOURS_FCST                            &
-                   ,int_state%LNSV                                      &
-                   ,int_state%UBS,int_state%UBN                         &
-                   ,int_state%UBW,int_state%UBE                         &
-                   ,int_state%VBS,int_state%VBN                         &
-                   ,int_state%VBW,int_state%VBE                         &
-                   ,MY_DOMAIN_ID                                        &
-                   ,int_state%I_PAR_STA,int_state%J_PAR_STA             &
-                   ,int_state%NSOIL                                     &
-                   ,RC )
+          CALL READ_BINARY(int_state,MY_DOMAIN_ID,RC)
 !
           IF (RC /= 0) THEN
             RC_INIT = RC
@@ -1101,43 +1059,12 @@
 !
         ELSE
 !
-          CALL READ_NEMSIO(int_state%GLOBAL                    &
-                  ,KSS,KSE                                              &
-                  ,int_state%PDTOP,int_state%PT,int_state%LPT2          &
-                  ,int_state%SG1,int_state%DSG1                         &
-                  ,int_state%PSG1,int_state%PDSG1                       &
-                  ,int_state%SG2,int_state%DSG2,int_state%SGM           &
-                  ,int_state%SGML1,int_state%PSGML1,int_state%SGML2     &
-                  ,int_state%SBD,int_state%WBD                          &
-                  ,int_state%DPHD,int_state%DLMD                        &
-                  ,int_state%TPH0D,int_state%TLM0D                      &
-                  ,int_state%FIS,int_state%SM,int_state%SICE            &
-                  ,int_state%PD,int_state%PDO,int_state%PINT            &
-                  ,int_state%U,int_state%V,int_state%Q2,int_state%E2    &
-                  ,int_state%T,int_state%Q,int_state%CW                 &
-                  ,int_state%TP,int_state%UP,int_state%VP               &
-                  ,int_state%O3,int_state%DWDT,int_state%W              &
-                  ,int_state%OMGALF,int_state%DIV,int_state%Z           &
-                  ,int_state%RTOP                                       &
-                  ,int_state%TCU,int_state%TCV,int_state%TCT            &
-                  ,int_state%TRACERS_PREV                               &
-                  ,int_state%INDX_Q,int_state%INDX_CW                   &
-                  ,int_state%INDX_O3,int_state%INDX_Q2                  &
-                  ,int_state%NTSTI,int_state%NTSTM                      &
-                  ,int_state%IHR,int_state%IHRST,int_state%IDAT         &
-                  ,RUN_LOCAL,int_state%RESTART                          &
-                  ,int_state%NUM_WATER,int_state%WATER                  &
-                  ,int_state%NUM_TRACERS_TOTAL,int_state%TRACERS        &
-                  ,int_state%P_QV,int_state%P_QC,int_state%P_QR         &
-                  ,int_state%P_QI,int_state%P_QS,int_state%P_QG         &
-                  ,DT,int_state%NHOURS_FCST                             &
-                  ,int_state%LNSV                                       &
-                  ,int_state%UBS,int_state%UBN                          &
-                  ,int_state%UBW,int_state%UBE                          &
-                  ,int_state%VBS,int_state%VBN                          &
-                  ,int_state%VBW,int_state%VBE                          &
-                  ,MY_DOMAIN_ID                                         &
-                  ,int_state%I_PAR_STA,int_state%J_PAR_STA )
+          CALL READ_NEMSIO(int_state,MY_DOMAIN_ID,RC)
+!
+          IF (RC /= 0) THEN
+            RC_INIT = RC
+            RETURN
+          END IF
 !
         ENDIF
 !rv
@@ -1227,14 +1154,6 @@
         ENDIF
 !
 !-----------------------------------------------------------------------
-!
-        int_state%RUN=RUN_LOCAL
-
-!d        IF(RUN_LOCAL)THEN
-!d          int_state%RUN=ESMF_TRUE
-!d        ELSE
-!d          int_state%RUN=ESMF_FALSE
-!d        ENDIF
 !
         init_tim=init_tim+(timef()-btim)
 !
@@ -7883,7 +7802,6 @@
                                  ,RHOAIR0,RHOWATER,RHOSNOW
 !
       USE MODULE_INIT_READ_BIN,ONLY : physics_read_gwd
-      USE MODULE_INIT_READ_NEMSIO,ONLY : physics_read_input_nemsio,physics_read_restt_nemsio
 !
 !-----------------------------------------------------------------------
 !***  Only for GFS physics
@@ -7948,9 +7866,6 @@
 !
       INTEGER :: LDIM1,LDIM2,UDIM1,UDIM2
 !
-      INTEGER :: IYEAR_FCST,IMONTH_FCST,IDAY_FCST,IHOUR_FCST            &
-                ,IMINUTE_FCST
-!
       INTEGER,DIMENSION(3) :: IDAT
 !
       INTEGER,DIMENSION(:,:),ALLOCATABLE :: ITEMP,LOWLYR
@@ -7959,17 +7874,13 @@
 !
       REAL :: SWRAD_SCAT=1.
 !
-      REAL :: ALM,ANUM,APH,AVE,CTLM,CTPH,CTPH0,DELX,DELY,DENOM          &
-             ,DLM,DPH,DT,DT_MICRO,DTPHS                                 &
+      REAL :: DELX,DELY,DPH,DT,DT_MICRO,DTPHS                           &
              ,GMT,JULIAN,PDBOT,PDTOP,PDTOT,PT_CB,RELM,RPDTOT            &
-             ,SB,SPH,STLM,STPH,STPH0,THETA_HALF                         &
-             ,TLM,TLM_BASE,TPH,TPH_BASE,TPH0,TPV,WB,XTIME
+             ,SB,THETA_HALF,TPV,XTIME
 !
       REAL,DIMENSION(LM) :: DSG1,DSG2,PDSG1,PSGML1,SGML1,SGML2
       REAL,DIMENSION(LM+1) :: PSG1,SG1,SG2,SGM                          &
                              ,SFULL,SFULL_FLIP,SMID,SMID_FLIP
-!
-      REAL,DIMENSION(:),ALLOCATABLE,TARGET :: DXH,DXV,RDXH,RDXV
 !
       REAL,DIMENSION(IMS:IME,JMS:JME) :: EMISS
       REAL,DIMENSION(:,:),ALLOCATABLE :: TEMP1,TEMP_GWD
@@ -8143,100 +8054,7 @@
 !
 !-----------------------------------------------------------------------
 !
-!-----------------------------------------------------------------------
-!***  Open the input data file.
-!-----------------------------------------------------------------------
-!
-      select_unit: DO N=51,59
-        INQUIRE(N,OPENED=OPENED)
-        IF(.NOT.OPENED)THEN
-          NFCST=N
-          EXIT select_unit
-        ENDIF
-      ENDDO select_unit
-!
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!
-      IF(.NOT.int_state%RESTART) THEN           ! COLD START
-!
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!
-        IF(int_state%NEMSIO_INPUT)THEN    
-!
-          WRITE(INFILE,'(A,I2.2,A)')'input_domain_',MY_DOMAIN_ID,'_nemsio'
-          CALL PHYSICS_READ_INPUT_NEMSIO(INFILE                         &
-                                        ,MYPE,MPI_COMM_COMP             &
-                                        ,IDAT,IHRST,PT                  &
-                                        ,INT_STATE                      &
-                                        ,NSOIL,LM                       &
-                                        ,IDS,IDE,JDS,JDE                &
-                                        ,IMS,IME,JMS,JME                &
-                                        ,IRTN )
-!
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!
-        PT_CB=int_state%PT*1.0E-3      !<-- Convert pascals to centibars for GFDL initialization
-!
-!-----------------------------------------------------------------------
-!***  Check to see if the starting Date/Time in the input data file
-!***  agrees with that in the configure file.
-!-----------------------------------------------------------------------
-!
-        IF(MYPE==0)THEN
-          IF(int_state%IDAT(2)/=START_MONTH.OR.                                   &
-             int_state%IDAT(1)/=START_DAY.OR.                                     &
-             int_state%IDAT(3)/=START_YEAR.OR.                                    &
-             int_state%IHRST  /=START_HOUR)THEN
-            WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
-            WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
-            WRITE(0,*)' DATES IN INPUT FILE AND CONFIGURE FILE DISAGREE!!'
-            WRITE(0,*)' INPUT: HOUR=',IHRST,' DAY=',int_state%IDAT(3)               &
-                      ,' MONTH=',int_state%IDAT(2),' YEAR=',int_state%IDAT(1)
-            WRITE(0,*)' CONFIG: HOUR=',START_HOUR,' DAY=',START_DAY       &
-                      ,' MONTH=',START_MONTH,' YEAR=',START_YEAR
-            WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
-            WRITE(0,*)' *** WARNING *** WARNING *** WARNING *** '
-          ENDIF
-        ENDIF
-!
-        IYEAR_FCST =int_state%IDAT(3)
-        IMONTH_FCST=int_state%IDAT(2)
-        IDAY_FCST  =int_state%IDAT(1)
-        IHOUR_FCST =int_state%IHRST
-!
-!-----------------------------------------------------------------------
-!
-      ELSE                                      ! RESTART READ INIT
-!
-!-----------------------------------------------------------------------
-!
-        IF(int_state%NEMSIO_INPUT)THEN  
-!
-          WRITE(INFILE,'(A,I2.2,A)')'restart_file_',MY_DOMAIN_ID,'_nemsio'
-!
-          CALL PHYSICS_READ_RESTT_NEMSIO(INFILE                         &
-                                        ,MYPE,MPI_COMM_COMP             &
-                                        ,IYEAR_FCST,IMONTH_FCST         &
-                                        ,IDAY_FCST,IHOUR_FCST           &
-                                        ,IMINUTE_FCST,SECOND_FCST       &
-                                        ,IHRST,IDAT,PT                  &
-                                        ,INT_STATE                      &
-                                        ,NSOIL,LM                       &
-                                        ,IDS,IDE,JDS,JDE                &
-                                        ,IMS,IME,JMS,JME                &
-                                        ,IRTN )
-!
-        ENDIF
-!
-        PT_CB=int_state%PT*1.0E-3   !<-- Convert pascals to centibars for GFDL initialization
-!
-!-----------------------------------------------------------------------
-!
-      ENDIF                                     ! COLD START /RESTART
+      PT_CB=int_state%PT*1.0E-3   !<-- Convert pascals to centibars for GFDL initialization
 !
 !-----------------------------------------------------------------------
 !***  Make up a potential skin temperature.
@@ -8253,18 +8071,17 @@
         ENDDO
 !
       ENDIF
-
+!
 !-----------------------------------------------------------------------
 !*** Initializing TLMAX, TLMIN
 !-----------------------------------------------------------------------
-
+!
       DO J=JTS,JTE
         DO I=ITS,ITE
           int_state%TLMAX(I,J)=int_state%T(I,J,1)
           int_state%TLMIN(I,J)=int_state%T(I,J,1)
        ENDDO
      ENDDO
-
 !
 !-----------------------------------------------------------------------
 !***  Recreate sigma values at layer interfaces for the full vertical
@@ -8292,205 +8109,12 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!
-      ALLOCATE(DXH(JDS:JDE),STAT=I)
-      ALLOCATE(DXV(JDS:JDE),STAT=I)
-!
-      ALLOCATE(RDXH(JDS:JDE),STAT=I) !zj
-      ALLOCATE(RDXV(JDS:JDE),STAT=I) !zj
-!
-!----------------------------------------------------------------------
-!***  Geographic latitude/longitude
-!----------------------------------------------------------------------
-!
-      SB=int_state%SBD*DTR
-      WB=int_state%WBD*DTR
-!     SB=SBD*DTR
-!     WB=WBD*DTR
-      TPH0=int_state%TPH0D*DTR
-!     TPH0=TPH0D*DTR
-      STPH0=SIN(TPH0)
-      CTPH0=COS(TPH0)
-!
-      IF(int_state%GLOBAL)THEN
-!
-        I_LO=MAX(IMS,IDS)
-        I_HI=MIN(IME,IDE)
-        J_LO=MAX(JMS,JDS)
-        J_HI=MIN(JME,JDE)
-!
-        DPHD=int_state%DPHD
-        DLMD=int_state%DLMD
-        DPH=DPHD*DTR
-        DLM=DLMD*DTR
-        TPH_BASE=SB-DPH-DPH
-!
-        DO J=J_LO,J_HI
-          TLM_BASE=WB-DLM-DLM
-          APH=TPH_BASE+(J-JDS+1)*DPH
-          DO I=I_LO,I_HI
-            ALM=TLM_BASE+(I-IDS+1)*DLM
-            IF(ALM> PI) ALM=ALM-PI-PI
-            IF(ALM<-PI) ALM=ALM+PI+PI
-            int_state%GLAT(I,J)=APH
-            int_state%GLON(I,J)=ALM
-          ENDDO
-        ENDDO
-!
-      ELSE  ! regional
-
-        DPHD=int_state%DPHD
-        DLMD=int_state%DLMD
-        DPH=DPHD*DTR
-        DLM=DLMD*DTR
-        TPH_BASE=SB-DPH
-!
-        DO J=JTS,JTE
-          TPH=TPH_BASE+(J-JDS+1)*DPH
-          STPH=SIN(TPH)
-          CTPH=COS(TPH)
-!
-          TLM_BASE=WB-DLM
-          DO I=ITS,ITE
-            TLM=TLM_BASE+(I-IDS+1)*DLM
-            STLM=SIN(TLM)
-            CTLM=COS(TLM)
-            SPH=CTPH0*STPH+STPH0*CTPH*CTLM
-            APH=ASIN(SPH)
-            int_state%GLAT(I,J)=APH
-            ANUM=CTPH*STLM
-            DENOM=(CTLM*CTPH-STPH0*SPH)/CTPH0
-            RELM=ATAN2(ANUM,DENOM)
-            ALM=RELM+int_state%TLM0D*DTR
-            IF(ALM>PI)ALM=ALM-PI-PI
-            IF(ALM<-PI)ALM=ALM+PI+PI
-            int_state%GLON(I,J)=ALM
-          ENDDO
-        ENDDO
-!
-      ENDIF
-!
-!----------------------------------------------------------------------
-!***  Delta X and Y
-!----------------------------------------------------------------------
-!
-      int_state%DYH=A*DPH
-      int_state%DYV=A*DPH
-!
-!----------------------------------------------------------------------
-      global_regional_dx: IF(int_state%GLOBAL)THEN
-!----------------------------------------------------------------------
-        TPH=SB
-        TPV=TPH+DPH*0.5
-!
-!----------------------------------------------------------------------
-!***  South Pole
-!----------------------------------------------------------------------
-!
-        DXH(JDS+1)=0.
-        RDXH(JDS+1)=0.
-        DXV(JDS+1)=A*DLM*COS(TPV)
-!
-!----------------------------------------------------------------------
-!***  Between the poles
-!----------------------------------------------------------------------
-!
-        DO J=JDS+2,JDE-2
-          TPH=SB+(J-JDS-1)*DPH
-          TPV=TPH+DPH*0.5
-          DXH(J)=A*DLM*COS(TPH)
-          DXV(J)=A*DLM*COS(TPV)
-          RDXH(J)=1./DXH(J)
-          RDXV(J)=1./DXV(J)
-        ENDDO
-!
-!-----------------------------------------------------------------------
-!***  Ghost line beyond South Pole
-!-----------------------------------------------------------------------
-!
-        DXH(JDS)=DXH(JDS+2)
-        DXV(JDS)=DXV(JDS+1)
-        RDXH(JDS)=RDXH(JDS+2)
-        RDXV(JDS)=RDXV(JDS+1)
-!
-!-----------------------------------------------------------------------
-!***  North Pole
-!-----------------------------------------------------------------------
-!
-        DXH(JDE-1)=0.
-        RDXH(JDE-1)=0.
-!
-!-----------------------------------------------------------------------
-!***  Ghost line beyond North Pole
-!-----------------------------------------------------------------------
-!
-        DXH(JDE)=DXH(JDE-2)
-        DXV(JDE-1)=DXV(JDE-2)
-        DXV(JDE)=DXV(JDE-2)
-        RDXH(JDE)=RDXH(JDE-2)
-        RDXV(JDE-1)=RDXV(JDE-2)
-        RDXV(JDE)=RDXV(JDE-2)
-!
-!-----------------------------------------------------------------------
-!***  Average over H point latitudes for accuracy.
-!-----------------------------------------------------------------------
-!
-        DO J=JDS,JDE/2
-          AVE=(DXH(J)+DXH(JDE+1-J))*0.5
-          DXH(J)=AVE
-          DXH(JDE+1-J)=AVE
-          AVE=(RDXH(J)+RDXH(JDE+1-J))*0.5
-          RDXH(J)=AVE
-          RDXH(JDE+1-J)=AVE
-        ENDDO
-!
-!-----------------------------------------------------------------------
-!***  Average over V point latitudes for accuracy.
-!-----------------------------------------------------------------------
-!
-        DO J=JDS,(JDE-1)/2
-          AVE=(DXV(J)+DXV(JDE-J))*0.5
-          DXV(J)=AVE
-          DXV(JDE-J)=AVE
-          AVE=(RDXV(J)+RDXV(JDE-J))*0.5
-          RDXV(J)=AVE
-          RDXV(JDE-J)=AVE
-        ENDDO
-!
-!-----------------------------------------------------------------------
-      ELSE global_regional_dx  ! Regional
-!-----------------------------------------------------------------------
-!
-        DO J=JDS,JDE
-          TPH=SB+(J-JDS)*DPH
-          TPV=TPH+DPH*0.5
-          DXH(J)=A*DLM*COS(TPH)
-          DXV(J)=A*DLM*COS(TPV)
-          RDXH(J)=1./DXH(J)
-          RDXV(J)=1./DXV(J)
-        ENDDO
-!
-!-----------------------------------------------------------------------
-      ENDIF global_regional_dx
-!-----------------------------------------------------------------------
-!
-      DO J=JDS,JDE
-!d        int_state%DXH(J)=DXH(J)
-!d        int_state%DXV(J)=DXV(J)
-!d        int_state%RDXH(J)=RDXH(J)
-!d        int_state%RDXV(J)=RDXV(J)
-      ENDDO
-!
-      DEALLOCATE(DXH)
-      DEALLOCATE(DXV)
-      DEALLOCATE(RDXH)
-      DEALLOCATE(RDXV)
-!
-!-----------------------------------------------------------------------
 !***  Choose a J index for an "average" DX.
 !***  Select the J that divides the domain's area in half.
 !-----------------------------------------------------------------------
 !
+      SB=int_state%SBD*DTR
+      DPH=int_state%DPHD*DTR
 !!!   THETA_HALF=ASIN(0.5*SIN(-SB))
       THETA_HALF=0.
       JC=NINT(0.5*(JDE-JDS+1)+THETA_HALF/DPH)
@@ -8815,7 +8439,7 @@
             ENDDO
             SFULL_FLIP(LM+1)=SFULL(1)
 !
-            GMT=REAL(IHOUR_FCST)
+            GMT=REAL(START_HOUR)
             CALL GFDL_INIT(EMISS,SFULL_FLIP,SMID_FLIP,PT_CB            &
                           ,JULYR,START_MONTH,START_DAY,GMT             &
                           ,CO2TF                                       &
@@ -8834,7 +8458,7 @@
             ENDDO
             SFULL_FLIP(LM+1)=SFULL(1)
 !
-            GMT=REAL(IHOUR_FCST)
+            GMT=REAL(START_HOUR)
 
             CALL RRTM_INIT(EMISS,SFULL_FLIP,SMID_FLIP,PT_CB            &
                           ,JULYR,START_MONTH,START_DAY,GMT             &

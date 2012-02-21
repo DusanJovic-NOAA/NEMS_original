@@ -14,185 +14,40 @@ use module_exchange
 use module_constants
 use module_solver_internal_state,only: solver_internal_state
 use module_microphysics_nmm
+!
 !-----------------------------------------------------------------------
 !
       implicit none
 !
+      private
+!
+      public :: read_binary,physics_read_gwd
+!
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
-      PRIVATE
-      PUBLIC :: read_binary,physics_read_gwd
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
-       contains
+      contains
 !
 !-----------------------------------------------------------------------
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !-----------------------------------------------------------------------
 !
                         subroutine read_binary &
-      (INT_STATE,global &
-      ,kss,kse &
-      ,pdtop,pt,lpt2 &
-      ,sg1,dsg1 &
-      ,psg1,pdsg1 &
-      ,sg2,dsg2,sgm &
-      ,sgml1,psgml1,sgml2 &
-      ,sbd,wbd &              
-      ,dphd,dlmd &            
-      ,tph0d,tlm0d &          
-      ,fis,sm,sice &
-      ,pd,pdo,pint &
-      ,u,v,q2,e2 &
-      ,t,q,cw &
-      ,tp,up,vp &
-      ,o3,dwdt,w &
-      ,omgalf,div,z &
-      ,rtop &
-      ,tcu,tcv,tct &
-      ,sp,indx_q,indx_cw,indx_o3,indx_q2 &
-      ,ntsti,ntstm &
-      ,ihr,ihrst,idat &
-      ,run,restart &
-      ,num_water,water &
-      ,num_tracers_total,tracers &
-      ,p_qv,p_qc,p_qr &
-      ,p_qi,p_qs,p_qg &
-      ,dt,nhours_fcst &
-      ,lnsv &
-      ,ubs,ubn,ubw,ube &
-      ,vbs,vbn,vbw,vbe &
-      ,my_domain_id &
-      ,i_parent_start,j_parent_start &
-      ,NSOIL,rc )
+      (INT_STATE,my_domain_id,rc)
 !
 !-----------------------------------------------------------------------
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!-----------------------------------------------------------------------
+!
+implicit none
 !
 !------------------------
 !***  Argument variables
 !------------------------
 !
+type(solver_internal_state),pointer :: int_state
+
 integer(kind=kint),intent(in) :: &
- kse &
-,kss &
-,lnsv &
-,my_domain_id &
-,num_water &
-,num_tracers_total &
-,p_qv &
-,p_qc &
-,p_qr &
-,p_qi &
-,p_qs &
-,p_qg &
-,indx_q &
-,indx_cw &
-,indx_o3 &
-,indx_q2 &
-,nhours_fcst &
-,nsoil
-
-real(kind=kfpt),intent(in):: &
-dt
-
-integer(kind=kint),intent(out) :: &
- ihr &
-,ihrst &
-,i_parent_start &
-,j_parent_start &
-,lpt2 &
-,ntsti &
-,ntstm
-
-integer(kind=kint),dimension(3),intent(out) :: &
- idat
-
-real(kind=kfpt),intent(out) :: &
- dlmd &
-,dphd &
-,pdtop &
-,pt &
-,tlm0d &
-,tph0d &
-,sbd &
-,wbd 
-
-real(kind=kfpt),dimension(1:lm),intent(out) :: &
- dsg1 &
-,dsg2 &
-,pdsg1 &
-,psgml1 &
-,sgml1 &
-,sgml2
-
-real(kind=kfpt),dimension(1:lm+1),intent(out) :: &
- psg1 &
-,sg1 &
-,sg2 &
-,sgm
-
-real(kind=kfpt),dimension(ims:ime,jms:jme),intent(out) :: &
- fis &
-,pd &
-,pdo &
-,sice &
-,sm
-
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(out) :: &
- cw &
-,dwdt &
-,q &
-,q2 &
-,o3 &
-,omgalf &
-,div &
-,z &
-,rtop &
-,tcu &
-,tcv &
-,tct &
-,t &
-,tp &
-,u &
-,up &
-,v &
-,vp &
-,e2 &
-,w
-
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm+1),intent(out) :: &
- pint
-
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,1:num_water),intent(out) :: &
- water
-
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,1:num_tracers_total),intent(out) :: &
- tracers
-
-
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse),intent(out) :: &
- sp
-
-real(kind=kfpt),dimension(ims:ime,1:lnsv,1:lm,1:2),intent(out) :: &
- ubs &
-,ubn &
-,vbs &
-,vbn
-
-real(kind=kfpt),dimension(1:lnsv,jms:jme,1:lm,1:2),intent(out) :: &
- ubw &
-,ube &
-,vbw &
-,vbe
-
-logical(kind=klog),intent(in) :: &
- global &
-,restart 
-
-logical(kind=klog),intent(out) :: &
- run
+ my_domain_id
 
 integer(kind=kint),intent(out) :: &
  rc
@@ -229,7 +84,7 @@ integer(kind=kint) :: &
 real(kind=kfpt):: &
  tend,tend_max
 
-real(kind=kfpt),dimension(NSOIL) :: &
+real(kind=kfpt),dimension(int_state%NSOIL) :: &
  soil1din
 
 real(kind=kfpt),dimension(:),allocatable :: &
@@ -253,17 +108,12 @@ integer(kind=kint) :: &
 character(64):: &
  infile
 
-real(kind=kfpt),allocatable,dimension(:,:):: &      !im,jm
- stdh                        ! standard deviation of topography height
-
 integer(kind=kint):: &
- ihrend &                    ! maximum forecast length, hours
-,ntsd &
+ ntsd &
 ,ntstm_max &
 ,nfcst
 
-      TYPE(SOLVER_INTERNAL_STATE),POINTER :: INT_STATE                    !<-- The physics internal state
-
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -271,10 +121,9 @@ integer(kind=kint):: &
       mype=mype_share
 !
       allocate(temp1(ids:ide,jds:jde),stat=i)
-      allocate(stdh(ims:ime,jms:jme),stat=i)
 !
 !-----------------------------------------------------------------------
-
+!
       select_unit: do n=51,59
         inquire(n,opened=opened)
         if(.not.opened)then
@@ -282,20 +131,47 @@ integer(kind=kint):: &
           exit select_unit
         endif
       enddo select_unit
-
+!
 !-----------------------------------------------------------------------
-      read_blocks: if(.not.restart) then                     ! cold start
+!
+      read_blocks: if(.not.int_state%RESTART) then                     ! cold start
+!
 !-----------------------------------------------------------------------
 !
         write(infile,'(a,i2.2)')'input_domain_',my_domain_id
-        open(unit=nfcst,file=infile,status='old',form='unformatted')
+        open(unit=nfcst,file=infile,status='old',form='unformatted'     &
+            ,iostat=ierr)
+        if(ierr/=0)then
+          write(0,*)' Unable to open ',trim(infile),' in READ_BINARY'
+          rc = ierr
+          return
+        endif
 !
 !-----------------------------------------------------------------------
 !
-        read (nfcst) run,idat,ihrst,ihrend,ntsd
-        read (nfcst) pt,pdtop,lpt2,sgm,sg1,dsg1,sgml1,sg2,dsg2,sgml2
-        read (nfcst) i_parent_start,j_parent_start
-        read (nfcst) dlmd,dphd,wbd,sbd,tlm0d,tph0d
+        read (nfcst) int_state%RUN, &
+                     int_state%IDAT, &
+                     int_state%IHRST, &
+                     int_state%IHREND, &
+                     NTSD
+        read (nfcst) int_state%PT, &
+                     int_state%PDTOP, &
+                     int_state%LPT2, &
+                     int_state%SGM, &
+                     int_state%SG1, &
+                     int_state%DSG1, &
+                     int_state%SGML1, &
+                     int_state%SG2, &
+                     int_state%DSG2, &
+                     int_state%SGML2
+        read (nfcst) int_state%I_PAR_STA, &
+                     int_state%J_PAR_STA
+        read (nfcst) int_state%DLMD, &
+                     int_state%DPHD, &
+                     int_state%WBD, &
+                     int_state%SBD, &
+                     int_state%TLM0D, &
+                     int_state%TPH0D
         read (nfcst) im,jm,lmm,lnsh
 !
 !-----------------------------------------------------------------------
@@ -303,56 +179,35 @@ integer(kind=kint):: &
 !-----------------------------------------------------------------------
 !
         if(mype==0)then
-          write(0,*) 'run, idat,ntsd: ', run, idat, ntsd
-          write(0,*)' Start year =',idat(3)
-          write(0,*)' Start month=',idat(2)
-          write(0,*)' Start day  =',idat(1)
-          write(0,*)' Start hour =',ihrst
-          write(0,*)' Timestep   =',dt
-          write(0,*)' Steps/hour =',3600./dt
-          if(.not.global)write(0,*)' Max fcst hours=',ihrend
-          write(0,*) 'nmm_dyn reads of PT, PDTOP: ',PT,PDTOP
-          write(0,*) 'nmm_dyn reads of I_PARENT_START, J_PARENT_START: ',i_parent_start,j_parent_start
-          write(0,*) 'nmm_dyn reads of TLM0D, TPH0D: ',tlm0d,tph0d
-          write(0,*) 'nmm_dyn reads of DLMD, DPHD: ',dlmd,dphd
-          write(0,*) 'nmm_dyn reads of WBD, SBD: ',wbd,sbd
+          write(0,*) 'run, idat,ntsd: ', int_state%RUN, int_state%IDAT, NTSD
+          write(0,*)' Start year =',int_state%IDAT(3)
+          write(0,*)' Start month=',int_state%IDAT(2)
+          write(0,*)' Start day  =',int_state%IDAT(1)
+          write(0,*)' Start hour =',int_state%IHRST
+          write(0,*)' Timestep   =',int_state%DT
+          write(0,*)' Steps/hour =',3600./int_state%DT
+          if(.not.int_state%GLOBAL)write(0,*)' Max fcst hours=',int_state%IHREND
+          write(0,*) 'nmm_dyn reads of PT, PDTOP: ',int_state%PT,int_state%PDTOP
+          write(0,*) 'nmm_dyn reads of I_PAR_STA, J_PAR_STA: ',int_state%I_PAR_STA,int_state%J_PAR_STA
+          write(0,*) 'nmm_dyn reads of TLM0D, TPH0D: ',int_state%TLM0D,int_state%TPH0D
+          write(0,*) 'nmm_dyn reads of DLMD, DPHD: ',int_state%DLMD,int_state%DPHD
+          write(0,*) 'nmm_dyn reads of WBD, SBD: ',int_state%WBD,int_state%SBD
           write(0,*) 'nmm_dyn reads of IM, JM, LM, LNSH: ',im,jm,lmm,lnsh
         endif
 !
 !-----------------------------------------------------------------------
 !
       DO L=1,LM+1
-        PSG1(L)=SG1(L)*PDTOP+PT
+        int_state%PSG1(L)=int_state%SG1(L)*int_state%PDTOP+int_state%PT
       ENDDO
       DO L=1,LM
-        PDSG1(L)=DSG1(L)*PDTOP
-        PSGML1(L)=SGML1(L)*PDTOP+PT
-      ENDDO
-!
-!-----------------------------------------------------------------------
-!***  Before moving on, transfer values to the internal state.
-!-----------------------------------------------------------------------
-!
-      int_state%PT=PT
-      int_state%PDTOP=PDTOP
-!
-      DO L=1,LM
-        int_state%DSG2(L)=DSG2(L)
-        int_state%SGML2(L)=SGML2(L)
-        int_state%PDSG1(L)=PDSG1(L)
-        int_state%PSGML1(L)=PSGML1(L)
-      ENDDO
-!
-      DO L=1,LM+1
-        int_state%SG1(L)=SG1(L)
-        int_state%PSG1(L)=PSG1(L)
-        int_state%SG2(L)=SG2(L)
-        int_state%SGM(L)=SGM(L)
+        int_state%PDSG1(L)=int_state%DSG1(L)*int_state%PDTOP
+        int_state%PSGML1(L)=int_state%SGML1(L)*int_state%PDTOP+int_state%PT
       ENDDO
 !
 !-----------------------------------------------------------------------
 !***  Proceed with getting fields from input file.
-!***  NOTE: Two records were already read at the top of this routine.
+!***  NOTE: Five records were already read at the top of this routine.
 !-----------------------------------------------------------------------
 !
         if(mype==0)then
@@ -360,11 +215,11 @@ integer(kind=kint):: &
         endif
         do j=jms,jme
         do i=ims,ime
-          fis(i,j)=0.
+          int_state%fis(i,j)=0.
         enddo
         enddo
-        call dstrb(temp1,fis,1,1,1,1,1)
-        call halo_exch(fis,1,2,2)
+        call dstrb(temp1,int_state%fis,1,1,1,1,1)
+        call halo_exch(int_state%fis,1,2,2)
 !-----------------------------------------------------------------------
 !
         if(mype==0)then
@@ -372,11 +227,11 @@ integer(kind=kint):: &
         endif
         do j=jms,jme
         do i=ims,ime
-          stdh(i,j)=0.
+          int_state%stdh(i,j)=0.
         enddo
         enddo
-        call dstrb(temp1,stdh,1,1,1,1,1)
-        call halo_exch(stdh,1,2,2)
+        call dstrb(temp1,int_state%stdh,1,1,1,1,1)
+        call halo_exch(int_state%stdh,1,2,2)
 !-----------------------------------------------------------------------
 !
         if(mype==0)then
@@ -384,11 +239,11 @@ integer(kind=kint):: &
         endif
         do j=jms,jme
         do i=ims,ime
-          sm(i,j)=0.
+          int_state%sm(i,j)=0.
         enddo
         enddo
-        call dstrb(temp1,sm,1,1,1,1,1)
-        call halo_exch(sm,1,2,2)
+        call dstrb(temp1,int_state%sm,1,1,1,1,1)
+        call halo_exch(int_state%sm,1,2,2)
 !-----------------------------------------------------------------------
 !
         if(mype==0)then
@@ -396,11 +251,11 @@ integer(kind=kint):: &
         endif
         do j=jms,jme
         do i=ims,ime
-          pd(i,j)=0.
+          int_state%pd(i,j)=0.
         enddo
         enddo
-        call dstrb(temp1,pd,1,1,1,1,1)
-        call halo_exch(pd,1,2,2)
+        call dstrb(temp1,int_state%pd,1,1,1,1,1)
+        call halo_exch(int_state%pd,1,2,2)
 !-----------------------------------------------------------------------
 !
         call mpi_barrier(mpi_comm_comp,irtn)
@@ -410,12 +265,12 @@ integer(kind=kint):: &
           endif
           do j=jms,jme
           do i=ims,ime
-            u(i,j,l)=0.
+            int_state%u(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,u,1,1,1,lm,l)
+          call dstrb(temp1,int_state%u,1,1,1,lm,l)
         enddo
-        call halo_exch(u,lm,2,2)
+        call halo_exch(int_state%u,lm,2,2)
 !-----------------------------------------------------------------------
 !
         do l=1,lm
@@ -424,12 +279,12 @@ integer(kind=kint):: &
           endif
           do j=jms,jme
           do i=ims,ime
-            v(i,j,l)=0.
+            int_state%v(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,v,1,1,1,lm,l)
+          call dstrb(temp1,int_state%v,1,1,1,lm,l)
         enddo
-        call halo_exch(v,lm,2,2)
+        call halo_exch(int_state%v,lm,2,2)
 !-----------------------------------------------------------------------
 !
         do l=1,lm
@@ -439,12 +294,12 @@ integer(kind=kint):: &
           endif
           do j=jms,jme
           do i=ims,ime
-            t(i,j,l)=0.
+            int_state%t(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,t,1,1,1,lm,l)
+          call dstrb(temp1,int_state%t,1,1,1,lm,l)
         enddo
-        call halo_exch(t,lm,2,2)
+        call halo_exch(int_state%t,lm,2,2)
 !-----------------------------------------------------------------------
 !
         do l=1,lm
@@ -453,17 +308,17 @@ integer(kind=kint):: &
           endif
           do j=jms,jme
           do i=ims,ime
-            q(i,j,l)=0.
+            int_state%q(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,q,1,1,1,lm,l)
+          call dstrb(temp1,int_state%q,1,1,1,lm,l)
         enddo
-        call halo_exch(q,lm,2,2)
+        call halo_exch(int_state%q,lm,2,2)
 !
         do l=1,lm
         do j=jms,jme
         do i=ims,ime
-          water(i,j,l,p_qv)=q(i,j,l)/(1.-q(i,j,l))    ! WRF water array uses mixing ratio for vapor
+          int_state%water(i,j,l,int_state%p_qv)=int_state%q(i,j,l)/(1.-int_state%q(i,j,l))    ! WRF water array uses mixing ratio for vapor
         enddo
         enddo
         enddo
@@ -476,12 +331,12 @@ integer(kind=kint):: &
           endif
           do j=jms,jme
           do i=ims,ime
-            cw(i,j,l)=0.
+            int_state%cw(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,cw,1,1,1,lm,l)
+          call dstrb(temp1,int_state%cw,1,1,1,lm,l)
         enddo
-        call halo_exch(cw,lm,2,2)
+        call halo_exch(int_state%cw,lm,2,2)
 !
 !-----------------------------------------------------------------------
 !
@@ -491,107 +346,108 @@ integer(kind=kint):: &
           endif
           do j=jms,jme
           do i=ims,ime
-            o3(i,j,l)=0.
+            int_state%o3(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,o3,1,1,1,lm,l)
+          call dstrb(temp1,int_state%o3,1,1,1,lm,l)
         enddo
-        call halo_exch(o3,lm,2,2)
+        call halo_exch(int_state%o3,lm,2,2)
 !
 !-----------------------------------------------------------------------
 !
-        ntsti=ntsd+1
+        int_state%NTSTI=ntsd+1
 !
-        tend_max=real(ihrend)
-        ntstm_max=nint(tend_max*3600./dt)+1
-        tend=real(nhours_fcst)
-        ntstm=nint(tend*3600./dt)+1
-        if(.not.global)then
+        tend_max=real(int_state%IHREND)
+        ntstm_max=nint(tend_max*3600./int_state%DT)+1
+        tend=real(int_state%nhours_fcst)
+        int_state%NTSTM=nint(tend*3600./int_state%DT)+1
+        if(.not.int_state%global)then
           if(mype==0)then
             write(0,*)' Max runtime is ',tend_max,' hours'
           endif
         endif
         if(mype==0)then
           write(0,*)' Requested runtime is ',tend,' hours'
-          write(0,*)' NTSTM=',ntstm
+          write(0,*)' NTSTM=',int_state%NTSTM
         endif
-        if(ntstm>ntstm_max.and..not.global)then
+        if(int_state%NTSTM>ntstm_max.and..not.int_state%global)then
           if(mype==0)then
             write(0,*)' Requested fcst length exceeds maximum'
             write(0,*)' Resetting to maximum'
           endif
-          ntstm=min(ntstm,ntstm_max)
+          int_state%NTSTM=min(int_state%NTSTM,ntstm_max)
         endif
 !
-        ihr=nint(ntsd*dt/3600.)
+        int_state%ihr=nint(ntsd*int_state%DT/3600.)
+!
 !-----------------------------------------------------------------------
         do l=1,lm
-          pdsg1(l)=dsg1(l)*pdtop
-          psgml1(l)=sgml1(l)*pdtop+pt
+          int_state%pdsg1(l)=int_state%dsg1(l)*int_state%pdtop
+          int_state%psgml1(l)=int_state%sgml1(l)*int_state%pdtop+int_state%pt
         enddo
 !
         do l=1,lm+1
-          psg1(l)=sg1(l)*pdtop+pt
+          int_state%psg1(l)=int_state%sg1(l)*int_state%pdtop+int_state%pt
         enddo
 !-----------------------------------------------------------------------
         do j=jts,jte
           do i=its,ite
-            pdo(i,j)=pd(i,j)
+            int_state%pdo(i,j)=int_state%pd(i,j)
           enddo
         enddo
-        call halo_exch(pdo,1,2,2)
+        call halo_exch(int_state%pdo,1,2,2)
 !
         do l=1,lm
           do j=jts,jte
             do i=its,ite
-              up(i,j,l)=u(i,j,l)
-              vp(i,j,l)=v(i,j,l)
-              tp(i,j,l)=t(i,j,l)
+              int_state%up(i,j,l)=int_state%u(i,j,l)
+              int_state%vp(i,j,l)=int_state%v(i,j,l)
+              int_state%tp(i,j,l)=int_state%t(i,j,l)
             enddo
           enddo
         enddo
-        call halo_exch(tp,lm,up,lm,vp,lm,2,2)
+        call halo_exch(int_state%tp,lm,int_state%up,lm,int_state%vp,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           do j=jms,jme
             do i=ims,ime
-              q2(i,j,l)=0.02
-              o3(i,j,l)=0.
+              int_state%q2(i,j,l)=0.02
+              int_state%o3(i,j,l)=0.
               if(i.ge.ide  /2+1- 6.and.i.le.ide  /2+1+ 6.and. &
                  j.ge.jde*3/4+1- 6.and.j.le.jde*3/4+1+ 6.) then !global
 !                 j.ge.jde  /2+1- 6.and.j.le.jde  /2+1+ 6.) then !regional
-                o3(i,j,l)=10.
+                int_state%o3(i,j,l)=10.
               endif
-              dwdt(i,j,l)=1.
-              w(i,j,l)=0.
+              int_state%dwdt(i,j,l)=1.
+              int_state%w(i,j,l)=0.
             enddo
           enddo
         enddo
-        call halo_exch(dwdt,lm,2,2)
+        call halo_exch(int_state%dwdt,lm,2,2)
 !
         do j=jts,jte
           do i=its,ite
-            pint(i,j,1)=pt
+            int_state%pint(i,j,1)=int_state%pt
           enddo
         enddo
 !
         do l=1,lm
           do j=jts,jte
             do i=its,ite
-              pint(i,j,l+1)=pint(i,j,l)+dsg2(l)*pd(i,j)+pdsg1(l)
+              int_state%pint(i,j,l+1)=int_state%PINT(i,j,l)+int_state%DSG2(l)*int_state%PD(i,j)+int_state%PDSG1(l)
             enddo
           enddo
         enddo
-        call halo_exch(pint,lm+1,2,2)
+        call halo_exch(int_state%pint,lm+1,2,2)
 !
-        call halo_exch(q2,lm,o3,lm,2,2)
+        call halo_exch(int_state%q2,lm,int_state%o3,lm,2,2)
         do l=1,lm
           do j=jms,jme
             do i=ims,ime
-              sp(i,j,l,indx_q )=sqrt(max(q (i,j,l),0.))
-              sp(i,j,l,indx_cw)=sqrt(max(cw(i,j,l),0.))
-              sp(i,j,l,indx_o3)=sqrt(max(o3(i,j,l),0.))
-              sp(i,j,l,indx_q2)=sqrt(max(q2(i,j,l),0.))
+              int_state%tracers_prev(i,j,l,int_state%indx_q )=sqrt(max(int_state%q (i,j,l),0.))
+              int_state%tracers_prev(i,j,l,int_state%indx_cw)=sqrt(max(int_state%cw(i,j,l),0.))
+              int_state%tracers_prev(i,j,l,int_state%indx_o3)=sqrt(max(int_state%o3(i,j,l),0.))
+              int_state%tracers_prev(i,j,l,int_state%indx_q2)=sqrt(max(int_state%q2(i,j,l),0.))
             enddo
           enddo
         enddo
@@ -677,7 +533,7 @@ integer(kind=kint):: &
       CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1)
       CALL HALO_EXCH(int_state%Z0BASE,1,3,3)
 !
-      ALLOCATE(TEMPSOIL(1:NSOIL,IDS:IDE,JDS:JDE),STAT=I)
+      ALLOCATE(TEMPSOIL(1:int_state%NSOIL,IDS:IDE,JDS:JDE),STAT=I)
 !
         if(mype==0)then
           read(nfcst) TEMPSOIL  ! STC
@@ -749,8 +605,7 @@ integer(kind=kint):: &
         open(unit=nfcst,file=infile,status='old',form='unformatted'     &
             ,iostat=ierr)
         if(ierr/=0)then
-          write(0,*)' Unable to open ',trim(infile)                     &
-                   ,' in CORE_READ_BINARY'
+          write(0,*)' Unable to open ',trim(infile),' in READ_BINARY'
           rc = ierr
           return
         endif
@@ -768,17 +623,14 @@ integer(kind=kint):: &
         read(nfcst) ! im
         read(nfcst) ! jm
         read(nfcst) ! lm
-        read(nfcst) ihrst
-        read(nfcst) i_parent_start
-        read(nfcst) j_parent_start
-        read(nfcst) lpt2
+        read(nfcst) int_state%IHRST
+        read(nfcst) int_state%I_PAR_STA
+        read(nfcst) int_state%J_PAR_STA
+        read(nfcst) int_state%LPT2
 !-----------------------------------------------------------------------
 !***  Read from restart file: Integer 1D arrays
 !-----------------------------------------------------------------------
-        read(nfcst) idat
-!-----------------------------------------------------------------------
-!***  Print the time information.
-!-----------------------------------------------------------------------
+        read(nfcst) int_state%IDAT
 !
         if(mype==0)then
           write(0,*)'**** read in core *******************'
@@ -786,12 +638,12 @@ integer(kind=kint):: &
           write(0,*)' Restart month=',imonth_fcst
           write(0,*)' Restart day  =',iday_fcst
           write(0,*)' Restart hour =',ihour_fcst
-          write(0,*)' Original start year =',idat(3)
-          write(0,*)' Original start month=',idat(2)
-          write(0,*)' Original start day  =',idat(1)
-          write(0,*)' Original start hour =',ihrst
-          write(0,*)' Timestep   =',dt
-          write(0,*)' Steps/hour =',3600./dt
+          write(0,*)' Original start year =',int_state%IDAT(3)
+          write(0,*)' Original start month=',int_state%IDAT(2)
+          write(0,*)' Original start day  =',int_state%IDAT(1)
+          write(0,*)' Original start hour =',int_state%IHRST
+          write(0,*)' Timestep   =',int_state%DT
+          write(0,*)' Steps/hour =',3600./int_state%DT
           write(0,*)'*************************************'
         endif
 !
@@ -813,37 +665,46 @@ integer(kind=kint):: &
 !-----------------------------------------------------------------------
         read(nfcst) ! dt
         read(nfcst) ! dyh
-        read(nfcst) pdtop
-        read(nfcst) pt
-        read(nfcst) tlm0d
-        read(nfcst) tph0d
+        read(nfcst) int_state%PDTOP
+        read(nfcst) int_state%PT
+        read(nfcst) int_state%TLM0D
+        read(nfcst) int_state%TPH0D
         read(nfcst) ! tstart
-        read(nfcst) dphd
-        read(nfcst) dlmd
-        read(nfcst) sbd
-        read(nfcst) wbd
+        read(nfcst) int_state%DPHD
+        read(nfcst) int_state%DLMD
+        read(nfcst) int_state%SBD
+        read(nfcst) int_state%WBD
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 1D arrays
 !-----------------------------------------------------------------------
         read(nfcst) ! dxh
-        read(nfcst) sg1
-        read(nfcst) sg2
-        read(nfcst) dsg1
-        read(nfcst) dsg2
-        read(nfcst) sgml1
-        read(nfcst) sgml2
-        read(nfcst) sgm
-        read(nfcst) int_state%sldpth
-        read(nfcst) int_state%mp_restart_state
-        read(nfcst) int_state%tbpvs_state
-        read(nfcst) int_state%tbpvs0_state
+        read(nfcst) int_state%SG1
+        read(nfcst) int_state%SG2
+        read(nfcst) int_state%DSG1
+        read(nfcst) int_state%DSG2
+        read(nfcst) int_state%SGML1
+        read(nfcst) int_state%SGML2
+        read(nfcst) int_state%SGM
+        read(nfcst) int_state%SLDPTH
+        read(nfcst) int_state%MP_RESTART_STATE
+        read(nfcst) int_state%TBPVS_STATE
+        read(nfcst) int_state%TBPVS0_STATE
+!
+        DO L=1,LM
+          int_state%PDSG1(L)=int_state%DSG1(L)*int_state%PDTOP
+          int_state%PSGML1(L)=int_state%SGML1(L)*int_state%PDTOP+int_state%PT
+        ENDDO
+!
+        DO L=1,LM+1
+          int_state%PSG1(L)=int_state%SG1(L)*int_state%PDTOP+int_state%PT
+        ENDDO
 !
 !-----------------------------------------------------------------------
 !***  Read in the full-domain 1-D datastring of boundary winds.
 !***  Each task isolates its own piece of that data.
 !-----------------------------------------------------------------------
 !
-        length=2*2*2*lnsv*lm*((ide-ids)+(jde-jds))
+        length=2*2*2*int_state%lnsv*lm*((ide-ids)+(jde-jds))
         allocate(all_bc_data(1:length))
 !
         read(nfcst) all_bc_data
@@ -857,11 +718,11 @@ integer(kind=kint):: &
         iend=min(ite_h2,ide-1)
         do n=1,2
         do l=1,lm
-        do j=1,lnsv
+        do j=1,int_state%lnsv
         do i=ids,ide-1
           if(jts==jds.and.i>=its_h2.and.i<=iend)then                         !<-- South boundary tasks extract their BC winds
-            ubs(i,j,l,n)=all_bc_data(kount+1)
-            vbs(i,j,l,n)=all_bc_data(kount+2)
+            int_state%ubs(i,j,l,n)=all_bc_data(kount+1)
+            int_state%vbs(i,j,l,n)=all_bc_data(kount+2)
           endif
           kount=kount+2
         enddo
@@ -871,11 +732,11 @@ integer(kind=kint):: &
 !
         do n=1,2
         do l=1,lm
-        do j=1,lnsv
+        do j=1,int_state%lnsv
         do i=ids,ide-1
           if(jte==jde.and.i>=its_h2.and.i<=iend)then                         !<-- North boundary tasks extract their BC winds
-            ubn(i,j,l,n)=all_bc_data(kount+1)
-            vbn(i,j,l,n)=all_bc_data(kount+2)
+            int_state%ubn(i,j,l,n)=all_bc_data(kount+1)
+            int_state%vbn(i,j,l,n)=all_bc_data(kount+2)
           endif
           kount=kount+2
         enddo
@@ -887,10 +748,10 @@ integer(kind=kint):: &
         do n=1,2
         do l=1,lm
         do j=jds,jde-1
-        do i=1,lnsv
+        do i=1,int_state%lnsv
           if(its==ids.and.j>=jts_h2.and.j<=jend)then                         !<-- West boundary tasks extract their BC winds
-            ubw(i,j,l,n)=all_bc_data(kount+1)
-            vbw(i,j,l,n)=all_bc_data(kount+2)
+            int_state%ubw(i,j,l,n)=all_bc_data(kount+1)
+            int_state%vbw(i,j,l,n)=all_bc_data(kount+2)
           endif
           kount=kount+2
         enddo
@@ -901,10 +762,10 @@ integer(kind=kint):: &
         do n=1,2
         do l=1,lm
         do j=jds,jde-1
-        do i=1,lnsv
+        do i=1,int_state%lnsv
           if(ite==ide.and.j>=jts_h2.and.j<=jend)then                         !<-- West boundary tasks extract their BC winds
-            ube(i,j,l,n)=all_bc_data(kount+1)
-            vbe(i,j,l,n)=all_bc_data(kount+2)
+            int_state%ube(i,j,l,n)=all_bc_data(kount+1)
+            int_state%vbe(i,j,l,n)=all_bc_data(kount+2)
           endif
           kount=kount+2
         enddo
@@ -918,41 +779,9 @@ integer(kind=kint):: &
 !***  Read from restart file: Logical
 !-----------------------------------------------------------------------
         read(nfcst) ! global
-        read(nfcst) run
-        if(mype==0)then
-          write(0,*) 'run, idat,ntsd: ', run, idat, ntsd
-        endif
+        read(nfcst) int_state%RUN
         read(nfcst) ! adiabatic
-
-      DO L=1,LM
-        PDSG1(L)=DSG1(L)*PDTOP
-        PSGML1(L)=SGML1(L)*PDTOP+PT
-      ENDDO
 !
-      DO L=1,LM+1
-        PSG1(L)=SG1(L)*PDTOP+PT
-      ENDDO
-!
-!-----------------------------------------------------------------------
-!***  Before moving on, transfer values to the internal state.
-!-----------------------------------------------------------------------
-!
-      int_state%PDTOP=PDTOP
-!
-      DO L=1,LM
-        int_state%DSG2(L)=DSG2(L)
-        int_state%PDSG1(L)=PDSG1(L)
-        int_state%PSGML1(L)=PSGML1(L)
-        int_state%SGML2(L)=SGML2(L)
-      ENDDO
-!
-      DO L=1,LM+1
-        int_state%SG1(L)=SG1(L)
-        int_state%PSG1(L)=PSG1(L)
-        int_state%SG2(L)=SG2(L)
-        int_state%SGM(L)=SGM(L)
-      ENDDO
-
 !-----------------------------------------------------------------------
 !***  Read from restart file: Integer 2D arrays
 !-----------------------------------------------------------------------
@@ -984,17 +813,19 @@ integer(kind=kint):: &
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 2D arrays
 !-----------------------------------------------------------------------
+!-- fis
         if(mype==0)then
           read(nfcst)temp1
         endif
         do j=jms,jme
         do i=ims,ime
-          fis(i,j)=0.
+          int_state%fis(i,j)=0.
         enddo
         enddo
-        call dstrb(temp1,fis,1,1,1,1,1)
-        call halo_exch(fis,1,2,2)
+        call dstrb(temp1,int_state%fis,1,1,1,1,1)
+        call halo_exch(int_state%fis,1,2,2)
 !-----------------------------------------------------------------------
+!--pd
         if(mype==0)then
           read(nfcst) !glat
           read(nfcst) !glon
@@ -1002,12 +833,13 @@ integer(kind=kint):: &
         endif
         do j=jms,jme
         do i=ims,ime
-          pd(i,j)=0.
+          int_state%pd(i,j)=0.
         enddo
         enddo
-        call dstrb(temp1,pd,1,1,1,1,1)
-        call halo_exch(pd,1,2,2)
+        call dstrb(temp1,int_state%pd,1,1,1,1,1)
+        call halo_exch(int_state%pd,1,2,2)
 !-----------------------------------------------------------------------
+!-- pdo
         if(mype==0)then
           read(nfcst) !vlat
           read(nfcst) !vlon
@@ -1015,172 +847,171 @@ integer(kind=kint):: &
         endif
         do j=jms,jme
         do i=ims,ime
-          pdo(i,j)=0.
+          int_state%pdo(i,j)=0.
         enddo
         enddo
-        call dstrb(temp1,pdo,1,1,1,1,1)
-        call halo_exch(pdo,1,2,2)
+        call dstrb(temp1,int_state%pdo,1,1,1,1,1)
+        call halo_exch(int_state%pdo,1,2,2)
 !
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 3D arrays (only DYN)
 !-----------------------------------------------------------------------
-!       call mpi_barrier(mpi_comm_comp,irtn)
+!
         do l=1,lm
           if(mype==0)then
             read(nfcst)temp1
           endif
-          do j=jms,jme
-          do i=ims,ime
-            w(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,w,1,1,1,lm,l)
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%w(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%w,1,1,1,lm,l)
         enddo
-        call halo_exch(w,lm,2,2)
+        call halo_exch(int_state%w,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
             read(nfcst)temp1
           endif
-          do j=jms,jme
-          do i=ims,ime
-            omgalf(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,omgalf,1,1,1,lm,l)
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%omgalf(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%omgalf,1,1,1,lm,l)
         enddo
-        call halo_exch(omgalf,lm,2,2)
+        call halo_exch(int_state%omgalf,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
             read(nfcst)temp1
           endif
-          do j=jms,jme
-          do i=ims,ime
-            o3(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,o3,1,1,1,lm,l)
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%o3(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%o3,1,1,1,lm,l)
         enddo
-        call halo_exch(o3,lm,2,2)
+        call halo_exch(int_state%o3,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
             read(nfcst)temp1
           endif
-          do j=jms,jme
-          do i=ims,ime
-            div(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,div,1,1,1,lm,l)
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%div(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%div,1,1,1,lm,l)
         enddo
-        call halo_exch(div,lm,2,2)
+        call halo_exch(int_state%div,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
             read(nfcst)temp1
           endif
-          do j=jms,jme
-          do i=ims,ime
-            rtop(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,rtop,1,1,1,lm,l)
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%rtop(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%rtop,1,1,1,lm,l)
         enddo
-        call halo_exch(rtop,lm,2,2)
+        call halo_exch(int_state%rtop,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
             read(nfcst)temp1
           endif
-          do j=jms,jme
-          do i=ims,ime
-            tcu(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,tcu,1,1,1,lm,l)
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%tcu(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%tcu,1,1,1,lm,l)
         enddo
-        call halo_exch(tcu,lm,2,2)
+        call halo_exch(int_state%tcu,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
             read(nfcst)temp1
           endif
-          do j=jms,jme
-          do i=ims,ime
-            tcv(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,tcv,1,1,1,lm,l)
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%tcv(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%tcv,1,1,1,lm,l)
         enddo
-        call halo_exch(tcv,lm,2,2)
+        call halo_exch(int_state%tcv,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
             read(nfcst)temp1
           endif
-          do j=jms,jme
-          do i=ims,ime
-            tct(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,tct,1,1,1,lm,l)
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%tct(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%tct,1,1,1,lm,l)
         enddo
-        call halo_exch(tct,lm,2,2)
-!        write(0,*)'min,max tct=',minval(tct),maxval(tct)
+        call halo_exch(int_state%tct,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
             read(nfcst)temp1
           endif
-          do j=jms,jme
-          do i=ims,ime
-            tp(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,tp,1,1,1,lm,l)
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%tp(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%tp,1,1,1,lm,l)
         enddo
-        call halo_exch(tp,lm,2,2)
+        call halo_exch(int_state%tp,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
             read(nfcst)temp1
           endif
-          do j=jms,jme
-          do i=ims,ime
-            up(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,up,1,1,1,lm,l)
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%up(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%up,1,1,1,lm,l)
         enddo
-        call halo_exch(up,lm,2,2)
+        call halo_exch(int_state%up,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
             read(nfcst)temp1
           endif
-          do j=jms,jme
-          do i=ims,ime
-            vp(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,vp,1,1,1,lm,l)
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%vp(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%vp,1,1,1,lm,l)
         enddo
-        call halo_exch(vp,lm,2,2)
+        call halo_exch(int_state%vp,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
             read(nfcst)temp1
           endif
-          do j=jms,jme
-          do i=ims,ime
-            e2(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,e2,1,1,1,lm,l)
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%e2(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%e2,1,1,1,lm,l)
         enddo
-        call halo_exch(e2,lm,2,2)
+        call halo_exch(int_state%e2,lm,2,2)
 !----------- psgdt -----------------------------------------------------
         do l=1,lm-1
           if(mype==0)then
@@ -1192,29 +1023,29 @@ integer(kind=kint):: &
           if(mype==0)then
             read(nfcst)temp1
           endif
-          do j=jms,jme
-          do i=ims,ime
-            z(i,j,l)=0.
-          enddo
-          enddo
-          call dstrb(temp1,z,1,1,1,lm,l)
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%z(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%z,1,1,1,lm,l)
         enddo
-        call halo_exch(z,lm,2,2)
+        call halo_exch(int_state%z,lm,2,2)
 !-----------------------------------------------------------------------
-        do n=1,indx_o3
+        do n=1,int_state%indx_o3
           do l=1,lm
             if(mype==0)then
               read(nfcst)temp1
             endif
-            do j=jms,jme
-            do i=ims,ime
-              sp(i,j,l,n)=0.
-            enddo
-            enddo
-            call dstrb(temp1,sp(:,:,:,n),1,1,1,lm,l)
+!d            do j=jms,jme
+!d            do i=ims,ime
+!d              int_state%TRACERS_PREV(i,j,l,n)=0.
+!d            enddo
+!d            enddo
+            call dstrb(temp1,int_state%TRACERS_PREV(:,:,:,n),1,1,1,lm,l)
           enddo
         enddo
-        call halo_exch(sp,lm,indx_o3,1,2,2)
+        call halo_exch(int_state%TRACERS_PREV,lm,int_state%indx_o3,1,2,2)
 !
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 2D arrays (contd.)
@@ -1227,11 +1058,11 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
 !
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%ACFRCV(I,J)=0.
-      ENDDO
-      ENDDO
+!d      DO J=JMS,JME
+!d      DO I=IMS,IME
+!d        int_state%ACFRCV(I,J)=0.
+!d      ENDDO
+!d      ENDDO
       CALL DSTRB(TEMP1,int_state%ACFRCV,1,1,1,1,1)
 !-----------------------------------------------------------------------
 !***  ACFRST
@@ -1240,11 +1071,11 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
 !
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%ACFRST(I,J)=0.
-      ENDDO
-      ENDDO
+!d      DO J=JMS,JME
+!d      DO I=IMS,IME
+!d        int_state%ACFRST(I,J)=0.
+!d      ENDDO
+!d      ENDDO
       CALL DSTRB(TEMP1,int_state%ACFRST,1,1,1,1,1)
 !-----------------------------------------------------------------------
 !***  ACPREC
@@ -1253,11 +1084,11 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
 !
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%ACPREC(I,J)=0.
-      ENDDO
-      ENDDO
+!d      DO J=JMS,JME
+!d      DO I=IMS,IME
+!d        int_state%ACPREC(I,J)=0.
+!d      ENDDO
+!d      ENDDO
       CALL DSTRB(TEMP1,int_state%ACPREC,1,1,1,1,1)
 !-----------------------------------------------------------------------
 !***  ACSNOM
@@ -1266,11 +1097,11 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
 !
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%ACSNOM(I,J)=0.
-      ENDDO
-      ENDDO
+!d      DO J=JMS,JME
+!d      DO I=IMS,IME
+!d        int_state%ACSNOM(I,J)=0.
+!!dd      ENDDO
+!d      ENDDO
       CALL DSTRB(TEMP1,int_state%ACSNOM,1,1,1,1,1)
 !-----------------------------------------------------------------------
 !***  ACSNOW
@@ -1279,11 +1110,11 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
 !
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%ACSNOW(I,J)=0.
-      ENDDO
-      ENDDO
+!d      DO J=JMS,JME
+!d      DO I=IMS,IME
+!d        int_state%ACSNOW(I,J)=0.
+!d      ENDDO
+!d      ENDDO
       CALL DSTRB(TEMP1,int_state%ACSNOW,1,1,1,1,1)
 !-----------------------------------------------------------------------
 !***  AKHS_OUT
@@ -1292,11 +1123,11 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
 !
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%AKHS_OUT(I,J)=0.
-      ENDDO
-      ENDDO
+!d      DO J=JMS,JME
+!d      DO I=IMS,IME
+!d        int_state%AKHS_OUT(I,J)=0.
+!d      ENDDO
+!d      ENDDO
       CALL DSTRB(TEMP1,int_state%AKHS_OUT,1,1,1,1,1)
 !-----------------------------------------------------------------------
 !***  AKMS_OUT
@@ -1305,11 +1136,11 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
 !
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%AKMS_OUT(I,J)=0.
-      ENDDO
-      ENDDO
+!d      DO J=JMS,JME
+!d      DO I=IMS,IME
+!d        int_state%AKMS_OUT(I,J)=0.
+!d      ENDDO
+!d      ENDDO
       CALL DSTRB(TEMP1,int_state%AKMS_OUT,1,1,1,1,1)
 !-----------------------------------------------------------------------
 !***  ALBASE
@@ -1318,11 +1149,11 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
 !
-      DO J=JMS,JME
-      DO I=IMS,IME
-        int_state%ALBASE(I,J)=0.
-      ENDDO
-      ENDDO
+!d      DO J=JMS,JME
+!d      DO I=IMS,IME
+!d        int_state%ALBASE(I,J)=0.
+!d      ENDDO
+!d      ENDDO
       CALL DSTRB(TEMP1,int_state%ALBASE,1,1,1,1,1)
 !-----------------------------------------------------------------------
 !***  ALBEDO
@@ -1993,12 +1824,12 @@ integer(kind=kint):: &
           endif
           do j=jms,jme
           do i=ims,ime
-            cw(i,j,l)=0.
+            int_state%cw(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,cw,1,1,1,lm,l)
+          call dstrb(temp1,int_state%cw,1,1,1,lm,l)
         enddo
-        call halo_exch(cw,lm,2,2)
+        call halo_exch(int_state%cw,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
@@ -2006,12 +1837,12 @@ integer(kind=kint):: &
           endif
           do j=jms,jme
           do i=ims,ime
-            q(i,j,l)=0.
+            int_state%q(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,q,1,1,1,lm,l)
+          call dstrb(temp1,int_state%q,1,1,1,lm,l)
         enddo
-        call halo_exch(q,lm,2,2)
+        call halo_exch(int_state%q,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
@@ -2019,12 +1850,12 @@ integer(kind=kint):: &
           endif
           do j=jms,jme
           do i=ims,ime
-            q2(i,j,l)=0.
+            int_state%q2(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,q2,1,1,1,lm,l)
+          call dstrb(temp1,int_state%q2,1,1,1,lm,l)
         enddo
-        call halo_exch(q2,lm,2,2)
+        call halo_exch(int_state%q2,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
@@ -2056,12 +1887,12 @@ integer(kind=kint):: &
           endif
           do j=jms,jme
           do i=ims,ime
-            pint(i,j,l)=0.
+            int_state%pint(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,pint,1,1,1,lm+1,l)
+          call dstrb(temp1,int_state%pint,1,1,1,lm+1,l)
         enddo
-        call halo_exch(pint,lm+1,2,2)
+        call halo_exch(int_state%pint,lm+1,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
@@ -2069,12 +1900,12 @@ integer(kind=kint):: &
           endif
           do j=jms,jme
           do i=ims,ime
-            dwdt(i,j,l)=0.
+            int_state%dwdt(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,dwdt,1,1,1,lm,l)
+          call dstrb(temp1,int_state%dwdt,1,1,1,lm,l)
         enddo
-        call halo_exch(dwdt,lm,2,2)
+        call halo_exch(int_state%dwdt,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
@@ -2083,12 +1914,12 @@ integer(kind=kint):: &
           endif
           do j=jms,jme
           do i=ims,ime
-            t(i,j,l)=0.
+            int_state%t(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,t,1,1,1,lm,l)
+          call dstrb(temp1,int_state%t,1,1,1,lm,l)
         enddo
-        call halo_exch(t,lm,2,2)
+        call halo_exch(int_state%t,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
@@ -2120,12 +1951,12 @@ integer(kind=kint):: &
           endif
           do j=jms,jme
           do i=ims,ime
-            u(i,j,l)=0.
+            int_state%u(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,u,1,1,1,lm,l)
+          call dstrb(temp1,int_state%u,1,1,1,lm,l)
         enddo
-        call halo_exch(u,lm,2,2)
+        call halo_exch(int_state%u,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
@@ -2133,13 +1964,12 @@ integer(kind=kint):: &
           endif
           do j=jms,jme
           do i=ims,ime
-            v(i,j,l)=0.
+            int_state%v(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,v,1,1,1,lm,l)
+          call dstrb(temp1,int_state%v,1,1,1,lm,l)
         enddo
-        call halo_exch(v,lm,2,2)
-!-----------------------------------------------------------------------
+        call halo_exch(int_state%v,lm,2,2)
 !-----------------------------------------------------------------------
 !
       DO K=1,LM
@@ -2204,61 +2034,61 @@ integer(kind=kint):: &
 !***  SH2O, SMC, STC
 !-----------------------------------------------------------------------
 !
-      DO K=1,NSOIL
+      DO K=1,int_state%NSOIL
 !
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1
 !          write(0,*) 'lev, min, max for SH2O: ', k,minval(TEMP1),maxval(TEMP1)
         ENDIF
 !
-        CALL DSTRB(TEMP1,int_state%SH2O,1,1,1,NSOIL,K)
+        CALL DSTRB(TEMP1,int_state%SH2O,1,1,1,int_state%NSOIL,K)
 !
       ENDDO
 !
-      DO K=1,NSOIL
+      DO K=1,int_state%NSOIL
 !
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1
 !          write(0,*) 'lev, min, max for SMC: ', k,minval(TEMP1),maxval(TEMP1)
         ENDIF
 !
-        CALL DSTRB(TEMP1,int_state%SMC,1,1,1,NSOIL,K)
+        CALL DSTRB(TEMP1,int_state%SMC,1,1,1,int_state%NSOIL,K)
 !
       ENDDO
 !
-      DO K=1,NSOIL
+      DO K=1,int_state%NSOIL
 !
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1
 !          write(0,*) 'lev, min, max for STC: ', k,minval(TEMP1),maxval(TEMP1)
         ENDIF
 !
-        CALL DSTRB(TEMP1,int_state%STC,1,1,1,NSOIL,K)
+        CALL DSTRB(TEMP1,int_state%STC,1,1,1,int_state%NSOIL,K)
 !
       ENDDO
 !
 !-----------------------------------------------------------------------
-        do n=indx_o3+1,num_tracers_total                                   !<-- The first 'indx_o3' arrays are unallocated pointers
+        do n=int_state%INDX_O3+1,int_state%NUM_TRACERS_TOTAL                     !<-- The first 'indx_o3' arrays are unallocated pointers
           do l=1,lm
             if(mype==0)then
               read(nfcst)temp1
             endif
             do j=jms,jme
             do i=ims,ime
-              tracers(i,j,l,n)=0.
+              int_state%TRACERS(i,j,l,n)=0.
             enddo
             enddo
-            call dstrb(temp1,tracers(:,:,:,n),1,1,1,lm,l)
+            call dstrb(temp1,int_state%TRACERS(:,:,:,n),1,1,1,lm,l)
           enddo
         enddo
 !
-        call halo_exch(tracers,lm,num_tracers_total,1,2,2)
+        call halo_exch(int_state%TRACERS,lm,int_state%NUM_TRACERS_TOTAL,1,2,2)
 !
-        do n=1,num_water
+        do n=1,int_state%NUM_WATER
         do l=1,lm
           do j=jms,jme
           do i=ims,ime
-            water(i,j,l,n)=tracers(i,j,l,n+num_tracers_total-num_water)
+            int_state%WATER(i,j,l,n)=int_state%TRACERS(i,j,l,n+int_state%NUM_TRACERS_TOTAL-int_state%NUM_WATER)
           enddo
           enddo
         enddo
@@ -2269,48 +2099,45 @@ integer(kind=kint):: &
         close(nfcst)
 !
 !-----------------------------------------------------------------------
-        ntsti=ntsd+1
+        int_state%NTSTI=ntsd+1
 !
-        tend_max=real(ihrend)
-        ntstm_max=nint(tend_max*3600./dt)+1
-        tend=real(nhours_fcst)
-        ntstm=nint(tend*3600./dt)+1
-        if(.not.global)then
+        tend_max=real(int_state%IHREND)
+        ntstm_max=nint(tend_max*3600./int_state%DT)+1
+        tend=real(int_state%nhours_fcst)
+        int_state%NTSTM=nint(tend*3600./int_state%DT)+1
+        if(.not.int_state%GLOBAL)then
           if(mype==0)then
             write(0,*)' Max runtime is ',tend_max,' hours'
           endif
         endif
         if(mype==0)then
           write(0,*)' Requested runtime is ',tend,' hours'
-          write(0,*)' NTSTM=',ntstm
+          write(0,*)' NTSTM=',int_state%NTSTM
         endif
-        if(ntstm>ntstm_max.and..not.global)then
+        if(int_state%NTSTM>ntstm_max.and..not.int_state%GLOBAL)then
           if(mype==0)then
             write(0,*)' Requested fcst length exceeds maximum'
             write(0,*)' Resetting to maximum'
           endif
-          ntstm=min(ntstm,ntstm_max)
+          int_state%NTSTM=min(int_state%NTSTM,ntstm_max)
         endif
 !
-        ihr=nint(ntsd*dt/3600.)
+        int_state%IHR=nint(ntsd*int_state%DT/3600.)
 !-----------------------------------------------------------------------
         do l=1,lm
-          pdsg1(l)=dsg1(l)*pdtop
-          psgml1(l)=sgml1(l)*pdtop+pt
+          int_state%PDSG1(l)=int_state%DSG1(l)*int_state%PDTOP
+          int_state%PSGML1(l)=int_state%SGML1(l)*int_state%PDTOP+int_state%PT
         enddo
 !
         do l=1,lm+1
-          psg1(l)=sg1(l)*pdtop+pt
+          int_state%PSG1(l)=int_state%SG1(l)*int_state%PDTOP+int_state%PT
         enddo
 !-----------------------------------------------------------------------
       endif  read_blocks                        ! cold start /restart
 !-----------------------------------------------------------------------
 !
       deallocate(temp1)
-      deallocate(stdh)
-      if(mype==0)then
-        write(0,*)' EXIT SUBROUTINE INIT pt=',pt
-      endif
+!
 !-----------------------------------------------------------------------
 !
       end subroutine read_binary
