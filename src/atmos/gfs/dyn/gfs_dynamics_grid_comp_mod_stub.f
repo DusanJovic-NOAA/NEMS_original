@@ -1,3 +1,11 @@
+#include "../../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#else
+#define ESMF_520r
+#endif
+
 ! !module: gfs_dynamics_grid_comp_mod --- 
 !                       esmf gridded component of gfs dynamics
 !
@@ -14,7 +22,11 @@
  
 !!uses:
 !------
-      use esmf_mod
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 
       implicit none
 

@@ -1,9 +1,9 @@
 #include "../../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !-----------------------------------------------------------------------
@@ -30,9 +30,14 @@
 !       27 Mar 2011:  J. Wang - set idsl for hybrid and sigms coord
 !       13 May 2011:  W. yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !       05 May 2011:  J. Wang - add run post option on write quilt
+!       28 Sep 2011:  W. yang - Modified for using the ESMF 5.2.0r library.
 !--------------------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 !
       USE MODULE_WRITE_INTERNAL_STATE_GFS
 !
@@ -163,7 +168,11 @@
 !
       CHARACTER(ESMF_MAXSTR)       :: ATTRIB_NAME
 !
+#ifdef ESMF_520r
+      TYPE(ESMF_TypeKind_Flag)     :: DATATYPE
+#else
       TYPE(ESMF_TypeKind)          :: DATATYPE
+#endif
 !
       TYPE(ESMF_Field)             :: FIELD_WORK1
  
@@ -1025,7 +1034,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         allocate(field_name(5000))
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         CALL ESMF_FieldBundleGet(FILE_BUNDLE                         &  !<-- The write component's history data Bundle
                                 ,FIELDNAMELIST =FIELD_NAME           &  !<-- Array of ESMF Field names in the Bundle
                                 ,FIELDCOUNT    =NUM_FIELD_NAMES      &  !<-- Number of Field names in the Bundle
@@ -1065,7 +1074,7 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(FILE_BUNDLE               &  !<-- The write component's history data Bundle
                                   ,FIELDNAME =FIELD_NAME(N)  &  !<-- The ESMF Field's name
                                   ,field     =FIELD_WORK1    &  !<-- The ESMF Field taken from the Bundle

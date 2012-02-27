@@ -1,9 +1,9 @@
 #include "./ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !-----------------------------------------------------------------------
@@ -33,10 +33,15 @@
 !                         ESMF 5 series library and the the 
 !                         ESMF 3.1.0rp2 library.
 !   2011-05     Theurich & Yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!   2011-10     Yang    - Modified for using the ESMF 5.2.0r library.
 !
 !-----------------------------------------------------------------------
 !
-      USE ESMF_Mod
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 !
 !-----------------------------------------------------------------------
 !***  USE the NEMS gridded component module.  Although it
@@ -80,6 +85,10 @@
                                                                            !    the computer CPU resource
                                                                            !    for the ESMF grid components.
 !
+#ifdef ESMF_520r
+      TYPE(ESMF_Calendar) :: calendar
+#endif
+
       TYPE(ESMF_GridComp) :: NEMS_GRID_COMP                                !<-- The NEMS gridded component.
 !
       TYPE(ESMF_State) :: NEMS_EXP_STATE                                &  !<-- The NEMS export state
@@ -116,11 +125,18 @@
 !***  Initialize the ESMF framework. 
 !-----------------------------------------------------------------------
 ! 
+#ifdef ESMF_520r
+      CALL ESMF_Initialize(VM             =VM                           & !<-- The ESMF Virtual Machine
+                          ,rc             =RC)
+      calendar = ESMF_CalendarCreate(ESMF_CALKIND_GREGORIAN, rc = RC)
+      CALL ESMF_CalendarSetDefault(calendar, rc = RC)
+#else
       CALL ESMF_Initialize(VM             =VM                           & !<-- The ESMF Virtual Machine
                           ,defaultCalendar=ESMF_CAL_GREGORIAN           & !<-- Set up the default calendar.
                           ,defaultlogtype =ESMF_LOG_MULTI               & !<-- Define multiple log error output file;
                                                                           !    each task has its own log error output file.
                           ,rc             =RC)
+#endif
 !
 !-----------------------------------------------------------------------
 !***  Extract the MPI task ID.
@@ -167,6 +183,11 @@
                                                                            !    before printing them to the log file.
                       ,rc         =RC)
 #else
+#ifdef ESMF_520r
+      CALL ESMF_LogSet(flush      =.true.                               &
+                      ,trace      =.true.                               &
+                      ,rc         =RC)
+#else
       CALL ESMF_LogSet(verbose    =.true.                               &
                       ,flush      =.true.                               &
                       ,rootOnly   =.false.                              &
@@ -175,6 +196,7 @@
                       ,maxElements=1                                    &  !<-- Maximum number of elements in the log
                                                                            !    before printing them to the log file.
                       ,rc         =RC)
+#endif
 #endif
 
 !
@@ -443,7 +465,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
       NEMS_IMP_STATE=ESMF_StateCreate(     NAME='NEMS Import State'     &
                                      ,rc       =RC)
 !
@@ -473,12 +495,20 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520r
+      CALL ESMF_GridCompInitialize(gridcomp   =NEMS_GRID_COMP           &  !<-- The NEMS component
+                                  ,importState=NEMS_IMP_STATE           &  !<-- The NEMS import state
+                                  ,exportState=NEMS_EXP_STATE           &  !<-- The NEMS export state
+                                  ,clock      =CLOCK_MAIN               &  !<-- The ESMF clock
+                                  ,rc         =RC)
+#else
       CALL ESMF_GridCompInitialize(gridcomp   =NEMS_GRID_COMP           &  !<-- The NEMS component
                                   ,importState=NEMS_IMP_STATE           &  !<-- The NEMS import state
                                   ,exportState=NEMS_EXP_STATE           &  !<-- The NEMS export state
                                   ,clock      =CLOCK_MAIN               &  !<-- The ESMF clock
                                   ,phase      =ESMF_SINGLEPHASE         &
                                   ,rc         =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
@@ -493,12 +523,20 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520r
+      CALL ESMF_GridCompRun(gridcomp   =NEMS_GRID_COMP                  &  !<-- The NEMS component
+                           ,importState=NEMS_IMP_STATE                  &  !<-- The NEMS import state
+                           ,exportState=NEMS_EXP_STATE                  &  !<-- The NEMS export state
+                           ,clock      =CLOCK_MAIN                      &  !<-- The ESMF clock
+                           ,rc         =RC)
+#else
       CALL ESMF_GridCompRun(gridcomp   =NEMS_GRID_COMP                  &  !<-- The NEMS component
                            ,importState=NEMS_IMP_STATE                  &  !<-- The NEMS import state
                            ,exportState=NEMS_EXP_STATE                  &  !<-- The NEMS export state
                            ,clock      =CLOCK_MAIN                      &  !<-- The ESMF clock
                            ,phase      =ESMF_SINGLEPHASE                &
                            ,rc         =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)
@@ -586,12 +624,20 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520r
+      CALL ESMF_GridCompFinalize(gridcomp   =NEMS_GRID_COMP             &  !<-- The NEMS component
+                                ,importState=NEMS_IMP_STATE             &  !<-- The NEMS component import state
+                                ,exportState=NEMS_EXP_STATE             &  !<-- The NEMS component export state
+                                ,clock      =CLOCK_MAIN                 &  !<-- The Main ESMF clock
+                                ,rc         =RC)
+#else
       CALL ESMF_GridCompFinalize(gridcomp   =NEMS_GRID_COMP             &  !<-- The NEMS component
                                 ,importState=NEMS_IMP_STATE             &  !<-- The NEMS component import state
                                 ,exportState=NEMS_EXP_STATE             &  !<-- The NEMS component export state
                                 ,clock      =CLOCK_MAIN                 &  !<-- The Main ESMF clock
                                 ,phase      =ESMF_SINGLEPHASE           &
                                 ,rc         =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_MAIN)

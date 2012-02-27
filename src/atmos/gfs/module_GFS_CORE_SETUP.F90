@@ -1,3 +1,12 @@
+#include "../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_GFS_CORE_SETUP
@@ -11,7 +20,11 @@
 !
 !-----------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
       USE module_DM_PARALLEL_GFS  ,only: SETUP_SERVERS_GFS
       USE module_INCLUDE
 !
@@ -290,7 +303,11 @@
 !
       if(mype<num_pes_fcst)then
           i2 = 0
+#ifdef ESMF_520r
+          CALL ESMF_DistGridGet(DistGrid_atmos, indexCountPDe = i2, rc = rc)
+#else
           CALL ESMF_DistGridGet(DistGrid_atmos, indexCountPDimPDe = i2, rc = rc)
+#endif
       endif
 !
 !-----------------------------------------------------------------------

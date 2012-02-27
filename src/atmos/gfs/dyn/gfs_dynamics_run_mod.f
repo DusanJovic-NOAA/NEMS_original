@@ -1,5 +1,11 @@
 #include "../../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#else
+#define ESMF_520r
+#endif
+
 !
 ! !module: gfs_dynamics_run_mod --- run module of the grided
 !                              component of the gfs dynamics system.
@@ -29,7 +35,11 @@
 !
 !!uses:
 !
-      USE ESMF_Mod
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
       use gfs_dynamics_internal_state_mod
 
       implicit none

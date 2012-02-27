@@ -1,5 +1,14 @@
 #include "../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#undef ESMF_3
+#endif
+
+
 !  2011-05-11  Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !--------------------------------------------------------------------------
 
@@ -9,7 +18,11 @@
 !
 !-----------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -56,6 +69,25 @@
 !
       write(0,*) "    NMM_REGISTER"
 !
+#ifdef ESMF_520r
+      CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
+                                     ,ESMF_METHOD_INITIALIZE            &
+                                     ,NMM_INITIALIZE                    &
+                                     ,phase=1                           &
+                                     ,rc=RC)
+!
+      CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
+                                     ,ESMF_METHOD_RUN                   &
+                                     ,NMM_RUN                           &
+                                     ,phase=1                           &
+                                     ,rc=RC)
+!
+      CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
+                                     ,ESMF_METHOD_FINALIZE              &
+                                     ,NMM_FINALIZE                      &
+                                     ,phase=1                           &
+                                     ,rc=RC)
+#else
 #ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
                                      ,ESMF_SETINIT                      &
@@ -94,6 +126,7 @@
                                      ,phase=1                           &
                                      ,rc=RC)
 !
+#endif
 #endif
 
 !-----------------------------------------------------------------------

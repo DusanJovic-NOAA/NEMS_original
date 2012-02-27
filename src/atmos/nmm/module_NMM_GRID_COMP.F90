@@ -1,10 +1,9 @@
-
 #include "../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !-----------------------------------------------------------------------
@@ -22,9 +21,14 @@
 !                      ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !   2011-05  W. Yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !   2011-07    Black - Modified for moving nests.
+!   2011-09  W. Yang - Modified for using the ESMF 5.2.0r library.
 !-----------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 !
       USE module_INCLUDE
 !
@@ -705,7 +709,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         nmm_int_state%IMP_STATE_DOMAIN(ID_DOM)=ESMF_StateCreate(        &  !<-- DOMAIN import state
                                             name='Domain Import State'  &  !<-- DOMAIN import state name
                                       ,statetype= ESMF_STATE_IMPORT     &
@@ -726,7 +730,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 ! 
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         nmm_int_state%EXP_STATE_DOMAIN(ID_DOM)=ESMF_StateCreate(        &  !<-- DOMAIN export state
                                             name='Domain Export State'  &  !<-- DOMAIN export state name
                                       ,statetype= ESMF_STATE_EXPORT     &

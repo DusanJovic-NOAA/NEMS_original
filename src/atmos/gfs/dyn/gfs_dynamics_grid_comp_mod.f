@@ -1,9 +1,9 @@
 #include "../../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 ! !module: gfs_dynamics_grid_comp_mod --- 
@@ -29,6 +29,7 @@
 !  Feb    2011      Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !                   ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !  May    2011      Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!  Sep    2011      Weiyu Yang, Modified for using the ESMF 5.2.0r library.
 !
 ! !interface:
 !
@@ -36,7 +37,11 @@
  
 !!uses:
 !------
-      use esmf_mod
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 
       use gfs_dynamics_err_msg_mod
       use gfs_dynamics_initialize_mod
@@ -94,53 +99,94 @@
 ! a pre-defined subroutine type, such as esmf_setinit, esmf_setrun, 
 ! esmf_setfinal.
 !---------------------------------------------------------------------
+#ifdef ESMF_520r
+      call esmf_logwrite("set entry point for initialize",              &
+                          esmf_logmsg_info, rc = rc1)
+#else
       call esmf_logwrite("set entry point for initialize",              &
                           esmf_log_info, rc = rc1)
+#endif
 #ifdef ESMF_3
       call esmf_gridcompsetentrypoint (gc_gfs_dyn, 			&
                                        esmf_setinit,  			&
                                        gfs_dyn_initialize,              &
                                        esmf_singlephase, rc1)
+#else
+#ifdef ESMF_520r
+      CALL ESMF_GridCompSetEntryPoint( gc_gfs_dyn                       &
+                                     , ESMF_METHOD_INITIALIZE           &
+                                     , gfs_dyn_initialize               &
+                                     , phase=1                          &
+                                     , rc=RC1)
 #else
       call esmf_gridcompsetentrypoint (gc_gfs_dyn, 			&
                                        esmf_setinit,  			&
                                        gfs_dyn_initialize,              &
                                        phase=esmf_singlephase, rc=rc1)
 #endif
+#endif
       call gfs_dynamics_err_msg(rc1,'set entry point for initialize',rc)
 
 ! register the run subroutine.
 !-----------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("set entry point for run",              	&
-                           esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("set entry point for run",              	&
+                          esmf_log_info, rc = rc1)
+#endif
+
 #ifdef ESMF_3
       call esmf_gridcompsetentrypoint (gc_gfs_dyn, 			&
                                        esmf_setrun,   			&
                                        gfs_dyn_run,	                &
                                        esmf_singlephase, rc1)
 #else
+#ifdef ESMF_520r
+      CALL ESMF_GridCompSetEntryPoint( gc_gfs_dyn                       &
+                                     , ESMF_METHOD_RUN                  &
+                                     , gfs_dyn_run                      &
+                                     , phase=1                          &
+                                     , rc=RC1)
+#else
       call esmf_gridcompsetentrypoint (gc_gfs_dyn, 			&
                                        esmf_setrun,   			&
                                        gfs_dyn_run,	                &
                                        phase=esmf_singlephase, rc=rc1)
+#endif
 #endif
       call gfs_dynamics_err_msg(rc1,'set entry point for run',rc)
 
 
 ! register the finalize subroutine.
 !----------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("set entry point for finalize",                &
-                        esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("set entry point for finalize",                &
+                          esmf_log_info, rc = rc1)
+#endif
+
 #ifdef ESMF_3
       call esmf_gridcompsetentrypoint (gc_gfs_dyn, 			&
                                        esmf_setfinal, 			&
                                        gfs_dyn_finalize, 	        &
                                        esmf_singlephase, rc1)
 #else
+#ifdef ESMF_520r
+      CALL ESMF_GridCompSetEntryPoint( gc_gfs_dyn                       &
+                                     , ESMF_METHOD_FINALIZE             &
+                                     , gfs_dyn_finalize                 &
+                                     , phase=1                          &
+                                     , rc=RC1)
+#else
       call esmf_gridcompsetentrypoint (gc_gfs_dyn, 			&
                                        esmf_setfinal, 			&
                                        gfs_dyn_finalize, 	        &
                                        phase=esmf_singlephase, rc=rc1)
+#endif
 #endif
       call gfs_dynamics_err_msg(rc1,'set entry point for finalize',rc)
 
@@ -243,8 +289,13 @@
 
 ! allocate the internal state pointer.
 !-------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("allocate the dyn internal state",                 &
-                         esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("allocate the dyn internal state",                 &
+                          esmf_log_info, rc = rc1)
+#endif
 
       allocate(int_state, stat = rc1)
 
@@ -258,8 +309,13 @@
 !***  FROM THE DYNAMICS EXPORT STATE.
 !-----------------------------------------------------------------------
 !
+#ifdef ESMF_520r
       call esmf_logwrite("get write gc import state",                  &
-                        esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("get write gc import state",                  &
+                          esmf_log_info, rc = rc1)
+#endif
 
       CALL ESMF_StateGet(state      =exp_gfs_dyn                        &  !<-- The Dynamics export state
                         ,itemName   ='Write Import State'               &  !<-- Name of the state to get from Dynamics export state
@@ -270,8 +326,13 @@
 
 ! attach internal state to the gfs dynamics grid component.
 !-------------------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("set up the internal state",                   &
-                        esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("set up the internal state",                   &
+                          esmf_log_info, rc = rc1)
+#endif
 
       call esmf_gridcompsetinternalstate(gc_gfs_dyn, wrap, rc1)
 
@@ -280,8 +341,13 @@
 ! use esmf utilities to get information from the configuration file.
 ! the function is similar to reading the namelist in the original gfs.
 !---------------------------------------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("getting information from the configure file", &
-                        esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("getting information from the configure file", &
+                          esmf_log_info, rc = rc1)
+#endif
 
       call gfs_dynamics_getcf(gc_gfs_dyn, int_state,  rc1)
 
@@ -289,8 +355,13 @@
 
 ! get the start time from reading the sigma file.
 !----------------------------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("getting the start time",                      &
-                         esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("getting the start time",                      &
+                          esmf_log_info, rc = rc1)
+#endif
 
       call gfs_dynamics_start_time_get(					&
                         yy, mm, dd, hh, mns, sec, int_state%kfhour,     &
@@ -314,16 +385,26 @@
 ! initialize the clock with the start time based on the information
 ! from calling starttimeget.
 !------------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("set up the esmf time",                        &
-                         esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("set up the esmf time",                        &
+                          esmf_log_info, rc = rc1)
+#endif
 
       call esmf_timeset(starttime, yy = yy, mm = mm,  dd = dd,          &
                               h  = hh, m  = mns, s  = sec, rc = rc1)
 
       call gfs_dynamics_err_msg(rc1,'set up the esmf time',rc)
 
+#ifdef ESMF_520r
       call esmf_logwrite("set up the reference time interval",          &
-                        esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("set up the reference time interval",          &
+                          esmf_log_info, rc = rc1)
+#endif
 
       call esmf_timeintervalset(reftimeinterval, h = int_state%kfhour,  &
                            m = 0, rc = rc1)
@@ -345,7 +426,11 @@
 ! get the grid component vm.
 ! this esmf_gridcompget vm can be used at any where you need it.
 !---------------------------------------------------------------
+!ifdef ESMF_520r
+!      call esmf_logwrite("get the local vm", esmf_logmsg_info, rc = rc1)
+!#else
 !      call esmf_logwrite("get the local vm", esmf_log_info, rc = rc1)
+!#endif
 
       call esmf_vmgetcurrent(vm_local, rc = rc1)
 
@@ -369,8 +454,13 @@
 ! variables and some local parameter short names, aloocate
 ! internal state arrays.
 !---------------------------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("run the gfs_dynamics_initialize", 		&
-                         esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("run the gfs_dynamics_initialize", 		&
+                          esmf_log_info, rc = rc1)
+#endif
 
 ! ======================================================================
 ! ----------------- gfs dynamics related initialize --------------------
@@ -567,8 +657,13 @@
 
 ! retrieve the esmf internal state.
 !---------------------------------- 
+#ifdef ESMF_520r
       call esmf_logwrite("get the internal state in the run routine", 	&
-                        esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("get the internal state in the run routine", 	&
+                          esmf_log_info, rc = rc1)
+#endif
 
       call esmf_gridcompgetinternalstate(gc_gfs_dyn, wrap, rc1)
 
@@ -583,8 +678,13 @@
 ! update the initial condition arrays in the internal state based on
 ! the information of the esmf import state.
 !------------------------------------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("esmf import state to internal state",         &
-                        esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("esmf import state to internal state",         &
+                          esmf_log_info, rc = rc1)
+#endif
 !
       int_state%reset_step = .false.
       if(int_state%restart_step ) first_reset=.false.
@@ -672,8 +772,13 @@
 ! ======================================================================
 ! --------------- run the gfs dynamics related -------------------------
 ! ======================================================================
+#ifdef ESMF_520r
       call esmf_logwrite("run the gfs_dynamics_run", 			&
-                         esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("run the gfs_dynamics_run", 			&
+                          esmf_log_info, rc = rc1)
+#endif
 
       call gfs_dynamics_run(int_state, imp_gfs_dyn, rc = rc1)
       call gfs_dynamics_err_msg(rc1,'run the gfs_dynamics_run',rc)
@@ -684,8 +789,13 @@
 ! to the esmf export state which is the public interface
 ! for other esmf grid components. link is done in initialize, so do not need.
 !-------------------------------------------------------
+#ifdef ESMF_520r
      call esmf_logwrite("internal state to esmf export state", 	&
-                       esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+     call esmf_logwrite("internal state to esmf export state", 	&
+                          esmf_log_info, rc = rc1)
+#endif
 
 ! Need to check it?  Should be removed?
 !--------------------------------------
@@ -727,7 +837,7 @@
         do n = 1, int_state%ntrac                                         !chlu_debug
           vname = int_state%gfs_dyn_tracer%vname(n, 1)                    !chlu_debug
           print *,'LU_DYN:',trim(vname)                                   !chlu_debug
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(ESMFBundle, &                          !chlu_debug
                  FIELDNAME=vname, field=ESMFfield, rc = rc1)              !chlu_debug
 #else
@@ -761,8 +871,13 @@
 !------------- put run level variables into write_imp_state---------
 ! ======================================================================
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+#ifdef ESMF_520r
      call esmf_logwrite("get imp_state_write from esmf export state",   &
-                       esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+     call esmf_logwrite("get imp_state_write from esmf export state",   &
+                          esmf_log_info, rc = rc1)
+#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_StateGet(state          =exp_gfs_dyn    &  !<-- The Dyn component's export state
@@ -774,8 +889,13 @@
      call gfs_dynamics_err_msg(rc1,'get imp_state_write from esmf export state',rc)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520r
      call esmf_logwrite("set pdryini in imp_state_write",               &
-                       esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+     call esmf_logwrite("set pdryini in imp_state_write",               &
+                          esmf_log_info, rc = rc1)
+#endif
      CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                   &  !<-- The Write component import state
                             ,name     ='pdryini'                        &  !<-- Name of the var
                             ,value    =int_state%pdryini                &  !<-- The var being inserted into the import state
@@ -841,9 +961,15 @@
 
 ! retrieve the esmf internal state.
 !----------------------------------
+#ifdef ESMF_520r
      call esmf_logwrite(						&
                       "get the internal state in the finalize routine", &
-                       esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+     call esmf_logwrite(						&
+                      "get the internal state in the finalize routine", &
+                          esmf_log_info, rc = rc1)
+#endif
 
      call esmf_gridcompgetinternalstate(gc_gfs_dyn, wrap, rc1)
 
@@ -857,8 +983,13 @@
 ! ======================================================================
 ! run the gfs finalize routine to release the memory space, etc. 
 ! ======================================================================
+#ifdef ESMF_520r
       call esmf_logwrite("run the gfs_dynamics_finalize", 		&
-                         esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("run the gfs_dynamics_finalize", 		&
+                          esmf_log_info, rc = rc1)
+#endif
 
       call gfs_dynamics_finalize(int_state, rc = rc1)
 

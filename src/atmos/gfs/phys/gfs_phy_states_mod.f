@@ -1,5 +1,12 @@
 #include "../../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
        MODULE GFS_Phy_States_Mod
 
 !BOP
@@ -25,10 +32,15 @@
 !  2010/11/18           Jun Wang, fix error on allocating cpi and ri
 !  2011/02              Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !                       ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!  2011/10/03           Weiyu Yang, Updated to use both the ESMF 5.2.0r library,
 !
 !!USEs:
 !
-      USE ESMF_Mod                 ! the esmf library.
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 
 ! the derived TYPE of the internal state.
 !----------------------------------------
@@ -92,9 +104,15 @@
       rc1     = esmf_success
       rcfinal = esmf_success
 
-      CALL esmf_logwrite(						&
+#ifdef ESMF_520r
+      CALL esmf_logwrite(                                               &
+           " update internal state with the esmf import state", 	&
+            esmf_logmsg_info, rc = rc1)
+#else
+      CALL esmf_logwrite(                                               &
            " update internal state with the esmf import state", 	&
             esmf_log_info, rc = rc1)
+#endif
 
       cf = int_state%esmf_sta_list
 
@@ -169,10 +187,17 @@
           CALL gfs_physics_err_msg(rc1, 'retrieve Ebundle from state', rcfinal)
           DO i = 1, int_state%ntrac
               IF(ASSOCIATED(FArr3D)) NULLIFY(FArr3D)
+#ifdef ESMF_520r
+              CALL ESMF_FieldBundleGet(Bundle,                            &
+                                       trim(int_state%gfs_phy_tracer%vname(i)), &
+                                       field = Field,                     &
+                                       rc = rc1)
+#else
               CALL ESMF_FieldBundleGet(Bundle,                            &
                                        trim(int_state%gfs_phy_tracer%vname(i)), &
                                        Field,                             &
                                        rc = rc1)
+#endif
               CALL gfs_physics_err_msg(rc1, 'retrieve Efield from bundle', rcfinal)
 
 #ifdef ESMF_3
@@ -429,8 +454,13 @@
 !-----------------------------------------------
       PRINT*, 'do int_state to exp_gfs_phy'
 
+#ifdef ESMF_520r
       CALL esmf_logwrite("begining to put the esmf export state.", &
-                    esmf_log_info, rc = rc1)
+            esmf_logmsg_info, rc = rc1)
+#else
+      CALL esmf_logwrite("begining to put the esmf export state.", &
+            esmf_log_info, rc = rc1)
+#endif
 
 ! orography field. gaussian grid
 !----------------------------------------------------------------
@@ -493,7 +523,12 @@
               fArr3D => int_state%grid_fld%tracers(k)%flds
               Field  = ESMF_FieldCreate(mgrid, fArr3D,                    &
                   name = trim(int_state%gfs_phy_tracer%vname(k)), rc = rc1)
+#ifdef ESMF_520r
+              CALL ESMF_FieldBundleAdd(Bundle, (/Field/), rc = rc1)
+#else
               CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc1)
+#endif
+
               CALL gfs_physics_err_msg(rc1, "add field to bundle, vname=1", rcfinal)
           END DO
 
@@ -502,7 +537,11 @@
 !  ---  inputs:  (in scope variables)
 !  ---  outputs: (in scope variables)
 
+#ifdef ESMF_520r
+          CALL ESMF_StateAdd(exp_gfs_phy, (/Bundle/), rc = rc1)
+#else
           CALL ESMF_StateAdd(exp_gfs_phy, Bundle, rc = rc1)
+#endif
           CALL gfs_physics_err_msg(rc1, "add to esmf state - tracer", rcfinal)
       END IF
 ! add layer pressure (pp) fileds into the esmf export state.
@@ -563,35 +602,35 @@
       CALL ESMF_AttributeSet(state=exp_gfs_phy        &  !<-- The physics export state
                             ,name ='deltim'           &  !<-- Name of the attribute to insert
                             ,value= int_state%nam_gfs_phy%deltim  & !<-- Value of the attribute
-                            ,rc   =RC)
+                            ,rc   =RC1)
 
       CALL ESMF_AttributeSet(state=exp_gfs_phy             &  !<-- The physics export state
                             ,name ='lats_node_r'           &  !<-- Name of the attribute to insert
                             ,value= lats_node_r            &  !<-- Value of the attribute
-                            ,rc   =RC)
+                            ,rc   =RC1)
 
       CALL ESMF_AttributeSet(state=exp_gfs_phy             &
                             ,name ='lats_node_r_max'       &
                             ,value= lats_node_r_max        &
-                            ,rc   =RC)
+                            ,rc   =RC1)
 
       CALL ESMF_AttributeSet(state=exp_gfs_phy             &
                             ,name ='lonr'                  &
                             ,value= lonr                   &
-                            ,rc   =RC)
+                            ,rc   =RC1)
 
 #ifdef ESMF_3
       CALL ESMF_AttributeSet(state=exp_gfs_phy             &  !<-- The physics export state
                             ,name ='lonsperlar_r'          &  !<-- Name of the attribute to insert
                             ,count= lats_node_r_max        &  !<-- Number of values in the attribute
                             ,valueList =lonsperlar_r       &  !<-- Value of the attribute
-                            ,rc   =RC)
+                            ,rc   =RC1)
 #else
       CALL ESMF_AttributeSet(state=exp_gfs_phy             &  !<-- The physics export state
                             ,name ='lonsperlar_r'          &  !<-- Name of the attribute to insert
                             ,itemCount= lats_node_r_max    &  !<-- Number of values in the attribute
                             ,valueList =lonsperlar_r       &  !<-- Value of the attribute
-                            ,rc   =RC)
+                            ,rc   =RC1)
 #endif
 
 ! loop through the 2D diag fields
@@ -670,12 +709,16 @@
         msg   = "Create ESMF Field from "//vname
         field = ESMF_FieldCreate(name=vname, grid=mgrid,       &
                 fArray=fArr2D, gridToFieldMap=(/1,2,0/),       &
-                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-        call gfs_physics_err_msg(rc,msg,rcfinal)
+                indexFlag=ESMF_INDEX_DELOCAL, rc=rc1)
+        call gfs_physics_err_msg(rc1,msg,rcfinal)
 
         msg   = "Add to Physics Export State"
-        call ESMF_StateAdd(exp_gfs_phy, field, rc=rc)
-        call gfs_physics_err_msg(rc, msg ,rcfinal)
+#ifdef ESMF_520r
+        call ESMF_StateAdd(exp_gfs_phy, (/field/), rc=rc1)
+#else
+        call ESMF_StateAdd(exp_gfs_phy, field, rc=rc1)
+#endif
+        call gfs_physics_err_msg(rc1, msg ,rcfinal)
 
       ENDDO   lab_do_2D
 
@@ -698,12 +741,16 @@
 
         msg   = "Create ESMF Field from "//vname
         field = ESMF_FieldCreate(name=vname, grid=mgrid,       &
-                fArray=fArr3D,indexFlag=ESMF_INDEX_DELOCAL,rc=rc)
+                fArray=fArr3D,indexFlag=ESMF_INDEX_DELOCAL,rc=rc1)
         call gfs_physics_err_msg(rc,msg,rcfinal)
 
         msg   = "Add to Physics Export State"
-        call ESMF_StateAdd(exp_gfs_phy, field, rc=rc)
-        call gfs_physics_err_msg(rc, msg ,rcfinal)
+#ifdef ESMF_520r
+        call ESMF_StateAdd(exp_gfs_phy, (/field/), rc=rc1)
+#else
+        call ESMF_StateAdd(exp_gfs_phy, field, rc=rc1)
+#endif
+        call gfs_physics_err_msg(rc1, msg ,rcfinal)
 
       ENDDO   lab_do_3D
 
@@ -733,8 +780,8 @@
       
         if ( kcount > 0 ) then
          msg =  "create empty FieldBundle "//BundleName
-         Bundle = ESMF_FieldBundleCreate(name=BundleName, rc=rc)
-         call gfs_physics_err_msg(rc, msg, rcfinal)
+         Bundle = ESMF_FieldBundleCreate(name=BundleName, rc=rc1)
+         call gfs_physics_err_msg(rc1, msg, rcfinal)
 
          DO k = 1, kcount
           FieldName = trim(g2d%diag(k)%name)
@@ -744,17 +791,25 @@
           fArr2D => g2d%diag(k)%flds
           Field = ESMF_FieldCreate(name=FieldName, grid=mgrid,    &
                   fArray=fArr2D, gridToFieldMap=(/1,2,0/),       &
-                  indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
+                  indexFlag=ESMF_INDEX_DELOCAL, rc=rc1)
           msg = "Add the created Field to Bundle: "//FieldName
-          CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc)
-          call gfs_physics_err_msg(rc, msg ,rcfinal)
+#ifdef ESMF_520r
+          CALL ESMF_FieldBundleAdd(Bundle, (/Field/), rc = rc1)
+#else
+          CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc1)
+#endif
+          call gfs_physics_err_msg(rc1, msg ,rcfinal)
 
-          call add_g2d_attribute(Bundle,BundleName,k,FieldName,rc=rc)
+          call add_g2d_attribute(Bundle,BundleName,k,FieldName,rc=rc1)
          ENDDO
 
          msg = "Add Bundle to physics export state"
-         CALL ESMF_StateAdd(exp_gfs_phy, Bundle, rc = rc)
-         call gfs_physics_err_msg(rc, msg ,rcfinal)
+#ifdef ESMF_520r
+         CALL ESMF_StateAdd(exp_gfs_phy, (/Bundle/), rc = rc1)
+#else
+         CALL ESMF_StateAdd(exp_gfs_phy, Bundle, rc = rc1)
+#endif
+         call gfs_physics_err_msg(rc1, msg ,rcfinal)
         endif
 
         FieldName = trim(aerosol)//'_nfld'
@@ -762,8 +817,8 @@
         CALL ESMF_AttributeSet(exp_gfs_phy               &  !<-- User specified bundle
                ,name = FieldName                         &  !<-- Name of the attribute to insert
                ,value = kcount                           &  !<-- Value of the attribute
-               ,rc   =RC)
-        call gfs_physics_err_msg(rc, msg ,rcfinal)
+               ,rc   =RC1)
+        call gfs_physics_err_msg(rc1, msg ,rcfinal)
 
       ENDDO   lab_do_diag
 
@@ -791,15 +846,15 @@
        CALL ESMF_AttributeSet(Bundle                         &  !<-- Phy export state tracer bundle
                ,name ='cpi_dryair'                           &  !<-- Name of the attribute to insert
                ,value = int_state%gfs_phy_tracer%cpi(0)      &  !<-- Value of the attribute
-               ,rc   =RC)
-       call gfs_physics_err_msg(rc,msg,rcfinal)
+               ,rc   =RC1)
+       call gfs_physics_err_msg(rc1,msg,rcfinal)
 
        msg   = "inset ri(0) attribute to phy_exp"
        CALL ESMF_AttributeSet(Bundle                         &  !<-- Phy export state tracer bundle
                ,name ='ri_dryair'                            &  !<-- Name of the attribute to insert
                ,value = int_state%gfs_phy_tracer%ri(0)       &  !<-- Value of the attribute
-               ,rc   =RC)
-       call gfs_physics_err_msg(rc,msg,rcfinal)
+               ,rc   =RC1)
+       call gfs_physics_err_msg(rc1,msg,rcfinal)
 
 #ifdef ESMF_3
        msg   = "insert cpi(:) attribute to phy_exp"
@@ -807,32 +862,32 @@
                ,name ='cpi'                                  &  !<-- Name of the attribute array
                ,count= int_state%ntrac                       &  !<-- Length of array being inserted
                ,valueList = int_state%gfs_phy_tracer%cpi(1:int_state%ntrac)  &!<-- The array being inserted
-               ,rc   =RC)
-       call gfs_physics_err_msg(rc,msg,rcfinal)
+               ,rc   =RC1)
+       call gfs_physics_err_msg(rc1,msg,rcfinal)
 
        msg   = "insert ri(:) attribute to phy_exp"
        CALL ESMF_AttributeSet(Bundle                         &  !<-- Phy export state tracer bundle
                ,name ='ri'                                   &  !<-- Name of the attribute array
                ,count= int_state%ntrac                       &  !<-- Length of array being inserted
                ,valueList = int_state%gfs_phy_tracer%ri(1:int_state%ntrac)  &!<-- The array being inserted
-               ,rc   =RC)
-       call gfs_physics_err_msg(rc,msg,rcfinal)
+               ,rc   =RC1)
+       call gfs_physics_err_msg(rc1,msg,rcfinal)
 #else
        msg   = "insert cpi(:) attribute to phy_exp"
        CALL ESMF_AttributeSet(Bundle                         &  !<-- Phy export state tracer bundle
                ,name ='cpi'                                  &  !<-- Name of the attribute array
                ,itemCount= int_state%ntrac                   &  !<-- Length of array being inserted
                ,valueList = int_state%gfs_phy_tracer%cpi(1:int_state%ntrac)  &!<-- The array being inserted
-               ,rc   =RC)
-       call gfs_physics_err_msg(rc,msg,rcfinal)
+               ,rc   =RC1)
+       call gfs_physics_err_msg(rc1,msg,rcfinal)
 
        msg   = "insert ri(:) attribute to phy_exp"
        CALL ESMF_AttributeSet(Bundle                         &  !<-- Phy export state tracer bundle
                ,name ='ri'                                   &  !<-- Name of the attribute array
                ,itemCount= int_state%ntrac                   &  !<-- Length of array being inserted
                ,valueList = int_state%gfs_phy_tracer%ri(1:int_state%ntrac)  &!<-- The array being inserted
-               ,rc   =RC)
-       call gfs_physics_err_msg(rc,msg,rcfinal)
+               ,rc   =RC1)
+       call gfs_physics_err_msg(rc1,msg,rcfinal)
 #endif
 
 ! ---  Set attribute for ntrac
@@ -840,8 +895,8 @@
        CALL ESMF_AttributeSet(Bundle                         &  !<-- Phy export state tracer bundle
                ,name ='ntrac'                                &  !<-- Name of the attribute to insert
                ,value = int_state%gfs_phy_tracer%ntrac        &  !<-- Value of the attribute
-               ,rc   =RC)
-       call gfs_physics_err_msg(rc,msg,rcfinal)
+               ,rc   =RC1)
+       call gfs_physics_err_msg(rc1,msg,rcfinal)
 
       RETURN
       end subroutine set_phy_attribute

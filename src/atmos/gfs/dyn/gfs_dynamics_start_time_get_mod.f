@@ -1,3 +1,12 @@
+#include "../../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
       subroutine gfs_dynamics_start_time_get(				&
                  yy, mm, dd, hh, mns, sec, kfhour, n1, n2,    		&
                  grib_inp, cfile, cfile2, rc)
@@ -15,7 +24,12 @@
 !
 !uses:
 !
-      use esmf_mod,     only: esmf_success
+#ifdef ESMF_520r
+      USE esmf,     ONLY: esmf_success
+#else
+      USE esmf_mod, ONLY: esmf_success
+#endif
+
       use gfs_dyn_machine,      only: kind_io4, kind_evod
       use gfs_dyn_date_def,     only: idate,idate7
       use nemsio_module

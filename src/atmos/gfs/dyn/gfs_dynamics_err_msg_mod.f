@@ -1,10 +1,10 @@
-#include "../../ESMFVersionDefine.h"
+#include "../../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #define ESMF_LogFoundError ESMF_LogMsgFoundError
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !
@@ -23,7 +23,11 @@
 !
 !!uses:
 !
-      use esmf_mod                 ! the esmf library.
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 
       implicit none
       logical,parameter::lprint=.false.
@@ -35,7 +39,7 @@
       integer, intent(out)          :: rcfinal
       character (len=*), intent(in) :: msg
       character (len=*), intent(in) :: var
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
       if(esmf_logfounderror(rc1, msg=msg)) then
 #else
       if(esmf_logfounderror(rc1,     msg)) then
@@ -52,7 +56,7 @@
       integer, intent(inout)        :: rc1
       integer, intent(out)          :: rc
       character (len=*), intent(in) :: msg
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
       if(esmf_logfounderror(rc1, msg=msg)) then
 #else
       if(esmf_logfounderror(rc1,     msg)) then

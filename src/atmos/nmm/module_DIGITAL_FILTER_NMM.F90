@@ -1,9 +1,9 @@
 #include "../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !-----------------------------------------------------------------------
@@ -20,9 +20,14 @@
 ! February 2011 Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !                           ESMF 5 library and the the ESMF 3.1.0rp2 library.
 ! May      2011 Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+! September2011 Weiyu Yang, Modified for using the ESMF 5.2.0r library.
 !----------------------------------------------------------------------------
 !
-      use esmf_mod
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
       use module_include
       use module_exchange,only: halo_exch
 
@@ -633,7 +638,7 @@
       call esmf_stateget(state=phy_state,				&
                          itemnamelist = phy_name,			&
                          rc=rc)
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
       phy_state_save=esmf_statecreate(     name="digital filter phy"	&
                                      ,statetype=esmf_state_unspecified	&
                                      ,rc       =rc)

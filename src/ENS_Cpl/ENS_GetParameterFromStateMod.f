@@ -1,10 +1,10 @@
 #include "../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #define ESMF_LogFoundError ESMF_LogMsgFoundError
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !----------------------------------------------------------------------
@@ -22,6 +22,7 @@
 !  February 2011     Weiyu Yang Updated to use both the ESMF 4.0.0rp2 library,
 !                               ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !  May      2011     Weiyu yang Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!  September2011     Weiyu yang Modified for using the ESMF 5.2.0r library.
 !
 !
 ! !INTERFACE:
@@ -29,7 +30,11 @@
 
  MODULE ENS_GetParameterFromStateMod
 
- USE ESMF_Mod
+#ifdef ESMF_520r
+ USE esmf
+#else
+ USE esmf_mod
+#endif
  USE ENS_Cpl_InternalState_ESMFMod
 
  IMPLICIT none
@@ -51,7 +56,7 @@
 !----------------------------------------------------------------
  CALL ESMF_AttributeGet(State, 'NTRAC', Int_State%ntrac, rc = rc1)
 
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get ntrac from the ENS Cpl import state.")) THEN
 #else
      IF(ESMF_LogFoundError(rc1,     "Get ntrac from the ENS Cpl import state.")) THEN
@@ -63,7 +68,7 @@
 
  CALL ESMF_AttributeGet(State, 'MPI_R_MPI_R', Int_State%MPI_R_MPI_R, rc = rc1)
 
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get MPI_R_MPI_R from the ENS Cpl import state.")) THEN
 #else
      IF(ESMF_LogFoundError(rc1,     "Get MPI_R_MPI_R from the ENS Cpl import state.")) THEN
@@ -75,7 +80,7 @@
 
  CALL ESMF_AttributeGet(State, 'JCAP', Int_State%jcap, rc = rc1)
 
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get JCAP from the ENS Cpl import state.")) THEN
 #else
      IF(ESMF_LogFoundError(rc1,     "Get JCAP from the ENS Cpl import state.")) THEN
@@ -87,7 +92,7 @@
 
  CALL ESMF_AttributeGet(State, 'NODES_COMP', Int_State%nodes_comp, rc = rc1)
 
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get NODES_COMP from the ENS Cpl import state.")) THEN
 #else
      IF(ESMF_LogFoundError(rc1,     "Get NODES_COMP from the ENS Cpl import state.")) THEN
@@ -99,7 +104,7 @@
 
  CALL ESMF_AttributeGet(State, 'ME_COMP', Int_State%me_comp, rc = rc1)
 
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get ME_COMP from the ENS Cpl import state.")) THEN
 #else
      IF(ESMF_LogFoundError(rc1,     "Get ME_COMP from the ENS Cpl import state.")) THEN
@@ -111,7 +116,7 @@
 
  CALL ESMF_AttributeGet(State, 'MC_COMP', Int_State%MC_COMP, rc = rc1)
 
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get MC_COMP from the ENS Cpl import state.")) THEN
 #else
      IF(ESMF_LogFoundError(rc1,     "Get MC_COMP from the ENS Cpl import state.")) THEN
@@ -123,7 +128,7 @@
 
  CALL ESMF_AttributeGet(State, 'LATS_NODE_A', Int_State%lats_node_a, rc = rc1)
 
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get LATS_NODE_A from the ENS Cpl import state.")) THEN
 #else
      IF(ESMF_LogFoundError(rc1,     "Get LATS_NODE_A from the ENS Cpl import state.")) THEN
@@ -135,7 +140,7 @@
 
  CALL ESMF_AttributeGet(State, 'IPT_LATS_NODE_A', Int_State%ipt_lats_node_a, rc = rc1)
 
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get IPT_LATS_NODE_A from the ENS Cpl import state.")) THEN
 #else
      IF(ESMF_LogFoundError(rc1,     "Get IPT_LATS_NODE_A from the ENS Cpl import state.")) THEN
@@ -147,7 +152,7 @@
 
  CALL ESMF_AttributeGet(State, 'LONF', Int_State%lonf, rc = rc1)
 
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get LONF from the ENS Cpl import state.")) THEN
 #else
      IF(ESMF_LogFoundError(rc1,     "Get LONF from the ENS Cpl import state.")) THEN
@@ -159,7 +164,7 @@
 
  CALL ESMF_AttributeGet(State, 'LATG', Int_State%latg, rc = rc1)
 
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get LATG from the ENS Cpl import state.")) THEN
 #else
      IF(ESMF_LogFoundError(rc1,     "Get LATG from the ENS Cpl import state.")) THEN
@@ -181,7 +186,7 @@
      itemCount = Int_State%latg, rc = rc1)
 #endif
 
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get GLOBAL_LATS_A from the ENS Cpl import state.")) THEN
 #else
      IF(ESMF_LogFoundError(rc1,     "Get GLOBAL_LATS_A from the ENS Cpl import state.")) THEN
@@ -197,7 +202,7 @@
      itemCount = Int_State%latg, rc = rc1)
 #endif
 
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
      IF(ESMF_LogFoundError(rc1, msg="Get LONSPERLAT from the ENS Cpl import state.")) THEN
 #else
      IF(ESMF_LogFoundError(rc1,     "Get LONSPERLAT from the ENS Cpl import state.")) THEN

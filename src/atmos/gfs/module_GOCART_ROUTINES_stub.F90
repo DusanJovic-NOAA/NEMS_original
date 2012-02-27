@@ -1,9 +1,9 @@
 #include "../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !-----------------------------------------------------------------------
@@ -26,7 +26,11 @@
 !
 !-----------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -102,7 +106,7 @@
 !***  Argument variables
 !------------------------
 !
-      INTEGER,            INTENT(IN)   :: MYPE
+      INTEGER,            INTENT(IN)    :: MYPE
       TYPE(ESMF_GridComp),INTENT(INOUT) :: GC_GFS_CHEM                     !<-- The gocart gridded component
       TYPE(ESMF_State),   INTENT(INOUT) :: EXP_GFS_PHY                     !<-- The physics component's export
       TYPE(ESMF_State),   INTENT(INOUT) :: IMP_GFS_CHEM                    !<-- The chemistry component' import
@@ -141,7 +145,6 @@
 !   2011-10-30  Lu    MYPE added
 !
 !-----------------------------------------------------------------------
-
 
       INTEGER,INTENT(IN)               :: MYPE
       TYPE(ESMF_GridComp),INTENT(INOUT):: GC_GFS_CHEM                 !<-- The GOCART grid component

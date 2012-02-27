@@ -31,11 +31,15 @@ OBJS02  = \
 
 
 ifeq ($(GOCART_MODE),full)
-	DEPEND_FILES = ${OBJS01:.o=.F90} ${OBJS02:.o=.F90}
+	DEPEND_FILES = ${OBJS01:.o=.f90} ${OBJS02:.o=.f90}
 else
-	DEPEND_FILES = ${OBJS01A:.o=.F90} ${OBJS02:.o=.F90}
+	DEPEND_FILES = ${OBJS01A:.o=.f90} ${OBJS02:.o=.f90}
 endif
 
+
+.SUFFIXES: .F90 .f90 .o
+.F90.f90:
+	$(CPP) $(CPPFLAGS) $< > $*.f90
 
 all default: depend
 	@gmake -f $(MAKEFILE) $(LIBRARY)
@@ -49,14 +53,14 @@ gocart_stub: $(OBJS01A) $(OBJS02)
 gocart_full: $(OBJS01) $(OBJS02)
 	$(AR) $(ARFLAGS) $(LIBRARY) $(OBJS01) $(OBJS02)
 
-$(OBJS01): %.o: %.F90
-	$(FC) $(FFLAG_GFS_UTIL90_GOC) -c $*.F90
+$(OBJS01): %.o: %.f90
+	$(FC) $(FFLAG_GFS_UTIL90_GOC) -c $*.f90
 
-$(OBJS01A): %.o: %.F90
-	$(FC) $(FFLAG_GFS_UTIL90) -c $*.F90
+$(OBJS01A): %.o: %.f90
+	$(FC) $(FFLAG_GFS_UTIL90) -c $*.f90
 
-$(OBJS02): %.o: %.F90
-	$(FC) $(FFLAG_GFS_UTIL90) -c $*.F90
+$(OBJS02): %.o: %.f90
+	$(FC) $(FFLAG_GFS_UTIL90) -c $*.f90
 
 clean:
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map depend

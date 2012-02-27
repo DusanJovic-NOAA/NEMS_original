@@ -9,6 +9,24 @@
  MODULE gfs_dynamics_add_get_state_mod
 
 !USES:
+      USE esmf
+      USE esmf_mod
+
+#ifdef ESMF_520r
+  USE ESMF, ONLY :                              &
+      ESMF_Grid,                                &
+      ESMF_GridGet,                             &
+      ESMF_DistGrid,                            &
+      ESMF_State,                               &
+      ESMF_StateAdd,                            &
+      ESMF_StateGet,                            &
+      ESMF_SUCCESS,                             &
+      ESMF_Array,                               &
+      ESMF_ArrayCreate,                         &
+      ESMF_ArrayGet,                            &
+      ESMF_ArrayDestroy,                        &
+      ESMF_CopyFlag
+#else
   USE ESMF_Mod, ONLY :                          &
       ESMF_Grid,                                &
       ESMF_GridGet,                             &
@@ -22,6 +40,7 @@
       ESMF_ArrayGet,                            &
       ESMF_ArrayDestroy,                        &
       ESMF_CopyFlag
+#endif
 
  IMPLICIT NONE
  PRIVATE

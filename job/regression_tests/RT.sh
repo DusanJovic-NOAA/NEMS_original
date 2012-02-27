@@ -2148,23 +2148,23 @@ export TASKS=64 ; export WLCLK=02
 #########################################################################
 #
 # Clean and compile both NMMB & GFS cores, 
-# using ESMF 5.2.0r_beta_snapshot_07 library.
+# using ESMF 5.2.0rp1 library.
 #
 #########################################################################
 #########################################################################
 
 echo "Preparing model code for regression tests"
-echo "Using the ESMF 5.2.0r_beta_snapshot_07 library"
-printf %s "Using the ESMF 5.2.0r_beta_snapshot_07 library.   "
+echo "Using the ESMF 5.2.0rp1 library"
+printf %s "Using the ESMF 5.2.0rp1 library.   "
 printf %s "Compiling model code (this will take some time)......."
 cd ${PATHTR}/src
 
 date                                     >> ${PATHRT}/RegressionTests.log
-echo "Compilation ESMF 5.2"                >> ${PATHRT}/RegressionTests.log
+echo "Compilation ESMF 5.2.0rp1"         >> ${PATHRT}/RegressionTests.log
 rm -f ../exe/NEMS.x
 gmake clean                              >> ${PATHRT}/Compile.log 2>&1
 esmf_version 5.2                         >> ${PATHRT}/Compile.log 2>&1
-gmake nmm_gfs_gen                        >> ${PATHRT}/Compile.log 2>&1
+gmake gfs                                >> ${PATHRT}/Compile.log 2>&1
 date                                     >> ${PATHRT}/RegressionTests.log
 
 if [ -f ../exe/NEMS.x ] ; then
@@ -2178,49 +2178,25 @@ fi
 cd $PATHRT
 
 ####################################################################################################
-#
-# TEST   - Global NMM-B with pure binary input
-#        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
-#
-####################################################################################################
-
-export TEST_DESCR="Compare NMMB-global results with previous trunk version ESMF5"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF5
-export CNTL_DIR=NMMB_glob
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s "
-#---------------------
-export_nmm
-export GBRG=glob ; export FCSTL=24 ; export WLCLK=02
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-####################################################################################################
 # 
 # TEST   - GFS 
 #        - 30 compute tasks / 1 thread 
 #
 ####################################################################################################
 
-export TEST_DESCR="Compare GFS results with previous trunk version ESMF5"
+export TEST_DESCR="Compare GFS results with previous trunk version ESMF5.2.0rp1"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF5
-export CNTL_DIR=GFS_NODFI
+export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF5.2.0rp1
+export CNTL_DIR=GFS_NODFI_5.2.0rp1
 export LIST_FILES=" \
 	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
 	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
 	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export_gfs
+export WLCLK=40
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -2233,12 +2209,12 @@ export_gfs
 #
 ####################################################################################################
 
-export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5"
+export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5.2.0rp1"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF5
-export CNTL_DIR=GEFS_m4
+export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF5.2.0rp1
+export CNTL_DIR=GEFS_m4_5.2.0rp1
 export LIST_FILES=" \
         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
         SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
@@ -2249,39 +2225,17 @@ export LIST_FILES=" \
         SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
         SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
         FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
-        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
-        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
+        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04"
+        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04"
         FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
 #---------------------
 export_gfs
 export GEFS_ENSEMBLE=1
-export TASKS=64 ; export WLCLK=20
+export TASKS=64 ; export WLCLK=58
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
-
-####################################################################################################
-#
-# TEST   - Concurrency GEN, 64PEs, 1 node.
-#        - 4 members.
-#
-####################################################################################################
-
-export TEST_DESCR="Concurrency GEN, 4 members. ESMF5"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GEN_Concurrency_Run_m4_ESMF5
-#---------------------
-export_common
-export GEN_ENSEMBLE=1
-export TASKS=64 ; export WLCLK=02
-#---------------------
-  ./rt_gen.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
 
 #########################################################################
 #########################################################################

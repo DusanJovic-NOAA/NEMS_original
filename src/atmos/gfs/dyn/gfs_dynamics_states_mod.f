@@ -1,3 +1,11 @@
+#include "../../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#else
+#define ESMF_520r
+#endif
+
        module gfs_dynamics_states_mod
 
 ! 
@@ -9,7 +17,11 @@
 !
 !!uses:
 !
-      use esmf_mod                 ! the esmf library.
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 
 ! the derived type of the internal state.
 !----------------------------------------

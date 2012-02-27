@@ -1,5 +1,12 @@
 #include "../../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
        MODULE gfs_dynamics_states_mod
 
 ! 
@@ -15,10 +22,15 @@
 !  Weiyu Yang  2011-02    Updated to use both the ESMF 4.0.0rp2 library,
 !                         ESMF 5 series library and the the
 !                         ESMF 3.1.0rp2 library.
+!  Weiyu Yang  2011-09    Updated to use the ESMF 5.2.0r library,
 !
 !!USEs:
 !
-      USE ESMF_Mod                 ! the esmf library.
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 
 ! the derived TYPE of the internal state.
 !----------------------------------------
@@ -78,9 +90,15 @@
       rc1     = esmf_success
       rcfinal = esmf_success
 
+#ifdef ESMF_520r
+      CALL esmf_logwrite(						&
+           " update internal state with the esmf import state", 	&
+            esmf_logmsg_info, rc = rc1)
+#else
       CALL esmf_logwrite(						&
            " update internal state with the esmf import state", 	&
             esmf_log_info, rc = rc1)
+#endif
 
       cf = int_state%esmf_sta_list
 
@@ -236,10 +254,17 @@
                       mstr = int_state%g_rq + (k - 1) * int_state%levs
                       mend = mstr + int_state%levs - 1
                       IF(ASSOCIATED(FArr3D)) NULLIFY(FArr3D)
+#ifdef ESMF_520r
+                      CALL ESMF_FieldBundleGet(Bundle,                               &
+                                               trim(int_state%gfs_dyn_tracer%vname(k, 2)), &
+                                               field = Field,                        &
+                                               rc = rc1)
+#else
                       CALL ESMF_FieldBundleGet(Bundle,                               &
                                                trim(int_state%gfs_dyn_tracer%vname(k, 2)), &
                                                Field,                                &
                                                rc = rc1)
+#endif
                       CALL gfs_dynamics_err_msg(rc1, 'retrieve Efield from bundle', rcfinal)
 
 #ifdef ESMF_3
@@ -255,10 +280,17 @@
                       mstr = int_state%g_rm + (k - 1) * int_state%levs
                       mend = mstr + int_state%levs - 1
                       NULLIFY(FArr3D)
+#ifdef ESMF_520r
+                      CALL ESMF_FieldBundleGet(Bundle,                               &
+                                               trim(int_state%gfs_dyn_tracer%vname(k, 3)), &
+                                               field = Field,                        &
+                                               rc = rc1)
+#else
                       CALL ESMF_FieldBundleGet(Bundle,                               &
                                                trim(int_state%gfs_dyn_tracer%vname(k, 3)), &
                                                Field,                                &
                                                rc = rc1)
+#endif
                       CALL gfs_dynamics_err_msg(rc1, 'retrieve Efield from bundle', rcfinal)
 
 #ifdef ESMF_3
@@ -277,10 +309,17 @@
                       kstr = int_state%g_rqp + (k - 1) * int_state%levs
                       kend = kstr + int_state%levs - 1
                       IF(ASSOCIATED(FArr3D)) NULLIFY(FArr3D)
+#ifdef ESMF_520r
+                      CALL ESMF_FieldBundleGet(Bundle,                               &
+                                               trim(int_state%gfs_dyn_tracer%vname(k, 1)), &
+                                               field = Field,                        &
+                                               rc = rc1)
+#else
                       CALL ESMF_FieldBundleGet(Bundle,                               &
                                                trim(int_state%gfs_dyn_tracer%vname(k, 1)), &
                                                Field,                                &
                                                rc = rc1)
+#endif
                       CALL gfs_dynamics_err_msg(rc1, 'retrieve Efield from bundle', rcfinal)
                      
 #ifdef ESMF_3
@@ -427,8 +466,13 @@
 !-----------------------------------------------
       PRINT*, 'do int_state to exp_gfs_dyn'
 
+#ifdef ESMF_520r
+      CALL esmf_logwrite("begining to put the esmf export state.", &
+                    esmf_logmsg_info, rc = rc1)
+#else
       CALL esmf_logwrite("begining to put the esmf export state.", &
                     esmf_log_info, rc = rc1)
+#endif
 
 ! orography field. gaussian grid
 !----------------------------------------------------------------
@@ -602,14 +646,22 @@
                   FArr3D => int_state%grid_gr(:, :, mstr : mend)
                   Field  = ESMF_FieldCreate(mgrid, FArr3D,                    &
                       name = trim(int_state%gfs_dyn_tracer%vname(k, 2)), rc = rc1)
+#ifdef ESMF_520r
+                  CALL ESMF_FieldBundleAdd(Bundle, (/Field/), rc = rc1)
+#else
                   CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc1)
+#endif
                   CALL gfs_dynamics_err_msg(rc1, "add field to bundle, vname=2", rcfinal)
 
                   NULLIFY(FArr3D)
                   FArr3D => int_state%grid_gr6(:, :, mstr - 1 : mend - 1)
                   Field  = ESMF_FieldCreate(mgrid, FArr3D,                    &
                       name = trim(int_state%gfs_dyn_tracer%vname(k, 4)), rc = rc1)
+#ifdef ESMF_520r
+                  CALL ESMF_FieldBundleAdd(Bundle, (/Field/), rc = rc1)
+#else
                   CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc1)
+#endif
                   CALL gfs_dynamics_err_msg(rc1, "add field to bundle, vname=4", rcfinal)
               END DO
               DO k = 1, int_state%ntrac
@@ -619,14 +671,22 @@
                   FArr3D => int_state%grid_gr(:, :, mstr : mend)
                   Field  = ESMF_FieldCreate(mgrid, FArr3D,                    &
                       name = trim(int_state%gfs_dyn_tracer%vname(k, 3)), rc = rc1)
+#ifdef ESMF_520r
+                  CALL ESMF_FieldBundleAdd(Bundle, (/Field/), rc = rc1)
+#else
                   CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc1)
+#endif
                   CALL gfs_dynamics_err_msg(rc1, "add field to bundle, vname=3", rcfinal)
 
                   NULLIFY(FArr3D)
                   FArr3D => int_state%grid_gr6(:, :, mstr - 1 : mend - 1)
                   Field  = ESMF_FieldCreate(mgrid, FArr3D,                    &
                       name = trim(int_state%gfs_dyn_tracer%vname(k, 5)), rc = rc1)
+#ifdef ESMF_520r
+                  CALL ESMF_FieldBundleAdd(Bundle, (/Field/), rc = rc1)
+#else
                   CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc1)
+#endif
                   CALL gfs_dynamics_err_msg(rc1, "add field to bundle, vname=5", rcfinal)
               END DO
           END IF
@@ -638,7 +698,11 @@
               FArr3D => int_state%grid_gr(:, :, kstr : kend)
               Field  = ESMF_FieldCreate(mgrid, FArr3D,                    &
                   name = trim(int_state%gfs_dyn_tracer%vname(k, 1)), rc = rc1)
-              CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc1)
+#ifdef ESMF_520r
+                  CALL ESMF_FieldBundleAdd(Bundle, (/Field/), rc = rc1)
+#else
+                  CALL ESMF_FieldBundleAdd(Bundle, Field, rc = rc1)
+#endif
               CALL gfs_dynamics_err_msg(rc1, "add field to bundle, vname=1", rcfinal)
           END DO
 
@@ -647,7 +711,11 @@
 !  ---  inputs:  (in scope variables)
 !  ---  outputs: (in scope variables)
 
+#ifdef ESMF_520r
+          CALL ESMF_StateAdd(exp_gfs_dyn, (/Bundle/), rc = rc1)
+#else
           CALL ESMF_StateAdd(exp_gfs_dyn, Bundle, rc = rc1)
+#endif
           CALL gfs_dynamics_err_msg(rc1, "add to esmf state - tracer", rcfinal)
           IF(int_state%ndfi > 0 .AND. cf%tracer_import == 1) THEN
               DO k = 1, int_state%ntrac
@@ -657,7 +725,11 @@
                   FArr3D => int_state%grid_gr_dfi%tracer(:, :, kstr : kend)
                   Field  = ESMF_FieldCreate(mgrid, FArr3D,                    &
                       name = trim(int_state%gfs_dyn_tracer%vname(k, 1))//'_dfi', rc = rc1)
+#ifdef ESMF_520r
+                  CALL ESMF_StateAdd(exp_gfs_dyn, (/Field/), rc = rc1)
+#else
                   CALL ESMF_StateAdd(exp_gfs_dyn, Field, rc = rc1)
+#endif
                   CALL gfs_dynamics_err_msg(rc1, "add field to state, vname=1", rcfinal)
               END DO
           END IF

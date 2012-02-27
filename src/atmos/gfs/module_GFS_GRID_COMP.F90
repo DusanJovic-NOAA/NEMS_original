@@ -1,9 +1,9 @@
 #include "../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !----------------------------------------------------------------------
@@ -56,13 +56,18 @@
 !                       ESMF 3.1.0rp2 library.
 !   2011-05-11  Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !   2011-10-01  Wang/Lu  - MYPE added to GOCART_INIT argument
+!   2012-02-08  Yang  - Modified for using the ESMF 5.2.0rp1.
 !
 ! USAGE: GFS Gridded component parts called from subroutines within
 !        module_ATM_GRID_COMP.F90.
 !
 !-----------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
       USE MODULE_INCLUDE
 !
       USE MODULE_GFS_INTERNAL_STATE,ONLY: GFS_INTERNAL_STATE            &
@@ -167,11 +172,19 @@
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
+#ifdef ESMF_520r
+      CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP                     &  !<-- GFS gridded component
+                                     ,ESMF_METHOD_INITIALIZE            &  !<-- Subroutine type
+                                     ,GFS_INITIALIZE                    &  !<-- User's subroutine name
+                                     ,phase=1                           &
+                                     ,rc=RC)
+#else
       CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP                     &  !<-- GFS gridded component
                                      ,ESMF_SETINIT                      &  !<-- Subroutine type
                                      ,GFS_INITIALIZE                    &  !<-- User's subroutine name
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
+#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
@@ -194,11 +207,19 @@
                                        ,ESMF_SINGLEPHASE                  &
                                        ,RC)
 #else
+#ifdef ESMF_520r
+        CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP                     &  !<-- GFS gridded component
+                                       ,ESMF_METHOD_RUN                   &  !<-- Subroutine type
+                                       ,GFS_RUN                           &  !<-- The primary Dynamics / Physics /Coupler sequence
+                                       ,phase=1                           &
+                                       ,rc=RC)
+#else
         CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP                     &  !<-- GFS gridded component
                                        ,ESMF_SETRUN                       &  !<-- Subroutine type
                                        ,GFS_RUN                           &  !<-- The primary Dynamics / Physics /Coupler sequence
                                        ,phase=ESMF_SINGLEPHASE            &
                                        ,rc=RC)
+#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
@@ -222,11 +243,19 @@
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
+#ifdef ESMF_520r
+        CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP                     &  !<-- GFS gridded component
+                                       ,ESMF_METHOD_FINALIZE              &  !<-- Subroutine type
+                                       ,GFS_FINALIZE                      &  !<-- User's subroutine name
+                                       ,phase=1                           &
+                                       ,rc=RC)
+#else
       CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP                     &  !<-- GFS gridded component
                                      ,ESMF_SETFINAL                     &  !<-- Subroutine type
                                      ,GFS_FINALIZE                      &  !<-- User's subroutine name
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
+#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
@@ -803,15 +832,15 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
       gfs_int_state%IMP_GFS_DYN=ESMF_StateCreate                   &
                              (     NAME="GFS dynamics import"      &
-                             ,statetype=esmf_state_import          &
+                             ,stateintent = ESMF_STATEINTENT_IMPORT&
                              ,rc       =RC)
 !
       gfs_int_state%EXP_GFS_DYN=ESMF_StateCreate                   &
                              (     NAME="GFS dynamics export"      &
-                             ,statetype=esmf_state_export          &
+                             ,stateintent = ESMF_STATEINTENT_EXPORT&
                              ,rc       =RC)
 #else
       gfs_int_state%IMP_GFS_DYN=ESMF_StateCreate                   &
@@ -826,8 +855,13 @@
 #endif
 ! Add the GFS dynamics ESMF states as the nested states into the ATM parent states.
 !----------------------------------------------------------------------------------
+#ifdef ESMF_520r
+      CALL ESMF_StateAdd(IMP_STATE, (/gfs_int_state%IMP_GFS_DYN/), rc = RC)
+      CALL ESMF_StateAdd(EXP_STATE, (/gfs_int_state%EXP_GFS_DYN/), rc = RC)
+#else
       CALL ESMF_StateAdd(IMP_STATE, gfs_int_state%IMP_GFS_DYN, rc = RC)
       CALL ESMF_StateAdd(EXP_STATE, gfs_int_state%EXP_GFS_DYN, rc = RC)
+#endif
 
       MESSAGE_CHECK = "GFS set Cpl_flag"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
@@ -967,15 +1001,15 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
       gfs_int_state%IMP_GFS_PHY=ESMF_StateCreate                   &
                              (     NAME="physics import"           &
-                             ,statetype=ESMF_STATE_IMPORT          &
+                             ,stateintent = ESMF_STATEINTENT_IMPORT&
                              ,rc       =RC)
 !
       gfs_int_state%EXP_GFS_PHY=ESMF_StateCreate                   &
                              (     NAME="physics export"           &
-                             ,statetype=ESMF_STATE_EXPORT          &
+                             ,stateintent = ESMF_STATEINTENT_EXPORT&
                              ,rc       =RC)
 #else
       gfs_int_state%IMP_GFS_PHY=ESMF_StateCreate                   &
@@ -1118,12 +1152,20 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520r
+      CALL ESMF_GridCompInitialize(gfs_int_state%GC_GFS_DYN               &
+                                  ,importstate=gfs_int_state%IMP_GFS_DYN  &
+                                  ,exportstate=gfs_int_state%EXP_GFS_DYN  &
+                                  ,clock      =gfs_int_state%CLOCK_GFS    &  
+                                  ,rc         =RC)
+#else
       CALL ESMF_GridCompInitialize(gfs_int_state%GC_GFS_DYN               &
                                   ,importstate=gfs_int_state%IMP_GFS_DYN  &
                                   ,exportstate=gfs_int_state%EXP_GFS_DYN  &
                                   ,clock      =gfs_int_state%CLOCK_GFS    &  
                                   ,phase      =ESMF_SINGLEPHASE           &
                                   ,rc         =RC)
+#endif
 !
       GRID_GFS_DYN=GRID_GFS_ATM                                            !<-- Use the ATM Grid for the Dynamics
 !
@@ -1165,12 +1207,20 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520r
+        CALL ESMF_GridCompInitialize(gfs_int_state%GC_GFS_PHY               &
+                                    ,importstate=gfs_int_state%IMP_GFS_PHY  &
+                                    ,exportstate=gfs_int_state%EXP_GFS_PHY  &
+                                    ,clock      =gfs_int_state%CLOCK_GFS    &
+                                    ,rc         =RC)
+#else
         CALL ESMF_GridCompInitialize(gfs_int_state%GC_GFS_PHY               &
                                     ,importstate=gfs_int_state%IMP_GFS_PHY  &
                                     ,exportstate=gfs_int_state%EXP_GFS_PHY  &
                                     ,clock      =gfs_int_state%CLOCK_GFS    &
                                     ,phase      =ESMF_SINGLEPHASE           &
                                     ,rc         =RC)
+#endif
 !
         GRID_GFS_PHY=GRID_GFS_ATM                                          !<-- Use the ATM Grid for the Physics
 !

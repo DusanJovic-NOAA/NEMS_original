@@ -1,9 +1,9 @@
 #include "./ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !-----------------------------------------------------------------------
@@ -32,9 +32,14 @@
 !
 !-----------------------------------------------------------------------
 !  2011-05-11  Theurich & Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!  2011-10-04  Yang  - Modified for using the ESMF 5.2.0r library.
 !-----------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 !
       USE module_NEMS_INTERNAL_STATE,ONLY: NEMS_INTERNAL_STATE          &
                                           ,WRAP_NEMS_INTERNAL_STATE
@@ -138,11 +143,19 @@
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
+#ifdef ESMF_520r
+      CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
+                                     ,ESMF_METHOD_INITIALIZE            &  !<-- Subroutine type (Initialize)
+                                     ,NEMS_INITIALIZE                   &  !<-- User's subroutine name
+                                     ,phase = 1                         &
+                                     ,rc    = RC)
+#else
       CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
                                      ,ESMF_SETINIT                      &  !<-- Subroutine type (Initialize)
                                      ,NEMS_INITIALIZE                   &  !<-- User's subroutine name
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
+#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -163,11 +176,19 @@
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
+#ifdef ESMF_520r
+      CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
+                                     ,ESMF_METHOD_RUN                   &  !<-- Subroutine type (Run)
+                                     ,NEMS_RUN                          &  !<-- User's subroutine name
+                                     ,phase = 1                         &
+                                     ,rc    = RC)
+#else
       CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
                                      ,ESMF_SETRUN                       &  !<-- Subroutine type (Run)
                                      ,NEMS_RUN                          &  !<-- User's subroutine name
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
+#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -188,11 +209,19 @@
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
+#ifdef ESMF_520r
+      CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
+                                     ,ESMF_METHOD_FINALIZE              &  !<-- Subroutine type (Finalize)
+                                     ,NEMS_FINALIZE                     &  !<-- User's subroutine name
+                                     ,phase = 1                         &
+                                     ,rc    = RC)
+#else
       CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
                                      ,ESMF_SETFINAL                     &  !<-- Subroutine type (Finalize)
                                      ,NEMS_FINALIZE                     &  !<-- User's subroutine name
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
+#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -615,10 +644,10 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO I = 1,TOTAL_MEMBER
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         EARTH_IMP_STATE(I) = ESMF_StateCreate(                          &
                                               NAME = IMP_EARTH_NAME(I)  &
-                                        ,statetype = ESMF_STATE_IMPORT  &
+                                        ,stateintent = ESMF_STATEINTENT_IMPORT  &
                                         ,rc        = RC)
 #else
         EARTH_IMP_STATE(I) = ESMF_StateCreate(                          &
@@ -640,10 +669,10 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO I = 1,TOTAL_MEMBER
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         EARTH_EXP_STATE(I) = ESMF_StateCreate(                          &
                                               NAME = EXP_EARTH_NAME(I)  &
-                                        ,statetype = ESMF_STATE_EXPORT  &
+                                        ,stateintent = ESMF_STATEINTENT_EXPORT &
                                         ,rc        = RC)
 #else
         EARTH_EXP_STATE(I) = ESMF_StateCreate(                          &
@@ -668,9 +697,9 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         ENS_CPL_IMP_STATE=ESMF_StateCreate(     NAME = "ENS_CPL_Import"  &
-                                          ,statetype = ESMF_STATE_IMPORT &
+                                          ,stateintent = ESMF_STATEINTENT_IMPORT  &
                                           ,rc        = RC)
 #else
         ENS_CPL_IMP_STATE=ESMF_StateCreate(STATENAME = "ENS_CPL_Import"  &
@@ -689,9 +718,9 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         ENS_CPL_EXP_STATE=ESMF_StateCreate(     NAME = "ENS_CPL_Export"  &
-                                          ,statetype = ESMF_STATE_EXPORT &
+                                          ,stateintent = ESMF_STATEINTENT_EXPORT  &
                                           ,rc        = RC)
 #else
         ENS_CPL_EXP_STATE=ESMF_StateCreate(STATENAME = "ENS_CPL_Export"  &
@@ -715,6 +744,10 @@
 ! 
         DO I = 1, TOTAL_MEMBER
           IF(MEMBER_ID == I) THEN
+#ifdef ESMF_520r
+            CALL ESMF_StateAdd(ENS_CPL_IMP_STATE,(/EARTH_EXP_STATE(I)/), rc = RC)
+            CALL ESMF_StateAdd(ENS_CPL_EXP_STATE,(/EARTH_IMP_STATE(I)/), rc = RC)
+#else
             CALL ESMF_StateAdd(state       = ENS_CPL_IMP_STATE          &
                               ,nestedState = EARTH_EXP_STATE(I)         &
                               ,rc          = RC)
@@ -722,6 +755,7 @@
             CALL ESMF_StateAdd(state       = ENS_CPL_EXP_STATE          &
                               ,nestedState = EARTH_IMP_STATE(I)         &
                               ,rc          = RC)
+#endif
           END IF
         END DO
 !
@@ -744,12 +778,20 @@
       DO I = 1, TOTAL_MEMBER
 !
         IF(MEMBER_ID == I) THEN
+#ifdef ESMF_520r
+          CALL ESMF_GridCompInitialize(gridcomp    = EARTH_GRID_COMP(I)  &
+                                      ,importState = EARTH_IMP_STATE(I)  &
+                                      ,exportState = EARTH_EXP_STATE(I)  &
+                                      ,clock       = CLOCK_NEMS          &
+                                      ,rc          = RC)
+#else
           CALL ESMF_GridCompInitialize(gridcomp    = EARTH_GRID_COMP(I)  &
                                       ,importState = EARTH_IMP_STATE(I)  &
                                       ,exportState = EARTH_EXP_STATE(I)  &
                                       ,clock       = CLOCK_NEMS          &
                                       ,phase       = ESMF_SINGLEPHASE    &
                                       ,rc          = RC)
+#endif
         END IF
 !
       END DO
@@ -769,12 +811,20 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520r
+        CALL ESMF_CplCompInitialize(cplcomp    =ENS_CPL_COMP            &
+                                   ,importState=ENS_CPL_IMP_STATE       &
+                                   ,exportState=ENS_CPL_EXP_STATE       &
+                                   ,clock      =CLOCK_NEMS              &
+                                   ,rc         =RC)
+#else
         CALL ESMF_CplCompInitialize(cplcomp    =ENS_CPL_COMP            &
                                    ,importState=ENS_CPL_IMP_STATE       &
                                    ,exportState=ENS_CPL_EXP_STATE       &
                                    ,clock      =CLOCK_NEMS              &
                                    ,phase      =ESMF_SINGLEPHASE        &
                                    ,rc         =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -853,12 +903,20 @@
       DO I = 1, TOTAL_MEMBER
 !
         IF(MEMBER_ID == I) THEN
+#ifdef ESMF_520r
+          CALL ESMF_GridCompRun(gridcomp    = EARTH_GRID_COMP(I)        &
+                               ,importState = EARTH_IMP_STATE(I)        &
+                               ,exportState = EARTH_EXP_STATE(I)        &
+                               ,clock       = CLOCK_NEMS                &
+                               ,rc          = RC)
+#else
           CALL ESMF_GridCompRun(gridcomp    = EARTH_GRID_COMP(I)        &
                                ,importState = EARTH_IMP_STATE(I)        &
                                ,exportState = EARTH_EXP_STATE(I)        &
                                ,clock       = CLOCK_NEMS                &
                                ,phase       = ESMF_SINGLEPHASE          &
                                ,rc          = RC)
+#endif
         END IF
 !
       END DO
@@ -882,12 +940,20 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520r
+          CALL ESMF_CplCompRun(cplcomp    =ENS_CPL_COMP                 &
+                              ,importState=ENS_CPL_IMP_STATE            &
+                              ,exportState=ENS_CPL_EXP_STATE            &
+                              ,clock      =CLOCK_NEMS                   &
+                              ,rc         =RC)
+#else
           CALL ESMF_CplCompRun(cplcomp    =ENS_CPL_COMP                 &
                               ,importState=ENS_CPL_IMP_STATE            &
                               ,exportState=ENS_CPL_EXP_STATE            &
                               ,clock      =CLOCK_NEMS                   &
                               ,phase      =ESMF_SINGLEPHASE             &
                               ,rc         =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -954,12 +1020,20 @@
           DO J = 1, TOTAL_MEMBER
 !
             IF(MEMBER_ID == J) THEN
+#ifdef ESMF_520r
+                CALL ESMF_GridCompRun(gridcomp    = EARTH_GRID_COMP(J)  &
+                                     ,importState = EARTH_IMP_STATE(J)  &
+                                     ,exportState = EARTH_EXP_STATE(J)  &
+                                     ,clock       = CLOCK_NEMS          &
+                                     ,rc          = RC)
+#else
                 CALL ESMF_GridCompRun(gridcomp    = EARTH_GRID_COMP(J)  &
                                      ,importState = EARTH_IMP_STATE(J)  &
                                      ,exportState = EARTH_EXP_STATE(J)  &
                                      ,clock       = CLOCK_NEMS          &
                                      ,phase       = ESMF_SINGLEPHASE    &
                                      ,rc          = RC)
+#endif
             END IF
 !
           END DO
@@ -1043,12 +1117,20 @@
       DO I = 1, TOTAL_MEMBER
 !
         IF(MEMBER_ID == I) THEN
+#ifdef ESMF_520r
+          CALL ESMF_GridCompFinalize(gridcomp    = EARTH_GRID_COMP(I)   &
+                                    ,importState = EARTH_IMP_STATE(I)   &
+                                    ,exportState = EARTH_EXP_STATE(I)   &
+                                    ,clock       = CLOCK_NEMS           &
+                                    ,rc          = RC)
+#else
           CALL ESMF_GridCompFinalize(gridcomp    = EARTH_GRID_COMP(I)   &
                                     ,importState = EARTH_IMP_STATE(I)   &
                                     ,exportState = EARTH_EXP_STATE(I)   &
                                     ,clock       = CLOCK_NEMS           &
                                     ,phase       = ESMF_SINGLEPHASE     &
                                     ,rc          = RC)
+#endif
         END IF
 !
       END DO
@@ -1066,12 +1148,20 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520r
+        CALL ESMF_CplCompFinalize(cplcomp    =ENS_CPL_COMP              &
+                                 ,importState=ENS_CPL_IMP_STATE         &
+                                 ,exportState=ENS_CPL_EXP_STATE         &
+                                 ,clock      =CLOCK_NEMS                &
+                                 ,rc         =RC)
+#else
         CALL ESMF_CplCompFinalize(cplcomp    =ENS_CPL_COMP              &
                                  ,importState=ENS_CPL_IMP_STATE         &
                                  ,exportState=ENS_CPL_EXP_STATE         &
                                  ,clock      =CLOCK_NEMS                &
                                  ,phase      =ESMF_SINGLEPHASE          &
                                  ,rc         =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINALIZE)

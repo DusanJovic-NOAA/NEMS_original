@@ -1,3 +1,12 @@
+#include "../../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
 !
 ! !module: gfs_dynamics_internal_state_mod 
 !                         --- internal state definition of the
@@ -23,6 +32,7 @@
 !                                            (NDSL) semi-Lagrangian dynamics
 !  Feb 2011           sarah lu, add thermodyn_id, sfcpress_id
 !  Mar 2011           hann-ming henry jaung, add jcapg for NDSL
+!  Sep 2011           weiyu yang, modified for using the ESMF 5.2.0r library.
 !
 ! !interface:
 !
@@ -30,7 +40,11 @@
 
 !!uses:
 !------
-      USE esmf_mod,                  ONLY: ESMF_LOGICAL
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
       USE gfs_dynamics_namelist_mod
       USE gfs_dyn_machine, only: kind_grid, kind_evod
       use gfs_dyn_layout1

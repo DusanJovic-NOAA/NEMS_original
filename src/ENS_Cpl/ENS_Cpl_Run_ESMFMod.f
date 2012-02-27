@@ -1,10 +1,10 @@
 #include "../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #define ESMF_LogFoundError ESMF_LogMsgFoundError
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !
@@ -26,7 +26,11 @@
 !
 !!USES:
 !
- USE ESMF_Mod
+#ifdef ESMF_520r
+ USE esmf
+#else
+ USE esmf_mod
+#endif
  USE ENS_Cpl_InternalState_ESMFMod
 
  INCLUDE 'mpif.h'
@@ -68,7 +72,7 @@
 !  Get the initial time and forecast hours
 !-----------------------------------------------------
  CALL ESMF_ClockGet(clock, currTime = currTime, rc = rc1)
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
  IF(ESMF_LogFoundError(rc1, msg="Get clock in the Cpl")) THEN
 #else
  IF(ESMF_LogFoundError(rc1,     "Get clock in the Cpl")) THEN
@@ -80,7 +84,7 @@
  CALL ESMF_TimeGet(currTime, yy = year, mm = month, dd = day, h = hour, rc = rc1)
 
  CALL ESMF_ClockGet(clock, runDuration = runDuration, rc = rc1)
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
  IF(ESMF_LogFoundError(rc1, msg="Get clock in the Cpl")) THEN
 #else
  IF(ESMF_LogFoundError(rc1,     "Get clock in the Cpl")) THEN
@@ -176,7 +180,7 @@
          cst%tracerwm(:, :, :, i), name, cst, rc1)
  END DO
 
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
  IF(ESMF_LogFoundError(rc1, msg="Distribute Back For the step2 - CLWM")) THEN
 #else
  IF(ESMF_LogFoundError(rc1,     "Distribute Back For the step2 - CLWM")) THEN
@@ -203,7 +207,7 @@
 
  PRINT*, 'Finished calling STEP2_1'
 
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
  IF(ESMF_LogFoundError(rc1, msg="Run Sto_Per_Scheme_Step2")) THEN
 #else
  IF(ESMF_LogFoundError(rc1,     "Run Sto_Per_Scheme_Step2")) THEN
@@ -217,7 +221,7 @@
 !---------------------------------------------------------
  CALL ENS_Sto_Per_Scheme_Step1_2(impState, cst, rc1)
 
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
  IF(ESMF_LogFoundError(rc1, msg="Run Sto_Per_Scheme_Step1_2")) THEN
 #else
  IF(ESMF_LogFoundError(rc1,     "Run Sto_Per_Scheme_Step1_2")) THEN

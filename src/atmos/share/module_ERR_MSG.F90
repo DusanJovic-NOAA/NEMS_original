@@ -1,10 +1,10 @@
 #include "../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #define ESMF_LogFoundError ESMF_LogMsgFoundError
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !
@@ -24,7 +24,11 @@
 !!uses:
 !
 
-      use esmf_mod 
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 
       implicit none
 
@@ -42,8 +46,8 @@
       integer, intent(out)          :: rcfinal
       character (len=*), intent(in) :: msg
       integer,           intent(in) :: val
-#ifdef ESMF_520rbs
-      if(esmf_logfounderror(rc1, msg=msg)) then
+#ifdef ESMF_520r
+      if(esmf_logfounderror(rcToCheck=rc1, msg=msg)) then
 #else
       if(esmf_logfounderror(rc1, msg)) then
 #endif
@@ -63,7 +67,7 @@
       integer, intent(out)          :: rcfinal
       character (len=*), intent(in) :: msg
       real,              intent(in) :: val
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
       if(esmf_logfounderror(rc1, msg=msg)) then
 #else
       if(esmf_logfounderror(rc1, msg)) then
@@ -84,7 +88,7 @@
       integer, intent(out)          :: rcfinal
       character (len=*), intent(in) :: msg
       character (len=*), intent(in) :: chr
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
       if(esmf_logfounderror(rc1, msg=msg)) then
 #else
       if(esmf_logfounderror(rc1, msg)) then
@@ -103,7 +107,7 @@
       integer, intent(inout)        :: rc1
       integer, intent(out)          :: rc
       character (len=*), intent(in) :: msg
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
       if(esmf_logfounderror(rc1, msg=msg)) then
 #else
       if(esmf_logfounderror(rc1, msg)) then

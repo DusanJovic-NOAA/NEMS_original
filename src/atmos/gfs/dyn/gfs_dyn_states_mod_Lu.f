@@ -6,7 +6,11 @@
 
 ! !USES:
 !
-  use ESMF_Mod
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
   use gfs_dyn_machine,              only: kind_evod
   use gfs_dynamics_err_msg_mod                     
 

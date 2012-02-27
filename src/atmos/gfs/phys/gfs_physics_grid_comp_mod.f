@@ -1,9 +1,9 @@
 #include "../../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !! !module: gfs_physics_grid_comp_mod --- 
@@ -32,6 +32,7 @@
 !  Mar 30 2011      Weiyu Yang, modified code to avoid ESMF log error.
 !  May 05 2011      Weiyu Yang, modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !  Nov 27 2011      Sarah Lu, add kdt to physics export state
+!  Feb 06 2012      Weiyu Yang, modified for using the ESMF 5.2.0r library.
 !                           
 !
 ! !interface:
@@ -40,7 +41,11 @@
  
 !!uses:
 !------
-      use esmf_mod
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 
       use gfs_physics_err_msg_mod,        ONLY: gfs_physics_err_msg,        &
                                                 gfs_physics_err_msg_final
@@ -108,53 +113,92 @@
 ! a pre-defined subroutine type, such as esmf_setinit, esmf_setrun, 
 ! esmf_setfinal.
 !---------------------------------------------------------------------
+#ifdef ESMF_520r
+      call esmf_logwrite("set entry point for initialize",              &
+                          esmf_logmsg_info, rc = rc1)
+#else
       call esmf_logwrite("set entry point for initialize",              &
                           esmf_log_info, rc = rc1)
+#endif
 #ifdef ESMF_3
       call esmf_gridcompsetentrypoint (gc_gfs_phy, 			&
                                        esmf_setinit,  			&
                                        gfs_phy_initialize,    		&
                                        esmf_singlephase, rc1)
+#else
+#ifdef ESMF_520r
+      call esmf_gridcompsetentrypoint (gc_gfs_phy, 			&
+                                      ESMF_METHOD_INITIALIZE,           &
+                                      gfs_phy_initialize,    		&
+                                      phase=1,                          &
+                                      rc=rc1)
 #else
       call esmf_gridcompsetentrypoint (gc_gfs_phy, 			&
                                        esmf_setinit,  			&
                                        gfs_phy_initialize,    		&
                                        phase=esmf_singlephase, rc=rc1)
 #endif
+#endif
       call gfs_physics_err_msg(rc1,'set entry point for initialize',rc)
 
 ! register the run subroutine.
 !-----------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("set entry point for run",              	&
-                           esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("set entry point for run",              	&
+                          esmf_log_info, rc = rc1)
+#endif
 #ifdef ESMF_3
       call esmf_gridcompsetentrypoint (gc_gfs_phy, 			&
                                        esmf_setrun,   			&
                                        gfs_phy_run,           		&
                                        esmf_singlephase, rc1)
 #else
+#ifdef ESMF_520r
+      call esmf_gridcompsetentrypoint (gc_gfs_phy, 			&
+                                      ESMF_METHOD_RUN,                  &
+                                      gfs_phy_run,           		&
+                                      phase=1,                          &
+                                      rc=rc1)
+#else
       call esmf_gridcompsetentrypoint (gc_gfs_phy, 			&
                                        esmf_setrun,   			&
                                        gfs_phy_run,           		&
                                        phase=esmf_singlephase, rc=rc1)
+#endif
 #endif
       call gfs_physics_err_msg(rc1,'set entry point for run',rc)
 
 
 ! register the finalize subroutine.
 !----------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("set entry point for finalize",                &
-                        esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("set entry point for finalize",                &
+                          esmf_log_info, rc = rc1)
+#endif
 #ifdef ESMF_3
       call esmf_gridcompsetentrypoint (gc_gfs_phy, 			&
                                        esmf_setfinal, 			&
                                        gfs_phy_finalize,       		&
                                        esmf_singlephase, rc1)
 #else
+#ifdef ESMF_520r
+      call esmf_gridcompsetentrypoint (gc_gfs_phy, 			&
+                                      ESMF_METHOD_FINALIZE,             &
+                                      gfs_phy_finalize,       		&
+                                      phase=1,                          &
+                                      rc=rc1)
+#else
       call esmf_gridcompsetentrypoint (gc_gfs_phy, 			&
                                        esmf_setfinal, 			&
                                        gfs_phy_finalize,       		&
                                        phase=esmf_singlephase, rc=rc1)
+#endif
 #endif
       call gfs_physics_err_msg(rc1,'set entry point for finalize',rc)
 
@@ -256,8 +300,13 @@
 
 ! allocate the internal state pointer.
 !-------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("allocate the internal state",                 &
-                         esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("allocate the internal state",                 &
+                          esmf_log_info, rc = rc1)
+#endif
 
       allocate(int_state, stat = rc1)
 
@@ -267,8 +316,13 @@
 
 ! attach internal state to the gfs physics grid component.
 !-------------------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("set up the internal state",                   &
-                        esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("set up the internal state",                   &
+                          esmf_log_info, rc = rc1)
+#endif
 
       call esmf_gridcompsetinternalstate(gc_gfs_phy, wrap, rc1)
 
@@ -277,8 +331,13 @@
 ! use esmf utilities to get information from the configuration file.
 ! the function is similar to reading the namelist in the original gfs.
 !---------------------------------------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("getting information from the configure file", &
-                        esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("getting information from the configure file", &
+                          esmf_log_info, rc = rc1)
+#endif
 
       call gfs_physics_getcf(gc_gfs_phy, int_state,  rc = rc1)
 
@@ -288,8 +347,13 @@
 !***  retrieve the import state of the write gridded component
 !***  from the physics export state.
 !-----------------------------------------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("Retrieve Write Import State from Physics Export State", &
-                        esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("Retrieve Write Import State from Physics Export State", &
+                          esmf_log_info, rc = rc1)
+#endif
  
       CALL ESMF_StateGet(state      =exp_gfs_phy                        &  !<-- The Physics export state
                         ,itemName   ='Write Import State'               &  !<-- Name of the state to get from Physics export state
@@ -301,8 +365,13 @@
 !
 ! initialize time interval to the parameter from the configure file.
 !-------------------------------------------------------------------
+!#ifdef ESMF_520r
 !     call esmf_logwrite("set up time step interval",                   &
-!                       esmf_log_info, rc = rc1)
+!                          esmf_logmsg_info, rc = rc1)
+!#else
+!     call esmf_logwrite("set up time step interval",                   &
+!                          esmf_log_info, rc = rc1)
+!#endif
 
 !     call esmf_clockget(clock,            				&
 !                        timestep    = timestep,                	&
@@ -321,9 +390,13 @@
 
 ! get the start time from reading the surface file.
 !----------------------------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("getting the start time",                      &
-                         esmf_log_info, rc = rc1)
-
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("getting the start time",                      &
+                          esmf_log_info, rc = rc1)
+#endif
 
       call gfs_physics_start_time_get(					&
                         yy, mm, dd, hh, mns, sec, int_state%kfhour,     &
@@ -342,8 +415,13 @@
 ! initialize the clock with the start time based on the information
 ! from calling starttimeget.
 !------------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("set up the esmf time",                        &
-                         esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("set up the esmf time",                        &
+                          esmf_log_info, rc = rc1)
+#endif
 
 ! in dynamics, we had already timeset, this is redo, update later.
 
@@ -352,8 +430,13 @@
 
       call gfs_physics_err_msg(rc1,'set up the esmf time',rc)
 
+#ifdef ESMF_520r
       call esmf_logwrite("set up the reference time interval",          &
-                        esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("set up the reference time interval",          &
+                          esmf_log_info, rc = rc1)
+#endif
 
       call esmf_timeintervalset(reftimeinterval, h = int_state%kfhour,  &
                            m = 0, rc = rc1)
@@ -378,7 +461,11 @@
 ! get the grid component vm.
 ! this esmf_gridcompget vm can be used at any where you need it.
 !---------------------------------------------------------------
+#ifdef ESMF_520r
+      call esmf_logwrite("get the local vm", esmf_logmsg_info, rc = rc1)
+#else
       call esmf_logwrite("get the local vm", esmf_log_info, rc = rc1)
+#endif
 
       call esmf_vmgetcurrent(vm_local, rc = rc1)
 
@@ -388,8 +475,13 @@
 ! set up parameters of mpi communications.
 ! use esmf utility to get pe identification and total number of pes.
 !-------------------------------------------------------------------
+#ifdef ESMF_520r
+      call esmf_logwrite("get me and nodes from vm", 			&
+                          esmf_logmsg_info, rc = rc1)
+#else
       call esmf_logwrite("get me and nodes from vm", 			&
                           esmf_log_info, rc = rc1)
+#endif
 
       call esmf_vmget(vm_local, localpet = int_state%me,    		&
                            mpicommunicator = mpi_comm_all,        	&
@@ -403,8 +495,13 @@
 ! variables and some local parameter short names, aloocate
 ! internal state arrays.
 !---------------------------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("run the gfs_physics_initialize", 		&
-                         esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("run the gfs_physics_initialize", 		&
+                          esmf_log_info, rc = rc1)
+#endif
 
 ! ----------------- gfs physics related initialize --------------------
 ! ----------------------------------------------------------------------
@@ -492,8 +589,13 @@
 ! to the esmf exprot state which is the public interface
 ! for other esmf grid components.
 !-------------------------------------------------------
+!#ifdef ESMF_520r
 !     call esmf_logwrite("internal state link to esmf export state", 	&
-!                       esmf_log_info, rc = rc1)
+!                          esmf_logmsg_info, rc = rc1)
+!#else
+!     call esmf_logwrite("internal state link to esmf export state", 	&
+!                          esmf_log_info, rc = rc1)
+!#endif
 
       int_state%fhour_idate(1,1)=int_state%kfhour
       int_state%fhour_idate(1,2:5)=idate(1:4)
@@ -596,8 +698,13 @@
 
 ! retrieve the esmf internal state.
 !---------------------------------- 
+#ifdef ESMF_520r
       call esmf_logwrite("get the internal state in the run routine", 	&
-                        esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("get the internal state in the run routine", 	&
+                          esmf_log_info, rc = rc1)
+#endif
 
       call esmf_gridcompgetinternalstate(gc_gfs_phy, wrap, rc1)
 
@@ -612,8 +719,13 @@
 ! update the initial condition arrays in the internal state based on
 ! the information of the esmf import state. 
 !------------------------------------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("esmf import state to internal state", 	&
-                        esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("esmf import state to internal state", 	&
+                          esmf_log_info, rc = rc1)
+#endif
 !
 ! the pointer/copy option (Sarah Lu)
 !  get the esmf import state and over-write the gfs internal state         
@@ -662,8 +774,13 @@
 !***  retrieve the import state of the write gridded component
 !***  from the physics export state.
 !-----------------------------------------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("Retrieve Write Import State from Physics Export State", &
-                        esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("Retrieve Write Import State from Physics Export State", &
+                          esmf_log_info, rc = rc1)
+#endif
 
 
       CALL ESMF_StateGet(state      =exp_gfs_phy                        &  !<-- The Physics export state
@@ -704,7 +821,7 @@
                do I = 1, int_state%ntrac
 
                 vname = trim(int_state%gfs_phy_tracer%vname(i))
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
                 call ESMF_FieldBundleGet(Bundle, FIELDNAME=vname, FIELD=Field, rc = RC1 )
 #else
                 call ESMF_FieldBundleGet(Bundle,      NAME=vname, FIELD=Field, rc = RC1 )
@@ -722,20 +839,23 @@
                int_state%gfs_phy_tracer%fscav = 0.0
            END IF
        endif
-
 !
       CALL ESMF_AttributeSet(state=exp_gfs_phy        &  !<-- The physics export state
                             ,name ='kdt'              &  !<-- Name of the attribute to insert
                             ,value= int_state%kdt     & !<-- Value of the attribute
                             ,rc   =RC)
 
-
 !
 !
 ! run the gfs.
 !--------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("run the gfs_physics_run", 			&
-                         esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("run the gfs_physics_run", 			&
+                          esmf_log_info, rc = rc1)
+#endif
 
       call gfs_physics_run(int_state, rc = rc1)
 !
@@ -746,8 +866,13 @@
 ! to the esmf exprot state which is the public interface
 ! for other esmf grid components.
 !-------------------------------------------------------
+#ifdef ESMF_520r
      call esmf_logwrite("internal state to esmf export state", 	&
-                       esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+     call esmf_logwrite("internal state to esmf export state", 	&
+                          esmf_log_info, rc = rc1)
+#endif
 
 ! the pointer/copy option (Sarah Lu)
 !  point export state to internal state grid_fld in init step
@@ -767,8 +892,13 @@
 !***  retrieve the import state of the write gridded component
 !***  from the physics export state.
 !-----------------------------------------------------------------------
+!#ifdef ESMF_520r
 !      call esmf_logwrite("Retrieve Write Import State from Physics Export State", &
-!                        esmf_log_info, rc = rc1)
+!                          esmf_logmsg_info, rc = rc1)
+!#else
+!      call esmf_logwrite("Retrieve Write Import State from Physics Export State", &
+!                          esmf_log_info, rc = rc1)
+!#endif
 !
 !      CALL ESMF_StateGet(state      =exp_gfs_phy                        &  !<-- The Physics export state
 !                        ,itemName   ='Write Import State'               &  !<-- Name of the state to get from Physics export state
@@ -843,9 +973,15 @@
 
 ! retrieve the esmf internal state.
 !----------------------------------
+#ifdef ESMF_520r
      call esmf_logwrite(						&
                       "get the internal state in the finalize routine", &
-                       esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+     call esmf_logwrite(						&
+                      "get the internal state in the finalize routine", &
+                          esmf_log_info, rc = rc1)
+#endif
 
      call esmf_gridcompgetinternalstate(gc_gfs_phy, wrap, rc1)
 
@@ -858,8 +994,13 @@
 
 ! run the gfs finalize routine to release the memory space, etc. 
 !----------------------------------------------------------------------------
+#ifdef ESMF_520r
       call esmf_logwrite("run the gfs_physics_finalize", 		&
-                         esmf_log_info, rc = rc1)
+                          esmf_logmsg_info, rc = rc1)
+#else
+      call esmf_logwrite("run the gfs_physics_finalize", 		&
+                          esmf_log_info, rc = rc1)
+#endif
 
       call gfs_physics_finalize(int_state, rc = rc1)
 

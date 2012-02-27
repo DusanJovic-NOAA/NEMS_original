@@ -1,5 +1,12 @@
 #include "../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
 !-----------------------------------------------------------------------
 !
       MODULE module_NMM_INTEGRATE
@@ -24,9 +31,14 @@
 !                       ESMF 3.1.0rp2 library.
 !   2011-05     Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !   2011-07     Black - Revised for moving nests.
+!   2012-02     Yang  - Modified for using the ESMF 5.2.0rp1 library.
 !-----------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 !
       USE module_CLOCKTIMES,ONLY: PRINT_CLOCKTIMES                      &
                                  ,update_interior_from_nest_tim         &

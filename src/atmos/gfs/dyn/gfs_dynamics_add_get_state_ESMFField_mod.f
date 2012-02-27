@@ -1,5 +1,12 @@
 #include "../../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
 !BOP
 !
 ! !MODULE: GFS_ESMFStateAddGetMod --- a class attaching a F90 array to an 
@@ -12,6 +19,20 @@
  MODULE gfs_dynamics_add_get_state_mod
 
 !USES:
+#ifdef ESMF_520r
+  USE ESMF, ONLY :                              &
+      ESMF_Grid,                                &
+      ESMF_State,                               &
+      ESMF_StateAdd,                            &
+      ESMF_StateGet,                            &
+      ESMF_SUCCESS,                             &
+      ESMF_Field,                               &
+      ESMF_FieldCreate,                         &
+      ESMF_FieldGet,                            &
+      ESMF_FieldDestroy,                        &
+      ESMF_DataCopy_Flag
+      USE esmf
+#else
   USE ESMF_Mod, ONLY :                          &
       ESMF_Grid,                                &
       ESMF_State,                               &
@@ -23,6 +44,8 @@
       ESMF_FieldGet,                            &
       ESMF_FieldDestroy,                        &
       ESMF_CopyFlag
+#endif
+
 
  IMPLICIT NONE
  PRIVATE
@@ -54,6 +77,7 @@
 ! November 2009        Weiyu Yang Modified to use ESMF field.
 ! February 2011        Weiyu Yang Updated to use both the ESMF 4.0.0rp2 library,
 !                                 ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! September 2011       Weiyu Yang Modified to use the ESMF 5.2.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -113,7 +137,11 @@ CONTAINS
  TYPE(ESMF_Grid),       INTENT(inout) :: grid
  CHARACTER(LEN = *),    INTENT(in)    :: name
 
+#ifdef ESMF_520r
+ TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
+#else
  TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
+#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -139,6 +167,7 @@ CONTAINS
 ! May 2008   Weiyu Yang  Updated to use the ESMF 3.1.0r library.
 ! Feb 2011   Weiyu Yang  Updated to use both the ESMF 4.0.0rp2 library,
 !                        ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011   Weiyu Yang  Modified to use the ESMF 5.2.0r library.
 !
 !
 !EOP
@@ -149,9 +178,15 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
+#ifdef ESMF_520r
+          ESMFField = ESMF_FieldCreate(grid, F90Array, &
+              gridToFieldMap=(/1, 0, 0/),              &
+              datacopyflag = copyflag, name = name, rc = status)
+#else
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 0, 0/),              &
               copyflag = copyflag, name = name, rc = status)
+#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 0, 0/),              &
@@ -163,7 +198,11 @@ CONTAINS
          return
       END IF
 
+#ifdef ESMF_520r
+      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
+#else
       CALL ESMF_StateAdd(state, ESMFField, rc=status)
+#endif
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -203,7 +242,11 @@ CONTAINS
  TYPE(ESMF_Grid),          INTENT(inout) :: grid
  CHARACTER(LEN = *),       INTENT(in)    :: name
 
+#ifdef ESMF_520r
+ TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
+#else
  TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
+#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -229,6 +272,7 @@ CONTAINS
 ! May 2008   Weiyu Yang  Updated to use the ESMF 3.1.0r library.
 ! Feb 2011   Weiyu Yang  Updated to use both the ESMF 4.0.0rp2 library,
 !                        ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011   Weiyu Yang  Modified to use the ESMF 5.2.0r library.
 !
 !
 !EOP
@@ -239,9 +283,15 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
+#ifdef ESMF_520r
+          ESMFField = ESMF_FieldCreate(grid, F90Array, &
+              gridToFieldMap=(/1, 2, 0/),              &
+              datacopyflag = copyflag, name = name, rc = status)
+#else
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 2, 0/),              &
               copyflag = copyflag, name = name, rc = status)
+#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 2, 0/),              &
@@ -253,7 +303,11 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, ESMFField, rc = status)
+#ifdef ESMF_520r
+      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
+#else
+      CALL ESMF_StateAdd(state, ESMFField, rc=status)
+#endif
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -293,7 +347,11 @@ CONTAINS
  TYPE(ESMF_Grid),       INTENT(inout) :: grid
  CHARACTER(LEN = *),    INTENT(in)    :: name
 
+#ifdef ESMF_520r
+ TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
+#else
  TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
+#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -319,6 +377,7 @@ CONTAINS
 ! May 2008   Weiyu Yang  Updated to use the ESMF 3.1.0r library.
 ! Feb 2011   Weiyu Yang  Updated to use both the ESMF 4.0.0rp2 library,
 !                        ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011   Weiyu Yang  Modified to use the ESMF 5.2.0r library.
 !
 !
 !EOP
@@ -329,9 +388,15 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
+#ifdef ESMF_520r
+          ESMFField = ESMF_FieldCreate(grid, F90Array, &
+              gridToFieldMap=(/1, 0, 0/),              &
+              datacopyflag = copyflag, name = name, rc = status)
+#else
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 0, 0/),              &
               copyflag = copyflag, name = name, rc = status)
+#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 0, 0/),              &
@@ -343,7 +408,11 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, ESMFField, rc = status)
+#ifdef ESMF_520r
+      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
+#else
+      CALL ESMF_StateAdd(state, ESMFField, rc=status)
+#endif
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -383,7 +452,11 @@ CONTAINS
  TYPE(ESMF_Grid),       INTENT(inout) :: grid
  CHARACTER(LEN = *),    INTENT(in)    :: name
 
+#ifdef ESMF_520r
+ TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
+#else
  TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
+#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -409,6 +482,7 @@ CONTAINS
 ! May 2008   Weiyu Yang  Updated to use the ESMF 3.1.0r library.
 ! Feb 2011   Weiyu Yang  Updated to use both the ESMF 4.0.0rp2 library,
 !                        ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011   Weiyu Yang  Modified to use the ESMF 5.2.0r library.
 !
 !
 !EOP
@@ -419,9 +493,15 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
+#ifdef ESMF_520r
+          ESMFField = ESMF_FieldCreate(grid, F90Array, &
+              gridToFieldMap=(/1, 0, 0/),              &
+              datacopyflag = copyflag, name = name, rc = status)
+#else
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 0, 0/),              &
               copyflag = copyflag, name = name, rc = status)
+#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 0, 0/),              &
@@ -433,7 +513,11 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, ESMFField, rc = status)
+#ifdef ESMF_520r
+      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
+#else
+      CALL ESMF_StateAdd(state, ESMFField, rc=status)
+#endif
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -473,7 +557,11 @@ CONTAINS
  TYPE(ESMF_Grid),          INTENT(inout) :: grid
  CHARACTER(LEN = *),       INTENT(in)    :: name
 
+#ifdef ESMF_520r
+ TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
+#else
  TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
+#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -499,6 +587,7 @@ CONTAINS
 ! May 2008   Weiyu Yang  Updated to use the ESMF 3.1.0r library.
 ! Feb 2011   Weiyu Yang  Updated to use both the ESMF 4.0.0rp2 library,
 !                        ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011   Weiyu Yang  Modified to use the ESMF 5.2.0r library.
 !
 !
 !EOP
@@ -509,9 +598,15 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
+#ifdef ESMF_520r
+          ESMFField = ESMF_FieldCreate(grid, F90Array, &
+              gridToFieldMap=(/1, 2, 0/),              &
+              datacopyflag = copyflag, name = name, rc = status)
+#else
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 2, 0/),              &
               copyflag = copyflag, name = name, rc = status)
+#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 2, 0/),              &
@@ -523,7 +618,11 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, ESMFField, rc = status)
+#ifdef ESMF_520r
+      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
+#else
+      CALL ESMF_StateAdd(state, ESMFField, rc=status)
+#endif
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -563,7 +662,11 @@ CONTAINS
  TYPE(ESMF_Grid),          INTENT(inout) :: grid
  CHARACTER(LEN = *),       INTENT(in)    :: name
 
+#ifdef ESMF_520r
+ TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
+#else
  TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
+#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -589,6 +692,7 @@ CONTAINS
 ! May 2008   Weiyu Yang  Updated to use the ESMF 3.1.0r library.
 ! Feb 2011   Weiyu Yang  Updated to use both the ESMF 4.0.0rp2 library,
 !                        ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011   Weiyu Yang  Modified to use the ESMF 5.2.0r library.
 !
 !
 !EOP
@@ -599,9 +703,15 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
+#ifdef ESMF_520r
+          ESMFField = ESMF_FieldCreate(grid, F90Array, &
+              gridToFieldMap=(/1, 2, 0/),              &
+              datacopyflag = copyflag, name = name, rc = status)
+#else
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 2, 0/),              &
               copyflag = copyflag, name = name, rc = status)
+#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 2, 0/),              &
@@ -613,7 +723,11 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, ESMFField, rc = status)
+#ifdef ESMF_520r
+      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
+#else
+      CALL ESMF_StateAdd(state, ESMFField, rc=status)
+#endif
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -653,7 +767,11 @@ CONTAINS
  TYPE(ESMF_Grid),             INTENT(inout) :: grid
  CHARACTER(LEN = *),          INTENT(in)    :: name
 
- TYPE(ESMF_CopyFlag),  INTENT(in), OPTIONAL :: copyflag
+#ifdef ESMF_520r
+ TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
+#else
+ TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
+#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -679,6 +797,7 @@ CONTAINS
 ! May 2008   Weiyu Yang  Updated to use the ESMF 3.1.0r library.
 ! Feb 2011   Weiyu Yang  Updated to use both the ESMF 4.0.0rp2 library,
 !                        ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011   Weiyu Yang  Modified to use the ESMF 5.2.0r library.
 !
 !
 !EOP
@@ -689,8 +808,13 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
+#ifdef ESMF_520r
+          ESMFField = ESMF_FieldCreate(grid, F90Array, &
+              datacopyflag = copyflag, name = name, rc = status)
+#else
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               copyflag = copyflag, name = name, rc = status)
+#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               name = name, rc = status)
@@ -701,7 +825,11 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, ESMFField, rc = status)
+#ifdef ESMF_520r
+      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
+#else
+      CALL ESMF_StateAdd(state, ESMFField, rc=status)
+#endif
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -741,7 +869,11 @@ CONTAINS
  TYPE(ESMF_Grid),             INTENT(inout) :: grid
  CHARACTER(LEN = *),          INTENT(in)    :: name
 
- TYPE(ESMF_CopyFlag),  INTENT(in), OPTIONAL :: copyflag
+#ifdef ESMF_520r
+ TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
+#else
+ TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
+#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -767,6 +899,7 @@ CONTAINS
 ! May 2008   Weiyu Yang  Updated to use the ESMF 3.1.0r library.
 ! Feb 2011   Weiyu Yang  Updated to use both the ESMF 4.0.0rp2 library,
 !                        ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011   Weiyu Yang  Modified to use the ESMF 5.2.0r library.
 !
 !
 !EOP
@@ -777,8 +910,13 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
+#ifdef ESMF_520r
+          ESMFField = ESMF_FieldCreate(grid, F90Array, &
+              datacopyflag = copyflag, name = name, rc = status)
+#else
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               copyflag = copyflag, name = name, rc = status)
+#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               name = name, rc = status)
@@ -789,7 +927,11 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, ESMFField, rc = status)
+#ifdef ESMF_520r
+      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
+#else
+      CALL ESMF_StateAdd(state, ESMFField, rc=status)
+#endif
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -829,7 +971,11 @@ CONTAINS
  TYPE(ESMF_Grid),                INTENT(inout) :: grid
  CHARACTER(LEN = *),             INTENT(in)    :: name
 
- TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL   :: copyflag
+#ifdef ESMF_520r
+ TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
+#else
+ TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
+#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -855,6 +1001,7 @@ CONTAINS
 ! May 2008   Weiyu Yang  Updated to use the ESMF 3.1.0r library.
 ! Feb 2011   Weiyu Yang  Updated to use both the ESMF 4.0.0rp2 library,
 !                        ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011   Weiyu Yang  Modified to use the ESMF 5.2.0r library.
 !
 !
 !EOP
@@ -865,8 +1012,13 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
+#ifdef ESMF_520r
+          ESMFField = ESMF_FieldCreate(grid, F90Array, &
+              datacopyflag = copyflag, name = name, rc = status)
+#else
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               copyflag = copyflag, name = name, rc = status)
+#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               name = name, rc = status)
@@ -877,7 +1029,11 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, ESMFField, rc = status)
+#ifdef ESMF_520r
+      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
+#else
+      CALL ESMF_StateAdd(state, ESMFField, rc=status)
+#endif
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -917,7 +1073,11 @@ CONTAINS
  TYPE(ESMF_Grid),                INTENT(inout) :: grid
  CHARACTER(LEN = *),             INTENT(in)    :: name
 
- TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL   :: copyflag
+#ifdef ESMF_520r
+ TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
+#else
+ TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
+#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -943,6 +1103,7 @@ CONTAINS
 ! May 2008   Weiyu Yang  Updated to use the ESMF 3.1.0r library.
 ! Feb 2011   Weiyu Yang  Updated to use both the ESMF 4.0.0rp2 library,
 !                        ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011   Weiyu Yang  Modified to use the ESMF 5.2.0r library.
 !
 !
 !EOP
@@ -953,8 +1114,13 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
+#ifdef ESMF_520r
+          ESMFField = ESMF_FieldCreate(grid, F90Array, &
+              datacopyflag = copyflag, name = name, rc = status)
+#else
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               copyflag = copyflag, name = name, rc = status)
+#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               name = name, rc = status)
@@ -965,7 +1131,11 @@ CONTAINS
          return
       END IF
 
-      CALL ESMF_StateAdd(state, ESMFField, rc = status)
+#ifdef ESMF_520r
+      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
+#else
+      CALL ESMF_StateAdd(state, ESMFField, rc=status)
+#endif
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -1043,17 +1213,26 @@ CONTAINS
 ! May 2008         Weiyu Yang Updated to use the ESMF 3.1.0r library.
 ! Feb 2011         Weiyu Yang Updated to use both the ESMF 4.0.0rp2 library,
 !                             ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011         Weiyu Yang Modified to use the ESMF 5.2.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
  TYPE(ESMF_Field)                          :: ESMFField
+ TYPE(ESMF_State)                          :: ESMFState
  INTEGER                                   :: status
 
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
+#ifdef ESMF_520r
+     CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
+         rc = status)
+     CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
+         rc = status)
+#else
      CALL ESMF_StateGet(state, name, ESMFField,           &
          nestedStateName = nestedStateName, rc = status)
+#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -1151,17 +1330,26 @@ CONTAINS
 ! May 2008         Weiyu Yang Updated to use the ESMF 3.1.0r library.
 ! Feb 2011         Weiyu Yang Updated to use both the ESMF 4.0.0rp2 library,
 !                             ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011         Weiyu Yang Modified to use the ESMF 5.2.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
  TYPE(ESMF_Field)                          :: ESMFField
+ TYPE(ESMF_State)                          :: ESMFState
  INTEGER                                   :: status
 
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
+#ifdef ESMF_520r
+     CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
+         rc = status)
+     CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
+         rc = status)
+#else
      CALL ESMF_StateGet(state, name, ESMFField,           &
          nestedStateName = nestedStateName, rc = status)
+#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -1259,17 +1447,26 @@ CONTAINS
 ! May 2008         Weiyu Yang Updated to use the ESMF 3.1.0r library.
 ! Feb 2011         Weiyu Yang Updated to use both the ESMF 4.0.0rp2 library,
 !                             ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011         Weiyu Yang Modified to use the ESMF 5.2.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
  TYPE(ESMF_Field)                          :: ESMFField
+ TYPE(ESMF_State)                          :: ESMFState
  INTEGER                                   :: status
 
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
+#ifdef ESMF_520r
+     CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
+         rc = status)
+     CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
+         rc = status)
+#else
      CALL ESMF_StateGet(state, name, ESMFField,           &
          nestedStateName = nestedStateName, rc = status)
+#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -1367,17 +1564,26 @@ CONTAINS
 ! May 2008         Weiyu Yang Updated to use the ESMF 3.1.0r library.
 ! Feb 2011         Weiyu Yang Updated to use both the ESMF 4.0.0rp2 library,
 !                             ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011         Weiyu Yang Modified to use the ESMF 5.2.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
  TYPE(ESMF_Field)                          :: ESMFField
+ TYPE(ESMF_State)                          :: ESMFState
  INTEGER                                   :: status
 
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
+#ifdef ESMF_520r
+     CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
+         rc = status)
+     CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
+         rc = status)
+#else
      CALL ESMF_StateGet(state, name, ESMFField,           &
          nestedStateName = nestedStateName, rc = status)
+#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -1475,17 +1681,26 @@ CONTAINS
 ! May 2008         Weiyu Yang Updated to use the ESMF 3.1.0r library.
 ! Feb 2011         Weiyu Yang Updated to use both the ESMF 4.0.0rp2 library,
 !                             ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011         Weiyu Yang Modified to use the ESMF 5.2.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
  TYPE(ESMF_Field)                          :: ESMFField
+ TYPE(ESMF_State)                          :: ESMFState
  INTEGER                                   :: status
 
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
+#ifdef ESMF_520r
+     CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
+         rc = status)
+     CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
+         rc = status)
+#else
      CALL ESMF_StateGet(state, name, ESMFField,           &
          nestedStateName = nestedStateName, rc = status)
+#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -1583,17 +1798,26 @@ CONTAINS
 ! May 2008         Weiyu Yang Updated to use the ESMF 3.1.0r library.
 ! Feb 2011         Weiyu Yang Updated to use both the ESMF 4.0.0rp2 library,
 !                             ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011         Weiyu Yang Modified to use the ESMF 5.2.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
  TYPE(ESMF_Field)                          :: ESMFField
+ TYPE(ESMF_State)                          :: ESMFState
  INTEGER                                   :: status
 
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
+#ifdef ESMF_520r
+     CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
+         rc = status)
+     CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
+         rc = status)
+#else
      CALL ESMF_StateGet(state, name, ESMFField,           &
          nestedStateName = nestedStateName, rc = status)
+#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -1691,17 +1915,26 @@ CONTAINS
 ! May 2008         Weiyu Yang Updated to use the ESMF 3.1.0r library.
 ! Feb 2011         Weiyu Yang Updated to use both the ESMF 4.0.0rp2 library,
 !                             ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011         Weiyu Yang Modified to use the ESMF 5.2.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
  TYPE(ESMF_Field)                          :: ESMFField
+ TYPE(ESMF_State)                          :: ESMFState
  INTEGER                                   :: status
 
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
+#ifdef ESMF_520r
+     CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
+         rc = status)
+     CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
+         rc = status)
+#else
      CALL ESMF_StateGet(state, name, ESMFField,           &
          nestedStateName = nestedStateName, rc = status)
+#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -1799,17 +2032,26 @@ CONTAINS
 ! May 2008         Weiyu Yang Updated to use the ESMF 3.1.0r library.
 ! Feb 2011         Weiyu Yang Updated to use both the ESMF 4.0.0rp2 library,
 !                             ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011         Weiyu Yang Modified to use the ESMF 5.2.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
  TYPE(ESMF_Field)                          :: ESMFField
+ TYPE(ESMF_State)                          :: ESMFState
  INTEGER                                   :: status
 
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
+#ifdef ESMF_520r
+     CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
+         rc = status)
+     CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
+         rc = status)
+#else
      CALL ESMF_StateGet(state, name, ESMFField,           &
          nestedStateName = nestedStateName, rc = status)
+#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -1907,17 +2149,26 @@ CONTAINS
 ! May 2008         Weiyu Yang Updated to use the ESMF 3.1.0r library.
 ! Feb 2011         Weiyu Yang Updated to use both the ESMF 4.0.0rp2 library,
 !                             ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011         Weiyu Yang Modified to use the ESMF 5.2.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
  TYPE(ESMF_Field)                          :: ESMFField
+ TYPE(ESMF_State)                          :: ESMFState
  INTEGER                                   :: status
 
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
+#ifdef ESMF_520r
+     CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
+         rc = status)
+     CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
+         rc = status)
+#else
      CALL ESMF_StateGet(state, name, ESMFField,           &
          nestedStateName = nestedStateName, rc = status)
+#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF
@@ -2015,17 +2266,26 @@ CONTAINS
 ! May 2008         Weiyu Yang Updated to use the ESMF 3.1.0r library.
 ! Feb 2011         Weiyu Yang Updated to use both the ESMF 4.0.0rp2 library,
 !                             ESMF 5 library and the the ESMF 3.1.0rp2 library.
+! Sep 2011         Weiyu Yang Modified to use the ESMF 5.2.0r library.
 !
 !EOP
 !-------------------------------------------------------------------------    
  TYPE(ESMF_Field)                          :: ESMFField
+ TYPE(ESMF_State)                          :: ESMFState
  INTEGER                                   :: status
 
  status = ESMF_SUCCESS
 
  IF(PRESENT(nestedStateName)) THEN
+#ifdef ESMF_520r
+     CALL ESMF_StateGet(state, nestedStateName, ESMFState,&
+         rc = status)
+     CALL ESMF_StateGet(ESMFState, name, ESMFField,       &
+         rc = status)
+#else
      CALL ESMF_StateGet(state, name, ESMFField,           &
          nestedStateName = nestedStateName, rc = status)
+#endif
  ELSE
      CALL ESMF_StateGet(state, name, ESMFField, rc = status)
  END IF

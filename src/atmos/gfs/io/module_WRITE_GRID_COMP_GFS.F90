@@ -1,9 +1,9 @@
 #include "../../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !-----------------------------------------------------------------------
@@ -38,10 +38,15 @@
 !       25 Jun 2011:  J. Wang  - Writing output grib file with either w3_d or 
 !                                w3_4 lib
 !       05 May 2011:  J. Wang  - add run post option on write quilt
+!       28 Sep 2011:  W. Yang  - Modified for using the ESMF 5.2.0r library.
 !
 !---------------------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
       USE MODULE_WRITE_INTERNAL_STATE_GFS
       USE MODULE_WRITE_ROUTINES_GFS,ONLY : FIRST_PASS_GFS               &
                                       ,WRITE_NEMSIO_OPEN 
@@ -151,11 +156,19 @@
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
+#ifdef ESMF_520r
+      CALL ESMF_GridCompSetEntryPoint(WRT_COMP                          &  !<-- The write component
+                                     ,ESMF_METHOD_INITIALIZE            &  !<-- Predefined subroutine type (INIT)
+                                     ,WRT_INITIALIZE_GFS                &  !<-- User's subroutineName
+                                     ,phase=1                           &
+                                     ,rc=RC)
+#else
       CALL ESMF_GridCompSetEntryPoint(WRT_COMP                          &  !<-- The write component
                                      ,ESMF_SETINIT                      &  !<-- Predefined subroutine type (INIT)
                                      ,WRT_INITIALIZE_GFS                &  !<-- User's subroutineName
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
+#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -176,11 +189,19 @@
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
+#ifdef ESMF_520r
+      CALL ESMF_GridCompSetEntryPoint(WRT_COMP                          &  !<-- The write component
+                                     ,ESMF_METHOD_RUN                   &  !<-- Predefined subroutine type (INIT)
+                                     ,WRT_RUN_GFS                       &  !<-- User's subroutineName
+                                     ,phase=1                           &
+                                     ,rc=RC)
+#else
       CALL ESMF_GridCompSetEntryPoint(WRT_COMP                          &  !<-- The write component
                                      ,ESMF_SETRUN                       &  !<-- Predefined subroutine type (RUN)
                                      ,WRT_RUN_GFS                       &  !<-- User's subroutineName
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
+#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -201,11 +222,19 @@
                                     ,ESMF_SINGLEPHASE                   &
                                     ,RC)
 #else
+#ifdef ESMF_520r
+      CALL ESMF_GridCompSetEntryPoint(WRT_COMP                          &  !<-- The write component
+                                     ,ESMF_METHOD_FINALIZE              &  !<-- Predefined subroutine type (INIT)
+                                     ,WRT_FINALIZE_GFS                       &  !<-- User's subroutineName
+                                     ,phase=1                           &
+                                     ,rc=RC)
+#else
      CALL ESMF_GridCompSetEntryPoint(WRT_COMP                           &  !<-- The write component
                                     ,ESMF_SETFINAL                      &  !<-- Predefined subroutine type (FINALIZE)
                                     ,WRT_FINALIZE_GFS                   &  !<-- User's subroutineName
                                     ,phase=ESMF_SINGLEPHASE             &
                                     ,rc=RC)
+#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -662,7 +691,11 @@
       TYPE(ESMF_LOGICAL),DIMENSION(:),POINTER :: FIRST_IO_PE
       TYPE(ESMF_Time)                         :: CURRTIME
 !
+#ifdef ESMF_520r
+      TYPE(ESMF_TypeKind_Flag) :: DATATYPE
+#else
       TYPE(ESMF_TypeKind)      :: DATATYPE
+#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -1060,7 +1093,7 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(FILE_BUNDLE                               &  !<-- The write component's history data Bundle
                                   ,FIELDNAME  =wrt_int_state%FIELD_NAME(N,NBDL)   &  !<-- The ESMF Field's name
                                   ,field =FIELD_WORK1                        &  !<-- The ESMF Field data pointer

@@ -1,9 +1,9 @@
 #include "../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !-----------------------------------------------------------------------
@@ -30,7 +30,11 @@
 !   2011-10-01  Wang/Lu - exit GOCART_INIT and GOCART_INTEGRATE for IO PE
 !-----------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 !
       USE MODULE_ERR_MSG,               ONLY: ERR_MSG,MESSAGE_CHECK
 
@@ -135,7 +139,7 @@
 !
       MESSAGE_CHECK="Create Empty Import/Export States for GFS Chemistry"
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
       IMP_GFS_CHEM =ESMF_StateCreate(     NAME="chemistry import"       &
                                   ,statetype=ESMF_STATE_IMPORT          &
                                   ,rc       =RC)

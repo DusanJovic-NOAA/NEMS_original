@@ -1,9 +1,9 @@
 #include "../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !-----------------------------------------------------------------------
@@ -39,6 +39,7 @@
 !                       ESMF 3.1.0rp2 library.
 !   2011-05-11  Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !   2011-07-16  Black - Moving nest capability.
+!   2012-02-08  Yang  - Modified for using the ESMF 5.2.0rp1 library.
 
 !
 ! USAGE: Domain gridded component parts called from subroutines within
@@ -46,7 +47,11 @@
 !
 !-----------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
       USE MODULE_INCLUDE
 !
       USE MODULE_CONSTANTS,ONLY : A,CP,G,P608,PI,TWOM
@@ -1269,7 +1274,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
       domain_int_state%IMP_STATE_SOLVER=ESMF_StateCreate(               &
                                                  Name="Dynamics Import" &  !<-- The Dynamics import state name
                                            ,statetype=ESMF_STATE_IMPORT &
@@ -3914,7 +3919,7 @@
 !
             NUM_VARS_2D_H_I=NUM_VARS_2D_H_I+1                              !<-- ALL 2-D integer variables updated on H points
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
             FIELD_X=ESMF_FieldCreate(grid       =GRID_DOMAIN            &  !<-- The ESMF Grid for this domain
                                     ,farray     =VARS(N)%I2D            &  !<-- Nth variable in the VARS array
                                     ,totalUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
@@ -3942,7 +3947,7 @@
 !
             NUM_VARS_2D_H_R=NUM_VARS_2D_H_R+1                              !<-- ALL 2-D real variables updated on H points
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
             FIELD_X=ESMF_FieldCreate(grid       =GRID_DOMAIN            &  !<-- The ESMF Grid for this domain
                                     ,farray     =VARS(N)%R2D            &  !<-- Nth variable in the VARS array
                                     ,totalUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
@@ -3974,7 +3979,7 @@
 !
             NUM_VARS_3D_H=NUM_VARS_3D_H+1
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
             FIELD_X=ESMF_FieldCreate(grid           =GRID_DOMAIN                    &  !<-- The ESMF Grid for this domain
                                     ,farray         =VARS(N)%R3D                    &  !<-- Nth variable in the VARS array
                                     ,totalUWidth    =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
@@ -4069,7 +4074,7 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleAdd(fieldbundle=MOVE_BUNDLE_H            &  !<-- The Move Bundle for H point variables
                                   ,field      =FIELD_X                  &  !<-- Add this Field to the Bundle
                                   ,rc         =RC )
@@ -4099,7 +4104,7 @@
 !
             NUM_VARS_2D_V=NUM_VARS_2D_V+1
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
             FIELD_X=ESMF_FieldCreate(grid       =GRID_DOMAIN            &  !<-- The ESMF Grid for this domain
                                     ,farray     =VARS(N)%R2D            &  !<-- Nth variable in the VARS array
                                     ,totalUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
@@ -4131,7 +4136,7 @@
 !
             NUM_VARS_3D_V=NUM_VARS_3D_V+1
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
             FIELD_X=ESMF_FieldCreate(grid           =GRID_DOMAIN                    &  !<-- The ESMF Grid for this domain
                                     ,farray         =VARS(N)%R3D                    &  !<-- Nth variable in the VARS array
                                     ,totalUWidth    =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
@@ -4218,7 +4223,7 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleAdd(fieldbundle=MOVE_BUNDLE_V            &  !<-- The Move Bundle for V-point variables
                                   ,field      =FIELD_X                  &  !<-- Add this Field to the Bundle
                                   ,rc         =RC )
@@ -4783,7 +4788,7 @@
 !
       DO N_FIELD=1,NUM_FIELDS   
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H              &  !<-- Bundle holding the arrays for move updates
                                 ,fieldIndex =N_FIELD                    &  !<-- Index of the Field in the Bundle
                                 ,field      =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
@@ -4891,7 +4896,7 @@
 !
       DO N_FIELD=1,NUM_FIELDS   
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_V              &  !<-- Bundle holding the arrays for move updates
                                 ,fieldIndex =N_FIELD                    &  !<-- Index of the Field in the Bundle
                                 ,field      =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
@@ -5443,7 +5448,7 @@
 !
             DO N_FIELD=1,NUM_FIELDS
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
               CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H        &  !<-- Bundle holding the arrays for move updates
                                       ,fieldIndex =N_FIELD              &  !<-- Index of the Field in the Bundle
                                       ,field      =HOLD_FIELD           &  !<-- Field N_FIELD in the Bundle
@@ -5550,7 +5555,7 @@
 !
             DO N_FIELD=1,NUM_FIELDS
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
               CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_V        &  !<-- Bundle holding the arrays for move updates
                                       ,fieldIndex =N_FIELD              &  !<-- Index of the Field in the Bundle
                                       ,field      =HOLD_FIELD           &  !<-- Field N_FIELD in the Bundle
@@ -6051,7 +6056,7 @@
 !
             DO N_FIELD=1,NUM_FIELDS
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
               CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H        &  !<-- Bundle holding the H arrays for move updates
                                       ,fieldIndex =N_FIELD              &  !<-- Index of the Field in the Bundle
                                       ,field      =HOLD_FIELD           &  !<-- Field N_FIELD in the Bundle
@@ -6157,7 +6162,7 @@
 !
             DO N_FIELD=1,NUM_FIELDS
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
               CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_V        &  !<-- Bundle holding the V arrays for move updates
                                       ,fieldIndex =N_FIELD              &  !<-- Index of the Field in the Bundle
                                       ,field      =HOLD_FIELD           &  !<-- Field N_FIELD in the Bundle
@@ -6588,7 +6593,7 @@
 !***  related to the latitude and longitude.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
                                   ,fieldname  ='GLAT'//BUNDLE_X         &  !<-- Name of the latitude Field
                                   ,field      =HOLD_FIELD               &  !<-- Field holding GLAT
@@ -6612,7 +6617,7 @@
                             ,rc       =RC )
 #endif
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
                                   ,fieldname  ='GLON'//BUNDLE_X         &  !<-- Name of the longitude Field
                                   ,field      =HOLD_FIELD               &  !<-- Field holding GLON
@@ -6636,7 +6641,7 @@
                             ,rc       =RC )
 #endif
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
                                   ,fieldname  ='HDACX'//BUNDLE_X        &  !<-- Name of the HDAC Field
                                   ,field      =HOLD_FIELD               &  !<-- Field holding GLON
@@ -6660,7 +6665,7 @@
                             ,rc       =RC )
 #endif
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
                                   ,fieldname  ='HDACY'//BUNDLE_X        &  !<-- Name of the HDAC Field
                                   ,field      =HOLD_FIELD               &  !<-- Field holding GLON
@@ -6709,7 +6714,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
             CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H          &  !<-- Bundle holding the H arrays for move updates
                                     ,fieldIndex =N_FIELD                &  !<-- Index of the Field in the Bundle
                                     ,field      =HOLD_FIELD             &  !<-- Field N_FIELD in the Bundle
@@ -7160,7 +7165,7 @@
 !***  The temporary substitution of T into TP.  See note above ('T/TP').
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
                                   , fieldIndex=N_FIELD_T                &  !<-- Index of the T Field in the H Bundle
                                   ,field      =HOLD_FIELD               &  !<-- The T Field in the H Bundle
@@ -7172,7 +7177,7 @@
                                   ,rc        =RC )
 #endif
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
                                   ,fieldIndex =N_FIELD_TP               &  !<-- Index of the TP Field in the H Bundle
                                   ,field      =HOLD_FIELD_X             &  !<-- The TP Field in the H Bundle
@@ -7280,7 +7285,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
             CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_V          &  !<-- Bundle holding the V arrays for move updates
                                     ,fieldIndex =N_FIELD                &  !<-- Index of the Field in the Bundle
                                     ,field      =HOLD_FIELD             &  !<-- Field N_FIELD in the Bundle
@@ -7440,7 +7445,7 @@
 !***  UP
 !--------
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_V            &  !<-- Bundle holding the V arrays for move updates
                                   ,fieldIndex =N_FIELD_U                &  !<-- Index of the U Field in the V Bundle
                                   ,field      =HOLD_FIELD               &  !<-- The U Field in the V Bundle
@@ -7452,7 +7457,7 @@
                                   ,rc        =RC )
 #endif
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_V            &  !<-- Bundle holding the V arrays for move updates
                                   ,fieldIndex =N_FIELD_UP               &  !<-- Index of the UP Field in the V Bundle
                                   ,field      =HOLD_FIELD_X             &  !<-- The UP Field in the V Bundle
@@ -7508,7 +7513,7 @@
 !***  VP
 !--------
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_V            &  !<-- Bundle holding the V arrays for move updates
                                   ,fieldIndex =N_FIELD_V                &  !<-- Index of the V Field in the V Bundle
                                   ,field      =HOLD_FIELD               &  !<-- The U Field in the V Bundle
@@ -7520,7 +7525,7 @@
                                   ,rc        =RC )
 #endif
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_V            &  !<-- Bundle holding the V arrays for move updates
                                   ,fieldIndex =N_FIELD_VP               &  !<-- Index of the VP Field in the V Bundle
                                   ,field      =HOLD_FIELD_X             &  !<-- The UP Field in the V Bundle
@@ -7589,7 +7594,7 @@
       ENDDO parent_loop
 !
 !-----------------------------------------------------------------------
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
                                   ,fieldname  ='SST'                    &  !<-- Name of the latitude Field
                                   ,field      =HOLD_FIELD               &  !<-- Field holding GLAT
@@ -7917,7 +7922,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H              &  !<-- Bundle holding the H arrays for move updates
                                 ,fieldIndex =N_FIELD                    &  !<-- Index of the Field in the Bundle
                                 ,field      =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
@@ -8592,7 +8597,7 @@
 !
         FIRST=.FALSE.
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
 !!!                             ,fieldname  ='GLAT'                     &  !<-- Name of the latitude Field
                                 ,fieldname  ='GLAT'//BUNDLE_X           &  !<-- Name of the latitude Field
@@ -8618,7 +8623,7 @@
                           ,rc       =RC )
 #endif
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
 !!!                             ,fieldname  ='GLON'                     &  !<-- Name of the longitude Field
                                 ,fieldname  ='GLON'//BUNDLE_X           &  !<-- Name of the longitude Field
@@ -8674,7 +8679,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
       CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE                  &  !<-- Bundle holding the arrays for move updates
                               ,fieldCount =NUM_FIELDS                   &  !<-- # of Fields in this Bundle
                               ,rc         =RC )
@@ -8698,7 +8703,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
                                 ,fieldIndex =N_FIELD                    &  !<-- Index of the Field in the Bundle
                                 ,field      =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle

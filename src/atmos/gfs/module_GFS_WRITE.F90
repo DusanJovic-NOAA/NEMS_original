@@ -1,9 +1,9 @@
 #include "../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !-----------------------------------------------------------------------
@@ -23,10 +23,15 @@
 !                                modified for GFS
 !       03 Sep 2009:  W. Yang - Ensemble GEFS.
 !       12 May 2011:  Theurich & Yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!       03 Sep 2011:  W. Yang - Modified for using the ESMF 5.2.0r library.
 !
 !-----------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 !
       USE MODULE_GFS_MPI_DEF, ONLY :  MPI_COMM_INTER_ARRAY,   &
                                       N_GROUP,                &
@@ -129,12 +134,20 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             N_GROUP=J
+#ifdef ESMF_520r
+            CALL ESMF_GridCompInitialize(WRT_COMPS(J)                 &  !<-- The Write gridded components
+                                        ,importstate=IMP_STATE_WRITE  &  !<-- The Write import state
+                                        ,exportstate=EXP_STATE_WRITE  &  !<-- The Write export state
+                                        ,clock      =CLOCK_GFS                      &  !<-- The ESMF clock of the ATM component
+                                        ,rc         =RC)
+#else
             CALL ESMF_GridCompInitialize(WRT_COMPS(J)                 &  !<-- The Write gridded components
                                         ,importstate=IMP_STATE_WRITE  &  !<-- The Write import state
                                         ,exportstate=EXP_STATE_WRITE  &  !<-- The Write export state
                                         ,clock      =CLOCK_GFS                      &  !<-- The ESMF clock of the ATM component
                                         ,phase      =ESMF_SINGLEPHASE               &
                                         ,rc         =RC)
+#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -271,12 +284,20 @@
 
       DO I=1, NUM_PES_WRT
         IF(MYPE == PETLIST_WRITE(I,N_GROUP)) THEN
+#ifdef ESMF_520r
+          CALL ESMF_GridCompRun(WRT_COMPS(N_GROUP)          &  !<-- The write gridded component
+                               ,importState=IMP_STATE_WRITE &  !<-- Its import state
+                               ,exportState=EXP_STATE_WRITE &  !<-- Its export state
+                               ,clock      =CLOCK_GFS                     &  !<-- The ATM Clock
+                               ,rc         =RC)
+#else
           CALL ESMF_GridCompRun(WRT_COMPS(N_GROUP)          &  !<-- The write gridded component
                                ,importState=IMP_STATE_WRITE &  !<-- Its import state
                                ,exportState=EXP_STATE_WRITE &  !<-- Its export state
                                ,clock      =CLOCK_GFS                     &  !<-- The ATM Clock
                                ,phase      =ESMF_SINGLEPHASE              &
                                ,rc         =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ASYNC)
@@ -497,13 +518,13 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
       IMP_STATE_WRITE=ESMF_StateCreate(     NAME='Write Import State' &  !<-- Import state name for writes
-                                      ,statetype= ESMF_STATE_IMPORT   &
+                                      ,stateintent = ESMF_STATEINTENT_IMPORT &
                                       ,rc       = RC)
 !
       EXP_STATE_WRITE=ESMF_StateCreate(     NAME='Write Export State' &  !<-- Export state names for writes
-                                      ,statetype= ESMF_STATE_EXPORT   &
+                                      ,stateintent = ESMF_STATEINTENT_EXPORT &
                                       ,rc       = RC)
 #else
       IMP_STATE_WRITE=ESMF_StateCreate(STATENAME='Write Import State' &  !<-- Import state name for writes
@@ -530,9 +551,15 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520r
+      CALL ESMF_StateAdd(            EXP_STATE_DYN        & !<-- Dynamics export state receives a state
+                        ,            (/IMP_STATE_WRITE/)  & !<-- Add the write components' import state
+                        ,rc         =RC)
+#else
       CALL ESMF_StateAdd(state      =EXP_STATE_DYN        & !<-- Dynamics export state receives a state
                         ,nestedState=IMP_STATE_WRITE      & !<-- Add the write components' import state
                         ,rc         =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
@@ -543,9 +570,15 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_520r
+      CALL ESMF_StateAdd(            EXP_STATE_PHY        & !<-- Physics export state receives a state
+                        ,            (/IMP_STATE_WRITE/)  & !<-- Add the write components' import state
+                        ,rc         =RC)
+#else
       CALL ESMF_StateAdd(state      =EXP_STATE_PHY        & !<-- Physics export state receives a state
                         ,nestedState=IMP_STATE_WRITE      & !<-- Add the write components' import state
                         ,rc         =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
@@ -635,12 +668,20 @@
         IF(MYPE>=PETLIST_WRITE(1,N).AND.                          &
            MYPE<=PETLIST_WRITE(NUM_PES_WRT,N))THEN
 !
+#ifdef ESMF_520r
+           CALL ESMF_GridCompFinalize(gridcomp   =WRT_COMPS(N)    &
+                                     ,importstate=IMP_STATE_WRITE &
+                                     ,exportstate=EXP_STATE_WRITE &
+                                     ,clock      =CLOCK_GFS       &
+                                     ,rc         =RC)
+#else
            CALL ESMF_GridCompFinalize(gridcomp   =WRT_COMPS(N)    &
                                      ,importstate=IMP_STATE_WRITE &
                                      ,exportstate=EXP_STATE_WRITE &
                                      ,clock      =CLOCK_GFS       &
                                      ,phase      =ESMF_SINGLEPHASE &
                                      ,rc         =RC)
+#endif
         ENDIF
       ENDDO
 !

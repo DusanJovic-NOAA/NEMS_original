@@ -1,5 +1,12 @@
 #include "../../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
 !-----------------------------------------------------------------------
 !
       module gfs_dyn_phy_cpl_comp_mod
@@ -26,9 +33,14 @@
 !! Mar 30 2011        Weiyu Yang, modified the code to avoid the ESMF 
 !!                    log error.
 !! May 12 2011        Weiyu Yang, modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!! May 27 2011        Weiyu Yang, modified for using the ESMF 5.2.0r_ library.
 !-----------------------------------------------------------------------
 !
-      use esmf_mod
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
       use module_export_import_data
       use module_err_msg
 !
@@ -83,8 +95,13 @@
 !***  or esmf_setfinal.
 !-----------------------------------------------------------------------
 !
+#ifdef ESMF_520r
+      call esmf_logwrite("set entry point for coupler initialize"       &
+                        ,esmf_logmsg_info,rc=rc)
+#else
       call esmf_logwrite("set entry point for coupler initialize"       &
                         ,esmf_log_info,rc=rc)
+#endif
 !
 #ifdef ESMF_3
       call esmf_cplcompsetentrypoint(gc_gfs_cpl                         &  
@@ -93,11 +110,19 @@
                                     ,esmf_singlephase                   &  
                                     ,rc)
 #else
+#ifdef ESMF_520r
+      call esmf_cplcompsetentrypoint(gc_gfs_cpl                         &  
+                                    ,esmf_method_initialize             &  
+                                    ,gfs_cpl_initialize                 &  
+                                    ,phase=1                            &  
+                                    ,rc=rc)
+#else
       call esmf_cplcompsetentrypoint(gc_gfs_cpl                         &  
                                     ,esmf_setinit                       &  
                                     ,gfs_cpl_initialize                 &  
                                     ,phase=esmf_singlephase             &  
                                     ,rc=rc)
+#endif
 #endif
 !
       call err_msg(rc,'set entry point for coupler initialize',rc_reg)
@@ -106,8 +131,13 @@
 !***  register the coupler run subroutine.
 !-----------------------------------------------------------------------
 !
+#ifdef ESMF_520r
+      call esmf_logwrite("set entry point for coupler run"              &
+                        ,esmf_logmsg_info,rc=rc)
+#else
       call esmf_logwrite("set entry point for coupler run"              &
                         ,esmf_log_info,rc=rc)
+#endif
 !
 #ifdef ESMF_3
       call esmf_cplcompsetentrypoint(gc_gfs_cpl                         &  
@@ -116,11 +146,19 @@
                                     ,esmf_singlephase                   &
                                     ,rc)
 #else
+#ifdef ESMF_520r
+      call esmf_cplcompsetentrypoint(gc_gfs_cpl                         &  
+                                    ,esmf_method_run                    &  
+                                    ,gfs_cpl_run                        &  
+                                    ,phase=1                            &
+                                    ,rc=rc)
+#else
       call esmf_cplcompsetentrypoint(gc_gfs_cpl                         &  
                                     ,esmf_setrun                        &  
                                     ,gfs_cpl_run                        &  
                                     ,phase=esmf_singlephase             &
                                     ,rc=rc)
+#endif
 #endif
 !
       call err_msg(rc,'set entry point for coupler run',rc_reg)
@@ -129,8 +167,13 @@
 !***  register the coupler finalize subroutine.
 !-----------------------------------------------------------------------
 !
+#ifdef ESMF_520r
+      call esmf_logwrite("set entry point for coupler finalize"         &
+                        ,esmf_logmsg_info,rc=rc)
+#else
       call esmf_logwrite("set entry point for coupler finalize"         &
                         ,esmf_log_info,rc=rc)
+#endif
 !
 #ifdef ESMF_3
       call esmf_cplcompsetentrypoint(gc_gfs_cpl                         &  
@@ -139,11 +182,19 @@
                                     ,esmf_singlephase                   &
                                     ,rc)
 #else
+#ifdef ESMF_520r
+      call esmf_cplcompsetentrypoint(gc_gfs_cpl                         &  
+                                    ,esmf_method_finalize               &  
+                                    ,gfs_cpl_finalize                   &  
+                                    ,phase=1                            &
+                                    ,rc=rc)
+#else
       call esmf_cplcompsetentrypoint(gc_gfs_cpl                         &  
                                     ,esmf_setfinal                      &  
                                     ,gfs_cpl_finalize                   &  
                                     ,phase=esmf_singlephase             &
                                     ,rc=rc)
+#endif
 #endif
 !
       call err_msg(rc,'set entry point for coupler finalize',rc_reg)
@@ -226,8 +277,13 @@
 !***  the statename from the import state.
 !-----------------------------------------------------------------------
 !
+#ifdef ESMF_520r
       call esmf_logwrite("retrieve state name in coupler"               &
-                         ,esmf_log_info,rc=rc)
+                        ,esmf_logmsg_info,rc=rc)
+#else
+      call esmf_logwrite("retrieve state name in coupler"               &
+                        ,esmf_log_info,rc=rc)
+#endif
 !
       msg = 'retrieve state name from cpl import state'
       call esmf_stateget(imp_state                                      &
@@ -337,8 +393,12 @@
         call ESMF_StateGet(imp_state, array_name, Field, rc=rc)
         call err_msg(rc,msg,rc_cpl)    
 
-        msg = 'add field to cpl export'
+        msg = '1, add field to cpl export'
+#ifdef ESMF_520r
+        call ESMF_StateAdd(exp_state, (/Field/), rc=rc)
+#else
         call ESMF_StateAdd(exp_state, Field, rc=rc)
+#endif
         call err_msg(rc,msg,rc_cpl)    
 !
       enddo data_2d
@@ -356,8 +416,12 @@
         call ESMF_StateGet(imp_state, array_name, Field, rc=rc)
         call err_msg(rc,msg,rc_cpl)    
 
-        msg = 'add field to cpl export'
+        msg = '2, add field to cpl export'
+#ifdef ESMF_520r
+        call ESMF_StateAdd(exp_state, (/Field/), rc=rc)
+#else
         call ESMF_StateAdd(exp_state, Field, rc=rc)
+#endif
         call err_msg(rc,msg,rc_cpl)    
 !
       enddo data_3d
@@ -372,7 +436,11 @@
       call err_msg(rc,msg,rc_cpl)    
 
       msg = 'add bundle to cpl export'
+#ifdef ESMF_520r
+      call ESMF_StateAdd(exp_state, (/Bundle/), rc=rc)
+#else
       call ESMF_StateAdd(exp_state, Bundle, rc=rc)
+#endif
       call err_msg(rc,msg,rc_cpl)    
 
       end subroutine gfs_cpl_initialize
@@ -453,8 +521,13 @@
 !***  the statename from the import state.
 !-----------------------------------------------------------------------
 !
+#ifdef ESMF_520r
       call esmf_logwrite("retrieve state name in coupler"               &
-                         ,esmf_log_info,rc=rc)
+                        ,esmf_logmsg_info,rc=rc)
+#else
+      call esmf_logwrite("retrieve state name in coupler"               &
+                        ,esmf_log_info,rc=rc)
+#endif
 !
       call esmf_stateget(imp_state                                      &
                         ,name =import_statename                         &
@@ -659,7 +732,11 @@
 !
 !       print *,' add ',array_name
 !
+#ifdef ESMF_520r
+        CALL ESMF_StateAdd(exp_state, (/hold_array/), rc = rc)
+#else
         CALL ESMF_StateAdd(exp_state, hold_array, rc = rc)
+#endif
 !
 !       call err_msg(rc,'add array to cpl export',rcfinal)
 !
@@ -685,7 +762,11 @@
 
         CALL ESMF_StateGet(imp_state, array_name, hold_array, rc = rc)
 
+#ifdef ESMF_520r
+        CALL ESMF_StateAdd(exp_state, (/hold_array/), rc = rc)
+#else
         CALL ESMF_StateAdd(exp_state, hold_array, rc = rc)
+#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -698,10 +779,14 @@
                            ,rc   =rc)                                 
           call err_msg(rc,'retrieve field from cpl import',rcfinal)    
 
+#ifdef ESMF_520r
+          call ESMF_StateAdd(exp_state, (/ESMFField/),rc   =rc)                                   
+#else
           call ESMF_StateAdd(state      = exp_state                  & 
                           ,field      = ESMFField                    & 
                           ,rc   =rc)                                   
-          call err_msg(rc,'add field to cpl export',rcfinal)         
+#endif
+          call err_msg(rc,'6, add field to cpl export',rcfinal)         
 
         endif lab_if_2dfield                                       
 
@@ -728,7 +813,11 @@
 
           CALL ESMF_StateGet(imp_state, array_name, hold_array, rc = rc)
 !
+#ifdef ESMF_520r
+          CALL ESMF_StateAdd(exp_state, (/hold_array/), rc = rc)
+#else
           CALL ESMF_StateAdd(exp_state, hold_array, rc = rc)
+#endif
 !
          endif lab_if_3darray   
 
@@ -739,10 +828,14 @@
                              ,rc   =rc)                                 
           call err_msg(rc,'retrieve field from cpl import',rcfinal)   
 
+#ifdef ESMF_520r
+          call ESMF_StateAdd(exp_state, (/ESMFField/),rc = rc)                                 
+#else
           call ESMF_StateAdd(state      = exp_state                    & 
                             ,field      = ESMFField                    & 
                             ,rc   =rc)                                 
-          call err_msg(rc,'add field to cpl export',rcfinal)        
+#endif
+          call err_msg(rc,'3, add field to cpl export',rcfinal)        
 !
          endif lab_if_3dfield                               
 !-----------------------------------------------------------------------
@@ -766,9 +859,13 @@
                              ,rc   =rc)                                
           call err_msg(rc,'retrieve bundle from cpl import',rcfinal)
 
+#ifdef ESMF_520r
+          call ESMF_StateAdd(exp_state, (/ESMFBundle/),rc = rc)                                 
+#else
           call ESMF_StateAdd(state      = exp_state                    & 
                             ,fieldbundle = ESMFBundle                  & 
                             ,rc   =rc)                                 
+#endif
           call err_msg(rc,'add bundle to cpl export',rcfinal)         
 
          endif lab_if_bundle                                   

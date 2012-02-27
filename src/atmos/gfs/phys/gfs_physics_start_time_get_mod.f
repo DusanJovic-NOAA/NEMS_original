@@ -1,3 +1,12 @@
+#include "../../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
       subroutine gfs_physics_start_time_get(                             &
      &           yy, mm, dd, hh, mns, sec, kfhour, fhini,n1,cfile, rc)
 
@@ -12,10 +21,15 @@
 !  Sep      2010   Jun Wang  change to nemsio file
 !  Dec      2010   Jun Wang  change to nemsio library
 !  Feb      2011   Sarah Lu  change to read nfhour from nemsio file header
+!  sep      2011   Weiyu yang modified for using the ESMF 5.2.0r library.
 !
 !uses:
 !
+#ifdef ESMF_520r
+      use esmf,         only: esmf_success
+#else
       use esmf_mod,     only: esmf_success
+#endif
       use machine,      only: kind_io4, kind_evod
       use date_def,     only: idate,idate7
       use sfcio_module

@@ -1,9 +1,16 @@
 !  February 2011     Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !                                ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !  May      2011     Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!  Feb      2012     Weiyu Yang, Modified for using the ESMF 5.2.0rp1 library.
 !---------------------------------------------------------------------------------
 
 #include "../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#else
+#define ESMF_520r
+#endif
 
 !-----------------------------------------------------------------------
 !
@@ -14,7 +21,11 @@
 !***  Write import state for output.
 !-----------------------------------------------------------------------
 !
-      USE ESMF_Mod
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
       USE MODULE_INCLUDE
       USE MODULE_SOLVER_INTERNAL_STATE,ONLY: SOLVER_INTERNAL_STATE 
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK

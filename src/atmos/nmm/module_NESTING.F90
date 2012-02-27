@@ -1,8 +1,8 @@
 #include "../../ESMFVersionDefine.h"
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !-----------------------------------------------------------------------
@@ -37,7 +37,11 @@
 !
 !-----------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 !
       USE module_INCLUDE
 !
@@ -4591,7 +4595,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         CALL ESMF_StateGet(              EXP_STATE_DYN                  &  !<-- The Dynamics export state
                           ,              TRIM(EXP_FIELD(N))             &  !<-- Check presence of this Field
                           ,              STATEITEMTYPE                  &  !<-- ESMF Type of the Field
@@ -8945,7 +8949,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         CALL ESMF_FieldBundleGet(fieldBundle=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
                                 ,fieldIndex =N_FIELD                    &  !<-- Index of the Field in the Bundle
                                 ,field      =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
@@ -10131,7 +10135,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         CALL ESMF_FieldBundleGet(fieldBundle=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
                                 ,fieldName  ='PDO'//BUNDLE_X            &  !<-- Get the Field with this name
                                 ,field      =HOLD_FIELD                 &  !<-- Put the Field here
@@ -10179,7 +10183,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         CALL ESMF_FieldBundleGet(fieldBundle=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
                                 ,fieldName  ='SM'//BUNDLE_X             &  !<-- The parent's sea mask
                                 ,field      =HOLD_FIELD                 &  !<-- Put the Field here
@@ -10749,7 +10753,7 @@
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
         CALL ESMF_FieldBundleGet(fieldBundle=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
                                 ,fieldIndex =N_FIELD                    &  !<-- Index of the Field in the Bundle
                                 ,field      =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle

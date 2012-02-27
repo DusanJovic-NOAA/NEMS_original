@@ -1,5 +1,12 @@
 #include "../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_WRITE_INTERNAL_STATE
@@ -23,10 +30,15 @@
 !          Feb 2011:  W. Yang  - Updated to use both the ESMF 4.0.0rp2 library,
 !                                ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !          May 2011:  J. Wang  - add dopost and post_gribversion option to run post
+!       27 SEP 2011   W. Yang, - Modified for using the ESMF 5.2.0r library.
 !
 !---------------------------------------------------------------------------------
 !
-      USE ESMF_Mod
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
       USE MODULE_INCLUDE
 !
 !-----------------------------------------------------------------------

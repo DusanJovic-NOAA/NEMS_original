@@ -1,5 +1,12 @@
 #include "../../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
 !
       module atmos_chem_phy_cpl_comp_mod
 
@@ -26,9 +33,14 @@
 !! 10Oct 2010     Sarah Lu,   Move GetPointer_diag_ to phy2chem coupler
 !! 2011-05-11     Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !! 2011-11-27     Sarah Lu,   Specify i, j dimension in mapping aerosol arrays
+!! 2012-02-06     Weiyu Yang, Modified for using the ESMF 5.2.0r library.
 !------------------------------------------------------------------------------
 
-      use ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 
       USE MODULE_ERR_MSG, ONLY: ERR_MSG, MESSAGE_CHECK
       use MODULE_gfs_machine,  ONLY: kind_phys
@@ -94,11 +106,19 @@
                                     ,ESMF_SINGLEPHASE          &
                                     ,RC)
 #else
+#ifdef ESMF_520r
+      call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
+                                    ,ESMF_METHOD_RUN           & !<-- Predefined subroutine type
+                                    ,RUN                       & !<-- User's subroutineName
+                                    ,phase=1                   &
+                                    ,rc=RC)
+#else
       call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
                                     ,ESMF_SETRUN               & !<-- Predefined subroutine type
                                     ,RUN                       & !<-- User's subroutineName
                                     ,phase=ESMF_SINGLEPHASE    &
                                     ,rc=RC)
+#endif
 #endif
 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -430,36 +450,36 @@
 ! ---  data copy between phy export state and chem export state
 
         if ( run_DU ) then
-          p_du001(1:im,1:jm,1:km) = c_du001(1:im,1:jm,km:1:-1) 
-          p_du002(1:im,1:jm,1:km) = c_du002(1:im,1:jm,km:1:-1) 
-          p_du003(1:im,1:jm,1:km) = c_du003(1:im,1:jm,km:1:-1) 
-          p_du004(1:im,1:jm,1:km) = c_du004(1:im,1:jm,km:1:-1) 
-          p_du005(1:im,1:jm,1:km) = c_du005(1:im,1:jm,km:1:-1) 
+          p_du001(1:im,1:jm,1:km) = c_du001(1:im,1:jm,km:1:-1)
+          p_du002(1:im,1:jm,1:km) = c_du002(1:im,1:jm,km:1:-1)
+          p_du003(1:im,1:jm,1:km) = c_du003(1:im,1:jm,km:1:-1)
+          p_du004(1:im,1:jm,1:km) = c_du004(1:im,1:jm,km:1:-1)
+          p_du005(1:im,1:jm,1:km) = c_du005(1:im,1:jm,km:1:-1)
         endif
 
         if ( run_SS ) then
-          p_ss001(1:im,1:jm,1:km) = c_ss001(1:im,1:jm,km:1:-1) 
-          p_ss002(1:im,1:jm,1:km) = c_ss002(1:im,1:jm,km:1:-1) 
-          p_ss003(1:im,1:jm,1:km) = c_ss003(1:im,1:jm,km:1:-1) 
-          p_ss004(1:im,1:jm,1:km) = c_ss004(1:im,1:jm,km:1:-1) 
-          p_ss005(1:im,1:jm,1:km) = c_ss005(1:im,1:jm,km:1:-1) 
+          p_ss001(1:im,1:jm,1:km) = c_ss001(1:im,1:jm,km:1:-1)
+          p_ss002(1:im,1:jm,1:km) = c_ss002(1:im,1:jm,km:1:-1)
+          p_ss003(1:im,1:jm,1:km) = c_ss003(1:im,1:jm,km:1:-1)
+          p_ss004(1:im,1:jm,1:km) = c_ss004(1:im,1:jm,km:1:-1)
+          p_ss005(1:im,1:jm,1:km) = c_ss005(1:im,1:jm,km:1:-1)
         endif
 
         if ( run_BC ) then
-          p_bcphilic(1:im,1:jm,1:km) = c_bcphilic(1:im,1:jm,km:1:-1) 
-          p_bcphobic(1:im,1:jm,1:km) = c_bcphobic(1:im,1:jm,km:1:-1) 
+          p_bcphilic(1:im,1:jm,1:km) = c_bcphilic(1:im,1:jm,km:1:-1)
+          p_bcphobic(1:im,1:jm,1:km) = c_bcphobic(1:im,1:jm,km:1:-1)
         endif
 
         if ( run_OC ) then
-          p_ocphilic(1:im,1:jm,1:km) = c_ocphilic(1:im,1:jm,km:1:-1) 
-          p_ocphobic(1:im,1:jm,1:km) = c_ocphobic(1:im,1:jm,km:1:-1) 
+          p_ocphilic(1:im,1:jm,1:km) = c_ocphilic(1:im,1:jm,km:1:-1)
+          p_ocphobic(1:im,1:jm,1:km) = c_ocphobic(1:im,1:jm,km:1:-1)
         endif
 
         if ( run_SU ) then
-          p_msa(1:im,1:jm,1:km) = c_msa(1:im,1:jm,km:1:-1) 
-          p_so2(1:im,1:jm,1:km) = c_so2(1:im,1:jm,km:1:-1) 
-          p_so4(1:im,1:jm,1:km) = c_so4(1:im,1:jm,km:1:-1) 
-          p_dms(1:im,1:jm,1:km) = c_dms(1:im,1:jm,km:1:-1) 
+          p_msa(1:im,1:jm,1:km) = c_msa(1:im,1:jm,km:1:-1)
+          p_so2(1:im,1:jm,1:km) = c_so2(1:im,1:jm,km:1:-1)
+          p_so4(1:im,1:jm,1:km) = c_so4(1:im,1:jm,km:1:-1)
+          p_dms(1:im,1:jm,1:km) = c_dms(1:im,1:jm,km:1:-1)
         endif
 
        endif

@@ -1,3 +1,12 @@
+#include "../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
 !---------------------------------------------------------------------------
 !
       MODULE MODULE_DOMAIN_INTERNAL_STATE
@@ -7,7 +16,11 @@
 !***  internal state.
 !---------------------------------------------------------------------------
 !
-      USE ESMF_Mod
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 !
 !---------------------------------------------------------------------------
 !

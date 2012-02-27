@@ -1,3 +1,11 @@
+#include "../../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
 
 ! !module: gfs_physics_initialize_mod 
 !          --- initialization module of the gridded component of gfs physics.
@@ -32,6 +40,7 @@
 !  Oct 18   2010  S. Moorthi    Added fscav initialization
 !  Dec 23   2010  Sarah Lu      initialize scatter_lats, scatter_lons, g2d_fld%met
 !  Mar 27   2010  J. Wang       add zsoil to sfc file
+!  Oct 03   2011  W. Yang       Modified for using the ESMF 5.2.0r library.
 !
 ! !interface:
 !
@@ -40,7 +49,11 @@
 !
 !!uses:
 !
-      USE ESMF_Mod
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
       USE gfs_physics_internal_state_mod, ONLY: gfs_physics_internal_state
 !     USE mpi_def,                        ONLY: liope
       USE mpi_def,                        ONLY: mc_comp, mc_io, mpi_comm_all_dup, mpi_comm_all

@@ -1,3 +1,12 @@
+#include "../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
 !
 ! !MODULE: ENS_Cpl_InternalState_ESMFMod --- Internal state definition of the
 !                                            ESMF coupler gridded component of 
@@ -14,6 +23,7 @@
 !                     Added Broadcasting procedure and Global variables/arrays
 !  November 2007      Dingchen, added minimum documentation, mainly for the arrays added during 2007
 !  March    2009      Weiyu Yang, Modified for the NEMS model.
+!  September2011      Weiyu Yang, Modified for using the ESMF 5.2.0r library.
 !
 ! !INTERFACE:
 !
@@ -21,7 +31,11 @@
 
 !!USES:
 !------
- USE ESMF_Mod
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
  USE machine, ONLY: KIND_EVOD, KIND_PHYS
 
  IMPLICIT none

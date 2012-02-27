@@ -5,7 +5,11 @@
 
       MODULE module_GFS_GRID_COMP
 
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 
       IMPLICIT NONE
 

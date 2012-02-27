@@ -1,3 +1,12 @@
+#include "../../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
 !-----------------------------------------------------------------------
       MODULE MODULE_WRITE_INTERNAL_STATE_GFS
 !-----------------------------------------------------------------------
@@ -14,10 +23,15 @@
 !       16 Sep 2008:  J. Wang  - 3-D output arrays revert to 2-D
 !       03 Sep 2009:  W. Yang  - Ensemble GEFS.
 !       29 Sep 2010:  J. Wang  - change all_data_I/R2d from 1D to 2D 
+!       28 Sep 2011:  W. Yang  - Modified for using the ESMF 5.2.0r library.
 !
 !-----------------------------------------------------------------------
 !
-      USE ESMF_Mod
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 !
 !-----------------------------------------------------------------------
 !

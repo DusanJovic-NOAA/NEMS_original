@@ -1,5 +1,13 @@
 #include "../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
+
 !----------------------------------------------------------------------
 !
       MODULE MODULE_GEN_GRID_COMP
@@ -15,13 +23,18 @@
 ! PROGRAM HISTORY LOG:
 !   2010-11-30  W Yang - Add the "Generic Core".
 !   2011-05-11  W Yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!   2011-09-27  W Yang - Modified for using the ESMF 5.2.0r library.
 !
 ! USAGE: GEN Gridded component parts called from subroutines within
 !        module_ATM_GRID_COMP.F90.
 !
 !-----------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 !
       USE MODULE_GEN_INTERNAL_STATE,ONLY: GEN_INTERNAL_STATE            &
                                          ,WRAP_GEN_INTERNAL_STATE

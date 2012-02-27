@@ -1,5 +1,12 @@
 #include "../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
 !----------------------------------------------------------------------
 !
       MODULE MODULE_GEN_GRID_COMP
@@ -15,13 +22,18 @@
 ! PROGRAM HISTORY LOG:
 !   2010-11-30  W Yang - Add the "Generic Core".
 !   2011-05-11  W Yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!   2011-09-27  W Yang - Modified for using the ESMF 5.2.0r library.
 !
 ! USAGE: GEN Gridded component parts called from subroutines within
 !        module_ATM_GRID_COMP.F90.
 !
 !-----------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 !
       USE MODULE_GEN_INTERNAL_STATE,ONLY: GEN_INTERNAL_STATE            &
                                          ,WRAP_GEN_INTERNAL_STATE
@@ -32,7 +44,7 @@
 !
       PRIVATE
 !
-      PUBLIC :: GEN_REGISTER
+      PUBLIC :: GEN_REGISTER 
 !
 !-----------------------------------------------------------------------
 !
@@ -48,7 +60,7 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE GEN_REGISTER(GEN_GRID_COMP,RC_REG)
-!
+! 
 !-----------------------------------------------------------------------
 !***  Register the GEN gridded component's initialize, run, and finalize
 !***  routines.
@@ -57,7 +69,7 @@
       TYPE(ESMF_GridComp),INTENT(INOUT) :: GEN_GRID_COMP                   !<-- GEN gridded component
 !
       INTEGER,INTENT(OUT) :: RC_REG                                        !<-- Return code for register
-!
+!     
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
@@ -71,9 +83,9 @@
       RC=ESMF_SUCCESS       ! Error signal variable
 !
 !-----------------------------------------------------------------------
-!***  Register the GEN INITIALIZE subroutine.  Since it is just one
+!***  Register the GEN INITIALIZE subroutine.  Since it is just one 
 !***  subroutine, use ESMF_SINGLEPHASE.  The second argument is
-!***  a pre-defined subroutine type, such as ESMF_SETINIT, ESMF_SETRUN,
+!***  a pre-defined subroutine type, such as ESMF_SETINIT, ESMF_SETRUN, 
 !***  or ESMF_SETFINAL.
 !-----------------------------------------------------------------------
 !
@@ -90,25 +102,33 @@
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
+#ifdef ESMF_520r
+      CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &
+                                     ,ESMF_METHOD_INITIALIZE            &
+                                     ,GEN_INITIALIZE                    &
+                                     ,phase=1                           &
+                                     ,rc=RC)
+#else
       CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
                                      ,ESMF_SETINIT                      &  !<-- Subroutine type
                                      ,GEN_INITIALIZE                    &  !<-- User's subroutine name
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
 #endif
+#endif
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
 !-----------------------------------------------------------------------
 !***  Register the Run step of the GEN component.
 !-----------------------------------------------------------------------
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         MESSAGE_CHECK="Set 1st Entry Point for GEN Run"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
 #ifdef ESMF_3
         CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
@@ -117,26 +137,34 @@
                                        ,ESMF_SINGLEPHASE                  &
                                        ,RC)
 #else
+#ifdef ESMF_520r
+      CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &
+                                     ,ESMF_METHOD_RUN                   &
+                                     ,GEN_RUN                           &
+                                     ,phase=1                           &
+                                     ,rc=RC)
+#else
         CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
                                        ,ESMF_SETRUN                       &  !<-- Subroutine type
                                        ,GEN_RUN                           &  !<-- The primary Dynamics / Physics /Coupler sequence
                                        ,phase=ESMF_SINGLEPHASE            &
                                        ,rc=RC)
 #endif
+#endif
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
 !
 !-----------------------------------------------------------------------
 !***  Register the GEN FINALIZE subroutine.
 !-----------------------------------------------------------------------
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       MESSAGE_CHECK="Set Entry Point for GEN Finalize"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
 #ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
@@ -145,16 +173,24 @@
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
+#ifdef ESMF_520r
+      CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &
+                                     ,ESMF_METHOD_FINALIZE              &
+                                     ,GEN_FINALIZE                      &
+                                     ,phase=1                           &
+                                     ,rc=RC)
+#else
       CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
                                      ,ESMF_SETFINAL                     &  !<-- Subroutine type
                                      ,GEN_FINALIZE                      &  !<-- User's subroutine name
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
 #endif
+#endif
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
 !-----------------------------------------------------------------------
 !***  Check the error signal variable and print out the result.
@@ -189,7 +225,7 @@
                                           ,EXP_STATE                       !<-- The GEN component's export state
       TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_ATM                       !<-- The ESMF Clock from the ATM component.
       INTEGER            ,INTENT(OUT)   :: RC_INIT                         !<-- Return code for Initialize step
-!
+
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -225,6 +261,7 @@
       TYPE(ESMF_State),   INTENT(INOUT) :: EXP_STATE                       !<-- The GEN Run step's export
       TYPE(ESMF_Clock),   INTENT(INOUT) :: CLOCK_ATM                       !<-- The ATM ESMF Clock
       INTEGER,            INTENT(OUT)   :: RC_RUN                          !<-- Return code for the Run step
+
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -235,7 +272,6 @@
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!
       END SUBROUTINE GEN_RUN
 !
 !-----------------------------------------------------------------------

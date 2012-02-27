@@ -1,5 +1,12 @@
 #include "../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_GFS_INTEGRATE
@@ -25,9 +32,14 @@
 !   2011-03   W Yang  - Modified the digiter filter code for turning off
 !                       the digiter filter case.
 !   2011-10-01  Wang/Lu - MYPE added to GOCART_INTEGRATE argument
+!   2011-10   W Yang  - Modified for using the ESMF 5.2.0r library.
 !-----------------------------------------------------------------------
 
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
       USE MODULE_ERR_MSG
       USE MODULE_INCLUDE
 
@@ -197,7 +209,11 @@
       integrate: DO WHILE(.NOT.ESMF_ClockIsStopTime(CLOCK_GFS, rc = RC)   &
                           .OR. (LDFI.and.DFIHR>0) )
 
+#ifdef ESMF_520r
+          CALL ESMF_LogWrite("Execute GFS Dynamics",ESMF_LOGMSG_INFO,rc=RC)
+#else
           CALL ESMF_LogWrite("Execute GFS Dynamics",ESMF_LOG_INFO,rc=RC)
+#endif
 !
           CALL ESMF_GridCompRun(gridcomp   =GC_GFS_DYN                    &
                                ,importstate=IMP_GFS_DYN                   &
@@ -207,8 +223,13 @@
 !
           CALL ERR_MSG(RC,'execute dynamics',RC_LOOP)
 !
-          CALL ESMF_LogWrite("couple dyn_exp-to-phy_imp"                  &
+#ifdef ESMF_520r
+          CALL ESMF_LogWrite("after dyn run, couple dyn_exp-to-phy_imp"   &
+                             ,esmf_logmsg_info,rc=rc)
+#else
+          CALL ESMF_LogWrite("after dyn run, couple dyn_exp-to-phy_imp"   &
                              ,esmf_log_info,rc=rc)
+#endif
 !
           CALL ESMF_ClockGet(clock       =CLOCK_GFS                       &
                             ,advanceCount=NTIMESTEP_ESMF                  &  !<-- # of times the clock has advanced
@@ -266,7 +287,6 @@
 !***  Bring export data from the Dynamics into the coupler
 !***  and export it to the Physics.
 !-----------------------------------------------------------------------
-
 !
          call esmf_cplcomprun(cplcomp     = gc_gfs_cpl          &
                              ,importstate = exp_gfs_dyn         &
@@ -282,7 +302,11 @@
 !***              Execute the Run step of the Physics Component
 !-----------------------------------------------------------------------
 !
+#ifdef ESMF_520r
+           call esmf_logwrite("execute physics",esmf_logmsg_info,rc=rc)
+#else
            call esmf_logwrite("execute physics",esmf_log_info,rc=rc)
+#endif
            call esmf_gridcomprun(gridcomp    = gc_gfs_phy            &
                                 ,importstate = imp_gfs_phy           &
                                 ,exportstate = exp_gfs_phy           &
@@ -309,7 +333,7 @@
                                    GC_CHEM2PHY_CPL,                     &
                                    EXP_GFS_PHY,                         &
                                    IMP_GFS_CHEM, EXP_GFS_CHEM,          &
-                                   CLOCK_GFS, MYPE, RC                  )
+                                   CLOCK_GFS, MYPE, RC                    )
 
               CALL ERR_MSG(RC,MESSAGE_CHECK,RC_LOOP)
 
@@ -319,8 +343,13 @@
 !-----------------------------------------------------------------------
 !***              Skip the Physics if the user has turned it off.
 !-----------------------------------------------------------------------
+#ifdef ESMF_520r
+            call esmf_logwrite("pass phy_imp to phy_exp ",       &
+                                esmf_logmsg_info,rc=rc)
+#else
             call esmf_logwrite("pass phy_imp to phy_exp ",       &
                                 esmf_log_info,rc=rc)
+#endif
 !
             call esmf_cplcomprun(              gc_gfs_cpl          &
                                 ,importstate = imp_gfs_phy         &
@@ -336,8 +365,13 @@
 !***  and export it to the Dynamics.
 !-----------------------------------------------------------------------
 !
+#ifdef ESMF_520r
+         call esmf_logwrite("couple phy_exp-to-dyn_imp",           &
+                             esmf_logmsg_info,rc=RC)
+#else
          call esmf_logwrite("couple phy_exp-to-dyn_imp",           &
                              esmf_log_info,rc=RC)
+#endif
 !
          call esmf_cplcomprun(cplcomp      = gc_gfs_cpl            &
                              ,importstate = exp_gfs_phy            &

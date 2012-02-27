@@ -1,9 +1,9 @@
 #include "../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !-----------------------------------------------------------------------
@@ -52,9 +52,14 @@
 !                                ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !       12 May 2011   W. Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !       23 May 2011   J. Wang  - add do post option
+!       27 SEP 2011   W. Yang  - Modified for using the ESMF 5.2.0r library.
 !---------------------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
       USE MODULE_WRITE_INTERNAL_STATE
       USE MODULE_WRITE_ROUTINES,ONLY : OPEN_HST_FILE                    &
                                       ,OPEN_RST_FILE                    &
@@ -1371,7 +1376,7 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldbundle=HISTORY_BUNDLE                &  !<-- The write component's history data Bundle
                                   ,fieldname  =wrt_int_state%FIELD_NAME(N)   &  !<-- The ESMF Field's name
                                   ,field      =FIELD_WORK1                   &  !<-- The ESMF Field data pointer
@@ -1620,7 +1625,7 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldbundle=RESTART_BUNDLE                  &  !<-- The write component's restart data Bundle
                                   ,fieldname  =wrt_int_state%RST_FIELD_NAME(N) &  !<-- The ESMF Field's name
                                   ,field      =FIELD_WORK1                     &  !<-- The ESMF Field data pointer
@@ -4280,7 +4285,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
       domain_int_state%IMP_STATE_WRITE=ESMF_StateCreate(     name='Write Import State' &  !<-- Import state name for writes
                                                        ,statetype= ESMF_STATE_IMPORT   &
                                                        ,rc       = RC)

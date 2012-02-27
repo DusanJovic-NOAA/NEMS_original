@@ -1,9 +1,9 @@
 #include "../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520rbs
+#undef ESMF_520r
 #else
-#define ESMF_520rbs
+#define ESMF_520r
 #endif
 
 !-----------------------------------------------------------------------
@@ -29,6 +29,7 @@
 !                       ESMF 3.1.0rp2 library.
 !   2011-05-12  Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !   2011-07-16  Black - Add moving nest capability.
+!   2011-09-27  Yang  - Modified for using the ESMF 5.2.0r library.
 !
 !-----------------------------------------------------------------------
 !
@@ -36,7 +37,11 @@
 !
 !-----------------------------------------------------------------------
 !
-      USE ESMF_MOD
+#ifdef ESMF_520r
+      USE esmf
+#else
+      USE esmf_mod
+#endif
 !
       USE module_INCLUDE
 !
@@ -3052,7 +3057,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldBundle=MOVE_BUNDLE_H            &  !<-- The ESMF Bundle of H update arrays for moving nests
                                   ,fieldCount =NUM_FIELDS_MOVE          &  !<-- # of Fields in the Bundle
                                   ,rc         =RC)
@@ -3087,7 +3092,7 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldBundle=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
                                   ,fieldIndex =N_FIELD                  &  !<-- Index of the Field in the Bundle
                                   ,field      =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
@@ -3217,7 +3222,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldBundle=MOVE_BUNDLE_V            &  !<-- The ESMF Bundle of V update arrays for moving nests
                                   ,fieldCount =NUM_FIELDS_MOVE          &  !<-- # of Fields in the Bundle
                                   ,rc         =RC)
@@ -3247,7 +3252,7 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(fieldBundle=MOVE_BUNDLE_V            &  !<-- Bundle holding the H arrays for move updates
                                   ,fieldIndex =N_FIELD                  &  !<-- Index of the Field in the Bundle
                                   ,field      =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
@@ -7016,7 +7021,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520rbs
+#ifdef ESMF_520r
       IMP_STATE_CPL_NEST=ESMF_StateCreate(Name     ="Nesting Coupler Import" &  !<-- The Nesting Coupler import state name
                                          ,statetype=ESMF_STATE_IMPORT        &
                                          ,rc       =RC)
