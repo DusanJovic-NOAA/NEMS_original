@@ -33,6 +33,9 @@ export AIXTHREAD_SCOPE=S
 echo "Model started:  " `date`
 
 LDR_CNTRL=DATAPSIZE=64K@TEXTPSIZE=64K@STACKPSIZE=64K \
+
+export ESMF_RUNTIME_COMPLIANCECHECK=OFF
+
 poe ./NEMS.x
 
 echo "Model ended:    " `date`

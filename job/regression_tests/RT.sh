@@ -2196,7 +2196,7 @@ export LIST_FILES=" \
 	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export_gfs
-export WLCLK=40
+export WLCLK=120
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -2225,13 +2225,13 @@ export LIST_FILES=" \
         SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
         SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
         FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
-        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04"
-        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04"
+        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
+        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
         FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
 #---------------------
 export_gfs
 export GEFS_ENSEMBLE=1
-export TASKS=64 ; export WLCLK=58
+export TASKS=64 ; export WLCLK=158
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi

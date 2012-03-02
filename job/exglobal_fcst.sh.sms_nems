@@ -381,6 +381,7 @@
 ####
 ################################################################################
 #  Set environment.
+export ESMF_RUNTIME_COMPLIANCECHECK=ON
 export MP_I_BINDPROC=${MP_I_BINDPROC:-yes}
 export MEMORY_AFFINIY=${MEMORY_AFFINIY:-MCM}
 export MP_SYNC_QP=${MP_SYNC_QP:-yes}

@@ -1,4 +1,5 @@
 #include "./ESMFVersionDefine.h"
+#include "./NUOPC_Switch.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
 #undef ESMF_520r
@@ -44,7 +45,16 @@
 #else
       USE esmf_mod
 #endif
-!
+
+#ifdef WITH_NUOPC
+      use NUOPC
+      use NUOPC_DriverExplicitAtmOcn, only: &
+        driver_routine_SS             => routine_SetServices, &
+        driver_type_IS                => type_InternalState, &
+        driver_label_IS               => label_InternalState, &
+        driver_label_SetModelServices => label_SetModelServices
+#endif
+
       USE module_EARTH_INTERNAL_STATE,ONLY: EARTH_INTERNAL_STATE        &
                                            ,WRAP_EARTH_INTERNAL_STATE
 !
@@ -97,6 +107,25 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
+#ifdef WITH_NUOPC
+
+      ! NUOPC_DriverExplicitAtmOcn registers the generic methods
+      call driver_routine_SS(EARTH_GRID_COMP, rc=RC_REG)
+      if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+
+      ! attach specializing method(s)
+      call ESMF_MethodAdd(EARTH_GRID_COMP, label=driver_label_SetModelServices, &
+        userRoutine=SetModelServices, rc=RC_REG)
+      if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+
+#else
+
 !-----------------------------------------------------------------------
 !***  Register the EARTH Initialize, Run, and Finalize routines.
 !-----------------------------------------------------------------------
@@ -200,6 +229,9 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
+
+#endif
+
 !
       IF(RC_REG==ESMF_SUCCESS)THEN
 !       WRITE(0,*)' EARTH_REGISTER succeeded'
@@ -215,6 +247,69 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
+
+#ifdef WITH_NUOPC
+
+      subroutine SetModelServices(gcomp, rc)
+        type(ESMF_GridComp)  :: gcomp
+        integer, intent(out) :: rc
+
+        ! local variables
+        integer                       :: localrc
+        type(driver_type_IS)          :: is
+        type(ESMF_Clock)              :: internalClock
+        type(ESMF_TimeInterval)       :: runDuration
+
+        rc = ESMF_SUCCESS
+
+        ! query Component for its internal State
+        nullify(is%wrap)
+        call ESMF_UserCompGetInternalState(gcomp, driver_label_IS, is, rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+
+        ! SetServices for ATM
+        call ESMF_GridCompSetServices(is%wrap%atm, ATM_REGISTER, &
+          userRc=localrc, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+        if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__, &
+          rcToReturn=rc)) &
+          return  ! bail out
+
+        ! Get internal clock and set the timeStep equal to runDuration
+        call ESMF_GridCompGet(gcomp, clock=internalClock, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+        call ESMF_ClockGet(internalClock, runDuration=runDuration, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+        call ESMF_ClockSet(internalClock, timeStep=runDuration, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+
+      end subroutine
+
+#else
+
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+
       SUBROUTINE EARTH_INITIALIZE(EARTH_GRID_COMP                       &
                                  ,IMP_STATE                             &
                                  ,EXP_STATE                             &
@@ -595,6 +690,9 @@
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE EARTH_FINALIZE
+
+#endif
+
 !
 !-----------------------------------------------------------------------
 !

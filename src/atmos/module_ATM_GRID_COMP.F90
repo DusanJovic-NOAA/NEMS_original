@@ -40,6 +40,14 @@
 #else
       USE esmf_mod
 #endif
+
+#ifdef WITH_NUOPC
+      use NUOPC
+      use NUOPC_ModelExplicit, only: &
+        model_routine_SS    => routine_SetServices, &
+        model_label_Advance => label_Advance
+#endif
+
 !
       USE module_ATM_INTERNAL_STATE,ONLY: ATM_INTERNAL_STATE            &
                                          ,WRAP_ATM_INTERNAL_STATE
@@ -99,6 +107,32 @@
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
+
+#ifdef WITH_NUOPC
+      ! the NUOPC model component will register the generic methods
+      call model_routine_SS(ATM_GRID_COMP, rc=RC_REG)
+      if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+
+      ! NUOPC_ModelExplicit requires InitP0, even if it is NOOP
+      CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP, ESMF_METHOD_INITIALIZE, &
+        NOOP, phase=0, rc=RC_REG)
+      if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+
+      ! attach specializing method(s)
+      call ESMF_MethodAdd(ATM_GRID_COMP, label=model_label_Advance, &
+        userRoutine=ATM_ADVANCE, rc=RC_REG)
+      if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set Entry Point for ATM Initialize"
@@ -138,6 +172,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifndef WITH_NUOPC
+
 #ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP                     &  !<-- The ATM component
                                      ,ESMF_SETRUN                       &  !<-- Subroutine type (Run)
@@ -157,6 +193,7 @@
                                      ,ATM_RUN                           &  !<-- User's subroutine name
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
+#endif
 #endif
 #endif
 !
@@ -213,6 +250,22 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
+#ifdef WITH_NUOPC
+  subroutine Noop(gcomp, importState, exportState, clock, rc)
+    type(ESMF_GridComp)  :: gcomp
+    type(ESMF_State)     :: importState, exportState
+    type(ESMF_Clock)     :: clock
+    integer, intent(out) :: rc
+
+    rc = ESMF_SUCCESS
+
+  end subroutine
+!-----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+!
+#endif
+
       SUBROUTINE ATM_INITIALIZE(ATM_GRID_COMP                           &
                                ,IMP_STATE                               &
                                ,EXP_STATE                               &
@@ -248,6 +301,17 @@
       RC_INIT = ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
+#ifdef WITH_NUOPC
+      call NUOPC_ClockPrintCurrTime(CLOCK_EARTH, &
+        string="entering ATM_INITIALIZE with CLOCK_EARTH current: ")
+      call NUOPC_ClockPrintStartTime(CLOCK_EARTH, &
+        string="entering ATM_INITIALIZE with CLOCK_EARTH start:   ")
+      call NUOPC_ClockPrintStopTime(CLOCK_EARTH, &
+        string="entering ATM_INITIALIZE with CLOCK_EARTH stop:    ")
+#endif
+
+!
+!-----------------------------------------------------------------------
 !***  Allocate the ATM component's internal state, point at it,
 !***  and attach it to the ATM component.
 !-----------------------------------------------------------------------
@@ -273,7 +337,25 @@
 !***  the ATM component.
 !-----------------------------------------------------------------------
 !
+#ifdef WITH_NUOPC
+      call NUOPC_GridCompSetClock(ATM_GRID_COMP, CLOCK_EARTH, rc=RC_INIT)
+      if (ESMF_LogFoundError(rcToCheck=RC_INIT, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+
+      atm_int_state%CLOCK_ATM = ESMF_ClockCreate(CLOCK_EARTH, rc=RC_INIT)
+      if (ESMF_LogFoundError(rcToCheck=RC_INIT, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+
+#else
+
       atm_int_state%CLOCK_ATM=CLOCK_EARTH
+
+#endif
+
 !
 !-----------------------------------------------------------------------
 !***  Create the configure object for the ATM configure file which
@@ -531,12 +613,33 @@
 !
 !-----------------------------------------------------------------------
 !
+#ifdef WITH_NUOPC
+      call NUOPC_ClockPrintCurrTime(CLOCK_EARTH, &
+        string="leaving  ATM_INITIALIZE with CLOCK_EARTH current: ")
+      call NUOPC_ClockPrintStartTime(CLOCK_EARTH, &
+        string="leaving  ATM_INITIALIZE with CLOCK_EARTH start:   ")
+      call NUOPC_ClockPrintStopTime(CLOCK_EARTH, &
+        string="leaving  ATM_INITIALIZE with CLOCK_EARTH stop:    ")
+
+      call NUOPC_ClockPrintCurrTime(atm_int_state%CLOCK_ATM, &
+        string="leaving  ATM_INITIALIZE with CLOCK_ATM current: ")
+      call NUOPC_ClockPrintStartTime(atm_int_state%CLOCK_ATM, &
+        string="leaving  ATM_INITIALIZE with CLOCK_ATM start:   ")
+      call NUOPC_ClockPrintStopTime(atm_int_state%CLOCK_ATM, &
+        string="leaving  ATM_INITIALIZE with CLOCK_ATM stop:    ")
+#endif
+!
+!-----------------------------------------------------------------------
+!
+
       END SUBROUTINE ATM_INITIALIZE
 !
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
 !
+#ifndef WITH_NUOPC
+
       SUBROUTINE ATM_RUN(ATM_GRID_COMP                                  &
                         ,IMP_STATE                                      &
                         ,EXP_STATE                                      &
@@ -649,6 +752,98 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
+
+#else
+
+      SUBROUTINE ATM_ADVANCE(ATM_GRID_COMP                                  &
+                        ,RC_RUN)
+!
+!-----------------------------------------------------------------------
+!***  The Run step of the ATM component.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      TYPE(ESMF_GridComp)               :: ATM_GRID_COMP                   !<-- The ATM component
+      INTEGER            ,INTENT(OUT)   :: RC_RUN                          !<-- Error return code
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      INTEGER :: RC
+!
+      TYPE(ESMF_Time) :: CURRTIME                                       &
+                        ,STARTTIME
+!
+      TYPE(ESMF_TimeInterval) :: RUNDURATION
+      type(ESMF_Pointer)      :: this
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Use the internal Clock set by NUOPC layer for ATM
+!-----------------------------------------------------------------------
+!
+      call NUOPC_ClockPrintCurrTime(atm_int_state%CLOCK_ATM, &
+        string="entering ATM_ADVANCE with CLOCK_ATM current: ")
+      call NUOPC_ClockPrintStartTime(atm_int_state%CLOCK_ATM, &
+        string="entering ATM_ADVANCE with CLOCK_ATM start:   ")
+      call NUOPC_ClockPrintStopTime(atm_int_state%CLOCK_ATM, &
+        string="entering ATM_ADVANCE with CLOCK_ATM stop:    ")
+
+!-----------------------------------------------------------------------
+!***  Execute the Run step of the selected dynamic core.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Execute the Run step of the CORE component"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompRun(gridcomp   =atm_int_state%CORE_GRID_COMP    &
+                           ,importState=atm_int_state%CORE_IMP_STATE    &
+                           ,exportState=atm_int_state%CORE_EXP_STATE    &
+                           ,clock      =atm_int_state%CLOCK_ATM         &
+                           ,phase      =1                               &
+                           ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+!
+!-----------------------------------------------------------------------
+!
+      IF(RC_RUN==ESMF_SUCCESS)THEN
+!       WRITE(0,*)' ATM_RUN succeeded'
+      ELSE
+        WRITE(0,*)' ATM_RUN failed  RC_RUN=',RC_RUN
+      ENDIF
+!-----------------------------------------------------------------------
+!
+      call NUOPC_ClockPrintCurrTime(atm_int_state%CLOCK_ATM, &
+        string="leaving  ATM_ADVANCE with CLOCK_ATM current: ")
+      call NUOPC_ClockPrintStartTime(atm_int_state%CLOCK_ATM, &
+        string="leaving  ATM_ADVANCE with CLOCK_ATM start:   ")
+      call NUOPC_ClockPrintStopTime(atm_int_state%CLOCK_ATM, &
+        string="leaving  ATM_ADVANCE with CLOCK_ATM stop:    ")
+
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE ATM_ADVANCE
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+#endif
+
       SUBROUTINE ATM_FINALIZE(ATM_GRID_COMP                             &
                              ,IMP_STATE                                 &
                              ,EXP_STATE                                 &
@@ -705,6 +900,16 @@
 !
 !-----------------------------------------------------------------------
 !
+#ifdef WITH_NUOPC
+!-----------------------------------------------------------------------
+!
+      call ESMF_ClockDestroy(atm_int_state%CLOCK_ATM, rc=RC_FINALIZE)
+      if (ESMF_LogFoundError(rcToCheck=RC_FINALIZE, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+#endif
+
       IF(RC_FINALIZE==ESMF_SUCCESS)THEN
 !       WRITE(0,*)' ATM_FINALIZE succeeded'
       ELSE
