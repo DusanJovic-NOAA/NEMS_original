@@ -232,7 +232,7 @@ integer,allocatable       :: reclev(:)
             enddo
           enddo
         endif
-!dusan        call halo_exch(int_state%sm,1,2,2)
+        call halo_exch(int_state%sm,1,2,2)
 !-----------------------------------------------------------------------
 !
 !-- dpres

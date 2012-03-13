@@ -1605,6 +1605,83 @@
 #endif
 !
 !-----------------------------------------------------------------------
+!
+      child_init_block: IF(NUM_CHILDREN>0)THEN                             !<-- Only parents participate                              
+!
+#ifdef ESMF_3
+        I_AM_A_PARENT=ESMF_TRUE
+#else
+        I_AM_A_PARENT=.TRUE.
+#endif
+!
+!-----------------------------------------------------------------------
+!***  Initialize the children's data directly from the parent if
+!***  there are no pre-processed input files ready for them.
+!***  Files will be written for the children to read in as usual.
+!***  Only parent tasks participate.
+!-----------------------------------------------------------------------
+!
+        ALLOCATE(MY_CHILDREN_ID(1:NUM_CHILDREN))
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+        MESSAGE_CHECK="Extract Children's IDs from Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+!
+#ifdef ESMF_3
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The DOMAIN import state
+                              ,name     ='CHILD_IDs'                    &  !<-- Name of the attribute to extract
+                              ,count    =NUM_CHILDREN                   &  !<-- # of items in the Attribute
+                              ,valueList=MY_CHILDREN_ID                 &  !<-- Put the Attribute here
+                              ,rc       =RC)
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The DOMAIN import state
+                              ,name     ='CHILD_IDs'                    &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_CHILDREN                   &  !<-- # of items in the Attribute
+                              ,valueList=MY_CHILDREN_ID                 &  !<-- Put the Attribute here
+                              ,rc       =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+!
+        child_init_loop: DO N=1,NUM_CHILDREN                               !<-- Loop through the children
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+          MESSAGE_CHECK="Extract Children's Input Flag from Config File"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+!
+          CALL ESMF_ConfigGetAttribute(config=CF(MY_CHILDREN_ID(N))     &  !<-- The config object
+                                      ,value =INPUT_READY_MY_CHILD      &  !<-- Child's flag for existence of its input file
+                                      ,label ='input_ready:'            &  !<-- Give this label's value to the previous variable
+                                      ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+!
+          IF(.NOT.INPUT_READY_MY_CHILD)THEN                                  !<-- INPUT_READY=false -> This child has no input file 
+                                                                             !      so parent will generate input.
+            CALL PARENT_TO_CHILD_INIT_NMM(MYPE                            &  !<-- This task's rank (in)
+                                         ,CF                              &  !<-- Array of configure files (in)
+                                         ,MY_DOMAIN_ID                    &  !<-- Each domain's ID (in)
+                                         ,MY_CHILDREN_ID(N)               &  !<-- The child's domain ID
+                                         ,domain_int_state%SOLVER_GRID_COMP  &  !<-- The parent's Dynamics Component (inout)
+                                         ,COMM_MY_DOMAIN )                   !<-- Each domain's intracommunicator
+!
+          ENDIF
+!            
+!-----------------------------------------------------------------------
+!
+        ENDDO child_init_loop
+!
+!-----------------------------------------------------------------------
+!
+      ENDIF child_init_block
+!
+!-----------------------------------------------------------------------
 !***  Extract from the Dynamics and Physics export state the 
 !***  quantities relevant to the children's boundaries and motion.
 !***  Insert them into the DOMAIN export state so that NMM_INITIALIZE
@@ -1705,9 +1782,9 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_ConfigGetAttribute(config=CF(N)                       &  !<-- The child's config object
-                                      ,value =DOMAIN_MOVES                &  !<-- The variable filled (will the child move?)
-                                      ,label ='my_domain_moves:'          &  !<-- Give this label's value to the previous variable
+          CALL ESMF_ConfigGetAttribute(config=CF(MY_CHILDREN_ID(N))     &  !<-- The child's config object
+                                      ,value =DOMAIN_MOVES              &  !<-- The variable filled (will the child move?)
+                                      ,label ='my_domain_moves:'        &  !<-- Give this label's value to the previous variable
                                       ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2088,86 +2165,13 @@
 !
 !-----------------------------------------------------------------------
 !
+        IF(ASSOCIATED(MY_CHILDREN_ID))THEN
+          DEALLOCATE(MY_CHILDREN_ID)
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
       ENDIF fcst_tasks_init
-!
-!-----------------------------------------------------------------------
-!
-      child_init_block: IF(NUM_CHILDREN>0)THEN                             !<-- Only parents participate                              
-!
-#ifdef ESMF_3
-        I_AM_A_PARENT=ESMF_TRUE
-#else
-        I_AM_A_PARENT=.TRUE.
-#endif
-!
-!-----------------------------------------------------------------------
-!***  Initialize the children's data directly from the parent if
-!***  there are no pre-processed input files ready for them.
-!***  Files will be written for the children to read in as usual.
-!***  Only parent tasks participate.
-!-----------------------------------------------------------------------
-!
-        ALLOCATE(MY_CHILDREN_ID(1:NUM_CHILDREN))
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-        MESSAGE_CHECK="Extract Children's IDs from Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
-#ifdef ESMF_3
-        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The DOMAIN import state
-                              ,name     ='CHILD_IDs'                    &  !<-- Name of the attribute to extract
-                              ,count    =NUM_CHILDREN                   &  !<-- # of items in the Attribute
-                              ,valueList=MY_CHILDREN_ID                 &  !<-- Put the Attribute here
-                              ,rc       =RC)
-#else
-        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The DOMAIN import state
-                              ,name     ='CHILD_IDs'                    &  !<-- Name of the attribute to extract
-                              ,itemCount=NUM_CHILDREN                   &  !<-- # of items in the Attribute
-                              ,valueList=MY_CHILDREN_ID                 &  !<-- Put the Attribute here
-                              ,rc       =RC)
-#endif
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
-        child_init_loop: DO N=1,NUM_CHILDREN                               !<-- Loop through the children
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-          MESSAGE_CHECK="Extract Children's Input Flag from Config File"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
-          CALL ESMF_ConfigGetAttribute(config=CF(MY_CHILDREN_ID(N))     &  !<-- The config object
-                                      ,value =INPUT_READY_MY_CHILD      &  !<-- Child's flag for existence of its input file
-                                      ,label ='input_ready:'            &  !<-- Give this label's value to the previous variable
-                                      ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
-          IF(.NOT.INPUT_READY_MY_CHILD)THEN                                  !<-- INPUT_READY=false -> This child has no input file 
-                                                                             !      so parent will generate input.
-            CALL PARENT_TO_CHILD_INIT_NMM(MYPE                            &  !<-- This task's rank (in)
-                                         ,CF                              &  !<-- Array of configure files (in)
-                                         ,MY_DOMAIN_ID                    &  !<-- Each domain's ID (in)
-                                         ,MY_CHILDREN_ID(N)               &  !<-- The child's domain ID
-                                         ,domain_int_state%SOLVER_GRID_COMP  &  !<-- The parent's Dynamics Component (inout)
-                                         ,COMM_MY_DOMAIN )                   !<-- Each domain's intracommunicator
-!
-          ENDIF
-!            
-!-----------------------------------------------------------------------
-!
-        ENDDO child_init_loop
-!
-!-----------------------------------------------------------------------
-!
-        DEALLOCATE(MY_CHILDREN_ID)
-!
-      ENDIF child_init_block
 !
 !-----------------------------------------------------------------------
 !***  For moving nests there are external files with nest-resolution
