@@ -9223,7 +9223,6 @@
 !
       PTR_X=>TASK_UPDATE_SPECS                                            !<-- Go back to the top of the list of updated nest tasks
       KOUNT_TASKS=0
-      TAIL=>NULL()
 !
       DO WHILE(ASSOCIATED(PTR_X%TASK_ID))                                 !<-- An old link exists if TASK_ID is associated.
         KOUNT_TASKS=KOUNT_TASKS+1
@@ -9235,6 +9234,7 @@
         DEALLOCATE(PTR_X%IL,stat=ISTAT)
         DEALLOCATE(PTR_X%JL,stat=ISTAT)
 !
+        TAIL=>NULL()
         IF(ASSOCIATED(PTR_X%NEXT_LINK))THEN                               !<-- If another links exists, point to it.
           TAIL=>PTR_X%NEXT_LINK
         ENDIF

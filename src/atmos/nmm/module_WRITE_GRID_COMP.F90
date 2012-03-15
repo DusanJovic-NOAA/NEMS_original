@@ -3114,7 +3114,11 @@
 !
       IF(wrt_int_state%WRITE_DONEFILEFLAG                               &
           .AND.                                                         &
-         wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
+         wrt_int_state%MYPE==LEAD_WRITE_TASK                            &
+          .AND.                                                         &
+        (wrt_int_state%WRITE_HST_BIN                                    &
+          .OR.                                                          &
+         wrt_int_state%WRITE_HST_NEMSIO))THEN
 !
         CALL ESMF_ConfigGetAttribute(config=CF                          &  !<-- The configure file object
                                     ,value =ID_DOMAIN                   &  !<-- Put extracted quantity here
@@ -3924,7 +3928,11 @@
 !-----------------------------------------------------------------------
       IF(wrt_int_state%WRITE_DONEFILEFLAG                               &
            .and.                                                        &
-         wrt_int_state%MYPE==LEAD_WRITE_TASK)THEN
+         wrt_int_state%MYPE==LEAD_WRITE_TASK                            &
+           .and.                                                        &
+         (wrt_int_state%WRITE_RST_BIN                                   &
+           .or.                                                         &
+          wrt_int_state%WRITE_RST_NEMSIO))THEN
 !
         CALL ESMF_ConfigGetAttribute(config=CF                          &  !<-- The configure file object
                                     ,value =ID_DOMAIN                   &  !<-- Put extracted quantity here

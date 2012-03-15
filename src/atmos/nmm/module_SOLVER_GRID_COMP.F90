@@ -2390,6 +2390,11 @@
       NTIMESTEP=NTIMESTEP_ESMF
       int_state%NTSD=NTIMESTEP
 !
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The DOMAIN import state
+                            ,name ='Filter_Method'                      &  !<-- Name of the attribute to extract
+                            ,value=FILTER_METHOD                        &  !<-- The scalar being extracted from the import state
+                            ,rc   =RC)
+!
 !-----------------------------------------------------------------------
 !***  Do some work that only needs to be done once at the start of
 !***  the Run step:  Dereference some variables and extract the
@@ -4738,11 +4743,6 @@
 !***
 !-----------------------------------------------------------------------
 !
-    CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The DOMAIN import state
-                              ,name ='Filter_Method'                &  !<-- Name of the attribute to extract
-                              ,value=FILTER_METHOD                  &  !<-- The scalar being extracted from the import state
-                              ,rc   =RC)
-
         IF(int_state%NTSD==0)THEN
           IF(int_state%PCPFLG .and. FILTER_METHOD == 0)THEN
             CALL READPCP(MYPE                                           &

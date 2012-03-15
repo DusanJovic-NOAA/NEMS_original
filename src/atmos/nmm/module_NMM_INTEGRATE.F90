@@ -729,8 +729,8 @@
 !
         IF(MYPE==0.AND.FILTER_METHOD==0)THEN
           WRITE(0,25)NTIMESTEP-1,NTIMESTEP*DT/3600.,phase1_tim
-   25     FORMAT(' Finished Timestep ',i5,' ending at ',f7.3,           &
-                 ' hours: elapsed integration time ',f9.5)
+   25     FORMAT(' Finished Timestep ',i5,' ending at ',f10.3,          &
+                 ' hours: elapsed integration time ',f12.5)
         ENDIF
 !
 !-----------------------------------------------------------------------

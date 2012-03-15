@@ -61,6 +61,8 @@
 !
       IMPLICIT NONE
 !
+      INCLUDE 'mpif.h'
+!
 !-----------------------------------------------------------------------
 !***  Local Variables.
 !-----------------------------------------------------------------------
@@ -106,6 +108,9 @@
       INTEGER :: RC=ESMF_SUCCESS                                        &  !<-- The running error signal
                 ,RC_MAIN                                                   !<-- The final value of the Main error code
 !
+      CHARACTER(LEN=MPI_MAX_PROCESSOR_NAME) :: PROCNAME                    !<-- The processor(host) name
+      INTEGER :: PROCNAME_LEN                                              !<-- Actual PROCRNAME string length
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -137,6 +142,13 @@
                                                                           !    each task has its own log error output file.
                           ,rc             =RC)
 #endif
+!
+!-----------------------------------------------------------------------
+!***  Get the processor(host) name
+!-----------------------------------------------------------------------
+!
+      CALL MPI_Get_processor_name(PROCNAME,PROCNAME_LEN,RC)
+      write(0,*)'processor_name =',trim(PROCNAME)
 !
 !-----------------------------------------------------------------------
 !***  Extract the MPI task ID.

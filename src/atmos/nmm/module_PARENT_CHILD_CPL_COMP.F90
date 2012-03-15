@@ -11221,12 +11221,14 @@
       INDX_MIN_H%SOUTH= 1000000
       INDX_MAX_H%SOUTH=-1000000
 !
-      DO N=1,FTASKS_DOMAIN(ID_DOM)                                         !<-- Child task loops through its parent's tasks
+!d      DO N=1,FTASKS_DOMAIN(ID_DOM)                                         !<-- Child task loops through its parent's tasks
+      DO N=0,FTASKS_DOMAIN(ID_DOM)-1                                       !<-- Child task loops through its parent's tasks
 !
         CALL MPI_RECV(INFO                                              &  !<-- Receive data packet from each parent task
                      ,4                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
-                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
+!d                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
+                     ,N                                                 &  !<-- Accept data from any parent task that is sending
                      ,11111                                             &  !<-- Tag used for south boundary H points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
@@ -11358,12 +11360,14 @@
       INDX_MIN_V%SOUTH= 1000000
       INDX_MAX_V%SOUTH=-1000000
 !
-      DO N=1,FTASKS_DOMAIN(ID_DOM)                                         !<-- Child task loops through its parent's tasks
+!d      DO N=1,FTASKS_DOMAIN(ID_DOM)                                         !<-- Child task loops through its parent's tasks
+      DO N=0,FTASKS_DOMAIN(ID_DOM)-1                                       !<-- Child task loops through its parent's tasks
 !
         CALL MPI_RECV(INFO                                              &  !<-- Receive data packet from each parent task
                      ,3                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
-                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
+!d                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
+                     ,N                                                 &  !<-- Accept data from any parent task that is sending
                      ,22222                                             &  !<-- Tag used for south boundary V points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
@@ -11492,12 +11496,14 @@
       INDX_MIN_H%NORTH= 1000000
       INDX_MAX_H%NORTH=-1000000
 !
-      DO N=1,FTASKS_DOMAIN(ID_DOM)                                         !<-- Child task loops through its parent's tasks
+!d      DO N=1,FTASKS_DOMAIN(ID_DOM)                                         !<-- Child task loops through its parent's tasks
+      DO N=0,FTASKS_DOMAIN(ID_DOM)-1                                       !<-- Child task loops through its parent's tasks
 !
         CALL MPI_RECV(INFO                                              &  !<-- Receive data packet from each parent task
                      ,4                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
-                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
+!d                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
+                     ,N                                                 &  !<-- Accept data from any parent task that is sending
                      ,33333                                             &  !<-- Tag used for north boundary H points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
@@ -11630,12 +11636,14 @@
       INDX_MIN_V%NORTH= 1000000
       INDX_MAX_V%NORTH=-1000000
 !
-      DO N=1,FTASKS_DOMAIN(ID_DOM)                                         !<-- Child task loops through its parent's tasks
+!d      DO N=1,FTASKS_DOMAIN(ID_DOM)                                         !<-- Child task loops through its parent's tasks
+      DO N=0,FTASKS_DOMAIN(ID_DOM)-1                                       !<-- Child task loops through its parent's tasks
 !
         CALL MPI_RECV(INFO                                              &  !<-- Receive data packet from each parent task
                      ,3                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
-                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
+!d                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
+                     ,N                                                 &  !<-- Accept data from any parent task that is sending
                      ,44444                                             &  !<-- Tag used for north boundary V points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
@@ -11771,12 +11779,14 @@
       INDX_MIN_H%WEST= 1000000
       INDX_MAX_H%WEST=-1000000
 !
-      DO N=1,FTASKS_DOMAIN(ID_DOM)                                         !<-- Child task loops through its parent's tasks
+!d      DO N=1,FTASKS_DOMAIN(ID_DOM)                                         !<-- Child task loops through its parent's tasks
+      DO N=0,FTASKS_DOMAIN(ID_DOM)-1                                       !<-- Child task loops through its parent's tasks
 !
         CALL MPI_RECV(INFO                                              &  !<-- Receive data packet from each parent task
                      ,4                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
-                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
+!d                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
+                     ,N                                                 &  !<-- Accept data from any parent task that is sending
                      ,55555                                             &  !<-- Tag used for west boundary H points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
@@ -11908,12 +11918,14 @@
       INDX_MIN_V%WEST= 1000000
       INDX_MAX_V%WEST=-1000000
 !
-      DO N=1,FTASKS_DOMAIN(ID_DOM)                                         !<-- Child task loops through its parent's tasks
+!d      DO N=1,FTASKS_DOMAIN(ID_DOM)                                         !<-- Child task loops through its parent's tasks
+      DO N=0,FTASKS_DOMAIN(ID_DOM)-1                                       !<-- Child task loops through its parent's tasks
 !
         CALL MPI_RECV(INFO                                              &  !<-- Receive data packet from each parent task
                      ,3                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
-                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
+!d                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
+                     ,N                                                 &  !<-- Accept data from any parent task that is sending
                      ,66666                                             &  !<-- Tag used for west boundary V points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
@@ -12042,12 +12054,14 @@
       INDX_MIN_H%EAST= 1000000
       INDX_MAX_H%EAST=-1000000
 !
-      DO N=1,FTASKS_DOMAIN(ID_DOM)                                         !<-- Child task loops through its parent's tasks
+!d      DO N=1,FTASKS_DOMAIN(ID_DOM)                                         !<-- Child task loops through its parent's tasks
+      DO N=0,FTASKS_DOMAIN(ID_DOM)-1                                       !<-- Child task loops through its parent's tasks
 !
         CALL MPI_RECV(INFO                                              &  !<-- Receive data packet from each parent task
                      ,4                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
-                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
+!d                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
+                     ,N                                                 &  !<-- Accept data from any parent task that is sending
                      ,77777                                             &  !<-- Tag used for east boundary H points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
@@ -12179,12 +12193,14 @@
       INDX_MIN_V%EAST= 1000000
       INDX_MAX_V%EAST=-1000000
 !
-      DO N=1,FTASKS_DOMAIN(ID_DOM)                                         !<-- Child task loops through its parent's tasks
+!d      DO N=1,FTASKS_DOMAIN(ID_DOM)                                         !<-- Child task loops through its parent's tasks
+      DO N=0,FTASKS_DOMAIN(ID_DOM)-1                                       !<-- Child task loops through its parent's tasks
 !
         CALL MPI_RECV(INFO                                              &  !<-- Receive data packet from each parent task
                      ,3                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
-                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
+!d                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
+                     ,N                                                 &  !<-- Accept data from any parent task that is sending
                      ,88888                                             &  !<-- Tag used for east boundary V points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
