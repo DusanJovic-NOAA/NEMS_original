@@ -9,6 +9,7 @@
 !   revision history:
 !    May 2011 Jun Wang: generate code from MPI_FIRST.f in post trunk
 !    Jan 2012 Lu/Wang:  add gocart variables
+!    Feb 2012 Jun Wang: add post_finalize
 !
 !
 !-----------------------------------------------------------------------
@@ -179,6 +180,8 @@
       allocate(QQR(im,jsta_2l:jend_2u,lm))
       allocate(QQS(im,jsta_2l:jend_2u,lm))
       allocate(QQG(im,jsta_2l:jend_2u,lm))
+      allocate(QQNI(im,jsta_2l:jend_2u,lm))
+      allocate(QQNR(im,jsta_2l:jend_2u,lm))
       allocate(EXTCOF55(im,jsta_2l:jend_2u,lm))
       allocate(CFR(im,jsta_2l:jend_2u,lm))
       allocate(DBZ(im,jsta_2l:jend_2u,lm))
@@ -243,8 +246,25 @@
       allocate(w_mean(im,jsta_2l:jend_2u))
       allocate(refd_max(im,jsta_2l:jend_2u))
       allocate(up_heli_max(im,jsta_2l:jend_2u))
+      allocate(up_heli_max16(im,jsta_2l:jend_2u))
       allocate(grpl_max(im,jsta_2l:jend_2u))
+      allocate(up_heli(im,jsta_2l:jend_2u))
+      allocate(up_heli16(im,jsta_2l:jend_2u))
+      allocate(ltg1_max(im,jsta_2l:jend_2u))
+      allocate(ltg2_max(im,jsta_2l:jend_2u))
+      allocate(ltg3_max(im,jsta_2l:jend_2u))
+      allocate(nci_ltg(im,jsta_2l:jend_2u))
+      allocate(nca_ltg(im,jsta_2l:jend_2u))
+      allocate(nci_wq(im,jsta_2l:jend_2u))
+      allocate(nca_wq(im,jsta_2l:jend_2u))
+      allocate(nci_refd(im,jsta_2l:jend_2u))
+      allocate(nca_refd(im,jsta_2l:jend_2u))
 ! SRD
+! CRA
+      allocate(VIL(im,jsta_2l:jend_2u))
+      allocate(RADARVIL(im,jsta_2l:jend_2u))
+      allocate(ECHOTOP(im,jsta_2l:jend_2u))
+! CRA
       allocate(u10(im,jsta_2l:jend_2u))
       allocate(v10(im,jsta_2l:jend_2u))
       allocate(tshltr(im,jsta_2l:jend_2u))
@@ -289,6 +309,9 @@
       allocate(tmax(im,jsta_2l:jend_2u))
       allocate(snownc(im,jsta_2l:jend_2u))
       allocate(graupelnc(im,jsta_2l:jend_2u))
+      allocate(tsnow(im,jsta_2l:jend_2u))
+      allocate(qvg(im,jsta_2l:jend_2u))
+      allocate(qv2m(im,jsta_2l:jend_2u))
 ! GSDend
       allocate(rswin(im,jsta_2l:jend_2u))
       allocate(rlwin(im,jsta_2l:jend_2u))
@@ -429,13 +452,17 @@
       allocate(gdlon(im,jsta_2l:jend_2u))
       allocate(dx(im,jsta_2l:jend_2u))
       allocate(dy(im,jsta_2l:jend_2u))
+
+!-----------------------------------------------------------------------
+!*** Add GOCART variables
+!-----------------------------------------------------------------------
+!
 ! vrbls4d
       allocate(dust(im,jsta_2l:jend_2u,lm,5))
       allocate(salt(im,jsta_2l:jend_2u,lm,5))
       allocate(soot(im,jsta_2l:jend_2u,lm,2))
       allocate(waso(im,jsta_2l:jend_2u,lm,2))
       allocate(suso(im,jsta_2l:jend_2u,lm,1))
-      allocate(dust_dm(im,jsta_2l:jend_2u,lm,5))
 ! vrbls3d
       allocate(ext(im,jsta_2l:jend_2u,lm))
       allocate(asy(im,jsta_2l:jend_2u,lm))
@@ -460,6 +487,8 @@
       allocate(sssd(im,jsta_2l:jend_2u,lm))
       allocate(ssdp(im,jsta_2l:jend_2u,lm))
       allocate(sswt(im,jsta_2l:jend_2u,lm))
+      allocate(dpres(im,jsta_2l:jend_2u,lm))
+      allocate(rhomid(im,jsta_2l:jend_2u,lm))
 ! vrbls2d
       allocate(dusmass(im,jsta_2l:jend_2u))
       allocate(ducmass(im,jsta_2l:jend_2u))
@@ -578,3 +607,22 @@
 1000  continue
 
       end subroutine read_postnmlt
+!
+!---------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!---------------------------------------------------------------------
+!
+    subroutine post_finalize(post_gribversion)
+!
+      use grib2_module, only : grib_info_finalize
+!
+      character(*),intent(in) :: post_gribversion
+!
+      IF(trim(POST_GRIBVERSION)=='grib2') then
+         call  grib_info_finalize()
+      ENDIF
+!
+      call de_allocate
+!
+    end subroutine post_finalize
+

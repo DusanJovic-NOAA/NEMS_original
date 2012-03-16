@@ -39,6 +39,7 @@
 !                                w3_4 lib
 !       05 May 2011:  J. Wang  - add run post option on write quilt
 !       28 Sep 2011:  W. Yang  - Modified for using the ESMF 5.2.0r library.
+!       15 Feb 2012:  J. Wang  - replace deallocate by post_finalize
 !
 !---------------------------------------------------------------------------------
 !
@@ -2068,7 +2069,7 @@
 !
       if(WRT_INT_STATE%WRITE_DOPOST.and.                                   &
         wrt_int_state%MYPE>wrt_int_state%NUM_PES_FCST) then
-          call de_allocate
+          call POST_FINALIZE(WRT_INT_STATE%POST_GRIBVERSION)
       endif
 !
 !-----------------------------------------------------------------------

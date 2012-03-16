@@ -8,13 +8,16 @@
 !  revision history:
 !     Jun 2010    J. Wang      Initial code
 !     Jan 2012    J. Wang      Add aerosol fields
+!     Feb 2012    J. Wang      setvar_aerfile is reset after post
 !
 !-----------------------------------------------------------------------
 !*** run post on quilt
 !-----------------------------------------------------------------------
 !
       use MODULE_WRITE_INTERNAL_STATE_GFS
-      use CTLBLK_mod, only : komax,ifhr,ifmin,MODELNAME
+      use CTLBLK_mod, only : komax,ifhr,ifmin,MODELNAME,datapd,fld_info, &
+                             npset,grib
+      use grib2_module, only : gribit2,num_pset,nrecout,first_grbtbl
 !
 !-----------------------------------------------------------------------
 !
@@ -39,7 +42,7 @@
 !
       integer,PARAMETER :: NFD=11,NBND=6
 !
-      integer N,NWTPG,IEOF,LCNTRL
+      integer N,NWTPG,IEOF,LCNTRL,ierr
       integer jts,jte
       integer,allocatable  :: jstagrp(:),jendgrp(:)
       integer,save :: kpo,kth,kpv
@@ -48,8 +51,9 @@
       logical,save :: setvar_gridfile=.false.,setvar_flxfile=.false.
       logical,save :: setvar_aerfile=.false.
       logical      :: Log_runpost
+      character(80)  :: post_fname*80
 !
-      print *,'in post_run start'
+!      print *,'in post_run start'
 !-----------------------------------------------------------------------
 !*** set up dimensions
 !-----------------------------------------------------------------------
@@ -58,8 +62,8 @@
       NWTPG=wrt_int_state%WRITE_TASKS_PER_GROUP
       JTS=wrt_int_state%JSTART_WRITE(MYPE-lead_write+1)                !<-- Starting J of this write task's subsection
       JTE=wrt_int_state%JEND_WRITE  (MYPE-lead_write+1)                !<-- Ending J of this write task's subsection
-      print *,'in post_run,jts=',jts,'jte=',jte,'nwtpg=',nwtpg, &
-        'log_postalct=',log_postalct,'jts=',jts,'jte=',jte,'nbdl=',nbdl
+!      print *,'in post_run,jts=',jts,'jte=',jte,'nwtpg=',nwtpg, &
+!        'log_postalct=',log_postalct,'jts=',jts,'jte=',jte,'nbdl=',nbdl
 !
 !-----------------------------------------------------------------------
 !*** set up fields ro run post
@@ -73,7 +77,7 @@
           JSTAGRP(N+1)=wrt_int_state%JSTART_WRITE(N+1)
           JENDGRP(N+1)=wrt_int_state%JEND_WRITE  (N+1)
         ENDDO
-      print *,'in post_run,jstagrp=',jstagrp,'jendgrp=',jendgrp
+!      print *,'in post_run,jstagrp=',jstagrp,'jendgrp=',jendgrp
 !
 !-----------------------------------------------------------------------
 !*** allocate post variables
@@ -84,7 +88,7 @@
                mpicomp,mygridtype,mymaptype,wrt_int_state%post_gribversion,&
                MYNSOIL,         &
                LEAD_WRITE,JTS,JTE,JSTAGRP,JENDGRP)
-      print *,'in post_run,aft post_alctvars'
+!      print *,'in post_run,aft post_alctvars'
 !
 !-----------------------------------------------------------------------
 !*** read namelist for pv,th,po
@@ -98,6 +102,7 @@
 !-----------------------------------------------------------------------
 !
         LOG_POSTALCT=.true.
+        first_grbtbl=.true.
 !
       ENDIF
 !       
@@ -107,14 +112,13 @@
 !
       ifhr=mynfhr
       ifmin=mynfmin
-      print *,'nbdl=',nbdl,'filename=',trim(wrt_int_state%FILENAME_BASE(NBDL))
       call set_postvars_gfs(wrt_int_state,mpicomp,nbdl,JTS,JTE)
       if(trim(wrt_int_state%FILENAME_BASE(NBDL))=='SIG.F') setvar_gridfile=.true.
       if(trim(wrt_int_state%FILENAME_BASE(NBDL))=='FLX.F') setvar_flxfile=.true.
       if(trim(wrt_int_state%FILENAME_BASE(NBDL))=='AER.F') setvar_aerfile=.true.
-       print *,'af set_postvars,setvar_gridfile=',setvar_gridfile,  &
-        'setvar_flxfile=',setvar_flxfile,'ifmin=',ifmin,'ifhr=',ifhr, &
-       'setvar_aerfile=',setvar_aerfile,'gocart_aer2post=',wrt_int_state%gocart_aer2post
+!       print *,'af set_postvars,setvar_gridfile=',setvar_gridfile,  &
+!        'setvar_flxfile=',setvar_flxfile,'ifmin=',ifmin,'ifhr=',ifhr, &
+!       'setvar_aerfile=',setvar_aerfile,'gocart_aer2post=',wrt_int_state%gocart_aer2post
 !
       if(.not.wrt_int_state%gocart_aer2post) then
         Log_runpost=setvar_gridfile.and.setvar_flxfile
@@ -124,25 +128,50 @@
 !
       if(Log_runpost) then
 !  
-        print *,'start to run post process,ifhr=',ifhr
         call MICROINIT
 !
+        if(grib=="grib2".and.first_grbtbl) then
+          call READ_xml()
+        endif
+!
         IEOF=0
+        npset=0
         do while( IEOF .eq. 0)
-          CALL READCNTRL(kth,IEOF)
-          print *,'after readcntrl,IEOF=',IEOF
+!
+          if(grib=="grib1") then
+            CALL READCNTRL(kth,IEOF)
+           else if(grib=="grib2") then
+            npset=npset+1
+            CALL SET_OUTFLDS(kth,kpv,pv)
+            if(allocated(datapd))deallocate(datapd)
+            allocate(datapd(wrt_int_state%im(1),jte-jts+1,nrecout+10))
+            datapd=0.
+            call get_postfilename(post_fname)
+          endif
+!
           if ( IEOF.eq.0) CALL PROCESS(KTH,KPV,TH(1:KTH),PV(1:KPV))
-           print *,'aft process'
+!
+          if(grib=="grib2") then
+            call mpi_barrier(mpicomp,ierr)
+            call gribit2(post_fname)
+            if(allocated(datapd))deallocate(datapd)
+            if(allocated(fld_info))deallocate(fld_info)
+            if(npset>=num_pset) exit
+          endif
+!
         enddo
 !
-        LCNTRL=14
-        rewind(LCNTRL)
+        if(grib=="grib1") then
+          LCNTRL=14
+          rewind(LCNTRL)
+        endif
 !
         setvar_gridfile=.false.
         setvar_flxfile=.false.
+        setvar_aerfile=.false.
 !
       endif
-          write(0,*)'after readcntrl and process'
+!          write(0,*)'after readcntrl and process'
 
     end subroutine post_run_gfs
 !
@@ -155,6 +184,7 @@
 !  revision history:
 !     Jun 2010    J. Wang      Initial code
 !     Jan 2012    Wang/Lu      set aerosol post variables from aer file
+!     Feb 2012    Wang         fix grid information for grib2
 !
 !-----------------------------------------------------------------------
 !*** set up post fields from nmint_state
@@ -212,7 +242,7 @@
       gridtype='A'
       imp_physics=99 !set GFS mp physics to 99 for Zhao scheme
       iostatusD3D=-1
-      print*,'MP_PHYSICS= ',imp_physics,'nbdl=',nbdl
+!      print*,'MP_PHYSICS= ',imp_physics,'nbdl=',nbdl
 !
 ! nems gfs has zhour defined 
       tprec=1.0*ifhr-wrt_int_state%ZHOUR
@@ -224,7 +254,7 @@
       td3d=tprec
 !
 
-      write(6,*) 'maptype and gridtype is ', maptype,gridtype
+!      write(6,*) 'maptype and gridtype is ', maptype,gridtype
 !
 !-----------------------------------------------------------------------
 ! some fields are only in grid file, not in flx
@@ -232,7 +262,6 @@
 !
       allocate(buf(im,jsta:jend))
 
-      write(0,*)'in set_var,filename=',trim(wrt_int_state%FILENAME_BASE(NBDL))
       inifields_if: if(trim(wrt_int_state%FILENAME_BASE(NBDL))=='SIG.F') then
 !
         allocate(buf3d(im,jsta:jend,lm),fi(im,jm,2))
@@ -248,7 +277,6 @@
             dummy(i,j) = asin(slat(j)) * radi
           enddo
           enddo
-!         print *,'lat=',slat(jm),slat(jm/2)
           deallocate(slat)
           do i=1,im
             tmp=360./im*(i-1)
@@ -1563,7 +1591,7 @@
         print *, 'iostatus for aer file, field name=',trim(name),'layer=',trim(layer), &
            'trim(name)==ducmass',trim(name)=='DUSMASS'
 !DUEM
-        do k=1,5
+        do k=1,nbin_du
           write(ck,'(i3.3)')k
 !duem
           VarAerName='DUEM'//ck
@@ -1638,25 +1666,24 @@
 !
        call collect_loc(gdlat,dummy)
        if(me.eq.0)then
-        latstart=nint(dummy(1,1)*1000.)
-        latlast=nint(dummy(im,jm)*1000.)
-        print*,'laststart,latlast B bcast= ',latstart,latlast
+        latstart=nint(dummy(1,1)*gdsdegr)
+        latlast=nint(dummy(im,jm)*gdsdegr)
+!        print*,'laststart,latlast B bcast= ',latstart,latlast
        endif
        call mpi_bcast(latstart,1,MPI_INTEGER,0,mpi_comm_comp,iret)
        call mpi_bcast(latlast,1,MPI_INTEGER,0,mpi_comm_comp,iret)
-       write(6,*) 'laststart,latlast,me A calling bcast=',latstart,latlast,me
        call collect_loc(gdlon,dummy)
        if(me.eq.0)then
-        lonstart=nint(dummy(1,1)*1000.)
-        lonlast=nint(dummy(im,jm)*1000.)
+        lonstart=nint(dummy(1,1)*gdsdegr)
+        lonlast=nint(dummy(im,jm)*gdsdegr)
        endif
        call mpi_bcast(lonstart,1,MPI_INTEGER,0,mpi_comm_comp,iret)
        call mpi_bcast(lonlast,1,MPI_INTEGER,0,mpi_comm_comp,iret)
-       write(6,*)'lonstart,lonlast A calling bcast=',lonstart,lonlast
+!      write(6,*)'lonstart,lonlast A calling bcast=',lonstart,lonlast
 !
 ! construct interface pressure from model top (which is zero) and dp from top down
 ! PDTOP
-        print*,'PT, PDTOP= ',PT,PDTOP
+!        print*,'PT, PDTOP= ',PT,PDTOP
         do l=2,lm
         do j=jsta,jend
           do i=1,im
@@ -1718,8 +1745,8 @@
            do l=1,lm
             if(ptop(i,j) <= pmid(i,j,l))then
              htop(i,j)=l
-             if(i==ii .and. j==jj)print*,'sample ptop,pmid pmid-1,pint= ',   &
-                ptop(i,j),pmid(i,j,l),pmid(i,j,l-1),pint(i,j,l),htop(i,j)
+!             if(i==ii .and. j==jj)print*,'sample ptop,pmid pmid-1,pint= ',   &
+!                ptop(i,j),pmid(i,j,l),pmid(i,j,l-1),pint(i,j,l),htop(i,j)
              exit
             end if
            end do
@@ -1737,8 +1764,8 @@
            do l=lm,1,-1
             if(pbot(i,j) >= pmid(i,j,l))then
              hbot(i,j)=l
-             if(i==ii .and. j==jj)print*,'sample pbot,pmid= ',    &
-                pbot(i,j),pmid(i,j,l),hbot(i,j)
+!             if(i==ii .and. j==jj)print*,'sample pbot,pmid= ',    &
+!                pbot(i,j),pmid(i,j,l),hbot(i,j)
              exit
             end if
            end do
@@ -1812,34 +1839,21 @@
 !           minval(pint(1:im,jsta:jend,:)),maxloc(pint(1:im,jsta:jend,:)), &
 !           minval(pint(1:im,jsta:jend,:)),'file=',trim(wrt_int_state%FILENAME_BASE(NBDL))
 
-!     Convert from mixing ratio to mass concentration (GOCART)
-!     DUST is aerosol mixing ratio (kg/kg)
-!     Multiply by rhoa gives kg/m3 of aerosol mass concentration
-!     Multiply by 1000. gives units of g/m3
+!! -- compute air density RHOMID and remove negative tracer values
 
       do l=1,lm
         do j=jsta,jend
           do i=1,im
            TV=T(I,J,L)*(H1+D608*MAX(Q(I,J,L),QMIN))
-           RHOAIR=PMID(I,J,L)/(RD*TV)
+           RHOMID(I,J,L)=PMID(I,J,L)/(RD*TV)
            do n = 1,  NBIN_DU
-             DUST_DM(i,j,l,n) = dust(i,j,l,n)*RHOAIR*1000.
-             DUST_DM(i,j,l,n) = MAX(DUST(I,J,L,N),0.0)
+             IF ( dust(i,j,l,n) .LT. SPVAL) THEN
+               DUST(i,j,l,n) = MAX(DUST(i,j,l,n), 0.0)
+             ENDIF
            enddo
-           if(i==2.and.j==102) print *,'in init_gfs,l=',l,'tv=',tv,'RHOAIR=', &
-             RHOAIR,'h1=',h1,'D608=',D608,'Q=',Q(I,J,L),'qmin=',QMIN, &
-             'PMID=',PMID(I,J,L),'RD=',RD,'T=',T(I,J,L),'dustdm1=',DUST_DM(i,j,l,1), &
-             'dust=',dust(i,j,l,1)
           end do
         end do
       end do
-!      print *,'dust1=',maxval(dust(:,jsta:jend,1:lm,1)), &
-!        minval(dust(:,jsta:jend,1:lm,1)),'dust2=', &
-!     maxval(dust(:,jsta:jend,1:lm,2)),minval(dust(:,jsta:jend,1:lm,2)), &
-!     'dust3=',maxval(dust(:,jsta:jend,1:lm,3)),minval(dust(:,jsta:jend,1:lm,3)), &
-!     'dust4=',maxval(dust(:,jsta:jend,1:lm,4)),minval(dust(:,jsta:jend,1:lm,4)), &
-!     'dust5=',maxval(dust(:,jsta:jend,1:lm,5)),minval(dust(:,jsta:jend,1:lm,5))
-
 !
       deallocate(buf)
 ! generate look up table for lifted parcel calculations
