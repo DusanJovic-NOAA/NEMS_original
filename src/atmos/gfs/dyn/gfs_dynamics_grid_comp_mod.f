@@ -509,7 +509,7 @@
                            
 !!
       if (me.eq.0) then
-        call out_para(real(timestep_sec))
+        call info_out_para(real(timestep_sec))
       endif
 !!
       if (me.eq.0) then

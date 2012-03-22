@@ -1,7 +1,7 @@
 c
 c***********************************************************************
 c
-      SUBROUTINE OUT_PARA(dt)
+      SUBROUTINE INFO_OUT_PARA(dt)
 c
 c***********************************************************************
 c
@@ -25,7 +25,7 @@ cjfe    write(6,9115) NUM_PARTHDS()
 c        write(6,9130)
       ENDIF
  
- 9100 format( /5x,'   T',i3,'-',i2,' FORECAST MODEL',
+ 9100 format( /5x,'   T',i3,'-',i3,' FORECAST MODEL',
      .        /5x,' ===========================')
  9110 format(  5x,' Number of MPI Tasks:   ',i4)
  9115 format(  5x,' Number of Threads:     ',i4)

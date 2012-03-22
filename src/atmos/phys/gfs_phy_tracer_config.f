@@ -80,16 +80,18 @@ c
       call gocart_tracer_config(gfs_phy_tracer,me)
 
 ! ntrac_met = number of met tracers
-      if ( ntoz < ntcw ) then                       
-        gfs_phy_tracer%ntrac_met = ntcw + ncld - 1   
-      else                                                           
-        gfs_phy_tracer%ntrac_met = ntoz                              
-      endif                                          
-      if ( gfs_phy_tracer%ntrac_met /= ntrac ) then
-        print *,'LU_TRC: ERROR ! inconsistency in ntrac:',
-     &           ntrac, gfs_phy_tracer%ntrac_met
-        stop 222   
-      endif
+!hmhj if ( ntoz < ntcw ) then                       
+!hmhj   gfs_phy_tracer%ntrac_met = ntcw + ncld - 1   
+!hmhj else                                                           
+!hmhj   gfs_phy_tracer%ntrac_met = ntoz                              
+!hmhj endif                                          
+!hmhj if ( gfs_phy_tracer%ntrac_met /= ntrac ) then
+!hmhj   print *,'LU_TRC: ERROR ! inconsistency in ntrac:',
+!hmhj&           ntrac, gfs_phy_tracer%ntrac_met
+!hmhj   stop 222   
+!hmhj endif
+! input ntrac is meteorological tracers
+      gfs_phy_tracer%ntrac_met = ntrac
 
 ! update ntrac = total number of tracers
       gfs_phy_tracer%ntrac = gfs_phy_tracer%ntrac_met +     
@@ -117,6 +119,10 @@ c
       gfs_phy_tracer%vname(1) = 'spfh'   
       if(ntoz>0) gfs_phy_tracer%vname(ntoz) = 'o3mr'   
       if(ntcw>0) gfs_phy_tracer%vname(ntcw) = 'clwmr'   
+      if(gfs_phy_tracer%ntrac_met .eq. 5) then
+        gfs_phy_tracer%vname(4) = 'o' 
+        gfs_phy_tracer%vname(5) = 'o2' 
+      endif
 
       gfs_phy_tracer%fscav(1:gfs_phy_tracer%ntrac_met)=0.
 

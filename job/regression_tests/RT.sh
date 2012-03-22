@@ -50,8 +50,8 @@ fi
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 
-  export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
-#  export RTPWD=${STMP}/${USER}/REGRESSION_TEST
+#  export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+   export RTPWD=${STMP}/${USER}/REGRESSION_TEST
 
 #########################################################################
 # Check if running regression test or creating baselines.
@@ -113,6 +113,7 @@ if [ $argn -eq 1 ]; then
     cp ${RTPWD}/GFS_DFI_hyb_2loop_nst/*     ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_hyb_2loop_nst/.
     cp ${RTPWD}/GFS_NODFI/*                 ${STMP}/${USER}/REGRESSION_TEST/GFS_NODFI/.
     cp ${RTPWD}/GFS_OPAC/*                  ${STMP}/${USER}/REGRESSION_TEST/GFS_OPAC/.
+    cp ${RTPWD}/GFS_ADIAB/*                  ${STMP}/${USER}/REGRESSION_TEST/GFS_ADIAB/.
   elif [ ${CP_nmm} = true ]; then
     cp ${RTPWD}/NMMB_gfsP_glob/*            ${STMP}/${USER}/REGRESSION_TEST/NMMB_gfsP_glob/.
     cp ${RTPWD}/NMMB_gfsP_reg/*             ${STMP}/${USER}/REGRESSION_TEST/NMMB_gfsP_reg/.
@@ -1050,6 +1051,32 @@ export LIST_FILES=" \
 	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export_gfs
+#---------------------
+  ./rt_gfs.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi
+
+####################################################################################################
+# 
+# TEST   - GFS  adiabatic run
+#        - 30 compute tasks / 1 thread 
+#
+####################################################################################################
+
+if [ ${CB_arg} = gfs -o ${RT_FULL} = true ]; then
+
+export TEST_DESCR="Compare GFS adiabatic results with previous trunk version"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GFS_32_ADIAB
+export CNTL_DIR=GFS_ADIAB
+export LIST_FILES=" sigf03 sigf06 sigf12 sigf24 "
+#---------------------
+export_gfs
+export NDAYS=1 ; export ADIAB=.true.
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi

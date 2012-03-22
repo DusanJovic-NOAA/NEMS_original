@@ -21,6 +21,7 @@
       logical reduced_grid, semi_implicit_temp_profile
       logical mass_dp, process_split
       logical ndslfv
+
       character*20 ens_nam
 !
       end module namelist_dynamics_def

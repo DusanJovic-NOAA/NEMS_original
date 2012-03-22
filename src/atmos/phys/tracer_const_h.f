@@ -9,7 +9,7 @@
 
 !     real(kind=kind_phys) ri(0:20),cpi(0:20)
       real(kind=kind_phys), allocatable ::  ri(:),cpi(:)
-      integer, parameter :: num_tracer=3
+!hmhj integer, parameter :: num_tracer=3
 
       contains
 ! -------------------------------------------------------------------   
@@ -21,21 +21,30 @@
       namelist /tracer_constant/ ri,cpi
 
 !
-      if( ntrac.ne.num_tracer ) then
+!hmhj
+      if( ntrac.eq.0 ) then
         if( me.eq.0 ) then
-          write(0,*) ' Error ; inconsistent number of tracer '
-          write(0,*) ' ntrac=',ntrac,' num_tracer=',num_tracer
+          write(0,*) ' Error : number of tracer is zero '
         endif
         call abort
       endif
+!hmhj if( ntrac.ne.num_tracer ) then
+!hmhj   if( me.eq.0 ) then
+!hmhj     write(0,*) ' Error ; inconsistent number of tracer '
+!hmhj     write(0,*) ' ntrac=',ntrac,' num_tracer=',num_tracer
+!hmhj   endif
+!hmhj   call abort
+!hmhj endif
 
 !
 !! This routine is now called by NMMB only                   (Sarah Lu)
 !! For GFS core, CPI/RI is passed in from DYN export state
 !! The allocation below is to support NMMB+GFS_physics package
       if (.not. allocated(ri)) then
-        allocate( ri(0:num_tracer))
-        allocate(cpi(0:num_tracer))
+        allocate( ri(0:ntrac))
+        allocate(cpi(0:ntrac))
+!hmhj   allocate( ri(0:num_tracer))
+!hmhj   allocate(cpi(0:num_tracer))
       endif
 !
       ri=0.0

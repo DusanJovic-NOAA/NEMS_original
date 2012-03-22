@@ -29,6 +29,7 @@ cc
 !hmhj ndslfv
       integer   lonfull,lonhalf,lonpart,lonlenmax,mylonlen
       integer   latfull,lathalf,latpart,latlenmax,mylatlen
+      integer   ndslhvar,ndslvvar
 
       integer, allocatable :: lonstr(:),lonlen(:)
       integer, allocatable :: latstr(:),latlen(:)

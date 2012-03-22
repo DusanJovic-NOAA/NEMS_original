@@ -268,7 +268,7 @@
 ! check whether wind speed is out of bound.
 !
         do k=1,levs
-          if(spdmax(k).gt.0. .and. spdmax(k).lt.1000.) then
+          if(spdmax(k).ge.0. .and. spdmax(k).lt.2000.) then   
             continue
           else
             print *,'unphysical maximum speed',spdmax(k),' me=',me

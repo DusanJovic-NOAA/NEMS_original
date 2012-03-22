@@ -23,22 +23,20 @@
       integer,intent(in):: lonsperlat(latg)
       real,   intent(in):: deltim
    
-      integer, parameter :: nvars=8
-
       real (kind=kind_grid), parameter :: rkappa=1.0/kappa
 
       real	uulon(lonfull,levs,latpart)
       real	vvlon(lonfull,levs,latpart)
-      real	qqlon(lonfull,levs*nvars,latpart)
-      real	rrlon(lonfull,levs*nvars,latpart)
+      real	qqlon(lonfull,levs*ndslhvar,latpart)
+      real	rrlon(lonfull,levs*ndslhvar,latpart)
 
       real	vvlat(latfull,levs,lonpart)
-      real	qqlat(latfull,levs*nvars,lonpart)
-      real	rrlat(latfull,levs*nvars,lonpart)
+      real	qqlat(latfull,levs*ndslhvar,lonpart)
+      real	rrlat(latfull,levs*ndslhvar,lonpart)
 
       logical 	lprint
 
-      integer nlevs
+      integer nvars,nlevs
       integer ilan,i,n,k,kk,lon,lan,lat,lons_lat,lon_dim,jlonf,irc
       integer k00, kdp, kqq, ktt, kuu, kvv
       integer k0 , kp , kq , kt , ku , kv
@@ -50,6 +48,7 @@
         print *,' enter ndslfv_advect  with mass conservation '
       endif
 !
+      nvars = ndslhvar
       nlevs = levs*nvars
       k00 = 1
       kdp = k00 + levs

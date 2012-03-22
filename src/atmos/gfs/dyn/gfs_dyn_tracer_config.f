@@ -16,6 +16,7 @@
 !   Aug 30 2010   Sarah Lu, set glbsum default as F
 !   Aug 08 2011   Jun Wang, compile gocart only when running GOCART
 !   Sep 16 2011   Sarah Lu, revise chem tracer initialization 
+!   Jan 06 2012   Henry Juang, revise meteorological tracers
 ! -------------------------------------------------------------------------
 !
       module gfs_dyn_tracer_config
@@ -81,16 +82,18 @@ c
       call dyn_gocart_tracer_config(gfs_dyn_tracer,me)
 
 ! ntrac_met = number of met tracers
-      if ( ntoz < ntcw ) then                       
-        gfs_dyn_tracer%ntrac_met = ntcw + ncld - 1   
-      else                                                           
-        gfs_dyn_tracer%ntrac_met = ntoz                              
-      endif                                          
-      if ( gfs_dyn_tracer%ntrac_met /= ntrac ) then
-        print *,'LU_TRC: ERROR ! inconsistency in ntrac:',
-     &           ntrac, gfs_dyn_tracer%ntrac_met
-        stop  222
-      endif
+!hmhj if ( ntoz < ntcw ) then                       
+!hmhj   gfs_dyn_tracer%ntrac_met = ntcw + ncld - 1   
+!hmhj else                                                           
+!hmhj   gfs_dyn_tracer%ntrac_met = ntoz                              
+!hmhj endif                                          
+!hmhj if ( gfs_dyn_tracer%ntrac_met /= ntrac ) then
+!hmhj   print *,'LU_TRC: ERROR ! inconsistency in ntrac:',
+!hmhj&           ntrac, gfs_dyn_tracer%ntrac_met
+!hmhj   stop  222
+!hmhj endif
+! input ntrac is meteorological tracers
+      gfs_dyn_tracer%ntrac_met = ntrac
 
 ! update ntrac = total number of tracers
       gfs_dyn_tracer%ntrac = gfs_dyn_tracer%ntrac_met +     
@@ -131,6 +134,18 @@ c
         gfs_dyn_tracer%vname(ntcw, 3) = 'clwmr_m' 
         gfs_dyn_tracer%vname(ntcw, 4) = 'clwmr_q6' 
         gfs_dyn_tracer%vname(ntcw, 5) = 'clwmr_m6' 
+      endif
+      if(gfs_dyn_tracer%ntrac_met .eq. 5) then
+        gfs_dyn_tracer%vname(4, 1) = 'o' 
+        gfs_dyn_tracer%vname(4, 2) = 'o_q' 
+        gfs_dyn_tracer%vname(4, 3) = 'o_m' 
+        gfs_dyn_tracer%vname(4, 4) = 'o_q6' 
+        gfs_dyn_tracer%vname(4, 5) = 'o_m6' 
+        gfs_dyn_tracer%vname(5, 1) = 'o2' 
+        gfs_dyn_tracer%vname(5, 2) = 'o2_q' 
+        gfs_dyn_tracer%vname(5, 3) = 'o2_m' 
+        gfs_dyn_tracer%vname(5, 4) = 'o2_q6' 
+        gfs_dyn_tracer%vname(5, 5) = 'o2_m6' 
       endif
 
       gfs_dyn_tracer%cpi(0:gfs_dyn_tracer%ntrac_met) =

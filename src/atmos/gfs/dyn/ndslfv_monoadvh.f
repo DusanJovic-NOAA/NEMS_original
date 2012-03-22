@@ -22,17 +22,14 @@
       integer,intent(in):: lonsperlat(latg)
       real,   intent(in):: deltim
    
-      integer, parameter :: nvars=8	! u v t dp p2 tracers
-!     integer, parameter :: nvars=5	! u v t dp p2 tracers
-
       real	uulon(lonfull,levs,latpart)
       real	vvlon(lonfull,levs,latpart)
-      real	qqlon(lonfull,levs*nvars,latpart)
-      real	rrlon(lonfull,levs*nvars,latpart)
+      real	qqlon(lonfull,levs*ndslhvar,latpart)
+      real	rrlon(lonfull,levs*ndslhvar,latpart)
 
       real	vvlat(latfull,levs,lonpart)
-      real	qqlat(latfull,levs*nvars,lonpart)
-      real	rrlat(latfull,levs*nvars,lonpart)
+      real	qqlat(latfull,levs*ndslhvar,lonpart)
+      real	rrlat(latfull,levs*ndslhvar,lonpart)
       real      rma, rm2a, rdt2, rkt, kappa, pi
 
       logical 	lprint
@@ -58,6 +55,7 @@
       kp2 = kdp + levs
       kqq = kp2 + levs
 
+      nvars = ndslhvar
       nlevs = nvars * levs
 !
       rdt2 = 0.5 / deltim      

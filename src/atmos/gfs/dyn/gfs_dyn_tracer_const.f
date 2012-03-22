@@ -6,13 +6,14 @@
 !
 !  09Feb2010   Sarah Lu, ri/cpi dimension increased
 !  17Aug2010   Sarah Lu, print tracer_const only for master PE
+!  04Jan2012   Henry Juang, remove num_tracer
 
       integer, parameter :: max_num_tracer=50
 !jw      real(kind=kind_grid) ri(0:20),cpi(0:20)
 !     real(kind=kind_grid),target :: ri(0:20),cpi(0:20)
       real(kind=kind_grid),target ::  ri(0:max_num_tracer)
       real(kind=kind_grid),target :: cpi(0:max_num_tracer)
-      integer, parameter :: num_tracer=3
+!hmhj integer, parameter :: num_tracer=3
 
       contains
 ! -------------------------------------------------------------------   
@@ -29,13 +30,13 @@ c
 ! This routine reads ri/cpi for meteorological tracers;
 ! Number of met tracers (num_tracer) is hardwired to 3 
 
-      if( ntrac.ne.num_tracer ) then
-        if( me.eq.0 ) then
-          write(0,*) ' Error ; inconsistent number of tracer '
-          write(0,*) ' ntrac=',ntrac,' num_tracer=',num_tracer
-        endif
-        call abort
-      endif
+!hmhj if( ntrac.ne.num_tracer ) then
+!hmhj   if( me.eq.0 ) then
+!hmhj     write(0,*) ' Error ; inconsistent number of tracer '
+!hmhj     write(0,*) ' ntrac=',ntrac,' num_tracer=',num_tracer
+!hmhj   endif
+!hmhj   call abort
+!hmhj endif
 
       ri=0.0
       cpi=0.0

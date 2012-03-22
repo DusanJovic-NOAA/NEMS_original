@@ -24,22 +24,19 @@
       integer,intent(in):: lonsperlat(latg)
       real,   intent(in):: deltim
    
-      integer, parameter :: nvars=6	! u, v, t, tracers
-!     integer, parameter :: nvars=3	! u, v, t, tracers
-
       real	uulon(lonfull,levs,latpart)
       real	vvlon(lonfull,levs,latpart)
-      real	qqlon(lonfull,levs*nvars,latpart)
+      real	qqlon(lonfull,levs*ndslvvar,latpart)
       real	rrlon(lonfull,levs      ,latpart)
 
       real	vvlat(latfull,levs,lonpart)
-      real	qqlat(latfull,levs*nvars,lonpart)
-      real	rrlat(latfull,levs*nvars,lonpart)
+      real	qqlat(latfull,levs*ndslvvar,lonpart)
+      real	rrlat(latfull,levs*ndslvvar,lonpart)
       real      kappa, pi
 
       logical 	lprint
 
-      integer mono,mass
+      integer mono,mass,nvars
       integer ilan,i,n,k,kk,lon,lan,lat,lons_lat,lon_dim,jlonf,irc
       integer kdp, kqq, ktt, kuu, kvv
       integer kp , kq , kt , ku , kv
@@ -59,6 +56,7 @@
       ktt = kvv + levs
       kqq = ktt + levs
       
+      nvars = ndslvvar
 !
 !$omp parallel do schedule(dynamic,1) private(lan)
 !$omp+private(lat,lons_lat,jlonf,i,k,plev,ilan,mass)

@@ -1,6 +1,7 @@
 !----------------------------------------------------------------------------
  
-      subroutine ndslfv_init(lonf,latg,coslat,colrad,wgt,lats_nodes_a)
+      subroutine ndslfv_init(lonf,latg,ntrac,
+     &                       coslat,colrad,wgt,lats_nodes_a)
 !
 ! initialize some constant variable/arrays for ndsl advection -hmhj
 !
@@ -15,7 +16,7 @@
       real   ,intent(in):: coslat(latg)
       real   ,intent(in):: colrad(latg/2)
       real   ,intent(in):: wgt   (latg/2)
-      integer,intent(in):: lats_nodes_a(nodes), lonf, latg
+      integer,intent(in):: lats_nodes_a(nodes), lonf, latg, ntrac
 !
       integer	jm2,jm,jmh,i,j
       real 	pi,hfpi,twopi,dlat,dlon
@@ -210,6 +211,10 @@
       mylonlen = lonlen(me+1)
       mylatlen = latlen(me+1)
 !
+      ndslhvar = 5 + ntrac 	! u,v,t,p,dp,tracers
+      ndslvvar = 3 + ntrac	! u,v,t,tracers
+      print *,' ndslfv_init: total variables for ndsl hadv =',ndslhvar
+      print *,' ndslfv_init: total variables for ndsl vadv =',ndslvvar
 !!
       return
       end subroutine ndslfv_init

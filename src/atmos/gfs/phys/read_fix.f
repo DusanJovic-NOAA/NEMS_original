@@ -923,96 +923,96 @@ c*************************************************************************
 c
 c***********************************************************************
 c
-      SUBROUTINE EXCHA(lats_nodes_r,global_lats_r,X1,X2,Y1,Y2)
+c     SUBROUTINE EXCHA(lats_nodes_r,global_lats_r,X1,X2,Y1,Y2)
 c
 c***********************************************************************
 c
-      use resol_def,  ONLY: latr
-      use layout1,    ONLY: nodes, lats_node_r_max, lats_node_r,
-     &                      ipt_lats_node_r
-      use mpi_def,    ONLY: mc_comp, mpi_r_def
-      USE machine,    ONLY: kind_io8
-      implicit none
- 
-      integer n,i,j,ierr,ilat,lat,node,nsend
-      integer              global_lats_r(latr)
-      integer              lats_nodes_r(nodes)
-      real(kind=kind_io8) X1(lats_node_r),X2(lats_node_r)
-      real(kind=kind_io8) Y1(latr),Y2(latr)
+c     use resol_def,  ONLY: latr
+c     use layout1,    ONLY: nodes, lats_node_r_max, lats_node_r,
+c    &                      ipt_lats_node_r
+c     use mpi_def,    ONLY: mc_comp, mpi_r_def
+c     USE machine,    ONLY: kind_io8
+c     implicit none
+c
+c     integer n,i,j,ierr,ilat,lat,node,nsend
+c     integer              global_lats_r(latr)
+c     integer              lats_nodes_r(nodes)
+c     real(kind=kind_io8) X1(lats_node_r),X2(lats_node_r)
+c     real(kind=kind_io8) Y1(latr),Y2(latr)
 cjfe  real(kind=kind_mpi) tmps(2,lats_node_r_max,nodes)
 cjfe  real(kind=kind_mpi) tmpr(2,lats_node_r_max,nodes)
-      real(kind=kind_io8) tmps(2,lats_node_r_max,nodes)
-      real(kind=kind_io8) tmpr(2,lats_node_r_max,nodes)
+c     real(kind=kind_io8) tmps(2,lats_node_r_max,nodes)
+c     real(kind=kind_io8) tmpr(2,lats_node_r_max,nodes)
 c
 c@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 c
-      if (nodes.ne.1) then
-        do node=1,nodes
-          do i=1,lats_node_r
-           lat=global_lats_r(ipt_lats_node_r-1+i)
-           tmps(1,i,node)=X1(I)
-           tmps(2,i,node)=X2(I)
-          enddo
-        enddo
-!!
-        nsend=2*lats_node_r_max
+c     if (nodes.ne.1) then
+c       do node=1,nodes
+c         do i=1,lats_node_r
+c          lat=global_lats_r(ipt_lats_node_r-1+i)
+c          tmps(1,i,node)=X1(I)
+c          tmps(2,i,node)=X2(I)
+c         enddo
+c       enddo
+c!
+c       nsend=2*lats_node_r_max
 cjfe    call mpi_alltoall(tmps,nsend,MPI_R_MPI,
 cjfe x                     tmpr,nsend,MPI_R_MPI,
 cjfe x                     MC_COMP,ierr)
-        call mpi_alltoall(tmps,nsend,MPI_R_DEF,
-     x                     tmpr,nsend,MPI_R_DEF,
-     x                     MC_COMP,ierr)
-!!
-        ilat=1
-        do node=1,nodes
-          do i=1,lats_nodes_r(node)
-             lat=global_lats_r(ilat)
-             Y1(lat)=tmpr(1,i,node)
-             Y2(lat)=tmpr(2,i,node)
-             ilat=ilat+1
-          enddo
-        enddo
-!!
-      ELSE
-        Y1=X1
-        Y2=X2
-      ENDIF
-!!
-      RETURN
-      END
+c       call mpi_alltoall(tmps,nsend,MPI_R_DEF,
+c    x                     tmpr,nsend,MPI_R_DEF,
+c    x                     MC_COMP,ierr)
+c!
+c       ilat=1
+c       do node=1,nodes
+c         do i=1,lats_nodes_r(node)
+c            lat=global_lats_r(ilat)
+c            Y1(lat)=tmpr(1,i,node)
+c            Y2(lat)=tmpr(2,i,node)
+c            ilat=ilat+1
+c         enddo
+c       enddo
+c!
+c     ELSE
+c       Y1=X1
+c       Y2=X2
+c     ENDIF
+c!
+c     RETURN
+c     END
 c
 c***********************************************************************
 c
-      SUBROUTINE SUMLAT(n,X,nodes)
+c     SUBROUTINE SUMLAT(n,X,nodes)
 c
 c***********************************************************************
 c
-      use mpi_def,   ONLY: MC_COMP, MPI_R_DEF, info, mpi_sum
-      USE machine,   ONLY: kind_io8, kind_io4
-      implicit none
- 
-      integer n,i,j,np,mr,nodes
-      real(kind=kind_io8) X(n),Y(N)
-      real(kind=kind_io4) Z(n)
+c     use mpi_def,   ONLY: MC_COMP, MPI_R_DEF, info, mpi_sum
+c     USE machine,   ONLY: kind_io8, kind_io4
+c     implicit none
+c
+c     integer n,i,j,np,mr,nodes
+c     real(kind=kind_io8) X(n),Y(N)
+c     real(kind=kind_io4) Z(n)
 c
 c@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 c
-      if (nodes.ne.1) then
-        DO i=1,n
-          Y(i)=X(i)
-        ENDDO
-        CALL mpi_allreduce(Y,X,n,MPI_R_DEF,MPI_SUM,
-     &                    MC_COMP   ,info)
-      endif
-        DO i=1,n
-          Z(i)=X(i)
-        ENDDO
-        DO i=1,n
-          X(i)=Z(i)
-        ENDDO
-!!
-      RETURN
-      END
+c     if (nodes.ne.1) then
+c       DO i=1,n
+c         Y(i)=X(i)
+c       ENDDO
+c       CALL mpi_allreduce(Y,X,n,MPI_R_DEF,MPI_SUM,
+c    &                    MC_COMP   ,info)
+c     endif
+c       DO i=1,n
+c         Z(i)=X(i)
+c       ENDDO
+c       DO i=1,n
+c         X(i)=Z(i)
+c       ENDDO
+c!
+c     RETURN
+c     END
 c
 c***********************************************************************
 c

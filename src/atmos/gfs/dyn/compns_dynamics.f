@@ -145,7 +145,7 @@ c$$$      read(5,nam_dyn)
       open(unit=nlunit,file=gfs_dyn_namelist)
       rewind (nlunit)
       read(nlunit,nam_dyn)
-c
+
       if (me.eq.0) write(6,nam_dyn)
       filta = tfiltc
 !

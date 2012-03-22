@@ -500,7 +500,8 @@ cc
 !     enddo
 !
       if( ndslfv ) then
-        call ndslfv_init(lonf,latg,coslat_a,colrad_a,wgt_a,lats_nodes_a)
+        call ndslfv_init(lonf,latg,ntrac,
+     &                   coslat_a,colrad_a,wgt_a,lats_nodes_a)
       endif
 
 !     print *,' end of getcon_dynamics '
