@@ -1,12 +1,5 @@
 #include "../../../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#define ESMF_LogFoundError ESMF_LogMsgFoundError
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 !
       MODULE gfs_physics_output
@@ -46,11 +39,7 @@
 !***
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
       USE module_gfs_machine
       USE gfs_physics_internal_state_mod,ONLY: gfs_physics_internal_state 
       use gfs_physics_err_msg_mod,       ONLY: gfs_physics_err_msg
@@ -629,11 +618,7 @@
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create DISGRID for write Bundle"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       DistGrid = ESMF_DistGridCreate(minidx, maxidx, rc=rc)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -642,22 +627,14 @@
 !jw double check the grid index with buff_mult_pieceg
       allocate(i2(2,int_state%nodes))
       i2=0
-#ifdef ESMF_520r
-      CALL ESMF_DistGridGet(DistGrid, indexCountPDe=i2, rc=rc)
-#else
       CALL ESMF_DistGridGet(DistGrid, indexCountPDimPDe=i2, rc=rc)
-#endif
 !
 !-----------------------------------------------------------------------
 !*** create grid
 !-----------------------------------------------------------------------
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create GRID from DistGrid for write Bundle"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       grid = ESMF_GridCreate(name="gridwrt", distgrid=DistGrid, rc=rc)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -773,11 +750,7 @@
 !! for sfc file
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract History Data Bundle from the Write Import State"
-!#ifdef ESMF_520r
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!#else
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       GFS_BUNDLE_LIST(1) = ESMF_FieldBundleCreate(name=int_state%filename_base(2) &  !<-- The Bundle's name
@@ -820,11 +793,7 @@
 !! for flx file
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract History Data Bundle from the Write Import State"
-!#ifdef ESMF_520r
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!#else
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       GFS_BUNDLE_LIST(2) = ESMF_FieldBundleCreate(name=int_state%filename_base(3) &  !<-- The Bundle's name
@@ -970,11 +939,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract History Data Bundle from the Write Import State"
-!#ifdef ESMF_520r
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!#else
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       GFS_BUNDLE_LIST(GFS_BUNDLE_LIST_nst) = ESMF_FieldBundleCreate(         &
@@ -999,23 +964,15 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Phsyics: Insert History Bundle into the Write Import State"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
       CALL ESMF_StateAdd(state           = IMP_WRITE_STATE              & 
                         ,fieldbundleList = GFS_BUNDLE_LIST              &
-                        ,rc              = RC)
-#else
-      CALL ESMF_StateAdd(state           = IMP_WRITE_STATE              & 
-                        ,fieldbundleList = GFS_BUNDLE_LIST              &
+#ifdef ESMF_3
                         ,count           = GFS_BUNDLE_LIST_size         &
-                        ,rc              = RC)
 #endif
+                        ,rc              = RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1067,11 +1024,7 @@
       CHARACTER(ESMF_MAXSTR) :: VBL_NAME,VBL_NAME_X
 !
       TYPE(ESMF_Field)       :: FIELD
-#ifdef ESMF_520r
       TYPE(ESMF_DataCopy_Flag) :: COPYFLAG=ESMF_DATACOPY_REFERENCE
-#else
-      TYPE(ESMF_CopyFlag)    :: COPYFLAG=ESMF_DATA_REF
-#endif
 !
 !-----------------------------------------------------------------------
 !***  THE MICROPHYSICS SCHEME SPECIFICATION IS NEEDED IN THE OUTPUT
@@ -1092,11 +1045,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert integer scalars into file bundle"
-!#ifdef ESMF_520r
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!#else
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO NFIND=1,MAX_KOUNT
@@ -1106,17 +1055,10 @@
 
           VBL_NAME=TRIM(PHY_INT_STATE_ISCALAR(1,NFIND))
 
-#ifdef ESMF_3
-          CALL ESMF_AttributeSet(bundle     =FILE_BUNDLE                &  !<-- The write component's output data Bundle
+          CALL ESMF_AttributeSet(FIELDBUNDLE=FILE_BUNDLE                &  !<-- The write component's output data Bundle
                                 ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
                                 ,value      =I_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the output data Bundle
                                 ,rc         =RC)
-#else
-          CALL ESMF_AttributeSet(fieldbundle=FILE_BUNDLE                &  !<-- The write component's output data Bundle
-                                ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
-                                ,value      =I_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the output data Bundle
-                                ,rc         =RC)
-#endif
         ENDIF
 !
         IF(PHY_INT_STATE_ISCALAR(file_index,NFIND)=='**********' ) THEN           !<-- End of the integer scalar list
@@ -1135,11 +1077,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Physics Real Scalars into History Bundle"
-!#ifdef ESMF_520r
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!#else
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO NFIND=1,MAX_KOUNT
@@ -1147,17 +1085,10 @@
            trim(PHY_INT_STATE_RSCALAR(file_index,NFIND))==trim(file_gen) )THEN     !<-- Take real scalar data specified for history output
           VBL_NAME=TRIM(PHY_INT_STATE_RSCALAR(1,NFIND))
 
-#ifdef ESMF_3
-          CALL ESMF_AttributeSet(bundle     =FILE_BUNDLE                &  !<-- The write component's output data Bundle
+          CALL ESMF_AttributeSet(FIELDBUNDLE=FILE_BUNDLE                &  !<-- The write component's output data Bundle
                                 ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
                                 ,value      =R_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the output data Bundle
                                 ,rc         =RC)
-#else
-          CALL ESMF_AttributeSet(fieldbundle=FILE_BUNDLE                &  !<-- The write component's output data Bundle
-                                ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
-                                ,value      =R_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the output data Bundle
-                                ,rc         =RC)
-#endif
 
         ENDIF
 !
@@ -1177,11 +1108,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Physics 1-D Integer Arrays into History Bundle"
-!#ifdef ESMF_520r
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!#else
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO NFIND=1,MAX_KOUNT
@@ -1194,19 +1121,11 @@
           write(0,*)'phy_out,I1D NFIND=',NFIND,'VBL_NAME=',trim(VBL_NAME),  &
              'length=',length,'value=',I_1D(NFIND)%NAME
 
-#ifdef ESMF_3
-          CALL ESMF_AttributeSet(bundle     =FILE_BUNDLE             &  !<-- The write component's output data Bundle
-                                ,name       =VBL_NAME                &  !<-- Name of the integer scalar
-                                ,count      =LENGTH                  &  !<-- # of elements in this attribute
-                                ,valueList  =I_1D(NFIND)%NAME        &  !<-- The 1D integer being inserted into the output data Bundle
-                                ,rc         =RC)
-#else
-          CALL ESMF_AttributeSet(fieldbundle=FILE_BUNDLE             &  !<-- The write component's output data Bundle
+          CALL ESMF_AttributeSet(FIELDBUNDLE=FILE_BUNDLE             &  !<-- The write component's output data Bundle
                                 ,name       =VBL_NAME                &  !<-- Name of the integer scalar
                                 ,itemCount  =LENGTH                  &  !<-- # of elements in this attribute
                                 ,valueList  =I_1D(NFIND)%NAME        &  !<-- The 1D integer being inserted into the output data Bundle
                                 ,rc         =RC)
-#endif
 
         ENDIF
 !
@@ -1227,11 +1146,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Physics 1-D Real Arrays into History Bundle"
-!#ifdef ESMF_520r
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!#else
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO NFIND=1,MAX_KOUNT
@@ -1243,19 +1158,11 @@
 !          write(0,*)'phy_out,R1D NFIND=',NFIND,'VBL_NAME=',trim(VBL_NAME),  &
 !             'length=',length,'value=',R_1D(NFIND)%NAME
 
-#ifdef ESMF_3
-          CALL ESMF_AttributeSet(bundle     =FILE_BUNDLE             &  !<-- The write component's output data Bundle
+          CALL ESMF_AttributeSet(FIELDBUNDLE=FILE_BUNDLE             &  !<-- The write component's output data Bundle
                                 ,name       =VBL_NAME                &  !<-- Name of the integer scalar
-                                ,count      =LENGTH                  &  !<-- # of elements in this attribute
+                                ,ITEMCOUNT  =LENGTH                  &  !<-- # of elements in this attribute
                                 ,valueList  =R_1D(NFIND)%NAME        &  !<-- The 1D real being inserted into the output data Bundle
                                 ,rc         =RC)
-#else
-          CALL ESMF_AttributeSet(fieldbundle=FILE_BUNDLE             &  !<-- The write component's output data Bundle
-                                ,name       =VBL_NAME                &  !<-- Name of the integer scalar
-                                ,itemCount  =LENGTH                  &  !<-- # of elements in this attribute
-                                ,valueList  =R_1D(NFIND)%NAME        &  !<-- The 1D real being inserted into the output data Bundle
-                                ,rc         =RC)
-#endif
 
         ENDIF
 !
@@ -1293,28 +1200,15 @@
 !              minval(I_2D(NFIND)%NAME(LDIM1:UDIM1,LDIM2:UDIM2))
 !
           MESSAGE_CHECK="Insert Physics 2-D Integer Data into Field"
-!#ifdef ESMF_520r
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#else
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-          FIELD=ESMF_FieldCreate(              GRID                     &  !<-- The ESMF grid
-                                ,              TEMP_I2D                 &  !<-- The 2D integer array being inserted into output data Bundle
+          FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
+                                ,farray       =TEMP_I2D                 &  !<-- The 2D integer array being inserted into output data Bundle
                                 ,datacopyflag =COPYFLAG                 &
                                 ,name         =VBL_NAME                 &  !<-- Name of the 2D integer array
                                 ,indexFlag=ESMF_INDEX_DELOCAL           &
                                 ,rc           =RC)
-#else
-          FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
-                                ,farray       =TEMP_I2D                 &  !<-- The 2D integer array being inserted into output data Bundle
-                                ,copyflag     =COPYFLAG                 &
-                                ,name         =VBL_NAME                 &  !<-- Name of the 2D integer array
-                                ,indexFlag=ESMF_INDEX_DELOCAL           &
-                                ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
@@ -1322,22 +1216,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert Physics 2-D Integer Field into History Bundle"
-!#ifdef ESMF_520r
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!#else
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
           CALL ESMF_FieldBundleAdd(FILE_BUNDLE                &  !<-- The write component's output data Bundle
-                                  ,(/FIELD/)                  &  !<-- ESMF Field holding the 2D integer array
+                                  ,LISTWRAPPER(FIELD)         &  !<-- ESMF Field holding the 2D integer array
                                   ,rc    =RC)
-#else
-          CALL ESMF_FieldBundleAdd(FILE_BUNDLE                &  !<-- The write component's output data Bundle
-                                  ,FIELD                      &  !<-- ESMF Field holding the 2D integer array
-                                  ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
@@ -1393,28 +1277,15 @@
 !              minval(R_3D(1)%NAME(LDIM1:UDIM1,LDIM2:UDIM2,NUM_2D_FIELDS_R+1))
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert Physics 2-D Real Data into Field"
-!#ifdef ESMF_520r
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!#else
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-          FIELD=ESMF_FieldCreate(              GRID                     &  !<-- The ESMF grid
-                                ,              TEMP_R2D                 &  !<-- The 2D real array being inserted into the output data Bundle
+          FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
+                                ,farray       =TEMP_R2D                 &  !<-- The 2D real array being inserted into the output data Bundle
                                 ,datacopyflag =COPYFLAG                 &
                                 ,name         =VBL_NAME                 &  !<-- Name of the 2D real array
                                 ,indexFlag=ESMF_INDEX_DELOCAL           &
                                 ,rc           =RC)
-#else
-          FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
-                                ,farray       =TEMP_R2D                 &  !<-- The 2D real array being inserted into the output data Bundle
-                                ,copyflag     =COPYFLAG                 &
-                                ,name         =VBL_NAME                 &  !<-- Name of the 2D real array
-                                ,indexFlag=ESMF_INDEX_DELOCAL           &
-                                ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
@@ -1422,22 +1293,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert Physics 2-D Real Field into History Bundle"
-!#ifdef ESMF_520r
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!#else
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
           CALL ESMF_FieldBundleAdd(FILE_BUNDLE                &  !<-- The write component's output data Bundle
-                                  ,(/FIELD/)                  &  !<-- ESMF Field holding the 2D real array
+                                  ,LISTWRAPPER(FIELD)         &  !<-- ESMF Field holding the 2D real array
                                   ,rc    =RC)
-#else
-          CALL ESMF_FieldBundleAdd(FILE_BUNDLE                &  !<-- The write component's output data Bundle
-                                  ,FIELD                      &  !<-- ESMF Field holding the 2D real array
-                                  ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
@@ -1494,28 +1355,15 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of Physics 3-D Data"
-!#ifdef ESMF_520r
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!#else
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-            FIELD=ESMF_FieldCreate(              GRID                   &  !<-- The ESMF grid
-                                  ,              TEMP_R2D               &  !<-- Level K of 3D real array being inserted into the data Bundle
+            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
+                                  ,farray       =TEMP_R2D               &  !<-- Level K of 3D real array being inserted into the data Bundle
                                   ,datacopyflag =COPYFLAG               &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
                                   ,indexFlag=ESMF_INDEX_DELOCAL           &
                                   ,rc           =RC)
-#else
-            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =TEMP_R2D               &  !<-- Level K of 3D real array being inserted into the data Bundle
-                                  ,copyflag     =COPYFLAG               &
-                                  ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
-                                  ,indexFlag=ESMF_INDEX_DELOCAL           &
-                                  ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
@@ -1526,15 +1374,9 @@
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
              CALL ESMF_FieldBundleAdd(FILE_BUNDLE                &  !<-- The write component's output data Bundle
-                                    ,(/FIELD/)                   &  !<-- ESMF Field holding the 1D real array
+                                    ,LISTWRAPPER(FIELD)          &  !<-- ESMF Field holding the 1D real array
                                     ,rc    =RC)
-#else
-             CALL ESMF_FieldBundleAdd(FILE_BUNDLE                &  !<-- The write component's output data Bundle
-                                    ,FIELD                       &  !<-- ESMF Field holding the 1D real array
-                                    ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
@@ -1593,28 +1435,15 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of Physics 4-D Data"
-!#ifdef ESMF_520r
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!#else
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-            FIELD=ESMF_FieldCreate(              GRID                   &  !<-- The ESMF grid
-                                  ,              TEMP_R2D               &  !<-- Level K of 4D real array being inserted into the data Bundle
+            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
+                                  ,farray       =TEMP_R2D               &  !<-- Level K of 4D real array being inserted into the data Bundle
                                   ,datacopyflag =COPYFLAG               &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 4D real array
                                   ,indexFlag=ESMF_INDEX_DELOCAL           &
                                   ,rc           =RC)
-#else
-            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =TEMP_R2D               &  !<-- Level K of 4D real array being inserted into the data Bundle
-                                  ,copyflag     =COPYFLAG               &
-                                  ,name         =VBL_NAME               &  !<-- Name of this level of the 4D real array
-                                  ,indexFlag=ESMF_INDEX_DELOCAL           &
-                                  ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL gfs_physics_err_msg(RC,MESSAGE_CHECK,RC_PHY_OUT)
@@ -1622,22 +1451,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Insert Physics 4-D Data into History Bundle"
-!#ifdef ESMF_520r
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!#else
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
             CALL ESMF_FieldBundleAdd(FILE_BUNDLE              &  !<-- The write component's output data Bundle
-                                    ,(/FIELD/)                &  !<-- ESMF Field holding the 1D real array
+                                    ,LISTWRAPPER(FIELD)       &  !<-- ESMF Field holding the 1D real array
                                     ,rc    =RC)
-#else
-            CALL ESMF_FieldBundleAdd(FILE_BUNDLE              &  !<-- The write component's output data Bundle
-                                    ,FIELD                    &  !<-- ESMF Field holding the 1D real array
-                                    ,rc    =RC)
-#endif
 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

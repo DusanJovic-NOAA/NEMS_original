@@ -21,11 +21,7 @@
 !
 !!uses:
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
       use gfs_dynamics_internal_state_mod ! the contents of the esmf internal state.
 
       implicit none
@@ -98,11 +94,7 @@
 
 ! Create the ESMF DistGrid1 using the 1-D default decomposition.
 !---------------------------------------------------------------
-#ifdef ESMF_520r
       CALL ESMF_LogWrite("Create DistGrid1", ESMF_LOGMSG_INFO, rc = rc1)
-#else
-      CALL ESMF_LogWrite("Create DistGrid1", ESMF_LOG_INFO, rc = rc1)
-#endif
 
       DistGrid1 = ESMF_DistGridCreate(arraystr, arrayend, rc = rc1)
 
@@ -118,11 +110,7 @@
 
 ! Create the ESMF grid1 based on the created ESMF DistGrid1 information.
 !-----------------------------------------------------------------------
-#ifdef ESMF_520r
       CALL ESMF_LogWrite("create gfs_dyn grid1", ESMF_LOGMSG_INFO, rc = rc1)
-#else
-      CALL ESMF_LogWrite("create gfs_dyn grid1", ESMF_LOG_INFO, rc = rc1)
-#endif
  
       grid1 = ESMF_GridCreate(name = "gfs_dyn grid1", distgrid = DistGrid1, rc = rc1)
 
@@ -151,11 +139,7 @@
 
 ! Create the ESMF DistGrid2 using the 1-D default decomposition.
 !---------------------------------------------------------------
-#ifdef ESMF_520r
       CALL ESMF_LogWrite("Create DistGrid2", ESMF_LOGMSG_INFO, rc = rc1)
-#else
-      CALL ESMF_LogWrite("Create DistGrid2", ESMF_LOG_INFO, rc = rc1)
-#endif
 
       DistGrid2 = ESMF_DistGridCreate(arraystr, arrayend, rc = rc1)
 
@@ -171,11 +155,7 @@
 
 ! Create the ESMF grid2 based on the created ESMF DistGrid2 information.
 !-----------------------------------------------------------------------
-#ifdef ESMF_520r
       CALL ESMF_LogWrite("create gfs_dyn grid2", ESMF_LOGMSG_INFO, rc = rc1)
-#else
-      CALL ESMF_LogWrite("create gfs_dyn grid2", ESMF_LOG_INFO, rc = rc1)
-#endif
 
       grid2 = ESMF_GridCreate(name = "gfs_dyn grid2", distgrid = DistGrid2, rc = rc1)
 
@@ -202,11 +182,7 @@
 
 ! Create the ESMF DistGrid0 using the 1-D default decomposition.
 !---------------------------------------------------------------
-#ifdef ESMF_520r
       CALL ESMF_LogWrite("Create DistGrid0", ESMF_LOGMSG_INFO, rc = rc1)
-#else
-      CALL ESMF_LogWrite("Create DistGrid0", ESMF_LOG_INFO, rc = rc1)
-#endif
 
       DistGrid0 = ESMF_DistGridCreate(arraystr, arrayend, rc = rc1)
 
@@ -222,11 +198,7 @@
 
 ! create the esmf grid for the date and time information.
 !--------------------------------------------------------
-#ifdef ESMF_520r
       CALL ESMF_LogWrite("create gfs_dyn grid0", ESMF_LOGMSG_INFO, rc = rc1)
-#else
-      CALL ESMF_LogWrite("create gfs_dyn grid0", ESMF_LOG_INFO, rc = rc1)
-#endif
 
       grid0 = ESMF_GridCreate(name = "gfs_dyn grid0", distgrid = DistGrid0, rc = rc1)
 
@@ -263,11 +235,7 @@
 ! this routine create Gaussian grid type for single and multiple levels
 ! grid 3 (single) and grid4(multiple)
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
       use gfs_dynamics_internal_state_mod
 
       type(esmf_vm),                     intent(inout) :: vm   
@@ -303,11 +271,7 @@
                                                                                 
 ! Create the ESMF DistGrid3 using the 1-D default decomposition.
 !---------------------------------------------------------------
-#ifdef ESMF_520r
       CALL ESMF_LogWrite("Create DistGrid3", ESMF_LOGMSG_INFO, rc = rc1)
-#else
-      CALL ESMF_LogWrite("Create DistGrid3", ESMF_LOG_INFO, rc = rc1)
-#endif
 
       DistGrid3 = ESMF_DistGridCreate(arraystr, arrayend, rc = rc1)
 
@@ -324,11 +288,7 @@
 ! Create the ESMF grid3 based on the created ESMF DistGrid3 information.
 ! Grid3 is the grid for the Gaussian grid space.
 !-----------------------------------------------------------------------
-#ifdef ESMF_520r
       CALL ESMF_LogWrite("create gfs_dyn grid3", ESMF_LOGMSG_INFO, rc = rc1)
-#else
-      CALL ESMF_LogWrite("create gfs_dyn grid3", ESMF_LOG_INFO, rc = rc1)
-#endif
 
       grid3 = ESMF_GridCreate(name = "gfs_dyn grid3", distgrid = DistGrid3, rc = rc1)
 
@@ -357,11 +317,7 @@
 
 ! Create the ESMF DistGrid4 using the 1-D default decomposition.
 !---------------------------------------------------------------
-#ifdef ESMF_520r
       CALL ESMF_LogWrite("Create DistGrid4", ESMF_LOGMSG_INFO, rc = rc1)
-#else
-      CALL ESMF_LogWrite("Create DistGrid4", ESMF_LOG_INFO, rc = rc1)
-#endif
 
       DistGrid4 = ESMF_DistGridCreate(arraystr, arrayend, rc = rc1)
 
@@ -378,11 +334,7 @@
 ! Create the ESMF grid4 based on the created ESMF DistGrid4 information.
 ! Grid4 is the grid for the multiple level Gaussian grid space.
 !-----------------------------------------------------------------------
-#ifdef ESMF_520r
       CALL ESMF_LogWrite("create gfs_dyn grid4", ESMF_LOGMSG_INFO, rc = rc1)
-#else
-      CALL ESMF_LogWrite("create gfs_dyn grid4", ESMF_LOG_INFO, rc = rc1)
-#endif
 
       grid4 = ESMF_GridCreate(name = "gfs_dyn grid4", distgrid = DistGrid4, rc = rc1)
 
@@ -409,11 +361,7 @@
 
 ! Create the ESMF DistGrid0 using the 1-D default decomposition.
 !---------------------------------------------------------------
-#ifdef ESMF_520r
       CALL ESMF_LogWrite("Create DistGrid0", ESMF_LOGMSG_INFO, rc = rc1)
-#else
-      CALL ESMF_LogWrite("Create DistGrid0", ESMF_LOG_INFO, rc = rc1)
-#endif
 
       DistGrid0 = ESMF_DistGridCreate(arraystr, arrayend, rc = rc1)
 
@@ -429,11 +377,7 @@
 
 ! create the esmf grid for the date and time information.
 !--------------------------------------------------------
-#ifdef ESMF_520r
       CALL ESMF_LogWrite("create gfs_dyn grid0", ESMF_LOGMSG_INFO, rc = rc1)
-#else
-      CALL ESMF_LogWrite("create gfs_dyn grid0", ESMF_LOG_INFO, rc = rc1)
-#endif
 
       grid0 = ESMF_GridCreate(name = "gfs_dyn grid0", distgrid = DistGrid0, rc = rc1)
 
@@ -504,29 +448,11 @@
 !---------------------------------------
       rc1     = esmf_success
 
-#ifdef ESMF_520r
       CALL ESMF_LogWrite('CreateGauss3D', ESMF_LOGMSG_INFO, rc = rc1)
-#else
-      CALL ESMF_LogWrite('CreateGauss3D', ESMF_LOG_INFO, rc = rc1)
-#endif
 
 !     Create grid with index-space information from internal state
 !     ------------------------------------------------------------
-#ifdef ESMF_520r
-      mGrid = ESMF_GridCreate(                                &
-                   countsPerDEDim1=(/iState%lonf/),           &
-                   countsPerDEDim2=iState%lats_nodes_a_fix,   &
-                   countsPerDEDim3=(/iState%levs/),           &
-                   coordDep1 = (/1,2/),                       &
-                   coordDep2 = (/1,2/),                       &
-                   coordDep3 = (/3/),                         &
-                   gridEdgeLWidth = (/0,0,0/),                &
-                   gridEdgeUWidth = (/0,0,0/),                &
-                   indexflag = ESMF_INDEX_DELOCAL,            &
-                   name = 'mGrid',                            &
-                   rc = rc1 )
-#else
-      mGrid = ESMF_GridCreateShapeTile ( name='mGrid',        &
+      mGrid = ESMF_GRIDCREATE( name='mGrid',                  &
                    countsPerDEDim1=(/iState%lonf/),           &
                    countsPerDEDim2=iState%lats_nodes_a_fix,   &
                    countsPerDEDim3=(/iState%levs/),           &
@@ -537,7 +463,6 @@
                    gridEdgeUWidth = (/0,0,0/),                &
                    indexflag = ESMF_INDEX_DELOCAL,            &
                    rc = rc1 )
-#endif
 
 !  Add coordinate information
 !  --------------------------
@@ -547,21 +472,20 @@
 !  -------------------------------------------
 #ifdef ESMF_520r
    call ESMF_GridGetCoord (mGrid, 1, localDE=0,               &
+#else
+   call ESMF_GridGetCoord (mGrid, 0, 1,                       &
+#endif
                            staggerloc=ESMF_STAGGERLOC_CENTER, &
                            FARRAYPTR=centerX, rc = rc1 )
 
+#ifdef ESMF_520r
    call ESMF_GridGetCoord (mGrid, 2, localDE=0,               &
+#else
+   call ESMF_GridGetCoord (mGrid, 0, 2,                       &
+#endif
                            staggerloc=ESMF_STAGGERLOC_CENTER, &
                            FARRAYPTR=centerY, rc = rc1 )
-#else
-   call ESMF_GridGetCoord (mGrid, 0, 1,                       &
-                           staggerloc=ESMF_STAGGERLOC_CENTER, &
-                                FPTR=centerX, rc = rc1 )
 
-   call ESMF_GridGetCoord (mGrid, 0, 2,                       &
-                           staggerloc=ESMF_STAGGERLOC_CENTER, &
-                                FPTR=centerY, rc = rc1 )
-#endif
    call GridGetInterior_ (mGrid,i1,in,j1,jn)
    print *, 'LU_DYN: mGrid, i1,in,j1,jn ', i1,in,j1,jn        !chlu_debug
 
@@ -602,11 +526,7 @@
     integer                               :: ierr, rc1
 
 
-#ifdef ESMF_520r
     CALL ESMF_LogWrite("GridGetInterior_", ESMF_LOGMSG_INFO, rc=rc1)
-#else
-    CALL ESMF_LogWrite("GridGetInterior_", ESMF_LOG_INFO, rc=rc1)
-#endif
 
     call ESMF_GridGet    (GRID, dimCount=gridRank, distGrid=distGrid, rc=rc1)
     call ESMF_DistGridGet(distGRID, delayout=layout, rc=STATUS)

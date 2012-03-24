@@ -20,11 +20,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
       USE module_DM_PARALLEL_GFS  ,only: SETUP_SERVERS_GFS
       USE module_INCLUDE
 !
@@ -114,7 +110,7 @@
 !-----------------------------------------------------------------------
 !
 !     CALL ESMF_logwrite("retrieve the config object and vm ",          &
-!                        ESMF_log_info,rc=RC)
+!                        ESMF_logmsg_info,rc=RC)
 
 !
       CALL ESMF_gridcompget(         gc_atm                             &
@@ -129,7 +125,7 @@
 !***  (referred to here as nodes.)
 !-----------------------------------------------------------------------
 !
-!     CALL ESMF_logwrite("get mype and nodes from vm",ESMF_log_info,rc=RC)
+!     CALL ESMF_logwrite("get mype and nodes from vm",ESMF_logmsg_info,rc=RC)
 !
       CALL ESMF_vmget(vm                        &  !<-- the virtual machine
                      ,localpet=mype             &  !<-- local pe rank
@@ -280,7 +276,7 @@
 !
 ! Create the ESMF DistGrid_atmos.
 !--------------------------------
-!     CALL ESMF_LogWrite("Create DistGrid_atmos", ESMF_LOG_INFO, rc = rc)
+!     CALL ESMF_LogWrite("Create DistGrid_atmos", ESMF_LOGMSG_INFO, rc = rc)
 
       DistGrid_atmos = ESMF_DistGridCreate(minIndex  = min,                 &
                                            maxIndex  = max,                 &
@@ -290,7 +286,7 @@
 
 ! Create the ESMF grid_atmos based on the created ESMF DistGrid_atmos information.
 !---------------------------------------------------------------------------------
-!     CALL ESMF_logwrite("create grid_atmos",ESMF_log_info,rc=RC)
+!     CALL ESMF_logwrite("create grid_atmos",ESMF_logmsg_info,rc=RC)
 !
       grid_atmos = ESMF_GridCreate(name     = "grid_atmos",   &
                                    distgrid = DistGrid_atmos, &
@@ -303,11 +299,7 @@
 !
       if(mype<num_pes_fcst)then
           i2 = 0
-#ifdef ESMF_520r
-          CALL ESMF_DistGridGet(DistGrid_atmos, indexCountPDe = i2, rc = rc)
-#else
           CALL ESMF_DistGridGet(DistGrid_atmos, indexCountPDimPDe = i2, rc = rc)
-#endif
       endif
 !
 !-----------------------------------------------------------------------

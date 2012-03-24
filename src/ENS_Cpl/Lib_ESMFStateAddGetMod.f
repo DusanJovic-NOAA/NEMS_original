@@ -19,20 +19,6 @@
  MODULE Lib_ESMFStateAddGetMod
 
 !USES:
-#ifdef ESMF_520r
-  USE ESMF, ONLY :                              &
-      ESMF_Grid,                                &
-      ESMF_State,                               &
-      ESMF_StateAdd,                            &
-      ESMF_StateGet,                            &
-      ESMF_SUCCESS,                             &
-      ESMF_Field,                               &
-      ESMF_FieldCreate,                         &
-      ESMF_FieldGet,                            &
-      ESMF_FieldDestroy,                        &
-      ESMF_DataCopy_Flag
-      USE esmf
-#else
   USE ESMF_Mod, ONLY :                          &
       ESMF_Grid,                                &
       ESMF_State,                               &
@@ -43,9 +29,7 @@
       ESMF_FieldCreate,                         &
       ESMF_FieldGet,                            &
       ESMF_FieldDestroy,                        &
-      ESMF_CopyFlag
-#endif
-
+      ESMF_DataCopy_Flag
 
  IMPLICIT NONE
  PRIVATE
@@ -137,11 +121,7 @@ CONTAINS
  TYPE(ESMF_Grid),       INTENT(inout) :: grid
  CHARACTER(LEN = *),    INTENT(in)    :: name
 
-#ifdef ESMF_520r
  TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
-#else
- TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
-#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -178,15 +158,9 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
-#ifdef ESMF_520r
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 0, 0/),              &
               datacopyflag = copyflag, name = name, rc = status)
-#else
-          ESMFField = ESMF_FieldCreate(grid, F90Array, &
-              gridToFieldMap=(/1, 0, 0/),              &
-              copyflag = copyflag, name = name, rc = status)
-#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 0, 0/),              &
@@ -198,11 +172,7 @@ CONTAINS
          return
       END IF
 
-#ifdef ESMF_520r
-      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
-#else
-      CALL ESMF_StateAdd(state, ESMFField, rc=status)
-#endif
+      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -242,11 +212,7 @@ CONTAINS
  TYPE(ESMF_Grid),          INTENT(inout) :: grid
  CHARACTER(LEN = *),       INTENT(in)    :: name
 
-#ifdef ESMF_520r
  TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
-#else
- TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
-#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -283,15 +249,9 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
-#ifdef ESMF_520r
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 2, 0/),              &
               datacopyflag = copyflag, name = name, rc = status)
-#else
-          ESMFField = ESMF_FieldCreate(grid, F90Array, &
-              gridToFieldMap=(/1, 2, 0/),              &
-              copyflag = copyflag, name = name, rc = status)
-#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 2, 0/),              &
@@ -303,11 +263,7 @@ CONTAINS
          return
       END IF
 
-#ifdef ESMF_520r
-      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
-#else
-      CALL ESMF_StateAdd(state, ESMFField, rc=status)
-#endif
+      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -347,11 +303,7 @@ CONTAINS
  TYPE(ESMF_Grid),       INTENT(inout) :: grid
  CHARACTER(LEN = *),    INTENT(in)    :: name
 
-#ifdef ESMF_520r
  TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
-#else
- TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
-#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -388,15 +340,9 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
-#ifdef ESMF_520r
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 0, 0/),              &
               datacopyflag = copyflag, name = name, rc = status)
-#else
-          ESMFField = ESMF_FieldCreate(grid, F90Array, &
-              gridToFieldMap=(/1, 0, 0/),              &
-              copyflag = copyflag, name = name, rc = status)
-#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 0, 0/),              &
@@ -408,11 +354,7 @@ CONTAINS
          return
       END IF
 
-#ifdef ESMF_520r
-      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
-#else
-      CALL ESMF_StateAdd(state, ESMFField, rc=status)
-#endif
+      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -452,11 +394,7 @@ CONTAINS
  TYPE(ESMF_Grid),       INTENT(inout) :: grid
  CHARACTER(LEN = *),    INTENT(in)    :: name
 
-#ifdef ESMF_520r
  TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
-#else
- TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
-#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -493,15 +431,9 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
-#ifdef ESMF_520r
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 0, 0/),              &
               datacopyflag = copyflag, name = name, rc = status)
-#else
-          ESMFField = ESMF_FieldCreate(grid, F90Array, &
-              gridToFieldMap=(/1, 0, 0/),              &
-              copyflag = copyflag, name = name, rc = status)
-#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 0, 0/),              &
@@ -513,11 +445,7 @@ CONTAINS
          return
       END IF
 
-#ifdef ESMF_520r
-      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
-#else
-      CALL ESMF_StateAdd(state, ESMFField, rc=status)
-#endif
+      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -557,11 +485,7 @@ CONTAINS
  TYPE(ESMF_Grid),          INTENT(inout) :: grid
  CHARACTER(LEN = *),       INTENT(in)    :: name
 
-#ifdef ESMF_520r
  TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
-#else
- TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
-#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -598,15 +522,9 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
-#ifdef ESMF_520r
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 2, 0/),              &
               datacopyflag = copyflag, name = name, rc = status)
-#else
-          ESMFField = ESMF_FieldCreate(grid, F90Array, &
-              gridToFieldMap=(/1, 2, 0/),              &
-              copyflag = copyflag, name = name, rc = status)
-#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 2, 0/),              &
@@ -618,11 +536,7 @@ CONTAINS
          return
       END IF
 
-#ifdef ESMF_520r
-      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
-#else
-      CALL ESMF_StateAdd(state, ESMFField, rc=status)
-#endif
+      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -662,11 +576,7 @@ CONTAINS
  TYPE(ESMF_Grid),          INTENT(inout) :: grid
  CHARACTER(LEN = *),       INTENT(in)    :: name
 
-#ifdef ESMF_520r
  TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
-#else
- TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
-#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -703,15 +613,9 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
-#ifdef ESMF_520r
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 2, 0/),              &
               datacopyflag = copyflag, name = name, rc = status)
-#else
-          ESMFField = ESMF_FieldCreate(grid, F90Array, &
-              gridToFieldMap=(/1, 2, 0/),              &
-              copyflag = copyflag, name = name, rc = status)
-#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               gridToFieldMap=(/1, 2, 0/),              &
@@ -723,11 +627,7 @@ CONTAINS
          return
       END IF
 
-#ifdef ESMF_520r
-      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
-#else
-      CALL ESMF_StateAdd(state, ESMFField, rc=status)
-#endif
+      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -767,11 +667,7 @@ CONTAINS
  TYPE(ESMF_Grid),             INTENT(inout) :: grid
  CHARACTER(LEN = *),          INTENT(in)    :: name
 
-#ifdef ESMF_520r
  TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
-#else
- TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
-#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -808,13 +704,8 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
-#ifdef ESMF_520r
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               datacopyflag = copyflag, name = name, rc = status)
-#else
-          ESMFField = ESMF_FieldCreate(grid, F90Array, &
-              copyflag = copyflag, name = name, rc = status)
-#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               name = name, rc = status)
@@ -825,11 +716,7 @@ CONTAINS
          return
       END IF
 
-#ifdef ESMF_520r
-      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
-#else
-      CALL ESMF_StateAdd(state, ESMFField, rc=status)
-#endif
+      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -869,11 +756,7 @@ CONTAINS
  TYPE(ESMF_Grid),             INTENT(inout) :: grid
  CHARACTER(LEN = *),          INTENT(in)    :: name
 
-#ifdef ESMF_520r
  TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
-#else
- TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
-#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -910,13 +793,8 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
-#ifdef ESMF_520r
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               datacopyflag = copyflag, name = name, rc = status)
-#else
-          ESMFField = ESMF_FieldCreate(grid, F90Array, &
-              copyflag = copyflag, name = name, rc = status)
-#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               name = name, rc = status)
@@ -927,11 +805,7 @@ CONTAINS
          return
       END IF
 
-#ifdef ESMF_520r
-      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
-#else
-      CALL ESMF_StateAdd(state, ESMFField, rc=status)
-#endif
+      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -971,11 +845,7 @@ CONTAINS
  TYPE(ESMF_Grid),                INTENT(inout) :: grid
  CHARACTER(LEN = *),             INTENT(in)    :: name
 
-#ifdef ESMF_520r
  TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
-#else
- TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
-#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -1012,13 +882,8 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
-#ifdef ESMF_520r
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               datacopyflag = copyflag, name = name, rc = status)
-#else
-          ESMFField = ESMF_FieldCreate(grid, F90Array, &
-              copyflag = copyflag, name = name, rc = status)
-#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               name = name, rc = status)
@@ -1029,11 +894,7 @@ CONTAINS
          return
       END IF
 
-#ifdef ESMF_520r
-      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
-#else
-      CALL ESMF_StateAdd(state, ESMFField, rc=status)
-#endif
+      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4
@@ -1073,11 +934,7 @@ CONTAINS
  TYPE(ESMF_Grid),                INTENT(inout) :: grid
  CHARACTER(LEN = *),             INTENT(in)    :: name
 
-#ifdef ESMF_520r
  TYPE(ESMF_DataCopy_Flag),   INTENT(in), OPTIONAL :: copyflag
-#else
- TYPE(ESMF_CopyFlag),   INTENT(in), OPTIONAL :: copyflag
-#endif
 
 ! INPUT/OUTPUT PARAMETERS:
 
@@ -1114,13 +971,8 @@ CONTAINS
  status = ESMF_SUCCESS
  IF(ASSOCIATED(F90Array)) THEN
       IF(PRESENT(copyflag)) THEN
-#ifdef ESMF_520r
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               datacopyflag = copyflag, name = name, rc = status)
-#else
-          ESMFField = ESMF_FieldCreate(grid, F90Array, &
-              copyflag = copyflag, name = name, rc = status)
-#endif
       ELSE
           ESMFField = ESMF_FieldCreate(grid, F90Array, &
               name = name, rc = status)
@@ -1131,11 +983,7 @@ CONTAINS
          return
       END IF
 
-#ifdef ESMF_520r
-      CALL ESMF_StateAdd(state, (/ESMFField/), rc=status)
-#else
-      CALL ESMF_StateAdd(state, ESMFField, rc=status)
-#endif
+      CALL ESMF_StateAdd(state, LISTWRAPPER(ESMFField), rc=status)
 
       IF(status /= ESMF_SUCCESS ) THEn
            IF(PRESENT(rc)) rc = 4

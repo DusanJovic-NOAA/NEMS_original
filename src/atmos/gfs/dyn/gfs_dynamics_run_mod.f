@@ -1,11 +1,5 @@
 #include "../../../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !
 ! !module: gfs_dynamics_run_mod --- run module of the grided
 !                              component of the gfs dynamics system.
@@ -35,11 +29,7 @@
 !
 !!uses:
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
       use gfs_dynamics_internal_state_mod
 
       implicit none
@@ -268,7 +258,7 @@
 ! check whether wind speed is out of bound.
 !
         do k=1,levs
-          if(spdmax(k).ge.0. .and. spdmax(k).lt.2000.) then   
+          if(spdmax(k).ge.0. .and. spdmax(k).lt.2000.) then
             continue
           else
             print *,'unphysical maximum speed',spdmax(k),' me=',me

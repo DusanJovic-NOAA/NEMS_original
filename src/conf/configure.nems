@@ -8,7 +8,7 @@ POSTMOD=${POSTDIR}/incmod/post_4
 POSTLIB=${POSTDIR}
 
 EXTLIBS   = -L/climate/save/wx20wa/gfsio/w3/sorc_opn -lw3_d -L/climate/save/wx20wa/gfsio/lib/nemsio -lnemsio $(ESMF_LIBS) -L/nwprod/lib -lbacio_4 -lsp_d -lessl_r -lmass -lmassvp6
-EXTLIBS_POST   = -L/climate/save/wx20wa/lib -lnemsio_v2 -lw3_v2.2.3_4 -lxmlparse -lg2tmpl -L${POSTLIB} -lnceppost $(ESMF_LIBS) /nco/sib/gribdev/lib/libg2_4.a -L/usrx/local/64bit/lib -ljasper -lpng -lz -L/nwprod/lib -lbacio_4 -lsigio_4 -lsfcio_4 -lsp_d -lessl_r -lmass -lmassvp6 -lcrtm_2.0.2 
+EXTLIBS_POST   = -L/climate/save/wx20wa/lib -lnemsio_v2 -lw3_v2.2.3_4 -lxmlparse -lg2tmpl -L${POSTLIB} -lnceppost $(ESMF_LIBS) /nco/sib/gribdev/lib/libg2_4.a -L/usrx/local/64bit/lib -ljasper -lpng -lz -L/nwprod/lib -lbacio_4 -lsigio_4 -lsfcio_4 -lsp_d -lessl_r -lmass -lmassvp6 -lcrtm_2.0.2
 
 NEMSIO_INC  = -I/climate/save/wx20wa/lib/incmod/nemsio_v2
 

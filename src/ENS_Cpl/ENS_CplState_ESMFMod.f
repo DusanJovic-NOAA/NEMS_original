@@ -31,11 +31,7 @@
 !
 !!USES:
 !
-#ifdef ESMF_520r
- USE esmf
-#else
  USE esmf_mod
-#endif
  USE ENS_Cpl_InternalState_ESMFMod
  USE Lib_ESMFStateAddGetMod
 
@@ -181,17 +177,14 @@
 
  DO j = 2, 5
      DO i = 1, Cpl_Int_State%ntrac
+         CALL ESMF_FieldBundleGet(Bundle,                          &
+                                  trim(Cpl_Int_State%vname(i, j)), &
 #ifdef ESMF_520r
-         CALL ESMF_FieldBundleGet(Bundle,                          &
-                                  trim(Cpl_Int_State%vname(i, j)), &
                                   field = Field,                   &
-                                  rc    = rc1)
 #else
-         CALL ESMF_FieldBundleGet(Bundle,                          &
-                                  trim(Cpl_Int_State%vname(i, j)), &
                                   Field,                           &
-                                  rc = rc1)
 #endif
+                                  rc    = rc1)
 
 #ifdef ESMF_520r
          IF(ESMF_LogFoundError(rc1, msg="Retrieve Field from Bundle in ENS Cpl.")) THEN
@@ -204,11 +197,7 @@
          END IF
 
          NULLIFY(Cpl_Int_State%work2)
-#ifdef ESMF_3
-         CALL ESMF_FieldGet(Field, FArray = Cpl_Int_State%work2, localDE = 0, rc = rc1)
-#else
-         CALL ESMF_FieldGet(Field, FArrayPtr = Cpl_Int_State%work2, localDE = 0, rc = rc1)
-#endif
+         CALL ESMF_FieldGet(Field, farrayPtr = Cpl_Int_State%work2, localDE = 0, rc = rc1)
 
 #ifdef ESMF_520r
          IF(ESMF_LogFoundError(rc1, msg="Retrieve FArray from Field in ENS Cpl.")) THEN
@@ -661,11 +650,7 @@
 
 ! Get the array sizes.
 !---------------------
-#ifdef ESMF_3
-     CALL ESMF_FieldGet(ESMFField, FArray = t_wk, localDE = 0, rc = rc1)
-#else
-     CALL ESMF_FieldGet(ESMFField, FArrayPtr = t_wk, localDE = 0, rc = rc1)
-#endif
+     CALL ESMF_FieldGet(ESMFField, farrayPtr = t_wk, localDE = 0, rc = rc1)
 
 #ifdef ESMF_520r
          IF(ESMF_LogFoundError(rc1, msg="Get t for its Size")) THEN
@@ -954,11 +939,7 @@
              rc1 = ESMF_SUCCESS
          END IF
 
-#ifdef ESMF_520r
-         CALL ESMF_FieldBundleAdd(Bundle, (/ESMFField/), rc = rc1)
-#else
-         CALL ESMF_FieldBundleAdd(Bundle, ESMFField, rc = rc1)
-#endif
+         CALL ESMF_FieldBundleAdd(Bundle, LISTWRAPPER(ESMFField), rc = rc1)
 
 #ifdef ESMF_520r
          IF(ESMF_LogFoundError(rc1, msg="Add the ESMF Field into Bundle")) THEN
@@ -985,11 +966,7 @@
              rc1 = ESMF_SUCCESS
          END IF
 
-#ifdef ESMF_520r
-         CALL ESMF_FieldBundleAdd(Bundle, (/ESMFField/), rc = rc1)
-#else
-         CALL ESMF_FieldBundleAdd(Bundle, ESMFField, rc = rc1)
-#endif
+         CALL ESMF_FieldBundleAdd(Bundle, LISTWRAPPER(ESMFField), rc = rc1)
 
 #ifdef ESMF_520r
          IF(ESMF_LogFoundError(rc1, msg="Add the ESMF Field into Bundle")) THEN
@@ -1002,11 +979,7 @@
          END IF
      END DO
 
-#ifdef ESMF_520r
-     CALL ESMF_StateAdd(expENS, (/Bundle/), rc = rc1)
-#else
-     CALL ESMF_StateAdd(expENS, Bundle, rc = rc1)
-#endif
+     CALL ESMF_StateAdd(expENS, LISTWRAPPER(Bundle), rc = rc1)
 
 #ifdef ESMF_520r
          IF(ESMF_LogFoundError(rc1, msg="ESMF State Adds the Bundle")) THEN

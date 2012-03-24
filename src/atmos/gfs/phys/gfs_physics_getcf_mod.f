@@ -1,12 +1,5 @@
 #include "../../../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#define ESMF_LogFoundError ESMF_LogMsgFoundError
-#else
-#define ESMF_520r
-#endif
-
 !
 ! !module: gfs_physics_getcf_mod --- configure data module of the 
 !                          gridded component of the gfs physics.
@@ -37,17 +30,10 @@
 ! the esmf internal state contents.
 !----------------------------------
       use gfs_physics_internal_state_mod, ONLY: gfs_physics_internal_state
-#ifdef ESMF_520r
-      USE esmf,                           ONLY: esmf_gridcomp, esmf_vm,              &
-                                                esmf_config, esmf_success,           &
-                                                esmf_gridcompget, esmf_vmgetglobal,  &
-                                                esmf_vmget, esmf_configgetattribute, &
-#else
       USE esmf_mod,                       ONLY: esmf_gridcomp, esmf_vm,              &
                                                 esmf_config, esmf_success,           &
                                                 esmf_gridcompget, esmf_vmgetglobal,  &
                                                 esmf_vmget, esmf_configgetattribute, &
-#endif
 !jw
                                                 esmf_configFindLabel,                &
                                                 esmf_vmgetcurrent

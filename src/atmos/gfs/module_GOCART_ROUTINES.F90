@@ -1,11 +1,5 @@
 #include "../../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_GOCART_ROUTINES
@@ -30,11 +24,7 @@
 !   2011-10-01  Wang/Lu - exit GOCART_INIT and GOCART_INTEGRATE for IO PE
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
 !
       USE MODULE_ERR_MSG,               ONLY: ERR_MSG,MESSAGE_CHECK
 
@@ -139,23 +129,13 @@
 !
       MESSAGE_CHECK="Create Empty Import/Export States for GFS Chemistry"
 !
-#ifdef ESMF_520r
-      IMP_GFS_CHEM =ESMF_StateCreate(     NAME="chemistry import"       &
-                                  ,statetype=ESMF_STATE_IMPORT          &
-                                  ,rc       =RC)
+      IMP_GFS_CHEM =ESMF_StateCreate(STATENAME="chemistry import"         &
+                                  ,stateintent=ESMF_STATE_IMPORT          &
+                                  ,rc         =RC)
 !
-      EXP_GFS_CHEM =ESMF_StateCreate(     NAME="chemistry export"       &
-                                  ,statetype=ESMF_STATE_EXPORT          &
-                                  ,rc       =RC)
-#else
-      IMP_GFS_CHEM =ESMF_StateCreate(STATENAME="chemistry import"       &
-                                  ,statetype=ESMF_STATE_IMPORT          &
-                                  ,rc       =RC)
-!
-      EXP_GFS_CHEM =ESMF_StateCreate(STATENAME="chemistry export"       &
-                                  ,statetype=ESMF_STATE_EXPORT          &
-                                  ,rc       =RC)
-#endif
+      EXP_GFS_CHEM =ESMF_StateCreate(STATENAME="chemistry export"         &
+                                  ,stateintent=ESMF_STATE_EXPORT          &
+                                  ,rc         =RC)
 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
 
@@ -213,13 +193,11 @@
 !
         MESSAGE_CHECK="Register the Phy2Chem Coupler's Init and Run"
 !
-#ifdef ESMF_3
         CALL ESMF_CplCompSetServices(GC_PHY2CHEM_CPL             &  !<-- The GFS Phys-to-Chem coupler component
                                   ,PHY2CHEM_SETSERVICES          &  !<-- The user's subroutine name for Register
+#ifdef ESMF_3
                                   ,RC)
 #else
-        CALL ESMF_CplCompSetServices(GC_PHY2CHEM_CPL             &  !<-- The GFS Phys-to-Chem coupler component
-                                  ,PHY2CHEM_SETSERVICES          &  !<-- The user's subroutine name for Register
                                   ,rc=RC)
 #endif
 !
@@ -243,13 +221,11 @@
 !
         MESSAGE_CHECK="Register the Chem2Phy Coupler's Run"
 !
-#ifdef ESMF_3
         CALL ESMF_CplCompSetServices(GC_CHEM2PHY_CPL             &  !<-- The GFS Chem-to-Phys coupler component
                                   ,CHEM2PHY_SETSERVICES          &  !<-- The user's subroutine name for Register
+#ifdef ESMF_3
                                   ,RC)
 #else
-        CALL ESMF_CplCompSetServices(GC_CHEM2PHY_CPL             &  !<-- The GFS Chem-to-Phys coupler component
-                                  ,CHEM2PHY_SETSERVICES          &  !<-- The user's subroutine name for Register
                                   ,rc=RC)
 #endif
 !

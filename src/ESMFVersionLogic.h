@@ -1,4 +1,4 @@
-#if ((ESMF_MAJOR_VERSION == 5 && ESMF_MINOR_VERSION >= 2) || ESMF_MINOR_VERSION > 5)
+#if ((ESMF_MAJOR_VERSION == 5 && ESMF_MINOR_VERSION >= 2) || ESMF_MAJOR_VERSION > 5)
 
 #if 0
 // ESMF >= 5.2.0r
@@ -11,6 +11,7 @@
 #define ESMF_Mod ESMF
 
 #define ESMF_TypeKind ESMF_TypeKind_Flag
+#define indexCountPDimPDe indexCountPDe
 
 #define ESMF_StateItemType ESMF_StateItem_Flag
 
@@ -27,7 +28,8 @@
 #define DSTPET dstPet
 #define SRCPET srcPet
 #define FARRAYPTR farrayPtr
-
+#define minIndexPDimPDe minIndexPDe
+#define maxIndexPDimPDe maxIndexPDe
 
 #define LISTWRAPPER(x) (/x/)
 
@@ -94,7 +96,9 @@
 
 #if (ESMF_MAJOR_VERSION < 4)
 
+#define farrayPtr farray
 #define ITEMCOUNT count
+#define itemCount count
 
 #endif
 

@@ -97,22 +97,15 @@
 ! REGISTER SERVICES FOR THIS COMPONENT
 ! ------------------------------------
 
-#ifdef ESMF_520r
      CALL ESMF_LogWrite("Set Entry Point for Cpl Initialize",             &
                         ESMF_LOGMSG_INFO, rc = rc1)
-#else
-     CALL ESMF_LogWrite("Set Entry Point for Cpl Initialize",             &
-                        ESMF_LOG_INFO, rc = rc1)
-#endif
+ CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_METHOD_INITIALIZE, Cpl_Initialize,   &
 #ifdef ESMF_3
- CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_SETINIT,  Cpl_Initialize,   &
                                  ESMF_SINGLEPHASE,rc1)
 #else
 #ifdef ESMF_520r
- CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_METHOD_INITIALIZE, Cpl_Initialize,   &
                                  phase = 1, rc = rc1)
 #else
- CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_SETINIT,  Cpl_Initialize,   &
                                  phase=ESMF_SINGLEPHASE,rc= rc1)
 #endif
 #endif
@@ -127,24 +120,17 @@
          rc1 = ESMF_SUCCESS
      END IF
 
-#ifdef ESMF_520r
      CALL ESMF_LogWrite("Set Entry Point for Cpl Run",                    &
                         ESMF_LOGMSG_INFO, rc = rc1)
-#else
-     CALL ESMF_LogWrite("Set Entry Point for Cpl Run",                    &
-                        ESMF_LOG_INFO, rc = rc1)
-#endif
 
+ CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_METHOD_RUN, Cpl_Run,        &
 #ifdef ESMF_3
- CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_SETRUN,   Cpl_Run,          &
-                                 ESMF_SINGLEPHASE, rc1)
+                                 ESMF_SINGLEPHASE,rc1)
 #else
 #ifdef ESMF_520r
- CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_METHOD_RUN, Cpl_Run,        &
                                  phase = 1, rc = rc1)
 #else
- CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_SETRUN,   Cpl_Run,          &
-                                 phase=ESMF_SINGLEPHASE, rc=rc1)
+                                 phase=ESMF_SINGLEPHASE,rc= rc1)
 #endif
 #endif
 
@@ -158,24 +144,17 @@
          rc1 = ESMF_SUCCESS
      END IF
 
-#ifdef ESMF_520r
      CALL ESMF_LogWrite("Set Entry Point for Cpl Finalize",               &
                         ESMF_LOGMSG_INFO, rc = rc1)
-#else
-     CALL ESMF_LogWrite("Set Entry Point for Cpl Finalize",               &
-                        ESMF_LOG_INFO, rc = rc1)
-#endif
 
+ CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_METHOD_FINALIZE, Cpl_Finalize,&
 #ifdef ESMF_3
- CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_SETFINAL, Cpl_Finalize,     &
-                                 ESMF_SINGLEPHASE, rc1)
+                                 ESMF_SINGLEPHASE,rc1)
 #else
 #ifdef ESMF_520r
- CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_METHOD_FINALIZE, Cpl_Finalize,&
                                  phase = 1, rc = rc1)
 #else
- CALL ESMF_CplCompSetEntryPoint (CplENS, ESMF_SETFINAL, Cpl_Finalize,     &
-                                 phase=ESMF_SINGLEPHASE, rc=rc1)
+                                 phase=ESMF_SINGLEPHASE,rc= rc1)
 #endif
 #endif
 
@@ -255,13 +234,8 @@
 
 !These are the standard ESMF internal state lines.
 !-------------------------------------------------
-#ifdef ESMF_520r
      CALL ESMF_LogWrite("Allocate the Cpl Internal State",                &
                         ESMF_LOGMSG_INFO, rc = rc1)
-#else
-     CALL ESMF_LogWrite("Allocate the Cpl Internal State",                &
-                        ESMF_LOG_INFO, rc = rc1)
-#endif
 
  ALLOCATE(Cpl_Int_State, stat = rc1)
 
@@ -279,13 +253,8 @@
 
 ! Attach internal state to the EARTH Ensemble Coupler grid component.
 !--------------------------------------------------------------------
-#ifdef ESMF_520r
      CALL ESMF_LogWrite("Set Up the EARTH Ensemble coupler Internal State", &
                         ESMF_LOGMSG_INFO, rc = rc1)
-#else
-     CALL ESMF_LogWrite("Set Up the EARTH Ensemble coupler Internal State", &
-                        ESMF_LOG_INFO, rc = rc1)
-#endif
 
  CALL ESMF_CplCompSetInternalState(CplENS, wrap, rc1)
 
@@ -301,11 +270,7 @@
 
 ! Get the coupler grid component vm.
 !-----------------------------------
-#ifdef ESMF_520r
      CALL ESMF_LogWrite("Get the GLobal VM", ESMF_LOGMSG_INFO, rc = rc1)
-#else
-     CALL ESMF_LogWrite("Get the GLobal VM", ESMF_LOG_INFO, rc = rc1)
-#endif
 
  CALL ESMF_VMGetGlobal(vm, rc = rc1)
 
@@ -322,11 +287,7 @@
 ! Set up parameters of MPI communications.
 ! Use ESMF utility to get PE identification and total number of PEs.
 !-------------------------------------------------------------------
-#ifdef ESMF_520r
      CALL ESMF_LogWrite("Get me and NODES from VM", ESMF_LOGMSG_INFO, rc = rc1)
-#else
-     CALL ESMF_LogWrite("Get me and NODES from VM", ESMF_LOG_INFO, rc = rc1)
-#endif
 
  CALL ESMF_VMGet(vm, localPet = Cpl_Int_State%me,    &
                      petCount = Cpl_Int_State%nodes, &
@@ -345,13 +306,8 @@
 
 ! Set up parameters from the configure file.
 !-------------------------------------------
-#ifdef ESMF_520r
      CALL ESMF_LogWrite("Get parameters from the configure file", &
                         ESMF_LOGMSG_INFO, rc = rc1)
-#else
-     CALL ESMF_LogWrite("Get parameters from the configure file", &
-                        ESMF_LOG_INFO, rc = rc1)
-#endif
 
  CALL ESMF_VMGetGlobal(vm, rc = rc1)
 
@@ -569,13 +525,8 @@
  Cpl_Int_State%vname(3, 4) = 'clwmr_q6'
  Cpl_Int_State%vname(3, 5) = 'clwmr_m6'
 
-#ifdef ESMF_520r
      CALL ESMF_LogWrite("Cpl Internal State to ESMF Export State", &
                         ESMF_LOGMSG_INFO, rc = rc1)
-#else
-     CALL ESMF_LogWrite("Cpl Internal State to ESMF Export State", &
-                        ESMF_LOG_INFO, rc = rc1)
-#endif
 
  CALL ENS_Cpl_InternalState2ESMFExportState(exp_ENS_dyn, imp_ENS_dyn, Cpl_Int_State, rc1)
 
@@ -729,13 +680,8 @@
 
 ! Retrieve the ESMF internal state.
 !---------------------------------- 
-#ifdef ESMF_520r
      CALL ESMF_LogWrite("Get the Internal State in the Cpl Run Routine", &
                         ESMF_LOGMSG_INFO, rc = rc1)
-#else
-     CALL ESMF_LogWrite("Get the Internal State in the Cpl Run Routine", &
-                        ESMF_LOG_INFO, rc = rc1)
-#endif
  CALL ESMF_CplCompGetInternalState(CplENS, wrap, rc1)
 
 #ifdef ESMF_520r
@@ -831,13 +777,8 @@
  END IF
 ! Transfer the EARTH export fields to the working arrays in the Cpl internal state.
 !----------------------------------------------------------------------------------
-#ifdef ESMF_520r
  CALL ESMF_LogWrite("ESMF import State to the Cpl Internal State", &
                         ESMF_LOGMSG_INFO, rc = rc1)
-#else
- CALL ESMF_LogWrite("ESMF import State to the Cpl Internal State", &
-                        ESMF_LOG_INFO, rc = rc1)
-#endif
 
  CALL ENS_Cpl_ESMFImportState2InternalState(exp_ENS_dyn, Cpl_Int_State, rc = rc1)
 
@@ -853,11 +794,7 @@
 
 !Run the ENS_Cpl_Run, to create new initial conditions for the next ensemble run.
 !---------------------------------------------------------------------------------
-#ifdef ESMF_520r
      CALL ESMF_LogWrite("Run the ENS_Cpl_Run", ESMF_LOGMSG_INFO, rc = rc1)
-#else
-     CALL ESMF_LogWrite("Run the ENS_Cpl_Run", ESMF_LOG_INFO, rc = rc1)
-#endif
 
  CALL ESMF_VMBarrier(vm, rc = rc1)
  CALL ENS_Cpl_Run(exp_ENS_dyn, clock, Cpl_Int_State,  rc = rc1)
@@ -878,13 +815,8 @@
 
 ! Transfer the new initial conditions to the ESMF Cpl exprot state.
 !------------------------------------------------------------------
-#ifdef ESMF_520r
      CALL ESMF_LogWrite("Cpl Internal State to ESMF Export State", &
                         ESMF_LOGMSG_INFO, rc = rc1)
-#else
-     CALL ESMF_LogWrite("Cpl Internal State to ESMF Export State", &
-                        ESMF_LOG_INFO, rc = rc1)
-#endif
 
  CALL ESMF_VMBarrier(vm, rc = rc1)
  CALL ENS_Cpl_InternalState2ESMFExportState(exp_ENS_dyn, imp_ENS_dyn, Cpl_Int_State, rc = rc1)
@@ -959,14 +891,9 @@
 ! Retrieve the ESMF internal state.
 !----------------------------------
 !    CALL ESMF_LogWrite("Get the Internal State in the Cpl Finalize Routine", &
-!                       ESMF_LOG_INFO, rc = rc1)
-#ifdef ESMF_520r
+!                       ESMF_LOGMSG_INFO, rc = rc1)
  CALL ESMF_LogWrite("ESMF import State to the Cpl Internal State", &
                         ESMF_LOGMSG_INFO, rc = rc1)
-#else
- CALL ESMF_LogWrite("ESMF import State to the Cpl Internal State", &
-                        ESMF_LOG_INFO, rc = rc1)
-#endif
 
 !CALL ESMF_CplCompGetInternalState(CplENS, wrap, rc1)
 

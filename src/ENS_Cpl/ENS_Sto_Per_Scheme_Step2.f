@@ -1,12 +1,5 @@
 #include "../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#define ESMF_LogFoundError ESMF_LogMsgFoundError
-#else
-#define ESMF_520r
-#endif
-
  SUBROUTINE ENS_Sto_Per_Scheme_Step2(Int_State, USES1, GRIDUSE, &
      Jul_Day, slat1, slat2, rc)
 
@@ -33,11 +26,7 @@
 !  Sep 2011       Weiyu Yang Modified for using the ESMF 5.2.0r library.
 !--------------------------------------------------------
 
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
  USE ENS_Cpl_InternalState_ESMFMod
  USE machine,  ONLY: kind_evod, kind_phys, kind_rad
 

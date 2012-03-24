@@ -267,11 +267,7 @@
 ! number of the processors.
 !---------------------------------------------------------------
 
-#ifdef ESMF_520r
- USE esmf
-#else
  USE esmf_mod
-#endif
  USE ENS_Cpl_InternalState_ESMFMod
  USE Lib_ESMFStateAddGetMod
 
@@ -461,17 +457,14 @@
 
  DO j1 = 2, 3
      DO i1 = 1, cst%ntrac
+         CALL ESMF_FieldBundleGet(Bundle,                    &
+                                  cst%vname(i1, j1),         &
 #ifdef ESMF_520r
-         CALL ESMF_FieldBundleGet(Bundle,                    &
-                                  cst%vname(i1, j1),         &
                                   field = Field,             &
-                                  rc = rc1)
 #else
-         CALL ESMF_FieldBundleGet(Bundle,                    &
-                                  cst%vname(i1, j1),         &
                                   Field,                     &
-                                  rc = rc1)
 #endif
+                                  rc = rc1)
 
 #ifdef ESMF_520r
          IF(ESMF_LogFoundError(rc1, msg="Retrieve Field from Bundle in ENS Cpl.")) THEN
@@ -484,11 +477,7 @@
          END IF
 
          NULLIFY(cst%work2)
-#ifdef ESMF_3
-         CALL ESMF_FieldGet(Field, FArray = cst%work2, localDE = 0, rc = rc1)
-#else
-         CALL ESMF_FieldGet(Field, FArrayPtr = cst%work2, localDE = 0, rc = rc1)
-#endif
+         CALL ESMF_FieldGet(Field, farrayPtr = cst%work2, localDE = 0, rc = rc1)
 #ifdef ESMF_520r
          IF(ESMF_LogFoundError(rc1, msg="Retrieve FArray from Field in ENS Cpl.")) THEN
 #else

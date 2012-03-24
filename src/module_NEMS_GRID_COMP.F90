@@ -35,11 +35,7 @@
 !  2011-10-04  Yang  - Modified for using the ESMF 5.2.0r library.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
 !
       USE module_NEMS_INTERNAL_STATE,ONLY: NEMS_INTERNAL_STATE          &
                                           ,WRAP_NEMS_INTERNAL_STATE
@@ -133,26 +129,20 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set Entry Point for NEMS Initialize"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
-                                     ,ESMF_SETINIT                      &  !<-- Subroutine type (Initialize)
+                                     ,ESMF_METHOD_INITIALIZE            &  !<-- Subroutine type (Initialize)
                                      ,NEMS_INITIALIZE                   &  !<-- User's subroutine name
+#ifdef ESMF_3
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
 #ifdef ESMF_520r
-      CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
-                                     ,ESMF_METHOD_INITIALIZE            &  !<-- Subroutine type (Initialize)
-                                     ,NEMS_INITIALIZE                   &  !<-- User's subroutine name
                                      ,phase = 1                         &
                                      ,rc    = RC)
 #else
-      CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
-                                     ,ESMF_SETINIT                      &  !<-- Subroutine type (Initialize)
-                                     ,NEMS_INITIALIZE                   &  !<-- User's subroutine name
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
 #endif
@@ -166,26 +156,20 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set Entry Point for NEMS Run"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
-                                     ,ESMF_SETRUN                       &  !<-- Subroutine type (Run)
+                                     ,ESMF_METHOD_RUN                   &  !<-- Subroutine type (Run)
                                      ,NEMS_RUN                          &  !<-- User's subroutine name
+#ifdef ESMF_3
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
 #ifdef ESMF_520r
-      CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
-                                     ,ESMF_METHOD_RUN                   &  !<-- Subroutine type (Run)
-                                     ,NEMS_RUN                          &  !<-- User's subroutine name
                                      ,phase = 1                         &
                                      ,rc    = RC)
 #else
-      CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
-                                     ,ESMF_SETRUN                       &  !<-- Subroutine type (Run)
-                                     ,NEMS_RUN                          &  !<-- User's subroutine name
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
 #endif
@@ -199,26 +183,20 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set Entry Point for NEMS Finalize"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
-                                     ,ESMF_SETFINAL                     &  !<-- Subroutine type (Finalize)
+                                     ,ESMF_METHOD_FINALIZE              &  !<-- Subroutine type (Finalize)
                                      ,NEMS_FINALIZE                     &  !<-- User's subroutine name
+#ifdef ESMF_3
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
 #ifdef ESMF_520r
-      CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
-                                     ,ESMF_METHOD_FINALIZE              &  !<-- Subroutine type (Finalize)
-                                     ,NEMS_FINALIZE                     &  !<-- User's subroutine name
                                      ,phase = 1                         &
                                      ,rc    = RC)
 #else
-      CALL ESMF_GridCompSetEntryPoint(NEMS_GRID_COMP                    &  !<-- The NEMS component
-                                     ,ESMF_SETFINAL                     &  !<-- Subroutine type (Finalize)
-                                     ,NEMS_FINALIZE                     &  !<-- User's subroutine name
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
 #endif
@@ -309,7 +287,7 @@
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK = "Extract the start time of the NEMS clock"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOG_INFO, rc = RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOGMSG_INFO, rc = RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
       CALL ESMF_ClockGet(clock     = CLOCK_NEMS                         &
@@ -352,7 +330,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create/Load the NEMS Configure Object"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CF_NEMS=ESMF_ConfigCreate(rc=RC)
@@ -371,7 +349,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract the Ensemble Stochastic Coupling Flag from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config = CF_NEMS                     &  !<-- The NEMS configure object
@@ -393,7 +371,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="NEMS: Extract Forecast Length from Config File"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_ConfigGetAttribute(config=CF_NEMS                     &
@@ -411,7 +389,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="NEMS: Set the Forecast Length"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_TimeIntervalSet(timeinterval=RUNDURATION              &  !<-- The forecast length (s) (ESMF)
@@ -434,7 +412,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract the Total Number of the EARTH Members from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config = CF_NEMS                     &  !<-- The NEMS configure object
@@ -519,7 +497,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract the Ensemble Clock Parameters from Config File"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_ConfigGetAttribute(config = CF_NEMS                   &
@@ -555,7 +533,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create EARTH grid Components"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO I = 1, TOTAL_MEMBER
@@ -587,17 +565,15 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Register EARTH Init, Run, Finalize"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO I = 1, TOTAL_MEMBER
-#ifdef ESMF_3
         CALL ESMF_GridCompSetServices(EARTH_GRID_COMP(I)                &  !<-- The EARTH gridded components
                                      ,EARTH_REGISTER                    &  !<-- User's name for the Register routine
+#ifdef ESMF_3
                                      ,RC)
 #else
-        CALL ESMF_GridCompSetServices(EARTH_GRID_COMP(I)                &  !<-- The EARTH gridded components
-                                     ,EARTH_REGISTER                    &  !<-- User's name for the Register routine
                                      ,rc=RC)
 #endif
       END DO
@@ -615,16 +591,14 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Register Ensemble Coupler Init, Run, Finalize"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
         CALL ESMF_CplCompSetServices(ENS_CPL_COMP                       &
                                     ,ENS_CplCompSetServices             &  !<-- The user's name for the Register routine
+#ifdef ESMF_3
                                     ,RC)
 #else
-        CALL ESMF_CplCompSetServices(ENS_CPL_COMP                       &
-                                    ,ENS_CplCompSetServices             &  !<-- The user's name for the Register routine
                                     ,rc=RC)
 #endif
 !
@@ -640,21 +614,14 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create the EARTH import states"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO I = 1,TOTAL_MEMBER
-#ifdef ESMF_520r
-        EARTH_IMP_STATE(I) = ESMF_StateCreate(                          &
-                                              NAME = IMP_EARTH_NAME(I)  &
-                                        ,stateintent = ESMF_STATEINTENT_IMPORT  &
-                                        ,rc        = RC)
-#else
         EARTH_IMP_STATE(I) = ESMF_StateCreate(                          &
                                          STATENAME = IMP_EARTH_NAME(I)  &
-                                        ,statetype = ESMF_STATE_IMPORT  &
+                                        ,stateintent = ESMF_STATEINTENT_IMPORT  &
                                         ,rc        = RC)
-#endif
       END DO
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -665,21 +632,14 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create the EARTH export states"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO I = 1,TOTAL_MEMBER
-#ifdef ESMF_520r
-        EARTH_EXP_STATE(I) = ESMF_StateCreate(                          &
-                                              NAME = EXP_EARTH_NAME(I)  &
+        EARTH_EXP_STATE(I) = ESMF_StateCreate(                                 &
+                                         STATENAME   = EXP_EARTH_NAME(I)       &
                                         ,stateintent = ESMF_STATEINTENT_EXPORT &
-                                        ,rc        = RC)
-#else
-        EARTH_EXP_STATE(I) = ESMF_StateCreate(                          &
-                                         STATENAME = EXP_EARTH_NAME(I)  &
-                                        ,statetype = ESMF_STATE_EXPORT  &
-                                        ,rc        = RC)
-#endif
+                                        ,rc          = RC)
       END DO
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -694,18 +654,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Create the Ensemble Coupler import state"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-        ENS_CPL_IMP_STATE=ESMF_StateCreate(     NAME = "ENS_CPL_Import"  &
+        ENS_CPL_IMP_STATE=ESMF_StateCreate(STATENAME   = "ENS_CPL_Import"         &
                                           ,stateintent = ESMF_STATEINTENT_IMPORT  &
-                                          ,rc        = RC)
-#else
-        ENS_CPL_IMP_STATE=ESMF_StateCreate(STATENAME = "ENS_CPL_Import"  &
-                                          ,statetype = ESMF_STATE_IMPORT &
-                                          ,rc        = RC)
-#endif
+                                          ,rc          = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -715,18 +669,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Create the Ensemble Coupler export state"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-        ENS_CPL_EXP_STATE=ESMF_StateCreate(     NAME = "ENS_CPL_Export"  &
+        ENS_CPL_EXP_STATE=ESMF_StateCreate(STATENAME = "ENS_CPL_Export"           &
                                           ,stateintent = ESMF_STATEINTENT_EXPORT  &
                                           ,rc        = RC)
-#else
-        ENS_CPL_EXP_STATE=ESMF_StateCreate(STATENAME = "ENS_CPL_Export"  &
-                                          ,statetype = ESMF_STATE_EXPORT &
-                                          ,rc        = RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -739,23 +687,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK= "Add the EARTH states into the ENS_CPL states"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOG_INFO, rc = RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOGMSG_INFO, rc = RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 ! 
         DO I = 1, TOTAL_MEMBER
           IF(MEMBER_ID == I) THEN
-#ifdef ESMF_520r
-            CALL ESMF_StateAdd(ENS_CPL_IMP_STATE,(/EARTH_EXP_STATE(I)/), rc = RC)
-            CALL ESMF_StateAdd(ENS_CPL_EXP_STATE,(/EARTH_IMP_STATE(I)/), rc = RC)
-#else
-            CALL ESMF_StateAdd(state       = ENS_CPL_IMP_STATE          &
-                              ,nestedState = EARTH_EXP_STATE(I)         &
-                              ,rc          = RC)
-!
-            CALL ESMF_StateAdd(state       = ENS_CPL_EXP_STATE          &
-                              ,nestedState = EARTH_IMP_STATE(I)         &
-                              ,rc          = RC)
-#endif
+            CALL ESMF_StateAdd(ENS_CPL_IMP_STATE,LISTWRAPPER(EARTH_EXP_STATE(I)), rc = RC)
+            CALL ESMF_StateAdd(ENS_CPL_EXP_STATE,LISTWRAPPER(EARTH_IMP_STATE(I)), rc = RC)
           END IF
         END DO
 !
@@ -772,26 +710,20 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Execute the Initialize step of the EARTH component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO I = 1, TOTAL_MEMBER
 !
         IF(MEMBER_ID == I) THEN
-#ifdef ESMF_520r
           CALL ESMF_GridCompInitialize(gridcomp    = EARTH_GRID_COMP(I)  &
                                       ,importState = EARTH_IMP_STATE(I)  &
                                       ,exportState = EARTH_EXP_STATE(I)  &
                                       ,clock       = CLOCK_NEMS          &
-                                      ,rc          = RC)
-#else
-          CALL ESMF_GridCompInitialize(gridcomp    = EARTH_GRID_COMP(I)  &
-                                      ,importState = EARTH_IMP_STATE(I)  &
-                                      ,exportState = EARTH_EXP_STATE(I)  &
-                                      ,clock       = CLOCK_NEMS          &
+#ifndef ESMF_520r
                                       ,phase       = ESMF_SINGLEPHASE    &
-                                      ,rc          = RC)
 #endif
+                                      ,rc          = RC)
         END IF
 !
       END DO
@@ -808,23 +740,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Execute the Initialize step of the Ensemble Coupler component"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
         CALL ESMF_CplCompInitialize(cplcomp    =ENS_CPL_COMP            &
                                    ,importState=ENS_CPL_IMP_STATE       &
                                    ,exportState=ENS_CPL_EXP_STATE       &
                                    ,clock      =CLOCK_NEMS              &
-                                   ,rc         =RC)
-#else
-        CALL ESMF_CplCompInitialize(cplcomp    =ENS_CPL_COMP            &
-                                   ,importState=ENS_CPL_IMP_STATE       &
-                                   ,exportState=ENS_CPL_EXP_STATE       &
-                                   ,clock      =CLOCK_NEMS              &
-                                   ,phase      =ESMF_SINGLEPHASE        &
-                                   ,rc         =RC)
+#ifndef ESMF_520r
+                                   ,phase       = ESMF_SINGLEPHASE      &
 #endif
+                                   ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -897,26 +823,20 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Execute the Run step of the EARTH components"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO I = 1, TOTAL_MEMBER
 !
         IF(MEMBER_ID == I) THEN
-#ifdef ESMF_520r
           CALL ESMF_GridCompRun(gridcomp    = EARTH_GRID_COMP(I)        &
                                ,importState = EARTH_IMP_STATE(I)        &
                                ,exportState = EARTH_EXP_STATE(I)        &
                                ,clock       = CLOCK_NEMS                &
-                               ,rc          = RC)
-#else
-          CALL ESMF_GridCompRun(gridcomp    = EARTH_GRID_COMP(I)        &
-                               ,importState = EARTH_IMP_STATE(I)        &
-                               ,exportState = EARTH_EXP_STATE(I)        &
-                               ,clock       = CLOCK_NEMS                &
+#ifndef ESMF_520r
                                ,phase       = ESMF_SINGLEPHASE          &
-                               ,rc          = RC)
 #endif
+                               ,rc          = RC)
         END IF
 !
       END DO
@@ -937,23 +857,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Execute the Run step of the Ensemble Coupler component"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
           CALL ESMF_CplCompRun(cplcomp    =ENS_CPL_COMP                 &
                               ,importState=ENS_CPL_IMP_STATE            &
                               ,exportState=ENS_CPL_EXP_STATE            &
                               ,clock      =CLOCK_NEMS                   &
-                              ,rc         =RC)
-#else
-          CALL ESMF_CplCompRun(cplcomp    =ENS_CPL_COMP                 &
-                              ,importState=ENS_CPL_IMP_STATE            &
-                              ,exportState=ENS_CPL_EXP_STATE            &
-                              ,clock      =CLOCK_NEMS                   &
-                              ,phase      =ESMF_SINGLEPHASE             &
-                              ,rc         =RC)
+#ifndef ESMF_520r
+                              ,phase      = ESMF_SINGLEPHASE            &
 #endif
+                              ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -967,7 +881,7 @@
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK = "Update the current time of the NEMS clock"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOG_INFO, rc = RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOGMSG_INFO, rc = RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_ClockGet(clock       = CLOCK_NEMS                   &
@@ -986,7 +900,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK = "Adjust clock - add one more cycle run duration"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOG_INFO, rc = RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOGMSG_INFO, rc = RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_TimeIntervalGet(timeInterval = RUNDURATION          &
@@ -1014,26 +928,20 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Execute the Run step of the EARTH component"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           DO J = 1, TOTAL_MEMBER
 !
             IF(MEMBER_ID == J) THEN
-#ifdef ESMF_520r
                 CALL ESMF_GridCompRun(gridcomp    = EARTH_GRID_COMP(J)  &
                                      ,importState = EARTH_IMP_STATE(J)  &
                                      ,exportState = EARTH_EXP_STATE(J)  &
                                      ,clock       = CLOCK_NEMS          &
-                                     ,rc          = RC)
-#else
-                CALL ESMF_GridCompRun(gridcomp    = EARTH_GRID_COMP(J)  &
-                                     ,importState = EARTH_IMP_STATE(J)  &
-                                     ,exportState = EARTH_EXP_STATE(J)  &
-                                     ,clock       = CLOCK_NEMS          &
+#ifndef ESMF_520r
                                      ,phase       = ESMF_SINGLEPHASE    &
-                                     ,rc          = RC)
 #endif
+                                     ,rc          = RC)
             END IF
 !
           END DO
@@ -1111,26 +1019,20 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Execute the Finalize step of the EARTH component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO I = 1, TOTAL_MEMBER
 !
         IF(MEMBER_ID == I) THEN
-#ifdef ESMF_520r
           CALL ESMF_GridCompFinalize(gridcomp    = EARTH_GRID_COMP(I)   &
                                     ,importState = EARTH_IMP_STATE(I)   &
                                     ,exportState = EARTH_EXP_STATE(I)   &
                                     ,clock       = CLOCK_NEMS           &
-                                    ,rc          = RC)
-#else
-          CALL ESMF_GridCompFinalize(gridcomp    = EARTH_GRID_COMP(I)   &
-                                    ,importState = EARTH_IMP_STATE(I)   &
-                                    ,exportState = EARTH_EXP_STATE(I)   &
-                                    ,clock       = CLOCK_NEMS           &
+#ifndef ESMF_520r
                                     ,phase       = ESMF_SINGLEPHASE     &
-                                    ,rc          = RC)
 #endif
+                                    ,rc          = RC)
         END IF
 !
       END DO
@@ -1145,23 +1047,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Execute the Finalize step of the Ensemble Coupler component"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
         CALL ESMF_CplCompFinalize(cplcomp    =ENS_CPL_COMP              &
                                  ,importState=ENS_CPL_IMP_STATE         &
                                  ,exportState=ENS_CPL_EXP_STATE         &
                                  ,clock      =CLOCK_NEMS                &
-                                 ,rc         =RC)
-#else
-        CALL ESMF_CplCompFinalize(cplcomp    =ENS_CPL_COMP              &
-                                 ,importState=ENS_CPL_IMP_STATE         &
-                                 ,exportState=ENS_CPL_EXP_STATE         &
-                                 ,clock      =CLOCK_NEMS                &
+#ifndef ESMF_520r
                                  ,phase      =ESMF_SINGLEPHASE          &
-                                 ,rc         =RC)
 #endif
+                                 ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINALIZE)

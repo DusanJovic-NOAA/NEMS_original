@@ -30,11 +30,7 @@
 
  MODULE ENS_GetParameterFromStateMod
 
-#ifdef ESMF_520r
- USE esmf
-#else
  USE esmf_mod
-#endif
  USE ENS_Cpl_InternalState_ESMFMod
 
  IMPLICIT none

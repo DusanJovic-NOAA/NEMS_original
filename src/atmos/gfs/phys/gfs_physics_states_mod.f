@@ -1,3 +1,5 @@
+#include "../../../ESMFVersionDefine.h"
+
        module gfs_physics_states_mod
 
 ! 
@@ -10,7 +12,8 @@
 !
       use esmf_mod,                       ONLY: esmf_gridcomp, esmf_state,    &
                                                 esmf_vm, esmf_success,        &
-                                                esmf_logwrite, esmf_log_info, &
+                                                esmf_logwrite,                &
+                                                esmf_logmsg_info,             &
                                                 esmf_gridcompget 
 
 ! the derived type of the internal state.
@@ -67,7 +70,7 @@
 
       call esmf_logwrite(						&
            " update internal state with the esmf import state", 	&
-            esmf_log_info, rc = rc1)
+            esmf_logmsg_info, rc = rc1)
 
 ! create the gathering parameter arrays which will be used
 ! to gather the distributed esmf state local array to the global array.
@@ -348,7 +351,7 @@
       print*, 'do int_state to exp_gfs_phy'
 
       call esmf_logwrite("begining to put the esmf export state.", &
-                    esmf_log_info, rc = rc1)
+                    esmf_logmsg_info, rc = rc1)
 
 ! getting the global vm for the gathering data purpose
 ! and the grid3, which is for the gaussian grid arrays.

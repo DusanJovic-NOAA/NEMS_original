@@ -55,11 +55,7 @@
 !       27 SEP 2011   W. Yang  - Modified for using the ESMF 5.2.0r library.
 !---------------------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
       USE MODULE_WRITE_INTERNAL_STATE
       USE MODULE_WRITE_ROUTINES,ONLY : OPEN_HST_FILE                    &
                                       ,OPEN_RST_FILE                    &
@@ -184,21 +180,23 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set Entry Point for Initialize Step of Write Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(WRITE_COMP                        &  !<-- The write component
-                                     ,ESMF_SETINIT                      &  !<-- Predefined subroutine type (INIT)
+                                     ,ESMF_METHOD_INITIALIZE            &  !<-- Predefined subroutine type (INIT)
                                      ,WRITE_INITIALIZE                  &  !<-- User's subroutineName
+#ifdef ESMF_3
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
-      CALL ESMF_GridCompSetEntryPoint(WRITE_COMP                        &  !<-- The write component
-                                     ,ESMF_SETINIT                      &  !<-- Predefined subroutine type (INIT)
-                                     ,WRITE_INITIALIZE                  &  !<-- User's subroutineName
+#ifdef ESMF_520r
+                                     ,phase=1                           &
+                                     ,rc=RC)
+#else
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
+#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -209,21 +207,23 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set Entry Point for Run Step of Write Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(WRITE_COMP                        &  !<-- The write component
-                                     ,ESMF_SETRUN                       &  !<-- Predefined subroutine type (RUN)
+                                     ,ESMF_METHOD_RUN                   &  !<-- Predefined subroutine type (RUN)
                                      ,WRITE_RUN                         &  !<-- User's subroutineName
+#ifdef ESMF_3
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
-      CALL ESMF_GridCompSetEntryPoint(WRITE_COMP                        &  !<-- The write component
-                                     ,ESMF_SETRUN                       &  !<-- Predefined subroutine type (RUN)
-                                     ,WRITE_RUN                         &  !<-- User's subroutineName
+#ifdef ESMF_520r
+                                     ,phase=1                           &
+                                     ,rc=RC)
+#else
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
+#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -234,21 +234,23 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set Entry Point for Finalize Step of Write Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
      CALL ESMF_GridCompSetEntryPoint(WRITE_COMP                         &  !<-- The write component
-                                    ,ESMF_SETFINAL                      &  !<-- Predefined subroutine type (FINALIZE)
+                                    ,ESMF_METHOD_FINALIZE               &  !<-- Predefined subroutine type (FINALIZE)
                                     ,WRITE_FINALIZE                     &  !<-- User's subroutineName
+#ifdef ESMF_3
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
-     CALL ESMF_GridCompSetEntryPoint(WRITE_COMP                         &  !<-- The write component
-                                    ,ESMF_SETFINAL                      &  !<-- Predefined subroutine type (FINALIZE)
-                                    ,WRITE_FINALIZE                     &  !<-- User's subroutineName
+#ifdef ESMF_520r
+                                     ,phase=1                           &
+                                     ,rc=RC)
+#else
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
+#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -346,7 +348,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Attach the Write Component's Internal State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompSetInternalState(WRITE_COMP                     &  !<-- The write component
@@ -363,7 +365,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Retrieve the Local VM"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_VMGetCurrent(vm=VM                                      &  !<-- The ESMF virtual machine for this group of tasks
@@ -390,7 +392,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Get MPI Task IDs and Count from VM"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_VMGet(vm      =VM                                       &  !<-- The local VM
@@ -537,36 +539,11 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="WRITE_INITIALIZE: Extract Local Domain Limits"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
       IF(MYPE<=LAST_FCST_TASK)THEN
 
-#ifdef ESMF_3
-        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
-                              ,name     ='LOCAL_ISTART'                 &  !<-- Name of the Attribute to extract
-                              ,count    =NUM_PES_FCST                   &  !<-- Length of Attribute
-                              ,valueList=wrt_int_state%LOCAL_ISTART     &  !<-- Extract local subdomain starting I's
-                              ,rc=RC)
-!
-        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
-                              ,name     ='LOCAL_IEND'                   &  !<-- Name of the Attribute to extract
-                              ,count    =NUM_PES_FCST                   &  !<-- Length of Attribute
-                              ,valueList=wrt_int_state%LOCAL_IEND       &  !<-- Extract local subdomain ending I's
-                              ,rc=RC)
-!
-        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
-                              ,name     ='LOCAL_JSTART'                 &  !<-- Name of the Attribute to extract
-                              ,count    =NUM_PES_FCST                   &  !<-- Length of Attribute
-                              ,valueList=wrt_int_state%LOCAL_JSTART     &  !<-- Extract local subdomain starting J's
-                              ,rc=RC)
-!
-        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
-                              ,name     ='LOCAL_JEND'                   &  !<-- Name of the Attribute to extract
-                              ,count    =NUM_PES_FCST                   &  !<-- Length of Attribute
-                              ,valueList=wrt_int_state%LOCAL_JEND       &  !<-- Extract local subdomain ending J's
-                              ,rc=RC)
-#else
         CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
                               ,name     ='LOCAL_ISTART'                 &  !<-- Name of the Attribute to extract
                               ,itemCount=NUM_PES_FCST                   &  !<-- Length of Attribute
@@ -590,7 +567,6 @@
                               ,itemCount=NUM_PES_FCST                   &  !<-- Length of Attribute
                               ,valueList=wrt_int_state%LOCAL_JEND       &  !<-- Extract local subdomain ending J's
                               ,rc=RC)
-#endif
 
       ENDIF
 !
@@ -600,42 +576,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="WRITE_INITIALIZE: Extract Full Domain Limits"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       IONE = 1
 
       IF(MYPE<=LAST_FCST_TASK)THEN
 
-#ifdef ESMF_3
-        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
-                              ,name     ='IDS'                          &  !<-- Name of the Attribute to extract
-                              ,count    =IONE                           &  !<-- Length of Attribute
-                              ,valueList=wrt_int_state%IDS              &  !<-- Extract full subdomain starting I
-                              ,rc=RC)
-        IDS=wrt_int_state%IDS(1)
-!
-        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
-                              ,name     ='IDE'                          &  !<-- Name of the Attribute to extract
-                              ,count    =IONE                           &  !<-- Length of Attribute
-                              ,valueList=wrt_int_state%IDE              &  !<-- Extract full subdomain ending I
-                              ,rc=RC)
-        IDE=wrt_int_state%IDE(1)
-!
-        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
-                              ,name     ='JDS'                          &  !<-- Name of the Attribute to extract
-                              ,count    =IONE                           &  !<-- Length of Attribute
-                              ,valueList=wrt_int_state%JDS              &  !<-- Extract full subdomain starting J
-                              ,rc=RC)
-        JDS=wrt_int_state%JDS(1)
-!
-        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
-                              ,name     ='JDE'                          &  !<-- Name of the Attribute to extract
-                              ,count    =IONE                           &  !<-- Length of Attribute
-                              ,valueList=wrt_int_state%JDE              &  !<-- Extract full subdomain ending J
-                              ,rc=RC)
-        JDE=wrt_int_state%JDE(1)
-#else
         CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
                               ,name     ='IDS'                          &  !<-- Name of the Attribute to extract
                               ,itemCount=IONE                           &  !<-- Length of Attribute
@@ -663,7 +610,6 @@
                               ,valueList=wrt_int_state%JDE              &  !<-- Extract full subdomain ending J
                               ,rc=RC)
         JDE=wrt_int_state%JDE(1)
-#endif
 
       ENDIF
 !
@@ -686,7 +632,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract History Bundle from Write Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state      =IMP_STATE_WRITE                  &  !<-- The write component's import state
@@ -700,7 +646,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Restart Bundle from Write Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state      =IMP_STATE_WRITE                  &  !<-- The write component's import state
@@ -729,7 +675,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="IM,JM,LM from Config Object for Write Initialize"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The ESMF configure object
@@ -971,7 +917,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set the Output Base Time to the Initial Clock Time"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ClockGet(clock    =CLOCK                                &  !<-- The ESMF Clock
@@ -1218,7 +1164,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Retrieve Write Component's Internal State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompGetInternalState(WRITE_COMP                     &  !<-- The write component
@@ -1239,7 +1185,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Retrieve the Current VM for WRITE_RUN"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_VMGetCurrent(VM,rc=RC)
@@ -1266,7 +1212,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Broadcast Current Write Group Number"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_VMBroadcast(VM                                          &  !<-- The local VM
@@ -1290,7 +1236,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Current Time for Output"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ClockGet(clock   =CLOCK                                 &  !<-- The ESMF Clock
@@ -1309,7 +1255,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Elapsed Forecast Time for Output"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_TimeIntervalGet(timeinterval=wrt_int_state%IO_CURRTIMEDIFF &
@@ -1373,20 +1319,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract 2-D Fields from History Bundle"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleGet(fieldbundle=HISTORY_BUNDLE                &  !<-- The write component's history data Bundle
-                                  ,fieldname  =wrt_int_state%FIELD_NAME(N)   &  !<-- The ESMF Field's name
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE=HISTORY_BUNDLE                &  !<-- The write component's history data Bundle
+                                  ,FIELDNAME  =wrt_int_state%FIELD_NAME(N)   &  !<-- The ESMF Field's name
                                   ,field      =FIELD_WORK1                   &  !<-- The ESMF Field data pointer
                                   ,rc         =RC)
-#else
-          CALL ESMF_FieldBundleGet(bundle=HISTORY_BUNDLE                &  !<-- The write component's history data Bundle
-                                  ,name  =wrt_int_state%FIELD_NAME(N)   &  !<-- The ESMF Field's name
-                                  ,field =FIELD_WORK1                   &  !<-- The ESMF Field data pointer
-                                  ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -1398,7 +1337,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Check Datatype of Field from History Bundle"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_FieldGet(field   =FIELD_WORK1                       &  !<-- The ESMF Field
@@ -1417,20 +1356,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Extract Pointer from 2-D Integer Field"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-#ifdef ESMF_3
-            CALL ESMF_FieldGet(field     =FIELD_WORK1                   &  !<-- The ESMF Field
-                              ,localDe   =0                             &  !<-- # of DEs in this grid
-                              ,farray    =WORK_ARRAY_I2D                &  !<-- Put the 2D integer data from the Field here
-                              ,rc        =RC)
-#else
             CALL ESMF_FieldGet(field     =FIELD_WORK1                   &  !<-- The ESMF Field
                               ,localDe   =0                             &  !<-- # of DEs in this grid
                               ,farrayPtr =WORK_ARRAY_I2D                &  !<-- Put the 2D integer data from the Field here
                               ,rc        =RC)
-#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -1463,20 +1395,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Extract Pointer from 2-D Real Field"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-#ifdef ESMF_3
-            CALL ESMF_FieldGet(field     =FIELD_WORK1                   &  !<-- The ESMF Field
-                              ,localDe   =0                             &  !<-- # of DEs in this grid
-                              ,farray    =WORK_ARRAY_R2D                &  !<-- Put the 2D real data from the Field here
-                              ,rc        =RC)
-#else
             CALL ESMF_FieldGet(field     =FIELD_WORK1                   &  !<-- The ESMF Field
                               ,localDe   =0                             &  !<-- # of DEs in this grid
                               ,farrayPtr =WORK_ARRAY_R2D                &  !<-- Put the 2D real data from the Field here
                               ,rc        =RC)
-#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -1622,20 +1547,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract 2-D Fields from Restart Bundle"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleGet(fieldbundle=RESTART_BUNDLE                  &  !<-- The write component's restart data Bundle
-                                  ,fieldname  =wrt_int_state%RST_FIELD_NAME(N) &  !<-- The ESMF Field's name
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE=RESTART_BUNDLE                  &  !<-- The write component's restart data Bundle
+                                  ,FIELDNAME  =wrt_int_state%RST_FIELD_NAME(N) &  !<-- The ESMF Field's name
                                   ,field      =FIELD_WORK1                     &  !<-- The ESMF Field data pointer
                                   ,rc         =RC)
-#else
-          CALL ESMF_FieldBundleGet(bundle=RESTART_BUNDLE                  &  !<-- The write component's restart data Bundle
-                                  ,name  =wrt_int_state%RST_FIELD_NAME(N) &  !<-- The ESMF Field's name
-                                  ,field =FIELD_WORK1                     &  !<-- The ESMF Field data pointer
-                                  ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -1647,7 +1565,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Check Datatype of Field from Restart Bundle"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_FieldGet(field   =FIELD_WORK1                       &  !<-- The ESMF Field
@@ -1666,20 +1584,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Extract Pointer from 2-D Integer Field"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-#ifdef ESMF_3
-            CALL ESMF_FieldGet(field     =FIELD_WORK1                   &  !<-- The ESMF Field
-                              ,localDe   =0                             &  !<-- # of DEs in this grid
-                              ,farray    =WORK_ARRAY_I2D                &  !<-- Put the 2D integer data from the Field here
-                              ,rc        =RC)
-#else
             CALL ESMF_FieldGet(field     =FIELD_WORK1                   &  !<-- The ESMF Field
                               ,localDe   =0                             &  !<-- # of DEs in this grid
                               ,farrayPtr =WORK_ARRAY_I2D                &  !<-- Put the 2D integer data from the Field here
                               ,rc        =RC)
-#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -1712,20 +1623,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Extract Pointer from 2-D Real Field"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-#ifdef ESMF_3
-            CALL ESMF_FieldGet(field     =FIELD_WORK1                   &  !<-- The ESMF Field
-                              ,localDe   =0                             &  !<-- # of DEs in this grid
-                              ,farray    =WORK_ARRAY_R2D                &  !<-- Put the 2D real data from the Field here
-                              ,rc        =RC)
-#else
             CALL ESMF_FieldGet(field     =FIELD_WORK1                   &  !<-- The ESMF Field
                               ,localDe   =0                             &  !<-- # of DEs in this grid
                               ,farrayPtr =WORK_ARRAY_R2D                &  !<-- Put the 2D real data from the Field here
                               ,rc        =RC)
-#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -1836,24 +1740,16 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Local Pieces of South BC Wind Data"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         IF(wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE)>0)THEN                   !<-- Fcst tasks along south boundary
 
-#ifdef ESMF_3
-          CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                        &  !<-- The Write component import state
-                                ,name     ='RST_BC_DATA_SOUTH'                    &  !<-- Name of south BC wind data on this task
-                                ,count    =wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE) &  !<-- # of words in this south BC wind data
-                                ,valueList=wrt_int_state%RST_BC_DATA_SOUTH        &  !<-- Place the data here
-                                ,rc       =RC)
-#else
           CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                        &  !<-- The Write component import state
                                 ,name     ='RST_BC_DATA_SOUTH'                    &  !<-- Name of south BC wind data on this task
                                 ,itemCount=wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE) &  !<-- # of words in this south BC wind data
                                 ,valueList=wrt_int_state%RST_BC_DATA_SOUTH        &  !<-- Place the data here
                                 ,rc       =RC)
-#endif
 
           IF(MYPE/=0)THEN
             CALL MPI_SEND(wrt_int_state%RST_BC_DATA_SOUTH               &  !<-- Send this string of subdomain data 
@@ -1877,24 +1773,16 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Unload Local Pieces of North BC Wind Data"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         IF(wrt_int_state%NUM_WORDS_BC_NORTH(MYPE)>0)THEN                   !<-- Fcst tasks along north boundary
 
-#ifdef ESMF_3
-          CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                        &  !<-- The Write component import state
-                                ,name     ='RST_BC_DATA_NORTH'                    &  !<-- Name of north BC wind data on this task
-                                ,count    =wrt_int_state%NUM_WORDS_BC_NORTH(MYPE) &  !<-- # of words in this north BC wind data
-                                ,valueList=wrt_int_state%RST_BC_DATA_NORTH        &  !<-- Place the data here
-                                ,rc       =RC)
-#else
           CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                        &  !<-- The Write component import state
                                 ,name     ='RST_BC_DATA_NORTH'                    &  !<-- Name of north BC wind data on this task
                                 ,itemCount=wrt_int_state%NUM_WORDS_BC_NORTH(MYPE) &  !<-- # of words in this north BC wind data
                                 ,valueList=wrt_int_state%RST_BC_DATA_NORTH        &  !<-- Place the data here
                                 ,rc       =RC)
-#endif
 
           IF(MYPE/=0)THEN
             CALL MPI_SEND(wrt_int_state%RST_BC_DATA_NORTH               &  !<-- Send this string of subdomain data 
@@ -1918,24 +1806,16 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Local Pieces of West BC Wind Data"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         IF(wrt_int_state%NUM_WORDS_BC_WEST(MYPE)>0)THEN                    !<-- Fcst tasks along west boundary
 
-#ifdef ESMF_3
-          CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                       &  !<-- The Write component import state
-                                ,name     ='RST_BC_DATA_WEST'                    &  !<-- Name of west BC wind data on this task
-                                ,count    =wrt_int_state%NUM_WORDS_BC_WEST(MYPE) &  !<-- # of words in this west BC wind data
-                                ,valueList=wrt_int_state%RST_BC_DATA_WEST        &  !<-- Place the data here
-                                ,rc       =RC)
-#else
           CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                       &  !<-- The Write component import state
                                 ,name     ='RST_BC_DATA_WEST'                    &  !<-- Name of west BC wind data on this task
                                 ,itemCount=wrt_int_state%NUM_WORDS_BC_WEST(MYPE) &  !<-- # of words in this west BC wind data
                                 ,valueList=wrt_int_state%RST_BC_DATA_WEST        &  !<-- Place the data here
                                 ,rc       =RC)
-#endif
 
           IF(MYPE/=0)THEN
             CALL MPI_SEND(wrt_int_state%RST_BC_DATA_WEST                &  !<-- Send this string of subdomain data 
@@ -1959,24 +1839,16 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Local Pieces of East BC Wind Data"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         IF(wrt_int_state%NUM_WORDS_BC_EAST(MYPE)>0)THEN                    !<-- Fcst tasks along east boundary
 
-#ifdef ESMF_3
-          CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                       &  !<-- The Write component import state
-                                ,name     ='RST_BC_DATA_EAST'                    &  !<-- Name of west BC wind data on this task
-                                ,count    =wrt_int_state%NUM_WORDS_BC_EAST(MYPE) &  !<-- # of words in this east BC wind data
-                                ,valueList=wrt_int_state%RST_BC_DATA_EAST        &  !<-- Place the data here
-                                ,rc       =RC)
-#else
           CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                       &  !<-- The Write component import state
                                 ,name     ='RST_BC_DATA_EAST'                    &  !<-- Name of west BC wind data on this task
                                 ,itemCount=wrt_int_state%NUM_WORDS_BC_EAST(MYPE) &  !<-- # of words in this east BC wind data
                                 ,valueList=wrt_int_state%RST_BC_DATA_EAST        &  !<-- Place the data here
                                 ,rc       =RC)
-#endif
 
           IF(MYPE/=0)THEN
             CALL MPI_SEND(wrt_int_state%RST_BC_DATA_EAST                &  !<-- Send this string of subdomain data 
@@ -2502,7 +2374,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Lead Write Task Gets Current ESMF Time from Clock"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_ClockGet(clock   =CLOCK                             &  !<-- The ESMF Clock
@@ -2519,7 +2391,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Lead Write Task Gets Actual Current Time from Clock"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_TimeGet(time=CURRTIME                               &  !<-- The cuurent forecast time (ESMF)
@@ -2547,7 +2419,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Lead Write Task Gets Actual Elapsed Fcst Time"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_TimeIntervalGet(timeinterval=wrt_int_state%IO_CURRTIMEDIFF &
@@ -3346,7 +3218,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Lead Write Task Gets Current ESMF Time from Clock"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_ClockGet(clock       =CLOCK                         &  !<-- The ESMF Clock
@@ -3366,7 +3238,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Lead Write Task Gets Actual Current Time from Clock"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_TimeGet(time=CURRTIME                               &  !<-- The cuurent forecast time (ESMF)
@@ -3394,7 +3266,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Lead Write Task Gets Actual Elapsed Fcst Time"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_TimeIntervalGet(timeinterval=wrt_int_state%IO_CURRTIMEDIFF &
@@ -4103,7 +3975,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Get Config Object for Write Setup"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompGet(gridcomp=DOMAIN_GRID_COMP                   &  !<-- The DOMAIN component
@@ -4120,7 +3992,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Write Tasks and Groups from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(CF                                   &  !<-- The configure file
@@ -4146,7 +4018,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="INPES/JNPES from Config Object for Write Setup"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The ESMF configure object
@@ -4171,7 +4043,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Retrieve the Local VM"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_VMGetCurrent(vm=VM                                      &  !<-- The ESMF virtual machine
@@ -4187,7 +4059,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Get MPI Task IDs for Write Setup"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_VMGet(vm      =VM                                       &  !<-- The virtual machine
@@ -4265,16 +4137,14 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Register Write Components"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
         CALL ESMF_GridCompSetServices(domain_int_state%WRITE_COMPS(I)    &  !<-- The Write gridded components
                                      ,WRITE_REGISTER                     &  !<-- The user's subroutine name
+#ifdef ESMF_3
                                      ,RC)
 #else
-        CALL ESMF_GridCompSetServices(domain_int_state%WRITE_COMPS(I)    &  !<-- The Write gridded components
-                                     ,WRITE_REGISTER                     &  !<-- The user's subroutine name
                                      ,rc = RC)
 #endif
 !
@@ -4290,26 +4160,16 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create Empty Import/Export States for Write Components"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-      domain_int_state%IMP_STATE_WRITE=ESMF_StateCreate(     name='Write Import State' &  !<-- Import state name for writes
-                                                       ,statetype= ESMF_STATE_IMPORT   &
-                                                       ,rc       = RC)
+      domain_int_state%IMP_STATE_WRITE=ESMF_StateCreate(STATENAME  ='Write Import State' &  !<-- Import state name for writes
+                                                       ,stateintent= ESMF_STATEINTENT_IMPORT &
+                                                       ,rc         = RC)
 !
-      domain_int_state%EXP_STATE_WRITE=ESMF_StateCreate(     name='Write Export State' &  !<-- Export state names for writes
-                                                       ,statetype= ESMF_STATE_EXPORT   &
-                                                       ,rc       = RC) 
-#else
-      domain_int_state%IMP_STATE_WRITE=ESMF_StateCreate(statename='Write Import State' &  !<-- Import state name for writes
-                                                       ,statetype= ESMF_STATE_IMPORT   &
-                                                       ,rc       = RC)
-!
-      domain_int_state%EXP_STATE_WRITE=ESMF_StateCreate(statename='Write Export State' &  !<-- Export state names for writes
-                                                       ,statetype= ESMF_STATE_EXPORT   &
-                                                       ,rc       = RC) 
-#endif
+      domain_int_state%EXP_STATE_WRITE=ESMF_StateCreate(STATENAME  ='Write Export State' &  !<-- Export state names for writes
+                                                       ,stateintent= ESMF_STATEINTENT_EXPORT &
+                                                       ,rc         = RC) 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
@@ -4323,11 +4183,11 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Write Import State into Dynamics Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(state      =domain_int_state%EXP_STATE_SOLVER  & !<-- Solver export state receives a state
-                        ,nestedState=domain_int_state%IMP_STATE_WRITE   & !<-- Add the write components' import state
+      CALL ESMF_StateAdd(domain_int_state%EXP_STATE_SOLVER               & !<-- Solver export state receives a state
+                        ,LISTWRAPPER(domain_int_state%IMP_STATE_WRITE)   & !<-- Add the write components' import state
                         ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4354,34 +4214,9 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Insert Local Domain Limits in Dynamics Imp State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-#ifdef ESMF_3
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
-                              ,name     ='LOCAL_ISTART'                 &  !<-- The attribute's name
-                              ,count    =NUM_PES_FCST                   &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_ISTART  &  !<-- Insert this quantity as an attribute
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
-                              ,name     ='LOCAL_IEND'                   &  !<-- The attribute's name
-                              ,count    =NUM_PES_FCST                   &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_IEND    &  !<-- Insert this quantity as an attribute
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
-                              ,name     ='LOCAL_JSTART'                 &  !<-- The attribute's name
-                              ,count    =NUM_PES_FCST                   &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_JSTART  &  !<-- Insert this quantity as an attribute
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
-                              ,name     ='LOCAL_JEND'                   &  !<-- The attribute's name
-                              ,count    =NUM_PES_FCST                   &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_JEND    &  !<-- Insert this quantity as an attribute
-                              ,rc       =RC)
-#else
         CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
                               ,name     ='LOCAL_ISTART'                 &  !<-- The attribute's name
                               ,itemCount=NUM_PES_FCST                   &  !<-- The attribute's length
@@ -4405,7 +4240,6 @@
                               ,itemCount=NUM_PES_FCST                   &  !<-- The attribute's length
                               ,valueList=domain_int_state%LOCAL_JEND    &  !<-- Insert this quantity as an attribute
                               ,rc       =RC)
-#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
@@ -4464,7 +4298,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Retrieve the Local VM in Write Destroy"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_VMGetCurrent(vm=VM                                      &  !<-- The ESMF virtual machine
@@ -4480,7 +4314,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Get MPI Task IDs for Write Destroy"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_VMGet(vm      =VM                                       &  !<-- The virtual machine
@@ -4497,7 +4331,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Finalize Write Components"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO N=1,domain_int_state%WRITE_GROUPS              
@@ -4508,7 +4342,9 @@
                                      ,importstate=domain_int_state%EXP_STATE_WRITE &
                                      ,exportstate=domain_int_state%IMP_STATE_WRITE &
                                      ,clock      =CLOCK_DOMAIN                     &
+#ifndef ESMF_520r
                                      ,phase      =ESMF_SINGLEPHASE                 &
+#endif
                                      ,rc         =RC)
         ENDIF
       ENDDO
@@ -4523,7 +4359,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Destroy Write Component Import/Export States"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_StateDestroy(domain_int_state%IMP_STATE_WRITE,rc=RC)
@@ -4539,7 +4375,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Destroy Write Components"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO J=1,domain_int_state%WRITE_GROUPS

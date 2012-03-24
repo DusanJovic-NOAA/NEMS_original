@@ -25,13 +25,8 @@
 !!uses:
 !
 
-#ifdef ESMF_520r
-      use esmf,     ONLY: esmf_logfounderror, esmf_failure, &
-                          esmf_success
-#else
       use esmf_mod, ONLY: esmf_logfounderror, esmf_failure, &
                           esmf_success
-#endif
 
       implicit none
 

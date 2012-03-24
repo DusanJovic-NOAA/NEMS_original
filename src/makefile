@@ -341,6 +341,7 @@ else
 endif
 	cd atmos/fim           && gmake stub
 	cd atmos/gen           && gmake stub
+	cd atmos/post          && gmake stub
 	cd atmos               && gmake
 	cd ENS_Cpl             && gmake
 

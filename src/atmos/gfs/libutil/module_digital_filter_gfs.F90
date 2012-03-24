@@ -19,11 +19,7 @@
 ! Sep      2011 Weiyu Yang, Modified for using the ESMF 5.2.0r library.
 !----------------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
 
       implicit none
 
@@ -114,13 +110,8 @@
           allocate (AL(gridRank,0:nDEs-1), stat = ierr )
           allocate (AU(gridRank,0:nDEs-1), stat = ierr )
 !
-#ifdef ESMF_520r
-          call ESMF_DistGridGet(distgrid, &
-           minIndexPDe=AL, maxIndexPDe=AU, rc=rc )
-#else
           call ESMF_DistGridGet(distgrid, &
            minIndexPDimPDe=AL, maxIndexPDimPDe=AU, rc=rc )
-#endif
 
           do m=1,gridRank
             dyn_dim(m,dyn_items)=AU(m, deId)-AL(m, deId)+1
@@ -178,12 +169,7 @@
           if(dim3==1) then
             nullify(tmp_ptr2D)
 
-#ifdef ESMF_3
-            CALL ESMF_FieldGet(FIELD, localDe = 0, farray    = tmp_ptr2D, rc = rc) 
-#else
             CALL ESMF_FieldGet(FIELD, localDe = 0, farrayPtr = tmp_ptr2D, rc = rc) 
-#endif
-
             dyn_array_save(1:dim1,1:dim2,1,n)=                     &
                dyn_array_save(1:dim1,1:dim2,1,n)+                    &
                digfil*tmp_ptr2D(1:dim1,1:dim2)
@@ -193,12 +179,7 @@
           else
             nullify(tmp_ptr)
 
-#ifdef ESMF_3
-            CALL ESMF_FieldGet(FIELD, localDe = 0, farray    = tmp_ptr, rc = rc) 
-#else
             CALL ESMF_FieldGet(FIELD, localDe = 0, farrayPtr = tmp_ptr, rc = rc) 
-#endif
-
             dyn_array_save(1:dim1,1:dim2,1:dim3,n)=                     &
                dyn_array_save(1:dim1,1:dim2,1:dim3,n)+                    &
                digfil*tmp_ptr(1:dim1,1:dim2,1:dim3)
@@ -241,12 +222,7 @@
         if(dim3==1) then
           nullify(tmp_ptr2D)
 
-#ifdef ESMF_3
-            CALL ESMF_FieldGet(FIELD, localDe = 0, farray    = tmp_ptr2D, rc = rc) 
-#else
             CALL ESMF_FieldGet(FIELD, localDe = 0, farrayPtr = tmp_ptr2D, rc = rc) 
-#endif
-
 !          print *,'dfi dyn save field ',trim(dyn_name(item)),'rc=',rc,'value=',  &
 !           maxval(tmp_ptr2D),minval(tmp_ptr2D),'dyn_save=',  &
 !           maxval(dyn_array_save(1:dim1,1:dim2,1,n)), &
@@ -255,18 +231,13 @@
         else
           nullify(tmp_ptr)
 
-#ifdef ESMF_3
-            CALL ESMF_FieldGet(FIELD, localDe = 0, farray    = tmp_ptr, rc = rc) 
-#else
             CALL ESMF_FieldGet(FIELD, localDe = 0, farrayPtr = tmp_ptr, rc = rc) 
-#endif
-
 !          print *,'dfi dyn save field ',trim(dyn_name(item)),'=',  &
 !           maxval(tmp_ptr),minval(tmp_ptr)
           tmp_ptr(1:dim1,1:dim2,1:dim3) = dyn_array_save(1:dim1,1:dim2,1:dim3,n)
 !
 !jun testing
-!          CALL ESMF_FieldGet(FIELD, localDe=0, farray=tmp_ptr1, rc = rc) 
+!          CALL ESMF_FieldGet(FIELD, localDe=0, farrayPtr=tmp_ptr1, rc = rc) 
 !          print *,'field is updated=',maxval(tmp_ptr1),minval(tmp_ptr1)
 
         endif
@@ -298,14 +269,9 @@
                          itemnamelist = phy_name,			&
                          rc=rc)
 !       print *,'dfi phy init, phy_items=',phy_items,'names=',phy_name(1:phy_items)
-#ifdef ESMF_520r
-      phy_state_save=esmf_statecreate(     NAME="digital filter phy"	&
-                                     ,rc       =rc)
-#else
-      phy_state_save=esmf_statecreate(STATENAME="digital filter phy"	&
-                                     ,statetype=esmf_state_unspecified	&
-                                     ,rc       =rc)
-#endif
+      phy_state_save=esmf_statecreate(STATENAME  ="digital filter phy"    	&
+                                     ,stateintent=ESMF_STATEINTENT_UNSPECIFIED &
+                                     ,rc         =rc)
 !
       end subroutine digital_filter_phy_init_gfs
 
@@ -319,11 +285,7 @@
       TYPE(ESMF_Field)             :: tmp_field
       TYPE(ESMF_FieldBUNDLE)       :: tmp_bundle
       TYPE(ESMF_STATE)             :: tmp_state
-#ifdef ESMF_520r
-      type(ESMF_StateItem_Flag)    :: itemtype
-#else
       type(ESMF_StateItemType)     :: itemtype
-#endif
 
       integer                      :: n, rc
 !
@@ -334,27 +296,15 @@
 
         if(itemtype==ESMF_STATEITEM_FIELDBUNDLE) then
           CALL ESMF_StateGet(phy_state, phy_name(n), tmp_bundle, rc = rc)
-#ifdef ESMF_520r
-          CALL ESMF_StateAdd(phy_state_save, (/tmp_bundle/), rc = rc)
-#else
-          CALL ESMF_StateAdd(phy_state_save, tmp_bundle, rc = rc)
-#endif
+          CALL ESMF_StateAdd(phy_state_save, LISTWRAPPER(tmp_bundle), rc = rc)
 !        print *,'save bundle data,phy_name=',phy_name(n),'rc=',rc
         else if(itemtype==ESMF_STATEITEM_FIELD) then
           CALL ESMF_StateGet(phy_state, phy_name(n), tmp_field, rc = rc)
-#ifdef ESMF_520r
-          CALL ESMF_StateAdd(phy_state_save, (/tmp_field/), rc = rc)
-#else
-          CALL ESMF_StateAdd(phy_state_save, tmp_field, rc = rc)
-#endif
+          CALL ESMF_StateAdd(phy_state_save, LISTWRAPPER(tmp_field), rc = rc)
 !        print *,'save field data,phy_name=',phy_name(n),'rc=',rc
         else if(itemtype==ESMF_STATEITEM_STATE) then
           CALL ESMF_StateGet(phy_state, phy_name(n), tmp_state, rc = rc)
-#ifdef ESMF_520r
-          CALL ESMF_StateAdd(phy_state_save, (/tmp_state/), rc = rc)
-#else
-          CALL ESMF_StateAdd(phy_state_save, tmp_state, rc = rc)
-#endif
+          CALL ESMF_StateAdd(phy_state_save, LISTWRAPPER(tmp_state), rc = rc)
 !        print *,'save state data,phy_name=',phy_name(n),'rc=',rc
         endif
 
@@ -370,11 +320,7 @@
       TYPE(ESMF_field)                :: tmp_field
       TYPE(ESMF_FieldBundle)          :: tmp_bundle
       TYPE(ESMF_STATE)                :: tmp_state
-#ifdef ESMF_520r
-      type(ESMF_StateItem_Flag)       :: itemtype
-#else
       type(ESMF_StateItemType)        :: itemtype
-#endif
       integer                         :: n, rc
 !
       do n=1,phy_items
@@ -384,27 +330,15 @@
 
         if(itemtype==ESMF_STATEITEM_FIELDBUNDLE) then
           CALL ESMF_StateGet(phy_state_save, phy_name(n), tmp_bundle, rc = rc)
-#ifdef ESMF_520r
-          CALL ESMF_StateAdd(phy_state, (/tmp_bundle/), rc = rc)
-#else
-          CALL ESMF_StateAdd(phy_state, tmp_bundle, rc = rc)
-#endif
+          CALL ESMF_StateAdd(phy_state, LISTWRAPPER(tmp_bundle), rc = rc)
 !          print *,'restor bundle, ',trim(phy_name(n)),'rc=',rc
         else if(itemtype==ESMF_STATEITEM_FIELD) then
           CALL ESMF_StateGet(phy_state_save, phy_name(n), tmp_field, rc = rc)
-#ifdef ESMF_520r
-          CALL ESMF_StateAdd(phy_state, (/tmp_field/), rc = rc)
-#else
-          CALL ESMF_StateAdd(phy_state, tmp_field, rc = rc)
-#endif
+          CALL ESMF_StateAdd(phy_state, LISTWRAPPER(tmp_field), rc = rc)
 !          print *,'restor field, ',trim(phy_name(n)),'rc=',rc
         else if(itemtype==ESMF_STATEITEM_STATE) then
           CALL ESMF_StateGet(phy_state_save, phy_name(n), tmp_state, rc = rc)
-#ifdef ESMF_520r
-          CALL ESMF_StateAdd(phy_state, (/tmp_state/), rc = rc)
-#else
-          CALL ESMF_StateAdd(phy_state, tmp_state, rc = rc)
-#endif
+          CALL ESMF_StateAdd(phy_state, LISTWRAPPER(tmp_state), rc = rc)
 !          print *,'restor state, ',trim(phy_name(n)),'rc=',rc
         endif
       enddo

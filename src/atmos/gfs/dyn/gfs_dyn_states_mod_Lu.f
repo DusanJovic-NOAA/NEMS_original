@@ -1,3 +1,5 @@
+#include "../../../ESMFVersionDefine.h"
+
    module GFS_Dyn_States_Mod
 
 !BOP
@@ -6,11 +8,7 @@
 
 ! !USES:
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
   use gfs_dyn_machine,              only: kind_evod
   use gfs_dynamics_err_msg_mod                     
 
@@ -132,7 +130,7 @@
        field = ESMF_FieldCreate(name='hs', grid=mgrid, fArray=fArr2D,&
                gridToFieldMap=(/1,2,0/),                              &
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
+       call ESMF_StateAdd(state,LISTWRAPPER(field),rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf state - z",rcfinal)      
     end if
 
@@ -144,7 +142,7 @@
        field = ESMF_FieldCreate(name='ps', grid=mgrid, fArray=fArr2D,&
                gridToFieldMap=(/1,2,0/),                              &
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
+       call ESMF_StateAdd(state,LISTWRAPPER(field),rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf state - ps",rcfinal)    
     end if
 
@@ -156,7 +154,7 @@
        fArr3D => internal%grid_gr(:,:,i:j)
        field = ESMF_FieldCreate(name='t', grid=mgrid, fArray=fArr3D,&
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
+       call ESMF_StateAdd(state,LISTWRAPPER(field),rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf state - temp",rcfinal)  
     end if
 
@@ -168,7 +166,7 @@
        fArr3D => internal%grid_gr(:,:,i:j)
        field = ESMF_FieldCreate(name='u', grid=mgrid, fArray=fArr3D,&
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
+       call ESMF_StateAdd(state,LISTWRAPPER(field),rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf state - u",rcfinal)     
     end if
 
@@ -180,7 +178,7 @@
        fArr3D => internal%grid_gr(:,:,i:j)
        field = ESMF_FieldCreate(name='v', grid=mgrid, fArray=fArr3D,&
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
+       call ESMF_StateAdd(state,LISTWRAPPER(field),rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf state - v",rcfinal)     
     end if
 
@@ -192,7 +190,7 @@
        fArr3D => internal%grid_gr(:,:,i:j)
        field = ESMF_FieldCreate(name='p', grid=mgrid, fArray=fArr3D,& 
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
+       call ESMF_StateAdd(state,LISTWRAPPER(field),rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf state - p",rcfinal)     
     end if
 
@@ -204,7 +202,7 @@
        fArr3D => internal%grid_gr(:,:,i:j)
        field = ESMF_FieldCreate(name='dp', grid=mgrid, fArray=fArr3D,&
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
+       call ESMF_StateAdd(state,LISTWRAPPER(field),rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf state - dp",rcfinal)     
     end if
 
@@ -216,7 +214,7 @@
        fArr3D => internal%grid_gr(:,:,i:j)
        field = ESMF_FieldCreate(name='dpdt', grid=mgrid, fArray=fArr3D,&
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
+       call ESMF_StateAdd(state,LISTWRAPPER(field),rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf state - dpdt",rcfinal)     
     end if
 
@@ -257,7 +255,7 @@
 
       call esmf_logwrite(						&
            " update internal state with the esmf state", 	        &
-            esmf_log_info, rc = rc1)
+            esmf_logmsg_info, rc = rc1)
 
 ! get the surface orography array from the esmf import state.
 !------------------------------------------------------------
@@ -434,7 +432,7 @@
 
       call esmf_logwrite(						&
            " point esmf export state to internal state", 	        &
-            esmf_log_info, rc = rc1)
+            esmf_logmsg_info, rc = rc1)
 
 ! put the surface orography array to esmf export state.
 !------------------------------------------------------------
@@ -445,7 +443,7 @@
        field = ESMF_FieldCreate(name='hs', grid=mgrid, fArray=fArr2D,&
                gridToFieldMap=(/1,2,0/),                              &
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
+       call ESMF_StateAdd(state,LISTWRAPPER(field),rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf export state -z",rcfinal)
       end if
 
@@ -458,7 +456,7 @@
        field = ESMF_FieldCreate(name='ps', grid=mgrid, fArray=fArr2D,&
                gridToFieldMap=(/1,2,0/),                              &
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
+       call ESMF_StateAdd(state,LISTWRAPPER(field),rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf export state -ps",rcfinal)
       end if
 
@@ -471,7 +469,7 @@
        fArr3D => internal%grid_gr(:,:,i:j)
        Field = ESMF_FieldCreate(name='t', grid=mgrid, fArray=fArr3D,&
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
+       call ESMF_StateAdd(state,LISTWRAPPER(field),rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf export state -t",rcfinal)
       end if
 
@@ -484,7 +482,7 @@
        fArr3D => internal%grid_gr(:,:,i:j)
        field = ESMF_FieldCreate(name='u', grid=mgrid, fArray=fArr3D,&
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
+       call ESMF_StateAdd(state,LISTWRAPPER(field),rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf export state -u",rcfinal)
       end if
 
@@ -497,7 +495,7 @@
        fArr3D => internal%grid_gr(:,:,i:j)
        field = ESMF_FieldCreate(name='v', grid=mgrid, fArray=fArr3D,&
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
+       call ESMF_StateAdd(state,LISTWRAPPER(field),rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf export state -v",rcfinal)
       end if
 
@@ -517,7 +515,7 @@
            call ESMF_FieldBundleAdd(bundle,field,rc=rc)                     
            call gfs_dynamics_err_msg(rc,"add field to bundle",rcfinal)       
        end do                                                                
-       call ESMF_StateAdd(state,Bundle,rc=rc)                               
+       call ESMF_StateAdd(state,LISTWRAPPER(Bundle),rc=rc)                               
        call gfs_dynamics_err_msg(rc,"add to esmf state - tracer",rcfinal)   
       end if                                                               
 
@@ -530,7 +528,7 @@
        fArr3D => internal%grid_gr(:,:,i:j)
        field = ESMF_FieldCreate(name='p', grid=mgrid, fArray=fArr3D,&
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
+       call ESMF_StateAdd(state,LISTWRAPPER(field),rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf export state -p",rcfinal)
       end if
 
@@ -543,7 +541,7 @@
        fArr3D => internal%grid_gr(:,:,i:j)
        field = ESMF_FieldCreate(name='dp', grid=mgrid, fArray=fArr3D,&
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
+       call ESMF_StateAdd(state,LISTWRAPPER(field),rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf export state -dp",rcfinal)
       end if
 
@@ -557,7 +555,7 @@
        fArr3D => internal%grid_gr(:,:,i:j)
        field = ESMF_FieldCreate(name='dpdt', grid=mgrid, fArray=fArr3D,&
                indexFlag=ESMF_INDEX_DELOCAL, rc=rc)
-       call ESMF_StateAdd(state,field,rc=rc)
+       call ESMF_StateAdd(state,LISTWRAPPER(field),rc=rc)
        call gfs_dynamics_err_msg(rc,"add to esmf export state -dpdt",rcfinal)
       end if
 !

@@ -44,11 +44,7 @@
 !
 !---------------------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
 !
       USE MODULE_WRITE_INTERNAL_STATE,ONLY: WRITE_INTERNAL_STATE        &
                                            ,WRITE_WRAP                  &
@@ -297,7 +293,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="PRELIM_INFO_FOR_HISTORY: Get the Global VM"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !
@@ -310,7 +306,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract the Communicator from the Global VM"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_VMGet(vm             =VM_DOMAIN                         &
@@ -356,7 +352,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="PRELIM_INFO: Fcst Tasks Get the Write Internal State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_GridCompGetInternalState(WRITE_COMPS(1)               &
@@ -412,7 +408,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="PRELIM_INFO: Write Tasks Get the Write Internal State"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_GridCompGetInternalState(WRITE_COMPS(N)             &
@@ -472,7 +468,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract the History Bundle from the Write Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateGet(state      =IMP_STATE_WRITE                  &  !<-- The Write component's import state
@@ -496,53 +492,37 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Global Parameters from History Bundle" 
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 ! 
-#ifdef ESMF_3
-        CALL ESMF_AttributeGet(bundle   =OUTPUT_BUNDLE                  &  !<-- The Bundle of output data
-                              ,name     ='IM'                           &  !<-- Name of the Attribute to extract
-                              ,count    =1                              &  !<-- Length of Attribute
-                              ,valueList=wrt_int_state%IM               &  !<-- Extract this Attribute from History Bundle
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeGet(bundle   =OUTPUT_BUNDLE                  &  !<-- The Bundle of output data
-                              ,name     ='JM'                           &  !<-- Name of the Attribute to extract
-                              ,count    =1                              &  !<-- Length of Attribute
-                              ,valueList=wrt_int_state%JM               &  !<-- Extract this Attribute from History Bundle
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeGet(bundle   =OUTPUT_BUNDLE                  &  !<-- The Bundle of output data
-                              ,name     ='LM'                           &  !<-- Name of the Attribute to extract
-                              ,count    =1                              &  !<-- Length of Attribute
-                              ,valueList=wrt_int_state%LM               &  !<-- Extract this Attribute from History Bundle
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeGet(bundle=OUTPUT_BUNDLE                     &  !<-- The Bundle of output data
-                              ,name  ='GLOBAL'                          &  !<-- Name of the Attribute to extract
-                              ,value =wrt_int_state%GLOBAL              &  !<-- Extract this Attribute from History Bundle
-                              ,rc    =RC)
-#else
-        CALL ESMF_AttributeGet(fieldbundle=OUTPUT_BUNDLE                &  !<-- The Bundle of output data
+        CALL ESMF_AttributeGet(FIELDBUNDLE=OUTPUT_BUNDLE                &  !<-- The Bundle of output data
                               ,name       ='IM'                         &  !<-- Name of the Attribute to extract
+#ifdef ESMF_3
+                              ,count    =1                              &  !<-- Length of Attribute
+#endif
                               ,valueList  =wrt_int_state%IM             &  !<-- Extract this Attribute from History Bundle
                               ,rc         =RC)
 !
-        CALL ESMF_AttributeGet(fieldbundle=OUTPUT_BUNDLE                &  !<-- The Bundle of output data
+        CALL ESMF_AttributeGet(FIELDBUNDLE=OUTPUT_BUNDLE                &  !<-- The Bundle of output data
                               ,name       ='JM'                         &  !<-- Name of the Attribute to extract
+#ifdef ESMF_3
+                              ,count    =1                              &  !<-- Length of Attribute
+#endif
                               ,valueList  =wrt_int_state%JM             &  !<-- Extract this Attribute from History Bundle
                               ,rc         =RC)
 !
-        CALL ESMF_AttributeGet(fieldbundle=OUTPUT_BUNDLE                &  !<-- The Bundle of output data
+        CALL ESMF_AttributeGet(FIELDBUNDLE=OUTPUT_BUNDLE                &  !<-- The Bundle of output data
                               ,name       ='LM'                         &  !<-- Name of the Attribute to extract
+#ifdef ESMF_3
+                              ,count    =1                              &  !<-- Length of Attribute
+#endif
                               ,valueList  =wrt_int_state%LM             &  !<-- Extract this Attribute from History Bundle
                               ,rc         =RC)
-
-        CALL ESMF_AttributeGet(fieldbundle=OUTPUT_BUNDLE                &  !<-- The Bundle of output data
+!
+        CALL ESMF_AttributeGet(FIELDBUNDLE=OUTPUT_BUNDLE                &  !<-- The Bundle of output data
                               ,name       ='GLOBAL'                     &  !<-- Name of the Attribute to extract
                               ,value      =wrt_int_state%GLOBAL         &  !<-- Extract this Attribute from History Bundle
                               ,rc         =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -575,7 +555,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Local Quilting Info from Write Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 
@@ -605,31 +585,6 @@
         wrt_int_state%IHALO=IHALO(1)                                       !<-- Place in internal state for later use
         wrt_int_state%JHALO=JHALO(1)                                       !<-- Place in internal state for later use
 !
-#ifdef ESMF_3
-        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
-                              ,name     ='LOCAL_ISTART'                 &  !<-- Name of the Attribute to extract
-                              ,count    =NUM_PES_FCST                   &  !<-- Length of Attribute
-                              ,valueList=LOCAL_ISTART                   &  !<-- Extract local subdomain starting I's
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
-                              ,name     ='LOCAL_IEND'                   &  !<-- Name of the Attribute to extract
-                              ,count    =NUM_PES_FCST                   &  !<-- Length of Attribute
-                              ,valueList=LOCAL_IEND                     &  !<-- Extract local subdomain ending I's
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
-                              ,name     ='LOCAL_JSTART'                 &  !<-- Name of the Attribute to extract
-                              ,count    =NUM_PES_FCST                   &  !<-- Length of Attribute
-                              ,valueList=LOCAL_JSTART                   &  !<-- Extract local subdomain starting J's
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
-                              ,name     ='LOCAL_JEND'                   &  !<-- Name of the Attribute to extract
-                              ,count    =NUM_PES_FCST                   &  !<-- Length of Attribute
-                              ,valueList=LOCAL_JEND                     &  !<-- Extract local subdomain ending J's
-                              ,rc       =RC)
-#else
         CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
                               ,name     ='LOCAL_ISTART'                 &  !<-- Name of the Attribute to extract
                               ,valueList=LOCAL_ISTART                   &  !<-- Extract local subdomain starting I's
@@ -653,7 +608,6 @@
                               ,valueList=LOCAL_JEND                     &  !<-- Extract local subdomain ending J's
                               ,itemCount=NUM_PES_FCST                   &  !<-- Length of Attribute
                               ,rc       =RC)
-#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -857,18 +811,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Get Attribute Count from "//BUNDLE_NAME
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-        CALL ESMF_AttributeGet(bundle=OUTPUT_BUNDLE                     &  !<-- The write component's history data Bundle
-                              ,count =NUM_ATTRIB                        &  !<-- # of Attributes in the history data Bundle
-                              ,rc    =RC)
-#else
-        CALL ESMF_AttributeGet(fieldbundle=OUTPUT_BUNDLE                &  !<-- The write component's history data Bundle
+        CALL ESMF_AttributeGet(FIELDBUNDLE=OUTPUT_BUNDLE                &  !<-- The write component's history data Bundle
                               ,count      =NUM_ATTRIB                   &  !<-- # of Attributes in the history data Bundle
                               ,rc         =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -880,24 +828,15 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Get Attribute Names, Datatypes, Lengths"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-          CALL ESMF_AttributeGet(bundle        =OUTPUT_BUNDLE           &  !<-- The write component's history data Bundle
-                                ,attributeIndex=N                       &  !<-- Index of each Attribute
-                                ,name          =ATTRIB_NAME             &  !<-- Each Attribute's name
-                                ,typekind      =DATATYPE                &  !<-- Each Attribute's ESMF Datatype
-                                ,count         =LENGTH                  &  !<-- Each Attribute's length
-                                ,rc            =RC)
-#else
-          CALL ESMF_AttributeGet(fieldbundle   =OUTPUT_BUNDLE           &  !<-- The write component's history data Bundle
+          CALL ESMF_AttributeGet(FIELDBUNDLE   =OUTPUT_BUNDLE           &  !<-- The write component's history data Bundle
                                 ,attributeIndex=N                       &  !<-- Index of each Attribute
                                 ,name          =ATTRIB_NAME             &  !<-- Each Attribute's name
                                 ,typekind      =DATATYPE                &  !<-- Each Attribute's ESMF Datatype
                                 ,itemCount     =LENGTH                  &  !<-- Each Attribute's length
                                 ,rc            =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -913,22 +852,14 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Get Scalar/1-D Integer Data from "//BUNDLE_NAME
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-            CALL ESMF_AttributeGet(bundle   =OUTPUT_BUNDLE              &  !<-- The write component's history data Bundle
-                                  ,name     =ATTRIB_NAME                &  !<-- Name of the Attribute to extract
-                                  ,count    =LENGTH                     &  !<-- Length of Attribute
-                                  ,valueList=WORK_ARRAY_I1D             &  !<-- Place the Attribute here
-                                  ,rc       =RC)
-#else
-            CALL ESMF_AttributeGet(fieldbundle=OUTPUT_BUNDLE            &  !<-- The write component's history data Bundle
+            CALL ESMF_AttributeGet(FIELDBUNDLE=OUTPUT_BUNDLE            &  !<-- The write component's history data Bundle
                                   ,name       =ATTRIB_NAME              &  !<-- Name of the Attribute to extract
                                   ,itemCount  =LENGTH                   &  !<-- Length of Attribute
                                   ,valueList  =WORK_ARRAY_I1D           &  !<-- Place the Attribute here
                                   ,rc         =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -963,22 +894,14 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Get Scalar/1-D Real Data from "//BUNDLE_NAME
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-            CALL ESMF_AttributeGet(bundle   =OUTPUT_BUNDLE              &  !<-- The Write component's history data Bundle
-                                  ,name     =ATTRIB_NAME                &  !<-- Name of the Attribute to extract
-                                  ,count    =LENGTH                     &  !<-- Length of Attribute
-                                  ,valueList=WORK_ARRAY_R1D             &  !<-- Place the Attribute here
-                                  ,rc       =RC)
-#else
-            CALL ESMF_AttributeGet(fieldbundle=OUTPUT_BUNDLE            &  !<-- The write component's history data Bundle
+            CALL ESMF_AttributeGet(FIELDBUNDLE=OUTPUT_BUNDLE            &  !<-- The write component's history data Bundle
                                   ,name       =ATTRIB_NAME              &  !<-- Name of the Attribute to extract
                                   ,itemCount  =LENGTH                   &  !<-- Length of Attribute
                                   ,valueList  =WORK_ARRAY_R1D           &  !<-- Place the Attribute here
                                   ,rc         =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -1013,20 +936,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Get Logical Data from "//BUNDLE_NAME
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-            CALL ESMF_AttributeGet(bundle=OUTPUT_BUNDLE                 &  !<-- The write component's history data Bundle
+            CALL ESMF_AttributeGet(FIELDBUNDLE=OUTPUT_BUNDLE            &  !<-- The write component's history data Bundle
                                   ,name  =ATTRIB_NAME                   &  !<-- Name of the Attribute to extract
                                   ,value =WORK_LOGICAL                  &  !<-- Place the Attribute here
                                   ,rc    =RC)
-#else
-            CALL ESMF_AttributeGet(fieldbundle=OUTPUT_BUNDLE            &  !<-- The write component's history data Bundle
-                                  ,name       =ATTRIB_NAME              &  !<-- Name of the Attribute to extract
-                                  ,value      =WORK_LOGICAL             &  !<-- Place the Attribute here
-                                  ,rc         =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -1085,7 +1001,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Get Field Count from "//BUNDLE_NAME
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_FieldBundleGet(           OUTPUT_BUNDLE               &  !<-- The write component's data Bundle
@@ -1100,20 +1016,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Field Names from "//BUNDLE_NAME
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
         CALL ESMF_FieldBundleGet(              OUTPUT_BUNDLE            &  !<-- The write component's data Bundle
-                                ,fieldNameList=FIELD_NAME               &  !<-- Array of ESMF Field names in the Bundle
-                                ,fieldCount   =NUM_FIELD_NAMES          &  !<-- Number of Field names in the Bundle
+                                ,FIELDNAMELIST=FIELD_NAME               &  !<-- Array of ESMF Field names in the Bundle
+                                ,FIELDCOUNT   =NUM_FIELD_NAMES          &  !<-- Number of Field names in the Bundle
                                 ,rc           =RC)
-#else
-        CALL ESMF_FieldBundleGet(          OUTPUT_BUNDLE                &  !<-- The write component's data Bundle
-                                ,nameList =FIELD_NAME                   &  !<-- Array of ESMF Field names in the Bundle
-                                ,nameCount=NUM_FIELD_NAMES              &  !<-- Number of Field names in the Bundle
-                                ,rc       =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -1142,12 +1051,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract Fields from Output Bundle for Counting"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_FieldBundleGet(       OUTPUT_BUNDLE                 &  !<-- The write component's data Bundle
-                                  ,       FIELD_NAME(N)                 &  !<-- The ESMF Field's name
-                                  ,       FIELD_WORK1                   &  !<-- The ESMF Field taken from the Bundle
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE=OUTPUT_BUNDLE               &  !<-- The write component's data Bundle
+                                  ,FIELDNAME  =FIELD_NAME(N)               &  !<-- The ESMF Field's name
+                                  ,field      =FIELD_WORK1                 &  !<-- The ESMF Field taken from the Bundle
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1156,7 +1065,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Get Datatype of Fields for Counting Real/Integer"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_FieldGet(field   =FIELD_WORK1                       &  !<-- The ESMF 2D Field
@@ -1316,7 +1225,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fcst Task0 Informs All That There Are No Fields"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             CALL MPI_SEND(NO_FIELDS                                     &  !<-- Send flag that there is no history data
@@ -1339,7 +1248,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Write Tasks Told By Fcst Task0 There Are No Fields"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL MPI_RECV(NO_FIELDS                                       &  !<-- Recv flag that there is no history data
@@ -1392,7 +1301,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Fcst Task0 Sends Write Tasks Info for Quilting"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           DO NN=N1,N2                                                      !<-- Loop through all the write tasks in the write group
@@ -1493,7 +1402,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Fcst Task0 Sends Lead Write Task # of BC Words"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL MPI_SEND(wrt_int_state%NUM_WORDS_SEND_BC                 &  !<-- Send # of words in BC data
@@ -1518,7 +1427,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Write Tasks Recv Quilting Info From Fcst Task0"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL MPI_RECV(INPES                                           &  !<-- Recv # of fcst tasks in I
@@ -1670,7 +1579,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Fcst Task0 Sends Lead Write Task 2D Data Names"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL MPI_SEND(NCHAR_I2D                                       &  !<-- Send total length of the names of 2D integer data
@@ -1992,7 +1901,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Fcst Task0 Sends Scalar/1D Integer History Data"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL MPI_SEND(KOUNT_I1D                                       &  !<-- Send # of scalar/1D integer history variables
@@ -2046,7 +1955,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Fcst Task 0 Sends Scalar/1D Real History Data"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL MPI_SEND(KOUNT_R1D                                       &  !<-- Send # of scalar/1D real history variables
@@ -2099,7 +2008,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Fcst Task0 Sends Logical History Data"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL MPI_SEND(KOUNT_LOG                                       &  !<-- Send # of logical history variables
@@ -2154,7 +2063,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Write Tasks Recv Scalar/1D Integer History Data"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL MPI_RECV(KOUNT_I1D                                       &  !<-- Recv # of scalar/1D integer history variables
@@ -2214,7 +2123,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Write Tasks Recv Scalar/1D Real History Data"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL MPI_RECV(KOUNT_R1D                                       &  !<-- Recv # of scalar/1D real history variables
@@ -2273,7 +2182,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Write Tasks Recv Logical Real History Data"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL MPI_RECV(KOUNT_LOG                                       &  !<-- Recv # of logical history variables
@@ -2441,7 +2350,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="PRELIM_INFO: Fcst Tasks Get Nth Write Internal State"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_GridCompGetInternalState(WRITE_COMPS(N)             &
@@ -2908,7 +2817,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Get Config Object from DOMAIN Component in Write Init"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompGet(gridcomp=DOMAIN_GRID_COMP                   &  !<-- The DOMAIN component
@@ -2925,7 +2834,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Write Init: Get INPES/JNPES from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The ESMF configure object
@@ -2959,14 +2868,16 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Execute Initialize Step of Write Component"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             CALL ESMF_GridCompInitialize(gridcomp   =domain_int_state%WRITE_COMPS(J)   &  !<-- The Write gridded components
                                         ,importState=domain_int_state%IMP_STATE_WRITE  &  !<-- The Write import state
                                         ,exportState=domain_int_state%EXP_STATE_WRITE  &  !<-- The Write export state
                                         ,clock      =CLOCK_DOMAIN                      &  !<-- The ESMF clock of the DOMAIN component
+#ifndef ESMF_520r
                                         ,phase      =ESMF_SINGLEPHASE                  &
+#endif
                                         ,rc         =RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -3070,7 +2981,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="WRITE_ASYNC: Extract Config Object from DOMAIN Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompGet(gridcomp=DOMAIN_GRID_COMP                   &  !<-- The DOMAIN component
@@ -3083,7 +2994,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="WRITE_ASYNC: Get General Info from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &
@@ -3128,7 +3039,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="WRITE_ASYNC: Get Current Time from DOMAIN Clock"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ClockGet(clock   =CLOCK_DOMAIN                          &  !<-- The DOMAIN component's ESMF Clock
@@ -3141,7 +3052,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="WRITE_ASYNC: Convert ESMF Time to Real Time"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_TimeGet (time=CURRTIME                                  &  !<-- The current forecast time (ESMF)
@@ -3167,7 +3078,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="WRITE_ASYNC: Extract Write Import State from Dyn Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_StateGet(state      =domain_int_state%EXP_STATE_SOLVER  &  !<-- The Solver component's export state
@@ -3192,7 +3103,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="WRITE_ASYNC: Execute Run Step of Write Components" 
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO I=1,NUM_PES_FCST+WRITE_TASKS_PER_GROUP
@@ -3202,7 +3113,9 @@
                                ,importState=domain_int_state%IMP_STATE_WRITE   &  !<-- Its import state
                                ,exportState=domain_int_state%EXP_STATE_WRITE   &  !<-- Its export state
                                ,clock      =CLOCK_DOMAIN                       &  !<-- The DOMAIN Clock
+#ifndef ESMF_520r
                                ,phase      =ESMF_SINGLEPHASE                   &
+#endif
                                ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

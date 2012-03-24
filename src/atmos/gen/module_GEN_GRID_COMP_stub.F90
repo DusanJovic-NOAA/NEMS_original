@@ -29,11 +29,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
 !
       USE MODULE_GEN_INTERNAL_STATE,ONLY: GEN_INTERNAL_STATE            &
                                          ,WRAP_GEN_INTERNAL_STATE

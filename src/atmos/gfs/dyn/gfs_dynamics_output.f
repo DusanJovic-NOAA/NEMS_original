@@ -1,11 +1,5 @@
 #include "../../../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 !
       MODULE gfs_dynamics_output
@@ -35,11 +29,7 @@
 !***
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
       USE gfs_dyn_machine
       USE gfs_dynamics_internal_state_mod,ONLY: gfs_dynamics_internal_state 
 
@@ -451,11 +441,7 @@
 !create dist  grid
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create DISGRID for write Bundle"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       DistGrid = ESMF_DistGridCreate(minidx, maxidx, rc=rc)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -464,21 +450,13 @@
 !jw double check the grid index with buff_mult_pieceg
       allocate(i2(2,int_state%nodes))
       i2=0
-#ifdef ESMF_520r
-      CALL ESMF_DistGridGet(DistGrid, indexCountPDe=i2, rc=rc)
-#else
       CALL ESMF_DistGridGet(DistGrid, indexCountPDimPDe=i2, rc=rc)
-#endif
       print *,'dist grid dimension,i2=',i2(1,:), '2d i2=',i2(2,:)
 !
 !create grid
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create GRID from DistGrid for write Bundle"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       grid = ESMF_GridCreate(name="gridwrt", distgrid=DistGrid, rc=rc)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -555,11 +533,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create History Data Bundle"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       GFS_DYN_BUNDLE=ESMF_FieldBundleCreate(name=int_state%filename_base(1) &  !<-- The Bundle's name
@@ -585,11 +559,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Add Local Subdomain Limits to the Write Import State"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
@@ -612,19 +582,11 @@
                             ,value    =int_state%ipt_lats_node_a        &  !<-- The array being inserted into the import state
                             ,rc       =RC)
 
-#ifdef ESMF_3
-      CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
-                            ,name     ='global_lats_a'                  &  !<-- Name of the integer array
-                            ,count    =int_state%latg                   &  !<-- Length of array being inserted into the import state
-                            ,valueList=int_state%global_lats_a          &  !<-- The array being inserted into the import state
-                            ,rc       =RC)
-#else
       CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
                             ,name     ='global_lats_a'                  &  !<-- Name of the integer array
                             ,itemCount=int_state%latg                   &  !<-- Length of array being inserted into the import state
                             ,valueList=int_state%global_lats_a          &  !<-- The array being inserted into the import state
                             ,rc       =RC)
-#endif
 
       CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
                             ,name     ='zhour'                          &  !<-- Name of the integer array
@@ -700,11 +662,7 @@
       CHARACTER(10),DIMENSION(:,:),POINTER :: DYN_INT_STATE_3D_R
 !
       TYPE(ESMF_Field)       :: FIELD
-#ifdef ESMF_520r
       TYPE(ESMF_DataCopy_Flag) :: COPYFLAG=ESMF_DATACOPY_REFERENCE
-#else
-      TYPE(ESMF_CopyFlag)    :: COPYFLAG=ESMF_DATA_REF
-#endif
 
 #ifdef ESMF_3
       TYPE(ESMF_Logical),TARGET   :: LOG_ESMF
@@ -725,28 +683,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Dynamics Integer Scalars into Hist/Res Bundles"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO NFIND=1,MAX_KOUNT
         IF(trim(DYN_INT_STATE_ISCALAR(2,NFIND))=='OGFS_SIG')THEN                        !<-- Take integer scalar data specified for history output
           VBL_NAME=TRIM(DYN_INT_STATE_ISCALAR(1,NFIND))
 
-#ifdef ESMF_3
-          CALL ESMF_AttributeSet(bundle     =file_bundle                &  !<-- The Write component output history Bundle
+          CALL ESMF_AttributeSet(FIELDBUNDLE=file_bundle                &  !<-- The Write component output history Bundle
                                 ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
                                 ,value      =I_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the import state
                                 ,rc         =RC)
-#else
-          CALL ESMF_AttributeSet(fieldbundle=file_bundle                &  !<-- The Write component output history Bundle
-                                ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
-                                ,value      =I_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the import state
-                                ,rc         =RC)
-#endif
 
 !          if(MYPE==0) write(0,*)'dyn_output,after VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
 !           'value=',I_SC(NFIND)%NAME
@@ -770,11 +717,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Dynamics Real Scalars into History/Res Bundles"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO NFIND=1,MAX_KOUNT
@@ -784,17 +727,10 @@
 !          write(0,*)'dyn_output,VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
 !           'value=',R_SC(NFIND)%NAME
 
-#ifdef ESMF_3
-          CALL ESMF_AttributeSet(bundle     =file_bundle                &  !<-- The Write component output history Bundle
+          CALL ESMF_AttributeSet(FIELDBUNDLE=file_bundle                &  !<-- The Write component output history Bundle
                                 ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
                                 ,value      =R_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the import state
                                 ,rc         =RC)
-#else
-          CALL ESMF_AttributeSet(fieldbundle=file_bundle                &  !<-- The Write component output history Bundle
-                                ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
-                                ,value      =R_SC(NFIND)%NAME           &  !<-- The scalar being inserted into the import state
-                                ,rc         =RC)
-#endif
 
         ENDIF
 !
@@ -816,11 +752,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Dynamics Logical Scalars into History/Res Bundles"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO NFIND=1,MAX_KOUNT
@@ -837,18 +769,14 @@
 #ifdef ESMF_3
           LOG_ESMF = ESMF_FALSE
           if(L_SC(NFIND)%NAME) LOG_ESMF = ESMF_TRUE
-          CALL ESMF_AttributeSet(bundle     =file_bundle                &  !<-- The Write component output history Bundle
-                                ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
-                                ,value      =LOG_ESMF                   &  !<-- The scalar being inserted into the import state
-                                ,rc         =RC)
 #else
           LOG_ESMF = .false.
           if(L_SC(NFIND)%NAME) LOG_ESMF = .true.
-          CALL ESMF_AttributeSet(fieldbundle=file_bundle                &  !<-- The Write component output history Bundle
+#endif
+          CALL ESMF_AttributeSet(FIELDBUNDLE=file_bundle                &  !<-- The Write component output history Bundle
                                 ,name       =VBL_NAME                   &  !<-- Name of the integer scalar
                                 ,value      =LOG_ESMF                   &  !<-- The scalar being inserted into the import state
                                 ,rc         =RC)
-#endif
 
         ENDIF
 !
@@ -869,11 +797,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Dynamics 1-D Integer Arrays into Hist/Res Bundles"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO NFIND=1,MAX_KOUNT
@@ -884,19 +808,11 @@
 !          write(0,*)'dyn_output,1d int VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
 !           'LENGTH=',LENGTH,'value=',I_1D(NFIND)%NAME(1:LENGTH)
 
-#ifdef ESMF_3
-          CALL ESMF_AttributeSet(bundle      =file_bundle               &  !<-- The Write component output history Bundle
-                                ,name        =VBL_NAME                  &  !<-- Name of the integer scalar
-                                ,count       =LENGTH                    &  !<-- # of elements in this attribute
-                                ,valueList   =I_1D(NFIND)%NAME          &  !<-- The 1D integer being inserted into the import state
-                                ,rc          =RC)
-#else
-          CALL ESMF_AttributeSet(fieldbundle =file_bundle               &  !<-- The Write component output history Bundle
+          CALL ESMF_AttributeSet(FIELDBUNDLE =file_bundle               &  !<-- The Write component output history Bundle
                                 ,name        =VBL_NAME                  &  !<-- Name of the integer scalar
                                 ,itemCount   =LENGTH                    &  !<-- # of elements in this attribute
                                 ,valueList   =I_1D(NFIND)%NAME          &  !<-- The 1D integer being inserted into the import state
                                 ,rc          =RC)
-#endif
 
         ENDIF
 !
@@ -917,11 +833,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Dynamics 1-D Real Arrays into Hist/Res Bundles"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO NFIND=1,MAX_KOUNT
@@ -933,19 +845,11 @@
 !          write(0,*)'dyn_output,1d real VBL_NAME=',VBL_NAME,'NFIND=',NFIND,     &
 !           'LENGTH=',LENGTH,'value=',R_1D(NFIND)%NAME(1:LENGTH)
 
-#ifdef ESMF_3
-          CALL ESMF_AttributeSet(bundle      =file_bundle             &  !<-- The Write component output history Bundle
-                                ,name        =VBL_NAME                &  !<-- Name of the integer scalar
-                                ,count       =LENGTH                  &  !<-- # of elements in this attribute
-                                ,valueList   =R_1D(NFIND)%NAME        &  !<-- The 1D real being inserted into the import state
-                                ,rc          =RC)
-#else
-          CALL ESMF_AttributeSet(fieldbundle =file_bundle             &  !<-- The Write component output history Bundle
+          CALL ESMF_AttributeSet(FIELDBUNDLE =file_bundle             &  !<-- The Write component output history Bundle
                                 ,name        =VBL_NAME                &  !<-- Name of the integer scalar
                                 ,itemCount   =LENGTH                  &  !<-- # of elements in this attribute
                                 ,valueList   =R_1D(NFIND)%NAME        &  !<-- The 1D real being inserted into the import state
                                 ,rc          =RC)
-#endif
 
         ENDIF
 !
@@ -984,28 +888,15 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert Dynamics 2-D Real Data into Field"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
           FIELD=ESMF_FieldCreate(              GRID                     &  !<-- The ESMF grid
                                 ,              TEMP_R2D                 &  !<-- The 2D real array being inserted into the import state
                                 ,datacopyflag =COPYFLAG                 &
                                 ,name         =VBL_NAME                 &  !<-- Name of the 2D real array
                                 ,indexFlag=ESMF_INDEX_DELOCAL           &
                                 ,rc           =RC)
-#else
-          FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
-                                ,farray       =TEMP_R2D                 &  !<-- The 2D real array being inserted into the import state
-                                ,copyflag     =COPYFLAG                 &
-                                ,name         =VBL_NAME                 &  !<-- Name of the 2D real array
-                                ,indexFlag=ESMF_INDEX_DELOCAL           &
-                                ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL gfs_dynamics_err_msg(RC,MESSAGE_CHECK,RC_DYN_OUT)
@@ -1013,22 +904,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert Dynamics 2-D Real Field into Hist/Res Bundles"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
           CALL ESMF_FieldBundleAdd(file_bundle                   &  !<-- The Write component output history Bundle
-                                  ,(/FIELD/)                     &  !<-- ESMF Field holding the 2D real array
+                                  ,LISTWRAPPER(FIELD)            &  !<-- ESMF Field holding the 2D real array
                                   ,rc    =RC)
-#else
-          CALL ESMF_FieldBundleAdd(file_bundle                   &  !<-- The Write component output history Bundle
-                                  ,FIELD                         &  !<-- ESMF Field holding the 2D real array
-                                  ,rc    =RC)
-#endif
           CALL gfs_dynamics_err_msg(RC,MESSAGE_CHECK,RC_DYN_OUT)
 !
           NUM_2D_FIELDS=NUM_2D_FIELDS+1
@@ -1119,27 +1000,14 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of Dynamics 3-D Data"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
             FIELD=ESMF_FieldCreate(              GRID                   &  !<-- The ESMF grid
                                   ,              TEMP_R2D               &  !<-- Level K of 3D real array being inserted into the import state
                                   ,datacopyflag =COPYFLAG               &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
                                   ,rc           =RC)
-#else
-            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =TEMP_R2D               &  !<-- Level K of 3D real array being inserted into the import state
-                                  ,copyflag     =COPYFLAG               &
-                                  ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
-                                  ,indexFlag=ESMF_INDEX_DELOCAL         &
-                                  ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL gfs_dynamics_err_msg(RC,MESSAGE_CHECK,RC_DYN_OUT)
@@ -1147,22 +1015,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Insert Dynamics 3-D Data into History Bundle"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
             CALL ESMF_FieldBundleAdd(file_bundle                 &  !<-- The Write component output history Bundle
-                                    ,(/FIELD/)                   &  !<-- ESMF Field holding the 1D real array
+                                    ,LISTWRAPPER(FIELD)          &  !<-- ESMF Field holding the 1D real array
                                     ,rc    =RC)
-#else
-            CALL ESMF_FieldBundleAdd(file_bundle                 &  !<-- The Write component output history Bundle
-                                    ,FIELD                       &  !<-- ESMF Field holding the 1D real array
-                                    ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL gfs_dynamics_err_msg(RC,MESSAGE_CHECK,RC_DYN_OUT)
@@ -1212,11 +1070,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !jw            MESSAGE_CHECK="Fill 2-D Fields with Each Level of Physics 4-D Data"
-!#ifdef ESMF_520r
 !      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!#else
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !jw            FIELD=ESMF_FieldCreate(grid         =GRID3                  &  !<-- The ESMF grid
@@ -1232,11 +1086,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !jw            MESSAGE_CHECK="Insert Physics 4-D Data into History Bundle"
-!#ifdef ESMF_520r
 !      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-!#else
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-!#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !jw            CALL ESMF_FieldBundleAdd(bundle=GFS_DYN_BUNDLE              &  !<-- The write component's output data Bundle
@@ -1273,22 +1123,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Dynamics: Insert History Bundle into the Write Import State"
-#ifdef ESMF_520r
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-#else
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
       CALL ESMF_StateAdd(            IMP_STATE_WRITE                    &  !<-- The Write component's import state
-                        ,            (/file_bundle/)                    &  !<-- The ESMF Bundle holding all Dynamics history data
+                        ,LISTWRAPPER(file_bundle)                       &  !<-- The ESMF Bundle holding all Dynamics history data
                         ,rc         =RC)
-#else
-      CALL ESMF_StateAdd(state      =IMP_STATE_WRITE                    &  !<-- The Write component's import state
-                        ,fieldbundle=file_bundle                        &  !<-- The ESMF Bundle holding all Dynamics history data
-                        ,rc         =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL gfs_dynamics_err_msg(RC,MESSAGE_CHECK,RC_DYN_OUT)

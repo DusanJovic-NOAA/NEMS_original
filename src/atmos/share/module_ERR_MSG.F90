@@ -24,11 +24,7 @@
 !!uses:
 !
 
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
 
       implicit none
 

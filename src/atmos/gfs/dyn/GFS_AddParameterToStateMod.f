@@ -29,11 +29,7 @@
 
  MODULE GFS_AddParameterToStateMod
 
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
 
  USE gfs_dyn_resol_def
  USE gfs_dyn_layout1

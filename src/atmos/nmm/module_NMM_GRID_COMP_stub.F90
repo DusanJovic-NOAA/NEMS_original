@@ -18,11 +18,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -69,63 +65,50 @@
 !
       write(0,*) "    NMM_REGISTER"
 !
-#ifdef ESMF_520r
       CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
                                      ,ESMF_METHOD_INITIALIZE            &
                                      ,NMM_INITIALIZE                    &
+#ifdef ESMF_3
+                                     ,ESMF_SINGLEPHASE                  &
+                                     ,RC)
+#else
+#ifdef ESMF_520r
                                      ,phase=1                           &
                                      ,rc=RC)
-!
+#else
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
+#endif
+
       CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
                                      ,ESMF_METHOD_RUN                   &
                                      ,NMM_RUN                           &
+#ifdef ESMF_3
+                                     ,ESMF_SINGLEPHASE                  &
+                                     ,RC)
+#else
+#ifdef ESMF_520r
                                      ,phase=1                           &
                                      ,rc=RC)
-!
+#else
+                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,rc=RC)
+#endif
+#endif
       CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
                                      ,ESMF_METHOD_FINALIZE              &
                                      ,NMM_FINALIZE                      &
-                                     ,phase=1                           &
-                                     ,rc=RC)
-#else
 #ifdef ESMF_3
-      CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
-                                     ,ESMF_SETINIT                      &
-                                     ,NMM_INITIALIZE                    &
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
-!
-      CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
-                                     ,ESMF_SETRUN                       &
-                                     ,NMM_RUN                           &
-                                     ,1                                 &
-                                     ,RC)
-!
-      CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
-                                     ,ESMF_SETFINAL                     &
-                                     ,NMM_FINALIZE                      &
-                                     ,1                                 &
-                                     ,RC)
-!
 #else
-      CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
-                                     ,ESMF_SETINIT                      &
-                                     ,NMM_INITIALIZE                    &
+#ifdef ESMF_520r
+                                     ,phase=1                           &
+                                     ,rc=RC)
+#else
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
-!
-      CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
-                                     ,ESMF_SETRUN                       &
-                                     ,NMM_RUN                           &
-                                     ,phase=1                           &
-                                     ,rc=RC)
-!
-      CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
-                                     ,ESMF_SETFINAL                     &
-                                     ,NMM_FINALIZE                      &
-                                     ,phase=1                           &
-                                     ,rc=RC)
-!
 #endif
 #endif
 

@@ -59,11 +59,7 @@
 !! 06Feb 2012     Weiyu Yang, Modified for using the ESMF 5.2.0r library.
 !------------------------------------------------------------------------------
 
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
 
       USE MODULE_ERR_MSG, ONLY: ERR_MSG, MESSAGE_CHECK
       use MODULE_gfs_machine,  ONLY: kind_phys
@@ -139,23 +135,17 @@
 !
       MESSAGE_CHECK="Set Entry Point for phy2chem coupler init"
 
-#ifdef ESMF_3
       call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
-                                    ,ESMF_SETINIT              & !<-- Predefined subroutine type
+                                    ,ESMF_METHOD_INITIALIZE    & !<-- Predefined subroutine type
                                     ,INIT                      & !<-- User's subroutineName
+#ifdef ESMF_3
                                     ,ESMF_SINGLEPHASE          &
                                     ,RC)
 #else
 #ifdef ESMF_520r
-      call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
-                                    ,ESMF_METHOD_INITIALIZE    & !<-- Predefined subroutine type
-                                    ,INIT                      & !<-- User's subroutineName
                                     ,phase=1                   &
                                     ,rc=RC)
 #else
-      call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
-                                    ,ESMF_SETINIT              & !<-- Predefined subroutine type
-                                    ,INIT                      & !<-- User's subroutineName
                                     ,phase=ESMF_SINGLEPHASE    &
                                     ,rc=RC)
 #endif
@@ -169,23 +159,17 @@
 !
       MESSAGE_CHECK="Set Entry Point for phy2chem coupler run"
 
-#ifdef ESMF_3
       call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
-                                    ,ESMF_SETRUN               & !<-- Predefined subroutine type
+                                    ,ESMF_METHOD_RUN           & !<-- Predefined subroutine type
                                     ,RUN                       & !<-- User's subroutineName
+#ifdef ESMF_3
                                     ,ESMF_SINGLEPHASE          &
                                     ,RC)
 #else
 #ifdef ESMF_520r
-      call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
-                                    ,ESMF_METHOD_RUN           & !<-- Predefined subroutine type
-                                    ,RUN                       & !<-- User's subroutineName
                                     ,phase=1                   &
                                     ,rc=RC)
 #else
-      call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
-                                    ,ESMF_SETRUN               & !<-- Predefined subroutine type
-                                    ,RUN                       & !<-- User's subroutineName
                                     ,phase=ESMF_SINGLEPHASE    &
                                     ,rc=RC)
 #endif
@@ -277,11 +261,7 @@
          vname = chemReg%vname(N)
          spec(L) = vname
          MESSAGE_CHECK="PHY2CHEM_INIT: get field from tracers: "//vname
-#ifdef ESMF_520r
          call ESMF_FieldBundleGet(iBundle, FIELDNAME=vname, FIELD=Field, rc = RC )
-#else
-         call ESMF_FieldBundleGet(iBundle,      NAME=vname, FIELD=Field, rc = RC )
-#endif
 
          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
@@ -483,11 +463,7 @@
         nullify(Array)
         MESSAGE_CHECK = 'PHY2CHEM_RUN: Get Fortran data pointer from t'
 
-#ifdef ESMF_3
-        CALL ESMF_FieldGet(field=Field, localDe=0, farray   =Array, rc = RC)
-#else
         CALL ESMF_FieldGet(field=Field, localDe=0, farrayPtr=Array, rc = RC)
-#endif
 
         CALL ERR_MSG(RC, MESSAGE_CHECK, RC_CPL)
 
@@ -574,11 +550,7 @@
 
          vname = spec(N)
          MESSAGE_CHECK="PHY2CHEM_RUN: Get Field : "//vname
-#ifdef ESMF_520r
          call ESMF_FieldBundleGet(iBundle, FIELDNAME=vname, FIELD=Field, rc = RC )
-#else
-         call ESMF_FieldBundleGet(iBundle,      NAME=vname, FIELD=Field, rc = RC )
-#endif
          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
          MESSAGE_CHECK="PHY2CHEM_RUN: Get Attribute "
@@ -587,11 +559,7 @@
          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
          MESSAGE_CHECK="PHY2CHEM_RUN: Get Field : "//vname
-#ifdef ESMF_520r
          call ESMF_FieldBundleGet(Bundle, FIELDNAME=vname, FIELD=Field, rc = RC )
-#else
-         call ESMF_FieldBundleGet(Bundle,      NAME=vname, FIELD=Field, rc = RC )
-#endif
          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
          MESSAGE_CHECK="PHY2CHEM_RUN: Add Attribute "
@@ -1264,19 +1232,11 @@
 
         MESSAGE_CHECK = 'Extract lonsperlar_r attribute from '//trim(statename)
 
-#ifdef ESMF_3
-        CALL ESMF_AttributeGet(state  =STATE               &  !<-- Name of the state
-                           ,name      ='lonsperlar_r'      &  !<-- Name of the attribute to retrieve
-                           ,count     = lats_node_r_max    &  !<-- Number of values in the attribute
-                           ,valueList =lonsperlar_r        &  !<-- Value of the attribute
-                           ,rc        =RC)
-#else
         CALL ESMF_AttributeGet(state  =STATE               &  !<-- Name of the state
                            ,name      ='lonsperlar_r'      &  !<-- Name of the attribute to retrieve
                            ,itemCount = lats_node_r_max    &  !<-- Number of values in the attribute
                            ,valueList =lonsperlar_r        &  !<-- Value of the attribute
                            ,rc        =RC)
-#endif
 
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
@@ -1334,11 +1294,7 @@
           nullify(Array2D)
           MESSAGE_CHECK = 'Get 2d Fortran data pointer from '//NAME
 
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field=Field, localDe=0, farray   =Array2D, rc=rc1)
-#else
           CALL ESMF_FieldGet(field=Field, localDe=0, farrayPtr=Array2D, rc=rc1)
-#endif
 
           CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
@@ -1356,11 +1312,7 @@
           nullify(Array3D)
           MESSAGE_CHECK = 'Get 3d Fortran data pointer from '//NAME
 
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field=Field, localDe=0, farray   =Array3D, rc=rc1)
-#else
           CALL ESMF_FieldGet(field=Field, localDe=0, farrayPtr=Array3D, rc=rc1)
-#endif
 
           CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
@@ -1377,11 +1329,7 @@
           CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
           MESSAGE_CHECK = 'Extract '//NAME//' from '//trim(BundleName)
-#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(Bundle, FIELDNAME=name, field=Field, rc=rc1)
-#else
-          CALL ESMF_FieldBundleGet(Bundle,      NAME=name, field=Field, rc=rc1)
-#endif
           CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 
 !
@@ -1389,11 +1337,7 @@
           nullify(Array3D)
           MESSAGE_CHECK = 'Get 3d Fortran data pointer from '//NAME
 
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field=Field, localDe=0, farray   =Array3D, rc=rc1)
-#else
           CALL ESMF_FieldGet(field=Field, localDe=0, farrayPtr=Array3D, rc=rc1)
-#endif
 
           CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
@@ -1444,11 +1388,7 @@
         nullify(Array)
         MESSAGE_CHECK = 'PHY2CHEM_RUN: Get Fortran data pointer from '//NAME
 
-#ifdef ESMF_3
-        CALL ESMF_FieldGet(field=Field, localDe=0, farray   =Array, rc=rc1)
-#else
         CALL ESMF_FieldGet(field=Field, localDe=0, farrayPtr=Array, rc=rc1)
-#endif
 
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
@@ -1488,11 +1428,7 @@
         nullify(Array)
         MESSAGE_CHECK = 'PHY2CHEM_RUN: Get Fortran data pointer from '//NAME
 
-#ifdef ESMF_3
-        CALL ESMF_FieldGet(field=Field, localDe=0, farray   =Array, rc=rc1)
-#else
         CALL ESMF_FieldGet(field=Field, localDe=0, farrayPtr=Array, rc=rc1)
-#endif
 
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
@@ -1544,21 +1480,13 @@
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 
         MESSAGE_CHECK = 'PHY2CHEM_RUN: Extract '//NAME//' from '//BundleName
-#ifdef ESMF_520r
         CALL ESMF_FieldBundleGet(Bundle, FIELDNAME=name, field=Field, rc=rc1)
-#else
-        CALL ESMF_FieldBundleGet(Bundle,      NAME=name, field=Field, rc=rc1)
-#endif
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 
         nullify(Array)
         MESSAGE_CHECK = 'PHY2CHEM_RUN: Get Fortran data pointer from '//NAME
 
-#ifdef ESMF_3
-        CALL ESMF_FieldGet(field=Field, localDe=0, farray   =Array, rc=rc1)
-#else
         CALL ESMF_FieldGet(field=Field, localDe=0, farrayPtr=Array, rc=rc1)
-#endif
 
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !
@@ -1599,22 +1527,14 @@
          CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 
          MESSAGE_CHECK = 'GetPointer_diag:: Extract Field '//NAME
-#ifdef ESMF_520r
          CALL ESMF_FieldBundleGet(Bundle, FIELDNAME=name, field=Field, rc=rc1)
-#else
-         CALL ESMF_FieldBundleGet(Bundle,      NAME=name, field=Field, rc=rc1)
-#endif
          CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
         ENDIF
 
         nullify(Array)
         MESSAGE_CHECK = 'GetPointer_diag:: Get Fortran data pointer from '//NAME
 
-#ifdef ESMF_3
-        CALL ESMF_FieldGet(field=Field, localDe=0, farray   =Array, rc=rc1)
-#else
         CALL ESMF_FieldGet(field=Field, localDe=0, farrayPtr=Array, rc=rc1)
-#endif
 
         CALL ERR_MSG(rc1, MESSAGE_CHECK, rc)
 !

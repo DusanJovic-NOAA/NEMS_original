@@ -1,12 +1,5 @@
 #include "../../../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#define ESMF_LogFoundError ESMF_LogMsgFoundError
-#else
-#define ESMF_520r
-#endif
-
 ! !module: gfs_physics_initialize_mod 
 !          --- initialization module of the gridded component of gfs physics.
 !
@@ -49,11 +42,7 @@
 !
 !!uses:
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
       USE gfs_physics_internal_state_mod, ONLY: gfs_physics_internal_state
 !     USE mpi_def,                        ONLY: liope
       USE mpi_def,                        ONLY: mc_comp, mc_io, mpi_comm_all_dup, mpi_comm_all

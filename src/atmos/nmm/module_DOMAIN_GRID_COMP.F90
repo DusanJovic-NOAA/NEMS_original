@@ -47,11 +47,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
       USE MODULE_INCLUDE
 !
       USE MODULE_CONSTANTS,ONLY : A,CP,G,P608,PI,TWOM
@@ -272,23 +268,26 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create/Load the Configure Object"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 !
-#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(DOMAIN_GRID_COMP                  &  !<-- DOMAIN gridded component
-                                     ,ESMF_SETINIT                      &  !<-- Subroutine type (Initialize)
+                                     ,ESMF_METHOD_INITIALIZE            &  !<-- Subroutine type (Initialize)
                                      ,DOMAIN_INITIALIZE                 &  !<-- User's subroutine name
+#ifdef ESMF_3
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
-      CALL ESMF_GridCompSetEntryPoint(DOMAIN_GRID_COMP                  &  !<-- DOMAIN gridded component
-                                     ,ESMF_SETINIT                      &  !<-- Subroutine type (Initialize)
-                                     ,DOMAIN_INITIALIZE                 &  !<-- User's subroutine name
+#ifdef ESMF_520r
+                                     ,phase=1                           &
+                                     ,rc=RC)
+#else
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
 #endif
+#endif
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -301,21 +300,23 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       MESSAGE_CHECK="Set 1st Entry Point for the DOMAIN Run Step"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
-#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(DOMAIN_GRID_COMP                  &  !<-- The DOMAIN component
-                                     ,ESMF_SETRUN                       &  !<-- Subroutine type (Run)
+                                     ,ESMF_METHOD_RUN                   &  !<-- Subroutine type (Run)
                                      ,DOMAIN_RUN                        &  !<-- The user's subroutine name for primary integration
+#ifdef ESMF_3
                                      ,1                                 &
                                      ,RC)
 #else
-      CALL ESMF_GridCompSetEntryPoint(DOMAIN_GRID_COMP                  &  !<-- The DOMAIN component
-                                     ,ESMF_SETRUN                       &  !<-- Subroutine type (Run)
-                                     ,DOMAIN_RUN                        &  !<-- The user's subroutine name for primary integration
+#ifdef ESMF_520r
                                      ,phase=1                           &
                                      ,rc=RC)
+#else
+                                     ,phase=1                           &
+                                     ,rc=RC)
+#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
@@ -324,21 +325,23 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       MESSAGE_CHECK="Set 2nd Entry Point for the DOMAIN Run Step"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
-#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(DOMAIN_GRID_COMP                  &  !<-- The DOMAIN component
-                                     ,ESMF_SETRUN                       &  !<-- Subroutine type (Run)
+                                     ,ESMF_METHOD_RUN                   &  !<-- Subroutine type (Run)
                                      ,NMM_FILTERING                     &  !<-- Routine to govern digital filtering each timestep
+#ifdef ESMF_3
                                      ,2                                 &
                                      ,RC)
 #else
-      CALL ESMF_GridCompSetEntryPoint(DOMAIN_GRID_COMP                  &  !<-- The DOMAIN component
-                                     ,ESMF_SETRUN                       &  !<-- Subroutine type (Run)
-                                     ,NMM_FILTERING                     &  !<-- Routine to govern digital filtering each timestep
+#ifdef ESMF_520r
                                      ,phase=2                           &
                                      ,rc=RC)
+#else
+                                     ,phase=2                           &
+                                     ,rc=RC)
+#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
@@ -347,21 +350,23 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       MESSAGE_CHECK="Set 3rd Entry Point for the DOMAIN Run Step"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
-#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(DOMAIN_GRID_COMP                  &  !<-- The DOMAIN component
-                                     ,ESMF_SETRUN                       &  !<-- Subroutine type (Run)
+                                     ,ESMF_METHOD_RUN                   &  !<-- Subroutine type (Run)
                                      ,CALL_WRITE_ASYNC                  &  !<-- Routine to call asynchronous output
+#ifdef ESMF_3
                                      ,3                                 &
                                      ,RC)
 #else
-      CALL ESMF_GridCompSetEntryPoint(DOMAIN_GRID_COMP                  &  !<-- The DOMAIN component
-                                     ,ESMF_SETRUN                       &  !<-- Subroutine type (Run)
-                                     ,CALL_WRITE_ASYNC                  &  !<-- Routine to call asynchronous output
+#ifdef ESMF_520r
                                      ,phase=3                           &
                                      ,rc=RC)
+#else
+                                     ,phase=3                           &
+                                     ,rc=RC)
+#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
@@ -374,21 +379,23 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       MESSAGE_CHECK="Set Entry Point for DOMAIN Finalize"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
-#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(DOMAIN_GRID_COMP                  &  !<-- The DOMAIN component
-                                     ,ESMF_SETFINAL                     &  !<-- Subroutine type (Finalize)
+                                     ,ESMF_METHOD_FINALIZE              &  !<-- Subroutine type (Finalize)
                                      ,DOMAIN_FINALIZE                   &  !<-- User's subroutine name
+#ifdef ESMF_3
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
-      CALL ESMF_GridCompSetEntryPoint(DOMAIN_GRID_COMP                  &  !<-- The DOMAIN component
-                                     ,ESMF_SETFINAL                     &  !<-- Subroutine type (Finalize)
-                                     ,DOMAIN_FINALIZE                   &  !<-- User's subroutine name
+#ifdef ESMF_520r
+                                     ,phase=1                           &
+                                     ,rc=RC)
+#else
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
+#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
@@ -536,7 +543,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Attach DOMAIN Internal State to Gridded Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompSetInternalState(DOMAIN_GRID_COMP               &  !<-- The DOMAIN gridded component
@@ -556,7 +563,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="DOMAIN_INIT: Retrieve VM from DOMAIN Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompGet(gridcomp=DOMAIN_GRID_COMP                   &  !<-- The DOMAIN component
@@ -571,7 +578,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="DOMAIN_INIT: Obtain Task IDs and Communicator"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_VMGet(vm             =VM                                &  !<-- The virtual machine
@@ -589,7 +596,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract MAX_DOMAINS from Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The DOMAIN import state
@@ -607,7 +614,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Domain ID from Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The DOMAIN import state
@@ -627,22 +634,14 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Association of Configure Files with Domains"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-      CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The DOMAIN import state
-                            ,name     ='DOMAIN_ID_TO_RANK'              &  !<-- Name of the attribute to extract
-                            ,count    =MAX_DOMAINS                      &  !<-- Name of the attribute to extract
-                            ,valueList=DOMAIN_ID_TO_RANK                &  !<-- The ID of this domain
-                            ,rc       =RC)
-#else
       CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The DOMAIN import state
                             ,name     ='DOMAIN_ID_TO_RANK'              &  !<-- Name of the attribute to extract
                             ,itemCount=MAX_DOMAINS                      &  !<-- Name of the attribute to extract
                             ,valueList=DOMAIN_ID_TO_RANK                &  !<-- The ID of this domain
                             ,rc       =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -668,7 +667,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Create the Nest Configure Object"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CF(N)=ESMF_ConfigCreate(rc=RC)
@@ -680,7 +679,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Load the Nest Configure Object"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_ConfigLoadFile(config  =CF(N)                       &
@@ -707,7 +706,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Write_last_restart Flag from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)              &  !<-- The config object
@@ -728,7 +727,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Quilting Flag from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)              &  !<-- The config object
@@ -748,7 +747,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract MPI Task Layout in DOMAIN Init"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)              &  !<-- The config object
@@ -772,7 +771,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Nest/Not-a-Nest Flag from DOMAIN Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The DOMAIN import state
@@ -799,7 +798,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Parent-Child Time Ratio from DOMAIN Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The DOMAIN import state
@@ -813,7 +812,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Input Ready Flag from Configure File"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifdef ESMF_3
@@ -844,7 +843,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Parent-Child Space Ratio from Configure File"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)            &  !<-- The config object
@@ -862,7 +861,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Move Flag From Nest Configure Files"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifdef ESMF_3
@@ -902,7 +901,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="DOMAIN_INIT: Start Time from Driver Clock"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ClockGet(clock    =CLOCK_DOMAIN                         &  !<-- The ESMF Clock of this domain
@@ -922,7 +921,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract NEMSIO Flag from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)            &  !<-- The config object
@@ -940,7 +939,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Restart Flag from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)              &  !<-- The config object
@@ -1040,7 +1039,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="RESTART: Set the Current Time of the Forecast"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_TimeSet(time=CURRTIME                                 &  !<-- Current time of the forecast (ESMF)
@@ -1067,7 +1066,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set the Current Time on the DOMAIN Clock"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ClockSet(clock       =CLOCK_DOMAIN                      &  !<-- The DOMAIN Component's Clock
@@ -1089,7 +1088,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Read Fcst Interval for Clocktime Output"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)              &  !<-- The configure object
@@ -1103,7 +1102,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Read MPI Task ID That Provides Clocktime Output"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)              &  !<-- The configure object
@@ -1117,7 +1116,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create ESMF Clocktime Output Interval"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_TimeIntervalSet(timeinterval=TIMEINTERVAL_CLOCKTIME     &  !<-- Time interval between
@@ -1134,7 +1133,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="DOMAIN_Init: Extract # of tracers from Config file"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)              &  !<-- The config object
@@ -1175,7 +1174,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Attach the NMM ESMF Grid to the DOMAIN Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompSet(gridcomp=DOMAIN_GRID_COMP                   & !<-- The DOMAIN component
@@ -1205,7 +1204,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create the NMM Dynamics Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       domain_int_state%SOLVER_GRID_COMP=ESMF_GridCompCreate(            &
@@ -1224,16 +1223,14 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Register the NMM Dynamics Init, Run, Finalize"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
       CALL ESMF_GridCompSetServices(domain_int_state%SOLVER_GRID_COMP      &  ! <-- The Dynamics gridded component
                                    ,SOLVER_REGISTER                        &  ! <-- The user's subroutineName for Register
+#ifdef ESMF_3
                                    ,RC)
 #else
-      CALL ESMF_GridCompSetServices(domain_int_state%SOLVER_GRID_COMP      &  ! <-- The Dynamics gridded component
-                                   ,SOLVER_REGISTER                        &  ! <-- The user's subroutineName for Register
                                    ,rc = RC)
 #endif
 !
@@ -1247,14 +1244,14 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Attach ESMF Grid to the NMM Dynamics Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       GRID_SOLVER=GRID_DOMAIN                                              !<-- For now the Dyn Grid is the same as the DOMAIN Grid
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Register the NMM Dynamics Init, Run, Finalize"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompSet(gridcomp=domain_int_state%SOLVER_GRID_COMP  &  !<-- The Dynamics component
@@ -1271,30 +1268,18 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create Empty Import/Export States for Dynamics"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-      domain_int_state%IMP_STATE_SOLVER=ESMF_StateCreate(               &
-                                                 Name="Dynamics Import" &  !<-- The Dynamics import state name
-                                           ,statetype=ESMF_STATE_IMPORT &
-                                           ,rc       =RC)
+      domain_int_state%IMP_STATE_SOLVER=ESMF_StateCreate(                 &
+                                            STATENAME  ="Dynamics Import" &  !<-- The Dynamics import state name
+                                           ,stateintent=ESMF_STATEINTENT_IMPORT &
+                                           ,rc         =RC)
 !
-      domain_int_state%EXP_STATE_SOLVER=ESMF_StateCreate(               &
-                                                 Name="Dynamics Export" &  !<-- The Dynamics export state name
-                                           ,statetype=ESMF_STATE_EXPORT &
-                                           ,rc       =RC)
-#else
-      domain_int_state%IMP_STATE_SOLVER=ESMF_StateCreate(               &
-                                            stateName="Dynamics Import" &  !<-- The Dynamics import state name
-                                           ,statetype=ESMF_STATE_IMPORT &
-                                           ,rc       =RC)
-!
-      domain_int_state%EXP_STATE_SOLVER=ESMF_StateCreate(               &
-                                            stateName="Dynamics Export" &  !<-- The Dynamics export state name
-                                           ,statetype=ESMF_STATE_EXPORT &
-                                           ,rc       =RC)
-#endif
+      domain_int_state%EXP_STATE_SOLVER=ESMF_StateCreate(                 &
+                                            STATENAME  ="Dynamics Export" &  !<-- The Dynamics export state name
+                                           ,stateintent=ESMF_STATEINTENT_EXPORT &
+                                           ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -1321,7 +1306,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Physics Flag from DOMAIN Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeGet(state=IMP_STATE                      &
@@ -1340,7 +1325,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Add Domain ID to the Dyn Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER    &  !<-- The Solver component import state
@@ -1361,7 +1346,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="DOMAIN_INIT: Add Nest Flag to the Dyn Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER       &  !<-- The Dynamics component import state
@@ -1392,7 +1377,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="DOMAIN_INIT: Add Parent-Child Time Ratio to the Dyn Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER     &  !<-- The Dynamics component import state
@@ -1406,7 +1391,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="DOMAIN_INIT: Add Input-Ready Flag to the Dyn Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER     &  !<-- The Dynamics component import state
@@ -1420,7 +1405,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="DOMAIN_INIT: Add Move Flag to the Dyn Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER     &  !<-- The Dynamics component import state
@@ -1434,7 +1419,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="DOMAIN_INIT: Add Move Flag to the Dom Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeSet(state=IMP_STATE                          &  !<-- The Domain component import state
@@ -1483,7 +1468,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Initialize the NMM Dynamics Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompInitialize(gridcomp   =domain_int_state%SOLVER_GRID_COMP  &  !<-- The dynamics gridded component
@@ -1534,7 +1519,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Add Fcst-or-Write Task Flag to the DOMAIN Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The DOMAIN component export state
@@ -1548,7 +1533,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Add NUM_PES_FCST to the DOMAIN Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The DOMAIN component export state
@@ -1566,7 +1551,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       MESSAGE_CHECK="Extract Number of Children from Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The DOMAIN import state
@@ -1606,7 +1591,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      child_init_block: IF(NUM_CHILDREN>0)THEN                             !<-- Only parents participate                              
+      child_init_block: IF(NUM_CHILDREN>0)THEN                             !<-- Only parents participate
 !
 #ifdef ESMF_3
         I_AM_A_PARENT=ESMF_TRUE
@@ -1623,46 +1608,38 @@
 !
         ALLOCATE(MY_CHILDREN_ID(1:NUM_CHILDREN))
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Children's IDs from Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMFMSG_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The DOMAIN import state
-                              ,name     ='CHILD_IDs'                    &  !<-- Name of the attribute to extract
-                              ,count    =NUM_CHILDREN                   &  !<-- # of items in the Attribute
-                              ,valueList=MY_CHILDREN_ID                 &  !<-- Put the Attribute here
-                              ,rc       =RC)
-#else
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The DOMAIN import state
                               ,name     ='CHILD_IDs'                    &  !<-- Name of the attribute to extract
                               ,itemCount=NUM_CHILDREN                   &  !<-- # of items in the Attribute
                               ,valueList=MY_CHILDREN_ID                 &  !<-- Put the Attribute here
                               ,rc       =RC)
-#endif
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         child_init_loop: DO N=1,NUM_CHILDREN                               !<-- Loop through the children
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract Children's Input Flag from Config File"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_ConfigGetAttribute(config=CF(MY_CHILDREN_ID(N))     &  !<-- The config object
                                       ,value =INPUT_READY_MY_CHILD      &  !<-- Child's flag for existence of its input file
                                       ,label ='input_ready:'            &  !<-- Give this label's value to the previous variable
                                       ,rc    =RC)
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          IF(.NOT.INPUT_READY_MY_CHILD)THEN                                  !<-- INPUT_READY=false -> This child has no input file 
+          IF(.NOT.INPUT_READY_MY_CHILD)THEN                                  !<-- INPUT_READY=false -> This child has no input file
                                                                              !      so parent will generate input.
             CALL PARENT_TO_CHILD_INIT_NMM(MYPE                            &  !<-- This task's rank (in)
                                          ,CF                              &  !<-- Array of configure files (in)
@@ -1672,7 +1649,7 @@
                                          ,COMM_MY_DOMAIN )                   !<-- Each domain's intracommunicator
 !
           ENDIF
-!            
+!
 !-----------------------------------------------------------------------
 !
         ENDDO child_init_loop
@@ -1718,7 +1695,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Create the Move Bundles"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         MOVE_BUNDLE_H=ESMF_FieldBundleCreate(name='Move_Bundle H'       &  !<-- The Bundle's name
@@ -1737,7 +1714,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Dynamics Internal State for Move Bundle"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_GridCompGetInternalState(domain_int_state%SOLVER_GRID_COMP &  !<-- The Dynamics component
@@ -1779,14 +1756,14 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract the Child's Flag Indicating Movability"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_ConfigGetAttribute(config=CF(MY_CHILDREN_ID(N))     &  !<-- The child's config object
                                       ,value =DOMAIN_MOVES              &  !<-- The variable filled (will the child move?)
                                       ,label ='my_domain_moves:'        &  !<-- Give this label's value to the previous variable
                                       ,rc    =RC)
-!
+
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1854,15 +1831,15 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Insert Move Bundles into DOMAIN Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_StateAdd(state      =EXP_STATE                        &  !<-- The DOMAIN export state
-                          ,fieldbundle=MOVE_BUNDLE_H                    &  !<-- Insert H-point MOVE_BUNDLE into the state
+        CALL ESMF_StateAdd(            EXP_STATE                        &  !<-- The DOMAIN export state
+                          ,LISTWRAPPER(MOVE_BUNDLE_H)                   &  !<-- Insert H-point MOVE_BUNDLE into the state
                           ,rc         =RC)
 !
-        CALL ESMF_StateAdd(state      =EXP_STATE                        &  !<-- The DOMAIN export state
-                          ,fieldbundle=MOVE_BUNDLE_V                    &  !<-- Insert V-point MOVE_BUNDLE into the state
+        CALL ESMF_StateAdd(            EXP_STATE                        &  !<-- The DOMAIN export state
+                          ,LISTWRAPPER(MOVE_BUNDLE_V)                   &  !<-- Insert V-point MOVE_BUNDLE into the state
                           ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1888,7 +1865,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract Moving Child's Sfc File Ratio"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)          &  !<-- This domain's configure object
@@ -1902,7 +1879,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract Uppermost Parent Dimensions"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_ConfigGetAttribute(config=CF(1)                     &  !<-- The uppermost domain's configure object
@@ -1921,7 +1898,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Central Lat/Lon of Uppermost Domain"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_ConfigGetAttribute(config=CF(1)                     &  !<-- The config object
@@ -1940,7 +1917,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Southern/Western Boundary of Uppermost Domain"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_ConfigGetAttribute(config=CF(1)                     &  !<-- The config object
@@ -1992,7 +1969,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract DPHD and DLMD from Dynamics Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeGet(state=domain_int_state%EXP_STATE_SOLVER     &  !<-- The Dynamics export state
@@ -2015,7 +1992,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract TPH0D and TLM0D from Dynamics Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeGet(state=domain_int_state%EXP_STATE_SOLVER     &  !<-- The Dynamics export state
@@ -2050,7 +2027,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract Moving Child's Smagorinsky Constant"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)          &  !<-- This domain's configure object
@@ -2064,7 +2041,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract Moving Child's WCOR Constant"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)          &  !<-- This domain's configure object
@@ -2078,7 +2055,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract CODAMP from Configure File"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)          &  !<-- This domain's configure object
@@ -2092,7 +2069,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract Moving Child's Fundamental Timestep"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)          &  !<-- This domain's configure object
@@ -2132,7 +2109,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract # of Rows Parent Will Update"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)          &  !<-- This domain's configure object
@@ -2172,7 +2149,7 @@
 !-----------------------------------------------------------------------
 !
       ENDIF fcst_tasks_init
-!
+
 !-----------------------------------------------------------------------
 !***  For moving nests there are external files with nest-resolution
 !***  sfc data spanning the uppermost parent.  If the parent generated
@@ -2208,7 +2185,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Add Parent/Not-a-Parent Flag to the DOMAIN Export State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeSet(state=EXP_STATE                            &  !<-- The DOMAIN component export state
@@ -2317,7 +2294,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         MESSAGE_CHECK="DOMAIN_Run: Extract the ESMF Timestep"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
         CALL ESMF_ClockGet(clock   =CLOCK_DOMAIN                        &
@@ -2330,7 +2307,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         MESSAGE_CHECK="DOMAIN_Run: Extract Components of the Timestep" 
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
         CALL ESMF_TimeIntervalGet(timeinterval=DT_ESMF                  &  !<-- the ESMF timestep
@@ -2353,7 +2330,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Horizontal Diffusion Flag from DOMAIN Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The DOMAIN import state
@@ -2367,7 +2344,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Filter method from import state"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The DOMAIN import state
@@ -2381,7 +2358,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Add Horizontal Diffusion Flag to the Dyn Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER     &  !<-- The Dynamics component import state
@@ -2395,7 +2372,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Add Filter method to the Physics Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER     &  !<-- The Dynamics component import state
@@ -2449,7 +2426,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="DOMAIN_RUN: Get the MOVE_NOW Flag from Import State"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             CALL ESMF_AttributeGet(state=IMP_STATE                      &  !<-- DOMAIN component's import state
@@ -2463,7 +2440,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="DOMAIN_RUN: Add MOVE_NOW Flag to the Dyn Import State"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER &  !<-- The Dynamics component import state
@@ -2500,7 +2477,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
               MESSAGE_CHECK="DOMAIN_RUN: Extract Timestep from Clock"
-!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
               CALL ESMF_ClockGet(clock       =CLOCK_DOMAIN              &
@@ -2557,7 +2534,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
               MESSAGE_CHECK="DOMAIN_RUN: Reset the MOVE_NOW Flag to False"
-!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifdef ESMF_3
@@ -2589,7 +2566,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         MESSAGE_CHECK="Execute the Run Step for Dynamics"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
 !       call print_memory()
@@ -2690,7 +2667,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Retrieve Config Object from DOMAIN Component"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompGet(gridcomp=DOMAIN_GRID_COMP                   &  !<-- The DOMAIN component
@@ -2707,7 +2684,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Retrieve Adiabatic Flag from Config Object"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &
@@ -2759,7 +2736,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Finalize Dynamics Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompFinalize(gridcomp   =domain_int_state%SOLVER_GRID_COMP &
@@ -2782,7 +2759,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Destroy States"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_StateDestroy(state=domain_int_state%IMP_STATE_SOLVER       &
@@ -2814,7 +2791,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Destroy DOMAIN Clock"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ClockDestroy(clock=CLOCK_DOMAIN                         &
@@ -2834,7 +2811,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Destroy Dynamics Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompDestroy(gridcomp=domain_int_state%SOLVER_GRID_COMP & 
@@ -2951,7 +2928,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="NMM_SETUP: Get INPES/JNPES from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL MPI_COMM_DUP(MPI_INTRA,MPI_INTRA_B,RC)                          !<-- Use a duplicate of the communicator for safety
@@ -2977,7 +2954,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="NMM_SETUP: Get Write Task/Group Info from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(CF                                   &  !<-- The configure file
@@ -3028,7 +3005,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="NMM_SETUP: Retrieve VM from DOMAIN Component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompGet(gridcomp=DOMAIN_GRID_COMP                   &  !<-- The DOMAIN component
@@ -3061,7 +3038,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="NMM_SETUP: Get IM,JM,LM from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file
@@ -3089,7 +3066,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="NMM_SETUP: Get GLOBAL/REGIONAL Mode from Config File"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file
@@ -3134,10 +3111,10 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="NMM_SETUP: Create the ESMF Grid"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      GRID_DOMAIN=ESMF_GridCreateShapeTile(regDecomp     =(/INPES,JNPES/)    &  !<-- I x J task layout
+      GRID_DOMAIN=ESMF_GRIDCREATE      (regDecomp     =(/INPES,JNPES/)    &  !<-- I x J task layout
                                        ,minIndex      =(/MIN(1),MIN(2)/)  &  !<-- Min indices in I and J
                                        ,maxIndex      =(/MAX(1),MAX(2)/)  &  !<-- Max indices in I and J
                                        ,gridEdgeLWidth=(/0,0/)            &  !<-- Padding, lower edges for noncentered stagger
@@ -3159,7 +3136,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="NMM_SETUP: Get EMSF Sizes of Local Subdomains"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_GridGet(grid              =GRID_DOMAIN                &
@@ -3280,7 +3257,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         MESSAGE_CHECK="NMM_Filtering: Extract the DOMAIN Internal State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
         CALL ESMF_GridCompGetInternalState(DOMAIN_GRID_COMP             &  !<-- The DOMAIN component
@@ -3301,7 +3278,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="NMM_FILTERING: Extract StartTime,CurrentTime"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ClockGet(clock    =CLOCK_DOMAIN                        &
@@ -3316,7 +3293,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="NMM_FILTERING: Get Actual Timestep from ESMF Variable"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_TimeIntervalGet(timeinterval=DT_ESMF                   &  !<-- the ESMF timestep
@@ -3335,7 +3312,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="NMM_FILTERING: Extract Clock Direction."
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- Extract the direction of the Clock from the import state
@@ -3349,7 +3326,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="NMM_FILTERING: Extract Mean_On Flag from Imp State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- Extract MEAN_ON flag from import state
@@ -3363,7 +3340,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="NMM_FILTERING: Extract Filter Method from Imp State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<- Extract FILTER_METHOD flag from import state
@@ -3389,7 +3366,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract NDFISTEP from DOMAIN Import State"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_AttributeGet(state=IMP_STATE                        &  !<-- Extract the filter value NDFISTEP from the import state
@@ -3429,7 +3406,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Set HALFDFIINTVAL in Summation State"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             CALL ESMF_TimeIntervalSet(timeinterval=HALFDFIINTVAL        &
@@ -3608,7 +3585,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       MESSAGE_CHECK="CALL_WRITE_ASYNC: Is ALARM_HISTORY ringing?"
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
       IF(ESMF_AlarmIsRinging(alarm=ALARM_HISTORY                        &  !<-- The history output alarm
@@ -3624,7 +3601,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         MESSAGE_CHECK="Run2: Retrieve DOMAIN Component's Internal State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
         CALL ESMF_GridCompGetInternalState(DOMAIN_GRID_COMP             &  !<-- The DOMAIN gridded component
@@ -3660,7 +3637,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       MESSAGE_CHECK="CALL_WRITE_ASYNC: Is ALARM_RESTART ringing?"
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
       IF(ESMF_AlarmIsRinging(alarm=ALARM_RESTART                        &  !<-- The restart output alarm
@@ -3676,7 +3653,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         MESSAGE_CHECK="Run2: Retrieve DOMAIN Component's Internal State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
         CALL ESMF_GridCompGetInternalState(DOMAIN_GRID_COMP             &  !<-- The DOMAIN gridded component
@@ -3923,7 +3900,6 @@
 !
             NUM_VARS_2D_H_I=NUM_VARS_2D_H_I+1                              !<-- ALL 2-D integer variables updated on H points
 !
-#ifdef ESMF_520r
             FIELD_X=ESMF_FieldCreate(grid       =GRID_DOMAIN            &  !<-- The ESMF Grid for this domain
                                     ,farray     =VARS(N)%I2D            &  !<-- Nth variable in the VARS array
                                     ,totalUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
@@ -3932,16 +3908,6 @@
                                     ,name       =FIELD_NAME             &  !<-- The name of this variable
                                     ,indexFlag  =ESMF_INDEX_GLOBAL      &  !<-- The variable uses global indexing
                                     ,rc         =RC)
-#else
-            FIELD_X=ESMF_FieldCreate(grid         =GRID_DOMAIN          &  !<-- The ESMF Grid for this domain
-                                    ,farray       =VARS(N)%I2D          &  !<-- Nth variable in the VARS array
-                                    ,maxHaloUWidth=(/IHALO,JHALO/)      &  !<-- Upper bound of halo region
-                                    ,maxHaloLWidth=(/IHALO,JHALO/)      &  !<-- Lower bound of halo region
-!!!                                 ,name         =VARS(N)%VBL_NAME     &  !<-- The name of this variable
-                                    ,name         =FIELD_NAME           &  !<-- The name of this variable
-                                    ,indexFlag    =ESMF_INDEX_GLOBAL    &  !<-- The variable uses global indexing
-                                    ,rc           =RC)
-#endif
 !
 !----------
 !***  Real
@@ -3951,7 +3917,6 @@
 !
             NUM_VARS_2D_H_R=NUM_VARS_2D_H_R+1                              !<-- ALL 2-D real variables updated on H points
 !
-#ifdef ESMF_520r
             FIELD_X=ESMF_FieldCreate(grid       =GRID_DOMAIN            &  !<-- The ESMF Grid for this domain
                                     ,farray     =VARS(N)%R2D            &  !<-- Nth variable in the VARS array
                                     ,totalUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
@@ -3960,16 +3925,6 @@
                                     ,name       =FIELD_NAME             &  !<-- The name of this variable
                                     ,indexFlag  =ESMF_INDEX_GLOBAL      &  !<-- The variable uses global indexing
                                     ,rc         =RC)
-#else
-            FIELD_X=ESMF_FieldCreate(grid         =GRID_DOMAIN          &  !<-- The ESMF Grid for this domain
-                                    ,farray       =VARS(N)%R2D          &  !<-- Nth variable in the VARS array
-                                    ,maxHaloUWidth=(/IHALO,JHALO/)      &  !<-- Upper bound of halo region
-                                    ,maxHaloLWidth=(/IHALO,JHALO/)      &  !<-- Lower bound of halo region
-!!!                                 ,name         =VARS(N)%VBL_NAME     &  !<-- The name of this variable
-                                    ,name         =FIELD_NAME           &  !<-- The name of this variable
-                                    ,indexFlag    =ESMF_INDEX_GLOBAL    &  !<-- The variable uses global indexing
-                                    ,rc           =RC)
-#endif
 !
 !---------------------
 !***  3-D H Variables
@@ -3983,7 +3938,6 @@
 !
             NUM_VARS_3D_H=NUM_VARS_3D_H+1
 !
-#ifdef ESMF_520r
             FIELD_X=ESMF_FieldCreate(grid           =GRID_DOMAIN                    &  !<-- The ESMF Grid for this domain
                                     ,farray         =VARS(N)%R3D                    &  !<-- Nth variable in the VARS array
                                     ,totalUWidth    =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
@@ -3994,18 +3948,6 @@
                                     ,name           =FIELD_NAME                     &  !<-- The name of this variable
                                     ,indexFlag      =ESMF_INDEX_GLOBAL              &  !<-- The variable uses global indexing
                                     ,rc             =RC)
-#else
-            FIELD_X=ESMF_FieldCreate(grid           =GRID_DOMAIN                    &  !<-- The ESMF Grid for this domain
-                                    ,farray         =VARS(N)%R3D                    &  !<-- Nth variable in the VARS array
-                                    ,maxHaloUWidth  =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
-                                    ,maxHaloLWidth  =(/IHALO,JHALO/)                &  !<-- Lower bound of halo region
-                                    ,ungriddedLBound=(/lbound(VARS(N)%R3D,dim=3)/)  &
-                                    ,ungriddedUBound=(/ubound(VARS(N)%R3D,dim=3)/)  &
-!!!                                 ,name           =VARS(N)%VBL_NAME               &  !<-- The name of this variable
-                                    ,name           =FIELD_NAME                     &  !<-- The name of this variable
-                                    ,indexFlag      =ESMF_INDEX_GLOBAL              &  !<-- The variable uses global indexing
-                                    ,rc             =RC)
-#endif
 !
             NUM_LEVELS_3D_H=(UBOUND(VARS(N)%R3D,3)-LBOUND(VARS(N)%R3D,3)+1)         &
                             +NUM_LEVELS_3D_H
@@ -4036,7 +3978,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Add Specification Flag to Move Bundle H Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_AttributeSet(field=FIELD_X                          &  !<-- The Field to be added to H-pt Move Bundle
@@ -4056,7 +3998,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Add Halo Exchange Flag to Move Bundle H Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_AttributeSet(field=FIELD_X                          &  !<-- The Field to be added to H-pt Move Bundle
@@ -4075,18 +4017,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Add Field to the H-pt Move Bundle"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleAdd(fieldbundle=MOVE_BUNDLE_H            &  !<-- The Move Bundle for H point variables
-                                  ,field      =FIELD_X                  &  !<-- Add this Field to the Bundle
+          CALL ESMF_FieldBundleAdd(            MOVE_BUNDLE_H            &  !<-- The Move Bundle for H point variables
+                                  ,            LISTWRAPPER(FIELD_X)     &  !<-- Add this Field to the Bundle
                                   ,rc         =RC )
-#else
-          CALL ESMF_FieldBundleAdd(bundle=MOVE_BUNDLE_H                 &  !<-- The Move Bundle for H point variables
-                                  ,field =FIELD_X                       &  !<-- Add this Field to the Bundle
-                                  ,rc    =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
@@ -4108,7 +4044,6 @@
 !
             NUM_VARS_2D_V=NUM_VARS_2D_V+1
 !
-#ifdef ESMF_520r
             FIELD_X=ESMF_FieldCreate(grid       =GRID_DOMAIN            &  !<-- The ESMF Grid for this domain
                                     ,farray     =VARS(N)%R2D            &  !<-- Nth variable in the VARS array
                                     ,totalUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
@@ -4117,16 +4052,6 @@
                                     ,name       =FIELD_NAME             &  !<-- The name of this variable
                                     ,indexFlag  =ESMF_INDEX_GLOBAL      &  !<-- The variable uses global indexing
                                     ,rc         =RC)
-#else
-            FIELD_X=ESMF_FieldCreate(grid         =GRID_DOMAIN          &  !<-- The ESMF Grid for this domain
-                                    ,farray       =VARS(N)%R2D          &  !<-- Nth variable in the VARS array
-                                    ,maxHaloUWidth=(/IHALO,JHALO/)      &  !<-- Upper bound of halo region
-                                    ,maxHaloLWidth=(/IHALO,JHALO/)      &  !<-- Lower bound of halo region
-!!!                                 ,name         =VARS(N)%VBL_NAME     &  !<-- The name of this variable
-                                    ,name         =FIELD_NAME           &  !<-- The name of this variable
-                                    ,indexFlag    =ESMF_INDEX_GLOBAL    &  !<-- The variable uses global indexing
-                                    ,rc           =RC)
-#endif
 !
 !---------------------
 !***  3-D V Variables
@@ -4140,7 +4065,6 @@
 !
             NUM_VARS_3D_V=NUM_VARS_3D_V+1
 !
-#ifdef ESMF_520r
             FIELD_X=ESMF_FieldCreate(grid           =GRID_DOMAIN                    &  !<-- The ESMF Grid for this domain
                                     ,farray         =VARS(N)%R3D                    &  !<-- Nth variable in the VARS array
                                     ,totalUWidth    =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
@@ -4151,18 +4075,6 @@
                                     ,name           =FIELD_NAME                     &  !<-- The name of this variable
                                     ,indexFlag      =ESMF_INDEX_GLOBAL              &  !<-- The variable uses global indexing
                                     ,rc             =RC)
-#else
-            FIELD_X=ESMF_FieldCreate(grid           =GRID_DOMAIN                    &  !<-- The ESMF Grid for this domain
-                                    ,farray         =VARS(N)%R3D                    &  !<-- Nth variable in the VARS array
-                                    ,maxHaloUWidth  =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
-                                    ,maxHaloLWidth  =(/IHALO,JHALO/)                &  !<-- Lower bound of halo region
-                                    ,ungriddedLBound=(/lbound(VARS(N)%R3D,dim=3)/)  &
-                                    ,ungriddedUBound=(/ubound(VARS(N)%R3D,dim=3)/)  &
-!!!                                 ,name           =VARS(N)%VBL_NAME               &  !<-- The name of this variable
-                                    ,name           =FIELD_NAME                     &  !<-- The name of this variable
-                                    ,indexFlag      =ESMF_INDEX_GLOBAL              &  !<-- The variable uses global indexing
-                                    ,rc             =RC)
-#endif
 !
             NUM_LEVELS_3D_V=(UBOUND(VARS(N)%R3D,3)-LBOUND(VARS(N)%R3D,3)+1)         &
                             +NUM_LEVELS_3D_V
@@ -4185,7 +4097,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Add Specification Flag to Move Bundle V Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_AttributeSet(field=FIELD_X                          &  !<-- The Field to be added to V-pt Move Bundle
@@ -4205,7 +4117,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Add Specification Flag to Move Bundle V Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_AttributeSet(field=FIELD_X                          &  !<-- The Field to be added to V-pt Move Bundle
@@ -4224,18 +4136,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Add Field to the H-pt Move Bundle"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleAdd(fieldbundle=MOVE_BUNDLE_V            &  !<-- The Move Bundle for V-point variables
-                                  ,field      =FIELD_X                  &  !<-- Add this Field to the Bundle
+          CALL ESMF_FieldBundleAdd(            MOVE_BUNDLE_V            &  !<-- The Move Bundle for V-point variables
+                                  ,            LISTWRAPPER(FIELD_X)     &  !<-- Add this Field to the Bundle
                                   ,rc         =RC )
-#else
-          CALL ESMF_FieldBundleAdd(bundle=MOVE_BUNDLE_V                 &  !<-- The Move Bundle for V-point variables
-                                  ,field =FIELD_X                       &  !<-- Add this Field to the Bundle
-                                  ,rc    =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
@@ -4300,7 +4206,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Get I_SHIFT and J_SHIFT from DOMAIN Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeGet(state=DOMAIN_IMP_STATE                     &  !<-- The DOMAIN import state
@@ -4323,7 +4229,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Dynamics Internal State for Move Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompGetInternalState(SOLVER_GRID_COMP               &  !<-- The Dynamics component
@@ -4449,7 +4355,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Get I_SHIFT and J_SHIFT from DOMAIN Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The DOMAIN import state
@@ -4792,23 +4698,16 @@
 !
       DO N_FIELD=1,NUM_FIELDS   
 !
-#ifdef ESMF_520r
-        CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H              &  !<-- Bundle holding the arrays for move updates
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H              &  !<-- Bundle holding the arrays for move updates
                                 ,fieldIndex =N_FIELD                    &  !<-- Index of the Field in the Bundle
                                 ,field      =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
                                 ,rc         =RC )
-#else
-        CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE_H               &  !<-- Bundle holding the arrays for move updates
-                                ,fieldIndex=N_FIELD                     &  !<-- Index of the Field in the Bundle
-                                ,field     =HOLD_FIELD                  &  !<-- Field N_FIELD in the Bundle
-                                ,rc        =RC )
-#endif
 !
         CALL ESMF_FieldGet(field   =HOLD_FIELD                          &  !<-- Field N_FIELD in the Bundle
                           ,dimCount=NUM_DIMS                            &  !<-- Is this Field 2-D or 3-D?
                           ,typeKind=DATATYPE                            &  !<-- Does this Field contain an integer or real array?
-                          ,name    =FIELD_NAME                          &  !<-- The name of the Field
-                          ,rc      =RC )
+                          ,name      =FIELD_NAME                        &  !<-- The name of the Field
+                          ,rc         =RC )
 !
         N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
         FIELD_NAME=FIELD_NAME(1:N_REMOVE-1)
@@ -4819,17 +4718,10 @@
 !
           IF(DATATYPE==ESMF_TYPEKIND_R4)THEN                               !<-- The Real 2-D H-point arrays
 !
-#ifdef ESMF_3
-            CALL ESMF_FieldGet(field  =HOLD_FIELD                       &  !<-- Field N_FIELD in the Bundle
-                              ,localDe=0                                &
-                              ,farray =ARRAY_2D                         &  !<-- Dummy 2-D real array with Field's data
-                              ,rc     =RC )
-#else
             CALL ESMF_FieldGet(field    =HOLD_FIELD                     &  !<-- Field N_FIELD in the Bundle
                               ,localDe  =0                              &
                               ,farrayPtr=ARRAY_2D                       &  !<-- Dummy 2-D real array with Field's data
                               ,rc       =RC )
-#endif
 !
             DO J=J_START,J_END,J_INC
             DO I=I_START,I_END,I_INC
@@ -4839,17 +4731,10 @@
 !
           ELSEIF(DATATYPE==ESMF_TYPEKIND_I4)THEN                           !<-- The Integer 2-D H-point arrays
 !
-#ifdef ESMF_3
-            CALL ESMF_FieldGet(field  =HOLD_FIELD                       &  !<-- Field N_FIELD in the Bundle
-                              ,localDe=0                                &
-                              ,farray =IARRAY_2D                        &  !<-- Dummy 2-D integer array with Field's data
-                              ,rc     =RC )
-#else
             CALL ESMF_FieldGet(field    =HOLD_FIELD                     &  !<-- Field N_FIELD in the Bundle
                               ,localDe  =0                              &
                               ,farrayPtr=IARRAY_2D                      &  !<-- Dummy 2-D integer array with Field's data
                               ,rc       =RC )
-#endif
 !
             DO J=J_START,J_END,J_INC
             DO I=I_START,I_END,I_INC
@@ -4863,21 +4748,12 @@
         ELSEIF(NUM_DIMS==3)THEN                                            !<-- The (Real) 3-D H-point arrays
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field      =HOLD_FIELD                     &  !<-- Field N in the Bundle
-                            ,localDe    =0                              &
-                            ,farray     =ARRAY_3D                       &  !<-- Dummy 3-D array with Field's data
-                            ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
-                            ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
-                            ,rc         =RC )
-#else
           CALL ESMF_FieldGet(field      =HOLD_FIELD                     &  !<-- Field N in the Bundle
                             ,localDe    =0                              &
                             ,farrayPtr  =ARRAY_3D                       &  !<-- Dummy 3-D array with Field's data
                             ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
                             ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
                             ,rc         =RC )
-#endif
 !
           DO N=LIMITS_LO(3),LIMITS_HI(3)
             DO J=J_START,J_END,J_INC
@@ -4900,21 +4776,14 @@
 !
       DO N_FIELD=1,NUM_FIELDS   
 !
-#ifdef ESMF_520r
-        CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_V              &  !<-- Bundle holding the arrays for move updates
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_V              &  !<-- Bundle holding the arrays for move updates
                                 ,fieldIndex =N_FIELD                    &  !<-- Index of the Field in the Bundle
                                 ,field      =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
                                 ,rc         =RC )
-#else
-        CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE_V               &  !<-- Bundle holding the arrays for move updates
-                                ,fieldIndex=N_FIELD                     &  !<-- Index of the Field in the Bundle
-                                ,field     =HOLD_FIELD                  &  !<-- Field N_FIELD in the Bundle
-                                ,rc        =RC )
-#endif
 !
         CALL ESMF_FieldGet(field   =HOLD_FIELD                          &  !<-- Field N_FIELD in the Bundle
                           ,dimCount=NUM_DIMS                            &  !<-- Is this Field 2-D or 3-D?
-                          ,name    =FIELD_NAME                          &  !<-- The name of the Field
+                          ,name      =FIELD_NAME                        &  !<-- The name of the Field
                           ,rc      =RC )
 !
         N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
@@ -4924,17 +4793,10 @@
         IF(NUM_DIMS==2)THEN
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field  =HOLD_FIELD                         &  !<-- Field N_FIELD in the Bundle
-                            ,localDe=0                                  &
-                            ,farray =ARRAY_2D                           &  !<-- Dummy 2-D array with Field's data
-                            ,rc     =RC )
-#else
           CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field N_FIELD in the Bundle
                             ,localDe  =0                                &
                             ,farrayPtr=ARRAY_2D                         &  !<-- Dummy 2-D array with Field's data
                             ,rc       =RC )
-#endif
 !
           DO J=J_START,J_END,J_INC
           DO I=I_START,I_END,I_INC
@@ -4946,21 +4808,12 @@
         ELSEIF(NUM_DIMS==3)THEN                                            !<-- The (Real) 3-D V-point arrays
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field      =HOLD_FIELD                     &  !<-- Field N in the Bundle
-                            ,localDe    =0                              &
-                            ,farray     =ARRAY_3D                       &  !<-- Dummy 3-D array with Field's data
-                            ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
-                            ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
-                            ,rc         =RC )
-#else
           CALL ESMF_FieldGet(field      =HOLD_FIELD                     &  !<-- Field N in the Bundle
                             ,localDe    =0                              &
                             ,farrayPtr  =ARRAY_3D                       &  !<-- Dummy 3-D array with Field's data
                             ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
                             ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
                             ,rc         =RC )
-#endif
 !
           DO N=LIMITS_LO(3),LIMITS_HI(3)
             DO J=J_START,J_END,J_INC
@@ -5452,22 +5305,15 @@
 !
             DO N_FIELD=1,NUM_FIELDS
 !
-#ifdef ESMF_520r
-              CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H        &  !<-- Bundle holding the arrays for move updates
+              CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H        &  !<-- Bundle holding the arrays for move updates
                                       ,fieldIndex =N_FIELD              &  !<-- Index of the Field in the Bundle
                                       ,field      =HOLD_FIELD           &  !<-- Field N_FIELD in the Bundle
                                       ,rc         =RC )
-#else
-              CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE_H         &  !<-- Bundle holding the arrays for move updates
-                                      ,fieldIndex=N_FIELD               &  !<-- Index of the Field in the Bundle
-                                      ,field     =HOLD_FIELD            &  !<-- Field N_FIELD in the Bundle
-                                      ,rc        =RC )
-#endif
 !
               CALL ESMF_FieldGet(field    =HOLD_FIELD                   &  !<-- Field N_FIELD in the Bundle
                                  ,dimCount=NUM_DIMS                     &  !<-- Is this Field 2-D or 3-D?
                                  ,typeKind=DATATYPE                     &  !<-- Does the Field contain an integer or real array?
-                                 ,name    =FIELD_NAME                   &  !<-- This Field's name
+                                 ,name      =FIELD_NAME                 &  !<-- This Field's name
                                  ,rc      =RC )
 !
               N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
@@ -5477,17 +5323,10 @@
 !
                 IF(DATATYPE==ESMF_TYPEKIND_R4)THEN                         !<-- Real 2-D H-point arrays
 !
-#ifdef ESMF_3
-                  CALL ESMF_FieldGet(field  =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
-                                    ,localDe=0                          &
-                                    ,farray =ARRAY_2D                   &  !<-- Dummy 2-D real array with Field's data
-                                    ,rc     =RC )
-#else
                   CALL ESMF_FieldGet(field    =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
                                     ,localDe  =0                        &
                                     ,farrayPtr=ARRAY_2D                 &  !<-- Dummy 2-D real array with Field's data
                                     ,rc       =RC )
-#endif
 !
                   DO J=JSEND_START,JSEND_END
                   DO I=ISEND_START,ISEND_END
@@ -5498,17 +5337,10 @@
 !
                 ELSEIF(DATATYPE==ESMF_TYPEKIND_I4)THEN                     !<-- Integer 2-D H-point arrays
 !
-#ifdef ESMF_3
-                  CALL ESMF_FieldGet(field  =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
-                                    ,localDe=0                          &
-                                    ,farray =IARRAY_2D                  &  !<-- Dummy 2-D integer array with Field's data
-                                    ,rc     =RC )
-#else
                   CALL ESMF_FieldGet(field    =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
                                     ,localDe  =0                        &
                                     ,farrayPtr=IARRAY_2D                &  !<-- Dummy 2-D integer array with Field's data
                                     ,rc       =RC )
-#endif
 !
                   DO J=JSEND_START,JSEND_END
                   DO I=ISEND_START,ISEND_END
@@ -5521,21 +5353,12 @@
 !
               ELSEIF(NUM_DIMS==3)THEN                                      !<-- (Real) 3-D H-point arrays
 !
-#ifdef ESMF_3
-                CALL ESMF_FieldGet(field      =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
-                                  ,localDe    =0                        &
-                                  ,farray     =ARRAY_3D                 &  !<-- Dummy 3-D array with Field's data
-                                  ,totalLBound=LIMITS_LO                &  !<-- Starting index in each dimension
-                                  ,totalUBound=LIMITS_HI                &  !<-- Ending index in each dimension
-                                  ,rc         =RC )
-#else
                 CALL ESMF_FieldGet(field      =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
                                   ,localDe    =0                        &
                                   ,farrayPtr  =ARRAY_3D                 &  !<-- Dummy 3-D array with Field's data
                                   ,totalLBound=LIMITS_LO                &  !<-- Starting index in each dimension
                                   ,totalUBound=LIMITS_HI                &  !<-- Ending index in each dimension
                                   ,rc         =RC )
-#endif
 !
                 DO L=LIMITS_LO(3),LIMITS_HI(3)
                   DO J=JSEND_START,JSEND_END
@@ -5559,21 +5382,14 @@
 !
             DO N_FIELD=1,NUM_FIELDS
 !
-#ifdef ESMF_520r
-              CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_V        &  !<-- Bundle holding the arrays for move updates
+              CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_V        &  !<-- Bundle holding the arrays for move updates
                                       ,fieldIndex =N_FIELD              &  !<-- Index of the Field in the Bundle
                                       ,field      =HOLD_FIELD           &  !<-- Field N_FIELD in the Bundle
                                       ,rc         =RC )
-#else
-              CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE_V         &  !<-- Bundle holding the arrays for move updates
-                                      ,fieldIndex=N_FIELD               &  !<-- Index of the Field in the Bundle
-                                      ,field     =HOLD_FIELD            &  !<-- Field N_FIELD in the Bundle
-                                      ,rc        =RC )
-#endif
 !
               CALL ESMF_FieldGet(field    =HOLD_FIELD                   &  !<-- Field N_FIELD in the Bundle
                                  ,dimCount=NUM_DIMS                     &  !<-- Is this Field 2-D or 3-D?
-                                 ,name    =FIELD_NAME                   &  !<-- This Field's name
+                                 ,name      =FIELD_NAME                 &  !<-- This Field's name
                                  ,rc      =RC )
 !
               N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
@@ -5581,17 +5397,10 @@
 !
               IF(NUM_DIMS==2)THEN
 !
-#ifdef ESMF_3
-                CALL ESMF_FieldGet(field  =HOLD_FIELD                   &  !<-- Field N_FIELD in the Bundle
-                                  ,localDe=0                            &
-                                  ,farray =ARRAY_2D                     &  !<-- Dummy 2-D array with Field's data
-                                  ,rc     =RC )
-#else
                 CALL ESMF_FieldGet(field    =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
                                   ,localDe  =0                          &
                                   ,farrayPtr=ARRAY_2D                   &  !<-- Dummy 2-D array with Field's data
                                   ,rc       =RC )
-#endif
 !
                 DO J=JSEND_START,JSEND_END
                 DO I=ISEND_START,ISEND_END
@@ -5602,21 +5411,12 @@
 !
               ELSEIF(NUM_DIMS==3)THEN
 !
-#ifdef ESMF_3
-                CALL ESMF_FieldGet(field      =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
-                                  ,localDe    =0                        &
-                                  ,farray     =ARRAY_3D                 &  !<-- Dummy 3-D array with Field's data
-                                  ,totalLBound=LIMITS_LO                &  !<-- Starting index in each dimension
-                                  ,totalUBound=LIMITS_HI                &  !<-- Ending index in each dimension
-                                  ,rc         =RC )
-#else
                 CALL ESMF_FieldGet(field      =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
                                   ,localDe    =0                        &
                                   ,farrayPtr  =ARRAY_3D                 &  !<-- Dummy 3-D array with Field's data
                                   ,totalLBound=LIMITS_LO                &  !<-- Starting index in each dimension
                                   ,totalUBound=LIMITS_HI                &  !<-- Ending index in each dimension
                                   ,rc         =RC )
-#endif
 !
                 DO L=LIMITS_LO(3),LIMITS_HI(3)
                   DO J=JSEND_START,JSEND_END
@@ -6060,22 +5860,15 @@
 !
             DO N_FIELD=1,NUM_FIELDS
 !
-#ifdef ESMF_520r
-              CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H        &  !<-- Bundle holding the H arrays for move updates
+              CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H        &  !<-- Bundle holding the H arrays for move updates
                                       ,fieldIndex =N_FIELD              &  !<-- Index of the Field in the Bundle
                                       ,field      =HOLD_FIELD           &  !<-- Field N_FIELD in the Bundle
                                       ,rc         =RC )
-#else
-              CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE_H         &  !<-- Bundle holding the H arrays for move updates
-                                      ,fieldIndex=N_FIELD               &  !<-- Index of the Field in the Bundle
-                                      ,field     =HOLD_FIELD            &  !<-- Field N_FIELD in the Bundle
-                                      ,rc        =RC )
-#endif
 !
               CALL ESMF_FieldGet(field   =HOLD_FIELD                    &  !<-- Field N_FIELD in the Bundle
                                 ,dimCount=NUM_DIMS                      &  !<-- Is this Field 2-D or 3-D?
                                 ,typeKind=DATATYPE                      &  !<-- Does this Field contain an integer or real array?
-                                ,name    =FIELD_NAME                    &  !<-- This Field's name
+                                ,name      =FIELD_NAME                  &  !<-- This Field's name
                                 ,rc     =RC )
 !
               N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
@@ -6085,17 +5878,10 @@
 !
                 IF(DATATYPE==ESMF_TYPEKIND_I4)THEN
 !
-#ifdef ESMF_3
-                  CALL ESMF_FieldGet(field  =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
-                                    ,localDe=0                          &
-                                    ,farray =IARRAY_2D                  &  !<-- Dummy 2-D integer array with the Field's data
-                                    ,rc     =RC )
-#else
                   CALL ESMF_FieldGet(field    =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
                                     ,localDe  =0                        &
                                     ,farrayPtr=IARRAY_2D                &  !<-- Dummy 2-D integer array with the Field's data
                                     ,rc       =RC )
-#endif
 !
                   DO J=JRECV_START,JRECV_END
                   DO I=IRECV_START,IRECV_END
@@ -6106,17 +5892,10 @@
 !
                 ELSEIF(DATATYPE==ESMF_TYPEKIND_R4)THEN
 !
-#ifdef ESMF_3
-                  CALL ESMF_FieldGet(field  =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
-                                    ,localDe=0                          &
-                                    ,farray =ARRAY_2D                   &  !<-- Dummy 2-D real array with the Field's data
-                                    ,rc     =RC )
-#else
                   CALL ESMF_FieldGet(field    =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
                                     ,localDe  =0                        &
                                     ,farrayPtr=ARRAY_2D                 &  !<-- Dummy 2-D real array with the Field's data
                                     ,rc       =RC )
-#endif
 !
                   DO J=JRECV_START,JRECV_END
                   DO I=IRECV_START,IRECV_END
@@ -6129,21 +5908,12 @@
 !
               ELSEIF(NUM_DIMS==3)THEN
 !
-#ifdef ESMF_3
-                CALL ESMF_FieldGet(field      =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
-                                  ,localDe    =0                        &
-                                  ,farray     =ARRAY_3D                 &  !<-- Dummy 3-D array with the Field's data
-                                  ,totalLBound=LIMITS_LO                &  !<-- Starting index in each dimension
-                                  ,totalUBound=LIMITS_HI                &  !<-- Ending index in each dimension
-                                  ,rc         =RC )
-#else
                 CALL ESMF_FieldGet(field      =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
                                   ,localDe    =0                        &
                                   ,farrayPtr  =ARRAY_3D                 &  !<-- Dummy 3-D array with the Field's data
                                   ,totalLBound=LIMITS_LO                &  !<-- Starting index in each dimension
                                   ,totalUBound=LIMITS_HI                &  !<-- Ending index in each dimension
                                   ,rc         =RC )
-#endif
 !
                 DO L=LIMITS_LO(3),LIMITS_HI(3)
                   DO J=JRECV_START,JRECV_END
@@ -6166,21 +5936,14 @@
 !
             DO N_FIELD=1,NUM_FIELDS
 !
-#ifdef ESMF_520r
-              CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_V        &  !<-- Bundle holding the V arrays for move updates
+              CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_V        &  !<-- Bundle holding the V arrays for move updates
                                       ,fieldIndex =N_FIELD              &  !<-- Index of the Field in the Bundle
                                       ,field      =HOLD_FIELD           &  !<-- Field N_FIELD in the Bundle
                                       ,rc         =RC )
-#else
-              CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE_V         &  !<-- Bundle holding the V arrays for move updates
-                                      ,fieldIndex=N_FIELD               &  !<-- Index of the Field in the Bundle
-                                      ,field     =HOLD_FIELD            &  !<-- Field N_FIELD in the Bundle
-                                      ,rc        =RC )
-#endif
 !
               CALL ESMF_FieldGet(field   =HOLD_FIELD                    &  !<-- Field N_FIELD in the Bundle
                                 ,dimCount=NUM_DIMS                      &  !<-- Is this Field 2-D or 3-D?
-                                ,name    =FIELD_NAME                    &  !<-- This Field's name
+                                ,name      =FIELD_NAME                  &  !<-- This Field's name
                                 ,rc      =RC )
 ! 
               N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
@@ -6188,17 +5951,10 @@
 !
               IF(NUM_DIMS==2)THEN
 !
-#ifdef ESMF_3
-                CALL ESMF_FieldGet(field  =HOLD_FIELD                   &  !<-- Field N_FIELD in the Bundle
-                                  ,localDe=0                            &
-                                  ,farray =ARRAY_2D                     &  !<-- Dummy 2-D array with the Field's data
-                                  ,rc     =RC )
-#else
                 CALL ESMF_FieldGet(field    =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
                                   ,localDe  =0                          &
                                   ,farrayPtr=ARRAY_2D                   &  !<-- Dummy 2-D array with the Field's data
                                   ,rc       =RC )
-#endif
 !
                 DO J=JRECV_START,JRECV_END
                 DO I=IRECV_START,IRECV_END
@@ -6209,21 +5965,12 @@
 !
               ELSEIF(NUM_DIMS==3)THEN
 !
-#ifdef ESMF_3
-                CALL ESMF_FieldGet(field      =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
-                                  ,localDe    =0                        &
-                                  ,farray     =ARRAY_3D                 &  !<-- Dummy 3-D array with the Field's data
-                                  ,totalLBound=LIMITS_LO                &  !<-- Starting index in each dimension
-                                  ,totalUBound=LIMITS_HI                &  !<-- Ending index in each dimension
-                                  ,rc         =RC )
-#else
                 CALL ESMF_FieldGet(field      =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
                                   ,localDe    =0                        &
                                   ,farrayPtr  =ARRAY_3D                 &  !<-- Dummy 3-D array with the Field's data
                                   ,totalLBound=LIMITS_LO                &  !<-- Starting index in each dimension
                                   ,totalUBound=LIMITS_HI                &  !<-- Ending index in each dimension
                                   ,rc         =RC )
-#endif
 !
                 DO L=LIMITS_LO(3),LIMITS_HI(3)
                   DO J=JRECV_START,JRECV_END
@@ -6422,7 +6169,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Unload # of Words in Integer Update Data from Parent"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The DOMAIN import state
@@ -6444,22 +6191,14 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Unload Interior Update Integer Data from Input State"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-          CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- The DOMAIN import state
-                                ,name     =NAME_INTEGER                 &  !<-- Name of the variable
-                                ,count    =NUM_INTEGER_WORDS            &  !<-- # of integer words in update data from Nth parent task
-                                ,valueList=UPDATE_INTEGER_DATA          &  !<-- The integer update data from Nth parent task
-                                ,rc       =RC)
-#else
           CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- The DOMAIN import state
                                 ,name     =NAME_INTEGER                 &  !<-- Name of the variable
                                 ,itemCount=NUM_INTEGER_WORDS            &  !<-- # of integer words in update data from Nth parent task
                                 ,valueList=UPDATE_INTEGER_DATA          &  !<-- The integer update data from Nth parent task
                                 ,rc       =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
@@ -6473,7 +6212,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Unload # of Words in Real Update Data from Parent"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The DOMAIN import state
@@ -6489,22 +6228,14 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Unload Interior Update Real Data from Input State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The DOMAIN import state
-                              ,name     =NAME_REAL                      &  !<-- Name of the variable
-                              ,count    =NUM_REAL_WORDS                 &  !<-- # of real words in update data from Nth parent task
-                              ,valueList=UPDATE_REAL_DATA               &  !<-- The real update data from Nth parent task
-                              ,rc       =RC)
-#else
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The DOMAIN import state
                               ,name     =NAME_REAL                      &  !<-- Name of the variable
                               ,itemCount=NUM_REAL_WORDS                 &  !<-- # of real words in update data from Nth parent task
                               ,valueList=UPDATE_REAL_DATA               &  !<-- The real update data from Nth parent task
                               ,rc       =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
@@ -6514,22 +6245,9 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Index Limits for Update Data from DOMAIN Input State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The DOMAIN import state
-                              ,name     =NAME//' Indices H'             &  !<-- Name of the variable
-                              ,count    =8                              &  !<-- # of words in index limits of update data
-                              ,valueList=INDICES_H                      &  !<-- The update data index specifications for H
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The DOMAIN import state
-                              ,name     =NAME//' Indices V'             &  !<-- Name of the variable
-                              ,count    =8                              &  !<-- # of words in index limits of update data
-                              ,valueList=INDICES_V                      &  !<-- The update data index specifications for V
-                              ,rc       =RC)
-#else
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The DOMAIN import state
                               ,name     =NAME//' Indices H'             &  !<-- Name of the variable
                               ,itemCount=N8                             &  !<-- # of words in index limits of update data
@@ -6541,7 +6259,6 @@
                               ,itemCount=N8                             &  !<-- # of words in index limits of update data
                               ,valueList=INDICES_V                      &  !<-- The update data index specifications for V
                               ,rc       =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
@@ -6597,101 +6314,45 @@
 !***  related to the latitude and longitude.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
-                                  ,fieldname  ='GLAT'//BUNDLE_X         &  !<-- Name of the latitude Field
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
+                                  ,FIELDNAME  ='GLAT'//BUNDLE_X         &  !<-- Name of the latitude Field
                                   ,field      =HOLD_FIELD               &  !<-- Field holding GLAT
                                   ,rc         =RC )
-#else
-          CALL ESMF_FieldBundleGet(bundle=MOVE_BUNDLE_H                 &  !<-- Bundle holding the H arrays for move updates
-                                  ,name  ='GLAT'//BUNDLE_X              &  !<-- Name of the latitude Field
-                                  ,field =HOLD_FIELD                    &  !<-- Field holding GLAT
-                                  ,rc    =RC )
-#endif
 !
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field  =HOLD_FIELD                         &  !<-- Field containing GLAT
-                            ,localDe=0                                  &
-                            ,farray =GLAT_H                             &  !<-- Dummy 2-D array with Field's data
-                            ,rc     =RC )
-#else
           CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field containing GLAT
                             ,localDe  =0                                &
                             ,farrayPtr=GLAT_H                           &  !<-- Dummy 2-D array with Field's data
                             ,rc       =RC )
-#endif
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
-                                  ,fieldname  ='GLON'//BUNDLE_X         &  !<-- Name of the longitude Field
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
+                                  ,FIELDNAME  ='GLON'//BUNDLE_X         &  !<-- Name of the longitude Field
                                   ,field      =HOLD_FIELD               &  !<-- Field holding GLON
                                   ,rc         =RC )
-#else
-          CALL ESMF_FieldBundleGet(bundle=MOVE_BUNDLE_H                 &  !<-- Bundle holding the H arrays for move updates
-                                  ,name  ='GLON'//BUNDLE_X              &  !<-- Name of the longitude Field
-                                  ,field =HOLD_FIELD                    &  !<-- Field holding GLON
-                                  ,rc    =RC )
-#endif
 !
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field  =HOLD_FIELD                         &  !<-- Field containing GLON
-                            ,localDe=0                                  &
-                            ,farray =GLON_H                             &  !<-- Dummy 2-D array with Field's data
-                            ,rc     =RC )
-#else
           CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field containing GLON
                             ,localDe  =0                                &
                             ,farrayPtr=GLON_H                           &  !<-- Dummy 2-D array with Field's data
                             ,rc       =RC )
-#endif
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
-                                  ,fieldname  ='HDACX'//BUNDLE_X        &  !<-- Name of the HDAC Field
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
+                                  ,FIELDNAME  ='HDACX'//BUNDLE_X        &  !<-- Name of the HDAC Field
                                   ,field      =HOLD_FIELD               &  !<-- Field holding GLON
                                   ,rc         =RC )
-#else
-          CALL ESMF_FieldBundleGet(bundle=MOVE_BUNDLE_H                 &  !<-- Bundle holding the H arrays for move updates
-                                  ,name  ='HDACX'//BUNDLE_X             &  !<-- Name of the HDAC Field
-                                  ,field =HOLD_FIELD                    &  !<-- Field holding GLON
-                                  ,rc    =RC )
-#endif
 !
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field  =HOLD_FIELD                         &  !<-- Field containing GLON
-                            ,localDe=0                                  &
-                            ,farray =HDACX                              &  !<-- Dummy 2-D array with Field's data
-                            ,rc     =RC )
-#else
           CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field containing GLON
                             ,localDe  =0                                &
                             ,farrayPtr=HDACX                            &  !<-- Dummy 2-D array with Field's data
                             ,rc       =RC )
-#endif
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
-                                  ,fieldname  ='HDACY'//BUNDLE_X        &  !<-- Name of the HDAC Field
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
+                                  ,FIELDNAME  ='HDACY'//BUNDLE_X        &  !<-- Name of the HDAC Field
                                   ,field      =HOLD_FIELD               &  !<-- Field holding GLON
                                   ,rc         =RC )
-#else
-          CALL ESMF_FieldBundleGet(bundle=MOVE_BUNDLE_H                 &  !<-- Bundle holding the H arrays for move updates
-                                  ,name  ='HDACY'//BUNDLE_X             &  !<-- Name of the HDAC Field
-                                  ,field =HOLD_FIELD                    &  !<-- Field holding GLON
-                                  ,rc    =RC )
-#endif
 !
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field  =HOLD_FIELD                         &  !<-- Field containing GLON
-                            ,localDe=0                                  &
-                            ,farray =HDACY                              &  !<-- Dummy 2-D array with Field's data
-                            ,rc     =RC )
-#else
           CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field containing GLON
                             ,localDe  =0                                &
                             ,farrayPtr=HDACY                            &  !<-- Dummy 2-D array with Field's data
                             ,rc       =RC )
-#endif
 !
           LBND=LBOUND(GLON_H)
           UBND=UBOUND(GLON_H)
@@ -6718,22 +6379,15 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-            CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H          &  !<-- Bundle holding the H arrays for move updates
+            CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H          &  !<-- Bundle holding the H arrays for move updates
                                     ,fieldIndex =N_FIELD                &  !<-- Index of the Field in the Bundle
                                     ,field      =HOLD_FIELD             &  !<-- Field N_FIELD in the Bundle
                                     ,rc         =RC )
-#else
-            CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE_H           &  !<-- Bundle holding the H arrays for move updates
-                                    ,fieldIndex=N_FIELD                 &  !<-- Index of the Field in the Bundle
-                                    ,field     =HOLD_FIELD              &  !<-- Field N_FIELD in the Bundle
-                                    ,rc        =RC )
-#endif
 !
             CALL ESMF_FieldGet(field   =HOLD_FIELD                      &  !<-- Field N_FIELD in the Bundle
                               ,dimCount=NUM_DIMS                        &  !<-- Is this Field 2-D or 3-D?
                               ,typekind=DATATYPE                        &  !<-- Is the data integer or real?
-                              ,name    =FIELD_NAME                      &  !<-- Name of the Field
+                              ,name      =FIELD_NAME                    &  !<-- Name of the Field
                               ,rc      =RC )
 !
             N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
@@ -6769,7 +6423,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Extract UPDATE_TYPE from Field"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             CALL ESMF_AttributeGet(field=HOLD_FIELD                     &  !<-- Get Attribute from this Field
@@ -6875,20 +6529,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
                   MESSAGE_CHECK="Extract 2-D Real Array for Type F"
-!                 CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!                 CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-                  CALL ESMF_FieldGet(field  =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
-                                    ,localDe=0                          &
-                                    ,farray =ARRAY_2D                   &  !<-- Dummy 2-D array with Field's Real data
-                                    ,rc     =RC )
-#else
                   CALL ESMF_FieldGet(field    =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
                                     ,localDe  =0                        &
                                     ,farrayPtr=ARRAY_2D                 &  !<-- Dummy 2-D array with Field's Real data
                                     ,rc       =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
                   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
@@ -6933,20 +6580,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
                   MESSAGE_CHECK="Extract 2-D Integer Array for Type F"
-!                 CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!                 CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-                  CALL ESMF_FieldGet(field  =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
-                                    ,localDe=0                          &
-                                    ,farray =IARRAY_2D                  &  !<-- Dummy 2-D array with Field's Real data
-                                    ,rc     =RC )
-#else
                   CALL ESMF_FieldGet(field    =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
                                     ,localDe  =0                        &
                                     ,farrayPtr=IARRAY_2D                &  !<-- Dummy 2-D array with Field's Real data
                                     ,rc       =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
                   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
@@ -6982,20 +6622,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
                   MESSAGE_CHECK="Extract General 2-D Integer Array"
-!                 CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!                 CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-                  CALL ESMF_FieldGet(field  =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
-                                    ,localDe=0                          &
-                                    ,farray =IARRAY_2D                  &  !<-- Dummy 2-D array with Field's integer data
-                                    ,rc     =RC )
-#else
                   CALL ESMF_FieldGet(field    =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
                                     ,localDe  =0                        &
                                     ,farrayPtr=IARRAY_2D                &  !<-- Dummy 2-D array with Field's integer data
                                     ,rc       =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
                   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
@@ -7021,20 +6654,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
                   MESSAGE_CHECK="Extract General 2-D Real Array"
-!                 CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!                 CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-                  CALL ESMF_FieldGet(field  =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
-                                    ,localDe=0                          &
-                                    ,farray =ARRAY_2D                   &  !<-- Dummy 2-D array with Field's Real data
-                                    ,rc     =RC )
-#else
                   CALL ESMF_FieldGet(field    =HOLD_FIELD               &  !<-- Field N_FIELD in the Bundle
                                     ,localDe  =0                        &
                                     ,farrayPtr=ARRAY_2D                 &  !<-- Dummy 2-D array with Field's Real data
                                     ,rc       =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
                   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
@@ -7134,21 +6760,12 @@
             ELSEIF(NUM_DIMS==3)THEN                                        !<-- The parent's update of all 3-D variables
 !
 !-----------------------------------------------------------------------
-#ifdef ESMF_3
-              CALL ESMF_FieldGet(field      =HOLD_FIELD                 &  !<-- Field N in the Bundle
-                                ,localDe    =0                          &
-                                ,farray     =ARRAY_3D                   &  !<-- Dummy 3-D array with Field's data
-                                ,totalLBound=LIMITS_LO                  &  !<-- Starting index in each dimension
-                                ,totalUBound=LIMITS_HI                  &  !<-- Ending index in each dimension
-                                ,rc         =RC )
-#else
               CALL ESMF_FieldGet(field      =HOLD_FIELD                 &  !<-- Field N in the Bundle
                                 ,localDe    =0                          &
                                 ,farrayPtr  =ARRAY_3D                   &  !<-- Dummy 3-D array with Field's data
                                 ,totalLBound=LIMITS_LO                  &  !<-- Starting index in each dimension
                                 ,totalUBound=LIMITS_HI                  &  !<-- Ending index in each dimension
                                 ,rc         =RC )
-#endif
 !
               DO NL=LIMITS_LO(3),LIMITS_HI(3)
                 DO J=J_START,J_END
@@ -7169,61 +6786,28 @@
 !***  The temporary substitution of T into TP.  See note above ('T/TP').
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
                                   , fieldIndex=N_FIELD_T                &  !<-- Index of the T Field in the H Bundle
                                   ,field      =HOLD_FIELD               &  !<-- The T Field in the H Bundle
                                   ,rc         =RC )
-#else
-          CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE_H             &  !<-- Bundle holding the H arrays for move updates
-                                  ,fieldIndex=N_FIELD_T                 &  !<-- Index of the T Field in the H Bundle
-                                  ,field     =HOLD_FIELD                &  !<-- The T Field in the H Bundle
-                                  ,rc        =RC )
-#endif
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
                                   ,fieldIndex =N_FIELD_TP               &  !<-- Index of the TP Field in the H Bundle
                                   ,field      =HOLD_FIELD_X             &  !<-- The TP Field in the H Bundle
                                   ,rc         =RC )
-#else
-          CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE_H             &  !<-- Bundle holding the H arrays for move updates
-                                  ,fieldIndex=N_FIELD_TP                &  !<-- Index of the TP Field in the H Bundle
-                                  ,field     =HOLD_FIELD_X              &  !<-- The TP Field in the H Bundle
-                                  ,rc        =RC )
-#endif
 !
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field      =HOLD_FIELD                     &  !<-- The T Field in the H Bundle
-                            ,localDe    =0                              &
-                            ,farray     =ARRAY_3D                       &  !<-- Dummy 3-D array with Field's data
-                            ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
-                            ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
-                            ,rc         =RC )
-#else
           CALL ESMF_FieldGet(field      =HOLD_FIELD                     &  !<-- The T Field in the H Bundle
                             ,localDe    =0                              &
                             ,farrayPtr  =ARRAY_3D                       &  !<-- Dummy 3-D array with Field's data
                             ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
                             ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
                             ,rc         =RC )
-#endif
-!
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field      =HOLD_FIELD_X                   &  !<-- The TP Field in the H Bundle
-                            ,localDe    =0                              &
-                            ,farray     =ARRAY_3D_X                     &  !<-- Dummy 3-D array with Field's data
-                            ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
-                            ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
-                            ,rc         =RC )
-#else
           CALL ESMF_FieldGet(field      =HOLD_FIELD_X                   &  !<-- The TP Field in the H Bundle
                             ,localDe    =0                              &
                             ,farrayPtr  =ARRAY_3D_X                     &  !<-- Dummy 3-D array with Field's data
                             ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
                             ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
                             ,rc         =RC )
-#endif
 !
           DO NL=LIMITS_LO(3),LIMITS_HI(3)
             DO J=J_START,J_END
@@ -7289,21 +6873,14 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-            CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_V          &  !<-- Bundle holding the V arrays for move updates
+            CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_V          &  !<-- Bundle holding the V arrays for move updates
                                     ,fieldIndex =N_FIELD                &  !<-- Index of the Field in the Bundle
                                     ,field      =HOLD_FIELD             &  !<-- Field N_FIELD in the Bundle
                                     ,rc         =RC )
-#else
-            CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE_V           &  !<-- Bundle holding the V arrays for move updates
-                                    ,fieldIndex=N_FIELD                 &  !<-- Index of the Field in the Bundle
-                                    ,field     =HOLD_FIELD              &  !<-- Field N_FIELD in the Bundle
-                                    ,rc        =RC )
-#endif
 !
             CALL ESMF_FieldGet(field   =HOLD_FIELD                      &  !<-- Field N_FIELD in the Bundle
                               ,dimCount=NUM_DIMS                        &  !<-- Is this Field 2-D or 3-D?
-                              ,name    =FIELD_NAME                      &  !<-- Name of the Field
+                              ,name      =FIELD_NAME                    &  !<-- Name of the Field
                               ,rc      =RC )
 !
             N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
@@ -7330,17 +6907,10 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-              CALL ESMF_FieldGet(field  =HOLD_FIELD                     &  !<-- Field N_FIELD in the Bundle
-                                ,localDe=0                              &
-                                ,farray =ARRAY_2D                       &  !<-- Dummy 2-D array with Field's data
-                                ,rc     =RC )
-#else
               CALL ESMF_FieldGet(field    =HOLD_FIELD                   &  !<-- Field N_FIELD in the Bundle
                                 ,localDe  =0                            &
                                 ,farrayPtr=ARRAY_2D                     &  !<-- Dummy 2-D array with Field's data
                                 ,rc       =RC )
-#endif
 !
 !-----------------------------------------------------------------------
 !***  As it did with H points, the nest task computes the geographic
@@ -7410,21 +6980,12 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-              CALL ESMF_FieldGet(field      =HOLD_FIELD                 &  !<-- Field N in the Bundle
-                                ,localDe    =0                          &
-                                ,farray     =ARRAY_3D                   &  !<-- Dummy 3-D array with Field's data
-                                ,totalLBound=LIMITS_LO                  &  !<-- Starting index in each dimension
-                                ,totalUBound=LIMITS_HI                  &  !<-- Ending index in each dimension
-                                ,rc         =RC )
-#else
               CALL ESMF_FieldGet(field      =HOLD_FIELD                 &  !<-- Field N in the Bundle
                                 ,localDe    =0                          &
                                 ,farrayPtr  =ARRAY_3D                   &  !<-- Dummy 3-D array with Field's data
                                 ,totalLBound=LIMITS_LO                  &  !<-- Starting index in each dimension
                                 ,totalUBound=LIMITS_HI                  &  !<-- Ending index in each dimension
                                 ,rc         =RC )
-#endif
 !
               DO NL=LIMITS_LO(3),LIMITS_HI(3)
                 DO J=J_START,J_END
@@ -7449,61 +7010,28 @@
 !***  UP
 !--------
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_V            &  !<-- Bundle holding the V arrays for move updates
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_V            &  !<-- Bundle holding the V arrays for move updates
                                   ,fieldIndex =N_FIELD_U                &  !<-- Index of the U Field in the V Bundle
                                   ,field      =HOLD_FIELD               &  !<-- The U Field in the V Bundle
                                   ,rc         =RC )
-#else
-          CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE_V             &  !<-- Bundle holding the V arrays for move updates
-                                  ,fieldIndex=N_FIELD_U                 &  !<-- Index of the U Field in the V Bundle
-                                  ,field     =HOLD_FIELD                &  !<-- The U Field in the V Bundle
-                                  ,rc        =RC )
-#endif
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_V            &  !<-- Bundle holding the V arrays for move updates
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_V            &  !<-- Bundle holding the V arrays for move updates
                                   ,fieldIndex =N_FIELD_UP               &  !<-- Index of the UP Field in the V Bundle
                                   ,field      =HOLD_FIELD_X             &  !<-- The UP Field in the V Bundle
                                   ,rc         =RC )
-#else
-          CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE_V             &  !<-- Bundle holding the V arrays for move updates
-                                  ,fieldIndex=N_FIELD_UP                &  !<-- Index of the UP Field in the V Bundle
-                                  ,field     =HOLD_FIELD_X              &  !<-- The UP Field in the V Bundle
-                                  ,rc        =RC )
-#endif
 !
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field      =HOLD_FIELD                     &  !<-- The U Field in the V Bundle
-                            ,localDe    =0                              &
-                            ,farray     =ARRAY_3D                       &  !<-- Dummy 3-D array with Field's data
-                            ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
-                            ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
-                            ,rc         =RC )
-#else
           CALL ESMF_FieldGet(field      =HOLD_FIELD                     &  !<-- The U Field in the V Bundle
                             ,localDe    =0                              &
                             ,farrayPtr  =ARRAY_3D                       &  !<-- Dummy 3-D array with Field's data
                             ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
                             ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
                             ,rc         =RC )
-#endif
-!
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field      =HOLD_FIELD_X                   &  !<-- The UP Field in the V Bundle
-                            ,localDe    =0                              &
-                            ,farray     =ARRAY_3D_X                     &  !<-- Dummy 3-D array with Field's data
-                            ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
-                            ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
-                            ,rc         =RC )
-#else
           CALL ESMF_FieldGet(field      =HOLD_FIELD_X                   &  !<-- The UP Field in the V Bundle
                             ,localDe    =0                              &
                             ,farrayPtr  =ARRAY_3D_X                     &  !<-- Dummy 3-D array with Field's data
                             ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
                             ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
                             ,rc         =RC )
-#endif
 !
           DO NL=LIMITS_LO(3),LIMITS_HI(3)
             DO J=J_START,J_END
@@ -7517,61 +7045,28 @@
 !***  VP
 !--------
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_V            &  !<-- Bundle holding the V arrays for move updates
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_V            &  !<-- Bundle holding the V arrays for move updates
                                   ,fieldIndex =N_FIELD_V                &  !<-- Index of the V Field in the V Bundle
                                   ,field      =HOLD_FIELD               &  !<-- The U Field in the V Bundle
                                   ,rc         =RC )
-#else
-          CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE_V             &  !<-- Bundle holding the V arrays for move updates
-                                  ,fieldIndex=N_FIELD_V                 &  !<-- Index of the V Field in the V Bundle
-                                  ,field     =HOLD_FIELD                &  !<-- The U Field in the V Bundle
-                                  ,rc        =RC )
-#endif
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_V            &  !<-- Bundle holding the V arrays for move updates
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_V            &  !<-- Bundle holding the V arrays for move updates
                                   ,fieldIndex =N_FIELD_VP               &  !<-- Index of the VP Field in the V Bundle
                                   ,field      =HOLD_FIELD_X             &  !<-- The UP Field in the V Bundle
                                   ,rc         =RC )
-#else
-          CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE_V             &  !<-- Bundle holding the V arrays for move updates
-                                  ,fieldIndex=N_FIELD_VP                &  !<-- Index of the VP Field in the V Bundle
-                                  ,field     =HOLD_FIELD_X              &  !<-- The UP Field in the V Bundle
-                                  ,rc        =RC )
-#endif
 !
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field      =HOLD_FIELD                     &  !<-- The V Field in the V Bundle
-                            ,localDe    =0                              &
-                            ,farray     =ARRAY_3D                       &  !<-- Dummy 3-D array with Field's data
-                            ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
-                            ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
-                            ,rc         =RC )
-#else
           CALL ESMF_FieldGet(field      =HOLD_FIELD                     &  !<-- The V Field in the V Bundle
                             ,localDe    =0                              &
                             ,farrayPtr  =ARRAY_3D                       &  !<-- Dummy 3-D array with Field's data
                             ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
                             ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
                             ,rc         =RC )
-#endif
-!
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field      =HOLD_FIELD_X                   &  !<-- The VP Field in the V Bundle
-                            ,localDe    =0                              &
-                            ,farray     =ARRAY_3D_X                     &  !<-- Dummy 3-D array with Field's data
-                            ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
-                            ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
-                            ,rc         =RC )
-#else
           CALL ESMF_FieldGet(field      =HOLD_FIELD_X                   &  !<-- The VP Field in the V Bundle
                             ,localDe    =0                              &
                             ,farrayPtr  =ARRAY_3D_X                     &  !<-- Dummy 3-D array with Field's data
                             ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
                             ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
                             ,rc         =RC )
-#endif
 !
           DO NL=LIMITS_LO(3),LIMITS_HI(3)
             DO J=J_START,J_END
@@ -7598,29 +7093,15 @@
       ENDDO parent_loop
 !
 !-----------------------------------------------------------------------
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
-                                  ,fieldname  ='SST'                    &  !<-- Name of the latitude Field
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
+                                  ,FIELDNAME  ='SST'                    &  !<-- Name of the latitude Field
                                   ,field      =HOLD_FIELD               &  !<-- Field holding GLAT
                                   ,rc         =RC )
-#else
-          CALL ESMF_FieldBundleGet(bundle=MOVE_BUNDLE_H                 &  !<-- Bundle holding the H arrays for move updates
-                                  ,name  ='SST'                         &  !<-- Name of the latitude Field
-                                  ,field =HOLD_FIELD                    &  !<-- Field holding GLAT
-                                  ,rc    =RC )
-#endif
 !
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field  =HOLD_FIELD                         &  !<-- Field containing GLAT
-                            ,localDe=0                                  &
-                            ,farray =ARRAY_2D                           &  !<-- Dummy 2-D array with Field's data
-                            ,rc     =RC )
-#else
           CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field containing GLAT
                             ,localDe  =0                                &
                             ,farrayPtr=ARRAY_2D                         &  !<-- Dummy 2-D array with Field's data
                             ,rc       =RC )
-#endif
 !
 !
       END SUBROUTINE UPDATE_INTERIOR_FROM_PARENT
@@ -7923,20 +7404,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Again Extract Field from MOVE_BUNDLE_H"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-        CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H              &  !<-- Bundle holding the H arrays for move updates
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H              &  !<-- Bundle holding the H arrays for move updates
                                 ,fieldIndex =N_FIELD                    &  !<-- Index of the Field in the Bundle
                                 ,field      =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
                                 ,rc         =RC )
-#else
-        CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE_H               &  !<-- Bundle holding the H arrays for move updates
-                                ,fieldIndex=N_FIELD                     &  !<-- Index of the Field in the Bundle
-                                ,field     =HOLD_FIELD                  &  !<-- Field N_FIELD in the Bundle
-                                ,rc        =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FIX)
@@ -7944,7 +7418,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Again Extract Field Information"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_FieldGet(field   =HOLD_FIELD                          &  !<-- Field N_FIELD in the Bundle
@@ -7959,7 +7433,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Again Extract UPDATE_TYPE from Field"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeGet(field=HOLD_FIELD                         &  !<-- Get Attribute from this Field
@@ -8020,20 +7494,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract 2-D Real Sfc Array"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field  =HOLD_FIELD                         &  !<-- Field N_FIELD in the Bundle
-                            ,localDe=0                                  &
-                            ,farray =ARRAY_2D                           &  !<-- Dummy 2-D array with Field's Real data
-                            ,rc     =RC )
-#else
           CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field N_FIELD in the Bundle
                             ,localDe  =0                                &
                             ,farrayPtr=ARRAY_2D                         &  !<-- Dummy 2-D array with Field's Real data
                             ,rc       =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FIX)
@@ -8118,24 +7585,15 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract 3-D Real Sfc Array"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-          CALL ESMF_FieldGet(field      =HOLD_FIELD                     &  !<-- Field N_FIELD in the Bundle
-                            ,localDe    =0                              &
-                            ,farray     =ARRAY_3D                       &  !<-- Dummy 2-D array with Field's Real data
-                            ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
-                            ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
-                            ,rc         =RC )
-#else
           CALL ESMF_FieldGet(field      =HOLD_FIELD                     &  !<-- Field N_FIELD in the Bundle
                             ,localDe    =0                              &
                             ,farrayPtr  =ARRAY_3D                       &  !<-- Dummy 2-D array with Field's Real data
                             ,totalLBound=LIMITS_LO                      &  !<-- Starting index in each dimension
                             ,totalUBound=LIMITS_HI                      &  !<-- Ending index in each dimension
                             ,rc         =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FIX)
@@ -8601,57 +8059,27 @@
 !
         FIRST=.FALSE.
 !
-#ifdef ESMF_520r
-        CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
-!!!                             ,fieldname  ='GLAT'                     &  !<-- Name of the latitude Field
-                                ,fieldname  ='GLAT'//BUNDLE_X           &  !<-- Name of the latitude Field
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
+!!!                             ,FIELDNAME  ='GLAT'                     &  !<-- Name of the latitude Field
+                                ,FIELDNAME  ='GLAT'//BUNDLE_X           &  !<-- Name of the latitude Field
                                 ,field      =HOLD_FIELD                 &  !<-- Field holding GLAT
                                 ,rc         =RC )
-#else
-        CALL ESMF_FieldBundleGet(bundle=MOVE_BUNDLE                     &  !<-- Bundle holding the arrays for move updates
-!!!                             ,name  ='GLAT'                          &  !<-- Name of the latitude Field
-                                ,name  ='GLAT'//BUNDLE_X                &  !<-- Name of the latitude Field
-                                ,field =HOLD_FIELD                      &  !<-- Field holding GLAT
-                                ,rc    =RC )
-#endif
 !
-#ifdef ESMF_3
-        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field containing GLAT
-                          ,localDe=0                                    &
-                          ,farray =GLAT_H                               &  !<-- Dummy 2-D array with Field's data
-                          ,rc     =RC )
-#else
         CALL ESMF_FieldGet(field    =HOLD_FIELD                         &  !<-- Field containing GLAT
                           ,localDe  =0                                  &
                           ,farrayPtr=GLAT_H                             &  !<-- Dummy 2-D array with Field's data
                           ,rc       =RC )
-#endif
 !
-#ifdef ESMF_520r
-        CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
-!!!                             ,fieldname  ='GLON'                     &  !<-- Name of the longitude Field
-                                ,fieldname  ='GLON'//BUNDLE_X           &  !<-- Name of the longitude Field
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
+!!!                             ,FIELDNAME  ='GLON'                     &  !<-- Name of the longitude Field
+                                ,FIELDNAME  ='GLON'//BUNDLE_X           &  !<-- Name of the longitude Field
                                 ,field      =HOLD_FIELD                 &  !<-- Field holding GLON
                                 ,rc         =RC )
-#else
-        CALL ESMF_FieldBundleGet(bundle=MOVE_BUNDLE                     &  !<-- Bundle holding the arrays for move updates
-!!!                             ,name  ='GLON'                          &  !<-- Name of the longitude Field
-                                ,name  ='GLON'//BUNDLE_X                &  !<-- Name of the longitude Field
-                                ,field =HOLD_FIELD                      &  !<-- Field holding GLON
-                                ,rc    =RC )
-#endif
 !
-#ifdef ESMF_3
-        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field containing GLON
-                          ,localDe=0                                    &
-                          ,farray =GLON_H                               &  !<-- Dummy 2-D array with Field's data
-                          ,rc     =RC )
-#else
         CALL ESMF_FieldGet(field    =HOLD_FIELD                         &  !<-- Field containing GLON
                           ,localDe  =0                                  &
                           ,farrayPtr=GLON_H                             &  !<-- Dummy 2-D array with Field's data
                           ,rc       =RC )
-#endif
 !
 !-----------------------------------------------------------------------
 !***  Find the I,J on the uppermost parent grid on which the SW corner
@@ -8680,18 +8108,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="How many Fields in the Move_Bundle?"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-      CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE                  &  !<-- Bundle holding the arrays for move updates
+      CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE                  &  !<-- Bundle holding the arrays for move updates
                               ,fieldCount =NUM_FIELDS                   &  !<-- # of Fields in this Bundle
                               ,rc         =RC )
-#else
-      CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE                   &  !<-- Bundle holding the arrays for move updates
-                              ,fieldCount=NUM_FIELDS                    &  !<-- # of Fields in this Bundle
-                              ,rc        =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RES)
@@ -8707,17 +8129,10 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-        CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
                                 ,fieldIndex =N_FIELD                    &  !<-- Index of the Field in the Bundle
                                 ,field      =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
                                 ,rc         =RC )
-#else
-        CALL ESMF_FieldBundleGet(bundle    =MOVE_BUNDLE                 &  !<-- Bundle holding the arrays for move updates
-                                ,fieldIndex=N_FIELD                     &  !<-- Index of the Field in the Bundle
-                                ,field     =HOLD_FIELD                  &  !<-- Field N_FIELD in the Bundle
-                                ,rc        =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RES)
@@ -8725,7 +8140,7 @@
 !
         CALL ESMF_FieldGet(field   =HOLD_FIELD                          &  !<-- Field N_FIELD in the Bundle
                           ,typeKind=DATATYPE                            &  !<-- Does this Field contain an integer or real array?
-                          ,name    =FIELD_NAME                          &  !<-- The name of the Field
+                          ,name      =FIELD_NAME                        &  !<-- The name of the Field
                           ,rc      =RC )
 !
         N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
@@ -8733,7 +8148,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="RESET_SFC_VARS: Extract UPDATE_TYPE from Field"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeGet(field=HOLD_FIELD                         &  !<-- Get Attribute from this Field
@@ -8799,20 +8214,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="RESET_SFC_VARS: Extract 2-D Real Array for Type F"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-            CALL ESMF_FieldGet(field  =HOLD_FIELD                       &  !<-- Field N_FIELD in the Bundle
-                              ,localDe=0                                &
-                              ,farray =ARRAY_2D                         &  !<-- Dummy 2-D array with Field's Real data
-                              ,rc     =RC )
-#else
             CALL ESMF_FieldGet(field    =HOLD_FIELD                     &  !<-- Field N_FIELD in the Bundle
                               ,localDe  =0                              &
                               ,farrayPtr=ARRAY_2D                       &  !<-- Dummy 2-D array with Field's Real data
                               ,rc       =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RES)
@@ -8822,20 +8230,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="RESET_SFC_VARS: Extract 2-D Integer Array for Type F"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-            CALL ESMF_FieldGet(field  =HOLD_FIELD                       &  !<-- Field N_FIELD in the Bundle
-                              ,localDe=0                                &
-                              ,farray =IARRAY_2D                        &  !<-- Dummy 2-D array with Field's Real data
-                              ,rc     =RC )
-#else
             CALL ESMF_FieldGet(field    =HOLD_FIELD                     &  !<-- Field N_FIELD in the Bundle
                               ,localDe  =0                              &
                               ,farrayPtr=IARRAY_2D                      &  !<-- Dummy 2-D array with Field's Real data
                               ,rc       =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RES)

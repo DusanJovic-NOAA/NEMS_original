@@ -36,11 +36,7 @@
 !! 2012-02-06     Weiyu Yang, Modified for using the ESMF 5.2.0r library.
 !------------------------------------------------------------------------------
 
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
 
       USE MODULE_ERR_MSG, ONLY: ERR_MSG, MESSAGE_CHECK
       use MODULE_gfs_machine,  ONLY: kind_phys
@@ -99,23 +95,17 @@
 !
       MESSAGE_CHECK="Set Entry Point for chem2phy coupler run"
 
-#ifdef ESMF_3
       call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
-                                    ,ESMF_SETRUN               & !<-- Predefined subroutine type
+                                    ,ESMF_METHOD_RUN           & !<-- Predefined subroutine type
                                     ,RUN                       & !<-- User's subroutineName
+#ifdef ESMF_3
                                     ,ESMF_SINGLEPHASE          &
                                     ,RC)
 #else
 #ifdef ESMF_520r
-      call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
-                                    ,ESMF_METHOD_RUN           & !<-- Predefined subroutine type
-                                    ,RUN                       & !<-- User's subroutineName
                                     ,phase=1                   &
                                     ,rc=RC)
 #else
-      call ESMF_CplCompSetEntryPoint(GC                        & !<-- The gridded component
-                                    ,ESMF_SETRUN               & !<-- Predefined subroutine type
-                                    ,RUN                       & !<-- User's subroutineName
                                     ,phase=ESMF_SINGLEPHASE    &
                                     ,rc=RC)
 #endif

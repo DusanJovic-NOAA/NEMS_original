@@ -30,11 +30,7 @@
 !   peid   -- PE ID of var.
 !   vm     -- the global ESMF VM.
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
  USE machine
 
  REAL(KIND = kind_evod)                    :: var 
@@ -102,11 +98,7 @@
 !   peid   -- PE ID of var.
 !   vm     -- the global ESMF VM.
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
  USE machine
 
  INTEGER                                   :: var 

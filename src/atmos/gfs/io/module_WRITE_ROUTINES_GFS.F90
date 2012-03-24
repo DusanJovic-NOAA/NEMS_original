@@ -1,11 +1,5 @@
 #include "../../../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_WRITE_ROUTINES_GFS
@@ -33,11 +27,7 @@
 !       28 Sep 2011:  W. yang - Modified for using the ESMF 5.2.0r library.
 !--------------------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
 !
       USE MODULE_WRITE_INTERNAL_STATE_GFS
 !
@@ -168,11 +158,7 @@
 !
       CHARACTER(ESMF_MAXSTR)       :: ATTRIB_NAME
 !
-#ifdef ESMF_520r
-      TYPE(ESMF_TypeKind_Flag)     :: DATATYPE
-#else
       TYPE(ESMF_TypeKind)          :: DATATYPE
-#endif
 !
       TYPE(ESMF_Field)             :: FIELD_WORK1
  
@@ -262,29 +248,21 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!        CALL ESMF_AttributeGet(FIELDBUNDLE =FILE_BUNDLE                   &  !<-- The Bundle of history data
+!                              ,name        ='lonf'                        &  !<-- Name of the Attribute to extract
 #ifdef ESMF_3
-!        CALL ESMF_AttributeGet(bundle      =FILE_BUNDLE                   &  !<-- The Bundle of history data
-!                              ,name        ='lonf'                        &  !<-- Name of the Attribute to extract
 !                              ,count       =1                             &  !<-- Length of Attribute
-!                              ,valueList   =wrt_int_state%IM              &  !<-- Extract this Attribute from History Bundle
-!                              ,rc          =RC)
-!
-        CALL ESMF_AttributeGet(bundle      =FILE_BUNDLE                   &  !<-- The Bundle of history data
-                              ,name        ='levs'                        &  !<-- Name of the Attribute to extract
-                              ,count       =1                             &  !<-- Length of Attribute
-                              ,valueList   =wrt_int_state%LM              &  !<-- Extract this Attribute from History Bundle
-                              ,rc          =RC)
-#else
-!        CALL ESMF_AttributeGet(fieldbundle =FILE_BUNDLE                   &  !<-- The Bundle of history data
-!                              ,name        ='lonf'                        &  !<-- Name of the Attribute to extract
-!                              ,valueList   =wrt_int_state%IM              &  !<-- Extract this Attribute from History Bundle
-!                              ,rc          =RC)
-!
-        CALL ESMF_AttributeGet(fieldbundle =FILE_BUNDLE                   &  !<-- The Bundle of history data
-                              ,name        ='levs'                        &  !<-- Name of the Attribute to extract
-                              ,valueList   =wrt_int_state%LM              &  !<-- Extract this Attribute from History Bundle
-                              ,rc          =RC)
 #endif
+!                              ,valueList   =wrt_int_state%IM              &  !<-- Extract this Attribute from History Bundle
+!                              ,rc          =RC)
+!
+        CALL ESMF_AttributeGet(FIELDBUNDLE =FILE_BUNDLE                   &  !<-- The Bundle of history data
+                              ,name        ='levs'                        &  !<-- Name of the Attribute to extract
+#ifdef ESMF_3
+                              ,count       =1                             &  !<-- Length of Attribute
+#endif
+                              ,valueList   =wrt_int_state%LM              &  !<-- Extract this Attribute from History Bundle
+                              ,rc          =RC)
 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -723,15 +701,9 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-        CALL ESMF_AttributeGet(bundle      =FILE_BUNDLE                      &  !<-- The write component's history data Bundle
+        CALL ESMF_AttributeGet(FIELDBUNDLE =FILE_BUNDLE                      &  !<-- The write component's history data Bundle
                               ,count       =NUM_ATTRIB                       &  !<-- # of Attributes in the history data Bundle
                               ,rc          =RC)
-#else
-        CALL ESMF_AttributeGet(fieldbundle =FILE_BUNDLE                      &  !<-- The write component's history data Bundle
-                              ,count       =NUM_ATTRIB                       &  !<-- # of Attributes in the history data Bundle
-                              ,rc          =RC)
-#endif
 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -747,21 +719,12 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-          CALL ESMF_AttributeGet(bundle         =FILE_BUNDLE            &  !<-- The write component's history data Bundle
-                                ,attributeIndex =N                      &  !<-- Index of each Attribute
-                                ,name           =ATTRIB_NAME            &  !<-- Each Attribute's name
-                                ,typekind       =DATATYPE               &  !<-- Each Attribute's ESMF Datatype
-                                ,count          =LENGTH                 &  !<-- Each Attribute's length
-                                ,rc             =RC)
-#else
-          CALL ESMF_AttributeGet(fieldbundle    =FILE_BUNDLE            &  !<-- The write component's history data Bundle
+          CALL ESMF_AttributeGet(FIELDBUNDLE    =FILE_BUNDLE            &  !<-- The write component's history data Bundle
                                 ,attributeIndex =N                      &  !<-- Index of each Attribute
                                 ,name           =ATTRIB_NAME            &  !<-- Each Attribute's name
                                 ,typekind       =DATATYPE               &  !<-- Each Attribute's ESMF Datatype
                                 ,itemCount      =LENGTH                 &  !<-- Each Attribute's length
                                 ,rc             =RC)
-#endif
 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -780,19 +743,11 @@
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-            CALL ESMF_AttributeGet(bundle      =FILE_BUNDLE               &  !<-- The write component's history data Bundle
-                                  ,name        =ATTRIB_NAME               &  !<-- Name of the Attribute to extract
-                                  ,count       =LENGTH                    &  !<-- Length of Attribute
-                                  ,valueList   =WORK_ARRAY_I1D            &  !<-- Place the Attribute here
-                                  ,rc          =RC)
-#else
-            CALL ESMF_AttributeGet(fieldbundle =FILE_BUNDLE               &  !<-- The write component's history data Bundle
+            CALL ESMF_AttributeGet(FIELDBUNDLE =FILE_BUNDLE               &  !<-- The write component's history data Bundle
                                   ,name        =ATTRIB_NAME               &  !<-- Name of the Attribute to extract
                                   ,itemCount   =LENGTH                    &  !<-- Length of Attribute
                                   ,valueList   =WORK_ARRAY_I1D            &  !<-- Place the Attribute here
                                   ,rc          =RC)
-#endif
 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -831,19 +786,11 @@
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-            CALL ESMF_AttributeGet(bundle      =FILE_BUNDLE               &  !<-- The write component's history data Bundle
-                                  ,name        =ATTRIB_NAME               &  !<-- Name of the Attribute to extract
-                                  ,count       =LENGTH                    &  !<-- Length of AttributeME
-                                  ,valueList   =WORK_ARRAY_R1D            &  !<-- Place the Attribute here
-                                  ,rc          =RC)
-#else
-            CALL ESMF_AttributeGet(fieldbundle =FILE_BUNDLE               &  !<-- The write component's history data Bundle
+            CALL ESMF_AttributeGet(FIELDBUNDLE =FILE_BUNDLE               &  !<-- The write component's history data Bundle
                                   ,name        =ATTRIB_NAME               &  !<-- Name of the Attribute to extract
                                   ,itemCount   =LENGTH                    &  !<-- Length of AttributeME
                                   ,valueList   =WORK_ARRAY_R1D            &  !<-- Place the Attribute here
                                   ,rc          =RC)
-#endif
 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -883,19 +830,11 @@
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-            CALL ESMF_AttributeGet(bundle      =FILE_BUNDLE               &  !<-- The write component's history data Bundle
-                                  ,name        =ATTRIB_NAME               &  !<-- Name of the Attribute to extract
-                                  ,count       =LENGTH                    &  !<-- Length of AttributeME
-                                  ,valueList   =WORK_ARRAY_R1D8           &  !<-- Place the Attribute here
-                                  ,rc          =RC)
-#else
-            CALL ESMF_AttributeGet(fieldbundle =FILE_BUNDLE               &  !<-- The write component's history data Bundle
+            CALL ESMF_AttributeGet(FIELDBUNDLE =FILE_BUNDLE               &  !<-- The write component's history data Bundle
                                   ,name        =ATTRIB_NAME               &  !<-- Name of the Attribute to extract
                                   ,itemCount   =LENGTH                    &  !<-- Length of AttributeME
                                   ,valueList   =WORK_ARRAY_R1D8           &  !<-- Place the Attribute here
                                   ,rc          =RC)
-#endif
 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -934,17 +873,10 @@
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-            CALL ESMF_AttributeGet(bundle      =FILE_BUNDLE               &  !<-- The write component's history data Bundle
+            CALL ESMF_AttributeGet(FIELDBUNDLE =FILE_BUNDLE               &  !<-- The write component's history data Bundle
                                   ,name        =ATTRIB_NAME               &  !<-- Name of the Attribute to extract
                                   ,value       =WORK_LOGICAL              &  !<-- Place the Attribute here
                                   ,rc          =RC)
-#else
-            CALL ESMF_AttributeGet(fieldbundle =FILE_BUNDLE               &  !<-- The write component's history data Bundle
-                                  ,name        =ATTRIB_NAME               &  !<-- Name of the Attribute to extract
-                                  ,value       =WORK_LOGICAL              &  !<-- Place the Attribute here
-                                  ,rc          =RC)
-#endif
 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1034,17 +966,10 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         allocate(field_name(5000))
-#ifdef ESMF_520r
         CALL ESMF_FieldBundleGet(FILE_BUNDLE                         &  !<-- The write component's history data Bundle
                                 ,FIELDNAMELIST =FIELD_NAME           &  !<-- Array of ESMF Field names in the Bundle
                                 ,FIELDCOUNT    =NUM_FIELD_NAMES      &  !<-- Number of Field names in the Bundle
                                 ,rc            =RC)
-#else
-        CALL ESMF_FieldBundleGet(FILE_BUNDLE                         &  !<-- The write component's history data Bundle
-                                ,NAMELIST  =FIELD_NAME               &  !<-- Array of ESMF Field names in the Bundle
-                                ,NAMECOUNT =NUM_FIELD_NAMES          &  !<-- Number of Field names in the Bundle
-                                ,rc        =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
@@ -1074,17 +999,10 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
           CALL ESMF_FieldBundleGet(FILE_BUNDLE               &  !<-- The write component's history data Bundle
                                   ,FIELDNAME =FIELD_NAME(N)  &  !<-- The ESMF Field's name
                                   ,field     =FIELD_WORK1    &  !<-- The ESMF Field taken from the Bundle
                                   ,rc        =RC)
-#else
-          CALL ESMF_FieldBundleGet(FILE_BUNDLE               &  !<-- The write component's history data Bundle
-                                  ,NAME  =FIELD_NAME(N)      &  !<-- The ESMF Field's name
-                                  ,field =FIELD_WORK1        &  !<-- The ESMF Field taken from the Bundle
-                                  ,rc    =RC)
-#endif
          wrt_int_state%FIELD_NAME(N,NBDL)=field_name(N)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

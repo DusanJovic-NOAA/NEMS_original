@@ -1,15 +1,18 @@
 !  2011-05-11  Theurich & Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!  2012-03-07  Weiyu Yang       - Modified for using the ESMF 5.2.0rp1 library.
 !-------------------------------------------------------------------------------------
 
 #include "../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#else
+#define ESMF_520r
+#endif
+
       MODULE module_GFS_GRID_COMP
 
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
 
       IMPLICIT NONE
 
@@ -29,14 +32,45 @@
       INTEGER :: RC
 
       write(0,*) "    GFS_REGISTER stub"
+      CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP ,ESMF_METHOD_INITIALIZE,GFS_INITIALIZE &
 #ifdef ESMF_3
-      CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP ,ESMF_SETINIT ,GFS_INITIALIZE ,ESMF_SINGLEPHASE ,RC)
-      CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP ,ESMF_SETRUN  ,GFS_RUN        ,1                ,RC)
-      CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP ,ESMF_SETFINAL,GFS_FINALIZE   ,ESMF_SINGLEPHASE ,RC)
+                                     ,ESMF_SINGLEPHASE                                     &
+                                     ,RC)
 #else
-      CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP ,ESMF_SETINIT ,GFS_INITIALIZE ,phase=ESMF_SINGLEPHASE ,rc=RC)
-      CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP ,ESMF_SETRUN  ,GFS_RUN        ,phase=1                ,rc=RC)
-      CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP ,ESMF_SETFINAL,GFS_FINALIZE   ,phase=ESMF_SINGLEPHASE ,rc=RC)
+#ifdef ESMF_520r
+                                     ,phase=1                                              &
+                                     ,rc=RC)
+#else
+                                     ,phase=ESMF_SINGLEPHASE                               &
+                                     ,rc=RC)
+#endif
+#endif
+
+      CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP ,ESMF_METHOD_RUN,GFS_RUN               &
+#ifdef ESMF_3
+                                     ,ESMF_SINGLEPHASE                                     &
+                                     ,RC)
+#else
+#ifdef ESMF_520r
+                                     ,phase=1                                              &
+                                     ,rc=RC)
+#else
+                                     ,phase=ESMF_SINGLEPHASE                               &
+                                     ,rc=RC)
+#endif
+#endif
+      CALL ESMF_GridCompSetEntryPoint(GFS_GRID_COMP ,ESMF_METHOD_FINALIZE,GFS_FINALIZE     &
+#ifdef ESMF_3
+                                     ,ESMF_SINGLEPHASE                                     &
+                                     ,RC)
+#else
+#ifdef ESMF_520r
+                                     ,phase=1                                              &
+                                     ,rc=RC)
+#else
+                                     ,phase=ESMF_SINGLEPHASE                               &
+                                     ,rc=RC)
+#endif
 #endif
 
       RC_REG = ESMF_SUCCESS

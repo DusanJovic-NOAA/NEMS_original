@@ -21,11 +21,7 @@
 !***  Write import state for output.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
       USE MODULE_INCLUDE
       USE MODULE_SOLVER_INTERNAL_STATE,ONLY: SOLVER_INTERNAL_STATE 
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
@@ -96,8 +92,8 @@
 !
       TYPE(ESMF_Field)            :: FIELD
 !
-      TYPE(ESMF_CopyFlag)         :: COPYFLAG=ESMF_DATA_REF
-!     TYPE(ESMF_CopyFlag)         :: COPYFLAG=ESMF_DATA_COPY
+      TYPE(ESMF_DataCopy_Flag)    :: COPYFLAG=ESMF_DATACOPY_REFERENCE
+!     TYPE(ESMF_DataCopy_Flag)    :: COPYFLAG=ESMF_DATA_COPY
 
 #ifdef ESMF_3
 
@@ -143,7 +139,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create History Data Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       HISTORY_BUNDLE=ESMF_FieldBundleCreate(name='History Bundle'       &  !<-- The Bundle's name
@@ -162,7 +158,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create Restart Data Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       RESTART_BUNDLE=ESMF_FieldBundleCreate(name='Restart Bundle'       &  !<-- The Bundle's name
@@ -188,35 +184,9 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Add Local Subdomain Limits to the Write Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-#ifdef ESMF_3
-      CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
-                            ,name     ='LOCAL_ISTART'                   &  !<-- Name of the integer array
-                            ,count    =int_state%NUM_PES                &  !<-- Length of array being inserted into the import state
-                            ,valueList=int_state%LOCAL_ISTART           &  !<-- The array being inserted into the import state
-                            ,rc       =RC)
-!
-      CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
-                            ,name     ='LOCAL_IEND'                     &  !<-- Name of the integer array
-                            ,count    =int_state%NUM_PES                &  !<-- Length of array being inserted into the import state
-                            ,valueList=int_state%LOCAL_IEND             &  !<-- The array being inserted into the import state
-                            ,rc       =RC)
-!
-      CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
-                            ,name     ='LOCAL_JSTART'                   &  !<-- Name of the integer array
-                            ,count    =int_state%NUM_PES                &  !<-- Length of array being inserted into the import state
-                            ,valueList=int_state%LOCAL_JSTART           &  !<-- The array being inserted into the import state
-                            ,rc       =RC)
-!
-      CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
-                            ,name     ='LOCAL_JEND'                     &  !<-- Name of the integer array
-                            ,count    =int_state%NUM_PES                &  !<-- Length of array being inserted into the import state
-                            ,valueList=int_state%LOCAL_JEND             &  !<-- The array being inserted into the import state
-                            ,rc       =RC)
-
-#else
       CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
                             ,name     ='LOCAL_ISTART'                   &  !<-- Name of the integer array
                             ,itemCount=int_state%NUM_PES                &  !<-- Length of array being inserted into the import state
@@ -241,7 +211,6 @@
                             ,valueList=int_state%LOCAL_JEND             &  !<-- The array being inserted into the import state
                             ,rc       =RC)
 
-#endif
 
       CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
                             ,name ='INPES'                              &  !<-- Name of the integer scalar
@@ -278,19 +247,11 @@
                             ,value=int_state%LNSV                       &  !<-- The value being inserted into the import state
                             ,rc   =RC)
 
-#ifdef ESMF_3
-      CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
-                            ,name     ='LOCAL_JEND'                     &  !<-- Name of the integer array
-                            ,count    =int_state%NUM_PES                &  !<-- Length of array being inserted into the import state
-                            ,valueList=int_state%LOCAL_JEND             &  !<-- The array being inserted into the import state
-                            ,rc       =RC)
-#else
       CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
                             ,name     ='LOCAL_JEND'                     &  !<-- Name of the integer array
                             ,itemCount=int_state%NUM_PES                &  !<-- Length of array being inserted into the import state
                             ,valueList=int_state%LOCAL_JEND             &  !<-- The array being inserted into the import state
                             ,rc       =RC)
-#endif
 
       CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
                             ,name ='IDS'                                &  !<-- Name of the integer scalar
@@ -323,40 +284,35 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Global and Run Logicals into History Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
+      CALL ESMF_AttributeSet(FIELDBUNDLE=HISTORY_BUNDLE                 &  !<-- The Write component output history Bundle
+                            ,name       ='GLOBAL'                       &  !<-- Name of the logical
 #ifdef ESMF_3
-      CALL ESMF_AttributeSet(bundle     =HISTORY_BUNDLE                 &  !<-- The Write component output history Bundle
-                            ,name       ='GLOBAL'                       &  !<-- Name of the logical
-                            ,value      =GLOBAL_ESMF                    &  !<-- The logical being inserted into the Bundle
-                            ,rc         =RC)
-!
-      CALL ESMF_AttributeSet(bundle     =HISTORY_BUNDLE                 &  !<-- The Write component output history Bundle
-                            ,name       ='RUN'                          &  !<-- Name of the logical
-                            ,value      =RUN_ESMF                       &  !<-- The logical being inserted into the Bundle
-                            ,rc         =RC)
-!
-      CALL ESMF_AttributeSet(bundle     =HISTORY_BUNDLE                 &  !<-- The Write component output history Bundle
-                            ,name       ='ADIABATIC'                    &  !<-- Name of the logical
-                            ,value      =ADIABATIC_ESMF                 &  !<-- The logical being inserted into the Bundle
-                            ,rc         =RC)
+                            ,value      =GLOBAL_ESMF                    &  !<--
 #else
-      CALL ESMF_AttributeSet(fieldbundle=HISTORY_BUNDLE                 &  !<-- The Write component output history Bundle
-                            ,name       ='GLOBAL'                       &  !<-- Name of the logical
                             ,value      =int_state%GLOBAL               &  !<-- The logical being inserted into the Bundle
-                            ,rc         =RC)
-!
-      CALL ESMF_AttributeSet(fieldbundle=HISTORY_BUNDLE                 &  !<-- The Write component output history Bundle
-                            ,name       ='RUN'                          &  !<-- Name of the logical
-                            ,value      =int_state%RUN                  &  !<-- The logical being inserted into the Bundle
-                            ,rc         =RC)
-!
-      CALL ESMF_AttributeSet(fieldbundle=HISTORY_BUNDLE                 &  !<-- The Write component output history Bundle
-                            ,name       ='ADIABATIC'                    &  !<-- Name of the logical
-                            ,value      =int_state%ADIABATIC            &  !<-- The logical being inserted into the Bundle
-                            ,rc         =RC)
 #endif
+                            ,rc         =RC)
+!
+      CALL ESMF_AttributeSet(FIELDBUNDLE=HISTORY_BUNDLE                 &  !<-- The Write component output history Bundle
+                            ,name       ='RUN'                          &  !<-- Name of the logical
+#ifdef ESMF_3
+                            ,value      =RUN_ESMF                       &  !<-- The logical being inserted into the Bundle
+#else
+                            ,value      =int_state%RUN                  &  !<-- The logical being inserted into the Bundle
+#endif
+                            ,rc         =RC)
+!
+      CALL ESMF_AttributeSet(FIELDBUNDLE=HISTORY_BUNDLE                 &  !<-- The Write component output history Bundle
+                            ,name       ='ADIABATIC'                    &  !<-- Name of the logical
+#ifdef ESMF_3
+                            ,value      =ADIABATIC_ESMF                 &  !<-- The logical being inserted into the Bundle
+#else
+                            ,value      =int_state%ADIABATIC            &  !<-- The logical being inserted into the Bundle
+#endif
+                            ,rc         =RC)
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
@@ -369,40 +325,35 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Global and Run Logicals into Restart Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
+      CALL ESMF_AttributeSet(FIELDBUNDLE=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
+                            ,name       ='GLOBAL'                       &  !<-- Name of the logical
 #ifdef ESMF_3
-      CALL ESMF_AttributeSet(bundle     =RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
-                            ,name       ='GLOBAL'                       &  !<-- Name of the logical
-                            ,value      =GLOBAL_ESMF                    &  !<-- The logical being inserted into the Bundle
-                            ,rc         =RC)
-!
-      CALL ESMF_AttributeSet(bundle     =RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
-                            ,name       ='RUN'                          &  !<-- Name of the logical
-                            ,value      =RUN_ESMF                       &  !<-- The logical being inserted into the Bundle
-                            ,rc         =RC)
-!
-      CALL ESMF_AttributeSet(bundle     =RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
-                            ,name       ='ADIABATIC'                    &  !<-- Name of the logical
-                            ,value      =ADIABATIC_ESMF                 &  !<-- The logical being inserted into the Bundle
-                            ,rc         =RC)
+                            ,value      =GLOBAL_ESMF                    &  !<--
 #else
-      CALL ESMF_AttributeSet(fieldbundle=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
-                            ,name       ='GLOBAL'                       &  !<-- Name of the logical
                             ,value      =int_state%GLOBAL               &  !<-- The logical being inserted into the Bundle
-                            ,rc         =RC)
-!
-      CALL ESMF_AttributeSet(fieldbundle=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
-                            ,name       ='RUN'                          &  !<-- Name of the logical
-                            ,value      =int_state%RUN                  &  !<-- The logical being inserted into the Bundle
-                            ,rc         =RC)
-!
-      CALL ESMF_AttributeSet(fieldbundle=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
-                            ,name       ='ADIABATIC'                    &  !<-- Name of the logical
-                            ,value      =int_state%ADIABATIC            &  !<-- The logical being inserted into the Bundle
-                            ,rc         =RC)
 #endif
+                            ,rc         =RC)
+!
+      CALL ESMF_AttributeSet(FIELDBUNDLE=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
+                            ,name       ='RUN'                          &  !<-- Name of the logical
+#ifdef ESMF_3
+                            ,value      =RUN_ESMF                       &  !<-- The logical being inserted into the Bundle
+#else
+                            ,value      =int_state%RUN                  &  !<-- The logical being inserted into the Bundle
+#endif
+                            ,rc         =RC)
+!
+      CALL ESMF_AttributeSet(FIELDBUNDLE=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
+                            ,name       ='ADIABATIC'                    &  !<-- Name of the logical
+#ifdef ESMF_3
+                            ,value      =ADIABATIC_ESMF                 &  !<-- The logical being inserted into the Bundle
+#else
+                            ,value      =int_state%ADIABATIC            &  !<-- The logical being inserted into the Bundle
+#endif
+                            ,rc         =RC)
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
@@ -446,20 +397,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Microphysics Scheme Specification into History Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-#ifdef ESMF_3
-      CALL ESMF_AttributeSet(bundle     =HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
+      CALL ESMF_AttributeSet(FIELDBUNDLE=HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
                             ,name       ='MP_PHYSICS'                   &  !<-- Name of microphysics scheme variable
                             ,value      =MP_PHYSICS                     &  !<-- The microphysics scheme integer specification
                             ,rc         =RC)
-#else
-      CALL ESMF_AttributeSet(fieldbundle=HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
-                            ,name       ='MP_PHYSICS'                   &  !<-- Name of microphysics scheme variable
-                            ,value      =MP_PHYSICS                     &  !<-- The microphysics scheme integer specification
-                            ,rc         =RC)
-#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
@@ -467,20 +411,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Microphysics Scheme Specification into Restart Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-#ifdef ESMF_3
-      CALL ESMF_AttributeSet(bundle     =RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
+      CALL ESMF_AttributeSet(FIELDBUNDLE=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
                             ,name       ='MP_PHYSICS'                   &  !<-- Name of microphysics scheme variable
                             ,value      =MP_PHYSICS                     &  !<-- The microphysics scheme integer specification
                             ,rc         =RC)
-#else
-      CALL ESMF_AttributeSet(fieldbundle=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
-                            ,name       ='MP_PHYSICS'                   &  !<-- Name of microphysics scheme variable
-                            ,value      =MP_PHYSICS                     &  !<-- The microphysics scheme integer specification
-                            ,rc         =RC)
-#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
@@ -503,20 +440,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Surface Physics Scheme Specification into History Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-#ifdef ESMF_3
-      CALL ESMF_AttributeSet(bundle     =HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
+      CALL ESMF_AttributeSet(FIELDBUNDLE=HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
                             ,name       ='SF_SURFACE_PHYSICS'           &  !<-- Name of land surface scheme variable
                             ,value      =SF_SURFACE_PHYSICS             &  !<-- The land surface scheme integer specification
                             ,rc         =RC)
-#else
-      CALL ESMF_AttributeSet(fieldbundle=HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
-                            ,name       ='SF_SURFACE_PHYSICS'           &  !<-- Name of land surface scheme variable
-                            ,value      =SF_SURFACE_PHYSICS             &  !<-- The land surface scheme integer specification
-                            ,rc         =RC)
-#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
@@ -524,20 +454,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Surface Physics Scheme Specification into Restart Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-#ifdef ESMF_3
-      CALL ESMF_AttributeSet(bundle     =RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
+      CALL ESMF_AttributeSet(FIELDBUNDLE=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
                             ,name       ='SF_SURFACE_PHYSICS'           &  !<-- Name of land surface scheme variable
                             ,value      =SF_SURFACE_PHYSICS             &  !<-- The land surface scheme integer specification
                             ,rc         =RC)
-#else
-      CALL ESMF_AttributeSet(fieldbundle=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
-                            ,name       ='SF_SURFACE_PHYSICS'           &  !<-- Name of land surface scheme variable
-                            ,value      =SF_SURFACE_PHYSICS             &  !<-- The land surface scheme integer specification
-                            ,rc         =RC)
-#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
@@ -561,12 +484,14 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Solver: Insert Bundle Array into the Write Import State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(state          =IMP_STATE_WRITE                &  !<-- The Write component's import state
-                        ,fieldbundlelist=BUNDLE_ARRAY                   &  !<-- Array holding the History/Restart Bundles
+      CALL ESMF_StateAdd(IMP_STATE_WRITE                                &  !<-- The Write component's import state
+                        ,LISTWRAPPER(BUNDLE_ARRAY)                      &  !<-- Array holding the History/Restart Bundles
+#ifndef ESMF_520r
                         ,count          =ITWO                           &  !<-- There are two Bundles in the array
+#endif
                         ,rc             =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

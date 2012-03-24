@@ -1,12 +1,5 @@
 #include "../../../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#define ESMF_LogFoundError ESMF_LogMsgFoundError
-#else
-#define ESMF_520r
-#endif
-
 !
 ! !module: gfs_dynamics_internal_state_mod 
 !                         --- internal state definition of the
@@ -40,11 +33,7 @@
 
 !!uses:
 !------
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
       USE gfs_dynamics_namelist_mod
       USE gfs_dyn_machine, only: kind_grid, kind_evod
       use gfs_dyn_layout1

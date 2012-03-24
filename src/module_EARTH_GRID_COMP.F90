@@ -40,11 +40,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
 
 #ifdef WITH_NUOPC
       use NUOPC
@@ -132,26 +128,20 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set Entry Point for EARTH Initialize"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(EARTH_GRID_COMP                   &  !<-- The EARTH component
-                                     ,ESMF_SETINIT                      &  !<-- Subroutine type (Initialize)
+                                     ,ESMF_METHOD_INITIALIZE            &  !<-- Subroutine type (Initialize)
                                      ,EARTH_INITIALIZE                  &  !<-- User's subroutine name
+#ifdef ESMF_3
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
 #ifdef ESMF_520r
-      CALL ESMF_GridCompSetEntryPoint(EARTH_GRID_COMP                   &  !<-- The EARTH component
-                                     ,ESMF_METHOD_INITIALIZE            &  !<-- Subroutine type (Initialize)
-                                     ,EARTH_INITIALIZE                  &  !<-- User's subroutine name
                                      ,phase = 1                         &
                                      ,rc    = RC)
 #else
-      CALL ESMF_GridCompSetEntryPoint(EARTH_GRID_COMP                   &  !<-- The EARTH component
-                                     ,ESMF_SETINIT                      &  !<-- Subroutine type (Initialize)
-                                     ,EARTH_INITIALIZE                  &  !<-- User's subroutine name
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
 #endif
@@ -166,26 +156,20 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set Entry Point for EARTH Run"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(EARTH_GRID_COMP                   &  !<-- The EARTH component
-                                     ,ESMF_SETRUN                       &  !<-- Subroutine type (Run)
+                                     ,ESMF_METHOD_RUN                   &  !<-- Subroutine type (Initialize)
                                      ,EARTH_RUN                         &  !<-- User's subroutine name
+#ifdef ESMF_3
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
 #ifdef ESMF_520r
-      CALL ESMF_GridCompSetEntryPoint(EARTH_GRID_COMP                   &  !<-- The EARTH component
-                                     ,ESMF_METHOD_RUN                   &  !<-- Subroutine type (Initialize)
-                                     ,EARTH_RUN                         &  !<-- User's subroutine name
                                      ,phase = 1                         &
                                      ,rc    = RC)
 #else
-      CALL ESMF_GridCompSetEntryPoint(EARTH_GRID_COMP                   &  !<-- The EARTH component
-                                     ,ESMF_SETRUN                       &  !<-- Subroutine type (Run)
-                                     ,EARTH_RUN                         &  !<-- User's subroutine name
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
 #endif
@@ -199,26 +183,20 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set Entry Point for EARTH Finalize"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(EARTH_GRID_COMP                   &  !<-- The EARTH component
-                                     ,ESMF_SETFINAL                     &  !<-- Subroutine type (Finalize)
+                                     ,ESMF_METHOD_FINALIZE              &  !<-- Subroutine type (Initialize)
                                      ,EARTH_FINALIZE                    &  !<-- User's subroutine name
+#ifdef ESMF_3
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
 #ifdef ESMF_520r
-      CALL ESMF_GridCompSetEntryPoint(EARTH_GRID_COMP                   &  !<-- The EARTH component
-                                     ,ESMF_METHOD_FINALIZE              &  !<-- Subroutine type (Initialize)
-                                     ,EARTH_FINALIZE                    &  !<-- User's subroutine name
                                      ,phase = 1                         &
                                      ,rc    = RC)
 #else
-      CALL ESMF_GridCompSetEntryPoint(EARTH_GRID_COMP                   &  !<-- The EARTH component
-                                     ,ESMF_SETFINAL                     &  !<-- Subroutine type (Finalize)
-                                     ,EARTH_FINALIZE                    &  !<-- User's subroutine name
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
 #endif
@@ -377,16 +355,14 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Register ATM Init, Run, Finalize"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
       CALL ESMF_GridCompSetServices(earth_int_state%ATM_GRID_COMP       &
                                    ,ATM_REGISTER                        &  !<-- The user's subroutine name
+#ifdef ESMF_3
                                    ,RC)
 #else
-      CALL ESMF_GridCompSetServices(earth_int_state%ATM_GRID_COMP       &
-                                   ,ATM_REGISTER                        &  !<-- The user's subroutine name
                                    ,rc=RC)
 #endif
 !
@@ -400,18 +376,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create the ATM import state"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-      earth_int_state%ATM_IMP_STATE=ESMF_StateCreate(     NAME="ATM Import"      &
+      earth_int_state%ATM_IMP_STATE=ESMF_StateCreate(STATENAME="ATM Import"      &
                                                     ,stateintent = ESMF_STATEINTENT_IMPORT &
                                                     ,rc       =RC)
-#else
-      earth_int_state%ATM_IMP_STATE=ESMF_StateCreate(STATENAME="ATM Import"      &
-                                                    ,statetype=ESMF_STATE_IMPORT &
-                                                    ,rc       =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -421,18 +391,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create the ATM export state"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-      earth_int_state%ATM_EXP_STATE=ESMF_StateCreate(     NAME="ATM Export"      &
+      earth_int_state%ATM_EXP_STATE=ESMF_StateCreate(STATENAME   ="ATM Export"             &
                                                     ,stateintent = ESMF_STATEINTENT_EXPORT &
-                                                    ,rc       =RC)
-#else
-      earth_int_state%ATM_EXP_STATE=ESMF_StateCreate(STATENAME="ATM Export"      &
-                                                    ,statetype=ESMF_STATE_EXPORT &
-                                                    ,rc       =RC)
-#endif
+                                                    ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -447,21 +411,11 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK= "Add the ATMOS states into the EARTH states"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOG_INFO, rc = RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOGMSG_INFO, rc = RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-      CALL ESMF_StateAdd(IMP_STATE, (/earth_int_state%ATM_IMP_STATE/), rc = RC)
-      CALL ESMF_StateAdd(EXP_STATE, (/earth_int_state%ATM_EXP_STATE/), rc = RC)
-#else
-!
-      CALL ESMF_StateAdd(state       = IMP_STATE                        &
-                        ,nestedState = earth_int_state%ATM_IMP_STATE    &
-                        ,rc          = RC)
-      CALL ESMF_StateAdd(state       = EXP_STATE                        &
-                        ,nestedState = earth_int_state%ATM_EXP_STATE    &
-                        ,rc          = RC)
-#endif
+      CALL ESMF_StateAdd(IMP_STATE, LISTWRAPPER(earth_int_state%ATM_IMP_STATE), rc = RC)
+      CALL ESMF_StateAdd(EXP_STATE, LISTWRAPPER(earth_int_state%ATM_EXP_STATE), rc = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -473,7 +427,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Execute the Initialize step of the ATM component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifdef ESMF_520r
@@ -556,7 +510,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Execute the Run step of the  ATM component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifdef ESMF_520r
@@ -584,7 +538,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK = "Update the current time of the EARTH clock"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOG_INFO, rc = RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOGMSG_INFO, rc = RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ClockGet(clock       = earth_int_state%CLOCK_EARTH      &
@@ -657,7 +611,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Execute the Finalize step of the  ATM component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifdef ESMF_520r

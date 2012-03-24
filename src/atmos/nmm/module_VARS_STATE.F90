@@ -6,23 +6,13 @@
 
 #include "../../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-------------------------------------------------------------------------------
 
       MODULE MODULE_VARS_STATE
 
 !-------------------------------------------------------------------------------
 
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
       USE MODULE_VARS
 
       IMPLICIT NONE
@@ -80,15 +70,10 @@
               CALL ESMF_AttributeSet(state=STATE ,name=VARS(N)%VBL_NAME, value=VARS(N)%R0D, rc=RC)
             CASE(TKR_R1D)
               KOUNT=SIZE(VARS(N)%R1D)
-#ifdef ESMF_3
-              CALL ESMF_AttributeSet(state=STATE ,name=VARS(N)%VBL_NAME, count=KOUNT, valueList=VARS(N)%R1D, rc=RC)
-#else
               CALL ESMF_AttributeSet(state=STATE ,name=VARS(N)%VBL_NAME, itemCount=KOUNT, valueList=VARS(N)%R1D, rc=RC)
-#endif
             CASE(TKR_R2D)
               CALL ESMF_StateGet(STATE ,VARS(N)%VBL_NAME , stateItemType, rc=RC)
               IF (stateItemType==ESMF_STATEITEM_NOTFOUND) THEN
-#ifdef ESMF_520r
                 FIELD = ESMF_FieldCreate(grid       =GRID                       &
                                         ,farray     =VARS(N)%R2D                &
                                         ,totalUWidth=(/IHALO,JHALO/)            &  !<-- Upper bound of halo region
@@ -96,21 +81,11 @@
                                         ,name       =VARS(N)%VBL_NAME           &
                                         ,indexFlag  =ESMF_INDEX_GLOBAL          &
                                         ,rc         =RC)
-#else
-                FIELD = ESMF_FieldCreate(grid         =GRID                     &
-                                        ,farray       =VARS(N)%R2D              &
-                                        ,maxHaloUWidth=(/IHALO,JHALO/)          &  !<-- Upper bound of halo region
-                                        ,maxHaloLWidth=(/IHALO,JHALO/)          &  !<-- Lower bound of halo region
-                                        ,name         =VARS(N)%VBL_NAME         &
-                                        ,indexFlag    =ESMF_INDEX_GLOBAL        &
-                                        ,rc           =RC)
-#endif
-                CALL ESMF_StateAdd(state=STATE ,field=FIELD ,rc=RC)
+                CALL ESMF_StateAdd(STATE ,LISTWRAPPER(FIELD) ,rc=RC)
               ENDIF
             CASE(TKR_R3D)
               CALL ESMF_StateGet(STATE ,VARS(N)%VBL_NAME ,stateItemType, rc=RC)
               IF (stateItemType==ESMF_STATEITEM_NOTFOUND) THEN
-#ifdef ESMF_520r
                 FIELD = ESMF_FieldCreate(grid            =GRID                              &
                                         ,farray          =VARS(N)%R3D                       &
                                         ,totalUWidth     =(/IHALO,JHALO/)                   &  !<-- Upper bound of halo region
@@ -120,23 +95,11 @@
                                         ,name            =VARS(N)%VBL_NAME                  &
                                         ,indexFlag       =ESMF_INDEX_GLOBAL                 &
                                         ,rc              =RC)
-#else
-                FIELD = ESMF_FieldCreate(grid            =GRID                              &
-                                        ,farray          =VARS(N)%R3D                       &
-                                        ,maxHaloUWidth   =(/IHALO,JHALO/)                   &  !<-- Upper bound of halo region
-                                        ,maxHaloLWidth   =(/IHALO,JHALO/)                   &  !<-- Lower bound of halo region
-                                        ,ungriddedLBound =(/ lbound(VARS(N)%R3D,dim=3) /)   &
-                                        ,ungriddedUBound =(/ ubound(VARS(N)%R3D,dim=3) /)   &
-                                        ,name            =VARS(N)%VBL_NAME                  &
-                                        ,indexFlag       =ESMF_INDEX_GLOBAL                 &
-                                        ,rc              =RC)
-#endif
-                CALL ESMF_StateAdd(state=STATE ,field=FIELD ,rc=RC)
+                CALL ESMF_StateAdd(STATE ,LISTWRAPPER(FIELD) ,rc=RC)
               ENDIF
             CASE(TKR_R4D)
               CALL ESMF_StateGet(STATE ,VARS(N)%VBL_NAME ,stateItemType, rc=RC)
               IF (stateItemType==ESMF_STATEITEM_NOTFOUND) THEN
-#ifdef ESMF_520r
                 FIELD = ESMF_FieldCreate(grid            =GRID                              &
                                         ,farray          =VARS(N)%R4D                       &
                                         ,totalUWidth     =(/IHALO,JHALO/)                   &  !<-- Upper bound of halo region
@@ -146,18 +109,7 @@
                                         ,name            =VARS(N)%VBL_NAME                  &
                                         ,indexFlag       =ESMF_INDEX_GLOBAL                 &
                                         ,rc              =RC)
-#else
-                FIELD = ESMF_FieldCreate(grid            =GRID                              &
-                                        ,farray          =VARS(N)%R4D                       &
-                                        ,maxHaloUWidth   =(/IHALO,JHALO/)                   &  !<-- Upper bound of halo region
-                                        ,maxHaloLWidth   =(/IHALO,JHALO/)                   &  !<-- Lower bound of halo region
-                                        ,ungriddedLBound =(/ lbound(VARS(N)%R4D,dim=3),lbound(VARS(N)%R4D,dim=4) /)   &
-                                        ,ungriddedUBound =(/ ubound(VARS(N)%R4D,dim=3),ubound(VARS(N)%R4D,dim=4) /)   &
-                                        ,name            =VARS(N)%VBL_NAME                  &
-                                        ,indexFlag       =ESMF_INDEX_GLOBAL                 &
-                                        ,rc              =RC)
-#endif
-                CALL ESMF_StateAdd(state=STATE ,field=FIELD ,rc=RC)
+                CALL ESMF_StateAdd(STATE ,LISTWRAPPER(FIELD),rc=RC)
               ENDIF
             CASE DEFAULT
               write(0,*)' TKR = ', VARS(N)%TKR, TRIM(VARS(N)%VBL_NAME)
@@ -234,11 +186,7 @@
                                   ,rc             =RC)
               end if
 
-#ifdef ESMF_3
-              CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farray   =HOLD_I2D ,rc=RC)
-#else
               CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farrayPtr=HOLD_I2D ,rc=RC)
-#endif
 
               if (rc/=ESMF_SUCCESS) then
                 write(0,*)' Unable to get 2D integer array from Field in GET_VARS_FROM_STATE'
@@ -267,11 +215,7 @@
               end if
             CASE(TKR_R1D)
               KOUNT=SIZE(VARS(N)%R1D)
-#ifdef ESMF_3
-              CALL ESMF_AttributeGet(state=STATE ,name=VARS(N)%VBL_NAME, count=KOUNT,  valueList=VARS(N)%R1D, rc=RC)
-#else
               CALL ESMF_AttributeGet(state=STATE ,name=VARS(N)%VBL_NAME, itemCount=KOUNT,  valueList=VARS(N)%R1D, rc=RC)
-#endif
 !!!           write(0,*)' not implemented TKR_R1D in UPDATE_VARS '
 !!!           stop
             CASE(TKR_R2D)
@@ -283,11 +227,7 @@
                                   ,rc             =RC)
               end if
 
-#ifdef ESMF_3
-              CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farray   =HOLD_R2D ,rc=RC)
-#else
               CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farrayPtr=HOLD_R2D ,rc=RC)
-#endif
 
               if (rc/=ESMF_SUCCESS) then
                 write(0,*)' Unable to get 2D real array from Field in GET_VARS_FROM_STATE'
@@ -315,11 +255,7 @@
                                   ,rc             =RC)
               end if
 
-#ifdef ESMF_3
-              CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farray   =HOLD_R3D ,rc=RC)
-#else
               CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farrayPtr=HOLD_R3D ,rc=RC)
-#endif
 
               if (rc/=ESMF_SUCCESS) then
                 write(0,*)' Unable to get 3D real array from Field in GET_VARS_FROM_STATE'
@@ -350,11 +286,7 @@
                                   ,rc             =RC)
               end if
 
-#ifdef ESMF_3
-              CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farray   =HOLD_R4D ,rc=RC)
-#else
               CALL ESMF_FieldGet(field=FIELD ,localDe=0 ,farrayPtr=HOLD_R4D ,rc=RC)
-#endif
 
               if (rc/=ESMF_SUCCESS) then
                 write(0,*)' Unable to get 4D real array from Field in GET_VARS_FROM_STATE'
@@ -400,15 +332,15 @@
       TYPE(ESMF_State ), INTENT(INOUT) :: STATE
 
       INTEGER                                :: RC
-      INTEGER                                :: i, itemCount
+      INTEGER                                :: i, itemcount
       TYPE(ESMF_Field)                       :: FIELD
 
       CHARACTER(LEN=10), DIMENSION(:), ALLOCATABLE :: itemNameList
 
-      CALL ESMF_StateGet(STATE,itemCount=itemCount, rc=RC)
-      ALLOCATE(itemNameList(itemCount))
-      CALL ESMF_StateGet(STATE,itemCount=itemCount,itemNameList=itemNameList, rc=RC)
-      DO i=1,itemCount
+      CALL ESMF_StateGet(STATE,itemcount=itemcount, rc=RC)
+      ALLOCATE(itemNameList(itemcount))
+      CALL ESMF_StateGet(STATE,itemcount=itemcount,itemNameList=itemNameList, rc=RC)
+      DO i=1,itemcount
         CALL ESMF_StateGet(STATE ,itemNameList(i) ,FIELD ,rc=RC)
         CALL ESMF_FieldDestroy(field=FIELD, rc=RC)
       END DO
@@ -461,8 +393,8 @@
 
       TYPE(ESMF_Field)       :: FIELD
 
-      TYPE(ESMF_CopyFlag)    :: COPYFLAG=ESMF_DATA_REF
-!     TYPE(ESMF_CopyFlag)    :: COPYFLAG=ESMF_DATA_COPY
+      TYPE(ESMF_DataCopy_Flag)    :: COPYFLAG=ESMF_DATACOPY_REFERENCE
+!     TYPE(ESMF_DataCopy_Flag)    :: COPYFLAG=ESMF_DATA_COPY
 
       INTEGER :: INDX_O3  !! FIXME
 
@@ -476,39 +408,24 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Integer Scalars into History Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO N=1,NUM_VARS
         IF (VARS(N)%TKR == TKR_I0D) THEN
 
-#ifdef ESMF_3
           IF (VARS(N)%HISTORY) THEN                                        !<-- Take integer scalar data specified for history output
-            CALL ESMF_AttributeSet(bundle     =HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
+            CALL ESMF_AttributeSet(FIELDBUNDLE=HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
                                   ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the integer scalar
                                   ,value      =VARS(N)%I0D              &  !<-- The scalar being inserted into the import state
                                   ,rc         =RC)
           END IF
           IF (VARS(N)%RESTART) THEN                                        !<-- Take integer scalar data specified for restart output
-            CALL ESMF_AttributeSet(bundle     =RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
+            CALL ESMF_AttributeSet(FIELDBUNDLE=RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
                                   ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the integer scalar
                                   ,value      =VARS(N)%I0D              &  !<-- The scalar being inserted into the import state
                                   ,rc         =RC)
           END IF
-#else
-          IF (VARS(N)%HISTORY) THEN                                        !<-- Take integer scalar data specified for history output
-            CALL ESMF_AttributeSet(fieldbundle=HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
-                                  ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the integer scalar
-                                  ,value      =VARS(N)%I0D              &  !<-- The scalar being inserted into the import state
-                                  ,rc         =RC)
-          END IF
-          IF (VARS(N)%RESTART) THEN                                        !<-- Take integer scalar data specified for restart output
-            CALL ESMF_AttributeSet(fieldbundle=RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
-                                  ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the integer scalar
-                                  ,value      =VARS(N)%I0D              &  !<-- The scalar being inserted into the import state
-                                  ,rc         =RC)
-          END IF
-#endif
 
         END IF
       END DO
@@ -523,39 +440,24 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Real Scalars into History Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO N=1,NUM_VARS
         IF (VARS(N)%TKR == TKR_R0D) THEN
 
-#ifdef ESMF_3
           IF (VARS(N)%HISTORY) THEN                                        !<-- Take real scalar data specified for history output
-            CALL ESMF_AttributeSet(bundle     =HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
+            CALL ESMF_AttributeSet(FIELDBUNDLE=HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
                                   ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the real scalar
                                   ,value      =VARS(N)%R0D              &  !<-- The scalar being inserted into the history Bundle
                                   ,rc         =RC)
           END IF
           IF (VARS(N)%RESTART) THEN                                        !<-- Take real scalar data specified for restart output
-            CALL ESMF_AttributeSet(bundle     =RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
+            CALL ESMF_AttributeSet(FIELDBUNDLE=RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
                                   ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the real scalar
                                   ,value      =VARS(N)%R0D              &  !<-- The scalar being inserted into the restart Bundle
                                   ,rc         =RC)
           END IF
-#else
-          IF (VARS(N)%HISTORY) THEN                                        !<-- Take real scalar data specified for history output
-            CALL ESMF_AttributeSet(fieldbundle=HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
-                                  ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the real scalar
-                                  ,value      =VARS(N)%R0D              &  !<-- The scalar being inserted into the history Bundle
-                                  ,rc         =RC)
-          END IF
-          IF (VARS(N)%RESTART) THEN                                        !<-- Take real scalar data specified for restart output
-            CALL ESMF_AttributeSet(fieldbundle=RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
-                                  ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the real scalar
-                                  ,value      =VARS(N)%R0D              &  !<-- The scalar being inserted into the restart Bundle
-                                  ,rc         =RC)
-          END IF
-#endif
 
         END IF
       END DO
@@ -570,44 +472,27 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert 1-D Integer Arrays into History Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO N=1,NUM_VARS
         IF (VARS(N)%TKR == TKR_I1D) THEN
           LENGTH=SIZE(VARS(N)%I1D)
 
-#ifdef ESMF_3
           IF (VARS(N)%HISTORY) THEN                                        !<-- Take 1D integer array data specified for history output
-            CALL ESMF_AttributeSet(bundle        =HISTORY_BUNDLE        &  !<-- The Write component output history Bundle
-                                  ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the integer array
-                                  ,count         =LENGTH                &  !<-- # of elements in this attribute
-                                  ,valueList     =VARS(N)%I1D           &  !<-- The 1D integer being inserted into the history Bundle
-                                  ,rc            =RC)
-          END IF
-          IF (VARS(N)%RESTART) THEN                                        !<-- Take 1D integer array data specified for restart output
-            CALL ESMF_AttributeSet(bundle        =RESTART_BUNDLE        &  !<-- The Write component output restart Bundle
-                                  ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the integer array
-                                  ,count         =LENGTH                &  !<-- # of elements in this attribute
-                                  ,valueList     =VARS(N)%I1D           &  !<-- The 1D integer being inserted into the restart Bundle
-                                  ,rc            =RC)
-          END IF
-#else
-          IF (VARS(N)%HISTORY) THEN                                        !<-- Take 1D integer array data specified for history output
-            CALL ESMF_AttributeSet(fieldbundle   =HISTORY_BUNDLE        &  !<-- The Write component output history Bundle
+            CALL ESMF_AttributeSet(FIELDBUNDLE   =HISTORY_BUNDLE        &  !<-- The Write component output history Bundle
                                   ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the integer array
                                   ,itemCount     =LENGTH                &  !<-- # of elements in this attribute
                                   ,valueList     =VARS(N)%I1D           &  !<-- The 1D integer being inserted into the history Bundle
                                   ,rc            =RC)
           END IF
           IF (VARS(N)%RESTART) THEN                                        !<-- Take 1D integer array data specified for restart output
-            CALL ESMF_AttributeSet(fieldbundle   =RESTART_BUNDLE        &  !<-- The Write component output restart Bundle
+            CALL ESMF_AttributeSet(FIELDBUNDLE   =RESTART_BUNDLE        &  !<-- The Write component output restart Bundle
                                   ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the integer array
                                   ,itemCount     =LENGTH                &  !<-- # of elements in this attribute
                                   ,valueList     =VARS(N)%I1D           &  !<-- The 1D integer being inserted into the restart Bundle
                                   ,rc            =RC)
           END IF
-#endif
 
         END IF
       END DO
@@ -622,44 +507,27 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert 1-D Real Arrays into History Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO N=1,NUM_VARS
         IF (VARS(N)%TKR == TKR_R1D) THEN
           LENGTH=SIZE(VARS(N)%R1D)
 
-#ifdef ESMF_3
           IF (VARS(N)%HISTORY) THEN                                        !<-- Take 1D real array data specified for history output
-            CALL ESMF_AttributeSet(bundle        =HISTORY_BUNDLE        &  !<-- The Write component output history Bundle
-                                  ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the real array
-                                  ,count         =LENGTH                &  !<-- # of elements in this attribute
-                                  ,valueList     =VARS(N)%R1D           &  !<-- The 1D real being inserted into the history Bundle
-                                  ,rc            =RC)
-          END IF
-          IF (VARS(N)%RESTART) THEN                                        !<-- Take 1D real array data specified for restart output
-            CALL ESMF_AttributeSet(bundle        =RESTART_BUNDLE        &  !<-- The Write component output restart Bundle
-                                  ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the real array
-                                  ,count         =LENGTH                &  !<-- # of elements in this attribute
-                                  ,valueList     =VARS(N)%R1D           &  !<-- The 1D real being inserted into the restart Bundle
-                                  ,rc            =RC)
-          END IF
-#else
-          IF (VARS(N)%HISTORY) THEN                                        !<-- Take 1D real array data specified for history output
-            CALL ESMF_AttributeSet(fieldbundle   =HISTORY_BUNDLE        &  !<-- The Write component output history Bundle
+            CALL ESMF_AttributeSet(FIELDBUNDLE   =HISTORY_BUNDLE        &  !<-- The Write component output history Bundle
                                   ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the real array
                                   ,itemCount     =LENGTH                &  !<-- # of elements in this attribute
                                   ,valueList     =VARS(N)%R1D           &  !<-- The 1D real being inserted into the history Bundle
                                   ,rc            =RC)
           END IF
           IF (VARS(N)%RESTART) THEN                                        !<-- Take 1D real array data specified for restart output
-            CALL ESMF_AttributeSet(fieldbundle   =RESTART_BUNDLE        &  !<-- The Write component output restart Bundle
+            CALL ESMF_AttributeSet(FIELDBUNDLE   =RESTART_BUNDLE        &  !<-- The Write component output restart Bundle
                                   ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the real array
                                   ,itemCount     =LENGTH                &  !<-- # of elements in this attribute
                                   ,valueList     =VARS(N)%R1D           &  !<-- The 1D real being inserted into the restart Bundle
                                   ,rc            =RC)
           END IF
-#endif
 
         END IF
       END DO
@@ -683,28 +551,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert 2-D Integer Data into Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
           FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
                                 ,farray       =VARS(N)%I2D              &  !<-- The 2D integer array being inserted into history Bundle
-                                ,copyflag     =COPYFLAG                 &
+                                ,datacopyflag =COPYFLAG                 &
                                 ,totalUWidth  =(/IHALO,JHALO/)          &
                                 ,totalLWidth  =(/IHALO,JHALO/)          &
                                 ,name         =VARS(N)%VBL_NAME         &  !<-- Name of the 2D real array
                                 ,indexFlag    =ESMF_INDEX_GLOBAL        &
                                 ,rc           =RC)
-#else
-          FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
-                                ,farray       =VARS(N)%I2D              &  !<-- The 2D integer array being inserted into the import state
-                                ,copyflag     =COPYFLAG                 &
-                                ,maxHaloUWidth=(/IHALO,JHALO/)          &
-                                ,maxHaloLWidth=(/IHALO,JHALO/)          &
-                                ,name         =VARS(N)%VBL_NAME         &  !<-- Name of the 2D real array
-                                ,indexFlag    =ESMF_INDEX_GLOBAL        &
-                                ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -712,18 +569,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert Physics 2-D Integer Field into History Bundles"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleAdd(fieldbundle=HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
-                                  ,field      =FIELD                    &  !<-- ESMF Field holding the 2D real array
+          CALL ESMF_FieldBundleAdd(            HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
+                                  ,            LISTWRAPPER(FIELD)       &  !<-- ESMF Field holding the 2D real array
                                   ,rc         =RC)
-#else
-          CALL ESMF_FieldBundleAdd(bundle=HISTORY_BUNDLE                &  !<-- The Write component output history Bundle
-                                  ,field =FIELD                         &  !<-- ESMF Field holding the 2D real array
-                                  ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -734,28 +585,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert 2-D Integer Data into Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
           FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
                                 ,farray       =VARS(N)%I2D              &  !<-- The 2D integer array being inserted into restart Bundle
-                                ,copyflag     =COPYFLAG                 &
+                                ,datacopyflag =COPYFLAG                 &
                                 ,totalUWidth  =(/IHALO,JHALO/)          &
                                 ,totalLWidth  =(/IHALO,JHALO/)          &
                                 ,name         =VARS(N)%VBL_NAME         &  !<-- Name of the 2D real array
                                 ,indexFlag    =ESMF_INDEX_GLOBAL        &
                                 ,rc           =RC)
-#else
-          FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
-                                ,farray       =VARS(N)%I2D              &  !<-- The 2D integer array being inserted into the import state
-                                ,copyflag     =COPYFLAG                 &
-                                ,maxHaloUWidth=(/IHALO,JHALO/)          &
-                                ,maxHaloLWidth=(/IHALO,JHALO/)          &
-                                ,name         =VARS(N)%VBL_NAME         &  !<-- Name of the 2D real array
-                                ,indexFlag    =ESMF_INDEX_GLOBAL        &
-                                ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -763,18 +603,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert 2-D Integer Field into Restart Bundles"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleAdd(fieldbundle=RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
-                                  ,field      =FIELD                    &  !<-- ESMF Field holding the 2D real array
+          CALL ESMF_FieldBundleAdd(            RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
+                                  ,            LISTWRAPPER(FIELD)       &  !<-- ESMF Field holding the 2D real array
                                   ,rc         =RC)
-#else
-          CALL ESMF_FieldBundleAdd(bundle=RESTART_BUNDLE                &  !<-- The Write component output restart Bundle
-                                  ,field =FIELD                         &  !<-- ESMF Field holding the 2D real array
-                                  ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -795,28 +629,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert Dynamics 2-D Real Data into Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
           FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
                                 ,farray       =VARS(N)%R2D              &  !<-- The 2D real array being inserted into history Bundle
-                                ,copyflag     =COPYFLAG                 &
+                                ,datacopyflag =COPYFLAG                 &
                                 ,totalUWidth  =(/IHALO,JHALO/)          &
                                 ,totalLWidth  =(/IHALO,JHALO/)          &
                                 ,name         =VARS(N)%VBL_NAME         &  !<-- Name of the 2D real array
                                 ,indexFlag    =ESMF_INDEX_GLOBAL        &
                                 ,rc           =RC)
-#else
-          FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
-                                ,farray       =VARS(N)%R2D              &  !<-- The 2D real array being inserted into the import state
-                                ,copyflag     =COPYFLAG                 &
-                                ,maxHaloUWidth=(/IHALO,JHALO/)          &
-                                ,maxHaloLWidth=(/IHALO,JHALO/)          &
-                                ,name         =VARS(N)%VBL_NAME         &  !<-- Name of the 2D real array
-                                ,indexFlag    =ESMF_INDEX_GLOBAL        &
-                                ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -824,18 +647,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert Dynamics 2-D Real Field into History Bundles"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleAdd(fieldbundle=HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
-                                  ,field      =FIELD                    &  !<-- ESMF Field holding the 2D real array
+          CALL ESMF_FieldBundleAdd(            HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
+                                  ,            LISTWRAPPER(FIELD)       &  !<-- ESMF Field holding the 2D real array
                                   ,rc         =RC)
-#else
-          CALL ESMF_FieldBundleAdd(bundle=HISTORY_BUNDLE                &  !<-- The Write component output history Bundle
-                                  ,field =FIELD                         &  !<-- ESMF Field holding the 2D real array
-                                  ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -846,28 +663,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert Dynamics 2-D Real Data into Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
           FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
                                 ,farray       =VARS(N)%R2D              &  !<-- The 2D real array being inserted into restart Bundle
-                                ,copyflag     =COPYFLAG                 &
+                                ,datacopyflag =COPYFLAG                 &
                                 ,totalUWidth  =(/IHALO,JHALO/)          &
                                 ,totalLWidth  =(/IHALO,JHALO/)          &
                                 ,name         =VARS(N)%VBL_NAME         &  !<-- Name of the 2D real array
                                 ,indexFlag    =ESMF_INDEX_GLOBAL        &
                                 ,rc           =RC)
-#else
-          FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
-                                ,farray       =VARS(N)%R2D              &  !<-- The 2D real array being inserted into the import state
-                                ,copyflag     =COPYFLAG                 &
-                                ,maxHaloUWidth=(/IHALO,JHALO/)          &
-                                ,maxHaloLWidth=(/IHALO,JHALO/)          &
-                                ,name         =VARS(N)%VBL_NAME         &  !<-- Name of the 2D real array
-                                ,indexFlag    =ESMF_INDEX_GLOBAL        &
-                                ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -875,18 +681,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert Dynamics 2-D Real Field into Restart Bundles"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleAdd(fieldbundle=RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
-                                  ,field      =FIELD                    &  !<-- ESMF Field holding the 2D real array
+          CALL ESMF_FieldBundleAdd(            RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
+                                  ,            LISTWRAPPER(FIELD)       &  !<-- ESMF Field holding the 2D real array
                                   ,rc         =RC)
-#else
-          CALL ESMF_FieldBundleAdd(bundle=RESTART_BUNDLE                &  !<-- The Write component output restart Bundle
-                                  ,field =FIELD                         &  !<-- ESMF Field holding the 2D real array
-                                  ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -918,28 +718,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of 3-D Data"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
             FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
                                   ,farray       =TEMP_R2D               &  !<-- Level K of 3D real array being inserted into history Bundle
-                                  ,copyflag     =COPYFLAG               &
+                                  ,datacopyflag =COPYFLAG               &
                                   ,totalUWidth  =(/IHALO,JHALO/)        &
                                   ,totalLWidth  =(/IHALO,JHALO/)        &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
                                   ,indexFlag    =ESMF_INDEX_GLOBAL      &
                                   ,rc           =RC)
-#else
-            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =TEMP_R2D               &  !<-- Level K of 3D real array being inserted into the import state
-                                  ,copyflag     =COPYFLAG               &
-                                  ,maxHaloUWidth=(/IHALO,JHALO/)        &
-                                  ,maxHaloLWidth=(/IHALO,JHALO/)        &
-                                  ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
-                                  ,indexFlag    =ESMF_INDEX_GLOBAL      &
-                                  ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -947,18 +736,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Insert 3-D Data into History Bundle"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-            CALL ESMF_FieldBundleAdd(fieldbundle=HISTORY_BUNDLE         &  !<-- The Write component output history Bundle
-                                    ,field      =FIELD                  &  !<-- ESMF Field holding the 3D real array
+            CALL ESMF_FieldBundleAdd(            HISTORY_BUNDLE         &  !<-- The Write component output history Bundle
+                                    ,            LISTWRAPPER(FIELD)     &  !<-- ESMF Field holding the 3D real array
                                     ,rc         =RC)
-#else
-            CALL ESMF_FieldBundleAdd(bundle=HISTORY_BUNDLE              &  !<-- The Write component output history Bundle
-                                    ,field =FIELD                       &  !<-- ESMF Field holding the 3D real array
-                                    ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -981,28 +764,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of 3-D Data"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
             FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
                                   ,farray       =TEMP_R2D               &  !<-- Level K of 3D real array being inserted into restart Bundle
-                                  ,copyflag     =COPYFLAG               &
+                                  ,datacopyflag =COPYFLAG               &
                                   ,totalUWidth  =(/IHALO,JHALO/)        &
                                   ,totalLWidth  =(/IHALO,JHALO/)        &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
                                   ,indexFlag    =ESMF_INDEX_GLOBAL      &
                                   ,rc           =RC)
-#else
-            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =TEMP_R2D               &  !<-- Level K of 3D real array being inserted into the import state
-                                  ,copyflag     =COPYFLAG               &
-                                  ,maxHaloUWidth=(/IHALO,JHALO/)        &
-                                  ,maxHaloLWidth=(/IHALO,JHALO/)        &
-                                  ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
-                                  ,indexFlag    =ESMF_INDEX_GLOBAL      &
-                                  ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1010,18 +782,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Insert 3-D Data into Restart Bundle"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-            CALL ESMF_FieldBundleAdd(fieldbundle=RESTART_BUNDLE         &  !<-- The Write component output restart Bundle
-                                    ,field      =FIELD                  &  !<-- ESMF Field holding the 3D real array
+            CALL ESMF_FieldBundleAdd(            RESTART_BUNDLE         &  !<-- The Write component output restart Bundle
+                                    ,            LISTWRAPPER(FIELD)     &  !<-- ESMF Field holding the 3D real array
                                     ,rc         =RC)
-#else
-            CALL ESMF_FieldBundleAdd(bundle=RESTART_BUNDLE              &  !<-- The Write component output restart Bundle
-                                    ,field =FIELD                       &  !<-- ESMF Field holding the 3D real array
-                                    ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1068,28 +834,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of 4-D Data"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
             FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
                                   ,farray       =TEMP_R2D               &  !<-- Level K of 4D real array being inserted into history Bundle
-                                  ,copyflag     =COPYFLAG               &
+                                  ,datacopyflag =COPYFLAG               &
                                   ,totalUWidth  =(/IHALO,JHALO/)        &
                                   ,totalLWidth  =(/IHALO,JHALO/)        &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 4D real array
                                   ,indexFlag    =ESMF_INDEX_GLOBAL      &
                                   ,rc           =RC)
-#else
-            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =TEMP_R2D               &  !<-- Level K of 4D real array being inserted into the import state
-                                  ,copyflag     =COPYFLAG               &
-                                  ,maxHaloUWidth=(/IHALO,JHALO/)        &
-                                  ,maxHaloLWidth=(/IHALO,JHALO/)        &
-                                  ,name         =VBL_NAME               &  !<-- Name of this level of the 4D real array
-                                  ,indexFlag    =ESMF_INDEX_GLOBAL      &
-                                  ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1097,18 +852,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Insert 4-D Data into History Bundle"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-            CALL ESMF_FieldBundleAdd(fieldbundle=HISTORY_BUNDLE         &  !<-- The Write component output history Bundle
-                                    ,field      =FIELD                  &  !<-- ESMF Field holding the 4D real array
+            CALL ESMF_FieldBundleAdd(            HISTORY_BUNDLE         &  !<-- The Write component output history Bundle
+                                    ,            LISTWRAPPER(FIELD)     &  !<-- ESMF Field holding the 4D real array
                                     ,rc         =RC)
-#else
-            CALL ESMF_FieldBundleAdd(bundle=HISTORY_BUNDLE              &  !<-- The Write component output history Bundle
-                                    ,field =FIELD                       &  !<-- ESMF Field holding the 4D real array
-                                    ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1145,28 +894,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of 4-D Data"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
             FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
                                   ,farray       =TEMP_R2D               &  !<-- Level K of 4D real array being inserted into restart Bundle
-                                  ,copyflag     =COPYFLAG               &
+                                  ,datacopyflag =COPYFLAG               &
                                   ,totalUWidth  =(/IHALO,JHALO/)        &
                                   ,totalLWidth  =(/IHALO,JHALO/)        &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 4D real array
                                   ,indexFlag    =ESMF_INDEX_GLOBAL      &
                                   ,rc           =RC)
-#else
-            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =TEMP_R2D               &  !<-- Level K of 4D real array being inserted into the import state
-                                  ,copyflag     =COPYFLAG               &
-                                  ,maxHaloUWidth=(/IHALO,JHALO/)        &
-                                  ,maxHaloLWidth=(/IHALO,JHALO/)        &
-                                  ,name         =VBL_NAME               &  !<-- Name of this level of the 4D real array
-                                  ,indexFlag    =ESMF_INDEX_GLOBAL      &
-                                  ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1174,18 +912,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Insert 4-D Data into Restart Bundle"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-            CALL ESMF_FieldBundleAdd(fieldbundle=RESTART_BUNDLE         &  !<-- The Write component output restart Bundle
-                                    ,field      =FIELD                  &  !<-- ESMF Field holding the 4D real array
+            CALL ESMF_FieldBundleAdd(            RESTART_BUNDLE         &  !<-- The Write component output restart Bundle
+                                    ,            LISTWRAPPER(FIELD)     &  !<-- ESMF Field holding the 4D real array
                                     ,rc         =RC)
-#else
-            CALL ESMF_FieldBundleAdd(bundle=RESTART_BUNDLE              &  !<-- The Write component output restart Bundle
-                                    ,field =FIELD                       &  !<-- ESMF Field holding the 4D real array
-                                    ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1247,8 +979,8 @@
 
       TYPE(ESMF_Field)       :: FIELD
 
-      TYPE(ESMF_CopyFlag)    :: COPYFLAG=ESMF_DATA_REF
-!     TYPE(ESMF_CopyFlag)    :: COPYFLAG=ESMF_DATA_COPY
+      TYPE(ESMF_DataCopy_Flag)    :: COPYFLAG=ESMF_DATACOPY_REFERENCE
+!     TYPE(ESMF_DataCopy_Flag)    :: COPYFLAG=ESMF_DATA_COPY
 
       INTEGER :: INDX_O3  !! FIXME
 
@@ -1262,39 +994,24 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Integer Scalars into History Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO N=1,NUM_VARS
         IF (VARS(N)%TKR == TKR_I0D) THEN
 
-#ifdef ESMF_3
           IF (VARS(N)%HISTORY_P) THEN                                        !<-- Take integer scalar data specified for history output
-            CALL ESMF_AttributeSet(bundle     =HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
+            CALL ESMF_AttributeSet(FIELDBUNDLE=HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
                                   ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the integer scalar
                                   ,value      =VARS(N)%I0D              &  !<-- The scalar being inserted into the import state
                                   ,rc         =RC)
           END IF
           IF (VARS(N)%RESTART_P) THEN                                        !<-- Take integer scalar data specified for restart output
-            CALL ESMF_AttributeSet(bundle     =RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
+            CALL ESMF_AttributeSet(FIELDBUNDLE=RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
                                   ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the integer scalar
                                   ,value      =VARS(N)%I0D              &  !<-- The scalar being inserted into the import state
                                   ,rc         =RC)
           END IF
-#else
-          IF (VARS(N)%HISTORY_P) THEN                                        !<-- Take integer scalar data specified for history output
-            CALL ESMF_AttributeSet(fieldbundle=HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
-                                  ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the integer scalar
-                                  ,value      =VARS(N)%I0D              &  !<-- The scalar being inserted into the import state
-                                  ,rc         =RC)
-          END IF
-          IF (VARS(N)%RESTART_P) THEN                                        !<-- Take integer scalar data specified for restart output
-            CALL ESMF_AttributeSet(fieldbundle=RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
-                                  ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the integer scalar
-                                  ,value      =VARS(N)%I0D              &  !<-- The scalar being inserted into the import state
-                                  ,rc         =RC)
-          END IF
-#endif
 
         END IF
       END DO
@@ -1309,39 +1026,24 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert Real Scalars into History Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO N=1,NUM_VARS
         IF (VARS(N)%TKR == TKR_R0D) THEN
 
-#ifdef ESMF_3
           IF (VARS(N)%HISTORY_P) THEN                                        !<-- Take real scalar data specified for history output
-            CALL ESMF_AttributeSet(bundle     =HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
+            CALL ESMF_AttributeSet(FIELDBUNDLE=HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
                                   ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the real scalar
                                   ,value      =VARS(N)%R0D              &  !<-- The scalar being inserted into the history Bundle
                                   ,rc         =RC)
           END IF
           IF (VARS(N)%RESTART_P) THEN                                        !<-- Take real scalar data specified for restart output
-            CALL ESMF_AttributeSet(bundle     =RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
+            CALL ESMF_AttributeSet(FIELDBUNDLE=RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
                                   ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the real scalar
                                   ,value      =VARS(N)%R0D              &  !<-- The scalar being inserted into the restart Bundle
                                   ,rc         =RC)
           END IF
-#else
-          IF (VARS(N)%HISTORY_P) THEN                                        !<-- Take real scalar data specified for history output
-            CALL ESMF_AttributeSet(fieldbundle=HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
-                                  ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the real scalar
-                                  ,value      =VARS(N)%R0D              &  !<-- The scalar being inserted into the history Bundle
-                                  ,rc         =RC)
-          END IF
-          IF (VARS(N)%RESTART_P) THEN                                        !<-- Take real scalar data specified for restart output
-            CALL ESMF_AttributeSet(fieldbundle=RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
-                                  ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the real scalar
-                                  ,value      =VARS(N)%R0D              &  !<-- The scalar being inserted into the restart Bundle
-                                  ,rc         =RC)
-          END IF
-#endif
 
         END IF
       END DO
@@ -1356,44 +1058,27 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert 1-D Integer Arrays into History Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO N=1,NUM_VARS
         IF (VARS(N)%TKR == TKR_I1D) THEN
           LENGTH=SIZE(VARS(N)%I1D)
 
-#ifdef ESMF_3
           IF (VARS(N)%HISTORY_P) THEN                                        !<-- Take 1D integer array data specified for history output
-            CALL ESMF_AttributeSet(bundle        =HISTORY_BUNDLE        &  !<-- The Write component output history Bundle
-                                  ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the integer array
-                                  ,count         =LENGTH                &  !<-- # of elements in this attribute
-                                  ,valueList     =VARS(N)%I1D           &  !<-- The 1D integer being inserted into the history Bundle
-                                  ,rc            =RC)
-          END IF
-          IF (VARS(N)%RESTART_P) THEN                                        !<-- Take 1D integer array data specified for restart output
-            CALL ESMF_AttributeSet(bundle        =RESTART_BUNDLE        &  !<-- The Write component output restart Bundle
-                                  ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the integer array
-                                  ,count         =LENGTH                &  !<-- # of elements in this attribute
-                                  ,valueList     =VARS(N)%I1D           &  !<-- The 1D integer being inserted into the restart Bundle
-                                  ,rc            =RC)
-          END IF
-#else
-          IF (VARS(N)%HISTORY_P) THEN                                        !<-- Take 1D integer array data specified for history output
-            CALL ESMF_AttributeSet(fieldbundle   =HISTORY_BUNDLE        &  !<-- The Write component output history Bundle
+            CALL ESMF_AttributeSet(FIELDBUNDLE   =HISTORY_BUNDLE        &  !<-- The Write component output history Bundle
                                   ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the integer array
                                   ,itemCount     =LENGTH                &  !<-- # of elements in this attribute
                                   ,valueList     =VARS(N)%I1D           &  !<-- The 1D integer being inserted into the history Bundle
                                   ,rc            =RC)
           END IF
           IF (VARS(N)%RESTART_P) THEN                                        !<-- Take 1D integer array data specified for restart output
-            CALL ESMF_AttributeSet(fieldbundle   =RESTART_BUNDLE        &  !<-- The Write component output restart Bundle
+            CALL ESMF_AttributeSet(FIELDBUNDLE   =RESTART_BUNDLE        &  !<-- The Write component output restart Bundle
                                   ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the integer array
                                   ,itemCount     =LENGTH                &  !<-- # of elements in this attribute
                                   ,valueList     =VARS(N)%I1D           &  !<-- The 1D integer being inserted into the restart Bundle
                                   ,rc            =RC)
           END IF
-#endif
 
         END IF
       END DO
@@ -1408,44 +1093,27 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Insert 1-D Real Arrays into History Bundle"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO N=1,NUM_VARS
         IF (VARS(N)%TKR == TKR_R1D) THEN
           LENGTH=SIZE(VARS(N)%R1D)
 
-#ifdef ESMF_3
           IF (VARS(N)%HISTORY_P) THEN                                        !<-- Take 1D real array data specified for history output
-            CALL ESMF_AttributeSet(bundle        =HISTORY_BUNDLE        &  !<-- The Write component output history Bundle
-                                  ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the real array
-                                  ,count         =LENGTH                &  !<-- # of elements in this attribute
-                                  ,valueList     =VARS(N)%R1D           &  !<-- The 1D real being inserted into the history Bundle
-                                  ,rc            =RC)
-          END IF
-          IF (VARS(N)%RESTART_P) THEN                                        !<-- Take 1D real array data specified for restart output
-            CALL ESMF_AttributeSet(bundle        =RESTART_BUNDLE        &  !<-- The Write component output restart Bundle
-                                  ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the real array
-                                  ,count         =LENGTH                &  !<-- # of elements in this attribute
-                                  ,valueList     =VARS(N)%R1D           &  !<-- The 1D real being inserted into the restart Bundle
-                                  ,rc            =RC)
-          END IF
-#else
-          IF (VARS(N)%HISTORY_P) THEN                                        !<-- Take 1D real array data specified for history output
-            CALL ESMF_AttributeSet(fieldbundle   =HISTORY_BUNDLE        &  !<-- The Write component output history Bundle
+            CALL ESMF_AttributeSet(FIELDBUNDLE   =HISTORY_BUNDLE        &  !<-- The Write component output history Bundle
                                   ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the real array
                                   ,itemCount     =LENGTH                &  !<-- # of elements in this attribute
                                   ,valueList     =VARS(N)%R1D           &  !<-- The 1D real being inserted into the history Bundle
                                   ,rc            =RC)
           END IF
           IF (VARS(N)%RESTART_P) THEN                                        !<-- Take 1D real array data specified for restart output
-            CALL ESMF_AttributeSet(fieldbundle   =RESTART_BUNDLE        &  !<-- The Write component output restart Bundle
+            CALL ESMF_AttributeSet(FIELDBUNDLE   =RESTART_BUNDLE        &  !<-- The Write component output restart Bundle
                                   ,name          =VARS(N)%VBL_NAME      &  !<-- Name of the real array
                                   ,itemCount     =LENGTH                &  !<-- # of elements in this attribute
                                   ,valueList     =VARS(N)%R1D           &  !<-- The 1D real being inserted into the restart Bundle
                                   ,rc            =RC)
           END IF
-#endif
 
         END IF
       END DO
@@ -1469,28 +1137,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert 2-D Integer Data into Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
           FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
                                 ,farray       =VARS(N)%I2D              &  !<-- The 2D integer array being inserted into history Bundle
-                                ,copyflag     =COPYFLAG                 &
+                                ,datacopyflag =COPYFLAG                 &
                                 ,totalUWidth  =(/IHALO,JHALO/)          &
                                 ,totalLWidth  =(/IHALO,JHALO/)          &
                                 ,name         =VARS(N)%VBL_NAME         &  !<-- Name of the 2D real array
                                 ,indexFlag    =ESMF_INDEX_GLOBAL        &
                                 ,rc           =RC)
-#else
-          FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
-                                ,farray       =VARS(N)%I2D              &  !<-- The 2D integer array being inserted into the import state
-                                ,copyflag     =COPYFLAG                 &
-                                ,maxHaloUWidth=(/IHALO,JHALO/)          &
-                                ,maxHaloLWidth=(/IHALO,JHALO/)          &
-                                ,name         =VARS(N)%VBL_NAME         &  !<-- Name of the 2D real array
-                                ,indexFlag    =ESMF_INDEX_GLOBAL        &
-                                ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1498,18 +1155,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert Physics 2-D Integer Field into History Bundles"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleAdd(fieldbundle=HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
-                                  ,field      =FIELD                    &  !<-- ESMF Field holding the 2D real array
+          CALL ESMF_FieldBundleAdd(            HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
+                                  ,            LISTWRAPPER(FIELD)       &  !<-- ESMF Field holding the 2D real array
                                   ,rc         =RC)
-#else
-          CALL ESMF_FieldBundleAdd(bundle=HISTORY_BUNDLE                &  !<-- The Write component output history Bundle
-                                  ,field =FIELD                         &  !<-- ESMF Field holding the 2D real array
-                                  ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1520,28 +1171,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert 2-D Integer Data into Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
           FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
                                 ,farray       =VARS(N)%I2D              &  !<-- The 2D integer array being inserted into restart Bundle
-                                ,copyflag     =COPYFLAG                 &
+                                ,datacopyflag =COPYFLAG                 &
                                 ,totalUWidth  =(/IHALO,JHALO/)          &
                                 ,totalLWidth  =(/IHALO,JHALO/)          &
                                 ,name         =VARS(N)%VBL_NAME         &  !<-- Name of the 2D real array
                                 ,indexFlag    =ESMF_INDEX_GLOBAL        &
                                 ,rc           =RC)
-#else
-          FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
-                                ,farray       =VARS(N)%I2D              &  !<-- The 2D integer array being inserted into the import state
-                                ,copyflag     =COPYFLAG                 &
-                                ,maxHaloUWidth=(/IHALO,JHALO/)          &
-                                ,maxHaloLWidth=(/IHALO,JHALO/)          &
-                                ,name         =VARS(N)%VBL_NAME         &  !<-- Name of the 2D real array
-                                ,indexFlag    =ESMF_INDEX_GLOBAL        &
-                                ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1549,18 +1189,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert 2-D Integer Field into Restart Bundles"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleAdd(fieldbundle=RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
-                                  ,field      =FIELD                    &  !<-- ESMF Field holding the 2D real array
+          CALL ESMF_FieldBundleAdd(            RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
+                                  ,            LISTWRAPPER(FIELD)       &  !<-- ESMF Field holding the 2D real array
                                   ,rc         =RC)
-#else
-          CALL ESMF_FieldBundleAdd(bundle=RESTART_BUNDLE                &  !<-- The Write component output restart Bundle
-                                  ,field =FIELD                         &  !<-- ESMF Field holding the 2D real array
-                                  ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1581,28 +1215,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert Dynamics 2-D Real Data into Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
           FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
                                 ,farray       =VARS(N)%R2D              &  !<-- The 2D real array being inserted into history Bundle
-                                ,copyflag     =COPYFLAG                 &
+                                ,datacopyflag =COPYFLAG                 &
                                 ,totalUWidth  =(/IHALO,JHALO/)          &
                                 ,totalLWidth  =(/IHALO,JHALO/)          &
                                 ,name         =VARS(N)%VBL_NAME         &  !<-- Name of the 2D real array
                                 ,indexFlag    =ESMF_INDEX_GLOBAL        &
                                 ,rc           =RC)
-#else
-          FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
-                                ,farray       =VARS(N)%R2D              &  !<-- The 2D real array being inserted into the import state
-                                ,copyflag     =COPYFLAG                 &
-                                ,maxHaloUWidth=(/IHALO,JHALO/)          &
-                                ,maxHaloLWidth=(/IHALO,JHALO/)          &
-                                ,name         =VARS(N)%VBL_NAME         &  !<-- Name of the 2D real array
-                                ,indexFlag    =ESMF_INDEX_GLOBAL        &
-                                ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1610,18 +1233,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert Dynamics 2-D Real Field into History Bundles"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleAdd(fieldbundle=HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
-                                  ,field      =FIELD                    &  !<-- ESMF Field holding the 2D real array
+          CALL ESMF_FieldBundleAdd(            HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
+                                  ,            LISTWRAPPER(FIELD)       &  !<-- ESMF Field holding the 2D real array
                                   ,rc         =RC)
-#else
-          CALL ESMF_FieldBundleAdd(bundle=HISTORY_BUNDLE                &  !<-- The Write component output history Bundle
-                                  ,field =FIELD                         &  !<-- ESMF Field holding the 2D real array
-                                  ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1632,28 +1249,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert Dynamics 2-D Real Data into Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
           FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
                                 ,farray       =VARS(N)%R2D              &  !<-- The 2D real array being inserted into restart Bundle
-                                ,copyflag     =COPYFLAG                 &
+                                ,datacopyflag =COPYFLAG                 &
                                 ,totalUWidth  =(/IHALO,JHALO/)          &
                                 ,totalLWidth  =(/IHALO,JHALO/)          &
                                 ,name         =VARS(N)%VBL_NAME         &  !<-- Name of the 2D real array
                                 ,indexFlag    =ESMF_INDEX_GLOBAL        &
                                 ,rc           =RC)
-#else
-          FIELD=ESMF_FieldCreate(grid         =GRID                     &  !<-- The ESMF grid
-                                ,farray       =VARS(N)%R2D              &  !<-- The 2D real array being inserted into the import state
-                                ,copyflag     =COPYFLAG                 &
-                                ,maxHaloUWidth=(/IHALO,JHALO/)          &
-                                ,maxHaloLWidth=(/IHALO,JHALO/)          &
-                                ,name         =VARS(N)%VBL_NAME         &  !<-- Name of the 2D real array
-                                ,indexFlag    =ESMF_INDEX_GLOBAL        &
-                                ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1661,18 +1267,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Insert Dynamics 2-D Real Field into Restart Bundles"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-          CALL ESMF_FieldBundleAdd(fieldbundle=RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
-                                  ,field      =FIELD                    &  !<-- ESMF Field holding the 2D real array
+          CALL ESMF_FieldBundleAdd(            RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
+                                  ,            LISTWRAPPER(FIELD)       &  !<-- ESMF Field holding the 2D real array
                                   ,rc         =RC)
-#else
-          CALL ESMF_FieldBundleAdd(bundle=RESTART_BUNDLE                &  !<-- The Write component output restart Bundle
-                                  ,field =FIELD                         &  !<-- ESMF Field holding the 2D real array
-                                  ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1704,28 +1304,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of 3-D Data"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
             FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
                                   ,farray       =TEMP_R2D               &  !<-- Level K of 3D real array being inserted into history Bundle
-                                  ,copyflag     =COPYFLAG               &
+                                  ,datacopyflag =COPYFLAG               &
                                   ,totalUWidth  =(/IHALO,JHALO/)        &
                                   ,totalLWidth  =(/IHALO,JHALO/)        &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
                                   ,indexFlag    =ESMF_INDEX_GLOBAL      &
                                   ,rc           =RC)
-#else
-            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =TEMP_R2D               &  !<-- Level K of 3D real array being inserted into the import state
-                                  ,copyflag     =COPYFLAG               &
-                                  ,maxHaloUWidth=(/IHALO,JHALO/)        &
-                                  ,maxHaloLWidth=(/IHALO,JHALO/)        &
-                                  ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
-                                  ,indexFlag    =ESMF_INDEX_GLOBAL      &
-                                  ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1733,18 +1322,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Insert 3-D Data into History Bundle"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-            CALL ESMF_FieldBundleAdd(fieldbundle=HISTORY_BUNDLE         &  !<-- The Write component output history Bundle
-                                    ,field      =FIELD                  &  !<-- ESMF Field holding the 3D real array
+            CALL ESMF_FieldBundleAdd(            HISTORY_BUNDLE         &  !<-- The Write component output history Bundle
+                                    ,            LISTWRAPPER(FIELD)     &  !<-- ESMF Field holding the 3D real array
                                     ,rc         =RC)
-#else
-            CALL ESMF_FieldBundleAdd(bundle=HISTORY_BUNDLE              &  !<-- The Write component output history Bundle
-                                    ,field =FIELD                       &  !<-- ESMF Field holding the 3D real array
-                                    ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1767,28 +1350,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of 3-D Data"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
             FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
                                   ,farray       =TEMP_R2D               &  !<-- Level K of 3D real array being inserted into restart Bundle
-                                  ,copyflag     =COPYFLAG               &
+                                  ,datacopyflag =COPYFLAG               &
                                   ,totalUWidth  =(/IHALO,JHALO/)        &
                                   ,totalLWidth  =(/IHALO,JHALO/)        &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
                                   ,indexFlag    =ESMF_INDEX_GLOBAL      &
                                   ,rc           =RC)
-#else
-            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =TEMP_R2D               &  !<-- Level K of 3D real array being inserted into the import state
-                                  ,copyflag     =COPYFLAG               &
-                                  ,maxHaloUWidth=(/IHALO,JHALO/)        &
-                                  ,maxHaloLWidth=(/IHALO,JHALO/)        &
-                                  ,name         =VBL_NAME               &  !<-- Name of this level of the 3D real array
-                                  ,indexFlag    =ESMF_INDEX_GLOBAL      &
-                                  ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1796,18 +1368,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Insert 3-D Data into Restart Bundle"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-            CALL ESMF_FieldBundleAdd(fieldbundle=RESTART_BUNDLE         &  !<-- The Write component output restart Bundle
-                                    ,field      =FIELD                  &  !<-- ESMF Field holding the 3D real array
+            CALL ESMF_FieldBundleAdd(            RESTART_BUNDLE         &  !<-- The Write component output restart Bundle
+                                    ,            LISTWRAPPER(FIELD)     &  !<-- ESMF Field holding the 3D real array
                                     ,rc         =RC)
-#else
-            CALL ESMF_FieldBundleAdd(bundle=RESTART_BUNDLE              &  !<-- The Write component output restart Bundle
-                                    ,field =FIELD                       &  !<-- ESMF Field holding the 3D real array
-                                    ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1854,28 +1420,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of 4-D Data"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
             FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
                                   ,farray       =TEMP_R2D               &  !<-- Level K of 4D real array being inserted into history Bundle
-                                  ,copyflag     =COPYFLAG               &
+                                  ,datacopyflag =COPYFLAG               &
                                   ,totalUWidth  =(/IHALO,JHALO/)        &
                                   ,totalLWidth  =(/IHALO,JHALO/)        &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 4D real array
                                   ,indexFlag    =ESMF_INDEX_GLOBAL      &
                                   ,rc           =RC)
-#else
-            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =TEMP_R2D               &  !<-- Level K of 4D real array being inserted into the import state
-                                  ,copyflag     =COPYFLAG               &
-                                  ,maxHaloUWidth=(/IHALO,JHALO/)        &
-                                  ,maxHaloLWidth=(/IHALO,JHALO/)        &
-                                  ,name         =VBL_NAME               &  !<-- Name of this level of the 4D real array
-                                  ,indexFlag    =ESMF_INDEX_GLOBAL      &
-                                  ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1883,18 +1438,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Insert 4-D Data into History Bundle"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-            CALL ESMF_FieldBundleAdd(fieldbundle=HISTORY_BUNDLE         &  !<-- The Write component output history Bundle
-                                    ,field      =FIELD                  &  !<-- ESMF Field holding the 4D real array
+            CALL ESMF_FieldBundleAdd(            HISTORY_BUNDLE         &  !<-- The Write component output history Bundle
+                                    ,            LISTWRAPPER(FIELD)     &  !<-- ESMF Field holding the 4D real array
                                     ,rc         =RC)
-#else
-            CALL ESMF_FieldBundleAdd(bundle=HISTORY_BUNDLE              &  !<-- The Write component output history Bundle
-                                    ,field =FIELD                       &  !<-- ESMF Field holding the 4D real array
-                                    ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1931,28 +1480,17 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of 4-D Data"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
             FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
                                   ,farray       =TEMP_R2D               &  !<-- Level K of 4D real array being inserted into restart Bundle
-                                  ,copyflag     =COPYFLAG               &
+                                  ,datacopyflag =COPYFLAG               &
                                   ,totalUWidth  =(/IHALO,JHALO/)        &
                                   ,totalLWidth  =(/IHALO,JHALO/)        &
                                   ,name         =VBL_NAME               &  !<-- Name of this level of the 4D real array
                                   ,indexFlag    =ESMF_INDEX_GLOBAL      &
                                   ,rc           =RC)
-#else
-            FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =TEMP_R2D               &  !<-- Level K of 4D real array being inserted into the import state
-                                  ,copyflag     =COPYFLAG               &
-                                  ,maxHaloUWidth=(/IHALO,JHALO/)        &
-                                  ,maxHaloLWidth=(/IHALO,JHALO/)        &
-                                  ,name         =VBL_NAME               &  !<-- Name of this level of the 4D real array
-                                  ,indexFlag    =ESMF_INDEX_GLOBAL      &
-                                  ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)
@@ -1960,18 +1498,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Insert 4-D Data into Restart Bundle"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-            CALL ESMF_FieldBundleAdd(fieldbundle=RESTART_BUNDLE         &  !<-- The Write component output restart Bundle
-                                    ,field      =FIELD                  &  !<-- ESMF Field holding the 4D real array
+            CALL ESMF_FieldBundleAdd(            RESTART_BUNDLE         &  !<-- The Write component output restart Bundle
+                                    ,            LISTWRAPPER(FIELD)     &  !<-- ESMF Field holding the 4D real array
                                     ,rc         =RC)
-#else
-            CALL ESMF_FieldBundleAdd(bundle=RESTART_BUNDLE              &  !<-- The Write component output restart Bundle
-                                    ,field =FIELD                       &  !<-- ESMF Field holding the 4D real array
-                                    ,rc    =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_OUT)

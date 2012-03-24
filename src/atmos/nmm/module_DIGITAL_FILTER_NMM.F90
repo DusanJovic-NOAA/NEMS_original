@@ -23,11 +23,7 @@
 ! September2011 Weiyu Yang, Modified for using the ESMF 5.2.0r library.
 !----------------------------------------------------------------------------
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
       use module_include
       use module_exchange,only: halo_exch
 
@@ -246,17 +242,10 @@
                             ,field   =HOLD_FIELD                        &  !<-- Put extracted Field here
                             ,rc      = RC)
 !
-#ifdef ESMF_3
-          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
-                            ,localDe   =0                               &
-                            ,farray    =HOLD_2D                         &  !<-- Put the pointer here
-                            ,rc        =RC)
-#else
           call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
                             ,localDe   =0                               &
                             ,farrayPtr =HOLD_2D                         &  !<-- Put the pointer here
                             ,rc        =RC)
-#endif
 
           do j=jts,jte
           do i=its,ite
@@ -276,17 +265,10 @@
                             ,field   =HOLD_FIELD                        &  !<-- Put extracted Field here
                             ,rc      = RC)
 
-#ifdef ESMF_3
-          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
-                            ,localDe   =0                               &
-                            ,farray    =HOLD_3D                         &  !<-- Put the pointer here
-                            ,rc        =RC)
-#else
           call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
                             ,localDe   =0                               &
                             ,farrayPtr =HOLD_3D                         &  !<-- Put the pointer here
                             ,rc        =RC)
-#endif
 
           do l=1,lm  
             do j=jts,jte
@@ -314,17 +296,10 @@
                             ,field   =HOLD_FIELD                        &  !<-- Put extracted Field here
                             ,rc      = RC)
 
-#ifdef ESMF_3
-          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
-                            ,localDe   =0                               &
-                            ,farray    =HOLD_4D                         &  !<-- Put the pointer here
-                            ,rc        =RC)
-#else
           call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
                             ,localDe   =0                               &
                             ,farrayPtr =HOLD_4D                         &  !<-- Put the pointer here
                             ,rc        =RC)
-#endif
 
           do p=1,num_spec
             do l=1,lm
@@ -435,7 +410,7 @@
           NULLIFY(HOLD_2D)
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_StateGet(state   =DYN_STATE                         &  !<-- State that holds the Field
@@ -449,20 +424,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         MESSAGE_CHECK="Dyn Update: Extract Temperature Pointer from Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-#ifdef ESMF_3
-          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
-                            ,localDe   =0                               &
-                            ,farray    =HOLD_2D                         &  !<-- Put the pointer here
-                            ,rc        =RC)
-#else
           call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
                             ,localDe   =0                               &
                             ,farrayPtr =HOLD_2D                         &  !<-- Put the pointer here
                             ,rc        =RC)
-#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
@@ -477,7 +445,7 @@
           CALL HALO_EXCH(hold_2d,1,2,2)
 
 
-          CALL ESMF_StateAdd(dyn_state,HOLD_FIELD,rc=rc) 
+          CALL ESMF_StateAdd(dyn_state,LISTWRAPPER(HOLD_FIELD),rc=rc) 
         ENDDO
       ENDIF
 !
@@ -487,7 +455,7 @@
           NULLIFY(HOLD_3D)
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_StateGet(state   =DYN_STATE                         &  !<-- State that holds the Field
@@ -501,20 +469,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         MESSAGE_CHECK="Dyn Update: Extract Temperature Pointer from Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-#ifdef ESMF_3
-          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
-                            ,localDe   =0                               &
-                            ,farray    =HOLD_3D                         &  !<-- Put the pointer here
-                            ,rc        =RC)
-#else
           call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
                             ,localDe   =0                               &
                             ,farrayPtr =HOLD_3D                         &  !<-- Put the pointer here
                             ,rc        =RC)
-#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
@@ -530,7 +491,7 @@
 
           CALL HALO_EXCH(hold_3d,LM,2,2)
 
-          CALL ESMF_StateAdd(dyn_state,HOLD_FIELD,rc=rc)
+          CALL ESMF_StateAdd(dyn_state,LISTWRAPPER(HOLD_FIELD),rc=rc)
         ENDDO
       ENDIF
 !
@@ -544,7 +505,7 @@
           ENDIF
           NULLIFY(HOLD_4D)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_StateGet(state   =DYN_STATE                         &  !<-- State that holds the Field
@@ -558,20 +519,13 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         MESSAGE_CHECK="Dyn Update: Extract Temperature Pointer from Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-#ifdef ESMF_3
-          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
-                            ,localDe   =0                               &
-                            ,farray    =HOLD_4D                         &  !<-- Put the pointer here
-                            ,rc        =RC)
-#else
           call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
                             ,localDe   =0                               &
                             ,farrayPtr =HOLD_4D                         &  !<-- Put the pointer here
                             ,rc        =RC)
-#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
@@ -586,7 +540,7 @@
               ENDDO
             ENDDO
           ENDDO
-          CALL ESMF_StateAdd(dyn_state,HOLD_FIELD,rc=rc)
+          CALL ESMF_StateAdd(dyn_state,LISTWRAPPER(HOLD_FIELD),rc=rc)
         ENDDO
       ENDIF
 
@@ -638,15 +592,9 @@
       call esmf_stateget(state=phy_state,				&
                          itemnamelist = phy_name,			&
                          rc=rc)
-#ifdef ESMF_520r
-      phy_state_save=esmf_statecreate(     name="digital filter phy"	&
-                                     ,statetype=esmf_state_unspecified	&
-                                     ,rc       =rc)
-#else
-      phy_state_save=esmf_statecreate(statename="digital filter phy"	&
-                                     ,statetype=esmf_state_unspecified	&
-                                     ,rc       =rc)
-#endif
+      phy_state_save=esmf_statecreate(STATENAME  ="digital filter phy"	        &
+                                     ,stateintent=ESMF_STATEINTENT_UNSPECIFIED &
+                                     ,rc         =rc)
 !-----------------------------------------------------------------------
 !
       end subroutine digital_filter_phy_init_nmm
@@ -671,8 +619,8 @@
                           ,field   =tmp_field                           &
                           ,rc      =rc)
 
-        CALL ESMF_StateAdd(state=phy_state_save                         &
-                          ,field=tmp_field                              &
+        CALL ESMF_StateAdd(      phy_state_save                         &
+                          ,LISTWRAPPER(tmp_field)                       &
                           ,rc   =rc)
       enddo
 !-----------------------------------------------------------------------
@@ -699,7 +647,7 @@
                           ,field   =tmp_field                           &
                           ,rc      =rc)
         CALL ESMF_StateAdd(phy_state                                    &
-                          ,tmp_field                                    &
+                          ,LISTWRAPPER(tmp_field)                       &
                           ,rc = rc)
       enddo
       deallocate(phy_name)

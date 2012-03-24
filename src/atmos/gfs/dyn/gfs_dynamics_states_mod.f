@@ -1,11 +1,5 @@
 #include "../../../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
        module gfs_dynamics_states_mod
 
 ! 
@@ -17,11 +11,7 @@
 !
 !!uses:
 !
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
 
 ! the derived type of the internal state.
 !----------------------------------------
@@ -71,7 +61,7 @@
 
       call esmf_logwrite(						&
            " update internal state with the esmf import state", 	&
-            esmf_log_info, rc = rc1)
+            esmf_logmsg_info, rc = rc1)
 
 ! check the internal state, if it is ready to run in the start_step
 ! then we don't need to do import to internal state
@@ -540,7 +530,7 @@
       print*, 'do int_state to exp_gfs_dyn'
 
       call esmf_logwrite("begining to put the esmf export state.", &
-                    esmf_log_info, rc = rc1)
+                    esmf_logmsg_info, rc = rc1)
 
 ! get the local array size, which are for the parallel esmf interface states,
 ! from the internal state.  lnt2_s is for the spectral arrays.  llgg_s

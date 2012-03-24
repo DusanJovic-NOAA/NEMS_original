@@ -12,11 +12,7 @@
 
       MODULE module_FIM_GRID_COMP
 
-#ifdef ESMF_520r
-      USE esmf
-#else
       USE esmf_mod
-#endif
 
       IMPLICIT NONE
 
