@@ -348,9 +348,9 @@ cd ${PATHTR}/src
 
 date                                     >> ${PATHRT}/RegressionTests.log
 echo "Compilation ALL"                   >> ${PATHRT}/RegressionTests.log
-#rm -f ../exe/NEMS.x
-#gmake clean                              >  ${PATHRT}/Compile.log 2>&1
-#esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
+rm -f ../exe/NEMS.x
+gmake clean                              >  ${PATHRT}/Compile.log 2>&1
+esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
 if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s -o ${MACHINE_ID} = v ]; then
   gmake nmm_gfs_gen GOCART_MODE=full     >> ${PATHRT}/Compile.log 2>&1
 elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = h -o ${MACHINE_ID} = z ]; then 
