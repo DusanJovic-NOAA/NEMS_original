@@ -106,6 +106,7 @@
                       ,CROT,SROT,MIXHT                                  &
                       ,HSTDV,HCNVX,HASYW,HASYS,HASYSW,HASYNW,HLENW      &
                       ,HLENS,HLENSW,HLENNW,HANGL,HANIS,HSLOP,HZMAX      &
+                      ,CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN              &
                       ,RSWOUT,RSWTOA,RLWTOA                             &
                       ,ASWIN,ASWOUT,ASWTOA,ALWIN,ALWOUT,ALWTOA          &
                       ,GWDFLG                                           &
@@ -171,7 +172,7 @@
 !
       INTEGER(kind=KINT),DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: LPBL
 !
-      REAL(kind=KFPT),INTENT(IN) :: DT,PT
+      REAL(kind=KFPT),INTENT(IN) :: DT,PT,CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN
 !
       REAL(kind=KFPT),DIMENSION(1:LM),INTENT(IN) :: DSG2,PDSG1,PSGML1   &
                                                    ,SGML2
@@ -1231,6 +1232,7 @@
                        ,HLENS,HLENSW,HLENNW                             &
                        ,HANGL,HANIS,HSLOP,HZMAX                         &
                        ,CROT,SROT                                       &
+                       ,CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN             &
                        ,DUDT_GWD,DVDT_GWD                               &
                        ,IDS,IDE,JDS,JDE                                 &
                        ,IMS,IME,JMS,JME                                 &

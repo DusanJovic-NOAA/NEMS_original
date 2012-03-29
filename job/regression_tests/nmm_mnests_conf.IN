@@ -176,6 +176,12 @@ write_prec_adj: _WPREC_     # True--> create baseline prec. files ; False--> reg
 
 gwdflg:  true               # True--> GWD on ; False--> GWD off
 
+cleffamp:   1.00            # tunable parameter, depends on resolution
+sigfac:     0.00            # tunable parameter
+factop:     0.50            # de-acceleration limiter
+rlolev:   500.00            # critical pressure level (check units)
+dpmin:      5.00            # minimum thickness of the reference layer (check units)
+
 
 ####################################
 #####  Physics Scheme Options  #####

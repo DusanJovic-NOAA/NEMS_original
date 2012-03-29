@@ -61,8 +61,13 @@
                              ,START_SECOND
 !
         REAL(kind=KFPT), POINTER :: DT,SBD,TSTART,TPH0D,TLM0D,WBD
-        REAL(kind=KFPT) :: CODAMP                                       &
+        REAL(kind=KFPT) :: CLEFFAMP                                     &
+                          ,CODAMP                                       &
+                          ,DPMIN                                        &
+                          ,FACTOP                                       &
+                          ,RLOLEV                                       &
                           ,RUN_DURATION                                 &
+                          ,SIGFAC                                       &       
                           ,SMAG2                                        &       
                           ,WCOR
 !

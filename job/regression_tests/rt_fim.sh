@@ -27,7 +27,7 @@ cp atmos.configure_fim ${RUNDIR}/atmos.configure
 ####################################################################################################
 
 
-JBNME=NEMS_RT_${TEST_NR}_$$
+JBNME=RT_${TEST_NR}_$$
 
 cat fim_ll.IN       | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_CLASS_:${CLASS}:g   \

@@ -17,7 +17,7 @@
       INTEGER, PARAMETER :: KIND_PHYS=SELECTED_REAL_KIND(13,60) ! the '60' maps to 64-bit real
       INTEGER,PRIVATE,SAVE :: IMX, NMTVR, IDBG, JDBG
       REAL (KIND=KIND_PHYS),PRIVATE,SAVE :: DELTIM,RDELTIM
-      REAL(kind=kind_phys),PRIVATE,PARAMETER :: SIGFAC=0.0   !-- Key tunable parameter
+!rv   REAL(kind=kind_phys),PRIVATE,PARAMETER :: SIGFAC=0.0   !-- Key tunable parameter
 !
 !-----------------------------------------------------------------------
 !
@@ -128,6 +128,7 @@
                            ,HSTDV,HCNVX,HASYW,HASYS,HASYSW,HASYNW       &
                            ,HLENW,HLENS,HLENSW,HLENNW                   &
                            ,HANGL,HANIS,HSLOP,HZMAX,CROT,SROT           &
+                           ,CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN         &
                            ,DUDT,DVDT                                   &
                            ,IDS,IDE,JDS,JDE                             &
                            ,IMS,IME,JMS,JME                             &
@@ -182,6 +183,7 @@
 !
 !-- INPUT variables:
 !
+      REAL, INTENT(IN):: CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN
       REAL, INTENT(IN), DIMENSION (ims:ime, 1:lm+1, jms:jme) ::        &
      &                                   Z,PINT
       REAL, INTENT(IN), DIMENSION (ims:ime, 1:lm, jms:jme) ::        &
@@ -311,6 +313,7 @@
      &,              Ucol,Vcol,Tcol,Qcol,PINTcol,DPcol,Pcol,EXNcol      & ! Met input
      &,              PHILIcol,PHIcol                                    & ! Met input
      &,              HPRIME,OC,OA4,CLX4,THETA,SIGMA,GAMMA,ELVMAX        & ! Topo input
+     &,              CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN                & ! tunable coefficients
      &,              LPBL,IM,LM)                                          ! Indices + debugging
 !
 !=======================================================================
@@ -357,6 +360,7 @@ test=abs(dudt(i,k,j))+abs(dvdt(i,k,j))
       SUBROUTINE GWD_col (A,B, DUsfc,DVsfc                              &  !-- Output
      &, U1,V1,T1,Q1, PRSI,DEL,PRSL,PRSLK, PHII,PHIL                     &  !-- Met inputs
      &, HPRIME,OC,OA4,CLX4,THETA,SIGMA,GAMMA,ELVMAX                     &  !-- Topo inputs
+     &, CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN                             &  !-- tunable coefficients
      &, KPBL,IM,LM)                                                   !-- Input indices, debugging
 !
 !-- "A", "B" (from GFS) in GWD_col are DVDTcol, DUDTcol, respectively in GWD_driver
@@ -455,6 +459,7 @@ test=abs(dudt(i,k,j))+abs(dvdt(i,k,j))
 !-- INPUT:
 !
       INTEGER, INTENT(IN) :: IM,LM
+      REAL,    INTENT(IN) :: CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN
       REAL(kind=kind_phys), INTENT(IN), DIMENSION(IM,1:LM) ::        &
      &                                 U1,V1,T1,Q1,DEL,PRSL,PRSLK,PHIL
       REAL(kind=kind_phys), INTENT(IN), DIMENSION(IM,1:LM+1) ::      &
@@ -484,7 +489,8 @@ test=abs(dudt(i,k,j))+abs(dvdt(i,k,j))
      &,        EFMIN=0.0, EFMAX=10.0, hpmax=200.0                     & ! or hpmax=2500.0
      &,        FRC=1.0, CE=0.8, CEOFRC=CE/FRC, frmax=100.             &
      &,        CG=0.5, GMAX=1.0, CRITAC=5.0E-4, VELEPS=1.0            &
-     &,        FACTOP=0.5, RLOLEV=500.0, HZERO=0., HONE=1.            & ! or RLOLEV=0.5
+!rv  &,        FACTOP=0.5, RLOLEV=500.0, HZERO=0., HONE=1.            & ! or RLOLEV=0.5
+     &,                                  HZERO=0., HONE=1.            &
      &,        HE_4=.0001, HE_2=.01                                   & 
      &,        PHY180=180.,RAD_TO_DEG=PHY180/PI,DEG_TO_RAD=PI/PHY180  & 
 !
@@ -493,13 +499,11 @@ test=abs(dudt(i,k,j))+abs(dvdt(i,k,j))
      &,  cdmb = 1.0        &    ! non-dim sub grid mtn drag Amp (*j*)
 !  hncrit set to 8000m and sigfac added to enhance elvmax mtn hgt
      &,  hncrit=8000.      &    ! Max value in meters for ELVMAX (*j*)
-!module top    &,  sigfac=3.0        &    ! MB3a expt test for ELVMAX factor (*j*)  => control value is 0.1
-!module top    &,  sigfac=0.         &    ! MB3a expt test for ELVMAX factor (*j*)  => control value is 0.1
      &,  hminmt=50.        &    ! min mtn height (*j*)
      &,  hstdmin=25.       &    ! min orographic std dev in height
-     &,  minwnd=0.1        &    ! min wind component (*j*)
-     &,  dpmin=5.0              ! Minimum thickness of the reference layer (centibars)
-                                ! values of dpmin=0, 20 have also been used
+     &,  minwnd=0.1             ! min wind component (*j*)
+!rv  &,  dpmin=5.0              ! Minimum thickness of the reference layer (centibars)
+!rv                             ! values of dpmin=0, 20 have also been used
 !
       integer, parameter :: mdir=8
       real(kind=kind_phys), parameter :: FDIR=mdir/(PI+PI)
@@ -819,6 +823,7 @@ rcs=1.
         cleff = 0.5E-5 * SQRT(FLOAT(IMX)/192.0) !  this is inverse of CLEFF!
 !       cleff = 2.0E-5 * SQRT(FLOAT(IMX)/192.0) !  this is inverse of CLEFF!
 !       cleff = 2.5E-5 * SQRT(FLOAT(IMX)/192.0) !  this is inverse of CLEFF!
+        cleff=cleff*CLEFFAMP
       endif
 
       DO K = 1,KM

@@ -128,7 +128,7 @@ fi
 # Submit test
 ####################################################################################################
 
-JBNME=NEMS_RT_${TEST_NR}_$$
+JBNME=RT_${TEST_NR}_$$
 
 cat gfs_ll.IN       | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_CLASS_:${CLASS}:g   \

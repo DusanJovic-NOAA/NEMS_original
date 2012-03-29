@@ -1057,8 +1057,14 @@
 !rv------------------------------------
           if (oper) then
 !rv------------------------------------
+!-- From model tuning experiments vs CLAVR grid-to-grid verification:
+!-- 100% cloud fractions at 0.01 g/kg (1.e-5 kg/kg) cloud mixing ratios
+!-- 10% cloud fractions at 1.e-4 g/kg (1.e-7 kg/kg) cloud mixing ratios
+!-- 1% cloud fractions at 1.e-6 g/kg (1.e-9 kg/kg) cloud mixing ratios
+!
             CLFR=MIN(H1, MAX(H0,1.E5*QCLD))
-            IF (CLFR>=CLFRmin) CSMID(I,LL)=SQRT(CLFR)
+            CLFR=SQRT(CLFR)
+            IF (CLFR>=CLFRmin) CSMID(I,LL)=CLFR
 !rv------------------------------------
           else
 !rv------------------------------------
