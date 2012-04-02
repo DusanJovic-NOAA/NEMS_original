@@ -7512,13 +7512,13 @@
 !***  that provides update data?
 !------------------------------------------------------
 !
-                se_north: IF(JTE_PARENT_ON_CHILD(ID_1)+EPS<J_END_X          &  !<-- If true there is another parent task north of the first.
-                                      .AND.                                 &  !
-                             ITE_PARENT_ON_CHILD(ID_1)+EPS>=I_UPDATE(3))THEN   !<--
+                se_north: IF(JTE_PARENT_ON_CHILD(ID_1)+EPS<J_END_X          &  !<-- If true there is another parent task north of the first
+                                      .AND.                                 &  !    on the SE corner of the footprint or only on its
+                             ITE_PARENT_ON_CHILD(ID_1)+EPS>=I_UPDATE(3))THEN   !<-- east side.
 !
-                  KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                  !<-- Increment parent task counter.
+                  KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                    !<-- Increment parent task counter.
                   KP=KOUNT_PARENT_TASKS
-                  SEND_TASK(KP)%ID=ID_1+INPES_PARENT                       !<-- Store the ID of this parent task to the north.
+                  SEND_TASK(KP)%ID=ID_1+INPES_PARENT                         !<-- Store the ID of this parent task to the north.
                   ID_N=SEND_TASK(KP)%ID 
 !
                   IF(JTS_PARENT_ON_CHILD(ID_N)+EPS>=J_UPDATE(3))THEN         !<-- Parent task ID_N does not cover SE corner of footprint.
@@ -7541,7 +7541,20 @@
                     SEND_TASK(KP)%JSTART(2)=J_UPDATE(3)                      !<-- Starting J of parent task ID_N in nest task 2nd region.
                     SEND_TASK(KP)%JEND  (2)=J_END_X                          !<-- Ending J of parent task ID_N in nest task 2nd region.
 !
-                  ENDIF                                                      !<-- End contingencies of parent task north of first one.
+                  ENDIF
+!
+                ELSEIF(JTE_PARENT_ON_CHILD(ID_1)+EPS<J_UPDATE(2))THEN        !<-- Parent task ID_N only on south side of footprint.
+!
+                  KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                    !<-- Increment parent task counter.
+                  KP=KOUNT_PARENT_TASKS
+                  SEND_TASK(KP)%ID=ID_1+INPES_PARENT                         !<-- Store the ID of this parent task to the north.
+                  ID_N=SEND_TASK(KP)%ID
+!
+                  SEND_TASK(KP)%ISTART(1)=I_START_X                          !<-- Starting I on nest task where parent task ID_N updates
+                  SEND_TASK(KP)%IEND  (1)=MIN(I_UPDATE(2)                 &  !<-- Ending I on nest task where parent task ID_N updates
+                                         ,NINT(ITE_PARENT_ON_CHILD(ID_N)))
+                  SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_N))    !<-- Starting J on nest task where parent task ID_N updates.
+                  SEND_TASK(KP)%JEND  (1)=J_UPDATE(2)                        !<-- Ending J on nest task where parent task ID_N updates.
 !
                 ENDIF se_north
 !

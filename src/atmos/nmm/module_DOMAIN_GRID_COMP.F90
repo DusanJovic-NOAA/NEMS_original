@@ -138,6 +138,8 @@
       TYPE(ESMF_TimeInterval),SAVE :: HALFDFIINTVAL                     &  !<-- The ESMF time interval for filtering
                                      ,TIMEINTERVAL_CLOCKTIME               !<-- The ESMF time interval between NMM clocktime output
 !
+      TYPE(ESMF_Config),DIMENSION(99),SAVE :: CF                           !<-- The configure objects for all NMM domains
+!
 #ifdef ESMF_3
       TYPE(ESMF_Logical),SAVE :: PHYSICS_ON                                !<-- Is physics active?
 #else
@@ -448,7 +450,7 @@
 !---------------------
 !
       INTEGER(kind=KINT) :: CONFIG_ID,ISTAT,MAX_DOMAINS,N,NFCST,NTSD    &
-                           ,UBOUND_VARS
+                           ,NUM_FIELDS,UBOUND_VARS
 !
       INTEGER(kind=KINT) :: IYEAR_FCST                                  &  !<-- Current year from restart file
                            ,IMONTH_FCST                                 &  !<-- Current month from restart file
@@ -459,6 +461,8 @@
 !
       INTEGER(kind=KINT) :: DT_INT,DT_DEN,DT_NUM                        &  !<-- Integer,fractional parts of timestep
                            ,NHOURS_CLOCKTIME                               !<-- Hours between clocktime prints
+!
+      INTEGER(kind=KINT) :: IHI,ILO,JHI,JLO
 !
       INTEGER(kind=KINT) :: IERR,IRTN,RC          
 !
@@ -471,14 +475,16 @@
       REAL(kind=KFPT) :: CODAMP                                         &  
                         ,DLMD,DPHD                                      &  !<-- Current second from restart file
                         ,DPH_1,DLM_1                                    &
+                        ,SBD_1,WBD_1                                    &  !<-- Transformed lat/lon of upper parent's south/west boundaries
                         ,SECOND_FCST                                    &  !<-- Current second from restart file
                         ,SMAG2                                          &  !<-- Smagorinsky constant
-                        ,SBD_1,WBD_1                                    &
                         ,TLM0D                                          &  !<-- Central longitude of uppermost parent (degrees)
                         ,TPH0D                                          &  !<-- Central latitude of uppermost parent (degrees)
                         ,TPH0D_1,TLM0D_1
 !
       REAL(kind=DOUBLE) :: D2R,D_ONE,D_180,PI
+!
+      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SEA_MASK=>NULL()
 !
       LOGICAL(kind=KLOG) :: CALL_BUILD_MOVE_BUNDLE                      & 
                            ,CFILE_EXIST                                 &
@@ -489,9 +495,8 @@
       CHARACTER(2)  :: INT_TO_CHAR
       CHARACTER(6)  :: FMT='(I2.2)'
       CHARACTER(64) :: RESTART_FILENAME
-      CHARACTER(99) :: CONFIG_FILE_NAME
-!
-      TYPE(ESMF_Config),DIMENSION(99) :: CF                                !<-- The configure objects for all NMM domains
+      CHARACTER(99) :: CONFIG_FILE_NAME                                 &
+                      ,FIELD_NAME
 !
       TYPE(ESMF_Time) :: CURRTIME                                       &  !<-- The ESMF current time.
                         ,STARTTIME                                         !<-- The ESMF start time.
@@ -500,6 +505,8 @@
                                                                            !     the NMM DOMAIN component.
       TYPE(ESMF_Grid) :: GRID_SOLVER                                       !<-- The ESMF GRID for the integration attached to
                                                                            !     the NMM Solver gridded component.
+      TYPE(ESMF_Field) :: HOLD_FIELD
+!
 #ifdef ESMF_3
       LOGICAL(kind=KLOG) :: INPUT_READY_FLAG
       TYPE(ESMF_Logical) :: I_AM_A_FCST_TASK                            &
@@ -1819,8 +1826,8 @@
                                 ,NUM_LEVELS_MOVE_3D_V                   &
                                 ,'phy')                                    !<-- Adding Physics variables to H and V Move Bundles
 !
-          CALL ESMF_FieldBundlePrint(MOVE_BUNDLE_H)
-          CALL ESMF_FieldBundlePrint(MOVE_BUNDLE_V)
+!         CALL ESMF_FieldBundlePrint(MOVE_BUNDLE_H)
+!         CALL ESMF_FieldBundlePrint(MOVE_BUNDLE_V)
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -2173,6 +2180,77 @@
 !
         CALL RESET_SFC_VARS(MOVE_BUNDLE_H)
         CALL RESET_SFC_VARS(MOVE_BUNDLE_V)
+!
+!-----------------------------------------------------------------------
+!***  Now the nest's sea mask array contains the nest-resolution 
+!***  data from the external file.  That means the nest's sea mask
+!***  is at nest resolution while other land/sea variables were
+!***  simply interpolated from the parent domain so near coastlines
+!***  some points in those variables will not agree with the nest's
+!***  sea mask.  Therefore call the same routine that must be called 
+!***  after every move of the nest during the integration that will
+!***  force various land/water variables to agree with the nest's 
+!***  sea mask.
+!-----------------------------------------------------------------------
+!
+        FIELD_NAME='SM-move'
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Seamask Field from Move Bundle H"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_520r
+        CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H              &  !<-- Bundle holding the H arrays for move updates
+                                ,fieldname  =FIELD_NAME                 &  !<-- Name of the seamask Field in the Bundle
+                                ,field      =HOLD_FIELD                 &  !<-- Field containing the seamask
+                                ,rc         =RC )
+#else
+        CALL ESMF_FieldBundleGet(bundle=MOVE_BUNDLE_H                   &  !<-- Bundle holding the H arrays for move updates
+                                ,name  =FIELD_NAME                      &  !<-- Name of the seamask Field in the Bundle
+                                ,field =HOLD_FIELD                      &  !<-- Field containing the seamask
+                                ,rc    =RC )
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Seamask Array from Field"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field N_FIELD in the Bundle
+                          ,localDe=0                                    &
+                          ,farray =SEA_MASK                             &  !<-- Dummy 2-D array with Field's Real data
+                          ,rc     =RC )
+#else
+        CALL ESMF_FieldGet(field    =HOLD_FIELD                         &  !<-- Field N_FIELD in the Bundle
+                          ,localDe  =0                                  &
+                          ,farrayPtr=SEA_MASK                           &  !<-- Dummy 2-D array with Field's Real data
+                          ,rc       =RC )
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        ILO=LBOUND(SEA_MASK,1)
+        IHI=UBOUND(SEA_MASK,1)
+        JLO=LBOUND(SEA_MASK,2)
+        JHI=UBOUND(SEA_MASK,2)
+!
+        NUM_FIELDS=NUM_FIELDS_MOVE_2D_H_I                               &
+                  +NUM_FIELDS_MOVE_2D_H_R                               &
+                  +NUM_FIELDS_MOVE_3D_H
+!
+        CALL FIX_SFC(MOVE_BUNDLE_H                                      &
+                    ,NUM_FIELDS                                         &
+                    ,SEA_MASK                                           &
+                    ,ILO,IHI,JLO,JHI                                    &
+                    ,ILO,IHI,JLO,JHI)
 !
       ENDIF
 !
@@ -4170,6 +4248,8 @@
 !-----------------------------------------------------------------------
 !***  When a nest moves we must update the 1-D (in J) grid-dependent
 !***  arrays which span the entire nest north-south dimension.
+!***  In addition update the value of the nest's SW corner on its
+!***  parent's grid.
 !-----------------------------------------------------------------------
 !
 !------------------------
@@ -4201,8 +4281,23 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  Extract the shifts in I and J that the nest is executing.
+!***  Extract this domain's ID and the shifts in I and J that the
+!***  nest is executing.
 !-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Domain ID from the Domain Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=DOMAIN_IMP_STATE                     &  !<-- The Domain import state
+                            ,name ='DOMAIN_ID'                          &  !<-- Get Attribute with this name
+                            ,value=MY_DOMAIN_ID                         &  !<-- This domain's ID
+                            ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Get I_SHIFT and J_SHIFT from DOMAIN Import State"
@@ -4224,11 +4319,11 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  Extract the Dynamics internal state so we can access its contents.
+!***  Extract the Solver internal state so we can access its contents.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract Dynamics Internal State for Move Bundle"
+      MESSAGE_CHECK="Extract Solver Internal State for Move Bundle"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -4245,13 +4340,38 @@
       SOLVER_INT_STATE=>wrap_solver%INT_STATE
 !
 !-----------------------------------------------------------------------
+!***  What are the new coordinates on the parent's grid of the nest's
+!***  SW corner after the shift?
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Get Parent-Child Space Ratio from Configure File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)              &  !<-- The config object
+                                  ,value =PARENT_CHILD_SPACE_RATIO      &  !<-- The variable filled (child grid increment / parent's)
+                                  ,label ='parent_child_space_ratio:'   &  !<-- Give this label's value to the previous variable
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      solver_int_state%I_PAR_STA=solver_int_state%I_PAR_STA             &
+                                +I_SHIFT_CHILD/PARENT_CHILD_SPACE_RATIO
+!
+      solver_int_state%J_PAR_STA=solver_int_state%J_PAR_STA             &
+                                +J_SHIFT_CHILD/PARENT_CHILD_SPACE_RATIO
+!
+!-----------------------------------------------------------------------
 !***  The arrays are tied to the nest grid's transformed latitude.
 !***  After determining the transformed latitude of the subdomain's
 !***  SW corner following the move the rest can be filled in.
 !-----------------------------------------------------------------------
 !
-      CALL GEO_TO_ROT(solver_int_state%GLAT(ITS,JTS)                       &
-                     ,solver_int_state%GLON(ITS,JTS)                       &
+      CALL GEO_TO_ROT(solver_int_state%GLAT(ITS,JTS)                    &
+                     ,solver_int_state%GLON(ITS,JTS)                    &
                      ,TLAT_H(JTS)                                       &
                      ,TLON_H )
 !
@@ -4938,20 +5058,22 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  If the footprint of a nest task prior to a move has no points 
+!***  If the footprint of a nest task prior to a move has no points
 !***  in common with the nest domain following the move then that task
 !***  will have no data to send to other nest tasks and thus this
-!***  routine is not relevant.  The depth into the pre-move footprint
-!***  for which the parent provides updata data is included.
+!***  routine is not relevant.  Remember that sending tasks will send
+!***  to the outer 2 rows of recving tasks that lie on the domain
+!***  boundary.  Those outer two rows cannot provide update data
+!***  following a shift but they do receive update data.
 !-----------------------------------------------------------------------
 !
-      IF(ITE<=IDS+NROWS_P_UPD_W-1+I_SHIFT                               &  !<-- Task footprint lies west of domain after east shift.
-              .OR.                                                      &  
-         ITS>=IDE-NROWS_P_UPD_E+1+I_SHIFT                               &  !<-- Task footprint lies totally east of domain after move.
-              .OR.                                                      &  
-         JTE<=JDS+NROWS_P_UPD_S-1+J_SHIFT                               &  !<-- Task footprint lies totally south of domain after move.
-              .OR.                                                      &  
-         JTS>=JDE-NROWS_P_UPD_N+1+J_SHIFT )THEN                            !<-- Task footprint lies totally north of domain after move.
+      IF(ITE<=IDS-1+I_SHIFT                                             &  !<-- Task footprint lies west of domain after east shift.
+              .OR.                                                      &
+         ITS>=IDE+1+I_SHIFT                                             &  !<-- Task footprint lies east of domain after west shift.
+              .OR.                                                      &
+         JTE<=JDS-1+J_SHIFT                                             &  !<-- Task footprint lies south of domain after north shift.
+              .OR.                                                      &
+         JTS>=JDE+1+J_SHIFT )THEN                                          !<-- Task footprint lies north of domain after south shift.
 !
         RETURN                                                             !<-- Therefore exit.
 !
@@ -5043,7 +5165,7 @@
 !***  on the domain boundary so we do not want to let the inter-task
 !***  shift process move those points into the interior.  Moreover
 !***  the dynamical tendencies of temperature and the wind components
-!***  are not defined on the 2nd row of the domain the boundary
+!***  are not defined on the 2nd row of the domain from the boundary
 !***  so nest points that shift onto those locations cannot use the
 !***  the intra- or inter-task updating.  Therefore the parent will
 !***  update the outer two boundary rows of the pre-move footprint
@@ -5056,7 +5178,7 @@
 !
 !-----------------------------------------------------------------------
 !***  The 'sender' is the current task that is executing this routine.
-!***  The range of points within its subdomain that are relevant for
+!***  The range of points within its subdomain that are valid for
 !***  sending to other tasks are what follows:
 !-----------------------------------------------------------------------
 !
@@ -7158,7 +7280,7 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: I,I_SHIFT                                   &
+      INTEGER(kind=KINT) :: I,I_SHIFT,INC_LAT,INC_LON                   &
                            ,J,J_SHIFT                                   &
                            ,KOUNT
 !
@@ -7205,11 +7327,15 @@
 !
 !-----------------------------------------------------------------------
 !***  What are the transformed coordinates of the SW corner 
-!***  after the nest moved?
+!***  after the nest moved?  And then how many equivalent grid
+!***  increments on the nest's grid to that SW corner?
 !-----------------------------------------------------------------------
 !
       TLAT_X(I_START,J_START)=TLAT_X(I_START,J_START)+J_SHIFT_CHILD*DPH
       TLON_X(I_START,J_START)=TLON_X(I_START,J_START)+I_SHIFT_CHILD*DLM
+!
+      INC_LAT=NINT((TLAT_X(I_START,J_START)-SB_1)/DPH)
+      INC_LON=NINT((TLON_X(I_START,J_START)-WB_1)/DLM)
 !
 !-----------------------------------------------------------------------
 !***  Now fill in the transformed coordinates on the rest of the
@@ -7219,8 +7345,10 @@
       KOUNT=0
       DO J=J_START+1,J_END
         KOUNT=KOUNT+1
-        TLAT_X(I_START,J)=TLAT_X(I_START,J_START)+KOUNT*DPH
-        TLON_X(I_START,J)=TLON_X(I_START,J_START)
+!       TLAT_X(I_START,J)=TLAT_X(I_START,J_START)+KOUNT*DPH
+!       TLON_X(I_START,J)=TLON_X(I_START,J_START)
+        TLAT_X(I_START,J)=SB_1+(INC_LAT+KOUNT)*DPH
+        TLON_X(I_START,J)=WB_1+INC_LON*DLM
       ENDDO
 !
       DO J=J_START,J_END
@@ -7228,7 +7356,8 @@
         DO I=I_START+1,I_END
           KOUNT=KOUNT+1
           TLAT_X(I,J)=TLAT_X(I_START,J)
-          TLON_X(I,J)=TLON_X(I_START,J)+KOUNT*DLM
+!         TLON_X(I,J)=TLON_X(I_START,J)+KOUNT*DLM
+          TLON_X(I,J)=WB_1+(INC_LON+KOUNT)*DLM
         ENDDO
       ENDDO
 !

@@ -3798,6 +3798,7 @@
                         *SPACE_RATIO_MY_PARENT
           J_SHIFT_CHILD=(J_SW_PARENT_NEW-J_SW_PARENT_CURRENT)           &  !<-- The shift in J in this domain's space
                         *SPACE_RATIO_MY_PARENT
+          kount_moves=kount_moves+1
 !
 !-----------------------------------------------------------------------
 !***  As stated at its outset the fundamental purpose of this routine
@@ -4125,6 +4126,7 @@
 !
         IF(.NOT.I_WANT_TO_MOVE)THEN
 !
+#if 1
           CALL COMPUTE_STORM_MOTION(NTIMESTEP                           &
                                    ,LAST_STEP_MOVED                     &
                                    ,DT_DOMAIN(MY_DOMAIN_ID)             &
@@ -4148,6 +4150,16 @@
                                    ,I_SW_PARENT_NEW                     &
                                    ,J_SW_PARENT_NEW )
 !
+#else
+          CALL ARTIFICIAL_MOVE5(NTIMESTEP                               &
+                               ,KOUNT_MOVES                             &
+                               ,I_WANT_TO_MOVE                          &
+                               ,I_SW_PARENT_CURRENT                     &
+                               ,J_SW_PARENT_CURRENT                     &
+                               ,I_SW_PARENT_NEW                         &
+                               ,J_SW_PARENT_NEW )
+
+#endif
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -10789,7 +10801,7 @@
                      ,4                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
 !d                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
-                     ,N                                                 &  !<-- Accept data from any parent task that is sending
+                     ,N                                                 &  !<-- Rank of parent task that is sending
                      ,11111                                             &  !<-- Tag used for south boundary H points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
@@ -10928,7 +10940,7 @@
                      ,3                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
 !d                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
-                     ,N                                                 &  !<-- Accept data from any parent task that is sending
+                     ,N                                                 &  !<-- Rank of parent task that is sending
                      ,22222                                             &  !<-- Tag used for south boundary V points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
@@ -11064,7 +11076,7 @@
                      ,4                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
 !d                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
-                     ,N                                                 &  !<-- Accept data from any parent task that is sending
+                     ,N                                                 &  !<-- Rank of parent task that is sending
                      ,33333                                             &  !<-- Tag used for north boundary H points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
@@ -11204,7 +11216,7 @@
                      ,3                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
 !d                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
-                     ,N                                                 &  !<-- Accept data from any parent task that is sending
+                     ,N                                                 &  !<-- Rank of parent task that is sending
                      ,44444                                             &  !<-- Tag used for north boundary V points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
@@ -11347,7 +11359,7 @@
                      ,4                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
 !d                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
-                     ,N                                                 &  !<-- Accept data from any parent task that is sending
+                     ,N                                                 &  !<-- Rank of parent task that is sending
                      ,55555                                             &  !<-- Tag used for west boundary H points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
@@ -11486,7 +11498,7 @@
                      ,3                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
 !d                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
-                     ,N                                                 &  !<-- Accept data from any parent task that is sending
+                     ,N                                                 &  !<-- Rank of parent task that is sending
                      ,66666                                             &  !<-- Tag used for west boundary V points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
@@ -11622,7 +11634,7 @@
                      ,4                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
 !d                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
-                     ,N                                                 &  !<-- Accept data from any parent task that is sending
+                     ,N                                                 &  !<-- Rank of parent task that is sending
                      ,77777                                             &  !<-- Tag used for east boundary H points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
@@ -11761,7 +11773,7 @@
                      ,3                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
 !d                     ,MPI_ANY_SOURCE                                    &  !<-- Accept data from any parent task that is sending
-                     ,N                                                 &  !<-- Accept data from any parent task that is sending
+                     ,N                                                 &  !<-- Rank of parent task that is sending
                      ,88888                                             &  !<-- Tag used for east boundary V points
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI communicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
@@ -16065,31 +16077,31 @@
           i_sw_parent_new=i_sw_parent_current+1
           j_sw_parent_new=j_sw_parent_current
       write(0,*)' artificial to NW'
-        elseif(mod(kount_moves,45)<=10)then                                !<-- NE
+        elseif(mod(kount_moves,45)<=11)then                                !<-- NE
           i_sw_parent_new=i_sw_parent_current+1
           j_sw_parent_new=j_sw_parent_current+1
       write(0,*)' artificial to N'
-        elseif(mod(kount_moves,45)<=15)then                                !<-- N
+        elseif(mod(kount_moves,45)<=16)then                                !<-- N
           i_sw_parent_new=i_sw_parent_current  
           j_sw_parent_new=j_sw_parent_current+1
       write(0,*)' artificial to NE'
-        elseif(mod(kount_moves,45)<=20)then                                !<-- NW
+        elseif(mod(kount_moves,45)<=22)then                                !<-- NW
           i_sw_parent_new=i_sw_parent_current-1
           j_sw_parent_new=j_sw_parent_current+1
       write(0,*)' artificial to E'
-        elseif(mod(kount_moves,45)<=25)then                                !<-- W
+        elseif(mod(kount_moves,45)<=27)then                                !<-- W
           i_sw_parent_new=i_sw_parent_current-1
           j_sw_parent_new=j_sw_parent_current  
       write(0,*)' artificial to SE'
-        elseif(mod(kount_moves,45)<=30)then                                !<-- SW
+        elseif(mod(kount_moves,45)<=33)then                                !<-- SW
           i_sw_parent_new=i_sw_parent_current-1
           j_sw_parent_new=j_sw_parent_current-1
       write(0,*)' artificial to S'
-        elseif(mod(kount_moves,45)<=35)then                                !<-- S
+        elseif(mod(kount_moves,45)<=38)then                                !<-- S
           i_sw_parent_new=i_sw_parent_current  
           j_sw_parent_new=j_sw_parent_current-1
       write(0,*)' artificial to SW'
-        elseif(mod(kount_moves,45)<=40)then                                !<-- SW
+        elseif(mod(kount_moves,45)<=44)then                                !<-- SW
           i_sw_parent_new=i_sw_parent_current+1
           j_sw_parent_new=j_sw_parent_current-1
       write(0,*)' artificial to W'
@@ -16102,6 +16114,81 @@
       end subroutine artificial_move4
 !-----------------------------------------------------------------------
 !      
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      subroutine artificial_move5(ntimestep                              &
+                                ,kount_moves                            &
+                                ,i_want_to_move                         &
+                                ,i_sw_parent_current                    &
+                                ,j_sw_parent_current                    &
+                                ,i_sw_parent_new                        &
+                                ,j_sw_parent_new )
+!
+!-----------------------------------------------------------------------
+!
+      integer(kind=kint),intent(in) :: i_sw_parent_current              &
+                                      ,j_sw_parent_current              &
+                                      ,kount_moves                      &
+                                      ,ntimestep
+!
+      integer(kind=kint),intent(out) :: i_sw_parent_new                 &
+                                       ,j_sw_parent_new
+!
+      logical(kind=klog),intent(out) :: i_want_to_move
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      i_want_to_move=.false.
+!
+      write(0,*)' enter artificial ntimestep=',ntimestep,' kount_moves=',kount_moves
+      if(ntimestep>3.and.mod(ntimestep,15)==0)then
+        i_want_to_move=.true.
+      write(0,*)' artificial set i_want_to_move=',i_want_to_move
+        if(mod(kount_moves,40)<5)then                                     !<-- E
+          i_sw_parent_new=i_sw_parent_current+1
+          j_sw_parent_new=j_sw_parent_current
+      write(0,*)' artificial to E',kount_moves
+        elseif(mod(kount_moves,40)<10)then                                !<-- NE
+          i_sw_parent_new=i_sw_parent_current+1
+          j_sw_parent_new=j_sw_parent_current+1
+      write(0,*)' artificial to NE',kount_moves
+        elseif(mod(kount_moves,40)<15)then                                !<-- N
+          i_sw_parent_new=i_sw_parent_current
+          j_sw_parent_new=j_sw_parent_current+1
+      write(0,*)' artificial to N',kount_moves
+        elseif(mod(kount_moves,40)<20)then                                !<-- NW
+          i_sw_parent_new=i_sw_parent_current-1
+          j_sw_parent_new=j_sw_parent_current+1
+      write(0,*)' artificial to NW',kount_moves
+        elseif(mod(kount_moves,40)<25)then                                !<-- W
+          i_sw_parent_new=i_sw_parent_current-1
+          j_sw_parent_new=j_sw_parent_current
+      write(0,*)' artificial to W',kount_moves
+        elseif(mod(kount_moves,40)<30)then                                !<-- SW
+          i_sw_parent_new=i_sw_parent_current-1
+          j_sw_parent_new=j_sw_parent_current-1
+      write(0,*)' artificial to SW',kount_moves
+        elseif(mod(kount_moves,40)<35)then                                !<-- S
+          i_sw_parent_new=i_sw_parent_current
+          j_sw_parent_new=j_sw_parent_current-1
+      write(0,*)' artificial to S',kount_moves
+        elseif(mod(kount_moves,40)<40)then                                !<-- SW
+          i_sw_parent_new=i_sw_parent_current+1
+          j_sw_parent_new=j_sw_parent_current-1
+      write(0,*)' artificial to SW',kount_moves
+        endif
+      endif
+      write(0,*)' exit artificial_move ntimestep=',ntimestep,' mod=',mod(ntimestep,14) &
+               ,' i_want_to_move=',i_want_to_move
+!
+!-----------------------------------------------------------------------
+      end subroutine artificial_move5
+!-----------------------------------------------------------------------
+!
       END MODULE MODULE_PARENT_CHILD_CPL_COMP
 !
 !-----------------------------------------------------------------------
