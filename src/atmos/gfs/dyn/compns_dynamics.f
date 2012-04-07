@@ -48,6 +48,7 @@
 !   2011-03-15  Henry Juang    add jcapg for usual truncation in grid
 !                              for Eulerian jcap=jcapg<lonf/3
 !                              for NDSL jcap<lonf/2, jcapg<lonf/3
+!   2012-04-06  Henry Juang    add idea for lsidea
 !
 ! Usage:    call compns(deltim,
 !    &                  fhout,fhres,
@@ -93,7 +94,7 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      & NGPTC,shuff_lats_a,reshuff_lats_a,
      & nxpt,nypt,jintmx,jcap,jcapg,levs,lonf,latg,levr,
      & ntrac,ntoz,ntcw,ncld,nsout,tfiltc,
-     & nemsio_in,nemsio_out,liope,ref_temp,
+     & nemsio_in,nemsio_out,liope,ref_temp,lsidea,
      & explicit,hybrid,gen_coord_hybrid,process_split, 
      & spectral_loop,ndslfv,mass_dp,semi_implicit_temp_profile,
      & reduced_grid,
@@ -133,6 +134,8 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !
       nemsio_in         = .true.
       nemsio_out        = .true.
+! idea add
+      lsidea           = .false. 
 !
       ref_temp         = 300.0
 !
@@ -145,7 +148,12 @@ c$$$      read(5,nam_dyn)
       open(unit=nlunit,file=gfs_dyn_namelist)
       rewind (nlunit)
       read(nlunit,nam_dyn)
- 
+
+! idea add
+      if( lsidea ) then
+        if (levs > 100 .and. ref_temp < 400.0) ref_temp = 2500.0
+      endif
+
       if (me.eq.0) write(6,nam_dyn)
       filta = tfiltc
 !

@@ -29,6 +29,7 @@
 !  Feb 20  2011 H. Juang         implement into nems for mass_dp and ndsl
 !  Feb 28  2011 Sarah Lu         add thermodyn_id and sfcpress_id
 !  Mar 15  2011 H. Juang         add jcapg for NDSL
+!  Apr 06  2012 H. Juang         add idea
 !
 !
 ! !interface:
@@ -66,6 +67,17 @@
 
       integer 		:: j, l, n, ilat, locl, ikey, nrank_all
 !!
+! idea add
+! idea-related changes
+! Introduced arrays cvd00 and cvd00m (global mean temperature,h2o,o3,cld,
+!  O and O2) similar to coef00 and coef00m and added diffusion coeffs.
+      REAL(KIND=kind_mpi) ,allocatable:: cvd00m(:,:) ! temp, h2o,o3,water,o,o2
+      REAL(KIND=kind_evod),allocatable:: cvd00 (:,:) ! temp, h2o,o3,water,o,o2
+      REAL(KIND=kind_evod),allocatable:: visc(:),cond(:),diff(:),plyr(:)
+      real p0
+      integer indlsev,jbasev,i,k,kk
+
+      indlsev(n,l) = jbasev + (n-l)/2 + 1
 
 ! set up gfs internal state dimension and values for dynamics etc
 !-------------------------------------------------------------------
@@ -707,7 +719,49 @@
 !!
         call countperf(1,18,0.)
 !!
- 
+      if( lsidea ) then
+
+        allocate(cvd00m(LEVS,0:ntrac))     ! temp, h2o,o3,water,o,o2
+        allocate(cvd00(LEVS,0:ntrac) )     ! temp, h2o,o3,water,o,o2
+        allocate(visc(levs),cond(levs),diff(levs),plyr(levs))
+        cvd00(:,:) = 0.0
+        IF ( ME .EQ. ME_L_0 ) THEN
+          DO LOCL=1,LS_MAX_NODE
+            l=gis_dyn%ls_node(locl)
+            jbasev=gis_dyn%ls_node(locl+ls_dim)
+            IF ( L .EQ. 0 ) THEN
+              N=0
+! 1 Corresponds to temperature,  2 corresponds to ozon, 3 to clwater
+              DO K=1,LEVS
+                kk=P_te +K-1
+                cvd00(K,0) = gis_dyn%TRIE_LS(INDLSEV(N,L),1,kk)
+                do i=1,ntrac
+                  kk=(i-1)*levs+P_rq+K-1
+                  cvd00(K,i) = gis_dyn%TRIE_LS(INDLSEV(N,L),1,kk)
+                enddo
+              ENDDO
+            ENDIF
+          END DO
+        END IF
+        cvd00m(:,:)=cvd00(:,:)
+        CALL MPI_BCAST(cvd00m,levs*(ntrac+1),MPI_R_MPI,ME_L_0,          &
+     &  MC_COMP,IERR)
+! Get cvd00 back and normalize
+        cvd00(:,:)=(.5*sqrt(2.))*cvd00m(:,:)
+! Calculate global mean viscosity, conductivity, and diffusion
+! coefficients
+        visc=0.
+        cond=0.
+        diff=0.
+        p0=101325.0
+        do k=1,levs
+          plyr(k)=(ak5(k)+ak5(k+1)+p0*1.e-3*(bk5(k)+bk5(k+1)))*500.
+        enddo
+        call idea_getcoef(levs,ntrac,cvd00,plyr,visc,cond,diff)
+
+      endif
+! idea add end
+
       tov = 0.0
       if (.not. (hybrid.or.gen_coord_hybrid) ) then                   ! hmhj
        call setsig(si,ci,del,sl,cl,rdel2,tov,me)
@@ -717,20 +771,42 @@
        call bmdi_sig(ci,bm)
       endif
       if( ndslfv ) then
-      call deldifs_noq                                                  &
+        if(lsidea ) then
+          CALL idea_deldifs_noq                                         &
+                 (gis_dyn%epse,gis_dyn%epse,gis_dyn%epse,               &
+                  gis_dyn%epse,gis_dyn%epse,gis_dyn%epse,               &
+                  gis_dyn%epso,gis_dyn%epso,                            &
+                  gis_dyn%epso,gis_dyn%epso,                            &
+                  gis_dyn%cons0,SL,gis_dyn%LS_NODE,gis_dyn%epse,        &
+                  0,hybrid,gen_coord_hybrid,                            &
+                  visc,cond,diff)
+        else
+          call deldifs_noq                                              &
                   (gis_dyn%epse,gis_dyn%epse,gis_dyn%epse,              &
                    gis_dyn%epse,gis_dyn%epse,gis_dyn%epse,              &
                    gis_dyn%epso,gis_dyn%epso,                           &
                    gis_dyn%epso,gis_dyn%epso,                           &
                    gis_dyn%cons0,sl,gis_dyn%ls_node,gis_dyn%epse,       &
                    0,hybrid,gen_coord_hybrid)
+        endif
       else
-      call deldifs(gis_dyn%epse,gis_dyn%epse,gis_dyn%epse,		&
+        if(lsidea ) then
+          CALL idea_deldifs                                             &
+                 (gis_dyn%epse,gis_dyn%epse,gis_dyn%epse,               &
+                  gis_dyn%epse,gis_dyn%epse,gis_dyn%epse,               &
+                  gis_dyn%epso,gis_dyn%epso,gis_dyn%epso,               &
+                  gis_dyn%epso,gis_dyn%epso,gis_dyn%epso,               &
+                  gis_dyn%cons0,SL,gis_dyn%LS_NODE,gis_dyn%epse,        &
+                  0,hybrid,gen_coord_hybrid,                            &
+                  visc,cond,diff)
+        else
+          call deldifs(gis_dyn%epse,gis_dyn%epse,gis_dyn%epse,		&
                    gis_dyn%epse,gis_dyn%epse,gis_dyn%epse,      	&
                    gis_dyn%epso,gis_dyn%epso,gis_dyn%epso,		&
                    gis_dyn%epso,gis_dyn%epso,gis_dyn%epso,      	& 
                    gis_dyn%cons0,sl,gis_dyn%ls_node,gis_dyn%epse,	&
                    0,hybrid,gen_coord_hybrid)  
+        endif
       endif
  
 !c

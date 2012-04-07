@@ -2,7 +2,7 @@
 
 !
 ! program lot
-! 20 Feb 2011:    Henry Juang add some options for NDSL
+! 06 Apr 2012:    Henry Juang add some options for NDSL
 !
       use gfs_dyn_machine
       implicit none
@@ -21,6 +21,8 @@
       logical reduced_grid, semi_implicit_temp_profile
       logical mass_dp, process_split
       logical ndslfv
+! hmhj idea add
+      logical lsidea
 
       character*20 ens_nam
 !

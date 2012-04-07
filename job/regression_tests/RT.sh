@@ -318,7 +318,7 @@ export WRTGP=1     ; export FDFI=0          ; export ADIAB=.false. ; export REDU
 export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4         ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
-export NST_FCST=0  ; export NDSLFV=.false.
+export NST_FCST=0  ; export NDSLFV=.false.  ; export IDEA=.false.
 export GOCART_AER2POST=.false.
 }
 

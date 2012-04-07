@@ -37,6 +37,7 @@
 !   2011-12-22  Jovic  - Collapsed Dyn and Phy components into single
 !                        Solver component.
 !   2012-02-08  Yang   - Modified for using the ESMF 5.2.0rp1 library.
+!   2012-04-06  Juang  - add passing argument for gbphys for idea
 !-----------------------------------------------------------------------
 !
       USE esmf_mod
@@ -2224,6 +2225,8 @@
       REAL (kind=KDBL) ,DIMENSION(1)               :: GU10M, GV10M, GZORL, GORO
       REAL (kind=KDBL) ,DIMENSION(1)               :: XMU_CC, DLW_CC, DSW_CC, SNW_CC, LPREC_CC, TREF
       REAL (kind=KDBL) ,DIMENSION(1)               :: Z_C, C_0, C_D, W_0, W_D, RQTK
+      Logical, parameter                           :: lsidea  = .false.
+      REAL (kind=KDBL) ,DIMENSION(1)               :: hlwd
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -6039,7 +6042,7 @@
            DTSFCI, DQSFCI, GFLUXI, EPI, SMCWLT2, SMCREF2, WET1,             &
            GSOIL, GTMP2M, GUSTAR, GPBLH, GU10M, GV10M, GZORL, GORO,         &
            XMU_CC, DLW_CC, DSW_CC, SNW_CC, LPREC_CC,                        &
-           TREF, Z_C, C_0, C_D, W_0, W_D, RQTK)
+           TREF, Z_C, C_0, C_D, W_0, W_D, RQTK, hlwd, lsidea)
 !-----------------------------------------------------------------------
 ! ***     UPDATE AFTER PHYSICS
 !-----------------------------------------------------------------------

@@ -30,6 +30,9 @@ set -x
  export WRTPE_PER_GROUP=1
 
  export REDUCED_GRID=.true.
+# wam model to couple with idea, default is false
+ export IDEA=_IDEA_
+ export IDEA=${IDEA:-.false.}
 
 # SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
  export SFCPRESS_ID=2

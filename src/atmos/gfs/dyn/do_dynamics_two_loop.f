@@ -25,6 +25,7 @@ cc
 ! Feb 2011:   Hann-Ming Henry Juang add non-iteration dimensional-split
 !             Semi-Lagrangain (NDSL) advection with mass_dp option.
 ! Sep 2011    Jun Wang: restart file
+! Apr 2012    Henry Juang: add idea
 !----------------------------------------------
 cc
       use gfs_dyn_resol_def
@@ -38,7 +39,7 @@ cc
       use gfs_dyn_mpi_def
       use gfs_dyn_dfi_mod
       use gfs_dyn_tracer_config, only: glbsum               !glbsum
-
+      use gfs_dyn_physcons, only: p0 => con_p0
       use do_dynamics_mod
 
       IMPLICIT NONE
@@ -125,6 +126,15 @@ c
       real(kind=kind_evod)  ye1(levs)
       REAL(KIND=kind_mpi)   coef00m(LEVS,ntrac) ! temp. ozone clwater  
       REAL(KIND=kind_evod)  coef00(LEVS,ntrac) ! temp. ozone clwater  
+
+c idea-related changes
+c Introduced arrays cvd00 and cvd00m (global mean temperature,h2o,o3,cld,
+c  O and O2) similar to coef00 and coef00m and added diffusion coeffs.
+c idea add 1
+      REAL(KIND=kind_mpi)  cvd00m(LEVS,0:ntrac) ! temp, h2o,o3,water,o,o2
+      REAL(KIND=kind_evod) cvd00(LEVS,0:ntrac) ! temp, h2o,o3,water,o,o2
+      REAL(KIND=kind_evod),dimension(levs):: visc,cond,diff,tem,plyr
+
       INTEGER               INDLSEV,JBASEV
       INTEGER               INDLSOD,JBASOD
       integer               lan,lat,nt
@@ -1417,6 +1427,8 @@ c
 !----------------------------------------------------------
 ! compute coef00 for all, even for hybrid mode
       coef00(:,:) = 0.0
+! idea add one line
+      if( lsidea ) cvd00(:,:) = 0.0
       IF ( ME .EQ. ME_L_0 ) THEN
         DO LOCL=1,LS_MAX_NODE
           l=ls_node(locl,1)
@@ -1432,6 +1444,14 @@ c
                 coef00(K,ntoz) = TRIE_LS(INDLSEV(N,L),1,
      &                                   (ntoz-1)*levs+P_rt+K-1)
               endif
+c idea add 2
+              if( lsidea ) then
+              cvd00(K,0) = TRIE_LS(INDLSEV(N,L),1,P_te +K-1)
+              do i=1,ntrac
+              cvd00(K,i) = TRIE_LS(INDLSEV(N,L),1,(i-1)*levs+P_rq+K-1)
+              enddo
+              endif
+c idea add end
             ENDDO
           ENDIF
         END DO
@@ -1439,6 +1459,13 @@ c
       coef00m = coef00
       CALL MPI_BCAST(coef00m,levs*ntrac,MPI_R_MPI,ME_L_0,MC_COMP,IERR)
       coef00=coef00m
+c idea add 3
+      if( lsidea ) then
+      cvd00m(:,:)=cvd00(:,:)
+      CALL MPI_BCAST(cvd00m,levs*(ntrac+1),MPI_R_MPI,ME_L_0,
+     &MC_COMP,IERR)
+      endif
+c idea add end
       if( gen_coord_hybrid ) then                                       
         call updown_gc(sl,coef00(1,1))                                  
       else                                                              
@@ -1447,14 +1474,48 @@ c
       if (ntoz .gt. 1 .and. .not. (hybrid.or.gen_coord_hybrid)) then    
                call updown(sl,coef00(1,ntoz))
       endif
+!
+      if( lsidea ) then
+c idea add 4
+c Get cvd00 back and normalize
+        cvd00(:,:)=(.5*sqrt(2.))*cvd00m(:,:)
+c Calculate global mean viscosity, conductivity, and diffusion
+c coefficients
+        visc=0.
+        cond=0.
+        diff=0.
+        do k=1,levs
+          plyr(k)=(ak5(k)+ak5(k+1)+p0*1.e-3*(bk5(k)+bk5(k+1)))*500.
+        enddo
+        call idea_getcoef(levs,ntrac,cvd00,plyr,visc,cond,diff)
+      endif
 
 ! -----------------------------------------------------------------
       if( .not. ndslfv ) then
 !
+
+        if( lsidea ) then
+!
 !$omp parallel do shared(TRIE_LS,TRIO_LS)
 !$omp+shared(dt,SL,LS_NODE,coef00,hybrid)
-      do k=1,levs
-         CALL deldifs(TRIE_LS(1,1,P_RT+k-1), TRIE_LS(1,1,P_W+k-1),
+          do k=1,levs
+            CALL idea_deldifs(
+     &                TRIE_LS(1,1,P_RT+k-1), TRIE_LS(1,1,P_W+k-1),
+     &                TRIE_LS(1,1,P_QM    ), TRIE_LS(1,1,P_X+k-1),
+     &                TRIE_LS(1,1,P_Y +k-1), TRIE_LS(1,1,P_TEM+k-1),
+     &                TRIO_LS(1,1,P_RT+k-1), TRIO_LS(1,1,P_W+k-1),
+     &                TRIO_LS(1,1,P_QM    ), TRIO_LS(1,1,P_X+k-1),
+     &                TRIO_LS(1,1,P_Y +k-1), TRIO_LS(1,1,P_TEM+k-1),
+     &                dt,SL,LS_NODE,coef00,k,hybrid,
+     &                gen_coord_hybrid,visc,cond,diff)
+          enddo
+
+        else
+
+!$omp parallel do shared(TRIE_LS,TRIO_LS)
+!$omp+shared(dt,SL,LS_NODE,coef00,hybrid)
+          do k=1,levs
+           CALL deldifs(TRIE_LS(1,1,P_RT+k-1), TRIE_LS(1,1,P_W+k-1),
      &                TRIE_LS(1,1,P_QM    ), TRIE_LS(1,1,P_X+k-1),
      &                TRIE_LS(1,1,P_Y +k-1), TRIE_LS(1,1,P_TEM+k-1),    
      &                TRIO_LS(1,1,P_RT+k-1), TRIO_LS(1,1,P_W+k-1),
@@ -1462,14 +1523,34 @@ c
      &                TRIO_LS(1,1,P_Y +k-1), TRIO_LS(1,1,P_TEM+k-1),    
      &                dt,SL,LS_NODE,coef00,k,hybrid,                
      &                gen_coord_hybrid)                                 
-      enddo
+          enddo
+
+        endif
 
       else
 
+        if( lsidea ) then
+!
 !$omp parallel do shared(TRIE_LS,TRIO_LS)
 !$omp+shared(dt,SL,LS_NODE,coef00,hybrid,gen_coord_hybrid)
-      do k=1,levs
-         CALL deldifs_noq
+          do k=1,levs
+           CALL idea_deldifs_noq
+     &               (TRIE_LS(1,1,P_W+k-1),
+     &                TRIE_LS(1,1,P_QM    ), TRIE_LS(1,1,P_X+k-1),
+     &                TRIE_LS(1,1,P_Y +k-1), TRIE_LS(1,1,P_TEM+k-1),
+     &                TRIO_LS(1,1,P_W+k-1),
+     &                TRIO_LS(1,1,P_QM    ), TRIO_LS(1,1,P_X+k-1),
+     &                TRIO_LS(1,1,P_Y +k-1), TRIO_LS(1,1,P_TEM+k-1),
+     &                dt,SL,LS_NODE,coef00,k,hybrid,
+     &                gen_coord_hybrid,visc,cond,diff)
+          enddo
+
+        else
+
+!$omp parallel do shared(TRIE_LS,TRIO_LS)
+!$omp+shared(dt,SL,LS_NODE,coef00,hybrid,gen_coord_hybrid)
+          do k=1,levs
+           CALL deldifs_noq
      &               (TRIE_LS(1,1,P_W+k-1),
      &                TRIE_LS(1,1,P_QM    ), TRIE_LS(1,1,P_X+k-1),
      &                TRIE_LS(1,1,P_Y +k-1), TRIE_LS(1,1,P_TEM+k-1),
@@ -1478,7 +1559,9 @@ c
      &                TRIO_LS(1,1,P_Y +k-1), TRIO_LS(1,1,P_TEM+k-1),
      &                dt,SL,LS_NODE,coef00,k,hybrid,
      &                gen_coord_hybrid)
-      enddo
+          enddo
+
+        endif
 
       endif
 
@@ -1596,7 +1679,10 @@ c
      &        :/' spdmx(21:30)=',10f5.0,:/' spdmx(31:40)=',10f5.0,
      &        :/' spdmx(41:50)=',10f5.0,:/' spdmx(51:60)=',10f5.0,
      &        :/' spdmx(61:70)=',10f5.0,:/' spdmx(71:80)=',10f5.0,
-     &        :/' spdmx(81:90)=',10f5.0,:/' spdmx(91:00)=',10f5.0)
+     &        :/' spdmx(81:90)=',10f5.0,:/' spdmx(91:100)=',10f5.0,
+     &        :/' spdmx(101:110)=',10f5.0,:/' spdmx(111:120)=',10f5.0,
+     &        :/' spdmx(121:130)=',10f5.0,:/' spdmx(131:140)=',10f5.0,
+     &        :/' spdmx(141:150)=',10f5.0,:/' spdmx(151:160)=',10f5.0)
 !
 !--------------------------------------------
       endif

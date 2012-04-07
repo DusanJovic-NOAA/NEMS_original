@@ -26,6 +26,7 @@
 !  Aug 25 2010        Jun Wang, add zhour_dfi for filtered dfi fields output
 !  Oct 18 2010        Shrinivas Moorthi - added fscav
 !  Mar 28 2011        Jun Wang, add zsoil
+!  Apr 06 2012        Henry Juang, add idea
 !
 ! !interface:
 !
@@ -110,6 +111,9 @@
 !     REAL(KIND=KIND_RAD) ,ALLOCATABLE :: CLDCOV(:,:,:)
       REAL(KIND=KIND_RAD) ,ALLOCATABLE :: HPRIME(:,:,:)
       REAL(KIND=KIND_RAD) ,ALLOCATABLE :: SWH(:,:,:,:),HLW(:,:,:,:)
+! idea add by hmhj
+      REAL(KIND=KIND_RAD) ,ALLOCATABLE :: HTRSWB(:,:,:,:,:)
+      REAL(KIND=KIND_RAD) ,ALLOCATABLE :: HTRLWB(:,:,:,:,:)
       REAL(KIND=KIND_RAD) ,ALLOCATABLE :: FLUXR(:,:,:)
 !!
       REAL(KIND=KIND_RAD) ,ALLOCATABLE :: phy_f3d(:,:,:,:,:)

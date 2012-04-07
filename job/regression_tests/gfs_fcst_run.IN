@@ -28,6 +28,9 @@ set -x
  export GOCART=${GOCART:-0}
 # reduced_grid default is true
  export REDUCED_GRID=_REDUCEDGRID_
+# wam model to couple with idea, default is false
+ export IDEA=_IDEA_
+ export IDEA=${IDEA:-.false.}
 # number of output files, default =3, for adiab num_file=1
  if [[ $ADIAB = .true. ]] ; then
      export NUM_FILE=1 ;

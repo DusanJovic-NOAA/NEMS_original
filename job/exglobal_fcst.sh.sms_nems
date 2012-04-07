@@ -43,6 +43,7 @@
 # 2010-12-12  Henry Juang : add ndslfv, process_split, and mass_dp for NDSL
 # 2011-03-15  Henry Juang : add JCAPG for NDSL
 # 2011-02-28  Sarah Lu : add thermodyn_id and sfcpress_id to nam_dyn
+# 2012-04-06  Henry Juang : add option of IDEA
 #
 # Usage:  global_forecast.sh SIGI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO NSTI NSTO G3DO FHOUT_HF FHMAX_HF
 #
@@ -427,6 +428,8 @@ if [ $ENS_SPS = .false. ] ; then export FH_INC=$FHMAX ; fi
 #  Directories.
 export FIXGLOBAL=${FIXGLOBAL:-/nwprod/fix}
 export FIX_RAD=${FIX_RAD:-$FIXGLOBAL}
+#export FIX_IDEA=${FIX_IDEA:-/gpfs/t3/global/save/wx23hh/idea_fix}
+ export FIX_IDEA=${FIX_IDEA:-/meso/noscrub/wx20rv/REGRESSION_TEST/GFS_idea_fix}
 export EXECGLOBAL=${EXECGLOBAL:-/nwprod/exec}
 export DATA=${DATA:-$(pwd)}
 export COMOUT=${COMOUT:-$(pwd)}
@@ -613,6 +616,7 @@ else
    mkdata=YES
 fi
 cd $DATA||exit 99
+if [ $IDEA = .true. ] ; then cp $FIX_IDEA/global* . ; fi
 [[ -d $COMOUT ]]||mkdir -p $COMOUT
 ################################################################################
 #  Make forecast
@@ -1173,7 +1177,7 @@ cat  > atm_namelist <<EOF
   gen_coord_hybrid=$GEN_COORD_HYBRID, zflxtvd=$ZFLXTVD,
   spectral_loop=$SPECTRAL_LOOP, explicit=$EXPLICIT,
   ndslfv=$NDSLFV,mass_dp=$MASS_DP,process_split=$PROCESS_SPLIT,
-  reduced_grid=$REDUCED_GRID,
+  reduced_grid=$REDUCED_GRID,lsidea=$IDEA,
   semi_implicit_temp_profile=$SEMI_IMPLICIT_TEMP_PROFILE,
   thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,
   $DYNVARS /
@@ -1184,7 +1188,7 @@ cat  > atm_namelist <<EOF
   nxpt=1, nypt=2, jintmx=2, lonr=$LONR, latr=$LATR,
   jcap=$JCAP, levs=$LEVS, levr=$LEVR, reduced_grid=$REDUCED_GRID,
   ntrac=$NTRAC, ntoz=$NTOZ, ntcw=$NTCW, ncld=$NCLD,
-  lsoil=$LSOIL, nmtvr=$NMTVR,
+  lsoil=$LSOIL, nmtvr=$NMTVR, lsidea=$IDEA,
   ngptc=$NGPTC, hybrid=$HYBRID, tfiltc=$TFILTC,
   gen_coord_hybrid=$GEN_COORD_HYBRID,
   thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,

@@ -14,6 +14,7 @@
 !   Aug 08 2011   Jun Wang, remove gocart dependency when not running GOCART
 !   Sep 17 2011   Sarah Lu, revise chem tracer initialization
 !   Nov 11 2011   Sarah Lu, allocate but not assign value for cpi/ri array
+!   Apr 06 2012   Henry Juang, relax hardwire num_tracer, add tracer 4 and 5
 ! -------------------------------------------------------------------------
 !
       module gfs_phy_tracer_config
@@ -119,6 +120,7 @@ c
       gfs_phy_tracer%vname(1) = 'spfh'   
       if(ntoz>0) gfs_phy_tracer%vname(ntoz) = 'o3mr'   
       if(ntcw>0) gfs_phy_tracer%vname(ntcw) = 'clwmr'   
+!hmhj hardwired here, relax in future
       if(gfs_phy_tracer%ntrac_met .eq. 5) then
         gfs_phy_tracer%vname(4) = 'o' 
         gfs_phy_tracer%vname(5) = 'o2' 

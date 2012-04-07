@@ -4,7 +4,8 @@
      &                 g2d_fld,
      &                 lats_nodes_r,global_lats_r,lonsperlar,
      &                 XLON,XLAT,COSZDG, 
-     &                 HPRIME,SWH,HLW, FLUXR,SFALB, SLAG,SDEC,CDEC,
+     &                 HPRIME,SWH,HLW, HTRSWB,HTRLWB,      ! idea add
+     &                 FLUXR,SFALB, SLAG,SDEC,CDEC,
      &                 OZPLIN,JINDX1,JINDX2, DDY,
      &                 phy_f3d,  phy_f2d, NBLCK,
      &                 ZHOUR, zhour_dfi,n3, n4, LSOUT,COLAT1,CFHOUR1,
@@ -26,6 +27,7 @@
 !! Aug 10 2010     Sarah Lu, zerout g2d_fld if needed
 !! Aug 25 2010     J. Wang, add half dfi filtered fields output
 !! Sep 11 2010     Sarah Lu, g2d_fld zerout call modified
+!! Apr 06 2012     Henry Juang, add idea
 !!
       use resol_def
       use layout1
@@ -44,6 +46,9 @@
       use d3d_def, ONLY: d3d_zero, CLDCOV
       USE machine, ONLY: KIND_GRID, KIND_GRID, KIND_RAD,
      &                   kind_phys
+c idea add by hmhj
+      use module_radsw_parameters,   only : NBDSW
+      use module_radlw_parameters,   only : NBDLW
       IMPLICIT NONE
 !!     
       TYPE(Sfc_Var_Data)        :: sfc_fld
@@ -74,7 +79,10 @@
      &                     FLUXR(nfxr,LONR,LATS_NODE_R),
      &                     SFALB(LONR,LATS_NODE_R),
      &                     SWH(NGPTC,LEVS,NBLCK,LATS_NODE_R),
-     &                     HLW(NGPTC,LEVS,NBLCK,LATS_NODE_R)
+     &                     HLW(NGPTC,LEVS,NBLCK,LATS_NODE_R),
+! idea add by hmhj
+     &                     HTRSWB(NGPTC,LEVS,NBDSW,NBLCK,LATS_NODE_R),
+     &                     HTRLWB(NGPTC,LEVS,NBDLW,NBLCK,LATS_NODE_R)
 
       REAL (kind=kind_phys)
      &     phy_f3d(NGPTC,LEVS,NBLCK,lats_node_r,num_p3d),
@@ -172,6 +180,17 @@
 !!
 
         if (lsswr .or. lslwr) then         ! Radiation Call!
+c idea add by hmhj
+          if(lsidea) then
+            if(lsswr) then
+              swh=0.
+              htrswb=0.
+            endif
+            if(lslwr) then
+              hlw=0.
+              htrlwb=0.
+            endif
+          endif
 !*        CALL GLOOPR ( grid_gr,
           CALL GLOOPR ( grid_fld, g3d_fld,
      &     LATS_NODES_R,GLOBAL_LATS_R,LONSPERLAR,phyhour,
@@ -184,7 +203,7 @@
      &     sfc_fld%FICE,sfc_fld%TISFC,flx_fld%SFCDSW,
      &     flx_fld%sfcemis,
      &     flx_fld%TSFLW,FLUXR,phy_f3d,SLAG,SDEC,CDEC,NBLCK,KDT,
-     &     global_times_r)
+     &     global_times_r,HTRSWB,HTRLWB)      !idea add by hmhj
 !          if (iprint .eq. 1) print*,' me = fin gloopr ',me
 
         endif
@@ -194,7 +213,8 @@
       call gloopb ( grid_fld, g3d_fld,
      x     lats_nodes_r,global_lats_r,lonsperlar,
      &     phydt,phyhour,sfc_fld, flx_fld,nst_fld,SFALB,xlon,
-     &     swh,hlw,hprime,slag,sdec,cdec,
+     &     nbdsw,nbdlw,swh,hlw,HTRSWB,HTRLWB, !idea add by hmhj
+     &     hprime,slag,sdec,cdec,
      &     ozplin,jindx1,jindx2,ddy,
      &     phy_f3d, phy_f2d,xlat,nblck,kdt,
      &     global_times_r,fscav)

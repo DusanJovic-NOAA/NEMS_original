@@ -3,7 +3,8 @@
      &    ( grid_fld, g3d_fld,                               
      x     lats_nodes_r,global_lats_r,lonsperlar,
      &     tstep,phour,sfc_fld, flx_fld, nst_fld, SFALB,xlon,
-     &     swh,hlw,hprime,slag,sdec,cdec,
+     &     nbdsw,nbdlw,swh,hlw,HTRSWB,HTRLWB,   ! add idea by hmhj
+     &     hprime,slag,sdec,cdec,
      &     ozplin,jindx1,jindx2,ddy,
      &     phy_f3d, phy_f2d,xlat,nblck,kdt,
      &     global_times_b,fscav)
@@ -20,6 +21,7 @@
 !                              trap will not occur on call to gbphys
 !! Oct 18 2010       Shrinivas Moorthi - Added fscav
 !! Dec 23 2010       Sarah Lu, add lgocart to gbphys call arg
+!! Apr 06 2012       Henry Juang, add idea
 !!
 ! #include "f_hpm.h"
 !!
@@ -75,6 +77,7 @@
       integer nblck
 !!
       real(kind=kind_phys)    phour
+      real(kind=kind_phys)    plyr(levs)    ! hmhj idea
       real(kind=kind_phys)    prsl(ngptc,levs)
       real(kind=kind_phys)   prslk(ngptc,levs), dpshc(ngptc)
       real(kind=kind_phys)    prsi(ngptc,levs+1),phii(ngptc,levs+1)
@@ -94,6 +97,11 @@
      &                     sfalb(lonr,lats_node_r)
       real (kind=kind_rad)  swh(ngptc,levs,nblck,lats_node_r)
       real (kind=kind_rad)  hlw(ngptc,levs,nblck,lats_node_r)
+!idea add by hmhj
+      real (kind=kind_rad)  hlwd(ngptc,levs,6)
+      real (kind=kind_rad)  htrswb(ngptc,levs,nbdsw,nblck,lats_node_r)
+      real (kind=kind_rad)  htrlwb(ngptc,levs,nbdlw,nblck,lats_node_r)
+      integer nbdsw,nbdlw
 !!
       real  (kind=kind_phys)
      &     phy_f3d(ngptc,levs,nblck,lats_node_r,num_p3d),
@@ -241,6 +249,17 @@
         endif
        
         if (ras) call ras_init(levs, me)
+! idea add by hmhj
+        if ( lsidea ) then
+          do k=1,levs
+            plyr(k) = grid_fld%p(1,1,k)
+          enddo
+          print *,' plyr in gloopb ',(plyr(k),k=1,levs)
+!!hmhj    call idea_composition_init(levs,ak5,bk5)
+          call idea_composition_init(levs,plyr)
+          call idea_solar_init(levs)
+          call idea_tracer_init(levs)
+        endif
        
         first = .false.
 
@@ -331,12 +350,12 @@
           do k = 1, LEVS
             do i = 1, njeff
               item = lon+i-1
-              gu(i,k)     = grid_fld%u(item,lan,k)        
-              gv(i,k)     = grid_fld%v(item,lan,k)        
-              gt(i,k)     = grid_fld%t(item,lan,k)      
-              prsl(i,k)   = grid_fld%p(item,lan,k)      
-              vvel(i,k)   = grid_fld%dpdt(item,lan,k)   
-              prsi(i,k+1) = prsi(i,k) - grid_fld%dp(item,lan,k)   
+              gu(i,k)     = grid_fld%u(item,lan,k)    ! real u    
+              gv(i,k)     = grid_fld%v(item,lan,k)    ! real v
+              gt(i,k)     = grid_fld%t(item,lan,k)    ! temperature K
+              prsl(i,k)   = grid_fld%p(item,lan,k)    ! pascal  
+              vvel(i,k)   = grid_fld%dpdt(item,lan,k) ! pascal/sec
+              prsi(i,k+1) = prsi(i,k) - grid_fld%dp(item,lan,k)  !pascal
             enddo
           enddo
           do i = 1, njeff
@@ -346,7 +365,7 @@
           do n = 1, NTRAC
             do k = 1, LEVS
               do i = 1, njeff
-                gr(i,k,n)= grid_fld%tracers(n)%flds(lon+i-1,lan,k)
+                gr(i,k,n)= grid_fld%tracers(n)%flds(lon+i-1,lan,k) ! g/g
               enddo
             enddo
           enddo
@@ -462,6 +481,35 @@
               enddo
             enddo
           endif
+! idea add by hmhj
+      if( lsidea ) then
+!hmhj debug
+!       do n=1,ntrac
+!         call mymaxmin(gr(1,1,n),njeff,ngptc,levs,' gr b idea ')
+!       enddo
+!hmhj debug
+!     call mymaxmin(gt,njeff,ngptc,levs,' gt before idea_phys ')
+         call idea_phys(njeff,ngptc,levs,prsi,prsl,
+     &       gu,gv,gt,gr,nbdsw,nbdlw,ntrac,dtp,lat,
+     &       solhr,slag,sdec,cdec,sinlat_v,coslat_v,
+     &       xlon(lon,lan),xlat(lon,lan),
+     &       sfc_fld%oro(lon,lan),flx_fld%coszen(lon,lan),
+     &       htrswb(1,1,1,iblk,lan),htrlwb(1,1,1,iblk,lan),    
+     &       hlwd,thermodyn_id,sfcpress_id,gen_coord_hybrid)
+!hmhj debug
+!       hlwd(:,:,6) = 0.0
+!        do n=1,ntrac
+!          print *,' =========== gr at n=',n,' ==============='
+!          call mymaxmin(gr(1,1,n),njeff,ngptc,levs,' gr a idea ')
+!        enddo
+!        do n=1,6
+!          print *,' =========== hlwd at n=',n,' ==============='
+!          call mymaxmin(hlwd(1,1,n),njeff,ngptc,levs,' hlwd a idea ')
+!        enddo
+!        call mymaxmin(gu,njeff,ngptc,levs,' gu after idea_phys ')
+!        call mymaxmin(gv,njeff,ngptc,levs,' gv after idea_phys ')
+!        call mymaxmin(gt,njeff,ngptc,levs,' gt after idea_phys ')
+      endif
 !
 !     write(0,*)' before gbphys:', njeff,ngptc,levs,lsoil,lsm,          &
 !    &      ntrac,ncld,ntoz,ntcw,                                       &
@@ -477,6 +525,8 @@
 !
       lssav_cc = lssav      ! temporary assighment - neede to be revisited
 !
+!hmhj debug
+!     call mymaxmin(gt,njeff,ngptc,levs,' gt before gbphys ')
 !     if (lan == 1) call mpi_quit(4444)
           call gbphys                                                   &
 !  ---  inputs:
@@ -573,6 +623,9 @@
      &      nst_fld%c_0 (lon,lan),       nst_fld%c_d(lon,lan),          &
      &      nst_fld%w_0 (lon,lan),       nst_fld%w_d(lon,lan),          &
      &      rqtk                                                        &! rqtkD
+! ----- extras :
+!idea add by hmhj
+     &      ,hlwd,lsidea                                                &
      &      )
 !         if(kdt==100) then
 !      print *,'in gloopb,aft gbphys,kdt=',kdt,'lat=',lat,lon,'smcwlt=',
@@ -581,6 +634,11 @@
 !         endif
 !
 !!
+!hmhj debug
+!       do n=1,ntrac
+!       call mymaxmin(gr(1,1,n),njeff,ngptc,levs,' gr a gbphys ')
+!       call mymaxmin(adr(1,1,n),njeff,ngptc,levs,' adr a gbphys ')
+!       enddo
           do k=1,lsoil
             do i=1,njeff
               item = lon+i-1
@@ -665,6 +723,10 @@
            enddo
          enddo
        enddo
+!hmhj debug
+!     do n=1,ntrac
+!       call mymaxmin(adr(1,1,n),njeff,ngptc,levs,' adr a gbphys ')
+!     enddo
 !!
 !     write(0,*)' adu=',adu(1,:)
 !     write(0,*)' adv=',adv(1,:)

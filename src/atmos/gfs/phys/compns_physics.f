@@ -47,6 +47,7 @@
 !   2010-01-12  Sarah Lu, add fdaer (default to 0)
 !   2010-08-03  Jun Wang, add fhdfi (default to 0)
 !   2010-jul/augMoorthi  added many physics options
+!   2012-04-06  Henry Juang, add idea 
 !
 ! Usage:    call compns(deltim,
 !    &                  fhout,fhswr,fhlwr,fhzer,fhres,fhcyc,
@@ -111,7 +112,7 @@
      & ntrac,nxpt,nypt,jintmx,jcap,levs,lonr,latr,levr,
      & ntoz,ntcw,ncld,lsoil,nmtvr,zhao_mic,nsout,lsm,tfiltc,
      & isol, ico2, ialb, iems, iaer, iovr_sw, iovr_lw,ictm,
-     & fdaer,
+     & fdaer, lsidea,                               ! idea add by hmhj
      & ncw, crtrh,old_monin,flgmin,cnvgwd,
 !    & ncw, crtrh,old_monin,flgmin,gfsio_in,gfsio_out,cnvgwd,
      & ccwf,shal_cnv,sashal,newsas,crick_proof,ccnorm,ctei_rm,mom4ice,
@@ -179,6 +180,8 @@
       old_monin        = .false.
       cnvgwd           = .false.
 !     zflxtvd          = .true.
+! idea add
+      lsidea           = .false.
 !
       thermodyn_id     = 1
       sfcpress_id      = 1

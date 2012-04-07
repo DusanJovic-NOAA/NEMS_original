@@ -8,7 +8,7 @@
      &     CVB  ,SWH,HLW,SFCNSW,SFCDLW,                                 &
      &     FICE ,TISFC, SFCDSW, sfcemis,                                &
      &     TSFLW,FLUXR, phy_f3d,slag,sdec,cdec,NBLCK,KDT,               &
-     &     global_times_r)
+     &     global_times_r,HTRSWB,HTRLWB)	!hmhj idea
 
 !! Code Revision:
 !! Oct 11 2009       Sarah Lu, grid_gr is replaced by grid_fld
@@ -20,6 +20,7 @@
 !!                   and instant cloud cover fields are updated after grrad call
 !! Dec 11 2009       Sarah Lu, ldiag3d removed from grrad calling argument
 !! Jul/Aug 2009      S. Moorthi Merged with McICA version of radiation from YuTai
+!! Apr 06 2012       Henry Juang, add idea
 !!
 !!
 !#include "f_hpm.h"
@@ -38,8 +39,8 @@
       use module_radlw_parameters,  only : topflw_type, sfcflw_type
 !
 !! ---  for optional spectral band heating outputs
-!!    use module_radsw_parameters,   only : NBDSW
-!!    use module_radlw_parameters,   only : NBDLW
+      use module_radsw_parameters,   only : NBDSW
+      use module_radlw_parameters,   only : NBDLW
 !
       use resol_def,            ONLY: levs, levr, latr, lonr, lotgr,    &
      &                                g_t, g_p, g_q, g_dp, g_ps,        &
@@ -55,7 +56,8 @@
      &                                iovr_lw, iovr_sw, isol, iems,     &
      &                                ialb, fhlwr, fhswr, ico2, ngptc,  &
      &                                crick_proof, norad_precip, ccnorm,&
-     &                                ictm, isubc_sw, isubc_lw, fdaer
+     &                                ictm, isubc_sw, isubc_lw, fdaer,  &
+     &                                lsidea
       use d3d_def ,             ONLY: cldcov
       use gfs_physics_gridgr_mod, ONLY: Grid_Var_Data
       use gfs_physics_g3d_mod,    ONLY: G3D_Var_Data
@@ -111,9 +113,9 @@
       real (kind=kind_phys), intent(out) :: slag, sdec, cdec
 
 !! --- ...  optional spectral band heating rates
-!!    real (kind=kind_phys), optional, intent(out) ::                   &
-!!   &                 htrswb(NGPTC,LEVS,NBDSW,NBLCK,LATS_NODE_R),      &
-!!   &                 htrlwb(NGPTC,LEVS,NBDLW,NBLCK,LATS_NODE_R)
+      real (kind=kind_phys), optional, intent(out) ::                   &
+     &                 htrswb(NGPTC,LEVS,NBDSW,NBLCK,LATS_NODE_R),      &
+     &                 htrlwb(NGPTC,LEVS,NBDLW,NBLCK,LATS_NODE_R)
 
 !  --- ...  locals:
       real(kind=kind_phys) :: prsl(NGPTC,LEVS),  prslk(NGPTC,LEVS),     &
@@ -626,10 +628,10 @@
      &       hlw(1,1,iblk,lan),topflw,sfcflw,tsflw(lon,lan),            &
      &       sfcemis(lon,lan),cldcov_v,                                 &
 !  ---  input/output:
-     &       fluxr_v                                                    & 
-!! ---  optional outputs:
-!!   &,      HTRSWB=htrswb(1,1,1,iblk,lan),                             &
-!!   &,      HTRLWB=htrlwb(1,1,1,iblk,lan)                              &
+     &       fluxr_v,                                                   & 
+!! ---  optional outputs: turn on due to idea by hmhj
+     &       HTRSWB=htrswb(1,1,1,iblk,lan),                             &
+     &       HTRLWB=htrlwb(1,1,1,iblk,lan)                              &
      &     )
 
 !  --- ...  radiation fluxes for other physics process or diagnostics
@@ -687,6 +689,24 @@
                 swh(i,k,iblk,lan) = swh(i,levr,iblk,lan)
               enddo
             enddo
+            if( lsidea ) then
+!idea add by hmhj
+            do n=1,NBDSW
+              do k=levr+1,levs
+                do j=1,njeff
+                  htrswb(j,k,n,iblk,lan) = htrswb(j,levr,n,iblk,lan)
+                enddo
+              enddo
+            enddo
+!idea add by hmhj
+            do n=1,NBDLW
+              do k=levr+1,levs
+                do j=1,njeff
+                  htrlwb(j,k,n,iblk,lan) = htrlwb(j,levr,n,iblk,lan)
+                enddo
+              enddo
+            enddo
+            endif
           endif
  
 c$$$          write(2900+lat,*) ' ilon = ',lon

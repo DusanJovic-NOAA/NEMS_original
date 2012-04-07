@@ -5,6 +5,7 @@
 !! Jan 12 2010     Sarah Lu, add fdaer
 !! June   2010     Shrinivas Moorthi - upgrade GFS physics
 !! Aug 03 2010     Jun Wang, add fhdfi,ndfi,ldfi
+!! Apr 06 2012     Henry Juang, add idea
 
       use machine, ONLY: kind_evod
       implicit none
@@ -20,6 +21,8 @@
       logical shal_cnv
       logical mom4ice,mstrat,trans_trac,moist_adj,lggfs3d,cal_pre
       logical lsfwd,lssav,lscca,lsswr,lslwr,ldfi
+! idea hmhj add
+      logical lsidea
       logical shuff_lats_r,reshuff_lats_r,reduced_grid
       logical hybrid,gen_coord_hybrid
 !     logical hybrid,gen_coord_hybrid,zflxtvd

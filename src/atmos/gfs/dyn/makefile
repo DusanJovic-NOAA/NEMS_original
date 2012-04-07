@@ -85,6 +85,9 @@ OBJS   = \
 	damp_speed_noq.o \
 	deldifs.o \
 	deldifs_noq.o \
+	idea_deldifs.o \
+	idea_deldifs_noq.o \
+	idea_getcoef.o \
 	input_fields.o \
 	input_fields_rst.o \
 	delnpe.o \

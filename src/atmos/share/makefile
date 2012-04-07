@@ -4,22 +4,29 @@ MAKEFILE = makefile
 
 LIBRARY  = libshare.a
 
-MODULES  = module_ERR_MSG.o \
-           module_INCLUDE.o \
-           module_CONSTANTS.o \
-	   ffsync.o 
+MODULES_F90  = module_ERR_MSG.o \
+               module_INCLUDE.o \
+               module_CONSTANTS.o \
+	       ffsync.o 
 
-MODULES_F90 = ${MODULES:.o=.F90}
-DEPEND_FILES = $(MODULES_F90)
+MODULES_IDEA = idea_composition.o
+
+MODULES_ALL = $(MODULES_F90) $(MODULES_IDEA)
+
+DEPEND_FILES = ${MODULES_F90:.o=.F90} ${MODULES_IDEA:.o=.f}
+
 
 all default: depend
 	@gmake -f $(MAKEFILE) $(LIBRARY)
 
-$(LIBRARY): $(MODULES)
-	$(AR) $(ARFLAGS) $@ $(MODULES)
+$(LIBRARY): $(MODULES_ALL)
+	$(AR) $(ARFLAGS) $@ $(MODULES_ALL)
 
-$(MODULES): %.o: %.f90
+$(MODULES_F90): %.o: %.f90
 	$(FC) $(FFLAGS) $(UTILINCS) -c $*.f90
+
+$(MODULES_IDEA): %.o: %.f
+	$(FC) $(FFLAGS_GFSF) $(UTILINCS) $(R8) -c $*.f
 
 clean:
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map depend

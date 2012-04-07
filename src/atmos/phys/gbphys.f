@@ -45,7 +45,8 @@
 !hchuang code change
 !           gsoil,gtmp2m,gustar,gpblh,gu10m,gv10m,gzorl,goro,           !
 !           xmu_cc,dlw_cc,dsw_cc,snw_cc,lprec_cc,                       !
-!           tref, z_c, c_0, c_d, w_0, w_d, rqtk )                       !
+!           tref, z_c, c_0, c_d, w_0, w_d, rqtk,                        !
+!           hlwd,lsidea                     )                           !
 !                                                                       !
 !  subprograms called:                                                  !
 !                                                                       !
@@ -94,6 +95,7 @@
 !      feb  2011  - sarah lu    add the option to update surface diag   !
 !                               fields (t2m,q2m,u10m,v10m) at the end   !
 !      sep  2011  - sarah lu    correct dqdt_v calculations             !
+!      apr  2012  - henry juang add idea                                !
 !                                                                       !
 !                                                                       !
 !  ====================  defination of variables  ====================  !
@@ -187,6 +189,7 @@
 !     sfalb    - real, mean sfc diffused sw albedo                 im   !
 !     swh      - real, total sky sw heating rates ( k/s )       ix,levs !
 !     hlw      - real, total sky lw heating rates ( k/s )       ix,levs !
+!     hlwd     - real, idea  sky lw heating rates ( k/s )       ix,levs !
 !     ras      - logical, flag for ras convection scheme           1    !
 !     pre_rad  - logical, flag for testing purpose                 1    !
 !     ldiag3d  - logical, flag for 3d diagnostic fields            1    !
@@ -403,6 +406,9 @@
      &      xmu_cc,dlw_cc,dsw_cc,snw_cc,lprec_cc,                       &
      &      tref, z_c, c_0, c_d, w_0, w_d,                              &
      &      rqtk                                                        &
+! ----- extras :
+! idea add by hmhj
+     &      ,hlwd,lsidea                                                &
      &      )
 
 !
@@ -454,7 +460,8 @@
      &                       old_monin,  cnvgwd,    sashal,  newsas,    &
      &                       lssav,      lssav_cc,  mom4ice, mstrat,    &
      &                       trans_trac, moist_adj, lggfs3d, cal_pre,   &
-     &                       shal_cnv, gen_coord_hybrid, lgocart
+     &                       shal_cnv, gen_coord_hybrid, lgocart,       &
+     &                       lsidea
 
       real(kind=kind_phys), dimension(im),            intent(in) ::     &
      &      sinlat, coslat, pgr,    dpshc,  xlon,   xlat,               &
@@ -464,7 +471,8 @@
 
       real(kind=kind_phys), dimension(ix,levs),       intent(in) ::     &
      &      ugrs, vgrs, tgrs, vvel, prsl, prslk, phil, swh, hlw
-
+!idea add by hmhj
+      real(kind=kind_phys), intent(in) ::  hlwd(ix,levs,6)
       real(kind=kind_phys), intent(in) ::  qgrs(ix,levs,ntrac)
 
       real(kind=kind_phys), dimension(ix,levs+1),     intent(in) ::     &
@@ -698,12 +706,6 @@
      &             gen_coord_hybrid,                                    &
      &             prsi,prsik,prsl,prslk,phii,phil,del)
 !
-!     if (lprnt) then
-!       print *,' prsi=',prsi(ipr,:)
-!       print *,' prsl=',prsl(ipr,:)
-!       print *,' del=',del(ipr,:)
-!     endif
-!
       rhbbot = crtrh(1)
       rhpbl  = crtrh(2)
       rhbtop = crtrh(3)
@@ -881,6 +883,11 @@
 !         sfcems_cc(i) = sfcemis(i)                  ! for ocn mdl if needed
         enddo
       end if
+! idea : moved temp adjust to idea_phys
+      if( lsidea ) then
+        print *,' in gbphys: lsidea is true '
+        DTDT=0.
+      endif
 
 !  --- ...  accumulate/save output variables
      
@@ -908,12 +915,25 @@
         enddo
 
         if (ldiag3d) then
-          do k = 1, levs
-            do i = 1, im
-              dt3dt(i,k,1) = dt3dt(i,k,1) + hlw(i,k)*dtf
-              dt3dt(i,k,2) = dt3dt(i,k,2) + swh(i,k)*dtf*xmu(i)
+          if( lsidea ) then
+            do k = 1, levs
+              do i = 1, im
+                dt3dt(i,k,1) = dt3dt(i,k,1) + hlwd(i,k,1)*dtf
+                dt3dt(i,k,2) = dt3dt(i,k,2) + hlwd(i,k,2)*dtf
+                dt3dt(i,k,3) = dt3dt(i,k,3) + hlwd(i,k,3)*dtf
+                dt3dt(i,k,4) = dt3dt(i,k,4) + hlwd(i,k,4)*dtf
+                dt3dt(i,k,5) = dt3dt(i,k,5) + hlwd(i,k,5)*dtf
+                dt3dt(i,k,6) = dt3dt(i,k,6) + hlwd(i,k,6)*dtf
+              enddo
             enddo
-          enddo
+          else
+            do k = 1, levs
+              do i = 1, im
+                dt3dt(i,k,1) = dt3dt(i,k,1) + hlw(i,k)*dtf
+                dt3dt(i,k,2) = dt3dt(i,k,2) + swh(i,k)*dtf*xmu(i)
+              enddo
+            enddo
+          endif
         endif
 
       endif    ! end if_lssav_block
@@ -1358,7 +1378,8 @@
           do k = 1, levs
             do i = 1, im
               tem  = dtdt(i,k) - (hlw(i,k)+swh(i,k)*xmu(i))
-              dt3dt(i,k,3) = dt3dt(i,k,3) + tem*dtf
+! idea diag
+              if( .not.lsidea ) dt3dt(i,k,3) = dt3dt(i,k,3) + tem*dtf
 !             dq3dt(i,k,1) = dq3dt(i,k,1) + dqdt(i,k,1) * dtf
               du3dt(i,k,1) = du3dt(i,k,1) + dudt(i,k)   * dtf
               du3dt(i,k,2) = du3dt(i,k,2) - dudt(i,k)   * dtf
@@ -1505,6 +1526,16 @@
           enddo
         enddo
       enddo
+
+! idea convective adjustment
+      if( lsidea ) then
+        do  k = 1, levs
+          do i = 1, im
+            gt0(i,k)   = tgrs(i,k)
+          enddo
+        enddo
+        call ideaca_up(prsi,gt0,ix,im,levs+1)
+      endif
 
 !  --- ...  check print
 
@@ -1919,6 +1950,7 @@
           cnvprcp(i) = cnvprcp(i) + rainc(i)
         enddo
       endif
+
 !
       if (cnvgwd) then         !        call convective gravity wave drag
 
@@ -2672,6 +2704,7 @@
         pwat(i) = pwat(i) * (1.0/con_g)
         rqtk(i) = rqtk(i) * work2(i)
       enddo
+      
 !
       deallocate (clw)
 !

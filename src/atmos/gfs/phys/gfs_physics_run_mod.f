@@ -25,6 +25,7 @@
 !  Oct 18  2010       s. moorthi added fscav to do tstep
 !  Dec 23  2010       Sarah Lu, setup fscav from gfs_phy_tracer 
 !  Nov 27  2011       Sarah Lu, zerout fcld, dqdt, and wet1
+!  Apr 06  2012       Henry Juang, add idea
 !
 ! !interface:
 !
@@ -142,6 +143,8 @@
                  gis_phy%lonsperlar,                                      &
                  gis_phy%XLON,    gis_phy%XLAT,    gis_phy%COSZDG,        &
                  gis_phy%HPRIME,  gis_phy%SWH,     gis_phy%HLW,           &
+! idea add by hmhj
+                 gis_phy%HTRSWB,  gis_phy%HTRLWB,                         &
                  gis_phy%FLUXR,   gis_phy%SFALB,                          &
                  gis_phy%SLAG,    gis_phy%SDEC,    gis_phy%CDEC,          &
                  gis_phy%OZPLIN,  gis_phy%JINDX1,  gis_phy%JINDX2,        &

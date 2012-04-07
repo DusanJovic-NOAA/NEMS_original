@@ -1,5 +1,12 @@
 #include "../../../ESMFVersionDefine.h"
 
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#define ESMF_LogFoundError ESMF_LogMsgFoundError
+#else
+#define ESMF_520r
+#endif
+
 ! !module: gfs_physics_initialize_mod 
 !          --- initialization module of the gridded component of gfs physics.
 !
@@ -34,6 +41,7 @@
 !  Dec 23   2010  Sarah Lu      initialize scatter_lats, scatter_lons, g2d_fld%met
 !  Mar 27   2010  J. Wang       add zsoil to sfc file
 !  Oct 03   2011  W. Yang       Modified for using the ESMF 5.2.0r library.
+!  Apr 06   2012  H. Juang      add idea
 !
 ! !interface:
 !
@@ -42,7 +50,11 @@
 !
 !!uses:
 !
+#ifdef ESMF_520r
+      USE esmf
+#else
       USE esmf_mod
+#endif
       USE gfs_physics_internal_state_mod, ONLY: gfs_physics_internal_state
 !     USE mpi_def,                        ONLY: liope
       USE mpi_def,                        ONLY: mc_comp, mc_io, mpi_comm_all_dup, mpi_comm_all
@@ -88,6 +100,8 @@
       USE gfs_physics_g2d_mod,            ONLY: g2d_aldata
       use gfs_phy_tracer_config,          ONLY: gfs_phy_tracer, tracer_config_init
       use gfs_physics_nst_var_mod
+      use module_radsw_parameters,      only: nbdsw
+      use module_radlw_parameters,      only: nbdlw
 
       include 'mpif.h'
 
@@ -490,7 +504,9 @@
 
       ALLOCATE (   gis_phy%SWH(NGPTC,LEVS,gis_phy%NBLCK,LATS_NODE_R), stat = ierr)
       ALLOCATE (   gis_phy%HLW(NGPTC,LEVS,gis_phy%NBLCK,LATS_NODE_R), stat = ierr)
-
+! idea add by hmhj
+      ALLOCATE (   gis_phy%HTRSWB(NGPTC,LEVS,NBDSW,gis_phy%NBLCK,LATS_NODE_R),stat=ierr)
+      ALLOCATE (   gis_phy%HTRLWB(NGPTC,LEVS,NBDLW,gis_phy%NBLCK,LATS_NODE_R),stat=ierr)
 !
       ALLOCATE (gis_phy%JINDX1(LATS_NODE_R), stat = ierr)
       ALLOCATE (gis_phy%JINDX2(LATS_NODE_R), stat = ierr)
