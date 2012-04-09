@@ -185,7 +185,6 @@
 #else
 #ifdef ESMF_520r
       CALL ESMF_LogSet(flush      =.true.                               &
-                      ,trace      =.true.                               &
                       ,rc         =RC)
 #else
       CALL ESMF_LogSet(verbose    =.true.                               &

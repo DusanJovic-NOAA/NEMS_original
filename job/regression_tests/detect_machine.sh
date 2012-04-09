@@ -6,15 +6,10 @@ case `hostid` in
   0xac7a006)          MACHINE_ID=s ;; ### stratus1
   0xac7a012)          MACHINE_ID=s ;; ### stratus2
 
-  0xac61e03)          MACHINE_ID=v ;; ### vapor1
-  0xac61e0f)          MACHINE_ID=v ;; ### vapor2
-
   0xffffffffbcc090b2) MACHINE_ID=g ;; ### gaea1
   0xffffffffbcc08fb2) MACHINE_ID=g ;; ### gaea2
   0xffffffffbcc08eb2) MACHINE_ID=g ;; ### gaea3
   0xffffffffbcc08db2) MACHINE_ID=g ;; ### gaea4
-
-  ae0a4240)           MACHINE_ID=h ;; ### herc
 
   ae0a2500)           MACHINE_ID=z ;; ### zeus1
   ae0a2600)           MACHINE_ID=z ;; ### zeus2
@@ -31,3 +26,21 @@ case `hostid` in
   b20a087e)           MACHINE_ID=j ;; ### jet4
 
 esac
+
+# --- for Zeus, find available account ID
+if [ ${MACHINE_ID} = z ]; then
+  clear
+  ACCNR=null
+  for i in rm gm ada cmp gefs sepp omd
+  do
+    printf %s "Looking for accout ID: " $i " ..."
+    nr=`account_params 2>&1 | grep " "$i" " | wc -l`
+    if [ $nr -eq 1 ]; then
+      ACCNR=$i ; echo OK
+    else
+      echo
+    fi
+  done
+  if [ $ACCNR = null ]; then echo "Check your account ID"; exit ; fi
+  clear
+fi

@@ -99,11 +99,11 @@ until [ $job_running -eq 1 ]
 do
 echo "TEST is waiting to enter the queue"
 if [ $SCHEDULER = 'loadleveler' ]; then
-job_running=`llq -u ${USER} -f %st %jn | grep ${JBNME} | wc -l`;sleep 5
+  job_running=`llq -u ${USER} -f %st %jn | grep ${JBNME} | wc -l`;sleep 5
 elif [ $SCHEDULER = 'moab' ]; then
-job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
+  job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
 elif [ $SCHEDULER = 'pbs' ]; then
-job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
+  job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
 fi
 done
 
@@ -113,6 +113,7 @@ n=1
 until [ $job_running -eq 0 ]
 do
 
+sleep 60
 if [ $SCHEDULER = 'loadleveler' ]; then
   job_running=`llq -u ${USER} -f %st %jn | grep ${JBNME} | wc -l`
 elif [ $SCHEDULER = 'moab' ]; then
@@ -120,7 +121,6 @@ elif [ $SCHEDULER = 'moab' ]; then
 elif [ $SCHEDULER = 'pbs' ]; then
   job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`
 fi
-sleep 60
 
 if [ $SCHEDULER = 'loadleveler' ]; then
 
