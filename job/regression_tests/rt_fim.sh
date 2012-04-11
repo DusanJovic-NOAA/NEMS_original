@@ -21,6 +21,7 @@ cat fim_fcst_run_G${GLVL}L38_24hr.IN \
                     | sed s:_FIM_USE_NEMS_:${FIM_USE_NEMS}:g > fim_fcst_run
 
 cp atmos.configure_fim ${RUNDIR}/atmos.configure
+cp ocean.configure ${RUNDIR}/ocean.configure
 
 ####################################################################################################
 # Submit test

@@ -1,12 +1,6 @@
 #include "./ESMFVersionDefine.h"
 #include "./NUOPC_Switch.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 !
       MODULE module_EARTH_GRID_COMP
@@ -20,6 +14,7 @@
 !  2010-04     Yang  - Added Ensemble capability.
 !  2011-05-11  Theurich & Yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !  2011-10-04  Yang - Modified for using the ESMF 5.2.0r library.
+!  2012-02     Tripp - Added ESMF superstructure to support an OCN model
 !-----------------------------------------------------------------------
 !
 !***  The EARTH component lies in the heirarchy seen here:
@@ -55,6 +50,8 @@
                                            ,WRAP_EARTH_INTERNAL_STATE
 !
       USE module_ATM_GRID_COMP
+!
+      USE module_OCN_GRID_COMP
 !
       USE module_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
@@ -138,13 +135,8 @@
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
-#ifdef ESMF_520r
-                                     ,phase = 1                         &
-                                     ,rc    = RC)
-#else
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
-#endif
 #endif
 
 !
@@ -166,13 +158,8 @@
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
-#ifdef ESMF_520r
-                                     ,phase = 1                         &
-                                     ,rc    = RC)
-#else
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
-#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -193,13 +180,8 @@
                                      ,ESMF_SINGLEPHASE                  &
                                      ,RC)
 #else
-#ifdef ESMF_520r
-                                     ,phase = 1                         &
-                                     ,rc    = RC)
-#else
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
-#endif
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -348,6 +330,15 @@
       earth_int_state%ATM_GRID_COMP=ESMF_GridCompCreate(name        ="ATM component" &
                                                        ,rc          =RC)
 !
+!
+!-----------------------------------------------------------------------
+!***  The OCN (ocean) gridded component resides inside of
+!***  the EARTH internal state.
+!-----------------------------------------------------------------------
+!
+      earth_int_state%OCN_GRID_COMP=ESMF_GridCompCreate(name       ="OCN component" &
+                                                       ,rc          =RC)
+!
 !-----------------------------------------------------------------------
 !***  Register the Initialize, Run, and Finalize routines of
 !***  the ATM component.
@@ -369,6 +360,32 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!
+!-----------------------------------------------------------------------
+!***  Register the Initialize, Run, and Finalize routines of
+!***  the OCN component.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Register OCN Init, Run, Finalize"
+!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+      CALL ESMF_GridCompSetServices(earth_int_state%OCN_GRID_COMP       &
+                                   ,OCN_REGISTER                        &  !<-- The user's subroutine name
+                                   ,RC)
+#else
+      CALL ESMF_GridCompSetServices(earth_int_state%OCN_GRID_COMP       &
+                                   ,OCN_REGISTER                        &  !<-- The user's subroutine name
+                                   ,rc=RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 !
 !-----------------------------------------------------------------------
 !***  Create the ATM import and export states.
@@ -396,11 +413,48 @@
 !
       earth_int_state%ATM_EXP_STATE=ESMF_StateCreate(STATENAME   ="ATM Export"             &
                                                     ,stateintent = ESMF_STATEINTENT_EXPORT &
-                                                    ,rc          =RC)
+                                                    ,rc       =RC)
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+!
+!-----------------------------------------------------------------------
+!***  Create the OCN import and export states.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Create the OCN import state"
+!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      earth_int_state%OCN_IMP_STATE=ESMF_StateCreate(STATENAME="OCN Import"              &
+                                                    ,stateintent=ESMF_STATEINTENT_IMPORT &
+                                                    ,rc=RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Create the OCN export state"
+!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      earth_int_state%OCN_EXP_STATE=ESMF_StateCreate(STATENAME="OCN Export"              &
+                                                    ,stateintent=ESMF_STATEINTENT_EXPORT &
+                                                    ,rc=RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 !
 !-----------------------------------------------------------------------
 !***  Insert the import/export states of the ATMOS component into the
@@ -421,6 +475,29 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!
+!-----------------------------------------------------------------------
+!***  Insert the import/export states of the OCN component into the
+!***  import/export states of the EARTH component.  This simplifies
+!***  the passing of information between lower and higher component
+!***  levels seen in the diagram above.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK= "Add the OCN states into the EARTH states"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOG_INFO, rc = RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_520r
+      CALL ESMF_StateAdd(IMP_STATE, LISTWRAPPER(earth_int_state%OCN_IMP_STATE), rc = RC)
+      CALL ESMF_StateAdd(EXP_STATE, LISTWRAPPER(earth_int_state%OCN_EXP_STATE), rc = RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+
 !-----------------------------------------------------------------------
 !***  Execute the Initialize step of the ATM component.
 !-----------------------------------------------------------------------
@@ -430,24 +507,38 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-      CALL ESMF_GridCompInitialize(gridcomp   =earth_int_state%ATM_GRID_COMP &
-                                  ,importState=earth_int_state%ATM_IMP_STATE &
-                                  ,exportState=earth_int_state%ATM_EXP_STATE &
-                                  ,clock      =earth_int_state%CLOCK_EARTH   &
-                                  ,rc         =RC)
-#else
       CALL ESMF_GridCompInitialize(gridcomp   =earth_int_state%ATM_GRID_COMP &
                                   ,importState=earth_int_state%ATM_IMP_STATE &
                                   ,exportState=earth_int_state%ATM_EXP_STATE &
                                   ,clock      =earth_int_state%CLOCK_EARTH   &
                                   ,phase      =ESMF_SINGLEPHASE              &
                                   ,rc         =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!
+!-----------------------------------------------------------------------
+!***  Execute the Initialize step of the OCN component.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Execute the Initialize step of the OCN component"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompInitialize(gridcomp   =earth_int_state%OCN_GRID_COMP &
+                                  ,importState=earth_int_state%OCN_IMP_STATE &
+                                  ,exportState=earth_int_state%OCN_EXP_STATE &
+                                  ,clock      =earth_int_state%CLOCK_EARTH   &
+                                  ,phase      =ESMF_SINGLEPHASE              &
+                                  ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 !
 !-----------------------------------------------------------------------
 !
@@ -513,25 +604,37 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-      CALL ESMF_GridCompRun(gridcomp   =earth_int_state%ATM_GRID_COMP   &
-                           ,importState=earth_int_state%ATM_IMP_STATE   &
-                           ,exportState=earth_int_state%ATM_EXP_STATE   &
-                           ,clock      =earth_int_state%CLOCK_EARTH     &
-                           ,rc         =RC)
-#else
       CALL ESMF_GridCompRun(gridcomp   =earth_int_state%ATM_GRID_COMP   &
                            ,importState=earth_int_state%ATM_IMP_STATE   &
                            ,exportState=earth_int_state%ATM_EXP_STATE   &
                            ,clock      =earth_int_state%CLOCK_EARTH     &
                            ,phase      =ESMF_SINGLEPHASE                &
                            ,rc         =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!-----------------------------------------------------------------------
+!***  Execute the Run step of the OCN component.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Execute the Run step of the OCN component"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompRun(gridcomp   =earth_int_state%OCN_GRID_COMP   &
+                           ,importState=earth_int_state%OCN_IMP_STATE   &
+                           ,exportState=earth_int_state%OCN_EXP_STATE   &
+                           ,clock      =earth_int_state%CLOCK_EARTH     &
+                           ,phase      =ESMF_SINGLEPHASE                &
+                           ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
 !-----------------------------------------------------------------------
 !***  Update the EARTH clock.
 !-----------------------------------------------------------------------
@@ -614,20 +717,33 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
-      CALL ESMF_GridCompFinalize(gridcomp   =earth_int_state%ATM_GRID_COMP &
-                                ,importState=earth_int_state%ATM_IMP_STATE &
-                                ,exportState=earth_int_state%ATM_EXP_STATE &
-                                ,clock      =earth_int_state%CLOCK_EARTH   &
-                                ,rc         =RC)
-#else
       CALL ESMF_GridCompFinalize(gridcomp   =earth_int_state%ATM_GRID_COMP &
                                 ,importState=earth_int_state%ATM_IMP_STATE &
                                 ,exportState=earth_int_state%ATM_EXP_STATE &
                                 ,clock      =earth_int_state%CLOCK_EARTH   &
                                 ,phase      =ESMF_SINGLEPHASE              &
                                 ,rc         =RC)
-#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINALIZE)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!
+!-----------------------------------------------------------------------
+!***  Execute the Finalize step of the OCN component.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Execute the Finalize step of the  OCN component"
+!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompFinalize(gridcomp   =earth_int_state%OCN_GRID_COMP &
+                                ,importState=earth_int_state%OCN_IMP_STATE &
+                                ,exportState=earth_int_state%OCN_EXP_STATE &
+                                ,clock      =earth_int_state%CLOCK_EARTH   &
+                                ,phase      =ESMF_SINGLEPHASE              &
+                                ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINALIZE)

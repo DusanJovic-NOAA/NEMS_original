@@ -18,6 +18,7 @@ cp _RTPWD_/NMMB_mvg_nests/*_3 .
 cp _RTPWD_/NMMB_mvg_nests/*_9 .
 
 cp $SRCDIR/job/regression_tests/atmos.configure_nmm atmos.configure
+cp $SRCDIR/job/regression_tests/ocean.configure .
 cp $SRCDIR/job/regression_tests/configure_file_0* .
 cp configure_file_01 model_configure
 

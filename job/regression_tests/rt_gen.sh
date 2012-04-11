@@ -24,6 +24,7 @@ cat gen_fcst_run_GEN_m1.IN \
                     | sed s:_RUNDIR_:${RUNDIR}:g > gen_fcst_run
 
 cp atmos.configure_gen ${RUNDIR}/atmos.configure
+cp ocean.configure ${RUNDIR}/ocean.configure
 
 else
 
@@ -40,6 +41,7 @@ cat gen_fcst_run_GEN_m4.IN \
                     | sed s:_RUNDIR_:${RUNDIR}:g > gen_fcst_run
 
 cp atmos.configure_gen ${RUNDIR}/atmos.configure
+cp ocean.configure ${RUNDIR}/ocean.configure
 
 fi
 

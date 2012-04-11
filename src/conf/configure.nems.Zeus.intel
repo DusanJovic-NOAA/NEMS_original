@@ -2,7 +2,7 @@ SHELL       = /bin/sh
 
 include /home/Ratko.Vasic/lib_tmp/esmf/lib/libg/Linux.intel.64.mpi.default/esmf.mk
 ESMF_INC    = $(ESMF_F90COMPILEPATHS)
-ESMF_LIBS   = $(ESMF_F90LINKPATHS) $(ESMF_F90ESMFLINKLIBS)
+ESMF_LIBS   = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 
 EXTLIBS     = $(ESMF_LIBS) \
              -L/home/Ratko.Vasic/lib_tmp/nemsio -lnemsio \

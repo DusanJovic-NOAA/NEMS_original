@@ -2,7 +2,7 @@ SHELL       = /bin/sh
 
 include /misc/whome/vanden/esmf.root/esmf.3.1.0rp2.new/lib/libO/Linux.intel.64.mpich2.default/esmf.mk
 ESMF_INC    = $(ESMF_F90COMPILEPATHS)
-ESMF_LIBS   = $(ESMF_F90LINKPATHS) $(ESMF_F90ESMFLINKLIBS)
+ESMF_LIBS   = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 
 EXTLIBS     = $(ESMF_LIBS) -L/lfs1/projects/sepp/djovic/nwprod_intel_gaea/libintel \
                -lnemsio -lw3-2.0_4 -lw3ext_4 -lbacio_4 -lsp_4

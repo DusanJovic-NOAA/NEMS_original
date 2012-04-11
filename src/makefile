@@ -5,7 +5,7 @@ TARGET = ../exe/NEMS.x
 
 include ./conf/configure.nems
 
-INCS = -Iatmos -Iocean -Ichem -Iatmos/share -IENS_Cpl -Iatmos/nmm -Iatmos/fim -Iatmos/gfs -Iatmos/phys -Iatmos/gen
+INCS = -Iatmos -Iocean -Ichem -Iatmos/share -IENS_Cpl -Iatmos/nmm -Iatmos/fim -Iatmos/gfs -Iatmos/phys -Iatmos/gen -Iocean/hycom -Iocean/genocn
 
 MAIN = MAIN_NEMS.o
 
@@ -24,6 +24,9 @@ LIBS = atmos/share/libshare.a           \
        atmos/gen/libgen.a               \
        atmos/libatmos.a                 \
        atmos/post/libpost.a             \
+       ocean/genocn/libgenocn.a          \
+       ocean/hycom/libhycom.a           \
+       ocean/libocean.a                 \
        ENS_Cpl/ENS_Cpl.a
 
 LIBS_NMM = atmos/libatmos.a             \
@@ -34,6 +37,9 @@ LIBS_NMM = atmos/libatmos.a             \
            atmos/phys/libphys.a         \
            atmos/share/libshare.a       \
            atmos/post/libpost.a         \
+           ocean/libocean.a             \
+           ocean/genocn/libgenocn.a      \
+           ocean/hycom/libhycom.a       \
            ENS_Cpl/ENS_Cpl.a
 
 LIBS_GEN = atmos/libatmos.a             \
@@ -44,7 +50,23 @@ LIBS_GEN = atmos/libatmos.a             \
            atmos/phys/libphys.a         \
            atmos/share/libshare.a       \
            atmos/post/libpost.a         \
+           ocean/libocean.a             \
+           ocean/genocn/libgenocn.a      \
+           ocean/hycom/libhycom.a       \
            ENS_Cpl/ENS_Cpl.a
+
+LIBS_HYCOM_ONLY = atmos/share/libshare.a   \
+       atmos/nmm/libnmm.a                  \
+       atmos/gfs/libgfs.a                  \
+       atmos/fim/libfimtop.a               \
+       atmos/gen/libgen.a                  \
+       atmos/libatmos.a                    \
+       atmos/post/libpost.a                \
+       ocean/genocn/libgenocn.a             \
+       ocean/hycom/libhycom.a              \
+       ocean/libocean.a                    \
+       ENS_Cpl/ENS_Cpl.a
+
 
 #TODO:  DRY these settings, they are redundant with atmos/fim/makefile and 
 #TODO:  atmos/fim/FIMsrc ...  
@@ -71,6 +93,9 @@ LIBS_FIM = atmos/libatmos.a                     \
            $(SMSLIB) $(FIMSRCLIBS)              \
            atmos/gen/libgen.a                   \
            atmos/share/libshare.a               \
+           ocean/libocean.a                     \
+           ocean/genocn/libgenocn.a              \
+           ocean/hycom/libhycom.a               \
            ENS_Cpl/ENS_Cpl.a                    \
            -L/nwprod/lib -lnetcdf_64
 
@@ -135,6 +160,10 @@ all:
 	@echo "gmake gfs GOCART_MODE=full --- for GFS core only - with the GOCART"
 	@echo " or"
 	@echo "gmake fim --- for FIM core only"
+	@echo " or"
+	@echo "gmake hycom --- for HYCOM core only"
+	@echo " or"
+	@echo "gmake hycom_gfs --- for both HYCOM and GFS core"
 #	@echo " or"
 #	@echo "gmake fim_gfs --- for both FIM and GFS core only - without the GOCART"
 #	@echo " or"
@@ -160,6 +189,9 @@ nmm_libs:
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake stub
 	cd atmos               && gmake
+	cd ocean/genocn        && gmake stub
+	cd ocean/hycom         && gmake stub
+	cd ocean               && gmake
 	cd ENS_Cpl             && gmake stub
 
 ################################################################################
@@ -181,6 +213,9 @@ nmm_post_libs:
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake gfs_stub
 	cd atmos               && gmake
+	cd ocean/genocn        && gmake stub
+	cd ocean/hycom         && gmake stub
+	cd ocean               && gmake
 	cd ENS_Cpl             && gmake stub
 
 ################################################################################
@@ -209,6 +244,9 @@ endif
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake stub
 	cd atmos               && gmake
+	cd ocean/genocn        && gmake stub
+	cd ocean/hycom         && gmake stub
+	cd ocean               && gmake
 	cd ENS_Cpl             && gmake
 
 ################################################################################
@@ -237,6 +275,9 @@ endif
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake nmm_stub
 	cd atmos               && gmake
+	cd ocean/genocn        && gmake stub
+	cd ocean/hycom         && gmake stub
+	cd ocean               && gmake
 	cd ENS_Cpl             && gmake
 
 ################################################################################
@@ -258,6 +299,9 @@ gen_libs:
 	cd atmos/gen           && gmake
 	cd atmos/post          && gmake stub
 	cd atmos               && gmake
+	cd ocean/genocn        && gmake stub
+	cd ocean/hycom         && gmake stub
+	cd ocean               && gmake
 	cd ENS_Cpl             && gmake
 
 
@@ -287,6 +331,9 @@ endif
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake stub
 	cd atmos               && gmake
+	cd ocean/genocn        && gmake stub
+	cd ocean/hycom         && gmake stub
+	cd ocean               && gmake
 	cd ENS_Cpl             && gmake
 
 ################################################################################
@@ -315,6 +362,9 @@ endif
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake 
 	cd atmos               && gmake
+	cd ocean/genocn        && gmake stub
+	cd ocean/hycom         && gmake stub
+	cd ocean               && gmake
 	cd ENS_Cpl             && gmake
 
 ################################################################################
@@ -343,6 +393,9 @@ endif
 	cd atmos/gen           && gmake stub
 	cd atmos/post          && gmake stub
 	cd atmos               && gmake
+	cd ocean/genocn        && gmake stub
+	cd ocean/hycom         && gmake stub
+	cd ocean               && gmake
 	cd ENS_Cpl             && gmake
 
 ################################################################################
@@ -365,6 +418,9 @@ fim_libs:
 	cd atmos/gen           && gmake stub
 	cd atmos/post          && gmake stub
 	cd atmos               && gmake
+	cd ocean/genocn        && gmake stub
+	cd ocean/hycom         && gmake stub
+	cd ocean               && gmake
 	cd ENS_Cpl             && gmake
 
 ################################################################################
@@ -388,7 +444,65 @@ fim_gfs_libs:
 	cd atmos/gen           && gmake stub
 	cd atmos/post          && gmake stub
 	cd atmos               && gmake
+	cd ocean/genocn        && gmake stub
+	cd ocean/hycom         && gmake stub
+	cd ocean               && gmake
 	cd ENS_Cpl             && gmake
+
+################################################################################
+#
+# HYCOM Only
+#
+################################################################################
+
+hycom: hycom_libs $(OBJS) $(MAIN)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_HYCOM_ONLY) $(EXTLIBS)
+	@echo "nems.x is created for HYCOM core."
+
+hycom_libs:
+	cd atmos/share         && gmake
+	cd atmos/nmm           && gmake stub
+	cd atmos/gen           && gmake stub
+	cd atmos/gfs           && gmake stub
+	cd atmos/fim           && gmake stub
+	cd atmos/post          && gmake stub
+	cd atmos               && gmake
+	cd ocean/genocn        && gmake stub
+	cd ocean/hycom         && gmake
+	cd ocean               && gmake
+	cd ENS_Cpl             && gmake
+
+################################################################################
+#
+# HYCOM and GFS
+#
+################################################################################
+
+hycom_gfs: hycom_gfs_libs $(OBJS) $(MAIN)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART)
+	@echo "nems.x is created for HYCOM and GFS core."
+
+hycom_gfs_libs:
+ifeq ($(GOCART_MODE),full)
+	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
+endif
+	cd atmos/share         && gmake
+	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
+	cd atmos/nmm           && gmake stub
+	cd atmos/gen           && gmake stub
+ifeq ($(GOCART_MODE),full)
+	cd atmos/gfs           && gmake gocart_full
+else
+	cd atmos/gfs           && gmake gocart_stub
+endif
+	cd atmos/fim           && gmake stub
+	cd atmos/post          && gmake stub
+	cd atmos               && gmake
+	cd ocean/genocn        && gmake stub
+	cd ocean/hycom         && gmake
+	cd ocean               && gmake
+	cd ENS_Cpl             && gmake
+
 
 ################################################################################
 #
@@ -400,6 +514,7 @@ clean:
 	cd atmos               && gmake clean
 	cd ENS_Cpl             && gmake clean
 	cd chem                && gmake clean GOCART_MODE=full
+	cd ocean               && gmake clean
 	$(RM) -f *.f90 *.lst *.o *.mod lm map $(TARGET)
 
 .SUFFIXES:

@@ -72,6 +72,7 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
 ####################################################################################################
 
 cp atmos.configure_gfs ${RUNDIR}/atmos.configure
+cp ocean.configure ${RUNDIR}/ocean.configure
 cp MAPL.rc ${RUNDIR}/MAPL.rc
 cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
 
@@ -122,6 +123,7 @@ cat gfs_fcst_run_GEFS.IN \
 
 cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
 cp atmos.configure_gfs ${RUNDIR}/atmos.configure
+cp ocean.configure ${RUNDIR}/ocean.configure
 
 fi
 

@@ -4,5 +4,4 @@
 >>
 #endif
 
-!#define WITH_NUOPC
-#define WITH_NUOPC_disable
+! #define WITH_NUOPC

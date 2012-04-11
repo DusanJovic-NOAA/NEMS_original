@@ -5,6 +5,7 @@
 #endif
 
 #define ESMF_MAJOR_VERSION 5
+#define ESMF_520r
 
 #define esmf_mod ESMF
 #define ESMF_MOD ESMF
@@ -36,6 +37,8 @@
 #define ESMF_StateAdd ESMF_StateAddReplace
 #define ESMF_STATEADD ESMF_StateAddReplace
 
+#define ESMF_SINGLEPHASE 1
+#define esmf_singlephase 1
 
 #else
 
@@ -43,10 +46,10 @@
 // ESMF < 5.2.0r
 #endif
 
+#undef ESMF_520r
 #define LISTWRAPPER(x) x
 
 #define ESMF_GRIDCREATE ESMF_GridCreateShapeTile
-
 
 #define ESMF_METHOD_INITIALIZE ESMF_SETINIT
 #define ESMF_METHOD_RUN ESMF_SETRUN
@@ -71,9 +74,6 @@
 #define ESMF_CALKIND_GREGORIAN ESMF_CAL_GREGORIAN 
 #define defaultCalKind defaultCalendar
 
-
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-
 #define ESMFBEFORE520rb10
 
 #define esmf_logfounderror esmf_logmsgfounderror
@@ -89,7 +89,6 @@
 #define FARRAYPTR fptr
 #define FIELDBUNDLE bundle
 
-
 #define totalUWidth maxHaloUWidth
 #define totalLWidth maxHaloLWidth
 
@@ -102,17 +101,5 @@
 
 #endif
 
-
-#else
-
-#define STATENAME name
-#define FIELDNAME fieldName
-#define FIELDNAMELIST fieldNameList
-#define FIELDCOUNT fieldCount
-#define DSTPET dstPet
-#define SRCPET srcPet
-#define FARRAYPTR farrayPtr
-
-#endif
 
 #endif

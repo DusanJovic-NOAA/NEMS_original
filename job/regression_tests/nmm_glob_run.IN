@@ -14,6 +14,7 @@ cp _RTPWD_/NMMB_glob/nmmb_rst_01_nio_0024h_00m_00.00s  restart_file_01_nemsio
 cp _RTPWD_/NMMB_glob/GWD_bin_01 .
 
 cp $SRCDIR/job/regression_tests/atmos.configure_nmm atmos.configure
+cp $SRCDIR/job/regression_tests/ocean.configure .
 cp $SRCDIR/job/regression_tests/configure_file_01 .
 cp configure_file_01 model_configure
 cp _RTPWD_/data/* .
