@@ -61,7 +61,9 @@
 !
       USE MODULE_CONTROL,ONLY : CAPPA, TIMEF
 !
-      USE MODULE_DIAGNOSE,ONLY : FIELD_STATS,WRT_2D,MAX_FIELDS,MAX_FIELDS_HR
+      USE MODULE_DIAGNOSE,ONLY : EXIT,FIELD_STATS                       &
+                                ,MAX_FIELDS,MAX_FIELDS_HR               &
+                                ,TWR,VWR,WRT_2D
 !
       USE MODULE_OUTPUT,ONLY: POINT_OUTPUT
 !
@@ -1295,6 +1297,7 @@
                    ,int_state%FAD,int_state%FAH                         &
                    ,int_state%DARE,int_state%RARE                       &
                    ,int_state%GLAT,int_state%GLON                       &
+                   ,int_state%GLAT_SW,int_state%GLON_SW                 &
                    ,int_state%VLAT,int_state%VLON                       &
                    ,int_state%HDACX,int_state%HDACY                     &
                    ,int_state%HDACVX,int_state%HDACVY                   &
@@ -2432,6 +2435,36 @@
 !
       ENDIF
 !
+!-----------------------------------------------------------------------
+!***  If this is a moving nest and it moved this timestep then we
+!***  need to update the haloes of the geographic lat/lon and the
+!***  HDAC variables because like all variables they are updated
+!***  only in the integration region when a nest shifts.
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+      IF(MOVE_NOW==ESMF_TRUE)THEN
+#else
+      IF(MOVE_NOW)THEN
+#endif
+!
+        CALL HALO_EXCH                                                  &
+           (int_state%GLAT,1                                            &
+           ,int_state%GLON,1                                            &
+           ,int_state%VLAT,1                                            &
+           ,int_state%VLAT,1                                            &
+           ,2,2)
+!
+        CALL HALO_EXCH                                                  &
+           (int_state%HDACX,1                                           &
+           ,int_state%HDACY,1                                           &
+           ,int_state%HDACVX,1                                          &
+           ,int_state%HDACVY,1                                          &
+           ,2,2)
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
 #ifdef ESMF_3
       IF(FIRST_PASS.OR.MOVE_NOW==ESMF_TRUE)THEN
 #else

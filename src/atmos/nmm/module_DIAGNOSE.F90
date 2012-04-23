@@ -176,7 +176,8 @@
       SUBROUTINE VWR(ARRAY,KK,FIELD,NTSD,MYPE,NPES,MPI_COMM_COMP       &
                     ,IDS,IDE,JDS,JDE                                   &
                     ,IMS,IME,JMS,JME                                   &
-                    ,ITS,ITE,JTS,JTE)
+                    ,ITS,ITE,JTS,JTE                                   &
+                    ,DOMAIN_ID )
 !----------------------------------------------------------------------
 !**********************************************************************
 !----------------------------------------------------------------------
@@ -193,6 +194,8 @@
 !
       CHARACTER(*),INTENT(IN) :: FIELD
 !
+      INTEGER(kind=KINT),INTENT(IN),OPTIONAL :: DOMAIN_ID
+!
 !*** LOCAL VARIABLES
 !
       INTEGER :: IUNIT=23
@@ -207,6 +210,7 @@
 !
       REAL(KIND=KFPT),DIMENSION(IDS:IDE,JDS:JDE) :: TWRITE
       REAL(KIND=KFPT),ALLOCATABLE,DIMENSION(:) :: VALUES
+      CHARACTER(2) :: DOM_ID
       CHARACTER(5) :: TIMESTEP
       CHARACTER(6) :: FMT
       CHARACTER(15) :: FILENAME
@@ -232,7 +236,14 @@
         NLEN=5
       ENDIF
       WRITE(TIMESTEP,FMT)NTSD
-      FILENAME=FIELD//'_'//TIMESTEP(1:NLEN)
+!
+      IF(PRESENT(DOMAIN_ID))THEN
+        FMT='(I2.2)'
+        WRITE(DOM_ID,FMT)DOMAIN_ID
+        FILENAME=FIELD//'_'//'D'//DOM_ID//'_'//TIMESTEP(1:NLEN)
+      ELSE
+        FILENAME=FIELD//'_'//TIMESTEP(1:NLEN)
+      ENDIF
 !
       IF(MYPE==0)THEN
         CLOSE(IUNIT)

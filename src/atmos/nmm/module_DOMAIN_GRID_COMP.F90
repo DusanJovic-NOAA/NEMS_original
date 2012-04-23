@@ -223,9 +223,6 @@
       REAL(kind=KDBL) :: domain_tim,btim,btim0
 !
 !-----------------------------------------------------------------------
-      integer,save :: iprt=01 &
-                     ,jprt=61 &
-                     ,kprt=01
 !
       CONTAINS
 !
@@ -2521,16 +2518,15 @@
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER &  !<-- The Dynamics component import state
-                                  ,name ='MOVE_NOW'                     &  !<-- Use this name inside the state
-                                  ,value=MOVE_NOW                       &  !<-- Did this nest move this timestep?
+            CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER &  !<-- The Solver component import state
+                                  ,name ='MOVE_NOW'                        &  !<-- Use this name inside the state
+                                  ,value=MOVE_NOW                          &  !<-- Did this nest move this timestep?
                                   ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!     write(0,*)' DOMAIN_RUN move_now=',move_now
 !-----------------------------------------------------------------------
 !
 #ifdef ESMF_3
@@ -4268,7 +4264,7 @@
 !
       INTEGER(kind=KINT) :: RC,RC_FINAL
 !
-      REAL(kind=KFPT) :: DY,SBNDRY,TLON_H
+      REAL(kind=KFPT) :: ARG1,ARG2,DY,SBNDRY,TLAT_SW,TLON_SW
 !
       REAL(kind=KFPT),DIMENSION(JDS:JDE) :: TLAT_H,TLAT_V
 !
@@ -4370,13 +4366,12 @@
 !***  SW corner following the move the rest can be filled in.
 !-----------------------------------------------------------------------
 !
-      CALL GEO_TO_ROT(solver_int_state%GLAT(ITS,JTS)                    &
-                     ,solver_int_state%GLON(ITS,JTS)                    &
-                     ,TLAT_H(JTS)                                       &
-                     ,TLON_H )
+      CALL GEO_TO_ROT(solver_int_state%GLAT_SW                          &  !<-- The pre-move geographic lat of nest's SW corner (radians)
+                     ,solver_int_state%GLON_SW                          &  !<-- The pre-move geographic lon of nest's SW corner (radians)
+                     ,TLAT_SW                                           &  !<-- The pre-move rotated lat of nest's SW corner (radians)
+                     ,TLON_SW )                                            !<-- The pre-move rotated lon of nest's SW corner (radians)
 !
-      SBNDRY=TLAT_H(JTS)-(JTS-JDS)*DPH
-      TLAT_H(JDS)=SBNDRY+J_SHIFT_CHILD*DPH
+      TLAT_H(JDS)=TLAT_SW+J_SHIFT_CHILD*DPH
       TLAT_V(JDS)=TLAT_H(JDS)+0.5*DPH
 !
       DO J=JDS+1,JDE
@@ -4408,6 +4403,25 @@
         solver_int_state%RDDV(J)=1./solver_int_state%DDV(J)
         solver_int_state%DDMPU(J)=0.5*CDDAMP*DY/solver_int_state%DXV(J)
       ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Compute the new geographic coordinates of the nest's SW corner
+!***  after it shifts.
+!-----------------------------------------------------------------------
+!
+      TPH0=solver_int_state%TPH0D*DEG_TO_RAD
+      TLM0=solver_int_state%TLM0D*DEG_TO_RAD
+!
+      TLAT_SW=TLAT_H(JDS)                                                  !<-- Transformed lat (radians) of SW corner after shift
+      TLON_SW=TLON_SW+I_SHIFT_CHILD*DLM                                    !<-- Transformed lon (radians) of SW corner after shift
+!
+      solver_int_state%GLAT_SW=ASIN(SIN(TLAT_SW)*COS(TPH0)              &
+                                   +COS(TLAT_SW)*SIN(TPH0)*COS(TLON_SW))
+!
+      ARG1=(COS(TLAT_SW)*COS(TLON_SW))/(COS(solver_int_state%GLAT_SW)   &
+                                       *COS(TPH0))
+      ARG2=TAN(solver_int_state%GLAT_SW)*TAN(TPH0)
+      solver_int_state%GLON_SW=TLM0+SIGN(1.,TLON_SW)*ACOS(ARG1-ARG2)
 !
 !-----------------------------------------------------------------------
 !
@@ -5013,13 +5027,19 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: I,I_ID_END_SEARCH,I_ID_INC_SEARCH,I_INC     &
-                           ,I_START,I_TASK,I_TEST,I1,I2                 &
-                           ,ISEND_END,ISEND_START,ITE_X,ITS_X           & 
-                           ,J,J_ID_END_SEARCH,J_ID_INC_SEARCH,J_INC     &
-                           ,J_START,J_TASK,J_TEST,J1,J2                 &
+      INTEGER(kind=KINT) :: I,I_END,I_ID_END_SEARCH,I_ID_INC_SEARCH     &
+                           ,I_ID_STA_SEARCH                             &
+                           ,I_INC,I_START,I_TASK                        &
+                           ,I_TASK_EAST,I_TASK_WEST                     &
+                           ,I1,I2                                       &
+                           ,ISEND_END,ISEND_START,ITE_X,ITS_X           &
+                           ,J,J_END,J_ID_END_SEARCH,J_ID_INC_SEARCH     &
+                           ,J_ID_STA_SEARCH                             &
+                           ,J_INC,J_START,J_TASK                        &
+                           ,J_TASK_NORTH,J_TASK_SOUTH                   &
+                           ,J1,J2                                       &
                            ,JSEND_END,JSEND_START,JTE_X,JTS_X           & 
-                           ,KOUNT_INTEGER,KOUNT_REAL                    &
+                           ,KOUNT,KOUNT_INTEGER,KOUNT_REAL              &
                            ,L,N,N_FIELD,N_REMOVE,NF1,NF2                &
                            ,NUM_DIMS,NUM_FIELDS                         &
                            ,NUM_WORDS_IJ                                &
@@ -5108,34 +5128,10 @@
 !
 !
 !               4      5     6
-!                    X                <-- Subdomain #5 is the domain after the move that
-!                                         is nearest to the position of X and whose
-!               1      2     3            integration region intersects the integration
-!                                         region of X.
-!
-!***  In an unavoidably confusing diagram we see generic outlines
-!***  of those subdomains' boundaries except for the central #5.
-!***  The rectangle in the center is the position (footprint) of
-!***  the sending task prior to the nest's move.
-!
-!
-!
-!            8     7             9      8
-!            8     7             9      8
-!      4444444444444             666666666666666
-!            8   __4_____________9___   8
-!            8  |  7             6   |  8
-!      777777778787488888888888889898|9889999999
-!               |  4             6   |
-!               |  4             6   |
-!               |  4             6   |
-!      111111121212122222222222222222|2223333333
-!            2  |  1             3   |  2
-!            2  |__1_____________3___|  2
-!      4444444444441             366666626666666
-!            2     1             3      2
-!            2     1             3      2
-!
+!                    X            
+!                                
+!               1      2     3  
+!                              
 !
 !***  After the move note that we include as target points the 
 !***  receiving tasks' halo points that lie within the sending task's
@@ -5179,7 +5175,7 @@
 !-----------------------------------------------------------------------
 !***  The 'sender' is the current task that is executing this routine.
 !***  The range of points within its subdomain that are valid for
-!***  sending to other tasks are what follows:
+!***  sending to other tasks are the following:
 !-----------------------------------------------------------------------
 !
       IDS_BND=IDS+NROWS_P_UPD_W
@@ -5194,6 +5190,7 @@
 !
 !-----------------------------------------------------------------------
 !***  Initialize to nonsense the ranks of tasks who will receive.
+!***  There can be no more than nine.
 !-----------------------------------------------------------------------
 !
       DO N=1,9
@@ -5201,95 +5198,86 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  Find which of the nine potential receivers will actually receive,
-!***  i.e., which of the nine domains (including their haloes) after
-!***  the move intersect the footprint of the pre-move sending task.
-!***  Begin by finding the 'central' subdomain #5.  To find #5 we do 
-!***  not consider its halo region.
+!***  Search for the tasks on this nest domain that will receive 
+!***  intertask update data from this current task.  First look
+!***  west/east then north/south.
 !
-!***  NOTE:  The search is done with respect to the grid indices on
-!***         the footprint of the sender's position prior to the move.
-!***         Also remember that the outer two rows of points on the
-!***         nest grid DO receive intra- and inter-task updates after
-!***         the nest moves.  Those two rows of points DO NOT provide
-!***         intra- and inter-task update data.
+!***  NOTE:  The outer two rows of points on the nest grid DO RECEIVE
+!***         intra- and inter-task updates after the nest moves.  Those
+!***         two rows of points DO NOT PROVIDE intra- and inter-task
+!***         update data.
 !-----------------------------------------------------------------------
+!
+      I_TASK_EAST=(MYPE/INPES+1)*INPES-1                                   !<-- Task on east end of sender's row.
+      I_TASK_WEST=(MYPE/INPES)*INPES                                       !<-- Task on west end of sender's row.
 !
       I_INC=SIGN(1,I_SHIFT)                                                !<-- +1 for eastward motion; -1 for westward motion
       J_INC=SIGN(1,J_SHIFT)                                                !<-- +1 for northward motion; -1 for southward motion
 !
       IF(I_SHIFT>0)THEN                                                    !<-- For eastward move, search to the west.
-        I_ID_END_SEARCH=(MYPE/INPES)*INPES                                 !<-- Task on west end of sender's row.
+        I_ID_STA_SEARCH=MYPE                                               !<-- Begin search with sender's column
+        I_ID_END_SEARCH=I_TASK_WEST                                        !<-- Task on west end of sender's row.
         I_ID_INC_SEARCH=-I_INC                                             !<-- Task rank search increment in I (westward).
 !
       ELSEIF(I_SHIFT<0)THEN                                                !<-- For westward move, search to the east.
-        I_ID_END_SEARCH=(MYPE/INPES+1)*INPES-1                             !<-- Task on east end of sender's row.
+        I_ID_STA_SEARCH=MYPE                                               !<-- Begin search with sender's column
+        I_ID_END_SEARCH=I_TASK_EAST                                        !<-- Task on east end of sender's row.
         I_ID_INC_SEARCH=-I_INC                                             !<-- Task rank search increment in I (eastward).
 !
       ELSEIF(I_SHIFT==0)THEN                                               !<-- No west/east motion
-        I_ID_END_SEARCH=MYPE                                               !<-- We will not search beyond sender's column.
+        I_ID_STA_SEARCH=MAX(MYPE-1,I_TASK_WEST)                            !<-- Search inc is +1 so begin 1 task to the west
+        I_ID_END_SEARCH=MIN(MYPE+1,I_TASK_EAST)                            !<-- Search 3 columns due to halos on west/east sides
         I_ID_INC_SEARCH=1                                                  !<-- Task rank search increment
       ENDIF
 !
+      KOUNT=0                                                              !<-- Initialize counter of tasks that receive 
+!                                                                               intertask updates from the current sender
 !-----------------------------------------------------------------------
-      search: DO I_TASK=MYPE,I_ID_END_SEARCH,I_ID_INC_SEARCH
+      search: DO I_TASK=I_ID_STA_SEARCH,I_ID_END_SEARCH,I_ID_INC_SEARCH
 !-----------------------------------------------------------------------
 !
-        IF(I_SHIFT>=0)THEN                                                 !<-- For eastward or no west/east motion ....
-          I_START=domain_int_state%LOCAL_ISTART(I_TASK)                    !<-- West side of subdomain #5 will lie in footprint.
+        I_START=MAX(domain_int_state%LOCAL_ISTART(I_TASK)-IHALO,IDS)    &  !<-- West limit of potential receiver task subdomain
+                +I_SHIFT
+        I_END  =MIN(domain_int_state%LOCAL_IEND(I_TASK)  +IHALO,IDE)    &  !<-- East limit of potential receiver task subdomain
+                +I_SHIFT
 !
-        ELSEIF(I_SHIFT<0)THEN                                              !<-- For westward motion ....
-          I_START=domain_int_state%LOCAL_IEND(I_TASK)                      !<-- East side of subdomain #5 will lie in footprint.
+        IF(I_END>=ITS_X.AND.I_START<=ITE_X)THEN                            !<-- If so, task I_TASK's subdomain has moved onto searcher's
 !
-        ENDIF
-!
-        I_TEST=I_START+I_SHIFT                                             !<-- Footprint I index of W/E side of task subdomain after move.
-!
-        IF(I_TEST>=ITS  .AND.I_TEST<=ITE  .OR.I_SHIFT==0)THEN              !<-- Is W/E side of this task inside of footprint after move?
+          J_TASK_NORTH=(JNPES-1)*INPES+MOD(I_TASK,INPES)                   !<-- Task on north end of I_TASK's column.
+          J_TASK_SOUTH=MOD(I_TASK,INPES)                                   !<-- Task on south end of I_TASK's column.
 !
           IF(J_SHIFT>0)THEN                                                !<-- For northward move, search to the south.
-            J_ID_END_SEARCH=MOD(I_TASK,INPES)                              !<-- Task on south end of I_TASK's column.
+            J_ID_STA_SEARCH=I_TASK                                         !<-- Begin search in I_TASK's column
+            J_ID_END_SEARCH=J_TASK_SOUTH                                   !<-- Task on south end of I_TASK's column.
             J_ID_INC_SEARCH=-J_INC*INPES                                   !<-- Task rank search increment in J (southward).
 !
           ELSEIF(J_SHIFT<0)THEN                                            !<-- For southward move, search to the north.
-            J_ID_END_SEARCH=(JNPES-1)*INPES+MOD(I_TASK,INPES)              !<-- Task on north end of I_TASK's column.
+            J_ID_STA_SEARCH=I_TASK                                         !<-- Begin search in I_TASK's column
+            J_ID_END_SEARCH=J_TASK_NORTH                                   !<-- Task on north end of I_TASK's column.
             J_ID_INC_SEARCH=-J_INC*INPES                                   !<-- Task rank search increment in J (northward).
 !
           ELSEIF(J_SHIFT==0)THEN                                           !<-- No south/north motion
-            J_ID_END_SEARCH=I_TASK                                         !<-- We will not search beyond sender's row.
-            J_ID_INC_SEARCH=1                                              !<-- Task rank search increment
+            J_ID_STA_SEARCH=MAX(I_TASK-INPES,J_TASK_SOUTH)                 !<-- Begin search 1 task to the south due to halos
+            J_ID_END_SEARCH=MIN(I_TASK+INPES,J_TASK_NORTH)                 !<-- Search 3 rows due to halos on north/south sides
+            J_ID_INC_SEARCH=INPES
           ENDIF
 !
-          DO J_TASK=I_TASK,J_ID_END_SEARCH,J_ID_INC_SEARCH                 !<-- If so then search north/south.
+          DO J_TASK=J_ID_STA_SEARCH,J_ID_END_SEARCH,J_ID_INC_SEARCH        !<-- If so then search north/south.
 !         
-            IF(J_SHIFT>=0)THEN                                             !<-- For northward or no south/north motion ....
-              J_START=domain_int_state%LOCAL_JSTART(J_TASK)                !<-- South side of subdomain #5 will lie in footprint.
+            J_START=MAX(domain_int_state%LOCAL_JSTART(J_TASK)-JHALO,JDS) & !<-- South limit of potential receiver task subdomain
+                    +J_SHIFT
+            J_END  =MIN(domain_int_state%LOCAL_JEND(J_TASK)  +JHALO,JDE) & !<-- North limit of potential receiver task subdomain
+                    +J_SHIFT
 !
-            ELSEIF(J_SHIFT<0)THEN                                          !<-- For southward motion ....
-              J_START=domain_int_state%LOCAL_JEND(J_TASK)                  !<-- North side of subdomain #5 will lie in footprint.
+            IF(J_END>=JTS_X.AND.J_START<=JTE_X)THEN                        !<-- If so, task J_TASK's subdomain has moved onto searcher's
+!
+              KOUNT=KOUNT+1
+              ID_RECV(KOUNT)=J_TASK                                        !<-- Save this task ID as a definite receiver of intertask data
+!
             ENDIF
-!
-            J_TEST=J_START+J_SHIFT                                         !<-- Footprint J index of S/N side of task subdomain after move.
-!
-            IF(J_TEST>=JTS  .AND.J_TEST<=JTE  .OR.J_SHIFT==0)THEN          !<-- Is S/N side of this task inside of footprint after move?
-              ID_RECV(5)=J_TASK                                            !<-- If so then we found subdomain #5.
-              EXIT search
-            ENDIF
-!
-            IF(ABS(J_TASK-J_ID_END_SEARCH)<ABS(J_INC))THEN
-              WRITE(0,*)' Failed to find central task in J for inter-task ISend'
-              WRITE(0,*)' ABORT'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
+! 
           ENDDO
 !
-        ENDIF
-!
-        IF(I_TASK==I_ID_END_SEARCH)THEN
-          WRITE(0,*)' Failed to find central task in I for inter-task ISend'
-          WRITE(0,*)' ABORT'
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -5297,58 +5285,10 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  Now that we know which task owns subdomain #5, determine which
-!***  of the remaining eight tasks need to receive data from the 
-!***  sender.  If subdomain #5 is a nest boundary task then some of
-!***  those eight other tasks will not even exist.
-!-----------------------------------------------------------------------
-!
-      IF(ID_RECV(5)>=INPES)THEN                                            !<-- Subdomain #5 not on nest's south boundary.
-        ID_RECV(2)=ID_RECV(5)-INPES                                        !<-- Potential receive task to the south.
-!
-        IF(MOD(ID_RECV(5),INPES)/=0)THEN                                   !<-- Subdomain #5 not on nest's west boundary.
-          ID_RECV(1)=ID_RECV(2)-1                                          !<-- Potential receive task to the southwest.
-          ID_RECV(4)=ID_RECV(5)-1                                          !<-- Potential receive task to the west.
-        ENDIF
-!
-        IF(MOD(ID_RECV(5)+1,INPES)/=0)THEN                                 !<-- Subdomain #5 not on nest's east boundary.
-          ID_RECV(3)=ID_RECV(2)+1                                          !<-- Potential receive task to the southeast.
-          ID_RECV(6)=ID_RECV(5)+1                                          !<-- Potential receive task to the east.
-        ENDIF
-!
-      ELSE                                                                 !<-- Subdomain #5 is on nest's south boundary.
-!        
-        IF(MOD(ID_RECV(5),INPES)/=0)THEN                                   !<-- Subdomain #5 not on nest's west boundary.
-          ID_RECV(4)=ID_RECV(5)-1                                          !<-- Potential receive task to the west.
-        ENDIF
-!
-        IF(MOD(ID_RECV(5)+1,INPES)/=0)THEN                                 !<-- Subdomain #5 not on nest's east boundary.
-          ID_RECV(6)=ID_RECV(5)+1                                          !<-- Potential receive task to the east.
-        ENDIF
-!
-      ENDIF
-!
-      IF(ID_RECV(5)<INPES*(JNPES-1))THEN                                   !<-- Subdomain #5 not on nest's north boundary.
-        ID_RECV(8)=ID_RECV(5)+INPES                                        !<-- Potential receive task to the north.
-!
-        IF(MOD(ID_RECV(5),INPES)/=0)THEN                                   !<-- Subdomain #5 not on nest's west boundary.
-          ID_RECV(7)=ID_RECV(8)-1                                          !<-- Potential receive task to the northwest.
-        ENDIF
-!
-        IF(MOD(ID_RECV(5)+1,INPES)/=0)THEN                                 !<-- Subdomain #5 not on nest's east boundary.
-          ID_RECV(9)=ID_RECV(8)+1                                          !<-- Potential receive task to the northeast.
-        ENDIF
-!
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Loop through the nine potential receive tasks to determine
-!***  which of their points need to be updated by this sender.
-!***  The 'check' test excludes those potential tasks surrounding
-!***  the central subdomain #5 that do not exist due to the presence
-!***  of the nest domain boundary.  Also the sender will not send to
-!***  itself.  It will update its own internal points in subroutine
-!***  SHIFT_INTRA_TASK_DATA.
+!***  Loop through the receive tasks to determine precisely which
+!***  of their points need to be updated by this sender.  The sender
+!***  does not send to itself.  It will update its own internal points
+!***  in subroutine SHIFT_INTRA_TASK_DATA.
 !-----------------------------------------------------------------------
 !
       send_loop: DO N=1,9
@@ -5658,12 +5598,20 @@
 !---------------------
 !
       INTEGER(kind=KINT) :: I,I_END_X,I_ID_END_SEARCH,I_ID_INC_SEARCH    &
-                           ,I_INC,I_START,I_START_X,I_TASK,I_TEST,I1,I2  &
+                           ,I_ID_STA_SEARCH                              &
+                           ,I_INC,I_START,I_START_X,I_TASK               &
+                           ,I_TASK_EAST,I_TASK_WEST                      &
+                           ,I1,I2                                        &
                            ,IRECV_END,IRECV_START                        &
+                           ,ITS_X,ITE_X                                  &
                            ,J,J_END_X,J_ID_END_SEARCH,J_ID_INC_SEARCH    &
-                           ,J_INC,J_START,J_START_X,J_TASK,J_TEST,J1,J2  &
+                           ,J_ID_STA_SEARCH                              &
+                           ,J_INC,J_START,J_START_X,J_TASK               &
+                           ,J_TASK_NORTH,J_TASK_SOUTH                    &
+                           ,J1,J2                                        &
                            ,JRECV_END,JRECV_START                        &
-                           ,KOUNT_INTEGER,KOUNT_REAL                     &
+                           ,JTE_X,JTS_X                                  &
+                           ,KOUNT,KOUNT_INTEGER,KOUNT_REAL               &
                            ,L,N,N_FIELD,N_REMOVE,NF1,NF2                 &
                            ,NUM_DIMS,NUM_FIELDS                          &
                            ,NUM_WORDS_IJ                                 &
@@ -5741,6 +5689,7 @@
 !
 !-----------------------------------------------------------------------
 !***  Initialize to nonsense the ranks of tasks who might send data.
+!***  There can be no more than nine.
 !-----------------------------------------------------------------------
 !
       DO N=1,9
@@ -5748,11 +5697,8 @@
       ENDDO
 !
 !-----------------------------------------------------------------------
-!***  Find which of the nine potential senders will actually send,
-!***  i.e., which of the nine domain footprints prior to the move
-!***  intersect the subdomain (excluding haloes) of the post-move 
-!***  receiving task?  Begin by finding the 'central' footprint #5.  
-!***  To find #5 we do not consider its halo region.
+!***  Search for the tasks that will send intertask update data to
+!***  the current search task.  First look west/east then north/south.
 !
 !***  NOTE:  The search is done with respect to the grid indices on
 !***         the subdomain of the receiver's position after the move.
@@ -5761,79 +5707,67 @@
       I_INC=SIGN(1,I_SHIFT)                                                !<-- +1 for eastward motion; -1 for westward motion
       J_INC=SIGN(1,J_SHIFT)                                                !<-- +1 for northward motion; -1 for southward motion
 !
+      I_TASK_EAST=(MYPE/INPES+1)*INPES-1                                   !<-- Task on east end of receiver's row.
+      I_TASK_WEST=(MYPE/INPES)*INPES                                       !<-- Task on west end of receiver's row.
+!
       IF(I_SHIFT>0)THEN                                                    !<-- For eastward move, search to the east.
-        I_ID_END_SEARCH=(MYPE/INPES+1)*INPES-1                             !<-- Task on east end of receiver's row.
+        I_ID_STA_SEARCH=MYPE                                               !<-- Begin search with current task's column.
+        I_ID_END_SEARCH=I_TASK_EAST                                        !<-- Task on east end of receiver's row.
         I_ID_INC_SEARCH=I_INC                                              !<-- Task rank search increment in I (eastward).
 !
       ELSEIF(I_SHIFT<0)THEN                                                !<-- For westward move, search to the west.
-        I_ID_END_SEARCH=(MYPE/INPES)*INPES                                 !<-- Task on west end of receiver's row.
+        I_ID_STA_SEARCH=MYPE                                               !<-- Begin search with current task's column.
+        I_ID_END_SEARCH=I_TASK_WEST                                        !<-- Task on west end of receiver's row.
         I_ID_INC_SEARCH=I_INC                                              !<-- Task rank search increment in I (westward).
 !
       ELSEIF(I_SHIFT==0)THEN                                               !<-- No west/east motion
-        I_ID_END_SEARCH=MYPE                                               !<-- We will not search beyond sender's column.
+        I_ID_STA_SEARCH=MAX(MYPE-1,I_TASK_WEST)                            !<-- Begin search 1 task to the west due to halos
+        I_ID_END_SEARCH=MIN(MYPE+1,I_TASK_EAST)                            !<-- End search 1 task to the east due to halos
         I_ID_INC_SEARCH=1                                                  !<-- Task rank search increment
       ENDIF
 !
+      KOUNT=0                                                              !<-- Initialize counter of tasks that will send intertask data
+!
 !-----------------------------------------------------------------------
-      search: DO I_TASK=MYPE,I_ID_END_SEARCH,I_ID_INC_SEARCH
+      search: DO I_TASK=I_ID_STA_SEARCH,I_ID_END_SEARCH,I_ID_INC_SEARCH
 !-----------------------------------------------------------------------
 !
-        IF(I_SHIFT>=0)THEN                                                 !<-- For eastward or no west/east motion ....
-          I_START=MIN(domain_int_state%LOCAL_IEND(I_TASK),IDE)             !<-- East side of footprint #5 will lie in subdomain. 
-        ELSEIF(I_SHIFT<0)THEN                                              !<-- For westward motion ....
-          I_START=MAX(domain_int_state%LOCAL_ISTART(I_TASK),IDS)           !<-- West side of footprint #5 will lie in subdomain.
-        ENDIF
+        ITS_X=MAX(domain_int_state%LOCAL_ISTART(I_TASK)-IHALO,IDS)         !<-- East limit of task I_TASK including halo
+        ITE_X=MIN(domain_int_state%LOCAL_IEND(I_TASK)  +IHALO,IDE)         !<-- West limit of task I_TASK including halo
 !
-        I_TEST=I_START-I_SHIFT                                             !<-- Subdomain I index of W/E side of task footprint after move.
+        IF(I_END_X+I_SHIFT>=ITS_X.AND.I_START_X+I_SHIFT<=ITE_X)THEN        !<-- If so, some of current task's subdomain moved onto I_TASK's
 !
-        IF(I_TEST>=ITS.AND.I_TEST<=ITE)THEN                                !<-- Is W/E side of this task inside of subdomain after move?
+          J_TASK_NORTH=(JNPES-1)*INPES+MOD(I_TASK,INPES)                   !<-- Task on north end of I_TASK's column.
+          J_TASK_SOUTH=MOD(I_TASK,INPES)                                   !<-- Task on south end of I_TASK's column.
 !
           IF(J_SHIFT>0)THEN                                                !<-- For northward move, search to the north.
-            J_ID_END_SEARCH=(JNPES-1)*INPES+MOD(I_TASK,INPES)              !<-- Task on north end of I_TASK's column.
-            J_ID_INC_SEARCH=J_INC*INPES                                    !<-- Task rank search increment in J (northward).
-!
+            J_ID_STA_SEARCH=I_TASK                                         !<-- Begin search with I_TASK
+            J_ID_END_SEARCH=J_TASK_NORTH                                   !<-- Task on north end of I_TASK's column.
+            J_ID_INC_SEARCH=J_INC*INPES                                    !<-- Task rank search increment in J (northward).  !
           ELSEIF(J_SHIFT<0)THEN                                            !<-- For southward move, search to the south.
-            J_ID_END_SEARCH=MOD(I_TASK,INPES)                              !<-- Task on south end of I_TASK's column.
+            J_ID_STA_SEARCH=I_TASK                                         !<-- Begin search with I_TASK
+            J_ID_END_SEARCH=J_TASK_SOUTH                                   !<-- Task on south end of I_TASK's column.
             J_ID_INC_SEARCH=J_INC*INPES                                    !<-- Task rank search increment in J (southward).
 !
           ELSEIF(J_SHIFT==0)THEN                                           !<-- No south/north motion
-            J_ID_END_SEARCH=I_TASK                                         !<-- We will not search beyond sender's row.
-            J_ID_INC_SEARCH=1                                              !<-- Task rank search increment
+            J_ID_STA_SEARCH=MAX(I_TASK-INPES,J_TASK_SOUTH)                 !<-- Due to halos begin 1 task to the south
+            J_ID_END_SEARCH=MIN(I_TASK+INPES,J_TASK_NORTH)                 !<-- And end search 1 task to the north
+            J_ID_INC_SEARCH=INPES                                          !<-- Task rank search increment
           ENDIF
 !
-          DO J_TASK=I_TASK,J_ID_END_SEARCH,J_ID_INC_SEARCH                 !<-- If so then search north/south.
+          DO J_TASK=J_ID_STA_SEARCH,J_ID_END_SEARCH,J_ID_INC_SEARCH        !<-- If so then search north/south.
 !
-            IF(J_SHIFT>=0)THEN                                             !<-- For northward or no south/north motion ....
-              J_START=MIN(domain_int_state%LOCAL_JEND(J_TASK),JDE)         !<-- North side of footprint #5 will lie in subdomain.
-            ELSEIF(J_SHIFT<0)THEN                                          !<-- For southward motion ....
-              J_START=MAX(domain_int_state%LOCAL_JSTART(J_TASK),JDS)       !<-- South side of footprint #5 will lie in subdomain.
-            ENDIF
+            JTS_X=domain_int_state%LOCAL_JSTART(J_TASK)-JHALO              !<-- South limit of task J_TASK integration region
+            JTE_X=domain_int_state%LOCAL_JEND(J_TASK)                      !<-- North limit of task J_TASK integration region
 !
-            J_TEST=J_START-J_SHIFT                                         !<-- Subdomain J index of S/N side of task footprint after move.
+            IF(J_END_X+J_SHIFT>=JTS_X.AND.J_START_X+J_SHIFT<=JTE_X)THEN    !<-- If so, current task has moved onto J_TASK's subdomain
 !
-            IF(J_TEST>=JTS.AND.J_TEST<=JTE)THEN                            !<-- Is S/N side of this task inside of subdomain after move?
-              ID_SEND(5)=J_TASK                                            !<-- If so then we found footprint #5.
-              EXIT search
-            ENDIF
-!
-            IF(ABS(J_TASK-J_ID_END_SEARCH)<ABS(J_INC))THEN
-              WRITE(0,*)' Failed to find central task in J for inter-task Recv'
-              WRITE(0,*)' Therefore I receive from no one.'
-!!!           WRITE(0,*)' ABORT'
-!!!           CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-              RETURN
+              KOUNT=KOUNT+1
+              ID_SEND(KOUNT)=J_TASK                                        !<-- Save this task ID as a definite sender of intertask data
             ENDIF
 !
           ENDDO
 !
-        ENDIF
-!
-        IF(I_TASK==I_ID_END_SEARCH)THEN
-          WRITE(0,*)' Failed to find central task in I for inter-task Recv'
-          WRITE(0,*)' Therefore I receive from no one.'
-!!!       WRITE(0,*)' ABORT'
-!!!       CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-          RETURN
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -5841,58 +5775,11 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  Now that we know which task owns footprint #5, determine which
-!***  of the remaining eight tasks need to send data to this receiver.
-!***  If footprint #5 is a nest boundary task then some of those 
-!***  eight other tasks will not even exist.
-!-----------------------------------------------------------------------
-!
-      IF(ID_SEND(5)>=INPES)THEN                                            !<-- Footprint #5 not on nest's south boundary.
-        ID_SEND(2)=ID_SEND(5)-INPES                                        !<-- Potential send task to the south.
-!
-        IF(MOD(ID_SEND(5),INPES)/=0)THEN                                   !<-- Footprint #5 not on nest's west boundary.
-          ID_SEND(1)=ID_SEND(2)-1                                          !<-- Potential send task to the southwest.
-          ID_SEND(4)=ID_SEND(5)-1                                          !<-- Potential send task to the west.
-        ENDIF
-!
-        IF(MOD(ID_SEND(5)+1,INPES)/=0)THEN                                 !<-- Footprint #5 not on nest's east boundary.
-          ID_SEND(3)=ID_SEND(2)+1                                          !<-- Potential send task to the southeast.
-          ID_SEND(6)=ID_SEND(5)+1                                          !<-- Potential send task to the east.
-        ENDIF
-!
-      ELSE                                                                 !<-- Footprint #5 is on nest's south boundary.
-!
-        IF(MOD(ID_SEND(5),INPES)/=0)THEN                                   !<-- Footprint #5 not on nest's west boundary.
-          ID_SEND(4)=ID_SEND(5)-1                                          !<-- Potential send task to the west.
-        ENDIF
-!
-        IF(MOD(ID_SEND(5)+1,INPES)/=0)THEN                                 !<-- Footprint #5 not on nest's east boundary.
-          ID_SEND(6)=ID_SEND(5)+1                                          !<-- Potential send task to the east.
-        ENDIF
-!
-      ENDIF
-!
-      IF(ID_SEND(5)<INPES*(JNPES-1))THEN                                   !<-- Footprint #5 not on nest's north boundary.
-        ID_SEND(8)=ID_SEND(5)+INPES                                        !<-- Potential send task to the north.
-!
-        IF(MOD(ID_SEND(5),INPES)/=0)THEN                                   !<-- Footprint #5 not on nest's west boundary.
-          ID_SEND(7)=ID_SEND(8)-1                                          !<-- Potential send task to the northwest.
-        ENDIF
-!
-        IF(MOD(ID_SEND(5)+1,INPES)/=0)THEN                                 !<-- Footprint #5 not on nest's east boundary.
-          ID_SEND(9)=ID_SEND(8)+1                                          !<-- Potential send task to the northeast.
-        ENDIF
-!
-      ENDIF
-!
-!-----------------------------------------------------------------------
 !***  Loop through the nine potential send tasks to determine which
 !***  of their points are needed for updating points in this receiver.
-!***  The 'check' test excludes those potential tasks surrounding
-!***  the central footprint #5 that do not exist due to the presence
-!***  of the nest domain boundary.  Also the current task executing
-!***  this routine will not receive from itself.  It willupdate its
-!***  own internal points in subroutine SHIFT_INTRA_TASK_DATA.
+!***  The current task executing this routine will not receive from
+!***  itself.  It will update its own internal points in subroutine
+!***  SHIFT_INTRA_TASK_DATA.
 !-----------------------------------------------------------------------
 !
       recv_loop: DO N=1,9
@@ -7288,7 +7175,9 @@
 !
       REAL(kind=KFPT) :: A_DLM,ADD,ARG1,ARG2,ARG3                       &
                         ,COS_TPH,COS_TPH0,DY                            &
-                        ,SIN_TPH,SIN_TPH0,TAN_TPH0
+                        ,SB_PARENT1                                     &
+                        ,SIN_TPH,SIN_TPH0,TAN_TPH0                      &
+                        ,WB_PARENT1
 !
       REAL(kind=KFPT),DIMENSION(J_LBND:J_UBND) :: DX
 !
@@ -7303,10 +7192,14 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-!
-      VELOCITY=.FALSE.
-      IF(PRESENT(F))THEN
-        VELOCITY=.TRUE.
+      IF(.NOT.PRESENT(F))THEN
+        VELOCITY=.FALSE.                                                   !<-- H points
+        SB_PARENT1=SB_1                                                    !<-- Transformed latitude of upper parent S boundary
+        WB_PARENT1=WB_1                                                    !<-- Transformed longitude of upper parent W boundary
+      ELSEIF(PRESENT(F))THEN
+        VELOCITY=.TRUE.                                                    !<-- V points
+        SB_PARENT1=SB_1+0.5*DPH                                            !<-- Transformed latitude of upper parent S boundary
+        WB_PARENT1=WB_1+0.5*DLM                                            !<-- Transformed longitude of upper parent W boundary
       ENDIF
 !
       DY=A*DPH
@@ -7328,27 +7221,29 @@
 !-----------------------------------------------------------------------
 !***  What are the transformed coordinates of the SW corner 
 !***  after the nest moved?  And then how many equivalent grid
-!***  increments on the nest's grid to that SW corner?
+!***  increments from the upper parent's grid's southern and
+!***  western boundary to that SW corner?  By anchoring the
+!***  update on the upper parent's domain then the nests will
+!***  always generate bit identical results no matter what 
+!***  their task layouts are.
 !-----------------------------------------------------------------------
 !
       TLAT_X(I_START,J_START)=TLAT_X(I_START,J_START)+J_SHIFT_CHILD*DPH
       TLON_X(I_START,J_START)=TLON_X(I_START,J_START)+I_SHIFT_CHILD*DLM
 !
-      INC_LAT=NINT((TLAT_X(I_START,J_START)-SB_1)/DPH)
-      INC_LON=NINT((TLON_X(I_START,J_START)-WB_1)/DLM)
+      INC_LAT=NINT((TLAT_X(I_START,J_START)-SB_PARENT1)/DPH)
+      INC_LON=NINT((TLON_X(I_START,J_START)-WB_PARENT1)/DLM)
 !
 !-----------------------------------------------------------------------
-!***  Now fill in the transformed coordinates on the rest of the
-!***  task subdomain's update region.
+!***  Now fill in the transformed coordinates on the task subdomain's
+!***  update region following the nest's shift.
 !-----------------------------------------------------------------------
 !
-      KOUNT=0
-      DO J=J_START+1,J_END
+      KOUNT=-1
+      DO J=J_START,J_END
         KOUNT=KOUNT+1
-!       TLAT_X(I_START,J)=TLAT_X(I_START,J_START)+KOUNT*DPH
-!       TLON_X(I_START,J)=TLON_X(I_START,J_START)
-        TLAT_X(I_START,J)=SB_1+(INC_LAT+KOUNT)*DPH
-        TLON_X(I_START,J)=WB_1+INC_LON*DLM
+        TLAT_X(I_START,J)=SB_PARENT1+(INC_LAT+KOUNT)*DPH
+        TLON_X(I_START,J)=WB_PARENT1+INC_LON*DLM
       ENDDO
 !
       DO J=J_START,J_END
@@ -7357,7 +7252,7 @@
           KOUNT=KOUNT+1
           TLAT_X(I,J)=TLAT_X(I_START,J)
 !         TLON_X(I,J)=TLON_X(I_START,J)+KOUNT*DLM
-          TLON_X(I,J)=WB_1+(INC_LON+KOUNT)*DLM
+          TLON_X(I,J)=WB_PARENT1+(INC_LON+KOUNT)*DLM
         ENDDO
       ENDDO
 !

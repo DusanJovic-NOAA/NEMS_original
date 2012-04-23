@@ -408,6 +408,7 @@ real(kind=kfpt),allocatable,dimension(:,:,:):: &      !im,jm,lm
       ,fad,fah &
       ,dare,rare &
       ,glat,glon &
+      ,glat_sw,glon_sw &
       ,vlat,vlon &
       ,hdacx,hdacy &
       ,hdacvx,hdacvy &
@@ -449,6 +450,8 @@ real(kind=kfpt),intent(out) :: &
 ,dyh &
 ,dyv &
 ,ef4t &
+,glat_sw &   ! geographic latitude (radians) of domain's SW corner
+,glon_sw &   ! geographic longitude (radians) of domain's SW corner (positive east)
 ,rdyh &
 ,rdyv &
 ,tboco
@@ -980,6 +983,16 @@ real(kind=kfpt),dimension(jds:jde):: &
             vlon(i,j)=alm
           enddo
         enddo
+!
+!-----------------------------------------------------------------------
+!***  Save the geographic lat/lon (radians) of this domain's SW corner.
+!-----------------------------------------------------------------------
+!
+        glat_sw=asin(sin(sb)*ctph0+cos(sb)*stph0*cos(wb))
+        glon_sw=tlm0d*dtr+sign(1.,wb)*acos(((cos(sb)*cos(wb))           &
+                                           /(cos(glat_sw)*ctph0)        &
+                                          -tan(glat_sw)*tan(tph0d*dtr)))
+!
 !-----------------------------------------------------------------------
       else !regional
 !-----------------------------------------------------------------------
@@ -1190,6 +1203,16 @@ real(kind=kfpt),dimension(jds:jde):: &
             vlon(i,j)=alm
           enddo
         enddo
+!
+!-----------------------------------------------------------------------
+!***  Save the geographic lat/lon (radians) of this domain's SW corner.
+!-----------------------------------------------------------------------
+!
+        glat_sw=asin(sin(sb)*ctph0+cos(sb)*stph0*cos(wb))
+        glon_sw=tlm0d*dtr+sign(1.,wb)*((cos(sb)*cos(wb))                &
+                                      /(cos(glat_sw)*ctph0)             &
+                                       -tan(glat_sw)*tan(tph0d*dtr))
+!
 !-----------------------------------------------------------------------
 !
       endif global_regional_setup

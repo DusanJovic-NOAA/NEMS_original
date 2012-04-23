@@ -2668,6 +2668,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 ,vdif &                      ! v wind component 2nd order diffusion
 ,vx &                        ! v wind component difference, x direction
 ,vy                          ! v wind component difference, y direction
+
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -3729,10 +3730,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
           why(l)=1.-fwhy*cos(arg*pi*0.5)**2
           lsltp=l
         enddo
-!if (mype.eq.035) then
-!write(0,*) 'lsltp,why ',lsltp,why
-!endif
-!stop
 !
       do l=1,lsltp
         do j=jts_b1,jte_b1

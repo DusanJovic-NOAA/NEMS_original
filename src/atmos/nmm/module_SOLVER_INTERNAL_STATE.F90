@@ -116,9 +116,9 @@
                                                   ,NHSMUD
 !
         REAL(kind=KFPT), POINTER :: DPHD,DLMD,DYH,PDTOP,PT
-        REAL(kind=KFPT) :: DYV,RDYH,RDYV                                &
-                          ,DDMPV                                        &
-                          ,EF4T
+        REAL(kind=KFPT) :: DDMPV,DYV,EF4T                               &
+                          ,GLAT_SW,GLON_SW                              &
+                          ,RDYH,RDYV 
 !
         REAL(kind=KFPT),DIMENSION(:),POINTER :: SG1,PSG1                &
                                                ,DSG1,PDSG1              &
