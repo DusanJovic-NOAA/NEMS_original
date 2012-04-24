@@ -44,6 +44,7 @@
 # 2011-03-15  Henry Juang : add JCAPG for NDSL
 # 2011-02-28  Sarah Lu : add thermodyn_id and sfcpress_id to nam_dyn
 # 2012-04-06  Henry Juang : add option of IDEA
+# 2012-04-16  Jun Wang : set dp_import to 1 for NDSL
 #
 # Usage:  global_forecast.sh SIGI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO NSTI NSTO G3DO FHOUT_HF FHMAX_HF
 #
@@ -569,6 +570,9 @@ export QUILTING=${QUILTING:-.true.}
 export WRITE_DOPOST=${WRITE_DOPOST:-.false.}
 export POST_GRIBVERSION=${POST_GRIBVERSION:-'"grib1"'}
 export GOCART_AER2POST=${GOCART_AER2POST:-.false.}
+#
+dp_import=0
+if [ $NDSLFV = .true. ]; then dp_import=1; fi
 
 if [ $IDVC = 1 ] ; then
  export HYBRID=.false.
@@ -1036,7 +1040,7 @@ v_import:                         1
 temp_import:                      1
 tracer_import:                    1
 p_import:                         0
-dp_import:                        0
+dp_import:                        ${dp_import}
 dpdt_import:                      0
 
 idate1_export:                    1

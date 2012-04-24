@@ -26,6 +26,8 @@
 !  Dec 23  2010       Sarah Lu, setup fscav from gfs_phy_tracer 
 !  Nov 27  2011       Sarah Lu, zerout fcld, dqdt, and wet1
 !  Apr 06  2012       Henry Juang, add idea
+!  Apr 09  2012       Jun Wang save phys state at 3hr and set back to 
+!                     3hr phys state aft dfi
 !
 ! !interface:
 !
@@ -97,16 +99,40 @@
            (gis_phy%kdt<=ndfi/2.or.gis_phy%kdt>ndfi)).or. gis_phy%kdt==1
        endif
 !
-!       write(0,*)' end of common_to_physics_vars,kdt=',gis_phy%kdt,      &
+!       print *,' end of common_to_physics_vars,kdt=',gis_phy%kdt,      &
 !         'nsout=',nsout,'lsout=',gis_phy%LSOUT,'zhour=',gis_phy%ZHOUR,   &
 !         'ldfi=',ldfi,'ndfi=',ndfi,gis_phy%kdt<=ndfi/2,gis_phy%kdt>ndfi, &
 !             gis_phy%kdt<=ndfi/2.or.gis_phy%kdt>ndfi
-!       if(gis_phy%kdt>=96.and.gis_phy%kdt<=98.or.gis_phy%kdt>=4.and.gis_phy%kdt<=6) then
+!       if(gis_phy%kdt==12.and.gis_phy%kdt<=13.or.gis_phy%kdt>=24.and.gis_phy%kdt<=25) then
 !       print *,'be phys one,kdt=',gis_phy%kdt,'ps=',maxval(gis_phy%grid_fld%ps), &
 !        minval(gis_phy%grid_fld%ps),'t=',maxval(gis_phy%grid_fld%t), &
 !        minval(gis_phy%grid_fld%t),'spfh=',maxval(gis_phy%grid_fld%tracers(1)%flds),  &
-!        minval(gis_phy%grid_fld%tracers(1)%flds)
+!        minval(gis_phy%grid_fld%tracers(1)%flds),'tsea=',maxval(gis_phy%sfc_fld%tsea),&
+!        minval(gis_phy%sfc_fld%tsea),maxloc(gis_phy%sfc_fld%tsea),maxloc(gis_phy%grid_fld%ps)
+!       print *,'      ps1lp(',gis_phy%kdt,')=  ',gis_phy%grid_fld%ps(154,58)
 !       endif
+       if( ndfi>0 .and. gis_phy%kdt==ndfi/2+1 .and. .not.ldfi )  then
+         call dfi_fixwr(2,    &
+           gis_phy%nst_fld%xt,     gis_phy%nst_fld%xs,     gis_phy%nst_fld%xu,     &
+           gis_phy%nst_fld%xv,     gis_phy%nst_fld%xz,     gis_phy%nst_fld%zm,     &
+           gis_phy%nst_fld%xtts,   gis_phy%nst_fld%xzts,   gis_phy%nst_fld%dt_cool,&
+           gis_phy%nst_fld%z_c,    gis_phy%nst_fld%c_0,    gis_phy%nst_fld%c_d,    &
+           gis_phy%nst_fld%w_0,    gis_phy%nst_fld%w_d,    gis_phy%nst_fld%d_conv, &
+           gis_phy%nst_fld%ifd,    gis_phy%nst_fld%tref,   gis_phy%nst_fld%Qrain,  &
+
+           gis_phy%sfc_fld%hice,   gis_phy%sfc_fld%fice,   gis_phy%sfc_fld%tisfc,  &
+           gis_phy%sfc_fld%tsea,   gis_phy%sfc_fld%smc,    gis_phy%sfc_fld%sheleg, &
+           gis_phy%sfc_fld%stc,    gis_phy%sfc_fld%tg3,    gis_phy%sfc_fld%zorl,   &
+           gis_phy%sfc_fld%cv,     gis_phy%sfc_fld%cvb,    gis_phy%sfc_fld%cvt,    &
+           gis_phy%sfc_fld%alvsf,  gis_phy%sfc_fld%alvwf,  gis_phy%sfc_fld%alnsf,  &
+           gis_phy%sfc_fld%alnwf,  gis_phy%sfc_fld%vfrac,  gis_phy%sfc_fld%canopy, &
+           gis_phy%sfc_fld%f10m,   gis_phy%sfc_fld%vtype,  gis_phy%sfc_fld%stype,  &
+           gis_phy%sfc_fld%facsf,  gis_phy%sfc_fld%facwf,  gis_phy%sfc_fld%uustar, &
+           gis_phy%sfc_fld%ffmm,   gis_phy%sfc_fld%ffhh,   gis_phy%sfc_fld%tprcp,  &
+           gis_phy%sfc_fld%srflag, gis_phy%sfc_fld%slc,    gis_phy%sfc_fld%snwdph, &
+           gis_phy%sfc_fld%slope,  gis_phy%sfc_fld%shdmin, gis_phy%sfc_fld%shdmax, &
+           gis_phy%sfc_fld%snoalb, gis_phy%sfc_fld%sncovr)
+       endif
         
 !!  gfs_phy_tracer%fscav(1:ntrac) is for all tracers
 !!  fscav(1:ntrac-ncld-1) is for ozone + aerosl species
@@ -155,15 +181,35 @@
                  gis_phy%LSOUT,   gis_phy%COLAT1,  gis_phy%CFHOUR1,       &
                  gis_phy%fscav )
 
-!       if(gis_phy%kdt>=96.and.gis_phy%kdt<=98.or.gis_phy%kdt>=4.and.gis_phy%kdt<=6) then
-!       if(gis_phy%kdt<=1) then
-!        print *,'af phys one,kdt=',gis_phy%kdt,'ps=',maxval(gis_phy%grid_fld%ps), &
-!        minval(gis_phy%grid_fld%ps),'t=',maxval(gis_phy%grid_fld%t), &
-!        minval(gis_phy%grid_fld%t),'spfh=',maxval(gis_phy%grid_fld%tracers(1)%flds),  &
-!        minval(gis_phy%grid_fld%tracers(1)%flds)
-!       endif
 !                        
 ! =======================================================================
+!
+! save phys fields for digital filter
+!
+       if( ldfi.and.gis_phy%kdt==ndfi/2 )  then
+!         print *,'save phys state, at gis_phy%kdt=',gis_phy%kdt,'ldfi=',ldfi
+         call dfi_fixwr(1,   &
+           gis_phy%nst_fld%xt,     gis_phy%nst_fld%xs,     gis_phy%nst_fld%xu,     &
+           gis_phy%nst_fld%xv,     gis_phy%nst_fld%xz,     gis_phy%nst_fld%zm,     &
+           gis_phy%nst_fld%xtts,   gis_phy%nst_fld%xzts,   gis_phy%nst_fld%dt_cool,&
+           gis_phy%nst_fld%z_c,    gis_phy%nst_fld%c_0,    gis_phy%nst_fld%c_d,    &
+           gis_phy%nst_fld%w_0,    gis_phy%nst_fld%w_d,    gis_phy%nst_fld%d_conv, &
+           gis_phy%nst_fld%ifd,    gis_phy%nst_fld%tref,   gis_phy%nst_fld%Qrain,  &
+
+           gis_phy%sfc_fld%hice,   gis_phy%sfc_fld%fice,   gis_phy%sfc_fld%tisfc,  &
+           gis_phy%sfc_fld%tsea,   gis_phy%sfc_fld%smc,    gis_phy%sfc_fld%sheleg, &
+           gis_phy%sfc_fld%stc,    gis_phy%sfc_fld%tg3,    gis_phy%sfc_fld%zorl,   &
+           gis_phy%sfc_fld%cv,     gis_phy%sfc_fld%cvb,    gis_phy%sfc_fld%cvt,    &
+           gis_phy%sfc_fld%alvsf,  gis_phy%sfc_fld%alvwf,  gis_phy%sfc_fld%alnsf,  &
+           gis_phy%sfc_fld%alnwf,  gis_phy%sfc_fld%vfrac,  gis_phy%sfc_fld%canopy, &
+           gis_phy%sfc_fld%f10m,   gis_phy%sfc_fld%vtype,  gis_phy%sfc_fld%stype,  &
+           gis_phy%sfc_fld%facsf,  gis_phy%sfc_fld%facwf,  gis_phy%sfc_fld%uustar, &
+           gis_phy%sfc_fld%ffmm,   gis_phy%sfc_fld%ffhh,   gis_phy%sfc_fld%tprcp,  &
+           gis_phy%sfc_fld%srflag, gis_phy%sfc_fld%slc,    gis_phy%sfc_fld%snwdph, &
+           gis_phy%sfc_fld%slope,  gis_phy%sfc_fld%shdmin, gis_phy%sfc_fld%shdmax, &
+           gis_phy%sfc_fld%snoalb, gis_phy%sfc_fld%sncovr)
+       endif
+!
 !
 ! update hour
 !

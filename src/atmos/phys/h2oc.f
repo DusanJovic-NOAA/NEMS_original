@@ -576,7 +576,8 @@ C  Polynomial interpolation from "Numerical Recipes"
           HP=XA(I+M)-X
           W=C(I+1)-D(I)
           DEN=HO-HP
-          IF(DEN.EQ.0.) PAUSE
+!!!compiler warning          IF(DEN.EQ.0.) PAUSE
+          IF(DEN.EQ.0.) STOP 'DEN.EQ.0. in POLINT'
           DEN=W/DEN
           D(I)=HP*DEN
           C(I)=HO*DEN

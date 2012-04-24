@@ -2613,7 +2613,7 @@
       REAL (KIND=KIND_IO8) FLD(IJMAX), SLIMSK(IJMAX),SNO(IJMAX)
 !
       REAL (KIND=KIND_IO8) RMAX(5),RMIN(5)
-      CHARACTER*8 LFLD
+      CHARACTER*(*) LFLD
 !
 !  FIND MAX/MIN
 !
@@ -5320,7 +5320,7 @@
      &        ij,nprt,kmaxs,kmins,i,me,len,mode
       PARAMETER(MMPRT=2)
 !
-      CHARACTER*8 TTL
+      CHARACTER*(*) TTL
       logical iceflg(LEN)
       REAL (KIND=KIND_IO8) FLD(LEN),SLIMSK(LEN),SNO(LEN),
      &                     RLA(LEN), RLO(LEN)

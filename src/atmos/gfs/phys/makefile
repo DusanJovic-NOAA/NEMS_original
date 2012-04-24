@@ -75,6 +75,7 @@ OBJS    =                               \
           get_lats_node_shuff_r_fix.o   \
           do_physics_one_step.o         \
           gcycle.o                      \
+          dfi_fixwr.o                  \
           hpmdummy.o
 
 OBJS_IO=                       \

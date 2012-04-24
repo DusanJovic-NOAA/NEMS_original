@@ -75,8 +75,10 @@ if [ $argn -eq 1 ]; then
   #
    rm -rf ${STMP}/${USER}/REGRESSION_TEST
    echo "copy REGRESSION_TEST_baselines"
+   mkdir -p ${STMP}/${USER}
    cp -r ${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines \
-	 ${STMP}/${USER}/REGRESSION_TEST
+	 ${STMP}/${USER}
+   mv ${STMP}/${USER}/REGRESSION_TEST_baselines ${STMP}/${USER}/REGRESSION_TEST
   CP_nmm=false
   CP_gfs=false
   CP_fim=false

@@ -26,6 +26,7 @@ cc
 ! February 2010: Hann-Ming Henry Juang add non-iteration dimensional-split
 !                Semi-Lagrangain (NDSL).
 ! Apr 2012    Henry Juang, add idea
+! Apr 2012    Jun Wang, add gridp2n at reset step
 !----------------------------------------------
 
       use gfs_dyn_resol_def
@@ -253,15 +254,6 @@ c idea add 1
 ! ----- this section is called once only -------
 ! --------------------------------------------------------------
 
-!        print *,'in dyn one step,reset ps=',maxval(grid_gr(:,g_q)), 
-!     &   minval(grid_gr(:,g_q)),'u=',maxval(grid_gr(:,g_uu)),
-!     &   minval(grid_gr(:,g_uu)),'v=',maxval(grid_gr(:,g_vv)),
-!     &   minval(grid_gr(:,g_vv)),'t=',maxval(grid_gr(:,g_tt)),
-!     &   minval(grid_gr(:,g_tt)),'rq=',maxval(grid_gr(:,g_rq)),
-!     &   minval(grid_gr(:,g_rq)),'psg=',maxval(grid_gr(:,g_zq)), 
-!     &   minval(grid_gr(:,g_zq)),'psm=',minval(grid_gr(:,g_qm)), 
-!     &   minval(grid_gr(:,g_qm))
-
         fwd_step = .true.
         dt   = deltim*0.5
         dt2  = cons2*dt
@@ -278,6 +270,9 @@ c idea add 1
         else
           call get_cd_sig(am,bm,dt,tov,sv)
         endif
+!
+! move data from physics to n+1
+        call do_dynamics_gridp2n(grid_gr,global_lats_a,lonsperlat)
 
 ! after digital filter, all updated in n
 
@@ -920,6 +915,7 @@ c coefficients
       IF (ldfi) THEN
         call gfs_dficoll_dynamics(grid_gr,grid_gr_dfi)
       ENDIF
+!
 !
 ! =====================================================================
       if(.not.restart_step) then

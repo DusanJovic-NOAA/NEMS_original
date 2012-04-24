@@ -2642,7 +2642,8 @@ c1000 FORMAT(3I8)
 !
 !-----------------------------------------------------------------------
 !
-      IF (IYYY.EQ.0) PAUSE 'There is no Year Zero.'
+!!!compiler warning      IF (IYYY.EQ.0) PAUSE 'There is no Year Zero.'
+      IF (IYYY.EQ.0) STOP 'There is no Year Zero.'
       IF (IYYY.LT.0) IYYY=IYYY+1
       IF (MM.GT.2) THEN
         JY=IYYY

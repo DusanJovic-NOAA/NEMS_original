@@ -15,6 +15,7 @@
 !   Sep 17 2011   Sarah Lu, revise chem tracer initialization
 !   Nov 11 2011   Sarah Lu, allocate but not assign value for cpi/ri array
 !   Apr 06 2012   Henry Juang, relax hardwire num_tracer, add tracer 4 and 5
+!   Apr 23 2012   Jun Wang, remove save attibute for gfs_phy_tracer (already defined)
 ! -------------------------------------------------------------------------
 !
       module gfs_phy_tracer_config
@@ -42,7 +43,7 @@
         logical                  :: doing_GOCART
       endtype gfs_phy_tracer_type
 
-      type (gfs_phy_tracer_type), save     ::  gfs_phy_tracer
+      type (gfs_phy_tracer_type)     ::  gfs_phy_tracer
 !
 ! misc tracer options
 !
