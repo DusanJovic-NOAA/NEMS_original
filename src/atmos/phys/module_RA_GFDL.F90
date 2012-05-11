@@ -399,10 +399,11 @@
       SUBROUTINE GFDL(DT,THRATEN,THRATENLW,THRATENSW,CLDFRA,PI3D        &
      &                ,XLAND,P8W,T                                      &
      &                ,QV,QW,QI,QS                                      & 
+     &                ,F_QV,F_QC,F_QR,F_QI ,F_QS,F_QG                   &
      &                ,TSK2D,GLW,RSWIN,GSW,RSWINC                       &
      &                ,RSWTOA,RLWTOA,CZMEAN                             & 
      &                ,GLAT,GLON,HTOP,HBOT,ALBEDO,CUPPT                 &
-     &                ,SNOW,G,GMT,OPER                                  &
+     &                ,SNOW,G,GMT                                       &
 !BSF => for NAMX changes, pass in surface emissivity (SFCEMS) [different for snow]
      &                ,NSTEPRA,NPHS,ITIMESTEP                           &
      &                ,XTIME,JULIAN                                     &
@@ -446,7 +447,8 @@
       REAL,INTENT(OUT),DIMENSION(ims:ime, jms:jme):: CZMEAN             &
      &                                           ,RSWIN,RSWINC        &
      &                                           ,CFRACL,CFRACM,CFRACH
-      LOGICAL, INTENT(IN) :: gfdl_lw,gfdl_sw,OPER
+      LOGICAL, INTENT(IN) :: gfdl_lw,gfdl_sw
+      LOGICAL, INTENT(IN) :: F_QV,F_QC,F_QR,F_QI ,F_QS,F_QG
       REAL, OPTIONAL, INTENT(IN), DIMENSION(ims:ime, jms:jme, kts:kte):: QI
 
       REAL, DIMENSION(ims:ime, jms:jme, kms:kme):: PFLIP,QIFLIP,QFLIP,  &
@@ -483,7 +485,8 @@
 ! Note that QIFLIP will contain QS+QI if both are passed in, otherwise just QS 
 !     Eta MP now outputs QS instead of QI (JD 2006-05-12)
           QIFLIP(I,J,K)=MAX(QS(I,J,K),0.)
-          IF(PRESENT(QI))QIFLIP(I,J,K)=QIFLIP(I,J,K)+QI(I,J,K)
+!rv       IF(PRESENT(QI))QIFLIP(I,J,K)=QIFLIP(I,J,K)+QI(I,J,K)
+          IF(F_QI)QIFLIP(I,J,K)=QIFLIP(I,J,K)+QI(I,J,K)
 !
 !***  USE MONOTONIC HYDROSTATIC PRESSURE INTERPOLATED TO MID-LEVEL
 !
@@ -514,7 +517,7 @@
      &            PFLIP,P8W,XLAND,TSK2D,                                &
      &            GLAT,GLON,CUTOP,CUBOT,ALBEDO,CUPPT,                   &
      &            ACFRCV,NCFRCV,ACFRST,NCFRST,                          &
-     &            SNOW,GLW,GSW,RSWIN,RSWINC,OPER,                       &
+     &            SNOW,GLW,GSW,RSWIN,RSWINC,                            &
 !BSF => for NAMX changes, pass in surface emissivity (SFCEMS) [different for snow]
      &            IDAT,IHRST,XTIME,JULIAN,                              &
      &            NSTEPRA,NSTEPRA,NPHS,ITIMESTEP,                       &
@@ -597,7 +600,7 @@
      &                 PFLIP,P8W,XLAND,TSK2D,                           &
      &                 GLAT,GLON,CUTOP,CUBOT,ALB,CUPPT,                 &
      &                 ACFRCV,NCFRCV,ACFRST,NCFRST,                     &
-     &                 SNO,GLW,GSW,RSWIN,RSWINC,OPER,                   &
+     &                 SNO,GLW,GSW,RSWIN,RSWINC,                        &
 !BSF => for NAMX changes, pass in surface emissivity (SFCEMS) [different for snow]
      &                 IDAT,IHRST,XTIME,JULIAN,                         &
      &                 NRADS,NRADL,NPHS,NTSD,                           &
@@ -739,7 +742,6 @@
       LOGICAL :: BITX,BITY,BITZ,BITW,BIT1,BIT2,BITC,BITCP1,BITSP1
       LOGICAL, SAVE :: CNCLD=.TRUE.
       LOGICAL :: NEW_CLOUD
-      LOGICAL, INTENT(IN) :: OPER
 !-----------------------------------------------------------------------
       REAL, INTENT(IN), DIMENSION(ims:ime,jms:jme) :: XLAND,TSK2D
       REAL, INTENT(IN), DIMENSION(ims:ime, jms:jme, kms:kme):: P8W      &
@@ -1049,14 +1051,7 @@
             LL=L+LVLIJ
             WV=QMID(I,LL)/(1.-QMID(I,LL))       !--- Water vapor mixing ratio
             QCLD=QWMID(I,LL)+QIMID(I,LL)        !--- Total cloud water + ice mixing ratio
-!rv------------------------------------
-!rv   This should be temporary fix!!!!!
-!rv   New (currently operational) calculation of cloud fraction is
-!rv   causing different results with different decomposition
-!rv   We should find cause of this!!!!!
-!rv------------------------------------
-          if (oper) then
-!rv------------------------------------
+
 !-- From model tuning experiments vs CLAVR grid-to-grid verification:
 !-- 100% cloud fractions at 0.01 g/kg (1.e-5 kg/kg) cloud mixing ratios
 !-- 10% cloud fractions at 1.e-4 g/kg (1.e-7 kg/kg) cloud mixing ratios
@@ -1065,56 +1060,7 @@
             CLFR=MIN(H1, MAX(H0,1.E5*QCLD))
             CLFR=SQRT(CLFR)
             IF (CLFR>=CLFRmin) CSMID(I,LL)=CLFR
-!rv------------------------------------
-          else
-!rv------------------------------------
-            IF (QCLD .LE. EPSQ) GO TO 255       !--- Skip if no condensate is present
-            CLFR=H0
-            WV=QMID(I,LL)/(1.-QMID(I,LL))       !--- Water vapor mixing ratio
-    !
-    !--- Saturation vapor pressure w/r/t water ( >=0C ) or ice ( <0C )
-    !
-            ESAT=1000.*FPVS(TMID(I,LL))         !--- Saturation vapor pressure (Pa)
-            QSAT=EP_2*ESAT/(PMID(I,LL)-ESAT)    !--- Saturation mixing ratio
-            RHUM=WV/QSAT                        !--- Relative humidity
-    !
-    !--- Revised cloud cover parameterization (temporarily ignore rain)
-    !
-            RHtot=(WV+QCLD)/QSAT                !--- Total relative humidity
-            LCNVT=NINT(CUTOP(I,J))+LVLIJ
-            LCNVT=MIN(LM,LCNVT)
-            LCNVB=NINT(CUBOT(I,J))+LVLIJ
-            LCNVB=MIN(LM,LCNVB)
-            IF (LL.GE.LCNVT .AND. LL.LE.LCNVB) THEN
-               SDM=CVSDM
-            ELSE
-               SDM=STSDM
-            ENDIF
-            ARG=(RHtot-RHgrd)/SDM
-            IF (ARG.LE.DXSD2 .AND. ARG.GE.DXSD2N) THEN
-               CLFR=HALF
-            ELSE IF (ARG .GT. DXSD2) THEN
-               IF (ARG .GE. XSDmax) THEN
-                  CLFR=H1
-               ELSE
-                  IXSD=INT(ARG/DXSD+HALF)
-                  IXSD=MIN(NXSD, MAX(IXSD,1))
-                  CLFR=HALF+AXSD(IXSD)
-               ENDIF              !--- End IF (ARG .GE. XSDmax)
-            ELSE
-               IF (ARG .LE. XSDmin) THEN
-                  CLFR=H0
-               ELSE
-                  IXSD=INT(ARG/DXSD1+HALF)
-                  IXSD=MIN(NXSD, MAX(IXSD,1))
-                  CLFR=HALF-AXSD(IXSD)
-                  IF (CLFR .LT. CLFRmin) CLFR=H0
-               ENDIF        !--- End IF (ARG .LE. XSDmin)
-            ENDIF           !--- IF (ARG.LE.DXSD2 .AND. ARG.GE.DXSD2N)
-            CSMID(I,LL)=CLFR
-!rv------------------------------------
-          endif
-!rv------------------------------------
+
 255       CONTINUE         !--- End DO L=1,LML
       ENDDO                !--- End DO I=MYIS,MYIE
 !
@@ -1395,6 +1341,7 @@
         IF (CSMID(I,LL) > CLFRmin) CLFR=1.0
         CLFR1=CCMID(I,LL+1)                     !-- Cloud fraction in lower layer
         IF (CSMID(I,LL+1) > CLFRmin) CLFR1=1.0
+        IF (L==LML) CLFR=0.                     !-- Don't allow clouds at top level
 !-------------------
         IF (CLFR .GE. CLFRMIN) THEN
 !--- Cloud present at level

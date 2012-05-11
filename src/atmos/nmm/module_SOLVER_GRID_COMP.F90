@@ -4769,7 +4769,6 @@
                         ,int_state%CUPPT,int_state%SNO                  &
                         ,int_state%HTOP,int_state%HBOT                  &
                         ,int_state%SHORTWAVE,int_state%LONGWAVE         &
-                        ,int_state%OPER                                 &
 !---- RRTM part ---------------------------------------------------------
                         ,int_state%DT_INT,JDAT                          &
                         ,int_state%CW,int_state%O3                      &
