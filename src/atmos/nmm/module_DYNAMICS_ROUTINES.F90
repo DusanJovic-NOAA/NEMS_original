@@ -1201,17 +1201,18 @@ real(kind=kfpt) :: &
 
 !      do j=jstart,jstop
 !        do i=its_b1,ite_b1
-!          if (abs(psdt(i,j)*dt) .ge. 250.) then
+!          if (abs(psdt(i,j)*dt) .ge. 250. .or. psdt(i,j) .ne. psdt(i,j)) then
 !            write(0,*) 'big PD change...I,J, change: ', I,J, psdt(i,j)*dt
+!	    write(0,*) 'previous PD was: ', PD(I,J)-psdt(i,j)*dt
 !          endif
 !
-!          if (abs(psdt(i,j)*dt) .ge. 1000.) then
+!          if (abs(psdt(i,j)*dt) .ge. 5000.) then
 !            write(0,*) 'huge PD change...I,J, change: ', I,J, psdt(i,j)*dt
 !            call ESMF_Finalize(terminationflag=ESMF_ABORT)
 !          endif
 !
 !          loc_npts=loc_npts+1
-!          task_change=task_change+abs(PSDT(I,J)* (108./abs(dt)) )  ! .01*10800/dt (hPa/3 h)
+!          task_change=task_change+abs(PSDT(I,J)) ! * (108./abs(dt)) )  ! .01*10800/dt (hPa/3 h)
 !
 !        enddo
 !      enddo
@@ -1226,9 +1227,9 @@ real(kind=kfpt) :: &
 !
 !      if (mype == 0) then
 !        if (dt .gt. 0) then
-!          write(0,*) 'FWD avg global change (hPa/3h): ', GLOBAL_CHANGE/ GLB_NPTS
+!          write(0,*) 'FWD avg global change (Pa/timestep): ', GLOBAL_CHANGE/ GLB_NPTS
 !        else
-!          write(0,*) 'BCKWD avg global change (hPa/3h): ', GLOBAL_CHANGE/ GLB_NPTS
+!          write(0,*) 'BCKWD avg global change (Pa/timestep): ', GLOBAL_CHANGE/ GLB_NPTS
 !        endif
 !      endif
 

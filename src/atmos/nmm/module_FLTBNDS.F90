@@ -5705,7 +5705,8 @@ logical(kind=klog) :: opened
 !***  Read in boundary variables and arrays. 
 !-----------------------------------------------------------------------
 !
-      ihr=nint(ntsd*dt/3600.)
+      ihr=nint(ntsd*abs(dt)/3600.)
+
       ihrbc=ihr
       write(infile,'(a,i4.4,a,i2.2)')'boco.',ihrbc
 !
@@ -5719,6 +5720,8 @@ logical(kind=klog) :: opened
 !
       open(unit=iunit,file=infile,status='OLD' &
           ,form='UNFORMATTED',iostat=istat)
+
+      if (MYPE_SHARE .eq. 0) write(0,*) 'reading from boco file: ', trim(infile)
 !
       read(iunit)runbc,idatbc,ihrstbc,tboco
 !
@@ -5956,8 +5959,8 @@ integer(kind=kint):: &
       j_lo=max(jms,jds)
       j_hi=min(jme,jde)
 !
+      if (mype_share .eq. 0) write(0,*) 'inside write_bc with recomp_tend: ', recomp_tend
 
-!!! allocation block
       if (recomp_tend) then
 
 	if (.not. allocated(targpdbn)) then

@@ -129,7 +129,7 @@
 !
       PUBLIC :: SOLVER_REGISTER                                            
 !
-      INTEGER(kind=KINT),PUBLIC :: IM,JM
+      INTEGER(kind=KINT),PUBLIC :: IM,JM,RESTVAL
 !
       INTEGER(kind=KINT) :: START_YEAR,START_MONTH,START_DAY,START_HOUR &
                            ,START_MINUTE,START_SECOND
@@ -706,6 +706,14 @@
         NSTEPS_PER_HOUR=NINT(3600./DT)
         NSTEPS_PER_RESET=NINT(int_state%AVGMAXLEN/DT)
         NSTEPS_PER_CHECK=MAX(2,NINT(40/DT))
+!-----------------------------------------------------------------------
+!***  Save fundamental timestep to distinguish from filter timestep
+!***  which may be shorter
+!-----------------------------------------------------------------------
+        CALL ESMF_AttributeSet(state=IMP_STATE                          &  !<-- The Solver import state
+                              ,name ='FUND_DT'                          &  !<-- Name of variable to get from Solver import state
+                              ,value=DT                                 &  !<-- Put extracted value here
+                              ,rc   =RC)
 !
 !-----------------------------------------------------------------------
 !***  Retrieve the domain ID from the Solver import state.
@@ -2065,7 +2073,7 @@
       INTEGER(kind=KINT) :: DFIHR,I,IER,INPES,IRTN,ISTAT,J,JNPES        &
                            ,K,KFLIP,KS,KSE1,L,N,NSTEPS_HISTORY          &
                            ,NTIMESTEP,RC,SPECADV,WRITE_BC_FLAG          &
-                           ,WRITE_BC_FLAG_NEST
+                           ,WRITE_BC_FLAG_NEST,IRET,NTIMESTEP_BC
 !
       INTEGER(kind=KINT),SAVE :: HDIFF_ON                               &
                                 ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG          &
@@ -2093,7 +2101,7 @@
 !
       REAL(kind=KFPT) :: FICE,FRAIN,QI,QR,QW,SECONDS_TOTAL,WC
 !
-      REAL(kind=KFPT),SAVE :: DDMPV,DT,DT_LAST,DT_TEST                  &
+      REAL(kind=KFPT),SAVE :: DDMPV,DT,DT_LAST,DT_TEST,DT_TEST_RATIO    &
                              ,DYH,DYV,EF4T,PDTOP,PT                     &
                              ,RDYH,RDYV,TBOCO
 !
@@ -2123,14 +2131,16 @@
       LOGICAL(kind=KLOG)      :: COMPUTE_BC
 !
       INTEGER(kind=KINT) :: JULDAY,JULYR               &
-                           ,NPRECIP,NTIMESTEP_RAD,IMICRO &
-                           ,FILTER_METHOD
-      INTEGER(kind=KINT),SAVE :: NCOUNT
+                           ,NPRECIP,NTIMESTEP_RAD,IMICRO 
+!
+      INTEGER(kind=KINT),SAVE :: FILTER_METHOD,NCOUNT, FILTER_METHOD_LAST
 !
       INTEGER(kind=KINT),DIMENSION(8)  :: JDAT,IDAT
       INTEGER(kind=KINT),DIMENSION(13) :: DAYS
 !
-      REAL(kind=KFPT) :: JULIAN,XTIME
+      TYPE(ESMF_TimeInterval),SAVE:: REST_OFFSET
+!
+      REAL(kind=KFPT) :: JULIAN,XTIME, FILT_DT, FUND_DT, DTRATIO
 !
       REAL(kind=KFPT),DIMENSION(LM+1) :: PSG1
 !
@@ -2143,7 +2153,7 @@
 !
       LOGICAL(kind=KLOG),save :: FIRST_NMM=.true.
 !
-      TYPE(ESMF_Time) :: STARTTIME,CURRTIME
+      TYPE(ESMF_Time) :: STARTTIME,CURRTIME,SIMULATION_START_TIME
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
@@ -2262,8 +2272,10 @@
 !
       CALL ESMF_ClockGet(clock       =CLOCK_ATM                         &  !<-- The ESMF Clock
                         ,timeStep    =DT_ESMF                           &  !<-- Fundamental timestep (s) (ESMF)
+                        ,currtime    =CURRTIME                          &  !<-- current time
                         ,advanceCount=NTIMESTEP_ESMF                    &  !<-- The number of times the clock has been advanced
                         ,rc          =RC)
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -2278,6 +2290,13 @@
       int_state%DT=REAL(INTEGER_DT)+REAL(NUMERATOR_DT)                  &  !<-- Fundamental tiemstep (s) (REAL)
                                    /REAL(IDENOMINATOR_DT)
       DT=int_state%DT
+
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &
+                              ,name ='FUND_DT'                     &
+                              ,value=FUND_DT                           &
+                              ,rc   =RC)
+!
+      DTRATIO=abs(DT/FUND_DT)
 !
       NTIMESTEP=NTIMESTEP_ESMF
       int_state%NTSD=NTIMESTEP
@@ -2401,6 +2420,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !
@@ -2434,6 +2454,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       ENDIF
+
 !
 !-----------------------------------------------------------------------
 !***  If this is a moving nest and it moved this timestep then we
@@ -2470,20 +2491,26 @@
 #else
       IF(FIRST_PASS.OR.MOVE_NOW)THEN
 #endif
+
+	if (MYPE == 0) write(0,*) 'applying DTRATIO: ', DTRATIO
 !
         IF (INTEGER_DT >= 0) IFACT=1
         IF (INTEGER_DT <  0) IFACT=-1
-        int_state%DDMPV=IFACT*int_state%DDMPV
-        int_state%EF4T=IFACT*int_state%EF4T
+
+        int_state%DDMPV=IFACT*DTRATIO*int_state%DDMPV
+        int_state%EF4T=IFACT*DTRATIO*int_state%EF4T
 !
         DDMPV=int_state%DDMPV
         EF4T=int_state%EF4T
+
+        NBOCO=int(NBOCO/DTRATIO)
+	if (MYPE == 0) write(0,*) 'NBOCO reset to : ', NBOCO
 !
         DO J=JDS,JDE
           int_state%DDMPU(J)=IFACT*int_state%DDMPU(J)
-          int_state%FAD(J)=IFACT*int_state%FAD(J)
-          int_state%FAH(J)=IFACT*int_state%FAH(J)
-          int_state%FCP(J)=IFACT*int_state%FCP(J)
+          int_state%FAD(J)=IFACT*DTRATIO*int_state%FAD(J)
+          int_state%FAH(J)=IFACT*DTRATIO*int_state%FAH(J)
+          int_state%FCP(J)=IFACT*DTRATIO*int_state%FCP(J)
           int_state%WPDAR(J)=IFACT*int_state%WPDAR(J)
 !
           CURV(J)=int_state%CURV(J)
@@ -2502,10 +2529,10 @@
 !
         DO J=JTS,JTE
         DO I=ITS,ITE
-          int_state%HDACX(I,J)=IFACT*int_state%HDACX(I,J)
-          int_state%HDACY(I,J)=IFACT*int_state%HDACY(I,J)
-          int_state%HDACVX(I,J)=IFACT*int_state%HDACVX(I,J)
-          int_state%HDACVY(I,J)=IFACT*int_state%HDACVY(I,J)
+          int_state%HDACX(I,J)=IFACT*DTRATIO*int_state%HDACX(I,J)
+          int_state%HDACY(I,J)=IFACT*DTRATIO*int_state%HDACY(I,J)
+          int_state%HDACVX(I,J)=IFACT*DTRATIO*int_state%HDACVX(I,J)
+          int_state%HDACVY(I,J)=IFACT*DTRATIO*int_state%HDACVY(I,J)
           HDACX(I,J)=int_state%HDACX(I,J)
           HDACY(I,J)=int_state%HDACY(I,J)
           HDACVX(I,J)=int_state%HDACVX(I,J)
@@ -2536,9 +2563,10 @@
       not_firstpass: IF (.NOT. FIRST_PASS) THEN
 !-----------------------------------------------------------------------
 !
-        changedir: IF (DT_LAST /= DT_TEST) THEN
+        changedir: IF (DT_LAST /= DT_TEST .and. (abs(DT_LAST) == abs(DT_TEST) )) THEN
 !
-          WRITE(0,*)'Change in integration direction... dt_last=',dt_last,' dt_test=',dt_test
+          IF (MYPE == 0) WRITE(0,*)'Change in integration direction... dt_last=',  &
+                                          dt_last,' dt_test=',dt_test
 !
 !-----------------------------------------------------------------------
 !***  Setting previous time level variables (Adams-Bashforth scheme)
@@ -2636,7 +2664,62 @@
                        ,.TRUE.)                                            !<-- Recompute tendencies at this stage?
 !
         ENDIF changedir
+
+        end_filt: IF (FILTER_METHOD /= FILTER_METHOD_LAST) THEN
+
+	DTRATIO=ABS(FUND_DT/DT_TEST_RATIO)
+	if (MYPE == 0) write(0,*) 'applying DTRATIO: ', DTRATIO
+
+!-----------------------------------------------------------------------
+!***  Setting previous time level variables (Adams-Bashforth scheme)
+!***  to the current time level.  Seems safer than potentially leaving them
+!***  defined as values at a very different point in the time integration.
+!-----------------------------------------------------------------------
 !
+          int_state%TP=int_state%T
+          int_state%UP=int_state%U
+          int_state%VP=int_state%V
+!
+          IFACT=1
+!
+          int_state%DDMPV=IFACT*DTRATIO*int_state%DDMPV
+          int_state%EF4T=IFACT*DTRATIO*int_state%EF4T
+          DDMPV=int_state%DDMPV
+          EF4T=int_state%EF4T
+          NBOCO=int(0.5+NBOCO/DTRATIO)
+
+	if (MYPE == 0) write(0,*) 'NBOCO reset to : ', NBOCO
+!
+          DO J=JDS,JDE
+            int_state%DDMPU(J)=IFACT*int_state%DDMPU(J)
+            int_state%FAD(J)=IFACT*DTRATIO*int_state%FAD(J)
+            int_state%FAH(J)=IFACT*DTRATIO*int_state%FAH(J)
+            int_state%FCP(J)=IFACT*DTRATIO*int_state%FCP(J)
+            int_state%WPDAR(J)=IFACT*int_state%WPDAR(J)
+!
+            DDMPU(J)=int_state%DDMPU(J)
+            FAD(J)=int_state%FAD(J)
+            FAH(J)=int_state%FAH(J)
+            FCP(J)=int_state%FCP(J)
+            WPDAR(J)=int_state%WPDAR(J)
+          ENDDO
+!
+          DO J=JTS,JTE
+          DO I=ITS,ITE
+            int_state%HDACX(I,J)=IFACT*DTRATIO*int_state%HDACX(I,J)
+            int_state%HDACY(I,J)=IFACT*DTRATIO*int_state%HDACY(I,J)
+            int_state%HDACVX(I,J)=IFACT*DTRATIO*int_state%HDACVX(I,J)
+            int_state%HDACVY(I,J)=IFACT*DTRATIO*int_state%HDACVY(I,J)
+!
+            HDACX(I,J)=int_state%HDACX(I,J)
+            HDACY(I,J)=int_state%HDACY(I,J)
+            HDACVX(I,J)=int_state%HDACVX(I,J)
+            HDACVY(I,J)=int_state%HDACVY(I,J)
+          ENDDO
+          ENDDO
+!
+
+        ENDIF end_filt
 !-----------------------------------------------------------------------
 !
       ENDIF not_firstpass
@@ -3036,6 +3119,16 @@
 !
 !-----------------------------------------------------------------------
 !
+        call ESMF_TimeSet(SIMULATION_START_TIME,yy=START_YEAR   &
+     ,                    mm=START_MONTH,dd=START_DAY,h=START_HOUR)
+
+	IF (FILTER_METHOD == 1 .and. NTIMESTEP == 0) THEN
+          REST_OFFSET=CURRTIME-SIMULATION_START_TIME
+          CALL ESMF_TimeIntervalGet(timeinterval=REST_OFFSET, s=JDAT(7))
+          RESTVAL=JDAT(7)
+          if (MYPE == 0) write(0,*) 'set RESTVAL to: ', RESTVAL
+	ENDIF
+
           boundary_tendencies: IF(S_BDY.OR.N_BDY.OR.W_BDY.OR.E_BDY)THEN
 !
 !-----------------------------------------------------------------------
@@ -3104,13 +3197,26 @@
 !
             ELSE nest_or_parent
 !
-              READBC=(NTIMESTEP==1.OR.MOD(NTIMESTEP,NBOCO)==0)
+        call ESMF_TimeSet(SIMULATION_START_TIME,yy=START_YEAR   &
+     ,                    mm=START_MONTH,dd=START_DAY,h=START_HOUR)
+!
+	IF (FILTER_METHOD > 0 .and. NTIMESTEP == 0) THEN
+          REST_OFFSET=CURRTIME-SIMULATION_START_TIME
+          CALL ESMF_TimeIntervalGet(timeinterval=REST_OFFSET, s=JDAT(7))
+          NTIMESTEP_BC=(NTIMESTEP)+NINT(JDAT(7)/abs(DT))
+        ELSE
+          NTIMESTEP_BC=NTIMESTEP
+	ENDIF
+
+!
+!                                    filter related?                           first timestep                non filter, NBOCO coincident time
+              READBC=( (NTIMESTEP==0 .AND. MOD(NTIMESTEP_BC,NBOCO)==0) .OR. NTIMESTEP_BC==1.OR. ((MOD(NTIMESTEP_BC,NBOCO)==0) .and. FILTER_METHOD==0) )
 !
               bc_read: IF(READBC)THEN
 !
                 bc_flag: IF(WRITE_BC_FLAG==0)THEN
-!
-                  CALL READ_BC(LM,LNSH,LNSV,NTIMESTEP,DT                &
+
+                  CALL READ_BC(LM,LNSH,LNSV,NTIMESTEP_BC,DT                &
                               ,RUNBC,IDATBC,IHRSTBC,TBOCO               &
                               ,int_state%PDBS,int_state%PDBN            &
                               ,int_state%PDBW,int_state%PDBE            &
@@ -3155,6 +3261,7 @@
               ENDIF  bc_read
 !
             ENDIF  nest_or_parent
+
 !
 !-----------------------------------------------------------------------
 !
@@ -4403,6 +4510,8 @@
 !-----------------------------------------------------------------------
 !
       DT_LAST=DT_TEST
+      DT_TEST_RATIO=real(INTEGER_DT)+REAL(NUMERATOR_DT)/REAL(IDENOMINATOR_DT)
+      FILTER_METHOD_LAST=FILTER_METHOD
 !
 !-----------------------------------------------------------------------
 !***  NOTE:  The Solver export state is fully updated now

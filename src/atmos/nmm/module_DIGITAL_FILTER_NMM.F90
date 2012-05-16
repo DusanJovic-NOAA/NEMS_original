@@ -26,6 +26,7 @@
       USE esmf_mod
       use module_include
       use module_exchange,only: halo_exch
+      use module_dm_parallel, only: its,ite,jts,jte, lm
 
 !      type(esmf_config),save :: cf_1                                !<-- The config object
 
@@ -50,9 +51,13 @@
 ! ---------
 ! physics
 ! ---------
-      type(esmf_state) , save :: phy_state_save
       character(20), allocatable, save :: phy_name(:)
-      integer		phy_items
+      real, allocatable, save :: array_save_2d_phys(:,:,:)
+      real, allocatable, save :: array_save_3d_phys(:,:,:,:)
+      character(20), allocatable, save :: name_save_2d_phys(:)
+      character(20), allocatable, save :: name_save_3d_phys(:)
+      integer,                    save :: tot_rank_2d_phys=0 
+      integer,                    save :: tot_rank_3d_phys=0
 
 
       contains
@@ -60,27 +65,27 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-      subroutine digital_filter_dyn_init_nmm(dyn_state                  &
+      subroutine digital_filter_dyn_init_nmm(filt_bundle                &
                                             ,ndfistep                   &
                                             ,dt_int,dt_num,dt_den       &
                                             ,num_water                  &
                                             ,num_tracers)
 !-----------------------------------------------------------------------
 !
-      use module_dm_parallel
 !
-      type(esmf_state), intent(in) :: dyn_state   
+      TYPE(ESMF_FieldBundle),INTENT(INOUT) :: FILT_BUNDLE
       integer, intent(in)          :: ndfistep
       integer, intent(in)          :: num_water,num_tracers
       integer, intent(in)          :: dt_int,dt_num,dt_den
 !
-      type(esmf_field)             :: tmp_field 
+!     type(esmf_field)             :: tmp_field 
       integer                      :: tmp_rank,dyn_items                &
                                      ,dfihr
-      integer                      :: spec_max,rc,n,m
+      integer                      :: spec_max,rc,n,m,NUM_FIELDS
       character(20), allocatable   :: dyn_name(:)
       character(20)                :: state_name
       real                         :: taus, dt
+      TYPE(ESMF_Field) :: tmpfield
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -92,45 +97,43 @@
 
       dt=float(dt_int)+float(dt_num)/float(dt_den)
 
-! hardwiring cutoff frequency based on length of filtering window
+!     hardwiring cutoff frequency based on length of filtering window
 
       taus=float(2*ndfistep)*dt
-!     write(0,*) 'using pulled dt, taus (200% of tdfi) value is: ', dt, taus
 !
       call dolph(dt,taus,nstep,dolph_wgts)
 !
 
-      call esmf_stateget(state     = dyn_state                          &
-                        ,name      = state_name                         &
-                        ,itemcount = dyn_items                          &
-                        ,rc=rc)
+!     Retrieve the dynamical fields to be filtered from the bundle
+
+        CALL ESMF_FieldBundleGet(bundle    =FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,fieldCount=NUM_FIELDS          &  !<-- # of Fields in the Bundle
+                                ,rc        =RC)
 
       tot_rank_2d=0
       tot_rank_3d=0
       tot_rank_4d=0
 
       if (.not. allocated(dyn_name))                                    &
-      allocate(dyn_name(dyn_items))
+      allocate(dyn_name(NUM_FIELDS))
 
       if (.not. allocated(name_save_2d))                                &
-      allocate(name_save_2d(dyn_items))
+      allocate(name_save_2d(NUM_FIELDS))
 
       if (.not. allocated(name_save_3d))                                &
-      allocate(name_save_3d(dyn_items))
+      allocate(name_save_3d(NUM_FIELDS))
 
       if (.not. allocated(name_save_4d))                                &
-      allocate(name_save_4d(dyn_items))
+      allocate(name_save_4d(NUM_FIELDS))
 
-      call esmf_stateget(state     = dyn_state                          &
-                        ,itemnamelist = dyn_name                        &
-                        ,rc=rc)
-      DO N=1,dyn_items
-!
-        CALL ESMF_StateGet(dyn_state, dyn_name(N), tmp_field, rc=rc)
+      DO N=1,NUM_FIELDS
 
-        call esmf_fieldget(tmp_field                                    &
-                          ,dimCount          = tmp_rank                 &
-                          ,rc                = rc)
+        CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,N                               &
+                                ,tmpfield                        &
+                                ,rc)
+
+        CALL ESMF_FieldGet(field=tmpfield, name=dyn_name(N), dimCount=tmp_rank, rc=rc)
 !
         IF (tmp_rank == 2) THEN
           tot_rank_2d=tot_rank_2d+1
@@ -149,23 +152,32 @@
 !
       ENDDO 
 !
-      SPEC_MAX=MAX(NUM_TRACERS,NUM_WATER)
+!      SPEC_MAX=MAX(NUM_TRACERS,NUM_WATER)
 !     
       IF (tot_rank_2d > 0 .and. .not. allocated(array_save_2d)) THEN
       	allocate(array_save_2d(ITS:ITE,JTS:JTE,tot_rank_2d))
-        array_save_2d=0.
       ENDIF
 !
       IF (tot_rank_3d > 0 .and. .not. allocated(array_save_3d)) THEN
       	allocate(array_save_3d(ITS:ITE,JTS:JTE,LM,tot_rank_3d))
-        array_save_3d=0.
       ENDIF
 !
       IF (tot_rank_4d > 0 .and. .not. allocated(array_save_4d)) THEN
       	allocate(array_save_4d(ITS:ITE,JTS:JTE,LM,SPEC_MAX,tot_rank_4d))
-        array_save_4d=0.
       ENDIF
 !
+      IF (allocated(array_save_2d)) THEN
+        array_save_2d=0.
+      ENDIF
+
+      IF (allocated(array_save_3d)) THEN
+        array_save_3d=0.
+      ENDIF
+
+      IF (allocated(array_save_4d)) THEN
+        array_save_4d=0.
+      ENDIF
+     
       deallocate(dyn_name)
       totalsum=0.
 !-----------------------------------------------------------------------
@@ -175,14 +187,13 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-      subroutine digital_filter_dyn_sum_nmm(dyn_state                   &
+      subroutine digital_filter_dyn_sum_nmm(filt_bundle               &
                                            ,mean_on                     &
                                            ,num_water                   &
                                            ,num_tracers)
 !-----------------------------------------------------------------------
-      use module_dm_parallel
-!
-      type(esmf_state),intent(in)  :: dyn_state 
+
+      TYPE(ESMF_FieldBundle),INTENT(INOUT) :: FILT_BUNDLE
       integer(kind=kint),intent(in) :: mean_on,num_water,num_tracers
 !
       integer(kind=kint) :: i,ii,j,jj,l,n,num_spec,p,rc,rc_upd
@@ -237,11 +248,11 @@
           field_name=name_save_2d(N)
           nullify(hold_2d) 
 
-          call ESMF_StateGet(state   =DYN_STATE                         &  !<-- State that holds the Field
-                            ,itemName=FIELD_NAME                        &  !<-- Name of the
-                            ,field   =HOLD_FIELD                        &  !<-- Put extracted Field here
-                            ,rc      = RC)
-!
+          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,name=field_name       &
+                                ,field=HOLD_FIELD                        &
+                                ,rc=rc)
+
           call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
                             ,localDe   =0                               &
                             ,farrayPtr =HOLD_2D                         &  !<-- Put the pointer here
@@ -259,11 +270,11 @@
         do n=1,tot_rank_3d
           field_name=name_save_3d(N)
           nullify(hold_3d)
-!
-          call ESMF_StateGet(state   =DYN_STATE                         &  !<-- State that holds the Array
-                            ,itemName=FIELD_NAME                        &  !<-- Name of the Field to extract
-                            ,field   =HOLD_FIELD                        &  !<-- Put extracted Field here
-                            ,rc      = RC)
+
+          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,name=field_name       &
+                                ,field=HOLD_FIELD                        &
+                                ,rc=rc)
 
           call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
                             ,localDe   =0                               &
@@ -281,7 +292,7 @@
 !
       endif
 !
-      if(tot_rank_4d>0)then
+     if(tot_rank_4d>0)then
         do n=1,tot_rank_4d
           field_name=name_save_4d(N)
           nullify(hold_4d)
@@ -290,11 +301,11 @@
           else if (field_name == 'WATER') then
             num_spec=num_water
           endif
-!
-          call ESMF_StateGet(state   =DYN_STATE                         &  !<-- State that holds the Field
-                            ,itemName=FIELD_NAME                        &  !<-- Name of the Field to extract
-                            ,field   =HOLD_FIELD                        &  !<-- Put extracted Field here
-                            ,rc      = RC)
+
+          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,name=field_name       &
+                                ,field=HOLD_FIELD                        &
+                                ,rc=rc)
 
           call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
                             ,localDe   =0                               &
@@ -311,7 +322,7 @@
             enddo
           enddo
         enddo
-!
+
       endif
 
 
@@ -327,14 +338,13 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-      subroutine digital_filter_dyn_average_nmm(dyn_state               &
+      subroutine digital_filter_dyn_average_nmm(filt_bundle               &
                                                ,num_water               &
                                                ,num_tracers)
 !-----------------------------------------------------------------------
 !
       USE MODULE_DM_PARALLEL
-!
-      type(esmf_state), intent(inout) :: dyn_state
+      TYPE(ESMF_FieldBundle),INTENT(INOUT) :: FILT_BUNDLE
       INTEGER, intent(in)          :: NUM_WATER,NUM_TRACERS
 !
       INTEGER(KIND=KINT) :: I,II,J,JJ,L,N,P,RC,RC_UPD
@@ -346,12 +356,12 @@
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 
-      TYPE(ESMF_Field)                :: tmp_field
+!     TYPE(ESMF_Field)                :: tmp_field
 !
       CHARACTER(ESMF_Maxstr)          :: name
       real, dimension(:,:), pointer   :: tmp_ptr
       real                            :: totalsumi
-      integer                         :: NUM_SPEC
+      integer                         :: NUM_SPEC, NUM_FIELDS
 
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -412,12 +422,10 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_StateGet(state   =DYN_STATE                         &  !<-- State that holds the Field
-                            ,itemName=FIELD_NAME                        &  !<-- Name of the
-                            ,field   =HOLD_FIELD                        &  !<-- Put extracted Field here
-                            ,rc      = RC)
-!
+          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,name=field_name       &
+                                ,field=HOLD_FIELD                        &
+                                ,rc=rc)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -443,9 +451,6 @@
           ENDDO
 
           CALL HALO_EXCH(hold_2d,1,2,2)
-
-
-          CALL ESMF_StateAdd(dyn_state,LISTWRAPPER(HOLD_FIELD),rc=rc) 
         ENDDO
       ENDIF
 !
@@ -457,11 +462,11 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_StateGet(state   =DYN_STATE                         &  !<-- State that holds the Field
-                            ,itemName=FIELD_NAME                        &  !<-- Name of the
-                            ,field   =HOLD_FIELD                        &  !<-- Put extracted Field here
-                            ,rc      = RC)
+
+          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,name=field_name       &
+                                ,field=HOLD_FIELD                        &
+                                ,rc=rc)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
@@ -490,8 +495,6 @@
           ENDDO
 
           CALL HALO_EXCH(hold_3d,LM,2,2)
-
-          CALL ESMF_StateAdd(dyn_state,LISTWRAPPER(HOLD_FIELD),rc=rc)
         ENDDO
       ENDIF
 !
@@ -500,18 +503,18 @@
           FIELD_NAME=name_save_4d(N)
           IF (FIELD_NAME == 'TRACERS') THEN
             NUM_SPEC=NUM_TRACERS
-          ELSE IF (FIELD_NAME == 'WATER') THEN
+         ELSE IF (FIELD_NAME == 'WATER') THEN
             NUM_SPEC=NUM_WATER
           ENDIF
           NULLIFY(HOLD_4D)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_StateGet(state   =DYN_STATE                         &  !<-- State that holds the Field
-                            ,itemName=FIELD_NAME                        &  !<-- Name of the
-                            ,field   =HOLD_FIELD                        &  !<-- Put extracted Field here
-                            ,rc      = RC)
+
+          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,name=field_name       &
+                                ,field=HOLD_FIELD                        &
+                                ,rc=rc)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
@@ -540,7 +543,9 @@
               ENDDO
             ENDDO
           ENDDO
-          CALL ESMF_StateAdd(dyn_state,LISTWRAPPER(HOLD_FIELD),rc=rc)
+          CALL ESMF_FieldBundleAdd(bundle=FILT_BUNDLE            &  !<-- The Filt Bundle for Filtered variables
+                                  ,field =HOLD_FIELD                    &  !<-- Add this Field to the Bundle
+                                  ,rc    =RC )
         ENDDO
       ENDIF
 
@@ -571,30 +576,68 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-      subroutine digital_filter_phy_init_nmm(phy_state)
+      subroutine digital_filter_phy_init_nmm(filt_bundle)
 !-----------------------------------------------------------------------
+      TYPE(ESMF_FieldBundle),INTENT(INOUT) :: FILT_BUNDLE
 !
-      type(esmf_state), intent(in) :: phy_state
-!
-      integer :: rc
+      TYPE(ESMF_Field) :: tmpfield
+      integer :: rc, NUM_FIELDS, n, tmp_rank
+      character(len=20) :: field_name
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 
-      call esmf_stateget(state     = phy_state,				&
-                         itemcount = phy_items,				&
-                         rc=rc)
+!     Retrieve the dynamical fields to be filtered from the bundle
 
-      if (.not. allocated(phy_name)) then
-        allocate(phy_name(phy_items))
-      endif
+        CALL ESMF_FieldBundleGet(bundle    =FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,fieldCount=NUM_FIELDS          &  !<-- # of Fields in the Bundle
+                                ,rc        =RC)
+!
+      tot_rank_2d_phys=0
+      tot_rank_3d_phys=0
 
-      call esmf_stateget(state=phy_state,				&
-                         itemnamelist = phy_name,			&
-                         rc=rc)
-      phy_state_save=esmf_statecreate(STATENAME  ="digital filter phy"	        &
-                                     ,stateintent=ESMF_STATEINTENT_UNSPECIFIED &
-                                     ,rc         =rc)
+      if (.not. allocated(phy_name))                                    &
+      allocate(phy_name(NUM_FIELDS))
+
+      if (.not. allocated(name_save_2d_phys))                                &
+      allocate(name_save_2d_phys(NUM_FIELDS))
+
+      if (.not. allocated(name_save_3d_phys))                                &
+      allocate(name_save_3d_phys(NUM_FIELDS))
+
+      DO N=1,NUM_FIELDS
+
+        CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,N                               &
+                                ,tmpfield                        &
+                                ,rc)
+
+        CALL ESMF_FieldGet(field=tmpfield, name=phy_name(N), dimCount=tmp_rank, rc=rc)
+
+        IF (tmp_rank == 2) THEN
+          tot_rank_2d_phys=tot_rank_2d_phys+1
+          name_save_2d_phys(tot_rank_2d_phys)=phy_name(N)
+        ENDIF
+!
+        IF (tmp_rank == 3) THEN
+          tot_rank_3d_phys=tot_rank_3d_phys+1
+          name_save_3d_phys(tot_rank_3d_phys)=phy_name(N)
+        ENDIF
+!
+      ENDDO 
+!
+      IF (tot_rank_2d_phys > 0 .and. .not. allocated(array_save_2d_phys)) THEN
+      	allocate(array_save_2d_phys(ITS:ITE,JTS:JTE,tot_rank_2d_phys))
+      ENDIF
+!
+      IF (tot_rank_3d_phys > 0 .and. .not. allocated(array_save_3d_phys)) THEN
+      	allocate(array_save_3d_phys(ITS:ITE,JTS:JTE,LM,tot_rank_3d_phys))
+      ENDIF
+!
+      deallocate(phy_name)
+      array_save_2d_phys=0.
+      array_save_3d_phys=0.
+
 !-----------------------------------------------------------------------
 !
       end subroutine digital_filter_phy_init_nmm
@@ -602,27 +645,78 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-      subroutine digital_filter_phy_save_nmm(phy_state)
+      subroutine digital_filter_phy_save_nmm(filt_bundle)
 !-----------------------------------------------------------------------
+!      use module_dm_parallel, only: its,ite,jts,jte
 !
-      type(esmf_state), intent(in) :: phy_state
+      TYPE(ESMF_FieldBundle),INTENT(INOUT) :: FILT_BUNDLE
 !
-      TYPE(ESMF_Field)             :: tmp_field
-      integer                      :: n, rc
+      TYPE(ESMF_Field)             :: hold_field
+      integer                      :: n, rc, i,j,l, LDIM
+      character(len=20)            :: field_name
+      REAL(KIND=KFPT),DIMENSION(:,:)    ,POINTER :: HOLD_2D
+      REAL(KIND=KFPT),DIMENSION(:,:,:)  ,POINTER :: HOLD_3D
+!      REAL(KIND=KFPT),DIMENSION(:,:,:)  ,ALLOCATABLE :: TMP_T, TMP_PINT, TMP_Q
+
+
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      do n=1,phy_items
-        CALL ESMF_StateGet(state   =phy_state                           &
-                          ,itemName=phy_name(n)                         &
-                          ,field   =tmp_field                           &
-                          ,rc      =rc)
 
-        CALL ESMF_StateAdd(      phy_state_save                         &
-                          ,LISTWRAPPER(tmp_field)                       &
-                          ,rc   =rc)
-      enddo
+      if(tot_rank_2d_phys>0) then
+!
+        do n=1,tot_rank_2d_phys
+          field_name=name_save_2d_phys(N)
+          nullify(hold_2d) 
+
+          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,name=field_name       &
+                                ,field=HOLD_FIELD                        &
+                                ,rc=rc)
+
+          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                            ,localDe   =0                               &
+                            ,farrayPtr =HOLD_2D                         &  !<-- Put the pointer here
+                            ,rc        =RC)
+
+          do j=jts,jte
+          do i=its,ite
+            array_save_2d_phys(i,j,n)=hold_2d(i,j)
+          enddo
+          enddo
+
+        enddo
+      endif
+
+
+      if(tot_rank_3d_phys>0)then
+        do n=1,tot_rank_3d_phys
+          field_name=name_save_3d_phys(N)
+          nullify(hold_3d)
+
+          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,name=field_name       &
+                                ,field=HOLD_FIELD                        &
+                                ,rc=rc)
+
+          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                            ,localDe   =0                               &
+                            ,farrayPtr =HOLD_3D                         &  !<-- Put the pointer here
+                            ,rc        =RC)
+
+	LDIM=size(HOLD_3D,dim=3)
+
+          do l=1, LDIM
+            do j=jts,jte
+            do i=its,ite
+              array_save_3d_phys(i,j,l,n)=hold_3d(i,j,l)
+            enddo
+            enddo
+         enddo
+        enddo
+!
+      endif
 !-----------------------------------------------------------------------
 !
       end subroutine digital_filter_phy_save_nmm
@@ -630,34 +724,90 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-      subroutine digital_filter_phy_restore_nmm(phy_state)
+      subroutine digital_filter_phy_restore_nmm( FILT_BUNDLE )
 !-----------------------------------------------------------------------
 !
-      type(esmf_state), intent(inout) :: phy_state
+
+      TYPE(ESMF_FieldBundle),INTENT(INOUT) :: FILT_BUNDLE
+
+      INTEGER(KIND=KINT) :: I,II,J,JJ,L,N,P,RC,RC_UPD,NUM_FIELDS,LDIM
+      REAL(KIND=KFPT),DIMENSION(:,:)    ,POINTER :: HOLD_2D
+      REAL(KIND=KFPT),DIMENSION(:,:,:)  ,POINTER :: HOLD_3D
+!     REAL(KIND=KFPT),DIMENSION(:,:,:,:),POINTER :: HOLD_4D
+
 !
-      TYPE(ESMF_Field)                :: tmp_field
-      integer                         :: n, rc
+      type(ESMF_Field) :: hold_field
+
+      character(len=20):: vars_list(150)
+      CHARACTER(20)    :: FIELD_NAME
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      do n=1,phy_items
-        CALL ESMF_StateGet(state   =phy_state_save                      &
-                          ,itemName=phy_name(n)                         &
-                          ,field   =tmp_field                           &
-                          ,rc      =rc)
-        CALL ESMF_StateAdd(phy_state                                    &
-                          ,LISTWRAPPER(tmp_field)                       &
-                          ,rc = rc)
-      enddo
-      deallocate(phy_name)
+      IF (tot_rank_2d_phys > 0) THEN
+        DO N=1,tot_rank_2d_phys
+          FIELD_NAME=name_save_2d_phys(N)
+          NULLIFY(HOLD_2D)
+
+          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,name=field_name       &
+                                ,field=HOLD_FIELD                        &
+                                ,rc=rc)
+
+          call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
+                            ,localDe   =0                               &
+                            ,farrayPtr =HOLD_2D                         &  !<-- Put the pointer here
+                            ,rc        =RC)
+
+          DO J=JTS,JTE
+          DO I=ITS,ITE
+            HOLD_2D(I,J)=array_save_2d_phys(I,J,N)
+          ENDDO
+          ENDDO
+
+          CALL HALO_EXCH(hold_2d,1,2,2)
+
+        ENDDO
+      ENDIF
+
+      IF (tot_rank_3d_phys > 0) THEN
+        DO N=1,tot_rank_3d_phys
+          FIELD_NAME=name_save_3d_phys(N)
+
+          NULLIFY(HOLD_3D)
+
+
+          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,name=field_name       &
+                                ,field=HOLD_FIELD                        &
+                                ,rc=rc)
+
+          call ESMF_FieldGet(field           =HOLD_FIELD                &  !<-- Field that holds the data pointer
+                            ,localDe         =0                         &
+                            ,farrayPtr       =HOLD_3D                   &  !<-- Put the pointer here
+                            ,rc              =RC)
+!
+         LDIM=size(HOLD_3D,dim=3)
+!
+         DO L=1,LDIM
+          DO J=JTS,JTE
+          DO I=ITS,ITE
+            HOLD_3D(I,J,L)=array_save_3d_phys(I,J,L,N)
+          ENDDO
+          ENDDO
+        ENDDO
+
+          CALL HALO_EXCH(hold_3d,LDIM,2,2)
+
+        ENDDO
+      ENDIF
 
 !-----------------------------------------------------------------------
 
       end subroutine digital_filter_phy_restore_nmm
 
 !-----------------------------------------------------------------------
-!
+
       end module module_digital_filter_nmm
 !
 !-----------------------------------------------------------------------

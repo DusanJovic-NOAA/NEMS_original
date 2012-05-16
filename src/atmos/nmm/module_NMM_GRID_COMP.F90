@@ -45,6 +45,8 @@
 !
       USE module_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
+      USE MODULE_SOLVER_GRID_COMP,ONLY: RESTVAL
+!
 !-----------------------------------------------------------------------
 !
       IMPLICIT NONE
@@ -64,11 +66,15 @@
                            ,NPE_PRINT                                   &  !<-- Clocktime diagnostics from this MPI task
 !d not used                           ,NTIMESTEP                                   &  !<-- The integration timestep
                            ,TIMESTEP_SEC_WHOLE                          &
+                           ,FILT_TIMESTEP_SEC_WHOLE                          &
                            ,TIMESTEP_SEC_NUMERATOR                      &
-                           ,TIMESTEP_SEC_DENOMINATOR
+                           ,FILT_TIMESTEP_SEC_NUMERATOR                      &
+                           ,TIMESTEP_SEC_DENOMINATOR                    &
+                           ,FILT_TIMESTEP_SEC_DENOMINATOR
 !
 !
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: DT                       !<-- The fundamental timestep (s) of the domains
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: FILT_DT                       !<-- The fundamental timestep (s) of the domains
 !
       CHARACTER(ESMF_MAXSTR) :: CLOCK_NMM_NAME                             !<-- Name of the NMM's ESMF Clock
 !
@@ -86,7 +92,8 @@
 !
       TYPE(ESMF_TimeInterval),DIMENSION(:),ALLOCATABLE :: INTERVAL_HISTORY &  !<-- ESMF time interval between history output (h)
                                                          ,INTERVAL_RESTART &  !<-- ESMF time interval between restart output (h)
-                                                         ,TIMESTEP            !<-- The ESMF timestep (s)
+                                                         ,TIMESTEP         &  !<-- The ESMF timestep (s)
+                                                         ,FILT_TIMESTEP       !<-- The ESMF filter timestep (s)
 !
       TYPE(ESMF_Clock),DIMENSION(:),ALLOCATABLE :: CLOCK_NMM               !<-- The NMM ESMF Clocks
 !
@@ -782,7 +789,9 @@
 !
       ALLOCATE(CLOCK_NMM(1:NUM_DOMAINS))
       ALLOCATE(TIMESTEP (1:NUM_DOMAINS))
+      ALLOCATE(FILT_TIMESTEP (1:NUM_DOMAINS))
       ALLOCATE(DT       (1:NUM_DOMAINS))
+      ALLOCATE(FILT_DT       (1:NUM_DOMAINS))
 !
       ALLOCATE(INTERVAL_HISTORY(1:NUM_DOMAINS))
       ALLOCATE(INTERVAL_RESTART(1:NUM_DOMAINS))
@@ -817,6 +826,21 @@
                                     ,value =TIMESTEP_SEC_DENOMINATOR    &  !<-- The variable filled (denominator of timestep fraction)
                                     ,label ='dt_den:'                   &  !<-- Give this label's value to the previous variable
                                     ,rc    =RC)
+
+        CALL ESMF_ConfigGetAttribute(config=CF(ID_DOM)                  &  !<-- The config object for this domain
+                                    ,value =FILT_TIMESTEP_SEC_WHOLE          &  !<-- The variable filled (integer part of timestep (sec))
+                                    ,label ='filt_dt_int:'                   &  !<-- Give this label's value to the previous variable
+                                    ,rc    =RC)
+!
+        CALL ESMF_ConfigGetAttribute(config=CF(ID_DOM)                  &  !<-- The config object for this domain 
+                                    ,value =FILT_TIMESTEP_SEC_NUMERATOR      &  !<-- The variable filled (numerator of timestep fraction)
+                                    ,label ='filt_dt_num:'                   &  !<-- Give this label's value to the previous variable
+                                    ,rc    =RC)
+!
+        CALL ESMF_ConfigGetAttribute(config=CF(ID_DOM)                  &  !<-- The config object for this domain 
+                                    ,value =FILT_TIMESTEP_SEC_DENOMINATOR    &  !<-- The variable filled (denominator of timestep fraction)
+                                    ,label ='filt_dt_den:'                   &  !<-- Give this label's value to the previous variable
+                                    ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -836,6 +860,12 @@
                                  ,sn          =TIMESTEP_SEC_NUMERATOR   &
                                  ,sd          =TIMESTEP_SEC_DENOMINATOR &
                                  ,rc          =RC)
+
+        CALL ESMF_TimeIntervalSet(timeinterval=FILT_TIMESTEP(ID_DOM)         &  !<-- The fundamental filter timestep on this domain (sec) (ESMF)
+                                 ,s           =FILT_TIMESTEP_SEC_WHOLE       &
+                                 ,sn          =FILT_TIMESTEP_SEC_NUMERATOR   &
+                                 ,sd          =FILT_TIMESTEP_SEC_DENOMINATOR &
+                                 ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -844,6 +874,10 @@
         DT(ID_DOM)=TIMESTEP_SEC_WHOLE+                                  &  !<-- The domain's fundamental timestep (sec) (REAL)
                    REAL(TIMESTEP_SEC_NUMERATOR)                         &
                   /REAL(TIMESTEP_SEC_DENOMINATOR)
+
+        FILT_DT(ID_DOM)=FILT_TIMESTEP_SEC_WHOLE+                        &  !<-- The domain's filter timestep (sec) (REAL)
+                   REAL(FILT_TIMESTEP_SEC_NUMERATOR)                    &
+                  /REAL(FILT_TIMESTEP_SEC_DENOMINATOR)
 !
 !-----------------------------------------------------------------------
 !***  Get the NMM history output interval (hours) from the config file.
@@ -1625,6 +1659,7 @@
                         ,advanceCount=NTIMESTEP_ESMF                    &
                         ,runduration =RUNDURATION                       &
                         ,rc          =RC)
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -1726,8 +1761,35 @@
       IF(FILTER_METHOD>0)THEN
 !
         CALL RUN_DIGITAL_FILTER_NMM                                        !<-- See internal subroutine below.
+
+	if (MYPE .eq. 0) then
         WRITE(0,*)' Completed filter method ',filter_method
         WRITE(0,*)' Now reset filter method to 0.'
+        endif
+
+        IF (FILTER_METHOD == 1) THEN
+
+	if (MYPE == 0) write(0,*) 'steps to increment for DFL: ', RESTVAL/DT(MY_DOMAIN_ID)
+!
+        NTIMESTEP_ESMF=NTIMESTEP_ESMF*(FILT_DT(MY_DOMAIN_ID)/DT(MY_DOMAIN_ID))+0.1
+	NTIMESTEP_ESMF=NTIMESTEP_ESMF + (RESTVAL/DT(MY_DOMAIN_ID))
+
+
+      CALL ESMF_ClockSet(clock    =CLOCK_NMM(MY_DOMAIN_ID)                &  !<-- The NEMS ESMF Clock
+                        ,starttime=STARTTIME                              &  !<-- The simulation start time (ESMF)
+                        ,advanceCount=NTIMESTEP_ESMF                    &
+                        ,rc       =RC)
+
+        ELSE
+
+      CALL ESMF_ClockGet(clock    =CLOCK_NMM(MY_DOMAIN_ID)                &  !<-- The NEMS ESMF Clock
+                        ,starttime=STARTTIME                              &  !<-- The simulation start time (ESMF)
+                        ,currtime =CURRTIME                               &  !<-- The simulation start time (ESMF)
+                        ,advanceCount=NTIMESTEP_ESMF                      &
+                        ,rc       =RC)
+
+        ENDIF
+!
         FILTER_METHOD=0
 !
         CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &  !<-- This DOMAIN component's import state for filter method
@@ -1744,11 +1806,18 @@
       MESSAGE_CHECK="NMM_Run: Get Start/Current Times Before NMM_INTEGRATE"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+        NTIMESTEP=NTIMESTEP_ESMF
 !
       CALL ESMF_ClockGet(clock    =CLOCK_NMM(MY_DOMAIN_ID)              &  !<-- The NMM ESMF Clock
                         ,starttime=STARTTIME                            &  !<-- The simulation start time (ESMF)
                         ,currtime =CURRTIME                             &  !<-- The current time (ESMF)
                         ,rc       =RC )
+
+        CALL ESMF_TimeGet(CURRTIME, dd=DD, h=H, m=M, s=S, rc=RC)
+	if (MYPE == 0) write(0,*) 'CURRTIME going into normal NMM_INTEG: ', DD, H, M, S
+        CALL ESMF_TimeGet(STARTTIME, dd=DD, h=H, m=M, s=S, rc=RC)
+	if (MYPE == 0) write(0,*) 'STARTTIME going into normal NMM_INTEG: ', DD, H, M, S
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -1883,7 +1952,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_TimeIntervalGet(timeinterval=TIMESTEP(MY_DOMAIN_ID)   &  !<-- The fundamental timestep of this domain (sec) (ESMF)
+        CALL ESMF_TimeIntervalGet(timeinterval=FILT_TIMESTEP(MY_DOMAIN_ID)   &  !<-- The fundamental timestep of this domain (sec) (ESMF)
                                  ,s           =S                        &  !<-- Integer part of timestep
                                  ,sn          =Sn                       &  !<-- Numerator of fractional part
                                  ,sd          =Sd                       &  !<-- Denominator of fractional part
@@ -1893,7 +1962,7 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        NDFISTEP=DFIHR/(S+REAL(Sn)/REAL(Sd))
+        NDFISTEP=INT( 0.1+DFIHR/(S+REAL(Sn)/REAL(Sd)))
         DFIHR_CHK=NDFISTEP*(S+REAL(Sn)/REAL(Sd))
 !
         IF (DFIHR /= DFIHR_CHK) THEN
@@ -1906,6 +1975,8 @@
 !
 !-----------------------------------------------------------------------
 !
+
+        STARTTIME=CURRTIME
         HALFDFITIME=STARTTIME+HALFDFIINTVAL
         SDFITIME=STARTTIME
         DFITIME=HALFDFITIME+HALFDFIINTVAL
@@ -1915,13 +1986,16 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        TIMESTEP_FILTER=TIMESTEP(MY_DOMAIN_ID)
+        TIMESTEP_FILTER=FILT_TIMESTEP(MY_DOMAIN_ID)
 !
         CLOCK_FILTER=ESMF_ClockCreate(name     ='CLOCK_DFL'             &  !<-- The Clock for the DFI filter
                                      ,timeStep =TIMESTEP_FILTER         &  !<-- The fundamental timestep in this component
                                      ,startTime=STARTTIME               &  !<-- Start time of filter
                                      ,stopTime =DFITIME                 &  !<-- Stop time of the filter
                                      ,rc       =RC)
+!
+	CALL ESMF_ClockSet(clock=CLOCK_FILTER,currtime=CURRTIME,starttime=CURRTIME,rc=RC)
+        CALL ESMF_TimeGet(CURRTIME, dd=DD, h=H, m=M, s=S, rc=RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -1957,9 +2031,9 @@
                           ,clock_integrate   =CLOCK_FILTER              &
                           ,currtime          =CURRTIME                  &
                           ,starttime         =STARTTIME                 &
-                          ,timestep          =TIMESTEP(MY_DOMAIN_ID)    &
+                          ,timestep          =FILT_TIMESTEP(MY_DOMAIN_ID)    &
                           ,ntimestep         =NTIMESTEP                 &
-                          ,dt                =DT(MY_DOMAIN_ID)          &
+                          ,dt                =FILT_DT(MY_DOMAIN_ID)          &
                           ,filter_method     =FILTER_METHOD             &
                           ,print_timing      =PRINT_TIMING              &
                           ,halfdfiintval     =HALFDFIINTVAL             &
@@ -1980,7 +2054,14 @@
                           ,my_domain_moves   =MY_DOMAIN_MOVES           &
                           ,mype              =MYPE)
 !
-        STARTTIME=CURRTIME                                                 !<-- Start time set to halfway point of filter period
+        CALL ESMF_TimeGet(CURRTIME, dd=DD, h=H, m=M, s=S, rc=RC)
+        CURRTIME=CURRTIME+FILT_TIMESTEP(MY_DOMAIN_ID)
+        NTIMESTEP=NTIMESTEP+1
+        
+        CALL ESMF_TimeGet(CURRTIME, dd=DD, h=H, m=M, s=S, rc=RC)
+        STARTTIME=CURRTIME-HALFDFIINTVAL                             !<-- Start time set to halfway point of filter period
+        CALL ESMF_TimeGet(STARTTIME, dd=DD, h=H, m=M, s=S, rc=RC)
+        NTIMESTEP_ESMF=NTIMESTEP
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Set Clock After DFL Filter"
@@ -1988,8 +2069,9 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_ClockSet(clock    =CLOCK_NMM(MY_DOMAIN_ID)            &  !<-- For DFL filter, the starttime of the free forecast
-                          ,starttime=STARTTIME                          &  !    moves ahead to the halfway point of the filter
+!                          ,starttime=STARTTIME                          &  !    moves ahead to the halfway point of the filter
                           ,currtime =CURRTIME                           &  !    interval.
+                          ,advancecount=NTIMESTEP_ESMF                  &
                           ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2037,7 +2119,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_TimeIntervalGet(timeinterval=TIMESTEP(MY_DOMAIN_ID)   &  !<-- The fundamental timestep on this domain (sec) (ESMF)
+        CALL ESMF_TimeIntervalGet(timeinterval=FILT_TIMESTEP(MY_DOMAIN_ID)   &  !<-- The fundamental timestep on this domain (sec) (ESMF)
                                  ,s           =S  &
                                  ,sn          =Sn &
                                  ,sd          =Sd &
@@ -2047,7 +2129,7 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        NDFISTEP=DFIHR/(S+REAL(Sn)/REAL(Sd))
+        NDFISTEP=INT( 0.1+DFIHR/(S+REAL(Sn)/REAL(Sd)))
         DFIHR_CHK=NDFISTEP*(S+REAL(Sn)/REAL(Sd))
 !
         IF (DFIHR_CHK /= DFIHR) THEN
@@ -2058,10 +2140,11 @@
           CALL ESMF_Finalize(RC=RC,terminationflag=ESMF_ABORT)
         ENDIF
 !
+        STARTTIME=CURRTIME
         HALFDFITIME=STARTTIME-HALFDFIINTVAL
         DFITIME=HALFDFITIME
 !
-        TIMESTEP_FILTER=-TIMESTEP(MY_DOMAIN_ID)                            !<-- Prepare for backward part of integration
+        TIMESTEP_FILTER=-FILT_TIMESTEP(MY_DOMAIN_ID)                            !<-- Prepare for backward part of integration
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Create the Clock for the DDFI Digital Filter."
@@ -2074,6 +2157,8 @@
 !!!!!!!!                             ,direction=ESMF_MODE_REVERSE       &  !<-- Reverse the Clock for backward integration
                                      ,stopTime =DFITIME                 &  !<-- Stop time of the filter
                                      ,rc       =RC)
+
+	CALL ESMF_ClockSet(clock=CLOCK_FILTER,currtime=CURRTIME,starttime=CURRTIME,rc=RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -2120,9 +2205,9 @@
                           ,clock_integrate   =CLOCK_FILTER              &
                           ,currtime          =CURRTIME                  &
                           ,starttime         =STARTTIME                 &
-                          ,timestep          =TIMESTEP(MY_DOMAIN_ID)    &
+                          ,timestep          =FILT_TIMESTEP(MY_DOMAIN_ID)    &
                           ,ntimestep         =NTIMESTEP                 &
-                          ,dt                =DT(MY_DOMAIN_ID)          &
+                          ,dt                =FILT_DT(MY_DOMAIN_ID)          &
                           ,filter_method     =FILTER_METHOD             &
                           ,print_timing      =PRINT_TIMING              &
                           ,ndfistep          =NDFISTEP                  &
@@ -2146,7 +2231,8 @@
 !***  The final forward step.
 !-----------------------------
 !
-        NTIMESTEP=0
+        NTIMESTEP=-NTIMESTEP
+        NTIMESTEP_ESMF=NTIMESTEP
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="For DDFI Get DFIHR for Forward Integration"
@@ -2191,7 +2277,7 @@
         HALFDFITIME=CURRTIME+HALFDFIINTVAL
         DFITIME=HALFDFITIME+HALFDFIINTVAL
 !
-        TIMESTEP_FILTER=TIMESTEP(MY_DOMAIN_ID)                            !<-- Prepare for forward part of integration
+        TIMESTEP_FILTER=FILT_TIMESTEP(MY_DOMAIN_ID)                       !<-- Prepare for forward part of integration
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Reset the Clock for Forward DDFI Digital Filter."
@@ -2202,6 +2288,7 @@
                           ,timeStep =TIMESTEP_FILTER                    &  !<-- The fundamental timestep in this component
                           ,starttime=CURRTIME                           &  !<-- Start backward integration at current time
                           ,stoptime =DFITIME                            &  !<-- End backward integration at DFITIME
+                          ,advancecount=NTIMESTEP_ESMF                  &
                           ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2242,10 +2329,10 @@
                           ,clock_integrate   =CLOCK_FILTER              &
                           ,currtime          =CURRTIME                  &
                           ,starttime         =CURRTIME                  &  !<-- CURRTIME was set or reset at end of backward piece
-                          ,timestep          =TIMESTEP(MY_DOMAIN_ID)    &
+                          ,timestep          =FILT_TIMESTEP(MY_DOMAIN_ID)    &
                           ,ntimestep         =NTIMESTEP                 &
                           ,ndfistep          =NDFISTEP                  &
-                          ,dt                =DT(MY_DOMAIN_ID)          &
+                          ,dt                =FILT_DT(MY_DOMAIN_ID)          &
                           ,filter_method     =FILTER_METHOD             &
                           ,print_timing      =PRINT_TIMING              &
                           ,halfdfiintval     =HALFDFIINTVAL             &
@@ -2301,7 +2388,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_TimeIntervalGet(timeinterval=TIMESTEP(MY_DOMAIN_ID)   &  !<-- The fundamental timestep on this domain (sec) (ESMF)
+        CALL ESMF_TimeIntervalGet(timeinterval=FILT_TIMESTEP(MY_DOMAIN_ID)   &  !<-- The fundamental timestep of this domain (sec) (ESMF)
                                  ,s           =S  &
                                  ,sn          =Sn &
                                  ,sd          =Sd &
@@ -2311,8 +2398,8 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        NDFISTEP=DFIHR/(S+REAL(Sn)/REAL(Sd))
-        DFIHR_CHK=NDFISTEP*(S+REAL(Sn)/REAL(Sd))
+        NDFISTEP=INT( 0.1+DFIHR/(S+REAL(Sn)/REAL(Sd)))
+        DFIHR_CHK=(0.1+NDFISTEP*(REAL(S)+REAL(Sn)/REAL(Sd)))
 !
         IF (DFIHR_CHK /= DFIHR) THEN
           WRITE(0,*)' DFIHR=',DFIHR,' DFIHR_CHK=',DFIHR_CHK
@@ -2322,16 +2409,21 @@
           CALL ESMF_Finalize(RC=RC,terminationflag=ESMF_ABORT)
         ENDIF
 !
+!
+        STARTTIME=CURRTIME
         HALFDFITIME=STARTTIME-HALFDFIINTVAL
         DFITIME=HALFDFITIME-HALFDFIINTVAL
 !
-        TIMESTEP_FILTER=-TIMESTEP(MY_DOMAIN_ID)                            !<-- Prepare for initial backward part of integration
+        TIMESTEP_FILTER=-FILT_TIMESTEP(MY_DOMAIN_ID)                      !<-- Prepare for initial backward part of integration
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Create the Clock for the TDFI Digital Filter."
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+        CALL ESMF_TimeGet(STARTTIME, dd=DD, h=H, m=M, s=S, rc=RC)
+	if (MYPE == 0) write(0,*) 'STARTTIME in TDFI DD H M S: ', DD, H, M, S
+
         CLOCK_FILTER=ESMF_ClockCreate(name     ='CLOCK_TDFI'            &  !<-- The Clock for the DFI filter
                                      ,timeStep =TIMESTEP_FILTER         &  !<-- The fundamental timestep in this component
                                      ,startTime=STARTTIME               &  !<-- Start time of filter
@@ -2373,6 +2465,10 @@
                               ,value=NDFISTEP                           &
                               ,rc   =RC)
 !
+        CALL ESMF_ClockGet(clock=CLOCK_FILTER,currtime=CURRTIME,starttime=STARTTIME,advanceCount=NTIMESTEP_ESMF,rc=RC)
+!        CALL ESMF_TimeGet(CURRTIME, dd=DD, h=H, m=M, s=S, rc=RC)
+!        CALL ESMF_TimeGet(STARTTIME, dd=DD, h=H, m=M, s=S, rc=RC)
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2384,9 +2480,9 @@
                           ,clock_integrate   =CLOCK_FILTER              &
                           ,currtime          =CURRTIME                  &
                           ,starttime         =STARTTIME                 &
-                          ,timestep          =TIMESTEP(MY_DOMAIN_ID)    &
+                          ,timestep          =FILT_TIMESTEP(MY_DOMAIN_ID)    &
                           ,ntimestep         =NTIMESTEP                 &
-                          ,dt                =DT(MY_DOMAIN_ID)          &
+                          ,dt                =FILT_DT(MY_DOMAIN_ID)          &
                           ,filter_method     =FILTER_METHOD             &
                           ,print_timing      =PRINT_TIMING              &
                           ,halfdfiintval     =HALFDFIINTVAL             &
@@ -2456,7 +2552,7 @@
         SDFITIME=CURRTIME
         DFITIME=HALFDFITIME+HALFDFIINTVAL
 !
-        TIMESTEP_FILTER=TIMESTEP(MY_DOMAIN_ID)                            !<-- Prepare for forward part of integration
+        TIMESTEP_FILTER=FILT_TIMESTEP(MY_DOMAIN_ID)                            !<-- Prepare for forward part of integration
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Reset the Clock for Forward TDFI Digital Filter."
@@ -2466,12 +2562,21 @@
         CALL ESMF_TimeIntervalGet(timeinterval=TIMESTEP_FILTER          &
                                  ,s           =S                        &
                                  ,rc          =RC)
-!
-        CALL ESMF_ClockSet(clock    =CLOCK_FILTER                       &  !<-- Reset the stoptime for the forward part of the filter
+
+        NTIMESTEP=0
+        NTIMESTEP_ESMF=NTIMESTEP
+
+!        NTIMESTEP=-NTIMESTEP/2
+!        NTIMESTEP_ESMF=NTIMESTEP
+
+        CALL ESMF_ClockSet(clock    =CLOCK_FILTER                       &  !<-- Reset the stoptime for the forward part of the filter 
                           ,timeStep =TIMESTEP_FILTER                    &  !<-- The fundamental timestep in this component
                           ,starttime=CURRTIME                           &  !<-- Start forward integration at the current time
+                          ,currtime=CURRTIME                            &
+                          ,advancecount=NTIMESTEP_ESMF                  &
                           ,stoptime =DFITIME                            &  !<-- Stop forward integration at DFITIME
                           ,rc       =RC)
+
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -2536,10 +2641,10 @@
                           ,clock_integrate   =CLOCK_FILTER              &
                           ,currtime          =CURRTIME                  &
                           ,starttime         =CURRTIME                  &  !<-- CURRTIME was set or reset at end of backwward piece
-                          ,timestep          =TIMESTEP(MY_DOMAIN_ID)    &
+                          ,timestep          =FILT_TIMESTEP(MY_DOMAIN_ID)    &
                           ,ntimestep         =NTIMESTEP                 &
                           ,ndfistep          =NDFISTEP                  &
-                          ,dt                =DT(MY_DOMAIN_ID)          &
+                          ,dt                =FILT_DT(MY_DOMAIN_ID)          &
                           ,filter_method     =FILTER_METHOD             &
                           ,print_timing      =PRINT_TIMING              &
                           ,halfdfiintval     =HALFDFIINTVAL             &

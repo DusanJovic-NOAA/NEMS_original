@@ -54,7 +54,7 @@
 !
       USE MODULE_DOMAIN_INTERNAL_STATE,ONLY: DOMAIN_INTERNAL_STATE      &
                                             ,WRAP_DOMAIN_INTERNAL_STATE
-!
+
       USE MODULE_SOLVER_GRID_COMP,ONLY: SOLVER_REGISTER
 !
       USE MODULE_DM_PARALLEL,ONLY : IDS,IDE,JDS,JDE                     &
@@ -72,6 +72,8 @@
       USE NEMSIO_MODULE
 ! 
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
+      USE MODULE_VARS,ONLY: VAR,FIND_VAR_INDX
+
 !
       USE MODULE_VARS,ONLY: VAR,FIND_VAR_INDX
 !
@@ -172,7 +174,11 @@
                                 ,NUM_FIELDS_MOVE_3D_V                   &  !<-- Number of 3-D V variables updated for moving nests
                                 ,NUM_LEVELS_MOVE_3D_V                   &  !<-- Number of 2-D levels in all 3-D V update variables
                                 ,PARENT_CHILD_SPACE_RATIO               &  !<-- Ratio of parent's space increment to the nest's
-                                ,PARENT_CHILD_TIME_RATIO                   !<-- # of child timesteps per parent timestep
+                                ,PARENT_CHILD_TIME_RATIO                &  !<-- # of child timesteps per parent timestep
+                                ,NUM_FIELDS_FILTER_2D                   &  !<-- # of 2-D fields to filter in dig filt
+                                ,NUM_FIELDS_FILTER_3D                   &  !<-- # of 3-D fields to filter in dig filt
+                                ,NUM_FIELDS_RESTORE_2D                  &  !<-- # of 2-D fields to restore in dig filt
+                                ,NUM_FIELDS_RESTORE_3D                     !<-- # of 3-D fields to restore in dig filt
 !
       INTEGER(kind=KINT),PARAMETER :: N_PTS_SEARCH_WIDTH=50                !<-- Search this far east/west/south/north from problem
                                                                            !    point to fix moving nest sfc-type conflicts.
@@ -216,6 +222,12 @@
       TYPE(ESMF_FieldBundle),SAVE :: MOVE_BUNDLE_H                      &  !<-- ESMF Bundle of update H variables on moving nests
                                     ,MOVE_BUNDLE_V                         !<-- ESMF Bundle of update V variables on moving nests
 !
+
+      TYPE(ESMF_FieldBundle),SAVE :: FILT_BUNDLE_FILTER                 &  !<-- ESMF Bundle of variables to filter (if filtering invoked)
+                                    ,FILT_BUNDLE_RESTORE                   !<-- ESMF Bundle of variables to restore to pre-filtered state
+
+
+
 !---------------------------------
 !***  For determining clocktimes.
 !---------------------------------
@@ -458,6 +470,9 @@
 !
       INTEGER(kind=KINT) :: DT_INT,DT_DEN,DT_NUM                        &  !<-- Integer,fractional parts of timestep
                            ,NHOURS_CLOCKTIME                               !<-- Hours between clocktime prints
+
+      INTEGER(kind=KINT) :: FILT_DT_INT,FILT_DT_DEN,FILT_DT_NUM         &  !<-- Integer,fractional parts of timestep used
+                           ,FILT_METHOD                                    !    by the digital filter, plus the method
 !
       INTEGER(kind=KINT) :: IHI,ILO,JHI,JLO
 !
@@ -2099,6 +2114,7 @@
 !
           ACDT  =SMAG2*SMAG2*DT_REAL
           CDDAMP=CODAMP*DT_REAL
+
 !
 !-----------------------------------------------------------------------
 !***  Due to the nature of the B-grid and the computations within 
@@ -2279,6 +2295,57 @@
       if(mype==0)write(0,*)' domain_init_tim=',total_integ_tim
 !
 !-----------------------------------------------------------------------
+
+          CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)          &  !<-- This domain's configure object
+                                      ,value =FILT_METHOD               &  !<-- The filter method
+                                      ,label ='filter_method:'                 &  !<-- The variable read from the configure file
+                                      ,rc    =RC)
+
+#ifdef ESMF_3
+      IF(I_AM_A_FCST_TASK == ESMF_TRUE)THEN
+#else
+      IF(I_AM_A_FCST_TASK)THEN
+#endif
+
+!-----------------------------------------------------------------------
+!***  Create the empty Filter Bundles.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Create the Filter Bundles"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+
+        IF (FILT_METHOD > 0) THEN
+
+        FILT_BUNDLE_FILTER=ESMF_FieldBundleCreate(grid=GRID_DOMAIN           &  !<-- The ESMF Grid for this domain
+                                            ,name='Filt_Bundle Filter'       &  !<-- The Bundle's name
+                                            ,rc  =RC)
+!
+        FILT_BUNDLE_RESTORE=ESMF_FieldBundleCreate(grid=GRID_DOMAIN           &  !<-- The ESMF Grid for this domain
+                                            ,name='Filt_Bundle Restore'       &  !<-- The Bundle's name
+                                            ,rc  =RC)
+!
+        UBOUND_VARS=SIZE(solver_int_state%VARS)
+!
+        CALL BUILD_FILT_BUNDLE(GRID_DOMAIN                              &
+                              ,UBOUND_VARS                              &
+                              ,solver_int_state%VARS                    &
+                              ,FILT_BUNDLE_FILTER                       &
+                              ,NUM_FIELDS_FILTER_2D                     &
+                              ,NUM_FIELDS_FILTER_3D                     &
+                              ,FILT_BUNDLE_RESTORE                      &
+                              ,NUM_FIELDS_RESTORE_2D                    &
+                              ,NUM_FIELDS_RESTORE_3D)
+!
+
+        MESSAGE_CHECK="Insert Filt Bundles into DOMAIN Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!
+        ENDIF
+
+      ENDIF
 !
       IF(RC_INIT==ESMF_SUCCESS)THEN
 !       WRITE(0,*)'DOMAIN INITIALIZE step succeeded'
@@ -2331,7 +2398,8 @@
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF                         !<-- The current forecast timestep
 !
       INTEGER(kind=KINT) :: FILTER_METHOD,HDIFF_ON,J_CENTER             &
-                           ,LAST_STEP_MOVED,RC
+                           ,LAST_STEP_MOVED,RC,NC,YY,MM,DD,H,M,S        &
+                           ,USE_RADAR
 !
 #ifdef ESMF_3
       TYPE(ESMF_Logical) :: MOVE_NOW
@@ -2340,6 +2408,7 @@
 #endif
 !
       TYPE(ESMF_TimeInterval) :: DT_ESMF
+      TYPE(ESMF_Time) :: CURRTIME
 !
       TYPE(ESMF_Config) :: CF  
 !
@@ -2374,11 +2443,14 @@
 !
         CALL ESMF_ClockGet(clock   =CLOCK_DOMAIN                        &
                           ,timeStep=DT_ESMF                             &
+                          ,currTime=CURRTIME                            &
                           ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+
+        CALL ESMF_TimeGet(time=CURRTIME,mm=MM,dd=DD,h=H,m=M,s=S,rc=RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         MESSAGE_CHECK="DOMAIN_Run: Extract Components of the Timestep" 
@@ -2644,6 +2716,32 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
 !       call print_memory()
+
+        MESSAGE_CHECK="Extract Filter_Method Flag from DOMAIN Import State"
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The DOMAIN import state
+                              ,name ='Filter_Method'                            &  !<-- Name of the attribute to extract
+                              ,value=FILTER_METHOD                    &  !<-- The ID of this domain
+                              ,rc   =RC)
+
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The DOMAIN import state
+                              ,name ='Use_Radar'                        &  !<-- Name of the attribute to extract
+                              ,value=USE_RADAR                          &  !<-- The ID of this domain
+                              ,rc   =RC)
+
+
+	CALL ESMF_AttributeSet(domain_int_state%IMP_STATE_SOLVER          &
+                              ,'Filter_Method'                            &
+                              ,FILTER_METHOD                              &
+                              ,rc=RC)
+
+	CALL ESMF_AttributeSet(domain_int_state%IMP_STATE_SOLVER      &
+                              ,'Use_Radar'                            &
+                              ,USE_RADAR                              &
+                              ,rc=RC)
+
         CALL ESMF_GridCompRun(gridcomp   =domain_int_state%SOLVER_GRID_COMP  &  !<-- The dynamics component
                              ,importState=domain_int_state%IMP_STATE_SOLVER  &  !<-- The dynamics import state
                              ,exportState=domain_int_state%EXP_STATE_SOLVER  &  !<-- The dynamics export state
@@ -3287,6 +3385,15 @@
 !
       INTEGER,INTENT(OUT) :: RC_FILT                                       !<-- Return code for this step
 !
+!
+!      TYPE(WRAP_DYN_INT_STATE) :: WRAP_DYN
+!
+!      TYPE(WRAP_PHY_INT_STATE) :: WRAP_PHY
+!
+!      TYPE(DYNAMICS_INTERNAL_STATE),POINTER :: DYN_INT_STATE
+!
+!      TYPE(PHYSICS_INTERNAL_STATE),POINTER :: PHY_INT_STATE
+!
 !---------------------
 !***  Local Variables
 !---------------------
@@ -3294,11 +3401,11 @@
       INTEGER(kind=KINT) :: DFIHR,FILTER_METHOD,MEAN_ON,NDFISTEP        &
                            ,NUM_TRACERS_CHEM,NUM_TRACERS_MET
 !
+      LOGICAL(kind=KLOG),SAVE :: FIRST_PASS=.TRUE., FIRST_FILTER=.TRUE.
+!
       INTEGER(kind=KINT) :: YY, MM, DD, H, M, S
 !
       INTEGER(kind=KINT) :: RC
-!
-      LOGICAL(kind=KLOG),SAVE :: FIRST_PASS=.TRUE.
 !
       CHARACTER(8) :: CLOCK_DIRECTION
 !
@@ -3345,6 +3452,28 @@
         DOMAIN_INT_STATE=>wrap%DOMAIN_INT_STATE
 !
       ENDIF
+
+!-----------------------------------------------------------------------
+!***  Forecast tasks extract the Dynamics and Physics internal states
+!***  needed for filtering.
+!-----------------------------------------------------------------------
+!
+!      IF(MYPE<domain_int_state%NUM_PES_FCST)THEN
+!
+!        CALL ESMF_GridCompGetInternalState(domain_int_state%DYN_GRID_COMP &  !<-- The Dynamics component
+!                                          ,WRAP_DYN                       &  !<-- The F90 wrap of the Dynamics internal state
+!                                          ,RC)
+!
+!        DYN_INT_STATE => wrap_dyn%INT_STATE
+!
+!        CALL ESMF_GridCompGetInternalState(domain_int_state%PHY_GRID_COMP &  !<-- The Physics component
+!                                          ,WRAP_PHY                       &  !<-- The F90 wrap of the Physics internal state
+!                                          ,RC)
+!
+!        PHY_INT_STATE => wrap_phy%INT_STATE
+!
+!      END IF
+
 !
 !-----------------------------------------------------------------------
 !***  What are the start time and the current time?
@@ -3436,6 +3565,11 @@
 !***  The initial stage
 !-----------------------
 !
+        IF(CURRTIME==STARTTIME .and. FIRST_FILTER)THEN
+          FIRST_FILTER=.FALSE.
+          CALL DIGITAL_FILTER_PHY_INIT_NMM(FILT_BUNDLE_RESTORE)
+        ENDIF
+
         IF(CURRTIME==STARTTIME)THEN
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3454,15 +3588,13 @@
 !
           INTEGER_DT=ABS(INTEGER_DT)
 !
-          CALL DIGITAL_FILTER_DYN_INIT_NMM(domain_int_state%IMP_STATE_SOLVER &
+          CALL DIGITAL_FILTER_DYN_INIT_NMM(FILT_BUNDLE_FILTER             &
                                           ,NDFISTEP                       &
                                           ,INTEGER_DT                     &
                                           ,NUMERATOR_DT                   &
                                           ,IDENOMINATOR_DT                &
                                           ,NUM_TRACERS_MET                &
                                           ,NUM_TRACERS_CHEM)
-!
-          CALL DIGITAL_FILTER_PHY_INIT_NMM(domain_int_state%IMP_STATE_SOLVER)
 !
         ENDIF
 !
@@ -3498,9 +3630,9 @@
 !
 !---------------------
 !
+
           IF(CURRTIME>=STARTTIME)THEN
-!
-            CALL DIGITAL_FILTER_DYN_SUM_NMM(domain_int_state%IMP_STATE_SOLVER &
+            CALL DIGITAL_FILTER_DYN_SUM_NMM(FILT_BUNDLE_FILTER             &
                                            ,MEAN_ON                        &
                                            ,NUM_TRACERS_MET                &
                                            ,NUM_TRACERS_CHEM)
@@ -3508,10 +3640,8 @@
 !
 !---------------------
 !
-          IF(CURRTIME==HALFDFITIME)THEN
-!
-            CALL DIGITAL_FILTER_PHY_SAVE_NMM(domain_int_state%IMP_STATE_SOLVER)
-!
+          IF(CURRTIME==HALFDFITIME .AND. FILTER_METHOD == 1)THEN
+            CALL DIGITAL_FILTER_PHY_SAVE_NMM(FILT_BUNDLE_RESTORE)
           ENDIF
 !
 !---------------------
@@ -3522,17 +3652,12 @@
 !
           IF(TESTTIME==DFITIME)THEN
 !
-            CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(domain_int_state%IMP_STATE_SOLVER &
+            CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(FILT_BUNDLE_FILTER             &
                                                ,NUM_TRACERS_MET                &
                                                ,NUM_TRACERS_CHEM)
 !
-!!! BUG -   PHY_RESTORE was restoring the wrong fields.  Probably should eliminate use
-!!!         of import/export states in general in deciding what needs to be filtered
-!!!         or save for physics restoration
+            CALL DIGITAL_FILTER_PHY_RESTORE_NMM(FILT_BUNDLE_RESTORE) 
 !
-!mptest            CALL DIGITAL_FILTER_PHY_RESTORE_NMM(domain_int_state%IMP_STATE_SOLVER)
-!
-!           write(0,*) 'ignored  DIGITAL_FILTER_PHY_RESTORE_NMM'
 !
             CALL ESMF_ClockPrint(clock  =CLOCK_DOMAIN                   &
                                 ,options="currtime string"              &
@@ -3551,6 +3676,7 @@
             CALL ESMF_TimeIntervalSet(timeinterval=HALFDFIINTVAL        &
                                     ,s            =DFIHR                &
                                     ,rc           =RC)
+            CALL DIGITAL_FILTER_PHY_SAVE_NMM(FILT_BUNDLE_RESTORE)
 !
             HALFDFITIME=CURRTIME-HALFDFIINTVAL
             DFITIME=HALFDFITIME-HALFDFIINTVAL
@@ -3562,7 +3688,7 @@
 !-------------------------
 !
           IF(CURRTIME<=STARTTIME)THEN
-            CALL DIGITAL_FILTER_DYN_SUM_NMM(domain_int_state%IMP_STATE_SOLVER &
+            CALL DIGITAL_FILTER_DYN_SUM_NMM(FILT_BUNDLE_FILTER             &
                                            ,MEAN_ON                        &
                                            ,NUM_TRACERS_MET                &
                                            ,NUM_TRACERS_CHEM)
@@ -3576,10 +3702,9 @@
 !
           IF(TESTTIME==DFITIME)THEN
             IF (FILTER_METHOD == 3) THEN
-              CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(domain_int_state%IMP_STATE_SOLVER &
-                                                 ,NUM_TRACERS_MET                &
-                                                 ,NUM_TRACERS_CHEM)
-
+            CALL DIGITAL_FILTER_DYN_AVERAGE_NMM(FILT_BUNDLE_FILTER             &
+                                               ,NUM_TRACERS_MET                &
+                                               ,NUM_TRACERS_CHEM)
             ENDIF
 !
             CALL ESMF_ClockPrint(clock  =CLOCK_DOMAIN                   &
@@ -3773,9 +3898,251 @@
       END SUBROUTINE CALL_WRITE_ASYNC
 !
 !-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
+
+      SUBROUTINE BUILD_FILT_BUNDLE(GRID_DOMAIN                          &
+                                  ,UBOUND_VARS                          &
+                                  ,VARS                                 &
+                                  ,FILT_BUNDLE_FILTER                   &
+                                  ,NUM_VARS_2D_FILTER                   &
+                                  ,NUM_VARS_3D_FILTER                   &
+                                  ,FILT_BUNDLE_RESTORE                  &
+                                  ,NUM_VARS_2D_RESTORE                  &
+                                  ,NUM_VARS_3D_RESTORE)
+
+!-----------------------------------------------------------------------
+!***  For digital filtering purposes, the model needs to know both which
+!***  variables should be filtered, and which variables need to be saved,
+!***  before filtering begins and restored to their original state after
+!***  filtering has occurred.  Insert the appropriate internal states into
+!***  the appropriate bundles.
+!-----------------------------------------------------------------------
 !
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: UBOUND_VARS                         !<-- Upper dimension of the VARS array
+!
+      TYPE(ESMF_Grid),INTENT(IN) :: GRID_DOMAIN                            !<-- The ESMF Grid for this domain
+!
+      TYPE(VAR),DIMENSION(1:UBOUND_VARS),INTENT(INOUT) :: VARS             !<-- Variables in the internal state
+!
+      TYPE(ESMF_FieldBundle),INTENT(INOUT) :: FILT_BUNDLE_FILTER        &  !<-- The Filter Bundle for variables to be filtered
+                                             ,FILT_BUNDLE_RESTORE          !<-- The Filter Bundle for variables to be restored
+!
+!
+      INTEGER(kind=KINT),INTENT(INOUT) :: NUM_VARS_2D_FILTER            &  !<-- # of 2-D variables to filter
+                                         ,NUM_VARS_3D_FILTER            &  !<-- # of 3-D variables to filter
+                                         ,NUM_VARS_2D_RESTORE           &  !<-- # of 2-D variables to restore
+                                         ,NUM_VARS_3D_RESTORE              !<-- # of 3-D variables to restore
+
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: IOS,N,RC,RC_CMB,FILT_TYP_INT
+!
+      CHARACTER(len=1) :: UPDATE_TYPE_CHAR
+!
+      CHARACTER(len=2) :: CH_FILTREST
+!
+      CHARACTER(len=25),SAVE :: FNAME_FILT='filt_vars.txt'   &
+                               ,VBL_NAME
+!
+      CHARACTER(len=256) :: STRING
+!
+      TYPE(ESMF_Field) :: FIELD_X
+!
+
+        OPEN(unit=10,file=FNAME_FILT,status='OLD',action='READ'          &  !<-- Open the filtering text file with user specifications
+            ,iostat=IOS)
+!
+        IF(IOS/=0)THEN
+          WRITE(0,*)' Failed to open ',FNAME_FILT,' so ABORT!'
+          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+                            ,rc             =RC)
+        ENDIF
+
+!-----------------------------------------------------------------------
+      bundle_loop: DO
+!-----------------------------------------------------------------------
+!
+        READ(UNIT=10,FMT="(A)",iostat=IOS)STRING                           !<-- Read in the next specification line
+        IF(IOS/=0)EXIT                                                     !<-- Finished reading the specification lines
+!
+        IF(STRING(1:1)=='#'.OR.TRIM(STRING)=='')THEN
+          CYCLE                                                            !<-- Read past comments and blanks.
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Read the text line containing the filtering requirements for
+!***  variable N then find that variables' place within the VARS
+!***  object.
+!-----------------------------------------------------------------------
+!
+        READ(UNIT=STRING,FMT=*,iostat=IOS)VBL_NAME ,CH_FILTREST
+!
+        CALL FIND_VAR_INDX(VBL_NAME,VARS,UBOUND_VARS,N)
+!
+
+        IF (CH_FILTREST(1:1)=='F') THEN
+          FILT_TYP_INT=1
+        ELSEIF (CH_FILTREST(1:1)=='R') THEN
+          FILT_TYP_INT=2
+        ELSE 
+          FILT_TYP_INT=-999
+	endif
+
+        build_bundle: IF (FILT_TYP_INT==1) THEN 
+
+        IF (ASSOCIATED(VARS(N)%R2D))THEN                              !<-- 2-D real array 
+!
+            NUM_VARS_2D_FILTER=NUM_VARS_2D_FILTER+1
+
+            FIELD_X=ESMF_FieldCreate(grid         =GRID_DOMAIN          &  !<-- The ESMF Grid for this domain
+                                    ,farray       =VARS(N)%R2D          &  !<-- Nth variable in the VARS array
+                                    ,maxHaloUWidth=(/IHALO,JHALO/)      &  !<-- Upper bound of halo region
+                                    ,maxHaloLWidth=(/IHALO,JHALO/)      &  !<-- Lower bound of halo region
+                                    ,name         =VARS(N)%VBL_NAME     &  !<-- The name of this variable
+                                    ,indexFlag    =ESMF_INDEX_GLOBAL    &  !<-- The variable uses global indexing
+                                    ,rc           =RC)
+!
+        ELSEIF (ASSOCIATED(VARS(N)%R3D))THEN
+!
+           NUM_VARS_3D_FILTER=NUM_VARS_3D_FILTER+1
+
+           FIELD_X=ESMF_FieldCreate(grid           =GRID_DOMAIN                    &  !<-- The ESMF Grid for this domain
+                                    ,farray         =VARS(N)%R3D                    &  !<-- Nth variable in the VARS array
+                                    ,maxHaloUWidth  =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
+                                    ,maxHaloLWidth  =(/IHALO,JHALO/)                &  !<-- Lower bound of halo region
+                                    ,ungriddedLBound=(/lbound(VARS(N)%R3D,dim=3)/)  &
+                                    ,ungriddedUBound=(/ubound(VARS(N)%R3D,dim=3)/)  &
+                                    ,name           =VARS(N)%VBL_NAME               &  !<-- The name of this variable
+                                    ,indexFlag      =ESMF_INDEX_GLOBAL              &  !<-- The variable uses global indexing
+                                    ,rc             =RC)
+!----------------
+!***  No others expected
+!----------------
+!
+          ELSE
+            WRITE(0,*)' SELECTED FILTER VARIABLE IS NOT 2-D OR 3-D REAL'
+            WRITE(0,*)' Variable name is ',VARS(N)%VBL_NAME,' for variable #',N
+            WRITE(0,*)' ABORT!!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          ENDIF
+
+
+!
+!-----------------------------------------------------------------------
+!***  Add this Field to the Filt Bundle that holds all of the
+!***  Fields that must be processed through digital filtering.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Add Field to the Filtering Bundle"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_FieldBundleAdd(bundle=FILT_BUNDLE_FILTER            &  !<-- The Filt Bundle for Filtered variables
+                                  ,field =FIELD_X                       &  !<-- Add this Field to the Bundle
+                                  ,rc    =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+	if (MYPE .eq. 0) then
+        write(0,*)' added variable ',trim(VARS(N)%VBL_NAME),' to Filt Bundle Filter'
+        endif
+!-----------------------------------------------------------------------
+
+
+        ELSEIF (FILT_TYP_INT==2) THEN 
+
+        IF (ASSOCIATED(VARS(N)%R2D))THEN                              !<-- 2-D real array 
+!
+            NUM_VARS_2D_RESTORE=NUM_VARS_2D_RESTORE+1
+
+            FIELD_X=ESMF_FieldCreate(grid         =GRID_DOMAIN          &  !<-- The ESMF Grid for this domain
+                                    ,farray       =VARS(N)%R2D          &  !<-- Nth variable in the VARS array
+                                    ,maxHaloUWidth=(/IHALO,JHALO/)      &  !<-- Upper bound of halo region
+                                    ,maxHaloLWidth=(/IHALO,JHALO/)      &  !<-- Lower bound of halo region
+                                    ,name         =VARS(N)%VBL_NAME     &  !<-- The name of this variable
+                                    ,indexFlag    =ESMF_INDEX_GLOBAL    &  !<-- The variable uses global indexing
+                                    ,rc           =RC)
+!
+        ELSEIF (ASSOCIATED(VARS(N)%R3D))THEN
+!
+           NUM_VARS_3D_RESTORE=NUM_VARS_3D_RESTORE+1
+
+           FIELD_X=ESMF_FieldCreate(grid           =GRID_DOMAIN                    &  !<-- The ESMF Grid for this domain
+                                    ,farray         =VARS(N)%R3D                    &  !<-- Nth variable in the VARS array
+                                    ,maxHaloUWidth  =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
+                                    ,maxHaloLWidth  =(/IHALO,JHALO/)                &  !<-- Lower bound of halo region
+                                    ,ungriddedLBound=(/lbound(VARS(N)%R3D,dim=3)/)  &
+                                    ,ungriddedUBound=(/ubound(VARS(N)%R3D,dim=3)/)  &
+                                    ,name           =VARS(N)%VBL_NAME               &  !<-- The name of this variable
+                                    ,indexFlag      =ESMF_INDEX_GLOBAL              &  !<-- The variable uses global indexing
+                                    ,rc             =RC)
+!----------------
+!***  No others expected
+!----------------
+!
+          ELSE
+            WRITE(0,*)' SELECTED FILTER VARIABLE IS NOT 2-D OR 3-D REAL'
+            WRITE(0,*)' Variable name is ',VARS(N)%VBL_NAME,' for variable #',N
+            WRITE(0,*)' ABORT!!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          ENDIF
+
+!-----------------------------------------------------------------------
+!***  Add this Field to the Filt Bundle that holds all of the
+!***  Fields that must be processed through digital filtering 
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Add Field to the Filtering Bundle"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_FieldBundleAdd(bundle=FILT_BUNDLE_RESTORE           &  !<-- The Filt Bundle for variables to be restored
+                                    ,field =FIELD_X                       &  !<-- Add this Field to the Bundle
+                                    ,rc    =RC )
+	if (MYPE .eq. 0) then
+        write(0,*)' added variable ',trim(VARS(N)%VBL_NAME),' to Filt Bundle Restore'
+        endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+
+
+        ELSE
+           if (MYPE .eq. 0) then
+           write(0,*) 'will ignore ' , VARS(N)%VBL_NAME , ' for Bundle'
+           endif
+
+        ENDIF build_bundle
+
+
+
+      ENDDO bundle_loop
+
+      close(unit=10)
+
+
+      END SUBROUTINE BUILD_FILT_BUNDLE
+
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+
+
       SUBROUTINE BUILD_MOVE_BUNDLE(GRID_DOMAIN                          &
                                   ,UBOUND_VARS                          &
                                   ,VARS                                 &

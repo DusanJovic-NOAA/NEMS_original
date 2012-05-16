@@ -47,6 +47,11 @@ dt_int: 105                 # Integer seconds
 dt_num: 30                  # Numerator of fractional second
 dt_den: 34                  # Denominator of fractional second
 
+filt_dt_int: 105            # Integer seconds
+filt_dt_num: 30             # Numerator of fractional second
+filt_dt_den: 34             # Denominator of fractional second
+
+
 
 #################################
 #####  Forecast Start Time  #####
