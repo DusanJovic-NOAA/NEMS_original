@@ -2319,13 +2319,11 @@
 
         IF (FILT_METHOD > 0) THEN
 
-        FILT_BUNDLE_FILTER=ESMF_FieldBundleCreate(grid=GRID_DOMAIN           &  !<-- The ESMF Grid for this domain
-                                            ,name='Filt_Bundle Filter'       &  !<-- The Bundle's name
-                                            ,rc  =RC)
+       FILT_BUNDLE_FILTER=ESMF_FieldBundleCreate(name='Filt_Bundle Filter'       &  !<-- The Bundle's name
+                                                ,rc  =RC)
 !
-        FILT_BUNDLE_RESTORE=ESMF_FieldBundleCreate(grid=GRID_DOMAIN           &  !<-- The ESMF Grid for this domain
-                                            ,name='Filt_Bundle Restore'       &  !<-- The Bundle's name
-                                            ,rc  =RC)
+       FILT_BUNDLE_RESTORE=ESMF_FieldBundleCreate(name='Filt_Bundle Restore'       &  !<-- The Bundle's name
+                                                ,rc  =RC)
 !
         UBOUND_VARS=SIZE(solver_int_state%VARS)
 !
@@ -4004,8 +4002,8 @@
 
             FIELD_X=ESMF_FieldCreate(grid         =GRID_DOMAIN          &  !<-- The ESMF Grid for this domain
                                     ,farray       =VARS(N)%R2D          &  !<-- Nth variable in the VARS array
-                                    ,maxHaloUWidth=(/IHALO,JHALO/)      &  !<-- Upper bound of halo region
-                                    ,maxHaloLWidth=(/IHALO,JHALO/)      &  !<-- Lower bound of halo region
+                                    ,totalUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
+                                    ,totalLWidth=(/IHALO,JHALO/)        &  !<-- Lower bound of halo region
                                     ,name         =VARS(N)%VBL_NAME     &  !<-- The name of this variable
                                     ,indexFlag    =ESMF_INDEX_GLOBAL    &  !<-- The variable uses global indexing
                                     ,rc           =RC)
@@ -4014,10 +4012,10 @@
 !
            NUM_VARS_3D_FILTER=NUM_VARS_3D_FILTER+1
 
-           FIELD_X=ESMF_FieldCreate(grid           =GRID_DOMAIN                    &  !<-- The ESMF Grid for this domain
+           FIELD_X=ESMF_FieldCreate(grid            =GRID_DOMAIN                    &  !<-- The ESMF Grid for this domain
                                     ,farray         =VARS(N)%R3D                    &  !<-- Nth variable in the VARS array
-                                    ,maxHaloUWidth  =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
-                                    ,maxHaloLWidth  =(/IHALO,JHALO/)                &  !<-- Lower bound of halo region
+                                    ,totalUWidth    =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
+                                    ,totalLWidth    =(/IHALO,JHALO/)                &  !<-- Lower bound of halo region
                                     ,ungriddedLBound=(/lbound(VARS(N)%R3D,dim=3)/)  &
                                     ,ungriddedUBound=(/ubound(VARS(N)%R3D,dim=3)/)  &
                                     ,name           =VARS(N)%VBL_NAME               &  !<-- The name of this variable
@@ -4046,8 +4044,8 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_FieldBundleAdd(bundle=FILT_BUNDLE_FILTER            &  !<-- The Filt Bundle for Filtered variables
-                                  ,field =FIELD_X                       &  !<-- Add this Field to the Bundle
+          CALL ESMF_FieldBundleAdd(FILT_BUNDLE_FILTER            &  !<-- The Filt Bundle for Filtered variables
+                                  ,LISTWRAPPER(FIELD_X)          &  !<-- Add this Field to the Bundle
                                   ,rc    =RC )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4068,8 +4066,8 @@
 
             FIELD_X=ESMF_FieldCreate(grid         =GRID_DOMAIN          &  !<-- The ESMF Grid for this domain
                                     ,farray       =VARS(N)%R2D          &  !<-- Nth variable in the VARS array
-                                    ,maxHaloUWidth=(/IHALO,JHALO/)      &  !<-- Upper bound of halo region
-                                    ,maxHaloLWidth=(/IHALO,JHALO/)      &  !<-- Lower bound of halo region
+                                    ,totalUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
+                                    ,totalLWidth=(/IHALO,JHALO/)        &  !<-- Lower bound of halo region
                                     ,name         =VARS(N)%VBL_NAME     &  !<-- The name of this variable
                                     ,indexFlag    =ESMF_INDEX_GLOBAL    &  !<-- The variable uses global indexing
                                     ,rc           =RC)
@@ -4078,10 +4076,10 @@
 !
            NUM_VARS_3D_RESTORE=NUM_VARS_3D_RESTORE+1
 
-           FIELD_X=ESMF_FieldCreate(grid           =GRID_DOMAIN                    &  !<-- The ESMF Grid for this domain
+           FIELD_X=ESMF_FieldCreate(grid           =GRID_DOMAIN                     &  !<-- The ESMF Grid for this domain
                                     ,farray         =VARS(N)%R3D                    &  !<-- Nth variable in the VARS array
-                                    ,maxHaloUWidth  =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
-                                    ,maxHaloLWidth  =(/IHALO,JHALO/)                &  !<-- Lower bound of halo region
+                                    ,totalUWidth    =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
+                                    ,totalLWidth    =(/IHALO,JHALO/)                &  !<-- Lower bound of halo region
                                     ,ungriddedLBound=(/lbound(VARS(N)%R3D,dim=3)/)  &
                                     ,ungriddedUBound=(/ubound(VARS(N)%R3D,dim=3)/)  &
                                     ,name           =VARS(N)%VBL_NAME               &  !<-- The name of this variable
@@ -4108,8 +4106,8 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_FieldBundleAdd(bundle=FILT_BUNDLE_RESTORE           &  !<-- The Filt Bundle for variables to be restored
-                                    ,field =FIELD_X                       &  !<-- Add this Field to the Bundle
+            CALL ESMF_FieldBundleAdd(FILT_BUNDLE_RESTORE           &  !<-- The Filt Bundle for variables to be restored
+                                    ,LISTWRAPPER(FIELD_X)          &  !<-- Add this Field to the Bundle
                                     ,rc    =RC )
 	if (MYPE .eq. 0) then
         write(0,*)' added variable ',trim(VARS(N)%VBL_NAME),' to Filt Bundle Restore'

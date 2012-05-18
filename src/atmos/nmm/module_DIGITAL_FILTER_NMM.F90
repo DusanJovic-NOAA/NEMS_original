@@ -106,9 +106,10 @@
 
 !     Retrieve the dynamical fields to be filtered from the bundle
 
-        CALL ESMF_FieldBundleGet(bundle    =FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                ,fieldCount=NUM_FIELDS          &  !<-- # of Fields in the Bundle
-                                ,rc        =RC)
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE      = FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,fieldCount       = NUM_FIELDS          &  !<-- # of Fields in the Bundle
+                                ,rc               = RC)
+
 
       tot_rank_2d=0
       tot_rank_3d=0
@@ -128,10 +129,10 @@
 
       DO N=1,NUM_FIELDS
 
-        CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                ,N                               &
-                                ,tmpfield                        &
-                                ,rc)
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE    =FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,fieldIndex     =N                               &
+                                ,field          =tmpfield                        &
+                                ,rc             =RC)
 
         CALL ESMF_FieldGet(field=tmpfield, name=dyn_name(N), dimCount=tmp_rank, rc=rc)
 !
@@ -248,10 +249,11 @@
           field_name=name_save_2d(N)
           nullify(hold_2d) 
 
-          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                ,name=field_name       &
-                                ,field=HOLD_FIELD                        &
-                                ,rc=rc)
+
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE    =FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                  ,FIELDNAME      =field_name          &
+                                  ,field          =HOLD_FIELD          &
+                                  ,rc             =rc)
 
           call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
                             ,localDe   =0                               &
@@ -271,10 +273,10 @@
           field_name=name_save_3d(N)
           nullify(hold_3d)
 
-          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                ,name=field_name       &
-                                ,field=HOLD_FIELD                        &
-                                ,rc=rc)
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE = FILT_BUNDLE            &  !<-- The ESMF Bundle of arrays to be filtered
+                                  ,FIELDNAME   = field_name             &
+                                  ,field       = HOLD_FIELD             &
+                                  ,rc=rc)
 
           call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
                             ,localDe   =0                               &
@@ -302,10 +304,10 @@
             num_spec=num_water
           endif
 
-          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                ,name=field_name       &
-                                ,field=HOLD_FIELD                        &
-                                ,rc=rc)
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE  = FILT_BUNDLE           &  !<-- The ESMF Bundle of arrays to be filtered
+                                  ,FIELDNAME    = field_name            &
+                                  ,field        = HOLD_FIELD            &
+                                  ,rc           = rc)
 
           call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
                             ,localDe   =0                               &
@@ -422,10 +424,10 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                ,name=field_name       &
-                                ,field=HOLD_FIELD                        &
-                                ,rc=rc)
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE        = FILT_BUNDLE        &  !<-- The ESMF Bundle of arrays to be filtered
+                                  ,FIELDNAME          = field_name         &
+                                  ,field              = HOLD_FIELD         &
+                                  ,rc=rc)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -463,10 +465,10 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                ,name=field_name       &
-                                ,field=HOLD_FIELD                        &
-                                ,rc=rc)
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE     = FILT_BUNDLE        &  !<-- The ESMF Bundle of arrays to be filtered
+                                  ,FIELDNAME       = field_name         &
+                                  ,field           = HOLD_FIELD         &
+                                  ,rc              = rc)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
@@ -511,10 +513,10 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                ,name=field_name       &
-                                ,field=HOLD_FIELD                        &
-                                ,rc=rc)
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE     = FILT_BUNDLE        &  !<-- The ESMF Bundle of arrays to be filtered
+                                  ,FIELDNAME       = field_name         &
+                                  ,field           = HOLD_FIELD         &
+                                  ,rc              = RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
@@ -543,9 +545,7 @@
               ENDDO
             ENDDO
           ENDDO
-          CALL ESMF_FieldBundleAdd(bundle=FILT_BUNDLE            &  !<-- The Filt Bundle for Filtered variables
-                                  ,field =HOLD_FIELD                    &  !<-- Add this Field to the Bundle
-                                  ,rc    =RC )
+!          CALL HALO_EXCH(hold_4d,LM,2,2)
         ENDDO
       ENDIF
 
@@ -589,28 +589,28 @@
 
 !     Retrieve the dynamical fields to be filtered from the bundle
 
-        CALL ESMF_FieldBundleGet(bundle    =FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                ,fieldCount=NUM_FIELDS          &  !<-- # of Fields in the Bundle
-                                ,rc        =RC)
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE    = FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,fieldCount     = NUM_FIELDS          &  !<-- # of Fields in the Bundle
+                                ,rc             = RC)
 !
       tot_rank_2d_phys=0
       tot_rank_3d_phys=0
 
-      if (.not. allocated(phy_name))                                    &
+      if (.not. allocated(phy_name))                                  &
       allocate(phy_name(NUM_FIELDS))
 
-      if (.not. allocated(name_save_2d_phys))                                &
+      if (.not. allocated(name_save_2d_phys))                         &
       allocate(name_save_2d_phys(NUM_FIELDS))
 
-      if (.not. allocated(name_save_3d_phys))                                &
+      if (.not. allocated(name_save_3d_phys))                         &
       allocate(name_save_3d_phys(NUM_FIELDS))
 
       DO N=1,NUM_FIELDS
 
-        CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                ,N                               &
-                                ,tmpfield                        &
-                                ,rc)
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE = FILT_BUNDLE            &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,fieldindex  = N                      &
+                                ,field       = tmpfield               &
+                                ,rc = rc)
 
         CALL ESMF_FieldGet(field=tmpfield, name=phy_name(N), dimCount=tmp_rank, rc=rc)
 
@@ -670,10 +670,10 @@
           field_name=name_save_2d_phys(N)
           nullify(hold_2d) 
 
-          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                ,name=field_name       &
-                                ,field=HOLD_FIELD                        &
-                                ,rc=rc)
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE    = FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                  ,FIELDNAME      = field_name          &
+                                  ,field          = HOLD_FIELD          &
+                                  ,rc=rc)
 
           call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
                             ,localDe   =0                               &
@@ -695,10 +695,10 @@
           field_name=name_save_3d_phys(N)
           nullify(hold_3d)
 
-          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                ,name=field_name       &
-                                ,field=HOLD_FIELD                        &
-                                ,rc=rc)
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE = FILT_BUNDLE            &  !<-- The ESMF Bundle of arrays to be filtered
+                                  ,FIELDNAME   = field_name             &
+                                  ,field       = HOLD_FIELD             &
+                                  ,rc=rc)
 
           call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
                             ,localDe   =0                               &
@@ -749,10 +749,10 @@
           FIELD_NAME=name_save_2d_phys(N)
           NULLIFY(HOLD_2D)
 
-          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                ,name=field_name       &
-                                ,field=HOLD_FIELD                        &
-                                ,rc=rc)
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE = FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                ,FIELDNAME     = field_name          &
+                                ,field         = HOLD_FIELD          &
+                                ,rc            = rc)
 
           call ESMF_FieldGet(field     =HOLD_FIELD                      &  !<-- Field that holds the data pointer
                             ,localDe   =0                               &
@@ -777,10 +777,10 @@
           NULLIFY(HOLD_3D)
 
 
-          CALL ESMF_FieldBundleGet(FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                ,name=field_name       &
-                                ,field=HOLD_FIELD                        &
-                                ,rc=rc)
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE    = FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
+                                   ,FIELDNAME     = field_name          &
+                                   ,field         = HOLD_FIELD          &
+                                   ,rc=rc)
 
           call ESMF_FieldGet(field           =HOLD_FIELD                &  !<-- Field that holds the data pointer
                             ,localDe         =0                         &
