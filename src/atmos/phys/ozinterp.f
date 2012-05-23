@@ -66,6 +66,8 @@ cyt   if(me.eq.0) print*,'completed setindxoz for nasa prod. and diss'
       real(kind=kind_phys) ozplout(levozp,LATD,pl_coeff)
       real(kind=kind_phys) RINC(5), rjday
       integer jdow, jdoy, jday
+      real(4) rinc4(5)
+      integer w3kindreal,w3kindint
 !
       IDAT=0
       IDAT(1)=IDATE(4)
@@ -74,7 +76,13 @@ cyt   if(me.eq.0) print*,'completed setindxoz for nasa prod. and diss'
       IDAT(5)=IDATE(1)
       RINC=0.
       RINC(2)=FHOUR
-      CALL W3MOVDAT(RINC,IDAT,JDAT)
+      call w3kind(w3kindreal,w3kindint)
+      if(w3kindreal==4) then
+        rinc4=rinc
+        CALL W3MOVDAT(RINC4,IDAT,JDAT)
+      else
+        CALL W3MOVDAT(RINC,IDAT,JDAT)
+      endif
 !
       jdow = 0
       jdoy = 0

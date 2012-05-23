@@ -6882,6 +6882,8 @@ cjfe
      &           196.5,227.5,258.0,288.5,319.0,349.5,380.5/
 !
       real (kind=kind_io8) fha(5)
+      real(4) fha4(5)
+      integer w3kindreal,w3kindint
       integer ida(8),jda(8)
 !
       real (kind=kind_io8), allocatable :: tsf(:,:),sno(:,:),
@@ -6975,7 +6977,14 @@ cjfe
           ida(2)=im
           ida(3)=id
           ida(5)=ih
-          call w3movdat(fha,ida,jda)
+          call w3kind(w3kindreal,w3kindint)
+          if(w3kindreal==4) then
+            fha4=fha
+            call w3movdat(fha4,ida,jda)
+          else
+            call w3movdat(fha,ida,jda)
+          endif
+
           jy=jda(1)
           jm=jda(2)
           jd=jda(3)
@@ -7043,7 +7052,13 @@ cjfe
       ida(2) = im
       ida(3) = id
       ida(5) = ih
-      call w3movdat(fha,ida,jda)
+      call w3kind(w3kindreal,w3kindint)
+      if(w3kindreal==4) then
+        fha4=fha
+        call w3movdat(fha4,ida,jda)
+      else
+        call w3movdat(fha,ida,jda)
+      endif
       jy     = jda(1)
       jm     = jda(2)
       jd     = jda(3)
@@ -7994,6 +8009,8 @@ cjfe
       DATA MJDAY/31,28,31,30,31,30,31,31,30,31,30,31/
 !
       real (kind=kind_io8) fha(5)
+      real (kind=4) fha4(5)
+      integer w3kindreal,w3kindint
       integer ida(8),jda(8)
 !
       IRET   = 0
@@ -8011,7 +8028,13 @@ cjfe
       ida(2)=im
       ida(3)=id
       ida(5)=ih
-      call w3movdat(fha,ida,jda)
+      call w3kind(w3kindreal,w3kindint)
+      if(w3kindreal==4) then
+        fha4=fha
+        call w3movdat(fha4,ida,jda)
+      else
+        call w3movdat(fha,ida,jda)
+      endif
       jy=jda(1)
       jm=jda(2)
       jd=jda(3)

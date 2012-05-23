@@ -194,6 +194,8 @@
       real(kind=kind_phys) t12,alon,alat,es,Qs,tsea,sstc,dta
       real(kind=kind_phys) fjd1,jd1,jd0
       real(kind=kind_phys) rinc(5) 
+      real(kind=4) rinc4(5) 
+      integer w3kindreal,w3kindint
 
 !  external functions called: iw3jdn
       integer :: iw3jdn
@@ -217,7 +219,13 @@ cc
       rinc(3) = float(kdt)*timestep/60.0
       rinc(4) = 0.
       rinc(5) = 0.
-      call w3movdat(rinc, idat, jdat)
+      call w3kind(w3kindreal,w3kindint)
+      if(w3kindreal==4) then
+        rinc4=rinc
+        CALL W3MOVDAT(RINC4,IDAT,JDAT)
+      else
+        CALL W3MOVDAT(RINC,IDAT,JDAT)
+      endif
 
       iyear = jdat(1)
       imon  = jdat(2)
