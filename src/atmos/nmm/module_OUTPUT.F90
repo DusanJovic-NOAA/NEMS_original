@@ -466,12 +466,6 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_DYN_OUT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL PUT_VARS_IN_BUNDLES_P(int_state%VARS                         &
-                              ,int_state%NUM_VARS                       &
-                              ,GRID                                     &
-                              ,HISTORY_BUNDLE                           &
-                              ,RESTART_BUNDLE)
-!
 !-----------------------------------------------------------------------
 !***  Load the two output Bundles into the working array which is used
 !***  to add them to the Write component's import state.

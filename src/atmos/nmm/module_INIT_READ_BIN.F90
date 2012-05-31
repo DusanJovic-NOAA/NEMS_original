@@ -627,6 +627,15 @@ integer(kind=kint):: &
         read(nfcst) int_state%I_PAR_STA
         read(nfcst) int_state%J_PAR_STA
         read(nfcst) int_state%LPT2
+        read(nfcst) ! nsoil
+        read(nfcst) ! nphs
+        read(nfcst) ! nclod
+        read(nfcst) ! nheat
+        read(nfcst) ! nprec
+        read(nfcst) ! nrdlw
+        read(nfcst) ! nrdsw
+        read(nfcst) ! nsrfc
+!
 !-----------------------------------------------------------------------
 !***  Read from restart file: Integer 1D arrays
 !-----------------------------------------------------------------------
@@ -652,14 +661,6 @@ integer(kind=kint):: &
 !-----------------------------------------------------------------------
         read(nfcst) ! mp_physics
         read(nfcst) ! sf_surface_physics
-        read(nfcst) ! nsoil
-        read(nfcst) ! nphs
-        read(nfcst) ! nclod
-        read(nfcst) ! nheat
-        read(nfcst) ! nprec
-        read(nfcst) ! nrdlw
-        read(nfcst) ! nrdsw
-        read(nfcst) ! nsrfc
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real scalars
 !-----------------------------------------------------------------------
@@ -852,204 +853,6 @@ integer(kind=kint):: &
         enddo
         call dstrb(temp1,int_state%pdo,1,1,1,1,1)
         call halo_exch(int_state%pdo,1,2,2)
-!
-!-----------------------------------------------------------------------
-!***  Read from restart file: Real 3D arrays (only DYN)
-!-----------------------------------------------------------------------
-!
-        do l=1,lm
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%w(i,j,l)=0.
-!d          enddo
-!d          enddo
-          call dstrb(temp1,int_state%w,1,1,1,lm,l)
-        enddo
-        call halo_exch(int_state%w,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%omgalf(i,j,l)=0.
-!d          enddo
-!d          enddo
-          call dstrb(temp1,int_state%omgalf,1,1,1,lm,l)
-        enddo
-        call halo_exch(int_state%omgalf,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%o3(i,j,l)=0.
-!d          enddo
-!d          enddo
-          call dstrb(temp1,int_state%o3,1,1,1,lm,l)
-        enddo
-        call halo_exch(int_state%o3,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%div(i,j,l)=0.
-!d          enddo
-!d          enddo
-          call dstrb(temp1,int_state%div,1,1,1,lm,l)
-        enddo
-        call halo_exch(int_state%div,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%rtop(i,j,l)=0.
-!d          enddo
-!d          enddo
-          call dstrb(temp1,int_state%rtop,1,1,1,lm,l)
-        enddo
-        call halo_exch(int_state%rtop,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%tcu(i,j,l)=0.
-!d          enddo
-!d          enddo
-          call dstrb(temp1,int_state%tcu,1,1,1,lm,l)
-        enddo
-        call halo_exch(int_state%tcu,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%tcv(i,j,l)=0.
-!d          enddo
-!d          enddo
-          call dstrb(temp1,int_state%tcv,1,1,1,lm,l)
-        enddo
-        call halo_exch(int_state%tcv,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%tct(i,j,l)=0.
-!d          enddo
-!d          enddo
-          call dstrb(temp1,int_state%tct,1,1,1,lm,l)
-        enddo
-        call halo_exch(int_state%tct,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%tp(i,j,l)=0.
-!d          enddo
-!d          enddo
-          call dstrb(temp1,int_state%tp,1,1,1,lm,l)
-        enddo
-        call halo_exch(int_state%tp,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%up(i,j,l)=0.
-!d          enddo
-!d          enddo
-          call dstrb(temp1,int_state%up,1,1,1,lm,l)
-        enddo
-        call halo_exch(int_state%up,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%vp(i,j,l)=0.
-!d          enddo
-!d          enddo
-          call dstrb(temp1,int_state%vp,1,1,1,lm,l)
-        enddo
-        call halo_exch(int_state%vp,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%e2(i,j,l)=0.
-!d          enddo
-!d          enddo
-          call dstrb(temp1,int_state%e2,1,1,1,lm,l)
-        enddo
-        call halo_exch(int_state%e2,lm,2,2)
-!----------- psgdt -----------------------------------------------------
-        do l=1,lm-1
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-        enddo
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%z(i,j,l)=0.
-!d          enddo
-!d          enddo
-          call dstrb(temp1,int_state%z,1,1,1,lm,l)
-        enddo
-        call halo_exch(int_state%z,lm,2,2)
-!-----------------------------------------------------------------------
-        do n=1,int_state%indx_o3
-          do l=1,lm
-            if(mype==0)then
-              read(nfcst)temp1
-            endif
-!d            do j=jms,jme
-!d            do i=ims,ime
-!d              int_state%TRACERS_PREV(i,j,l,n)=0.
-!d            enddo
-!d            enddo
-            call dstrb(temp1,int_state%TRACERS_PREV(:,:,:,n),1,1,1,lm,l)
-          enddo
-        enddo
-        call halo_exch(int_state%TRACERS_PREV,lm,int_state%indx_o3,1,2,2)
-!
-!-----------------------------------------------------------------------
-!***  Read from restart file: Real 2D arrays (contd.)
-!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  ACFRCV
@@ -1808,6 +1611,185 @@ integer(kind=kint):: &
       CALL DSTRB(TEMP1,int_state%AVCNVC,1,1,1,1,1)
 !
 !-----------------------------------------------------------------------
+!***  Read from restart file: Real 3D arrays (only DYN)
+!-----------------------------------------------------------------------
+!
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%w(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%w,1,1,1,lm,l)
+        enddo
+        call halo_exch(int_state%w,lm,2,2)
+!-----------------------------------------------------------------------
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%omgalf(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%omgalf,1,1,1,lm,l)
+        enddo
+        call halo_exch(int_state%omgalf,lm,2,2)
+!-----------------------------------------------------------------------
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%o3(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%o3,1,1,1,lm,l)
+        enddo
+        call halo_exch(int_state%o3,lm,2,2)
+!-----------------------------------------------------------------------
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%div(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%div,1,1,1,lm,l)
+        enddo
+        call halo_exch(int_state%div,lm,2,2)
+!-----------------------------------------------------------------------
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%rtop(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%rtop,1,1,1,lm,l)
+        enddo
+        call halo_exch(int_state%rtop,lm,2,2)
+!-----------------------------------------------------------------------
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%tcu(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%tcu,1,1,1,lm,l)
+        enddo
+        call halo_exch(int_state%tcu,lm,2,2)
+!-----------------------------------------------------------------------
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%tcv(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%tcv,1,1,1,lm,l)
+        enddo
+        call halo_exch(int_state%tcv,lm,2,2)
+!-----------------------------------------------------------------------
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%tct(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%tct,1,1,1,lm,l)
+        enddo
+        call halo_exch(int_state%tct,lm,2,2)
+!-----------------------------------------------------------------------
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%tp(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%tp,1,1,1,lm,l)
+        enddo
+        call halo_exch(int_state%tp,lm,2,2)
+!-----------------------------------------------------------------------
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%up(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%up,1,1,1,lm,l)
+        enddo
+        call halo_exch(int_state%up,lm,2,2)
+!-----------------------------------------------------------------------
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%vp(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%vp,1,1,1,lm,l)
+        enddo
+        call halo_exch(int_state%vp,lm,2,2)
+!-----------------------------------------------------------------------
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%e2(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%e2,1,1,1,lm,l)
+        enddo
+        call halo_exch(int_state%e2,lm,2,2)
+!----------- psgdt -----------------------------------------------------
+        do l=1,lm-1
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+        enddo
+!-----------------------------------------------------------------------
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+!d          do j=jms,jme
+!d          do i=ims,ime
+!d            int_state%z(i,j,l)=0.
+!d          enddo
+!d          enddo
+          call dstrb(temp1,int_state%z,1,1,1,lm,l)
+        enddo
+        call halo_exch(int_state%z,lm,2,2)
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !***  Read from restart file: Real 3D arrays
 !-----------------------------------------------------------------------
         call mpi_barrier(mpi_comm_comp,irtn)
@@ -2068,6 +2050,22 @@ integer(kind=kint):: &
       ENDDO
 !
 !-----------------------------------------------------------------------
+        do n=1,int_state%indx_o3
+          do l=1,lm
+            if(mype==0)then
+              read(nfcst)temp1
+            endif
+!d            do j=jms,jme
+!d            do i=ims,ime
+!d              int_state%TRACERS_PREV(i,j,l,n)=0.
+!d            enddo
+!d            enddo
+            call dstrb(temp1,int_state%TRACERS_PREV(:,:,:,n),1,1,1,lm,l)
+          enddo
+        enddo
+        call halo_exch(int_state%TRACERS_PREV,lm,int_state%indx_o3,1,2,2)
+!
+
         do n=int_state%INDX_O3+1,int_state%NUM_TRACERS_TOTAL                     !<-- The first 'indx_o3' arrays are unallocated pointers
           do l=1,lm
             if(mype==0)then
