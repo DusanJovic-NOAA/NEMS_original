@@ -8010,7 +8010,6 @@ cjfe
 !
       real (kind=kind_io8) fha(5)
       real (kind=4) fha4(5)
-      integer w3kindreal,w3kindint
       integer ida(8),jda(8)
 !
       IRET   = 0
