@@ -9060,7 +9060,7 @@
 !
       ARG1=REAL(ITE)+ADD_INC
       ARG2=REAL(IDE)
-      R_IEND=MIN(ARG1,ARG2)-EPS                                            !<-- REAL Iend of parent task's region for child N/S boundaries
+      R_IEND=MIN(ARG1,ARG2)-2.*EPS                                         !<-- REAL Iend of parent task's region for child N/S boundaries
 !
 !-----------------------------------------------------
 !
@@ -9302,7 +9302,7 @@
 !
       ARG1=REAL(JTE)+ADD_INC
       ARG2=REAL(JDE)
-      R_JEND=MIN(ARG1,ARG2)-EPS                                            !<-- REAL Jend of parent task's region for child W/E boundaries
+      R_JEND=MIN(ARG1,ARG2)-2.*EPS                                         !<-- REAL Jend of parent task's region for child W/E boundaries
 !
       REAL_J_START=PARENT_J_CHILD_SBND
 !
