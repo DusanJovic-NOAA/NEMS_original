@@ -10,6 +10,6 @@ integer,parameter:: &
 ,kfpt=single &
 ,kdbl=double
 
-real   (kind=kfpt),parameter :: r4_in=0.0   !rv x'ffbfffff'
-real   (kind=kdbl),parameter :: r8_in=0.0d0 !rv x'fff7ffffffffffff'
+real   (kind=kfpt),parameter :: r4_in=x'ffbfffff'
+real   (kind=kdbl),parameter :: r8_in=x'fff7ffffffffffff'
 integer(kind=kint),parameter :: i4_in=-999  ! -huge(1)

@@ -5,14 +5,14 @@ ESMF_INC    = $(ESMF_F90COMPILEPATHS)
 ESMF_LIBS   = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 
 EXTLIBS     = $(ESMF_LIBS) \
-             -L/home/Ratko.Vasic/lib_tmp/nemsio -lnemsio \
-             -L/home/Ratko.Vasic/lib_tmp -lw3-2.0_4 \
-             -L/home/Ratko.Vasic/lib_tmp -lw3ext_4 \
+              /scratch1/portfolios/NCEPDEV/nceplibs/save/lib/lib_nemsio_mergedv1.0.0_intel.a \
+             -L/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/w3 -lw3-2.0_d \
              -L/home/Ratko.Vasic/lib_tmp -lbacio_4 -lsp_4
-NEMSIO_INC  = -I/home/Ratko.Vasic/lib_tmp/nemsio/incmod
+NEMSIO_INC  = -I/scratch1/portfolios/NCEPDEV/nceplibs/save/incmod/nemsio_mergedv1.0.0_intel
 
 
-FC          = ifort -lmpi -openmp -convert big_endian -assume byterecl
+FC          = ifort -lmpi -openmp -convert big_endian -assume byterecl -mkl
+F77         = ifort -lmpi -openmp -convert big_endian -assume byterecl -mkl
 FREE        = -free
 FIXED       = -fixed
 R8          = -r8
