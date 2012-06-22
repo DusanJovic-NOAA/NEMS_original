@@ -5,7 +5,7 @@ ESMF_INC    = $(ESMF_F90COMPILEPATHS)
 ESMF_LIBS   = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 
 EXTLIBS     = $(ESMF_LIBS) \
-              /scratch1/portfolios/NCEPDEV/nceplibs/save/lib/lib_nemsio_mergedv1.0.0_intel.a \
+              /scratch1/portfolios/NCEPDEV/nceplibs/save/lib/nemsio/lib_nemsio_mergedv1.0.0_intel.a \
              -L/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/w3 -lw3-2.0_d \
              -L/home/Ratko.Vasic/lib_tmp -lbacio_4 -lsp_4
 NEMSIO_INC  = -I/scratch1/portfolios/NCEPDEV/nceplibs/save/incmod/nemsio_mergedv1.0.0_intel
