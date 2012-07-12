@@ -221,11 +221,13 @@
                                 ,MYPE                                   &
                                 ,N_BLEND_H,N_BLEND_V                    &
                                 ,NHALO                                  &
+                                ,NHOURS_FCST                            &
                                 ,NPHS                                   &
                                 ,NROWS_P_UPD_E                          &
                                 ,NROWS_P_UPD_N                          &
                                 ,NROWS_P_UPD_S                          &
                                 ,NROWS_P_UPD_W                          &
+                                ,NTIMESTEP_FINAL                        &
                                 ,NUM_CHILDREN                           &
                                 ,NUM_FIELDS_MOVE                        &
                                 ,NUM_FIELDS_MOVE_2D_H_I                 &
@@ -1731,6 +1733,29 @@
       CW=>TRACERS(IMS:IME,JMS:JME,1:LM,INDX_CW)
 !
 !-----------------------------------------------------------------------
+!***  Tasks load their domain's configure file.
+!-----------------------------------------------------------------------
+!
+      CONFIG_ID=DOMAIN_ID_TO_RANK(MY_DOMAIN_ID)
+      WRITE(INT_TO_CHAR,FMT)CONFIG_ID
+      CONFIG_FILE_NAME='configure_file_'//INT_TO_CHAR                      !<-- Prepare the config file name
+!
+      CF_MINE=ESMF_ConfigCreate(rc=RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Parent-Child Init: Load Configure Files"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigLoadFile(config  =CF_MINE                         &
+                              ,filename=CONFIG_FILE_NAME                &
+                              ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
 !***  Children need to save the ratio of their parent's timestep and
 !***  grid increment to their own.  The timestep ratio MUST be an
 !***  integer and for now so must the space ratio.
@@ -1752,25 +1777,6 @@
 !***  simplicity we will provide that information to all domain tasks
 !***  now.
 !-----------------------------------------------------------------------
-!
-        CONFIG_ID=DOMAIN_ID_TO_RANK(MY_DOMAIN_ID)
-        WRITE(INT_TO_CHAR,FMT)CONFIG_ID
-        CONFIG_FILE_NAME='configure_file_'//INT_TO_CHAR                    !<-- Prepare the config file name
-!
-        CF_MINE=ESMF_ConfigCreate(rc=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Parent-Child Init: Nest Loads Its Configure File"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_ConfigLoadFile(config  =CF_MINE                       &
-                                ,filename=CONFIG_FILE_NAME              &
-                                ,rc      =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Parent-Child Init: Child Gets Space Ratio"
@@ -3288,6 +3294,33 @@
 !
           RECIP_DPH_1=1./DPH_1
           RECIP_DLM_1=1./DLM_1
+!
+!-----------------------------------------------------------------------
+!***  Parents with moving nests must not consider providing those
+!***  children with motion-related information very near to the
+!***  end of the forecast or else the exchange of information
+!***  between them may not be completed which would result in a
+!***  hang.  Therefore parents must ignore all requests by their
+!***  children to provide a valid point in time at which a child
+!***  may execute a shift in position.  Parents will use the final
+!***  timestep of their forecast to make that determination.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Parent-Child Init: Get Forecast Length"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_ConfigGetAttribute(config=CF_MINE                   &  !<-- This domain's configure object
+                                      ,value =NHOURS_FCST               &  !<-- The # of hours in the forecast
+                                      ,label ='nhours_fcst:'            &  !<-- Give this label's value to the previous variable
+                                      ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          NTIMESTEP_FINAL=NHOURS_FCST*3600./DT_DOMAIN(MY_DOMAIN_ID)-1      !<-- This domain's final timestep in the forecast
 !
 !-----------------------------------------------------------------------
 !
@@ -4972,7 +5005,7 @@
 !***  it must adjust its location of its children.
 !***  Note that I_SHIFT_CHILD and J_SHIFT_CHILD here are the shift
 !***  values of this parent domain on its own grid inherited from
-!***  subroutine PARENT_CHILD_CPL_RUN_RECV where it was a child.
+!***  subroutine PARENT_CHILD_CPL_RUN_RECV in which it was a child.
 !-----------------------------------------------------------------------
 !
       PARENT_MOVED=.FALSE.
@@ -5175,20 +5208,28 @@
                            ,JSTAT                                       &
                            ,IERR)
 !
-              CALL MPI_WAIT(HANDLE_TIMESTEP(N)                          &  !<-- Handle for ISend of parent's timestep for nest move
-                           ,JSTAT                                       &  !<-- MPI status
-                           ,IERR)
+              IF(NTIMESTEP<NTIMESTEP_FINAL-2)THEN                          !<-- Children must not move just before the fcst ends
 !
-              NTIMESTEP_MOVE=NTIMESTEP                                     !<-- Safe to reload the buffer variable
+                CALL MPI_WAIT(HANDLE_TIMESTEP(N)                        &  !<-- Handle for ISend of parent's timestep for nest move
+                             ,JSTAT                                     &  !<-- MPI status
+                             ,IERR)
 !
-              CALL MPI_ISEND(NTIMESTEP_MOVE                             &  !<-- Parent task 0 sends its current timestep.
-                            ,1                                          &  !<-- # of words sent
-                            ,MPI_INTEGER                                &  !<-- The timestep is an integer.
-                            ,0                                          &  !<-- Sending to moving child N's task 0.
-                            ,TIME_TAG                                   &  !<-- Tag associated with nest N's move timestep
-                            ,COMM_TO_MY_CHILDREN(N_MOVING)              &  !<-- MPI communicator between parent and moving child N
-                            ,HANDLE_TIMESTEP(N)                         &  !<-- Handle for this ISend to moving child N's task 0
-                            ,IERR)
+                NTIMESTEP_MOVE=NTIMESTEP                                   !<-- Safe to reload the buffer variable
+!
+                CALL MPI_ISEND(NTIMESTEP_MOVE                           &  !<-- Parent task 0 sends its current timestep.
+                              ,1                                        &  !<-- # of words sent
+                              ,MPI_INTEGER                              &  !<-- The timestep is an integer.
+                              ,0                                        &  !<-- Sending to moving child N's task 0.
+                              ,TIME_TAG                                 &  !<-- Tag associated with nest N's move timestep
+                              ,COMM_TO_MY_CHILDREN(N_MOVING)            &  !<-- MPI communicator between parent and moving child N
+                              ,HANDLE_TIMESTEP(N)                       &  !<-- Handle for this ISend to moving child N's task 0
+                              ,IERR)
+!
+              ELSE
+!
+                MOVE_FLAG(N)=.FALSE.                                       !<--  Children must not move just before the fcst ends
+!
+              ENDIF
 !
             ENDIF
 !

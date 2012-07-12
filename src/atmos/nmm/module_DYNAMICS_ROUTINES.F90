@@ -2727,8 +2727,12 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
           else
             defc=defm*0.01
           endif
-        else
-          defc=0.
+        else ! regional
+          if (l.le.3) then
+            defc=0.005*(3-l+1.)/3.
+          else
+            defc=0.
+          endif
         endif
 !-----------------------------------------------------------------------
 !        do j=jts_h1,jte_h2
