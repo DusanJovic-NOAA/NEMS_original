@@ -1963,7 +1963,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         NDFISTEP=INT( 0.1+DFIHR/(S+REAL(Sn)/REAL(Sd)))
-        DFIHR_CHK=NDFISTEP*(S+REAL(Sn)/REAL(Sd))
+        DFIHR_CHK=INT(0.1+NDFISTEP*(S+REAL(Sn)/REAL(Sd)))
 !
         IF (DFIHR /= DFIHR_CHK) THEN
           WRITE(0,*)' DFIHR=',DFIHR,' DFIHR_CHK=',DFIHR_CHK
@@ -2130,7 +2130,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         NDFISTEP=INT( 0.1+DFIHR/(S+REAL(Sn)/REAL(Sd)))
-        DFIHR_CHK=NDFISTEP*(S+REAL(Sn)/REAL(Sd))
+        DFIHR_CHK=INT(0.1+NDFISTEP*(S+REAL(Sn)/REAL(Sd)))
 !
         IF (DFIHR_CHK /= DFIHR) THEN
           WRITE(0,*)' DFIHR=',DFIHR,' DFIHR_CHK=',DFIHR_CHK
@@ -2231,7 +2231,7 @@
 !***  The final forward step.
 !-----------------------------
 !
-        NTIMESTEP=-NTIMESTEP
+        NTIMESTEP=0
         NTIMESTEP_ESMF=NTIMESTEP
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2399,7 +2399,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         NDFISTEP=INT( 0.1+DFIHR/(S+REAL(Sn)/REAL(Sd)))
-        DFIHR_CHK=(0.1+NDFISTEP*(REAL(S)+REAL(Sn)/REAL(Sd)))
+        DFIHR_CHK=INT(0.1+NDFISTEP*(REAL(S)+REAL(Sn)/REAL(Sd)))
 !
         IF (DFIHR_CHK /= DFIHR) THEN
           WRITE(0,*)' DFIHR=',DFIHR,' DFIHR_CHK=',DFIHR_CHK

@@ -2574,6 +2574,9 @@
 !***  defined as values at a very different point in the time integration.
 !-----------------------------------------------------------------------
 !
+
+            int_state%FIRST=.true.
+
           int_state%TP=int_state%T
           int_state%UP=int_state%U
           int_state%VP=int_state%V
@@ -2718,6 +2721,8 @@
           ENDDO
           ENDDO
 !
+
+          int_state%FIRST=.true.
 
         ENDIF end_filt
 !-----------------------------------------------------------------------
