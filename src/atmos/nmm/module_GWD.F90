@@ -15,7 +15,7 @@
 !-----------------------------------------------------------------------
 !
       INTEGER, PARAMETER :: KIND_PHYS=SELECTED_REAL_KIND(13,60) ! the '60' maps to 64-bit real
-      INTEGER,PRIVATE,SAVE :: IMX, NMTVR, IDBG, JDBG
+      INTEGER,PRIVATE,SAVE :: NMTVR, IDBG, JDBG
       REAL (KIND=KIND_PHYS),PRIVATE,SAVE :: DELTIM,RDELTIM
 !rv   REAL(kind=kind_phys),PRIVATE,PARAMETER :: SIGFAC=0.0   !-- Key tunable parameter
 !
@@ -29,7 +29,7 @@
 !
 !-- Initialize variables used in GWD + MB
 !
-      SUBROUTINE GWD_init (DTPHS,GLOBAL,RESTRT                          &
+      SUBROUTINE GWD_init (DTPHS,RESTRT                                 &
                            ,CEN_LAT,CEN_LON                             &
                            ,GLAT,GLON                                   &
                            ,CROT,SROT,HANGL                             &
@@ -41,8 +41,6 @@
       IMPLICIT NONE
 !
 !== INPUT:
-!-- GLOBAL logical, true for global false for regional
-!-- IMX is the number of grid points along a latitude circle in the GFS
 !-- CEN_LAT, CEN_LON - central latitude, longitude (degrees)
 !-- RESTRT - logical flag for restart file (true) or WRF input file (false)
 !-- GLAT, GLON - central latitude, longitude at mass points (radians)
@@ -50,9 +48,6 @@
 !-- HANGL  - angle of the mountain range w/r/t east (convert to degrees)
 !
 !-- Saved variables within module:
-!-- IMX - in the GFS it is an equivalent number of points along a latitude 
-!         circle (e.g., IMX=3600 for a model resolution of 0.1 deg) 
-!       => Calculated at start of model integration in GWD_init
 !-- NMTVR - number of input 2D orographic fields
 !-- GRAV = gravitational acceleration
 !-- DELTIM - physics time step (s)
@@ -60,7 +55,7 @@
 !
 !
       REAL, INTENT(IN) :: DTPHS,CEN_LAT,CEN_LON
-      LOGICAL, INTENT(IN) :: RESTRT, GLOBAL
+      LOGICAL, INTENT(IN) :: RESTRT
       REAL, INTENT(IN), DIMENSION (ims:ime,jms:jme) :: GLON,GLAT
       REAL, INTENT(OUT), DIMENSION (ims:ime,jms:jme) :: CROT,SROT
       REAL, INTENT(INOUT), DIMENSION (ims:ime,jms:jme) :: HANGL
@@ -78,12 +73,6 @@
 !
 !-----------------------------------------------------------------------
 !
-      if( GLOBAL) then
-        IMX=IDE-3 ! global
-      else
-        IMX=IDE-1 ! regional
-      endif
-
       NMTVR=14            !-- 14 input fields for orography
       DELTIM=DTPHS
       RDELTIM=1./DTPHS
@@ -124,15 +113,16 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE GWD_driver(U,V,T,Q,Z,DP,PINT,PMID,EXNR, KPBL           &
+      SUBROUTINE GWD_driver(U,V,T,Q,Z,DP,PINT,PMID,EXNR,KPBL            &
                            ,HSTDV,HCNVX,HASYW,HASYS,HASYSW,HASYNW       &
                            ,HLENW,HLENS,HLENSW,HLENNW                   &
                            ,HANGL,HANIS,HSLOP,HZMAX,CROT,SROT           &
                            ,CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN         &
                            ,DUDT,DVDT                                   &
+                           ,GLOBAL                                      &
                            ,IDS,IDE,JDS,JDE                             &
                            ,IMS,IME,JMS,JME                             &
-                           ,ITS,ITE,JTS,JTE,LM )
+                           ,ITS,ITE,JTS,JTE,LM )      
 !
 !== INPUT:
 !-- U, V - zonal (U), meridional (V) winds at mass points (m/s)
@@ -195,7 +185,8 @@
       INTEGER, INTENT(IN) :: ids,ide,jds,jde                            &
      &,                      ims,ime,jms,jme                            &
      &,                      its,ite,jts,jte,LM
-
+!
+      LOGICAL, INTENT(IN) :: GLOBAL
 !
 !-- OUTPUT variables:
 !
@@ -217,7 +208,7 @@
       REAL(KIND=KIND_PHYS), DIMENSION (IM,1:LM) :: DUDTcol,DVDTcol   &
      &,                    Ucol,Vcol,Tcol,Qcol,DPcol,Pcol,EXNcol,PHIcol
       REAL(KIND=KIND_PHYS), DIMENSION (IM,1:LM+1) :: PINTcol,PHILIcol
-      INTEGER :: I,J,IJ,K,Imid,Jmid
+      INTEGER :: I,J,IJ,K,IMX,Imid,Jmid
       REAL :: Ugeo,Vgeo,Umod,Vmod, TERRtest,TERRmin
       REAL(KIND=KIND_PHYS) :: TEST
 !
@@ -241,6 +232,12 @@
       ENDDO
       ENDDO
 !
+      IF(GLOBAL)THEN
+        IMX=IDE-3
+      ELSE
+        IMX=IDE-1
+      ENDIF
+!
 !-- For debugging, find approximate center point within each tile
 !
       DO J=JTS,JTE
@@ -251,7 +248,9 @@
 !
           TERRtest=HZMAX(I,J)+SIGFAC*HSTDV(I,J)
           TERRmin=Z(I,2,J)-Z(I,1,J)
-          IF (TERRtest < TERRmin) GO TO 100
+          IF (TERRtest < TERRmin) then
+            GO TO 100
+          endif
 !
 !-- For debugging:
 !
@@ -314,7 +313,7 @@
      &,              PHILIcol,PHIcol                                    & ! Met input
      &,              HPRIME,OC,OA4,CLX4,THETA,SIGMA,GAMMA,ELVMAX        & ! Topo input
      &,              CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN                & ! tunable coefficients
-     &,              LPBL,IM,LM)                                          ! Indices + debugging
+     &,              LPBL,IMX,IM,LM)                                      ! Indices + debugging
 !
 !=======================================================================
 !
@@ -361,7 +360,7 @@ test=abs(dudt(i,k,j))+abs(dvdt(i,k,j))
      &, U1,V1,T1,Q1, PRSI,DEL,PRSL,PRSLK, PHII,PHIL                     &  !-- Met inputs
      &, HPRIME,OC,OA4,CLX4,THETA,SIGMA,GAMMA,ELVMAX                     &  !-- Topo inputs
      &, CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN                             &  !-- tunable coefficients
-     &, KPBL,IM,LM)                                                   !-- Input indices, debugging
+     &, KPBL,IMX,IM,LM)                                                    !-- Input indices, debugging
 !
 !-- "A", "B" (from GFS) in GWD_col are DVDTcol, DUDTcol, respectively in GWD_driver
 !
@@ -393,6 +392,7 @@ test=abs(dudt(i,k,j))+abs(dvdt(i,k,j))
 !-- GAMMA - anisotropy/aspect ratio
 !-- ELVMAX - max height above mean orography
 !-- KPBL(IM) - vertical index at the top of the PBL
+!-- IMX - points in a grid row
 !-- KM - number of vertical levels
 !
 !#######################################################################
@@ -458,7 +458,7 @@ test=abs(dudt(i,k,j))+abs(dvdt(i,k,j))
 !
 !-- INPUT:
 !
-      INTEGER, INTENT(IN) :: IM,LM
+      INTEGER, INTENT(IN) :: IM,IMX,LM
       REAL,    INTENT(IN) :: CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN
       REAL(kind=kind_phys), INTENT(IN), DIMENSION(IM,1:LM) ::        &
      &                                 U1,V1,T1,Q1,DEL,PRSL,PRSLK,PHIL

@@ -30,7 +30,8 @@ cat nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g   \
                         | sed s:_TURBL_:${TURBL}:g   \
                         | sed s:_PCPFLG_:${PCPFLG}:g \
                         | sed s:_WPREC_:${WPREC}:g   \
-                        | sed s:_NCHILD_:${NCHILD}:g >  configure_file_01
+                        | sed s:_NCHILD_:${NCHILD}:g \
+                        | sed s:_MODE_:${MODE}:g >  configure_file_01
 
 if [ $SCHEDULER = 'loadleveler' ]; then
 
@@ -73,6 +74,13 @@ if [ ${GBRG} = mnests ]; then
   cat ${RTPWD}/NMMB_mvg_nests/configure_file_02.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_02
   cat ${RTPWD}/NMMB_mvg_nests/configure_file_03.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_03
   cat ${RTPWD}/NMMB_mvg_nests/configure_file_04.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_04
+fi
+
+if [ ${MODE} = 2-way  ]; then
+  rm -f configure_file_02 configure_file_03 configure_file_04
+  cat ${RTPWD}/NMMB_mvg_nests/configure_file_02_gens.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_02
+  cat ${RTPWD}/NMMB_mvg_nests/configure_file_03_gens.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_03
+  cat ${RTPWD}/NMMB_mvg_nests/configure_file_04_gens.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_04
 fi
 
 if [ ${GBRG} = fltr ]; then
@@ -125,7 +133,7 @@ fi
 if [ $SCHEDULER = 'loadleveler' ]; then
 
   status=`llq -u ${USER} -f %st %jn | grep ${JBNME} | awk '{ print $1}'` ; status=${status:--}
-  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $7 }'` ; fi
+  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $10 }'` ; fi
   FnshHrs=${FnshHrs:-0}
   if   [ $status = 'I' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
   elif [ $status = 'R' ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
@@ -137,7 +145,7 @@ if [ $SCHEDULER = 'loadleveler' ]; then
 elif [ $SCHEDULER = 'moab' ]; then
 
   status=`showq -u ${USER} -n | grep ${JBNME} | awk '{print $3}'` ; status=${status:--}
-  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $6 }'` ; fi
+  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $10 }'` ; fi
   FnshHrs=${FnshHrs:-0}
   if   [ $status = 'Idle' ];       then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
   elif [ $status = 'Running' ];    then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
@@ -149,7 +157,7 @@ elif [ $SCHEDULER = 'moab' ]; then
 elif [ $SCHEDULER = 'pbs' ]; then
 
   status=`qstat -u ${USER} -n | grep ${JBNME} | awk '{print $"10"}'` ; status=${status:--}
-  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $6 }'` ; fi
+  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $10 }'` ; fi
   FnshHrs=${FnshHrs:-0}
   if   [ $status = 'Q' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
   elif [ $status = 'H' ];  then echo $n "min. TEST ${TEST_NR} is held in a queue,    Status: " $status

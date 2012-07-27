@@ -14,7 +14,8 @@
 !***  and the PE_WRF.
 !***
 !
-      USE MODULE_DM_PARALLEL,ONLY : DSTRB, ITS_B1,ITE_B1,JTS_B2,JTE_B2
+      USE MODULE_DM_PARALLEL,ONLY : DSTRB
+      INTEGER,PRIVATE,SAVE :: ITS_B1,ITE_B1,JTS_B2,JTE_B2
       
       INTEGER :: ITEST=346,JTEST=256,TESTPE=53
 !-----------------------------------------------------------------------
@@ -22,13 +23,12 @@
       CONTAINS
 !
 !-----------------------------------------------------------------------
-!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-!-----------------------------------------------------------------------
-!
-      SUBROUTINE READPCP(MYPE,PPTDAT,DDATA,LSPA,PCPHR                   &
+      SUBROUTINE READPCP(MYPE,MPI_COMM_COMP                             &
+                        ,PPTDAT,DDATA,LSPA,PCPHR                        &
                         ,IDS,IDE,JDS,JDE,LM                             &
                         ,IMS,IME,JMS,JME                                &
-                        ,ITS,ITE,JTS,JTE)
+                        ,ITS,ITE,JTS,JTE                                &
+                        ,ITS_B1,ITE_B1,JTS_B2,JTE_B2)
 !
 !     ****************************************************************
 !     *                                                              *
@@ -46,9 +46,11 @@
 !
 
       IMPLICIT NONE
-      INTEGER,INTENT(IN) :: MYPE,IDS,IDE,JDS,JDE,LM                      &
-                           ,IMS,IME,JMS,JME                              &
-                           ,ITS,ITE,JTS,JTE
+      INTEGER,INTENT(IN) :: MYPE,MPI_COMM_COMP                         &
+                           ,IDS,IDE,JDS,JDE,LM                         &
+                           ,IMS,IME,JMS,JME                            &
+                           ,ITS,ITE,JTS,JTE                            &
+                           ,ITS_B1,ITE_B1,JTS_B2,JTE_B2
       INTEGER,INTENT(IN) :: PCPHR
       REAL,DIMENSION(IDS:IDE,JDS:JDE) :: TEMPG
       REAL,DIMENSION(IMS:IME,JMS:JME) :: TEMPL
@@ -85,7 +87,7 @@
         ENDIF
 !
 ! Distribute to local temp array:
-        CALL DSTRB(TEMPG,TEMPL,1,1,1,1,1)                                
+        CALL DSTRB(TEMPG,TEMPL,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !
 ! Place into correct hour slot in PPTDAT:
         
@@ -118,7 +120,8 @@
       SUBROUTINE CHKSNOW(MYPE,NTSD,DT,NPHS,SR,PPTDAT,PCPHR              &
                         ,IDS,IDE,JDS,JDE,LM                             &
                         ,IMS,IME,JMS,JME                                &
-                        ,ITS,ITE,JTS,JTE)
+                        ,ITS,ITE,JTS,JTE                                &
+                        ,ITS_B1,ITE_B1,JTS_B2,JTE_B2)
 !
 ! AT THE FIRST PHYSICS TIME STEP AFTER THE TOP OF EACH HOUR, CHECK THE SNOW
 ! ARRAY AGAINST THE SR (SNOW/TOTAL PRECIP RATIO).  IF SR .GE. 0.9, SET THIS
@@ -131,9 +134,10 @@
 !-----------------------------------------------------------------------
 !
       INTEGER,INTENT(IN) :: MYPE,NTSD,NPHS
-      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                    &
-     &,                     IMS,IME,JMS,JME                    &
-     &,                     ITS,ITE,JTS,JTE
+      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
+                           ,IMS,IME,JMS,JME                             &
+                           ,ITS,ITE,JTS,JTE                             &
+                           ,ITS_B1,ITE_B1,JTS_B2,JTE_B2
       INTEGER,INTENT(IN) :: PCPHR
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: SR
       REAL,DIMENSION(IMS:IME,JMS:JME,1:PCPHR),INTENT(INOUT) :: PPTDAT
@@ -169,7 +173,8 @@
       SUBROUTINE ADJPPT(MYPE,NTSD,DT,NPHS,PREC,LSPA,PPTDAT,DDATA,PCPHR  &
                        ,IDS,IDE,JDS,JDE,LM                              &
                        ,IMS,IME,JMS,JME                                 &
-                       ,ITS,ITE,JTS,JTE)
+                       ,ITS,ITE,JTS,JTE                                 &
+                       ,ITS_B1,ITE_B1,JTS_B2,JTE_B2)
 
 !***********************************************************************
 !$$$  SUBPROGRAM DOCUMENTATION BLOCK
@@ -198,8 +203,9 @@
 !-----------------------------------------------------------------------
       INTEGER,INTENT(IN) :: MYPE,NPHS, NTSD
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
-     &,                     IMS,IME,JMS,JME                             &
-     &,                     ITS,ITE,JTS,JTE
+                           ,IMS,IME,JMS,JME                             &
+                           ,ITS,ITE,JTS,JTE                             &
+                           ,ITS_B1,ITE_B1,JTS_B2,JTE_B2
       REAL,INTENT(IN) :: DT
       INTEGER,INTENT(IN) :: PCPHR
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: PREC

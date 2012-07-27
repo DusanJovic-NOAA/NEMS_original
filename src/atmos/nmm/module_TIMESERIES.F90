@@ -4,9 +4,7 @@
 
       use module_include
       use module_constants
-      use module_dm_parallel, only : its,ite,ims,ime                    &
-                                    ,jts,jte,jms,jme                    &
-                                    ,mype_share
+      use module_my_domain_specs
       use module_vars
 
 !-----------------------------------------------------------------------
@@ -61,14 +59,13 @@
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !-----------------------------------------------------------------------
 
-      subroutine timeseries_initialize(solver_state,domain_id,ntsd,ierr)
+      subroutine timeseries_initialize(solver_state,ntsd,ierr)
 
       use module_solver_internal_state, only : solver_internal_state
 
       implicit none
 
       type(solver_internal_state),intent(in) :: solver_state
-      integer, intent(in) :: domain_id
       integer, intent(in) :: ntsd
       integer, intent(out) :: ierr
 
@@ -101,7 +98,7 @@
       inquire ( file='ts_locations.nml', exist=nml_exist)
 
       if (.not.nml_exist) then
-        if (mype_share == 0) then
+        if (mype == 0) then
           write(0,*) ' ts_locations.nml does not exist. will skip timeseries ouput'
         end if
         return
@@ -239,7 +236,7 @@
 
 !! open the timeseries output file
             tsunit(np) = 90 + np
-            write(filename,fmt='(a,i2.2,a,i2.2,a)') "ts_p",np,"_d",domain_id,".bin"
+            write(filename,fmt='(a,i2.2,a,i2.2,a)') "ts_p",np,"_d",my_domain_id,".bin"
             write(0,*) ' open file:', np,tsunit(np),filename
             open(unit=tsunit(np), file=filename, form='unformatted', iostat=ios)
             if (ios /= 0) then
@@ -295,14 +292,13 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 
-      subroutine timeseries_run(solver_state,domain_id,ntsd,ierr)
+      subroutine timeseries_run(solver_state,ntsd,ierr)
 
       use module_solver_internal_state, only : solver_internal_state
 
       implicit none
 
       type(solver_internal_state),intent(in) :: solver_state
-      integer,intent(in) :: domain_id
       integer,intent(in) :: ntsd
       integer, intent(out) :: ierr
 
@@ -360,7 +356,7 @@
           if (i.eq.ipnt(np) .and. j.eq.jpnt(np)) then
 
             tsunit(np) = 90 + np
-            write(filename,fmt='(a,i2.2,a,i2.2,a)') "ts_p",np,"_d",domain_id,".bin"
+            write(filename,fmt='(a,i2.2,a,i2.2,a)') "ts_p",np,"_d",my_domain_id,".bin"
             write(0,*) ' open file:', np,tsunit(np),filename
             open(unit=tsunit(np), file=filename, form='unformatted', position='append', iostat=ios)
             if (ios /= 0) then

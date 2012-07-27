@@ -95,9 +95,7 @@ character(64):: &
  input_data
  
 logical(kind=klog):: &
- adv_standard &              ! my task is in standard advec region
-,adv_upstream &              ! my task is in upstream advec region
-,first &                     ! if true preparation for the first time step
+ first &                     ! if true preparation for the first time step
 ,hydro &                     ! if true hydrostatic dynamics
 ,readbc &                    ! read regional boundary conditions
 ,run &                       ! initial data ready, start run
@@ -148,12 +146,6 @@ integer(kind=kint):: &
 ,lnsv &                      ! # of boundary v lines for bc in reg. setup
 ,lpt2 &                      ! # of pressure layers
 ,n2                          ! # starting address of 3d scratch fields
-
-logical(kind=klog) :: &                 
- e_bdy &                     ! logical flag for tasks on eastern boundary
-,n_bdy &                     ! logical flag for tasks on northern boundary
-,s_bdy &                     ! logical flag for tasks on southern boundary
-,w_bdy                       ! logical flag for tasks on western boundary
 
 real(kind=kfpt):: &
  bofac &                     ! amplification of diffusion along bndrs.
@@ -413,6 +405,8 @@ real(kind=kfpt),allocatable,dimension(:,:,:):: &      !im,jm,lm
       ,hdacx,hdacy &
       ,hdacvx,hdacvy &
       ,lnsh,lnsad &
+      ,adv_standard,adv_upstream &
+      ,e_bdy,n_bdy,s_bdy,w_bdy &
       ,nboco,tboco &
       ,my_domain_id)
 !
@@ -487,6 +481,13 @@ real(kind=kfpt),dimension(ims:ime,jms:jme),intent(out) :: &
 logical(kind=klog),intent(in) :: &
  global      ! global forecast if true
  
+logical(kind=klog),intent(out) :: &
+ adv_standard &              ! is task in standard advec region?
+,adv_upstream &              ! is task in upstream advec region?
+,e_bdy &                     ! is task on domain's eastern boundary?
+,n_bdy &                     ! is task on domain's northern boundary?
+,s_bdy &                     ! is task on domain's southern boundary?
+,w_bdy                       ! is task on domain's western boundary?
 !
 !-----------------------------------------------------------------------
 !--local variables------------------------------------------------------

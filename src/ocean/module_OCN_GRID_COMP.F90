@@ -205,7 +205,7 @@
 !-----------------------------------------------------------------------
 !
       IF(RC_REG==ESMF_SUCCESS)THEN
-        WRITE(0,*)' OCN_REGISTER succeeded'
+!       WRITE(0,*)' OCN_REGISTER succeeded'
       ELSE
         WRITE(0,*)' OCN_REGISTER failed  RC_REG=',RC_REG
       ENDIF
@@ -526,7 +526,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
       IF(RC_INIT==ESMF_SUCCESS)THEN
-        WRITE(0,*)' OCN_INITIALIZE succeeded'
+!       WRITE(0,*)' OCN_INITIALIZE succeeded'
       ELSE
         WRITE(0,*)' OCN_INITIALIZE failed  RC_INIT=',RC_INIT
       ENDIF
@@ -655,7 +655,7 @@
 !-----------------------------------------------------------------------
 !
       IF(RC_RUN==ESMF_SUCCESS)THEN
-        WRITE(0,*)' OCN_RUN succeeded'
+!       WRITE(0,*)' OCN_RUN succeeded'
       ELSE
         WRITE(0,*)' OCN_RUN failed  RC_RUN=',RC_RUN
       ENDIF
@@ -818,7 +818,7 @@
 !-----------------------------------------------------------------------
 
       IF(RC_FINALIZE==ESMF_SUCCESS)THEN
-        WRITE(0,*)' OCN_FINALIZE succeeded'
+!       WRITE(0,*)' OCN_FINALIZE succeeded'
       ELSE
         WRITE(0,*)' OCN_FINALIZE failed  RC_FINALIZE=',RC_FINALIZE
       ENDIF

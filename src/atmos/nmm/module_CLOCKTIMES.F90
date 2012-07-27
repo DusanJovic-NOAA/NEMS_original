@@ -13,48 +13,68 @@
 !
 !-----------------------------------------------------------------------
 !
-      REAL(kind=KDBL) :: total_integ_tim,totalsum_tim
+      PRIVATE
+!
+      PUBLIC :: INTEGRATION_TIMERS                                      &
+               ,PRINT_CLOCKTIMES                                        &
+               ,TIMERS                                                  &
+               ,cbcst_tim,pbcst_tim
 !
 !-----------------------------------------------------------------------
-!***  Associated with Dynamics
-!-----------------------------------------------------------------------
 !
-      REAL(kind=KDBL) :: adv1_tim,adv2_tim,bocoh_tim,bocov_tim          &
-                        ,cdwdt_tim,cdzdt_tim,consts_tim                 &
-                        ,ddamp_tim,dht_tim                              &
-                        ,dyn_init_tim,dyn_run_tim                       &
-                        ,exch_tim                                       &
-                        ,fftfhn_tim,fftfwn_tim,hadv2_tim                &
-                        ,hdiff_tim,init_tim,mono_tim                    &
-                        ,pdtsdt_tim,pgforce_tim,poavhn_tim              &
-                        ,polehn_tim,polewn_tim                          &
-                        ,prefft_tim,presmud_tim                         &
-                        ,swaphn_tim,swapwn_tim                          &
-                        ,update_dyn_int_state_tim,updatet_tim           &
-                        ,vadv2_tim,vsound_tim,vtoa_tim
+      TYPE INTEGRATION_TIMERS
 !
-!-----------------------------------------------------------------------
-!***  Associated with Physics
-!-----------------------------------------------------------------------
+        REAL(kind=KDBL) :: total_integ_tim,totalsum_tim
 !
-      REAL(kind=KDBL) :: adjppt_tim,cucnvc_tim                          &
-                        ,gsmdrive_tim,h_to_v_tim,gfs_phy_tim            &
-                        ,phy_init_tim,phy_run_tim,phy_sum_tim           &
-                        ,pole_swap_phy_tim,radiation_tim,rdtemp_tim     &
-                        ,turbl_tim,update_phy_int_state_tim    
+        REAL(kind=KDBL) :: adv1_tim,adv2_tim,bocoh_tim,bocov_tim        &
+                          ,cdwdt_tim,cdzdt_tim,consts_tim               &
+                          ,ddamp_tim,dht_tim                            &
+                          ,exch_tim                                     &
+                          ,fftfhn_tim,fftfwn_tim,hadv2_tim              &
+                          ,hdiff_tim,mono_tim                           &
+                          ,pdtsdt_tim,pgforce_tim,poavhn_tim            &
+                          ,polehn_tim,polewn_tim                        &
+                          ,prefft_tim,presmud_tim                       &
+                          ,solver_init_tim,solver_run_tim               &
+                          ,swaphn_tim,swapwn_tim                        &
+                          ,updatet_tim                                  &
+                          ,vadv2_tim,vsound_tim,vtoa_tim
 !
-!-----------------------------------------------------------------------
-!***  Associated with Dynamics-Physics coupler
-!-----------------------------------------------------------------------
+        REAL(kind=KDBL) :: adjppt_tim,cucnvc_tim                        &
+                          ,gsmdrive_tim,h_to_v_tim,gfs_phy_tim          &
+                          ,phy_sum_tim                                  &
+                          ,pole_swap_tim,radiation_tim,rdtemp_tim       &
+                          ,turbl_tim
 !
-      REAL(kind=KDBL) :: add_fld_tim,cpl_dyn_phy_tim,get_fld_tim
+        REAL(kind=KDBL) :: domain_run_1                                 &
+                          ,domain_run_2                                 &
+                          ,domain_run_3                                 &
+                          ,pc_cpl_run_cpl1                              &
+                          ,pc_cpl_run_cpl2                              &
+                          ,pc_cpl_run_cpl3                              &
+                          ,pc_cpl_run_cpl4                              &
+                          ,cpl1_recv_tim                                &
+                          ,cpl2_send_tim                                &
+                          ,cpl2_comp_tim                                &
+                          ,cpl2_wait_tim                                &
+                          ,parent_bookkeep_moving_tim                   &
+                          ,parent_update_moving_tim                     &
+                          ,t0_recv_move_tim
 !
 !-----------------------------------------------------------------------
 !***  Associated with moving nests
 !-----------------------------------------------------------------------
 !
-      REAL(kind=KDBL) :: update_interior_from_nest_tim                  &
-                        ,update_interior_from_parent_tim
+        REAL(kind=KDBL) :: update_interior_from_nest_tim                &
+                          ,update_interior_from_parent_tim
+!
+      END TYPE INTEGRATION_TIMERS
+!
+!-----------------------------------------------------------------------
+!
+      TYPE(INTEGRATION_TIMERS),DIMENSION(:),ALLOCATABLE,TARGET :: TIMERS   !<-- Timers for each domain
+!
+      REAL(kind=KDBL),DIMENSION(5) :: cbcst_tim,pbcst_tim
 !
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
@@ -64,7 +84,11 @@
 !
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE PRINT_CLOCKTIMES(NTIMESTEP,MYPE,NPE_PRINT)
+      SUBROUTINE PRINT_CLOCKTIMES(NTIMESTEP                             &
+                                 ,MY_DOMAIN_ID                          &
+                                 ,MYPE                                  &
+                                 ,NPE_PRINT                             &
+                                 ,TIMERS_DOMAIN)
 !
 !-----------------------------------------------------------------------
 !
@@ -72,14 +96,31 @@
 !
 !-----------------------------------------------------------------------
 !
-      INTEGER,INTENT(IN) :: NTIMESTEP                                   &  !<-- Forecast timestep
-                           ,MYPE                                        &  !<-- My task ID
-                           ,NPE_PRINT                                      !<-- ID of task providing clocktime diagnostics
+!------------------------
+!***  Argument variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: NTIMESTEP                        &  !<-- Forecast timestep
+                                      ,MY_DOMAIN_ID                     &  !<-- The domain's ID
+                                      ,MYPE                             &  !<-- The task ID
+                                      ,NPE_PRINT                           !<-- ID of task providing clocktime diagnostics
+!
+      TYPE(INTEGRATION_TIMERS),TARGET,INTENT(INOUT) :: TIMERS_DOMAIN       !<-- Assorted clocktime timers for current domain
+!
+!---------------------
+!***  Local variables
+!---------------------
 !
       REAL(kind=KDBL) :: FACTOR
 !
+      TYPE(INTEGRATION_TIMERS),POINTER :: TD
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
+!-----------------------------------------------------------------------
+!
+      TD=>TIMERS_DOMAIN                                                    !<-- Abbreviate name of this domain's timers
+!
 !-----------------------------------------------------------------------
 !
 #ifdef IBM
@@ -88,49 +129,48 @@
       FACTOR=1.0E-3
 #endif
 !
-      totalsum_tim=adv1_tim                                             &
-                  +bocoh_tim                                            &
-                  +bocov_tim                                            &
-                  +cdwdt_tim                                            &
-                  +cdzdt_tim                                            &
-!jaa                  +consts_tim                                       &
-                  +dht_tim                                              &
-                  +ddamp_tim                                            &
-                  +exch_tim                                             &
-!jaa                  +init_tim                                         &
-                  +fftfhn_tim                                           &
-                  +fftfwn_tim                                           &
-                  +hadv2_tim                                            &
-                  +hdiff_tim                                            &
-                  +pdtsdt_tim                                           &
-                  +pgforce_tim                                          &
-                  +poavhn_tim                                           &
-                  +polehn_tim                                           &
-                  +polewn_tim                                           &
-!jaa                  +prefft_tim                                       &
-!jaa                  +presmud_tim                                      &
-                  +swaphn_tim                                           &
-                  +swapwn_tim                                           &
-                  +update_dyn_int_state_tim                             &
-                  +updatet_tim                                          &
-                  +vadv2_tim                                            &
-                  +vsound_tim                                           &
-                  +vtoa_tim
+      td%totalsum_tim=td%adv1_tim                                       &
+                  +td%bocoh_tim                                         &
+                  +td%bocov_tim                                         &
+                  +td%cdwdt_tim                                         &
+                  +td%cdzdt_tim                                         &
+!jaa                  +td%consts_tim                                    &
+                  +td%dht_tim                                           &
+                  +td%ddamp_tim                                         &
+                  +td%exch_tim                                          &
+!jaa                  +td%init_tim                                      &
+                  +td%fftfhn_tim                                        &
+                  +td%fftfwn_tim                                        &
+                  +td%hadv2_tim                                         &
+                  +td%hdiff_tim                                         &
+                  +td%pdtsdt_tim                                        &
+                  +td%pgforce_tim                                       &
+                  +td%poavhn_tim                                        &
+                  +td%polehn_tim                                        &
+                  +td%polewn_tim                                        &
+!jaa                  +td%prefft_tim                                    &
+!jaa                  +td%presmud_tim                                   &
+                  +td%swaphn_tim                                        &
+                  +td%swapwn_tim                                        &
+                  +td%updatet_tim                                       &
+                  +td%vadv2_tim                                         &
+                  +td%vsound_tim                                        &
+                  +td%vtoa_tim
 !
-      totalsum_tim=totalsum_tim                                         &
-                  +cucnvc_tim                                           &
-                  +gsmdrive_tim                                         &
-                  +h_to_v_tim                                           &
-                  +pole_swap_phy_tim                                    &
-                  +radiation_tim                                        &
-                  +rdtemp_tim                                           &
-                  +turbl_tim                                            &
-                  +update_phy_int_state_tim
+      td%totalsum_tim=td%totalsum_tim                                   &
+                  +td%cucnvc_tim                                        &
+                  +td%gsmdrive_tim                                      &
+                  +td%h_to_v_tim                                        &
+                  +td%pole_swap_tim                                     &
+                  +td%radiation_tim                                     &
+                  +td%rdtemp_tim                                        &
+                  +td%turbl_tim
 !
-      totalsum_tim=totalsum_tim                                         &
-                  +dyn_init_tim                                         &
-                  +phy_init_tim                                         &
-                  +cpl_dyn_phy_tim
+      td%totalsum_tim=td%totalsum_tim                                   &
+!xxx              +td%dyn_init_tim                                      &
+!xxx              +td%phy_init_tim                                      &
+!xxx              +td%cpl_dyn_phy_tim
+                  +td%solver_init_tim 
 !
 !-----------------------------------------------------------------------
 !***  The designated MPI task writes clocktimes for its work.
@@ -138,140 +178,182 @@
 !
       IF(MYPE==NPE_PRINT)THEN
 !
-        write(0,FMT='(" ntsd= ",I6," total_integration_tim=  ",g10.5)') ntimestep,total_integ_tim*factor
+        write(0,*)' '
+        write(0,FMT='(" Clocktimes for domain #",I2.2)') my_domain_id
+!
+        write(0,FMT='(" ntsd= ",I6," total_integration_tim=  ",g10.5)') ntimestep,td%total_integ_tim*factor
 ! &
-!                 ,' totalsum_tim=',totalsum_tim*factor
+!                 ,' totalsum_tim=',td%totalsum_tim*factor
 !
         write(0,*)' DYNAMICS'
 !
-        write(0,FMT='("  dyn_run=               ",g10.5," pct= ",f7.2)') dyn_run_tim*factor &
-                 ,dyn_run_tim/total_integ_tim*100.
-        write(0,FMT='("   dyn_init=             ",g10.5," pct= ",f7.2)') dyn_init_tim*factor &
-                 ,dyn_init_tim/total_integ_tim*100.
-        write(0,FMT='("   update_dyn_int_state= ",g10.5," pct= ",f7.2)') update_dyn_int_state_tim*factor &
-                 ,update_dyn_int_state_tim/total_integ_tim*100.
-        write(0,FMT='("   consts=               ",g10.5," pct= ",f7.2)') consts_tim*factor &
-                 ,consts_tim/total_integ_tim*100.
-        write(0,FMT='("   init=                 ",g10.5," pct= ",f7.2)') init_tim*factor &
-                 ,init_tim/total_integ_tim*100.
-        write(0,FMT='("   pgforce=              ",g10.5," pct= ",f7.2)') pgforce_tim*factor &
-                 ,pgforce_tim/total_integ_tim*100.
-        write(0,FMT='("   dht=                  ",g10.5," pct= ",f7.2)') dht_tim*factor &
-                 ,dht_tim/total_integ_tim*100.
-        write(0,FMT='("   ddamp=                ",g10.5," pct= ",f7.2)') ddamp_tim*factor &
-                ,ddamp_tim/total_integ_tim*100.
-        write(0,FMT='("   pdtsdt=               ",g10.5," pct= ",f7.2)') pdtsdt_tim*factor &
-                ,pdtsdt_tim/total_integ_tim*100.
-        write(0,FMT='("   vtoa=                 ",g10.5," pct= ",f7.2)') vtoa_tim*factor &
-                ,vtoa_tim/total_integ_tim*100.
-        write(0,FMT='("   adv1=                 ",g10.5," pct= ",f7.2)') adv1_tim*factor &
-                ,adv1_tim/total_integ_tim*100.
+        write(0,FMT='("  solver_run=            ",g10.5," pct= ",f7.2)') td%solver_run_tim*factor &
+                 ,td%solver_run_tim/td%total_integ_tim*100.
+        write(0,FMT='("   solver_init=          ",g10.5," pct= ",f7.2)') td%solver_init_tim*factor &
+                 ,td%solver_init_tim/td%total_integ_tim*100.
+!xxx    write(0,FMT='("   update_dyn_int_state= ",g10.5," pct= ",f7.2)') td%update_dyn_int_state_tim*factor &
+!xxx             ,td%update_dyn_int_state_tim/td%total_integ_tim*100.
+        write(0,FMT='("   consts=               ",g10.5," pct= ",f7.2)') td%consts_tim*factor &
+                 ,td%consts_tim/td%total_integ_tim*100.
+!       write(0,FMT='("   init=                 ",g10.5," pct= ",f7.2)') td%init_tim*factor &
+!                ,td%init_tim/td%total_integ_tim*100.
+        write(0,FMT='("   pgforce=              ",g10.5," pct= ",f7.2)') td%pgforce_tim*factor &
+                 ,td%pgforce_tim/td%total_integ_tim*100.
+        write(0,FMT='("   dht=                  ",g10.5," pct= ",f7.2)') td%dht_tim*factor &
+                 ,td%dht_tim/td%total_integ_tim*100.
+        write(0,FMT='("   ddamp=                ",g10.5," pct= ",f7.2)') td%ddamp_tim*factor &
+                ,td%ddamp_tim/td%total_integ_tim*100.
+        write(0,FMT='("   pdtsdt=               ",g10.5," pct= ",f7.2)') td%pdtsdt_tim*factor &
+                ,td%pdtsdt_tim/td%total_integ_tim*100.
+        write(0,FMT='("   vtoa=                 ",g10.5," pct= ",f7.2)') td%vtoa_tim*factor &
+                ,td%vtoa_tim/td%total_integ_tim*100.
+        write(0,FMT='("   adv1=                 ",g10.5," pct= ",f7.2)') td%adv1_tim*factor &
+                ,td%adv1_tim/td%total_integ_tim*100.
 !
-        if(vadv2_tim/=0.)then
-          write(0,FMT='("   vadv2=                ",g10.5," pct= ",f7.2)') vadv2_tim*factor &
-                  ,vadv2_tim/total_integ_tim*100.
+        if(td%vadv2_tim/=0.)then
+          write(0,FMT='("   vadv2=                ",g10.5," pct= ",f7.2)') td%vadv2_tim*factor &
+                  ,td%vadv2_tim/td%total_integ_tim*100.
         endif
 !
-        if(hadv2_tim/=0.)then
-          write(0,FMT='("   hadv2=                ",g10.5," pct= ",f7.2)') hadv2_tim*factor &
-                ,hadv2_tim/total_integ_tim*100.
+        if(td%hadv2_tim/=0.)then
+          write(0,FMT='("   hadv2=                ",g10.5," pct= ",f7.2)') td%hadv2_tim*factor &
+                ,td%hadv2_tim/td%total_integ_tim*100.
         endif
 !
-        if(adv2_tim/=0.)then
-          write(0,FMT='("   adv2=                 ",g10.5," pct= ",f7.2)') adv2_tim*factor &
-               ,adv2_tim/total_integ_tim*100.
+        if(td%adv2_tim/=0.)then
+          write(0,FMT='("   adv2=                 ",g10.5," pct= ",f7.2)') td%adv2_tim*factor &
+               ,td%adv2_tim/td%total_integ_tim*100.
         endif
 !
-        if(mono_tim/=0.)then
-          write(0,FMT='("   mono=                 ",g10.5," pct= ",f7.2)') mono_tim*factor &
-               ,mono_tim/total_integ_tim*100.
+        if(td%mono_tim/=0.)then
+          write(0,FMT='("   mono=                 ",g10.5," pct= ",f7.2)') td%mono_tim*factor &
+               ,td%mono_tim/td%total_integ_tim*100.
         endif
 !
-        write(0,FMT='("   cdzdt=                ",g10.5," pct= ",f7.2)') cdzdt_tim*factor &
-                ,cdzdt_tim/total_integ_tim*100.
-        write(0,FMT='("   cdwdt=                ",g10.5," pct= ",f7.2)') cdwdt_tim*factor &
-                ,cdwdt_tim/total_integ_tim*100.
-        write(0,FMT='("   vsound=               ",g10.5," pct= ",f7.2)') vsound_tim*factor &
-                ,vsound_tim/total_integ_tim*100. 
-        write(0,FMT='("   hdiff=                ",g10.5," pct= ",f7.2)') hdiff_tim*factor &
-                ,hdiff_tim/total_integ_tim*100.
-        write(0,FMT='("   bocoh=                ",g10.5," pct= ",f7.2)') bocoh_tim*factor &
-                ,bocoh_tim/total_integ_tim*100.
-        write(0,FMT='("   bocov=                ",g10.5," pct= ",f7.2)') bocov_tim*factor &
-                ,bocov_tim/total_integ_tim*100.
-        write(0,FMT='("   updatet=              ",g10.5," pct= ",f7.2)') updatet_tim*factor &
-                ,updatet_tim/total_integ_tim*100.
+        write(0,FMT='("   cdzdt=                ",g10.5," pct= ",f7.2)') td%cdzdt_tim*factor &
+                ,td%cdzdt_tim/td%total_integ_tim*100.
+        write(0,FMT='("   cdwdt=                ",g10.5," pct= ",f7.2)') td%cdwdt_tim*factor &
+                ,td%cdwdt_tim/td%total_integ_tim*100.
+        write(0,FMT='("   vsound=               ",g10.5," pct= ",f7.2)') td%vsound_tim*factor &
+                ,td%vsound_tim/td%total_integ_tim*100. 
+        write(0,FMT='("   hdiff=                ",g10.5," pct= ",f7.2)') td%hdiff_tim*factor &
+                ,td%hdiff_tim/td%total_integ_tim*100.
+        write(0,FMT='("   bocoh=                ",g10.5," pct= ",f7.2)') td%bocoh_tim*factor &
+                ,td%bocoh_tim/td%total_integ_tim*100.
+        write(0,FMT='("   bocov=                ",g10.5," pct= ",f7.2)') td%bocov_tim*factor &
+                ,td%bocov_tim/td%total_integ_tim*100.
+        write(0,FMT='("   updatet=              ",g10.5," pct= ",f7.2)') td%updatet_tim*factor &
+                ,td%updatet_tim/td%total_integ_tim*100.
 
-        if(prefft_tim/=0.)then
-          write(0,FMT='("   prefft=               ",g10.5," pct= ",f7.2)') prefft_tim*factor &
-                ,prefft_tim/total_integ_tim*100.
-          write(0,FMT='("   fftfhn=               ",g10.5," pct= ",f7.2)') fftfhn_tim*factor &
-                ,fftfhn_tim/total_integ_tim*100.
-          write(0,FMT='("   fftfwn=               ",g10.5," pct= ",f7.2)') fftfwn_tim*factor &
-                ,fftfwn_tim/total_integ_tim*100.
-          write(0,FMT='("   polewn=               ",g10.5," pct= ",f7.2)') polewn_tim*factor &
-                ,polewn_tim/total_integ_tim*100.
-          write(0,FMT='("   poavhn=               ",g10.5," pct= ",f7.2)') poavhn_tim*factor &
-                ,poavhn_tim/total_integ_tim*100.
+        if(td%prefft_tim/=0.)then
+          write(0,FMT='("   prefft=               ",g10.5," pct= ",f7.2)') td%prefft_tim*factor &
+                ,td%prefft_tim/td%total_integ_tim*100.
+          write(0,FMT='("   fftfhn=               ",g10.5," pct= ",f7.2)') td%fftfhn_tim*factor &
+                ,td%fftfhn_tim/td%total_integ_tim*100.
+          write(0,FMT='("   fftfwn=               ",g10.5," pct= ",f7.2)') td%fftfwn_tim*factor &
+                ,td%fftfwn_tim/td%total_integ_tim*100.
+          write(0,FMT='("   polewn=               ",g10.5," pct= ",f7.2)') td%polewn_tim*factor &
+                ,td%polewn_tim/td%total_integ_tim*100.
+          write(0,FMT='("   poavhn=               ",g10.5," pct= ",f7.2)') td%poavhn_tim*factor &
+                ,td%poavhn_tim/td%total_integ_tim*100.
         endif
 !
-        if(presmud_tim/=0.)then
-          write(0,FMT='("  presmud=               ",g10.5," pct= ",f7.2)') presmud_tim*factor &
-                ,presmud_tim/total_integ_tim*100.
+        if(td%presmud_tim/=0.)then
+          write(0,FMT='("  presmud=               ",g10.5," pct= ",f7.2)') td%presmud_tim*factor &
+                ,td%presmud_tim/td%total_integ_tim*100.
         endif
-!jaa        write(0,FMT='("  cpl_dyn_phy_tim=       ",g10.5," pct= ",f7.2)') cpl_dyn_phy_tim*factor &
-!jaa                 ,cpl_dyn_phy_tim/total_integ_tim*100.
-!jaa         write(0,FMT='("  get_fld_tim=           ",g10.5," pct= ",f7.2)') get_fld_tim*factor &
-!jaa                 ,get_fld_tim/total_integ_tim*100.
-!jaa         write(0,FMT='("  add_fld_tim=           ",g10.5," pct= ",f7.2)') add_fld_tim*factor &
-!jaa                 ,add_fld_tim/total_integ_tim*100.
         write(0,*)' PHYSICS '
 !
-        write(0,FMT='("  phy_run=               ",g10.5," pct= ",f7.2)') phy_run_tim*factor &
-                ,phy_run_tim/total_integ_tim*100.
-        write(0,FMT='("   phy_init=             ",g10.5," pct= ",f7.2)') phy_init_tim*factor &
-                ,phy_init_tim/total_integ_tim*100.
-        write(0,FMT='("   update_phy_int_state= ",g10.5," pct= ",f7.2)') update_phy_int_state_tim*factor &
-                ,update_phy_int_state_tim/total_integ_tim*100.
-        write(0,FMT='("   cucnvc=               ",g10.5," pct= ",f7.2)') cucnvc_tim*factor &
-                ,cucnvc_tim/total_integ_tim*100.
-        write(0,FMT='("   gsmdrive=             ",g10.5," pct= ",f7.2)') gsmdrive_tim*factor &
-                ,gsmdrive_tim/total_integ_tim*100.
-        write(0,FMT='("   radiation=            ",g10.5," pct= ",f7.2)') radiation_tim*factor &
-                ,radiation_tim/total_integ_tim*100.
-        write(0,FMT='("   rdtemp=               ",g10.5," pct= ",f7.2)') rdtemp_tim*factor &
-                ,rdtemp_tim/total_integ_tim*100.
-        write(0,FMT='("   turbl=                ",g10.5," pct= ",f7.2)') turbl_tim*factor &
-                ,turbl_tim/total_integ_tim*100.
-        write(0,FMT='("   h_to_v=               ",g10.5," pct= ",f7.2)') h_to_v_tim*factor &
-                ,h_to_v_tim/total_integ_tim*100.
+!xxx    write(0,FMT='("  phy_run=               ",g10.5," pct= ",f7.2)') td%phy_run_tim*factor &
+!xxx            ,td%phy_run_tim/td%total_integ_tim*100.
+!xxx    write(0,FMT='("   phy_init=             ",g10.5," pct= ",f7.2)') td%phy_init_tim*factor &
+!xxx            ,td%phy_init_tim/td%total_integ_tim*100.
+!xxx    write(0,FMT='("   update_phy_int_state= ",g10.5," pct= ",f7.2)') td%update_phy_int_state_tim*factor &
+!xxx            ,td%update_phy_int_state_tim/td%total_integ_tim*100.
+        write(0,FMT='("   cucnvc=               ",g10.5," pct= ",f7.2)') td%cucnvc_tim*factor &
+                ,td%cucnvc_tim/td%total_integ_tim*100.
+        write(0,FMT='("   gsmdrive=             ",g10.5," pct= ",f7.2)') td%gsmdrive_tim*factor &
+                ,td%gsmdrive_tim/td%total_integ_tim*100.
+        write(0,FMT='("   radiation=            ",g10.5," pct= ",f7.2)') td%radiation_tim*factor &
+                ,td%radiation_tim/td%total_integ_tim*100.
+        write(0,FMT='("   rdtemp=               ",g10.5," pct= ",f7.2)') td%rdtemp_tim*factor &
+                ,td%rdtemp_tim/td%total_integ_tim*100.
+        write(0,FMT='("   turbl=                ",g10.5," pct= ",f7.2)') td%turbl_tim*factor &
+                ,td%turbl_tim/td%total_integ_tim*100.
+        write(0,FMT='("   h_to_v=               ",g10.5," pct= ",f7.2)') td%h_to_v_tim*factor &
+                ,td%h_to_v_tim/td%total_integ_tim*100.
 !
-        if(pole_swap_phy_tim/=0.)then
-          write(0,FMT='("   pole_swap_phy=        ",g10.5," pct= ",f7.2)') pole_swap_phy_tim*factor &
-                ,pole_swap_phy_tim/total_integ_tim*100.
+        if(td%pole_swap_tim/=0.)then
+          write(0,FMT='(" pole_swap=            ",g10.5," pct= ",f7.2)') td%pole_swap_tim*factor &
+                ,td%pole_swap_tim/td%total_integ_tim*100.
         endif
 !
         write(0,*)' EXCHANGE TIMES '
 !
-        write(0,FMT='("   exch_dyn=             ",g10.5," pct= ",f7.2)') exch_tim*factor &
-                ,exch_tim/total_integ_tim*100.
+        write(0,FMT='("   exch_dyn=             ",g10.5," pct= ",f7.2)') td%exch_tim*factor &
+                ,td%exch_tim/td%total_integ_tim*100.
 !
-        if(swaphn_tim/=0.)then
-          write(0,FMT='("   swaphn=               ",g10.5," pct= ",f7.2)') swaphn_tim*factor &
-                ,swaphn_tim/total_integ_tim*100.
+        if(td%swaphn_tim/=0.)then
+          write(0,FMT='("   swaphn=               ",g10.5," pct= ",f7.2)') td%swaphn_tim*factor &
+                ,td%swaphn_tim/td%total_integ_tim*100.
         endif
 !
-        if(swapwn_tim/=0.)then
-          write(0,FMT='("   swapwn=               ",g10.5," pct= ",f7.2)') swapwn_tim*factor &
-                ,swapwn_tim/total_integ_tim*100.
+        if(td%swapwn_tim/=0.)then
+          write(0,FMT='("   swapwn=               ",g10.5," pct= ",f7.2)') td%swapwn_tim*factor &
+                ,td%swapwn_tim/td%total_integ_tim*100.
         endif
 !
-        if(polehn_tim/=0.)then
-          write(0,FMT='("   polehn=               ",g10.5," pct= ",f7.2)') polehn_tim*factor &
-                ,polehn_tim/total_integ_tim*100.
+        if(td%polehn_tim/=0.)then
+          write(0,FMT='("   polehn=               ",g10.5," pct= ",f7.2)') td%polehn_tim*factor &
+                ,td%polehn_tim/td%total_integ_tim*100.
         endif
 !
       ENDIF
+!
+!-----------------------------------------------------------------------
+!
+!     total_integ_tim=0.
+!     totalsum_tim=0
+!     adv1_tim=0.
+!     adv2_tim=0.
+!     bocoh_tim=0.
+!     bocov_tim=0.
+!     cdwdt_tim=0.
+!     cdzdt_tim=0.
+!     consts_tim=0.
+!     ddamp_tim=0.
+!     dht_tim=0.
+!     exch_tim=0.
+!     fftfhn_tim=0.
+!     fftfwn_tim=0.
+!     hadv2_tim=0.
+!     hdiff_tim=0.
+!     mono_tim=0.
+!     pdtsdt_tim=0.
+!     pgforce_tim=0.
+!     poavhn_tim=0.
+!     polehn_tim=0.
+!     polewn_tim=0.
+!     prefft_tim=0.
+!     presmud_tim=0.
+!     solver_init_tim=0.
+!     solver_run_tim=0.
+!     swaphn_tim=0.
+!     swapwn_tim=0.
+!     updatet_tim=0.
+!     vadv2_tim=0.
+!     vsound_tim=0.
+!     vtoa_tim=0.
+!     adjppt_tim=0.
+!     cucnvc_tim=0.
+!     gsmdrive_tim=0.
+!     h_to_v_tim=0.
+!     gfs_phy_tim=0.
+!     phy_sum_tim=0.
+!     pole_swap_tim=0.
+!     radiation_tim=0.
+!     rdtemp_tim=0.
+!     turbl_tim=0.
 !
 !-----------------------------------------------------------------------
 !

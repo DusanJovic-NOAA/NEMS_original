@@ -63,12 +63,16 @@
       INTEGER(kind=KINT) :: MYPE
       INTEGER(kind=KINT) :: INPES,JNPES
       INTEGER(kind=KINT) :: IHALO,JHALO
+      INTEGER(kind=KINT) :: LAST_FCST_TASK,LAST_WRITE_TASK
+      INTEGER(kind=KINT) :: LEAD_WRITE_TASK
       INTEGER(kind=KINT) :: NTASKS
       INTEGER(kind=KINT) :: WRITE_GROUPS,WRITE_TASKS_PER_GROUP
 !
 !-----------------------------
 !***  Full domain information
 !-----------------------------
+!
+      INTEGER(kind=KINT) :: ID_DOMAIN
 !
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: IM
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: IDS
@@ -77,13 +81,25 @@
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JDS
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JDE
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: LM
-
+!
 #ifdef ESMF_3
       TYPE(ESMF_Logical) :: GLOBAL
 #else
       LOGICAL(kind=KLOG) :: GLOBAL
 #endif
-
+!
+!----------------------------------------------------
+!***  The forecast or quilt tasks' intracommunicator
+!----------------------------------------------------
+!
+      INTEGER(kind=KINT) :: MPI_COMM_COMP
+!
+!---------------------------------------------
+!***  Array of Write group intercommunicators
+!---------------------------------------------
+!
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: MPI_INTERCOMM_ARRAY
+!
 !--------------------
 !***  Subdomain size
 !--------------------
@@ -181,7 +197,7 @@
 !***  Boundary restart 
 !----------------------
 !
-      INTEGER(kind=KINT) :: LNSV                                           !<-- # of V bndry rows obtained from Dynamics
+      INTEGER(kind=KINT) :: LNSV                                           !<-- # of V bndry rows obtained from dynamics
 !
 !-----------
 !***  Local
@@ -283,8 +299,8 @@
       LOGICAL(kind=KLOG) :: WRITE_DONEFILEFLAG
       LOGICAL(kind=KLOG) :: WRITE_DOPOST
       LOGICAL(kind=KLOG) :: PRINT_ALL
-      LOGICAL(kind=KLOG) :: PRINT_OUTPUT
       LOGICAL(kind=KLOG) :: PRINT_DIAG
+      LOGICAL(kind=KLOG) :: PRINT_OUTPUT
       LOGICAL(kind=KLOG) :: PRINT_ESMF
  
 !-----------------------------------------------------------------------

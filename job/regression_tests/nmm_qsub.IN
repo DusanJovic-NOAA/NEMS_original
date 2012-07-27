@@ -17,7 +17,7 @@ echo "Model started:  " `date`
 module load intel
 module load mpt
 module load adaptive
-mpiexec_mpt -np _TPN_ ./NEMS.x
+mpiexec_mpt -prefix " %g:" -np _TPN_ ./NEMS.x
 
 echo "Model ended:    " `date`
 

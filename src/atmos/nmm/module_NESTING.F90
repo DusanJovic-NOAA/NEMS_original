@@ -28,8 +28,9 @@
 !   2009-03-12  Black - Added Z0BASE and STDH now needed for NPS.
 !   2009-10-12  Black - Fix for generalized of parent-child space ratios.
 !   2010-03-31  Black - Add parent computation of child boundary topo.
-!   2010-07-16  Black - Moving nest capability.
 !   2011-05-17  Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
+!   2011-07-16  Black - Moving nest capability.
+!   2012-07-20  Black - Generational use of MPI tasks.
 !
 !-----------------------------------------------------------------------
 !
@@ -40,8 +41,6 @@
       USE esmf_mod
 !
       USE module_INCLUDE
-!
-      USE module_CONTROL,ONLY: E_BDY,N_BDY,S_BDY,W_BDY
 !
       USE module_VARS,ONLY: VAR
 !
@@ -67,8 +66,29 @@
                ,BOUNDARY_DATA_STATE_TO_STATE                            &
                ,BUNDLE_X                                                &
                ,CHECK_REAL                                              &
+               ,CHILD_RANKS                                             &
                ,CHILD_UPDATE_LINK                                       &
-               ,PARENT_UPDATES_HALOS                                    &
+               ,COMMS_FAMILY                                            &
+               ,CTASK_LIMITS                                            &
+               ,HANDLE_CHILD_LIMITS                                     &
+               ,HANDLE_CHILD_TOPO_S                                     &
+               ,HANDLE_CHILD_TOPO_N                                     &
+               ,HANDLE_CHILD_TOPO_W                                     &
+               ,HANDLE_CHILD_TOPO_E                                     &
+               ,HANDLE_PACKET_S_H                                       &
+               ,HANDLE_PACKET_S_V                                       &
+               ,HANDLE_PACKET_N_H                                       &
+               ,HANDLE_PACKET_N_V                                       &
+               ,HANDLE_PACKET_W_H                                       &
+               ,HANDLE_PACKET_W_V                                       &
+               ,HANDLE_PACKET_E_H                                       &
+               ,HANDLE_PACKET_E_V                                       &
+               ,HANDLE_PARENT_ITE                                       &
+               ,HANDLE_PARENT_ITS                                       &
+               ,HANDLE_PARENT_JTE                                       &
+               ,HANDLE_PARENT_JTS                                       &
+               ,INFO_SEND                                               &
+               ,INTEGER_DATA_2D                                         &
                ,INTERIOR_DATA_FROM_PARENT                               &
                ,INTERIOR_DATA_STATE_TO_STATE                            &
                ,INTERNAL_DATA_TO_DOMAIN                                 &
@@ -77,11 +97,14 @@
                ,MIXED_DATA_TASKS                                        &
                ,MOVING_NEST_BOOKKEEPING                                 &
                ,MOVING_NEST_RECV_DATA                                   &
+               ,NUM_DOMAINS_MAX                                         &
                ,PARENT_BOOKKEEPING_MOVING                               &
                ,PARENT_CHILD_COMMS                                      &
                ,PARENT_READS_MOVING_CHILD_TOPO                          &
                ,PARENT_TO_CHILD_INIT_NMM                                &
+               ,PARENT_UPDATES_HALOS                                    &
                ,PARENT_UPDATES_MOVING                                   &
+               ,PTASK_LIMITS                                            &
                ,REAL_DATA                                               &
                ,REAL_DATA_2D                                            &
                ,REAL_DATA_TASKS                                         &
@@ -97,6 +120,14 @@
       TYPE MIXED_DATA_TASKS
         TYPE(MIXED_DATA),DIMENSION(:),POINTER :: TASKS
       END TYPE MIXED_DATA_TASKS
+!
+      TYPE INTEGER_DATA
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: DATA
+      END TYPE INTEGER_DATA
+!
+      TYPE INTEGER_DATA_2D
+        INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: DATA
+      END TYPE INTEGER_DATA_2D
 !
       TYPE REAL_DATA
         REAL(kind=KFPT),DIMENSION(:),POINTER :: DATA
@@ -134,14 +165,43 @@
         TYPE(CHILD_UPDATE_LINK),POINTER :: NEXT_LINK
       END TYPE CHILD_UPDATE_LINK
 !
+      TYPE :: COMMS_FAMILY
+        INTEGER(kind=KINT) :: TO_PARENT
+        INTEGER(kind=KINT) :: TO_FCST_TASKS
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: TO_CHILDREN
+      END TYPE COMMS_FAMILY
+!
+      TYPE :: DOMAIN_DATA
+        TYPE(INTEGER_DATA),DIMENSION(:),POINTER :: CHILDREN
+      END TYPE DOMAIN_DATA
+!
+      TYPE :: DOMAIN_DATA_2
+        TYPE(INTEGER_DATA_2D),DIMENSION(:),POINTER :: CHILDREN
+      END TYPE DOMAIN_DATA_2
+!
+      TYPE :: DOM_LIMITS
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: ITS
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: ITE
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: JTS
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: JTE
+      END TYPE DOM_LIMITS
+!
+      TYPE :: BC_INFO
+        TYPE(CHILD_INFO),DIMENSION(:),POINTER :: CHILDREN
+      END TYPE BC_INFO
+!
+      TYPE CHILD_INFO
+        INTEGER(kind=KINT),DIMENSION(:,:,:),POINTER :: INFO
+      END TYPE CHILD_INFO
+!
 !-----------------------------------------------------------------------
+!
+      INTEGER(kind=KINT),PARAMETER :: NUM_DOMAINS_MAX=99
 !
       INTEGER(kind=KINT),PARAMETER :: NEAREST=0                         &  !<-- Flag for nearest neighbor interpolation (parent to child)
                                      ,BILINEAR=1                           !<-- Flag for bilinear interpolation (parent to child)
 !
-      INTEGER(kind=KINT),SAVE :: MAX_NUM_DOMAINS=99
-!
-      INTEGER(kind=KINT),SAVE :: LM
+      INTEGER(kind=KINT),SAVE :: LM,N8=8
 !
       REAL(kind=KFPT),SAVE :: CHILD_PARENT_SPACE_RATIO                  &
                              ,EPS=1.E-4 
@@ -152,7 +212,36 @@
 !
       REAL(kind=KDBL) :: btim,btim0
 !
+      TYPE(INTEGER_DATA),DIMENSION(:),POINTER :: HANDLE_PARENT_ITE      &
+                                                ,HANDLE_PARENT_ITS      &
+                                                ,HANDLE_PARENT_JTE      &
+                                                ,HANDLE_PARENT_JTS
+!
       TYPE(CHILD_UPDATE_LINK),POINTER,SAVE :: TAIL
+!
+      TYPE(DOMAIN_DATA),DIMENSION(:),POINTER,SAVE :: CHILD_RANKS         &  !<-- Lists of child tasks' local ranks in p-c intracomms
+!
+                                                    ,HANDLE_CHILD_LIMITS &  !<-- Request handles for parents' IRecvs if child task limits
+!
+                                                    ,HANDLE_CHILD_TOPO_S &  !<-- Request handles for parents' IRecvs of child bndry topo
+                                                    ,HANDLE_CHILD_TOPO_N &  !
+                                                    ,HANDLE_CHILD_TOPO_W &  !
+                                                    ,HANDLE_CHILD_TOPO_E &  !<--
+!
+                                                    ,HANDLE_PACKET_S_H   &  !<-- Request handles for parents' ISends of bndry info packets
+                                                    ,HANDLE_PACKET_S_V   &  !
+                                                    ,HANDLE_PACKET_N_H   &  !
+                                                    ,HANDLE_PACKET_N_V   &  !
+                                                    ,HANDLE_PACKET_W_H   &  !
+                                                    ,HANDLE_PACKET_W_V   &  !
+                                                    ,HANDLE_PACKET_E_H   &  !
+                                                    ,HANDLE_PACKET_E_V      !<-- 
+!
+      TYPE(DOM_LIMITS),DIMENSION(:),POINTER,SAVE :: PTASK_LIMITS           !<-- I,J limits on parent task subdomains
+!
+      TYPE(DOMAIN_DATA_2),DIMENSION(:),POINTER,SAVE :: CTASK_LIMITS        !<-- For limits of parents' children's tasks' subdomains
+!
+      TYPE(BC_INFO),DIMENSION(:),POINTER,SAVE :: INFO_SEND                 !<-- Parent info to children about which BC updates
 !
       integer(kind=kint) :: iprt=01,jprt=61
 !-----------------------------------------------------------------------
@@ -164,25 +253,28 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE PARENT_CHILD_COMMS(MYPE                                &
-                                   ,NUM_DOMAINS                         &
+                                   ,NUM_DOMAINS_TOTAL                   &
+                                   ,NUM_TASKS_TOTAL                     &
+                                   ,COMM_WORLD                          &
+                                   ,RANK_TO_DOMAIN_ID                   &
                                    ,CF                                  &
-                                   ,COMM_FULL_DOMAIN                    &
-                                   ,MY_DOMAIN_ID                        &
+                                   ,NEST_MODE                           &
+                                   ,DOMAIN_GEN                          &
+                                   ,FULL_GEN                            &
+                                   ,MY_DOMAIN_ID_N                      &
                                    ,ID_DOMAINS                          &
                                    ,ID_PARENTS                          &
                                    ,NUM_CHILDREN                        &
                                    ,ID_CHILDREN                         &
-                                   ,COMM_MY_DOMAIN                      &
-                                   ,COMM_TO_MY_PARENT                   &
-                                   ,COMM_TO_MY_CHILDREN                 &
+                                   ,COMMS_DOMAIN                        &
                                    ,FTASKS_DOMAIN                       &
                                    ,NTASKS_DOMAIN                       &
-                                   ,PETLIST_ATM                         &
-                                   ,RANK_TO_DOMAIN_ID                   &
+                                   ,PETLIST_DOM                         &
+                                   ,NUM_GENS                            &
                                          )
 !
 !-----------------------------------------------------------------------
-!***  Create MPI intercommunicators between the tasks of a parent domain
+!***  Create MPI intracommunicators between the tasks of a parent domain
 !***  and those of all its 1st generation nests (children).
 !-----------------------------------------------------------------------
 !
@@ -190,68 +282,80 @@
 !***  Argument Variables
 !------------------------
 !
-      INTEGER(kind=KINT),INTENT(IN) :: COMM_FULL_DOMAIN                 &   !<-- MPI intracommunicator for ALL tasks
-                                      ,MYPE                             &   !<-- My task ID
-                                      ,NUM_DOMAINS                          !<-- Total number of domains
+      INTEGER(kind=KINT),INTENT(IN) :: COMM_WORLD                       &  !<-- MPI intracommunicator for ALL tasks
+                                      ,FULL_GEN                         &  !<-- For 2-way nesting, the generation using all tasks
+                                      ,MYPE                             &  !<-- My task ID (global)
+                                      ,NUM_DOMAINS_TOTAL                &  !<-- Total number of domains
+                                      ,NUM_TASKS_TOTAL                     !<-- Total number of tasks in the run
 !
-      INTEGER(kind=KINT),DIMENSION(*),INTENT(IN) :: RANK_TO_DOMAIN_ID       !<-- Domain ID for each configure file
+      INTEGER(kind=KINT),DIMENSION(*),INTENT(IN) :: DOMAIN_GEN          &  !<-- For 2-way nesting, each domain's generation
+                                                   ,RANK_TO_DOMAIN_ID      !<-- Domain ID for each configure file
 !
-      TYPE(ESMF_Config),DIMENSION(*),INTENT(INOUT) :: CF                    !<-- The config objects (one per domain)
+      CHARACTER(len=5),INTENT(IN) :: NEST_MODE                             !<-- 1-way or 2-way nesting
 !
-      INTEGER(kind=KINT),DIMENSION(:,:),POINTER,INTENT(OUT) :: ID_CHILDREN &   !<-- Domain IDs of all domains' children
-                                                              ,PETLIST_ATM     !<-- List of task IDs on each domain
+      TYPE(ESMF_Config),DIMENSION(*),INTENT(INOUT) :: CF                   !<-- The config objects (one per domain)
 !
-      INTEGER(kind=KINT),INTENT(OUT) :: COMM_MY_DOMAIN                  &   !<-- Communicators for each individual domain
-                                       ,COMM_TO_MY_PARENT               &   !<-- Communicators to each domain's parent
-                                       ,MY_DOMAIN_ID                        !<-- ID of the domain on which this task resides
+      INTEGER(kind=KINT),INTENT(OUT) :: NUM_GENS                           !<-- The # of generations of domains
 !
-      INTEGER(kind=KINT),DIMENSION(:),POINTER,INTENT(OUT) :: COMM_TO_MY_CHILDREN &   !<-- Communicators to each domain's children
-                                                            ,ID_DOMAINS          &   !<-- Array of the domain IDs
-                                                            ,ID_PARENTS          &   !<-- Array of the domains' parent IDs
-                                                            ,FTASKS_DOMAIN       &   !<-- # of forecast tasks on each domain
-                                                            ,NTASKS_DOMAIN       &   !<-- # of tasks on each domain excluding descendents
-                                                            ,NUM_CHILDREN            !<-- # of children on each domain
+      INTEGER(kind=KINT),DIMENSION(:,:),POINTER,INTENT(OUT) :: ID_CHILDREN &  !<-- Domain IDs of all domains' children
+                                                              ,PETLIST_DOM    !<-- List of task IDs on each domain
+!
+      INTEGER(kind=KINT),DIMENSION(:),POINTER,INTENT(OUT) :: ID_DOMAINS      &  !<-- Array of the domain IDs
+                                                            ,ID_PARENTS      &  !<-- Array of the domains' parent IDs
+                                                            ,FTASKS_DOMAIN   &  !<-- # of forecast tasks on each domain
+                                                            ,MY_DOMAIN_ID_N  &  !<-- IDs of the domains on which this task resides
+                                                            ,NTASKS_DOMAIN   &  !<-- # of tasks on each domain excluding descendents
+                                                            ,NUM_CHILDREN       !<-- # of children on each domain
+!
+      TYPE(COMMS_FAMILY),DIMENSION(:),POINTER,INTENT(OUT) :: COMMS_DOMAIN  !<-- Intracommunicators between parent and child domains
+                                                                           !    and between each domains' forecast tasks.
 !
 !---------------------
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: I,ID_DOM,IERR,ISTAT,N,N1,N2,NN,RC
+      INTEGER(kind=KINT) :: I,ID_DOM,IERR,ISTAT                         &
+                           ,N,N1,N2,N3,NN,RC
 !
-      INTEGER(kind=KINT) :: COMM_ALL                                    &
-                           ,COMM_DUP                                    &
-                           ,COMM_INTRA                                  &
-                           ,COMM_PARENT_CHILD                           &
-                           ,GROUP_ALL                                   &
-                           ,GROUP_NEW                                   &
-                           ,I_COLOR                                     &
+      INTEGER(kind=KINT) :: COMM_INTRA                                  &
+                           ,GROUP_UNION                                 &
+                           ,GROUP_WORLD                                 &
                            ,ID_CHILD                                    &
-                           ,ID_DOMX                                     &
+                           ,ID_PARENT                                   &
                            ,INPES                                       &
                            ,JNPES                                       &
-                           ,KOUNT_EXCLUDE                               &
+                           ,KOUNT                                       &
+                           ,KOUNT_DOMS                                  &
                            ,KOUNT_TASKS                                 &
+                           ,LAST_FCST_TASK_X                            &
+                           ,LAST_WRITE_TASK_X                           &
                            ,LEAD_REMOTE                                 &
                            ,N_CHILDREN                                  &
+                           ,N_GEN                                       &
+                           ,NMAX                                        &
+                           ,NSAVE                                       &
+                           ,NTASKS_X                                    &
                            ,NTASKS_PARENT                               &
-                           ,NUM_EXCLUDE                                 &
+                           ,NUM_FCST_TASKS                              &
+                           ,NUM_WRITE_TASKS                             &
                            ,RC_COMMS                                    &
-                           ,TASK_EXCLUDE                                &
                            ,TASK_X                                      &
-                           ,TOTAL_TASKS                                 &
                            ,WRITE_GROUPS                                &
                            ,WRITE_TASKS_PER_GROUP
 !
-      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: EXCLUDE_TASKS      &  !<-- Tasks excluded from each parent-child couplet
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: DOMS_PER_GEN       &  !<-- Domain count per generation
+                                                    ,GLOBAL_UNION       &  !<-- Union of parent and child tasks in intracomms
+                                                    ,GROUP              &  !<-- MPI group for each domain
+                                                    ,LAST_FCST_TASK     &  !<-- ID of last forecast task on each domain
+                                                    ,LAST_WRITE_TASK    &  !<-- ID of last write task on each domain
                                                     ,LAST_TASK          &  !<-- ID of last task on each domain
+                                                    ,LEAD_FCST_TASK     &  !<-- ID of first task on each domain
+                                                    ,LEAD_WRITE_TASK    &  !<-- ID of first write on each domain
                                                     ,LEAD_TASK          &  !<-- ID of first task on each domain
-                                                    ,PARENT_OF_DOMAIN      !<-- IDs of parents of each domain
+                                                    ,WTASKS_DOMAIN         !<-- # of write/quilt tasks on each domain
 !
       CHARACTER(2)      :: NUM_DOMAIN
       CHARACTER(6),SAVE :: FMT='(I2.2)'
-!
-      LOGICAL(kind=KLOG) :: I_AM_PARENT                                 &
-                           ,INCLUDE_MYPE
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -261,15 +365,14 @@
 !
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(ID_DOMAINS   (1:NUM_DOMAINS))       
-      ALLOCATE(ID_PARENTS   (1:NUM_DOMAINS))       
-      ALLOCATE(LEAD_TASK    (1:NUM_DOMAINS))       
-      ALLOCATE(LAST_TASK    (1:NUM_DOMAINS))       
-      ALLOCATE(FTASKS_DOMAIN(1:NUM_DOMAINS))       
-      ALLOCATE(NTASKS_DOMAIN(1:NUM_DOMAINS))       
-      ALLOCATE(NUM_CHILDREN (1:NUM_DOMAINS))                          
-!
-      TOTAL_TASKS=0
+      ALLOCATE(ID_DOMAINS   (1:NUM_DOMAINS_TOTAL))       
+      ALLOCATE(ID_PARENTS   (1:NUM_DOMAINS_TOTAL))       
+      ALLOCATE(LEAD_TASK    (1:NUM_DOMAINS_TOTAL))       
+      ALLOCATE(LAST_TASK    (1:NUM_DOMAINS_TOTAL))       
+      ALLOCATE(FTASKS_DOMAIN(1:NUM_DOMAINS_TOTAL))       
+      ALLOCATE(WTASKS_DOMAIN(1:NUM_DOMAINS_TOTAL))       
+      ALLOCATE(NTASKS_DOMAIN(1:NUM_DOMAINS_TOTAL))       
+      ALLOCATE(NUM_CHILDREN (1:NUM_DOMAINS_TOTAL))                          
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -277,14 +380,14 @@
 !
 !***  This loop is general thus the domain IDs do not need to correspond
 !***  to the number in the configure file name.  The user may assign
-!***  IDs monotonic starting with 1 to the domains in any order
+!***  IDs monotonically to the domains starting with 1 and in any order
 !***  desired except that the uppermost parent must have an ID of 1.
 !***  However the rank/element of each domain in the CF array is equal
 !***  to the given domain's ID.
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      read_configs: DO N=1,NUM_DOMAINS                                     !<-- Loop through all configure objects
+      read_configs: DO N=1,NUM_DOMAINS_TOTAL                               !<-- Loop through all configure objects
 !
 !-----------------------------------------------------------------------
 !***  Save the domain IDs.
@@ -392,269 +495,470 @@
 !
 !-----------------------------------------------------------------------
 !
-        FTASKS_DOMAIN(ID_DOM)=INPES*JNPES                                  !<-- # of forecast tasks on each domain
+        FTASKS_DOMAIN(ID_DOM)=INPES*JNPES                                  !<-- # of compute/forecast tasks on domain ID_DOM
 !
-        NTASKS_DOMAIN(ID_DOM)=INPES*JNPES+                              &  !<-- Total # of tasks on each domain
-                              WRITE_GROUPS*WRITE_TASKS_PER_GROUP
+        WTASKS_DOMAIN(ID_DOM)=WRITE_GROUPS*WRITE_TASKS_PER_GROUP           !<-- # of write/quilt tasks on domain ID_DOM
 !
-        TOTAL_TASKS=TOTAL_TASKS+NTASKS_DOMAIN(ID_DOM)                      !<-- Sum the total task count among all domains
+        NTASKS_DOMAIN(ID_DOM)=FTASKS_DOMAIN(ID_DOM)                     &  !<-- Total # of tasks on each domain
+                             +WTASKS_DOMAIN(ID_DOM)              
 !
 !-----------------------------------------------------------------------
 !
       ENDDO read_configs
 !
-      ALLOCATE(PETLIST_ATM(1:TOTAL_TASKS,1:NUM_DOMAINS))
+      ALLOCATE(PETLIST_DOM(1:NUM_TASKS_TOTAL,1:NUM_DOMAINS_TOTAL))
 !
 !-----------------------------------------------------------------------
-!***  Assign tasks to all domains in the order of their configure files.
+!***  Assign tasks to all domains.  
+!***  For 1-way nesting each task is uniquely assigned to a single
+!***  domain.  For 2-way nesting each forecast task can be assigned
+!***  to more than one domain but cannot lie on more than one domain
+!***  in each generation.  The write/quilt tasks in 2-way nesting
+!***  must be assigned uniquely to a single domain and they cannot 
+!***  also be forecast tasks or else the asynchronous writing of
+!***  the history/restart files would not always be independent of
+!***  the forecast integration.
 !-----------------------------------------------------------------------
 !
-      DO N=1,NUM_DOMAINS
-!
-        ID_DOM=RANK_TO_DOMAIN_ID(N)
+      task_assign: IF(NEST_MODE=='1-way')THEN
 !
 !-----------------------------------------------------------------------
-!***  We must assign a "color" to each task.
-!***  Simply set the color equal to the domain ID.
-!***  At the same time we are determining the global IDs
-!***  of the lead and last tasks on each domain which
-!***  in turn lets us fill the PETLIST for each domain.
-!-----------------------------------------------------------------------
 !
-        IF(N==1)THEN
-          LEAD_TASK(N)=0                                                   !<-- Task 0 is first in line
-        ELSE
-          LEAD_TASK(ID_DOM)=LAST_TASK(ID_DOMAINS(N-1))+1                   !<-- Lead task on domain follows last task on previous domain
+        ALLOCATE(MY_DOMAIN_ID_N(1:1),stat=ISTAT)                          !<-- All tasks reside on only one domain
+        IF(ISTAT/=0)THEN
+          WRITE(0,*)' Failed to allocate MY_DOMAIN_ID_N  rc=',ISTAT
         ENDIF
 !
-        LAST_TASK(ID_DOM)=LEAD_TASK(ID_DOM)+NTASKS_DOMAIN(ID_DOM)-1        !<-- The last task on each domain
+        DO N=1,NUM_DOMAINS_TOTAL
 !
-        IF(MYPE>=LEAD_TASK(ID_DOM).AND.MYPE<=LAST_TASK(ID_DOM))THEN        !<-- Associate tasks with each domain
-          I_COLOR=ID_DOM                                                   !<-- Set color to domain ID
-          MY_DOMAIN_ID=ID_DOM                                              !<-- Tell this task the ID of the domain it is on
-        ENDIF
+          ID_DOM=RANK_TO_DOMAIN_ID(N)
 !
-        KOUNT_TASKS=0
-        DO N2=LEAD_TASK(ID_DOM),LAST_TASK(ID_DOM)
-          KOUNT_TASKS=KOUNT_TASKS+1
-          PETLIST_ATM(KOUNT_TASKS,ID_DOM)=N2
+!-----------------------------------------------------------------------
+!***  Determine the global IDs of the lead and last tasks on each
+!***  domain which in turn lets us fill the PETLIST for each domain.
+!***  These include the I/O tasks.
+!-----------------------------------------------------------------------
+!
+          IF(N==1)THEN
+            LEAD_TASK(N)=0                                                   !<-- Task 0 is first in line
+          ELSE
+            LEAD_TASK(ID_DOM)=LAST_TASK(ID_DOMAINS(N-1))+1                   !<-- Lead task on domain follows last task on previous domain
+          ENDIF
+!
+          LAST_TASK(ID_DOM)=LEAD_TASK(ID_DOM)+NTASKS_DOMAIN(ID_DOM)-1        !<-- The last task on each domain
+!
+          IF(MYPE>=LEAD_TASK(ID_DOM).AND.MYPE<=LAST_TASK(ID_DOM))THEN        !<-- Associate tasks with each domain
+            MY_DOMAIN_ID_N(1)=ID_DOM                                         !<-- Tell this task the ID of the single domain it is on
+          ENDIF
+!
+          KOUNT_TASKS=0
+          DO N2=LEAD_TASK(ID_DOM),LAST_TASK(ID_DOM)
+            KOUNT_TASKS=KOUNT_TASKS+1
+            PETLIST_DOM(KOUNT_TASKS,ID_DOM)=N2
+          ENDDO
+!
         ENDDO
 !
-      ENDDO
+        NUM_GENS=1                                                           !<-- This is a dummy value; only relevant for 2-way
 !
 !-----------------------------------------------------------------------
-!***  Now split the input intracommunicator shared by all tasks
-!***  into local intracommunicators called COMM_MY_DOMAIN on 
-!***  each domain.
-!-----------------------------------------------------------------------
 !
-      CALL MPI_COMM_DUP  (COMM_FULL_DOMAIN,COMM_DUP,IERR)                  !<-- Duplicate incoming intracommunicator to play it safe
-      CALL MPI_COMM_SPLIT(COMM_DUP,I_COLOR,MYPE,COMM_MY_DOMAIN,IERR)       !<-- COMM_FULL_DOMAIN has been split (but still exists)
+      ELSEIF(NEST_MODE=='2-way')THEN
 !
 !-----------------------------------------------------------------------
-!***  All tasks know the task counts and IDs of each domain as well as
+!***  First determine how many domains in each generation.
+!-----------------------------------------------------------------------
+!
+        NUM_GENS=0
+        NUM_WRITE_TASKS=0
+!
+        ALLOCATE(DOMS_PER_GEN(1:NUM_DOMAINS_TOTAL))
+!
+        DO N=1,NUM_DOMAINS_TOTAL
+          DOMS_PER_GEN(N)=0
+        ENDDO
+!
+        DO N=1,NUM_DOMAINS_TOTAL
+          ID_DOM=RANK_TO_DOMAIN_ID(N)
+          N_GEN=DOMAIN_GEN(ID_DOM)                                         !<-- The generation that domain ID_DOM is in
+          IF(N_GEN>NUM_GENS)NUM_GENS=N_GEN                                 !<-- Determining the # of generations
+          DOMS_PER_GEN(N_GEN)=DOMS_PER_GEN(N_GEN)+1                        !<-- Determining the # of domains per generation
+          NUM_WRITE_TASKS=NUM_WRITE_TASKS+WTASKS_DOMAIN(ID_DOM)            !<-- Sum write tasks for all domains
+        ENDDO
+!
+        ALLOCATE(MY_DOMAIN_ID_N(1:NUM_DOMAINS_TOTAL),stat=ISTAT)
+!
+        DO N=1,NUM_DOMAINS_TOTAL
+          MY_DOMAIN_ID_N(N)=0
+        ENDDO
+!
+        IF(ISTAT/=0)THEN
+          WRITE(0,*)' Failed to allocate MY_DOMAIN_ID_N  rc=',ISTAT
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Assign all the run's forecast tasks across the generation that 
+!***  uses all of them.
+!-----------------------------------------------------------------------
+!
+        ALLOCATE(LEAD_FCST_TASK(1:NUM_DOMAINS_TOTAL))
+        ALLOCATE(LAST_FCST_TASK(1:NUM_DOMAINS_TOTAL))
+        ALLOCATE(LEAD_WRITE_TASK(1:NUM_DOMAINS_TOTAL))
+        ALLOCATE(LAST_WRITE_TASK(1:NUM_DOMAINS_TOTAL))
+!
+        KOUNT_DOMS=0
+!
+        NUM_FCST_TASKS=NUM_TASKS_TOTAL-NUM_WRITE_TASKS                     !<-- Total # of forecast tasks available
+!
+        DO N=1,NUM_DOMAINS_TOTAL
+!
+          ID_DOM=RANK_TO_DOMAIN_ID(N)
+!
+          IF(DOMAIN_GEN(ID_DOM)/=FULL_GEN)CYCLE                            !<-- Only interested in the domains of the 'full' generation
+          KOUNT_DOMS=KOUNT_DOMS+1
+!
+          IF(KOUNT_DOMS==1)THEN
+            LEAD_FCST_TASK(ID_DOM)=0                                       !<-- Task 0 is first in line
+            LEAD_WRITE_TASK(ID_DOM)=NUM_FCST_TASKS                         !<-- 1st write task follows last forecast task
+          ELSE
+            LEAD_FCST_TASK(ID_DOM)=LAST_FCST_TASK_X+1                      !<-- Lead fcst task on domain follows last on previous domain
+            LEAD_WRITE_TASK(ID_DOM)=LAST_WRITE_TASK_X+1                    !<-- Lead write task on domain follows last on previous domain
+          ENDIF
+!
+          LAST_FCST_TASK_X=LEAD_FCST_TASK(ID_DOM)+FTASKS_DOMAIN(ID_DOM)-1 
+          LAST_FCST_TASK(ID_DOM)=LAST_FCST_TASK_X                          !<-- The last forecast task on this domain
+!
+          LAST_WRITE_TASK_X=LEAD_WRITE_TASK(ID_DOM)+WTASKS_DOMAIN(ID_DOM)-1 
+          LAST_WRITE_TASK(ID_DOM)=LAST_WRITE_TASK_X                        !<-- The last write task on this domain
+!
+          IF(MYPE>=LEAD_FCST_TASK(ID_DOM)                               &  !<-- 
+                       .AND.                                            &  !
+             MYPE<=LAST_FCST_TASK(ID_DOM)                               &  !  Associate tasks with each domain.
+                       .OR.                                             &  !  Write tasks can be tied to only one domain.
+             MYPE>=LEAD_WRITE_TASK(ID_DOM)                              &  !
+                       .AND.                                            &  !
+             MYPE<=LAST_WRITE_TASK(ID_DOM))THEN                            !<---
+!
+            MY_DOMAIN_ID_N(ID_DOM)=ID_DOM                                  !<-- Collecting IDs of the domain(s) this task is on
+          ENDIF
+!
+          KOUNT_TASKS=0
+          DO N2=LEAD_FCST_TASK(ID_DOM),LAST_FCST_TASK(ID_DOM)              !<-- Add fcst tasks to this domain's PETList
+            KOUNT_TASKS=KOUNT_TASKS+1
+            PETLIST_DOM(KOUNT_TASKS,ID_DOM)=N2                             !<-- Collecting task list for each domain
+          ENDDO
+!
+          DO N2=LEAD_WRITE_TASK(ID_DOM),LAST_WRITE_TASK(ID_DOM)            !<-- Add write tasks to this domain's PETList
+            KOUNT_TASKS=KOUNT_TASKS+1
+            PETLIST_DOM(KOUNT_TASKS,ID_DOM)=N2                             !<-- Collecting task list for each domain
+          ENDDO
+!
+        ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Now assign the tasks on all the domains in the remaining
+!***  generations.  When doing this, cycle through all the forecast
+!***  tasks from one generation to the next so as to spread the memory
+!***  load more evenly.
+!-----------------------------------------------------------------------
+!
+        KOUNT_DOMS=0
+!
+        DO N=1,NUM_GENS
+!
+          DO N1=1,NUM_DOMAINS_TOTAL
+            ID_DOM=RANK_TO_DOMAIN_ID(N1)
+            IF(DOMAIN_GEN(ID_DOM)/=N.OR.DOMAIN_GEN(ID_DOM)==FULL_GEN)CYCLE !<-- Skip the 'full' generation which we did above.
+            KOUNT_DOMS=KOUNT_DOMS+1
+!
+            IF(KOUNT_DOMS==1)THEN
+              LEAD_FCST_TASK(ID_DOM)=0                                     !<-- Task 0 is first in line
+            ELSE
+              LEAD_FCST_TASK(ID_DOM)=LAST_FCST_TASK_X+1                    !<-- Lead fcst task on domain follows last on previous domain
+            ENDIF
+!
+            LEAD_WRITE_TASK(ID_DOM)=LAST_WRITE_TASK_X+1                    !<-- Lead write task on domain follows last on previous domain
+!
+            TASK_X=LEAD_FCST_TASK(ID_DOM)-1
+!
+            KOUNT_TASKS=0
+            DO N2=1,FTASKS_DOMAIN(ID_DOM)                                  !<-- Fill in the fcst tasks for this domain
+              TASK_X=TASK_X+1
+              IF(TASK_X>NUM_FCST_TASKS-1)TASK_X=0                          !<-- Continue cycling through all available fcst tasks
+              IF(MYPE==TASK_X)THEN                                         !<-- Appropriate tasks become fcst tasks on this domain
+                MY_DOMAIN_ID_N(ID_DOM)=ID_DOM                              !<-- Collecting IDs of all domains this fcst task is on
+              ENDIF
+              KOUNT_TASKS=KOUNT_TASKS+1
+              PETLIST_DOM(KOUNT_TASKS,ID_DOM)=TASK_X                       !<-- Collecting task list for each domain
+            ENDDO
+!
+            LAST_FCST_TASK_X=TASK_X
+            LAST_FCST_TASK(ID_DOM)=LAST_FCST_TASK_X                        !<-- The last forecast task on this domain
+!
+            TASK_X=LEAD_WRITE_TASK(ID_DOM)-1
+            DO N2=1,WTASKS_DOMAIN(ID_DOM)                                  !<-- Fill in the write tasks for this domain
+              TASK_X=TASK_X+1
+              IF(MYPE==TASK_X)THEN                                         !<-- Appropriate tasks become write tasks on this domain
+                MY_DOMAIN_ID_N(ID_DOM)=ID_DOM                              !<-- Collect ID of the domain this write task is on
+              ENDIF
+              KOUNT_TASKS=KOUNT_TASKS+1
+              PETLIST_DOM(KOUNT_TASKS,ID_DOM)=TASK_X                       !<-- Collecting task list for each domain
+            ENDDO
+!
+            LAST_WRITE_TASK_X=TASK_X
+            LAST_WRITE_TASK(ID_DOM)=LAST_WRITE_TASK_X                      !<-- The last write task on this domain
+!
+          ENDDO
+!
+        ENDDO
+!
+!-----------------------------------------------------------------------
+!
+      ENDIF  task_assign
+!
+!-----------------------------------------------------------------------
+!***  All tasks know the task counts and IDs of all domains as well as
 !***  the parents of each domain.
 !
 !***  Loop through all domains in order to associate all parents
-!***  with their children through intercommunicators.
+!***  with their children through intracommunicators.  We cannot use
+!***  intercommunicators in general since parent and child domains 
+!***  can contain some of the same forecast tasks in 2-way nesting 
+!***  and MPI dictates that intercommunicators can only link disjoint
+!***  sets of tasks.
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(ID_CHILDREN(1:NUM_DOMAINS,1:NUM_DOMAINS))                   !<-- Array to hold all domains' children's IDs
+      ALLOCATE(ID_CHILDREN(1:NUM_DOMAINS_TOTAL,1:NUM_DOMAINS_TOTAL))       !<-- Array to hold all domains' children's IDs
 !
-      DO N1=1,NUM_DOMAINS
-      DO N2=1,NUM_DOMAINS
-        ID_CHILDREN(N1,N2)=0                                               !<-- All genuine Domain IDs are >0
+      DO N1=1,NUM_DOMAINS_TOTAL
+      DO N2=1,NUM_DOMAINS_TOTAL
+        ID_CHILDREN(N1,N2)=0                                               !<-- All valid Domain IDs are >0
       ENDDO
       ENDDO
 !
-      COMM_TO_MY_PARENT=-999                                               !<-- Initialize communicator to parent to nonsense
-!
+!-----------------------------------------------------------------------
+!***  Allocate intracommunicators between parents and children for
+!***  all of the domains since some forecast tasks may lie on more 
+!***  than one parent and/or child domain.  The same is true for 
+!***  the lists of ranks of children's local task ranks in the 
+!***  intracommunicators.
 !-----------------------------------------------------------------------
 !
-      main_loop: DO N=1,NUM_DOMAINS
+      ALLOCATE(COMMS_DOMAIN(1:NUM_DOMAINS_TOTAL),stat=ISTAT)
+      IF(ISTAT/=0)THEN
+        WRITE(0,*)' Failed to allocate COMMS_DOMAIN!'
+        CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
+      ENDIF
+!
+      DO N=1,NUM_DOMAINS_TOTAL
+        comms_domain(N)%TO_PARENT=-999                                     !<-- Initialize to nonsense the intracommunicator to parent
+      ENDDO
+!
+      ALLOCATE(CHILD_RANKS(1:NUM_DOMAINS_TOTAL),stat=ISTAT)
+      IF(ISTAT/=0)THEN
+        WRITE(0,*)' Failed to allocate CHILD_RANKS!'
+        CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
+      ENDIF
+!
+      DO N=1,NUM_DOMAINS_TOTAL
+        child_ranks(N)%CHILDREN=>NULL()
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Next we need to create MPI groups for the task sets on each
+!***  of the domains.
+!-----------------------------------------------------------------------
+!
+      ALLOCATE(GROUP(1:NUM_DOMAINS_TOTAL))                          
+!
+      CALL MPI_COMM_GROUP(COMM_WORLD                                    &  !<-- Intracommunicator between all tasks in the run
+                         ,GROUP_WORLD                                   &  !<-- The MPI group of all tasks in the run
+                         ,IERR )
+!
+      DO N=1,NUM_DOMAINS_TOTAL
+        ID_DOM=RANK_TO_DOMAIN_ID(N)
+        NTASKS_X=NTASKS_DOMAIN(ID_DOM)                                     !<-- Total # of tasks on domain ID_DOM
+!
+        CALL MPI_GROUP_INCL(GROUP_WORLD                                 &  !<-- MPI group with all tasks in the run
+                           ,NTASKS_X                                    &  !<-- # of fcst tasks on domain ID_DOM
+                           ,PETLIST_DOM(1:NTASKS_X,ID_DOM)              &  !<-- The global ranks of tasks that lie on ID_DOM
+                           ,GROUP(ID_DOM)                               &  !<-- The new group containing the tasks on ID_DOM
+                           ,IERR )
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Loop through all domains.  Parent domains will create
+!***  intracommunicators with each of their children and vice versa.
+!-----------------------------------------------------------------------
+!
+      main_loop: DO N=1,NUM_DOMAINS_TOTAL
+!
+!-----------------------------------------------------------------------
 !
         ID_DOM=RANK_TO_DOMAIN_ID(N)
 !
 !-----------------------------------------------------------------------
 !
+        ID_PARENT=-999                                                     !<-- Initialize to nonsense the parent's domain ID
+!
         N_CHILDREN=NUM_CHILDREN(ID_DOM)                                    !<-- The # of children on this domain
 !
-        IF(N_CHILDREN==0)CYCLE main_loop                                   !<-- If this domain has no children, move on
+!-----------------------------------------------------------------------
 !
-        NTASKS_PARENT=NTASKS_DOMAIN(ID_DOM)                                !<-- Total # of fcst and write tasks on this domain
+        has_children: IF(N_CHILDREN>0)THEN              
 !
 !-----------------------------------------------------------------------
-!***  All domain IDs will be searched in the configure files to find 
-!***  matches between the current domain's ID and the parent IDs of 
-!***  the other domains.
+!
+          ID_PARENT=ID_DOM                                                 !<-- ID_DOM is a parent domain
+          NTASKS_PARENT=NTASKS_DOMAIN(ID_PARENT)                           !<-- Total # of fcst and write tasks on this parent domain
+!
+!-----------------------------------------------------------------------
+!***  All domain IDs will be searched to find matches between the
+!***  current domain's ID and the parent IDs of the other domains. 
 !***  Matches will identify Parent-Child couplets.
 !-----------------------------------------------------------------------
 !
-        NN=0                                                               !<-- Index of children of the parent domain
+          NN=0
 !
-        DO N2=1,NUM_DOMAINS                                                !<-- Search for children who have this parent
-          ID_CHILD=ID_DOMAINS(N2)
+          DO N2=1,NUM_DOMAINS_TOTAL                                        !<-- Search for children who have parent ID_PARENT
+            ID_CHILD=ID_DOMAINS(N2)                                        !<-- Check if this domain ID is that of a child
 !
-          IF(ID_PARENTS(ID_CHILD)==ID_DOM)THEN                             !<-- If yes then we found a nest that is this domain's child
-            NN=NN+1
-            ID_CHILDREN(NN,ID_DOM)=ID_CHILD                                !<-- IDs of this parent's (domain N's) children
-          ENDIF
+            IF(ID_PARENTS(ID_CHILD)==ID_PARENT.AND.ID_PARENT/=-999)THEN    !<-- If yes then we found a nest that is this domain's child
+              NN=NN+1                                                      !<-- Increment index of children of the parent domain
+              ID_CHILDREN(NN,ID_PARENT)=ID_CHILD                           !<-- IDs of this parent's (ID_PARENT's) children's domains
+            ENDIF
 !
-          IF(NN==N_CHILDREN)EXIT                                           !<-- We have found all of this domain's children 
+            IF(NN==N_CHILDREN)THEN                                         !<-- We have found all of this domain's children
+              ALLOCATE(comms_domain(ID_PARENT)%TO_CHILDREN(1:N_CHILDREN)  &  !<-- Parent allocates intracommunicators with each child
+                      ,stat=ISTAT)
 !
-        ENDDO
+              DO N3=1,N_CHILDREN
+                comms_domain(ID_PARENT)%TO_CHILDREN(N3)=-999               !<-- Parent initializes intracommunicators with each child
+              ENDDO
 !
-!-----------------------------------------------------------------------
-!***  Be sure some essentials are present before we proceed.
-!-----------------------------------------------------------------------
+              EXIT
 !
-        IF(NTASKS_PARENT<1)THEN
-          WRITE(0,*)' ERROR: THIS PARENT DOMAIN HAS NO TASKS'
-          RETURN
-        ENDIF
+            ENDIF
 !
-!-----------------------------------------------------------------------
-!***  Parent tasks create their intercommunicator array.
-!-----------------------------------------------------------------------
-!
-        I_AM_PARENT=.FALSE.
-!
-        IF(MYPE>=LEAD_TASK(ID_DOM).AND.MYPE<=LAST_TASK(ID_DOM))THEN        !<-- Select parent tasks
-          ALLOCATE(COMM_TO_MY_CHILDREN(1:N_CHILDREN))                      !<-- Parent allocates parent-to-child intercommunicators
-          I_AM_PARENT=.TRUE.
-!
-          DO N2=1,N_CHILDREN
-            COMM_TO_MY_CHILDREN(N2)=-999                                   !<-- Initialize intercommunicators to nonsense
           ENDDO
 !
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Create intercommunicators between the parent and its
-!***  children.  For each child exclude all tasks that are not
-!***  associated with that child or its parent.
-!
-!***  First set the local group ID of the remote task as seen by
-!***  the parent and by its children.
 !-----------------------------------------------------------------------
 !
-        IF(I_AM_PARENT)THEN
-          LEAD_REMOTE=NTASKS_PARENT                                        !<-- The lead child task as seen by its parent is always
-                                                                           !    relative to the parent/child groupsize (starting 
-                                                                           !    with the parent) and NOT to the global task ranks.
-        ELSE
-          LEAD_REMOTE=0                                                    !<-- The lead parent task as seen from its children;
-                                                                           !     it is relative to groupsize and thus is always 0.
-        ENDIF
+        ENDIF has_children
 !
 !-----------------------------------------------------------------------
-!
-        inter_comm: DO N2=1,N_CHILDREN
-!
-          INCLUDE_MYPE =.TRUE.
-!
-!-----------------------------------------------------------------------
-!***  Only if there are more than two domains (a parent and a single
-!***  child) do we need to exclude tasks outside of that union of tasks.
+!***  Now create groups that are unions of each parent with each
+!***  of their children.  From those unions create the final 
+!***  parent-child intracommunicators.
 !-----------------------------------------------------------------------
 !
-          exclude: IF(NUM_DOMAINS>2)THEN
+        IF(N_CHILDREN>0)THEN
 !
-            ID_CHILD=ID_CHILDREN(N2,ID_DOM)
-            NUM_EXCLUDE=TOTAL_TASKS-NTASKS_PARENT-NTASKS_DOMAIN(ID_CHILD)  !<-- Task count of non-parent non-child tasks
-            ALLOCATE(EXCLUDE_TASKS(1:NUM_EXCLUDE))                         !<-- This will hold excluded tasks
+          ALLOCATE(child_ranks(ID_PARENT)%CHILDREN(1:N_CHILDREN)        &
+                  ,stat=ISTAT)
 !
-            KOUNT_EXCLUDE=0
-            TASK_X       =0                                                !<-- First task that might be excluded from parent/child couplet
+          IF(ISTAT/=0)THEN
+            WRITE(0,*)' Failed to allocate child_ranks%CHILDREN!'
+            CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
+          ENDIF
 !
 !-----------------------------------------------------------------------
 !
-            DO NN=1,NUM_DOMAINS                                            !<-- Loop through all domains
-              ID_DOMX=ID_DOMAINS(NN)
+          intra_comm: DO N2=1,N_CHILDREN                                   !<-- Loop through the given parent's children
 !
-              IF(ID_DOMX/=ID_DOM.AND.ID_DOMX/=ID_CHILD)THEN                !<-- Select tasks of all domains who are not parent/child
-                TASK_EXCLUDE=TASK_X
+!-----------------------------------------------------------------------
 !
-                DO I=1,NTASKS_DOMAIN(ID_DOMX)                              !<-- Loop through tasks of domain that is not child "N" or parent
-                  KOUNT_EXCLUDE=KOUNT_EXCLUDE+1                            !<-- Add up all tasks not in parent/child couplet
-                  EXCLUDE_TASKS(KOUNT_EXCLUDE)=TASK_EXCLUDE                !<-- This task is not on child "N" or its parent thus is excluded
-                  IF(MYPE==TASK_EXCLUDE)INCLUDE_MYPE=.FALSE.               !<-- Excluded tasks set their Include flag to false
-                  TASK_EXCLUDE=TASK_EXCLUDE+1
-                ENDDO
+            ID_CHILD=ID_CHILDREN(N2,ID_PARENT)                             !<-- Domain ID of child N2 of domain ID_PARENT
 !
-              ENDIF
+            CALL MPI_GROUP_UNION(GROUP(ID_PARENT)                       &  !<-- The group containing the parent tasks (in)
+                                ,GROUP(ID_CHILD)                        &  !<-- The group containing the child tasks (in)
+                                ,GROUP_UNION                            &  !<-- The union of the parent and child groups (out)
+                                ,IERR )
 !
-              TASK_X=TASK_X+NTASKS_DOMAIN(ID_DOMX)
+            CALL MPI_COMM_CREATE(COMM_WORLD                             &  !<-- Intracommunicator between all tasks in the run (in)
+                                ,GROUP_UNION                            &  !<-- The union of the parent and child groups (in)
+                                ,COMM_INTRA                             &  !<-- Intracommunicator between tasks in the union (out)
+                                ,IERR )
 !
+            comms_domain(ID_PARENT)%TO_CHILDREN(N2)=COMM_INTRA             !<-- Parent: The intracommunicator with its child N2
+            comms_domain(ID_CHILD)%TO_PARENT=COMM_INTRA                    !<-- Child: The intracommunicator with its parent
+!
+!-----------------------------------------------------------------------
+!***  The parent's tasks were listed first in the creation of the union
+!***  with child tasks so the parent task ranks in the union go from
+!***  0 to FTASKS_DOMAIN(ID_PARENT)-1.  However the child task ranks
+!***  in the union can be rather jumbled depending on how they overlie
+!***  the parent tasks.  Therefore parents must store the union ranks
+!***  of their children's forecast tasks in order to use the
+!***  intracommunicators.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  First we need to produce the list of global parent and child
+!***  tasks equivalent to that which MPI produces but is not seen
+!***  when the union of the parent and child groups is created.
+!-----------------------------------------------------------------------
+!
+            NMAX=NTASKS_DOMAIN(ID_PARENT)+NTASKS_DOMAIN(ID_CHILD)          !<-- Max # of tasks that can be in parent-child union
+            ALLOCATE(GLOBAL_UNION(1:NMAX))                                 !<-- For holding global ranks in the union
+!
+            DO N3=1,NTASKS_DOMAIN(ID_PARENT)
+              GLOBAL_UNION(N3)=PETLIST_DOM(N3,ID_PARENT)                   !<-- Insert parent's global task ranks into list first
             ENDDO
 !
-            IF(NUM_EXCLUDE/=KOUNT_EXCLUDE)THEN
-              WRITE(0,*)' ERROR: Count of excluded tasks went wrong. '  &
-                       ,' NUM_EXCLUDE=',NUM_EXCLUDE                     &
-                       ,' KOUNT_EXCLUDE=',KOUNT_EXCLUDE
-            ENDIF
+            KOUNT=NTASKS_DOMAIN(ID_PARENT)                                 !<-- We just inserted this many values into GLOBAL_UNION
 !
-          ENDIF exclude
+            child_loop1: DO N3=1,NTASKS_DOMAIN(ID_CHILD)                   !<-- Now loop through all child tasks
 !
-!-----------------------------------------------------------------------
-!***  We now have array EXCLUDE_TASKS holding the IDs of all tasks
-!***  that are not part of the union of child "N" and its parent.
-!***  The number of these excluded tasks is KOUNT_EXCLUDE.
+              DO NN=1,NTASKS_DOMAIN(ID_PARENT)                             !<-- Compare against the parent task ranks
+                IF(PETLIST_DOM(N3,ID_CHILD)==GLOBAL_UNION(NN))THEN
+                  CYCLE child_loop1                                        !<-- No task rank can appear twice in the union
+                ENDIF
+              ENDDO
 !
-!***  Create a new MPI group with only the tasks of the parent
-!***  and child "N" and then create an intracommunicator that
-!***  contains only that union of tasks.
-!-----------------------------------------------------------------------
+              KOUNT=KOUNT+1                                                !<-- Accumulating # of unique global task ranks in the union
+              GLOBAL_UNION(KOUNT)=PETLIST_DOM(N3,ID_CHILD)                 !<-- Add this child global rank to the union list
 !
-          COMM_ALL=COMM_FULL_DOMAIN                                        !<-- Communicator for all tasks entering this routine
-          CALL MPI_COMM_GROUP(COMM_ALL,GROUP_ALL,IERR)                     !<-- GROUP_ALL contains all tasks entering this routine
-!
-          IF(NUM_DOMAINS>2)THEN                                            !<-- Exclusion of tasks possible only if NUM_DOMAINS>2
-            CALL MPI_GROUP_EXCL(GROUP_ALL,KOUNT_EXCLUDE,EXCLUDE_TASKS   &
-                               ,GROUP_NEW,IERR)                            !<-- GROUP_NEW contains tasks on parent and child "N"
-            CALL MPI_COMM_CREATE(COMM_ALL,GROUP_NEW,COMM_INTRA,IERR)       !<-- COMM_INTRA is intracommunicator for tasks in GROUP_NEW
-            CALL MPI_GROUP_FREE(GROUP_NEW,IERR)                            !<-- Clear (set to null) GROUP_NEW
-          ELSE
-            CALL MPI_COMM_CREATE(COMM_ALL,GROUP_ALL,COMM_INTRA,IERR)       !<-- COMM_INTRA is intracommunicator for tasks in GROUP_NEW
-          ENDIF
-!
-          CALL MPI_GROUP_FREE(GROUP_ALL,IERR)                              !<-- Clear (set to null) GROUP_ALL
+            ENDDO child_loop1
 !
 !-----------------------------------------------------------------------
-!***  The intracommunicator called COMM_INTRA excludes all tasks
-!***  outside the union of the current parent and its child "N".
-!***  Create an intercommunicator between this parent and its child "N"
-!***  through a process in which only those tasks can participate.
-!***  Save the intercommunicator in an array holding all of the
-!***  intercommunicators between the current parent and its children.
+!***  The GLOBAL_UNION array now holds the union of the parent and
+!***  child global task ranks with no ranks appearing more than once.
+!***  Now the parent creates a list of the child's tasks in the union
+!***  but using ranks as they exist in the intracommunicator which
+!***  start with 0 for the parent's lead task and simply increase
+!***  one by one in a monotonic sequence.
 !-----------------------------------------------------------------------
 !
-          IF(INCLUDE_MYPE)THEN
-            CALL MPI_INTERCOMM_CREATE(COMM_MY_DOMAIN                    &  !<-- Each task's local intracommunicator
-                                     ,0                                 &  !<-- Rank of lead task in each local intracommunicator
-                                     ,COMM_INTRA                        &  !<-- Intracommunicator between tasks of current domain
-                                                                           !    and child "N"
-                                     ,LEAD_REMOTE                       &  !<-- Rank of leader in the remote group in COMM_INTRA
-                                     ,0                                 &  !<-- A tag
-                                     ,COMM_PARENT_CHILD                 &  !<-- The new intercommunicator between tasks of current
-                                                                           !    domain and those of its child "N"
-                                     ,IERR )
+            ALLOCATE(child_ranks(ID_PARENT)%CHILDREN(N2)%DATA(0:NTASKS_DOMAIN(ID_CHILD)-1))  !<-- Local ranks of child N2's tasks
+!                                                                                                 in parent-child intracomm
+            child_loop2: DO N3=0,NTASKS_DOMAIN(ID_CHILD)-1
 !
-            IF(I_AM_PARENT)THEN                                  
-              COMM_TO_MY_CHILDREN(N2)=COMM_PARENT_CHILD                    !<-- Parent: The intercommunicator is stored as parent-to-child
-            ELSE
-              COMM_TO_MY_PARENT      =COMM_PARENT_CHILD                    !<-- Child: The intercommunicator is stored as child-to-parent
-            ENDIF
+              DO NN=1,KOUNT                                                !<-- Loop through all global task ranks in the union list
+                IF(PETLIST_DOM(N3+1,ID_CHILD)==GLOBAL_UNION(NN))THEN       !<-- Search for child task N3's global rank in the union list
+                  child_ranks(ID_PARENT)%CHILDREN(N2)%DATA(N3)=NN-1        !<-- Save its local rank in the parent-child intracommunicator
+                  CYCLE child_loop2
+                ENDIF
+                IF(NN<KOUNT)CYCLE
 !
-          ENDIF
+                WRITE(0,*)' ERROR: Child global task rank not found'
+                WRITE(0,*)' ABORTING!'
+                CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+              ENDDO
 !
-          CALL MPI_BARRIER(COMM_MY_DOMAIN,IERR)
+            ENDDO child_loop2
 !
-          IF(NUM_DOMAINS>2)DEALLOCATE(EXCLUDE_TASKS)
+            DEALLOCATE(GLOBAL_UNION)
 !
 !-----------------------------------------------------------------------
 !
-        ENDDO inter_comm
+            CALL MPI_BARRIER(COMM_WORLD,IERR)
+!
+!-----------------------------------------------------------------------
+!
+          ENDDO intra_comm
+!
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -664,6 +968,8 @@
 !
       DEALLOCATE(LEAD_TASK)
       DEALLOCATE(LAST_TASK)
+      DEALLOCATE(GROUP)
+      IF(ALLOCATED(DOMS_PER_GEN))DEALLOCATE(DOMS_PER_GEN)
 !
 !-----------------------------------------------------------------------
 !
@@ -3199,9 +3505,6 @@
 !
       I_END=MIN(ITE+1,IDE)
       J_END=MIN(JTE+1,JDE)
-      if(vbl_name=='ISLTYP')then
-        write(0,*)' computed j_end=',j_end,' jte+1=',jte+1,' jde=',jde
-      endif
 !
 !-----------------------------------------------------------------------
 !
@@ -3235,12 +3538,6 @@
 !
         REAL_I_PARENT=(CHILD_LOND_ON_PARENT-WBD_PARENT)*R_DLMD+ISTART      !<-- REAL I index of child point on parent grid
         REAL_J_PARENT=(CHILD_LATD_ON_PARENT-SBD_PARENT)*R_DPHD+JSTART      !<-- REAL J index of child point on parent grid
-      if(i==01.and.j==01.and.vbl_name=='ISLTYP')then
-      write(0,*)' ISLTYP i=',i,' j=',j,' CHILD_LATD_ON_PARENT=',CHILD_LATD_ON_PARENT,' CHILD_LOND_ON_PARENT=',CHILD_LOND_ON_PARENT &
-               ,' REAL_I_PARENT=',REAL_I_PARENT,' REAL_J_PARENT=',REAL_J_PARENT
-      write(0,*)' its=',its,' real_i_parent=',real_i_parent,' i_end=',i_end &
-               ,' jts=',jts,' real_j_parent=',real_j_parent,' j_end=',j_end
-      endif
 !
 !-----------------------------------------------------------------------
 !
@@ -3251,11 +3548,6 @@
 !
           CHILD_POINT_INDICES(2*NUM_CHILD_POINTS-1)=I                      !<-- Save I index of this child
           CHILD_POINT_INDICES(2*NUM_CHILD_POINTS  )=J                      !<-- Save J index of this child point
-      if(i==01.and.j==01.and.vbl_name=='ISLTYP')then
-      write(0,*)' found child point ISLTYP i=',i,' j=',j,' num_child_points=',num_child_points
-      write(0,*)' CHILD_LATD_ON_PARENT=',CHILD_LATD_ON_PARENT,' SBD_PARENT=',SBD_PARENT,' JSTART=',JSTART,' REAL_J_PARENT=',REAL_J_PARENT
-      write(0,*)' CHILD_LOND_ON_PARENT=',CHILD_LOND_ON_PARENT,' WBD_PARENT=',WBD_PARENT,' ISTART=',ISTART,' REAL_I_PARENT=',REAL_I_PARENT
-      endif
 !
 !-----------------------------------------------------------------------
 !***  Compute the distance from the child point location to each of
@@ -3333,9 +3625,9 @@
             CHILD_STRING(NN)=PARENT_ARRAY(I_PARENT_NE,J_PARENT_NE)
 !     write(0,*)' NE parent=',PARENT_ARRAY(I_PARENT_NE,J_PARENT_NE),' nn=',nn,' i=',i,' j=',j
           ENDIF
-      if(i==01.and.j==01.and.vbl_name=='ISLTYP')then
-        write(0,*)' parent interp value to ISLTYP is ',CHILD_STRING(NN),' nn=',nn
-      endif
+!     if(i==01.and.j==01.and.vbl_name=='ISLTYP')then
+!       write(0,*)' parent interp value to ISLTYP is ',CHILD_STRING(NN),' nn=',nn
+!     endif
 !     if(vbl_name=='ISLTYP'.and.child_string(nn)<1.and.sea_mask(i,j)<0.5)then
 !       write(0,*)' Parent creating bad value of ISLTYP=',CHILD_STRING(NN),' nn=',nn,' i=',i,' j=',j &
 !                ,' SeaMask=',sea_mask(i,j)
@@ -3412,9 +3704,9 @@
             J=IJ_REMOTE(2*NIJ  )
             CHILD_ARRAY(I,J)=DATA_REMOTE(KOUNT)
 !     write(0,*)' new child i=',i,' j=',j,' kount=',kount,' data=',data_remote(kount)
-      if(vbl_name=='ISLTYP'.and.i==01.and.j==01)then
-        write(0,*)' parent fills ISLTYP with ',DATA_REMOTE(KOUNT),' kount=',kount
-      endif
+!     if(vbl_name=='ISLTYP'.and.i==01.and.j==01)then
+!       write(0,*)' parent fills ISLTYP with ',DATA_REMOTE(KOUNT),' kount=',kount
+!     endif
           ENDDO
 !
 !-----------------------------------------------------------------------
@@ -3578,8 +3870,6 @@
 !
       TLATD=(J-ROW_MID)*DPHD
       TLOND=(I-COL_MID)*DLMD
-!     write(0,*)' row_mid=',row_mid,' dphd=',dphd,' tlatd=',tlatd
-!     write(0,*)' col_mid=',col_mid,' dlmd=',dlmd,' tlond=',tlond
 !
 !     WRITE(0,50)I,J,TLATD,TLOND
    50 FORMAT(' I=',I4,' J=',I4,' ROTATED LATITUDE IS',F8.3              &
@@ -3613,7 +3903,6 @@
 !
       RLATD=GLATD
       RLOND=-GLOND
-!     write(0,*)' exit CONVERT_ rlatd=',rlatd,' rlond=',rlond
 !
 !-----------------------------------------------------------------------
 !
@@ -3628,7 +3917,8 @@
                                    ,DISTANCE )                  
 !
 !-----------------------------------------------------------------------
-!***  Compute the great circle distance between two points on the earth.
+!***  Compute the great circle distance between two points on the
+!***  spherical earth.
 !-----------------------------------------------------------------------
 !
 !------------------------
@@ -3735,8 +4025,8 @@
 !
       SW_LAT=SW_CORNER_LATD*DEG_RAD
       SW_LON=SW_CORNER_LOND*DEG_RAD
-      write(0,*)' CENTER_NEST SBD_DOMAIN=',SBD_DOMAIN,' WBD_DOMAIN=',WBD_DOMAIN &
-               ,' SW_CORNER_LATD=',SW_CORNER_LATD,' SW_CORNER_LOND=',SW_CORNER_LOND
+!     write(0,*)' CENTER_NEST SBD_DOMAIN=',SBD_DOMAIN,' WBD_DOMAIN=',WBD_DOMAIN &
+!              ,' SW_CORNER_LATD=',SW_CORNER_LATD,' SW_CORNER_LOND=',SW_CORNER_LOND
 !
 !-----------------------------------------------------------------------
 !***  SIDE1 is the arc from the southwest corner to the center 
@@ -3818,7 +4108,7 @@
 !
       TPH0D_DOMAIN=CENTRAL_LAT/DEG_RAD
       TLM0D_DOMAIN=CENTRAL_LON/DEG_RAD
-      write(0,*)' CENTER_NEST CENTRAL_LAT=',CENTRAL_LAT,' CENTRAL_LON=',CENTRAL_LON,' DEG_RAD=',DEG_RAD
+!     write(0,*)' CENTER_NEST CENTRAL_LAT=',CENTRAL_LAT,' CENTRAL_LON=',CENTRAL_LON,' DEG_RAD=',DEG_RAD
 !
 !-----------------------------------------------------------------------
 !
@@ -4476,15 +4766,15 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE INTERNAL_DATA_TO_DOMAIN(EXP_STATE_DYN                  &
+      SUBROUTINE INTERNAL_DATA_TO_DOMAIN(EXP_STATE_SOLVER               &
                                         ,EXP_STATE_DOMAIN               &
                                         ,LM )
 !
 !-----------------------------------------------------------------------
-!***  Transfer from Dynamics/Physics export states to the DOMAIN export 
-!***  state the data needed for parent generation of child boundary 
-!***  data as well as internal updates and shift decisions in
-!***  moving nests.
+!***  Transfer from Solver export state to the DOMAIN export state 
+!***  the data needed for parent generation of child boundary data
+!***  as well as internal updates and shift decisions in moving
+!***  nests.
 !-----------------------------------------------------------------------
 !
 !------------------------
@@ -4494,9 +4784,9 @@
       INTEGER(kind=KINT),INTENT(OUT) :: LM                                 !<-- # of model layers
 !
 #ifdef ESMF_3
-      TYPE(ESMF_State),INTENT(IN) :: EXP_STATE_DYN                         !<-- Dynamics export state
+      TYPE(ESMF_State),INTENT(IN) :: EXP_STATE_SOLVER                      !<-- Solver export state
 #else
-      TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_DYN                      !<-- Dynamics export state
+      TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_SOLVER                   !<-- Solver export state
 #endif
 !
       TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_DOMAIN                   !<-- DOMAIN export state into which fcst Arrays are transferred
@@ -4509,7 +4799,7 @@
                            ,IDS,IDE,JDS,JDE                             &
                            ,INDX_CW,INDX_Q                              &
                            ,LMP1,LNSH,LNSV                              &      
-                           ,NHALO,NKOUNT,NUM_DIMS
+                           ,N,NHALO,NKOUNT,NUM_DIMS
 !
       INTEGER(kind=KINT) :: RC,RC_TRANS
 !
@@ -4537,8 +4827,14 @@
 !
       CHARACTER(len=8), DIMENSION(7) :: EXP_FIELD
 !
-      integer :: itemcount,n
-      character(len=14),dimension(1:25) :: itemnamelist
+!-----------------------------------------------------------------------
+!***  TEMPORARY FOR PRE-PROCESSING MULTIPLE ESMF VERSIONS BEFORE COMPILE
+!-----------------------------------------------------------------------
+!
+      INTEGER(kind=KINT) :: itemcount
+!
+      CHARACTER(LEN=14),DIMENSION(1:25) :: itemnamelist
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -4551,11 +4847,11 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract NHALO from the Dynamics export state"
+      MESSAGE_CHECK="Extract NHALO from the Solver export state"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='NHALO'                              &  !<-- Name of Attribute to extract
                             ,value=NHALO                                &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
@@ -4564,7 +4860,7 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Dynamics export state
+      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The DOMAIN export state
                         ,itemcount   =itemcount                         &  !<-- # of items in the state
                         ,itemnamelist=itemnamelist                      &  !<-- List of item names
                         ,rc          =RC)
@@ -4587,17 +4883,17 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Test the presence of "//TRIM(EXP_FIELD(N))//" in Dynamics Export State"
+        MESSAGE_CHECK="Test the presence of "//TRIM(EXP_FIELD(N))//" in Solver Export State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifdef ESMF_520r
-        CALL ESMF_StateGet(              EXP_STATE_DYN                  &  !<-- The Dynamics export state
+        CALL ESMF_StateGet(              EXP_STATE_SOLVER               &  !<-- The Solver export state
                           ,              TRIM(EXP_FIELD(N))             &  !<-- Check presence of this Field
                           ,              STATEITEMTYPE                  &  !<-- ESMF Type of the Field
                           ,rc           =RC)
 #else
-        CALL ESMF_StateGet(state        =EXP_STATE_DYN                  &  !<-- The Dynamics export state
+        CALL ESMF_StateGet(state        =EXP_STATE_SOLVER               &  !<-- The Solver export state
                           ,name         =TRIM(EXP_FIELD(N))             &  !<-- Check presence of this Field
                           ,stateItemType=STATEITEMTYPE                  &  !<-- ESMF Type of the Field
                           ,rc           =RC)
@@ -4608,17 +4904,19 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Extract "//TRIM(EXP_FIELD(N))//" from Dynamics Export State"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+        MESSAGE_CHECK="Extract "//TRIM(EXP_FIELD(N))//" from Solver Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_StateGet(state   =EXP_STATE_DYN                     &  !<-- The Dynamics export state
-                            ,itemName=TRIM(EXP_FIELD(N))                &  !<-- Extract this Field
-                            ,field   =HOLD_FIELD                        &  !<-- Put the extracted Field here
-                            ,rc      =RC)
+        CALL ESMF_StateGet(state   =EXP_STATE_SOLVER                    &  !<-- The Solver export state
+                          ,itemName=TRIM(EXP_FIELD(N))                  &  !<-- Extract this Field
+                          ,field   =HOLD_FIELD                          &  !<-- Put the extracted Field here
+                          ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Obtain Grid and Dimensions from the Field"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
@@ -4646,7 +4944,7 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                &  !<-- The Dynamics export state
+        CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                &  !<-- The DOMAIN export state
                           ,itemcount   =itemcount                       &  !<-- # of items in the state
                           ,itemnamelist=itemnamelist                    &  !<-- List of item names
                           ,rc          =RC)
@@ -4655,7 +4953,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Dynamics export state
+      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The DOMAIN export state
                         ,itemcount   =itemcount                         &  !<-- # of items in the state
                         ,itemnamelist=itemnamelist                      &  !<-- List of item names
                         ,rc          =RC)
@@ -4665,11 +4963,11 @@
 !---------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract INDX_Q from Physics Export State"
+      MESSAGE_CHECK="Extract INDX_Q from Solver Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Physics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='INDX_Q'                             &  !<-- Name of Attribute to extract
                             ,value=INDX_Q                               &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
@@ -4697,11 +4995,11 @@
 !----------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract INDX_CW from Physics Export State"
+      MESSAGE_CHECK="Extract INDX_CW from Solver Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Physics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='INDX_CW'                            &  !<-- Name of Attribute to extract
                             ,value=INDX_CW                              &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
@@ -4724,7 +5022,7 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Dynamics export state
+      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The DOMAIN export state
                         ,itemcount   =itemcount                         &  !<-- # of items in the state
                         ,itemnamelist=itemnamelist                      &  !<-- List of item names
                         ,rc          =RC)
@@ -4734,13 +5032,13 @@
 !------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract FIS from Dynamics Export State"
+      MESSAGE_CHECK="Extract FIS from Solver Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DYN                     &  !<-- The Dynamics export state
-                        ,itemName='FIS'                             &  !<-- Extract FIS
-                        ,field   =HOLD_FIELD                        &  !<-- Put the extracted Field here
+      CALL ESMF_StateGet(state   =EXP_STATE_SOLVER                      &  !<-- The Solver export state
+                        ,itemName='FIS'                                 &  !<-- Extract FIS
+                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4756,7 +5054,7 @@
                         ,LISTWRAPPER(HOLD_FIELD)                        &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
-      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Dynamics export state
+      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The DOMAIN export state
                         ,itemcount   =itemcount                         &  !<-- # of items in the state
                         ,itemnamelist=itemnamelist                      &  !<-- List of item names
                         ,rc          =RC)
@@ -4770,13 +5068,13 @@
 !-------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract GLAT from Dynamics Export State"
+      MESSAGE_CHECK="Extract GLAT from Solver Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DYN                     &  !<-- The Dynamics export state
-                        ,itemName='GLAT'                            &  !<-- Extract GLAT
-                        ,field   =HOLD_FIELD                        &  !<-- Put the extracted Field here
+      CALL ESMF_StateGet(state   =EXP_STATE_SOLVER                      &  !<-- The Solver export state
+                        ,itemName='GLAT'                                &  !<-- Extract GLAT
+                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4788,14 +5086,14 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(EXP_STATE_DOMAIN                           &  !<-- Insert GLAT into DOMAIN export state
-                        ,LISTWRAPPER(HOLD_FIELD)                    &  !<-- The Field to be inserted
+      CALL ESMF_StateAdd(EXP_STATE_DOMAIN                               &  !<-- Insert GLAT into DOMAIN export state
+                        ,LISTWRAPPER(HOLD_FIELD)                        &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                  &  !<-- The Dynamics export state
-                        ,itemcount=itemcount                        &  !<-- # of items in the state
-                        ,itemnamelist=itemnamelist                  &  !<-- List of item names
-                        ,rc      =RC)
+      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Domain export state
+                        ,itemcount   =itemcount                         &  !<-- # of items in the state
+                        ,itemnamelist=itemnamelist                      &  !<-- List of item names
+                        ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
@@ -4806,13 +5104,13 @@
 !-------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract GLON from Dynamics Export State"
+      MESSAGE_CHECK="Extract GLON from Solver Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DYN                     &  !<-- The Dynamics export state
-                        ,itemName='GLON'                            &  !<-- Extract GLON
-                        ,field   =HOLD_FIELD                        &  !<-- Put the extracted Field here
+      CALL ESMF_StateGet(state   =EXP_STATE_SOLVER                      &  !<-- The Solver export state
+                        ,itemName='GLON'                                &  !<-- Extract GLON
+                        ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4832,13 +5130,14 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(EXP_STATE_DOMAIN                           &  !<-- Insert GLAT into DOMAIN export state
-                        ,LISTWRAPPER(HOLD_FIELD)                    &  !<-- The Field to be inserted
+      CALL ESMF_StateAdd(EXP_STATE_DOMAIN                               &  !<-- Insert GLAT into DOMAIN export state
+                        ,LISTWRAPPER(HOLD_FIELD)                        &  !<-- The Field to be inserted
                         ,rc   =RC)
-      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                  &  !<-- The Dynamics export state
-                        ,itemcount=itemcount                        &  !<-- # of items in the state
-                        ,itemnamelist=itemnamelist                  &  !<-- List of item names
-                        ,rc      =RC)
+!
+      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Domain export state
+                        ,itemcount   =itemcount                         &  !<-- # of items in the state
+                        ,itemnamelist=itemnamelist                      &  !<-- List of item names
+                        ,rc          =RC)
 !
 !--------------------------------------
 !***  LM is needed but not transferred
@@ -4849,7 +5148,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='LM'                                 &  !<-- Name of Attribute to extract
                             ,value=LM                                   &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
@@ -4867,7 +5166,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='PT'                                 &  !<-- Extract PT
                             ,value=PT                                   &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
@@ -4877,7 +5176,7 @@
                             ,value=PT                                   &  !<-- The Attribute to be inserted
                             ,rc   =RC)
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='PDTOP'                              &  !<-- Extract PDTOP
                             ,value=PDTOP                                &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
@@ -4889,7 +5188,7 @@
 !
       ALLOCATE(ARRAY_1D(1:LM))
 !
-      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state    =EXP_STATE_SOLVER                 &  !<-- The Solver export state
                             ,name     ='PSGML1'                         &  !<-- Extract PGMSL1
                             ,itemCount=LM                               &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
@@ -4901,7 +5200,7 @@
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state    =EXP_STATE_SOLVER                 &  !<-- The Solver export state
                             ,name     ='SGML2'                          &  !<-- Extract SGML2
                             ,itemCount=LM                               &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
@@ -4913,7 +5212,7 @@
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state    =EXP_STATE_SOLVER                 &  !<-- The Solver export state
                             ,name     ='DSG2'                           &  !<-- Extract DSG2   
                             ,itemCount=LM                               &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
@@ -4925,7 +5224,7 @@
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state    =EXP_STATE_SOLVER                 &  !<-- The Solver export state
                             ,name     ='PDSG1'                          &  !<-- Extract PDSG1
                             ,itemCount=LM                               &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
@@ -4941,7 +5240,7 @@
       DEALLOCATE(ARRAY_1D)
       ALLOCATE(ARRAY_1D(1:LMP1))
 !
-      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state    =EXP_STATE_SOLVER                 &  !<-- The Solver export state
                             ,name     ='SG1'                            &  !<-- Extract PGMSL1
                             ,itemCount=LMP1                             &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
@@ -4953,7 +5252,7 @@
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeGet(state    =EXP_STATE_DYN                    &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state    =EXP_STATE_SOLVER                 &  !<-- The Solver export state
                             ,name     ='SG2'                            &  !<-- Extract PGMSL1
                             ,itemCount=LMP1                             &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
@@ -4977,56 +5276,56 @@
 !-------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract Integration Limits from Dynamics Export State"
+      MESSAGE_CHECK="Extract Integration Limits from Solver Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='ITS'                                &  !<-- Name of Attribute to extract
                             ,value=ITS                                  &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='ITE'                                &  !<-- Name of Attribute to extract
                             ,value=ITE                                  &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='JTS'                                &  !<-- Name of Attribute to extract
                             ,value=JTS                                  &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='JTE'                                &  !<-- Name of Attribute to extract
                             ,value=JTE                                  &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='LM'                                 &  !<-- Name of Attribute to extract
                             ,value=LM                                   &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='NHALO'                              &  !<-- Name of Attribute to extract
                             ,value=NHALO                                &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='IDS'                                &  !<-- Name of Attribute to extract
                             ,value=IDS                                  &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='IDE'                                &  !<-- Name of Attribute to extract
                             ,value=IDE                                  &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='JDS'                                &  !<-- Name of Attribute to extract
                             ,value=JDS                                  &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='JDE'                                &  !<-- Name of Attribute to extract
                             ,value=JDE                                  &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
@@ -5099,16 +5398,16 @@
 !--------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract LNSH,LNSV from Dynamics Export State"
+      MESSAGE_CHECK="Extract LNSH,LNSV from Solver Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='LNSH'                               &  !<-- Name of Attribute to extract
                             ,value=LNSH                                 &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='LNSV'                               &  !<-- Name of Attribute to extract
                             ,value=LNSV                                 &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
@@ -5141,11 +5440,11 @@
 !------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract DYH from Dynamics Export State"
+      MESSAGE_CHECK="Extract DYH from Solver Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
                             ,name ='DYH'                                &  !<-- Name of DYH scalar
                             ,value=DYH                                  &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
@@ -5163,21 +5462,21 @@
       ALLOCATE(ARRAY_1D(JDS:JDE))
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract DXH from Dynamics Export State"
+      MESSAGE_CHECK="Extract DXH from Solver Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DYN                        &  !<-- The Dynamics export state
-                            ,name ='DXH'                                &  !<-- Name of DXH array
+      CALL ESMF_AttributeGet(state    =EXP_STATE_SOLVER                 &  !<-- The Solver export state
+                            ,name     ='DXH'                            &  !<-- Name of DXH array
                             ,itemCount=NKOUNT                           &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
-                            ,rc   =RC)
+                            ,rc       =RC)
 !
-      CALL ESMF_AttributeSet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
-                            ,name ='DXH'                                &  !<-- Name of DXH array
+      CALL ESMF_AttributeSet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
+                            ,name     ='DXH'                            &  !<-- Name of DXH array
                             ,itemCount=NKOUNT                           &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
-                            ,rc   =RC)
+                            ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
@@ -5185,10 +5484,10 @@
 !
       DEALLOCATE(ARRAY_1D)
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                  &  !<-- The Dynamics export state
-                        ,itemcount=itemcount                        &  !<-- # of items in the state
-                        ,itemnamelist=itemnamelist                  &  !<-- List of item names
-                        ,rc      =RC)
+      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Domain export state
+                        ,itemcount   =itemcount                         &  !<-- # of items in the state
+                        ,itemnamelist=itemnamelist                      &  !<-- List of item names
+                        ,rc          =RC)
 !
 !-----------------------------------------------------------------------
 !
@@ -5198,7 +5497,8 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE BOUNDARY_DATA_STATE_TO_STATE(CLOCK                     &
+      SUBROUTINE BOUNDARY_DATA_STATE_TO_STATE(S_BDY,N_BDY,W_BDY,E_BDY   &
+                                             ,CLOCK                     &
                                              ,RATIO                     &
                                              ,STATE_IN                  &
                                              ,STATE_OUT )
@@ -5211,6 +5511,8 @@
 !------------------------
 !***  Argument Variables
 !------------------------
+!
+      LOGICAL(kind=KLOG),INTENT(IN) :: S_BDY,N_BDY,W_BDY,E_BDY             !<-- Is this task on the domain's boundary?
 !
       TYPE(ESMF_Clock),INTENT(IN),OPTIONAL :: CLOCK                        !<-- ESMF Clock
 !
@@ -5610,6 +5912,15 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+          IF(ALLOCATED(BOUNDARY_H%SOUTH))THEN
+            DEALLOCATE(BOUNDARY_H%SOUTH,stat=ISTAT)
+            DEALLOCATE(BOUNDARY_V%SOUTH,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,*)' BOUNDARY_DATA_STATE_TO_STATE failed to'       &
+                       ,' deallocate BOUNDARY_V%SOUTH stat=',ISTAT
+            ENDIF
+          ENDIF
+!
         ENDIF south_boundary
 !
 !-----------------------------------------------------------------------
@@ -5721,6 +6032,15 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          IF(ALLOCATED(BOUNDARY_H%NORTH))THEN
+            DEALLOCATE(BOUNDARY_H%NORTH,stat=ISTAT)
+            DEALLOCATE(BOUNDARY_V%NORTH,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,*)' BOUNDARY_DATA_STATE_TO_STATE failed to'       &
+                       ,' deallocate BOUNDARY_V%NORTH stat=',ISTAT
+            ENDIF
+          ENDIF
 !
         ENDIF north_boundary
 !
@@ -5834,6 +6154,15 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+          IF(ALLOCATED(BOUNDARY_H%WEST))THEN
+            DEALLOCATE(BOUNDARY_H%WEST,stat=ISTAT)
+            DEALLOCATE(BOUNDARY_V%WEST,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,*)' BOUNDARY_DATA_STATE_TO_STATE failed to'       &
+                       ,' deallocate BOUNDARY_V%WEST stat=',ISTAT
+            ENDIF
+          ENDIF
+!
         ENDIF west_boundary
 !
 !-----------------------------------------------------------------------
@@ -5898,7 +6227,7 @@
 !------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Fins # of Words in East V Data"
+          MESSAGE_CHECK="Find # of Words in East V Data"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -5946,6 +6275,15 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+          IF(ALLOCATED(BOUNDARY_H%EAST))THEN
+            DEALLOCATE(BOUNDARY_H%EAST,stat=ISTAT)
+            DEALLOCATE(BOUNDARY_V%EAST,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,*)' BOUNDARY_DATA_STATE_TO_STATE failed to'       &
+                       ,' deallocate BOUNDARY_V%EAST stat=',ISTAT
+            ENDIF
+          ENDIF
+!
         ENDIF east_boundary
 !
 !-----------------------------------------------------------------------
@@ -5984,7 +6322,7 @@
 !---------------------
 !
       INTEGER(kind=KINT) :: I_SHIFT,J_SHIFT                             &
-                           ,N,N8,NUM_PTASK_UPDATE                       &
+                           ,N,NUM_PTASK_UPDATE                          &
                            ,NUM_INTEGER_WORDS                           &
                            ,NUM_REAL_WORDS
 !
@@ -6013,8 +6351,6 @@
 !
       RC    =ESMF_SUCCESS
       RC_S2S=ESMF_SUCCESS
-!
-      N8=8
 !
 !-----------------------------------------------------------------------
 !
@@ -8032,6 +8368,7 @@
 !***  Add up the number of points being updated by each parent task.
 !-----------------------------------------------------------------------
 !
+!     write(0,*)' exit MOVING_NEST_BOOKKEEPING kount_parent_tasks=',kount_parent_tasks
       DO KP=1,KOUNT_PARENT_TASKS
 !
         SEND_TASK(KP)%NPTS=(SEND_TASK(KP)%IEND(1)                       & 
@@ -8101,7 +8438,7 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: ITAG,N,N8,NUM_PTASK_UPDATE,NUM_WORDS
+      INTEGER(kind=KINT) :: ITAG,N,NUM_PTASK_UPDATE,NUM_WORDS
 !
       INTEGER(kind=KINT) :: IERR,RC,RC_RECV
 !
@@ -8124,8 +8461,6 @@
 !
       RC     =ESMF_SUCCESS
       RC_RECV=ESMF_SUCCESS
-!
-      N8=8
 !
 !-----------------------------------------------------------------------
 !***  First load into the Parent-Child coupler export state the
@@ -8667,9 +9002,6 @@
 !
       TYPE(CHILD_UPDATE_LINK),POINTER :: PTR,PTR_X
 !
-      integer(kind=kint) :: kountx
-      integer(kind=kint) :: kount_h_links,kount_v_links
-      type(child_update_link),pointer :: xxx
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -8685,12 +9017,10 @@
 !
       PTR=>TASK_UPDATE_SPECS                                               !<-- Start at the top of the list of updated nest tasks
 !
-     kountx=0
       DO WHILE(ASSOCIATED(PTR%TASK_ID))                                    !<-- A link exists if TASK_ID is associated.
-        CALL MPI_WAIT(HANDLE_UPDATE(PTR%TASK_ID+1)                      &  !<-- Handle for ISend from parent task to child task
+        CALL MPI_WAIT(HANDLE_UPDATE(PTR%TASK_ID)                        &  !<-- Handle for ISend from parent task to child task
                      ,JSTAT                                             &  !<-- MPI status
                      ,IERR )
-     kountx=kountx+1
         IF(ASSOCIATED(PTR%NEXT_LINK))THEN
           PTR=>PTR%NEXT_LINK
         ELSE
@@ -8700,7 +9030,7 @@
 !
 !-----------------------------------------------------------------------
 !***  All nest tasks have received data from the previous move
-!***  so proceed with removing those data.
+!***  so proceed with deleting those data objects.
 !-----------------------------------------------------------------------
 !
       PTR_X=>TASK_UPDATE_SPECS                                            !<-- Go back to the top of the list of updated nest tasks
@@ -9038,17 +9368,17 @@
         TAIL=>TASK_UPDATE_SPECS                                            !<-- For the 1st link, point at the top of the list.
         NULLIFY(TAIL%NEXT_LINK)
       ELSE
-        ALLOCATE(TAIL%NEXT_LINK,stat=ISTAT)
-        TAIL=>TAIL%NEXT_LINK
+        ALLOCATE(TAIL%NEXT_LINK,stat=ISTAT)                                !<-- Add a new link for each additional child task
+        TAIL=>TAIL%NEXT_LINK                                               !<-- Point at the new link so it is ready to use
         NULLIFY(TAIL%NEXT_LINK)
       ENDIF
 !
-      ALLOCATE(TAIL%TASK_ID)
-      ALLOCATE(TAIL%NUM_PTS_UPDATE_HZ)
-      ALLOCATE(TAIL%IL(1:4))
-      ALLOCATE(TAIL%JL(1:4))
+      ALLOCATE(TAIL%TASK_ID)                                               !<-- Allocate the pieces of data in this link
+      ALLOCATE(TAIL%NUM_PTS_UPDATE_HZ)                                     !
+      ALLOCATE(TAIL%IL(1:4))                                               !
+      ALLOCATE(TAIL%JL(1:4))                                               !<--
 !
-      TAIL%TASK_ID=N-1                                                     !<-- Local ID of Nth task on the moving nest
+      TAIL%TASK_ID=N                                                       !<-- Task is Nth among all tasks on this child
 !
       DO NLOC=1,4
         TAIL%IL(NLOC)=-999
@@ -9214,7 +9544,9 @@
                                       ,DSG2,PDSG1                       &
                                       ,FIS,PD                           &
                                       ,T,Q,CW                           &
+                                      ,NUM_PARENT_TASKS                 &
                                       ,NUM_CHILD_TASKS                  &
+                                      ,CHILD_TASK_RANKS                 &
                                       ,CHILD_TASK_LIMITS                &
                                       ,IMS,IME,JMS,JME                  &
                                       ,IDS,IDE,JDS,JDE                  &
@@ -9233,8 +9565,6 @@
                                       ,NUM_FIELDS_MOVE_2D_V             &
                                       ,NUM_FIELDS_MOVE_3D_V             &
                                       ,NUM_LEVELS_MOVE_3D_V             &
-!!!                                   ,TASK_UPDATE_SPECS_H              &
-!!!                                   ,TASK_UPDATE_SPECS_V              &
                                       ,TASK_UPDATE_SPECS                &
                                       ,CHILD_UPDATE_DATA                &
                                         )
@@ -9269,12 +9599,16 @@
                                       ,NUM_FIELDS_MOVE_2D_V             &  !<-- # of 2-D V arrays specified for updating
                                       ,NUM_FIELDS_MOVE_3D_V             &  !<-- # of 3-D V arrays specified for updating
                                       ,NUM_LEVELS_MOVE_3D_V             &  !<-- # of 2-D levels in all 3-D V update arrays
+                                      ,NUM_PARENT_TASKS                 &  !<-- # of forecast tasks on this parent
                                       ,PARENT_CHILD_SPACE_RATIO         &  !<-- Ratio of parent's grid increment to its child's
                                       ,PARENT_CHILD_TIME_RATIO          &  !<-- Ratio of parent's time step to its child's
                                       ,LBND1,UBND1,LBND2,UBND2             !<-- Array bounds of nest-resolution FIS on parent
 !
       INTEGER(kind=KINT),DIMENSION(:),POINTER,INTENT(IN) ::             &
                                                   HANDLE_UPDATE            !<-- MPI Handles for ISends to the child tasks
+!
+      INTEGER(kind=KINT),DIMENSION(1:NUM_CHILD_TASKS),INTENT(IN) ::     &
+                                                  CHILD_TASK_RANKS         !<-- Child task local ranks in p-c intracomm
 !
       INTEGER(kind=KINT),DIMENSION(1:4,NUM_CHILD_TASKS),INTENT(IN) ::   &
                                                      CHILD_TASK_LIMITS     !<-- ITS,ITE,JTS,JTE for each child forecast task
@@ -9305,8 +9639,6 @@
       TYPE(MIXED_DATA_TASKS),INTENT(INOUT) :: CHILD_UPDATE_DATA            !<-- Composite of all update data from parent for each nest task
 !
       TYPE(CHILD_UPDATE_LINK),TARGET,INTENT(INOUT) ::                   &
-!!!                                               TASK_UPDATE_SPECS_H   &  !<-- Linked list with nest task update H-point specifications
-!!!                                              ,TASK_UPDATE_SPECS_V      !<-- Linked list with nest task update V-point specifications
                                                   TASK_UPDATE_SPECS        !<-- Linked list with nest task update specifications
 !
       TYPE(ESMF_FieldBundle),INTENT(INOUT) :: MOVE_BUNDLE                  !<-- ESMF Bundle of 2-D and 3-D arrays specified for updating
@@ -9336,8 +9668,8 @@
                                 ,NUM_REAL_WORDS_SEND                    &
                                 ,UPDATE_TYPE_INT
 !
-      INTEGER(kind=KINT) :: I_TRANS,IERR,ISTAT,IVAL,J_TRANS,KNT_DUMMY   &
-                           ,RC,RC_UPDATE
+      INTEGER(kind=KINT) :: CHILDTASK,I_TRANS,IERR,ISTAT,IVAL,J_TRANS   &
+                           ,KNT_DUMMY,RC,RC_UPDATE
 !
       INTEGER(kind=KINT),DIMENSION(1:3) :: LIMITS_HI                    &
                                           ,LIMITS_LO
@@ -9452,10 +9784,6 @@
 !
       TYPE(ESMF_TypeKind) :: DATATYPE
 !
-      integer(kind=kint) :: kount,kount1,locn !<-- for debugging only
-      integer(kind=kint) :: kount_h_links,kount_v_links
-      real(kind=kfpt),dimension(1:num_lyrs+1) :: phi_l
-      type(child_update_link),pointer :: xxx
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -9498,8 +9826,6 @@
 !***  update.
 !-----------------------------------------------------------------------
 !
-!!!     PTR_H=>TASK_UPDATE_SPECS_H
-!!!     PTR_V=>TASK_UPDATE_SPECS_V
         PTR_H=>TASK_UPDATE_SPECS
         PTR_V=>TASK_UPDATE_SPECS
 !
@@ -9712,14 +10038,12 @@
       PTR_X=>TASK_UPDATE_SPECS
 !
       IF(FLAG_H_OR_V=='H')THEN
-!!!     PTR_X=>TASK_UPDATE_SPECS_H
         NUM_FIELDS_MOVE=NUM_FIELDS_MOVE_2D_H_I                          &
                        +NUM_FIELDS_MOVE_2D_H_R                          &
                        +NUM_FIELDS_MOVE_3D_H
         R_INC=0.
 !
       ELSEIF(FLAG_H_OR_V=='V')THEN
-!!!     PTR_X=>TASK_UPDATE_SPECS_V
         NUM_FIELDS_MOVE=NUM_FIELDS_MOVE_2D_V                            &
                        +NUM_FIELDS_MOVE_3D_V
         R_INC=-(0.5*PARENT_CHILD_SPACE_RATIO-0.5)                       &
@@ -9978,7 +10302,7 @@
           ENDIF soil_wgts
 !
 !-----------------------------------------------------------------------
-!***  Some of the primary Dynamics integration variables are valid
+!***  Some of the primary dynamics integration variables are valid
 !***  at the previous time step (PDO,TP,UP,VP).  Update those at
 !***  the appropriate nest gridpoints as well.  Since the parent's
 !***  time step is larger than the child's, approximate the child's
@@ -10110,18 +10434,11 @@
 !-----------------------------------------------------------------------
 !
           DO J=J1,J2
-!!!         J_TRANS=J+(J_PARENT_SW-JDS_CHILD)*PARENT_CHILD_SPACE_RATIO     !<-- J on full nest resolution of parent at given nest J
             J_TRANS=J+J_OFFSET                                             !<-- J on full nest resolution of parent at given nest J
 !
             DO I=I1,I2
-!!!           I_TRANS=I+(I_PARENT_SW-IDS_CHILD)*PARENT_CHILD_SPACE_RATIO   !<-- I on full nest resolution of parent at given nest I
               I_TRANS=I+I_OFFSET                                           !<-- I on full nest resolution of parent at given nest I
 !
-      if(i_trans<lbnd1.or.i_trans>ubnd1.or.j_trans<lbnd2.or.j_trans>ubnd2)then
-        write(0,*)' PARENT_UPDATES fis_child 1 out-of-bounds i=',i,' i_trans=',i_trans,' i_offset=',i_offset &
-                 ,' j=',j,' j_trans=',j_trans,' j_offset=',j_offset
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-      endif
               IF(FIS_CHILD(I_TRANS,J_TRANS)<PHI_INTERP(I,J,LM+1))THEN      !<-- If so, child's terrain lies below parent's 
 !
                 COEFF_1=(PINT_INTERP(I,J,LM+1)-PINT_INTERP(I,J,LM))     &  !<-- Coefficient for linear term
@@ -10139,11 +10456,6 @@
                           +PINT_INTERP(I,J,LM+1)
 !
               ELSE                                                         !<-- Child's terrain is at or above parent's
-      if(i_trans<lbnd1.or.i_trans>ubnd1.or.j_trans<lbnd2.or.j_trans>ubnd2)then
-        write(0,*)' PARENT_UPDATES fis_child 2 out-of-bounds i=',i,' i_trans=',i_trans,' i_offset=',i_offset &
-                 ,' j=',j,' j_trans=',j_trans,' j_offset=',j_offset
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-      endif
                 DO L=NUM_LYRS,1,-1
                   IF(FIS_CHILD(I_TRANS,J_TRANS)<PHI_INTERP(I,J,L))THEN
                     LOG_P1_PARENT=LOG(PINT_INTERP(I,J,L+1))                !<-- Log pressure on bottom of parent model layer
@@ -10207,10 +10519,10 @@
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
-                                ,fieldIndex =N_FIELD                    &  !<-- Index of the Field in the Bundle
-                                ,field      =HOLD_FIELD                 &  !<-- Field N_FIELD in the Bundle
-                                ,rc         =RC)
+            CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE            &  !<-- Bundle holding the arrays for move updates
+                                    ,fieldIndex =N_FIELD                &  !<-- Index of the Field in the Bundle
+                                    ,field      =HOLD_FIELD             &  !<-- Field N_FIELD in the Bundle
+                                    ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
@@ -10348,13 +10660,6 @@
 !***  parent update data object.
 !-----------------------------------------------------------------------
 !
-!!!             IF(TRIM(FIELD_NAME)=='GLAT'                             &
-!!!                       .OR.                                          &
-!!!                TRIM(FIELD_NAME)=='GLON'                             &
-!!!                       .OR.                                          &
-!!!                TRIM(FIELD_NAME)=='VLAT'                             &
-!!!                       .OR.                                          &
-!!!                TRIM(FIELD_NAME)=='VLON')THEN
                 IF(FIELD_NAME=='GLAT'.OR.FIELD_NAME=='GLON'             &
                          .OR.                                           &
                    FIELD_NAME=='VLAT'.OR.FIELD_NAME=='VLON'             &
@@ -10392,8 +10697,6 @@
 !***  PD
 !--------
 !
-!!!             IF(TRIM(FIELD_NAME)=='PD')THEN
-!!!             IF(TRIM(FIELD_NAME)=='PD'.OR.TRIM(FIELD_NAME)=='PDO')THEN
                 IF(FIELD_NAME=='PD'.OR.FIELD_NAME=='PDO')THEN
 !
                   DO J=J1,J2
@@ -10593,8 +10896,6 @@
 !***  their own block.
 !-----------------------------------------------------------------------
 !
-!!!           q2_e2: IF(TRIM(FIELD_NAME)=='Q2'.OR.                      &
-!!!                     TRIM(FIELD_NAME)=='E2')THEN
               q2_e2: IF(FIELD_NAME=='Q2'.OR.FIELD_NAME=='E2')THEN
 !
 !-----------------------------------------------------------------------
@@ -10669,7 +10970,6 @@
                 ALLOCATE(SEC_DERIV(1:NUM_LEVS_SEC))                        !<-- Allocate 1 longer in case we increase the
 !                                                                          !    # of input levels below.
                 LOC_1=KNT_REAL_PTS(N)
-        kount1=knt_real_pts(n)
 !
                 P3D_INPUT=>PINT_INTERP
                 P3D_OUTPUT=>PINT_CHILD
@@ -10816,7 +11116,6 @@
                   N_STRIDE=NPOINTS_HORIZ
                   N_ADD   =NPOINTS_HORIZ*(NUM_LEVELS-1)
 !
-!!!               NUM_LEVS_IN=NUM_LEVELS
                   NUM_LEVS_SEC=NUM_LEVELS+1                                !<-- Use this many levels in the 2nd derivative array
                   ALLOCATE(SEC_DERIV(1:NUM_LEVS_SEC))                      !<-- Allocate 1 longer in case we increase the
 !                                                                          !    # of input levels below.
@@ -11034,15 +11333,16 @@
 !
         IF(FLAG_H_OR_V=='V')THEN
 !
+          CHILDTASK=CHILD_TASK_RANKS(PTR_X%TASK_ID)
           ITAG=KNT_REAL_PTS(N)+NTIMESTEP_CHILD                             !<-- Tag that changes for data size and time
 !
           CALL MPI_ISEND(CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL           &  !<-- Internal real update data for moving nest task N
                         ,KNT_REAL_PTS(N)                                &  !<-- # of real words in the data string
                         ,MPI_REAL                                       &  !<-- Datatype
-                        ,PTR_X%TASK_ID                                  &  !<-- Local rank of nest task to recv data
+                        ,CHILDTASK                                      &  !<-- Local intracom rank of nest task to recv data
                         ,ITAG                                           &  !<-- Unique MPI tag
-                        ,COMM_TO_MY_CHILD                               &  !<-- MPI communicator
-                        ,HANDLE_UPDATE(PTR_X%TASK_ID+1)                 &  !<-- Handle for ISend to child task
+                        ,COMM_TO_MY_CHILD                               &  !<-- MPI intracommunicator
+                        ,HANDLE_UPDATE(PTR_X%TASK_ID)                   &  !<-- Handle for ISend to child task
                         ,IERR )
 !
           IF(KNT_INTEGER_PTS(N)>0)THEN
@@ -11051,10 +11351,10 @@
             CALL MPI_ISEND(CHILD_UPDATE_DATA%TASKS(N)%DATA_INTEGER      &  !<-- Internal integer update data for moving nest task N
                           ,KNT_INTEGER_PTS(N)                           &  !<-- # of integer words in the data string
                           ,MPI_INTEGER                                  &  !<-- Datatype
-                          ,PTR_X%TASK_ID                                &  !<-- Local rank of nest task to recv data
+                          ,CHILDTASK                                    &  !<-- Local intracom rank of nest task to recv data
                           ,ITAG                                         &  !<-- Unique MPI tag
-                          ,COMM_TO_MY_CHILD                             &  !<-- MPI communicator
-                          ,HANDLE_UPDATE(PTR_X%TASK_ID+1)               &  !<-- Handle for ISend to child task
+                          ,COMM_TO_MY_CHILD                             &  !<-- MPI intracommunicator
+                          ,HANDLE_UPDATE(PTR_X%TASK_ID)                 &  !<-- Handle for ISend to child task
                           ,IERR )
           ENDIF
 !

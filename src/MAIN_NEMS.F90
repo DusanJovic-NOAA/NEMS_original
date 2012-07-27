@@ -136,7 +136,7 @@
 !-----------------------------------------------------------------------
 !
       CALL MPI_Get_processor_name(PROCNAME,PROCNAME_LEN,RC)
-      write(0,*)'processor_name =',trim(PROCNAME)
+!     write(0,*)'processor_name =',trim(PROCNAME)
 !
 !-----------------------------------------------------------------------
 !***  Extract the MPI task ID.

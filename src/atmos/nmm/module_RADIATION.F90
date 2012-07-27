@@ -13,17 +13,12 @@
 !-----------------------------------------------------------------------
 !
       USE MODULE_INCLUDE
+      USE MODULE_MY_DOMAIN_SPECS
       USE MODULE_RA_GFDL,ONLY   : GFDL,CAL_MON_DAY,ZENITH
       USE MODULE_RA_RRTM,ONLY   : RRTM
       USE MODULE_CONSTANTS,ONLY : CAPPA,CP,EPSQ,G,P608,PI,R_D,STBOLT
 !
-      USE MODULE_DM_PARALLEL,ONLY : IDS,IDE,JDS,JDE                     &
-                                   ,IMS,IME,JMS,JME                     &
-                                   ,ITS,ITE,JTS,JTE                     &
-                                   ,ITS_B1,ITE_B1,JTS_B1,JTE_B1         &
-                                   ,LOOPLIMITS                          &
-                                   ,MPI_COMM_COMP                       &
-                                   ,MYPE_SHARE
+      USE MODULE_DM_PARALLEL,ONLY : LOOPLIMITS
 !
       USE MODULE_CONTROL,ONLY : NMMB_FINALIZE
 !
@@ -36,10 +31,6 @@
       PRIVATE
 !
       PUBLIC :: RADIATION
-!
-!-----------------------------------------------------------------------
-!
-      INTEGER :: MYPE
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -136,8 +127,8 @@
 !------------------------
 !
       INTEGER,INTENT(IN) :: LM,DT_INT                                   &
-     &                     ,IHRST,ITIMESTEP,JULDAY,JULYR                &
-     &                     ,NPHS,NRADL,NRADS,NUM_WATER
+                           ,IHRST,ITIMESTEP,JULDAY,JULYR                &
+                           ,NPHS,NRADL,NRADS,NUM_WATER
 !
       INTEGER,INTENT(IN) :: JDAT(8)
 !
@@ -152,27 +143,27 @@
       REAL,DIMENSION(LM+1),INTENT(IN) :: SGM
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: ALBEDO,CUPPT        &
-     &                                             ,GLAT,GLON           &
-     &                                             ,PD,SM               &
-     &                                             ,SNOW,THS,SI         &
-     &                                             ,TSKIN,Z0,SICE       &
-     &                                             ,MXSNAL,STDH
+                                                   ,GLAT,GLON           &
+                                                   ,PD,SM               &
+                                                   ,SNOW,THS,SI         &
+                                                   ,TSKIN,Z0,SICE       &
+                                                   ,MXSNAL,STDH
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,LM),INTENT(IN) :: Q,T,CW,O3        &
                                                       ,F_ICE,F_RAIN     &
                                                       ,F_RIMEF,OMGALF
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: ACFRCV,ACFRST    &
-     &                                                ,RLWIN,RLWTOA     &
-     &                                                ,RSWIN,RSWOUT     &
-     &                                                ,HBOT,HTOP        &
-     &                                                ,RSWINC,RSWTOA
+                                                      ,RLWIN,RLWTOA     &
+                                                      ,RSWIN,RSWOUT     &
+                                                      ,HBOT,HTOP        &
+                                                      ,RSWINC,RSWTOA
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,LM),INTENT(INOUT) :: RLWTT,RSWTT
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: CFRACH,CFRACL      &
-     &                                              ,CFRACM,CZMEAN      &
-     &                                              ,SIGT4
+                                                    ,CFRACM,CZMEAN      &
+                                                    ,SIGT4
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,LM,NUM_WATER),INTENT(INOUT) :: WATER
 !
@@ -216,9 +207,7 @@
                                              ,THRATEN,THRATENLW         &
                                              ,THRATENSW
 !
-      LOGICAL ::    GFDL_LW,GFDL_SW
-!
-!-----------------------------------------------------------------------
+      LOGICAL :: GFDL_LW,GFDL_SW
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -227,12 +216,10 @@
 !***** NOTE: THIS IS HARDWIRED FOR CALLS TO LONGWAVE AND SHORTWAVE
 !*****       AT EQUAL INTERVALS
 !*****
-      NRAD=NRADS
-      RADT=DT*NRADS/60.
-!
 !-----------------------------------------------------------------------
 !
-      MYPE=MYPE_SHARE
+      NRAD=NRADS
+      RADT=DT*NRADS/60.
 !
 !-----------------------------------------------------------------------
 !***  NOTE:  THE NMMB HAS IJK STORAGE WITH LAYER 1 AT THE TOP.

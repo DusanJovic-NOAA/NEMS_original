@@ -58,7 +58,7 @@
 !
       TYPE(ESMF_Grid) ,INTENT(IN) :: GRID                                  !<-- The ESMF Grid
 !
-      TYPE(SOLVER_INTERNAL_STATE),POINTER,INTENT(IN) :: INT_STATE          !<-- The Solver internal state
+      TYPE(SOLVER_INTERNAL_STATE),POINTER,INTENT(INOUT) :: INT_STATE       !<-- The Solver internal state
 !
       TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE_WRITE                    !<-- Import state for the Write components
 !
@@ -85,10 +85,8 @@
       CHARACTER(6)                :: FMT='(I2.2)'
       CHARACTER(ESMF_MAXSTR)      :: VBL_NAME
 !
-      TYPE(ESMF_FieldBundle),SAVE :: HISTORY_BUNDLE
-      TYPE(ESMF_FieldBundle),SAVE :: RESTART_BUNDLE
-!
-      TYPE(ESMF_FieldBundle),DIMENSION(1:2) :: BUNDLE_ARRAY
+      TYPE(ESMF_FieldBundle) :: HISTORY_BUNDLE                          &
+                               ,RESTART_BUNDLE
 !
       TYPE(ESMF_Field)            :: FIELD
 !
@@ -467,12 +465,12 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  Load the two output Bundles into the working array which is used
-!***  to add them to the Write component's import state.
+!***  Load the two output Bundles into the Solver's internal state
+!***  array needed to add them to the Write component's import state.
 !-----------------------------------------------------------------------
 !
-      BUNDLE_ARRAY(1)=HISTORY_BUNDLE
-      BUNDLE_ARRAY(2)=RESTART_BUNDLE
+      int_state%BUNDLE_ARRAY(1)=HISTORY_BUNDLE
+      int_state%BUNDLE_ARRAY(2)=RESTART_BUNDLE
 !
 !-----------------------------------------------------------------------
 !
@@ -481,10 +479,10 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(IMP_STATE_WRITE                                &  !<-- The Write component's import state
-                        ,LISTWRAPPER(BUNDLE_ARRAY)                      &  !<-- Array holding the History/Restart Bundles
+      CALL ESMF_StateAdd(state          =IMP_STATE_WRITE                     &  !<-- The Write component's import state
+                        ,fieldbundlelist=LISTWRAPPER(int_state%BUNDLE_ARRAY) &  !<-- Array holding the History/Restart Bundles
 #ifndef ESMF_520r
-                        ,count          =ITWO                           &  !<-- There are two Bundles in the array
+                        ,count          =ITWO                                &  !<-- There are two Bundles in the array
 #endif
                         ,rc             =RC)
 !

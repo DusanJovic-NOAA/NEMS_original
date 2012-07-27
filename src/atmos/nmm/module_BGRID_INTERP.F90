@@ -286,9 +286,6 @@
           DO I=1,IM
             H_VALUE(I, 1,L)=H_VALUE(I,   3,L)                             !<-- South
             H_VALUE(I,JM,L)=H_VALUE(I,JM-2,L)                             !<-- North
-      if(i==1.and.l==10)then
-        write(0,*)' V to H at 1,1 h_value=',h_value(i,1,l)
-      endif
           ENDDO
 !
 !-----------------------------------------------------------------------

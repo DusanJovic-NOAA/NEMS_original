@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------
 !***  This module contains the routine that reads in the text files
 !***  in which the user has specified internal state variables from
-!***  the Dynamics or Physics components to be:
+!***  the Solver component to be:
 !***    (1) In the history output
 !***    (2) In the restart output
 !***    (3) 'Owned' (allocated) by the component
@@ -18,7 +18,6 @@
 !-----------------------------------------------------------------------
 
       USE MODULE_INCLUDE
-      USE module_DM_PARALLEL,ONLY: MYPE_SHARE
 
 !-----------------------------------------------------------------------
       IMPLICIT NONE
@@ -82,15 +81,16 @@
 
 !#######################################################################
 
-      SUBROUTINE READ_CONFIG(FNAME,VARS,NUM_VARS,RC)
+      SUBROUTINE READ_CONFIG(FNAME,MYPE,VARS,NUM_VARS,RC)
 
 !-----------------------------------------------------------------------
-!***  Read the text file for Dynamics or Physics that specifies 
-!***  internal state variables for History, Restart, 'Ownership',
-!***  the Import state, or the eXport state.
+!***  Read the text file for the Solver component that specifies 
+!***  internal state variables for History, Restart, Import, or
+!***  eXport.
 !-----------------------------------------------------------------------
 
         IMPLICIT NONE
+        INTEGER, INTENT(IN) :: MYPE
         CHARACTER(LEN=*), INTENT(IN) :: FNAME
         TYPE(VAR), DIMENSION(:), INTENT(INOUT) :: VARS
         INTEGER, INTENT(OUT) :: NUM_VARS
@@ -161,7 +161,7 @@
         END DO  read_specs
 
         NUM_VARS = N
-        IF (MYPE_SHARE==0) THEN
+        IF (MYPE==0) THEN
           WRITE(0,*)' NUM_VARS in ',TRIM(FNAME),' ',NUM_VARS
         ENDIF
 
@@ -174,9 +174,9 @@
       SUBROUTINE SET_VAR_PTR_I0D (VARS,NUM_VARS,VBL_NAME,I0D)
 
 !--------------------------------------------------------------------
-!***  Allocate memory for 'Owned' integer scalars in the Dynamics or
-!***  Physics internal states if so directed by ALLOC_FLAG and point
-!***  those variables into that memory.
+!***  Allocate memory for 'Owned' integer scalars in the Solver
+!***  internal state if so directed by ALLOC_FLAG and point those
+!***  variables into that memory.
 !--------------------------------------------------------------------
 
         IMPLICIT NONE
@@ -204,8 +204,8 @@
       SUBROUTINE SET_VAR_PTR_R0D (VARS,NUM_VARS,VBL_NAME,R0D)
 
 !--------------------------------------------------------------------
-!***  Allocate memory for 'Owned' real scalars in the Dynamics or
-!***  Physics internal states if so directed by ALLOC_FLAG and point
+!***  Allocate memory for 'Owned' real scalars in the Solver
+!***  internal state if so directed by ALLOC_FLAG and point
 !***  those variables into that memory.
 !--------------------------------------------------------------------
 
@@ -234,9 +234,9 @@
       SUBROUTINE SET_VAR_PTR_I1D (VARS,NUM_VARS,VBL_NAME,I1D,lowbound,upbound)
 
 !-----------------------------------------------------------------------
-!***  Allocate memory for 'Owned' integer 1-D arrays in the Dynamics 
-!***  or Physics internal states if so directed by ALLOC_FLAG and point
-!***  those variables into that memory.
+!***  Allocate memory for 'Owned' integer 1-D arrays in the Solver 
+!***  internal state if so directed by ALLOC_FLAG and point those
+!***  variables into that memory.
 !-----------------------------------------------------------------------
 
         IMPLICIT NONE
@@ -265,9 +265,9 @@
       SUBROUTINE SET_VAR_PTR_I2D (VARS,NUM_VARS,VBL_NAME,I2D,lowbound,upbound)
 
 !-----------------------------------------------------------------------
-!***  Allocate memory for 'Owned' integer 2-D arrays in the Dynamics
-!***  or Physics internal states if so directed by ALLOC_FLAG and point
-!***  those variables into that memory.
+!***  Allocate memory for 'Owned' integer 2-D arrays in the Solver
+!***  internal state if so directed by ALLOC_FLAG and point those
+!***  variables into that memory.
 !-----------------------------------------------------------------------
 
         IMPLICIT NONE
@@ -297,9 +297,9 @@
       SUBROUTINE SET_VAR_PTR_R1D (VARS,NUM_VARS,VBL_NAME,R1D,lowbound,upbound)
 
 !-----------------------------------------------------------------------
-!***  Allocate memory for 'Owned' real 1-D arrays in the Dynamics
-!***  or Physics internal states if so directed by ALLOC_FLAG and point
-!***  those variables into that memory.
+!***  Allocate memory for 'Owned' real 1-D arrays in the Solver
+!***  internal state if so directed by ALLOC_FLAG and point those
+!***  variables into that memory.
 !-----------------------------------------------------------------------
 
         IMPLICIT NONE
@@ -328,9 +328,9 @@
       SUBROUTINE SET_VAR_PTR_R2D (VARS,NUM_VARS,VBL_NAME,R2D,lowbound,upbound)
 
 !-----------------------------------------------------------------------
-!***  Allocate memory for 'Owned' real 2-D arrays in the Dynamics
-!***  or Physics internal states if so directed by ALLOC_FLAG and point
-!***  those variables into that memory.
+!***  Allocate memory for 'Owned' real 2-D arrays in the Solver
+!***  internal state if so directed by ALLOC_FLAG and point those
+!***  variables into that memory.
 !-----------------------------------------------------------------------
 
         IMPLICIT NONE
@@ -360,9 +360,9 @@
       SUBROUTINE SET_VAR_PTR_R3D (VARS,NUM_VARS,VBL_NAME,R3D,lowbound,upbound)
 
 !-----------------------------------------------------------------------
-!***  Allocate memory for 'Owned' real 3-D arrays in the Dynamics
-!***  or Physics internal states if so directed by ALLOC_FLAG and point
-!***  those variables into that memory.
+!***  Allocate memory for 'Owned' real 3-D arrays in the Solver
+!***  internal state if so directed by ALLOC_FLAG and point those
+!***  variables into that memory.
 !-----------------------------------------------------------------------
 
         IMPLICIT NONE
@@ -393,9 +393,9 @@
       SUBROUTINE SET_VAR_PTR_R4D (VARS,NUM_VARS,VBL_NAME,R4D,lowbound,upbound)
 
 !-----------------------------------------------------------------------
-!***  Allocate memory for 'Owned' real 4-D arrays in the Dynamics
-!***  or Physics internal states if so directed by ALLOC_FLAG and point
-!***  those variables into that memory.
+!***  Allocate memory for 'Owned' real 4-D arrays in the Solver
+!***  internal state if so directed by ALLOC_FLAG and point those
+!***  variables into that memory.
 !-----------------------------------------------------------------------
 
         IMPLICIT NONE
@@ -428,8 +428,8 @@
 
 !----------------------------------------------------------------------
 !***  Deallocate the memory that had been allocated within the VARS
-!***  composite array into which Dynamics and Physics internal state
-!***  variables are pointing.
+!***  composite array into which Solver internal state variables are
+!***  pointing.
 !----------------------------------------------------------------------
 
       IMPLICIT NONE

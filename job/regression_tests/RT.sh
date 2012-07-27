@@ -204,6 +204,7 @@ fi
 # GBRG        - NMMB global/regional/nest/filter option
 # QUILT       - quilting ON/OFF
 # NSOUT       - number of timesteps for output
+# MODE        - nesting mode (1-way or 2-way)
 # CLASS       - job class (LoadLeveler)
 # GROUP       - job group (LoadLeveler)
 # ACCNR       - account number (LoadLeveler)
@@ -309,7 +310,7 @@ export_nmm ()
 {
 export_common
 export GBRG=reg     ; export TPN=$TPNm   ; export INPES=$INPm ; export JNPES=$JNPm
-export AFFN=core    ; export NODE=1
+export AFFN=core    ; export NODE=1      ; export MODE=1-way
 export NEMSI=false  ; export RSTRT=false ; export gfsP=false  ; export FCSTL=48
 export PCPFLG=false ; export WPREC=false ; export CPPCP=#     ; export TS=#
 export NCHILD=0     ; export CONVC=bmj   ; export MICRO=fer   ; export TURBL=myj
@@ -911,7 +912,7 @@ nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
 #---------------------
 export_nmm
 export GBRG=nests ; export TPN=$TPNn ; export FCSTL=24
-export AFFN=cpu   ; export NODE=2
+export AFFN=cpu   ; export NODE=2    ; export MODE=1-way
 export INPES=02   ; export JNPES=03  ; export WTPG=1
 export WLCLK=20   ; export NCHILD=02
 #---------------------
@@ -945,7 +946,7 @@ nmmb_hst_04_bin_0024h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s"
 #---------------------
 export_nmm
 export GBRG=nests ; export TPN=$TPNn ; export FCSTL=24
-export AFFN=cpu   ; export NODE=2
+export AFFN=cpu   ; export NODE=2    ; export MODE=1-way
 export INPES=02   ; export JNPES=03  ; export WTPG=1
 export RSTRT=true ; export WLCLK=12  ; export NCHILD=02
 #---------------------
@@ -981,7 +982,7 @@ export_nmm
 export GBRG=fltr  ; export TPN=64   ; export FCSTL=03
 export INPES=02   ; export JNPES=02 ; export WTPG=1
 export NEMSI=true ; export WLCLK=06 ; export NCHILD=01
-export AFFN=cpu
+export AFFN=cpu   ; MODE=1-way
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1021,9 +1022,52 @@ nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s"
 #---------------------
 export_nmm
 export GBRG=mnests ; export TPN=$TPNn ; export FCSTL=24
-export AFFN=cpu    ; export NODE=2
+export AFFN=cpu    ; export NODE=2    ; MODE=1-way
 export INPES=08    ; export JNPES=08  ; export WTPG=4
 export NEMSI=true  ; export WLCLK=10  ; export NCHILD=02
+#---------------------
+  ./rt_nmm.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi # endif test
+
+
+####################################################################################################
+#
+# TEST   - NMM-B moving nests: Same as above except with generational task assignments.
+#        - Compute tasks - Upper parent 7x16 | Child #1 4x6 | Child #2 4x6 | Grandchild 5x10
+#        - 1 thread / opnl physics / free fcst / nemsio and pure binary input
+#
+####################################################################################################
+
+if [ ${RT_FULL} = true ]; then
+
+export TEST_DESCR="Test NMMB-regional with moving nests and generational task assignments"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_mvg_nests_gens
+export CNTL_DIR=NMMB_mvg_nests
+export LIST_FILES=" \
+nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
+nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s \
+nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
+nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
+nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
+nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
+nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
+nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s"
+#nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
+#nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
+#nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
+#---------------------
+export_nmm
+export GBRG=mnests ; export TPN=$TPNn ; export FCSTL=24
+export AFFN=cpu    ; export NODE=2    ; export MODE=2-way
+export INPES=07    ; export JNPES=16  ; export WTPG=4
+export NEMSI=true  ; export WLCLK=20  ; export NCHILD=02
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi

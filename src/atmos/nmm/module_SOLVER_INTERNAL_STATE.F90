@@ -1,3 +1,12 @@
+
+#include "../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#else
+#define ESMF_520r
+#endif
+
 !-----------------------------------------------------------------------
 
       MODULE MODULE_SOLVER_INTERNAL_STATE
@@ -10,6 +19,8 @@
 !***  those quantities that evolve during the integration, the namelist
 !***  variables, and the grid decomposition variables.
 !-----------------------------------------------------------------------
+!
+      USE ESMF_Mod
 !
       USE module_INCLUDE
 
@@ -47,10 +58,16 @@
         INTEGER(kind=KINT) :: INPES,JNPES                               &
                              ,DFIHR_BOCO                                &
                              ,FILTER_METHOD                             &
+                             ,FILTER_METHOD_LAST                        &
                              ,MINUTES_HISTORY                           &
                              ,MINUTES_RESTART                           &
+                             ,MY_DOMAIN_ID                              &
+                             ,NCOUNT                                    &
                              ,NHOURS_FCST                               &
                              ,NSTEPS_BC_RESTART                         &
+                             ,NSTEPS_PER_CHECK                          &
+                             ,NSTEPS_PER_HOUR                           &
+                             ,NSTEPS_PER_RESET                          &
                              ,NUM_TRACERS_MET                           &  !<-- Number of meteorological tracers (e.g. water)
                              ,NUM_TRACERS_CHEM                          &  !<-- Number of chem/aerosol tracers
                              ,START_YEAR                                &
@@ -73,11 +90,13 @@
 !
         LOGICAL(kind=KLOG) :: ADIABATIC                                 &
                              ,ADVECT_TRACERS                            &
+                             ,FIRST_NMM                                 &
                              ,FREERUN                                   &
                              ,GLOBAL                                    &
                              ,HYDRO                                     &
                              ,NEMSIO_INPUT                              &
                              ,OPER                                      &
+                             ,OPERATIONAL_PHYSICS                       &
                              ,PRINT_ALL                                 &
                              ,PRINT_OUTPUT                              &
                              ,PRINT_DIAG                                &
@@ -89,21 +108,43 @@
                              ,READ_GLOBAL_SUMS                          &
                              ,WRITE_GLOBAL_SUMS
 !
+#ifdef ESMF_3
+        TYPE(ESMF_Logical) :: MY_DOMAIN_MOVES
+#else
+        LOGICAL(kind=KLOG) :: MY_DOMAIN_MOVES
+#endif
+!
 !-----------------------------------------------------------------------
 !***  Distributed memory information.
 !-----------------------------------------------------------------------
 !
         INTEGER(kind=KINT) :: IHALO,JHALO,MYPE,NHALO,NUM_PES            &
+                             ,NUM_PTS_MAX                               &
                              ,WRITE_GROUPS,WRITE_TASKS_PER_GROUP        
 !
         INTEGER(kind=KINT) :: ITS,ITE,JTS,JTE                           &
                              ,IMS,IME,JMS,JME                           &
                              ,IDS,IDE,JDS,JDE
 !
+        INTEGER(kind=KINT) :: ITE_B1,ITE_B2,ITE_B1_H1,ITE_B1_H2         &
+                             ,ITE_H1,ITE_H2                             &                    
+                             ,ITS_B1,ITS_B2,ITS_B1_H1,ITS_B1_H2         &
+                             ,ITS_H1,ITS_H2                             &                    
+                             ,JTE_B1,JTE_B2,JTE_B1_H1,JTE_B1_H2         &
+                             ,JTE_H1,JTE_H2                             &                    
+                             ,JTS_B1,JTS_B2,JTS_B1_H1,JTS_B1_H2         &
+                             ,JTS_H1,JTS_H2
+!
+        INTEGER(kind=KINT) :: MPI_COMM_COMP
+!
+        INTEGER(kind=KINT),DIMENSION(1:8) :: MY_NEB
+!
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: LOCAL_ISTART         &
                                                   ,LOCAL_IEND           &
                                                   ,LOCAL_JSTART         &
                                                   ,LOCAL_JEND
+!
+        LOGICAL(kind=KLOG) :: E_BDY,N_BDY,S_BDY,W_BDY
 !
 !-----------------------------------------------------------------------
 !***  Horizontal and vertical grid-related variables.
@@ -148,7 +189,7 @@
 !***  Integration quantities.
 !-----------------------------------------------------------------------
 !
-        LOGICAL(kind=KLOG) :: FIRST,READBC                              &
+        LOGICAL(kind=KLOG) :: FIRST_STEP,READBC                         &
                              ,ADV_STANDARD,ADV_UPSTREAM
 !
         INTEGER(kind=KINT), POINTER :: IHRST
@@ -156,6 +197,9 @@
                              ,LNSAD,NBOCO,NTSTI,NTSTM,NTSTM_MAX
 !
         INTEGER(kind=KINT),DIMENSION(:), POINTER :: IDAT
+!
+        REAL(kind=KFPT) :: DT_TEST_RATIO                                &
+                          ,DT_LAST
 !
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: BARO                &
                                                    ,PINT,RTOP           &
@@ -176,7 +220,8 @@
                                                    ,PFX,PFY             &
                                                    ,TCT,TCU,TCV
 !
-        LOGICAL(kind=KLOG) :: RUN
+        LOGICAL(kind=KLOG) :: FIRST_PASS                                &
+                             ,RUN
 !
 !-----------------------------------------------------------------------
 !***  The general 4-D arrays for 3-D "tracers".
@@ -287,9 +332,15 @@
                                       ,J_PAR_STA                           !<-- SW corner of nest domain on this parent J
         INTEGER(kind=KINT) :: PARENT_CHILD_TIME_RATIO                      !<-- # of child timesteps per parent timestep
 !
+#ifdef ESMF_3
+        TYPE(ESMF_Logical) :: I_AM_A_NEST                                  !<-- Am I in a nested domain?
+#else
+        LOGICAL(kind=KLOG) :: I_AM_A_NEST                                  !<-- Am I in a nested domain?
+#endif
 !
+!-----------------------------------------------------------------------
 ! FROM PHY start
-
+!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  Begin with the namelist variables.
@@ -462,11 +513,14 @@
 !
 ! FROM PHY end
 !-----------------------------------------------------------------------
-!***  Variable table
+!***  Output
 !-----------------------------------------------------------------------
 !
-        TYPE(VAR),DIMENSION(MAX_VARS) :: VARS
         INTEGER :: NUM_VARS = 0
+!
+        TYPE(VAR),DIMENSION(MAX_VARS) :: VARS
+!
+        TYPE(ESMF_FieldBundle),DIMENSION(1:2) :: BUNDLE_ARRAY
 !
 !-----------------------------------------------------------------------
 !
@@ -483,25 +537,29 @@
 !
 !-----------------------------------------------------------------------
 !
+      INTEGER(kind=KINT) :: ITS,ITE,IMS,IME,IDS,IDE                     &
+                           ,JTS,JTE,JMS,JME,JDS,JDE
+!
+!-----------------------------------------------------------------------
+!
       CONTAINS
 !
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE SET_INTERNAL_STATE_SOLVER(INT_STATE,RC)
+      SUBROUTINE SET_INTERNAL_STATE_SOLVER(INT_STATE                    &
+                                          ,LM                           &
+                                          ,ITS,ITE,JTS,JTE              &
+                                          ,IMS,IME,JMS,JME              &
+                                          ,IDS,IDE,JDS,JDE              &
+                                          ,IHALO,JHALO                  &
+                                          ,MYPE                         &
+                                          ,RC )
 !
 !-----------------------------------------------------------------------
 !***  Allocate the internal state quantities in the Solver component's
 !***  Init step.  
-!-----------------------------------------------------------------------
-!
-      USE module_DM_PARALLEL,ONLY: IDS,IDE,JDS,JDE                      &
-                                  ,IMS,IME,JMS,JME                      &
-                                  ,ITS,ITE,JTS,JTE                      &
-                                  ,LM                                   &
-                                  ,IHALO,JHALO
-!
 !-----------------------------------------------------------------------
 !
       IMPLICIT NONE
@@ -513,6 +571,14 @@
 !------------------------
 !
       TYPE(SOLVER_INTERNAL_STATE),INTENT(INOUT) :: INT_STATE               !<-- The SOLVER internal state
+!
+      INTEGER(kind=KINT),INTENT(IN) :: ITS,ITE,JTS,JTE                  &  !<-- Integration limits of task subdomains
+                                      ,IMS,IME,JMS,JME                  &  !<-- Memory dimensions of task subdomain
+                                      ,IDS,IDE,JDS,JDE                  &  !<-- Dimensions of full domain
+                                      ,IHALO,JHALO                      &  !<-- Width of haloes in I and J
+                                      ,LM                               &  !<-- Number of model layers
+                                      ,MYPE                                !<-- Local task rank on this domain
+!
       INTEGER, INTENT(OUT) :: RC
 !
 !---------------------
@@ -612,7 +678,11 @@
 !***  in the Solver text file. 
 !------------------------------------------------
 !
-      CALL READ_CONFIG('solver_state.txt',int_state%VARS,int_state%NUM_VARS,RC)
+      CALL READ_CONFIG('solver_state.txt'                           &
+                      ,MYPE                                         &
+                      ,int_state%VARS                               &
+                      ,int_state%NUM_VARS                           &
+                      ,RC )
       IF (RC /= 0) RETURN
 !
 !-------------------------------------------------------------------
@@ -862,9 +932,9 @@
 
 !
 !-----------------------------------------------------------------------
-!***  Calculate the size of the storage needed of one tracer variabale (TRACER_SIZE_1)
+!***  Calculate the size of the storage needed for one tracer variable (TRACER_SIZE_1)
 !***  and the size for all tracers (TRACER_SIZE). Then allocate one-dimensional
-!***  arrays that will serve as a actual storage.  The actual storage
+!***  arrays that will serve as actual storage.  The actual storage
 !***  array must be 1-D because multi-dimensional pointers are used 
 !***  to represent the actual tracer variables.  Fortran will allow
 !***  a multi-dimensional pointer to point only into a 1-D target

@@ -24,6 +24,7 @@ MODULES  = \
                 module_GET_CONFIG_WRITE.o \
                 module_GWD.o \
                 module_H_TO_V.o \
+                module_MY_DOMAIN_SPECS.o \
                 module_NESTING.o \
                 module_NMM_GRID_COMP.o \
                 module_NMM_INTEGRATE.o \

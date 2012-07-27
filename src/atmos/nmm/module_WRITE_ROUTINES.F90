@@ -56,10 +56,8 @@
 !
       USE MODULE_DOMAIN_INTERNAL_STATE,ONLY: DOMAIN_INTERNAL_STATE
 !
-      USE MODULE_DM_PARALLEL,ONLY : PARA_RANGE,MPI_COMM_INTER_ARRAY     &
-                                   ,MPI_COMM_COMP                       &
-                                   ,LOCAL_ISTART,LOCAL_IEND             &
-                                   ,LOCAL_JSTART,LOCAL_JEND
+      USE MODULE_DM_PARALLEL,ONLY : PARA_RANGE                          &
+                                   ,MPI_COMM_COMP
 !
       USE MODULE_CONTROL,ONLY : TIMEF
 !
@@ -789,8 +787,7 @@
 !
       fcst_tasks_2: IF(MYPE_DOMAIN<=LAST_FCST_TASK)THEN                    !<-- Only forecast tasks will extract output information
                                                                            !    from the import state because only they participated
-                                                                           !    in filling the import state in the Dynamics/Physics
-                                                                           !    components.
+                                                                           !    in filling the import state in the Solver component.
 !
 !-----------------------------------------------------------------------
 !***  First find the number of Attributes in the output data Bundle
@@ -2235,13 +2232,11 @@
       ENDDO n_groups_3
 !
 !-----------------------------------------------------------------------
-!***  when run post on quilt, all the write tasks need to know the
+!***  When run post on quilt, all the write tasks need to know the
 !***  variables in history bundle that first forecast task sent to
-!***  lead write tasks
+!***  lead write tasks.
 !-----------------------------------------------------------------------
 !
-!     write(0,*)'lead write task, OUTPUT_FLAG=',OUTPUT_FLAG,'dopost=', &
-!           WRT_INT_STATE%WRITE_DOPOST
       IF(WRT_INT_STATE%WRITE_DOPOST.and.OUTPUT_FLAG=='History')THEN
 !
       n_groups_4: DO N=1,NUM_WRITE_GROUPS
@@ -2252,34 +2247,34 @@
 !
         IF(MYPE_DOMAIN>=N1.AND.MYPE_DOMAIN<=N2)THEN
 
-           write(0,*)'bf broadcast NCHAR_I2D'
+!          write(0,*)'bf broadcast NCHAR_I2D'
           CALL MPI_BCAST(NCHAR_I2D,1,MPI_INTEGER,0,MPI_COMM_COMP,IERR)
-           write(0,*)'af broadcast NCHAR_I2D=',NCHAR_I2D
+!          write(0,*)'af broadcast NCHAR_I2D=',NCHAR_I2D
           CALL MPI_BCAST(NAMES_I2D_STRING,NCHAR_I2D(1),MPI_CHARACTER,0,   &
                          MPI_COMM_COMP,IERR)
-           write(0,*)'af broadcast NAMES_I2D_STRING=',NAMES_I2D_STRING(1:30)
+!          write(0,*)'af broadcast NAMES_I2D_STRING=',NAMES_I2D_STRING(1:30)
           CALL MPI_BCAST(NCHAR_R2D,1,MPI_INTEGER,0,MPI_COMM_COMP,IERR)
-           write(0,*)'af broadcast NCHAR_R2D=',NCHAR_R2D
+!          write(0,*)'af broadcast NCHAR_R2D=',NCHAR_R2D
           CALL MPI_BCAST(NAMES_R2D_STRING,NCHAR_R2D(1),MPI_CHARACTER,0,   &
                          MPI_COMM_COMP,IERR)
 !integer
           CALL MPI_BCAST(KOUNT_I1D,1,MPI_INTEGER,0,MPI_COMM_COMP,IERR)
           CALL MPI_BCAST(LENGTH_SUM_I1D,1,MPI_INTEGER,0,MPI_COMM_COMP,   &
                           IERR)
-           write(0,*)'af broadcast LENGTH_SUM_I1D=',LENGTH_SUM_I1D(1)
+!          write(0,*)'af broadcast LENGTH_SUM_I1D=',LENGTH_SUM_I1D(1)
           CALL MPI_BCAST(LENGTH_DATA_I1D,KOUNT_I1D(1),MPI_INTEGER,0,     &
                           MPI_COMM_COMP,IERR)
-           write(0,*)'af broadcast LENGTH_DATA_I1D=',LENGTH_DATA_I1D(1)
+!          write(0,*)'af broadcast LENGTH_DATA_I1D=',LENGTH_DATA_I1D(1)
           NCHAR_I1D=KOUNT_I1D(1)*ESMF_MAXSTR
           CALL MPI_BCAST(NAMES_I1D_STRING,NCHAR_I1D,MPI_CHARACTER,0,     &
                           MPI_COMM_COMP,IERR)
-           write(0,*)'af broadcast NAMES_I1D_STRING=',NAMES_I1D_STRING(1:30)
+!          write(0,*)'af broadcast NAMES_I1D_STRING=',NAMES_I1D_STRING(1:30)
           CALL MPI_BCAST(ALL_DATA_I1D,LENGTH_SUM_I1D(1),MPI_LOGICAL,0,   &
                           MPI_COMM_COMP,IERR)
-           write(0,*)'af broadcast ALL_DATA_I1D=',ALL_DATA_I1D(1:5)
+!          write(0,*)'af broadcast ALL_DATA_I1D=',ALL_DATA_I1D(1:5)
 !real
           CALL MPI_BCAST(KOUNT_R1D,1,MPI_INTEGER,0,MPI_COMM_COMP,IERR)
-           write(0,*)'af broadcast NCHAR_R1D=',KOUNT_R1D
+!          write(0,*)'af broadcast NCHAR_R1D=',KOUNT_R1D
           CALL MPI_BCAST(LENGTH_SUM_R1D,1,MPI_INTEGER,0,MPI_COMM_COMP,   &
                           IERR)
           CALL MPI_BCAST(LENGTH_DATA_R1D,KOUNT_R1D(1),MPI_INTEGER,0,     &
@@ -2291,7 +2286,7 @@
                  MPI_COMM_COMP,IERR)
 !logical
           CALL MPI_BCAST(KOUNT_LOG,1,MPI_INTEGER,0,MPI_COMM_COMP,IERR)
-           write(0,*)'af broadcast NCHAR_LOG=',KOUNT_LOG
+!          write(0,*)'af broadcast NCHAR_LOG=',KOUNT_LOG
           CALL MPI_BCAST(LENGTH_SUM_LOG,1,MPI_INTEGER,0,MPI_COMM_COMP,   &
                           IERR)
           NCHAR_LOG=KOUNT_LOG(1)*ESMF_MAXSTR
@@ -2782,6 +2777,7 @@
 !
       SUBROUTINE WRITE_INIT(DOMAIN_GRID_COMP                            &
                            ,DOMAIN_INT_STATE                            &
+                           ,DOMAIN_IMP_STATE                            &
                            ,CLOCK_DOMAIN)
 ! 
 !-----------------------------------------------------------------------
@@ -2792,20 +2788,25 @@
 !*** Argument Variables
 !-----------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT)         :: DOMAIN_GRID_COMP       !<-- The DOMAIN component
+      TYPE(ESMF_GridComp),INTENT(INOUT)         :: DOMAIN_GRID_COMP        !<-- The DOMAIN component
 !
-      TYPE(DOMAIN_INTERNAL_STATE),INTENT(INOUT) :: DOMAIN_INT_STATE       !<-- The DOMAIN Internal State
+      TYPE(DOMAIN_INTERNAL_STATE),INTENT(INOUT) :: DOMAIN_INT_STATE        !<-- The DOMAIN Internal State
 !
-      TYPE(ESMF_Clock),INTENT(INOUT)            :: CLOCK_DOMAIN           !<-- The DOMAIN Component's ESMF Clock
+      TYPE(ESMF_State),INTENT(INOUT)            :: DOMAIN_IMP_STATE        !<-- The DOMAIN import state
+!
+      TYPE(ESMF_Clock),INTENT(INOUT)            :: CLOCK_DOMAIN            !<-- The DOMAIN Component's ESMF Clock
 !
 !---------------------
 !***  Local Variables
 !---------------------
 !
-      TYPE(ESMF_Config)      :: CF                                        !<-- The config object
-      TYPE(ESMF_VM)          :: VM                                        !<-- The ESMF virtual machine.
+      INTEGER(kind=KINT) :: I,INPES,J,JNPES,LEAD_TASK,NUM_PES_FCST
 !
-      INTEGER :: I,INPES,J,JNPES,NUM_PES_FCST,RC,RC_INIT
+      INTEGER(kind=KINT) :: RC,RC_INIT
+!
+      TYPE(ESMF_Config) :: CF                                              !<-- The config object
+!
+      TYPE(ESMF_VM) :: VM                                                  !<-- The ESMF virtual machine.
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -2833,7 +2834,7 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Write Init: Get INPES/JNPES from Config File"
+      MESSAGE_CHECK="Write Init: Get INPES from Config File"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -2841,6 +2842,15 @@
                                   ,value =INPES                         &  !<-- # of fcst tasks in I direction
                                   ,label ='inpes:'                      &  !<-- Give the value of this label to INPES
                                   ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Write Init: Get JNPES from Config File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The ESMF configure object
                                   ,value =JNPES                         &  !<-- # of fcst tasks in J direction
@@ -2852,6 +2862,40 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       NUM_PES_FCST=INPES*JNPES                                             !<-- Total number of forecast tasks
+!
+!-----------------------------------------------------------------------
+!***  Transfer the rank of the lead task on each domain into the
+!***  Write component import states since that component needs
+!***  this information.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Write Init: Extract Lead Task on Domain from Domain Import"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=DOMAIN_IMP_STATE                   &  !<-- The Domain component's import state
+                              ,name ='Lead Task Domain'                 &  !<-- Name of the Attribute to extract
+                              ,value=LEAD_TASK                          &  !<-- Global rank of lead task on this domain
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Write Init: Insert Lead Task into Write Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_WRITE   &  !<-- The Write component's import state
+                              ,name ='Lead Task Domain'                 &  !<-- Name of the Attribute to extract
+                              ,value=LEAD_TASK                          &  !<-- Global rank of lead task on this domain
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Execute the Initialize step for the Write components.
@@ -2894,14 +2938,12 @@
 !***  and once for restart output.
 !-----------------------------------------------------------------------
 !
-!     write(0,*)' calling PRELIM for history'
       CALL PRELIM_INFO_FOR_OUTPUT('History'                             &
                                  ,NUM_PES_FCST                          &
                                  ,domain_int_state%WRITE_GROUPS         &
                                  ,domain_int_state%WRITE_COMPS          &
                                  ,domain_int_state%IMP_STATE_WRITE )
 !
-!     write(0,*)' calling PRELIM for restart'
       CALL PRELIM_INFO_FOR_OUTPUT('Restart'                             &
                                  ,NUM_PES_FCST                          &
                                  ,domain_int_state%WRITE_GROUPS         &
@@ -3069,7 +3111,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  The export state of the Dynamics component lies within the
+!***  The export state of the SOLVER component lies within the
 !***  internal state of the DOMAIN component and holds the
 !***  import state of the Write component.
 !***  Extract that Write component's import state since we are 
@@ -3107,7 +3149,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       DO I=1,NUM_PES_FCST+WRITE_TASKS_PER_GROUP
-!     write(0,*)' I=',i,' mype=',mype,' petlist=',domain_int_state%PETLIST_WRITE(I,N_GROUP)
         IF(MYPE==domain_int_state%PETLIST_WRITE(I,N_GROUP))THEN
           CALL ESMF_GridCompRun(gridcomp=domain_int_state%WRITE_COMPS(N_GROUP) &  !<-- The write gridded component
                                ,importState=domain_int_state%IMP_STATE_WRITE   &  !<-- Its import state

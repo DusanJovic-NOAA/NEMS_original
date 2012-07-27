@@ -92,7 +92,7 @@ integer(kind=kint),dimension(8) :: &
  my_neb                      ! my task's eight neighbors 
 !
 integer(kind=kint),dimension(max_groups) :: &
- mpi_comm_inter_array &      ! intercommunicators for the integration tasks
+ mpi_intercomm_array &       ! intercommunicators for the integration tasks
 ,num_serv_per_grp            ! number of tasks in each group
 !
 integer(kind=kint),allocatable,dimension(:) :: &
@@ -122,7 +122,7 @@ integer :: mpi_intra
 !-----------------------------------------------------------------------
 !
 !   input argument list:
-!    mype          - My task ID
+!    mype          - The fsct/quilt task rank in the domain intracommunicator.
 !    inpes         - Number of mpi tasks in the X direction
 !    jnpes         - Number of mpi tasks in the Y direction
 !    npes          - Total number of mpi tasks provided to the job.  As input 
@@ -138,7 +138,7 @@ integer :: mpi_intra
 !                    least one greater than npes_fcst.
 !                    Later in the routine, npes is reset to the number of fcst tasks.
 !    ngroups_write - Number of groups of write tasks.
-!    mpi_intra     - The global communicator.
+!    mpi_intra     - The domain intracommunicator.
 !    write_tasks_per_group - # of write tasks per write group
 !
 !-----------------------------------------------------------------------
@@ -339,11 +339,8 @@ integer :: mpi_intra
 !***  refers to all the mpi tasks (model integration AND quilt tasks).
 !-----------------------------------------------------------------------
 !        
-!!!   call mpi_comm_dup(mpi_comm_world,comdup,ierr)
       call mpi_comm_dup(mpi_intra,comdup,ierr)
       call mpi_comm_split(comdup,icolor,mype,mpi_comm_comp,ierr)
-!     write(0,*)' SETUP_SERVERS fcst/quilt intracommunicator mpi_comm_comp=',mpi_comm_comp &
-!              ,' global intra is ',comdup
 !
 !-----------------------------------------------------------------------
 !***  At this point we have a new communicator, mpi_comm_comp,
@@ -379,7 +376,6 @@ integer :: mpi_intra
 !
         if(mype<npes_fcst)then
           lead_remote=ixx                                                !<-- All fcst tasks set lead_remote to total # of fcst tasks.
-!!!       lead_remote=ixx+(i-1)*write_tasks_per_group                    !<-- All fcst tasks set lead_remote to total # of fcst tasks.
                                                                          !    This is the rank of the lead quilt task in each
                                                                          !    quilt group as seen by the fcst tasks.  In other
                                                                          !    words it is the rank of the final fcst task plus 1.
@@ -432,7 +428,7 @@ integer :: mpi_intra
 !***  been excluded. Save this new intercommunicator in mpi_comm_inter for use
 !***  by the tasks that belong to the quilt group that we are considering. The
 !***  tasks that are performing the model integration will reference
-!***  mpi_comm_inter_array() since they will need to select which quilt
+!***  mpi_intercomm_array() since they will need to select which quilt
 !***  group they wish to communicate with.
 !-----------------------------------------------------------------------
 !
@@ -443,10 +439,10 @@ integer :: mpi_intra
                                                                           !    quilt tasks in group i
                                    ,lead_remote                         & !<-- Rank of leader in the remote group in iworld_minus
                                    ,0                                   & !<-- A tag
-                                   ,mpi_comm_inter_array(i)             & !<-- The new intercommunicator between the fcst tasks and
+                                   ,mpi_intercomm_array(i)              & !<-- The new intercommunicator between the fcst tasks and
                                                                           !    the tasks in quilt group i
                                    ,ierr)
-           mpi_comm_inter=mpi_comm_inter_array(i)
+           mpi_comm_inter=mpi_intercomm_array(i)
         endif
 !
         call mpi_barrier(mpi_intra,ierr)
@@ -682,6 +678,13 @@ integer :: mpi_intra
 !***  Each task will save its own start/end values.
 !-----------------------------------------------------------------------
 !
+      if(allocated(local_istart))then
+        deallocate(local_istart)
+        deallocate(local_iend)
+        deallocate(local_jstart)
+        deallocate(local_jend)
+      endif
+!
       npes=npes_fcst
       allocate(local_istart(0:npes-1),stat=istat)
       allocate(local_iend(0:npes-1),stat=istat)
@@ -690,6 +693,10 @@ integer :: mpi_intra
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       if(mype==0)then
+        if(allocated(ijcount_all))then
+          deallocate(ijcount_all)
+        endif
+!
         allocate(ijcount_all(2,0:npes-1),stat=istat)
         ijcount_all(1,0)=ijcount(1)
         ijcount_all(2,0)=ijcount(2)
@@ -747,6 +754,7 @@ integer :: mpi_intra
           ite=local_iend(npe)
           jts=local_jstart(npe)
           jte=local_jend(npe)
+!     write(0,*)' after bcast its=',its,' ite=',ite,' jts=',jts,' jte=',jte
         endif
 !
       enddo local_ij
@@ -871,6 +879,10 @@ integer :: mpi_intra
 !***  of my_neb is set to -1.
 !-----------------------------------------------------------------------
 !
+      if(allocated(itemp))then
+        deallocate(itemp)
+      endif
+!
       allocate(itemp(inpes,jnpes),stat=istat)
       ipe=0
 !
@@ -935,7 +947,7 @@ integer :: mpi_intra
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !-----------------------------------------------------------------------
                         subroutine dstrb &
-      (arrayg,arrayl,lgs,lge,lls,lle,l1)
+      (arrayg,arrayl,lgs,lge,lls,lle,l1,mype,mpi_comm_comp)
 !-----------------------------------------------------------------------
 !     DSTRB distributes the elements of real global array arrayg to the
 !     real local array arrayl. 
@@ -950,6 +962,8 @@ integer :: mpi_intra
 !                (used only when lge=1 and lle>1, i.e. when the global
 !                 array is actually just one level of a multi_level
 !                 array)
+!       mype   - task rank
+!       mpi_comm_comp - the local intracommunicator
 !
 !     output argument list:
 !       arrayl - local array
@@ -964,6 +978,8 @@ integer :: mpi_intra
 !***
       integer(kind=kint),intent(in) :: l1,lge,lgs,lle,lls
 !
+      integer(kind=kint),intent(in) :: mype,mpi_comm_comp
+!
       real(kind=kfpt),dimension(ids:ide,jds:jde,lgs:lge),intent(in) :: &
                                                                   arrayg
       real(kind=kfpt),dimension(ims:ime,jms:jme,lls:lle),intent(out) :: &
@@ -975,7 +991,7 @@ integer :: mpi_intra
 !***
 !
       integer(kind=kint) :: i,iend,ipe,irecv,irtn,isend,istart,j,jend &
-                           ,jstart,knt,l,mype,numvals
+                           ,jstart,knt,l,numvals
       integer,dimension(4) :: limits
       integer,dimension(mpi_status_size) :: jstat
 !
@@ -987,8 +1003,6 @@ integer :: mpi_intra
 !***  Task 0 fills its own local domain then parcels out all the other 
 !***  pieces to the other tasks.
 !-----------------------------------------------------------------------
-!
-      mype=mype_share
 !
       tasks : if(mype==0)then
 !
@@ -1098,7 +1112,7 @@ integer :: mpi_intra
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !-----------------------------------------------------------------------
                         subroutine idstrb &
-      (iarrayg,iarrayl)
+      (iarrayg,iarrayl,mype,mpi_comm_comp)
 !-----------------------------------------------------------------------
 !     IDSTRB distributes the elements of integer global array iarrayg
 !     to the integer local array iarrayl. 
@@ -1117,6 +1131,8 @@ integer :: mpi_intra
 !***
 !***  argument variables
 !***
+      integer(kind=kint),intent(in) :: mype,mpi_comm_comp
+!
       integer(kind=kint),dimension(ids:ide,jds:jde),intent(in) :: &
                                                                  iarrayg
       integer(kind=kint),dimension(ims:ime,jms:jme),intent(out) :: &
@@ -1127,7 +1143,8 @@ integer :: mpi_intra
 !***
 !
       integer(kind=kint) :: i,iend,ipe,irecv,irtn,isend,istart,j,jend &
-                           ,jstart,knt,l,mype,numvals
+!xxx                       ,jstart,knt,l,mype,numvals
+                           ,jstart,knt,l,numvals
       integer,dimension(4) :: limits
       integer,dimension(mpi_status_size) :: jstat
 !
@@ -1136,8 +1153,6 @@ integer :: mpi_intra
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!
-      mype=mype_share
 !
 !***  Initialize the output array.
 !
@@ -1159,7 +1174,6 @@ integer :: mpi_intra
           iarrayl(i,j)=iarrayg(i,j)
         enddo
         enddo
-!!!   write(0,*)' IDSTRB global(1,1)=',iarrayg(1,1),' local(1,1)=',iarrayl(1,1)
 !
 !***  Task 0 creates an array to hold all the values from the other
 !***  tasks' pieces of the global array and then sends those pieces 
@@ -1226,9 +1240,6 @@ integer :: mpi_intra
 !-----------------------------------------------------------------------
 !
       endif tasks
-!     if(mype==0)then
-!       write(0,*)'exit IDSTRB global(1,1)=',iarrayg(1,1),' local(1,1)=',iarrayl(1,1)
-!     endif
 !
 !-----------------------------------------------------------------------
       call mpi_barrier(mpi_comm_comp,irtn)
@@ -1399,6 +1410,7 @@ integer :: mpi_intra
       ,my_jrow_start,my_jrow_end &
       ,ipe_start,ipe_end &
       ,my_domain_has_fft_lats &
+      ,mype,mpi_comm_comp &
       ,array_lyrs)
 !-----------------------------------------------------------------------
 !***  GATHER_LAYERS distributes all the elements of field between layers
@@ -1417,7 +1429,9 @@ integer(kind=kint),intent(in) :: &
 ,jend_fft &
 ,lm &
 ,lm_fft &
+,mpi_comm_comp &
 ,msize_dummy_fft &
+,mype &
 ,npes 
 !
 integer(kind=kint),dimension(0:npes-1),intent(in) :: &
@@ -1457,7 +1471,7 @@ integer(kind=kint) :: &
 ,k1 &
 ,k2 &
 ,k_extent &
-,mype &
+!!!,mype &
 ,n &
 ,nbuf &
 ,npe 
@@ -1473,8 +1487,6 @@ real(kind=kfpt),dimension(:,:),allocatable,save :: &
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!
-      mype=mype_share
 !
 !-----------------------------------------------------------------------
 !***  Handles are needed for the mpi_waits associated with mpi_isend.
@@ -1649,6 +1661,7 @@ real(kind=kfpt),dimension(:,:),allocatable,save :: &
       ,my_jrow_start,my_jrow_end &
       ,ipe_start,ipe_end &
       ,my_domain_has_fft_lats &
+      ,mype,mpi_comm_comp &
       ,field)
 !-----------------------------------------------------------------------
 !***  SCATTER_LAYERS distributes the elements of array_lyrs between 
@@ -1667,7 +1680,9 @@ integer(kind=kint),intent(in) :: &
 ,jend_fft &
 ,lm &
 ,lm_fft &
+,mpi_comm_comp &
 ,msize_dummy_fft &
+,mype &
 ,npes 
 !
 integer(kind=kint),dimension(0:npes-1),intent(in) :: &
@@ -1708,7 +1723,7 @@ integer(kind=kint) :: &
 ,k_extent &
 ,k1 &
 ,k2 &
-,mype &
+!!!,mype &
 ,n &
 ,ncount_recv &
 ,nbuf &
@@ -1727,7 +1742,7 @@ real(kind=kfpt),dimension(:,:),allocatable,save :: &
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      mype=mype_share
+!xxx  mype=mype_share
 !
 !-----------------------------------------------------------------------
 !***  Handles are needed for the mpi_waits associated with mpi_isend.

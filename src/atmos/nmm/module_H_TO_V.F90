@@ -7,11 +7,7 @@
 !-----------------------------------------------------------------------
 !
       USE MODULE_INCLUDE
-      USE MODULE_DM_PARALLEL,ONLY : ITS,ITE,JTS,JTE                     &
-                                   ,IMS,IME,JMS,JME                     &
-                                   ,IDS,IDE,JDS,JDE                     &
-                                   ,ITE_B1,JTE_B1
-                            
+      USE MODULE_MY_DOMAIN_SPECS
 !
 !-----------------------------------------------------------------------
 !

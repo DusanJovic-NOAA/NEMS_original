@@ -2,14 +2,15 @@
                         module module_INIT_READ_BIN
 !-----------------------------------------------------------------------
 use module_include
-use module_dm_parallel,only : ids,ide,jds,jde &
-                             ,ims,ime,jms,jme &
-                             ,its,ite,jts,jte &
-                             ,its_h2,ite_h2,jts_h2,jte_h2 &
-                             ,lm &
-                             ,mype_share,npes,num_pts_max &
-                             ,mpi_comm_comp &
-                             ,dstrb,idstrb
+!xxxuse module_dm_parallel,only : ids,ide,jds,jde &
+!xxx                             ,ims,ime,jms,jme &
+!xxx                             ,its,ite,jts,jte &
+!xxx                             ,its_h2,ite_h2,jts_h2,jte_h2 &
+!xxx                             ,lm &
+!xxx                             ,mype_share,npes,num_pts_max &
+!xxx                             ,mpi_comm_comp &
+!xxx                             ,dstrb,idstrb
+use module_dm_parallel,only : dstrb,idstrb
 use module_exchange
 use module_constants
 use module_solver_internal_state,only: solver_internal_state
@@ -34,7 +35,16 @@ use module_microphysics_nmm
 !-----------------------------------------------------------------------
 !
                         subroutine read_binary &
-      (INT_STATE,my_domain_id,rc)
+      (INT_STATE &
+      ,my_domain_id &
+      ,mpi_comm_comp &
+      ,mype &
+      ,its,ite,jts,jte &
+      ,ims,ime,jms,jme &
+      ,ids,ide,jds,jde &
+      ,its_h2,ite_h2,jts_h2,jte_h2 &
+      ,lm &
+      ,rc)
 !
 !-----------------------------------------------------------------------
 !
@@ -47,7 +57,18 @@ implicit none
 type(solver_internal_state),pointer :: int_state
 
 integer(kind=kint),intent(in) :: &
- my_domain_id
+ its,ite &
+,ims,ime &
+,ids,ide &
+,its_h2,ite_h2 &
+,jts,jte &
+,jms,jme &
+,jds,jde &
+,jts_h2,jte_h2 &
+,lm &
+,mpi_comm_comp &
+,my_domain_id &
+,mype 
 
 integer(kind=kint),intent(out) :: &
  rc
@@ -102,8 +123,7 @@ real(kind=kfpt),allocatable,dimension(:,:,:) :: &
 logical(kind=klog) :: opened
 
 integer(kind=kint) :: &
- ierr &
-,mype
+ ierr 
 
 character(64):: &
  infile
@@ -117,8 +137,6 @@ integer(kind=kint):: &
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!
-      mype=mype_share
 !
       allocate(temp1(ids:ide,jds:jde),stat=i)
 !
@@ -218,7 +236,7 @@ integer(kind=kint):: &
           int_state%fis(i,j)=0.
         enddo
         enddo
-        call dstrb(temp1,int_state%fis,1,1,1,1,1)
+        call dstrb(temp1,int_state%fis,1,1,1,1,1,mype,mpi_comm_comp)
         call halo_exch(int_state%fis,1,2,2)
 !-----------------------------------------------------------------------
 !
@@ -230,7 +248,7 @@ integer(kind=kint):: &
           int_state%stdh(i,j)=0.
         enddo
         enddo
-        call dstrb(temp1,int_state%stdh,1,1,1,1,1)
+        call dstrb(temp1,int_state%stdh,1,1,1,1,1,mype,mpi_comm_comp)
         call halo_exch(int_state%stdh,1,2,2)
 !-----------------------------------------------------------------------
 !
@@ -242,7 +260,7 @@ integer(kind=kint):: &
           int_state%sm(i,j)=0.
         enddo
         enddo
-        call dstrb(temp1,int_state%sm,1,1,1,1,1)
+        call dstrb(temp1,int_state%sm,1,1,1,1,1,mype,mpi_comm_comp)
         call halo_exch(int_state%sm,1,2,2)
 !-----------------------------------------------------------------------
 !
@@ -254,7 +272,7 @@ integer(kind=kint):: &
           int_state%pd(i,j)=0.
         enddo
         enddo
-        call dstrb(temp1,int_state%pd,1,1,1,1,1)
+        call dstrb(temp1,int_state%pd,1,1,1,1,1,mype,mpi_comm_comp)
         call halo_exch(int_state%pd,1,2,2)
 !-----------------------------------------------------------------------
 !
@@ -268,7 +286,7 @@ integer(kind=kint):: &
             int_state%u(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%u,1,1,1,lm,l)
+          call dstrb(temp1,int_state%u,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%u,lm,2,2)
 !-----------------------------------------------------------------------
@@ -282,7 +300,7 @@ integer(kind=kint):: &
             int_state%v(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%v,1,1,1,lm,l)
+          call dstrb(temp1,int_state%v,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%v,lm,2,2)
 !-----------------------------------------------------------------------
@@ -297,7 +315,7 @@ integer(kind=kint):: &
             int_state%t(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%t,1,1,1,lm,l)
+          call dstrb(temp1,int_state%t,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%t,lm,2,2)
 !-----------------------------------------------------------------------
@@ -311,7 +329,7 @@ integer(kind=kint):: &
             int_state%q(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%q,1,1,1,lm,l)
+          call dstrb(temp1,int_state%q,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%q,lm,2,2)
 !
@@ -334,7 +352,7 @@ integer(kind=kint):: &
             int_state%cw(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%cw,1,1,1,lm,l)
+          call dstrb(temp1,int_state%cw,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%cw,lm,2,2)
 !
@@ -349,7 +367,7 @@ integer(kind=kint):: &
             int_state%o3(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%o3,1,1,1,lm,l)
+          call dstrb(temp1,int_state%o3,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%o3,lm,2,2)
 !
@@ -459,78 +477,78 @@ integer(kind=kint):: &
         if(mype==0)then
           read(nfcst)temp1  ! ALBEDO
         endif
-      CALL DSTRB(TEMP1,int_state%ALBEDO,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ALBEDO,1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst)temp1  ! ALBASE
         endif
-      CALL DSTRB(TEMP1,int_state%ALBASE,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ALBASE,1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst)temp1  ! EPSR
         endif
-      CALL DSTRB(TEMP1,int_state%EPSR,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%EPSR,1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst)temp1  ! MXSNAL
         endif
-      CALL DSTRB(TEMP1,int_state%MXSNAL,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%MXSNAL,1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst)temp1  ! TSKIN
         endif
-      CALL DSTRB(TEMP1,int_state%TSKIN,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%TSKIN,1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst)temp1  ! SST
         endif
-      CALL DSTRB(TEMP1,int_state%SST,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SST,1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst)temp1  ! SNO
         endif
-      CALL DSTRB(TEMP1,int_state%SNO,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SNO,1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst)temp1  ! SI
         endif
-      CALL DSTRB(TEMP1,int_state%SI,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SI,1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst)temp1  ! SICE
         endif
-      CALL DSTRB(TEMP1,int_state%SICE,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SICE,1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst) temp1  ! TG
         endif
-      CALL DSTRB(TEMP1,int_state%TG,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%TG,1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst) temp1  ! CMC
         endif
-      CALL DSTRB(TEMP1,int_state%CMC,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%CMC,1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst) temp1  ! SR
         endif
-      CALL DSTRB(TEMP1,int_state%SR,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SR,1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst) temp1  ! USTAR
         endif
-      CALL DSTRB(TEMP1,int_state%USTAR,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%USTAR,1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst) temp1  ! Z0
         endif
-      CALL DSTRB(TEMP1,int_state%Z0,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%Z0,1,1,1,1,1,mype,mpi_comm_comp)
       CALL HALO_EXCH(int_state%Z0,1,3,3)
 !
         if(mype==0)then
           read(nfcst) temp1  ! Z0BASE
         endif
-      CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1,mype,mpi_comm_comp)
       CALL HALO_EXCH(int_state%Z0BASE,1,3,3)
 !
       ALLOCATE(TEMPSOIL(1:int_state%NSOIL,IDS:IDE,JDS:JDE),STAT=I)
@@ -538,26 +556,26 @@ integer(kind=kint):: &
         if(mype==0)then
           read(nfcst) TEMPSOIL  ! STC
         endif
-      CALL DSTRB(TEMPSOIL(1,IDS:IDE,JDS:JDE),int_state%STC(IMS:IME,JMS:JME,1),1,1,1,1,1)
-      CALL DSTRB(TEMPSOIL(2,IDS:IDE,JDS:JDE),int_state%STC(IMS:IME,JMS:JME,2),1,1,1,1,1)
-      CALL DSTRB(TEMPSOIL(3,IDS:IDE,JDS:JDE),int_state%STC(IMS:IME,JMS:JME,3),1,1,1,1,1)
-      CALL DSTRB(TEMPSOIL(4,IDS:IDE,JDS:JDE),int_state%STC(IMS:IME,JMS:JME,4),1,1,1,1,1)
+      CALL DSTRB(TEMPSOIL(1,IDS:IDE,JDS:JDE),int_state%STC(IMS:IME,JMS:JME,1),1,1,1,1,1,mype,mpi_comm_comp)
+      CALL DSTRB(TEMPSOIL(2,IDS:IDE,JDS:JDE),int_state%STC(IMS:IME,JMS:JME,2),1,1,1,1,1,mype,mpi_comm_comp)
+      CALL DSTRB(TEMPSOIL(3,IDS:IDE,JDS:JDE),int_state%STC(IMS:IME,JMS:JME,3),1,1,1,1,1,mype,mpi_comm_comp)
+      CALL DSTRB(TEMPSOIL(4,IDS:IDE,JDS:JDE),int_state%STC(IMS:IME,JMS:JME,4),1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst) TEMPSOIL  ! SMC
         endif
-      CALL DSTRB(TEMPSOIL(1,:,:),int_state%SMC(:,:,1),1,1,1,1,1)
-      CALL DSTRB(TEMPSOIL(2,:,:),int_state%SMC(:,:,2),1,1,1,1,1)
-      CALL DSTRB(TEMPSOIL(3,:,:),int_state%SMC(:,:,3),1,1,1,1,1)
-      CALL DSTRB(TEMPSOIL(4,:,:),int_state%SMC(:,:,4),1,1,1,1,1)
+      CALL DSTRB(TEMPSOIL(1,:,:),int_state%SMC(:,:,1),1,1,1,1,1,mype,mpi_comm_comp)
+      CALL DSTRB(TEMPSOIL(2,:,:),int_state%SMC(:,:,2),1,1,1,1,1,mype,mpi_comm_comp)
+      CALL DSTRB(TEMPSOIL(3,:,:),int_state%SMC(:,:,3),1,1,1,1,1,mype,mpi_comm_comp)
+      CALL DSTRB(TEMPSOIL(4,:,:),int_state%SMC(:,:,4),1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst) TEMPSOIL  ! SH2O
         endif
-      CALL DSTRB(TEMPSOIL(1,:,:),int_state%SH2O(:,:,1),1,1,1,1,1)
-      CALL DSTRB(TEMPSOIL(2,:,:),int_state%SH2O(:,:,2),1,1,1,1,1)
-      CALL DSTRB(TEMPSOIL(3,:,:),int_state%SH2O(:,:,3),1,1,1,1,1)
-      CALL DSTRB(TEMPSOIL(4,:,:),int_state%SH2O(:,:,4),1,1,1,1,1)
+      CALL DSTRB(TEMPSOIL(1,:,:),int_state%SH2O(:,:,1),1,1,1,1,1,mype,mpi_comm_comp)
+      CALL DSTRB(TEMPSOIL(2,:,:),int_state%SH2O(:,:,2),1,1,1,1,1,mype,mpi_comm_comp)
+      CALL DSTRB(TEMPSOIL(3,:,:),int_state%SH2O(:,:,3),1,1,1,1,1,mype,mpi_comm_comp)
+      CALL DSTRB(TEMPSOIL(4,:,:),int_state%SH2O(:,:,4),1,1,1,1,1,mype,mpi_comm_comp)
 !
       DEALLOCATE(TEMPSOIL)
       ALLOCATE(ITEMP(IDS:IDE,JDS:JDE),STAT=I)
@@ -565,19 +583,19 @@ integer(kind=kint):: &
         if(mype==0)then
           read(nfcst) ITEMP  ! ISLTYP
         endif
-      CALL IDSTRB(ITEMP,int_state%ISLTYP)
+      CALL IDSTRB(ITEMP,int_state%ISLTYP,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst) ITEMP  ! IVGTYP
         endif
-      CALL IDSTRB(ITEMP,int_state%IVGTYP)
+      CALL IDSTRB(ITEMP,int_state%IVGTYP,mype,mpi_comm_comp)
 !
       DEALLOCATE(ITEMP)
 !
         if(mype==0)then
           read(nfcst) temp1  ! VEGFRC
         endif
-      CALL DSTRB(TEMP1,int_state%VEGFRC,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%VEGFRC,1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
           read(nfcst) SOIL1DIN  ! DZSOIL
@@ -792,22 +810,22 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST) ITEMP
       ENDIF
-      CALL IDSTRB(ITEMP,int_state%ISLTYP)
+      CALL IDSTRB(ITEMP,int_state%ISLTYP,MYPE,MPI_COMM_COMP)
 !
       IF(MYPE==0)THEN
         READ(NFCST) ITEMP
       ENDIF
-      CALL IDSTRB(ITEMP,int_state%IVGTYP)
+      CALL IDSTRB(ITEMP,int_state%IVGTYP,MYPE,MPI_COMM_COMP)
 !
       IF(MYPE==0)THEN
         READ(NFCST) ITEMP
       ENDIF
-      CALL IDSTRB(ITEMP,int_state%NCFRCV)
+      CALL IDSTRB(ITEMP,int_state%NCFRCV,MYPE,MPI_COMM_COMP)
 !
       IF(MYPE==0)THEN
         READ(NFCST) ITEMP
       ENDIF
-      CALL IDSTRB(ITEMP,int_state%NCFRST)
+      CALL IDSTRB(ITEMP,int_state%NCFRST,MYPE,MPI_COMM_COMP)
 !
       DEALLOCATE(ITEMP)
 !
@@ -823,7 +841,7 @@ integer(kind=kint):: &
           int_state%fis(i,j)=0.
         enddo
         enddo
-        call dstrb(temp1,int_state%fis,1,1,1,1,1)
+        call dstrb(temp1,int_state%fis,1,1,1,1,1,mype,mpi_comm_comp)
         call halo_exch(int_state%fis,1,2,2)
 !-----------------------------------------------------------------------
 !--pd
@@ -837,7 +855,7 @@ integer(kind=kint):: &
           int_state%pd(i,j)=0.
         enddo
         enddo
-        call dstrb(temp1,int_state%pd,1,1,1,1,1)
+        call dstrb(temp1,int_state%pd,1,1,1,1,1,mype,mpi_comm_comp)
         call halo_exch(int_state%pd,1,2,2)
 !-----------------------------------------------------------------------
 !-- pdo
@@ -851,7 +869,7 @@ integer(kind=kint):: &
           int_state%pdo(i,j)=0.
         enddo
         enddo
-        call dstrb(temp1,int_state%pdo,1,1,1,1,1)
+        call dstrb(temp1,int_state%pdo,1,1,1,1,1,mype,mpi_comm_comp)
         call halo_exch(int_state%pdo,1,2,2)
 !
 !-----------------------------------------------------------------------
@@ -866,7 +884,7 @@ integer(kind=kint):: &
 !d        int_state%ACFRCV(I,J)=0.
 !d      ENDDO
 !d      ENDDO
-      CALL DSTRB(TEMP1,int_state%ACFRCV,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ACFRCV,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ACFRST
 !-----------------------------------------------------------------------
@@ -879,7 +897,7 @@ integer(kind=kint):: &
 !d        int_state%ACFRST(I,J)=0.
 !d      ENDDO
 !d      ENDDO
-      CALL DSTRB(TEMP1,int_state%ACFRST,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ACFRST,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ACPREC
 !-----------------------------------------------------------------------
@@ -892,7 +910,7 @@ integer(kind=kint):: &
 !d        int_state%ACPREC(I,J)=0.
 !d      ENDDO
 !d      ENDDO
-      CALL DSTRB(TEMP1,int_state%ACPREC,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ACPREC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ACSNOM
 !-----------------------------------------------------------------------
@@ -905,7 +923,7 @@ integer(kind=kint):: &
 !d        int_state%ACSNOM(I,J)=0.
 !!dd      ENDDO
 !d      ENDDO
-      CALL DSTRB(TEMP1,int_state%ACSNOM,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ACSNOM,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ACSNOW
 !-----------------------------------------------------------------------
@@ -918,7 +936,7 @@ integer(kind=kint):: &
 !d        int_state%ACSNOW(I,J)=0.
 !d      ENDDO
 !d      ENDDO
-      CALL DSTRB(TEMP1,int_state%ACSNOW,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ACSNOW,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  AKHS_OUT
 !-----------------------------------------------------------------------
@@ -931,7 +949,7 @@ integer(kind=kint):: &
 !d        int_state%AKHS_OUT(I,J)=0.
 !d      ENDDO
 !d      ENDDO
-      CALL DSTRB(TEMP1,int_state%AKHS_OUT,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%AKHS_OUT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  AKMS_OUT
 !-----------------------------------------------------------------------
@@ -944,7 +962,7 @@ integer(kind=kint):: &
 !d        int_state%AKMS_OUT(I,J)=0.
 !d      ENDDO
 !d      ENDDO
-      CALL DSTRB(TEMP1,int_state%AKMS_OUT,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%AKMS_OUT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ALBASE
 !-----------------------------------------------------------------------
@@ -957,350 +975,350 @@ integer(kind=kint):: &
 !d        int_state%ALBASE(I,J)=0.
 !d      ENDDO
 !d      ENDDO
-      CALL DSTRB(TEMP1,int_state%ALBASE,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ALBASE,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ALBEDO
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%ALBEDO,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ALBEDO,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ALWIN
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%ALWIN,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ALWIN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ALWOUT
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%ALWOUT,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ALWOUT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ALWTOA
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%ALWTOA,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ALWTOA,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ASWIN
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%ASWIN,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ASWIN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ASWOUT
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%ASWOUT,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ASWOUT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ASWTOA
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%ASWTOA,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ASWTOA,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  BGROFF
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%BGROFF,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%BGROFF,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  CFRACH
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%CFRACH,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%CFRACH,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  CFRACL
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%CFRACL,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%CFRACL,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  CFRACM
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%CFRACM,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%CFRACM,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  CLDEFI
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%CLDEFI,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%CLDEFI,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  CMC
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%CMC,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%CMC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  CNVBOT
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%CNVBOT,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%CNVBOT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  CNVTOP
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%CNVTOP,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%CNVTOP,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  CPRATE
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%CPRATE,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%CPRATE,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  CUPPT
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%CUPPT,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%CUPPT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  CUPREC
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%CUPREC,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%CUPREC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  CZEN
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%CZEN,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%CZEN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  CZMEAN
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%CZMEAN,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%CZMEAN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  EPSR
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%EPSR,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%EPSR,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  GRNFLX
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%GRNFLX,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%GRNFLX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  HBOTD
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%HBOTD,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%HBOTD,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  HBOTS
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%HBOTS,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%HBOTS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  HTOPD
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%HTOPD,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%HTOPD,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  HTOPS
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%HTOPS,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%HTOPS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SNOW ALBEDO
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%MXSNAL,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%MXSNAL,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  PBLH
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%PBLH,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%PBLH,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  POTEVP
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%POTEVP,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%POTEVP,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  PREC
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%PREC,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%PREC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  PSHLTR
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%PSHLTR,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%PSHLTR,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  Q10
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%Q10,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%Q10,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  QSH
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%QSH,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%QSH,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  QSHLTR
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%QSHLTR,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%QSHLTR,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  QWBS
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%QWBS,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%QWBS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  QZ0
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%QZ0,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%QZ0,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  RADOT
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%RADOT,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%RADOT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  RLWIN
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%RLWIN,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%RLWIN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  RLWTOA
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%RLWTOA,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%RLWTOA,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  RSWIN
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%RSWIN,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%RSWIN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  RSWINC
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%RSWINC,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%RSWINC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  RSWOUT
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%RSWOUT,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%RSWOUT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SFCEVP
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%SFCEVP,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SFCEVP,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SFCEXC
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%SFCEXC,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SFCEXC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SFCLHX
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%SFCLHX,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SFCLHX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SFCSHX
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%SFCSHX,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SFCSHX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SI
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%SI,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SI,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SICE
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%SICE,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SICE,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SIGT4
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%SIGT4,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SIGT4,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SM (Seamask)
 !-----------------------------------------------------------------------
@@ -1313,161 +1331,161 @@ integer(kind=kint):: &
         int_state%SM(I,J)=0.
       ENDDO
       ENDDO
-      CALL DSTRB(TEMP1,int_state%SM,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SM,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SMSTAV
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%SMSTAV,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SMSTAV,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SMSTOT
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%SMSTOT,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SMSTOT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SNO
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%SNO,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SNO,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SNOPCX
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%SNOPCX,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SNOPCX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SOILTB
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%SOILTB,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SOILTB,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SR
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%SR,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SR,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SSROFF
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%SSROFF,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SSROFF,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SST
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%SST,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SST,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SUBSHX
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%SUBSHX,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%SUBSHX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  TG
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%TG,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%TG,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  TH10
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%TH10,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%TH10,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  THS
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%THS,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%THS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  THZ0
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%THZ0,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%THZ0,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  TSHLTR
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%TSHLTR,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%TSHLTR,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  TWBS
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%TWBS,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%TWBS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  U10
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%U10,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%U10,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  USTAR
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%USTAR,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%USTAR,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  UZ0
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%UZ0,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%UZ0,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  V10
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%V10,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%V10,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  VEGFRC
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST) TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%VEGFRC,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%VEGFRC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  VZ0
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST) TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%VZ0,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%VZ0,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  Z0
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%Z0,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%Z0,1,1,1,1,1,MYPE,MPI_COMM_COMP)
       CALL HALO_EXCH(int_state%Z0,1,3,3)
 !-----------------------------------------------------------------------
 !***  TSKIN
@@ -1475,42 +1493,42 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%TSKIN,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%TSKIN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  AKHS
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%AKHS,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%AKHS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  AKMS
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%AKMS,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%AKMS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  HBOT
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%HBOT,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%HBOT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  HTOP
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%HTOP,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%HTOP,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  RSWTOA
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%RSWTOA,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%RSWTOA,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !
 !-----------------------------------------------------------------------
 !***  POTFLX
@@ -1518,7 +1536,7 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%POTFLX,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%POTFLX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !
 !-----------------------------------------------------------------------
 !***  RMOL
@@ -1526,7 +1544,7 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%RMOL,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%RMOL,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !
 !-----------------------------------------------------------------------
 !***  T2
@@ -1534,7 +1552,7 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%T2,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%T2,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !
 !-----------------------------------------------------------------------
 !***  Z0BASE
@@ -1542,7 +1560,7 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !
 !-----------------------------------------------------------------------
 !***  TLMIN
@@ -1550,7 +1568,7 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%TLMIN,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%TLMIN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !
 !-----------------------------------------------------------------------
 !***  TLMAX
@@ -1558,7 +1576,7 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%TLMAX,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%TLMAX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !
 !-----------------------------------------------------------------------
 !***  ACUTIM
@@ -1566,49 +1584,49 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%ACUTIM,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ACUTIM,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  APHTIM
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%APHTIM,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%APHTIM,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ARDLW
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%ARDLW,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ARDLW,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ARDSW
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%ARDSW,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ARDSW,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ASRFC
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%ASRFC,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%ASRFC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  AVRAIN
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%AVRAIN,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%AVRAIN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  AVCNVC
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-      CALL DSTRB(TEMP1,int_state%AVCNVC,1,1,1,1,1)
+      CALL DSTRB(TEMP1,int_state%AVCNVC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 3D arrays (only DYN)
@@ -1623,7 +1641,7 @@ integer(kind=kint):: &
 !d            int_state%w(i,j,l)=0.
 !d          enddo
 !d          enddo
-          call dstrb(temp1,int_state%w,1,1,1,lm,l)
+          call dstrb(temp1,int_state%w,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%w,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1636,7 +1654,7 @@ integer(kind=kint):: &
 !d            int_state%omgalf(i,j,l)=0.
 !d          enddo
 !d          enddo
-          call dstrb(temp1,int_state%omgalf,1,1,1,lm,l)
+          call dstrb(temp1,int_state%omgalf,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%omgalf,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1649,7 +1667,7 @@ integer(kind=kint):: &
 !d            int_state%o3(i,j,l)=0.
 !d          enddo
 !d          enddo
-          call dstrb(temp1,int_state%o3,1,1,1,lm,l)
+          call dstrb(temp1,int_state%o3,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%o3,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1662,7 +1680,7 @@ integer(kind=kint):: &
 !d            int_state%div(i,j,l)=0.
 !d          enddo
 !d          enddo
-          call dstrb(temp1,int_state%div,1,1,1,lm,l)
+          call dstrb(temp1,int_state%div,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%div,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1675,7 +1693,7 @@ integer(kind=kint):: &
 !d            int_state%rtop(i,j,l)=0.
 !d          enddo
 !d          enddo
-          call dstrb(temp1,int_state%rtop,1,1,1,lm,l)
+          call dstrb(temp1,int_state%rtop,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%rtop,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1688,7 +1706,7 @@ integer(kind=kint):: &
 !d            int_state%tcu(i,j,l)=0.
 !d          enddo
 !d          enddo
-          call dstrb(temp1,int_state%tcu,1,1,1,lm,l)
+          call dstrb(temp1,int_state%tcu,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%tcu,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1701,7 +1719,7 @@ integer(kind=kint):: &
 !d            int_state%tcv(i,j,l)=0.
 !d          enddo
 !d          enddo
-          call dstrb(temp1,int_state%tcv,1,1,1,lm,l)
+          call dstrb(temp1,int_state%tcv,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%tcv,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1714,7 +1732,7 @@ integer(kind=kint):: &
 !d            int_state%tct(i,j,l)=0.
 !d          enddo
 !d          enddo
-          call dstrb(temp1,int_state%tct,1,1,1,lm,l)
+          call dstrb(temp1,int_state%tct,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%tct,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1727,7 +1745,7 @@ integer(kind=kint):: &
 !d            int_state%tp(i,j,l)=0.
 !d          enddo
 !d          enddo
-          call dstrb(temp1,int_state%tp,1,1,1,lm,l)
+          call dstrb(temp1,int_state%tp,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%tp,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1740,7 +1758,7 @@ integer(kind=kint):: &
 !d            int_state%up(i,j,l)=0.
 !d          enddo
 !d          enddo
-          call dstrb(temp1,int_state%up,1,1,1,lm,l)
+          call dstrb(temp1,int_state%up,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%up,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1753,7 +1771,7 @@ integer(kind=kint):: &
 !d            int_state%vp(i,j,l)=0.
 !d          enddo
 !d          enddo
-          call dstrb(temp1,int_state%vp,1,1,1,lm,l)
+          call dstrb(temp1,int_state%vp,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%vp,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1766,7 +1784,7 @@ integer(kind=kint):: &
 !d            int_state%e2(i,j,l)=0.
 !d          enddo
 !d          enddo
-          call dstrb(temp1,int_state%e2,1,1,1,lm,l)
+          call dstrb(temp1,int_state%e2,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%e2,lm,2,2)
 !----------- psgdt -----------------------------------------------------
@@ -1785,7 +1803,7 @@ integer(kind=kint):: &
 !d            int_state%z(i,j,l)=0.
 !d          enddo
 !d          enddo
-          call dstrb(temp1,int_state%z,1,1,1,lm,l)
+          call dstrb(temp1,int_state%z,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%z,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1797,7 +1815,7 @@ integer(kind=kint):: &
           if(mype==0)then
             read(nfcst)temp1 ! cldfra
           endif
-          call dstrb(temp1,int_state%CLDFRA,1,1,1,lm,l)
+          call dstrb(temp1,int_state%CLDFRA,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
 !-----------------------------------------------------------------------
         do l=1,lm
@@ -1809,7 +1827,7 @@ integer(kind=kint):: &
             int_state%cw(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%cw,1,1,1,lm,l)
+          call dstrb(temp1,int_state%cw,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%cw,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1822,7 +1840,7 @@ integer(kind=kint):: &
             int_state%q(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%q,1,1,1,lm,l)
+          call dstrb(temp1,int_state%q,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%q,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1835,7 +1853,7 @@ integer(kind=kint):: &
             int_state%q2(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%q2,1,1,1,lm,l)
+          call dstrb(temp1,int_state%q2,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%q2,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1848,7 +1866,7 @@ integer(kind=kint):: &
             int_state%RLWTT(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%RLWTT,1,1,1,lm,l)
+          call dstrb(temp1,int_state%RLWTT,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
 !-----------------------------------------------------------------------
         do l=1,lm
@@ -1860,7 +1878,7 @@ integer(kind=kint):: &
             int_state%RSWTT(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%RSWTT,1,1,1,lm,l)
+          call dstrb(temp1,int_state%RSWTT,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
 !-----------------------------------------------------------------------
         do l=1,lm+1
@@ -1872,7 +1890,7 @@ integer(kind=kint):: &
             int_state%pint(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%pint,1,1,1,lm+1,l)
+          call dstrb(temp1,int_state%pint,1,1,1,lm+1,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%pint,lm+1,2,2)
 !-----------------------------------------------------------------------
@@ -1885,7 +1903,7 @@ integer(kind=kint):: &
             int_state%dwdt(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%dwdt,1,1,1,lm,l)
+          call dstrb(temp1,int_state%dwdt,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%dwdt,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1899,7 +1917,7 @@ integer(kind=kint):: &
             int_state%t(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%t,1,1,1,lm,l)
+          call dstrb(temp1,int_state%t,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%t,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1912,7 +1930,7 @@ integer(kind=kint):: &
             int_state%TCUCN(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%TCUCN,1,1,1,lm,l)
+          call dstrb(temp1,int_state%TCUCN,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
 !-----------------------------------------------------------------------
         do l=1,lm
@@ -1924,7 +1942,7 @@ integer(kind=kint):: &
             int_state%TRAIN(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%TRAIN,1,1,1,lm,l)
+          call dstrb(temp1,int_state%TRAIN,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
 !-----------------------------------------------------------------------
         do l=1,lm
@@ -1936,7 +1954,7 @@ integer(kind=kint):: &
             int_state%u(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%u,1,1,1,lm,l)
+          call dstrb(temp1,int_state%U,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%u,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1949,7 +1967,7 @@ integer(kind=kint):: &
             int_state%v(i,j,l)=0.
           enddo
           enddo
-          call dstrb(temp1,int_state%v,1,1,1,lm,l)
+          call dstrb(temp1,int_state%V,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%v,lm,2,2)
 !-----------------------------------------------------------------------
@@ -1965,7 +1983,7 @@ integer(kind=kint):: &
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%XLEN_MIX,1,1,1,LM,K)
+        CALL DSTRB(TEMP1,int_state%XLEN_MIX,1,1,1,LM,K,MYPE,MPI_COMM_COMP)
       ENDDO
 !-----------------------------------------------------------------------
 !
@@ -1980,7 +1998,7 @@ integer(kind=kint):: &
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%F_ICE,1,1,1,LM,K)
+        CALL DSTRB(TEMP1,int_state%F_ICE,1,1,1,LM,K,MYPE,MPI_COMM_COMP)
       ENDDO
 !-----------------------------------------------------------------------
 !
@@ -1995,7 +2013,7 @@ integer(kind=kint):: &
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%F_RIMEF,1,1,1,LM,K)
+        CALL DSTRB(TEMP1,int_state%F_RIMEF,1,1,1,LM,K,MYPE,MPI_COMM_COMP)
       ENDDO
 !-----------------------------------------------------------------------
 !
@@ -2010,7 +2028,7 @@ integer(kind=kint):: &
         ENDDO
         ENDDO
 !
-        CALL DSTRB(TEMP1,int_state%F_RAIN,1,1,1,LM,K)
+        CALL DSTRB(TEMP1,int_state%F_RAIN,1,1,1,LM,K,MYPE,MPI_COMM_COMP)
       ENDDO
 !-----------------------------------------------------------------------
 !***  SH2O, SMC, STC
@@ -2023,7 +2041,8 @@ integer(kind=kint):: &
 !          write(0,*) 'lev, min, max for SH2O: ', k,minval(TEMP1),maxval(TEMP1)
         ENDIF
 !
-        CALL DSTRB(TEMP1,int_state%SH2O,1,1,1,int_state%NSOIL,K)
+        CALL DSTRB(TEMP1,int_state%SH2O,1,1,1,int_state%NSOIL,K        &
+                  ,MYPE,MPI_COMM_COMP)
 !
       ENDDO
 !
@@ -2034,7 +2053,8 @@ integer(kind=kint):: &
 !          write(0,*) 'lev, min, max for SMC: ', k,minval(TEMP1),maxval(TEMP1)
         ENDIF
 !
-        CALL DSTRB(TEMP1,int_state%SMC,1,1,1,int_state%NSOIL,K)
+        CALL DSTRB(TEMP1,int_state%SMC,1,1,1,int_state%NSOIL,K        &
+                  ,MYPE,MPI_COMM_COMP)
 !
       ENDDO
 !
@@ -2045,7 +2065,8 @@ integer(kind=kint):: &
 !          write(0,*) 'lev, min, max for STC: ', k,minval(TEMP1),maxval(TEMP1)
         ENDIF
 !
-        CALL DSTRB(TEMP1,int_state%STC,1,1,1,int_state%NSOIL,K)
+        CALL DSTRB(TEMP1,int_state%STC,1,1,1,int_state%NSOIL,K          &
+                  ,MYPE,MPI_COMM_COMP)
 !
       ENDDO
 !
@@ -2060,7 +2081,8 @@ integer(kind=kint):: &
 !d              int_state%TRACERS_PREV(i,j,l,n)=0.
 !d            enddo
 !d            enddo
-            call dstrb(temp1,int_state%TRACERS_PREV(:,:,:,n),1,1,1,lm,l)
+            call dstrb(temp1,int_state%TRACERS_PREV(:,:,:,n),1,1,1,lm,l &
+                      ,mype,mpi_comm_comp)
           enddo
         enddo
         call halo_exch(int_state%TRACERS_PREV,lm,int_state%indx_o3,1,2,2)
@@ -2076,7 +2098,8 @@ integer(kind=kint):: &
               int_state%TRACERS(i,j,l,n)=0.
             enddo
             enddo
-            call dstrb(temp1,int_state%TRACERS(:,:,:,n),1,1,1,lm,l)
+            call dstrb(temp1,int_state%TRACERS(:,:,:,n),1,1,1,lm,l      &
+                      ,mype,mpi_comm_comp)
           enddo
         enddo
 !
@@ -2194,85 +2217,85 @@ integer(kind=kint):: &
         READ(NGWD)TEMP_GWD
       ENDIF
 !
-      CALL DSTRB(TEMP_GWD,int_state%HSTDV,1,1,1,1,1)
+      CALL DSTRB(TEMP_GWD,int_state%HSTDV,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NGWD)TEMP_GWD
       ENDIF
 !
-      CALL DSTRB(TEMP_GWD,int_state%HCNVX,1,1,1,1,1)
+      CALL DSTRB(TEMP_GWD,int_state%HCNVX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NGWD)TEMP_GWD
       ENDIF
 !
-      CALL DSTRB(TEMP_GWD,int_state%HASYW,1,1,1,1,1)
+      CALL DSTRB(TEMP_GWD,int_state%HASYW,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NGWD)TEMP_GWD
       ENDIF
 !
-      CALL DSTRB(TEMP_GWD,int_state%HASYS,1,1,1,1,1)
+      CALL DSTRB(TEMP_GWD,int_state%HASYS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NGWD)TEMP_GWD
       ENDIF
 !
-      CALL DSTRB(TEMP_GWD,int_state%HASYSW,1,1,1,1,1)
+      CALL DSTRB(TEMP_GWD,int_state%HASYSW,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NGWD)TEMP_GWD
       ENDIF
 !
-      CALL DSTRB(TEMP_GWD,int_state%HASYNW,1,1,1,1,1)
+      CALL DSTRB(TEMP_GWD,int_state%HASYNW,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NGWD)TEMP_GWD
       ENDIF
 !
-      CALL DSTRB(TEMP_GWD,int_state%HLENW,1,1,1,1,1)
+      CALL DSTRB(TEMP_GWD,int_state%HLENW,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NGWD)TEMP_GWD
       ENDIF
 !
-      CALL DSTRB(TEMP_GWD,int_state%HLENS,1,1,1,1,1)
+      CALL DSTRB(TEMP_GWD,int_state%HLENS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NGWD)TEMP_GWD
       ENDIF
 !
-      CALL DSTRB(TEMP_GWD,int_state%HLENSW,1,1,1,1,1)
+      CALL DSTRB(TEMP_GWD,int_state%HLENSW,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NGWD)TEMP_GWD
       ENDIF
 !
-      CALL DSTRB(TEMP_GWD,int_state%HLENNW,1,1,1,1,1)
+      CALL DSTRB(TEMP_GWD,int_state%HLENNW,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NGWD)TEMP_GWD
       ENDIF
 !
-      CALL DSTRB(TEMP_GWD,int_state%HANGL,1,1,1,1,1)
+      CALL DSTRB(TEMP_GWD,int_state%HANGL,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NGWD)TEMP_GWD
       ENDIF
 !
-      CALL DSTRB(TEMP_GWD,int_state%HANIS,1,1,1,1,1)
+      CALL DSTRB(TEMP_GWD,int_state%HANIS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NGWD)TEMP_GWD
       ENDIF
 !
-      CALL DSTRB(TEMP_GWD,int_state%HSLOP,1,1,1,1,1)
+      CALL DSTRB(TEMP_GWD,int_state%HSLOP,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
         READ(NGWD)TEMP_GWD
       ENDIF
 !
-      CALL DSTRB(TEMP_GWD,int_state%HZMAX,1,1,1,1,1)
+      CALL DSTRB(TEMP_GWD,int_state%HZMAX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !
       IF(MYPE==0)THEN

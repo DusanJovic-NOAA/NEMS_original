@@ -2,28 +2,33 @@
 !
       MODULE MODULE_DIAGNOSE
 !
-!-----------------------------------------------------------------------
+!----------------------------------------------------------------------
 !
       IMPLICIT NONE
 !
-!-----------------------------------------------------------------------
+!----------------------------------------------------------------------
 !
       CONTAINS
 !
-!-----------------------------------------------------------------------
-!#######################################################################
-!-----------------------------------------------------------------------
+!----------------------------------------------------------------------
+!######################################################################
+!----------------------------------------------------------------------
       SUBROUTINE TWR(ARRAY,KK,FIELD,NTSD,MYPE,NPES,MPI_COMM_COMP       &
                     ,IDS,IDE,JDS,JDE                                   &
                     ,IMS,IME,JMS,JME                                   &
-                    ,ITS,ITE,JTS,JTE)
+                    ,ITS,ITE,JTS,JTE                                   &
+                    ,DOMAIN_ID )
 !----------------------------------------------------------------------
 !**********************************************************************
 !----------------------------------------------------------------------
       USE MODULE_INCLUDE
       IMPLICIT NONE
 !----------------------------------------------------------------------
-!----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
       INTEGER(KIND=KINT),INTENT(IN) :: IDS,IDE,JDS,JDE                 &
                                       ,IMS,IME,JMS,JME                 &
                                       ,ITS,ITE,JTS,JTE                 &
@@ -33,7 +38,11 @@
 !
       CHARACTER(*),INTENT(IN) :: FIELD
 !
-!*** LOCAL VARIABLES
+      INTEGER(kind=KINT),INTENT(IN),OPTIONAL :: DOMAIN_ID
+!
+!--------------------
+!*** Local Variables
+!--------------------
 !
       INTEGER :: IUNIT=23
 !
@@ -47,10 +56,11 @@
 !
       REAL(KIND=KFPT),DIMENSION(IDS:IDE,JDS:JDE) :: TWRITE
       REAL(KIND=KFPT),ALLOCATABLE,DIMENSION(:) :: VALUES
+      CHARACTER(2) :: DOM_ID
       CHARACTER(5) :: TIMESTEP
       CHARACTER(6) :: FMT
       CHARACTER(15) :: FILENAME
-      integer :: isee=055,jsee=138,lsee=10,pesee=6
+!
 !----------------------------------------------------------------------
 !**********************************************************************
 !----------------------------------------------------------------------
@@ -72,7 +82,14 @@
         NLEN=5
       ENDIF
       WRITE(TIMESTEP,FMT)NTSD
-      FILENAME=FIELD//'_'//TIMESTEP(1:NLEN)
+!
+      IF(PRESENT(DOMAIN_ID))THEN
+        FMT='(I2.2)'
+        WRITE(DOM_ID,FMT)DOMAIN_ID
+        FILENAME=FIELD//'_'//'D'//DOM_ID//'_'//TIMESTEP(1:NLEN)
+      ELSE
+        FILENAME=FIELD//'_'//TIMESTEP(1:NLEN)
+      ENDIF
 !
       IF(MYPE==0)THEN
         CLOSE(IUNIT)
@@ -184,7 +201,11 @@
       USE MODULE_INCLUDE
       IMPLICIT NONE
 !----------------------------------------------------------------------
-!----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
       INTEGER(KIND=KINT),INTENT(IN) :: IDS,IDE,JDS,JDE                 &
                                       ,IMS,IME,JMS,JME                 &
                                       ,ITS,ITE,JTS,JTE                 &
@@ -196,7 +217,9 @@
 !
       INTEGER(kind=KINT),INTENT(IN),OPTIONAL :: DOMAIN_ID
 !
-!*** LOCAL VARIABLES
+!--------------------
+!*** Local Variables
+!--------------------
 !
       INTEGER :: IUNIT=23
 !
@@ -214,7 +237,6 @@
       CHARACTER(5) :: TIMESTEP
       CHARACTER(6) :: FMT
       CHARACTER(15) :: FILENAME
-      integer :: isee=055,jsee=138,lsee=10,pesee=6
 !----------------------------------------------------------------------
 !**********************************************************************
 !----------------------------------------------------------------------
@@ -603,7 +625,6 @@
             SUMF2K=SUMF2K+FIJK*FIJK
           ENDDO
         ENDDO
-!     write(0,*)' k=',k,' FIELD min=',minval(field(its:ite,jts:jte,k)),' at ',minloc(field(its:ite,jts:jte,k))
 !
         FMAX(K)=FMAXK
         FMIN(K)=FMINK

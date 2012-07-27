@@ -2,22 +2,16 @@
                         module module_fltbnds
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use module_include
-use module_control,only : im,jm,klog,kint,kfpt &
-                         ,s_bdy,n_bdy,w_bdy,e_bdy
-!
-use module_dm_parallel,only : ids,ide,jds,jde &
-                             ,ims,ime,jms,jme &
-                             ,its,ite,jts,jte &
-                             ,its_h1,ite_h1,jts_h1,jte_h1 &
-                             ,its_h2,ite_h2,jts_h2,jte_h2 &
-                             ,its_b1,ite_b2,jts_b2,jte_b2 &
-                             ,local_istart,local_iend &
-                             ,local_jstart,local_jend &
-                             ,gather_layers,scatter_layers &
-                             ,mpi_comm_comp,mpi_intra &
-                             ,mype_share
+
+use module_control,only : im,jm,klog,kint,kfpt 
+ 
+use module_my_domain_specs
+
+use module_dm_parallel,only : gather_layers,scatter_layers
 
 use module_exchange, only: halo_exch
+
+public :: presmud
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
@@ -47,8 +41,6 @@ integer(kind=kint) :: &
 integer(kind=kint),dimension(mpi_status_size),private :: &
  istatw
 !
-integer(kind=kint),private :: &
- mype
 integer(kind=kint),allocatable,dimension(:) :: &
  k1_fft &
 ,k2_fft &
@@ -82,7 +74,7 @@ logical(kind=klog),allocatable,dimension(:) :: &
 ,khfilt,kvfilt &
 ,hfilt,vfilt &
 ,craux1,craux2,craux3,rcaux1,rcaux2,rcaux3 &
-,inpes,jnpes)
+,inpes,jnpes,mype)
 !-----------------------------------------------------------------------
       implicit none
 !-----------------------------------------------------------------------
@@ -94,6 +86,7 @@ real(kind=kfpt),parameter :: &
 integer(kind=kint),intent(in) :: &
  inpes &
 ,jnpes &
+,mype &
 ,lm
 
 integer(kind=kint),dimension(jds:jde),intent(out) :: &
@@ -950,7 +943,6 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
 !***  hemisphere this task is in.
 !-----------------------------------------------------------------------
 !
-      mype=mype_share
       lm_fft=max(lyr_frac_north,lyr_frac_south)+1
 !
       allocate(hn(ids:ide,my_jrow_start_h(mype):my_jrow_end_h(mype),1:lm_fft) &
@@ -988,7 +980,7 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
 ,hfilt &
 ,field_h &
 ,craux1,craux2,craux3,rcaux1,rcaux2,rcaux3 &
-,npes)
+,npes,mype,mpi_comm_comp)
 
 !-----------------------------------------------------------------------
       implicit none
@@ -996,7 +988,9 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
 
 integer(kind=kint),intent(in) :: &
  km &
-,npes        ! Number of compute tasks
+,mpi_comm_comp & ! This domain's fcst task intracommunicator
+,mype &          ! Rank of this task in the fcst intracommunicator
+,npes            ! Number of compute tasks
 
 integer(kind=kint),dimension(jds:jde),intent(in):: &
  khfilt
@@ -1059,8 +1053,6 @@ integer(kind=kint) :: &
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      mype=mype_share
-!
 !-----------------------------------------------------------------------
       icycle=ide-3
       icyclc=icycle/2+1
@@ -1102,6 +1094,7 @@ integer(kind=kint) :: &
                         ,my_jrow_start_h,my_jrow_end_h &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_h &
+                        ,mype,mpi_comm_comp &
                         ,hn)
 !
 !-----------------------------------------------------------------------
@@ -1224,6 +1217,7 @@ integer(kind=kint) :: &
                          ,my_jrow_start_h,my_jrow_end_h &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_h &
+                         ,mype,mpi_comm_comp &
                          ,field_h)
 !
 !-----------------------------------------------------------------------
@@ -1240,7 +1234,7 @@ integer(kind=kint) :: &
 ,vfilt &
 ,field_w &
 ,craux1,craux2,craux3,rcaux1,rcaux2,rcaux3 &
-,npes)
+,npes,mype,mpi_comm_comp)
 !
 !-----------------------------------------------------------------------
       implicit none
@@ -1248,7 +1242,9 @@ integer(kind=kint) :: &
 
 integer(kind=kint),intent(in) :: &
  km &
-,npes      ! Number of compute tasks
+,mpi_comm_comp & ! This domain's fcst task intracommunicator
+,mype &          ! Rank of this task in the fcst intracommunicator
+,npes            ! Number of compute tasks
 
 integer(kind=kint),dimension(jds:jde),intent(in):: &
  kvfilt
@@ -1310,8 +1306,6 @@ integer(kind=kint) :: &
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      mype=mype_share
-!
 !-----------------------------------------------------------------------
       icycle=ide-3
       icyclc=icycle/2+1
@@ -1353,6 +1347,7 @@ integer(kind=kint) :: &
                         ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_v &
+                        ,mype,mpi_comm_comp &
                         ,wn)
 !
 !-----------------------------------------------------------------------
@@ -1426,6 +1421,7 @@ integer(kind=kint) :: &
                          ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
+                         ,mype,mpi_comm_comp &
                          ,field_w)
 !
 !-----------------------------------------------------------------------
@@ -1442,7 +1438,7 @@ integer(kind=kint) :: &
 ,vfilt &
 ,u,v &
 ,craux1,craux2,craux3,rcaux1,rcaux2,rcaux3 &
-,npes)
+,npes,mype,mpi_comm_comp)
 !
 !-----------------------------------------------------------------------
       implicit none
@@ -1450,7 +1446,9 @@ integer(kind=kint) :: &
 
 integer(kind=kint),intent(in) :: &
  km &
-,npes      ! Number of compute tasks
+,mpi_comm_comp & ! This domain's fcst task intracommunicator
+,mype &          ! Rank of this task in the fcst intracommunicator
+,npes            ! Number of compute tasks
                                                                                                                                               
 integer(kind=kint),dimension(jds:jde),intent(in):: &
  kvfilt
@@ -1514,8 +1512,6 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      mype=mype_share
-!
 !-----------------------------------------------------------------------
       icycle=ide-3
       icyclc=icycle/2+1
@@ -1557,6 +1553,7 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
                         ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_v &
+                        ,mype,mpi_comm_comp &
                         ,un)
       call gather_layers(v,km,npes,msize_dummy_fft &
                         ,lm_fft,k1_fft,k2_fft &
@@ -1566,6 +1563,7 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
                         ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_v &
+                        ,mype,mpi_comm_comp &
                         ,vn)
 !
 !-----------------------------------------------------------------------
@@ -1685,6 +1683,7 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
                          ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
+                         ,mype,mpi_comm_comp &
                          ,u)
       call scatter_layers(vn,km,npes,msize_dummy_fft &
                          ,lm_fft,k1_fft,k2_fft &
@@ -1694,6 +1693,7 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
                          ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
+                         ,mype,mpi_comm_comp &
                          ,v)
 !
 !-----------------------------------------------------------------------
@@ -1705,7 +1705,7 @@ complex(kind=kfpt),dimension(ids:(ide-3)/2+1) :: &
 ,khfilt,kvfilt &
 ,hfilt,vfilt &
 ,wfftrh,nfftrh,wfftrw,nfftrw &
-,inpes,jnpes)
+,inpes,jnpes,mype)
 !-----------------------------------------------------------------------
       implicit none
 !-----------------------------------------------------------------------
@@ -1718,6 +1718,7 @@ real(kind=kfpt),parameter :: &
 integer(kind=kint),intent(in) :: &
  inpes &
 ,jnpes &
+,mype &
 ,lm
 
 integer(kind=kint),dimension(jds:jde),intent(out) :: &
@@ -2623,7 +2624,6 @@ real(kind=kfpt) :: &
 !***  hemisphere this task is in.
 !-----------------------------------------------------------------------
 !
-      mype=mype_share
       lm_fft=max(lyr_frac_north,lyr_frac_south)+1
 !
       allocate(hn(ids:ide,my_jrow_start_h(mype):my_jrow_end_h(mype),1:lm_fft) &
@@ -2661,7 +2661,7 @@ real(kind=kfpt) :: &
 ,hfilt &
 ,field_h &
 ,wfftrh,nfftrh &
-,npes)
+,npes,mype,mpi_comm_comp)
 
 !-----------------------------------------------------------------------
       implicit none
@@ -2669,7 +2669,9 @@ real(kind=kfpt) :: &
 
 integer(kind=kint),intent(in) :: &
  km &
-,npes        ! Number of compute tasks
+,mpi_comm_comp & ! This domain's fcst task intracommunicator
+,mype &          ! Rank of this task in the fcst intracommunicator
+,npes            ! Number of compute tasks
 
 integer(kind=kint),dimension(1:15),intent(in):: &
  nfftrh
@@ -2723,8 +2725,6 @@ integer :: ierr,ixx,jxx,kxx
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      mype=mype_share
-!
 !-----------------------------------------------------------------------
       icycle=ide-3
       rcycle=1./icycle
@@ -2765,6 +2765,7 @@ integer :: ierr,ixx,jxx,kxx
                         ,my_jrow_start_h,my_jrow_end_h &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_h &
+                        ,mype,mpi_comm_comp &
                         ,hn)
 !
 !-----------------------------------------------------------------------
@@ -2873,6 +2874,7 @@ integer :: ierr,ixx,jxx,kxx
                          ,my_jrow_start_h,my_jrow_end_h &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_h &
+                         ,mype,mpi_comm_comp &
                          ,field_h)
 !
 !-----------------------------------------------------------------------
@@ -2949,8 +2951,6 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      mype=mype_share
-!
 !-----------------------------------------------------------------------
       icycle=ide-3
       rcycle=1./icycle
@@ -2991,6 +2991,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                         ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_v &
+                        ,mype,mpi_comm_comp &
                         ,wn)
 !
 !-----------------------------------------------------------------------
@@ -3050,6 +3051,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                          ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
+                         ,mype,mpi_comm_comp &
                          ,field_w)
 !
 !-----------------------------------------------------------------------
@@ -3066,7 +3068,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
 ,vfilt &
 ,u,v &
 ,wfftrw,nfftrw &
-,npes)
+,npes,mype,mpi_comm_comp)
 !
 !-----------------------------------------------------------------------
       implicit none
@@ -3074,7 +3076,9 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
 
 integer(kind=kint),intent(in) :: &
  km &
-,npes      ! Number of compute tasks
+,mpi_comm_comp & ! This domain's fcst task intracommunicator
+,mype &          ! Rank of this task in the fcst intracommunicator
+,npes            ! Number of compute tasks
                                                                                                                                               
 integer(kind=kint),dimension(1:15),intent(in):: &
  nfftrw
@@ -3127,8 +3131,6 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      mype=mype_share
-!
 !-----------------------------------------------------------------------
       icycle=ide-3
       rcycle=1./icycle
@@ -3169,6 +3171,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                         ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_v &
+                        ,mype,mpi_comm_comp &
                         ,un)
       call gather_layers(v,km,npes,msize_dummy_fft &
                         ,lm_fft,k1_fft,k2_fft &
@@ -3178,6 +3181,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                         ,my_jrow_start_v,my_jrow_end_v &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_v &
+                        ,mype,mpi_comm_comp &
                         ,vn)
 !
 !-----------------------------------------------------------------------
@@ -3292,6 +3296,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                          ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
+                         ,mype,mpi_comm_comp &
                          ,u)
       call scatter_layers(vn,km,npes,msize_dummy_fft &
                          ,lm_fft,k1_fft,k2_fft &
@@ -3301,6 +3306,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                          ,my_jrow_start_v,my_jrow_end_v &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
+                         ,mype,mpi_comm_comp &
                          ,v)
 !
 !-----------------------------------------------------------------------
@@ -4453,7 +4459,6 @@ character(10) :: fstatus
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      mype=mype_share
       num_pes=inpes*jnpes
 !
 !-----------------------------------------------------------------------
@@ -4755,8 +4760,6 @@ real(kind=kfpt),dimension(2,jts_h1:jte_h1,km) :: &
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
-!
-      mype=mype_share
 !
 !-----------------------------------------------------------------------
 !***  Each task along the eastern and western "boundaries" needs to
@@ -5173,8 +5176,6 @@ real(kind=kfpt),dimension(2,jts_h1:jte_h1,km) :: &
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      mype=mype_share
-!
 !-----------------------------------------------------------------------
 !***  Each task along the eastern and western "boundaries" needs to
 !***  exchange with its counterpart on the opposite side.
@@ -5561,8 +5562,7 @@ real(kind=kfpt),allocatable,dimension(:) :: &
 ,qbs,qbn,qbw,qbe &
 ,wbs,wbn,wbw,wbe &
 ,ubs,ubn,ubw,ube &
-,vbs,vbn,vbw,vbe &
-,my_domain_id)
+,vbs,vbn,vbw,vbe)
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
@@ -5574,8 +5574,7 @@ integer(kind=kint),intent(in):: &
  lm  &                       ! total # of levels
 ,lnsh &                      ! # of boundary h lines for bc in reg. setup
 ,lnsv &                      ! # of boundary v lines for bc in reg. setup
-,ntsd &                      ! current timestep
-,my_domain_id                ! the domain ID
+,ntsd                        ! current timestep
 
 integer(kind=kint),intent(out):: &
  ihrstbc                     ! boundary conditions starting time
@@ -5708,7 +5707,7 @@ logical(kind=klog) :: opened
       ihr=nint(ntsd*abs(dt)/3600.)
 
       ihrbc=ihr
-      write(infile,'(a,i4.4,a,i2.2)')'boco.',ihrbc
+      write(infile,'(a,i4.4)')'boco.',ihrbc
 !
       select_unit: do l=51,59
         inquire(l,opened=opened)
@@ -5721,7 +5720,7 @@ logical(kind=klog) :: opened
       open(unit=iunit,file=infile,status='OLD' &
           ,form='UNFORMATTED',iostat=istat)
 
-      if (MYPE_SHARE .eq. 0) write(0,*) 'reading from boco file: ', trim(infile)
+!     if (mype_share == 0) write(0,*) 'reading from boco file: ', trim(infile)
 !
       read(iunit)runbc,idatbc,ihrstbc,tboco
 !
@@ -5843,8 +5842,8 @@ logical(kind=klog) :: opened
 ,wbs,wbn,wbw,wbe &
 ,ubs,ubn,ubw,ube &
 ,vbs,vbn,vbw,vbe &
-,PD,T,Q,CWM,U,V &
-,my_domain_id,recomp_tend)
+,pd,t,q,cwm,u,v &
+,recomp_tend)
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
@@ -5860,26 +5859,25 @@ integer(kind=kint),intent(in):: &
  lm  &                       ! total # of levels
 ,lnsh &                      ! # of boundary h lines for bc in reg. setup
 ,lnsv &                      ! # of boundary v lines for bc in reg. setup
-,ntsd &                      ! current timestep
-,my_domain_id                ! the domain ID
+,ntsd                        ! current timestep
 
 real(kind=kfpt),intent(in):: &
  dt                          ! dynamics time step
 
-logical, intent(in) :: recomp_tend
-
 real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
- PD   
+ pd   
 
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in):: &
- T   &
-,Q   &
-,CWM  &
-,U   &
-,V 
+ t   &
+,q   &
+,cwm  &
+,u   &
+,v 
 
 real(kind=kfpt),intent(in):: &
  tboco                       ! boundary conditions interval
+
+logical, intent(in) :: recomp_tend
 
 real(kind=kfpt),dimension(ims:ime,1:lnsh,1:2),intent(out):: &
  pdbn &                      ! pressure difference at northern boundary
@@ -5959,8 +5957,7 @@ integer(kind=kint):: &
       j_lo=max(jms,jds)
       j_hi=min(jme,jde)
 !
-      if (mype_share .eq. 0) write(0,*) 'inside write_bc with recomp_tend: ', recomp_tend
-
+!     if (mype_share == 0) write(0,*) 'inside write_bc with recomp_tend: ', recomp_tend
       if (recomp_tend) then
 
 	if (.not. allocated(targpdbn)) then

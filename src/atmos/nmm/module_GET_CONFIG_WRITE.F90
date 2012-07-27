@@ -41,7 +41,11 @@
       SUBROUTINE GET_CONFIG_WRITE(GRID_COMP,INT_STATE,RC_CONF)
 !
 !-----------------------------------------------------------------------
+!
       USE MODULE_WRITE_INTERNAL_STATE
+!
+!-----------------------------------------------------------------------
+!***  Argument variables
 !-----------------------------------------------------------------------
 !
       TYPE(ESMF_GridComp)       , INTENT(INOUT) :: GRID_COMP              !<-- The Write gridded component
@@ -49,7 +53,7 @@
       INTEGER                   ,INTENT(OUT)    :: RC_CONF                !<-- Final return code
 !
 !-----------------------------------------------------------------------
-!***  LOCAL VARIABLES
+!***  Local variables
 !-----------------------------------------------------------------------
 !
       INTEGER           :: ID_DOMAIN,RC
@@ -63,14 +67,14 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  INITIALIZE THE ERROR SIGNAL VARIABLES.
+!***  Initialize the error signal variables.
 !-----------------------------------------------------------------------
 !
       RC     =ESMF_SUCCESS
       RC_CONF=ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
-!***  RETRIEVE THE ESMF CONFIG OBJECT CF FROM THE GRIDDED COMPONENT.
+!***  Retrieve the esmf config object CF from the Write component.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -87,7 +91,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  BEGIN EXTRACTION OF THE CONFIGURATION FILE DATA.
+!***  Begin extraction of the configuration file data.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -607,9 +611,9 @@
 !-----------------------------------------------------------------------
 !
       IF(RC_CONF==ESMF_SUCCESS)THEN
-!!!     WRITE(0,*)'GET_CONFIG PASSED FOR WRITE'
+!!!     WRITE(0,*)'GET_CONFIG_WRITE PASSED'
       ELSE
-        WRITE(0,*)'GET_CONFIG FAILED FOR WRITE RC_CONF=',RC_CONF
+        WRITE(0,*)'GET_CONFIG_WRITE FAILED RC_CONF=',RC_CONF
       ENDIF
 !
 !-----------------------------------------------------------------------

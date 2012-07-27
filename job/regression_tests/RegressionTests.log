@@ -1,11 +1,11 @@
-Tue Jul 24 21:09:46 EDT 2012
+Fri Jul 27 08:45:31 EDT 2012
 Start Regression test
 
 
 
-Tue Jul 24 21:09:47 EDT 2012
+Fri Jul 27 08:45:31 EDT 2012
 Compilation ALL
-Tue Jul 24 21:45:51 EDT 2012
+Fri Jul 27 09:22:27 EDT 2012
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  152.50
+ Original timing:  151.20  , test_glob timing:  151.98
 
 
 Test 002
@@ -104,3 +104,234 @@ Checking test 007 results ....
 
 Test 008
 Test NMMB-regional static nests with restart
+
+
+Checking test 008 results ....
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_nio_0024h_00m_00.00s.........OK
+ Test 008 passed 
+
+
+
+Test 009
+Compare GFS results with previous trunk version
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 009 results ....
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 009 passed 
+Test 010
+Test GFS threads
+GFS, 16 proc, 2 thread
+
+
+
+
+Checking test 010 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Test 010 passed 
+Test 011
+GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
+GFS, 16 proc, 2 thread
+
+
+
+
+Checking test 011 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Test 011 passed 
+Test 012
+GFS, 16tasks, 2threads, quilt, dfi3hr, reduced grid, NDSL
+GFS, 16 proc, 2 thread
+
+
+
+
+Checking test 012 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Test 012 passed 
+Test 013
+GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid with nst
+GFS, 16 proc, 2 thread
+
+
+
+
+Checking test 013 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Comparing nstf03.........OK
+ Comparing nstf06.........OK
+ Comparing nstf12.........OK
+ Comparing nstf24.........OK
+ Comparing nstf48.........OK
+ Test 013 passed 
+Test 014
+GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 1loop digital filter on reduced grid
+GFS, 16 proc, 2 thread
+
+
+
+
+Checking test 014 results ....
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 014 passed 
+Test 015
+Concurrency GEFS, stochastic perturbations, 4 members, T190L28.
+GFS, 64 proc, 1 thread
+
+
+
+
+Checking test 015 results ....
+ Comparing SIG.F06_01.........OK
+ Comparing SIG.F06_02.........OK
+ Comparing SIG.F06_03.........OK
+ Comparing SIG.F06_04.........OK
+ Comparing SIG.F12_01.........OK
+ Comparing SIG.F12_02.........OK
+ Comparing SIG.F12_03.........OK
+ Comparing SIG.F12_04.........OK
+ Comparing SIG.F18_01.........OK
+ Comparing SIG.F18_02.........OK
+ Comparing SIG.F18_03.........OK
+ Comparing SIG.F18_04.........OK
+ Comparing SIG.F24_01.........OK
+ Comparing SIG.F24_02.........OK
+ Comparing SIG.F24_03.........OK
+ Comparing SIG.F24_04.........OK
+ Comparing SFC.F06_01.........OK
+ Comparing SFC.F06_02.........OK
+ Comparing SFC.F06_03.........OK
+ Comparing SFC.F06_04.........OK
+ Comparing SFC.F12_01.........OK
+ Comparing SFC.F12_02.........OK
+ Comparing SFC.F12_03.........OK
+ Comparing SFC.F12_04.........OK
+ Comparing SFC.F18_01.........OK
+ Comparing SFC.F18_02.........OK
+ Comparing SFC.F18_03.........OK
+ Comparing SFC.F18_04.........OK
+ Comparing SFC.F24_01.........OK
+ Comparing SFC.F24_02.........OK
+ Comparing SFC.F24_03.........OK
+ Comparing SFC.F24_04.........OK
+ Comparing FLX.F06_01.........OK
+ Comparing FLX.F06_02.........OK
+ Comparing FLX.F06_03.........OK
+ Comparing FLX.F06_04.........OK
+ Comparing FLX.F12_01.........OK
+ Comparing FLX.F12_02.........OK
+ Comparing FLX.F12_03.........OK
+ Comparing FLX.F12_04.........OK
+ Comparing FLX.F18_01.........OK
+ Comparing FLX.F18_02.........OK
+ Comparing FLX.F18_03.........OK
+ Comparing FLX.F18_04.........OK
+ Comparing FLX.F24_01.........OK
+ Comparing FLX.F24_02.........OK
+ Comparing FLX.F24_03.........OK
+ Comparing FLX.F24_04.........OK
+ Test 015 passed 
+Test 016
+GEN, 1 members.
+GEN, 16 proc, 1 thread
+
+
+
+
+Checking test 016 results ....
+ Test 016 passed 
+
+
+
+Fri Jul 27 10:18:15 EDT 2012

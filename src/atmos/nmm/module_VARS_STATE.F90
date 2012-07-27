@@ -14,6 +14,7 @@
 
       USE esmf_mod
       USE MODULE_VARS
+      USE module_CONTROL,ONLY: TIMEF
 
       IMPLICIT NONE
 
@@ -22,6 +23,10 @@
       PUBLIC :: GET_VARS_FROM_STATE
       PUBLIC :: DELETE_FIELDS_FROM_STATE
       PUBLIC :: PUT_VARS_IN_BUNDLES
+
+      integer,parameter :: double=selected_real_kind(p=13,r=200)
+      integer,parameter:: kdbl=double
+      real(kind=kdbl) :: btim,btim0
 
       CONTAINS
 
@@ -128,10 +133,10 @@
       SUBROUTINE GET_VARS_FROM_STATE(VARS, NUM_VARS, STATE)
 
 !-------------------------------------------------------------------------------
-!***  Take allocated pointers from a given ESMF state and either point 
-!***  VARS locations at them if the VARS variable is unowned/unallocated
-!***  or move the pointer data into the VARS location if both Dynamics
-!***  and Physics own the variable.
+!***  Take allocated pointers from a given ESMF state and point VARS 
+!***  locations at them if the VARS variable is unowned/unallocated
+!***  or move the pointer data into the VARS location if owned by 
+!***  multiple components.
 !-------------------------------------------------------------------------------
 
       IMPLICIT NONE
@@ -200,7 +205,7 @@
                   CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
                                     ,rc             =RC)
                 end if
-                VARS(N)%I2D =  HOLD_I2D        !<-- Both Dynamics and Physics own the variable thus transfer data
+                VARS(N)%I2D =  HOLD_I2D        !<-- Transfer data since multiply owned
               ELSE
                 VARS(N)%I2D => HOLD_I2D        !<-- Point the appropriate unallocated VARS location at allocated pointer
               END IF
@@ -220,7 +225,7 @@
             CASE(TKR_R2D)
               CALL ESMF_StateGet(state=STATE ,itemName=VBL_NAME ,field=FIELD ,rc=RC)
               if (rc/=ESMF_SUCCESS) then
-                write(0,*)' Unable to get VBL_NAME for CASE(TKR_R2D) in GET_VARS_FROM_STATE'
+                write(0,*)' Unable to get ',trim(VBL_NAME),' for CASE(TKR_R2D) in GET_VARS_FROM_STATE'
                 write(0,*)' ABORTING!'
                 CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
                                   ,rc             =RC)
@@ -241,7 +246,7 @@
                   CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
                                     ,rc             =RC)
                 end if
-                VARS(N)%R2D =  HOLD_R2D         !<-- Both Dynamics and Physics own the variable thus transfer data
+                VARS(N)%R2D =  HOLD_R2D         !<-- Transfer data since multiply owned
               ELSE
                 VARS(N)%R2D => HOLD_R2D         !<-- Point the appropriate unallocated VARS location at allocated pointer
               END IF
@@ -272,7 +277,7 @@
                   CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
                                     ,rc             =RC)
                 end if
-                VARS(N)%R3D =  HOLD_R3D         !<-- Both Dynamics and Physics own the variable thus transfer data
+                VARS(N)%R3D =  HOLD_R3D         !<-- Transfer data since multiply owned
               ELSE
                 VARS(N)%R3D => HOLD_R3D         !<-- Point the appropriate unallocated VARS location at allocated pointer
               END IF
@@ -303,7 +308,7 @@
                   CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
                                     ,rc             =RC)
                 end if
-                VARS(N)%R4D =  HOLD_R4D         !<-- Both Dynamics and Physics own the variable thus transfer data
+                VARS(N)%R4D =  HOLD_R4D         !<-- Transfer data since multiply owned
               ELSE
                 VARS(N)%R4D => HOLD_R4D         !<-- Point the appropriate unallocated VARS location at allocated pointer
               END IF
@@ -567,7 +572,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Insert Physics 2-D Integer Field into History Bundles"
+          MESSAGE_CHECK="Insert Solver 2-D Integer Field into History Bundles"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -627,7 +632,7 @@
           IF (VARS(N)%HISTORY) THEN                              !<-- Take 2D real array data specified for history output
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Insert Dynamics 2-D Real Data into Field"
+          MESSAGE_CHECK="Insert Solver 2-D Real Data into Field"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -645,7 +650,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Insert Dynamics 2-D Real Field into History Bundles"
+          MESSAGE_CHECK="Insert Solver 2-D Real Field into History Bundles"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -661,7 +666,7 @@
           IF (VARS(N)%RESTART) THEN                                        !<-- Take 2D real array data specified for restart output
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Insert Dynamics 2-D Real Data into Field"
+          MESSAGE_CHECK="Insert Solver 2-D Real Data into Field"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -679,7 +684,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Insert Dynamics 2-D Real Field into Restart Bundles"
+          MESSAGE_CHECK="Insert Solver 2-D Real Field into Restart Bundles"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !

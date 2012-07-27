@@ -19,14 +19,11 @@
 !
       USE MODULE_INCLUDE
 !
-      USE MODULE_DM_PARALLEL,ONLY : ITS_B1,ITE_B1,JTS_B1,JTE_B1         &
-                                   ,MPI_COMM_COMP,MYPE_SHARE
+      USE MODULE_MY_DOMAIN_SPECS
 !
       USE MODULE_LS_NOAHLSM
       USE MODULE_LS_LISS
       USE MODULE_GWD
-!
-      USE MODULE_H_TO_V
 !
       USE MODULE_CONSTANTS,ONLY : A2,A3,A4,CP,ELIV,ELWV,EP_1,EPSQ,EPSQ2 &
                                  ,G,P608,PI,PQ0,R_D,R_V,RHOWATER        &
@@ -37,6 +34,7 @@
       USE MODULE_SF_JSFC,ONLY : JSFC
       USE MODULE_BL_MYJPBL,ONLY : MYJPBL
       USE MODULE_BL_GFSPBL,ONLY : GFSPBL
+!
 !-----------------------------------------------------------------------
 !
       IMPLICIT NONE
@@ -115,6 +113,7 @@
                       ,TURBULENCE,SFC_LAYER                             &
                       ,LAND_SURFACE                                     &
                       ,MICROPHYSICS                                     &
+                      ,GLOBAL                                           &
                       ,IDS,IDE,JDS,JDE,LM                               &
                       ,IMS,IME,JMS,JME                                  &
                       ,ITS,ITE,JTS,JTE)
@@ -255,6 +254,8 @@
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,NSOIL),INTENT(INOUT) :: SH2O,SMC,STC
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) ::  RSWTT, RLWTT
+!
+      LOGICAL(kind=KLOG),INTENT(IN) :: GLOBAL
 !
       CHARACTER(99),INTENT(IN) :: LAND_SURFACE,MICROPHYSICS             &
                                  ,SFC_LAYER,TURBULENCE
@@ -1234,9 +1235,10 @@
                        ,CROT,SROT                                       &
                        ,CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN             &
                        ,DUDT_GWD,DVDT_GWD                               &
+                       ,GLOBAL                                          &
                        ,IDS,IDE,JDS,JDE                                 &
                        ,IMS,IME,JMS,JME                                 &
-                       ,ITS,ITE,JTS,JTE,LM)
+                       ,ITS,ITE,JTS,JTE,LM )
 
       ENDIF
 !

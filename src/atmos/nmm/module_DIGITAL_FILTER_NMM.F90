@@ -21,12 +21,12 @@
 !                           ESMF 5 library and the the ESMF 3.1.0rp2 library.
 ! May      2011 Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 ! September2011 Weiyu Yang, Modified for using the ESMF 5.2.0r library.
+! July     2012    T Black, Modified for generational task usage.
 !----------------------------------------------------------------------------
 !
       USE esmf_mod
       use module_include
       use module_exchange,only: halo_exch
-      use module_dm_parallel, only: its,ite,jts,jte, lm
 
 !      type(esmf_config),save :: cf_1                                !<-- The config object
 
@@ -35,30 +35,16 @@
 ! ---------
 ! dynamics
 ! ---------
-      real, allocatable, save :: array_save_2d(:,:,:)
-      real, allocatable, save :: array_save_3d(:,:,:,:)
-      real, allocatable, save :: array_save_4d(:,:,:,:,:)
-      real, allocatable, save :: dolph_wgts(:)
-      real             , save :: totalsum
       character(20), allocatable, save :: name_save_2d(:)
       character(20), allocatable, save :: name_save_3d(:)
       character(20), allocatable, save :: name_save_4d(:)
-      integer,                    save :: tot_rank_2d=0 
-      integer,                    save :: tot_rank_3d=0
-      integer,                    save :: tot_rank_4d=0
-      integer,                    save :: kstep, nstep
       
 ! ---------
 ! physics
 ! ---------
       character(20), allocatable, save :: phy_name(:)
-      real, allocatable, save :: array_save_2d_phys(:,:,:)
-      real, allocatable, save :: array_save_3d_phys(:,:,:,:)
       character(20), allocatable, save :: name_save_2d_phys(:)
       character(20), allocatable, save :: name_save_3d_phys(:)
-      integer,                    save :: tot_rank_2d_phys=0 
-      integer,                    save :: tot_rank_3d_phys=0
-
 
       contains
 
@@ -69,22 +55,43 @@
                                             ,ndfistep                   &
                                             ,dt_int,dt_num,dt_den       &
                                             ,num_water                  &
-                                            ,num_tracers)
+                                            ,num_tracers                &
+                                            ,its,ite,jts,jte,lm         &
+                                            ,tot_rank_2d                &
+                                            ,tot_rank_3d                &
+                                            ,tot_rank_4d                &
+                                            ,kstep,nstep                &
+                                            ,totalsum                   &
+                                            ,dolph_wgts                 &
+                                            ,array_save_2d              &
+                                            ,array_save_3d              &
+                                            ,array_save_4d )
 !-----------------------------------------------------------------------
 !
-!
       TYPE(ESMF_FieldBundle),INTENT(INOUT) :: FILT_BUNDLE
-      integer, intent(in)          :: ndfistep
-      integer, intent(in)          :: num_water,num_tracers
-      integer, intent(in)          :: dt_int,dt_num,dt_den
+      integer(kind=kint), intent(in)       :: ndfistep
+      integer(kind=kint), intent(in)       :: num_water,num_tracers
+      integer(kind=kint), intent(in)       :: dt_int,dt_num,dt_den
+      integer(kind=kint), intent(in)       :: its,ite,jts,jte,lm
 !
-!     type(esmf_field)             :: tmp_field 
-      integer                      :: tmp_rank,dyn_items                &
+      integer(kind=kint), intent(out) :: kstep,nstep
+      integer(kind=kint), intent(out) :: tot_rank_2d                    &
+                                        ,tot_rank_3d                    &
+                                        ,tot_rank_4d
+!
+      real(kind=kfpt), dimension(:), pointer, intent(inout) :: dolph_wgts
+      real(kind=kfpt), dimension(:,:,:), pointer, intent(inout) :: array_save_2d
+      real(kind=kfpt), dimension(:,:,:,:), pointer, intent(inout) :: array_save_3d
+      real(kind=kfpt), dimension(:,:,:,:,:), pointer, intent(inout) :: array_save_4d
+!
+      real(kind=kfpt), intent(out) :: totalsum
+!
+      integer(kind=kint)           :: tmp_rank,dyn_items                &
                                      ,dfihr
-      integer                      :: spec_max,rc,n,m,NUM_FIELDS
+      integer(kind=kint)           :: spec_max,istat,rc,n,m,NUM_FIELDS
       character(20), allocatable   :: dyn_name(:)
       character(20)                :: state_name
-      real                         :: taus, dt
+      real(kind=kfpt)              :: taus, dt
       TYPE(ESMF_Field) :: tmpfield
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -92,8 +99,13 @@
       nstep = ndfistep 
       kstep = - nstep -1
 
-      if (allocated(dolph_wgts)) deallocate(dolph_wgts)
-      allocate(dolph_wgts(-nstep:nstep))
+      if (associated(dolph_wgts)) deallocate(dolph_wgts)
+      allocate(dolph_wgts(-nstep:nstep),stat=istat)
+      if(istat/=0)then
+        write(0,*)' DIGITAL_FILTER_DYN_INIT_NMM failed to allocate dolph_wgts stat=',istat
+        write(0,*)' Aborting!!'
+        call esmf_finalize(rc=rc,terminationflag=esmf_abort)
+      endif
 
       dt=float(dt_int)+float(dt_num)/float(dt_den)
 
@@ -153,29 +165,42 @@
 !
       ENDDO 
 !
-!      SPEC_MAX=MAX(NUM_TRACERS,NUM_WATER)
-!     
-      IF (tot_rank_2d > 0 .and. .not. allocated(array_save_2d)) THEN
-      	allocate(array_save_2d(ITS:ITE,JTS:JTE,tot_rank_2d))
+      IF (tot_rank_2d > 0 .and. .not. associated(array_save_2d)) THEN
+      	allocate(array_save_2d(ITS:ITE,JTS:JTE,tot_rank_2d),stat=istat)
+        if(istat/=0)then
+          write(0,*)' DIGITAL_FILTER_DYN_INIT_NMM failed to allocate array_save_2d stat=',istat
+          write(0,*)' Aborting!!'
+          call esmf_finalize(rc=rc,terminationflag=esmf_abort)
+        endif
       ENDIF
 !
-      IF (tot_rank_3d > 0 .and. .not. allocated(array_save_3d)) THEN
-      	allocate(array_save_3d(ITS:ITE,JTS:JTE,LM,tot_rank_3d))
+      IF (tot_rank_3d > 0 .and. .not. associated(array_save_3d)) THEN
+      	allocate(array_save_3d(ITS:ITE,JTS:JTE,LM,tot_rank_3d),stat=istat)
+        if(istat/=0)then
+          write(0,*)' DIGITAL_FILTER_DYN_INIT_NMM failed to allocate array_save_3d stat=',istat
+          write(0,*)' Aborting!!'
+          call esmf_finalize(rc=rc,terminationflag=esmf_abort)
+        endif
       ENDIF
 !
-      IF (tot_rank_4d > 0 .and. .not. allocated(array_save_4d)) THEN
-      	allocate(array_save_4d(ITS:ITE,JTS:JTE,LM,SPEC_MAX,tot_rank_4d))
+      IF (tot_rank_4d > 0 .and. .not. associated(array_save_4d)) THEN
+      	allocate(array_save_4d(ITS:ITE,JTS:JTE,LM,SPEC_MAX,tot_rank_4d),stat=istat)
+        if(istat/=0)then
+          write(0,*)' DIGITAL_FILTER_DYN_INIT_NMM failed to allocate array_save_4d stat=',istat
+          write(0,*)' Aborting!!'
+          call esmf_finalize(rc=rc,terminationflag=esmf_abort)
+        endif
       ENDIF
 !
-      IF (allocated(array_save_2d)) THEN
+      IF (associated(array_save_2d)) THEN
         array_save_2d=0.
       ENDIF
 
-      IF (allocated(array_save_3d)) THEN
+      IF (associated(array_save_3d)) THEN
         array_save_3d=0.
       ENDIF
 
-      IF (allocated(array_save_4d)) THEN
+      IF (associated(array_save_4d)) THEN
         array_save_4d=0.
       ENDIF
      
@@ -188,14 +213,39 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-      subroutine digital_filter_dyn_sum_nmm(filt_bundle               &
+      subroutine digital_filter_dyn_sum_nmm(filt_bundle                 &
                                            ,mean_on                     &
                                            ,num_water                   &
-                                           ,num_tracers)
+                                           ,num_tracers                 &
+                                           ,its,ite,jts,jte,lm          &
+                                           ,tot_rank_2d                 &
+                                           ,tot_rank_3d                 &
+                                           ,tot_rank_4d                 &
+                                           ,kstep,nstep                 &
+                                           ,totalsum                    &
+                                           ,dolph_wgts                  &
+                                           ,array_save_2d               &
+                                           ,array_save_3d               &
+                                           ,array_save_4d )
 !-----------------------------------------------------------------------
 
       TYPE(ESMF_FieldBundle),INTENT(INOUT) :: FILT_BUNDLE
-      integer(kind=kint),intent(in) :: mean_on,num_water,num_tracers
+      integer(kind=kint),intent(in) :: mean_on,nstep                    &
+                                      ,num_water,num_tracers
+      integer(kind=kint),intent(in) :: its,ite,jts,jte,lm
+      integer(kind=kint), intent(in) :: tot_rank_2d                     &
+                                       ,tot_rank_3d                     &
+                                       ,tot_rank_4d
+!
+      integer(kind=kint),intent(inout) :: kstep
+!
+      real(kind=kfpt), dimension(:), pointer, intent(in) :: dolph_wgts   
+!
+      real(kind=kfpt), intent(inout) :: totalsum
+!
+      real(kind=kfpt), dimension(:,:,:), pointer, intent(inout) :: array_save_2d
+      real(kind=kfpt), dimension(:,:,:,:), pointer, intent(inout) :: array_save_3d
+      real(kind=kfpt), dimension(:,:,:,:,:), pointer, intent(inout) :: array_save_4d
 !
       integer(kind=kint) :: i,ii,j,jj,l,n,num_spec,p,rc,rc_upd
       real(kind=kfpt) :: digfil,prod,sx,wx
@@ -208,6 +258,7 @@
 !
       type(ESMF_Field) :: hold_field
 !
+             real(kind=kfpt),dimension(:,:,:),pointer :: holdx
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -290,6 +341,7 @@
             enddo
             enddo
          enddo
+
         enddo
 !
       endif
@@ -327,7 +379,6 @@
 
       endif
 
-
       if(rc_upd==esmf_success)then
 !       write(0,*)'DYNAMICS UPDATE SUCCEEDED'
       else
@@ -340,14 +391,35 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-      subroutine digital_filter_dyn_average_nmm(filt_bundle               &
+      subroutine digital_filter_dyn_average_nmm(filt_bundle             &
                                                ,num_water               &
-                                               ,num_tracers)
+                                               ,num_tracers             &
+                                               ,its,ite,jts,jte,lm      &
+                                               ,tot_rank_2d             &
+                                               ,tot_rank_3d             &
+                                               ,tot_rank_4d             &
+                                               ,kstep,nstep             &
+                                               ,totalsum                &
+                                               ,array_save_2d           &
+                                               ,array_save_3d           &
+                                               ,array_save_4d )
 !-----------------------------------------------------------------------
 !
-      USE MODULE_DM_PARALLEL
       TYPE(ESMF_FieldBundle),INTENT(INOUT) :: FILT_BUNDLE
-      INTEGER, intent(in)          :: NUM_WATER,NUM_TRACERS
+      INTEGER(kind=KINT),INTENT(IN) :: NUM_WATER,NUM_TRACERS
+      INTEGER(kind=KINT),INTENT(IN) :: ITS,ITE,JTS,JTE,LM
+!
+      INTEGER(kind=KINT),INTENT(INOUT) :: TOT_RANK_2D                   &
+                                         ,TOT_RANK_3D                   &
+                                         ,TOT_RANK_4D
+!
+      INTEGER(kind=KINT),INTENT(OUT) :: KSTEP,NSTEP
+!
+      REAL(kind=KFPT),INTENT(IN) :: TOTALSUM
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER,INTENT(INOUT) :: ARRAY_SAVE_2D
+      REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER,INTENT(INOUT) :: ARRAY_SAVE_3D
+      REAL(kind=KFPT),DIMENSION(:,:,:,:,:),POINTER,INTENT(INOUT) :: ARRAY_SAVE_4D
 !
       INTEGER(KIND=KINT) :: I,II,J,JJ,L,N,P,RC,RC_UPD
       REAL(KIND=KFPT),DIMENSION(:,:)    ,POINTER :: HOLD_2D
@@ -357,8 +429,6 @@
       CHARACTER(20)    :: FIELD_NAME
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
-
-!     TYPE(ESMF_Field)                :: tmp_field
 !
       CHARACTER(ESMF_Maxstr)          :: name
       real, dimension(:,:), pointer   :: tmp_ptr
@@ -419,7 +489,7 @@
       IF (tot_rank_2d > 0) THEN
         DO N=1,tot_rank_2d
           FIELD_NAME=name_save_2d(N)
-          NULLIFY(HOLD_2D)
+!         NULLIFY(HOLD_2D)
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
@@ -459,7 +529,7 @@
       IF (tot_rank_3d > 0) THEN
         DO N=1,tot_rank_3d
           FIELD_NAME=name_save_3d(N)
-          NULLIFY(HOLD_3D)
+!         NULLIFY(HOLD_3D)
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
@@ -508,7 +578,7 @@
          ELSE IF (FIELD_NAME == 'WATER') THEN
             NUM_SPEC=NUM_WATER
           ENDIF
-          NULLIFY(HOLD_4D)
+!         NULLIFY(HOLD_4D)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -551,17 +621,14 @@
 
 
       IF (tot_rank_2d > 0) THEN 
-        deallocate(name_save_2d)
         deallocate(array_save_2d)
       ENDIF
 
       IF (tot_rank_3d > 0) THEN 
-        deallocate(name_save_3d)
         deallocate(array_save_3d)
       ENDIF
 
       IF (tot_rank_4d > 0) THEN 
-        deallocate(name_save_4d)
         deallocate(array_save_4d)
       ENDIF
 
@@ -576,12 +643,24 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-      subroutine digital_filter_phy_init_nmm(filt_bundle)
+      subroutine digital_filter_phy_init_nmm(filt_bundle                &
+                                            ,its,ite,jts,jte,lm         &
+                                            ,tot_rank_2d_phys           &
+                                            ,tot_rank_3d_phys           &
+                                            ,array_save_2d_phys         &
+                                            ,array_save_3d_phys )
 !-----------------------------------------------------------------------
       TYPE(ESMF_FieldBundle),INTENT(INOUT) :: FILT_BUNDLE
+      INTEGER(kind=KINT),INTENT(IN) :: ITS,ITE,JTS,JTE,LM
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER,INTENT(INOUT) :: ARRAY_SAVE_2D_PHYS
+      REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER,INTENT(INOUT) :: ARRAY_SAVE_3D_PHYS
+!
+      INTEGER(kind=KINT),INTENT(OUT) :: TOT_RANK_2D_PHYS                &
+                                       ,TOT_RANK_3D_PHYS
 !
       TYPE(ESMF_Field) :: tmpfield
-      integer :: rc, NUM_FIELDS, n, tmp_rank
+      integer :: istat,rc, NUM_FIELDS, n, tmp_rank
       character(len=20) :: field_name
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -626,17 +705,27 @@
 !
       ENDDO 
 !
-      IF (tot_rank_2d_phys > 0 .and. .not. allocated(array_save_2d_phys)) THEN
-      	allocate(array_save_2d_phys(ITS:ITE,JTS:JTE,tot_rank_2d_phys))
+      IF (tot_rank_2d_phys > 0 .and. .not. associated(array_save_2d_phys)) THEN
+      	allocate(array_save_2d_phys(ITS:ITE,JTS:JTE,tot_rank_2d_phys),stat=istat)
+        if(istat/=0)then
+          write(0,*)' DIGITAL_FILTER_PHY_INIT_NMM failed to allocate array_save_2d_phys stat=',istat
+          write(0,*)' Aborting!!'
+          call esmf_finalize(rc=rc,terminationflag=esmf_abort)
+        endif
+        array_save_2d_phys=0.
       ENDIF
 !
-      IF (tot_rank_3d_phys > 0 .and. .not. allocated(array_save_3d_phys)) THEN
-      	allocate(array_save_3d_phys(ITS:ITE,JTS:JTE,LM,tot_rank_3d_phys))
+      IF (tot_rank_3d_phys > 0 .and. .not. associated(array_save_3d_phys)) THEN
+      	allocate(array_save_3d_phys(ITS:ITE,JTS:JTE,LM,tot_rank_3d_phys),stat=istat)
+        if(istat/=0)then
+          write(0,*)' DIGITAL_FILTER_PHY_INIT_NMM failed to allocate array_save_3d_phys stat=',istat
+          write(0,*)' Aborting!!'
+          call esmf_finalize(rc=rc,terminationflag=esmf_abort)
+        endif
+        array_save_3d_phys=0.
       ENDIF
 !
       deallocate(phy_name)
-      array_save_2d_phys=0.
-      array_save_3d_phys=0.
 
 !-----------------------------------------------------------------------
 !
@@ -645,18 +734,27 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-      subroutine digital_filter_phy_save_nmm(filt_bundle)
+      subroutine digital_filter_phy_save_nmm(filt_bundle                &
+                                            ,its,ite,jts,jte            &
+                                            ,tot_rank_2d_phys           &
+                                            ,tot_rank_3d_phys           &
+                                            ,array_save_2d_phys         &
+                                            ,array_save_3d_phys )
 !-----------------------------------------------------------------------
-!      use module_dm_parallel, only: its,ite,jts,jte
 !
       TYPE(ESMF_FieldBundle),INTENT(INOUT) :: FILT_BUNDLE
+      INTEGER(kind=KINT),INTENT(IN) :: ITS,ITE,JTS,JTE
+      INTEGER(kind=KINT),INTENT(IN) :: TOT_RANK_2D_PHYS                 &
+                                      ,TOT_RANK_3D_PHYS
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER,INTENT(INOUT) :: ARRAY_SAVE_2D_PHYS
+      REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER,INTENT(INOUT) :: ARRAY_SAVE_3D_PHYS
 !
       TYPE(ESMF_Field)             :: hold_field
       integer                      :: n, rc, i,j,l, LDIM
       character(len=20)            :: field_name
       REAL(KIND=KFPT),DIMENSION(:,:)    ,POINTER :: HOLD_2D
       REAL(KIND=KFPT),DIMENSION(:,:,:)  ,POINTER :: HOLD_3D
-!      REAL(KIND=KFPT),DIMENSION(:,:,:)  ,ALLOCATABLE :: TMP_T, TMP_PINT, TMP_Q
 
 
 !-----------------------------------------------------------------------
@@ -724,11 +822,23 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-      subroutine digital_filter_phy_restore_nmm( FILT_BUNDLE )
+      subroutine digital_filter_phy_restore_nmm( FILT_BUNDLE            &
+                                                ,its,ite,jts,jte        &
+                                                ,tot_rank_2d_phys       &
+                                                ,tot_rank_3d_phys       &
+                                                ,array_save_2d_phys     &
+                                                ,array_save_3d_phys )
 !-----------------------------------------------------------------------
 !
 
       TYPE(ESMF_FieldBundle),INTENT(INOUT) :: FILT_BUNDLE
+      INTEGER(kind=KINT),INTENT(IN) :: ITS,ITE,JTS,JTE
+      INTEGER(kind=KINT),INTENT(IN) :: TOT_RANK_2D_PHYS                 &
+                                      ,TOT_RANK_3D_PHYS  
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER,INTENT(INOUT) :: ARRAY_SAVE_2D_PHYS
+      REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER,INTENT(INOUT) :: ARRAY_SAVE_3D_PHYS
+!
 
       INTEGER(KIND=KINT) :: I,II,J,JJ,L,N,P,RC,RC_UPD,NUM_FIELDS,LDIM
       REAL(KIND=KFPT),DIMENSION(:,:)    ,POINTER :: HOLD_2D
@@ -747,7 +857,7 @@
       IF (tot_rank_2d_phys > 0) THEN
         DO N=1,tot_rank_2d_phys
           FIELD_NAME=name_save_2d_phys(N)
-          NULLIFY(HOLD_2D)
+!         NULLIFY(HOLD_2D)
 
           CALL ESMF_FieldBundleGet(FIELDBUNDLE = FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
                                 ,FIELDNAME     = field_name          &
@@ -774,7 +884,7 @@
         DO N=1,tot_rank_3d_phys
           FIELD_NAME=name_save_3d_phys(N)
 
-          NULLIFY(HOLD_3D)
+!         NULLIFY(HOLD_3D)
 
 
           CALL ESMF_FieldBundleGet(FIELDBUNDLE    = FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered

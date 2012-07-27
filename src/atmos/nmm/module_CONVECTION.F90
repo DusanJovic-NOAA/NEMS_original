@@ -10,14 +10,7 @@
 !
       USE MODULE_INCLUDE
 !
-      USE MODULE_DM_PARALLEL,ONLY : ITS_B1,ITE_B1,ITE_B2                &
-                                   ,ITS_B1_H1,ITE_B1_H1,ITE_B1_H2       &
-                                   ,ITS_B1_H2,ITE_H1,ITE_H2             &
-                                   ,JTS_B1,JTE_B1,JTE_B2                &
-                                   ,JTS_B1_H1,JTE_B1_H1,JTE_B1_H2       &
-                                   ,JTS_B1_H2,JTE_H2                    &
-                                   ,MPI_COMM_COMP                       &
-                                   ,MYPE_SHARE
+      USE MODULE_MY_DOMAIN_SPECS
 !
       USE MODULE_CONSTANTS,ONLY : A2,A3,A4,CP,ELIV,ELWV,EPSQ,G          &
                                  ,P608,PQ0,R_D,TIW

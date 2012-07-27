@@ -343,10 +343,25 @@ my_domain_id: 1              # The ID number of this domain (uppermost domain mu
 my_parent_id: -999           # The ID number of this domain's parent
 n_children:  _NCHILD_        # How many child domains does this domain have?
 num_domains_total: 1         # The total number of domains in this run (only needed in domain #1's configure file)
+
+my_domain_moves:  false      # Does this domain move?
+
+nest_mode:  1-way            # 1-way or 2-way interaction between parents/children
+generation:  1               # For 2-way mode, in which generation is this domain?
+
+### If this domain is not a nest then the remaining variables
+### in 'Nesting Specifications' are ignored.
+
 i_parent_start:  175         # Nest southwest corner at this parent I
 j_parent_start:  127         # Nest southwest corner at this parent J
 parent_child_space_ratio: 3  # Ratio of parent grid increment to nests's
-my_domain_moves:  false      # Does my domain move?
+
+ratio_sfc_files:  0          # Ratio of uppermost parent grid increment to this moving nest's
+
+nrows_p_upd_w: 2             # West bndry rows of moving nest footprint updated by parent
+nrows_p_upd_e: 2             # East bndry rows of moving nest footprint updated by parent
+nrows_p_upd_s: 2             # South bndry rows of moving nest footprint updated by parent
+nrows_p_upd_n: 2             # North bndry rows of moving nest footprint updated by parent
 
 input_ready:  false          # Nest has pre-generated input file
 

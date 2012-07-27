@@ -67,8 +67,9 @@
                                       ,TIME_FOR_RESTART
 !
       USE MODULE_DM_PARALLEL,ONLY : PARA_RANGE                          &
+                                   ,MAX_GROUPS                          &
                                    ,MPI_COMM_COMP                       &
-                                   ,MPI_COMM_INTER_ARRAY
+                                   ,MPI_INTERCOMM_ARRAY
 !
       USE MODULE_CONTROL,ONLY : TIMEF
       USE MODULE_GET_CONFIG_WRITE
@@ -111,17 +112,19 @@
                                 ,LM                                     &  !<-- # of model layers
                                 ,LNSV                                   &  !<-- V Rows in boundary region
                                 ,NTASKS                                 &  !<-- # of Write tasks in the current group + all Fcst tasks
+                                ,NUM_DOMAINS_TOTAL                      &  !<-- Total # of domains
                                 ,NUM_PES_FCST                           &  !<-- # of Fcst tasks in the current group + all Fcst tasks
                                 ,NWTPG                                     !<-- # of Write tasks (servers) per group 
 !
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE,SAVE :: NCURRENT_GROUP   !<-- The currently active write group
 !
-      TYPE(ESMF_Config),SAVE :: CF                                         !<-- The config object
+      CHARACTER(len=17) :: CONFIGFILE_01_NAME                              !<-- The name of domain #1's configure file
 !
-      TYPE(ESMF_FieldBundle),SAVE :: HISTORY_BUNDLE                     &  !<-- The history output data Bundle
-                                    ,RESTART_BUNDLE                        !<-- The restart output data Bundle
+      TYPE(ESMF_Config),SAVE :: CF                                         !<-- The configure object for a domain
 !
       TYPE(WRITE_INTERNAL_STATE),POINTER :: WRT_INT_STATE                  ! The internal state pointer.
+!
+      TYPE(ESMF_Config),SAVE :: CF_1                                       !<-- The uppermost domain's (#1's) configure file object
 !
 !-----------------------------------------------------------------------
 !
@@ -299,7 +302,9 @@
 !***  Local variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: IEND,IM,JEND,JM,MYPE,N,NUM_WORDS_TOT
+      INTEGER(kind=KINT) :: ID_DOMAIN,IEND,IM                           &
+                           ,INTERCOMM_WRITE_GROUP,IONE                  &
+                           ,JEND,JM,MYPE,N,NUM_WORDS_TOT
 !
       INTEGER(kind=KINT) :: IERR,ISTAT,RC
 !
@@ -310,7 +315,6 @@
       TYPE(WRITE_INTERNAL_STATE),POINTER :: WRT_INT_STATE
 !
       TYPE(ESMF_VM) :: VM
-      INTEGER       :: IONE
 !
 !----------------------------------------------------------------------- 
 !*********************************************************************** 
@@ -376,15 +380,33 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !----------------------------------------------------------------------- 
-!***  Initialize the value of the currently active write group.
-!***  This will be used in ESMF_Send/Recv and therefore must
-!***  be a contiguous data array.
+!***  We must keep track of the currently active Write group.
+!***  The value pertinent to the current domain is the one we
+!***  are interested in now therefore we need to extract the
+!***  current domain ID from this domain's configure file and
+!***  save the ID in the Write component's internal state.
 !----------------------------------------------------------------------- 
 !
       IF(.NOT.ALLOCATED(NCURRENT_GROUP))THEN
-        ALLOCATE(NCURRENT_GROUP(1),stat=ISTAT)
-        NCURRENT_GROUP(1)=0
+!
+        ALLOCATE(NCURRENT_GROUP(1:NUM_DOMAINS_TOTAL),stat=ISTAT)
+        IF(ISTAT/=0)THEN
+          WRITE(0,*)' Failed to allocate NCURRENT_GROUP in Write Initialize'
+          WRITE(0,*)' Aborting!'
+          CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
+        ENDIF
+!
+        DO N=1,NUM_DOMAINS_TOTAL
+          NCURRENT_GROUP(N)=0
+        ENDDO
       ENDIF
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The current domain's configure file object
+                                  ,value =wrt_int_state%ID_DOMAIN       &  !<-- Extract the current domain's ID and save it
+                                  ,label ='my_domain_id:'               &  !<-- The quantity's label in the configure file
+                                  ,rc    =RC)
+!
+      ID_DOMAIN=wrt_int_state%ID_DOMAIN
 !
 !----------------------------------------------------------------------- 
 !***  Extract the task IDs and the number of tasks present.
@@ -512,16 +534,98 @@
 !
 !-----------------------------------------------------------------------
 !***  Retrieve information regarding output from the configuration file.
-!***  This information contains mainly the output channels and names of
-!***  the disk files.
+!***  Values include write tasks per group, the number of write groups,
+!***  output channels, and names of disk files.
 !-----------------------------------------------------------------------
 !
       CALL GET_CONFIG_WRITE(WRITE_COMP,WRT_INT_STATE,RC)                   !<-- User's routine to extract configfile data
 !
-      NWTPG          =wrt_int_state%WRITE_TASKS_PER_GROUP
-      LAST_FCST_TASK =NTASKS-NWTPG-1
-      LEAD_WRITE_TASK=LAST_FCST_TASK+1
-      LAST_WRITE_TASK=NTASKS-1
+!-----------------------------------------------------------------------
+!***  The MPI intracommunicator for the forecast and quilt tasks
+!***  associated with this Write component is naturally valid only
+!***  for the domain (i.e., the Domain component) in whose internal
+!***  state the Write component lies.  A task can lie on more than
+!***  one domain in 2-way nesting therefore save the current intracomm
+!***  in this Write component's internal state for use whenever it is
+!***  active.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Write Initialize: Get the Current Intercomm"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!!!   CALL ESMF_VMGet(vm             =VM                                &  !<-- The local VM
+!!!                  ,mpiCommunicator=INTERCOMM_WRITE_GROUP             &  !<-- This Write groups's (component's) intercommunicator
+!!!                  ,rc             =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Increment the value of the current Write group.
+!-----------------------------------------------------------------------
+!
+      NCURRENT_GROUP(ID_DOMAIN)=NCURRENT_GROUP(ID_DOMAIN)+1
+!
+!-----------------------------------------------------------------------
+!***  The forecast tasks enter WRITE_INITIALIZE for every Write group
+!***  but quilt tasks enter it only once.  The lead forecast task
+!***  broadcasts the value of the group counter so all the quilt
+!***  tasks have the correct value.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Write_Initialize: Broadcast Current Write Group Number"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_VMBroadcast(VM                                          &  !<-- The local VM
+                           ,NCURRENT_GROUP                              &  !<-- The array of current active write groups
+                           ,NUM_DOMAINS_TOTAL                           &  !<-- # of elements in the array
+                           ,0                                           &  !<-- Root sender is fcst task 0
+                           ,rc=RC) 
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Now we can save this Write group's intercommunicator and the
+!***  local intracommunicator between fcst tasks among themselves
+!***  and quilt tasks among themselves.
+!***  NOTE:  We must use the value of the intercommunicator that was
+!***         just generated in SETUP_SERVERS called from DOMAIN_SETUP
+!***         called from DOMAIN_INITIALIZE prior to WRITE_INITIALIZE
+!***         being called from WRITE_INIT called by DOMAIN_INITIALIZE.
+!-----------------------------------------------------------------------
+!
+      IF(.NOT.ALLOCATED(wrt_int_state%MPI_INTERCOMM_ARRAY))THEN
+        ALLOCATE(wrt_int_state%MPI_INTERCOMM_ARRAY(1:MAX_GROUPS))
+      ENDIF
+!
+      INTERCOMM_WRITE_GROUP=MPI_INTERCOMM_ARRAY(NCURRENT_GROUP(ID_DOMAIN)) !<-- The intercommunicator from SETUP_SERVERS
+!
+      wrt_int_state%MPI_INTERCOMM_ARRAY(NCURRENT_GROUP(ID_DOMAIN))=     &
+                                                 INTERCOMM_WRITE_GROUP
+!
+      wrt_int_state%MPI_COMM_COMP=MPI_COMM_COMP
+!
+      IF(NCURRENT_GROUP(ID_DOMAIN)==wrt_int_state%WRITE_GROUPS)THEN  
+        NCURRENT_GROUP(ID_DOMAIN)=0                                        !<-- Reset this counter for the Run step
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      NWTPG=wrt_int_state%WRITE_TASKS_PER_GROUP
+      wrt_int_state%LAST_FCST_TASK=NTASKS-NWTPG-1
+      wrt_int_state%LEAD_WRITE_TASK=wrt_int_state%LAST_FCST_TASK+1
+      wrt_int_state%LAST_WRITE_TASK=NTASKS-1
+!
+      LAST_FCST_TASK=wrt_int_state%LAST_FCST_TASK
+      LEAD_WRITE_TASK=wrt_int_state%LEAD_WRITE_TASK
+      LAST_WRITE_TASK=wrt_int_state%LAST_WRITE_TASK
 !
 !-----------------------------------------------------------------------
 !***  Allocate the pointers that hold the local limits 
@@ -580,7 +684,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       IONE = 1
-
+!
       IF(MYPE<=LAST_FCST_TASK)THEN
 
         CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
@@ -618,51 +722,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  Extract the history data Bundle from the import state
-!***  so that it is available for retrieving data from it
-!***  during the Run step.
-!***  The Bundle was created during the Init step of the Dynamics
-!***  since subroutine POINT_DYNAMICS_OUTPUT must have it available
-!***  for inserting data pointers into it.  
-!***  Only the forecast tasks can extract it properly since it was
-!***  they who inserted it.
-!-----------------------------------------------------------------------
-!
-      IF(MYPE<=LAST_FCST_TASK)THEN                                         !<-- The forecast tasks
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract History Bundle from Write Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateGet(state      =IMP_STATE_WRITE                  &  !<-- The write component's import state
-                          ,itemName   ='History Bundle'                 &  !<-- The name of the history data Bundle
-                          ,fieldbundle=HISTORY_BUNDLE                   &  !<-- The history data Bundle inside the import state
-                          ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Restart Bundle from Write Import State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateGet(state      =IMP_STATE_WRITE                  &  !<-- The write component's import state
-                          ,itemName   ='Restart Bundle'                 &  !<-- The name of the restart data Bundle
-                          ,fieldbundle=RESTART_BUNDLE                   &  !<-- The restart data Bundle inside the import state
-                          ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDIF
-!
-!-----------------------------------------------------------------------
 !***  Boundary data is required in the restart file.  Because it must
-!***  come from the Dynamics component via export/import states and
+!***  come from the Solver component via export/import states and
 !***  because it is not on the ESMF computational grid, it must be
 !***  handled as ESMF Attributes which will be 1-D data strings.
 !***  They must be 1-D data strings because ESMF Attributes can have
@@ -994,6 +1055,8 @@
 !
       INTEGER(kind=KINT),SAVE :: IMS,IME,JMS,JME                        &
                                 ,IHALO,JHALO                            &
+                                ,INTERCOMM_WRITE_GROUP                  &
+                                ,MPI_COMM_COMP                          &
                                 ,N_START,N_END                          &
                                 ,NPOSN_1,NPOSN_2                        &
                                 ,NSUM_WORDS  
@@ -1001,8 +1064,9 @@
       INTEGER(kind=KINT),SAVE :: NSUM_WORDS_NEW=0
 !
       INTEGER(kind=KINT) :: I,I1,IJ,IJG,IM,IMJM                         &
-                           ,J,JM,K,KOUNT,L                              &
-                           ,MY_LOCAL_ID                                 &
+                           ,J,JM,K,KOUNT                                &
+                           ,L,LEAD_TASK_DOMAIN                          &
+                           ,MY_LOCAL_ID,MY_RANK                         &
                            ,MYPE,MYPE_ROW                               &
                            ,N,N1,N2,NF,NN,NX                            &
                            ,NN_INTEGER,NN_REAL                          &
@@ -1037,6 +1101,7 @@
 !
       INTEGER(kind=KINT) :: ID_DUMMY                                    &
                            ,ID_RECV                                     &
+                           ,ID_SEND                                     &
                            ,NFCST_TASKS                                 &
                            ,NFIELD                                      &
                            ,NPE_WRITE                                   &
@@ -1073,9 +1138,11 @@
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JSTAGRP,JENDGRP
       INTEGER(kind=KINT) :: KPO,KTH,KPV
       real(kind=KFPT),dimension(70) :: PO,TH,PV
-!--poste
+!--posts
 !
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF
+!
+      INTEGER(kind=KINT),DIMENSION(1) :: NCURRENT_GROUP_BCAST
 !
       INTEGER(kind=KINT),DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
@@ -1123,9 +1190,12 @@
 !
       TYPE(ESMF_TypeKind) :: DATATYPE
 !
-      TYPE(NEMSIO_GFILE)  :: NEMSIOFILE
-!
       TYPE(ESMF_LOGICAL),DIMENSION(:),POINTER :: FIRST_IO_PE
+!
+      TYPE(ESMF_FieldBundle) :: HISTORY_BUNDLE                          &  !<-- The history output data Bundle
+                               ,RESTART_BUNDLE                             !<-- The restart output data Bundle
+!
+      TYPE(NEMSIO_GFILE)  :: NEMSIOFILE
 !
 !-----------------------------------------------------------------------
 !
@@ -1144,11 +1214,10 @@
 !-----------------------------------------------------------------------
 !***  It is important to note that while the tasks executing this
 !***  step include all forecast tasks plus those write tasks in
-!***  this write group, the import state was filled in the Dynamics
-!***  and Physics steps (DYN_INITIALIZE and PHY_INITIALIZE) only by
-!***  the forecast tasks.  Therefore any information extracted from
-!***  the import state that is needed by the write tasks must be
-!***  sent to them by the forecast tasks.
+!***  this write group, the import state was filled in the Solver
+!***  component only by the forecast tasks.  Therefore any information
+!***  extracted from the import state that is needed by the write 
+!***  tasks must be sent to them by the forecast tasks.
 !
 !***  Also note that history data consisting of scalars or 1D arrays
 !***  are present in the Write component's import state as Attributes.
@@ -1195,20 +1264,37 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       MYPE=wrt_int_state%MYPE
+      ID_DOMAIN=wrt_int_state%ID_DOMAIN
 !
 !-----------------------------------------------------------------------
 !***  Increment the write group so we know which one is active.
 !***  Only the forecast tasks enter this Run step of the Write
 !***  component every output time therefore only they can properly
 !***  increment the number of the current write group. 
-!***  Let forecast task 0 broadcast the current group number
+!***  Let the lead forecast task broadcast the current group number
 !***  to all tasks in the group including the current write tasks.
 !-----------------------------------------------------------------------
 !
-      NCURRENT_GROUP(1)=NCURRENT_GROUP(1)+1
-      IF(NCURRENT_GROUP(1)>wrt_int_state%WRITE_GROUPS)THEN
-        NCURRENT_GROUP(1)=1
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Lead Fcst Task from Write Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=IMP_STATE_WRITE                      &
+                            ,name ='Lead Task Domain'                   &
+                            ,value=LEAD_TASK_DOMAIN                     &
+                            ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      NCURRENT_GROUP(ID_DOMAIN)=NCURRENT_GROUP(ID_DOMAIN)+1
+      IF(NCURRENT_GROUP(ID_DOMAIN)>wrt_int_state%WRITE_GROUPS)THEN
+        NCURRENT_GROUP(ID_DOMAIN)=1
       ENDIF
+!
+      NCURRENT_GROUP_BCAST(1)=NCURRENT_GROUP(ID_DOMAIN)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Broadcast Current Write Group Number"
@@ -1216,14 +1302,28 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_VMBroadcast(VM                                          &  !<-- The local VM
-                           ,NCURRENT_GROUP                              &  !<-- The current active write group
-                           ,1                                           &  !<-- # of elements to broadcast
+                           ,NCURRENT_GROUP_BCAST                        &  !<-- The active Write group for this domain
+                           ,1                                           &  !<-- Broadcasting 1 word
                            ,0                                           &  !<-- Root sender is fcst task 0
                            ,rc=RC) 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      NCURRENT_GROUP(ID_DOMAIN)=NCURRENT_GROUP_BCAST(1)
+!
+!-----------------------------------------------------------------------
+!***  Take the relevant intercommunicator for this Write group.
+!-----------------------------------------------------------------------
+!
+      INTERCOMM_WRITE_GROUP=wrt_int_state%MPI_INTERCOMM_ARRAY(NCURRENT_GROUP(ID_DOMAIN))
+!
+!-----------------------------------------------------------------------
+!***  Take the relevant intracommunicator for these fcst/quilt tasks.
+!-----------------------------------------------------------------------
+!
+      MPI_COMM_COMP=wrt_int_state%MPI_COMM_COMP
 !
 !-----------------------------------------------------------------------
 !
@@ -1274,6 +1374,12 @@
       KOUNT_I2D=wrt_int_state%KOUNT_I2D(1)
       KOUNT_R2D=wrt_int_state%KOUNT_R2D(1)
 !
+      LAST_FCST_TASK=wrt_int_state%LAST_FCST_TASK
+      LEAD_WRITE_TASK=wrt_int_state%LEAD_WRITE_TASK
+      LAST_WRITE_TASK=wrt_int_state%LAST_WRITE_TASK
+!
+      NWTPG=wrt_int_state%WRITE_TASKS_PER_GROUP
+!
 !-----------------------------------------------------------------------
 !***  Now pull the 2d history data from the import state.
 !***  This includes all individual 2D history quantities as well as
@@ -1283,6 +1389,28 @@
 !-----------------------------------------------------------------------
       hst_fcst_tasks: IF(TIME_FOR_HISTORY.AND.MYPE<=LAST_FCST_TASK)THEN    !<-- Only the forecast tasks can see this data so far
 !-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Extract the history data Bundle from the import state.
+!***  The Bundle was created during the Init step of the SOLVER
+!***  since subroutine POINT_OUTPUT must have it available for
+!***  inserting data pointers into it.  Only the forecast tasks 
+!***  can extract it properly since it was they who inserted it.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract History Bundle from Write Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateGet(state      =IMP_STATE_WRITE                  &  !<-- The write component's import state
+                          ,itemName   ='History Bundle'                 &  !<-- The name of the history data Bundle
+                          ,fieldbundle=HISTORY_BUNDLE                   &  !<-- The history data Bundle inside the import state
+                          ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         NN_INTEGER=0
         NN_REAL   =0
@@ -1294,6 +1422,9 @@
 !
         IHALO=wrt_int_state%IHALO                                          !<-- Halo depth in I
         JHALO=wrt_int_state%JHALO                                          !<-- Halo depth in J
+!
+        IDE=wrt_int_state%IDE(1)
+        JDE=wrt_int_state%JDE(1)
 !
 !-----------------------------------------------------------------------
 !***  Be sure the Integer and Real buffers are available for ISends.
@@ -1465,7 +1596,7 @@
                             ,MPI_INTEGER                                &  !<-- The datatype
                             ,NPE_WRITE                                  &  !<-- The target write task
                             ,wrt_int_state%NFHOURS                      &  !<-- An MPI tag
-                            ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))    &  !<-- The MPI intercommunicator between fcst and quilt tasks
+                            ,INTERCOMM_WRITE_GROUP                      &  !<-- The MPI intercommunicator between fcst and quilt tasks
                             ,IH_INT                                     &  !<-- MPI communication request handle
                             ,IERR )
 !
@@ -1482,7 +1613,7 @@
                             ,MPI_REAL                                     &  !<-- The datatype
                             ,NPE_WRITE                                    &  !<-- The target write task
                             ,wrt_int_state%NFHOURS                        &  !<-- An MPI tag
-                            ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))      &  !<-- The MPI intercommunicator between fcst and quilt tasks
+                            ,INTERCOMM_WRITE_GROUP                        &  !<-- The MPI intercommunicator between fcst and quilt tasks
                             ,IH_REAL                                      &  !<-- MPI communication request handle
                             ,IERR )
 !
@@ -1512,6 +1643,28 @@
       rst_fcst_tasks: IF(TIME_FOR_RESTART.AND.MYPE<=LAST_FCST_TASK)THEN    !<-- Only the forecast tasks can see this data so far
 !-----------------------------------------------------------------------
 !
+!-----------------------------------------------------------------------
+!***  Extract the restart data Bundle from the import state.
+!***  The Bundle was created during the Init step of the Solver 
+!***  since subroutine POINT_OUTPUT must have it available for
+!***  inserting data pointers into it.  Only the forecast tasks
+!***  can extract it properly since it was they who inserted it.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Restart Bundle from Write Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateGet(state      =IMP_STATE_WRITE                  &  !<-- The write component's import state
+                          ,itemName   ='Restart Bundle'                 &  !<-- The name of the restart data Bundle
+                          ,fieldbundle=RESTART_BUNDLE                   &  !<-- The restart data Bundle inside the import state
+                          ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
         NN_INTEGER=0
         NN_REAL   =0
 !
@@ -1522,6 +1675,9 @@
 !
         IHALO=wrt_int_state%IHALO                                          !<-- Halo depth in I
         JHALO=wrt_int_state%JHALO                                          !<-- Halo depth in J
+!
+        IDE=wrt_int_state%IDE(1)
+        JDE=wrt_int_state%JDE(1)
 !
 !-----------------------------------------------------------------------
 !***  Be sure the Integer and Real buffers are available for ISends.
@@ -1695,7 +1851,7 @@
                             ,MPI_INTEGER                                &  !<-- The datatype
                             ,NPE_WRITE                                  &  !<-- The target write task
                             ,wrt_int_state%NFHOURS                      &  !<-- An MPI tag
-                            ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))    &  !<-- The MPI intercommunicator between fcst and quilt tasks
+                            ,INTERCOMM_WRITE_GROUP                      &  !<-- The MPI intercommunicator between fcst and quilt tasks
                             ,RST_IH_INT                                 &  !<-- MPI communication request handle
                             ,IERR )
 !
@@ -1712,7 +1868,7 @@
                             ,MPI_REAL                                     &  !<-- The datatype
                             ,NPE_WRITE                                    &  !<-- The target write task
                             ,wrt_int_state%NFHOURS                        &  !<-- An MPI tag
-                            ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))      &  !<-- The MPI intercommunicator between fcst and quilt tasks
+                            ,INTERCOMM_WRITE_GROUP                        &  !<-- The MPI intercommunicator between fcst and quilt tasks
                             ,RST_IH_REAL                                  &  !<-- MPI communication request handle
                             ,IERR )
 !
@@ -1754,7 +1910,7 @@
           IF(MYPE/=0)THEN
             CALL MPI_SEND(wrt_int_state%RST_BC_DATA_SOUTH               &  !<-- Send this string of subdomain data 
                          ,wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE)        &  !<-- Number of words sent
-                         ,MPI_INTEGER                                   &  !<-- Datatype
+                         ,MPI_REAL                                      &  !<-- Datatype
                          ,0                                             &  !<-- Send the data to fcst task 0
                          ,MYPE                                          &  !<-- An MPI tag
                          ,MPI_COMM_COMP                                 &  !<-- MPI communicator
@@ -1787,7 +1943,7 @@
           IF(MYPE/=0)THEN
             CALL MPI_SEND(wrt_int_state%RST_BC_DATA_NORTH               &  !<-- Send this string of subdomain data 
                          ,wrt_int_state%NUM_WORDS_BC_NORTH(MYPE)        &  !<-- Number of words sent
-                         ,MPI_INTEGER                                   &  !<-- Datatype
+                         ,MPI_REAL                                      &  !<-- Datatype
                          ,0                                             &  !<-- Send the data to the fcst task 0
                          ,MYPE                                          &  !<-- An MPI tag
                          ,MPI_COMM_COMP                                 &  !<-- MPI communicator
@@ -1820,7 +1976,7 @@
           IF(MYPE/=0)THEN
             CALL MPI_SEND(wrt_int_state%RST_BC_DATA_WEST                &  !<-- Send this string of subdomain data 
                          ,wrt_int_state%NUM_WORDS_BC_WEST(MYPE)         &  !<-- Number of words sent
-                         ,MPI_INTEGER                                   &  !<-- Datatype
+                         ,MPI_REAL                                      &  !<-- Datatype
                          ,0                                             &  !<-- Send the data to the fcst task 0
                          ,MYPE                                          &  !<-- An MPI tag
                          ,MPI_COMM_COMP                                 &  !<-- MPI communicator
@@ -1853,7 +2009,7 @@
           IF(MYPE/=0)THEN
             CALL MPI_SEND(wrt_int_state%RST_BC_DATA_EAST                &  !<-- Send this string of subdomain data 
                          ,wrt_int_state%NUM_WORDS_BC_EAST(MYPE)         &  !<-- Number of words sent
-                         ,MPI_INTEGER                                   &  !<-- Datatype
+                         ,MPI_REAL                                      &  !<-- Datatype
                          ,0                                             &  !<-- Send the data to the fcst task 0
                          ,MYPE                                          &  !<-- An MPI tag
                          ,MPI_COMM_COMP                                 &  !<-- MPI communicator
@@ -1889,7 +2045,7 @@
 !
               CALL MPI_RECV(BUFF_NTASK                                  &  !<-- Fcst tasks' string of local BC data
                            ,wrt_int_state%NUM_WORDS_BC_SOUTH(NTASK)     &  !<-- # of integer words in the local BC data string
-                           ,MPI_INTEGER                                 &  !<-- The datatype
+                           ,MPI_REAL                                    &  !<-- Datatype
                            ,NTASK                                       &  !<-- Recv from this fcst task
                            ,NTASK                                       &  !<-- An MPI tag
                            ,MPI_COMM_COMP                               &  !<-- The MPI intercommunicator
@@ -1936,7 +2092,7 @@
 !
               CALL MPI_RECV(BUFF_NTASK                                  &  !<-- Fcst tasks' string of local BC data
                            ,wrt_int_state%NUM_WORDS_BC_NORTH(NTASK)     &  !<-- # of integer words in the local BC data string
-                           ,MPI_INTEGER                                 &  !<-- The datatype
+                           ,MPI_REAL                                    &  !<-- Datatype
                            ,NTASK                                       &  !<-- Recv from this fcst task
                            ,NTASK                                       &  !<-- An MPI tag
                            ,MPI_COMM_COMP                               &  !<-- The MPI intercommunicator
@@ -1978,7 +2134,7 @@
 !
               CALL MPI_RECV(BUFF_NTASK                                  &  !<-- Fcst tasks' string of local BC data
                            ,wrt_int_state%NUM_WORDS_BC_WEST(NTASK)      &  !<-- # of integer words in the local BC data string
-                           ,MPI_INTEGER                                 &  !<-- The datatype
+                           ,MPI_REAL                                    &  !<-- Datatype
                            ,NTASK                                       &  !<-- Recv from this fcst task
                            ,NTASK                                       &  !<-- An MPI tag
                            ,MPI_COMM_COMP                               &  !<-- The MPI intercommunicator
@@ -2025,7 +2181,7 @@
 !
               CALL MPI_RECV(BUFF_NTASK                                  &  !<-- Fcst tasks' string of local BC data
                            ,wrt_int_state%NUM_WORDS_BC_EAST(NTASK)      &  !<-- # of integer words in the local BC data string
-                           ,MPI_INTEGER                                 &  !<-- The datatype
+                           ,MPI_REAL                                    &  !<-- Datatype
                            ,NTASK                                       &  !<-- Recv from this fcst task
                            ,NTASK                                       &  !<-- An MPI tag
                            ,MPI_COMM_COMP                               &  !<-- The MPI intercommunicator
@@ -2209,7 +2365,7 @@
                         ,MPI_REAL                                       &  !<-- The datatype
                         ,0                                              &  !<-- Local ID of lead write task
                         ,wrt_int_state%NFHOURS                          &  !<-- An MPI tag
-                        ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))        &  !<-- The MPI intercommunicator between fcst and quilt tasks
+                        ,INTERCOMM_WRITE_GROUP                          &  !<-- The MPI intercommunicator between fcst and quilt tasks
                         ,RST_IH_BC                                      &  !<-- MPI communication request handle
                         ,IERR )
 !
@@ -2262,7 +2418,7 @@
                        ,MPI_INTEGER                                     &  !<-- The datatype
                        ,ID_RECV                                         &  !<-- Recv from this fcst task
                        ,wrt_int_state%NFHOURS                           &  !<-- An MPI tag
-                       ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))         &  !<-- The MPI intercommunicator between quilt and fcst tasks
+                       ,INTERCOMM_WRITE_GROUP                           &  !<-- The MPI intercommunicator between fcst and quilt tasks
                        ,JSTAT                                           &  !<-- MPI status object
                        ,IERR )
 !
@@ -2279,7 +2435,7 @@
                        ,MPI_REAL                                        &  !<-- The datatype
                        ,ID_RECV                                         &  !<-- Recv from this fcst task
                        ,wrt_int_state%NFHOURS                           &  !<-- An MPI tag
-                       ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))         &  !<-- The MPI intercommunicator between quilt and fcst tasks
+                       ,INTERCOMM_WRITE_GROUP                           &  !<-- The MPI intercommunicator between fcst and quilt tasks
                        ,JSTAT                                           &  !<-- MPI status object
                        ,IERR )
 !
@@ -2354,16 +2510,15 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  for dopost, all write tasks need to know the time
+!***  For dopost, all write tasks need to know the time.
 !-----------------------------------------------------------------------
 !
 
-       if(wrt_int_state%write_dopost) then
+       IF(wrt_int_state%WRITE_DOPOST) THEN
          LOG_PESET=MYPE>=LEAD_WRITE_TASK
-       else
+       ELSE
          LOG_PESET=MYPE==LEAD_WRITE_TASK
-       endif
-!      print *,'in write grid, dopost=',wrt_int_state%write_dopost,'LOG_PESET=',LOG_PESET
+       ENDIF
 !
 !-----------------------------------------------------------------------
       hst_time_get: IF(LOG_PESET)THEN                                   !<-- The lead write task
@@ -2449,8 +2604,6 @@
 !***  Call post processors to compute post variables
 !----------------------------------------------------------------------
 !
-!     write(0,*)'before init_do post,',wrt_int_state%write_dopost,     &
-!      'NFHOURS=',wrt_int_state%NFHOURS
 !-----------------------------------------------------------------------
       hst_dopost: IF(wrt_int_state%WRITE_DOPOST.and.                    &
                      wrt_int_state%WRITE_HST_NEMSIO.and.NF_HOURS>0 )THEN               !<-- do post
@@ -2585,6 +2738,7 @@
             DO N=1,NWTPG-1                                                 !<-- Loop through local IDs of all other write tasks
                                                                            !    that send to the lead task
 !
+              ID_SEND=N+LEAD_WRITE_TASK
               CALL MPI_SEND(N                                           &  !<-- Send to other write tasks to keep their sends in line
                            ,1                                           &  !<-- Number of words sent
                            ,MPI_INTEGER                                 &  !<-- Datatype
@@ -2593,6 +2747,7 @@
                            ,MPI_COMM_COMP                               &  !<-- MPI communicator
                            ,IERR )
 !
+              ID_RECV=ID_SEND
               CALL MPI_RECV(wrt_int_state%BUFF_INT                      &  !<-- Recv string of subsection data from other write tasks
                            ,IM*JM                                       &  !<-- Maximum number of words sent
                            ,MPI_INTEGER                                 &  !<-- Datatype
@@ -2662,7 +2817,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      field_loop_real: DO NFIELD=1,wrt_int_state%KOUNT_R2D(1)              !<-- Loop through all 2D real gridded history data
+      field_loop_real: DO NFIELD=1,KOUNT_R2D                               !<-- Loop through all 2D real gridded history data
 !
 !-----------------------------------------------------------------------
 !
@@ -2718,6 +2873,7 @@
             DO N=1,NWTPG-1                                                 !<-- Loop through local IDs of all other write tasks
                                                                            !    that send to the lead task
 !
+              ID_SEND=N+LEAD_WRITE_TASK
               CALL MPI_SEND(N                                           &  !<-- Send to other write tasks to keep their sends in line
                            ,1                                           &  !<-- Number of words sent
                            ,MPI_INTEGER                                 &  !<-- Datatype
@@ -2726,6 +2882,7 @@
                            ,MPI_COMM_COMP                               &  !<-- MPI communicator
                            ,IERR )
 !
+              ID_RECV=ID_SEND
               CALL MPI_RECV(wrt_int_state%BUFF_REAL                     &  !<-- Recv string of subsection data from other write tasks
                            ,IM*JM                                       &  !<-- Maximum number of words sent
                            ,MPI_REAL                                    &  !<-- Datatype
@@ -2796,14 +2953,12 @@
             ALLOCATE(FACT10TMPU(1:IM,1:JM))
             CALL V_TO_H_BGRID(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM) &
                              ,IM,JM,GLOBAL,FACT10TMPU)
-!           write(0,*)'fact10tmpu=',maxval(fact10tmpu(1:im,1:jm)),minval(fact10tmpu(1:im,1:jm))
           ENDIF
 !
           IF(TRIM(NAME)=='V_'//MODEL_LEVEL//'_2D') THEN
             ALLOCATE(FACT10TMPV(1:IM,1:JM))
             CALL V_TO_H_BGRID(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM) &
                              ,IM,JM,GLOBAL,FACT10TMPV)
-!           write(0,*)'fact10tmpv=',maxval(fact10tmpv(1:im,1:jm)),minval(fact10tmpv(1:im,1:jm))
           ENDIF
 !
           IF(wrt_int_state%WRITE_HST_BIN)THEN
@@ -2980,6 +3135,23 @@
 !
       ENDIF
 !
+!-----------------------------------------------------------------------
+!***  Get this domain's configure object.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Get Config Object for Write Setup"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_GridCompGet(gridcomp=WRITE_COMP                         &  !<-- The Write component
+                           ,config  =CF                                 &  !<-- The configure object on this domain
+                           ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)   
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 !-------------------
 !***  Fcstdone file
 !-------------------
@@ -2997,6 +3169,7 @@
                                     ,label ='my_domain_id:'             &  !<-- The quantity's label in the configure file
                                     ,rc    =RC)
 !
+!     write(0,*)' Write Run got id_domain=',id_domain
         INT_SEC=INT(NF_SECONDS)
         FRAC_SEC=NINT((NF_SECONDS-INT_SEC)*100.)
 !
@@ -3057,7 +3230,7 @@
                        ,MPI_INTEGER                                     &  !<-- The datatype
                        ,ID_RECV                                         &  !<-- Recv from this fcst task
                        ,wrt_int_state%NFHOURS                           &  !<-- An MPI tag
-                       ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))         &  !<-- The MPI intercommunicator between quilt and fcst tasks
+                       ,INTERCOMM_WRITE_GROUP                           &  !<-- The MPI intercommunicator between fcst and quilt tasks
                        ,JSTAT                                           &  !<-- MPI status object
                        ,IERR )
 !
@@ -3074,7 +3247,7 @@
                        ,MPI_REAL                                        &  !<-- The datatype
                        ,ID_RECV                                         &  !<-- Recv from this fcst task
                        ,wrt_int_state%NFHOURS                           &  !<-- An MPI tag
-                       ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))         &  !<-- The MPI intercommunicator between quilt and fcst tasks
+                       ,INTERCOMM_WRITE_GROUP                           &  !<-- The MPI intercommunicator between fcst and quilt tasks
                        ,JSTAT                                           &  !<-- MPI status object
                        ,IERR )
 !
@@ -3101,10 +3274,10 @@
         IHALO=wrt_int_state%IHALO                                          !<-- Subdomain halo depth in I
         JHALO=wrt_int_state%JHALO                                          !<-- Subdomain halo depth in J
 !
-          IMS=ITS-IHALO
-          IME=ITE+IHALO
-          JMS=JTS-JHALO
-          JME=JTE+JHALO
+        IMS=ITS-IHALO
+        IME=ITE+IHALO
+        JMS=JTS-JHALO
+        JME=JTE+JHALO
 !
         NN=0
 !
@@ -3149,7 +3322,7 @@
                      ,MPI_REAL                                          &  !<-- The datatype
                      ,0                                                 &  !<-- Recv from this fcst task
                      ,wrt_int_state%NFHOURS                             &  !<-- An MPI tag
-                     ,MPI_COMM_INTER_ARRAY(NCURRENT_GROUP(1))           &  !<-- The MPI intercommunicator between quilt and fcst tasks
+                     ,INTERCOMM_WRITE_GROUP                             &  !<-- The MPI intercommunicator between fcst and quilt tasks
                      ,JSTAT                                             &  !<-- MPI status object
                      ,IERR )
 !
@@ -3952,25 +4125,45 @@
 !***  Local Variables
 !---------------------
 !
-      TYPE(ESMF_VM)          :: VM                                         !<-- The ESMF virtual machine.
+      INTEGER(kind=KINT) :: INPES,JNPES                                 &  !<-- Number of fcst tasks in I and J directions
+                           ,MYPE                                        &  !<-- My task ID
+                           ,WRITE_GROUPS                                &  !<-- Number of groups of write tasks
+                           ,WRITE_TASKS_PER_GROUP                          !<-- #of tasks in each write group
 !
-      INTEGER                :: INPES,JNPES                             &  !<-- Number of fcst tasks in I and J directions
-                               ,MYPE                                    &  !<-- My task ID
-                               ,WRITE_GROUPS                            &  !<-- Number of groups of write tasks
-                               ,WRITE_TASKS_PER_GROUP                      !<-- #of tasks in each write group
+      INTEGER(kind=KINT) :: I,ISTAT,J,K,RC,RC_SETUP
 !
-      CHARACTER( 2)          :: MY_WRITE_GROUP
-      CHARACTER(6)           :: FMT='(I2.2)'
+      CHARACTER(2) :: MY_WRITE_GROUP
+      CHARACTER(6) :: FMT='(I2.2)'
       CHARACTER(ESMF_MAXSTR) :: WRITE_NAME
 !
-      INTEGER :: I,J,K,RC,RC_SETUP
+      TYPE(ESMF_VM)          :: VM                                         !<-- The ESMF virtual machine.
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  Retrieve the config object CF from the DOMAIN component.
+!***  Save the total number of domains.  This is always given in
+!***  domain #1's configure file.
+!-----------------------------------------------------------------------
+!
+      CF_1=ESMF_ConfigCreate(rc=RC)                                        !<-- Create the confure object for domain #1
+      CONFIGFILE_01_NAME='configure_file_01'
+!
+      CALL ESMF_ConfigLoadFile(config  =CF_1                            &  !<-- Load the configure file object for domain #1
+                              ,filename=CONFIGFILE_01_NAME              &  !<-- The configure file's name
+                              ,rc      =RC)
+!
+      CALL ESMF_ConfigGetAttribute(config=CF_1                          &  !<-- The configure file object for domain #1
+                                  ,value =NUM_DOMAINS_TOTAL             &  !<-- Extract the total # of domains
+                                  ,label ='num_domains_total:'          &  !<-- The quantity's label in the configure file
+                                  ,rc    =RC)
+!
+!-----------------------------------------------------------------------
+!***  Retrieve the config object CF from the DOMAIN component for
+!***  this domain.  Save it in the Write component's internal state.
+!***  This will allow a given task to reference it for any of the
+!***  multiple domains a given task may lie on.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3979,7 +4172,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompGet(gridcomp=DOMAIN_GRID_COMP                   &  !<-- The DOMAIN component
-                           ,config  =CF                                 &  !<-- The config object (~namelist)
+                           ,config  =CF                                 &  !<-- The configure object on this domain
                            ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -4177,12 +4370,12 @@
 !
 !-----------------------------------------------------------------------
 !***  Insert the Write components' import state into the
-!***  Dynamics' and Physics' export states since history
-!***  data itself must come from the Dynamics and Physics.
+!***  Solver export state since history data itself must 
+!***  from the Solver.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Insert Write Import State into Dynamics Export State"
+      MESSAGE_CHECK="Insert Write Import State into Solver Export State"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -4195,11 +4388,11 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  Insert the subdomain horizontal limits for all tasks into the
-!***  Dynamics and Physics import states since they will be needed
-!***  for specifying output fields within the Dynamics and Physics
-!***  components.  This is only relevant to the forecast tasks
-!***  since only they enter the Dynamics and Physics.
+!***  Insert the subdomain horizontal limits for all tasks into 
+!***  the Solver import states since they will be needed
+!***  for specifying output fields within the Solver
+!***  component.  This is only relevant to the fcst tasks
+!***  since only they enter the Solver.
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
@@ -4213,32 +4406,32 @@
       IF(MYPE<NUM_PES_FCST)THEN                                            !<-- This excludes I/O tasks.
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert Local Domain Limits in Dynamics Imp State"
+        MESSAGE_CHECK="Insert Local Domain Limits in Solver Imp State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
-                              ,name     ='LOCAL_ISTART'                 &  !<-- The attribute's name
-                              ,itemCount=NUM_PES_FCST                   &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_ISTART  &  !<-- Insert this quantity as an attribute
+        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Solver import state receives an attribute
+                              ,name     ='LOCAL_ISTART'                    &  !<-- The attribute's name
+                              ,itemCount=NUM_PES_FCST                      &  !<-- The attribute's length
+                              ,valueList=domain_int_state%LOCAL_ISTART     &  !<-- Insert this quantity as an attribute
                               ,rc       =RC)
 !
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
-                              ,name     ='LOCAL_IEND'                   &  !<-- The attribute's name
-                              ,itemCount=NUM_PES_FCST                   &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_IEND    &  !<-- Insert this quantity as an attribute
+        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Solver import state receives an attribute
+                              ,name     ='LOCAL_IEND'                      &  !<-- The attribute's name
+                              ,itemCount=NUM_PES_FCST                      &  !<-- The attribute's length
+                              ,valueList=domain_int_state%LOCAL_IEND       &  !<-- Insert this quantity as an attribute
                               ,rc       =RC)
 !
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
-                              ,name     ='LOCAL_JSTART'                 &  !<-- The attribute's name
-                              ,itemCount=NUM_PES_FCST                   &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_JSTART  &  !<-- Insert this quantity as an attribute
+        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Solver import state receives an attribute
+                              ,name     ='LOCAL_JSTART'                    &  !<-- The attribute's name
+                              ,itemCount=NUM_PES_FCST                      &  !<-- The attribute's length
+                              ,valueList=domain_int_state%LOCAL_JSTART     &  !<-- Insert this quantity as an attribute
                               ,rc       =RC)
 !
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Dynamics import state receives an attribute
-                              ,name     ='LOCAL_JEND'                   &  !<-- The attribute's name
-                              ,itemCount=NUM_PES_FCST                   &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_JEND    &  !<-- Insert this quantity as an attribute
+        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Solver import state receives an attribute
+                              ,name     ='LOCAL_JEND'                      &  !<-- The attribute's name
+                              ,itemCount=NUM_PES_FCST                      &  !<-- The attribute's length
+                              ,valueList=domain_int_state%LOCAL_JEND       &  !<-- Insert this quantity as an attribute
                               ,rc       =RC)
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

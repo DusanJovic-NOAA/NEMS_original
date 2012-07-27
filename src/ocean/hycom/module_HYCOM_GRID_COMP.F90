@@ -23,7 +23,7 @@
 
       INTEGER :: RC
 
-      write(0,*) "    HYCOM_REGISTER stub"
+!     write(0,*) "    HYCOM_REGISTER stub"
 
 #ifdef ESMF_3
       CALL ESMF_GridCompSetEntryPoint(HYCOM_GRID_COMP ,ESMF_SETINIT ,HYCOM_INITIALIZE ,ESMF_SINGLEPHASE ,RC)
@@ -36,7 +36,7 @@
 #endif
 
       RC_REG = ESMF_SUCCESS
-      write(0,*) "    END OF HYCOM_REGISTER stub"
+!     write(0,*) "    END OF HYCOM_REGISTER stub"
 
       END SUBROUTINE HYCOM_REGISTER
 
@@ -50,9 +50,9 @@
       TYPE(ESMF_Clock)                  :: CLOCK_HYCOM
       INTEGER            ,INTENT(OUT)   :: RC_INIT
 
-      write(0,*) "        HYCOM_INITIALIZE stub"
+!     write(0,*) "        HYCOM_INITIALIZE stub"
       RC_INIT = ESMF_SUCCESS
-      write(0,*) "        END OF HYCOM_INITIALIZE stub"
+!     write(0,*) "        END OF HYCOM_INITIALIZE stub"
 
       END SUBROUTINE HYCOM_INITIALIZE
 
@@ -75,13 +75,13 @@
 
       INTEGER :: RC
 
-      write(0,*) "        HYCOM_RUN stub"
+!     write(0,*) "        HYCOM_RUN stub"
 
 !      MESSAGE_CHECK="In HYCOM Run"
 !      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 
       RC_RUN=ESMF_SUCCESS
-      write(0,*) "        END OF HYCOM_RUN stub"
+!     write(0,*) "        END OF HYCOM_RUN stub"
 
       END SUBROUTINE HYCOM_RUN
 
@@ -95,9 +95,9 @@
       TYPE(ESMF_Clock)                  :: CLOCK_HYCOM
       INTEGER            ,INTENT(OUT)   :: RC_FINALIZE
 
-      write(0,*) "        HYCOM_FINALIZE stub"
+!     write(0,*) "        HYCOM_FINALIZE stub"
       RC_FINALIZE=ESMF_SUCCESS
-      write(0,*) "        END OF HYCOM_FINALIZE stub"
+!     write(0,*) "        END OF HYCOM_FINALIZE stub"
 
       END SUBROUTINE HYCOM_FINALIZE
 

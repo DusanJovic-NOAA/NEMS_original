@@ -1,62 +1,39 @@
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                         module module_dynamics_routines
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!
-use module_control,only:klog,kint,kfpt,kdbl &
-                       ,adv_upstream,adv_standard &
-                       ,e_bdy,n_bdy,s_bdy,w_bdy &
-                       ,timef
-!
-use module_clocktimes,only : adv1_tim,adv2_tim,bocoh_tim,bocov_tim &
-                            ,cdwdt_tim,cdzdt_tim,consts_tim &
-                            ,ddamp_tim,dht_tim &
-                            ,dyn_init_tim,dyn_run_tim &
-                            ,exch_tim &
-                            ,fftfhn_tim,fftfwn_tim,hadv2_tim &
-                            ,hdiff_tim,init_tim,mono_tim &
-                            ,pdtsdt_tim,pgforce_tim,poavhn_tim &
-                            ,polehn_tim,polewn_tim &
-                            ,prefft_tim,presmud_tim &
-                            ,swaphn_tim,swapwn_tim &
-                            ,update_dyn_int_state_tim,updatet_tim &
-                            ,vadv2_tim,vsound_tim,vtoa_tim
-!
-use module_dm_parallel,only : ids,ide,jds,jde &
-                             ,ims,ime,jms,jme &
-                             ,its,ite,jts,jte &
-                             ,its_b1,ite_b1,its_b2,ite_b2 &
-                             ,its_b1_h1,ite_b1_h1,ite_b1_h2 &
-                             ,its_b1_h2 &
-                             ,its_h1,ite_h1,its_h2,ite_h2 &
-                             ,jts_b1,jte_b1,jts_b2,jte_b2 &
-                             ,jts_b1_h1,jte_b1_h1,jte_b1_h2 &
-                             ,jts_b1_h2 &
-                             ,jts_h1,jte_h1,jts_h2,jte_h2 &
-                             ,ihalo,jhalo &
-                             ,local_istart,local_iend &
-                             ,local_jstart,local_jend &
-                             ,looplimits &
-                             ,mpi_comm_comp,mype_share
-!
+ 
+use module_control,only:klog,kint,kfpt,kdbl,timef
+ 
+use module_my_domain_specs
+
+use module_clocktimes,only : timers
+ 
+use module_dm_parallel,only : looplimits
+
 use module_exchange,only: halo_exch
 use module_fltbnds,only: polehn,polewn,swaphn,swapwn
 use module_constants
 
-!d use esmf_mod, only:  esmf_abort, esmf_finalize
+private
+  
+public :: adv1,adv2,aveq2 &
+,cdwdt,cdzdt,ddamp,dht &
+,hadv2,hadv2_scal,hdiff &
+,iunit_advec_sums &
+,mono,pdtsdt,pgforce &
+,updates,updatet,updateuv &
+,vadv2,vadv2_scal,vsound,vtoa
 
-!
-!
 integer(kind=kint),save :: &
  iunit_advec_sums 
-!
-integer(kind=kint),private :: &
+ 
+integer(kind=kint),save :: &
  jstart &
-,jstop &
-,mype
-!
-real(kind=kdbl),private :: &
+,jstop 
+
+real(kind=kdbl) :: &
  btim
-!
+ 
 !-----------------
 #ifdef ENABLE_SMP
 !-----------------
@@ -65,12 +42,12 @@ integer(kind=kint) :: &
 ,omp_get_num_threads &
 ,omp_get_thread_num &
 ,tid
-!
+ 
 external omp_get_num_threads,omp_get_thread_num
 !------
 #endif
 !------
-!
+ 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                         contains
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -384,6 +361,7 @@ real(kind=kfpt),dimension(its:ite_h2,jts_b1:jte_h2):: &
           jcl=jds+2
           jch=jde-2
 !
+!     write(0,*)' vertical_loop before s_bdy'
           if(s_bdy) then
             jp=jds+1
             wprp=wpdar(jp)
@@ -1113,7 +1091,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
 integer(kind=kint):: &
  i &                         ! index in x direction
 ,j &                         ! index in y direction
-,l,mype &                    ! index in p direction
+,l &                         ! index in p direction
 ,loc_npts &                  ! local point counts for diag
 ,glb_npts &                  ! global point counts for diag
 ,iret &                    
@@ -1222,8 +1200,6 @@ real(kind=kfpt) :: &
 !
 !      call mpi_reduce(loc_npts, glb_npts, 1, mpi_integer, mpi_sum,0, &
 !                      mpi_comm_comp, iret)
-!
-!      mype=mype_share
 !
 !      if (mype == 0) then
 !        if (dt .gt. 0) then
@@ -1528,7 +1504,7 @@ real(kind=kfpt),dimension(its_b1:ite_b2,jts_b1:jte_b2,1:lm):: &
      &                 -(t(i,j,lm)-t(i,j,lm-1))*vvup*w1
 !
           tct(i,j,lm)=rstt(i,j,lm)*rcmt(i,j,lm)-t(i,j,lm)
-        enddo
+       enddo
       enddo
 !
       do l=lm-1,1,-1
@@ -1910,11 +1886,11 @@ real(kind=kfpt),dimension(its_b1:ite_b2,jts_b1:jte_b2,1:lm):: &
             btim=timef()
             call swapwn(u2d,ims,ime,jms,jme,1,inpes)
             call swapwn(v2d,ims,ime,jms,jme,1,inpes)
-            swapwn_tim=swapwn_tim+(timef()-btim)
+            timers(my_domain_id)%swapwn_tim=timers(my_domain_id)%swapwn_tim+(timef()-btim)
 !
             btim=timef()
             call polewn(u2d,v2d,ims,ime,jms,jme,1,inpes,jnpes)
-            polewn_tim=polewn_tim+(timef()-btim)
+            timers(my_domain_id)%polewn_tim=timers(my_domain_id)%polewn_tim+(timef()-btim)
           else
             if(s_bdy)then
               do i=ims,ime
@@ -2798,11 +2774,11 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
       if(global) then
         btim=timef()
         call swaphn(def3d,ims,ime,jms,jme,lm,inpes)
-        swaphn_tim=swaphn_tim+(timef()-btim)
+        timers(my_domain_id)%swaphn_tim=timers(my_domain_id)%swaphn_tim+(timef()-btim)
 !
         btim=timef()
         call polehn(def3d,ims,ime,jms,jme,lm,inpes,jnpes)
-        polehn_tim=polehn_tim+(timef()-btim)
+        timers(my_domain_id)%polehn_tim=timers(my_domain_id)%polehn_tim+(timef()-btim)
       endif
 !
 !-----------------------------------------------------------------------
@@ -3433,8 +3409,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
 !
-      mype=mype_share
-
 !--- cannot diffuse w when in the backward step of digital filtering 
 !
       if (dt .gt. 0) then
@@ -3777,16 +3751,16 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
       if(global) then
         btim=timef()
         call swaphn(dwdt,ims,ime,jms,jme,lm,inpes)
-        swaphn_tim=swaphn_tim+(timef()-btim)
+        timers(my_domain_id)%swaphn_tim=timers(my_domain_id)%swaphn_tim+(timef()-btim)
 !
         btim=timef()
         call polehn(dwdt,ims,ime,jms,jme,lm,inpes,jnpes)
-        polehn_tim=polehn_tim+(timef()-btim)
+        timers(my_domain_id)%polehn_tim=timers(my_domain_id)%polehn_tim+(timef()-btim)
       endif
 !
       btim=timef()
       call halo_exch(dwdt,lm,1,1)
-      exch_tim=exch_tim+(timef()-btim)
+      timers(my_domain_id)%exch_tim=timers(my_domain_id)%exch_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !------------spatial filtering of dwdt----------------------------------
@@ -3821,11 +3795,11 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
       if(global) then
         btim=timef()
         call swaphn(dwdt,ims,ime,jms,jme,lm,inpes)
-        swaphn_tim=swaphn_tim+(timef()-btim)
+        timers(my_domain_id)%swaphn_tim=timers(my_domain_id)%swaphn_tim+(timef()-btim)
 !
         btim=timef()
         call polehn(dwdt,ims,ime,jms,jme,lm,inpes,jnpes)
-        polehn_tim=polehn_tim+(timef()-btim)
+        timers(my_domain_id)%polehn_tim=timers(my_domain_id)%polehn_tim+(timef()-btim)
       endif
 !-----------------------------------------------------------------------
       rg=1./g
@@ -4891,8 +4865,6 @@ character(10) :: &
 real(kind=kdbl),save :: sumdo3=0.
 !-----------------------------------------------------------------------
 !***********************************************************************
-!-----------------------------------------------------------------------
-      mype=mype_share
 !-----------------------------------------------------------------------
 !
       steep=1.-0.040*idtadt
@@ -5996,7 +5968,6 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      mype=mype_share
       addt=dt*real(idtad)
 !
 !-----------------------------------------------------------------------
@@ -6311,14 +6282,14 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
           call swaphn(w1(ims,jms,l),ims,ime,jms,jme,1,inpes)
           call swaphn(g1(ims,jms,l),ims,ime,jms,jme,1,inpes)
           call swaphn(e1(ims,jms,l),ims,ime,jms,jme,1,inpes)
-          swaphn_tim=swaphn_tim+(timef()-btim)
+          timers(my_domain_id)%swaphn_tim=timers(my_domain_id)%swaphn_tim+(timef()-btim)
 !
           btim=timef()
           call polehn(q1(ims,jms,l),ims,ime,jms,jme,1,inpes,jnpes)
           call polehn(w1(ims,jms,l),ims,ime,jms,jme,1,inpes,jnpes)
           call polehn(g1(ims,jms,l),ims,ime,jms,jme,1,inpes,jnpes)
           call polehn(e1(ims,jms,l),ims,ime,jms,jme,1,inpes,jnpes)
-          polehn_tim=polehn_tim+(timef()-btim)
+          timers(my_domain_id)%polehn_tim=timers(my_domain_id)%polehn_tim+(timef()-btim)
 !-----------------------------------------------------------------------
         else
 !-----------------------------------------------------------------------
@@ -6338,7 +6309,7 @@ real(kind=kfpt),dimension(8,1:lm) :: gsums_single
 !
       btim=timef()
       call halo_exch(q1,lm,w1,lm,g1,lm,e1,lm,1,1)
-      exch_tim=exch_tim+(timef()-btim)
+      timers(my_domain_id)%exch_tim=timers(my_domain_id)%exch_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !--------------anti-filtering limiters----------------------------------
@@ -7171,7 +7142,6 @@ real(kind=kfpt),dimension(2,1:lm) :: gsums_single
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-      mype=mype_share
       addt=dt*real(idtad)
 !-----------------------------------------------------------------------
 !
@@ -7371,11 +7341,11 @@ real(kind=kfpt),dimension(2,1:lm) :: gsums_single
 !
           btim=timef()
           call swaphn(s1(ims,jms,l),ims,ime,jms,jme,1,inpes)
-          swaphn_tim=swaphn_tim+(timef()-btim)
+          timers(my_domain_id)%swaphn_tim=timers(my_domain_id)%swaphn_tim+(timef()-btim)
 !
           btim=timef()
           call polehn(s1(ims,jms,l),ims,ime,jms,jme,1,inpes,jnpes)
-          polehn_tim=polehn_tim+(timef()-btim)
+          timers(my_domain_id)%polehn_tim=timers(my_domain_id)%polehn_tim+(timef()-btim)
 !-----------------------------------------------------------------------
         else
 !-----------------------------------------------------------------------
@@ -7392,7 +7362,7 @@ real(kind=kfpt),dimension(2,1:lm) :: gsums_single
 !
       btim=timef()
       call halo_exch(s1,lm,1,1)
-      exch_tim=exch_tim+(timef()-btim)
+      timers(my_domain_id)%exch_tim=timers(my_domain_id)%exch_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !--------------anti-filtering limiters----------------------------------
@@ -7696,6 +7666,8 @@ integer(kind=kint):: &
 !
                         endsubroutine aveq2
 !
+!----------------------------------------------------------------------
+!######################################################################
 !----------------------------------------------------------------------
 !
                         end module module_dynamics_routines

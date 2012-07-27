@@ -93,6 +93,7 @@ freerun:             true   # True--> Original
 global:    false            # True--> Global ; False--> Regional
 hydro:     false            # True--> Hydrostatic ;  False--> Nonhydrostatic
 adiabatic: false            # True--> Adiabatic ;  False--> Diabatic
+oper:      false
 
 
 ####################
@@ -166,6 +167,12 @@ write_prec_adj: false         # True--> create baseline prec. files ; False--> r
 ############################
 
 gwdflg:  true               # True--> GWD on ; False--> GWD off
+
+cleffamp:   1.00            # tunable parameter, depends on resolution
+sigfac:     0.00            # tunable parameter
+factop:     0.50            # de-acceleration limiter
+rlolev:   500.00            # critical pressure level (check units)
+dpmin:      5.00            # minimum thickness of the reference layer (check units)
 
 
 ####################################
@@ -317,6 +324,17 @@ io_delim:        ' '
 io_pad:          ' '
 
 
+###########################
+#####  Printouts      #####
+###########################
+
+print_all:     false        # Print all statements to err file
+print_diag:    true         # Print diagnostics (CALL FIELD_STATS)
+print_esmf:    false        # Print ESMF return signals
+print_output:  false        # Print info on records written into history/restart file
+print_timing:  true         # Print timing info (CPU time)
+
+
 ##################################
 ####  Nesting Specifications  ####
 ##################################
@@ -325,11 +343,25 @@ num_domains_total: 1         # The total number of domains in this run (only nee
 my_domain_id: 1              # The ID number of this domain (uppermost domain must have ID=1)
 my_parent_id: -999           # The ID number of this domain's parent
 n_children:  0               # How many child domains does this domain have?
+
 my_domain_moves:  false      # Does this domain move?
+
+nest_mode:  1-way            # 1-way or 2-way interaction between parents/children?
+generation:  1               # For 2-way only, in which generation is this domain?
+
+### If this domain is not a nest then the remaining variables
+### in 'Nesting Specifications' are ignored.
 
 i_parent_start:   75         # Nest southwest corner at this parent I
 j_parent_start:   27         # Nest southwest corner at this parent J
+
 parent_child_space_ratio: 3  # Ratio of parent grid increment to nests's
+ratio_sfc_files: 9            # Ratio of uppermost parent grid increment to this moving nest's
+
+nrows_p_upd_w: 2              # West bndry rows of moving nest footprint updated by parent
+nrows_p_upd_e: 2              # East bndry rows of moving nest footprint updated by parent
+nrows_p_upd_s: 2              # South bndry rows of moving nest footprint updated by parent
+nrows_p_upd_n: 2              # North bndry rows of moving nest footprint updated by parent
 
 input_ready:  false          # Nest has pre-generated input file
 
