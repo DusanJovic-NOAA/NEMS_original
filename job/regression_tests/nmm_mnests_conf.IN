@@ -262,9 +262,9 @@ fss:      0.85              # reduction factor for "slow" dsp's over water (dafa
 #fss:      0.85             # reduction factor for "slow" dsp's over water
 
 entrain:    .false.         # Entrainment
-newall:     .true.          # New cloud used at all shallow points
-newswap:    .true.          # New clouds at swap shallow points
-newupup:    .true.          # New cloud used for both heat and moisture up shallow pts.
+newall:     .false.         # New cloud used at all shallow points
+newswap:    .false.         # New clouds at swap shallow points
+newupup:    .false.         # New cloud used for both heat and moisture up shallow pts.
 nodeep:     .false.         # All deep convection diverted to shallow swap algorythm
 
 

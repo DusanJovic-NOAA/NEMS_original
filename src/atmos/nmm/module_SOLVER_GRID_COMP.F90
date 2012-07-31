@@ -58,7 +58,10 @@
 !
       USE MODULE_GET_CONFIG
 !
-      USE MODULE_CONTROL,ONLY : CAPPA, TIMEF
+      USE MODULE_CONTROL,ONLY : TIMEF
+!
+      USE MODULE_CONSTANTS,ONLY : A2,A3,A4,CAPPA,CP,ELIV,ELWV,EPSQ,G &
+                                 ,P608,PQ0,R_D,TIW
 !
       USE MODULE_DIAGNOSE,ONLY : EXIT,FIELD_STATS                       &
                                 ,MAX_FIELDS,MAX_FIELDS_HR               &
@@ -83,9 +86,6 @@
       USE MODULE_CU_BMJ     ,ONLY : BMJ_INIT
       USE MODULE_CU_SAS     ,ONLY : SAS_INIT
       USE MODULE_CONVECTION ,ONLY : CUCNVC
-
-      USE MODULE_CU_BMJ_DEV    ,ONLY : BMJ_INIT_DEV
-      USE MODULE_CONVECTION_DEV,ONLY : CUCNVC_DEV
 
       USE MODULE_MICROPHYSICS_NMM ,ONLY : GSMDRIVE                      &
                                          ,MICRO_RESTART
@@ -5695,57 +5695,19 @@
           btim=timef()
 !
 !-----------------------------------------------------------------------
-!***  Temporary switch between two convection schemes (bmj & bmj_dev)
-!***  placed here in SOLVER_RUN.
-!-----------------------------------------------------------------------
           IF(int_state%CONVECTION=='bmj' .OR. &
              int_state%CONVECTION=='sas') THEN
 !
             CALL CUCNVC(NTIMESTEP,int_state%DT,int_state%NPRECIP          &
                        ,int_state%NRADS,int_state%NRADL                   &
                        ,int_state%MINUTES_HISTORY                         &
-                       ,int_state%fres,int_state%fr                       &
-                       ,int_state%fsl,int_state%fss                       &
-                       ,int_state%DYH,int_state%RESTART,int_state%HYDRO   &
-                       ,int_state%CLDEFI,int_state%NUM_WATER              &
-                       ,int_state%F_ICE,int_state%F_RAIN                  &
-                       ,int_state%P_QV,int_state%P_QC,int_state%P_QR      &
-                       ,int_state%P_QI,int_state%P_QS,int_state%P_QG      &
-                       ,int_state%F_QV,int_state%F_QC,int_state%F_QR      &
-                       ,int_state%F_QI,int_state%F_QS,int_state%F_QG      &
-                       ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1                  &
-                       ,int_state%PT,int_state%PD                         &
-                       ,int_state%T,int_state%Q                           &
-                       ,int_state%CW,int_state%TCUCN,int_state%WATER      &
-                       ,int_state%OMGALF                                  &
-                       ,int_state%U,int_state%V                           &
-                       ,int_state%FIS,int_state%W0AVG                     &
-                       ,int_state%PREC,int_state%ACPREC,int_state%CUPREC  &
-                       ,int_state%CUPPT,int_state%CPRATE                  &
-                       ,int_state%CNVBOT,int_state%CNVTOP                 &
-                       ,int_state%SM,int_state%LPBL                       &
-                       ,int_state%HTOP,int_state%HTOPD,int_state%HTOPS    &
-                       ,int_state%HBOT,int_state%HBOTD,int_state%HBOTS    &
-                       ,int_state%AVCNVC,int_state%ACUTIM                 &
-                       ,int_state%RSWIN,int_state%RSWOUT                  &
-                       ,int_state%CONVECTION                              &
-                       ,int_state%MICROPHYSICS                            &  ! BSF 6/22/2011
-                       ,int_state%SICE,int_state%QWBS,int_state%TWBS      &
-                       ,int_state%PBLH,int_state%DUDT,int_state%DVDT      &
-                       ,IDS,IDE,JDS,JDE,LM                                &
-                       ,IMS,IME,JMS,JME                                   &
-                       ,ITS,ITE,JTS,JTE)
-!
-          ELSEIF(int_state%CONVECTION=='bmj_dev')THEN
-!
-            CALL CUCNVC_DEV(NTIMESTEP,int_state%DT,int_state%NPRECIP      &
-                       ,int_state%NRADS,int_state%NRADL                   &
-                       ,int_state%MINUTES_HISTORY                         &
-                       ,int_state%fres,int_state%fr                       &
-                       ,int_state%fsl,int_state%fss                       &
                        ,int_state%ENTRAIN,int_state%NEWALL                &
                        ,int_state%NEWSWAP,int_state%NEWUPUP               &
                        ,int_state%NODEEP                                  &
+                       ,a2,a3,a4,cappa,cp,eliv,elwv,epsq,g &
+                       ,p608,pq0,r_d,tiw &
+                       ,int_state%fres,int_state%fr                       &
+                       ,int_state%fsl,int_state%fss                       &
                        ,int_state%DYH,int_state%RESTART,int_state%HYDRO   &
                        ,int_state%CLDEFI,int_state%NUM_WATER              &
                        ,int_state%F_ICE,int_state%F_RAIN                  &
@@ -5754,6 +5716,7 @@
                        ,int_state%F_QV,int_state%F_QC,int_state%F_QR      &
                        ,int_state%F_QI,int_state%F_QS,int_state%F_QG      &
                        ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1                  &
+                       ,int_state%dxh                                     &
                        ,int_state%PT,int_state%PD                         &
                        ,int_state%T,int_state%Q                           &
                        ,int_state%CW,int_state%TCUCN,int_state%WATER      &
@@ -5769,9 +5732,11 @@
                        ,int_state%AVCNVC,int_state%ACUTIM                 &
                        ,int_state%RSWIN,int_state%RSWOUT                  &
                        ,int_state%CONVECTION                              &
+                       ,int_state%SICE,int_state%QWBS,int_state%TWBS      &
+                       ,int_state%PBLH,int_state%DUDT,int_state%DVDT      &
                        ,IDS,IDE,JDS,JDE,LM                                &
-                       ,IMS,IME,JMS,JME                                   &
-                       ,ITS,ITE,JTS,JTE)
+                       ,IMS,IME,JMS,JME,1,lm+1                            &
+                       ,ITS,ITE,JTS,JTE,1,lm)
 !
           ELSE
 !
@@ -5801,10 +5766,11 @@
           ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Exchange wind tendencies for SAS scheme.
+!***  Exchange wind tendencies for SAS and bmj schemes.
 !-----------------------------------------------------------------------
 !
-          sas_wind: IF (int_state%CONVECTION=='sas') THEN   
+          wind: IF (int_state%CONVECTION=='sas' .or. &
+                    int_state%CONVECTION=='bmj') THEN !zj
 !
 !-----------------------------------------------------------------------
 !
@@ -5853,7 +5819,7 @@
 !
 !-----------------------------------------------------------------------
 !
-          ENDIF sas_wind       
+          ENDIF wind
 !
 !-----------------------------------------------------------------------
 !
@@ -9084,16 +9050,12 @@
 !
         SELECT CASE (convection)
           CASE ('bmj')
-            CALL BMJ_INIT(int_state%CLDEFI,int_state%RESTART           &
-                         ,IDS,IDE,JDS,JDE,1,LM+1                       &
-                         ,IMS,IME,JMS,JME,1,LM+1                       &
-                         ,ITS,ITE,JTS,JTE,1,LM)
-
-          CASE ('bmj_dev')
-            CALL BMJ_INIT_DEV(int_state%CLDEFI,int_state%RESTART       &
-                         ,IDS,IDE,JDS,JDE,1,LM+1                       &
-                         ,IMS,IME,JMS,JME,1,LM+1                       &
-                         ,ITS,ITE,JTS,JTE,1,LM)
+            CALL BMJ_INIT(int_state%CLDEFI,int_state%RESTART &
+                         ,a2,a3,a4,cappa,cp &
+                         ,pq0,r_d &
+                         ,IDS,IDE,JDS,JDE,1,LM+1 &
+                         ,IMS,IME,JMS,JME &
+                         ,ITS,ITE,JTS,JTE,LM)
 
           CASE ('sas')
             CALL SAS_INIT

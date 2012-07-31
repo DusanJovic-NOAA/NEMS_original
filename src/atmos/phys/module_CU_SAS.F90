@@ -35,61 +35,65 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE SASDRV(                                                &
-                       IDS,IDE,JDS,JDE,KDS,KDE                         &
-                      ,IMS,IME,JMS,JME,KMS,KME                         &
-                      ,ITS,ITE,JTS,JTE,KTS,KTE                         &
-                      ,DT,NTSD,NCNVC                                   &
-                      ,TH,T,SICE,OMGALF,SHEAT,LHEAT,PBLH,U,V           &
-                       ,WATER,P_QV,P_QC,P_QR,P_QS,P_QI,P_QG,NUM_WATER   &
-                      ,PINT,PMID,PI,RR,DZ                              &
-                      ,XLAND,CU_ACT_FLAG                               &
-                      ,RAINCV,CUTOP,CUBOT                              &   !! out below
-                       ,DUDT,DVDT                                       &
+      SUBROUTINE SASDRV( &
+                        IMS,IME,JMS,JME &
+                       ,ITS,ITE,JTS,JTE,lm &
+                       ,DT,NTSD,NCNVC &
+                       ,TH,T,SICE,OMGALF,SHEAT,LHEAT,PBLH,U,V &
+                       ,WATER,P_QV,P_QC,P_QR,P_QS,P_QI,P_QG,NUM_WATER &
+                       ,PINT,PMID,exner,RR,DZ &
+                       ,XLAND,CU_ACT_FLAG &
+                       ,RAINCV,CUTOP,CUBOT &   !! out below
+                       ,DUDT,DVDT &
                       ! optional
-                      ,RTHCUTEN, RQVCUTEN                              &
-                      ,RQCCUTEN, RQRCUTEN                              &
-                      ,RQICUTEN, RQSCUTEN                              &
-                      ,RQGCUTEN                                        &
-                                                                       )
+                       ,RTHCUTEN,RQVCUTEN &
+                       ,RQCCUTEN,RQRCUTEN &
+                       ,RQICUTEN,RQSCUTEN &
+                       ,RQGCUTEN &
+                       )
 !-----------------------------------------------------------------------
       IMPLICIT NONE
 !-----------------------------------------------------------------------
-      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,KDS,KDE                     &
-                          ,IMS,IME,JMS,JME,KMS,KME                     & 
-                          ,ITS,ITE,JTS,JTE,KTS,KTE
+      INTEGER,INTENT(IN):: &
+       IMS,IME,JMS,JME & 
+      ,ITS,ITE,JTS,JTE,lm
+!
       INTEGER,INTENT(IN) :: P_QV,P_QG,P_QR,P_QI,P_QC,P_QS,NUM_WATER
 !
       INTEGER,INTENT(IN) :: ntsd,NCNVC
       REAL,   INTENT(IN) :: DT
 !
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: XLAND, SICE, PBLH, SHEAT, LHEAT
+      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN):: &
+       XLAND,SICE,PBLH,SHEAT,LHEAT
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) :: DZ         &
-                                                           ,PINT       &
-                                                           ,RR
-      REAL,DIMENSION(IMS:IME,JMS:JME,KTS:KTE),INTENT(IN) :: OMGALF,U,V 
-
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:lm),INTENT(IN):: &
+       dz,exner,OMGALF,pmid,rr,t,th,U,V 
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) :: PI,PMID,T,TH
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE,NUM_WATER),INTENT(IN)::     &
-                                                  WATER                  !in z, (1:LM)
-
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:lm+1),INTENT(IN):: &
+       pint
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME)                           &
-         ,OPTIONAL                                                     &
-         ,INTENT(INOUT) ::                        RQVCUTEN,RTHCUTEN ,  &
-                                                   RQCCUTEN,RQRCUTEN ,  &
-                                                   RQSCUTEN,RQICUTEN ,  &
-                                                   RQGCUTEN 
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:lm,NUM_WATER),INTENT(IN):: &
+       WATER 
+!
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:lm),optional,intent(inout):: &
+       RQVCUTEN,RTHCUTEN &
+      ,RQCCUTEN,RQRCUTEN &
+      ,RQSCUTEN,RQICUTEN &
+      ,RQGCUTEN 
 ! 
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: RAINCV
+      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT):: &
+       RAINCV
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: CUBOT,CUTOP
-      REAL,DIMENSION(IMS:IME,JMS:JME,KTS:KTE),INTENT(OUT) :: DUDT,DVDT 
+      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT):: &
+       CUBOT,CUTOP
 !
-      LOGICAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: CU_ACT_FLAG
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:lm),INTENT(OUT):: &
+       DUDT,DVDT 
+!
+      LOGICAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT):: &
+       CU_ACT_FLAG
+!
       LOGICAL DEEP, SHALLOW
 !
 !-----------------------------------------------------------------------
@@ -99,35 +103,34 @@
 !-----------------------------------------------------------------------
 !      INTEGER :: LBOT,LPBL,LTOP
 ! 
-!      REAL,DIMENSION(KTS:KTE) :: DPCOL,DQDT,DTDT,PCOL,QCOL,TCOL
+!      REAL,DIMENSION(1:lm) :: DPCOL,DQDT,DTDT,PCOL,QCOL,TCOL
 !
       INTEGER :: I,J,K,ICLDCK,KFLIP
 
 ! For SAS
-      INTEGER :: KM, LM     
+      INTEGER :: KM
       INTEGER, PARAMETER :: IX=1, IM=1, ncloud=1
       INTEGER :: jcap, kcnv(IX), KBOT(IX), KTOP(IX)
-      REAL(kind=kind_phys), DIMENSION(IX,KTE) :: delp, prsl,phil,q1,t1,u1,v1,VVEL,     &
+      REAL(kind=kind_phys), DIMENSION(IX,lm) :: delp, prsl,phil,q1,t1,u1,v1,VVEL,     &
                                 ud_mf,dd_mf,dt_mf, q0,t0,u0,v0
       REAL(kind=kind_phys), DIMENSION(IX) :: psp,cldwrk,rn,slimsk,hpbl,hflx,evap
-      REAL(kind=kind_phys), DIMENSION(IX,KTE,2) :: CLW, CLW0  !! 1-ice  2-liquid 
+      REAL(kind=kind_phys), DIMENSION(IX,lm,2) :: CLW, CLW0  !! 1-ice  2-liquid 
       REAL(kind=kind_phys) :: fract, tmp, delt, landmask, DTCNVC, mommix
-      REAL, DIMENSION(KTE+1)    :: ZF
+      REAL, DIMENSION(lm+1)    :: ZF
       LOGICAL :: lpr
        lpr=.true.
        lpr=.false.
 
       DEEP = .TRUE.
       SHALLOW = .TRUE.
-      KM = KTE
-      LM = KTE
+      KM = lm
        mommix = 1.0    !!! HWRF uses this to adjust/tune moment mixing
 
 !.......................................................................
 !$omp parallel do                &
 !$omp     private(k,j,i)
 !.......................................................................
-       DO K=KTS,KTE
+       DO K=1,lm
         DO J=JMS,JME
          DO I=IMS,IME
           DUDT(I,J,K) = 0.0
@@ -142,7 +145,7 @@
 !$omp parallel do                &
 !$omp     private(k,j,i)
 !.......................................................................
-       DO K=KMS,KME
+       DO K=1,lm
         DO J=JMS,JME
          DO I=IMS,IME
             RTHCUTEN(I,J,K) = 0.0
@@ -193,7 +196,7 @@
         DO J=JTS,JTE  
         DO I=ITS,ITE
 !
-      !    DO K=KTS,KTE
+      !    DO K=1,lm
       !      DQDT(K)=0.
       !      DTDT(K)=0.
       !    ENDDO
@@ -214,8 +217,8 @@
            ZF(K) = ZF(K-1) + DZ(I,J,KFLIP)
           ENDDO
            delt = 2.0 * DTCNVC
-           PSP(1) = PINT(I,J,KTE+1)        ! Surface pressure, Pa
-          DO K=KTS,KTE
+           PSP(1) = PINT(I,J,lm+1)        ! Surface pressure, Pa
+          DO K=1,lm
            kflip = LM + 1 -K
            prsl(1,K)  = pmid(I,J,KFLIP)
            delp(1,K)  = RR(I,J,KFLIP)*g99*DZ(I,J,KFLIP) 
@@ -262,8 +265,8 @@
           VVEL,ncloud,ud_mf,dd_mf,dt_mf)
 !***  CONVECTIVE CLOUD TOP AND BOTTOM FROM THIS CALL
 !
-       !   CUTOP(I,J) = REAL( KTE+1-KTOP(1) )   !BMJ
-       !   CUBOT(I,J) = REAL( KTE+1-KBOT(1) )   !BMJ
+       !   CUTOP(I,J) = REAL( lm+1-KTOP(1) )   !BMJ
+       !   CUBOT(I,J) = REAL( lm+1-KBOT(1) )   !BMJ
           CUTOP(I,J) = KTOP(1)
           CUBOT(I,J) = KBOT(1)
 
@@ -297,9 +300,9 @@
               ENDDO
 
             IF(PRESENT(RTHCUTEN).AND.PRESENT(RQVCUTEN))THEN
-              DO K=KTS,KTE
+              DO K=1,lm
                 KFLIP = LM+1-K
-                RTHCUTEN(I,J,KFLIP)=(t1(1,K)-t0(1,K))/delt/PI(I,J,KFLIP)
+                RTHCUTEN(I,J,KFLIP)=(t1(1,K)-t0(1,K))/delt/exner(I,J,KFLIP)
 !
 !***  CONVERT FROM SPECIFIC HUMIDTY BACK TO MIXING RATIO
 !
@@ -379,7 +382,7 @@
            write(0,*)'clw0(1,2)=',clw0(1,10,1),clw0(1,10,2)
            write(0,*)'water(p_qc,p_qr)=',water(i,j,lm+1-10,p_qc),water(i,j,lm+1-10,p_qr)
            write(0,*)'water(p_qi,p_qs,p_qg)=',water(i,j,lm+1-10,p_qi),water(i,j,lm+1-10,p_qs),water(i,j,lm+1-10,p_qg)
-           write(0,*)'PI=',pi(i,j,:)
+           write(0,*)'EXNER=',exner(i,j,:)
            write(0,*)'hPBL=',hpbl(1)
            write(0,*)'SICE=',sice(i,j)
            write(0,*)'RAIN=,',raincv(I,J)

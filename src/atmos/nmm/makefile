@@ -41,7 +41,6 @@ MODULES  = \
 
 MODULE_SMP=    \
                 module_CONVECTION.o \
-                module_CONVECTION_DEV.o \
                 module_MICROPHYSICS.o \
                 module_RADIATION.o \
                 module_TURBULENCE.o

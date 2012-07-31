@@ -12,9 +12,6 @@
 !
       USE MODULE_MY_DOMAIN_SPECS
 !
-      USE MODULE_CONSTANTS,ONLY : A2,A3,A4,CP,ELIV,ELWV,EPSQ,G          &
-                                 ,P608,PQ0,R_D,TIW
-!
       USE MODULE_CONTROL,ONLY : NMMB_FINALIZE
 
       USE MODULE_CU_BMJ
@@ -32,7 +29,7 @@
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
-!***  The convection options.
+!***  THE CONVECTION OPTIONS
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
@@ -49,13 +46,17 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
       SUBROUTINE CUCNVC(NTSD,DT,NCNVC,NRADS,NRADL,MINUTES_HISTORY       &
-                       ,FRES,FR,FSL,FSS                                 &
+                       ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP           &
+                       ,a2,a3,a4,cappa,cp,eliv,elwv,epsq,g &
+                       ,p608,pq0,r_d,tiw  &
+                       ,fres,fr,fsl,fss                                 &
                        ,DYH,RESTRT,HYDRO                                &
                        ,CLDEFI,NUM_WATER                                &
                        ,F_ICE,F_RAIN                                    &
                        ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG                   &
                        ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG                   &
                        ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1                &
+                       ,dxh                                             &
                        ,PT,PD,T,Q,CWM,TCUCN,WATER                       &
                        ,OMGALF,U,V                                      &
                        ,FIS,W0AVG                                       &
@@ -66,13 +67,13 @@
                        ,AVCNVC,ACUTIM                                   &
                        ,RSWIN,RSWOUT                                    &
                        ,CONVECTION                                      &
-                       ,MICROPHYSICS                                    &  ! BSF 6/22/2011
 !!!! added for SAS
-                       ,SICE,QWBS,TWBS,PBLH,DUDT,DVDT                   &
+                       ,SICE,QWBS,TWBS,PBLH,dudt_phy,dvdt_phy           &
 !!!
                        ,IDS,IDE,JDS,JDE,LM                              &
-                       ,IMS,IME,JMS,JME                                 &
-                       ,ITS,ITE,JTS,JTE)
+                       ,IMS,IME,JMS,JME,kms,kme                         &
+                       ,ITS,ITE,JTS,JTE,kts,kte)
+
 !***********************************************************************
 !$$$  SUBPROGRAM DOCUMENTATION BLOCK
 !                .      .    .     
@@ -88,121 +89,139 @@
 !   06-10-11  BLACK      - BUILT INTO UMO PHYSICS COMPONENT
 !   08-08     JANJIC     - Synchronize WATER array and Q.
 !   10-10-26  WEIGUO WANG - add GFS SAS convection
-!   11-06-22  Ferrier    - Update CWM, F_ice, F_rain arrays (BSF 6/22/2011)
 !     
 ! USAGE: CALL CUCNVC FROM PHY_RUN
 !
 ! ATTRIBUTES:
 !   LANGUAGE: FORTRAN 90
-!   MACHINE : IBM 
+!   MACHINE : IBM
 !$$$  
 !-----------------------------------------------------------------------
 !
-!------------------------
-!***  Argument Variables
-!------------------------
+      IMPLICIT NONE
 !
-      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                          &
-                           ,IMS,IME,JMS,JME                             &
-                           ,ITS,ITE,JTS,JTE                             &
-                           ,NCNVC,MINUTES_HISTORY                       &
-                           ,NRADS,NRADL,NTSD,NUM_WATER
+!-----------------------------------------------------------------------
+      character(99),intent(in):: &
+       convection
 !
-      INTEGER,INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
+      logical(kind=klog),intent(in):: &
+       hydro,restrt &
+      ,entrain,newall,newswap,newupup,nodeep &
+      ,f_qv,f_qc,f_qr,f_qi,f_qs,f_qg
 !
-      INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: LPBL
+      integer(kind=kint),intent(in):: &
+       ids,ide,jds,jde,kts,kte,lm &
+      ,ims,ime,jms,jme,kms,kme &
+      ,its,ite,jts,jte &
+      ,ncnvc,minutes_history &
+      ,nrads,nradl,ntsd,num_water &
+      ,p_qv,p_qc,p_qr,p_qi,p_qs,p_qg
 !
-      REAL(kind=kfpt),INTENT(IN):: &
-       DT,DYH,FRES,FR,FSL,FSS,PT
+      integer(kind=kint),dimension(ims:ime,jms:jme),intent(in):: &
+       lpbl
 !
-      REAL,DIMENSION(1:LM),INTENT(IN) :: DSG2,PDSG1,PSGML1,SGML2
+      real(kind=kfpt),intent(in):: &
+       a2,a3,a4,cappa,cp,dt,dyh,eliv,elwv,epsq &
+      ,fres,fr,fsl,fss,g,p608,pq0,pt,r_d,tiw
 !
-      REAL,DIMENSION(1:LM+1),INTENT(IN) :: PSG1,SG2 
+      real(kind=kfpt),dimension(1:lm),intent(in):: &
+       dsg2,pdsg1,psgml1,sgml2
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: FIS,PD              &
-                                                   ,RSWIN,RSWOUT,SM
+      real(kind=kfpt),dimension(1:lm+1),intent(in):: &
+       psg1,sg2 
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: ACPREC,CLDEFI    &
-                                                      ,CNVBOT,CNVTOP    &
-                                                      ,CUPPT,CUPREC     &
-                                                      ,HBOT,HTOP        &
-                                                      ,HBOTD,HTOPD      &
-                                                      ,HBOTS,HTOPS      &
-                                                      ,PREC,CPRATE      &
-                                                      ,ACUTIM,AVCNVC       !<-- Were scalars
+      real(kind=kfpt),dimension(jds:jde),intent(in):: &
+       dxh
 !
-      REAL,DIMENSION(IMS:IME,1:LM+1,JMS:JME),INTENT(INOUT) :: W0AVG
+      real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
+       fis,pd &
+      ,rswin,rswout,sm
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: Q,T         &
-                                                           ,CWM         &
-                                                           ,TCUCN       &
-                                                           ,F_ICE       &  ! BSF 6/22/2011
-                                                           ,F_RAIN         ! BSF 6/22/2011
+      real(kind=kfpt),dimension(ims:ime,jms:jme),intent(inout):: &
+       acprec,cldefi &
+      ,cnvbot,cnvtop &
+      ,cuppt,cuprec &
+      ,hbot,htop &
+      ,hbotd,htopd &
+      ,hbots,htops &
+      ,prec,cprate &
+      ,acutim,avcnvc  !<-- were scalars
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: OMGALF,U,V
+      real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
+       sice,qwbs,twbs,pblh  !fOR SAS
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,NUM_WATER)                    &
-                                                 ,INTENT(INOUT) :: WATER
+      real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in):: &
+       f_ice &
+      ,f_rain &
+      ,omgalf,u,v
 !
-      LOGICAL,INTENT(IN) :: HYDRO,RESTRT
+      real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(out):: &
+       dudt_phy,dvdt_phy
 !
-      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
+      real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
+       q,t &
+      ,cwm &
+      ,tcucn
 !
-      CHARACTER(99),INTENT(IN) :: CONVECTION,MICROPHYSICS
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: SICE,QWBS,TWBS,PBLH  !For SAS
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: DUDT, DVDT               ! SAS
+      real(kind=kfpt),dimension(ims:ime,1:lm+1,jms:jme),intent(inout):: &
+       w0avg
 !
-!---------------------
-!***  Local Variables
-!---------------------
+      real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,num_water) &
+                     ,intent(inout):: &
+       water
+!-----------------------------------------------------------------------
+!***  LOCAL VARIABLES
+!-----------------------------------------------------------------------
 !
-      INTEGER :: CU_PHYSICS,I,ICLDCK,IJ,J,K,MNTO                        &
-                ,N,NCUBOT,NCUTOP,N_TIMSTPS_OUTPUT
+      logical(kind=klog):: &
+       restart,warm_rain
 !
-      INTEGER,DIMENSION(IMS:IME,JMS:JME) :: KPBL,LBOT,LOWLYR,LTOP
+      logical(kind=klog),dimension(ims:ime,jms:jme):: &
+       cu_act_flag
 !
-      REAL :: CAPA,CF_HI,DQDT,DTCNVC,DTDT,FICE,FRAIN,G_INV              &
-             ,PCPCOL,PDSL,PLYR,QI,QL_K,QR,QW,QSN,QGR,RDTCNVC,WC   ! BSF 6/22/2011
+      integer(kind=kint):: &
+       cu_physics,i,j &
+      ,k,kde,kds &
+      ,mnto &
+      ,n,ncubot,ncutop,n_timstps_output
 !
-      REAL  :: QL,TL
+      integer(kind=kint),dimension(ims:ime,jms:jme):: &
+       KPBL,LBOT,LTOP
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME) :: CUBOT,CUTOP,GSW,NCA            &
-                                        ,RAINC,RAINCV,SFCZ,XLAND
+      real(kind=kfpt):: &
+       cf_hi,dqdt,dtcnvc,dtdt,fice,frain,g_inv &
+      ,pcpcol,pdsl,plyr,qi,ql,ql_k,qr,qw,rdtcnvc &
+      ,tl
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: DZ,PINT,RR,P_PHY,PI_PHY &
-                                               ,T_PHY,TH_PHY
+      REAL(kind=kfpt),DIMENSION(IMS:IME,JMS:JME):: &
+       CUBOT,CUTOP,NCA &
+      ,RAINC,RAINCV,SFCZ,XLAND
+!
+      REAL(kind=kfpt),DIMENSION(IMS:IME,JMS:JME,1:LM):: &
+       DZ,pmid,exner &
+      ,qv,th,rr &
+      ,RQCCUTEN,RQRCUTEN &
+      ,RQICUTEN,RQSCUTEN &
+      ,RQVCUTEN,RTHCUTEN &
+      ,RQGCUTEN &
+      ,u_phy,v_phy
 
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: RQCCUTEN,RQRCUTEN       &
-                                               ,RQICUTEN,RQSCUTEN       &
-                                               ,RQVCUTEN,RTHCUTEN       &
-                                               ,RQGCUTEN
-
-!
-      LOGICAL :: RESTART,WARM_RAIN,FER_test
-      LOGICAL,DIMENSION(IMS:IME,JMS:JME) :: CU_ACT_FLAG
-!
+      REAL(kind=kfpt),DIMENSION(IMS:IME,JMS:JME,1:LM+1):: &
+       PINT
 !-----------------------------------------------------------------------
 !***  For temperature change check only.
 !-----------------------------------------------------------------------
-!zj      REAL :: DTEMP_CHECK=1.0
-      REAL :: TCHANGE
-
-!dbg
-REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
+!zj      REAL(kind=kfpt) :: DTEMP_CHECK=1.0
+      REAL(kind=kfpt) :: TCHANGE
 !-----------------------------------------------------------------------
 !***********************************************************************
+      kds=1
+      kde=lm
+!-----------------------------------------------------------------------
+!***  TRANSLATE THE CONVECTION OPTIONS IN THE CONFIG FILE TO THEIR
+!***  ANALOGS IN THE WRF
 !-----------------------------------------------------------------------
 !
-!-----------------------------------------------------------------------
-!***  Translate the convection options in the config file to their
-!***  analogs in the WRF Registry.
-!-----------------------------------------------------------------------
-!
-      IF(TRIM(MICROPHYSICS)=='fer' .OR. TRIM(MICROPHYSICS)=='fer_hires')THEN
-         FER_test=.TRUE.
-      ELSE
-         FER_test=.FALSE.
-      ENDIF
       SELECT CASE (TRIM(CONVECTION))
         CASE ('bmj')
           CU_PHYSICS=2
@@ -221,12 +240,12 @@ REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
       END SELECT
 !
 !-----------------------------------------------------------------------
-!***  Reset the HBOT/HTOP convective cloud bottom (base) and top arrays
-!***  used in radiation.  They store the maximum vertical limits of 
-!***  convective cloud between radiation calls.  These arrays are out
-!***  of the WRF physics and thus their values increase upward.
-!***  CUPPT is the accumulated convective precipitation between
-!***  radiation calls.
+!***  RESET THE HBOT/HTOP CONVECTIVE CLOUD BOTTOM (BASE) AND TOP ARRAYS
+!***  USED IN RADIATION.  THEY STORE THE MAXIMUM VERTICAL LIMITS OF 
+!***  CONVECTIVE CLOUD BETWEEN RADIATION CALLS.  THESE ARRAYS ARE OUT
+!***  OF THE WRF PHYSICS AND THUS THEIR VALUES INCREASE UPWARD.
+!***  CUPPT IS THE ACCUMULATED CONVECTIVE PRECIPITATION BETWEEN
+!***  RADIATION CALLS.
 !-----------------------------------------------------------------------
 !
       IF(MOD(NTSD,NRADS)==0.OR.MOD(NTSD,NRADL)==0)THEN
@@ -265,19 +284,7 @@ REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  The following is only for the GD scheme so far.
-!-----------------------------------------------------------------------
-!
-!jaa!$omp parallel do                                                       &
-!jaa!$omp& private(i,j,k)
-      DO J=JTS,JTE
-      DO I=ITS,ITE
-        GSW(I,J)=RSWIN(I,J)-RSWOUT(I,J)
-      ENDDO
-      ENDDO
-!
-!-----------------------------------------------------------------------
-!***  General preparation 
+!***  GENERAL PREPARATION 
 !-----------------------------------------------------------------------
 !
 !-- AVCNVC,ACUTIM were scalars but changed to 2D arrays to allow for updates in ESMF
@@ -291,11 +298,10 @@ REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
 !
       DTCNVC=NCNVC*DT
       RDTCNVC=1./DTCNVC
-      CAPA=R_D/CP
       G_INV=1./G
 !
 !.......................................................................
-!$omp parallel do                                                       &
+!$omp parallel do &
 !$omp& private(j,i,k,pdsl,plyr,ql,tl)
 !.......................................................................
       DO J=JTS,JTE
@@ -305,7 +311,6 @@ REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
         RAINCV(I,J)=0.
         RAINC(I,J)=0.
         PINT(I,J,LM+1)=SG2(LM+1)*PDSL+PSG1(LM+1)
-        LOWLYR(I,J)=LM+1
         XLAND(I,J)=SM(I,J)+1.
         NCA(I,J)=0.
         SFCZ(I,J)=FIS(I,J)*G_INV
@@ -313,45 +318,77 @@ REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
         CUTOP(I,J)=999.
         CUBOT(I,J)=999.
 !
-!***  LPBL is the model layer containing the PBL top
-!***  counting downward from the top of the domain
-!***  so KPBL is the same layer counting upward from 
-!***  the ground.
+!***  LPBL IS THE MODEL LAYER CONTAINING THE PBL TOP
+!***  COUNTING DOWNWARD FROM THE TOP OF THE DOMAIN
+!***  SO KPBL IS THE SAME LAYER COUNTING UPWARD FROM 
+!***  THE GROUND.
 !
         KPBL(I,J)=LPBL(I,J)
 !
 !-----------------------------------------------------------------------
-!***  Fill vertical working arrays.
+!***  FILL VERTICAL WORKING ARRAYS.
 !-----------------------------------------------------------------------
 !
-        DO K=LM,1,-1
+        DO K=1,lm
 !
           PLYR=SGML2(K)*PDSL+PSGML1(K)
 
           QL=MAX(Q(I,J,K),EPSQ)
           TL=T(I,J,K)
-          RR(I,J,K)=PLYR/(R_D*TL*(P608*ql+1.))
-          T_PHY(I,J,K)=TL
+          RR(I,J,K)=PLYR/(R_D*TL*(.608*ql+1.))
+          t(i,j,k)=TL
 !
-          TH_PHY(I,J,K)=TL*(1.E5/PLYR)**CAPA
-          PINT(I,J,K)=PINT(I,J,K+1)-PDSG1(K)-DSG2(K)*PDSL
-          P_PHY(I,J,K)=PLYR
-          PI_PHY(I,J,K)=(PLYR*1.E-5)**CAPA
+          exner(I,J,K)=(PLYR*1.E-5)**cappa
+          th(I,J,K)=TL/exner(i,j,k)
+          pint(i,j,k)=sg2(k)*pdsl+psg1(k) !zj
+          pmid(I,J,K)=PLYR
 !
         ENDDO
-        DO K=1,LM+1
-          RTHCUTEN(I,J,K)=0.
-          RQVCUTEN(I,J,K)=0.
-          RQCCUTEN(I,J,K)=0.
-          RQRCUTEN(I,J,K)=0.
-          RQICUTEN(I,J,K)=0.
-          RQSCUTEN(I,J,K)=0.
-          RQGCUTEN(I,J,K)=0.
+      ENDDO
+      ENDDO
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
+!
+!-----------------------------------------------------------------------
+!***  Compute velocity components at mass points.
+!-----------------------------------------------------------------------
+!
+!.......................................................................
+!$omp parallel do &
+!$omp& private(j,i,k)
+!.......................................................................
+      do k=1,lm
+        do j=jms,jme
+          do i=ims,ime
+            u_phy(i,j,k)=0.
+            v_phy(i,j,k)=0.
+!
+            RTHCUTEN(I,J,K)=0.
+            RQVCUTEN(I,J,K)=0.
+            RQCCUTEN(I,J,K)=0.
+            RQRCUTEN(I,J,K)=0.
+            RQICUTEN(I,J,K)=0.
+            RQSCUTEN(I,J,K)=0.
+            RQGCUTEN(I,J,K)=0.
+            dudt_phy(i,j,k)=0.
+            dvdt_phy(i,j,k)=0.
+          enddo
+        enddo
+!
+        do j=jts_b1,jte_b1
+          do i=its_b1,ite_b1
+            u_phy(i,j,k)=(u(i,j  ,k)+u(i-1,j  ,k) &
+                         +u(i,j-1,k)+u(i-1,j-1,k))*0.25
+            v_phy(i,j,k)=(v(i,j  ,k)+v(i-1,j  ,k) &
+                         +v(i,j-1,k)+v(i-1,j-1,k))*0.25
+          ENDDO
         ENDDO
-!
       ENDDO
-      ENDDO
-!
+!.......................................................................
+!$omp end parallel do
+!.......................................................................
+!-----------------------------------------------------------------------
 !.......................................................................
 !$omp parallel do                                                       &
 !$omp private(i,j,k,pdsl,plyr,ql_k)
@@ -360,27 +397,27 @@ REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
         DO I=ITS,ITE
           PDSL=PD(I,J)
           PLYR=PSGML1(LM)+SGML2(LM)*PDSL+PT
-          DZ(I,J,LM)=T(I,J,LM)*(P608*Q(I,J,LM)+1.)*R_D                   &
-                    *(PINT(I,J,LM+1)-PINT(I,J,LM))                            &
+          DZ(I,J,LM)=T(I,J,LM)*(.608*Q(I,J,LM)+1.)*R_D &
+                    *(PINT(I,J,LM+1)-PINT(I,J,LM)) &
                     /(PLYR*G)
         ENDDO
 !
         DO K=LM-1,1,-1
         DO I=ITS,ITE
           QL_K=MAX(Q(I,J,K),EPSQ)
-          DZ(I,J,K)=T_PHY(I,J,K)*(P608*QL_K+1.)*R_D                     &
-                    *(PINT(I,J,K+1)-PINT(I,J,K))                          &
-                    /(P_PHY(I,J,K)*G)
+          DZ(I,J,K)=T(I,J,K)*(.608*QL_K+1.)*R_D &
+                    *(PINT(I,J,K+1)-PINT(I,J,K)) &
+                    /(PMID(I,J,K)*G)
         ENDDO
         ENDDO
 !
       ENDDO
 !.......................................................................
-!$omp end parallel do                                                  
+!$omp end parallel do
 !.......................................................................
 !
 !-----------------------------------------------------------------------
-!***  Synchronize mixing ratio in WATER array with specific humidity.
+!***  SYNCHRONIZE MIXING RATIO IN WATER ARRAY WITH SPECIFIC HUMIDITY.
 !-----------------------------------------------------------------------
 !
 !.......................................................................
@@ -390,70 +427,66 @@ REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
         DO J=JMS,JME
           DO I=IMS,IME
             WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))
+            qv(i,j,k)=water(i,j,k,p_qv)
           ENDDO
         ENDDO
       ENDDO
 !.......................................................................
 !$omp end parallel do
 !.......................................................................
-!
-!-----------------------------------------------------------------------
-!
-!***  Single-Column Convection
-!
-!-----------------------------------------------------------------------
-!
-!
-!-----------------------------------------------------------------------
-!
-      IF (CU_PHYSICS /= 0) THEN
 
+!write(0,*)'A2,A3,A4,cappa,CP,ELIV,ELWV,EPSQ,p608,PQ0,R_D,TIW' &
+!,A2,A3,A4,cappa,CP,ELIV,ELWV,EPSQ,p608,PQ0,R_D,TIW
+
+!
+!-----------------------------------------------------------------------
+!
+!***  SINGLE-COLUMN CONVECTION
+!
+!-----------------------------------------------------------------------
+      IF (CU_PHYSICS /= 0) THEN
 
           cps_select: SELECT CASE(cu_physics)
 
             CASE (BMJSCHEME)
-
-              CALL BMJDRV(TH=th_phy,T=T_phy ,RAINCV=raincv, RR=RR       &
-                         ,FRES=fres,FR=fr,FSL=fsl,FSS=fss               &
-                         ,DT=dt ,ntsd=NTSD ,NCNVC=NCNVC                 &
-                         ,CUTOP=CUTOP, CUBOT=CUBOT, KPBL=kpbl           &
-                         ,DZ=dz,PINT=PINT, PMID=p_phy, PI=pi_phy        &
-                         ,CP=cp ,R=r_d ,ELWV=ELWV ,ELIV=ELIV ,G=g       &
-                         ,TFRZ=TIW ,D608=P608 ,CLDEFI=cldefi            &
-                         ,LOWLYR=lowlyr ,XLAND=xland                    &
-                         ,CU_ACT_FLAG=cu_act_flag                       &
-                         ,QV=WATER(IMS,JMS,1,P_QV)                      &
-                         ,IDS=ids,IDE=ide,JDS=jds,JDE=jde,KDS=1,KDE=lm+1 &
-                         ,IMS=ims,IME=ime,JMS=jms,JME=jme,KMS=1,KME=lm+1 &
-                         ,ITS=ITS_B1,ITE=ITE_B1                         &
-                         ,JTS=JTS_B1,JTE=JTE_B1                         &
-                         ,KTS=1,KTE=lm                                  &
-! optionals
-                         ,RTHCUTEN=rthcuten ,RQVCUTEN=rqvcuten          &
-                                                               )
-
+ 
+            call  bmjdrv( &
+                         ids,ide,jds,jde &
+                        ,ims,ime,jms,jme &
+                        ,its,ite,jts,jte,lm &
+                        ,its_b1,ite_b1,jts_b1,jte_b1 &
+                        ,entrain,newall,newswap,newupup,nodeep &
+                        ,a2,a3,a4,cappa,cp,eliv,elwv,epsq,g &
+                        ,p608,pq0,r_d,tiw &
+                        ,fres,fr,fsl,fss &
+                        ,dt,dyh,ntsd,ncnvc &
+                        ,raincv,cutop,cubot,dxh,kpbl &
+                        ,th,t,qv,u_phy,v_phy,dudt_phy,dvdt_phy &
+                        ,pint,pmid,exner &
+                        ,cldefi,xland,cu_act_flag &
+                      ! optional
+                        ,rthcuten,rqvcuten &
+                        )
+!-----------------------------------------------------------------------
            CASE (SASSCHEME)
 
-             CALL SASDRV(DT=dt,NTSD=NTSD,NCNVC=NCNVC                          &
-                        ,TH=th_phy,T=t_phy,SICE=SICE,OMGALF=OMGALF            &
-                        ,SHEAT=TWBS,LHEAT=QWBS,PBLH=PBLH,U=U,V=V              &
-                        ,WATER=WATER,P_QV=P_QV,P_QC=P_QC,P_QR=P_QR            &
-                        ,P_QS=P_QS,P_QI=P_QI,P_QG=P_QG,NUM_WATER=NUM_WATER    &
-                        ,PINT=pint,PMID=p_phy,PI=PI_PHY,RR=RR,DZ=DZ           &
-                        ,XLAND=XLAND,CU_ACT_FLAG=CU_ACT_FLAG                  &
-                        ,RAINCV=RAINCV,CUTOP=CUTOP,CUBOT=CUBOT                &
-                        ,DUDT=DUDT,DVDT=DVDT                                  &
-                  ! optional
-                        ,RTHCUTEN=rthcuten, RQVCUTEN=RQVCUTEN                 &
-                        ,RQCCUTEN=RQCCUTEN, RQRCUTEN=RQRCUTEN                 &
-                        ,RQICUTEN=RQICUTEN, RQSCUTEN=RQSCUTEN                 &
-                        ,RQGCUTEN=RQGCUTEN                                    &
-                         ,IDS=ids,IDE=ide,JDS=jds,JDE=jde,KDS=1,KDE=lm+1      &
-                         ,IMS=ims,IME=ime,JMS=jms,JME=jme,KMS=1,KME=lm+1      &
-                         ,ITS=ITS_B1,ITE=ITE_B1                         &
-                         ,JTS=JTS_B1,JTE=JTE_B1                         &
-                         ,KTS=1,KTE=lm                                        &
-                                                                              )
+           call sasdrv( &
+                       ims,ime,jms,jme &
+                      ,its,ite,jts,jte,lm &
+                      ,dt,ntsd,ncnvc &
+                      ,th,t,sice,omgalf,twbs,qwbs,pblh,u_phy,v_phy &
+                      ,water,p_qv,p_qc,p_qr,p_qs,p_qi,p_qg,num_water &
+                      ,pint,pmid,exner,rr,dz &
+                      ,xland,cu_act_flag &
+                      ,raincv,cutop,cubot &
+                      ,dudt_phy,dvdt_phy &
+                      ! optional
+                      ,rthcuten, rqvcuten &
+                      ,rqccuten, rqrcuten &
+                      ,rqicuten, rqscuten &
+                      ,rqgcuten  &
+                      )
+!                                                                              )
 
             CASE DEFAULT
 
@@ -461,15 +494,14 @@ REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
 
           END SELECT cps_select
 
-
       END IF
 !
 !-----------------------------------------------------------------------
-!***  CNVTOP/CNVBOT hold the maximum vertical limits of convective cloud 
-!***  between history output times.  HBOTS/HTOPS store similiar information
-!***  for shallow (nonprecipitating) convection, and HBOTD/HTOPD are for
-!***  deep (precipitating) convection.  
-!-----------------------------------------------------------------------
+!
+!***  CNVTOP/CNVBOT HOLD THE MAXIMUM VERTICAL LIMITS OF CONVECTIVE CLOUD 
+!***  BETWEEN HISTORY OUTPUT TIMES.  HBOTS/HTOPS STORE SIMILIAR INFORMATION
+!***  FOR SHALLOW (NONPRECIPITATING) CONVECTION, AND HBOTD/HTOPD ARE FOR
+!***  DEEP (PRECIPITATING) CONVECTION.  
 !
       CF_HI=REAL(MINUTES_HISTORY)/60.
       N_TIMSTPS_OUTPUT=NINT(3600.*CF_HI/DT)
@@ -491,74 +523,38 @@ REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
 !-----------------------------------------------------------------------
 !.......................................................................
 !$omp parallel do                                                       &
-!$omp& private(j,k,i,dqdt,dtdt,tchange,pcpcol,ncubot,ncutop,qw,qr,qi,qsn,qgr) ! BSF 6/22/2011
+!$omp& private(j,k,i,dqdt,dtdt,tchange,pcpcol,ncubot,ncutop)
 !.......................................................................
 !-----------------------------------------------------------------------
-      DO J=JTS,JTE
-      DO I=ITS,ITE
+      do j=jts_b1,jte_b1
+      do i=its_b1,ite_b1
 !-----------------------------------------------------------------------
 !
-!***  Update temperature, specific humidity, and heating.
-!
-!-----------------------------------------------------------------------
+!***  UPDATE TEMPERATURE, SPECIFIC HUMIDITY, AND HEATING.
 !
         DO K=1,LM
 !
-!-----------------------------------------------------------------------
-!***  RQVCUTEN in BMJDRV is the mixing ratio tendency,
-!***  so retrieve DQDT by converting to specific humidity.
-!-----------------------------------------------------------------------
+!***  RQVCUTEN IN BMJDRV IS THE MIXING RATIO TENDENCY,
+!***  SO RETRIEVE DQDT BY CONVERTING TO SPECIFIC HUMIDITY.
 !
           DQDT=RQVCUTEN(I,J,K)/(1.+WATER(I,J,K,P_QV))**2
 !
-!-----------------------------------------------------------------------
-!***  RTHCUTEN in BMJDRV is DTDT over pi.
-!-----------------------------------------------------------------------
+!***  RTHCUTEN IN BMJDRV IS DTDT OVER exner.
 !
-          DTDT=RTHCUTEN(I,J,K)*PI_PHY(I,J,K)
+          DTDT=RTHCUTEN(I,J,K)*exner(I,J,K)
           T(I,J,K)=T(I,J,K)+DTDT*DTCNVC
           Q(I,J,K)=Q(I,J,K)+DQDT*DTCNVC
           TCUCN(I,J,K)=TCUCN(I,J,K)+DTDT
           WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))       !Convert to mixing ratio
+
 !!! WANG, 11-2-2010 SAS convection
-          SAS_test: IF (CONVECTION=='sas') THEN
-!-- Update dummy scalars (BSF 6/22/2011)
-            QW=MAX(0.,WATER(I,J,K,P_QC)+RQCCUTEN(I,J,K)*DTCNVC)
-            QR=MAX(0.,WATER(I,J,K,P_QR)+RQRCUTEN(I,J,K)*DTCNVC)
-            QI=0.
-            QSN=0.
-            QGR=0.
-            IF (FER_test) THEN
-              QI=(RQICUTEN(I,J,K)+RQSCUTEN(I,J,K))*DTCNVC
-              QI=MAX(0.,WATER(I,J,K,P_QS)+QI)
-            ELSE
-              QI =MAX(0.,WATER(I,J,K,P_QI)+RQICUTEN(I,J,K)*DTCNVC)
-              QSN=MAX(0.,WATER(I,J,K,P_QS)+RQSCUTEN(I,J,K)*DTCNVC)
-              QGR=MAX(0.,WATER(I,J,K,P_QG)+RQGCUTEN(I,J,K)*DTCNVC)
-            ENDIF
-!-- Update 4D WATER array, CWM array, and possibly F_ice,F_rain (BSF 6/22/2011)
-            CWM(I,J,K)=QW+QR+QI+QSN+QGR
-            WATER(I,J,K,P_QC)=QW
-            WATER(I,J,K,P_QR)=QR
-            Micro_test: IF (FER_test) THEN
-!-- Update Ferrier-based F_rain, F_ice arrays (BSF 6/22/2011)
-              WATER(I,J,K,P_QS)=QI
-              IF(QI<=EPSQ)THEN
-                F_ICE(I,J,K)=0.
-              ELSE
-                F_ICE(I,J,K)=MAX(0.,MIN(1.,QI/CWM(I,J,K)))
-              ENDIF
-              IF(QR<=EPSQ)THEN
-                F_RAIN(I,J,K)=0.
-              ELSE
-                F_RAIN(I,J,K)=MAX(0.,MIN(1.,QR/(QW+QR)))
-              ENDIF
-            ELSE  Micro_test
-              WATER(I,J,K,P_QI)=QI
-              IF (F_QS) WATER(I,J,K,P_QS)=QSN
-              IF (F_QG) WATER(I,J,K,P_QG)=QGR
-            ENDIF  Micro_test
-          ENDIF  SAS_test
+                IF(CONVECTION=='sas') THEN
+                 WATER(I,J,K,P_QC)=WATER(I,J,K,P_QC)+DTCNVC*RQCCUTEN(I,J,K)
+                 WATER(I,J,K,P_QR)=WATER(I,J,K,P_QR)+DTCNVC*RQRCUTEN(I,J,K)
+                 WATER(I,J,K,P_QI)=WATER(I,J,K,P_QI)+DTCNVC*RQICUTEN(I,J,K)
+                 WATER(I,J,K,P_QS)=WATER(I,J,K,P_QS)+DTCNVC*RQSCUTEN(I,J,K)
+                 WATER(I,J,K,P_QG)=WATER(I,J,K,P_QG)+DTCNVC*RQGCUTEN(I,J,K)
+                ENDIF
 !!! wang, 11-2-2010
 !
 !zj          TCHANGE=DTDT*DTCNVC
@@ -567,10 +563,16 @@ REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
 !zj	  ENDIF
 !
         ENDDO
+
+!write(0,*),'t',(rthcuten(i,j,k),k=1,lm)
+!write(0,*),'q',(rqvcuten(i,j,k),k=1,lm)
+!write(0,*),'u',(dudt_phy(i,j,k),k=1,lm)
+!write(0,*),'v',(dvdt_phy(i,j,k),k=1,lm)
+!write(0,*),'exner',(exner(i,j,k),k=1,lm)
+
+
 !
-!-----------------------------------------------------------------------
-!***  Update precipitation
-!-----------------------------------------------------------------------
+!***  UPDATE PRECIPITATION
 !
         PCPCOL=RAINCV(I,J)*1.E-3*NCNVC
         PREC(I,J)=PREC(I,J)+PCPCOL
@@ -579,11 +581,9 @@ REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
         CUPPT(I,J)=CUPPT(I,J)+PCPCOL
         CPRATE(I,J)=PCPCOL
 !
-!-----------------------------------------------------------------------
-!***  Save cloud top and bottom for radiation (HTOP/HBOT) and
-!***  for output (CNVTOP/CNVBOT, HTOPS/HBOTS, HTOPD/HBOTD) arrays.
-!***  Must be treated separately from each other.
-!-----------------------------------------------------------------------
+!***  SAVE CLOUD TOP AND BOTTOM FOR RADIATION (HTOP/HBOT) AND
+!***  FOR OUTPUT (CNVTOP/CNVBOT, HTOPS/HBOTS, HTOPD/HBOTD) ARRAYS.
+!***  MUST BE TREATED SEPARATELY FROM EACH OTHER.
 !
         NCUTOP=NINT(CUTOP(I,J))
         NCUBOT=NINT(CUBOT(I,J))
@@ -612,27 +612,11 @@ REAL, SAVE :: CUQC=0.,CUQR=0.,CUQI=0.,CUQS=0.,CUQG=0.
 !.......................................................................
 !$omp end parallel do
 !.......................................................................
-
-!dbg
-!IF (CONVECTION=='sas') THEN
-!   CUQC=MAX(CUQC, MAXVAL(RQCCUTEN))
- !  CUQR=MAX(CUQR, MAXVAL(RQRCUTEN))
- !  CUQI=MAX(CUQI, MAXVAL(RQICUTEN))
- !  CUQS=MAX(CUQS, MAXVAL(RQSCUTEN))
- !  CUQG=MAX(CUQG, MAXVAL(RQGCUTEN))
- !  write(0,*)                                              &
- !  'NTSD, Max of CUTENQC/R/I/S/G, QC/R/I/S/G=',NTSD,       &
- !  CUQC,CUQR,CUQI,CUQS,CUQG, MAXVAL(WATER(:,:,:,P_QC)),    &
- !  MAXVAL(WATER(:,:,:,P_QR)),MAXVAL(WATER(:,:,:,P_QI)),    &
- !  MAXVAL(WATER(:,:,:,P_QS)),MAXVAL(WATER(:,:,:,P_QG))
-!ENDIF
-
 !
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE CUCNVC
 !
-!-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
