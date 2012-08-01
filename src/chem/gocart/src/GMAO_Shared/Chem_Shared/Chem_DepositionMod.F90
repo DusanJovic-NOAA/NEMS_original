@@ -272,6 +272,11 @@ CONTAINS
 !     Set a minimum value of deposition velocity
       vdep(i,j) = max(vdep(i,j),1.e-4)
 
+#ifdef NEMS
+!     Scale deposition velocity by 1.2
+      vdep(i,j) = 1.2 * vdep(i,j)
+#endif
+
 !     Save the dry deposition frequency for the chemical removal terms
 !     in units of s-1
       drydepf(i,j) = vdep(i,j) / dz(i,j)

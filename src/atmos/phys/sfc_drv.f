@@ -199,8 +199,6 @@
         flag(i) = (slimsk(i) == 1.0)
       enddo
 
-!
-      wet1(1:im) = 0.
 
 !  --- ...  save land-related prognostic fields for guess run
 

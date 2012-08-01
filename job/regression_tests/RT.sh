@@ -11,7 +11,8 @@ if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
   export CLASS=dev
   export GROUP=dev
   export ACCNR=GFS-T2O
-  export DISKNM=/meso
+##export DISKNM=/meso
+  export DISKNM=/global
   export STMP=/stmp
   export PTMP=/ptmp
   export SCHEDULER=loadleveler
@@ -36,8 +37,9 @@ fi
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 
-   export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+#  export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
 #  export RTPWD=${STMP}/${USER}/REGRESSION_TEST
+   export RTPWD=${DISKNM}/noscrub/wx23lu/REGRESSION_TEST
 
 #########################################################################
 # Check if running regression test or creating baselines.
@@ -76,7 +78,9 @@ if [ $argn -eq 1 ]; then
    rm -rf ${STMP}/${USER}/REGRESSION_TEST
    echo "copy REGRESSION_TEST_baselines"
    mkdir -p ${STMP}/${USER}
-   cp -r ${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines \
+#   cp -r ${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines \
+#	 ${STMP}/${USER}
+   cp -r ${DISKNM}/noscrub/wx23lu/REGRESSION_TEST_baselines \
 	 ${STMP}/${USER}
    mv ${STMP}/${USER}/REGRESSION_TEST_baselines ${STMP}/${USER}/REGRESSION_TEST
   CP_nmm=false
@@ -138,6 +142,7 @@ if [ $argn -eq 1 ]; then
     echo "copy post"
      cp ${RTPWD}/GFS_DFI_POST/*              ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_POST/.
      cp ${RTPWD}/NMMB_reg_post/*             ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_post/.
+     cp ${RTPWD}/GFS_GOCART_POST/*           ${STMP}/${USER}/REGRESSION_TEST/GFS_GOCART_POST/.
   fi
 fi
 
@@ -1906,6 +1911,40 @@ export WRITE_DOPOST=.true.
 fi # endif test
 
 
+
+#################################################################################################
+#
+# TEST   - GFS_GOCART_POST
+#        - 64 compute tasks / 1 thread
+#
+#################################################################################################
+
+if [ ${RT_FULL} = true -o ${CB_arg} = post -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
+
+export TEST_DESCR="GFS_GOCART with POST"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/GFS_GOCART_POST
+export CNTL_DIR=GFS_GOCART_POST
+export LIST_FILES=" \
+        ngac.t00z.sigf00 ngac.t00z.sigf03 ngac.t00z.sigf06 ngac.t00z.sigf12 ngac.t00z.sigf24 \
+        ngac.t00z.sfcf00 ngac.t00z.sfcf03 ngac.t00z.sfcf06 ngac.t00z.sfcf12 ngac.t00z.sfcf24 \
+        ngac.t00z.flxf00 ngac.t00z.flxf03 ngac.t00z.flxf06 ngac.t00z.flxf12 ngac.t00z.flxf24 \
+        ngac.t00z.aerf00 ngac.t00z.aerf03 ngac.t00z.aerf06 ngac.t00z.aerf12 ngac.t00z.aerf24 \
+        NGAC2d.GrbF03 NGAC2d.GrbF06 NGAC2d.GrbF12  NGAC2d.GrbF24 \
+        NGAC3d.GrbF03 NGAC3d.GrbF06 NGAC3d.GrbF12 NGAC3d.GrbF24"
+#---------------------
+export_gfs
+#
+export TASKS=64
+export WLCLK=10
+#---------------------
+  ./rt_gocart.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi # endif test
 #########################################################################
 # Clean and compile both NMMB & GFS cores, using ESMF 5.2.0rp1 library.
 #########################################################################

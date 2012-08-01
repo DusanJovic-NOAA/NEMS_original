@@ -313,6 +313,9 @@ CONTAINS
       call final_(50)
       return
    end if
+
+!  invoke the option to compute convective removal in GOCART
+!  set fscav (scav used in GFS RAS) to 0.    
    if ( idoing_scav == 1 ) then
      do n = 1, nbins
       w_c%reg%fscav(n1+n-1)   = 0.
@@ -1038,7 +1041,7 @@ CONTAINS
 !  similar dust emissions in both.  In principle this number should
 !  probably come from a resource file
 #ifdef NEMS
-   real, parameter ::  Ch_DU = 0.80e-9   ! Model dependent coefficient for dust
+   real, parameter ::  Ch_DU = 0.625e-9  ! Model dependent coefficient for dust
                                          ! emissions [kg s2 m-5]
 #elif defined GEOS5
    real, parameter ::  Ch_DU = 0.175e-9  ! Model dependent coefficient for dust
@@ -1203,7 +1206,7 @@ CONTAINS
 !  Efficiency of dust wet removal (since dust is really not too hygroscopic)
 !  Applied only to in-cloud scavenging
 #ifdef NEMS
-   real, parameter :: effRemoval = 0.8
+   real, parameter :: effRemoval = 1.0
 #else
    real, parameter :: effRemoval = 0.3
 #endif
@@ -1270,7 +1273,9 @@ CONTAINS
       qls(k) = -dqcond(i,j,k)*pls/pac*rhoa(i,j,k)
 !      qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
 #ifdef NEMS
+      if ( gcDU%doing_scav == 1 ) then
       qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
+      endif
 #endif
      end do
 

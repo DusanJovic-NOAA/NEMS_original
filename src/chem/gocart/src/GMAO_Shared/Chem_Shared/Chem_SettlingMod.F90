@@ -386,6 +386,11 @@ CONTAINS
     vsettle = rmu*re/2./rhoa/radius
    endif
 
+#ifdef NEMS
+!     Set a minimum value of settling velocity; and scale with a factor
+      vsettle = 1.35 * max(vsettle,1.e-4)
+#endif
+
 
    end subroutine Chem_CalcVsettle
 
