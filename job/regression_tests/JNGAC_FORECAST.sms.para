@@ -156,7 +156,7 @@ sh $utilscript/setup.sh
 # Run setpdy and initialize PDY variables
 ################################################################
 sh $utilscript/setpdy.sh
-. PDY
+. ./PDY
 
 export CDATE=${CDATE:-${PDY}$cyc}
 

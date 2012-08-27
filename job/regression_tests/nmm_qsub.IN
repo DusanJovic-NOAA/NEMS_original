@@ -1,4 +1,4 @@
-#! /bin/sh -l
+#!/bin/sh -l
 
 #PBS -o out
 #PBS -e err
@@ -7,16 +7,13 @@
 #PBS -l procs=_TPN_
 #PBS -l walltime=00:_WLCLK_:00
 
-set -aeux
+set -x
 export MPI_GROUP_MAX=96
 
 cd _RUND_
 
 echo "Model started:  " `date`
 
-module load intel
-module load mpt
-module load adaptive
 mpiexec_mpt -prefix " %g:" -np _TPN_ ./NEMS.x
 
 echo "Model ended:    " `date`

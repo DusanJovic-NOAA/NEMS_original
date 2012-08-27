@@ -11,8 +11,7 @@ if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
   export CLASS=dev
   export GROUP=dev
   export ACCNR=GFS-T2O
-##export DISKNM=/meso
-  export DISKNM=/global
+  export DISKNM=/meso
   export STMP=/stmp
   export PTMP=/ptmp
   export SCHEDULER=loadleveler
@@ -37,9 +36,8 @@ fi
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 
-#  export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+   export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
 #  export RTPWD=${STMP}/${USER}/REGRESSION_TEST
-   export RTPWD=${DISKNM}/noscrub/wx23lu/REGRESSION_TEST
 
 #########################################################################
 # Check if running regression test or creating baselines.

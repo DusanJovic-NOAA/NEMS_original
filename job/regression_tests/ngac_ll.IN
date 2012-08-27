@@ -17,7 +17,7 @@
 # @ preferences = Feature == "dev"
 # @ network.MPI = sn_all,not_shared,us
 # @ account_no=_ACCNR_
-# @ environment = RUN_ENVIR=dev; cyc=00; envir=dev; PARA_CONFIG=_CONFIG_; NEMSDIR=_NEMSDIR_; WORKDIR=_WORKDIR_; REGSDIR=_REGSDIR_
+# @ environment = RUN_ENVIR=dev; cyc=00; envir=dev; PARA_CONFIG=_CONFIG_; NEMSDIR=_NEMSDIR_; WORKDIR=_WORKDIR_; REGSDIR=_REGSDIR_; PDY=20120717
 # @ executable = JNGAC_FORECAST.sms.para
 # @ queue
 
