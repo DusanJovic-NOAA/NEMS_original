@@ -143,6 +143,7 @@
 !!
 !! Code Revision:
 !! 24Feb 2010     Sarah Lu, First Crack
+!! 24Aug 2012     Sarah Lu, Remove item_name
 !-----------------------------------------------------------------------
 !
       implicit none
@@ -164,7 +165,6 @@
 !
       integer                          :: rc=ESMF_success  ! the error signal variable
       integer                          :: item_count_phys, item_count_chem
-      character(20)                    :: item_name(200)
       logical, save                    :: first =  .true.
 
 ! Fortran array for phy export state
@@ -310,7 +310,6 @@
       MESSAGE_CHECK="CHEM2PHY_RUN: Get ItemCount from phy export state"
       call ESMF_StateGet(PHY_EXP_STATE                    &
                         ,itemcount = item_count_phys      &
-                        ,itemnamelist = item_name         &
                         ,rc   =rc)
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
@@ -370,7 +369,6 @@
       MESSAGE_CHECK="CHEM2PHY_RUN: Get ItemCount from chem export state"
       call ESMF_StateGet(CHEM_EXP_STATE                   &
                         ,itemcount = item_count_chem      &
-                        ,itemnamelist = item_name         &
                         ,rc   =rc)
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 

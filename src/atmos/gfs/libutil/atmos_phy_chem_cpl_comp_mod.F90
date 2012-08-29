@@ -339,6 +339,7 @@
 !!                          index is flipped for 3D arrays
 !! 23Mar 2010     Sarah Lu, Track run-time-clock; debug print optional
 !! 09Api 2010     Sarah Lu, Remove some rtc tracking print
+!! 25Aug 2012     Sarah Lu, Remove item_name
 !-----------------------------------------------------------------------
 !
       implicit none
@@ -364,7 +365,6 @@
       integer                          :: rc=ESMF_success  ! the error signal variable
       integer                          :: i, j, k, n
       integer                          :: item_count_phys, item_count_chem
-      character(20)                    :: item_name(100)
       logical, save                    :: first =  .true.
       real(ESMF_KIND_R8), pointer      :: Array(:,:,:)
       type(ESMF_Field)                 :: Field
@@ -601,7 +601,6 @@
       MESSAGE_CHECK="PHY2CHEM_RUN: Get ItemCount from phy export state"
       call ESMF_StateGet(PHY_EXP_STATE                    &
                         ,itemcount = item_count_phys      &
-                        ,itemnamelist = item_name         &
                         ,rc   =rc)
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
@@ -692,7 +691,6 @@
       MESSAGE_CHECK="PHY2CHEM_RUN: Get ItemCount from chem import state"
       call ESMF_StateGet(CHEM_IMP_STATE                   &
                         ,itemcount = item_count_chem      &
-                        ,itemnamelist = item_name         &
                         ,rc= RC)
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL)
 
