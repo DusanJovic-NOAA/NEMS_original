@@ -3,9 +3,10 @@ include ../../../conf/configure.nems
 MAKEFILE = makefile
 
 UTILINCS = -I../../share -I../libutil -I../../phys
-GOCARTINCS = -I../../../chem/gocart/AIX/include/Chem_Base \
-             -I../../../chem/gocart/AIX/include/GMAO_mpeu \
-             -I../../../chem/gocart/AIX/include/GEOSchem_GridComp
+ARCH=$(shell unmae -s)
+GOCARTINCS = -I../../../chem/gocart/${ARCH}/include/Chem_Base \
+             -I../../../chem/gocart/${ARCH}/include/GMAO_mpeu \
+             -I../../../chem/gocart/${ARCH}/include/GEOSchem_GridComp
 
 
 LIBRARY   = gfs_physics.a

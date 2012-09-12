@@ -323,6 +323,7 @@
 !  Make sure we've got it right
 !  ----------------------------
    call ESMF_GridValidate(mGrid, rc=rc1 )                                    
+   rc = 0
 
    return
    end subroutine gfs_physics_grid_create_Gauss3D

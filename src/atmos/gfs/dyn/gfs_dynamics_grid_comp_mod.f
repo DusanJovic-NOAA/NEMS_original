@@ -46,6 +46,7 @@
 
       use gfs_dyn_mpi_def
       use gfs_dynamics_output, only : point_dynamics_output_gfs
+      use gfs_dyn_tracer_config, only: gfs_dyn_tracer
 
       implicit none
 
@@ -734,7 +735,8 @@
                           fieldbundle=ESMFBundle, rc = rc1 )              !chlu_debug
         call gfs_dynamics_err_msg(rc1,'LU_DYN: get Bundle from exp',rc)   !chlu_debug
         do n = 1, int_state%ntrac                                         !chlu_debug
-          vname = int_state%gfs_dyn_tracer%vname(n, 1)                    !chlu_debug
+!          vname = int_state%gfs_dyn_tracer%vname(n, 1)                    !chlu_debug
+          vname = gfs_dyn_tracer%vname(n, 1)                    !chlu_debug
           print *,'LU_DYN:',trim(vname)                                   !chlu_debug
           CALL ESMF_FieldBundleGet(ESMFBundle, &                          !chlu_debug
                  FIELDNAME=vname, field=ESMFfield, rc = rc1)              !chlu_debug

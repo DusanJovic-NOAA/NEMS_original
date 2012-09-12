@@ -39,7 +39,7 @@
       use gfs_physics_gridgr_mod,   ONLY: Grid_Var_Data    
       use gfs_physics_g3d_mod,      ONLY: G3D_Var_Data    
       use gfs_physics_g2d_mod,      ONLY: G2D_Var_Data
-      use gfs_phy_tracer_config,    ONLY: gfs_phy_tracer_type
+!      use gfs_phy_tracer_config,    ONLY: gfs_phy_tracer_type
       use gfs_physics_nst_var_mod
       
 
@@ -54,7 +54,7 @@
 
       type(nam_gfs_phy_namelist)   :: nam_gfs_phy
       type(gfs_phy_state_namelist) :: esmf_sta_list
-      type(gfs_phy_tracer_type)    :: gfs_phy_tracer
+!      type(gfs_phy_tracer_type)    :: gfs_phy_tracer
 
       TYPE(Sfc_Var_Data)        :: sfc_fld
       TYPE(Flx_Var_Data)        :: flx_fld
@@ -158,7 +158,8 @@
       integer              lan,lat
 
       real(kind=kind_phys) chour
-      real(kind=kind_phys) zhour,zhour_dfi=0
+      real(kind=kind_phys) zhour
+      real(kind=kind_phys) :: zhour_dfi=0
 
 !     logical start_step
 !     logical end_step

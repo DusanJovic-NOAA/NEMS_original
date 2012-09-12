@@ -27,10 +27,10 @@
     subroutine sfcvar_aldata(dim1, dim2, dim3, sfc_fld, iret)
 
     USE gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data
+    implicit none
 
     TYPE(Sfc_Var_Data), INTENT(inout) :: sfc_fld 
     integer, intent(in)               :: dim1, dim2, dim3
-    implicit none
 
     integer, intent(out)             :: iret
 !
@@ -81,9 +81,9 @@ allocate(                                  &
     subroutine flxvar_aldata(dim1, dim2, flx_fld, iret)
 
     USE gfs_physics_sfc_flx_mod, ONLY: Flx_Var_Data
+    implicit none
     TYPE(Flx_Var_Data), INTENT(inout) :: flx_fld 
     integer, intent(in)               :: dim1, dim2
-    implicit none
 
     integer, intent(out)             :: iret
 !
@@ -166,8 +166,8 @@ allocate(                                  &
     subroutine flx_init(flx_fld, iret)
 
     USE gfs_physics_sfc_flx_mod, ONLY: Flx_Var_Data
-    TYPE(Flx_Var_Data), INTENT(inout) :: flx_fld 
     implicit none
+    TYPE(Flx_Var_Data), INTENT(inout) :: flx_fld 
 
     integer, intent(out)             :: iret
 !
@@ -213,6 +213,8 @@ allocate(                                  &
     flx_fld%goro    = 0.
 !for gocart
     flx_fld%wet1    = 0.
+
+     iret = 0
 
      return
   end subroutine

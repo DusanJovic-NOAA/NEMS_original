@@ -47,38 +47,38 @@ c        write(6,9130)
 c
 c***********************************************************************
 c
-      SUBROUTINE BAR3(FE,FO,name,levl)
-c
-c***********************************************************************
-c
-      use resol_def
-      use layout1
-      implicit none
-      real FE(len_trie_ls,2,levs),ffbar
-      real FO(len_trio_ls,2,levs)
-      integer n,l,joff,i,jlev,levl
-      character*3 name
-c
-      do jlev=1,levl
-        ffbar=0.
-        DO i=1,len_trie_ls
-          ffbar=ffbar+FE(i,1,jlev)*FE(i,1,jlev)
-        ENDDO
-        DO i=1,len_trie_ls
-          ffbar=ffbar+FE(i,2,jlev)*FE(i,2,jlev)
-        ENDDO
-        ffbar=ffbar/2.
-        DO i=1,len_trio_ls
-          ffbar=ffbar+FO(i,1,jlev)*FO(i,1,jlev)
-        ENDDO
-        DO i=1,len_trio_ls
-          ffbar=ffbar+FO(i,2,jlev)*FO(i,2,jlev)
-        ENDDO
-        ffbar=sqrt(ffbar)
-        write(*,101)'rms ',name,' lev ',jlev,' = ',ffbar
-      enddo
-c
- 101  format(3A,i3,A,ES24.17)
-c
-      RETURN
-      END
+!      SUBROUTINE BAR3(FE,FO,name,levl)
+!c
+!c***********************************************************************
+!c
+!      use resol_def
+!      use layout1
+!      implicit none
+!      real FE(len_trie_ls,2,levs),ffbar
+!      real FO(len_trio_ls,2,levs)
+!      integer n,l,joff,i,jlev,levl
+!      character*3 name
+!c
+!      do jlev=1,levl
+!        ffbar=0.
+!        DO i=1,len_trie_ls
+!          ffbar=ffbar+FE(i,1,jlev)*FE(i,1,jlev)
+!        ENDDO
+!        DO i=1,len_trie_ls
+!          ffbar=ffbar+FE(i,2,jlev)*FE(i,2,jlev)
+!        ENDDO
+!        ffbar=ffbar/2.
+!        DO i=1,len_trio_ls
+!          ffbar=ffbar+FO(i,1,jlev)*FO(i,1,jlev)
+!        ENDDO
+!        DO i=1,len_trio_ls
+!          ffbar=ffbar+FO(i,2,jlev)*FO(i,2,jlev)
+!        ENDDO
+!        ffbar=sqrt(ffbar)
+!        write(*,101)'rms ',name,' lev ',jlev,' = ',ffbar
+!      enddo
+!c
+! 101  format(3A,i3,A,ES24.17)
+!c
+!      RETURN
+!      END

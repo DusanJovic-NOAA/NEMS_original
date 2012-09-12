@@ -28,6 +28,7 @@
 #if defined(HDFEOS) || defined(HDFSD)
       include "hdf.f90"
 #endif
+      include 'netcdf.inc'
 
 !------------------------------------------------------------------------------
 !
@@ -1793,7 +1794,7 @@
 !  Saul A. Teukolsky, William T. Vetterling, and Brian P. Flannery (Cambridge 
 !  University Press, 1992). 
 
-      INTEGER FUNCTION julday(mm,id,iyyy)
+      INTEGER FUNCTION julday2(mm,id,iyyy)
       INTEGER id,iyyy,mm,IGREG
       PARAMETER (IGREG=15+31*(10+12*1582))
       INTEGER ja,jm,jy
@@ -1809,13 +1810,13 @@
         jy=jy-1
         jm=mm+13
       endif
-      julday=int(365.25*jy)+int(30.6001*jm)+id+1720995
+      julday2=int(365.25*jy)+int(30.6001*jm)+id+1720995
       if (id+31*(mm+12*iyyy).ge.IGREG) then
         ja=int(0.01*jy)
-        julday=julday+2-ja+int(0.25*ja)
+        julday2=julday2+2-ja+int(0.25*ja)
       endif
       return
-      END function julday
+      END function julday2
 
 
 !-------------------------------------------------------------------------
@@ -1942,9 +1943,9 @@
 
 ! Get Julian Days and subtract off a constant (Julian days since 7/14/66)
  
-       julian1 = julday (mon1, day1, year1)
+       julian1 = julday2 (mon1, day1, year1)
        julian1 = julian1 - StartDate
-       julian2 = julday (mon2, day2, year2)
+       julian2 = julday2 (mon2, day2, year2)
        julian2 = julian2 - StartDate
       
 ! Calculcate Julian seconds
@@ -3867,7 +3868,7 @@
 
 ! Get Julian Day and subtract off a constant (Julian days since 7/14/66)
  
-      julian1 = julday (mon1, day1, year1)
+      julian1 = julday2 (mon1, day1, year1)
       julian1 = julian1 - StartDate
        
 ! Calculcate Julian seconds

@@ -57,7 +57,8 @@
 
 ! -------------------------------------------------------------------   
 ! -------------------------------------------------------------------   
-      subroutine tracer_config_init (gfs_phy_tracer,ntrac,
+!      subroutine tracer_config_init (gfs_phy_tracer,ntrac,
+      subroutine tracer_config_init (ntrac,
      &                               ntoz,ntcw,ncld,me)
 
 c  
@@ -67,7 +68,7 @@ c
 ! input
       integer, intent(in)    ::  me, ntoz,ntcw,ncld
 ! output
-      type (gfs_phy_tracer_type), intent(out)    ::  gfs_phy_tracer
+!      type (gfs_phy_tracer_type), intent(out)    ::  gfs_phy_tracer
 ! input/output
       integer, intent(inout)  :: ntrac
 ! local
@@ -79,7 +80,8 @@ c
       gfs_phy_tracer%doing_GOCART = .false.
 
 ! initialize chem tracers
-      call gocart_tracer_config(gfs_phy_tracer,me)
+      call gocart_tracer_config(me)
+!      call gocart_tracer_config(gfs_phy_tracer,me)
 
 ! ntrac_met = number of met tracers
 !hmhj if ( ntoz < ntcw ) then                       

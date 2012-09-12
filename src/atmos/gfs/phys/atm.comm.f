@@ -81,7 +81,7 @@
      >SNW_cc(:,:),LPREC_cc(:,:),SST_ave(:,:)
 !<--cpl insertion
 
-      real (kind=kind_SST),allocatable:: SST_cc(:,:)
+      real,allocatable:: SST_cc(:,:)
 
       real (kind=kind_dt_cc) dt_cc,dto_cc         !-->cpl insertion: add dto_cc
 
@@ -812,7 +812,7 @@ C
       SUBROUTINE ATM_TILES_RECV(f,fval,iord)
 
       implicit none
-      real (kind=kind_REAL) f(lonr,latd)
+      real f(lonr,latd)
       real,optional,intent(in) ::  fval
       integer,optional,intent(in) :: iord
 

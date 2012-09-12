@@ -1,3 +1,31 @@
+      subroutine poly(n,rad,p)
+cc
+      use gfs_dyn_machine
+      implicit none
+cc
+cc
+      integer                  i,n
+cc
+      real(kind=kind_dbl_prec) floati,g,p,rad,x,y1,y2,y3
+cc
+      real(kind=kind_dbl_prec) cons1     !constant
+cc
+      cons1 = 1.d0     !constant
+cc
+      x = cos(rad)
+      y1 = cons1       !constant
+      y2=x
+      do 1 i=2,n
+      g=x*y2
+      floati=i
+      y3=g-y1+g-(g-y1)/floati
+      y1=y2
+      y2=y3
+1     continue
+      p=y3
+      return
+      end
+
       subroutine gfs_dyn_glats(lgghaf,colrad,wgt,wgtcs,rcs2,iprint)
 cc
       use gfs_dyn_machine
@@ -69,32 +97,5 @@ cc
       if(iprint.eq.1) print 100,lgghaf
 100   format(1h ,'shalom from 0.0e0 gfs_dyn_glats for ',i3)
 cc
-      return
-      end
-      subroutine poly(n,rad,p)
-cc
-      use gfs_dyn_machine
-      implicit none
-cc
-cc
-      integer                  i,n
-cc
-      real(kind=kind_dbl_prec) floati,g,p,rad,x,y1,y2,y3
-cc
-      real(kind=kind_dbl_prec) cons1     !constant
-cc
-      cons1 = 1.d0     !constant
-cc
-      x = cos(rad)
-      y1 = cons1       !constant
-      y2=x
-      do 1 i=2,n
-      g=x*y2
-      floati=i
-      y3=g-y1+g-(g-y1)/floati
-      y1=y2
-      y2=y3
-1     continue
-      p=y3
       return
       end

@@ -29,7 +29,7 @@ $(MODULES_IDEA): %.o: %.f
 	$(FC) $(FFLAGS_GFSF) $(UTILINCS) $(R8) -c $*.f
 
 clean:
-	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map depend
+	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst *.a lm map depend
 
 include ../../conf/make.rules
 

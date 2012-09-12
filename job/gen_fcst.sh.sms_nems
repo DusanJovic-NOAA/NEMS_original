@@ -200,7 +200,15 @@ EOF
 
 ln -sf atm_namelist.rc ./model_configure
 
-eval hpmcount -o gen_test $PGM > NEMS.out
+if [ $SCHEDULER = 'loadleveler' ]; then
+   eval hpmcount -o gen_test $PGM > NEMS.out
+elif [ $SCHEDULER = 'moab' ]; then
+   aprun -n $TASKS $PGM
+   cp ${RT_BASEDIR}/out NEMS.out
+elif [ $SCHEDULER = 'pbs' ]; then
+   mpiexec_mpt -np $TASKS $PGM 
+   cp ${RT_BASEDIR}/out NEMS.out
+fi
 
 export ERR=$?
 export err=$ERR

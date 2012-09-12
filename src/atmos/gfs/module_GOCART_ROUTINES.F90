@@ -37,7 +37,8 @@
 !***  LIST MODULES FOR GSFC CHEMISTRY PACKAGE
 !-----------------------------------------------------------------------
 !
-      USE GOCART_GridCompMod    , ONLY: GOCART_SETSERVICES => SETSERVICES 
+      USE GOCART_GridCompMod    , ONLY: GOCART_SETSERVICES
+!      USE GOCART_GridCompMod    , ONLY: GOCART_SETSERVICES => SETSERVICES 
 !
       USE ATMOS_PHY_CHEM_CPL_COMP_MOD, ONLY: PHY2CHEM_SETSERVICES => SETSERVICES
       USE ATMOS_CHEM_PHY_CPL_COMP_MOD, ONLY: CHEM2PHY_SETSERVICES => SETSERVICES
@@ -86,6 +87,7 @@
       TYPE(ESMF_Logical), INTENT(INOUT) :: CHEMISTRY_ON                    !<-- The option to activate gocart
       INTEGER,            INTENT(IN)    :: MYPE                            !<-- MPI task ID
       INTEGER,OPTIONAL,   INTENT(OUT)   :: RC_SETUP                        !<-- Return code for the SETUP step
+      real gocart_setservices1
 !
 !---------------------
 !***  Local Variables
@@ -169,7 +171,7 @@
         MESSAGE_CHECK="Register Chemistry Init, Run, Finalize"
 !
         CALL ESMF_GridCompSetServices(GC_GFS_CHEM                        &
-                                     ,GOCART_SETSERVICES                 &
+                                     ,GOCART_SETSERVICES                &
                                      ,RC=RC)
 !
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
@@ -273,7 +275,7 @@
       TYPE(ESMF_CplComp), INTENT(INOUT) :: GC_PHY2CHEM_CPL                 !<-- The Phys to Chem coupler component
       TYPE(ESMF_CplComp), INTENT(INOUT) :: GC_CHEM2PHY_CPL                 !<-- The Chem to Phys coupler component
       TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_ATM                       !<-- The ESMF Clock from the ATM Driver component
-      INTEGER,            INTENT(OUT)   :: MYPE                            !<-- MPI task ID
+      INTEGER                           :: MYPE                            !<-- MPI task ID
       INTEGER,OPTIONAL,   INTENT(OUT)   :: RC_INIT                         !<-- Return code for the INIT step
 !
 !---------------------

@@ -33,7 +33,7 @@
 # -----  and ESMA_FC to control these parameters.
 #
   ifndef BASEDIR
-     $(warning BASEDIR is undefined --- this will cause an error in the next release!)
+#     $(warning BASEDIR is undefined --- this will cause an error in the next release!)
   endif
 
 #                             ---------------------
@@ -169,7 +169,7 @@ ifeq ($(ARCH),AIX)
      INC_NETCDF = $(DIR_NETCDF)/include
      LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdf.a
      INC_SDF = $(INC_NETCDF)
-     LIB_SDF = $(LIB_NETCDF)
+     LIB_SDF = $(LIB_NETCDF) /usrx/local/netcdf.3.5.0/lib/libnetcdf.a
      INC_ESMF = $(DIR_ESMF)/src/include $(DIR_ESMF)/mod/modO/AIX.default.64.mpi.default/ 
      LIB_ESMF  = $(DIR_ESMF)/lib/libO/AIX.default.64.mpi.default/libesmf.so
      INC_MPI = /usr/lpp/ppe.poe/include/thread64
@@ -177,6 +177,9 @@ ifeq ($(ARCH),AIX)
      FDEFS += $(D)MAPL_IMPORT_HAS_PRECISION $(D)MAPL_EXPORT_HAS_PRECISION
      FPPFLAGS += -W/dev/null
      ACG_FLAGS += -P # enforce native precision in specs
+     USER_FMODS_GMAO_Shared_GMAO_gfio_ccs = $(foreach dir,$(MOD_DIRS),$(M)$(dir))
+     FFLAGS_GMAO_Shared_GMAO_gfio_ccs = $(LD) $(LDFLAGS) -o GFIO_mean_$(RN).x GFIO_mean.o $(LIB) $(LIB_SDF) $(LIB_SYS)
+     FFLAGS_GMAO_Shared_GMAO_gfio_zeus =
   endif
 
   ifeq ($(SITE),ncep_stratus)
@@ -188,7 +191,7 @@ ifeq ($(ARCH),AIX)
      INC_NETCDF = $(DIR_NETCDF)/include
      LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdf.a
      INC_SDF = $(INC_NETCDF)
-     LIB_SDF = $(LIB_NETCDF)
+     LIB_SDF = $(LIB_NETCDF) /usrx/local/netcdf.3.5.0/lib/libnetcdf.a
      INC_ESMF = $(DIR_ESMF)/src/include $(DIR_ESMF)/mod/modO/AIX.default.64.mpi.default/ 
      LIB_ESMF  = $(DIR_ESMF)/lib/libO/AIX.default.64.mpi.default/libesmf.so
      INC_MPI = /usr/lpp/ppe.poe/include/thread64
@@ -196,6 +199,9 @@ ifeq ($(ARCH),AIX)
      FDEFS += $(D)MAPL_IMPORT_HAS_PRECISION $(D)MAPL_EXPORT_HAS_PRECISION
      FPPFLAGS += -W/dev/null
      ACG_FLAGS += -P # enforce native precision in specs
+     USER_FMODS_GMAO_Shared_GMAO_gfio_ccs = $(foreach dir,$(MOD_DIRS),$(M)$(dir))
+     FFLAGS_GMAO_Shared_GMAO_gfio_ccs = $(LD) $(LDFLAGS) -o GFIO_mean_$(RN).x GFIO_mean.o $(LIB) $(LIB_SDF) $(LIB_SYS)
+     FFLAGS_GMAO_Shared_GMAO_gfio_zeus =
   endif
 
 endif  #  AIX
@@ -275,7 +281,10 @@ ifeq ($(ARCH),Linux)
 # Linux default compilers
 # -----------------------
   ifndef ESMA_FC
-     FC := ifort
+    DIR_NETCDF =/apps/netcdf/3.6.3/intel
+    LIB_NETCDF = $(DIR_NETCDF)/lib
+    EXTENDED_SOURCE = -extend_source
+    FC := ifort -lmpi ${EXTENDED_SOURCE} -L${LIB_NETCDF} -lnetcdf
   endif
   CC  = cc
   CXX = c++
@@ -294,6 +303,8 @@ ifeq ($(ARCH),Linux)
   SITE := $(patsubst cfe1,nas,$(SITE))
   SITE := $(patsubst cfe2,nas,$(SITE))
   SITE := $(patsubst palm,nccs,$(SITE))
+  SITE := $(patsubst fe*,zeus,$(SITE))
+echo SITE= ${SITE}
 
 #
 #                    Linux Site Specific
@@ -301,6 +312,10 @@ ifeq ($(ARCH),Linux)
 
 # NSIPP specific
 # --------------
+  ifeq ($(SITE),zeus)
+     INC_CFIO = $(ESMAINC)/MAPL_cfio_r8
+     INC_GFIO = $(ESMAINC)/GMAO_gfio_r8
+  endif
   ifeq ($(SITE),nsipp)
     ifndef BASEDIR
        BASEDIR = /home/trayanov/baselibs/latest
@@ -378,7 +393,7 @@ ifeq ($(ARCH),Linux)
     IFORT_MAJOR := $(word 1,$(IFORT_VER))
     IFORT_MINOR := $(word 2,$(IFORT_VER))
 
-    EXTENDED_SOURCE := -extend_source
+    EXTENDED_SOURCE := -extend_source 132
     FREE_SOURCE := -free
     FIXED_SOURCE := -fixed
     MPFLAG  := -mp
@@ -416,7 +431,7 @@ ifeq ($(ARCH),Linux)
        endif
     endif
 
-    LIB_ESMF = $(BASELIB)/libesmf.a
+#    LIB_ESMF = $(BASELIB)/libesmf.a
 
     CC  = gcc
     CXX = g++
@@ -639,6 +654,10 @@ ifeq ($(ARCH),Linux)
 ##    CXX             = $(TAU_COMPILER) $(OPTS) $(TAU_CXX)
   endif
 
+FFLAGS_GMAO_Shared_GMAO_gfio_zeus = $(LD) GFIO_mean.o $(LIB_SYS) $(LIB) -lnetcdf $(LDFLAGS) -o GFIO_mean_$(RN).x
+FFLAGS_GMAO_Shared_GMAO_gfio_ccs =
+
+USER_FMODS_GMAO_Shared_GMAO_gfio_ccs = 
 endif  #    Linux
 
 #                               -----------------

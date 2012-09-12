@@ -38,6 +38,7 @@
       use gfs_physics_internal_state_mod, ONLY: gfs_physics_internal_state
       USE date_def,                       ONLY: fhour
       USE namelist_physics_def,           ONLY: nsout,ldfi,ndfi
+      use gfs_phy_tracer_config,          ONLY: gfs_phy_tracer
 
       implicit none
 
@@ -138,14 +139,18 @@
 !!  fscav(1:ntrac-ncld-1) is for ozone + aerosl species
 
         if ( gis_phy%lgocart ) then
-           i1 = gis_phy%gfs_phy_tracer%ntrac_met+1   ! 1st chemical tracer (excluding o3)
-           i2 = gis_phy%gfs_phy_tracer%ntrac         ! last chemical tracer (excluding o3)
+!           i1 = gis_phy%gfs_phy_tracer%ntrac_met+1   ! 1st chemical tracer (excluding o3)
+!           i2 = gis_phy%gfs_phy_tracer%ntrac         ! last chemical tracer (excluding o3)
+           i1 = gfs_phy_tracer%ntrac_met+1   ! 1st chemical tracer (excluding o3)
+           i2 = gfs_phy_tracer%ntrac         ! last chemical tracer (excluding o3)
            gis_phy%fscav(2:gis_phy%ntrac-gis_phy%ncld-1) =      &
-                  gis_phy%gfs_phy_tracer%fscav(i1:i2)
+                  gfs_phy_tracer%fscav(i1:i2)
+!                  gis_phy%gfs_phy_tracer%fscav(i1:i2)
        
            if ( gis_phy%kdt .eq. 2 ) then
 	      print *, 'LU_TRC:',i1,i2,                        &
-                  gis_phy%gfs_phy_tracer%fscav(i1:i2)
+                  gfs_phy_tracer%fscav(i1:i2)
+!                  gis_phy%gfs_phy_tracer%fscav(i1:i2)
            endif
 !
 

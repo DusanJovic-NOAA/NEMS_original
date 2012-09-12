@@ -268,7 +268,13 @@ cd $RUNDIR
 
  export COMOUT=$RUNDIR
 #
- export FIXGLOBAL=/nwprod/fix
+if [ $SCHEDULER = 'loadleveler' ]; then
+   export FIXGLOBAL=${FIXGLOBAL:-/nwprod/fix}
+elif [ $SCHEDULER = 'moab' ]; then
+   export FIXGLOBAL=${FIXGLOBAL}
+elif [ $SCHEDULER = 'pbs' ]; then
+   export FIXGLOBAL=${FIXGLOBAL:-/scratch2/portfolios/NCEPDEV/rstprod/nwprod/fix}
+fi
 #export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
  export FIX_RAD=/global/save/wx23lu/NEMS/fix/fix_rad
  export GOCARTDIR=/global/save/wx23lu/NEMS/fix

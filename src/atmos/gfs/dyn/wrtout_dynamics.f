@@ -1,3 +1,18 @@
+      INTEGER FUNCTION nfill(C)
+      implicit none
+      integer j
+      CHARACTER*(*) C
+      NFILL=LEN(C)
+      DO J=1,NFILL
+        IF(C(J:J).EQ.' ') THEN
+          NFILL=J-1
+          RETURN
+        ENDIF
+      ENDDO
+      RETURN
+      END
+
+
       module gfs_dyn_write_state
 !
 c new module to supply domain information
@@ -553,18 +568,5 @@ c
       end
  
 
-      INTEGER FUNCTION nfill(C)
-      implicit none
-      integer j
-      CHARACTER*(*) C
-      NFILL=LEN(C)
-      DO J=1,NFILL
-        IF(C(J:J).EQ.' ') THEN
-          NFILL=J-1
-          RETURN
-        ENDIF
-      ENDDO
-      RETURN
-      END
  
  

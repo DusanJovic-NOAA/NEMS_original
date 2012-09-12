@@ -17,8 +17,8 @@
       integer              ls_node(ls_dim,3)
       integer              indev,indev1,indev2,l,locl,n
       integer              indlsev,jbasev
-      integer              indlsod,jbasod
-      include 'function2'
+      integer              jbasod
+      indlsev(n,l) = jbasev + (n-l)/2 + 1
       real(kind=kind_evod) cons0     !constant
  
       cons0 = 0.d0     !constant
@@ -124,9 +124,9 @@
       integer              j,k
       integer              ls_node(ls_dim,3)
       integer              indod,indod1,indod2,l,locl,n
-      integer              indlsev,jbasev
+      integer              jbasev
       integer              indlsod,jbasod
-      include 'function2'
+      indlsod(n,l) = jbasod + (n-l)/2 + 1
       real(kind=kind_evod) cons0     !constant
  
       cons0 = 0.d0     !constant

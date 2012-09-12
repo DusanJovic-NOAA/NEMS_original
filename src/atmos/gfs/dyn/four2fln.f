@@ -14,6 +14,9 @@ cc
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       use gfs_dyn_mpi_def
+#ifndef IBM
+      USE omp_lib
+#endif
       implicit none
 cc
       integer              nvarsdim,latl2,latl
@@ -189,7 +192,11 @@ cc
 ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 cc
       CALL countperf(0,7,0.)
+#ifdef IBM
       num_threads=NUM_PARTHDS()
+#else
+      num_threads=omp_get_num_threads()
+#endif
       nvar_thread_max=(nvars+num_threads-1)/num_threads
 cc
 cc    -------------------------------------------------

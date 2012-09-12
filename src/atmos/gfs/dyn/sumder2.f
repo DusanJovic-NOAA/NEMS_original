@@ -12,6 +12,9 @@ cc
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       use gfs_dyn_mpi_def
+#ifndef IBM
+      USE omp_lib
+#endif
       implicit none
 cc
       integer lat1s(0:jcap),latl2
@@ -97,7 +100,11 @@ cc
       call countperf(0,8,0.)
 cc
       call f_hpmstart(34,"000_sumder2_sum2eo")
-      num_threads=NUM_PARTHDS()
+#ifdef IBM
+      num_threads=num_parthds()
+#else
+      num_threads=omp_get_num_threads()
+#endif
       nvar_thread_max=(nvars+num_threads-1)/num_threads
       kpts   = 0
 cc
@@ -336,6 +343,9 @@ cc
       use gfs_dyn_resol_def
       use gfs_dyn_layout1
       use gfs_dyn_mpi_def
+#ifndef IBM
+      USE omp_lib
+#endif
       implicit none
       integer lat1s(0:jcap),latl2
       real(kind=kind_evod) flnev(len_trie_ls,2*nvars)
@@ -381,7 +391,11 @@ cc
 
       cons0 = 0.d0     !constant
       cons1 = 1.d0     !constant
-      num_threads=num_parthds()
+#ifdef IBM
+      num_threads=NUM_PARTHDS()
+#else
+      num_threads=omp_get_num_threads()
+#endif
       nvar_thread_max=(nvars+num_threads-1)/num_threads
       kpts   = 0
       do j = 1, ls_max_node   ! start of do j loop #####################

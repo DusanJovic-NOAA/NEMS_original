@@ -41,9 +41,9 @@ ifeq ($(IDL_GFIO),yes)
   GFIO_IDL = libgfio_idl_$(RN).so
 endif
 
-esma_install install: $(LIB) GFIO_mean_$(RN).x $(GFIO_IDL) # gfio_test.x
+#esma_install install: $(LIB) GFIO_mean_$(RN).x $(GFIO_IDL) # gfio_test.x
+esma_install install: $(LIB) $(GFIO_IDL) # gfio_test.x
 	$(MKDIR) $(ESMALIB) $(ESMAETC) $(ESMAINC)/$(THIS) $(ESMABIN)
-	$(CP) -p *.x    $(ESMABIN)
 	$(CP) -p *.a    $(ESMALIB)
 	$(CP) -p *.[Mm][Oo][Dd] ../*.h $(ESMAINC)/$(THIS)
 ifeq ($(NREAL),$(FREAL))
@@ -107,7 +107,7 @@ MOD_DIRS = .    $(INC_SDF) $(INC_MPEU)
 BIG_ENDIAN =
 
 USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir)) 
-USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
+USER_FMODS  = ${USER_FMODS_GMAO_Shared_GMAO_gfio_ccs}
 USER_FFLAGS = -cpp $(BIG_ENDIAN) 
  
 vpath % $(INC_DIRS) 
@@ -131,8 +131,7 @@ libgfio_idl_$(RN).so : $(LIB) gfio_idl.o
 #              $(LIB) $(LIB_SDF)
 
 GFIO_mean_$(RN).x : $(LIB) GFIO_mean.o
-	$(LD) $(LDFLAGS) -o GFIO_mean_$(RN).x GFIO_mean.o \
-	      $(LIB) $(LIB_SDF) $(LIB_SYS)
+	$(LD) ${FFLAGS_GMAO_Shared_GMAO_gfio_ccs} ${FFLAGS_GMAO_Shared_GMAO_gfio_zeus}
 
 test: gfio_test.x 
 	gfio_test.x > fortran_test.txt

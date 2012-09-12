@@ -56,7 +56,7 @@
 
       type(nam_gfs_dyn_namelist)   :: nam_gfs_dyn
       type(gfs_dyn_state_namelist) :: esmf_sta_list
-      type(gfs_dyn_tracer_type)    :: gfs_dyn_tracer
+!      type(gfs_dyn_tracer_type)    :: gfs_dyn_tracer
 
       integer                   :: me, nodes
       integer                   :: lnt2_s, llgg_s
@@ -187,7 +187,8 @@
       logical restart_run
       logical start_step, reset_step, end_step, restart_step
 
-      logical lsout,ldfi,dfiend_step=.false.
+      logical lsout,ldfi
+      logical :: dfiend_step = .false.
 
       real(kind=kind_evod),allocatable :: tee1(:)
 

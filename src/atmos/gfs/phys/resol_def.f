@@ -20,7 +20,6 @@
       integer   ivsnst
       integer,target  :: thermodyn_id, sfcpress_id                      ! hmhj
       integer,target  :: ivssfc
-      integer,target  :: ngrids_gg
       integer   ngrids_sfcc2d,ngrids_sfcc3d
       integer   idvt
 !jwe

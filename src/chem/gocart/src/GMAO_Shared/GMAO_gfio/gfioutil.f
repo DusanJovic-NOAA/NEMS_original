@@ -17,6 +17,7 @@
 ! !USES:
 !
       Implicit NONE
+      include 'netcdf.inc'
 !
 ! !INPUT PARAMETERS:
 !

@@ -1285,7 +1285,7 @@ c                           timeUnits: string is built below
 !     Get beginning time & date.  Calculate offset seconds from start.
 !     ----------------------------------------------------------------
       call GetBegDateTime ( fid, begDate, begTime, incSecs, rc )
-      if (err("GetVar: could not determine begin_date/begin_time",rc,-44) 
+      if(err("GetVar: could not determine begin_date/begin_time",rc,-44) 
      &    .NE. 0) return
 
       secs = DiffDate (begDate, begTime, yyyymmdd, hhmmss)
@@ -1293,7 +1293,7 @@ c                           timeUnits: string is built below
       if ( .not. tcyclic ) then
          if (yyyymmdd .LT. begDate .OR. (begDate .EQ. yyyymmdd .AND.
      .        hhmmss .LT. begTime) .or. secs .LT. 0) then
-            print *, 'GFIO_GetVar: Requested time earlier than first time.'
+         print *, 'GFIO_GetVar: Requested time earlier than first time.'
             rc = -7
             return
          endif
@@ -1336,7 +1336,8 @@ c                           timeUnits: string is built below
       if ( rc .ne. 0 ) then
          if ( fid /= fid2 )         
      &       call GFIO_GetVar1 ( fid2, vname, nymd2, nhms2,
-     &                          im, jm, kbeg, kount, grid2, tcyclic, rc )
+     &                          im, jm, kbeg, kount, grid2, tcyclic, 
+     &                          rc )
          
          if ( rc .ne. 0 ) return    
       end if
@@ -1353,7 +1354,8 @@ c                           timeUnits: string is built below
       do k = 1, kount
          do j = 1, jm
             do i = 1, im
-               if ( grid(i,j,k) .ne. amiss .and. grid2(i,j,k) .ne. amiss ) then
+               if ( grid(i,j,k) .ne. amiss .and. grid2(i,j,k) .ne. 
+     &              amiss ) then
                   grid(i,j,k) = grid(i,j,k) 
      &                        + alpha * (grid2(i,j,k) - grid(i,j,k))
                else
@@ -1622,7 +1624,7 @@ c                           timeUnits: string is built below
 !ams     if (err("GetVar: missing begin_time",rc,-44) .NE. 0) return
 
       call GetBegDateTime ( fid, begDate, begTime, incSecs, rc )
-      if (err("GetVar: could not determine begin_date/begin_time",rc,-44) 
+      if(err("GetVar: could not determine begin_date/begin_time",rc,-44) 
      &    .NE. 0) return
 
       seconds = DiffDate (begDate, begTime, yyyymmdd, hhmmss)
@@ -1634,14 +1636,14 @@ c                           timeUnits: string is built below
 
       if ( .not. tcyclic ) then
          if (seconds .LT. 0) then
-            print *, 'GFIO_GetVar: Error code from diffdate.  Problem with',
+         print *,'GFIO_GetVar: Error code from diffdate.  Problem with',
      .           ' date/time.'
             rc = -7
             return
          endif
          if (yyyymmdd .LT. begDate .OR. (begDate .EQ. yyyymmdd .AND.
      .        hhmmss .LT. begTime) ) then
-            print *, 'GFIO_GetVar: Requested time earlier than first time.'
+         print *, 'GFIO_GetVar: Requested time earlier than first time.'
             rc = -7
             return
          endif
@@ -1935,7 +1937,7 @@ c                           timeUnits: string is built below
           if (err("DimInqure: can't get dim info",rc,-41) .NE. 0) return
 !         call ncagtc (fid, dimId, 'units', dimUnits, MAXCHR, rc)
           call ncagtc (fid, i, 'units', dimUnits, MAXCHR, rc)
-          if (err("DimInquire: could not get units for dimension",rc,-53)
+         if (err("DimInquire: could not get units for dimension",rc,-53)
      .         .NE. 0) return
           index = IdentifyDim (dimName, dimUnits)
           if ( index .EQ. 0 ) then
@@ -2242,36 +2244,40 @@ c                           timeUnits: string is built below
       call ncvinq (fid,lonId,dimName,dimType,nvDims,vDims,nvAtts,rc)
       if ( dimType .eq. NCFLOAT ) then
          call ncvgt (fid,lonId,start1D,im,lon_32,rc)
-         if (err("Inquire: error reading 32-bit lons",rc,-49) .LT. 0) return
+         if (err("Inquire: error reading 32-bit lons",rc,-49) .LT. 0) 
+     &       return
          do i=1,im
             lon(i)=lon_32(i)
          enddo
       else if ( dimType .eq. NCDOUBLE ) then
          is_gfio = .false.  ! this is not a GFIO file, probably LATS4D
          call ncvgt (fid,lonId,start1D,im,lon_64,rc)
-         if (err("Inquire: error reading 64-bit lons",rc,-49) .LT. 0) return
+         if (err("Inquire: error reading 64-bit lons",rc,-49) .LT. 0) 
+     &       return
          do i=1,im
             lon(i)=lon_64(i)
          enddo
       else
-         if (err("Inquire: unsupported lon type",-1,-49) .LT. 0) return
+         if(err("Inquire: unsupported lon type",-1,-49) .LT. 0) return
       endif
 
       call ncvinq (fid,latId,dimName,dimType,nvDims,vDims,nvAtts,rc)
       if ( dimType .eq. NCFLOAT ) then
          call ncvgt (fid,latId,start1D,jm,lat_32,rc)
-         if (err("Inquire: error reading 32-bit lats",rc,-49) .LT. 0) return
+         if (err("Inquire: error reading 32-bit lats",rc,-49) .LT. 0) 
+     &       return
          do i=1,jm
             lat(i)=lat_32(i)
          enddo
       else  if ( dimType .eq. NCDOUBLE ) then
          call ncvgt (fid,latId,start1D,jm,lat_64,rc)
-         if (err("Inquire: error reading 32-bit lats",rc,-49) .LT. 0) return
+         if (err("Inquire: error reading 32-bit lats",rc,-49) .LT. 0) 
+     &       return
          do i=1,jm
             lat(i)=lat_64(i)
          enddo
       else
-         if (err("Inquire: unsupported lat type",-1,-49) .LT. 0) return
+         if(err("Inquire: unsupported lat type",-1,-49) .LT. 0) return
       endif
 
 
@@ -2279,18 +2285,21 @@ c                           timeUnits: string is built below
          call ncvinq (fid,levId,dimName,dimType,nvDims,vDims,nvAtts,rc)
          if ( dimType .eq. NCFLOAT ) then
             call ncvgt (fid,levId,start1D,km,levs_32,rc)
-            if (err("Inquire: error reading 32-bit levs",rc,-49) .LT. 0) return
+            if (err("Inquire: error reading 32-bit levs",rc,-49) .LT. 0) 
+     &          return
             do i=1,km
                levs(i)=levs_32(i)
             enddo
          else  if ( dimType .eq. NCDOUBLE ) then
             call ncvgt (fid,levId,start1D,km,levs_64,rc)
-            if (err("Inquire: error reading 32-bit levs",rc,-49) .LT. 0) return
+            if (err("Inquire: error reading 32-bit levs",rc,-49) .LT. 0) 
+     &          return
             do i=1,km
                levs(i)=levs_64(i)
             enddo
          else
-            if (err("Inquire: unsupported lev type",-1,-49) .LT. 0) return
+            if (err("Inquire: unsupported lev type",-1,-49) .LT. 0) 
+     &          return
          endif
       end if
 
@@ -2344,7 +2353,8 @@ c                           timeUnits: string is built below
 !ams         noTimeInfo = .TRUE.
 !ams      endif
 
-          call GetBegDateTime ( fid, yyyymmdd_beg, hhmmss_beg, incSecs, rc )
+          call GetBegDateTime ( fid, yyyymmdd_beg, hhmmss_beg, 
+     &          incSecs, rc )
           if ( rc .ne. 0 ) noTimeInfo = .TRUE.
 
 !ams          print *, '--- incSecs, begDate, begTime: ', incsecs, yyyymmdd_beg, hhmmss_beg
@@ -2359,7 +2369,8 @@ c                           timeUnits: string is built below
            if (hour == 0) hour=1
            min = mod(incSecs,3600*hour)/60
 !_RT       timInc = hour*10000 + min*100
-           timInc = incSecs/3600*10000 + mod(incSecs,3600)/60*100 + mod(incSecs,60)
+           timInc = incSecs/3600*10000 + mod(incSecs,3600)/60*100 
+     &          + mod(incSecs,60)
         end if
 !RL     hour = incTime/60
 !RL     min  = mod(incTime,60)
@@ -2418,7 +2429,8 @@ c                           timeUnits: string is built below
 
       do i= 1, allVars
         call ncvinq (fid,i,vnameTemp,varType,nvDims,vDims,nvAtts,rc)
-        if (err("Inquire: variable inquire error",rc,-52) .NE. 0) return
+        if (err("Inquire: variable inquire error",rc,-52) .NE. 0) 
+     &          return
         if (nvDims .EQ. 1) then   ! coord variable
           cycle
         else                      ! noon-coord variable
@@ -2428,15 +2440,17 @@ c                           timeUnits: string is built below
               rc = -1
            end if
            if (rc .NE. 0) then
-               call ncainq (fid, i, 'missing_value', attType, attLen, rc)
+              call ncainq (fid, i, 'missing_value', attType, attLen, rc)
               if (rc.eq.0 .and. attType .EQ. NCFLOAT) then
-                 call ncagt (fid, allVars, 'missing_value', amiss_32, rc)
-                 if (rc .ne. 0) call ncagt (fid, 1, 'missing_value', amiss_32, rc)
+                call ncagt (fid, allVars, 'missing_value', amiss_32, rc)
+                 if (rc .ne. 0) call ncagt (fid, 1, 'missing_value', 
+     &                      amiss_32, rc)
                  if (err("Inquire: error getting missing value",rc,-53) 
      .                .NE. 0) return
               else
                     print *, 
-     .              'GFIO_Inquire: Cannot find missing value, assuming 1E+15'
+     .              'GFIO_Inquire: Cannot find missing value, assuming 
+     &                 1E+15'
                     amiss_32 = 1.0E+15
               end if
            endif
@@ -2449,7 +2463,8 @@ c                           timeUnits: string is built below
 
       do i=1,allVars
         call ncvinq (fid,i,vnameTemp,varType,nvDims,vDims,nvAtts,rc)
-        if (err("Inquire: variable inquire error",rc,-52) .NE. 0) return
+        if (err("Inquire: variable inquire error",rc,-52) .NE. 0) 
+     &                 return
         if (nvDims .EQ. 1) then
           cycle
         else

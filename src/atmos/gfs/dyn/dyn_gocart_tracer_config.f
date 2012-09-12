@@ -8,7 +8,8 @@
 !   Sep 16 2011   Sarah Lu, pass Chem_Registry info to gfs_dyn_tracer
 ! -------------------------------------------------------------------------
 !
-      subroutine dyn_gocart_tracer_config (gfs_dyn_tracer,me)
+      subroutine dyn_gocart_tracer_config (me)
+!      subroutine dyn_gocart_tracer_config (gfs_dyn_tracer,me)
 !
       use gfs_dyn_tracer_config
       use Chem_RegistryMod
@@ -17,7 +18,7 @@
 ! input
       integer, intent(in)    ::  me
 ! output
-      type (gfs_dyn_tracer_type), intent(out)    ::  gfs_dyn_tracer
+!      type (gfs_dyn_tracer_type), intent(out)    ::  gfs_dyn_tracer
 !
 ! local
       integer                 :: i, status, ierr

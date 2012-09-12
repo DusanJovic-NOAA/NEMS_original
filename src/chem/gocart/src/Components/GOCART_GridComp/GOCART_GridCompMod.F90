@@ -28,7 +28,8 @@
 !
 ! !PUBLIC MEMBER FUNCTIONS:
 
-   public SetServices
+   public GOCART_SetServices
+!   public SetServices
 !
 ! !DESCRIPTION: 
 !
@@ -75,16 +76,17 @@ CONTAINS
 !-------------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: SetServices --- Sets IRF services for GOCART Grid Component
+! !IROUTINE: GOCART_SetServices --- Sets IRF services for GOCART Grid Component
 !
 ! !INTERFACE:
 
-   subroutine SetServices ( GC, RC )
+   subroutine GOCART_SetServices ( GC, RC )
 
 ! !ARGUMENTS:
 
     type(ESMF_GridComp), intent(INOUT) :: GC  ! gridded component
-    integer, optional                  :: RC  ! return code
+    integer, intent(out)               :: RC  ! return code
+!    integer, optional                  :: RC  ! return code
 
 ! !DESCRIPTION: Sets Initialize, Run and Finalize services. 
 !
@@ -98,7 +100,7 @@ CONTAINS
 
 !   ErrLog Variables
 !   ----------------
-    character(len=ESMF_MAXSTR)      :: IAm = 'SetServices'
+    character(len=ESMF_MAXSTR)      :: IAm = 'GOCART_SetServices'
     integer                         :: STATUS
     character(len=ESMF_MAXSTR)      :: COMP_NAME, answer
 
@@ -696,7 +698,7 @@ end if ! doing GOCART
 
     RETURN_(ESMF_SUCCESS)
   
-  end subroutine SetServices
+  end subroutine GOCART_SetServices
 
 !
 !  In order to couple with the 2 phase-initialization required by GFS,

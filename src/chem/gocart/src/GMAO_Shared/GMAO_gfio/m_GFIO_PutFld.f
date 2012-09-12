@@ -117,8 +117,8 @@
       integer       ier, year, month, day, hour
       integer       nobs_oi, iv,  i, j, k, ia, ios
 
-      integer       julday
-      external      julday
+      integer       julday1
+      external      julday1
 
       character*80    contact           ! Who to contact about the data set
       parameter     ( contact = 'data@gmao.gsfc.nasa.gov' )
@@ -444,8 +444,8 @@
       integer       ier, year, month, day, hour
       integer       nobs_oi, iv,  i, j, k, ia, ios
 
-      integer       julday
-      external      julday
+      integer       julday1
+      external      julday1
 
       character*80    contact           ! Who to contact about the data set
       parameter     ( contact = 'data@gmao.gsfc.nasa.gov' )
@@ -715,8 +715,8 @@
       integer       ier, year, month, day, hour
       integer       iv,  i, j, k, ia, ios
 
-      integer       julday
-      external      julday
+      integer       julday1
+      external      julday1
 
       character*80    contact           ! Who to contact about the data set
       parameter     ( contact = 'data@gmao.gsfc.nasa.gov' )
@@ -839,8 +839,8 @@
       integer       ier, year, month, day, hour
       integer       nobs_oi, iv,  i, j, k, ia, ios
 
-      integer       julday
-      external      julday
+      integer       julday1
+      external      julday1
 
       character*80    contact           ! Who to contact about the data set
       parameter     ( contact = 'data@gmao.gsfc.nasa.gov' )
@@ -1144,8 +1144,8 @@
       integer       ier, year, month, day, hour
       integer       nobs_oi, iv,  i, j, k, ia, ios
 
-      integer       julday
-      external      julday
+      integer       julday1
+      external      julday1
 
       character*80    contact           ! Who to contact about the data set
       parameter     ( contact = 'data@gmao.gsfc.nasa.gov' )

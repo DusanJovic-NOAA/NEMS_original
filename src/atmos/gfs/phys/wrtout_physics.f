@@ -2045,8 +2045,7 @@ Clu: addition of 6 aod fields ends here -----------------------------
 !        ngrid index otherwise, you risk the chance that ngrid might
 !        > ngrids_flx+1  which cause the address error or arry over-run
 !
-!hchuang code change [+2]  when callng sub  uninterprez, array glolal is assign
-to
+!hchuang code change [+2]  when callng sub  uninterprez, array glolal is assign to
         glolal  = flx_fld%goro*rtime
         ngrid2d = ngrid2d+1
         CALL uninterprez(2,kmsk,buffo,glolal,global_lats_r,lonsperlar,
@@ -2547,19 +2546,19 @@ to
       return
       end
 !
-      INTEGER FUNCTION nfill(C)
-      implicit none
-      integer j
-      CHARACTER*(*) C
-      NFILL=LEN(C)
-      DO J=1,NFILL
-        IF(C(J:J).EQ.' ') THEN
-          NFILL=J-1
-          RETURN
-        ENDIF
-      ENDDO
-      RETURN
-      END
+!      INTEGER FUNCTION nfill(C)
+!      implicit none
+!      integer j
+!      CHARACTER*(*) C
+!      NFILL=LEN(C)
+!      DO J=1,NFILL
+!        IF(C(J:J).EQ.' ') THEN
+!          NFILL=J-1
+!          RETURN
+!        ENDIF
+!      ENDDO
+!      RETURN
+!      END
  
  
       SUBROUTINE nst_collect (nst_fld,global_lats_r,lonsperlar)

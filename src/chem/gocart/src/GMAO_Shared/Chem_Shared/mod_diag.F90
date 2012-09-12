@@ -56,6 +56,8 @@
       integer  iLHFX
       integer  iLWSH
       integer  iO3DU
+      integer  iO3PARAM
+      integer  iOx
       integer  iORO
       integer  iOSR
       integer  iOSRCLR
@@ -840,10 +842,12 @@
       INTEGER, PARAMETER :: iO1D     = iNOX + 1
       INTEGER, PARAMETER :: iO3CHEM  = iO1D + 1
       INTEGER, PARAMETER :: iO3P     = iO3CHEM + 1
-      INTEGER, PARAMETER :: iO3PARAM = iO3P + 1
+               PARAMETER ( iO3PARAM = iO3P + 1)
+!      INTEGER, PARAMETER :: iO3PARAM = iO3P + 1
       INTEGER, PARAMETER :: iOCLO    = iO3PARAM + 1
       INTEGER, PARAMETER :: iOH      = iOCLO + 1
-      INTEGER, PARAMETER :: iOX      = iOH + 1
+               PARAMETER ( iOX      = iOH + 1)
+!      INTEGER, PARAMETER :: iOX      = iOH + 1
       INTEGER, PARAMETER :: iOXSTRAT = iOX + 1
       INTEGER, PARAMETER :: iOXTROP  = iOXSTRAT + 1
 

@@ -311,7 +311,8 @@ contains
     character(len=ESMF_MAXSTR),allocatable :: statelist(:)
     character(len=ESMF_MAXSTR),allocatable ::   tmplist(:)
     
-    integer :: nlist,unit,nsecf_,nfield,nstatelist
+    integer :: nlist,unit,nfield,nstatelist
+!    integer :: nlist,unit,nsecf,nfield,nstatelist
     integer :: k,m,n,sec,rank,nhms,size0
     integer :: year,month,day,hour,minute,second,nymd0,nhms0
     integer :: ref_time(6)
@@ -684,7 +685,7 @@ contains
                                    M  = REF_TIME(5), &
                                    S  = REF_TIME(6), calendar=cal, rc=rc )
 
-       sec = nsecf_( list(n)%frequency )
+       sec = nsecf( list(n)%frequency )
        call ESMF_TimeIntervalSet( Frequency, S=sec, calendar=cal, rc=status ) ; VERIFY_(STATUS)
        RingTime = RefTime
 
@@ -701,7 +702,7 @@ contains
        VERIFY_(STATUS)
        
        if( list(n)%duration.ne.0 ) then
-          sec = nsecf_( list(n)%duration )
+          sec = nsecf( list(n)%duration )
           call ESMF_TimeIntervalSet( Frequency, S=sec, calendar=cal, rc=status ) ; VERIFY_(STATUS)
           RingTime = RefTime
           if (RingTime < currTime) then
@@ -900,7 +901,7 @@ contains
          sec = 0
       else
          IntState%average(n) = .true.
-         sec = nsecf_(list(n)%acc_interval) / 2
+         sec = nsecf(list(n)%acc_interval) / 2
       endif
       call ESMF_TimeIntervalSet( INTSTATE%STAMPOFFSET(n), S=sec, rc=status )
       VERIFY_(STATUS)
@@ -1214,8 +1215,8 @@ contains
                  LONG_NAME  = LONG_NAME,                                  &
                  UNITS      = UNITS,                                      &
                  DIMS       = DIMS,                                       &
-                 ACCMLT_INTERVAL= nsecf_(list(n)%acc_interval),            &
-                 COUPLE_INTERVAL= nsecf_(list(n)%frequency   ),            &
+                 ACCMLT_INTERVAL= nsecf(list(n)%acc_interval),            &
+                 COUPLE_INTERVAL= nsecf(list(n)%frequency   ),            &
                  VLOCATION  = VLOCATION,                                  &
                  GRID       = GRID,                                       &
                  RC=STATUS  )
@@ -1223,8 +1224,8 @@ contains
 
          else
 
-            REFRESH = nsecf_(list(n)%acc_interval)
-            AVGINT  = nsecf_( list(n)%frequency )
+            REFRESH = nsecf(list(n)%acc_interval)
+            AVGINT  = nsecf( list(n)%frequency )
             call ESMF_AttributeSet(F, NAME='REFRESH_INTERVAL', VALUE=REFRESH, RC=STATUS)
             VERIFY_(STATUS)
             call ESMF_AttributeSet(F, NAME='AVERAGING_INTERVAL', VALUE=AVGINT, RC=STATUS)
@@ -1348,7 +1349,7 @@ contains
                BUNDLE     = list(n)%bundle,            &
                OFFSET     = IntState%stampoffset(n),   &
                RESOLUTION = list(n)%resolution,        &
-               FREQUENCY  = nsecf_(list(n)%frequency),  &
+               FREQUENCY  = nsecf(list(n)%frequency),  &
                LEVELS     = list(n)%levels,            &
                DESCR      = list(n)%descr,             &
                XYOFFSET   = list(n)%xyoffset,          &
@@ -1454,7 +1455,8 @@ contains
     logical                        :: NewSeg
     logical, allocatable           :: Writing(:)
     type(ESMF_State)               :: state_out
-    integer                        :: nsecf_, nymd, nhms
+    integer                        :: nymd, nhms
+!    integer                        :: nsecf, nymd, nhms
     character(len=ESMF_MAXSTR)     :: DateStamp
 
     character(len=ESMF_MAXSTR)     :: IAm="HistoryRun" 
@@ -1826,7 +1828,8 @@ contains
    
    integer      :: unit,nfield
    character(len=ESMF_MAXSTR)      :: IAm="MAPL_GradsCtlWrite" 
-   integer      :: k,m,n,nsecf_,nhms,rank,status
+   integer      :: k,m,n,nhms,rank,status
+!   integer      :: k,m,n,nsecf,nhms,rank,status
    integer      :: year,month,day,hour,minute
    integer      :: gridRank
    real*8   LONBEG,DLON
@@ -1845,7 +1848,7 @@ contains
                'DTDT'     , 'PHYSICS'    , &
                'DTDT'     , 'GWD'        /
 
-   nsecf_(nhms) = nhms/10000*3600 + mod(nhms,10000)/100*60 + mod(nhms,100)
+!   nsecf(nhms) = nhms/10000*3600 + mod(nhms,10000)/100*60 + mod(nhms,100)
 
    call ESMF_ClockGet ( clock,  currTime=CurrTime ,rc=STATUS ) ; VERIFY_(STATUS)
    call ESMF_ClockGet ( clock,  StopTime=StopTime ,rc=STATUS ) ; VERIFY_(STATUS)
@@ -1860,7 +1863,7 @@ contains
    read(timestring(15:16),'(i2.2)') minute
    
    ti = StopTime-CurrTime
-   freq = nsecf_( list%frequency )
+   freq = nsecf( list%frequency )
    call ESMF_TimeIntervalSet( Frequency, S=freq, calendar=cal, rc=status ) ; VERIFY_(STATUS)
    
    nsteps =  ti/Frequency + 1
@@ -2372,10 +2375,10 @@ contains
   end subroutine SetPsizeStrategy
 
 ! IBM AIX does not like mod in statement functions
-  integer function nsecf_(nhms)
+  integer function nsecf(nhms)
   integer nhms
-  nsecf_ = nhms/10000*3600 + mod(nhms,10000)/100*60 + mod(nhms,100)
-  end function nsecf_
+  nsecf = nhms/10000*3600 + mod(nhms,10000)/100*60 + mod(nhms,100)
+  end function nsecf
 
 
 end module MAPL_HistoryGridCompMod

@@ -72,7 +72,8 @@ GT  = ghosttest
 
 SRCS = ScatterGatherTest.F90 ghosttest.F90
 OBJS = $(SRCS:.F90=.o)
-BINS = $(SRCS:.F90=.x)
+#BINS = $(SRCS:.F90=.x)
+BINS =
 
 USER_FFLAGS = $(M)$(ESMAINC)/GMAO_pilgrim
 LIB_COMP =  $(ESMALIB)/libGMAO_pilgrim.a

@@ -29,9 +29,9 @@
  USE esmf_mod
  USE ENS_Cpl_InternalState_ESMFMod
 
- INCLUDE 'mpif.h'
-
  IMPLICIT none
+
+ INCLUDE 'mpif.h'
 
  CONTAINS
 

@@ -1,20 +1,20 @@
       subroutine glats_physics(lgghaf,colrad,wgt,wgtcs,rcs2,iprint)
-cc
+  
       use machine, ONLY: kind_dbl_prec
       implicit none
       integer                  iter,k,k1,l2,lgghaf,iprint
-cc
+  
       real(kind=kind_dbl_prec) drad,dradz,eps,p1,p2,phi,pi,rad,rc
       real(kind=kind_dbl_prec) rl2,scale,si,sn,w,x
-cc
+  
       real(kind=kind_dbl_prec) colrad(lgghaf)
       real(kind=kind_dbl_prec)    wgt(lgghaf)
       real(kind=kind_dbl_prec)  wgtcs(lgghaf)
       real(kind=kind_dbl_prec)   rcs2(lgghaf)
-cc
+  
       real(kind=kind_dbl_prec) cons0,cons0p25,cons1             !constant
       real(kind=kind_dbl_prec) cons2,cons4,cons180,cons360      !constant
-cc
+  
       cons0    =   0.d0       !constant
       cons0p25 =   0.25d0     !constant
       cons1    =   1.d0       !constant
@@ -22,9 +22,9 @@ cc
       cons4    =   4.d0       !constant
       cons180  = 180.d0       !constant
       cons360  = 360.d0       !constant
-cc
+  
       eps=1.d-12              !constant
-cc
+  
       if(iprint.eq.1) print 101
  101  format ('   i   colat   colrad     wgt', 12x, 'wgtcs',
      & 10x, 'iter  res')
@@ -68,37 +68,37 @@ cc
 1000  continue
       if(iprint.eq.1) print 100,lgghaf
 100   format(1h ,'shalom from 0.0e0 glats for ',i3)
-cc
+  
       return
       end subroutine glats_physics
 
 
 
 
-      subroutine poly(n,rad,p)
-cc
-      use machine, ONLY: kind_dbl_prec
-      implicit none
-cc
-cc
-      integer                  i,n
-cc
-      real(kind=kind_dbl_prec) floati,g,p,rad,x,y1,y2,y3
-cc
-      real(kind=kind_dbl_prec) cons1     !constant
-cc
-      cons1 = 1.d0     !constant
-cc
-      x = cos(rad)
-      y1 = cons1       !constant
-      y2=x
-      do 1 i=2,n
-      g=x*y2
-      floati=i
-      y3=g-y1+g-(g-y1)/floati
-      y1=y2
-      y2=y3
-1     continue
-      p=y3
-      return
-      end subroutine poly
+!      subroutine poly(n,rad,p)
+!  
+!      use machine, ONLY: kind_dbl_prec
+!      implicit none
+!   
+!  
+!      integer                  i,n
+!  
+!      real(kind=kind_dbl_prec) floati,g,p,rad,x,y1,y2,y3
+!  
+!      real(kind=kind_dbl_prec) cons1     !constant
+!  
+!      cons1 = 1.d0     !constant
+!  
+!      x = cos(rad)
+!      y1 = cons1       !constant
+!      y2=x
+!      do 1 i=2,n
+!      g=x*y2
+!      floati=i
+!      y3=g-y1+g-(g-y1)/floati
+!      y1=y2
+!      y2=y3
+!1     continue
+!      p=y3
+!      return
+!      end subroutine poly

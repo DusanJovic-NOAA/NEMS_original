@@ -44,8 +44,8 @@
       use gfs_physics_gridgr_mod, ONLY: Grid_Var_Data
       use gfs_physics_g3d_mod,    ONLY: G3D_Var_Data            
       use mersenne_twister
-      include 'mpif.h'
       implicit none
+      include 'mpif.h'
 !
 !  **********************************************************************
 !      The following arrays are for coupling to MOM4, but temporarily 

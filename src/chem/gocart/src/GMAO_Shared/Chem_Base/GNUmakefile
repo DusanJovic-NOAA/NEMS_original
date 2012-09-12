@@ -54,12 +54,13 @@ else
 endif
 
 
-esma_install install: $(LIB) $(BINS)
+#esma_install install: $(LIB) $(BINS)
+esma_install install: $(LIB)
 	$(MKDIR) $(ESMALIB) $(ESMAETC) $(ESMAINC)/$(THIS) $(ESMABIN)
 	$(CP) -p *.a             $(ESMALIB)
 	$(CP) -p *.rc            $(ESMAETC)
 	$(CP) -p *.mod           $(ESMAINC)/$(THIS)
-	$(CP) -p $(BINS) $(CSHS) $(ESMABIN)
+	$(CP) -p $(CSHS) $(ESMABIN)
 
 esma_clean esma_distclean clean:
 	$(RM) *~ *.[aoxd] *.[Mm][Oo][Dd] *.x

@@ -16,4 +16,5 @@
 # @ preferences = Feature == "dev"
 # @ network.MPI = sn_all,not_shared,us
 # @ account_no=_ACCNR_
+# @ executable = gen_fcst_run
 # @ queue

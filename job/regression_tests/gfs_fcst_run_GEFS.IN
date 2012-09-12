@@ -65,7 +65,7 @@ fi
 export CPIlist=" 1004.6,   1846.0, 820.2391,    0.0"
 export RIlist="  286.05,   461.50, 173.2247,    0.0"
 #
-#export NCP=cp
+export NCP=cp
 export FTSFS=0.0
 export FAISS=0.0
 #
@@ -127,6 +127,15 @@ else
 fi
 #
 #
+
+export GOCART=0
+export PASSIVE_TRACER=.false.
+
+
+export PE1=0
+export PE2=0
+export PE3=0
+export PE4=0
 
  export nhours=`expr $ndays \* 24`
 

@@ -35,9 +35,9 @@
  USE ENS_Cpl_InternalState_ESMFMod
  USE Lib_ESMFStateAddGetMod
 
- TYPE(ESMF_Grid), SAVE                       :: mgrid
-
  IMPLICIT none
+
+ TYPE(ESMF_Grid), SAVE                       :: mgrid
 
  CONTAINS
 

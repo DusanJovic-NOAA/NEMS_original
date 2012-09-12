@@ -2,6 +2,9 @@
      &  LON_DIM,LONS_LAT,LONL,LOT,lan,me)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       use gfs_dyn_machine
+#ifndef IBM
+      USE omp_lib
+#endif
       IMPLICIT NONE
 !!
       INTEGER              INIT,LOT,LONL
@@ -20,7 +23,11 @@
       INTEGER              lot_thread
       INTEGER              indbeg
 !________________________________________________________
+#ifdef IBM
       NUM_THREADS=NUM_PARTHDS()
+#else
+      NUM_THREADS=omp_get_num_threads()
+#endif
  
       NVAR_THREAD_MAX=(lot+NUM_THREADS-1)/NUM_THREADS
  
@@ -115,6 +122,9 @@
      &                     LON_DIM,LONS_LAT,LONL,LOT)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       use gfs_dyn_machine
+#ifndef IBM
+      USE omp_lib
+#endif
       IMPLICIT NONE
 !!
       INTEGER              INIT,LOT,LONL
@@ -132,7 +142,11 @@
       INTEGER              lot_thread
       INTEGER              indbeg
 !________________________________________________________
+#ifdef IBM
       NUM_THREADS=NUM_PARTHDS()
+#else
+      NUM_THREADS=omp_get_num_threads()
+#endif
  
       NVAR_THREAD_MAX=(lot+NUM_THREADS-1)/NUM_THREADS
       if ( kind_evod .eq. 8 ) then !------------------------------------

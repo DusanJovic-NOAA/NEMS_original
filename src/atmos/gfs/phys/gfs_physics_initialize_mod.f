@@ -53,7 +53,7 @@
 #ifdef ESMF_520r
       USE esmf
 #else
-      USE esmf_mod
+       USE esmf_mod
 #endif
       USE gfs_physics_internal_state_mod, ONLY: gfs_physics_internal_state
 !     USE mpi_def,                        ONLY: liope
@@ -102,10 +102,12 @@
       use gfs_physics_nst_var_mod
       use module_radsw_parameters,      only: nbdsw
       use module_radlw_parameters,      only: nbdlw
+#ifndef IBM
+      USE omp_lib
+#endif
+      implicit none
 
       include 'mpif.h'
-
-      implicit none
 
       contains
 
@@ -157,10 +159,11 @@
 !       The redundant calls will be removed in a later revision.  
 !       The tracer specification will then be passed in from dyn dc
 !
-      call tracer_config_init( gis_phy%gfs_phy_tracer, gis_phy%ntrac,   &
+!      call tracer_config_init( gis_phy%gfs_phy_tracer, gis_phy%ntrac,   &
+      call tracer_config_init( gis_phy%ntrac,   &
                                gis_phy%ntoz, gis_phy%ntcw,              &
                                gis_phy%ncld,  me )
-      gfs_phy_tracer = gis_phy%gfs_phy_tracer
+!      gfs_phy_tracer = gis_phy%gfs_phy_tracer
       gis_phy%lgocart = gfs_phy_tracer%doing_GOCART     ! for internal state
       lgocart = gis_phy%lgocart                         ! for resol_def module
       if( me == 0) then
@@ -423,7 +426,11 @@
       if (me.eq.0) then
       print 100, jcap,levs
 100   format (' smf ',i3,i3,' in gfs physics initialize ')
+#ifdef IBM
       print*,'number of threads is ',num_parthds()
+#else
+      print*,'number of threads is ',omp_get_num_threads()
+#endif
 !jw        if (liope) then
 !jw          print*,'number of mpi procs is ',nodes
 !jw          print*,'number of mpi io procs is 1 (nodes)'
@@ -505,8 +512,9 @@
       ALLOCATE (   gis_phy%SWH(NGPTC,LEVS,gis_phy%NBLCK,LATS_NODE_R), stat = ierr)
       ALLOCATE (   gis_phy%HLW(NGPTC,LEVS,gis_phy%NBLCK,LATS_NODE_R), stat = ierr)
 ! idea add by hmhj
-      ALLOCATE (   gis_phy%HTRSWB(NGPTC,LEVS,NBDSW,gis_phy%NBLCK,LATS_NODE_R),stat=ierr)
-      ALLOCATE (   gis_phy%HTRLWB(NGPTC,LEVS,NBDLW,gis_phy%NBLCK,LATS_NODE_R),stat=ierr)
+      ALLOCATE ( gis_phy%HTRSWB(NGPTC,LEVS,NBDSW,gis_phy%NBLCK,LATS_NODE_R),stat=ierr)
+      ALLOCATE ( gis_phy%HTRLWB(NGPTC,LEVS,NBDLW,gis_phy%NBLCK,LATS_NODE_R),stat=ierr)
+
 !
       ALLOCATE (gis_phy%JINDX1(LATS_NODE_R), stat = ierr)
       ALLOCATE (gis_phy%JINDX2(LATS_NODE_R), stat = ierr)
@@ -532,7 +540,8 @@
       if (lgocart) then
         call g3d_aldata (lonr, lats_node_r_max, levs,  &               
                          gis_phy%g3d_fld, ierr)  
-        call g2d_aldata (lonr, lats_node_r_max, gis_phy%gfs_phy_tracer,&
+!        call g2d_aldata (lonr, lats_node_r_max, gis_phy%gfs_phy_tracer,&
+        call g2d_aldata (lonr, lats_node_r_max, gfs_phy_tracer,&
                          gis_phy%g2d_fld, ierr)
 
         ngrids_aer = 0
@@ -628,6 +637,8 @@
 !
 ! initialize start_step (Sarah Lu)
       gis_phy% start_step  = .true.      
+
+      rc = 0
 !
 !
 !

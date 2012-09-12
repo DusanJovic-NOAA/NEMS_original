@@ -1,3 +1,3 @@
        module ESMF_CFIOBaseMod
-       include "netcdf.inc"
+!       include "netcdf.inc"
        end module ESMF_CFIOBaseMod

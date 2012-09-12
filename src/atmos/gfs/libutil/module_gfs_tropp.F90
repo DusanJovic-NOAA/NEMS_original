@@ -14,7 +14,7 @@
   contains
 
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- subroutine rsearch1(km1,z1,km2,z2,l2)
+subroutine rsearch1(km1,z1,km2,z2,l2)
 !$$$  subprogram documentation block
 !
 ! subprogram:    rsearch1    search for a surrounding real interval
@@ -36,7 +36,7 @@
 !     km2    integer number of points to search for
 !     z2     real (km2) set of values to search for
 !            (z2 need not be monotonic)
-!     
+!
 !   output argument list:
 !     l2     integer (km2) interval locations from 0 to km1
 !            (z2 will be between z1(l2) and z1(l2+1))
@@ -70,45 +70,38 @@
   integer,intent(in):: km1,km2
   real,intent(in):: z1(km1),z2(km2)
   integer,intent(out):: l2(km2)
-  integer(kint_mpi) incx,n,incy,m,indx(km2),rc(km2),iopt
-  integer k2
+  integer k1,k2
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  find the surrounding input interval for each output point.
   if(z1(1).le.z1(km1)) then
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  input coordinate is monotonically ascending.
-    incx=1
-    n=km2
-    incy=1
-    m=km1
-    iopt=1
-    if(digits(1.).lt.digits(1._8)) then
-      call sbsrch(z2,incx,n,z1,incy,m,indx,rc,iopt)
-    else
-      call dbsrch(z2,incx,n,z1,incy,m,indx,rc,iopt)
-    endif
     do k2=1,km2
-      l2(k2)=indx(k2)-rc(k2)
+      l2(k2)=km1
+      do k1=1,km1-1
+        if(z1(k1)<=z2(k2).and.z1(k1+1)>z2(k2)) then
+          l2(k2)=k1
+          exit
+        endif
+      enddo
     enddo
   else
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  input coordinate is monotonically descending.
-    incx=1
-    n=km2
-    incy=-1
-    m=km1
-    iopt=0
-    if(digits(1.).lt.digits(1._8)) then
-      call sbsrch(z2,incx,n,z1,incy,m,indx,rc,iopt)
-    else
-      call dbsrch(z2,incx,n,z1,incy,m,indx,rc,iopt)
-    endif
     do k2=1,km2
-      l2(k2)=km1+1-indx(k2)
+      l2(k2)=km1
+!      do k1=1,km1-1
+!        if(z1(k1)<z2(k2)) then
+      do k1=km1,2,-1
+        if(z2(k2)>=z1(k1).and.z2(k2)<z1(k1-1))then
+          l2(k2)=k1-1
+          exit
+        endif
+      enddo
     enddo
   endif
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- end subroutine
+end subroutine
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   subroutine tpause(km,p,u,v,t,h,ptp,utp,vtp,ttp,htp,shrtp)
 !$$$  Subprogram documentation block
@@ -116,7 +109,7 @@
 ! Subprogram: tpause     Compute tropopause level fields
 !   Prgmmr: Iredell      Org: np23        Date: 1999-10-18
 !
-! Abstract: This subprogram finds the tropopause level and computes fields
+! Abstract: This subprogram finds the tropopause level and computes fields 
 !   at the tropopause level.  The tropopause is defined as the lowest level
 !   above 500 mb which has a temperature lapse rate of less than 2 K/km.
 !   The lapse rate must average less than 2 K/km over a 2 km depth.
@@ -128,7 +121,6 @@
 !
 ! Program history log:
 !   1999-10-18  Mark Iredell
-!
 !
 ! Usage:  call tpause(km,p,u,v,t,h,ptp,utp,vtp,ttp,htp,shrtp)
 !   Input argument list:
@@ -162,24 +154,27 @@
     real,intent(out):: ptp,utp,vtp,ttp,htp,shrtp
     real,parameter:: ptplim(2)=(/500.e+2,50.e+2/),gamtp=2.e-3,hd=2.e+3
     real gamu,gamd,td,gami,wtp,spdu,spdd
-    integer klim(2),k,kd,ktp
-    integer kdd(1)                   !<--- added for nems gfs
+    integer klim(2),k,kd,ktp, kd_array(1)
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  find tropopause level
     call rsearch1(km-2,p(2),2,ptplim(1),klim(1))
-    klim(1)=klim(1)+2
-    klim(2)=klim(2)+1
+!    klim(1)=klim(1)+2
+    klim(1)=klim(1)+1
+!    klim(2)=klim(2)+1
+    klim(2)=klim(2)+2
     gamd=1.e+9
     ktp=klim(2)
     wtp=0
-    do k=klim(1),klim(2)
-      gamu=(t(k-1)-t(k+1))/(h(k+1)-h(k-1))
+!    do k=klim(1),klim(2)
+    do k=klim(1),klim(2),-1
+!      gamu=(t(k-1)-t(k+1))/(h(k+1)-h(k-1))
+      gamu=(t(k+1)-t(k-1))/(h(k-1)-h(k+1))
       if(gamu.le.gamtp) then
-!* revised for nems gfs
-!*      call rsearch1(km-k-1,h(k+1),1,h(k)+hd,kd)
-        call rsearch1(km-k-1,h(k+1),1,h(k)+hd,kdd(1))
-        kd = kdd(1)
-        td=t(k+kd)+(h(k)+hd-h(k+kd))/(h(k+kd+1)-h(k+kd))*(t(k+kd+1)-t(k+kd))
+!        call rsearch1(km-k-1,h(k+1),1,h(k)+hd,kd)
+	call rsearch1(k-2,h(2),1,(/h(k)+hd/),kd_array)
+        kd = kd_array(1)
+!        td=t(k+kd)+(h(k)+hd-h(k+kd))/(h(k+kd+1)-h(k+kd))*(t(k+kd+1)-t(k+kd))
+	td=t(kd+2)+(h(k)+hd-h(2+kd))/(h(kd+1)-h(2+kd))*(t(kd+1)-t(2+kd))
         gami=(t(k)-td)/hd
         if(gami.le.gamtp) then
           ktp=k
@@ -199,6 +194,15 @@
     spdu=sqrt(u(ktp)**2+v(ktp)**2)
     spdd=sqrt(u(ktp-1)**2+v(ktp-1)**2)
     shrtp=(spdu-spdd)/(h(ktp)-h(ktp-1))
+    
+    utp=u(ktp)-wtp*(u(ktp)-u(ktp+1))
+    vtp=v(ktp)-wtp*(v(ktp)-v(ktp+1))
+    ttp=t(ktp)-wtp*(t(ktp)-t(ktp+1))
+    htp=h(ktp)-wtp*(h(ktp)-h(ktp+1))
+    ptp=p(ktp)*exp((h(ktp)-htp)*(1-0.5*(ttp/t(ktp)-1))/(con_rog*t(ktp)))
+    spdu=sqrt(u(ktp)**2+v(ktp)**2)
+    spdd=sqrt(u(ktp+1)**2+v(ktp+1)**2)
+    shrtp=(spdu-spdd)/(h(ktp)-h(ktp+1))
   end subroutine
 
   end module module_gfs_tropp

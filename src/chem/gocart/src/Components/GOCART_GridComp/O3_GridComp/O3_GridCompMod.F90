@@ -32,6 +32,7 @@
    USE MAPL_Mod
 #endif
 
+   USE mod_diag, ONLY: iO3PARAM,iOX
    USE Chem_Mod 	     ! Chemistry Base Class
    USE Chem_StateMod	     ! Chemistry State
    USE Chem_UtilMod          ! Utilities
@@ -522,9 +523,9 @@ CONTAINS
 ! !USES:
 
   USE O3_data, ONLY : prod, loss
-#if defined( SPMD )
+!#if defined( SPMD )
   USE mod_comm, ONLY : gid
-#endif
+!#endif
 
   IMPLICIT NONE
 

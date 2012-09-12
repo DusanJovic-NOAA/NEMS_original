@@ -29,18 +29,19 @@ esac
 
 # --- for Zeus, find available account ID
 if [ ${MACHINE_ID} = z ]; then
-  clear
-  ACCNR=null
-  for i in rm gm ada cmp gefs sepp omd
-  do
-    printf %s "Looking for accout ID: " $i " ..."
-    nr=`account_params 2>&1 | grep " "$i" " | wc -l`
-    if [ $nr -eq 1 ]; then
-      ACCNR=$i ; echo OK
-    else
-      echo
-    fi
-  done
-  if [ $ACCNR = null ]; then echo "Check your account ID"; exit ; fi
-  clear
+#  clear
+#  ACCNR=null
+#  for i in rm gm ada cmp gefs sepp omd
+#  do
+#    printf %s "Looking for accout ID: " $i " ..."
+#    nr=`account_params 2>&1 | grep " "$i" " | wc -l`
+#    if [ $nr -eq 1 ]; then
+#      ACCNR=$i ; echo OK
+#    else
+#      echo
+#    fi
+#  done
+#  if [ $ACCNR = null ]; then echo "Check your account ID"; exit ; fi
+#  clear
+ACCNR=gm
 fi

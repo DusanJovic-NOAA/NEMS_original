@@ -30,9 +30,9 @@
  USE ENS_Cpl_InternalState_ESMFMod
  USE machine,  ONLY: kind_evod, kind_phys, kind_rad
 
- INCLUDE 'mpif.h'
-
  IMPLICIT none
+
+ INCLUDE 'mpif.h'
 
  TYPE(ENS_Cpl_InternalState),  INTENT(inout) :: Int_State
  INTEGER,                      INTENT(out)   :: rc

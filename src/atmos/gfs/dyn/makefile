@@ -3,9 +3,10 @@ include ../../../conf/configure.nems
 MAKEFILE = makefile
 
 UTILINCS = -I../../share -I../libutil
-GOCARTINCS = -I../../../chem/gocart/AIX/include/Chem_Base \
-             -I../../../chem/gocart/AIX/include/GMAO_mpeu \
-             -I../../../chem/gocart/AIX/include/GEOSchem_GridComp
+ARCH=$(shell uname -s)
+GOCARTINCS = -I../../../chem/gocart/${ARCH}/include/Chem_Base \
+             -I../../../chem/gocart/${ARCH}/include/GMAO_mpeu \
+             -I../../../chem/gocart/${ARCH}/include/GEOSchem_GridComp
 
 LIBRARY  = gfs_dynamics.a
 
@@ -30,7 +31,7 @@ OBJS0	= \
 	  gfs_dynamics_run_mod.o		\
 	  gfs_dynamics_finalize_mod.o		\
 	  gfs_dynamics_add_get_state_ESMFField_mod.o	\
-	  gfs_dynamics_states_mod.o                  \
+	  gfs_dynamics_states_mod.o             \
 	  gfs_dyn_physcons.o          	\
 	  gfs_dynamics_grid_comp_mod.o
 	  
@@ -61,6 +62,11 @@ OBJ_MOD	= \
 OBJ_TRAC= dyn_gocart_tracer_config.o
 
 OBJ_TRAC_stub= dyn_gocart_tracer_config_stub.o
+
+OBJS_PORT = \
+	fftpack.o \
+	four2grid_thread.fftpack.o \
+	noblas.o
 
 OBJS   = \
 	get_cd_hyb.o \
@@ -138,12 +144,12 @@ OBJS   = \
 	common_to_model_vars.o      \
 	getpwatptot.o      \
 	sig2press.o            \
-	hyb2press.o          	\
-	gch2press.o          	\
+	hyb2press.o             \
+	gch2press.o             \
 	omega_sig.o             \
-	omega_hyb.o          	\
-	omega_gch.o          	\
-	omega_gcdp.o          	\
+	omega_hyb.o             \
+	omega_gch.o             \
+	omega_gcdp.o            \
 	do_dynamics_mod.o          \
 	gfs_dficoll_dynamics.o       \
 	do_dynamics_one_loop.o       \
@@ -158,12 +164,7 @@ OBJS   = \
 	uveodz.o                     \
 	matinv.o                     \
 	ver_sig.o                    \
-	ysminv.o                     
-
-OBJS_PORT = \
-	fftpack.o \
-	four2grid_thread.fftpack.o \
-	noblas.o
+	ysminv.o
 
 OBJS_IO= \
 	grid_fix.o         \
@@ -176,6 +177,7 @@ OBJS_IO= \
 	setsig.o               \
 	spect_to_grid_inp.o    
 
+
 ifeq ($(GOCART_MODE),full)
 	DEPEND_FILES = ${OBJS0:.o=.f} ${OBJ_MOD:.o=.f} ${OBJ_TRAC:.o=.f} ${OBJS:.o=.f} ${OBJS_PORT:.o=.f} ${OBJS_IO:.o=.f}
 else
@@ -184,8 +186,6 @@ endif
 
 all default: depend
 	@gmake -f $(MAKEFILE) $(LIBRARY)
-
-OBJALL= $(OBJ_MOD) $(OBJS) $(OBJS_IO)
 
 $(LIBRARY): $(OBJ_MOD) $(OBJ_TRAC_stub) $(OBJS0) $(OBJS) $(OBJS_IO)
 	$(AR) $(ARFLAGS) $@ $?
@@ -196,66 +196,79 @@ gocart_stub: $(OBJ_MOD) $(OBJ_TRAC_stub) $(OBJS0) $(OBJS) $(OBJS_IO)
 gocart_full: $(OBJ_MOD) $(OBJ_TRAC) $(OBJS0) $(OBJS) $(OBJS_IO)
 	$(AR) $(ARFLAGS) $(LIBRARY) $(OBJ_MOD) $(OBJ_TRAC) $(OBJS0) $(OBJS) $(OBJS_IO)
 
-$(OBJALL): %.o: %.f
-	$(FC) $(FFLAGS1) -c $*.f
-$(OBJS_PORT): %.o: %.f
-	$(FC) $(FFLAGS1) -c $*.f
-$(OBJ_TRAC): %.o: %.f
-	$(FC) $(FFLAGS1GOCART) -c $*.f
-$(OBJ_TRAC_stub): %.o: %.f
-	$(FC) $(FFLAGS1) -c $*.f
+$(OBJS0): %.o: %.f90
+	$(FC) $(FFLAGS1) -c $*.f90
+$(OBJS_PORT): %.o: %.f90
+	$(FC) $(FFLAGS1) -c $*.f90
+$(OBJ_TRAC): %.o: %.f90
+	$(FC) $(FFLAGS1GOCART) -c $*.f90
+$(OBJ_TRAC_stub): %.o: %.f90
+	$(FC) $(FFLAGS1) -c $*.f90
+$(OBJ_MOD): %.o: %.f90
+	$(FC) $(FFLAGS1) -c $*.f90
+$(OBJS): %.o: %.f90
+	$(FC) $(FFLAGS1) -c $*.f90
+$(OBJS_IO): %.o: %.f90
+	$(FC) $(FFLAGS1) -c $*.f90
 
 clean:
-	$(RM) -f $(LIBRARY) *.o *.mod *.lst lm map depend
+	$(RM) -f $(LIBRARY) *.o *.mod *.lst *.f90 lm map depend
 
 #
 # *****************************************************************
 #
 
-gfs_dyn_physcons.o:	gfs_dyn_physcons.f
-		$(FC) $(FFLAG90) -c gfs_dyn_physcons.f
+.SUFFIXES: .f .f90 .o
 
-gfs_dynamics_err_msg_mod.o:	 gfs_dynamics_err_msg_mod.f
-		$(FC) $(FFLAG90) -c gfs_dynamics_err_msg_mod.f
+.f.f90:
+	$(CPP) $< > $*.f90
 
-gfs_dynamics_namelist_mod.o:	 gfs_dynamics_namelist_mod.f
-		$(FC) $(FFLAG90) -c gfs_dynamics_namelist_mod.f
 
-gfs_dynamics_start_time_get_mod.o:	 gfs_dynamics_start_time_get_mod.f
-		$(FC) $(FFLAG90) -c gfs_dynamics_start_time_get_mod.f
 
-gfs_dynamics_grid_create_mod.o:	 gfs_dynamics_grid_create_mod.f
-		$(FC) $(FFLAG90) -c gfs_dynamics_grid_create_mod.f
+gfs_dyn_physcons.o:	gfs_dyn_physcons.f90
+		$(FC) $(FFLAG90) -c gfs_dyn_physcons.f90
 
-gfs_dynamics_output.o:	 gfs_dynamics_output.f
-		$(FC) $(FFLAG90) -c gfs_dynamics_output.f
+gfs_dynamics_err_msg_mod.o:	 gfs_dynamics_err_msg_mod.f90
+		$(FC) $(FFLAG90) -c gfs_dynamics_err_msg_mod.f90
 
-gfs_dynamics_getcf_mod.o:	 gfs_dynamics_getcf_mod.f
-		$(FC) $(FFLAG90) -c gfs_dynamics_getcf_mod.f
+gfs_dynamics_namelist_mod.o:	 gfs_dynamics_namelist_mod.f90
+		$(FC) $(FFLAG90) -c gfs_dynamics_namelist_mod.f90
 
-gfs_dynamics_internal_state_mod.o:	 gfs_dynamics_internal_state_mod.f
-		$(FC) $(FFLAG90) -c gfs_dynamics_internal_state_mod.f
+gfs_dynamics_start_time_get_mod.o:	 gfs_dynamics_start_time_get_mod.f90
+		$(FC) $(FFLAG90) -c gfs_dynamics_start_time_get_mod.f90
 
-GFS_AddParameterToStateMod.o:    GFS_AddParameterToStateMod.f
-	        $(FC) $(FFLAG90) -c GFS_AddParameterToStateMod.f
+gfs_dynamics_grid_create_mod.o:	 gfs_dynamics_grid_create_mod.f90
+		$(FC) $(FFLAG90) -c gfs_dynamics_grid_create_mod.f90
 
-gfs_dynamics_add_get_state_ESMFField_mod.o:	 gfs_dynamics_add_get_state_ESMFField_mod.f
-		$(FC) $(FFLAG90) -c gfs_dynamics_add_get_state_ESMFField_mod.f
+gfs_dynamics_output.o:	 gfs_dynamics_output.f90
+		$(FC) $(FFLAG90) -c gfs_dynamics_output.f90
 
-gfs_dynamics_states_mod.o:	 gfs_dynamics_states_mod.f
-		$(FC) $(FFLAG90) -c gfs_dynamics_states_mod.f
+gfs_dynamics_getcf_mod.o:	 gfs_dynamics_getcf_mod.f90
+		$(FC) $(FFLAG90) -c gfs_dynamics_getcf_mod.f90
 
-gfs_dynamics_initialize_mod.o:	 gfs_dynamics_initialize_mod.f
-		$(FC) $(FFLAG90) -c gfs_dynamics_initialize_mod.f
+gfs_dynamics_internal_state_mod.o:	 gfs_dynamics_internal_state_mod.f90
+		$(FC) $(FFLAG90) -c gfs_dynamics_internal_state_mod.f90
 
-gfs_dynamics_run_mod.o:	 gfs_dynamics_run_mod.f
-		$(FC) $(FFLAG90) -c gfs_dynamics_run_mod.f
+GFS_AddParameterToStateMod.o:    GFS_AddParameterToStateMod.f90
+	        $(FC) $(FFLAG90) -c GFS_AddParameterToStateMod.f90
 
-gfs_dynamics_finalize_mod.o:	 gfs_dynamics_finalize_mod.f
-		$(FC) $(FFLAG90) -c gfs_dynamics_finalize_mod.f
+gfs_dynamics_add_get_state_ESMFField_mod.o:	 gfs_dynamics_add_get_state_ESMFField_mod.f90
+		$(FC) $(FFLAG90) -c gfs_dynamics_add_get_state_ESMFField_mod.f90
 
-gfs_dynamics_grid_comp_mod.o:	 gfs_dynamics_grid_comp_mod.f
-		$(FC) $(FFLAG90) -c gfs_dynamics_grid_comp_mod.f
+gfs_dynamics_states_mod.o:	 gfs_dynamics_states_mod.f90
+		$(FC) $(FFLAG90) -c gfs_dynamics_states_mod.f90
+
+gfs_dynamics_initialize_mod.o:	 gfs_dynamics_initialize_mod.f90
+		$(FC) $(FFLAG90) -c gfs_dynamics_initialize_mod.f90
+
+gfs_dynamics_run_mod.o:	 gfs_dynamics_run_mod.f90
+		$(FC) $(FFLAG90) -c gfs_dynamics_run_mod.f90
+
+gfs_dynamics_finalize_mod.o:	 gfs_dynamics_finalize_mod.f90
+		$(FC) $(FFLAG90) -c gfs_dynamics_finalize_mod.f90
+
+gfs_dynamics_grid_comp_mod.o:	 gfs_dynamics_grid_comp_mod.f90
+		$(FC) $(FFLAG90) -c gfs_dynamics_grid_comp_mod.f90
 
 #
 #

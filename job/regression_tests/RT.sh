@@ -76,10 +76,12 @@ if [ $argn -eq 1 ]; then
    rm -rf ${STMP}/${USER}/REGRESSION_TEST
    echo "copy REGRESSION_TEST_baselines"
    mkdir -p ${STMP}/${USER}
+# For zeus machine.
 #   cp -r ${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines \
-#	 ${STMP}/${USER}
+#         ${STMP}/${USER}
+# For ccs machine.
    cp -r ${DISKNM}/noscrub/wx23lu/REGRESSION_TEST_baselines \
-	 ${STMP}/${USER}
+        ${STMP}/${USER}
    mv ${STMP}/${USER}/REGRESSION_TEST_baselines ${STMP}/${USER}/REGRESSION_TEST
   CP_nmm=false
   CP_gfs=false
@@ -356,11 +358,12 @@ date                                     >> ${PATHRT}/RegressionTests.log
 echo "Compilation ALL"                   >> ${PATHRT}/RegressionTests.log
 rm -f ../exe/NEMS.x
 gmake clean                              >  ${PATHRT}/Compile.log 2>&1
-esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
 if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
+esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
   gmake nmm_gfs_gen GOCART_MODE=full     >> ${PATHRT}/Compile.log 2>&1
 elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then 
-  gmake nmm                              >> ${PATHRT}/Compile.log 2>&1
+esmf_version 3_zeus                      >> ${PATHRT}/Compile.log 2>&1
+  gmake nmm_gfs_gen GOCART_MODE=full     >> ${PATHRT}/Compile.log 2>&1
 fi
 date                                     >> ${PATHRT}/RegressionTests.log
 
@@ -1078,11 +1081,6 @@ export NEMSI=true  ; export WLCLK=20  ; export NCHILD=02
 
 fi # endif test
 
-# temporary, until we have GFS working on Zeus:
-if [ ${MACHINE_ID} = z ]; then
-  exit
-fi
-
 ####################################################################################################
 #
 # TEST   - GFS 
@@ -1502,6 +1500,8 @@ fi # endif test
 #
 ####################################################################################################
 
+if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
+
 if [ ${ST_test} = true -o ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="GFS, 16tasks, 2threads, quilt, dfi3hr, reduced grid, NDSL"
@@ -1524,6 +1524,8 @@ export FDFI=3   ; export NDSLFV=.true.
 #---------------------
 
 fi # endif test
+
+fi
 
 #
 ####################################################################################################
@@ -1597,6 +1599,8 @@ fi # endif test
 #
 ####################################################################################################
 
+if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
+
 if [ ${ST_test} = true -o ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid with nst"
@@ -1621,6 +1625,8 @@ export IDVC=2   ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRA
 #---------------------
 
 fi # endif test
+
+fi
 
 ####################################################################################################
 #
@@ -1699,6 +1705,8 @@ fi # endif test
 #
 ####################################################################################################
 
+if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
+
 if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
 
 export TEST_DESCR="GEN, 1 members."
@@ -1740,7 +1748,6 @@ export TASKS=64 ; export WLCLK=02
 #---------------------
 
 fi # endif test
-
 
 #########################################################################
 # Clean and compile only FIM core
@@ -1812,6 +1819,8 @@ export WLCLK=15
 
 fi # endif test
 
+cd $PATHRT
+
 ################################################################################################
 # Clean and compile both NMMB & GFS cores, using ESMF 3.1.0rp2 and POST library.
 ################################################################################################
@@ -1823,6 +1832,7 @@ echo "Compilation with POST"
 printf %s "Using the ESMF 3.1.0rp2 and POST library.   "
 printf %s "Compiling model code (this will take some time)......."
 cd ${PATHTR}/src
+
 
 date                                     >> ${PATHRT}/RegressionTests.log
 echo "Compilation with POST"             >> ${PATHRT}/RegressionTests.log
@@ -2251,7 +2261,7 @@ export_gfs
 
 fi # endif test
 
-
+fi
 
 ####################################################################################################
 # Finalize

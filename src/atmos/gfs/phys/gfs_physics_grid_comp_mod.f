@@ -60,6 +60,7 @@
 !
       use GFS_Phy_States_Mod,             ONLY: gfs_physics_import2internal, &  
                                                 gfs_physics_internal2export  
+      use gfs_phy_tracer_config,          ONLY: gfs_phy_tracer
 !
       implicit none
 
@@ -709,19 +710,22 @@
 
                do I = 1, int_state%ntrac
 
-                vname = trim(int_state%gfs_phy_tracer%vname(i))
+!                vname = trim(int_state%gfs_phy_tracer%vname(i))
+                vname = trim(gfs_phy_tracer%vname(i))
                 call ESMF_FieldBundleGet(Bundle, FIELDNAME=vname, FIELD=Field, rc = RC1 )
                 CALL gfs_physics_err_msg(rc1,"Retrieve field from tracer bundle ",RC)
                 CALL ESMF_AttributeGet(Field, NAME="ScavengingFractionPerKm", &
                                        value = fscav , rc=RC1)
                 if ( RC1 == ESMF_SUCCESS) THEN
-                  int_state%gfs_phy_tracer%fscav(i) = fscav
+!                  int_state%gfs_phy_tracer%fscav(i) = fscav
+                  gfs_phy_tracer%fscav(i) = fscav
                 endif
 !               print *, 'phys_gc: fscav:', i, vname, int_state%gfs_phy_tracer%fscav(i)
                enddo
                int_state%start_step = .false. 
            ELSE
-               int_state%gfs_phy_tracer%fscav = 0.0
+!               int_state%gfs_phy_tracer%fscav = 0.0
+               gfs_phy_tracer%fscav = 0.0
            END IF
        endif
 !

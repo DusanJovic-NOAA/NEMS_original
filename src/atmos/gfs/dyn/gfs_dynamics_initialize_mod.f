@@ -46,7 +46,10 @@
       use gfs_dyn_layout1, only : ipt_lats_node_a, lats_node_a_max
       use gfs_dyn_resol_def, only : adiabatic, thermodyn_id, sfcpress_id
       use namelist_dynamics_def, only : fhrot,fhini,num_reduce
-      use gfs_dyn_tracer_config, only: gfs_dyn_tracer, tracer_config_init
+      use gfs_dyn_tracer_config, only: gfs_dyn_tracer, tracer_config_init,gfs_dyn_tracer
+#ifndef IBM
+      USE omp_lib
+#endif
 
       implicit none
 
@@ -104,10 +107,11 @@
 !
 ! met+chem tracer specification (Sarah Lu)
 !
-      call tracer_config_init( gis_dyn%gfs_dyn_tracer, gis_dyn%ntrac,   &
+!      call tracer_config_init( gis_dyn%gfs_dyn_tracer, gis_dyn%ntrac,   &
+      call tracer_config_init( gis_dyn%ntrac,   &
                                gis_dyn%ntoz, gis_dyn%ntcw,              &
                                gis_dyn%ncld,  me )
-      gfs_dyn_tracer = gis_dyn%gfs_dyn_tracer
+!      gfs_dyn_tracer = gis_dyn%gfs_dyn_tracer
       if( me == 0) then
        write(0,*)'LU_TRC, exit tracer_config_init in dyn'
        write(0,*)'LU_TRC, ntrac=     ',gfs_dyn_tracer%ntrac,ntrac
@@ -465,7 +469,11 @@
       if (me.eq.0) then
         print 100, jcap,levs
 100   format (' smf ',i3,i3,' created august 2000 ev od ri ')
+#ifdef IBM
         print*,'number of threads is',num_parthds()
+#else
+        print*,'number of threads is',omp_get_num_threads()
+#endif
         print*,'number of mpi procs is',nodes
       endif
 !
@@ -816,6 +824,7 @@
       call countperf(1,18,0.)
 !!
       gis_dyn%zhour        = fhour
+      rc = 0
 !
 !
       end subroutine gfs_dynamics_initialize

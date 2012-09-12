@@ -20,10 +20,10 @@
    use m_die, only: die
    use m_inpak90
 
-#if defined(GEOS5)
+!#if defined(GEOS5)
    use ESMF_Mod
    use MAPL_Mod
-#endif
+!#endif
 
    implicit none
 

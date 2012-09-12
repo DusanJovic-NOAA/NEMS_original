@@ -65,8 +65,8 @@
   end type Chem_MieTable
 
 # ifndef HAS_NETCDF3
-  external nf_open, nf_inq_dimid, nf_inq_dimlen, nf_inq_varid, &
-           nf_get_var_double, nf_close      
+!  external nf_open, nf_inq_dimid, nf_inq_dimlen, nf_inq_varid, &
+!           nf_get_var_double, nf_close      
 #endif
 
 

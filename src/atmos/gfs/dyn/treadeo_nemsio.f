@@ -163,7 +163,7 @@
      &   'lonf=',lonf,'lonfi=',lonfi,'latg=',latg,'latgi=',latgi,
      &   'jcap=',jcap,'jcapi=',jcapi,'levs=',levs,'levsi=',levsi,
      &   'idvc=',idvc,'tlmeta=',tlmeta,
-     &   'gen_coord_hybrid=',gen_coord_hybrid,'pdryini4=',pdryini4
+     &   'gen_coord_hybrid=',gen_coord_hybrid,'pdryini=',pdryini
         if(lonf .ne. lonfi .or. latg .ne. latgi .or.
      &     jcap .ne. jcapi .or. levs .ne. levsi) then
           print *,' Input resolution and the model resolutions are'

@@ -62,7 +62,7 @@
 !EOP
 !-------------------------------------------------------------------------
 
-      integer StartDate, julday
+      integer StartDate, julday1
       parameter (StartDate = 2439321)   ! Use birthday of author as base date
 
       integer year1,mon1,day1,hour1,min1,sec1
@@ -96,7 +96,7 @@
 
 ! Get Julian Day and subtract off a constant (Julian days since 7/14/66)
  
-      julian1 = julday (mon1, day1, year1)
+      julian1 = julday1 (mon1, day1, year1)
       julian1 = julian1 - StartDate
        
 ! Calculcate Julian seconds

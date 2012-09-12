@@ -6,28 +6,12 @@ TARGET = ../exe/NEMS.x
 include ./conf/configure.nems
 
 INCS = -Iatmos -Iocean -Ichem -Iatmos/share -IENS_Cpl -Iatmos/nmm -Iatmos/fim -Iatmos/gfs -Iatmos/phys -Iatmos/gen -Iocean/hycom -Iocean/genocn
+# INCS = -Iatmos -Iocean/hycom -Iocean/genocn -Iocean -Ichem -Iatmos/share -IENS_Cpl -Iatmos/nmm -Iatmos/fim -Iatmos/gfs -Iatmos/phys -Iatmos/gen 
 
 MAIN = MAIN_NEMS.o
 
 OBJS = module_EARTH_INTERNAL_STATE.o module_EARTH_GRID_COMP.o \
        module_NEMS_INTERNAL_STATE.o module_NEMS_GRID_COMP.o
-
-LIBS = atmos/share/libshare.a           \
-       atmos/phys/libphys.a             \
-       atmos/nmm/libnmm.a               \
-       atmos/gfs/libutil/gfs_libutil.a  \
-       atmos/gfs/io/gfs_io.a            \
-       atmos/gfs/phys/gfs_physics.a     \
-       atmos/gfs/dyn/gfs_dynamics.a     \
-       atmos/gfs/libgfs.a               \
-       atmos/fim/libfimtop.a            \
-       atmos/gen/libgen.a               \
-       atmos/libatmos.a                 \
-       atmos/post/libpost.a             \
-       ocean/genocn/libgenocn.a          \
-       ocean/hycom/libhycom.a           \
-       ocean/libocean.a                 \
-       ENS_Cpl/ENS_Cpl.a
 
 LIBS_NMM = atmos/libatmos.a             \
            atmos/nmm/libnmm.a           \
@@ -191,7 +175,7 @@ nmm_libs:
 	cd atmos               && gmake
 	cd ocean/genocn        && gmake stub
 	cd ocean/hycom         && gmake stub
-	cd ocean               && gmake
+	cd ocean               && gmake stub
 	cd ENS_Cpl             && gmake stub
 
 ################################################################################
@@ -215,7 +199,7 @@ nmm_post_libs:
 	cd atmos               && gmake
 	cd ocean/genocn        && gmake stub
 	cd ocean/hycom         && gmake stub
-	cd ocean               && gmake
+	cd ocean               && gmake stub
 	cd ENS_Cpl             && gmake stub
 
 ################################################################################
@@ -225,7 +209,7 @@ nmm_post_libs:
 ################################################################################
 
 gfs: gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus) $(LIBS_src_ccs) $(EXTLIBS) $(LIBGOCART)
 	@echo "nems.x is created for GFS core."
 
 gfs_libs:
@@ -246,7 +230,7 @@ endif
 	cd atmos               && gmake
 	cd ocean/genocn        && gmake stub
 	cd ocean/hycom         && gmake stub
-	cd ocean               && gmake
+	cd ocean               && gmake stub
 	cd ENS_Cpl             && gmake
 
 ################################################################################
@@ -256,7 +240,7 @@ endif
 ################################################################################
 
 gfs_post: gfs_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS_POST) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus)$(LIBS_src_ccs) $(EXTLIBS_POST) $(LIBGOCART)
 	@echo "nems.x is created for GFS core."
 
 gfs_post_libs:
@@ -277,7 +261,7 @@ endif
 	cd atmos               && gmake
 	cd ocean/genocn        && gmake stub
 	cd ocean/hycom         && gmake stub
-	cd ocean               && gmake
+	cd ocean               && gmake stub
 	cd ENS_Cpl             && gmake
 
 ################################################################################
@@ -301,7 +285,7 @@ gen_libs:
 	cd atmos               && gmake
 	cd ocean/genocn        && gmake stub
 	cd ocean/hycom         && gmake stub
-	cd ocean               && gmake
+	cd ocean               && gmake stub
 	cd ENS_Cpl             && gmake
 
 
@@ -312,7 +296,7 @@ gen_libs:
 ################################################################################
 
 nmm_gfs_gen: nmm_gfs_gen_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus)$(LIBS_src_ccs) $(EXTLIBS) $(LIBGOCART) ${FFLAGS_nmm_gfs_gen_zeus}
 	@echo "nems.x is created for GEN, NMM and GFS core."
 
 nmm_gfs_gen_libs:
@@ -333,7 +317,7 @@ endif
 	cd atmos               && gmake
 	cd ocean/genocn        && gmake stub
 	cd ocean/hycom         && gmake stub
-	cd ocean               && gmake
+	cd ocean               && gmake stub
 	cd ENS_Cpl             && gmake
 
 ################################################################################
@@ -343,7 +327,7 @@ endif
 ################################################################################
 
 nmm_gfs_gen_post: nmm_gfs_gen_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS_POST) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus)$(LIBS_src_ccs) $(EXTLIBS_POST) $(LIBGOCART)
 	@echo "nems.x is created for GEN, NMM and GFS core."
 
 nmm_gfs_gen_post_libs:
@@ -364,7 +348,7 @@ endif
 	cd atmos               && gmake
 	cd ocean/genocn        && gmake stub
 	cd ocean/hycom         && gmake stub
-	cd ocean               && gmake
+	cd ocean               && gmake stub
 	cd ENS_Cpl             && gmake
 
 ################################################################################
@@ -374,7 +358,7 @@ endif
 ################################################################################
 
 nmm_gfs: nmm_gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus)$(LIBS_src_ccs) $(EXTLIBS) $(LIBGOCART)
 	@echo "nems.x is created for NMM and GFS core."
 
 nmm_gfs_libs:
@@ -395,7 +379,7 @@ endif
 	cd atmos               && gmake
 	cd ocean/genocn        && gmake stub
 	cd ocean/hycom         && gmake stub
-	cd ocean               && gmake
+	cd ocean               && gmake stub
 	cd ENS_Cpl             && gmake
 
 ################################################################################
@@ -420,7 +404,7 @@ fim_libs:
 	cd atmos               && gmake
 	cd ocean/genocn        && gmake stub
 	cd ocean/hycom         && gmake stub
-	cd ocean               && gmake
+	cd ocean               && gmake stub
 	cd ENS_Cpl             && gmake
 
 ################################################################################
@@ -431,7 +415,7 @@ fim_libs:
 ################################################################################
 
 fim_gfs: fim_gfs_libs $(OBJS) $(MAIN)
-#	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS)
+#	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus)$(LIBS_src_ccs) $(EXTLIBS)
 #	@echo "nems.x is created for FIM and GFS core."
 	@echo "ERROR:  Cannot build FIM with other cores yet.  nems.x is NOT created for FIM and GFS core."
 	@exit -1
@@ -446,7 +430,7 @@ fim_gfs_libs:
 	cd atmos               && gmake
 	cd ocean/genocn        && gmake stub
 	cd ocean/hycom         && gmake stub
-	cd ocean               && gmake
+	cd ocean               && gmake stub
 	cd ENS_Cpl             && gmake
 
 ################################################################################
@@ -479,7 +463,7 @@ hycom_libs:
 ################################################################################
 
 hycom_gfs: hycom_gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus)$(LIBS_src_ccs) $(EXTLIBS) $(LIBGOCART)
 	@echo "nems.x is created for HYCOM and GFS core."
 
 hycom_gfs_libs:

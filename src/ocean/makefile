@@ -8,16 +8,28 @@ LIBRARY  = libocean.a
 
 MODULES  = module_OCN_INTERNAL_STATE.o module_OCN_GRID_COMP.o
 
+MODULES_stub  = module_OCN_INTERNAL_STATE.o module_OCN_GRID_COMP_stub.o
+
 DEPEND_FILES = ${MODULES:.o=.F90}
 
+DEPEND_FILES_stub = ${MODULES_stub:.o=.F90}
 
 all default: depend
 	@gmake -f $(MAKEFILE) $(LIBRARY)
 
+stub: depend_stub
+	@gmake -f $(MAKEFILE) $(LIBRARY_stub)
+
 $(LIBRARY): $(MODULES)
-	$(AR) $(ARFLAGS) $@ $?
+	$(AR) $(ARFLAGS) $@ $? hycom/libhycom.a genocn/libgenocn.a
+	
+$(LIBRARY_stub): $(MODULES_stub)
+	$(AR) $(ARFLAGS) $@ $? hycom/libhycom.a genocn/libgenocn.a
 	
 $(MODULES): %.o: %.f90
+	$(FC) $(FFLAGS) $(UTILINCS) -c $*.f90
+
+$(MODULES_stub): %.o: %.f90
 	$(FC) $(FFLAGS) $(UTILINCS) -c $*.f90
 
 clean:
