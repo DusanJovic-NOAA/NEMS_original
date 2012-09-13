@@ -81,7 +81,7 @@ if [ $argn -eq 1 ]; then
 #         ${STMP}/${USER}
 # For ccs machine.
    cp -r ${DISKNM}/noscrub/wx23lu/REGRESSION_TEST_baselines \
-        ${STMP}/${USER}
+	${STMP}/${USER}
    mv ${STMP}/${USER}/REGRESSION_TEST_baselines ${STMP}/${USER}/REGRESSION_TEST
   CP_nmm=false
   CP_gfs=false

@@ -240,7 +240,7 @@ endif
 ################################################################################
 
 gfs_post: gfs_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus)$(LIBS_src_ccs) $(EXTLIBS_POST) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus) $(LIBS_src_ccs) $(EXTLIBS_POST) $(LIBGOCART)
 	@echo "nems.x is created for GFS core."
 
 gfs_post_libs:
@@ -296,7 +296,7 @@ gen_libs:
 ################################################################################
 
 nmm_gfs_gen: nmm_gfs_gen_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus)$(LIBS_src_ccs) $(EXTLIBS) $(LIBGOCART) ${FFLAGS_nmm_gfs_gen_zeus}
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus) $(LIBS_src_ccs) $(EXTLIBS) $(LIBGOCART) ${FFLAGS_nmm_gfs_gen_zeus}
 	@echo "nems.x is created for GEN, NMM and GFS core."
 
 nmm_gfs_gen_libs:
@@ -327,7 +327,7 @@ endif
 ################################################################################
 
 nmm_gfs_gen_post: nmm_gfs_gen_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus)$(LIBS_src_ccs) $(EXTLIBS_POST) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus) $(LIBS_src_ccs) $(EXTLIBS_POST) $(LIBGOCART)
 	@echo "nems.x is created for GEN, NMM and GFS core."
 
 nmm_gfs_gen_post_libs:
@@ -358,7 +358,7 @@ endif
 ################################################################################
 
 nmm_gfs: nmm_gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus)$(LIBS_src_ccs) $(EXTLIBS) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus) $(LIBS_src_ccs) $(EXTLIBS) $(LIBGOCART)
 	@echo "nems.x is created for NMM and GFS core."
 
 nmm_gfs_libs:
@@ -415,7 +415,7 @@ fim_libs:
 ################################################################################
 
 fim_gfs: fim_gfs_libs $(OBJS) $(MAIN)
-#	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus)$(LIBS_src_ccs) $(EXTLIBS)
+#	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus) $(LIBS_src_ccs) $(EXTLIBS)
 #	@echo "nems.x is created for FIM and GFS core."
 	@echo "ERROR:  Cannot build FIM with other cores yet.  nems.x is NOT created for FIM and GFS core."
 	@exit -1
@@ -463,7 +463,7 @@ hycom_libs:
 ################################################################################
 
 hycom_gfs: hycom_gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus)$(LIBS_src_ccs) $(EXTLIBS) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus) $(LIBS_src_ccs) $(EXTLIBS) $(LIBGOCART)
 	@echo "nems.x is created for HYCOM and GFS core."
 
 hycom_gfs_libs:
