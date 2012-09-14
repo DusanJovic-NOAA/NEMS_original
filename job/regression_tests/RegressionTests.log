@@ -1,60 +1,19 @@
-Thu Sep 13 12:58:40 EDT 2012
+Fri Sep 14 15:54:54 EDT 2012
 Start Regression test
 
 
 
-Thu Sep 13 12:58:40 EDT 2012
+Fri Sep 14 15:54:54 EDT 2012
 Compilation ALL
-Thu Sep 13 12:58:40 EDT 2012
+Fri Sep 14 15:54:54 EDT 2012
 Test 001
-Compare NMMB-global results with previous trunk version
+Compare GFS results with previous trunk version
+GFS, 32 proc, 1 thread
+
+
 
 
 Checking test 001 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0048h_00m_00.00s.........OK
- Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
- Test 001 passed 
+ Comparing sigf00.....Missing  /ptmp/wx20wy/RT_2691448/GFS_32/sigf00  output file
 
-
-
- Original timing:  151.20  , test_glob timing:  153.30
-
-
-Test 002
-Test NMMB-global restart run from NEMSIO file
-
-
-Checking test 002 results ....
- Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
- Test 002 passed 
-
-
-
-Test 003
-Test NMMB-global different decomposition
-
-
-Checking test 003 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Test 003 passed 
-
-
-
-Test 004
-Test NMMB-global threading
-
-
-Checking test 004 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0048h_00m_00.00s.....
+ Test 001 failed 

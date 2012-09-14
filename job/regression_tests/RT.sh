@@ -360,7 +360,10 @@ rm -f ../exe/NEMS.x
 gmake clean                              >  ${PATHRT}/Compile.log 2>&1
 if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
 esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
-  gmake nmm_gfs_gen GOCART_MODE=full     >> ${PATHRT}/Compile.log 2>&1
+# Just modify this for now. WY.
+#------------------------------
+  gmake nmm                              >> ${PATHRT}/Compile.log 2>&1
+#  gmake nmm_gfs_gen GOCART_MODE=full     >> ${PATHRT}/Compile.log 2>&1
 elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then 
 esmf_version 3_zeus                      >> ${PATHRT}/Compile.log 2>&1
   gmake nmm_gfs_gen GOCART_MODE=full     >> ${PATHRT}/Compile.log 2>&1
@@ -1081,6 +1084,17 @@ export NEMSI=true  ; export WLCLK=20  ; export NCHILD=02
 
 fi # endif test
 
+# Just modify this for now. WY.
+#------------------------------
+if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
+cd ${PATHTR}/src
+rm -f ../exe/NEMS.x
+gmake clean                              >  ${PATHRT}/Compile.log 2>&1
+esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
+  gmake gfs                              >> ${PATHRT}/Compile.log 2>&1
+cd $PATHRT
+fi
+
 ####################################################################################################
 #
 # TEST   - GFS 
@@ -1707,6 +1721,10 @@ fi # endif test
 
 if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
 
+#modify like this for now.  WY.
+#------------------------------
+if [ ${MACHINE_ID} = z ]; then
+
 if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
 
 export TEST_DESCR="GEN, 1 members."
@@ -1748,6 +1766,8 @@ export TASKS=64 ; export WLCLK=02
 #---------------------
 
 fi # endif test
+
+fi
 
 #########################################################################
 # Clean and compile only FIM core
@@ -1839,7 +1859,10 @@ echo "Compilation with POST"             >> ${PATHRT}/RegressionTests.log
 rm -f ../exe/NEMS.x
 gmake clean                              >  ${PATHRT}/Compile.log 2>&1
 esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
-gmake nmm_gfs_gen_post GOCART_MODE=full  >> ${PATHRT}/Compile.log 2>&1
+# Modify like this for now.  WY.
+#-------------------------------
+gmake nmm_gfs_gen_post                   >> ${PATHRT}/Compile.log 2>&1
+#gmake nmm_gfs_gen_post GOCART_MODE=full  >> ${PATHRT}/Compile.log 2>&1
 date                                     >> ${PATHRT}/RegressionTests.log
 
 if [ -f ../exe/NEMS.x ] ; then
@@ -1927,6 +1950,11 @@ fi # endif test
 #
 #################################################################################################
 
+# Modify like this for now.  WY.
+#-------------------------------
+
+if [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then 
+
 if [ ${RT_FULL} = true -o ${CB_arg} = post -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="GFS_GOCART with POST"
@@ -1953,6 +1981,9 @@ export WLCLK=10
 #---------------------
 
 fi # endif test
+
+fi
+
 #########################################################################
 # Clean and compile both NMMB & GFS cores, using ESMF 5.2.0rp1 library.
 #########################################################################
