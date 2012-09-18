@@ -441,7 +441,7 @@
 !
           ENDIF
 !
-          NSECONDS_FCST=ABS(STOP_SEC-START_SEC+1)                         !<-- The forecast length (sec) (REAL)
+          NSECONDS_FCST=ABS(STOP_SEC-START_SEC)                           !<-- The forecast length (sec) (REAL)
           LAST_STEP=NINT(NSECONDS_FCST/DT)-1 
  
         ENDIF

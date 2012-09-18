@@ -7564,14 +7564,16 @@
 !
                   SEND_TASK(KP)%ISTART(1)=I_START_X                         !<-- Starting I on nest task where parent task ID_N updates.
 !
-                  IF(JTS_PARENT_ON_CHILD(ID_N)+EPS>=J_UPDATE(3))THEN        !<-- Parent task ID_N does not cover SW corner of footprint.
+                  IF(ITE_PARENT_ON_CHILD(ID_N)-EPS<=I_UPDATE(2).OR.     &   !<-- Parent task ID_N does not cover SW corner of footprint
+                     JTS_PARENT_ON_CHILD(ID_N)+EPS>=J_UPDATE(3))THEN        !    if either of these statements is true.
 !
                     SEND_TASK(KP)%IEND(1)=MIN(I_UPDATE(2)               &   !<-- Ending I on nest task where parent task ID_N updates.
                                          ,NINT(ITE_PARENT_ON_CHILD(ID_N)))  !<--
                     SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_N)) !<-- Starting J on nest task where parent task ID_N updates.
                     SEND_TASK(KP)%JEND(1)=J_END_X                           !<-- Ending J on nest task where parent task ID_N updates.
 !
-                  ELSEIF(JTS_PARENT_ON_CHILD(ID_N)-EPS<=J_UPDATE(2))THEN    !<-- Parent task ID_N covers SW corner of footprint too.
+                  ELSEIF(ITE_PARENT_ON_CHILD(ID_N)+EPS>=I_UPDATE(3).AND. &  !<-- Parent task ID_N covers SW corner of
+                         JTS_PARENT_ON_CHILD(ID_N)-EPS<=J_UPDATE(2))THEN    !    footprint too.
 !
 !                                         |
 !                                         |
