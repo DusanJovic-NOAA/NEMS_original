@@ -39,6 +39,9 @@ elif [ $SCHEDULER = 'moab' ]; then
 elif [ $SCHEDULER = 'pbs' ]; then
   cp $SRCDIR/job/regression_tests/nmm_qsub .
   qsub nmm_qsub > /dev/null
+elif [ $SCHEDULER = 'lsf' ]; then
+  cp $SRCDIR/job/regression_tests/nmm_bsub .
+  bsub < nmm_bsub > /dev/null
 fi
 
 exit

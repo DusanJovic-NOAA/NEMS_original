@@ -7,86 +7,96 @@
 
 JBNME=RT_${TEST_NR}_$$
 
-cat nmm_${GBRG}_run.IN  | sed s:_JBNME_:${JBNME}:g                  \
-                        | sed s:_TS_:${TS}:g                        \
-                        | sed s:_CPPCP_:${CPPCP}:g                  \
-                        | sed s:_wrtdopost_:${WRITE_DOPOST}:g       \
-                        | sed s:_postgrbvs_:${POST_GRIBVERSION}:g   \
-                        | sed s:_RTPWD_:${RTPWD}:g                  \
-                        | sed s:_SRCD_:${PATHTR}:g                  \
-                        | sed s:_RUND_:${RUNDIR}:g   >  nmm_run
+cat nmm_conf/nmm_${GBRG}_run.IN  | sed s:_JBNME_:${JBNME}:g                  \
+                                 | sed s:_TS_:${TS}:g                        \
+                                 | sed s:_CPPCP_:${CPPCP}:g                  \
+                                 | sed s:_wrtdopost_:${WRITE_DOPOST}:g       \
+                                 | sed s:_postgrbvs_:${POST_GRIBVERSION}:g   \
+                                 | sed s:_RTPWD_:${RTPWD}:g                  \
+                                 | sed s:_SRCD_:${PATHTR}:g                  \
+                                 | sed s:_RUND_:${RUNDIR}:g   >  nmm_run
 
-cat nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g   \
-                        | sed s:_JNPES_:${JNPES}:g   \
-                        | sed s:_WTPG_:${WTPG}:g     \
-                        | sed s:_wrtdopost_:${WRITE_DOPOST}:g       \
-                        | sed s:_postgrbvs_:${POST_GRIBVERSION}:g   \
-                        | sed s:_FCSTL_:${FCSTL}:g   \
-                        | sed s:_NEMSI_:${NEMSI}:g   \
-                        | sed s:_RSTRT_:${RSTRT}:g   \
-                        | sed s:_gfsP_:${gfsP}:g     \
-                        | sed s:_CONVC_:${CONVC}:g   \
-                        | sed s:_MICRO_:${MICRO}:g   \
-                        | sed s:_TURBL_:${TURBL}:g   \
-                        | sed s:_PCPFLG_:${PCPFLG}:g \
-                        | sed s:_WPREC_:${WPREC}:g   \
-                        | sed s:_NCHILD_:${NCHILD}:g \
-                        | sed s:_MODE_:${MODE}:g >  configure_file_01
+cat nmm_conf/nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g   \
+                                 | sed s:_JNPES_:${JNPES}:g   \
+                                 | sed s:_WTPG_:${WTPG}:g     \
+                                 | sed s:_wrtdopost_:${WRITE_DOPOST}:g       \
+                                 | sed s:_postgrbvs_:${POST_GRIBVERSION}:g   \
+                                 | sed s:_FCSTL_:${FCSTL}:g   \
+                                 | sed s:_NEMSI_:${NEMSI}:g   \
+                                 | sed s:_RSTRT_:${RSTRT}:g   \
+                                 | sed s:_gfsP_:${gfsP}:g     \
+                                 | sed s:_CONVC_:${CONVC}:g   \
+                                 | sed s:_MICRO_:${MICRO}:g   \
+                                 | sed s:_TURBL_:${TURBL}:g   \
+                                 | sed s:_PCPFLG_:${PCPFLG}:g \
+                                 | sed s:_WPREC_:${WPREC}:g   \
+                                 | sed s:_NCHILD_:${NCHILD}:g \
+                                 | sed s:_MODE_:${MODE}:g >  configure_file_01
 
 if [ $SCHEDULER = 'loadleveler' ]; then
 
-cat nmm_ll.IN           | sed s:_JBNME_:${JBNME}:g   \
-                        | sed s:_CLASS_:${CLASS}:g   \
-                        | sed s:_GROUP_:${GROUP}:g   \
-                        | sed s:_ACCNR_:${ACCNR}:g   \
-                        | sed s:_WLCLK_:${WLCLK}:g   \
-                        | sed s:_TPN_:${TPN}:g       \
-                        | sed s:_THRD_:${THRD}:g     \
-                        | sed s:_AFFNP_:${AFFN}:g    \
-                        | sed s:_NODE_:${NODE}:g     >  nmm_ll
+cat nmm_conf/nmm_ll.IN           | sed s:_JBNME_:${JBNME}:g   \
+                                 | sed s:_CLASS_:${CLASS}:g   \
+                                 | sed s:_GROUP_:${GROUP}:g   \
+                                 | sed s:_ACCNR_:${ACCNR}:g   \
+                                 | sed s:_WLCLK_:${WLCLK}:g   \
+                                 | sed s:_TPN_:${TPN}:g       \
+                                 | sed s:_THRD_:${THRD}:g     \
+                                 | sed s:_AFFNP_:${AFFN}:g    \
+                                 | sed s:_NODE_:${NODE}:g     >  nmm_ll
 
 elif [ $SCHEDULER = 'moab' ]; then
 
-cat nmm_msub.IN         | sed s:_JBNME_:${JBNME}:g   \
-                        | sed s:_WLCLK_:${WLCLK}:g   \
-                        | sed s:_TPN_:${TPN}:g       \
-                        | sed s:_THRD_:${THRD}:g     >  nmm_msub
+cat nmm_conf/nmm_msub.IN         | sed s:_JBNME_:${JBNME}:g   \
+                                 | sed s:_WLCLK_:${WLCLK}:g   \
+                                 | sed s:_TASKS_:${TASKS}:g   \
+                                 | sed s:_THRD_:${THRD}:g     >  nmm_msub
 
 elif [ $SCHEDULER = 'pbs' ]; then
 
-cat nmm_qsub.IN         | sed s:_JBNME_:${JBNME}:g   \
-                        | sed s:_ACCNR_:${ACCNR}:g   \
-                        | sed s:_WLCLK_:${WLCLK}:g   \
-                        | sed s:_TPN_:${TPN}:g       \
-                        | sed s:_THRD_:${THRD}:g     \
-                        | sed s:_RUND_:${RUNDIR}:g   >  nmm_qsub
+cat nmm_conf/nmm_qsub.IN         | sed s:_JBNME_:${JBNME}:g   \
+                                 | sed s:_ACCNR_:${ACCNR}:g   \
+                                 | sed s:_WLCLK_:${WLCLK}:g   \
+                                 | sed s:_TASKS_:${TASKS}:g   \
+                                 | sed s:_THRD_:${THRD}:g     \
+                                 | sed s:_RUND_:${RUNDIR}:g   >  nmm_qsub
+
+elif [ $SCHEDULER = 'lsf' ]; then
+
+cat nmm_conf/nmm_bsub.IN         | sed s:_JBNME_:${JBNME}:g   \
+                                 | sed s:_ACCNR_:${ACCNR}:g   \
+                                 | sed s:_WLCLK_:${WLCLK}:g   \
+                                 | sed s:_TPN_:${TPN}:g       \
+                                 | sed s:_TASKS_:${TASKS}:g   \
+                                 | sed s:_THRD_:${THRD}:g     \
+                                 | sed s:_TPNED_:${TPNED}:g   >  nmm_bsub
 
 fi
 
 if [ ${GBRG} = nests ]; then
-  cat ${RTPWD}/NMMB_nests/configure_file_02.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_02
-  cat ${RTPWD}/NMMB_nests/configure_file_03.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_03
-  cat ${RTPWD}/NMMB_nests/configure_file_04.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_04
+  cat nmm_conf/nmm_nests_conf_02.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_02
+  cat nmm_conf/nmm_nests_conf_03.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_03
+  cat nmm_conf/nmm_nests_conf_04.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_04
 fi
 
 if [ ${GBRG} = mnests ]; then
   rm -f configure_file_02 configure_file_03 configure_file_04
-  cat ${RTPWD}/NMMB_mvg_nests/configure_file_02.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_02
-  cat ${RTPWD}/NMMB_mvg_nests/configure_file_03.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_03
-  cat ${RTPWD}/NMMB_mvg_nests/configure_file_04.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_04
+  cp nmm_conf/nmm_mnests_conf_02 configure_file_02
+  cp nmm_conf/nmm_mnests_conf_03 configure_file_03
+  cp nmm_conf/nmm_mnests_conf_04 configure_file_04
 fi
 
 if [ ${MODE} = 2-way  ]; then
   rm -f configure_file_02 configure_file_03 configure_file_04
-  cat ${RTPWD}/NMMB_mvg_nests/configure_file_02_gens.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_02
-  cat ${RTPWD}/NMMB_mvg_nests/configure_file_03_gens.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_03
-  cat ${RTPWD}/NMMB_mvg_nests/configure_file_04_gens.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_04
+  cp nmm_conf/nmm_mnests_conf_gens_02 configure_file_02
+  cp nmm_conf/nmm_mnests_conf_gens_03 configure_file_03
+  cp nmm_conf/nmm_mnests_conf_gens_04 configure_file_04
 fi
 
 if [ ${GBRG} = fltr ]; then
   rm -f configure_file_02 configure_file_03 configure_file_04
-  cat ${RTPWD}/NMMB_reg_filt/configure_file_02.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_02
-  cat ${RTPWD}/NMMB_reg_filt/configure_file_03.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_03
+  cp nmm_conf/nmm_fltr_conf_02 configure_file_02
+  cp nmm_conf/nmm_fltr_conf_03 configure_file_03
 fi
 
 ####################################################################################################
@@ -112,6 +122,8 @@ elif [ $SCHEDULER = 'moab' ]; then
   job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
 elif [ $SCHEDULER = 'pbs' ]; then
   job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
+elif [ $SCHEDULER = 'lsf' ]; then
+  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep hpc | wc -l`;sleep 5
 fi
 done
 
@@ -128,6 +140,8 @@ elif [ $SCHEDULER = 'moab' ]; then
   job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`
 elif [ $SCHEDULER = 'pbs' ]; then
   job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`
+elif [ $SCHEDULER = 'lsf' ]; then
+  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | wc -l`
 fi
 
 if [ $SCHEDULER = 'loadleveler' ]; then
@@ -166,6 +180,18 @@ elif [ $SCHEDULER = 'pbs' ]; then
   elif [ $status = 'C' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
   else                          echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
   fi
+
+elif [ $SCHEDULER = 'lsf' ]; then
+
+  status=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep hpc | awk '{print $3}'` ; status=${status:--}
+  if [ $status != '-' ] ; then FnshHrs=`bpeek -J ${JBNME} | grep Finished | tail -1 | awk '{ print $9 }'` ; fi
+  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $9 }'` ; fi
+  FnshHrs=${FnshHrs:-0}
+  if   [ $status = 'PEND' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
+  elif [ $status = 'RUN'  ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
+  else                             echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
+  fi
+
 
 fi
 (( n=n+1 ))
@@ -225,7 +251,7 @@ for i in ${LIST_FILES}
 do
   printf %s " Moving " $i "....."
   if [ -f ${RUNDIR}/$i ] ; then
-    cp ${RUNDIR}/${i} /stmp/${USER}/REGRESSION_TEST/${CNTL_DIR}/${i}
+    cp ${RUNDIR}/${i} ${STMP}/${USER}/REGRESSION_TEST/${CNTL_DIR}/${i}
   else
     echo "Missing " ${RUNDIR}/$i " output file"
     echo;echo " Set ${TEST_NR} failed "

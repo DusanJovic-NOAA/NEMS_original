@@ -1,0 +1,28 @@
+#!/bin/bash
+
+#BSUB -oo out
+#BSUB -eo err
+#BSUB -J _JBNME_
+#BSUB -n _TASKS_
+#BSUB -x
+#BSUB -R span[ptile=_TPN_]
+#BSUB -W 00:_WLCLK_
+#BSUB -q "_ACCNR_"
+#BSUB -a poe
+
+ module load ibmpe
+ module load ics
+ export OMP_NUM_THREADS=_THRD_
+ export MP_MPILIB=mpich2
+ export MP_EUILIB=us
+ export MP_TASK_AFFINITY=core:_THRD_
+
+set -x
+
+echo "Model started:  " `date`
+
+mpirun.lsf ./NEMS.x
+
+echo "Model ended:    " `date`
+
+exit

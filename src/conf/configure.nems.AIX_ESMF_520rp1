@@ -80,6 +80,8 @@ FFLAGS_GFSF= $(OPTS_GFS) $(FFLAGS) -qfixed
 FFLAGS_GEN= $(OPTS_GEN) $(FFLAGS)
 FFLAGS_FIM= $(OPTS_FIM) $(FFLAGS)
 
+SUFFIX_FLAG= -qsuffix=cpp=F
+
 CPP       = /lib/cpp -P
 CPPFLAGS  = -DENABLE_SMP -DIBM
 

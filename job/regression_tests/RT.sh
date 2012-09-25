@@ -27,6 +27,12 @@ elif [ ${MACHINE_ID} = z ]; then
   export STMP=/scratch2/portfolios/NCEPDEV/stmp
   export PTMP=/scratch2/portfolios/NCEPDEV/ptmp
   export SCHEDULER=pbs
+elif [ ${MACHINE_ID} = e ]; then
+  export ACCNR=hpc_ibm
+  export DISKNM=/u/Ratko.Vasic
+  export STMP=/u/$USER/stmp ; mkdir -p $STMP
+  export PTMP=/u/$USER/ptmp ; mkdir -p $PTMP
+  export SCHEDULER=lsf
 else
   echo "Unknown machine ID, please edit detect_machine.sh file"
   exit
@@ -76,12 +82,8 @@ if [ $argn -eq 1 ]; then
    rm -rf ${STMP}/${USER}/REGRESSION_TEST
    echo "copy REGRESSION_TEST_baselines"
    mkdir -p ${STMP}/${USER}
-# For zeus machine.
-#   cp -r ${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines \
-#         ${STMP}/${USER}
-# For ccs machine.
-   cp -r ${DISKNM}/noscrub/wx23lu/REGRESSION_TEST_baselines \
-	${STMP}/${USER}
+   cp -r ${DISKNM}/noscrub/wx20rv/REGRESSION_TEST_baselines \
+	 ${STMP}/${USER}
    mv ${STMP}/${USER}/REGRESSION_TEST_baselines ${STMP}/${USER}/REGRESSION_TEST
   CP_nmm=false
   CP_gfs=false
@@ -287,24 +289,39 @@ clear;echo;echo
 ####################################################################################################
 
 if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
-  WTPGm=2
-  TPNm=32
-  TPNn=64
-  INPm=06
-  JNPm=05
-elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then 
-  WTPGm=3
-  TPNm=48
-  TPNn=128
-  INPm=05
-  JNPm=09
+
+  TASKS_dflt=    ; TPN_dflt=32 ; INPES_dflt=06 ; JNPES_dflt=05 ; WTPG_dflt=2
+  TASKS_thrd=    ; TPN_thrd=32 ; INPES_thrd=06 ; JNPES_thrd=05 ; WTPG_thrd=2
+  TASKS_nest=    ; TPN_nest=32 ; INPES_nest=02 ; JNPES_nest=02 ; WTPG_nest=1
+  TASKS_fltr=    ; TPN_fltr=64 ; INPES_fltr=02 ; JNPES_fltr=02 ; WTPG_fltr=1
+  TASKS_mvg1=    ; TPN_mvg1=32 ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
+  TASKS_mvg2=    ; TPN_mvg2=32 ; INPES_mvg2=04 ; JNPES_mvg2=23 ; WTPG_mvg2=1
+
+elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then
+
+  TASKS_dflt=48  ; TPN_dflt=   ; INPES_dflt=05 ; JNPES_dflt=09 ; WTPG_dflt=3
+  TASKS_thrd=48  ; TPN_thrd=   ; INPES_thrd=05 ; JNPES_thrd=09 ; WTPG_thrd=3
+  TASKS_nest=96  ; TPN_nest=   ; INPES_nest=02 ; JNPES_nest=02 ; WTPG_nest=1
+  TASKS_fltr=64  ; TPN_fltr=   ; INPES_fltr=02 ; JNPES_fltr=02 ; WTPG_fltr=1
+  TASKS_mvg1=96  ; TPN_mvg1=   ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
+  TASKS_mvg2=96  ; TPN_mvg2=   ; INPES_mvg2=04 ; JNPES_mvg2=23 ; WTPG_mvg2=1
+
+elif [ ${MACHINE_ID} = e ]; then
+
+  TASKS_dflt=32  ; TPN_dflt=32 ; INPES_dflt=05 ; JNPES_dflt=06 ; WTPG_dflt=2
+  TASKS_thrd=16  ; TPN_thrd=16 ; INPES_thrd=03 ; JNPES_thrd=05 ; WTPG_thrd=1
+  TASKS_nest=96  ; TPN_nest=16 ; INPES_nest=02 ; JNPES_nest=02 ; WTPG_nest=1
+  TASKS_fltr=64  ; TPN_fltr=16 ; INPES_fltr=02 ; JNPES_fltr=02 ; WTPG_fltr=1
+  TASKS_mvg1=96  ; TPN_mvg1=16 ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
+  TASKS_mvg2=96  ; TPN_mvg2=16 ; INPES_mvg2=04 ; JNPES_mvg2=23 ; WTPG_mvg2=1
+
 fi
 
 export_common ()
 {
 export THRD=1
-export WTPG=$WTPGm
-export WLCLK=05
+export WTPG=$WTPG_dflt
+export WLCLK=10
 export GEFS_ENSEMBLE=0
 export GEN_ENSEMBLE=0
 export WRITE_DOPOST=.false.
@@ -314,11 +331,12 @@ export POST_GRIBVERSION='"grib1"'
 export_nmm ()
 {
 export_common
-export GBRG=reg     ; export TPN=$TPNm   ; export INPES=$INPm ; export JNPES=$JNPm
-export AFFN=core    ; export NODE=1      ; export MODE=1-way
-export NEMSI=false  ; export RSTRT=false ; export gfsP=false  ; export FCSTL=48
-export PCPFLG=false ; export WPREC=false ; export CPPCP=#     ; export TS=#
-export NCHILD=0     ; export CONVC=bmj   ; export MICRO=fer   ; export TURBL=myj
+export INPES=$INPES_dflt ; export JNPES=$JNPES_dflt ; export WTPG=$WTPG_dflt
+export TASKS=$TASKS_dflt ; export TPN=$TPN_dflt
+export GBRG=reg     ; export NEMSI=false    ; export RSTRT=false ; export AFFN=core
+export NCHILD=0     ; export MODE=1-way     ; export NODE=1      ; export FCSTL=48
+export PCPFLG=false ; export WPREC=false    ; export CPPCP=#     ; export TS=#
+export gfsP=false   ; export CONVC=bmj      ; export MICRO=fer   ; export TURBL=myj
 }
 
 export_gfs ()
@@ -367,6 +385,9 @@ esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
 elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then 
 esmf_version 3_zeus                      >> ${PATHRT}/Compile.log 2>&1
   gmake nmm_gfs_gen GOCART_MODE=full     >> ${PATHRT}/Compile.log 2>&1
+elif [ ${MACHINE_ID} = e ]; then 
+esmf_version 3_eddy                      >> ${PATHRT}/Compile.log 2>&1
+  gmake nmm                              >> ${PATHRT}/Compile.log 2>&1
 fi
 date                                     >> ${PATHRT}/RegressionTests.log
 
@@ -403,7 +424,7 @@ nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_ni
 nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
 #---------------------
 export_nmm
-export GBRG=glob ; export WLCLK=04
+export GBRG=glob
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -411,7 +432,7 @@ export GBRG=glob ; export WLCLK=04
 
 if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
-elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then 
+elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z -o ${MACHINE_ID} = e ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
 fi
 export timingc=`cat ${RTPWD}/NMMB_glob/timing.txt`
@@ -526,8 +547,7 @@ nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s"
 #---------------------
 export_nmm
 export GBRG=glob   ; export FCSTL=24
-export INPES=$JNPm ; export JNPES=$INPm
-export WLCLK=04
+export INPES=$JNPES_dflt ; export JNPES=$INPES_dflt
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -557,6 +577,8 @@ nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
 #---------------------
 export_nmm
 export GBRG=glob ; export THRD=2
+export TASKS=$TASKS_thrd ; export TPN=$TPN_thrd
+export INPES=$INPES_thrd ; export JNPES=$JNPES_thrd ; export WTPG=$WTPG_thrd
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -616,7 +638,7 @@ nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s \
 fort.41  fort.42  fort.43  fort.44  fort.45  fort.46  fort.47"
 #---------------------
 export_nmm
-export GBRG=reg ; export WLCLK=06 ; export WPREC=true
+export GBRG=reg ; export WPREC=true
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -624,7 +646,7 @@ export GBRG=reg ; export WLCLK=06 ; export WPREC=true
 
 if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
-elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then 
+elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z -o ${MACHINE_ID} = e ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
 fi
 export timingc=`cat ${RTPWD}/NMMB_reg/timing.txt`
@@ -735,8 +757,7 @@ nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0012h_00m_00.00s"
 #---------------------
 export_nmm
 export GBRG=reg    ; export FCSTL=12
-export INPES=$JNPm ; export JNPES=$INPm
-export WLCLK=04
+export INPES=$JNPES_dflt ; export JNPES=$INPES_dflt
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -766,6 +787,8 @@ nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
 #---------------------
 export_nmm
 export GBRG=reg ; export THRD=2
+export TASKS=$TASKS_thrd ; export TPN=$TPN_thrd
+export INPES=$INPES_thrd ; export JNPES=$JNPES_thrd ; export WTPG=$WTPG_thrd
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -920,10 +943,10 @@ nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
 nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
 #---------------------
 export_nmm
-export GBRG=nests ; export TPN=$TPNn ; export FCSTL=24
-export AFFN=cpu   ; export NODE=2    ; export MODE=1-way
-export INPES=02   ; export JNPES=03  ; export WTPG=1
-export WLCLK=20   ; export NCHILD=02
+export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
+export AFFN=cpu   ; export NODE=3   ; export WLCLK=20
+export TASKS=$TASKS_nest ; export TPN=$TPN_nest
+export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -954,10 +977,11 @@ nmmb_hst_03_bin_0024h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
 nmmb_hst_04_bin_0024h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s"
 #---------------------
 export_nmm
-export GBRG=nests ; export TPN=$TPNn ; export FCSTL=24
-export AFFN=cpu   ; export NODE=2    ; export MODE=1-way
-export INPES=02   ; export JNPES=03  ; export WTPG=1
-export RSTRT=true ; export WLCLK=12  ; export NCHILD=02
+export RSTRT=true
+export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
+export AFFN=cpu   ; export NODE=3   ; export WLCLK=12
+export TASKS=$TASKS_nest ; export TPN=$TPN_nest
+export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -988,10 +1012,10 @@ nmmb_hst_02_bin_0003h_00m_00.00s nmmb_hst_02_nio_0003h_00m_00.00s \
 nmmb_hst_03_bin_0003h_00m_00.00s nmmb_hst_03_nio_0003h_00m_00.00s"
 #---------------------
 export_nmm
-export GBRG=fltr  ; export TPN=64   ; export FCSTL=03
-export INPES=02   ; export JNPES=02 ; export WTPG=1
-export NEMSI=true ; export WLCLK=06 ; export NCHILD=01
-export AFFN=cpu   ; MODE=1-way
+export GBRG=fltr  ; export FCSTL=03 ; export AFFN=cpu
+export NEMSI=true ; export NCHILD=01
+export TASKS=$TASKS_fltr ; export TPN=$TPN_fltr
+export INPES=$INPES_fltr ; export JNPES=$JNPES_fltr ; export WTPG=$WTPG_fltr
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1030,10 +1054,10 @@ nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s"
 #nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
 #---------------------
 export_nmm
-export GBRG=mnests ; export TPN=$TPNn ; export FCSTL=24
-export AFFN=cpu    ; export NODE=2    ; MODE=1-way
-export INPES=08    ; export JNPES=08  ; export WTPG=4
-export NEMSI=true  ; export WLCLK=10  ; export NCHILD=02
+export GBRG=mnests ; export FCSTL=24 ; export NCHILD=02
+export NEMSI=true  ; export WLCLK=12 ; export NODE=3
+export TASKS=$TASKS_mvg1 ; export TPN=$TPN_mvg1
+export INPES=$INPES_mvg1 ; export JNPES=$JNPES_mvg1 ; export WTPG=$WTPG_mvg1
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1050,7 +1074,9 @@ fi # endif test
 #
 ####################################################################################################
 
-if [ ${RT_FULL} = true ]; then
+#RV# Temporary, does not work on Eddy.
+#if [ ${RT_FULL} = true ]; then
+if [ ${RT_FULL} = true -a ${MACHINE_ID} != e ]; then
 
 export TEST_DESCR="Test NMMB-regional with moving nests and generational task assignments"
 
@@ -1073,10 +1099,11 @@ nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s"
 #nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
 #---------------------
 export_nmm
-export GBRG=mnests ; export TPN=$TPNn ; export FCSTL=24
-export AFFN=cpu    ; export NODE=2    ; export MODE=2-way
-export INPES=07    ; export JNPES=16  ; export WTPG=4
-export NEMSI=true  ; export WLCLK=20  ; export NCHILD=02
+export GBRG=mnests ; export FCSTL=24 ; export NCHILD=02
+export NEMSI=true  ; export WLCLK=20 ; export NODE=3
+export AFFN=cpu    ; export MODE=2-way
+export TASKS=$TASKS_mvg2 ; export TPN=$TPN_mvg2
+export INPES=$INPES_mvg2 ; export JNPES=$JNPES_mvg2 ; export WTPG=$WTPG_mvg2
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -1899,7 +1926,7 @@ nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s \
 BGDAWP.GrbF48 BGRD3D.GrbF48 BGRDSF.GrbF48"
 #---------------------
 export_nmm
-export GBRG=reg ; export WLCLK=10 ; export WPREC=true
+export GBRG=reg ; export WPREC=true
 export WRITE_DOPOST=.true.
 #---------------------
   ./rt_nmm.sh
@@ -2037,7 +2064,7 @@ nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_ni
 nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
 #---------------------
 export_nmm
-export GBRG=glob ; export WLCLK=04
+export GBRG=glob
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -2165,7 +2192,7 @@ nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
 nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s "
 #---------------------
 export_nmm
-export GBRG=glob ; export FCSTL=24 ; export WLCLK=02
+export GBRG=glob ; export FCSTL=24
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -2223,7 +2250,7 @@ export CNTL_DIR=NMMB_glob
 export LIST_FILES=" nmmb_hst_01_bin_0000h_00m_00.00s "
 #---------------------
 export_nmm
-export GBRG=glob ; export FCSTL=12 ; export WLCLK=02
+export GBRG=glob ; export FCSTL=12
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi

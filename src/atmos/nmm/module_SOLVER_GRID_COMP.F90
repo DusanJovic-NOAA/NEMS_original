@@ -2448,7 +2448,7 @@
       REAL (kind=KDBL) ,DIMENSION(:,:),ALLOCATABLE :: XLON,COSZEN,COSZDG,RANN
       REAL (kind=KDBL) ,DIMENSION(:),ALLOCATABLE   :: RANNUM
 !
-      REAL (kind=KDBL) ,DIMENSION(27)              :: FLUXR_V
+      REAL (kind=KDBL) ,DIMENSION(39)              :: FLUXR_V
       REAL (kind=KDBL) ,DIMENSION(:,:,:),ALLOCATABLE :: GR1
 !
       REAL (kind=KDBL) ,DIMENSION(1)               :: SFALB,TSFLW,SEMIS,SFCDLW,SFCDSW,SFCNSW
@@ -8673,7 +8673,7 @@
         LATR            = JTE-JTS+1  ! atm_namelist (restore it back)
         LATS_NODE_R     = JTE-JTS+1
         IPT_LATS_NODE_R = 1
-        NFXR            = 27
+        NFXR            = 39
         LSSAV           = .TRUE.   ! logical flag for store 3-d cloud field
         LDIAG3D         = .FALSE.  ! logical flag for store 3-d diagnostic fields
         LGGFS3D         = .FALSE.

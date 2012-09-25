@@ -10,6 +10,11 @@ elif [[ $1 = 3_zeus ]]; then
      cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
      cp atmos/gfs/phys/makefile_zeus atmos/gfs/phys/makefile
      echo "Use the ESMF 3.1.0rp2 library"
+elif [[ $1 = 3_eddy ]]; then
+     cp conf/configure.nems.Eddy.intel conf/configure.nems
+     cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
+     cp atmos/gfs/phys/makefile_zeus atmos/gfs/phys/makefile
+     echo "Use the ESMF 3.1.0rp2 library"
 elif [[ $1 = 4 ]]; then
      cp conf/configure.nems.AIX_ESMF_4 conf/configure.nems
      cp ESMFVersionDefine_ESMF_4.h ESMFVersionDefine.h

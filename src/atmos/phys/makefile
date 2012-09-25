@@ -27,9 +27,11 @@ MODULES_NMM_SMP  = module_BL_MYJPBL.o \
 MODULES_NMM_RRTM = grrad_nmmb.o              \
                    radiation_astronomy_nmmb.o
 
+MODULE_FGFS =                                \
+	           num_parthds.o
+
 MODULES_GFS =                                \
 	           machine.o                 \
-	           num_parthds.o             \
 	           physcons.o                \
 	           funcphys.o                \
 	           module_nst_parameters.o   \
@@ -101,13 +103,19 @@ MODULES_TRAC=      gocart_tracer_config.o
 
 MODULES_TRAC_stub= gocart_tracer_config_stub.o
 
-MODULES_ALL = $(MODULES_NMM) $(MODULES_GFS) ${MODULES_IDEA_atmos_phys_ccs} ${MODULES_IDEA_atmos_phys_zeus} $(MODULES_TRAC_stub) $(MODULES_GFSF) $(MODULES_NMM_SMP) $(MODULES_NMM_RRTM)
-MODULES_GOCART = $(MODULES_NMM) $(MODULES_GFS) ${MODULES_IDEA_atmos_phys_ccs} ${MODULES_IDEA_atmos_phys_zeus} $(MODULES_TRAC) $(MODULES_GFSF) $(MODULES_NMM_SMP) $(MODULES_NMM_RRTM)
+MODULES_ALL =	$(MODULES_NMM) $(MODULES_GFS) $(MODULES_IDEA_atmos_phys_ccs) ${MODULES_IDEA_atmos_phys_zeus} \
+		$(MODULES_TRAC_stub) $(MODULES_GFSF) $(MODULES_NMM_SMP) $(MODULES_NMM_RRTM) $(MODULE_FGFS)
+MODULES_GOCART =	$(MODULES_NMM) $(MODULES_GFS) $(MODULES_IDEA_atmos_phys_ccs) ${MODULES_IDEA_atmos_phys_zeus} \
+			$(MODULES_TRAC) $(MODULES_GFSF) $(MODULES_NMM_SMP) $(MODULES_NMM_RRTM) $(MODULE_FGFS)
 
 ifeq ($(GOCART_MODE),full)
-	DEPEND_FILES = ${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC:.o=.f} ${MODULES_NMM_SMP:.o=.F90} ${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_IDEA_atmos_phys_ccs:.o=.f} ${MODULES_IDEA_atmos_phys_zeus:.o=.f} 
+	DEPEND_FILES =	${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC:.o=.f} ${MODULES_NMM_SMP:.o=.F90} \
+			${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_IDEA_atmos_phys_ccs:.o=.f} \
+			${MODULES_IDEA_atmos_phys_zeus:.o=.f} ${MODULE_FGFS:.o=.F}
 else
-	DEPEND_FILES = ${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC_stub:.o=.f} ${MODULES_NMM_SMP:.o=.F90} ${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_IDEA_atmos_phys_ccs:.o=.f} ${MODULES_IDEA_atmos_phys_zeus:.o=.f}
+	DEPEND_FILES =	${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC_stub:.o=.f} ${MODULES_NMM_SMP:.o=.F90} \
+			${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_IDEA_atmos_phys_ccs:.o=.f} \
+			${MODULES_IDEA_atmos_phys_zeus:.o=.f} ${MODULE_FGFS:.o=.F}
 endif
 
 all default: depend
@@ -130,6 +138,9 @@ $(MODULES_NMM_SMP): %.o: %.f90
 
 $(MODULES_NMM_RRTM): %.o: %.f
 	$(FC) $(FREE) $(FFLAGS_NMM) $(UTILINCS) $(R8) -c $*.f
+
+$(MODULE_FGFS): %.o: %.F
+	$(FC) $(FFLAGS_GFS) $(UTILINCS) $(R8) $(SUFFIX_FLAG) -c $*.F
 
 $(MODULES_GFS): %.o: %.f
 	$(FC) $(FFLAGS_GFS) $(UTILINCS) $(R8) -c $*.f
