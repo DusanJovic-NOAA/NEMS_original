@@ -378,10 +378,7 @@ rm -f ../exe/NEMS.x
 gmake clean                              >  ${PATHRT}/Compile.log 2>&1
 if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
 esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
-# Just modify this for now. WY.
-#------------------------------
-  gmake nmm                              >> ${PATHRT}/Compile.log 2>&1
-#  gmake nmm_gfs_gen GOCART_MODE=full     >> ${PATHRT}/Compile.log 2>&1
+  gmake nmm_gfs_gen GOCART_MODE=full     >> ${PATHRT}/Compile.log 2>&1
 elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then 
 esmf_version 3_zeus                      >> ${PATHRT}/Compile.log 2>&1
   gmake nmm_gfs_gen GOCART_MODE=full     >> ${PATHRT}/Compile.log 2>&1
@@ -1111,17 +1108,6 @@ export INPES=$INPES_mvg2 ; export JNPES=$JNPES_mvg2 ; export WTPG=$WTPG_mvg2
 
 fi # endif test
 
-# Just modify this for now. WY.
-#------------------------------
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
-cd ${PATHTR}/src
-rm -f ../exe/NEMS.x
-gmake clean                              >  ${PATHRT}/Compile.log 2>&1
-esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
-  gmake gfs                              >> ${PATHRT}/Compile.log 2>&1
-cd $PATHRT
-fi
-
 ####################################################################################################
 #
 # TEST   - GFS 
@@ -1227,10 +1213,14 @@ export LIST_FILES=" \
 #---------------------
 export_gfs
 export TASKS=48 ; export PE1=46
+# Need more wall time when running on the zeus machine.  Weiyu.
+#--------------------------------------------------------------
+export WLCLK=30
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
+export WLCLK=10
 
 fi # endif test
 
@@ -1287,10 +1277,14 @@ export LIST_FILES=" \
 export_gfs
 export NSOUT=4 ; export QUILT=.false.
 export PE1=32  ; export WTPG=1
+# Need more wall time when running on the zeus machine.  Weiyu.
+#--------------------------------------------------------------
+export WLCLK=30
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
+export WLCLK=10
 
 fi # endif test
 
@@ -1300,6 +1294,10 @@ fi # endif test
 #        - 1 task / 1 thread
 #
 ####################################################################################################
+
+# On the zeus machine, the memory is not enough.  Weiyu.
+#-------------------------------------------------------
+if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
 
 if [ ${RT_FULL} = true ]; then
 
@@ -1355,6 +1353,8 @@ export QUILT=.false.
 
 fi # endif test
 
+fi
+
 ####################################################################################################
 #
 # TEST   - GFS with multiple threads, no quilting, and frequent output
@@ -1409,10 +1409,15 @@ export LIST_FILES=" \
 export_gfs
 export TASKS=48 ; export PE1=46 ; export WTPG=1
 export NSOUT=1  ; export QUILT=.false.
+# Need more wall time when running on the zeus machine.  Weiyu.
+#--------------------------------------------------------------
+export WLCLK=30
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
+
+export WLCLK=10
 
 fi # endif test
 
@@ -1482,6 +1487,10 @@ fi # endif test
 #
 ####################################################################################################
 
+# On the zeus machine, the memory is not enough.  Weiyu.
+#-------------------------------------------------------
+if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
+
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="GFS,1 proc, no quilt, digital filter on reduced grid"
@@ -1505,12 +1514,16 @@ export FDFI=3  ; export WLCLK=20 ; export QUILT=.false.
 
 fi # endif test
 
+fi
+
 ####################################################################################################
 #
 # TEST   - GFS
 #        - OPAC aerosols
 #
 ####################################################################################################
+
+if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
 
 if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
@@ -1533,6 +1546,8 @@ export IAER=11 ; export NDAYS=1
 #---------------------
 
 fi # endif test
+
+fi
 
 ####################################################################################################
 #
@@ -1575,6 +1590,8 @@ fi
 #        - 12 compute tasks / 2 thread ,2 WrtGrp x 2 WrtPePerGrp
 #
 ####################################################################################################
+
+if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
 
 if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
@@ -1633,6 +1650,8 @@ export IDVC=2   ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRA
 
 fi # endif test
 
+fi
+
 ####################################################################################################
 #
 # TEST   - GFS hyb 2 loop with digital filter, with nst
@@ -1676,6 +1695,8 @@ fi
 #
 ####################################################################################################
 
+if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
+
 if [ ${ST_test} = true -o ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 1loop digital filter on reduced grid"
@@ -1699,6 +1720,8 @@ export IDVC=2 ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALL
 #---------------------
 
 fi # endif test
+
+fi
 
 ####################################################################################################
 #
@@ -1739,6 +1762,7 @@ export TASKS=64 ; export WLCLK=20
 
 fi # endif test
 
+
 ####################################################################################################
 #
 # TEST   - GEN, 16 PEs, 1 node.
@@ -1748,8 +1772,8 @@ fi # endif test
 
 if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
 
-#modify like this for now.  WY.
-#------------------------------
+#skip GEN for IBM ccs.
+#---------------------
 if [ ${MACHINE_ID} = z ]; then
 
 if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
@@ -1793,7 +1817,6 @@ export TASKS=64 ; export WLCLK=02
 #---------------------
 
 fi # endif test
-
 fi
 
 #########################################################################
@@ -1886,10 +1909,7 @@ echo "Compilation with POST"             >> ${PATHRT}/RegressionTests.log
 rm -f ../exe/NEMS.x
 gmake clean                              >  ${PATHRT}/Compile.log 2>&1
 esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
-# Modify like this for now.  WY.
-#-------------------------------
-gmake nmm_gfs_gen_post                   >> ${PATHRT}/Compile.log 2>&1
-#gmake nmm_gfs_gen_post GOCART_MODE=full  >> ${PATHRT}/Compile.log 2>&1
+gmake nmm_gfs_gen_post GOCART_MODE=full  >> ${PATHRT}/Compile.log 2>&1
 date                                     >> ${PATHRT}/RegressionTests.log
 
 if [ -f ../exe/NEMS.x ] ; then
@@ -1977,11 +1997,6 @@ fi # endif test
 #
 #################################################################################################
 
-# Modify like this for now.  WY.
-#-------------------------------
-
-if [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then 
-
 if [ ${RT_FULL} = true -o ${CB_arg} = post -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="GFS_GOCART with POST"
@@ -2008,8 +2023,6 @@ export WLCLK=10
 #---------------------
 
 fi # endif test
-
-fi
 
 #########################################################################
 # Clean and compile both NMMB & GFS cores, using ESMF 5.2.0rp1 library.
@@ -2139,6 +2152,7 @@ export TASKS=64 ; export WLCLK=20
 
 fi # endif test
 
+fi
 
 #########################################################################
 # Clean and compile only NMMB core
@@ -2154,10 +2168,17 @@ cd ${PATHTR}/src
 date                                     >> ${PATHRT}/RegressionTests.log
 echo "Compilation only NMM"              >> ${PATHRT}/RegressionTests.log
 rm -f ../exe/NEMS.x
-gmake clean                              >> ${PATHRT}/Compile.log 2>&1
+gmake clean                              >  ${PATHRT}/Compile.log 2>&1
+if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
 esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
 gmake nmm                                >> ${PATHRT}/Compile.log 2>&1
-date                                     >> ${PATHRT}/RegressionTests.log
+elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then
+esmf_version 3_zeus                      >> ${PATHRT}/Compile.log 2>&1
+gmake nmm                                >> ${PATHRT}/Compile.log 2>&1
+elif [ ${MACHINE_ID} = e ]; then
+esmf_version 3_eddy                      >> ${PATHRT}/Compile.log 2>&1
+  gmake nmm                              >> ${PATHRT}/Compile.log 2>&1
+fi
 
 if [ -f ../exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
@@ -2204,6 +2225,8 @@ fi # endif test
 #########################################################################
 # Clean and compile only NMMB core with TRAPS turned on
 #########################################################################
+
+if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
 
 if [ ${RT_FULL} = true ]; then
 
@@ -2258,6 +2281,7 @@ export GBRG=glob ; export FCSTL=12
 
 fi # endif test
 
+fi
 
 #########################################################################
 # Clean and compile only GFS core
@@ -2273,10 +2297,15 @@ cd ${PATHTR}/src
 date                                     >> ${PATHRT}/RegressionTests.log
 echo "Compilation only GFS"              >> ${PATHRT}/RegressionTests.log
 rm -f ../exe/NEMS.x
-gmake clean                              >> ${PATHRT}/Compile.log 2>&1
+gmake clean                              >  ${PATHRT}/Compile.log 2>&1
+if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
 esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
 gmake gfs                                >> ${PATHRT}/Compile.log 2>&1
-date                                     >> ${PATHRT}/RegressionTests.log
+elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then
+esmf_version 3_zeus                      >> ${PATHRT}/Compile.log 2>&1
+gmake gfs                                >> ${PATHRT}/Compile.log 2>&1
+fi
+date
 
 if [ -f ../exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
@@ -2318,8 +2347,6 @@ export_gfs
 #---------------------
 
 fi # endif test
-
-fi
 
 ####################################################################################################
 # Finalize

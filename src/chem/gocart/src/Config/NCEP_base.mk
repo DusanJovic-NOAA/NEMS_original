@@ -45,8 +45,8 @@ else
               libO3_GridComp.a libOC_GridComp.a libBC_GridComp.a \
               libSS_GridComp.a libSU_GridComp.a libRn_GridComp.a \
               libChem_Base.a libChem_Shared.a libGMAO_gfio_r8.a \
-              libGMAO_mpeu.a libGMAO_pilgrim.a libMAPL_Base.a \
-              libMAPL_cfio_r4.a libGMAO_eu.a
+              libGMAO_pilgrim.a libMAPL_Base.a \
+              libMAPL_cfio_r4.a libGMAO_mpeu.a
 endif
 
 INC_GOCART = $(foreach dir,$(GOCART_INCS),$(I)$(incdir)/$(dir) )

@@ -3,7 +3,7 @@ include ../../../conf/configure.nems
 MAKEFILE = makefile
 
 UTILINCS = -I../../share -I../libutil -I../../phys
-ARCH=$(shell unmae -s)
+ARCH=$(shell uname -s)
 GOCARTINCS = -I../../../chem/gocart/${ARCH}/include/Chem_Base \
              -I../../../chem/gocart/${ARCH}/include/GMAO_mpeu \
              -I../../../chem/gocart/${ARCH}/include/GEOSchem_GridComp
