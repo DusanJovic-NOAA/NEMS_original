@@ -56,6 +56,8 @@ export MEMBER_NAMES="p01 p02 p03 c00"
 export nsout=${nsout:-0}
 export lsm=${lsm:-1}
 
+ export SCHEDULER=_SCHEDULER_
+echo 'SCHEDULER=' $SCHEDULER
  export FCSTSCRIPT=_SRCDIR_/job/gen_fcst.sh.sms_nems
 echo 'FCSTSCRIPT=' $FCSTSCRIPT
  export FCSTEXEC=_SRCDIR_/exe/NEMS.x

@@ -1,17 +1,52 @@
-#revision history:
-#   Aug,2011  J. Wang  compile GOCART only when GOCART_MODE is full
+SHELL = /bin/sh
+
+# check if configure.nems file exists
+
+exist := $(wildcard ./conf/configure.nems)
+ifneq ($(strip $(exist)),)
+  include ./conf/configure.nems
+else
+  $(error Error: !!!!!! Configure file is missing. Please create ./conf/configure.nems  by running ./esmf_version !!!!!!)
+endif
 
 TARGET = ../exe/NEMS.x
 
-include ./conf/configure.nems
-
-INCS = -Iatmos -Iocean -Ichem -Iatmos/share -IENS_Cpl -Iatmos/nmm -Iatmos/fim -Iatmos/gfs -Iatmos/phys -Iatmos/gen -Iocean/hycom -Iocean/genocn
-# INCS = -Iatmos -Iocean/hycom -Iocean/genocn -Iocean -Ichem -Iatmos/share -IENS_Cpl -Iatmos/nmm -Iatmos/fim -Iatmos/gfs -Iatmos/phys -Iatmos/gen 
+INCS = -Iatmos \
+       -Iocean \
+       -Ichem \
+       -IENS_Cpl \
+       -Iatmos/share \
+       -Iatmos/nmm \
+       -Iatmos/fim \
+       -Iatmos/gfs \
+       -Iatmos/phys \
+       -Iatmos/gen \
+       -Iocean/hycom \
+       -Iocean/genocn
 
 MAIN = MAIN_NEMS.o
 
-OBJS = module_EARTH_INTERNAL_STATE.o module_EARTH_GRID_COMP.o \
-       module_NEMS_INTERNAL_STATE.o module_NEMS_GRID_COMP.o
+OBJS = module_EARTH_INTERNAL_STATE.o \
+       module_EARTH_GRID_COMP.o \
+       module_NEMS_INTERNAL_STATE.o \
+       module_NEMS_GRID_COMP.o
+
+LIBS = atmos/libatmos.a                 \
+       atmos/nmm/libnmm.a               \
+       atmos/gfs/libgfs.a               \
+       atmos/gen/libgen.a               \
+       atmos/fim/libfimtop.a            \
+       atmos/gfs/libutil/gfs_libutil.a  \
+       atmos/gfs/io/gfs_io.a            \
+       atmos/gfs/phys/gfs_physics.a     \
+       atmos/phys/libphys.a             \
+       atmos/gfs/dyn/gfs_dynamics.a     \
+       atmos/share/libshare.a           \
+       atmos/post/libpost.a             \
+       ocean/libocean.a                 \
+       ocean/genocn/libgenocn.a         \
+       ocean/hycom/libhycom.a           \
+       ENS_Cpl/ENS_Cpl.a
 
 LIBS_NMM = atmos/libatmos.a             \
            atmos/nmm/libnmm.a           \
@@ -22,7 +57,7 @@ LIBS_NMM = atmos/libatmos.a             \
            atmos/share/libshare.a       \
            atmos/post/libpost.a         \
            ocean/libocean.a             \
-           ocean/genocn/libgenocn.a      \
+           ocean/genocn/libgenocn.a     \
            ocean/hycom/libhycom.a       \
            ENS_Cpl/ENS_Cpl.a
 
@@ -35,7 +70,7 @@ LIBS_GEN = atmos/libatmos.a             \
            atmos/share/libshare.a       \
            atmos/post/libpost.a         \
            ocean/libocean.a             \
-           ocean/genocn/libgenocn.a      \
+           ocean/genocn/libgenocn.a     \
            ocean/hycom/libhycom.a       \
            ENS_Cpl/ENS_Cpl.a
 
@@ -46,7 +81,7 @@ LIBS_HYCOM_ONLY = atmos/share/libshare.a   \
        atmos/gen/libgen.a                  \
        atmos/libatmos.a                    \
        atmos/post/libpost.a                \
-       ocean/genocn/libgenocn.a             \
+       ocean/genocn/libgenocn.a            \
        ocean/hycom/libhycom.a              \
        ocean/libocean.a                    \
        ENS_Cpl/ENS_Cpl.a
@@ -92,6 +127,14 @@ GOCART_MODE=stub
 ESMADIR=chem/gocart
 include $(ESMADIR)/src/Config/NCEP_base.mk
 
+ifeq ($(GOCART_MODE),stub)
+	LIBGOCART=
+else
+	LIBGOCART=$(LIB_GOCART)
+endif
+export GOCART_MODE
+
+
 #
 # log info
 #
@@ -111,48 +154,26 @@ ifdef CMP_JD
   CPPFLAGS += -D'CMP_JD=$(CMP_JD)'
 endif
 
-#for gocart:
-ifeq ($(GOCART_MODE),stub)
-	LIBGOCART=
-else
-	LIBGOCART=$(LIB_GOCART)
-endif
-export GOCART_MODE
-
 ################################################################################
 #
 # Ask user which target he/she wants to build
 #
 ################################################################################
 all:
-	@echo "gmake nmm_gfs --- for both NMM and GFS core - without the GOCART"
-	@echo " or"
-	@echo "gmake gen --- for GEN core only"
-	@echo " or"
-	@echo "gmake nmm_gfs_gen_post GOCART_MODE=full --- for GEN, NMM and GFS cores - with the GOCART and post"
-	@echo " or"
-	@echo "gmake nmm_gfs GOCART_MODE=full --- for both NMM and GFS core - with the GOCART"
-	@echo " or"
-	@echo "gmake nmm --- for NMM core only"
-	@echo " or"
-	@echo "gmake nmm_post --- for NMM core only - with post"
-	@echo " or"
-	@echo "gmake gfs --- for GFS core only - without the GOCART"
-	@echo " or"
-	@echo "gmake gfs_post --- for GFS core only - with post without the GOCART"
-	@echo " or"
-	@echo "gmake gfs GOCART_MODE=full --- for GFS core only - with the GOCART"
-	@echo " or"
-	@echo "gmake fim --- for FIM core only"
-	@echo " or"
-	@echo "gmake hycom --- for HYCOM core only"
-	@echo " or"
-	@echo "gmake hycom_gfs --- for both HYCOM and GFS core"
-#	@echo " or"
-#	@echo "gmake fim_gfs --- for both FIM and GFS core only - without the GOCART"
-#	@echo " or"
-#	@echo "gmake fim_gfs GOCART_MODE=full --- for both FIM and GFS core only - with the GOCART"
-
+	@echo " gmake nmm_gfs ----------------------------- NMM and GFS - without the GOCART"
+	@echo " gmake gen --------------------------------- GEN "
+	@echo " gmake nmm_gfs_gen_post GOCART_MODE=full --- GEN, NMM and GFS - with the GOCART and post"
+	@echo " gmake nmm_gfs GOCART_MODE=full ------------ NMM and GFS - with the GOCART"
+	@echo " gmake nmm --------------------------------- NMM "
+	@echo " gmake nmm_post ---------------------------- NMM - with post"
+	@echo " gmake gfs --------------------------------- GFS - without the GOCART"
+	@echo " gmake gfs_post ---------------------------- GFS - with post without the GOCART"
+	@echo " gmake gfs GOCART_MODE=full ---------------- GFS - with the GOCART"
+	@echo " gmake fim --------------------------------- FIM "
+	@echo " gmake hycom ------------------------------- HYCOM "
+	@echo " gmake hycom_gfs --------------------------- HYCOM and GFS "
+#	@echo " gmake fim_gfs ----------------------------- FIM and GFS - without the GOCART"
+#	@echo " gmake fim_gfs GOCART_MODE=full ------------ FIM and GFS - with the GOCART"
 
 ################################################################################
 #
@@ -209,7 +230,7 @@ nmm_post_libs:
 ################################################################################
 
 gfs: gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus) $(LIBS_src_ccs) $(EXTLIBS) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART)
 	@echo "nems.x is created for GFS core."
 
 gfs_libs:
@@ -240,7 +261,7 @@ endif
 ################################################################################
 
 gfs_post: gfs_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus) $(LIBS_src_ccs) $(EXTLIBS_POST) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS_POST) $(LIBGOCART)
 	@echo "nems.x is created for GFS core."
 
 gfs_post_libs:
@@ -296,7 +317,7 @@ gen_libs:
 ################################################################################
 
 nmm_gfs_gen: nmm_gfs_gen_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus) $(LIBS_src_ccs) $(EXTLIBS) $(LIBGOCART) ${FFLAGS_nmm_gfs_gen_zeus}
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) atmos/gfs/phys/gfs_physics.a $(EXTLIBS)
 	@echo "nems.x is created for GEN, NMM and GFS core."
 
 nmm_gfs_gen_libs:
@@ -327,7 +348,7 @@ endif
 ################################################################################
 
 nmm_gfs_gen_post: nmm_gfs_gen_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus) $(LIBS_src_ccs) $(EXTLIBS_POST) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS_POST) $(LIBGOCART)
 	@echo "nems.x is created for GEN, NMM and GFS core."
 
 nmm_gfs_gen_post_libs:
@@ -358,7 +379,7 @@ endif
 ################################################################################
 
 nmm_gfs: nmm_gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus) $(LIBS_src_ccs) $(EXTLIBS) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART)
 	@echo "nems.x is created for NMM and GFS core."
 
 nmm_gfs_libs:
@@ -391,7 +412,7 @@ endif
 # TODO:  Change to re-use NEMS standard $(EXTLIBS) instead of FIM versions 
 # TODO:  currently in $(LIBS_FIM) .  
 fim: fim_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_FIM) $(ESMF_LIBS)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_FIM) $(ESMF_LIB)
 	@echo "nems.x is created for FIM core."
 
 fim_libs:
@@ -415,7 +436,7 @@ fim_libs:
 ################################################################################
 
 fim_gfs: fim_gfs_libs $(OBJS) $(MAIN)
-#	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus) $(LIBS_src_ccs) $(EXTLIBS)
+#	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS)
 #	@echo "nems.x is created for FIM and GFS core."
 	@echo "ERROR:  Cannot build FIM with other cores yet.  nems.x is NOT created for FIM and GFS core."
 	@exit -1
@@ -463,7 +484,7 @@ hycom_libs:
 ################################################################################
 
 hycom_gfs: hycom_gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_src_zeus) $(LIBS_src_ccs) $(EXTLIBS) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART)
 	@echo "nems.x is created for HYCOM and GFS core."
 
 hycom_gfs_libs:

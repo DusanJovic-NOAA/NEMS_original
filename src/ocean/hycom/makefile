@@ -28,9 +28,6 @@ $(MODULES_STUB): %.o: %.f90
 stub: $(MODULES_STUB)
 	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_STUB)
 
-$(MODULES_STUB): %.o: %.f90
-	$(FC) $(FFLAGS) $(UTILINCS) -c $*.f90
-
 clean:
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst depend
 

@@ -1,87 +1,57 @@
-SHELL       = /bin/sh -l
+SHELL        = /bin/sh -l
 
-LIBS_src_zeus = atmos/libatmos.a                 \
-       atmos/nmm/libnmm.a               \
-       atmos/gfs/libgfs.a               \
-       atmos/gen/libgen.a               \
-       atmos/fim/libfimtop.a            \
-       atmos/gfs/libutil/gfs_libutil.a  \
-       atmos/gfs/io/gfs_io.a            \
-       atmos/gfs/phys/gfs_physics.a     \
-       atmos/phys/libphys.a             \
-       atmos/gfs/dyn/gfs_dynamics.a     \
-       atmos/share/libshare.a           \
-       atmos/post/libpost.a             \
-       ocean/libocean.a                 \
-       ocean/genocn/libgenocn.a          \
-       ocean/hycom/libhycom.a           \
-       ENS_Cpl/ENS_Cpl.a                \
-       /apps/netcdf/3.6.3/intel/lib/libnetcdf.a
+include /apps/esmf/3.1.0rp5/lib/libO/Linux.intel.64.mpi.default/esmf.mk
+ESMF_INC     = $(ESMF_F90COMPILEPATHS)
+ESMF_LIB     = $(ESMF_F90LINKPATHS) $(ESMF_F90ESMFLINKLIBS)
 
-LIBS_src_ccs =
+NETCDF_LIB   = /apps/netcdf/3.6.3/intel/lib/libnetcdf.a
 
-FFLAGS_nmm_gfs_gen_zeus =  atmos/gfs/phys/gfs_physics.a /apps/netcdf/3.6.3/intel/lib/libnetcdf.a -lmpi -L/home/Ratko.Vasic/lib_tmp/esmf/lib/libg/Linux.intel.64.mpi.default -lesmf
+NEMSIO_INC   = -I/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/lib/nemsio/incmod
+NEMSIO_LIB   = -L/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/lib/nemsio -lnemsio
 
-MODULES_IDEA_atmos_phys_zeus = co2hc.o          \
-	                   idea_solar_heating.o \
-	                   idea_tracer.o        \
-	                   h2oc.o               \
-	                   h2ohdc.o             \
-	                   efield.o             \
-	                   ideaca.o             \
-	                   idea_co2.o           \
-	                   idea_h2o.o           \
-	                   idea_ion.o           \
-	                   idea_o2_o3.o         \
-	                   idea_dissipation.o   \
-	                   idea_phys.o
+W3_LIB       = -L/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/w3 -lw3-2.0_4
+BACIO_LIB    = -L/home/Ratko.Vasic/lib_tmp -lbacio_4
+SP_LIB       = -L/home/Ratko.Vasic/lib_tmp -lsp_4
+SYS_LIB      =
+ 
+EXTLIBS      = $(NEMSIO_LIB) \
+               $(W3_LIB) \
+               $(BACIO_LIB) \
+               $(SP_LIB) \
+               $(ESMF_LIB) \
+               $(NETCDF_LIB) \
+               $(SYS_LIB)
 
-MODULES_IDEA_atmos_phys_ccs =
+FC           = ifort -lmpi -openmp -convert big_endian -assume byterecl -mkl
+F77          = ifort -lmpi -openmp -convert big_endian -assume byterecl -mkl
+FREE         = -free
+FIXED        = -fixed
+R8           = -r8
 
-include /home/Ratko.Vasic/lib_tmp/esmf/lib/libg/Linux.intel.64.mpi.default/esmf.mk
-ESMF_INC    = $(ESMF_F90COMPILEPATHS)
-ESMF_LIBS   = $(ESMF_F90LINKPATHS) $(ESMF_F90ESMFLINKLIBS)
+FINCS        = $(ESMF_INC) $(NEMSIO_INC)
+TRAPS        =
 
-#             -L/home/Ratko.Vasic/lib_tmp/nemsio -lnemsio \
-#             -L/home/Ratko.Vasic/lib_tmp -lw3-2.0_4 \
-#             -L/home/Ratko.Vasic/lib_tmp -lw3ext_4 \
-#             -L/home/Ratko.Vasic/lib_tmp -lbacio_4 -lsp_4
-EXTLIBS     = $(ESMF_LIBS) \
-	     -L /scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/lib/nemsio -lnemsio \
-             -L/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/w3 -lw3-2.0_4 \
-             -L/home/Ratko.Vasic/lib_tmp -lbacio_4 -lsp_4
-NEMSIO_INC  = -I/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/lib/nemsio/incmod
+FFLAGS       = $(TRAPS) $(FINCS) -fp-model strict
 
-FC          = ifort -lmpi -openmp -convert big_endian -assume byterecl -mkl
-F77         = ifort -lmpi -openmp -convert big_endian -assume byterecl -mkl
-FREE        = -free
-FIXED       = -fixed
-R8          = -r8
+OPTS_NMM     = -O3
+OPTS_GFS     = -O3
+OPTS_GEN     = -O3
+OPTS_FIM     = -O3
 
-FINCS       = $(ESMF_INC) $(NEMSIO_INC)
-TRAPS       =
+FFLAGM_DEBUG = 
 
-FFLAGS      = $(TRAPS) $(FINCS) -fp-model strict
+FFLAGS_NMM   = $(OPTS_NMM) $(FFLAGS)
+FFLAGS_GFS   = $(OPTS_GFS) $(FFLAGS) $(FREE)
+FFLAGS_GFSF  = $(OPTS_GFS) $(FFLAGS) $(FIXED)
+FFLAGS_GEN   = $(OPTS_GEN) $(FFLAGS)
+FFLAGS_FIM   = $(OPTS_FIM) $(FFLAGS)
 
-OPTS_NMM    = -O3
-OPTS_GFS    = -O3
-OPTS_GEN    = -O3
-OPTS_FIM    = -O3
+CPP          = /lib/cpp -P -traditional
+CPPFLAGS     =
 
-FFLAGM_DEBUG    = 
+AR           = ar
+ARFLAGS      = -r
 
-FFLAGS_NMM  = $(OPTS_NMM) $(FFLAGS)
-FFLAGS_GFS  = $(OPTS_GFS) $(FFLAGS) $(FREE)
-FFLAGS_GFSF = $(OPTS_GFS) $(FFLAGS) $(FIXED)
-FFLAGS_GEN  = $(OPTS_GEN) $(FFLAGS)
-FFLAGS_FIM  = $(OPTS_FIM) $(FFLAGS)
+RM           = rm
 
-CPP         = /lib/cpp -P -traditional
-CPPFLAGS    =
-
-AR          = ar
-ARFLAGS     = -r
-
-RM          = rm
-
-MAKEDEPF90  = makedepf90
+MAKEDEPF90   = makedepf90

@@ -99,23 +99,36 @@ MODULES_GFSF=                                \
 	           get_prs.o                 \
 	           gsmddrive.o
 
+MODULES_IDEA = idea_composition.o   \
+               co2hc.o              \
+               idea_solar_heating.o \
+               idea_tracer.o        \
+               h2oc.o               \
+               h2ohdc.o             \
+               efield.o             \
+               ideaca.o             \
+               idea_co2.o           \
+               idea_h2o.o           \
+               idea_ion.o           \
+               idea_o2_o3.o         \
+               idea_dissipation.o   \
+               idea_phys.o
+
 MODULES_TRAC=      gocart_tracer_config.o
 
 MODULES_TRAC_stub= gocart_tracer_config_stub.o
 
-MODULES_ALL =	$(MODULES_NMM) $(MODULES_GFS) $(MODULES_IDEA_atmos_phys_ccs) ${MODULES_IDEA_atmos_phys_zeus} \
+MODULES_ALL =	$(MODULES_NMM) $(MODULES_GFS) $(MODULES_IDEA) \
 		$(MODULES_TRAC_stub) $(MODULES_GFSF) $(MODULES_NMM_SMP) $(MODULES_NMM_RRTM) $(MODULE_FGFS)
-MODULES_GOCART =	$(MODULES_NMM) $(MODULES_GFS) $(MODULES_IDEA_atmos_phys_ccs) ${MODULES_IDEA_atmos_phys_zeus} \
+MODULES_GOCART =	$(MODULES_NMM) $(MODULES_GFS) $(MODULES_IDEA) \
 			$(MODULES_TRAC) $(MODULES_GFSF) $(MODULES_NMM_SMP) $(MODULES_NMM_RRTM) $(MODULE_FGFS)
 
 ifeq ($(GOCART_MODE),full)
 	DEPEND_FILES =	${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC:.o=.f} ${MODULES_NMM_SMP:.o=.F90} \
-			${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_IDEA_atmos_phys_ccs:.o=.f} \
-			${MODULES_IDEA_atmos_phys_zeus:.o=.f} ${MODULE_FGFS:.o=.F}
+			${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_IDEA:.o=.f} ${MODULE_FGFS:.o=.F}
 else
 	DEPEND_FILES =	${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC_stub:.o=.f} ${MODULES_NMM_SMP:.o=.F90} \
-			${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_IDEA_atmos_phys_ccs:.o=.f} \
-			${MODULES_IDEA_atmos_phys_zeus:.o=.f} ${MODULE_FGFS:.o=.F}
+			${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_IDEA:.o=.f} ${MODULE_FGFS:.o=.F}
 endif
 
 all default: depend
@@ -145,10 +158,7 @@ $(MODULE_FGFS): %.o: %.F
 $(MODULES_GFS): %.o: %.f
 	$(FC) $(FFLAGS_GFS) $(UTILINCS) $(R8) -c $*.f
 
-$(MODULES_IDEA_atmos_phys_ccs): %.o: %.f
-	$(FC) $(FFLAGS_GFSF) $(UTILINCS) $(R8) -c $*.f
-
-$(MODULES_IDEA_atmos_phys_zeus): %.o: %.f
+$(MODULES_IDEA): %.o: %.f
 	$(FC) $(FFLAGS_GFSF) $(UTILINCS) $(R8) -c $*.f
 
 $(MODULES_TRAC): %.o: %.f

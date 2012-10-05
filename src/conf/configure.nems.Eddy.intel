@@ -1,62 +1,26 @@
 SHELL       = /bin/sh
 
-#############################################################################################
-# REMOVE THIS ASAP
-#############################################################################################
-
-LIBS_src_zeus = atmos/libatmos.a        \
-       atmos/nmm/libnmm.a               \
-       atmos/gfs/libgfs.a               \
-       atmos/gen/libgen.a               \
-       atmos/fim/libfimtop.a            \
-       atmos/gfs/libutil/gfs_libutil.a  \
-       atmos/gfs/io/gfs_io.a            \
-       atmos/gfs/phys/gfs_physics.a     \
-       atmos/phys/libphys.a             \
-       atmos/gfs/dyn/gfs_dynamics.a     \
-       atmos/share/libshare.a           \
-       atmos/post/libpost.a             \
-       ocean/libocean.a                 \
-       ocean/genocn/libgenocn.a         \
-       ocean/hycom/libhycom.a           \
-       ENS_Cpl/ENS_Cpl.a                \
-       /u/Ratko.Vasic/lib_tmp/netcdf/lib/libnetcdf.a
-
-LIBS_src_ccs =
-
-FFLAGS_nmm_gfs_gen_zeus =  atmos/gfs/phys/gfs_physics.a \
-                        /u/Ratko.Vasic/lib_tmp/netcdf/lib/libnetcdf.a \
-                        -L/gpfs/el1/u/James.A.Abeles/WCOSS_Acceptance/ESMF/lib/lib-O/Linux.intel.64.intelmpi.default -lesmf
-
-MODULES_IDEA_atmos_phys_zeus = co2hc.o          \
-                           idea_solar_heating.o \
-                           idea_tracer.o        \
-                           h2oc.o               \
-                           h2ohdc.o             \
-                           efield.o             \
-                           ideaca.o             \
-                           idea_co2.o           \
-                           idea_h2o.o           \
-                           idea_ion.o           \
-                           idea_o2_o3.o         \
-                           idea_dissipation.o   \
-                           idea_phys.o
-
-MODULES_IDEA_atmos_phys_ccs =
-
-#############################################################################################
-#############################################################################################
-#############################################################################################
-
-
-include /gpfs/el1/u/James.A.Abeles/WCOSS_Acceptance/ESMF/lib/lib-O/Linux.intel.64.intelmpi.default/esmf.mk
+include /u/Farid.Parpia/WCOSS_Acceptance/ESMF/lib/lib-O/Linux.intel.64.intelmpi.default/esmf.mk
 ESMF_INC    = $(ESMF_F90COMPILEPATHS)
-ESMF_LIBS   = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
+ESMF_LIB    = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 
-EXTLIBS     = $(ESMF_LIBS) \
-             -L/u/Ratko.Vasic/lib_tmp -lnemsio -lw3-2.0_4 -lw3ext_4 -lbacio_4 -lsp_4
+NETCDF_LIB  = /u/Ratko.Vasic/lib_tmp/netcdf/lib/libnetcdf.a
+
 NEMSIO_INC  = -I/u/Ratko.Vasic/lib_tmp/incmod/nemsio
+NEMSIO_LIB  = -L/u/Ratko.Vasic/lib_tmp -lnemsio
 
+W3_LIB      = -L/u/Ratko.Vasic/lib_tmp -lw3-2.0_4 -lw3ext_4
+BACIO_LIB   = -L/u/Ratko.Vasic/lib_tmp -lbacio_4
+SP_LIB      = -L/u/Ratko.Vasic/lib_tmp -lsp_4
+SYS_LIB     =
+
+EXTLIBS     = $(NEMSIO_LIB) \
+              $(W3_LIB) \
+              $(BACIO_LIB) \
+              $(SP_LIB) \
+              $(ESMF_LIB) \
+              $(NETCDF_LIB) \
+              $(SYS_LIB)
 
 FC          = mpiifort -g -traceback
 FREE        = -free

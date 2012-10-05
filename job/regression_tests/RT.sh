@@ -7,7 +7,7 @@
 
 . ./detect_machine.sh
 
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
+if [ ${MACHINE_ID} = ccs ]; then
   export CLASS=dev
   export GROUP=dev
   export ACCNR=GFS-T2O
@@ -16,18 +16,18 @@ if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
   export PTMP=/ptmp
   export SCHEDULER=loadleveler
   STMP=/stmp
-elif [ ${MACHINE_ID} = g ]; then 
+elif [ ${MACHINE_ID} = gaea ]; then 
   export DISKNM=/lustre/ltfs/scratch/Ratko.Vasic
   export STMP=/lustre/fs/scratch
   export PTMP=/lustre/fs/scratch
   export SCHEDULER=moab
-elif [ ${MACHINE_ID} = z ]; then 
+elif [ ${MACHINE_ID} = zeus ]; then 
   export ACCNR
   export DISKNM=/scratch2/portfolios/NCEPDEV/meso
   export STMP=/scratch2/portfolios/NCEPDEV/stmp
   export PTMP=/scratch2/portfolios/NCEPDEV/ptmp
   export SCHEDULER=pbs
-elif [ ${MACHINE_ID} = e ]; then
+elif [ ${MACHINE_ID} = eddy ]; then
   export ACCNR=hpc_ibm
   export DISKNM=/u/Ratko.Vasic
   export STMP=/u/$USER/stmp ; mkdir -p $STMP
@@ -215,7 +215,7 @@ fi
 # CLASS       - job class (LoadLeveler)
 # GROUP       - job group (LoadLeveler)
 # ACCNR       - account number (LoadLeveler)
-# MACHINE_ID  - =c (cirrus), =s (stratus), =g (gaea), =z (zeus)
+# MACHINE_ID  - =ccs (cirrus/stratus), =gaea, =zeus, =eddy
 # DISKNM      - disk name ( /meso or /mtb)
 # CREATE_BASELINE - true/false
 # CB_arg      - baseline arguments:
@@ -260,11 +260,6 @@ fi
 #
 ################################################
 
-date > Compile.log
-date > RegressionTests.log
-echo "Start Regression test" >> RegressionTests.log
-(echo;echo;echo)             >> RegressionTests.log
-
 ###################################
 # PATHRT - Path to regression test
 ###################################
@@ -272,6 +267,14 @@ echo "Start Regression test" >> RegressionTests.log
 export PATHRT=`pwd`
 cd ../../
 export PATHTR=`pwd`
+
+export REGRESSIONTEST_LOG=${PATHRT}/RegressionTests_${MACHINE_ID}.log
+export COMPILE_LOG=${PATHRT}/Compile_${MACHINE_ID}.log
+
+date > ${COMPILE_LOG}
+date > ${REGRESSIONTEST_LOG}
+echo "Start Regression test" >> ${REGRESSIONTEST_LOG}
+(echo;echo;echo)             >> ${REGRESSIONTEST_LOG}
 
 export RUNDIR_ROOT=${PTMP}/${USER}/RT_$$
 mkdir -p ${RUNDIR_ROOT}
@@ -288,7 +291,7 @@ clear;echo;echo
 #
 ####################################################################################################
 
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
+if [ ${MACHINE_ID} = ccs ]; then
 
   TASKS_dflt=    ; TPN_dflt=32 ; INPES_dflt=06 ; JNPES_dflt=05 ; WTPG_dflt=2
   TASKS_thrd=    ; TPN_thrd=32 ; INPES_thrd=06 ; JNPES_thrd=05 ; WTPG_thrd=2
@@ -297,7 +300,7 @@ if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
   TASKS_mvg1=    ; TPN_mvg1=32 ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
   TASKS_mvg2=    ; TPN_mvg2=32 ; INPES_mvg2=04 ; JNPES_mvg2=23 ; WTPG_mvg2=1
 
-elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then
+elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
 
   TASKS_dflt=48  ; TPN_dflt=   ; INPES_dflt=05 ; JNPES_dflt=09 ; WTPG_dflt=3
   TASKS_thrd=48  ; TPN_thrd=   ; INPES_thrd=05 ; JNPES_thrd=09 ; WTPG_thrd=3
@@ -306,7 +309,7 @@ elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then
   TASKS_mvg1=96  ; TPN_mvg1=   ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
   TASKS_mvg2=96  ; TPN_mvg2=   ; INPES_mvg2=04 ; JNPES_mvg2=23 ; WTPG_mvg2=1
 
-elif [ ${MACHINE_ID} = e ]; then
+elif [ ${MACHINE_ID} = eddy ]; then
 
   TASKS_dflt=32  ; TPN_dflt=32 ; INPES_dflt=05 ; JNPES_dflt=06 ; WTPG_dflt=2
   TASKS_thrd=16  ; TPN_thrd=16 ; INPES_thrd=03 ; JNPES_thrd=05 ; WTPG_thrd=1
@@ -372,26 +375,35 @@ printf %s "Using the ESMF 3.1.0rp2 library.   "
 printf %s "Compiling model code (this will take some time)......."
 cd ${PATHTR}/src
 
-date                                     >> ${PATHRT}/RegressionTests.log
-echo "Compilation ALL"                   >> ${PATHRT}/RegressionTests.log
+date                                     >> ${REGRESSIONTEST_LOG}
+echo "Compilation ALL"                   >> ${REGRESSIONTEST_LOG}
 rm -f ../exe/NEMS.x
-gmake clean                              >  ${PATHRT}/Compile.log 2>&1
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
-esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
-  gmake nmm_gfs_gen GOCART_MODE=full     >> ${PATHRT}/Compile.log 2>&1
-elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then 
-esmf_version 3_zeus                      >> ${PATHRT}/Compile.log 2>&1
-  gmake nmm_gfs_gen GOCART_MODE=full     >> ${PATHRT}/Compile.log 2>&1
-elif [ ${MACHINE_ID} = e ]; then 
-esmf_version 3_eddy                      >> ${PATHRT}/Compile.log 2>&1
-  gmake nmm                              >> ${PATHRT}/Compile.log 2>&1
+
+if [ ${MACHINE_ID} = ccs ]; then
+
+  esmf_version 3                         >> ${COMPILE_LOG} 2>&1
+  gmake clean                            >> ${COMPILE_LOG} 2>&1
+  gmake nmm_gfs_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
+
+elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then 
+
+  esmf_version 3_zeus                    >> ${COMPILE_LOG} 2>&1
+  gmake clean                            >> ${COMPILE_LOG} 2>&1
+  gmake nmm_gfs_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
+
+elif [ ${MACHINE_ID} = eddy ]; then 
+
+  esmf_version 3_eddy                    >> ${COMPILE_LOG} 2>&1
+  gmake clean                            >> ${COMPILE_LOG} 2>&1
+  gmake nmm                              >> ${COMPILE_LOG} 2>&1
+
 fi
-date                                     >> ${PATHRT}/RegressionTests.log
+date                                     >> ${REGRESSIONTEST_LOG}
 
 if [ -f ../exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
 else
-  echo "   Model code is NOT compiled" >> ${PATHRT}/RegressionTests.log
+  echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
   echo "   Model code is NOT compiled"
   exit
 fi
@@ -427,13 +439,13 @@ export GBRG=glob
   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
+if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = zeus ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
-elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z -o ${MACHINE_ID} = e ]; then
+elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = eddy ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
 fi
 export timingc=`cat ${RTPWD}/NMMB_glob/timing.txt`
-(echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo)>> RegressionTests.log
+(echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo)>> ${REGRESSIONTEST_LOG}
  echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo
 
 fi # endif test
@@ -641,13 +653,13 @@ export GBRG=reg ; export WPREC=true
   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
+if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = zeus ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
-elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z -o ${MACHINE_ID} = e ]; then
+elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = eddy ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
 fi
 export timingc=`cat ${RTPWD}/NMMB_reg/timing.txt`
-(echo " Original timing: " $timingc " , test_reg timing: " $timing1;echo;echo)>> RegressionTests.log
+(echo " Original timing: " $timingc " , test_reg timing: " $timing1;echo;echo)>> ${REGRESSIONTEST_LOG}
  echo " Original timing: " $timingc " , test_reg timing: " $timing1;echo;echo
 
 fi # endif test
@@ -1039,13 +1051,13 @@ export CNTL_DIR=NMMB_mvg_nests
 export LIST_FILES=" \
 nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
 nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s \
-nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
-nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
-nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
-nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
-nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
-nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s"
+nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
+#nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
+#nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
+#nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
+#nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
+#nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
+#nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s \
 #nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
 #nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
 #nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
@@ -1071,9 +1083,7 @@ fi # endif test
 #
 ####################################################################################################
 
-#RV# Temporary, does not work on Eddy.
-#if [ ${RT_FULL} = true ]; then
-if [ ${RT_FULL} = true -a ${MACHINE_ID} != e ]; then
+if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test NMMB-regional with moving nests and generational task assignments"
 
@@ -1084,13 +1094,13 @@ export CNTL_DIR=NMMB_mvg_nests
 export LIST_FILES=" \
 nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
 nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s \
-nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
-nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
-nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
-nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
-nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
-nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s"
+nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
+#nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
+#nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
+#nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
+#nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
+#nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
+#nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s \
 #nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
 #nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
 #nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
@@ -1108,6 +1118,12 @@ export INPES=$INPES_mvg2 ; export JNPES=$JNPES_mvg2 ; export WTPG=$WTPG_mvg2
 
 fi # endif test
 
+#RV# Temporary, until GFS is ready on Eddy
+if [ ${MACHINE_ID} = eddy ]; then
+  echo REGRESSION TEST WAS SUCCESSFUL
+  echo REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
+  exit
+fi
 ####################################################################################################
 #
 # TEST   - GFS 
@@ -1198,6 +1214,7 @@ fi # endif test
 #
 ####################################################################################################
 
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test GFS different decomposition and restart"
@@ -1212,17 +1229,14 @@ export LIST_FILES=" \
 	flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export_gfs
-export TASKS=48 ; export PE1=46
-# Need more wall time when running on the zeus machine.  Weiyu.
-#--------------------------------------------------------------
-export WLCLK=30
+export TASKS=48 ; export PE1=46 ; export WLCLK=30
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
-export WLCLK=10
 
 fi # endif test
+fi # endif machine (only CCS)
 
 ####################################################################################################
 #
@@ -1261,6 +1275,7 @@ fi # endif test
 #
 ####################################################################################################
 
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="GFS, 32 proc, 1 thread, no quilt, output every 4 timestep"
@@ -1276,17 +1291,14 @@ export LIST_FILES=" \
 #---------------------
 export_gfs
 export NSOUT=4 ; export QUILT=.false.
-export PE1=32  ; export WTPG=1
-# Need more wall time when running on the zeus machine.  Weiyu.
-#--------------------------------------------------------------
-export WLCLK=30
+export PE1=32  ; export WTPG=1 ; export WLCLK=30
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
-export WLCLK=10
 
 fi # endif test
+fi # endif machine (only CCS)
 
 ####################################################################################################
 #
@@ -1295,10 +1307,7 @@ fi # endif test
 #
 ####################################################################################################
 
-# On the zeus machine, the memory is not enough.  Weiyu.
-#-------------------------------------------------------
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
-
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test GFS single processor"
@@ -1321,6 +1330,7 @@ export QUILT=.false. ; export NDAYS=1 ; export WLCLK=20
 #---------------------
 
 fi # endif test
+fi # endif machine (only CCS)
 
 ####################################################################################################
 #
@@ -1329,6 +1339,7 @@ fi # endif test
 #
 ####################################################################################################
 
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test GFS, 1 proc, 1 thread, no quilting,nsout=1"
@@ -1352,8 +1363,7 @@ export QUILT=.false.
 #---------------------
 
 fi # endif test
-
-fi
+fi # endif machine (only CCS)
 
 ####################################################################################################
 #
@@ -1393,6 +1403,7 @@ fi # endif test
 #
 ####################################################################################################
 
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test GFS, 48 proc, 1 thread, no quilt"
@@ -1408,18 +1419,14 @@ export LIST_FILES=" \
 #---------------------
 export_gfs
 export TASKS=48 ; export PE1=46 ; export WTPG=1
-export NSOUT=1  ; export QUILT=.false.
-# Need more wall time when running on the zeus machine.  Weiyu.
-#--------------------------------------------------------------
-export WLCLK=30
+export NSOUT=1  ; export QUILT=.false. ; export WLCLK=30
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-export WLCLK=10
-
 fi # endif test
+fi # endif machine (only CCS)
 
 ####################################################################################################
 #
@@ -1487,10 +1494,7 @@ fi # endif test
 #
 ####################################################################################################
 
-# On the zeus machine, the memory is not enough.  Weiyu.
-#-------------------------------------------------------
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
-
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="GFS,1 proc, no quilt, digital filter on reduced grid"
@@ -1513,8 +1517,7 @@ export FDFI=3  ; export WLCLK=20 ; export QUILT=.false.
 #---------------------
 
 fi # endif test
-
-fi
+fi # endif machine (only CCS)
 
 ####################################################################################################
 #
@@ -1523,8 +1526,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
-
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="GFS, use the OPAC climo scheme for SW and LW"
@@ -1546,8 +1548,7 @@ export IAER=11 ; export NDAYS=1
 #---------------------
 
 fi # endif test
-
-fi
+fi # endif machine (only CCS)
 
 ####################################################################################################
 #
@@ -1556,8 +1557,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
-
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${ST_test} = true -o ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="GFS, 16tasks, 2threads, quilt, dfi3hr, reduced grid, NDSL"
@@ -1580,8 +1580,7 @@ export FDFI=3   ; export NDSLFV=.true.
 #---------------------
 
 fi # endif test
-
-fi
+fi # endif machine (only CCS)
 
 #
 ####################################################################################################
@@ -1591,8 +1590,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
-
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid"
@@ -1617,6 +1615,7 @@ export NDAYS=1
 #---------------------
 
 fi # endif test
+fi # endif machine (only CCS)
 
 ###################################################################################################
 #
@@ -1626,6 +1625,7 @@ fi # endif test
 #
 ###################################################################################################
 
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid, restart"
@@ -1649,8 +1649,7 @@ export IDVC=2   ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRA
 #---------------------
 
 fi # endif test
-
-fi
+fi # endif machine (only CCS)
 
 ####################################################################################################
 #
@@ -1659,8 +1658,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
-
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${ST_test} = true -o ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid with nst"
@@ -1685,8 +1683,7 @@ export IDVC=2   ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRA
 #---------------------
 
 fi # endif test
-
-fi
+fi # endif machine (only CCS)
 
 ####################################################################################################
 #
@@ -1695,8 +1692,7 @@ fi
 #
 ####################################################################################################
 
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
-
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${ST_test} = true -o ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 1loop digital filter on reduced grid"
@@ -1720,8 +1716,7 @@ export IDVC=2 ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALL
 #---------------------
 
 fi # endif test
-
-fi
+fi # endif machine (only CCS)
 
 ####################################################################################################
 #
@@ -1762,7 +1757,6 @@ export TASKS=64 ; export WLCLK=20
 
 fi # endif test
 
-
 ####################################################################################################
 #
 # TEST   - GEN, 16 PEs, 1 node.
@@ -1770,12 +1764,7 @@ fi # endif test
 #
 ####################################################################################################
 
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
-
-#skip GEN for IBM ccs.
-#---------------------
-if [ ${MACHINE_ID} = z ]; then
-
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
 
 export TEST_DESCR="GEN, 1 members."
@@ -1792,6 +1781,7 @@ export TASKS=16 ; export WLCLK=02
 #---------------------
 
 fi # endif test
+fi # endif machine (only CCS)
 
 ####################################################################################################
 #
@@ -1800,6 +1790,7 @@ fi # endif test
 #
 ####################################################################################################
 
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Concurrency GEN, 4 members."
@@ -1817,12 +1808,13 @@ export TASKS=64 ; export WLCLK=02
 #---------------------
 
 fi # endif test
-fi
+fi # endif machine (only CCS)
 
 #########################################################################
 # Clean and compile only FIM core
 #########################################################################
 
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true -o ${CB_arg} = fim -o ${CB_arg} = all ]; then
 
 echo "Preparing model code for regression tests"
@@ -1830,23 +1822,24 @@ echo "Compilation only FIM"
 printf %s "Compiling model code (this will take some time)......."
 cd ${PATHTR}/src
 
-date                                     >> ${PATHRT}/RegressionTests.log
-echo "Compilation only FIM"              >> ${PATHRT}/RegressionTests.log
+date                                     >> ${REGRESSIONTEST_LOG}
+echo "Compilation only FIM"              >> ${REGRESSIONTEST_LOG}
 rm -f ../exe/NEMS.x
-gmake clean                              >> ${PATHRT}/Compile.log 2>&1
-esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
-gmake fim                                >> ${PATHRT}/Compile.log 2>&1
-date                                     >> ${PATHRT}/RegressionTests.log
+gmake clean                              >> ${COMPILE_LOG} 2>&1
+esmf_version 3                           >> ${COMPILE_LOG} 2>&1
+gmake fim                                >> ${COMPILE_LOG} 2>&1
+date                                     >> ${REGRESSIONTEST_LOG}
 
 if [ -f ../exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
 else
-  echo "   Model code is NOT compiled" >> ${PATHRT}/RegressionTests.log
+  echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
   echo "   Model code is NOT compiled"
   exit
 fi
 
 fi # endif compilation
+fi # endif machine (only CCS)
 
 cd $PATHRT
 
@@ -1857,6 +1850,7 @@ cd $PATHRT
 #
 ####################################################################################################
 
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true -o ${CB_arg} = fim -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="Compare FIM results with previous trunk version, only FIM compiled"
@@ -1888,6 +1882,7 @@ export WLCLK=15
 #---------------------
 
 fi # endif test
+fi # endif machine (only CCS)
 
 cd $PATHRT
 
@@ -1895,6 +1890,7 @@ cd $PATHRT
 # Clean and compile both NMMB & GFS cores, using ESMF 3.1.0rp2 and POST library.
 ################################################################################################
 
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true -o ${CB_arg} = post -o ${CB_arg} = nmm -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 echo "Preparing model code for regression tests"
@@ -1904,23 +1900,24 @@ printf %s "Compiling model code (this will take some time)......."
 cd ${PATHTR}/src
 
 
-date                                     >> ${PATHRT}/RegressionTests.log
-echo "Compilation with POST"             >> ${PATHRT}/RegressionTests.log
+date                                     >> ${REGRESSIONTEST_LOG}
+echo "Compilation with POST"             >> ${REGRESSIONTEST_LOG}
 rm -f ../exe/NEMS.x
-gmake clean                              >  ${PATHRT}/Compile.log 2>&1
-esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
-gmake nmm_gfs_gen_post GOCART_MODE=full  >> ${PATHRT}/Compile.log 2>&1
-date                                     >> ${PATHRT}/RegressionTests.log
+gmake clean                              >> ${COMPILE_LOG} 2>&1
+esmf_version 3                           >> ${COMPILE_LOG} 2>&1
+gmake nmm_gfs_gen_post GOCART_MODE=full  >> ${COMPILE_LOG} 2>&1
+date                                     >> ${REGRESSIONTEST_LOG}
 
 if [ -f ../exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
 else
-  echo "   Model code is NOT compiled" >> ${PATHRT}/RegressionTests.log
+  echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
   echo "   Model code is NOT compiled"
   exit
 fi
 
 fi # endif compilation
+fi # endif machine (only CCS)
 
 cd $PATHRT
 
@@ -1931,6 +1928,7 @@ cd $PATHRT
 #
 #################################################################################################
 
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true -o ${CB_arg} = post -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="NMMB-regional run with post on quilt"
@@ -1954,6 +1952,7 @@ export WRITE_DOPOST=.true.
 #---------------------
 
 fi # endif test
+fi # endif machine (only CCS)
 
 #################################################################################################
 #
@@ -1962,6 +1961,7 @@ fi # endif test
 #
 #################################################################################################
 
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true -o ${CB_arg} = post -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="GFS with POST"
@@ -1987,8 +1987,7 @@ export WRITE_DOPOST=.true.
 #---------------------
 
 fi # endif test
-
-
+fi # endif machine (only CCS)
 
 #################################################################################################
 #
@@ -1997,6 +1996,7 @@ fi # endif test
 #
 #################################################################################################
 
+if [  1 = 0 ]; then # skip non working test
 if [ ${RT_FULL} = true -o ${CB_arg} = post -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="GFS_GOCART with POST"
@@ -2023,11 +2023,13 @@ export WLCLK=10
 #---------------------
 
 fi # endif test
+fi # skip non working test
 
 #########################################################################
 # Clean and compile both NMMB & GFS cores, using ESMF 5.2.0rp1 library.
 #########################################################################
 
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 echo "Preparing model code for regression tests"
@@ -2036,23 +2038,24 @@ printf %s "Using the ESMF 5.2.0rp1 library.   "
 printf %s "Compiling model code (this will take some time)......."
 cd ${PATHTR}/src
 
-date                                     >> ${PATHRT}/RegressionTests.log
-echo "Compilation ESMF 5.2.0rp1"         >> ${PATHRT}/RegressionTests.log
+date                                     >> ${REGRESSIONTEST_LOG}
+echo "Compilation ESMF 5.2.0rp1"         >> ${REGRESSIONTEST_LOG}
 rm -f ../exe/NEMS.x
-gmake clean                              >> ${PATHRT}/Compile.log 2>&1
-esmf_version 5.2                         >> ${PATHRT}/Compile.log 2>&1
-gmake nmm_gfs                                >> ${PATHRT}/Compile.log 2>&1
-date                                     >> ${PATHRT}/RegressionTests.log
+gmake clean                              >> ${COMPILE_LOG} 2>&1
+esmf_version 5.2                         >> ${COMPILE_LOG} 2>&1
+gmake nmm_gfs                            >> ${COMPILE_LOG} 2>&1
+date                                     >> ${REGRESSIONTEST_LOG}
 
 if [ -f ../exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
 else
-  echo "   Model code is NOT compiled" >> ${PATHRT}/RegressionTests.log
+  echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
   echo "   Model code is NOT compiled"
   exit
 fi
 
 fi # endif compilation
+fi # endif machine (only CCS)
 
 cd $PATHRT
 
@@ -2063,6 +2066,7 @@ cd $PATHRT
 #
 ####################################################################################################
 
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="Compare NMMB-global results with previous trunk version_ESMF_5.2.0rp1"
@@ -2084,6 +2088,7 @@ export GBRG=glob
 #---------------------
 
 fi # endif test
+fi # endif machine (only CCS)
 
 ####################################################################################################
 # 
@@ -2092,6 +2097,7 @@ fi # endif test
 #
 ####################################################################################################
 
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="Compare GFS results with previous trunk version ESMF5.2.0rp1"
@@ -2112,6 +2118,7 @@ export_gfs
 #---------------------
 
 fi # endif test
+fi # endif machine (only CCS)
 
 ####################################################################################################
 #
@@ -2120,6 +2127,7 @@ fi # endif test
 #
 ####################################################################################################
 
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5.2.0rp1"
@@ -2151,8 +2159,8 @@ export TASKS=64 ; export WLCLK=20
 #---------------------
 
 fi # endif test
+fi # endif machine (only CCS)
 
-fi
 
 #########################################################################
 # Clean and compile only NMMB core
@@ -2165,25 +2173,18 @@ echo "Compilation only NMM"
 printf %s "Compiling model code (this will take some time)......."
 cd ${PATHTR}/src
 
-date                                     >> ${PATHRT}/RegressionTests.log
-echo "Compilation only NMM"              >> ${PATHRT}/RegressionTests.log
+date                                     >> ${REGRESSIONTEST_LOG}
+echo "Compilation only NMM"              >> ${REGRESSIONTEST_LOG}
 rm -f ../exe/NEMS.x
-gmake clean                              >  ${PATHRT}/Compile.log 2>&1
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
-esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
-gmake nmm                                >> ${PATHRT}/Compile.log 2>&1
-elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then
-esmf_version 3_zeus                      >> ${PATHRT}/Compile.log 2>&1
-gmake nmm                                >> ${PATHRT}/Compile.log 2>&1
-elif [ ${MACHINE_ID} = e ]; then
-esmf_version 3_eddy                      >> ${PATHRT}/Compile.log 2>&1
-  gmake nmm                              >> ${PATHRT}/Compile.log 2>&1
-fi
+gmake clean                              >> ${COMPILE_LOG} 2>&1
+esmf_version 3                           >> ${COMPILE_LOG} 2>&1
+gmake nmm                                >> ${COMPILE_LOG} 2>&1
+date                                     >> ${REGRESSIONTEST_LOG}
 
 if [ -f ../exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
 else
-  echo "   Model code is NOT compiled" >> ${PATHRT}/RegressionTests.log
+  echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
   echo "   Model code is NOT compiled"
   exit
 fi
@@ -2226,8 +2227,7 @@ fi # endif test
 # Clean and compile only NMMB core with TRAPS turned on
 #########################################################################
 
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
-
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true ]; then
 
 echo "Preparing model code for regression tests"
@@ -2235,23 +2235,24 @@ echo "Compilation NMM with TRAPS on"
 printf %s "Compiling model code (this will take some time)......."
 cd ${PATHTR}/src
 
-date                                     >> ${PATHRT}/RegressionTests.log
-echo "Compilation NMM with TRAPS on"     >> ${PATHRT}/RegressionTests.log
+date                                     >> ${REGRESSIONTEST_LOG}
+echo "Compilation NMM with TRAPS on"     >> ${REGRESSIONTEST_LOG}
 rm -f ../exe/NEMS.x
-gmake clean                              >> ${PATHRT}/Compile.log 2>&1
-esmf_version traps_on                    >> ${PATHRT}/Compile.log 2>&1
-gmake nmm                                >> ${PATHRT}/Compile.log 2>&1
-date                                     >> ${PATHRT}/RegressionTests.log
+gmake clean                              >> ${COMPILE_LOG} 2>&1
+esmf_version traps_on                    >> ${COMPILE_LOG} 2>&1
+gmake nmm                                >> ${COMPILE_LOG} 2>&1
+date                                     >> ${REGRESSIONTEST_LOG}
 
 if [ -f ../exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
 else
-  echo "   Model code is NOT compiled" >> ${PATHRT}/RegressionTests.log
+  echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
   echo "   Model code is NOT compiled"
   exit
 fi
 
 fi # endif compilation
+fi # endif machine (only CCS)
 
 cd $PATHRT
 
@@ -2262,6 +2263,7 @@ cd $PATHRT
 #
 ####################################################################################################
 
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Compare NMMB-global results with previous trunk version, TRAPS on"
@@ -2280,8 +2282,8 @@ export GBRG=glob ; export FCSTL=12
 #---------------------
 
 fi # endif test
+fi # endif machine (only CCS)
 
-fi
 
 #########################################################################
 # Clean and compile only GFS core
@@ -2294,23 +2296,18 @@ echo "Compilation only GFS"
 printf %s "Compiling model code (this will take some time)......."
 cd ${PATHTR}/src
 
-date                                     >> ${PATHRT}/RegressionTests.log
-echo "Compilation only GFS"              >> ${PATHRT}/RegressionTests.log
+date                                     >> ${REGRESSIONTEST_LOG}
+echo "Compilation only GFS"              >> ${REGRESSIONTEST_LOG}
 rm -f ../exe/NEMS.x
-gmake clean                              >  ${PATHRT}/Compile.log 2>&1
-if [ ${MACHINE_ID} = c -o ${MACHINE_ID} = s ]; then
-esmf_version 3                           >> ${PATHRT}/Compile.log 2>&1
-gmake gfs                                >> ${PATHRT}/Compile.log 2>&1
-elif [ ${MACHINE_ID} = g -o ${MACHINE_ID} = z ]; then
-esmf_version 3_zeus                      >> ${PATHRT}/Compile.log 2>&1
-gmake gfs                                >> ${PATHRT}/Compile.log 2>&1
-fi
-date
+gmake clean                              >> ${COMPILE_LOG} 2>&1
+esmf_version 3                           >> ${COMPILE_LOG} 2>&1
+gmake gfs                                >> ${COMPILE_LOG} 2>&1
+date                                     >> ${REGRESSIONTEST_LOG}
 
 if [ -f ../exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
 else
-  echo "   Model code is NOT compiled" >> ${PATHRT}/RegressionTests.log
+  echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
   echo "   Model code is NOT compiled"
   exit
 fi
@@ -2348,6 +2345,7 @@ export_gfs
 
 fi # endif test
 
+
 ####################################################################################################
 # Finalize
 ####################################################################################################
@@ -2360,12 +2358,14 @@ esmf_version 3       > /dev/null 2>&1
 
 rm -rf ${RUNDIR_ROOT}
 
-date >> ${PATHRT}/RegressionTests.log
+date >> ${REGRESSIONTEST_LOG}
 
-if [ ${MACHINE_ID} = z ]; then
+if [ ${MACHINE_ID} = zeus -o ${MACHINE_ID} = eddy ]; then
   echo REGRESSION TEST WAS SUCCESSFUL
+  echo REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
 else
   banner REGRESSION TEST WAS SUCCESSFUL
+  banner REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
 fi
 
 

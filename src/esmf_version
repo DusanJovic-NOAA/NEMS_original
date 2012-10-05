@@ -36,10 +36,12 @@ elif [[ $1 = traps_on ]]; then
      cp atmos/gfs/phys/makefile_ccs atmos/gfs/phys/makefile
      echo "Use the ESMF 3.1.0rp2 library"
 else
-     echo "When using the ESMF 3.1.0rp2 library on CCS machine, enter 'esmf_version 3'."
-     echo "When using the ESMF 3.1.0rp2 library on the ZEUS machine, enter 'esmf_version 3_zeus'."
-     echo "When using the ESMF 3.1.0rp2 library and turn on the traps, enter 'esmf_version traps_on'."
-     echo "When using the ESMF 4.0.0rp2 library, enter 'esmf_version 4'."
-     echo "When using the ESMF 5.1.0 library, enter 'esmf_version 5'."
-     echo "Wgen using the ESMF 5.2.0rp1, enter 'esmf_version 5.2'"
+     echo;echo "     Run ./esmf_version with one argument:"
+     echo "When using the ESMF 3.1.0rp2 library on the CCS  machine, enter 'esmf_version 3'"
+     echo "When using the ESMF 3.1.0rp2 library on the ZEUS machine, enter 'esmf_version 3_zeus'"
+     echo "When using the ESMF 3.1.0rp2 library on the EDDY machine, enter 'esmf_version 3_eddy'"
+     echo "When using the ESMF 3.1.0rp2 library and turn on traps,   enter 'esmf_version traps_on'"
+     echo "When using the ESMF 4.0.0rp2 library on the CCS  machine, enter 'esmf_version 4'"
+     echo "When using the ESMF 5.1.0    library on the CCS  machine, enter 'esmf_version 5'"
+     echo "Wgen using the ESMF 5.2.0rp1 library on the CCS  machine, enter 'esmf_version 5.2'"
 fi     

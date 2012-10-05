@@ -2,9 +2,9 @@ include ../../conf/configure.nems
 
 MAKEFILE = makefile
 
-UTILINCSPOST = -I../share -I../nmm/ -I../gfs/io -I$(POSTMOD)
-UTILINCSPOSTGFS = -I../share -I../gfs/io -I$(POSTMOD)
-UTILINCSPOSTNMM = -I../share -I../nmm -I$(POSTMOD)
+UTILINCSPOST = -I../share -I../nmm/ -I../gfs/io $(POST_INC)
+UTILINCSPOSTGFS = -I../share -I../gfs/io $(POST_INC)
+UTILINCSPOSTNMM = -I../share -I../nmm $(POST_INC)
 UTILINCSPOSTSTUB = -I../share
 
 LIBRARY  = libpost.a

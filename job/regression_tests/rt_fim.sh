@@ -42,11 +42,11 @@ cat fim_fcst_run >> fim_ll
 
 llsubmit fim_ll 2>&1 | grep submitted > /dev/null
 
-echo "Test ${TEST_NR}" >> RegressionTests.log
+echo "Test ${TEST_NR}" >> ${REGRESSIONTEST_LOG}
 echo "Test ${TEST_NR}"
-echo ${TEST_DESCR} >> RegressionTests.log
+echo ${TEST_DESCR} >> ${REGRESSIONTEST_LOG}
 echo ${TEST_DESCR}
-(echo "FIM, ${TASKS} proc, ${THRD} thread";echo;echo)>> RegressionTests.log
+(echo "FIM, ${TASKS} proc, ${THRD} thread";echo;echo)>> ${REGRESSIONTEST_LOG}
  echo "FIM, ${TASKS} proc, ${THRD} thread";echo;echo
 
 # wait for the job to enter the queue
@@ -83,7 +83,7 @@ done
 # Check results
 ####################################################################################################
 
-(echo;echo;echo "Checking test ${TEST_NR} results ....")>> RegressionTests.log
+(echo;echo;echo "Checking test ${TEST_NR} results ....")>> ${REGRESSIONTEST_LOG}
  echo;echo;echo "Checking test ${TEST_NR} results ...."
 
 # TODO:  generalize this by adding ${NVL}
@@ -100,7 +100,7 @@ do
 
 outfile="${outdir}/${i}"
 
-printf %s " Comparing " $i "....." >> RegressionTests.log
+printf %s " Comparing " $i "....." >> ${REGRESSIONTEST_LOG}
 printf %s " Comparing " $i "....."
 
 if [ -f ${outfile} ] ; then
@@ -108,18 +108,18 @@ if [ -f ${outfile} ] ; then
   d=`cmp ${RTPWD}/${CNTL_DIR}/$i ${outfile} | wc -l`
 
   if [[ $d -ne 0 ]] ; then
-   (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> RegressionTests.log
+   (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> ${REGRESSIONTEST_LOG}
     echo " ......NOT OK" ; echo ; echo "   $i differ!   " ; exit 2
   fi
 
-  echo "....OK" >> RegressionTests.log
+  echo "....OK" >> ${REGRESSIONTEST_LOG}
   echo "....OK"
 
 else
 
-  echo "Missing " ${outfile} " output file" >> RegressionTests.log
+  echo "Missing " ${outfile} " output file" >> ${REGRESSIONTEST_LOG}
   echo "Missing " ${outfile} " output file"
- (echo;echo " Test ${TEST_NR} failed ")>> RegressionTests.log
+ (echo;echo " Test ${TEST_NR} failed ")>> ${REGRESSIONTEST_LOG}
   echo;echo " Test ${TEST_NR} failed "
   exit 2
 
@@ -152,7 +152,7 @@ done
      fi
 # ---
 
-echo " Test ${TEST_NR} passed " >> RegressionTests.log
+echo " Test ${TEST_NR} passed " >> ${REGRESSIONTEST_LOG}
 echo " Test ${TEST_NR} passed "
 
 sleep 4

@@ -23,6 +23,7 @@ echo 'RUNDIR=' $RUNDIR
 
 cat gen_fcst_run_GEN_m1.IN \
                     | sed s:_SRCDIR_:${PATHTR}:g \
+                    | sed s:_SCHEDULER_:${SCHEDULER}:g \
                     | sed s:_RUNDIR_:${RUNDIR}:g > gen_fcst_run
 
 chmod 755 gen_fcst_run
@@ -43,6 +44,7 @@ echo 'RUNDIR=' $RUNDIR
 
 cat gen_fcst_run_GEN_m4.IN \
                     | sed s:_SRCDIR_:${PATHTR}:g \
+                    | sed s:_SCHEDULER_:${SCHEDULER}:g \
                     | sed s:_RUNDIR_:${RUNDIR}:g > gen_fcst_run
 
 chmod 755 gen_fcst_run
@@ -98,11 +100,11 @@ elif [ $SCHEDULER = 'pbs' ]; then
   qsub $PATHRT/gen_qsub > /dev/null
 fi
 
-echo "Test ${TEST_NR}" >> RegressionTests.log
+echo "Test ${TEST_NR}" >> ${REGRESSIONTEST_LOG}
 echo "Test ${TEST_NR}"
-echo ${TEST_DESCR} >> RegressionTests.log
+echo ${TEST_DESCR} >> ${REGRESSIONTEST_LOG}
 echo ${TEST_DESCR}
-(echo "GEN, ${TASKS} proc, ${THRD} thread";echo;echo)>> RegressionTests.log
+(echo "GEN, ${TASKS} proc, ${THRD} thread";echo;echo)>> ${REGRESSIONTEST_LOG}
  echo "GEN, ${TASKS} proc, ${THRD} thread";echo;echo
 
 # wait for the job to enter the queue
@@ -161,21 +163,21 @@ done
 # Check results
 ####################################################################################################
 
-(echo;echo;echo "Checking test ${TEST_NR} results ....")>> RegressionTests.log
+(echo;echo;echo "Checking test ${TEST_NR} results ....")>> ${REGRESSIONTEST_LOG}
  echo;echo;echo "Checking test ${TEST_NR} results ...."
 
 d=`grep 'Test run in the gen finalize routine' ${RUNDIR}/NEMS.out | wc -l`
 
   if [[ $d -eq 0 ]] ; then
-   (echo " ......NOT OK" ; echo " Failed!   ")>> RegressionTests.log
+   (echo " ......NOT OK" ; echo " Failed!   ")>> ${REGRESSIONTEST_LOG}
     echo " ......NOT OK" ; echo " Failed!   " ; exit 2
   fi
 
-echo " Test ${TEST_NR} passed " >> RegressionTests.log
+echo " Test ${TEST_NR} passed " >> ${REGRESSIONTEST_LOG}
 echo " Test ${TEST_NR} passed "
 
 
-(echo;echo;echo;)>> RegressionTests.log
+(echo;echo;echo;)>> ${REGRESSIONTEST_LOG}
  echo;echo;echo;
 
 
