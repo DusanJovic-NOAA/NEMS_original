@@ -2192,13 +2192,16 @@
 !
         int_state%OPERATIONAL_PHYSICS=.FALSE.
 !
-        IF(int_state%SHORTWAVE   =='gfdl' .AND.                         &
-           int_state%LONGWAVE    =='gfdl' .AND.                         &
-           int_state%SFC_LAYER   =='myj'  .AND.                         &
-           int_state%TURBULENCE  =='myj'  .AND.                         &
-          (int_state%CONVECTION  =='bmj'  .OR.                          &
-           int_state%CONVECTION  =='none').AND.                         &
-           int_state%MICROPHYSICS=='fer' ) THEN
+        IF((int_state%SHORTWAVE   =='gfdl' .OR.                         &
+            int_state%SHORTWAVE   =='rrtm').AND.                        &
+           (int_state%LONGWAVE    =='gfdl' .OR.                         &
+            int_state%LONGWAVE    =='rrtm').AND.                        &
+            int_state%SFC_LAYER   =='myj'  .AND.                        &
+            int_state%TURBULENCE  =='myj'  .AND.                        &
+           (int_state%CONVECTION  =='bmj'  .OR.                         &
+            int_state%CONVECTION  =='none').AND.                        &
+           (int_state%MICROPHYSICS=='fer'  .OR.                         &
+            int_state%MICROPHYSICS=='fer_hires') ) THEN
 !
           int_state%OPERATIONAL_PHYSICS=.TRUE.
 !
@@ -2328,11 +2331,11 @@
       INTEGER(kind=KINT) :: DFIHR,I,IER,INPES,IRTN,ISTAT,J,JNPES        &
                            ,K,KFLIP,KS,KSE1,L,N,NSTEPS_HISTORY          &
                            ,NTIMESTEP,NTIMESTEP_BC,NTIMESTEP_RAD        &
-                           ,RC,SPECADV                                  &
+                           ,RC                                          &
                            ,WRITE_BC_FLAG,WRITE_BC_FLAG_NEST
 !
       INTEGER(kind=KINT) :: FILTER_METHOD,FILTER_METHOD_LAST            &
-                           ,IMICRO,JULDAY,JULYR                         &
+                           ,JULDAY,JULYR                                &
                            ,NPRECIP,NSTEPS_PER_CHECK,NSTEPS_PER_HOUR    &
                            ,NSTEPS_PER_RESET
 !
@@ -4097,12 +4100,7 @@
 !
         btim=timef()
 !
-        SPECADV=0
         IF(int_state%SPEC_ADV)THEN
-          SPECADV=1
-        ENDIF
-!
-        IF(SPECADV == 1) THEN
           KSE1=int_state%NUM_TRACERS_TOTAL
         ELSE
           KSE1=KSE
@@ -4236,7 +4234,7 @@
 !
           ,int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,int_state%INDX_Q2))
 !
-        IF (SPECADV == 1) THEN
+        IF(int_state%SPEC_ADV)THEN
           DO KS=KSS,KSE1
 !
            IF(KS/=int_state%INDX_Q  .AND.                               &
@@ -4287,7 +4285,7 @@
                       ,int_state%Q2,LM                                  &
                       ,2,2)
 !
-        IF (SPECADV == 1) THEN
+        IF(int_state%SPEC_ADV)THEN
           DO KS=KSS,KSE1
 !
             IF(KS /= int_state%INDX_Q .AND.                             &
@@ -4608,7 +4606,7 @@
 !
         btim=timef()
 !
-        vadv2_micro_check: IF(int_state%MICROPHYSICS=='fer')THEN
+        vadv2_micro_check: IF(.NOT.int_state%SPEC_ADV)THEN
           CALL AVEQ2                                                    &
             (LM                                                         &
             ,DSG2,PDSG1,PSGML1,SGML2                                    &
@@ -4713,7 +4711,7 @@
 #endif
             ,NUM_PES,MYPE,MPI_COMM_COMP)
 !
-          IF(int_state%MICROPHYSICS/='fer')THEN
+          IF(int_state%SPEC_ADV)THEN
 !
             DO N=2,int_state%NUM_WATER
               CALL FFTFHN                                               &
@@ -4742,7 +4740,7 @@
           CALL SWAPHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES)
 !
-          IF(int_state%MICROPHYSICS/='fer')THEN
+          IF(int_state%SPEC_ADV)THEN
             DO N=2,int_state%NUM_WATER
               CALL SWAPHN(int_state%WATER(:,:,:,N)                      &
                          ,IMS,IME,JMS,JME,LM,INPES)
@@ -4757,7 +4755,7 @@
           CALL POLEHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES,JNPES)
 !
-          IF(int_state%MICROPHYSICS/='fer')THEN
+          IF(int_state%SPEC_ADV)THEN
             DO N=2,int_state%NUM_WATER
               CALL POLEHN(int_state%WATER(:,:,:,N)                      &
                          ,IMS,IME,JMS,JME,LM,INPES,JNPES)
@@ -4780,7 +4778,7 @@
         CALL HALO_EXCH(int_state%E2,LM                                  &
                       ,1,1)
 !
-        IF(int_state%MICROPHYSICS/='fer')THEN
+        IF(int_state%SPEC_ADV)THEN
           CALL HALO_EXCH(int_state%WATER,LM,int_state%NUM_WATER,2       &
                         ,2,2)
         ENDIF
@@ -4794,7 +4792,7 @@
 !
         btim=timef()
 !
-        hadv2_micro_check: IF(int_state%MICROPHYSICS=='fer')THEN
+        hadv2_micro_check: IF(.NOT.int_state%SPEC_ADV)THEN
 !
           CALL HADV2_SCAL                                               &
             (GLOBAL,INPES,JNPES                                         &
@@ -4909,7 +4907,7 @@
           CALL SWAPHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES)
 !
-          IF(int_state%MICROPHYSICS/='fer')THEN
+          IF(int_state%SPEC_ADV)THEN
             DO N=2,int_state%NUM_WATER
               CALL SWAPHN(int_state%WATER(:,:,:,N)                      &
                          ,IMS,IME,JMS,JME,LM,INPES)
@@ -4924,7 +4922,7 @@
           CALL POLEHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES,JNPES)
 !
-          IF(int_state%MICROPHYSICS/='fer')THEN
+          IF(int_state%SPEC_ADV)THEN
             DO N=2,int_state%NUM_WATER
               CALL POLEHN(int_state%WATER(:,:,:,N)                      &
                          ,IMS,IME,JMS,JME,LM,INPES,JNPES)
@@ -4944,7 +4942,7 @@
                       ,int_state%Q2,LM                                  &
                       ,2,2)
 !
-        IF(int_state%MICROPHYSICS/='fer')THEN
+        IF(int_state%SPEC_ADV)THEN
           CALL HALO_EXCH(int_state%WATER,LM,int_state%NUM_WATER,2       &
                         ,2,2)
         ENDIF
@@ -5174,9 +5172,6 @@
 !***  microphysics.
 !-----------------------------------------------------------------------
 !
-        SPECADV = 0
-        IF(int_state%SPEC_ADV) SPECADV=1 
-!
         update_wtr: IF((int_state%MICROPHYSICS=='fer'                   &
                                    .OR.                                 &
                         int_state%MICROPHYSICS=='fer_hires'             &
@@ -5187,22 +5182,6 @@
                                    .AND.                                &
                        (CALL_SHORTWAVE .OR. CALL_LONGWAVE .OR.          &
                         CALL_TURBULENCE .OR. CALL_PRECIP) ) THEN
-!
-           SELECT CASE (trim(int_state%MICROPHYSICS))
-!
-           CASE ('wsm6')
-              IMICRO=1
-!
-           CASE ('wsm3')
-              IMICRO=2
-!
-           CASE ('gfs')
-              IMICRO=3
-
-           CASE DEFAULT
-              IMICRO=0
-!
-           END SELECT
 !
            CALL UPDATE_WATER(int_state%CW                               &
                             ,int_state%F_ICE                            &
@@ -5216,8 +5195,8 @@
                             ,int_state%P_QS                             &
                             ,int_state%P_QI                             &
                             ,int_state%P_QG                             &
-                            ,IMICRO                                     &
-                            ,SPECADV                                    &
+                            ,int_state%MICROPHYSICS                     &
+                            ,int_state%SPEC_ADV                         &
                             ,NTIMESTEP                                  &
                             ,IDS,IDE,JDS,JDE,LM                         &
                             ,IMS,IME,JMS,JME                            &
@@ -5954,7 +5933,7 @@
 !***  If advection is on, cloud species are advected.
 !-----------------------------------------------------------------------
 !
-        IF( SPECADV == 1) THEN
+        IF(int_state%SPEC_ADV)THEN
           CALL HALO_EXCH(int_state%WATER,LM,int_state%NUM_WATER,2       &
                        ,2,2)
         ENDIF
@@ -9120,9 +9099,6 @@
           CASE ('wsm6')
              CALL WSM6INIT(RHOAIR0,RHOWATER,RHOSNOW,CLIQ,CV             &
                           ,ALLOWED_TO_READ )
-          CASE ('wsm3')
-!            CALL WSM3INIT(RHOAIR0,RHOWATER,RHOSNOW,CLIQ,CV             &
-!                         ,ALLOWED_TO_READ )
 !!!       CASE ('kes')
 !!!         CALL KESSLER_INIT
 !!!       CASE ('tho')
@@ -9173,8 +9149,7 @@
       SUBROUTINE UPDATE_WATER(CWM,F_ICE,F_RAIN,F_RIMEF                  &
                              ,NUM_WATER,WATER,T                         &
                              ,P_QC,P_QR,P_QS,P_QI,P_QG                  &
-                             ,IMICRO,SPECADV                            &
-                             ,NTIMESTEP                                 &
+                             ,MICROPHYSICS,SPEC_ADV,NTIMESTEP           &
                              ,IDS,IDE,JDS,JDE,LM                        &
                              ,IMS,IME,JMS,JME                           &
                              ,ITS,ITE,JTS,JTE)
@@ -9205,15 +9180,16 @@
 !-- Argument Variables
 !----------------------
 !
-      INTEGER,INTENT(IN) :: IMICRO                                      &
-                           ,NTIMESTEP                                   &
-                           ,NUM_WATER                                   &
+      INTEGER,INTENT(IN) :: NUM_WATER,NTIMESTEP                         &
                            ,P_QC,P_QR,P_QS,P_QI,P_QG                    &
-                           ,SPECADV                                     &
 !
                            ,IDS,IDE,JDS,JDE,LM                          &
                            ,IMS,IME,JMS,JME                             &
                            ,ITS,ITE,JTS,JTE
+!
+      CHARACTER(99),INTENT(IN) :: MICROPHYSICS
+!
+      LOGICAL,INTENT(IN) :: SPEC_ADV
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CWM         &
                                                            ,F_ICE       &
@@ -9228,190 +9204,234 @@
 !--------------------
 !
       INTEGER :: I,J,K
-!
       REAL :: FRACTION, LIQW, OLDCWM
+      LOGICAL :: CLD_INIT
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-       IF(NTIMESTEP <= 1) Then
-         DO K=1,LM
-           DO J=JMS,JME
-             DO I=IMS,IME
-               IF(P_QC == 1) WATER(I,J,K,P_QC)=0.0                          
-               IF(P_QR == 1) WATER(I,J,K,P_QR)=0.0                          
-               IF(P_QI == 1) WATER(I,J,K,P_QI)=0.0                          
-               IF(P_QS == 1) WATER(I,J,K,P_QS)=0.0                          
-               IF(P_QG == 1) WATER(I,J,K,P_QG)=0.0                          
-             ENDDO
-           ENDDO
+      IF(NTIMESTEP<=1)THEN
+        CLD_INIT=.TRUE.
+        DO K=1,LM
+         DO J=JMS,JME
+          DO I=IMS,IME
+            IF (P_QC==1) WATER(I,J,K,P_QC)=0.0                          
+            IF (P_QR==1) WATER(I,J,K,P_QR)=0.0                          
+            IF (P_QI==1) WATER(I,J,K,P_QI)=0.0                          
+            IF (P_QS==1) WATER(I,J,K,P_QS)=0.0                          
+            IF (P_QG==1) WATER(I,J,K,P_QG)=0.0                          
           ENDDO
-       ENDIF
-!
-!-----------------------------------------------------------------------
-!
-      micro_update:  IF (IMICRO <= 0) THEN
-!
-!-----------------------------------------------------------------------
-!***  Update condensate fields in water array for 
-!***  Ferrier microphysics only.
-!-----------------------------------------------------------------------
-!
-         DO K=1,LM
-           DO J=JMS,JME
-             DO I=IMS,IME
-!
-               spec_adv: IF (specadv==0.OR.NTIMESTEP<=1) THEN              !<-- Assign cloud water to WATER in initial time step.
-!
-                 IF (CWM(I,J,K)>EPSQ) THEN
-                   LIQW=(1.-F_ice(I,J,K))*CWM(I,J,K)
-                   WATER(I,J,K,P_QC)=(1.-F_rain(I,J,K))*LIQW
-                   WATER(I,J,K,P_QR)=F_rain(I,J,K)*LIQW
-                   WATER(I,J,K,P_QS)=F_ice(I,J,K)*CWM(I,J,K)
-                 ELSE
-                   WATER(I,J,K,P_QC)=0.
-                   WATER(I,J,K,P_QR)=0.
-                   WATER(I,J,K,P_QS)=0.
-                 ENDIF
-!
-               ELSE spec_adv                                               !<-- IF species are advected, CWM(i,j,k) is changed.
-!
-                 CWM(I,J,K) = WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)+WATER(I,J,K,P_QS)
-                 F_ICE(I,J,K)=0.0
-!
-                 IF (WATER(I,J,K,P_QS) > EPSQ) THEN
-                   F_ICE(I,J,K)=WATER(I,J,K,P_QS)/CWM(I,J,K)
-                 ENDIF
-!
-                 F_RAIN(I,J,K)=0.
-                 IF (WATER(I,J,K,P_QR) > EPSQ) THEN
-                   LIQW=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)
-                   F_RAIN(I,J,K)=WATER(I,J,K,P_QR)/LIQW
-                 ENDIF
-
-               ENDIF spec_adv
-!
-             ENDDO
-           ENDDO
          ENDDO
+        ENDDO
+      ELSE
+        CLD_INIT=.FALSE.
+      ENDIF
 !
-!-----------------------------------------------------------------------
+!----------------------------------------------------------------------
+!-- Couple 2 sets of condensed water arrays for different microphysics: 
+!   4D WATER(:,:,:,P_Qx) array <=> CWM,F_ice,F_rain,F_RimeF 3D arrays
+!----------------------------------------------------------------------
 !
-      ELSE IF (IMICRO == 1 .or. IMICRO ==3) THEN   micro_update   !! imicro=3 is for gfsmp
+      SELECT CASE ( TRIM(MICROPHYSICS) )
 !
-!-----------------------------------------------------------------------
-!***  Update CWM, F_rain, F_ice, F_RIMEF from WATER array
-!***  for WSM6 microphysics.
-!-----------------------------------------------------------------------
+!----------------------------------------------------------------------
+        CASE ('fer','fer_hires')  !-- Update fields for Ferrier microphysics
+!----------------------------------------------------------------------
 !
-         DO K=1,LM
-           DO J=JMS,JME
-             DO I=IMS,IME
+          spec_adv_fer: IF (.NOT.SPEC_ADV .OR. CLD_INIT) THEN
+!-- Update WATER arrays when advecting only total condensate (spec_adv=F)
+!   or at the initial time step
+            DO K=1,LM
+             DO J=JMS,JME
+              DO I=IMS,IME
+                IF (CWM(I,J,K)>EPSQ) THEN
+                  LIQW=(1.-F_ice(I,J,K))*CWM(I,J,K)
+                  WATER(I,J,K,P_QC)=(1.-F_rain(I,J,K))*LIQW
+                  WATER(I,J,K,P_QR)=F_rain(I,J,K)*LIQW
+                  WATER(I,J,K,P_QS)=F_ice(I,J,K)*CWM(I,J,K)
+                ELSE
+                  WATER(I,J,K,P_QC)=0.
+                  WATER(I,J,K,P_QR)=0.
+                  WATER(I,J,K,P_QS)=0.
+                ENDIF
+              ENDDO
+             ENDDO
+            ENDDO
 !
-               IF (NTIMESTEP <= 1) THEN                                    !<-- Assign WATER at initial time (5-28-2010)
-                   WATER(I,J,K,P_QG)=0.
-                   WATER(I,J,K,P_QS)=0.
-                 IF (CWM(I,J,K)>EPSQ) THEN
-                   LIQW=(1.-F_ice(I,J,K))*CWM(I,J,K)
-                   WATER(I,J,K,P_QC)=(1.-F_rain(I,J,K))*LIQW
-                   WATER(I,J,K,P_QR)=F_rain(I,J,K)*LIQW
-                   WATER(I,J,K,P_QI)=F_ice(I,J,K)*CWM(I,J,K)
-                 ELSE
-                   WATER(I,J,K,P_QC)=0.
-                   WATER(I,J,K,P_QR)=0.
-                   WATER(I,J,K,P_QI)=0.
-                 ENDIF
-               ENDIF    !  END of WATER
+          ELSE spec_adv_fer
+!-- Update CWM,F_ICE,F_RAIN arrays from separate species advection (spec_adv=T)
+            DO K=1,LM
+             DO J=JMS,JME
+              DO I=IMS,IME
+                CWM(I,J,K)=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)+WATER(I,J,K,P_QS)
+                IF (WATER(I,J,K,P_QS)>EPSQ) THEN
+                  F_ICE(I,J,K)=WATER(I,J,K,P_QS)/CWM(I,J,K)
+                ELSE
+                  F_ICE(I,J,K)=0.0
+                ENDIF
+                IF (WATER(I,J,K,P_QR)>EPSQ) THEN
+                  F_RAIN(I,J,K)=WATER(I,J,K,P_QR)/(WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR))
+                ELSE
+                  F_RAIN(I,J,K)=0.
+                ENDIF
+              ENDDO
+             ENDDO
+            ENDDO
+          ENDIF spec_adv_fer
 !
-!------------------
-               IF( specadv == 1) THEN
-                 !! After advection, water may be reditruted in space
-                CWM(I,J,K)=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)+WATER(I,J,K,P_QI)  &
-                          +WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
-               ELSE
-                 !! Water is not advected. Assuming species ratios are not changed after advection,
-                OLDCWM = WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)+WATER(I,J,K,P_QI)  &
-                          +WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
-                  IF (OLDCWM > EPSQ) THEN
-                    FRACTION = CWM(I,J,K)/OLDCWM
-                    WATER(I,J,K,P_QC) = FRACTION * WATER(I,J,K,P_QC)
-                    WATER(I,J,K,P_QR) = FRACTION * WATER(I,J,K,P_QR)
-                    WATER(I,J,K,P_QI) = FRACTION * WATER(I,J,K,P_QI)
-                    WATER(I,J,K,P_QS) = FRACTION * WATER(I,J,K,P_QS)
-                    WATER(I,J,K,P_QG) = FRACTION * WATER(I,J,K,P_QG)
-                   ELSE
-                     WATER(I,J,K,P_QC)=0.0
-                     WATER(I,J,K,P_QR)=0.0
-                     WATER(I,J,K,P_QI)=0.0
-                     WATER(I,J,K,P_QS)=0.0
-                     WATER(I,J,K,P_QG)=0.0
-                    IF (T(I,J,K) < 233.15) THEN
-                     WATER(I,J,K,P_QI) = CWM(I,J,K)
-                    ELSE
-                     WATER(I,J,K,P_QC) = CWM(I,J,K)
-                    ENDIF
+!----------------------------------------------------------------------
+        CASE ('gfs')       !-- Update fields for GFS microphysics
+!----------------------------------------------------------------------
+!
+          spec_adv_gfs: IF (.NOT.SPEC_ADV .OR. CLD_INIT) THEN
+            cld_init_gfs: IF (CLD_INIT) THEN
+!-- Initialize F_ICE, F_RAIN, & F_RIMEF arrays
+              IF (SPEC_ADV) THEN
+                WRITE(0,*) 'Never ran GFS microphysics with SPEC_ADV=T.'   &
+                          ,'  Use at your own risk.'
+              ENDIF
+              DO K=1,LM
+               DO J=JMS,JME
+                DO I=IMS,IME
+                  F_RAIN(I,J,K)=0.
+                  F_RIMEF(I,J,K)=1.
+                  IF (CWM(I,J,K)>EPSQ .AND. T(I,J,K)<233.15) THEN
+                    F_ICE(I,J,K)=1.
+                  ELSE
+                    F_ICE(I,J,K)=0.
                   ENDIF
-               ENDIF
-!------------------
-
-                IF (CWM(I,J,K) > EPSQ) THEN
-                   LIQW=WATER(I,J,K,P_QI)+WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
-                   F_ICE(I,J,K)=LIQW/CWM(I,J,K)
+                ENDDO
+               ENDDO
+              ENDDO
+            ENDIF  cld_init_gfs
+!-- Update WATER arrays when advecting only total condensate (spec_adv=F)
+!   or initialize them at the start of the forecast (CLD_INIT=T).
+            DO K=1,LM
+             DO J=JMS,JME
+              DO I=IMS,IME
+                IF (CWM(I,J,K)>EPSQ) THEN
+                  WATER(I,J,K,P_QC)=(1.-F_ice(I,J,K))*CWM(I,J,K)
+                  WATER(I,J,K,P_QI)=F_ice(I,J,K)*CWM(I,J,K)
                 ELSE
-                   F_ICE(I,J,K)=0.
+                  WATER(I,J,K,P_QC)=0.
+                  WATER(I,J,K,P_QI)=0.
                 ENDIF
-                IF (WATER(I,J,K,P_QR) > EPSQ) THEN
-                   LIQW=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)
-                   F_RAIN(I,J,K)=WATER(I,J,K,P_QR)/LIQW
-                ELSE
-                   F_RAIN(I,J,K)=0.
-                ENDIF
-                IF (WATER(I,J,K,P_QG) > EPSQ) THEN
-!-- Crudely update F_RIMEF based on a factor of 5 higher density graupel (500 kg/m**3)
-!   over unrimed snow (100 kg/m**3)
-                   LIQW=5.*WATER(I,J,K,P_QG)+WATER(I,J,K,P_QS)
-                   F_RIMEF(I,J,K)=LIQW/(WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG))
-                ELSE
-                   F_RIMEF(I,J,K)=1.
-                ENDIF
+              ENDDO
              ENDDO
-           ENDDO
-         ENDDO
-!
-!-----------------------------------------------------------------------
-!
-      ELSE IF (IMICRO == 2) then micro_update
-!
-!-----------------------------------------------------------------------
-!***  Update CWM, F_rain, F_ice, F_RIMEF from WATER array
-!***  for WSM3 microphysics.
-!-----------------------------------------------------------------------
-!
-         DO K=1,LM
-           DO J=JMS,JME
-             DO I=IMS,IME
-                CWM(I,J,K)=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)
-                F_RIMEF(I,J,K)=1.
-                IF (T(I,J,K) >= TIW) THEN
-                   F_ICE(I,J,K)=0.
-                   IF (WATER(I,J,K,P_QR) > EPSQ) THEN
-                      LIQW=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)
-                      F_RAIN(I,J,K)=WATER(I,J,K,P_QR)/LIQW
-                   ELSE
-                      F_RAIN(I,J,K)=0.
-                   ENDIF
+            ENDDO
+          ELSE spec_adv_gfs
+!-- Update CWM, F_ICE arrays from separate species advection (spec_adv=T)
+            DO K=1,LM
+             DO J=JMS,JME
+              DO I=IMS,IME
+                CWM(I,J,K)=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QI)
+                IF (CWM(I,J,K)>EPSQ) THEN
+                  F_ICE(I,J,K)=WATER(I,J,K,P_QI)/CWM(I,J,K)
                 ELSE
-                   F_ICE(I,J,K)=1.
-                   F_RAIN(I,J,K)=0.
+                  F_ICE(I,J,K)=0.
                 ENDIF
+              ENDDO
              ENDDO
-           ENDDO
-         ENDDO
+            ENDDO
+          ENDIF  spec_adv_gfs
 !
-!-----------------------------------------------------------------------
+!----------------------------------------------------------------------
+        CASE ('wsm6')      !-- Update fields for WSM6 microphysics
+!----------------------------------------------------------------------
 !
-      ENDIF  micro_update
+          spec_adv_wsm6: IF (CLD_INIT) THEN
+!-- Assume only cloud ice is present at initial time
+            DO K=1,LM
+             DO J=JMS,JME
+              DO I=IMS,IME
+                WATER(I,J,K,P_QS)=0.0
+                WATER(I,J,K,P_QG)=0.0
+                IF (CWM(I,J,K)>EPSQ) THEN
+                  LIQW=(1.-F_ice(I,J,K))*CWM(I,J,K)
+                  WATER(I,J,K,P_QC)=(1.-F_rain(I,J,K))*LIQW
+                  WATER(I,J,K,P_QR)=F_rain(I,J,K)*LIQW
+                  WATER(I,J,K,P_QI)=F_ice(I,J,K)*CWM(I,J,K)
+                ELSE
+                  WATER(I,J,K,P_QC)=0.
+                  WATER(I,J,K,P_QR)=0.
+                  WATER(I,J,K,P_QI)=0.
+                ENDIF
+              ENDDO
+             ENDDO
+            ENDDO
+          ELSE IF(SPEC_ADV) THEN  spec_adv_wsm6
+!-- Couple 4D WATER(:,:,:,P_Qx) <=> CWM,F_ice,F_rain,F_RimeF arrays
+!-- Update CWM,F_XXX arrays from separate species advection (spec_adv=T)
+            DO K=1,LM
+             DO J=JMS,JME
+              DO I=IMS,IME
+                CWM(I,J,K)=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)      &
+                          +WATER(I,J,K,P_QI)+WATER(I,J,K,P_QS)      &
+                          +WATER(I,J,K,P_QG)
+                IF (CWM(I,J,K)>EPSQ) THEN
+                  LIQW=WATER(I,J,K,P_QI)+WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
+                  F_ICE(I,J,K)=LIQW/CWM(I,J,K)
+                ELSE
+                  F_ICE(I,J,K)=0.
+                ENDIF
+                IF (WATER(I,J,K,P_QR)>EPSQ) THEN
+                  F_RAIN(I,J,K)=WATER(I,J,K,P_QR)/(WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR))
+                ELSE
+                  F_RAIN(I,J,K)=0.
+                ENDIF
+                IF (WATER(I,J,K,P_QG)>EPSQ) THEN
+!-- Update F_RIMEF: assume 5x higher graupel density (500 kg/m**3) vs snow (100 kg/m**3)
+                  LIQW=5.*WATER(I,J,K,P_QG)+WATER(I,J,K,P_QS)
+                  F_RIMEF(I,J,K)=LIQW/(WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG))
+                ELSE
+                  F_RIMEF(I,J,K)=1.
+                ENDIF
+              ENDDO
+             ENDDO
+            ENDDO
+          ELSE  spec_adv_wsm6
+!-- Update WATER arrays when advecting only total condensate (spec_adv=F).
+!-- Assume fraction of each water category is unchanged by advection. 
+            DO K=1,LM
+             DO J=JMS,JME
+              DO I=IMS,IME
+                OLDCWM=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)   &
+                      +WATER(I,J,K,P_QI)+WATER(I,J,K,P_QS)   &
+                      +WATER(I,J,K,P_QG)
+                IF (OLDCWM>EPSQ) THEN
+                  FRACTION=CWM(I,J,K)/OLDCWM
+                  WATER(I,J,K,P_QC)=FRACTION*WATER(I,J,K,P_QC)
+                  WATER(I,J,K,P_QR)=FRACTION*WATER(I,J,K,P_QR)
+                  WATER(I,J,K,P_QI)=FRACTION*WATER(I,J,K,P_QI)
+                  WATER(I,J,K,P_QS)=FRACTION*WATER(I,J,K,P_QS)
+                  WATER(I,J,K,P_QG)=FRACTION*WATER(I,J,K,P_QG)
+                ELSE
+                  WATER(I,J,K,P_QC)=0.0
+                  WATER(I,J,K,P_QR)=0.0
+                  WATER(I,J,K,P_QI)=0.0
+                  WATER(I,J,K,P_QS)=0.0
+                  WATER(I,J,K,P_QG)=0.0
+                  IF (T(I,J,K)<233.15) THEN
+                    WATER(I,J,K,P_QI)=CWM(I,J,K)
+                  ELSE
+                    WATER(I,J,K,P_QC)=CWM(I,J,K)
+                  ENDIF
+                ENDIF
+              ENDDO
+             ENDDO
+            ENDDO
+          ENDIF  spec_adv_wsm6
+!
+!----------------------------------------------------------------------
+        CASE DEFAULT
+!----------------------------------------------------------------------
+!
+          IF (CLD_INIT) THEN
+            WRITE(0,*) 'Do nothing for default option'
+          ENDIF
+!
+      END SELECT   ! MICROPHYSICS
 !
 !----------------------------------------------------------------------
 !
