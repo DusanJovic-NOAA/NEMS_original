@@ -34,6 +34,13 @@ set -x
  export IDEA=_IDEA_
  export IDEA=${IDEA:-.false.}
 
+# nemsio input
+ export NEMSIO_IN=_NEMSIOIN_
+ export NEMSIO_IN=${NEMSIO_IN:-.true.}
+#
+ export MACHINE_ID=${MACHINE_ID:-ccs}
+ export SCHEDULER=${SCHEDULER:-loadleveler}
+#
 # SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
  export SFCPRESS_ID=2
 # THERMODYN_ID=3 for enthalphy, 0 or 1 for virtual T, 2 for T

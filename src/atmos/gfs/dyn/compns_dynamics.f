@@ -49,6 +49,7 @@
 !                              for Eulerian jcap=jcapg<lonf/3
 !                              for NDSL jcap<lonf/2, jcapg<lonf/3
 !   2012-04-06  Henry Juang    add idea for lsidea
+!   2012-10-05  Jun Wang       add sigio_out 
 !
 ! Usage:    call compns(deltim,
 !    &                  fhout,fhres,
@@ -99,7 +100,7 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
      & spectral_loop,ndslfv,mass_dp,semi_implicit_temp_profile,
      & reduced_grid,
      & thermodyn_id, sfcpress_id,
-     & zflxtvd,num_reduce
+     & zflxtvd,num_reduce,sigio_out
 
 !
       num_reduce=-4
@@ -134,6 +135,7 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !
       nemsio_in         = .true.
       nemsio_out        = .true.
+      sigio_out         = .false.
 ! idea add
       lsidea           = .false. 
 !

@@ -29,7 +29,7 @@ all default: depend buildfimsrclibs
 # always execute makefim, it is cheap if a re-build is not needed
 .PHONY: buildfimsrclibs
 buildfimsrclibs:
-	(cd FIMsrc && makefim devccs) || (echo "makefim failure" && exit 1)
+	(cd FIMsrc && ./makefim devccs) || (echo "makefim failure" && exit 1)
 
 $(LIBRARY): $(MODULES)
 	$(AR) $(ARFLAGS) $@ $(MODULES)
@@ -45,7 +45,7 @@ $(MODULES_STUB): %.o: %.f90
 
 clean:
 	$(RM) -f $(LIBRARY) *.o *.mod *.f90 *.lst lm map depend
-	(cd FIMsrc && makefim clean)
+	(cd FIMsrc && ./makefim clean)
 
 include ../../conf/make.rules
 

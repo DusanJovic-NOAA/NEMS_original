@@ -2,7 +2,7 @@ include ../../../conf/configure.nems
 
 MAKEFILE = makefile
 
-UTILINCS = -I../../share -I../libutil -I../../phys
+UTILINCS = -I../../share -I../libutil 
 ARCH=$(shell uname -s)
 GOCARTINCS = -I../../../chem/gocart/${ARCH}/include/Chem_Base \
              -I../../../chem/gocart/${ARCH}/include/GMAO_mpeu \
@@ -15,6 +15,7 @@ OPTSGOCART     = $(FFLAGS_GFS) $(R8) -O3 $(UTILINCS) $(GOCARTINCS)
 
 FFLAG90  = $(OPTS) $(FREE)
 FFLAGS1  = $(OPTS) $(FIXED)
+FFLAG90I  = $(FFLAGS_GFS) -O3 $(FREE)
 FFLAG90GOCART  = $(OPTSGOCART) $(FREE)
 FFLAGS1GOCART  = $(OPTSGOCART) $(FIXED)
 
@@ -128,6 +129,7 @@ OBJS   = \
 	grid_to_spect.o \
 	gridzz_to_spect.o \
 	spect_to_grid.o \
+	spect_to_grid_gz.o \
 	spect_to_gridxy.o \
 	spectpz_to_gridxy.o \
 	compns_dynamics.o \
@@ -168,10 +170,14 @@ OBJS   = \
 
 OBJS_IO= \
 	grid_fix.o         \
-	treadeo_nemsio.o    \
+	sigio_module.o     \
+	sigio_r_module.o   \
+	treadeo.io.o   \
+	treadeo_nemsio.o   \
 	treadg_nemsio.o    \
 	treads_nemsio.o    \
 	twrites_rst.o     \
+	twrites_hst.o     \
 	twriteg_rst.o     \
 	grid_to_spect_inp.o    \
 	setsig.o               \
@@ -228,6 +234,15 @@ clean:
 gfs_dyn_physcons.o:	gfs_dyn_physcons.f90
 		$(FC) $(FFLAG90) -c gfs_dyn_physcons.f90
 
+sigio_module.o:	 sigio_module.f90
+		$(FC) $(FFLAG90I) -c sigio_module.f90
+
+sigio_r_module.o:	 sigio_r_module.f90
+		$(FC) $(FFLAG90I) -c sigio_r_module.f90
+
+#spect_tv_enthalpy_ps.o:	 spect_tv_enthalpy_ps.f90
+#		$(FC) $(FFLAG90I) -c spect_tv_enthalpy_ps.f90
+#
 gfs_dynamics_err_msg_mod.o:	 gfs_dynamics_err_msg_mod.f90
 		$(FC) $(FFLAG90) -c gfs_dynamics_err_msg_mod.f90
 

@@ -99,8 +99,7 @@ MODULES_GFSF=                                \
 	           get_prs.o                 \
 	           gsmddrive.o
 
-MODULES_IDEA = idea_composition.o   \
-               co2hc.o              \
+MODULES_IDEA = co2hc.o              \
                idea_solar_heating.o \
                idea_tracer.o        \
                h2oc.o               \

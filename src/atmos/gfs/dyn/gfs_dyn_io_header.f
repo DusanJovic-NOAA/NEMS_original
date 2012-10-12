@@ -14,7 +14,11 @@
        integer,target  ::   itrun
 !
       integer lonb, latb, iens(5), idpp, idvt, idrun
-     &,       idusr, ncldt, irealf, iorder
+     &,       idusr, ncldt, irealf, iorder, lonr, latr
+!
+!jw--- save iniital oro data
+      REAL(KIND=KIND_IOr), allocatable ::  Z_R(:)
+      REAL(KIND=KIND_IO4), allocatable ::  Z(:)
 !!
       character*8   lab(4)
       end module gfs_dyn_io_header

@@ -37,7 +37,8 @@ if [ ${MACHINE_ID} = zeus ]; then
   for i in rm gm ada cmp gefs sepp omd
   do
     printf %s "Looking for accout ID: " $i " ..."
-    nr=`account_params 2>&1 | grep " "$i" " | wc -l`
+    nr=`account_params 2>&1 | grep -v Initial | grep " "$i" " | wc -l`
+
     if [ $nr -eq 1 ]; then
       ACCNR=$i ; echo OK
     else

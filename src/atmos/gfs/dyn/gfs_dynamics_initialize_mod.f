@@ -30,6 +30,7 @@
 !  Feb 28  2011 Sarah Lu         add thermodyn_id and sfcpress_id
 !  Mar 15  2011 H. Juang         add jcapg for NDSL
 !  Apr 06  2012 H. Juang         add idea
+!  Sep 20  2012 J. Wang          add sigio option
 !
 !
 ! !interface:
@@ -45,8 +46,9 @@
       use gfs_dyn_write_state, only : buff_mult_pieceg
       use gfs_dyn_layout1, only : ipt_lats_node_a, lats_node_a_max
       use gfs_dyn_resol_def, only : adiabatic, thermodyn_id, sfcpress_id
-      use namelist_dynamics_def, only : fhrot,fhini,num_reduce
+      use namelist_dynamics_def, only : fhrot,fhini,num_reduce,nemsio_in
       use gfs_dyn_tracer_config, only: gfs_dyn_tracer, tracer_config_init,gfs_dyn_tracer
+      use gfs_dyn_io_header, only: z_r,z
 #ifndef IBM
       USE omp_lib
 #endif
@@ -79,6 +81,7 @@
       REAL(KIND=kind_evod),allocatable:: visc(:),cond(:),diff(:),plyr(:)
       real p0
       integer indlsev,jbasev,i,k,kk
+      character(20) cfile
 
       indlsev(n,l) = jbasev + (n-l)/2 + 1
 
@@ -137,6 +140,7 @@
       ncld    = gis_dyn%ncld
       thermodyn_id = gis_dyn%thermodyn_id
       sfcpress_id  = gis_dyn%sfcpress_id
+      nemsio_in    = gis_dyn%nemsio_in
 
       if (gis_dyn%nam_gfs_dyn%total_member <= 1) then
         ens_nam=' '
@@ -593,6 +597,8 @@
       allocate (   gis_dyn%pwat    (lonf,lats_node_a) )
       allocate (   gis_dyn%ptot    (lonf,lats_node_a) )
       allocate (   gis_dyn%ptrc    (lonf,lats_node_a,ntrac) )         !glbsum
+      allocate (   z(lnt2) )
+      allocate (   z_r(lnt2) )
 !c
       allocate (   gis_dyn%syn_ls_a(4*ls_dim,gis_dyn%lots,latg2) )
       allocate (   gis_dyn%dyn_ls_a(4*ls_dim,gis_dyn%lotd,latg2) )
@@ -696,13 +702,21 @@
       endif
 
       if( .not. gis_dyn%restart_run) then
-        call input_fields(gis_dyn%nam_gfs_dyn%grid_ini, gis_dyn%pdryini,     &
+        if(nemsio_in) then
+          cfile=gis_dyn%nam_gfs_dyn%grid_ini
+        else
+          cfile=gis_dyn%nam_gfs_dyn%sig_ini
+        endif
+!
+        call input_fields(cfile, gis_dyn%pdryini,                            &
           gis_dyn%trie_ls, gis_dyn%trio_ls,  gis_dyn%grid_gr ,               &
           gis_dyn%ls_node, gis_dyn%ls_nodes, gis_dyn%max_ls_nodes,           &
           gis_dyn%global_lats_a, gis_dyn%lonsperlat,                         &
-          gis_dyn%epse, gis_dyn%epso, gis_dyn%plnev_a, gis_dyn%plnod_a,      &
-          gis_dyn%plnew_a, gis_dyn%plnow_a, gis_dyn%lats_nodes_a,           &
-          gis_dyn%pwat, gis_dyn%ptot, gis_dyn%ptrc)
+          gis_dyn%epse, gis_dyn%epso, gis_dyn%epsedn, gis_dyn%epsodn,        &
+          gis_dyn%plnev_a, gis_dyn%plnod_a,                                  &
+          gis_dyn%plnew_a, gis_dyn%plnow_a, gis_dyn%lats_nodes_a,            &
+          gis_dyn%pwat, gis_dyn%ptot, gis_dyn%ptrc, gis_dyn%snnp1ev,         &
+          gis_dyn%snnp1od)
 !
           gis_dyn% start_step  = .true.
           gis_dyn% reset_step  = .false.

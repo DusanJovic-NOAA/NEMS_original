@@ -21,6 +21,7 @@ c wrtout.
 !
 ! May 2009 Jun Wang, modified to use write grid component
 ! Feb 2011 Henry Juang, modified to have options for mass_dp and ndsl advection
+! Oct 2012 Jun Wang, add sigio output option
 !
       use gfs_dyn_machine
       use gfs_dyn_resol_def
@@ -93,6 +94,7 @@ cc
 cc
       integer               ierr,i,j,k,l,lenrec,locl,n,node
       integer               nosig,nfill,jlonf
+      integer               thermodyn_id_out,sfcpress_id_out
       character*16 cosfc
       data timesum/0./
 cc
@@ -100,7 +102,7 @@ cc
      &,                    TRIO_LS(LEN_TRIO_LS,2,lotls)
       REAL(KIND=KIND_grid) grid_gr(lonf*lats_node_a_max,lotgr)
 !!
-      character CFHOUR*40,CFORM*40
+      character CFHOUR*40,CFORM*40,filename*255
       integer jdate(4),nzsig,ndigyr,ndig,kh,ioproc
 !!
       REAL (KIND=KIND_grid) pdryini
@@ -191,12 +193,13 @@ csela set lfnhr to false for writing one step output etc.
         WRITE(CFHOUR,CFORM) KH,':',KM,':',KS
       ENDIF
       if( nfill(ens_nam) == 0 ) then
-      CFHOUR = CFHOUR(1:nfill(CFHOUR))
+        CFHOUR = CFHOUR(1:nfill(CFHOUR))
       else
-      CFHOUR = CFHOUR(1:nfill(CFHOUR)) // ens_nam(1:nfill(ens_nam))
+        CFHOUR = CFHOUR(1:nfill(CFHOUR)) // ens_nam(1:nfill(ens_nam))
       endif
       if (me == ioproc)
-     &print *,' in wrtout_dynamics cfhour=',cfhour,' ens_nam=',ens_nam
+     &print *,' in wrtout_dynamics cfhour=',cfhour,' ens_nam=',
+     &  ens_nam,'fhour=',fhour,'lfnhr=',lfnhr
 !
       nosig=61
 !!
@@ -209,8 +212,9 @@ c build state on each node.   COMP tasks only
 c assemble upair state first then sfc state,
 c then (only if liope)  flux state.
 !
-      t3=rtc()
-      if(mc_comp .ne. MPI_COMM_NULL) then
+      if(nemsio_out) then
+        t3=rtc()
+        if(mc_comp .ne. MPI_COMM_NULL) then
 
           do lan=1,lats_node_a
             jlonf = (lan-1)*lonf
@@ -325,8 +329,7 @@ c then (only if liope)  flux state.
 
           enddo
 
-
-      endif                 ! comp node
+        endif                 ! comp node
 !
 c  done with state build
 c  NOW STATE IS ASSEMBLED ON EACH NODE.  GET EVERYTHING OFF THE COMPUTE
@@ -335,6 +338,68 @@ c  send state to I/O task.  All tasks
 !
         call grid_collect (zsg,psg,uug,vvg,ttg,rqg,dpg,
      &                         global_lats_a,lonsperlat)
+!
+      endif
+!
+!add sigio out
+! 
+      if(sigio_out) then
+!
+!*** for enthalpy and ps
+! keep enthalpy and ps variables before write
+!
+!         if(run_enthalpy) then
+!          do k=1,levs
+!            kk = P_TE + k - 1
+!            trie_te(:,:,k) = trie_ls(:,:,kk)
+!            trio_te(:,:,k) = trio_ls(:,:,kk)
+!          enddo
+!          trie_q (:,:) = trie_ls(:,:,P_Q)
+!          trio_q (:,:) = trio_ls(:,:,P_Q)
+!
+!          direction=-1          ! from (enthalpy,ps) to (virttemp,lnps)
+!          call spect_tv_enthalpy_ps
+!!!   &       (direction,run_enthalpy,
+!     &       (direction,
+!     X        TRIE_LS(1,1,P_Q ), TRIO_LS(1,1,P_Q ),
+!     X        TRIE_LS(1,1,P_TE), TRIO_LS(1,1,P_TE),
+!     X        TRIE_LS(1,1,P_RQ), TRIO_LS(1,1,P_RQ),
+!     &        ls_node,ls_nodes,max_ls_nodes,
+!     &        lats_nodes_r,global_lats_r,lonsperlar,
+!     &        plnev_r,plnod_r,plnew_r,plnow_r)
+!
+!        endif           ! (run enthalpy
+!!
+        thermodyn_id_out = 1
+        sfcpress_id_out  = 1
+
+!
+! n time step spectral file
+!
+         filename='SIGF'//trim(CFHOUR)
+         print *,'be twrites_hst,filename=',trim(filename)
+         call twrites_hst(filename,ioproc,fhour,idate,
+     x            ls_nodes,max_ls_nodes,trie_ls,trio_ls,
+     &            thermodyn_id_out,sfcpress_id_out,pdryini)
+         if (me == 0) print *,'finish end of sigio output for ',
+     &     trim(filename)
+!
+!        if (runenthalpy) then
+!! te
+!          do k=1,levs
+!            kk = P_TE + k - 1
+!            trie_ls(:,:,kk) = trie_te(:,:,k)
+!            trio_ls(:,:,kk) = trio_te(:,:,k)
+!          enddo
+!! ps
+!          trie_ls(:,:,P_Q) = trie_q (:,:)
+!          trio_ls(:,:,P_Q) = trio_q (:,:)
+!!
+!        endif      
+!
+!end sigio_out
+      endif
+
 !
       return
       end

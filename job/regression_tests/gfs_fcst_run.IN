@@ -28,9 +28,18 @@ set -x
  export GOCART=${GOCART:-0}
 # reduced_grid default is true
  export REDUCED_GRID=_REDUCEDGRID_
+
 # wam model to couple with idea, default is false
  export IDEA=_IDEA_
  export IDEA=${IDEA:-.false.}
+
+# nemsio input
+ export NEMSIO_IN=_NEMSIOIN_
+ export NEMSIO_IN=${NEMSIO_IN:-.true.}
+# 
+ export MACHINE_ID=${MACHINE_ID:-ccs}
+ export SCHEDULER=${SCHEDULER:-loadleveler}
+#
 # number of output files, default =3, for adiab num_file=1
  if [[ $ADIAB = .true. ]] ; then
      export NUM_FILE=1 ;
@@ -355,7 +364,7 @@ fi
     export FHINI=`$nemsioget $GRDI nfhour |grep -i "nfhour"|awk -F" " '{print $2}'`
   else
     export GRDI=$RUNDIR/gfsanl.$CDATE
-    export SIGI=$RUNDIR/gfsanl.$CDATE
+    export SIGI=$RUNDIR/siganl.$CDATE
     export SFCI=$RUNDIR/sfcanl.$CDATE
     export FHINI=00
   fi

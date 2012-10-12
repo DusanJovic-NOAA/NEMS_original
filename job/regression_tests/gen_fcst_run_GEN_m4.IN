@@ -62,6 +62,8 @@ echo 'SCHEDULER=' $SCHEDULER
 echo 'FCSTSCRIPT=' $FCSTSCRIPT
  export FCSTEXEC=_SRCDIR_/exe/NEMS.x
 echo 'FCSTEXEC=' $FCSTEXEC
+
+ export MACHINE_ID=${MACHINE_ID:-ccs}
 #
 #
 # ***************************************************************

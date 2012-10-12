@@ -37,6 +37,7 @@ cd $PATHRT
 
 cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_PE1_:${PE1}:g       \
+                    | sed s:_NEMSIOIN_:${NEMSIOIN}:g      \
                     | sed s:_WPG_:${WTPG}:g      \
                     | sed s:_WRTGP_:${WRTGP}:g   \
                     | sed s:_wrtdopost_:${WRITE_DOPOST}:g   \
@@ -90,21 +91,36 @@ if [ $GOCART = 1 ] ; then
  cp -r  ${EXTDIR}/ExtData ${RUNDIR}/.
 fi
 
-if [ $IDVC = 2 ] ; then
-  cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/gfsanl.2010010100 ${RUNDIR}/.
-  cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/sfcanl.2010010100 ${RUNDIR}/.
+if [ "$NEMSIOIN" = ".true." ]; then
+  if [ $IDVC = 2 ] ; then
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/gfsanl.2010010100 ${RUNDIR}/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/sfcanl.2010010100 ${RUNDIR}/.
+#to run gfs test
+    if [ "$rungfstest" = ".true." ]; then
+      cp /climate/save/wx20wa/esmf/nems/20120913/data/nemsio/gfsanl.2012010100 ${RUNDIR}/.
+      cp /climate/save/wx20wa/esmf/nems/20120913/data/nemsio/sfcanl.2012010100 ${RUNDIR}/.
+      export CDATE=2012010100
+    fi
 
 #  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/t62hyb/gfsanl.2010010100 ${RUNDIR}/.
 #  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/t62hyb/sfnanl.2010010100 ${RUNDIR}/sfcanl.2010010100
 
 
-elif [ $IDVC = 3 ] ; then
-  cp ${RTPWD}/GFS_NODFI/gfsanl.2010010100 ${RUNDIR}/.
-  cp ${RTPWD}/GFS_NODFI/sfcanl.2010010100 ${RUNDIR}/.
+  elif [ $IDVC = 3 ] ; then
+    cp ${RTPWD}/GFS_NODFI/gfsanl.2010010100 ${RUNDIR}/.
+    cp ${RTPWD}/GFS_NODFI/sfcanl.2010010100 ${RUNDIR}/.
 
 #  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/t62/gfsanl.2010010100 ${RUNDIR}/.
 #  cp /climate/noscrub/wx20wa/esmf/nems/IC/nemsio_new/t62/sfnanl.2010010100 ${RUNDIR}/sfcanl.2010010100
+  fi
 
+#no nemsio input
+else
+   if [ "$rungfstest" = ".true." ]; then
+     cp /climate/save/wx20wa/esmf/nems/20120913/data/siganl.2012010100 ${RUNDIR}/.
+     cp /climate/save/wx20wa/esmf/nems/20120913/data/sfcanl.2012010100 ${RUNDIR}/.
+     export CDATE=2012010100
+   fi
 fi
 
 else
@@ -124,11 +140,13 @@ cp $PATHRT/gfs_configfile_190 $RUNDIR/configure_file
 cat gfs_fcst_run_GEFS.IN \
                     | sed s:_SRCDIR_:${PATHTR}:g \
                     | sed s:_NDSLFV_:${NDSLFV}:g \
+                    | sed s:_NEMSIOIN_:${NEMSIOIN}:g \
                     | sed s:_IDEA_:${IDEA}:g \
                     | sed s:_RUNDIR_:${RUNDIR}:g > gfs_fcst_run
 
 
 cp gfs_fcst_run ${RUNDIR}
+chmod +x ${RUNDIR}/gfs_fcst_run
 cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
 cp atmos.configure_gfs ${RUNDIR}/atmos.configure
 cp ocean.configure ${RUNDIR}/ocean.configure

@@ -9,9 +9,11 @@ MODULES_F90  = module_ERR_MSG.o \
                module_CONSTANTS.o \
 	       ffsync.o 
 
-MODULES_ALL = $(MODULES_F90)
+MODULES_IDEA = idea_composition.o
 
-DEPEND_FILES = ${MODULES_F90:.o=.F90}
+MODULES_ALL = $(MODULES_F90) $(MODULES_IDEA)
+
+DEPEND_FILES = ${MODULES_F90:.o=.F90} ${MODULES_IDEA:.o=.f}
 
 
 all default: depend
@@ -22,6 +24,10 @@ $(LIBRARY): $(MODULES_ALL)
 
 $(MODULES_F90): %.o: %.f90
 	$(FC) $(FFLAGS) $(UTILINCS) -c $*.f90
+
+$(MODULES_IDEA): %.o: %.f
+	$(FC) $(FFLAGS_GFSF) $(UTILINCS) $(R8) -c $*.f
+
 
 clean:
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst *.a lm map depend

@@ -30,6 +30,7 @@
 !                   ESMF 5 library and the the ESMF 3.1.0rp2 library.
 !  May    2011      Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !  Sep    2011      Weiyu Yang, Modified for using the ESMF 5.2.0r library.
+!  Sep    2012     Jun Wang, add sigio input option
 !
 ! !interface:
 !
@@ -47,6 +48,7 @@
       use gfs_dyn_mpi_def
       use gfs_dynamics_output, only : point_dynamics_output_gfs
       use gfs_dyn_tracer_config, only: gfs_dyn_tracer
+      use namelist_dynamics_def, only: nemsio_in
 
       implicit none
 
@@ -182,6 +184,7 @@
 !  february 2007     h.-m. h. juang
 !  oct 12 2009       Sarah Lu, export state is pointed to grid_gr once and for all
 !  November 2009     Weiyu Yang, Ensemble GEFS.
+!  Sep      2012     Jun Wang, add sigio input option
 !
 ! !interface:
 !
@@ -245,6 +248,7 @@
       integer                            :: rcfinal, grib_inp
       integer                            :: ifhmax
       integer                            :: runduration_hour 
+      character(20)                      :: cfile,cfile2
 
 ! initialize the error signal variables.
 !---------------------------------------
@@ -302,11 +306,19 @@
       call esmf_logwrite("getting the start time",                      &
                           ESMF_LOGMSG_INFO, rc = rc1)
 
+      print *,'nemsio_in=',int_state%nemsio_in
+      if(int_state%nemsio_in) then
+        cfile=trim(int_state%nam_gfs_dyn%grid_ini)
+        cfile2=trim(int_state%nam_gfs_dyn%grid_ini2)
+      else
+        cfile=trim(int_state%nam_gfs_dyn%sig_ini)
+        cfile2=trim(int_state%nam_gfs_dyn%sig_ini2)
+      endif
+
       call gfs_dynamics_start_time_get(					&
                         yy, mm, dd, hh, mns, sec, int_state%kfhour,     &
                         int_state%n1,int_state%n2,int_state%grib_inp,   &
-                        int_state%nam_gfs_dyn%grid_ini,                 &
-                        int_state%nam_gfs_dyn%grid_ini2, rc1)
+                        cfile,cfile2,int_state%nemsio_in, rc1) 
  
       call gfs_dynamics_err_msg(rc1,'getting the start time',rc)
  

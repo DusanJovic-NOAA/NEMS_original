@@ -18,6 +18,7 @@ JBNME=RT_${TEST_NR}_$$
 
 cat ngac_ll.IN      | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_CLASS_:${CLASS}:g   \
+                    | sed s:_NEMSIOIN_:${NEMSIOIN}:g \
                     | sed s:_GROUP_:${GROUP}:g   \
                     | sed s:_NEMSDIR_:${NEMSDIR}:g   \
                     | sed s:_WORKDIR_:${WORKDIR}:g   \

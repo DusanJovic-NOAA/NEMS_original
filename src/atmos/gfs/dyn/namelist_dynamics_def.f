@@ -3,6 +3,7 @@
 !
 ! program lot
 ! 06 Apr 2012:    Henry Juang add some options for NDSL
+! 05 Oct 2012:    Jun Wang    add sigio_out
 !
       use gfs_dyn_machine
       implicit none
@@ -12,12 +13,11 @@
       real(kind=kind_evod) filta,ref_temp
       logical lsfwd
       logical shuff_lats_a,reshuff_lats_a
-!jw      logical hybrid,gen_coord_hybrid,zflxtvd,explicit
       logical,target :: hybrid,gen_coord_hybrid
       logical zflxtvd,explicit
 
 
-      logical nemsio_in, nemsio_out
+      logical nemsio_in, nemsio_out, sigio_out
       logical reduced_grid, semi_implicit_temp_profile
       logical mass_dp, process_split
       logical ndslfv

@@ -26,6 +26,7 @@
 !  Feb 2011           sarah lu, add thermodyn_id, sfcpress_id
 !  Mar 2011           hann-ming henry jaung, add jcapg for NDSL
 !  Sep 2011           weiyu yang, modified for using the ESMF 5.2.0r library.
+!  Sep 2012           jun wang, add nemsio_in to specify input files
 !
 ! !interface:
 !
@@ -187,6 +188,7 @@
       logical restart_run
       logical start_step, reset_step, end_step, restart_step
 
+      logical nemsio_in
       logical lsout,ldfi
       logical :: dfiend_step = .false.
 

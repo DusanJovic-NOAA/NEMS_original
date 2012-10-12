@@ -23,6 +23,7 @@
 !                 or w3_4 lib
 !  Nov 11 2011    Sarah Lu, change floor value for tracer initial values;
 !                 remove nvcoord read-in and check              
+!  Sep 20 2012    Jun Wang, set n time step trie/o to be consistent with sigio input
 !  
  
       use gfs_dyn_resol_def
@@ -471,21 +472,21 @@
      &      epse,epso,plnew_a,plnow_a,plnev_a,plnod_a,
      &      pwat,ptot,ptrc)    !glbsum
         do k=1,levs
-          trie_ls(:,:,p_zem+k-1) = trie_ls(:,:,p_w+k-1)
-          trie_ls(:,:,p_dim+k-1) = trie_ls(:,:,p_x+k-1)
-          trie_ls(:,:,p_tem+k-1) = trie_ls(:,:,p_y+k-1)
-          trie_ls(:,:,p_dpm+k-1) = trie_ls(:,:,p_dpn+k-1)
-          trio_ls(:,:,p_zem+k-1) = trio_ls(:,:,p_w+k-1)
-          trio_ls(:,:,p_dim+k-1) = trio_ls(:,:,p_x+k-1)
-          trio_ls(:,:,p_tem+k-1) = trio_ls(:,:,p_y+k-1)
-          trio_ls(:,:,p_dpm+k-1) = trio_ls(:,:,p_dpn+k-1)
+          trie_ls(:,:,p_ze+k-1) = trie_ls(:,:,p_w+k-1)
+          trie_ls(:,:,p_di+k-1) = trie_ls(:,:,p_x+k-1)
+          trie_ls(:,:,p_te+k-1) = trie_ls(:,:,p_y+k-1)
+          trie_ls(:,:,p_dp+k-1) = trie_ls(:,:,p_dpn+k-1)
+          trio_ls(:,:,p_ze+k-1) = trio_ls(:,:,p_w+k-1)
+          trio_ls(:,:,p_di+k-1) = trio_ls(:,:,p_x+k-1)
+          trio_ls(:,:,p_te+k-1) = trio_ls(:,:,p_y+k-1)
+          trio_ls(:,:,p_dp+k-1) = trio_ls(:,:,p_dpn+k-1)
         enddo
-        trie_ls(:,:,p_qm) = trie_ls(:,:,p_zq)
-        trio_ls(:,:,p_qm) = trio_ls(:,:,p_zq)
+        trie_ls(:,:,p_q) = trie_ls(:,:,p_zq)
+        trio_ls(:,:,p_q) = trio_ls(:,:,p_zq)
         if( .not. ndslfv ) then
           do k=1,levh
-            trie_ls(:,:,p_rm+k-1) = trie_ls(:,:,p_rt+k-1)
-            trio_ls(:,:,p_rm+k-1) = trio_ls(:,:,p_rt+k-1)
+            trie_ls(:,:,p_rq+k-1) = trie_ls(:,:,p_rt+k-1)
+            trio_ls(:,:,p_rq+k-1) = trio_ls(:,:,p_rt+k-1)
           enddo
         endif
 !

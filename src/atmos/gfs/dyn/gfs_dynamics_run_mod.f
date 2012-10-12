@@ -21,6 +21,7 @@
 !                     (NDSL) advection with options of MASS_DP and NDSLFV
 !  Feb      2011      Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
 !                     ESMF 5 library and the the ESMF 3.1.0rp2 library.
+!  Sep      2012      Jun Wang, add sigio option
 !
 !
 ! !interface:
@@ -31,6 +32,7 @@
 !
       USE esmf_mod
       use gfs_dynamics_internal_state_mod
+      use namelist_dynamics_def, only : nemsio_in
 
       implicit none
 
@@ -45,6 +47,7 @@
 !     real , save	:: timestep=0.0
       integer, save     :: kdt_save=0
       integer		rc1, k 
+      logical           lcom2mdl
 
 #ifdef ESMF_3
       TYPE(ESMF_LOGICAL) :: Cpl_flag1
@@ -71,7 +74,7 @@
 !
       gis_dyn%ldfi = gis_dyn%ndfi>0 .and. gis_dyn%kdt<=gis_dyn%ndfi  &
            .and. kdt_save<=gis_dyn%ndfi
-!      print *,'in dyn_run,kdt=',gis_dyn%kdt,'ldfi=',gis_dyn%ldfi
+      print *,'in dyn_run,kdt=',gis_dyn%kdt,'ldfi=',gis_dyn%ldfi
 ! ---------------------------------------------------------------------
 ! change temperature and pressure back to model grid value at n+1  slot.
 !
@@ -87,7 +90,12 @@
 !        maxval(gis_dyn%grid_gr(:,:,gis_dyn%g_rt+2*gis_dyn%levs:gis_dyn%g_rt+3*gis_dyn%levs-1)), &
 !        minval(gis_dyn%grid_gr(:,:,gis_dyn%g_rt+2*gis_dyn%levs:gis_dyn%g_rt+3*gis_dyn%levs-1))
 !     endif
-        IF(.NOT. (gis_dyn%ENS .AND. gis_dyn%Cpl_flag)) THEN
+      lcom2mdl=.NOT. (gis_dyn%ENS .AND. gis_dyn%Cpl_flag) .and.  &
+                .not. (gis_dyn%kdt==0.and.(.not.nemsio_in) )
+      print *,'in dyn_run,kdt=',gis_dyn%kdt,'ldfi=',gis_dyn%ldfi,'lcom2mdl=',    &
+       lcom2mdl,'nemsio_in=',nemsio_in
+
+        IF(lcom2mdl) THEN
             call common_to_model_vars (gis_dyn%grid_gr(1,1,gis_dyn%g_zqp),  &
                                        gis_dyn%grid_gr(1,1,gis_dyn%g_ttp),  &
                                        gis_dyn%grid_gr(1,1,gis_dyn%g_rqp),  &

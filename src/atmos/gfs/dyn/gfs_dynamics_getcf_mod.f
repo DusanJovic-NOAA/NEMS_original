@@ -16,6 +16,7 @@
 !  May      2009 j. wang       modified for the gfs wrt grid comp
 !  Oct 2009 Sarah Lu           tracer added; (q, oz, cld) removed
 !  November 2009 weiyu yang    modified for the ensemble NEMS run.
+!  Sep      2012 j. wang       add nemsio_in to specify input files
 !
 ! !interface:
 !
@@ -177,6 +178,9 @@
       call esmf_configgetattribute(cf,                                  &
                               int_state%restart_run,                      &
                               label = 'restart:',  rc = rc1)
+      call esmf_configgetattribute(cf,                                  &
+                              int_state%nemsio_in,                      &
+                              label = 'nemsio_in:',  rc = rc1)
 !jwe
 
       call esmf_configgetattribute(cf, 					&

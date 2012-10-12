@@ -37,6 +37,8 @@ else
   echo "Unknown machine ID, please edit detect_machine.sh file"
   exit
 fi
+export MACHINE_ID
+export SCHEDULER
 
 ############################################################
 # RTPWD - Path to previously stored regression test answers
@@ -352,7 +354,7 @@ export wavecoef=62 ; export wavegrid=62
 export lm=64       ; export lsoil=4         ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  ; export NDSLFV=.false.  ; export IDEA=.false.
-export GOCART_AER2POST=.false.
+export GOCART_AER2POST=.false. ;  export NEMSIOIN=.true. ; export rungfstest=.false.
 }
 
 export_fim ()
@@ -387,13 +389,13 @@ if [ ${MACHINE_ID} = ccs ]; then
 
 elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then 
 
-  esmf_version 3_zeus                    >> ${COMPILE_LOG} 2>&1
+  ./esmf_version 3_zeus                    >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake nmm_gfs_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
 
 elif [ ${MACHINE_ID} = eddy ]; then 
 
-  esmf_version 3_eddy                    >> ${COMPILE_LOG} 2>&1
+  ./esmf_version 3_eddy                    >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake nmm                              >> ${COMPILE_LOG} 2>&1
 
@@ -1733,7 +1735,8 @@ export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L2
 (( TEST_NR=TEST_NR+1 ))
 export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run
 export CNTL_DIR=GEFS_m4
-export LIST_FILES=" \
+if [ ${MACHINE_ID} = ccs ]; then
+  export LIST_FILES=" \
         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
         SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
         SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
@@ -1746,6 +1749,12 @@ export LIST_FILES=" \
         FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
         FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
         FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
+else
+  export LIST_FILES=" \
+        SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
+        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
+        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
+fi
 #---------------------
 export_gfs
 export GEFS_ENSEMBLE=1

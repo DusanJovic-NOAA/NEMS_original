@@ -401,9 +401,14 @@ then
    set -x
 fi
 #  Command line arguments.
+export NEMSIO_IN=${NEMSIO_IN:-".true."}
+if [ $NEMSIO_IN = .false. ] ; then
+export SIGI=${1:-${SIGI:-?}}
+else
+export GRDI=${1:-${GRDI:-?}}
+fi
 export ENS_NUM=${ENS_NUM:-1}
 export FM=${FM}
-#export SIGI=${1:-${SIGI:-?}}
 export GRDI=${1:-${GRDI:-?}}
 export SFCI=${2:-${SFCI:-?}}
 export SIGO=${3:-${SIGO}}
@@ -1092,6 +1097,7 @@ adiabatic:                $ADIAB
 lsoil:                    $LSOIL
 passive_tracer:           $PASSIVE_TRACER
 ldfiflto:                 $LDFIFLTO
+nemsio_in:                $NEMSIO_IN
 
 
 #jwstart added quilt
