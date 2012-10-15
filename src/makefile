@@ -1,4 +1,4 @@
-SHELL = /bin/sh
+SHEL = /bin/sh
 
 # check if configure.nems file exists
 
@@ -14,8 +14,8 @@ TARGET = ../exe/NEMS.x
 INCS = -Iatmos \
        -Iocean \
        -Ichem \
-       -IENS_Cpl \
        -Iatmos/share \
+       -IENS_Cpl \
        -Iatmos/nmm \
        -Iatmos/fim \
        -Iatmos/gfs \
@@ -230,7 +230,7 @@ nmm_post_libs:
 ################################################################################
 
 gfs: gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART) ${FFLAGS_nmm_gfs_gen_zeus}
 	@echo "nems.x is created for GFS core."
 
 gfs_libs:
@@ -261,7 +261,7 @@ endif
 ################################################################################
 
 gfs_post: gfs_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS_POST) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS_POST) $(LIBGOCART) ${FFLAGS_nmm_gfs_gen_zeus}
 	@echo "nems.x is created for GFS core."
 
 gfs_post_libs:
@@ -317,7 +317,7 @@ gen_libs:
 ################################################################################
 
 nmm_gfs_gen: nmm_gfs_gen_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) atmos/gfs/phys/gfs_physics.a $(EXTLIBS)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) atmos/gfs/phys/gfs_physics.a $(EXTLIBS) ${FFLAGS_nmm_gfs_gen_zeus}
 	@echo "nems.x is created for GEN, NMM and GFS core."
 
 nmm_gfs_gen_libs:
@@ -348,7 +348,7 @@ endif
 ################################################################################
 
 nmm_gfs_gen_post: nmm_gfs_gen_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS_POST) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS_POST) $(LIBGOCART) ${FFLAGS_nmm_gfs_gen_zeus}
 	@echo "nems.x is created for GEN, NMM and GFS core."
 
 nmm_gfs_gen_post_libs:
@@ -379,7 +379,7 @@ endif
 ################################################################################
 
 nmm_gfs: nmm_gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART) ${FFLAGS_nmm_gfs_gen_zeus}
 	@echo "nems.x is created for NMM and GFS core."
 
 nmm_gfs_libs:
@@ -484,7 +484,7 @@ hycom_libs:
 ################################################################################
 
 hycom_gfs: hycom_gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS) $(LIBGOCART) ${FFLAGS_nmm_gfs_gen_zeus}
 	@echo "nems.x is created for HYCOM and GFS core."
 
 hycom_gfs_libs:

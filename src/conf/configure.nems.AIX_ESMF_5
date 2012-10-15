@@ -1,10 +1,30 @@
 SHELL        = /bin/sh
 
+FFLAGS_nmm_gfs_gen_zeus =
+
+MODULES_IDEA_atmos_phys_zeus =
+
+MODULES_IDEA_atmos_phys_ccs = co2hc.o           \
+	                   h2oc.o               \
+	                   h2ohdc.o             \
+	                   efield.o             \
+	                   ideaca.o             \
+	                   idea_co2.o           \
+	                   idea_h2o.o           \
+	                   idea_ion.o           \
+	                   idea_o2_o3.o         \
+	                   idea_dissipation.o   \
+	                   idea_solar_heating.o \
+	                   idea_tracer.o        \
+	                   idea_phys.o
+
 ESMF_INC     = -I/gpfs/t3/global/save/wx20wy/BASELIBS/esmf_5_1_0_src/AIX/include/esmf/modO
 ESMF_LIB     = /gpfs/t3/global/save/wx20wy/BASELIBS/esmf_5_1_0_src/AIX/lib/libO/libesmf.a -lC_r
 
-POST_INC     = -I/climate/save/wx20wa/unipost/trunk/incmod/post_4
-POST_LIB     = -L/climate/save/wx20wa/unipost/trunk -lnceppost
+POSTDIR=/climate/save/wx20wa/unipost/trunk
+POSTMOD=${POSTDIR}/incmod/post_4
+POST_INC=-I${POSTDIR}/incmod/post_4
+POST_LIB=-L${POSTDIR} -lnceppost
 
 NETCDF_LIB   = -L/nwprod/lib -lnetcdf_64
 

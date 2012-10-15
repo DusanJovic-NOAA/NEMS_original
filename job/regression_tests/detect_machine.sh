@@ -39,7 +39,7 @@ if [ ${MACHINE_ID} = zeus ]; then
     printf %s "Looking for accout ID: " $i " ..."
     nr=`account_params 2>&1 | grep -v Initial | grep " "$i" " | wc -l`
 
-    if [ $nr -eq 1 ]; then
+    if [ $nr -eq 2 ]; then
       ACCNR=$i ; echo OK
     else
       echo

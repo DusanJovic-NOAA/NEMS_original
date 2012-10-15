@@ -37,6 +37,7 @@ else
   echo "Unknown machine ID, please edit detect_machine.sh file"
   exit
 fi
+
 export MACHINE_ID
 export SCHEDULER
 
@@ -1216,7 +1217,6 @@ fi # endif test
 #
 ####################################################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test GFS different decomposition and restart"
@@ -1231,14 +1231,15 @@ export LIST_FILES=" \
 	flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
 export_gfs
-export TASKS=48 ; export PE1=46 ; export WLCLK=30
+export TASKS=48 ; export PE1=46 ; export WLCLK=80
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
+export WLCLK=10
+
 #---------------------
 
 fi # endif test
-fi # endif machine (only CCS)
 
 ####################################################################################################
 #
@@ -1277,7 +1278,6 @@ fi # endif test
 #
 ####################################################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="GFS, 32 proc, 1 thread, no quilt, output every 4 timestep"
@@ -1293,14 +1293,14 @@ export LIST_FILES=" \
 #---------------------
 export_gfs
 export NSOUT=4 ; export QUILT=.false.
-export PE1=32  ; export WTPG=1 ; export WLCLK=30
+export PE1=32  ; export WTPG=1 ; export WLCLK=80
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
+export WLCLK=10
 
 fi # endif test
-fi # endif machine (only CCS)
 
 ####################################################################################################
 #
@@ -1325,14 +1325,14 @@ export LIST_FILES=" \
 #---------------------
 export_gfs
 export TASKS=1 ; export PE1=1 ; export WTPG=1
-export QUILT=.false. ; export NDAYS=1 ; export WLCLK=20
+export QUILT=.false. ; export NDAYS=1 ; export WLCLK=80
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
+export WLCLK=10
 
 fi # endif test
-fi # endif machine (only CCS)
 
 ####################################################################################################
 #
@@ -1341,7 +1341,6 @@ fi # endif machine (only CCS)
 #
 ####################################################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test GFS, 1 proc, 1 thread, no quilting,nsout=1"
@@ -1357,7 +1356,7 @@ export LIST_FILES=" \
 #---------------------
 export_gfs
 export TASKS=1 ; export PE1=1 ; export WTPG=1
-export NSOUT=1 ; export WLCLK=20
+export NSOUT=1 ; export WLCLK=80
 export QUILT=.false.
 #---------------------
   ./rt_gfs.sh
@@ -1405,7 +1404,6 @@ fi # endif test
 #
 ####################################################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test GFS, 48 proc, 1 thread, no quilt"
@@ -1421,14 +1419,14 @@ export LIST_FILES=" \
 #---------------------
 export_gfs
 export TASKS=48 ; export PE1=46 ; export WTPG=1
-export NSOUT=1  ; export QUILT=.false. ; export WLCLK=30
+export NSOUT=1  ; export QUILT=.false. ; export WLCLK=40
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
+export WLCLK=10
 
 fi # endif test
-fi # endif machine (only CCS)
 
 ####################################################################################################
 #
@@ -1736,7 +1734,7 @@ export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L2
 export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run
 export CNTL_DIR=GEFS_m4
 if [ ${MACHINE_ID} = ccs ]; then
-  export LIST_FILES=" \
+export LIST_FILES=" \
         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
         SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
         SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
@@ -2185,10 +2183,26 @@ cd ${PATHTR}/src
 date                                     >> ${REGRESSIONTEST_LOG}
 echo "Compilation only NMM"              >> ${REGRESSIONTEST_LOG}
 rm -f ../exe/NEMS.x
-gmake clean                              >> ${COMPILE_LOG} 2>&1
-esmf_version 3                           >> ${COMPILE_LOG} 2>&1
-gmake nmm                                >> ${COMPILE_LOG} 2>&1
-date                                     >> ${REGRESSIONTEST_LOG}
+
+if [ ${MACHINE_ID} = ccs ]; then
+
+  esmf_version 3                         >> ${COMPILE_LOG} 2>&1
+  gmake clean                            >> ${COMPILE_LOG} 2>&1
+  gmake nmm                              >> ${COMPILE_LOG} 2>&1
+
+elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
+
+  esmf_version 3_zeus                    >> ${COMPILE_LOG} 2>&1
+  gmake clean                            >> ${COMPILE_LOG} 2>&1
+  gmake nmm                              >> ${COMPILE_LOG} 2>&1
+
+elif [ ${MACHINE_ID} = eddy ]; then
+
+  esmf_version 3_eddy                    >> ${COMPILE_LOG} 2>&1
+  gmake clean                            >> ${COMPILE_LOG} 2>&1
+  gmake nmm                              >> ${COMPILE_LOG} 2>&1
+
+fi
 
 if [ -f ../exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
@@ -2308,9 +2322,26 @@ cd ${PATHTR}/src
 date                                     >> ${REGRESSIONTEST_LOG}
 echo "Compilation only GFS"              >> ${REGRESSIONTEST_LOG}
 rm -f ../exe/NEMS.x
-gmake clean                              >> ${COMPILE_LOG} 2>&1
-esmf_version 3                           >> ${COMPILE_LOG} 2>&1
-gmake gfs                                >> ${COMPILE_LOG} 2>&1
+if [ ${MACHINE_ID} = ccs ]; then
+
+  esmf_version 3                         >> ${COMPILE_LOG} 2>&1
+  gmake clean                            >> ${COMPILE_LOG} 2>&1
+  gmake gfs                              >> ${COMPILE_LOG} 2>&1
+
+elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
+
+  esmf_version 3_zeus                    >> ${COMPILE_LOG} 2>&1
+  gmake clean                            >> ${COMPILE_LOG} 2>&1
+  gmake gfs                              >> ${COMPILE_LOG} 2>&1
+
+elif [ ${MACHINE_ID} = eddy ]; then
+
+  esmf_version 3_eddy                    >> ${COMPILE_LOG} 2>&1
+  gmake clean                            >> ${COMPILE_LOG} 2>&1
+  gmake gfs                              >> ${COMPILE_LOG} 2>&1
+
+fi
+
 date                                     >> ${REGRESSIONTEST_LOG}
 
 if [ -f ../exe/NEMS.x ] ; then

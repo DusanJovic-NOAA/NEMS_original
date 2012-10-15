@@ -1,11 +1,11 @@
-Thu Oct  4 14:43:42 UTC 2012
+Mon Oct 15 02:47:35 UTC 2012
 Start Regression test
 
 
 
-Thu Oct  4 14:43:42 UTC 2012
+Mon Oct 15 02:47:35 UTC 2012
 Compilation ALL
-Thu Oct  4 14:55:51 UTC 2012
+Mon Oct 15 03:13:16 UTC 2012
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  91.080
+ Original timing:  151.20  , test_glob timing:  99.616
 
 
 Test 002
@@ -200,50 +200,14 @@ Checking test 012 results ....
  Comparing SIG.F06_02.........OK
  Comparing SIG.F06_03.........OK
  Comparing SIG.F06_04.........OK
- Comparing SIG.F12_01.........OK
- Comparing SIG.F12_02.........OK
- Comparing SIG.F12_03.........OK
- Comparing SIG.F12_04.........OK
- Comparing SIG.F18_01.........OK
- Comparing SIG.F18_02.........OK
- Comparing SIG.F18_03.........OK
- Comparing SIG.F18_04.........OK
- Comparing SIG.F24_01.........OK
- Comparing SIG.F24_02.........OK
- Comparing SIG.F24_03.........OK
- Comparing SIG.F24_04.........OK
  Comparing SFC.F06_01.........OK
  Comparing SFC.F06_02.........OK
  Comparing SFC.F06_03.........OK
  Comparing SFC.F06_04.........OK
- Comparing SFC.F12_01.........OK
- Comparing SFC.F12_02.........OK
- Comparing SFC.F12_03.........OK
- Comparing SFC.F12_04.........OK
- Comparing SFC.F18_01.........OK
- Comparing SFC.F18_02.........OK
- Comparing SFC.F18_03.........OK
- Comparing SFC.F18_04.........OK
- Comparing SFC.F24_01.........OK
- Comparing SFC.F24_02.........OK
- Comparing SFC.F24_03.........OK
- Comparing SFC.F24_04.........OK
  Comparing FLX.F06_01.........OK
  Comparing FLX.F06_02.........OK
  Comparing FLX.F06_03.........OK
  Comparing FLX.F06_04.........OK
- Comparing FLX.F12_01.........OK
- Comparing FLX.F12_02.........OK
- Comparing FLX.F12_03.........OK
- Comparing FLX.F12_04.........OK
- Comparing FLX.F18_01.........OK
- Comparing FLX.F18_02.........OK
- Comparing FLX.F18_03.........OK
- Comparing FLX.F18_04.........OK
- Comparing FLX.F24_01.........OK
- Comparing FLX.F24_02.........OK
- Comparing FLX.F24_03.........OK
- Comparing FLX.F24_04.........OK
  Test 012 passed 
-Thu Oct  4 15:39:43 UTC 2012
+Mon Oct 15 05:28:18 UTC 2012
 REGRESSION TEST WAS SUCCESSFUL
