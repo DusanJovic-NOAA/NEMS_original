@@ -452,7 +452,7 @@ if [ $NEMSIO_IN = .false. ] ; then
 export SIGI=${1:-${SIGI:-?}}
 else
 export GRDI=${1:-${GRDI:-?}}
-export SIGI=${1:-${GRDI:-?}}
+export SIGI=${1:-${SIGI:-?}}
 fi
 export SFCI=${2:-${SFCI:-?}}
 export SIGO=${3:-${SIGO}}
