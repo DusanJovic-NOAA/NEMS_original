@@ -3,37 +3,30 @@
 if [[ $1 = 3 ]]; then
      cp conf/configure.nems.AIX_ESMF_3 conf/configure.nems
      cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
-     cp atmos/gfs/phys/makefile_ccs atmos/gfs/phys/makefile
      echo "Use the ESMF 3.1.0rp2 library"
 elif [[ $1 = 3_zeus ]]; then
      cp conf/configure.nems.Zeus.intel conf/configure.nems
      cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
-     cp atmos/gfs/phys/makefile_zeus atmos/gfs/phys/makefile
      echo "Use the ESMF 3.1.0rp2 library"
 elif [[ $1 = 3_eddy ]]; then
      cp conf/configure.nems.Eddy.intel conf/configure.nems
      cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
-     cp atmos/gfs/phys/makefile_zeus atmos/gfs/phys/makefile
      echo "Use the ESMF 3.1.0rp2 library"
 elif [[ $1 = 4 ]]; then
      cp conf/configure.nems.AIX_ESMF_4 conf/configure.nems
      cp ESMFVersionDefine_ESMF_4.h ESMFVersionDefine.h
-     cp atmos/gfs/phys/makefile_ccs atmos/gfs/phys/makefile
      echo "Use the ESMF 4.0.0rp2 library"
 elif [[ $1 = 5 ]]; then
      cp conf/configure.nems.AIX_ESMF_5 conf/configure.nems
      cp ESMFVersionDefine_ESMF_5.h ESMFVersionDefine.h
-     cp atmos/gfs/phys/makefile_ccs atmos/gfs/phys/makefile
      echo "Use the ESMF 5.1.0 library"
 elif [[ $1 = 5.2 ]]; then
      cp conf/configure.nems.AIX_ESMF_520rp1 conf/configure.nems
      cp ESMFVersionDefine_ESMF_520rp1.h ESMFVersionDefine.h
-     cp atmos/gfs/phys/makefile_ccs atmos/gfs/phys/makefile
      echo "Use the ESMF 5.2.0rp1 library"
 elif [[ $1 = traps_on ]]; then
      cp conf/configure.nems.AIX_TRAPS_ON conf/configure.nems
      cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
-     cp atmos/gfs/phys/makefile_ccs atmos/gfs/phys/makefile
      echo "Use the ESMF 3.1.0rp2 library"
 else
      echo;echo "     Run ./esmf_version with one argument:"

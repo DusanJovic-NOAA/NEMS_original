@@ -1,25 +1,5 @@
 SHELL       = /bin/sh
 
-FFLAGS_nmm_gfs_gen_zeus =  atmos/gfs/phys/gfs_physics.a \
-	                /u/Ratko.Vasic/lib_tmp/netcdf/lib/libnetcdf.a \
-	                -L/gpfs/el1/u/James.A.Abeles/WCOSS_Acceptance/ESMF/lib/lib-O/Linux.intel.64.intelmpi.default -lesmf
-
-MODULES_IDEA_atmos_phys_zeus = co2hc.o          \
-	                   idea_solar_heating.o \
-	                   idea_tracer.o        \
-	                   h2oc.o               \
-	                   h2ohdc.o             \
-	                   efield.o             \
-	                   ideaca.o             \
-	                   idea_co2.o           \
-	                   idea_h2o.o           \
-	                   idea_ion.o           \
-	                   idea_o2_o3.o         \
-	                   idea_dissipation.o   \
-	                   idea_phys.o
-
-MODULES_IDEA_atmos_phys_ccs =
-
 include /u/Farid.Parpia/WCOSS_Acceptance/ESMF/lib/lib-O/Linux.intel.64.intelmpi.default/esmf.mk
 ESMF_INC    = $(ESMF_F90COMPILEPATHS)
 ESMF_LIB    = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)

@@ -1,22 +1,4 @@
-SHELL        = /bin/sh -l
-
-FFLAGS_nmm_gfs_gen_zeus =  atmos/gfs/phys/gfs_physics.a /apps/netcdf/3.6.3/intel/lib/libnetcdf.a -lmpi -L/home/Ratko.Vasic/lib_tmp/esmf/lib/libg/Linux.intel.64.mpi.default -lesmf
-
-MODULES_IDEA_atmos_phys_zeus = co2hc.o          \
-	                   idea_solar_heating.o \
-	                   idea_tracer.o        \
-	                   h2oc.o               \
-	                   h2ohdc.o             \
-	                   efield.o             \
-	                   ideaca.o             \
-	                   idea_co2.o           \
-	                   idea_h2o.o           \
-	                   idea_ion.o           \
-	                   idea_o2_o3.o         \
-	                   idea_dissipation.o   \
-	                   idea_phys.o
-
-MODULES_IDEA_atmos_phys_ccs =
+SHELL        = /bin/sh
 
 include /apps/esmf/3.1.0rp5/lib/libO/Linux.intel.64.mpi.default/esmf.mk
 ESMF_INC     = $(ESMF_F90COMPILEPATHS)

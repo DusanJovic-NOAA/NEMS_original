@@ -174,7 +174,17 @@ export MALLOCMULTIHEAP=true
 #
  export NCP=${NCP:-/u/wx20mi/bin/ncp}
 #
-export nemsioget=${nemsioget:-/climate/save/wx20wa/gfsio/nems/nemsio_trunk16_get}
+if [ $NEMSIO_IN = .true. ]; then
+  if [ $SCHEDULER = 'loadleveler' ]; then
+    export nemsioget=${nemsioget:-/climate/save/wx20wa/gfsio/nems/nemsio_get}
+  elif [ $SCHEDULER = 'moab' ]; then
+    export nemsioget=${nemsioget}
+  elif [ $SCHEDULER = 'pbs' ]; then
+    export nemsioget=${nemsioget:-/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get}
+  fi
+else
+  export nemsioget=${nemsioget:-${EXECGLOBAL}/global_sighdr$XC}
+fi
 #
 #
 #    nhourb is the beginig hour.  If nhourb=0, then initial condition

@@ -1,23 +1,5 @@
 SHELL        = /bin/sh
 
-FFLAGS_nmm_gfs_gen_zeus =
-
-MODULES_IDEA_atmos_phys_zeus =
-
-MODULES_IDEA_atmos_phys_ccs = co2hc.o           \
-	                   h2oc.o               \
-	                   h2ohdc.o             \
-	                   efield.o             \
-	                   ideaca.o             \
-	                   idea_co2.o           \
-	                   idea_h2o.o           \
-	                   idea_ion.o           \
-	                   idea_o2_o3.o         \
-	                   idea_dissipation.o   \
-	                   idea_solar_heating.o \
-	                   idea_tracer.o        \
-	                   idea_phys.o
-
 ESMF_INC     = -I/gpfs/t3/global/save/wx20wy/BASELIBS/esmf_4_0_0rp2_src/AIX/include/esmf/modO
 ESMF_LIB     = /gpfs/t3/global/save/wx20wy/BASELIBS/esmf_4_0_0rp2_src/AIX/lib/libO/libesmf.a -lC_r
 
