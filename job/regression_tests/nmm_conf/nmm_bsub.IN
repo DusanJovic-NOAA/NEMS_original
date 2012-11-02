@@ -10,6 +10,7 @@
 #BSUB -q "_ACCNR_"
 #BSUB -a poe
 
+. /usrx/local/Modules/3.2.9/init/bash
  module load ibmpe
  module load ics
  export OMP_NUM_THREADS=_THRD_

@@ -16,6 +16,12 @@ if [ ${MACHINE_ID} = ccs ]; then
   export PTMP=/ptmp
   export SCHEDULER=loadleveler
   STMP=/stmp
+elif [ ${MACHINE_ID} = wcoss ]; then
+  export ACCNR=hpc_ibm
+  export DISKNM=/meso
+  export STMP=/stmp ; mkdir -p $STMP/$USER
+  export PTMP=/ptmp ; mkdir -p $PTMP/$USER
+  export SCHEDULER=lsf
 elif [ ${MACHINE_ID} = gaea ]; then 
   export DISKNM=/lustre/ltfs/scratch/Ratko.Vasic
   export STMP=/lustre/fs/scratch
@@ -218,7 +224,7 @@ fi
 # CLASS       - job class (LoadLeveler)
 # GROUP       - job group (LoadLeveler)
 # ACCNR       - account number (LoadLeveler)
-# MACHINE_ID  - =ccs (cirrus/stratus), =gaea, =zeus, =eddy
+# MACHINE_ID  - =ccs (cirrus/stratus), =gaea, =zeus, =eddy, =wcoss (tide)
 # DISKNM      - disk name ( /meso or /mtb)
 # CREATE_BASELINE - true/false
 # CB_arg      - baseline arguments:
@@ -303,6 +309,15 @@ if [ ${MACHINE_ID} = ccs ]; then
   TASKS_mvg1=    ; TPN_mvg1=32 ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
   TASKS_mvg2=    ; TPN_mvg2=32 ; INPES_mvg2=04 ; JNPES_mvg2=23 ; WTPG_mvg2=1
 
+elif [ ${MACHINE_ID} = wcoss -o ${MACHINE_ID} = eddy ]; then
+
+  TASKS_dflt=32  ; TPN_dflt=32 ; INPES_dflt=05 ; JNPES_dflt=06 ; WTPG_dflt=2
+  TASKS_thrd=16  ; TPN_thrd=16 ; INPES_thrd=03 ; JNPES_thrd=05 ; WTPG_thrd=1
+  TASKS_nest=96  ; TPN_nest=16 ; INPES_nest=02 ; JNPES_nest=02 ; WTPG_nest=1
+  TASKS_fltr=64  ; TPN_fltr=16 ; INPES_fltr=02 ; JNPES_fltr=02 ; WTPG_fltr=1
+  TASKS_mvg1=96  ; TPN_mvg1=16 ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
+  TASKS_mvg2=96  ; TPN_mvg2=16 ; INPES_mvg2=04 ; JNPES_mvg2=23 ; WTPG_mvg2=1
+
 elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
 
   TASKS_dflt=48  ; TPN_dflt=   ; INPES_dflt=05 ; JNPES_dflt=09 ; WTPG_dflt=3
@@ -311,15 +326,6 @@ elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
   TASKS_fltr=64  ; TPN_fltr=   ; INPES_fltr=02 ; JNPES_fltr=02 ; WTPG_fltr=1
   TASKS_mvg1=96  ; TPN_mvg1=   ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
   TASKS_mvg2=96  ; TPN_mvg2=   ; INPES_mvg2=04 ; JNPES_mvg2=23 ; WTPG_mvg2=1
-
-elif [ ${MACHINE_ID} = eddy ]; then
-
-  TASKS_dflt=32  ; TPN_dflt=32 ; INPES_dflt=05 ; JNPES_dflt=06 ; WTPG_dflt=2
-  TASKS_thrd=16  ; TPN_thrd=16 ; INPES_thrd=03 ; JNPES_thrd=05 ; WTPG_thrd=1
-  TASKS_nest=96  ; TPN_nest=16 ; INPES_nest=02 ; JNPES_nest=02 ; WTPG_nest=1
-  TASKS_fltr=64  ; TPN_fltr=16 ; INPES_fltr=02 ; JNPES_fltr=02 ; WTPG_fltr=1
-  TASKS_mvg1=96  ; TPN_mvg1=16 ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
-  TASKS_mvg2=96  ; TPN_mvg2=16 ; INPES_mvg2=04 ; JNPES_mvg2=23 ; WTPG_mvg2=1
 
 fi
 
@@ -388,6 +394,12 @@ if [ ${MACHINE_ID} = ccs ]; then
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake nmm_gfs_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
 
+elif [ ${MACHINE_ID} = wcoss ]; then 
+
+  ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
+  gmake clean                            >> ${COMPILE_LOG} 2>&1
+  gmake nmm                              >> ${COMPILE_LOG} 2>&1
+
 elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then 
 
   ./esmf_version 3_zeus                    >> ${COMPILE_LOG} 2>&1
@@ -396,7 +408,7 @@ elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
 
 elif [ ${MACHINE_ID} = eddy ]; then 
 
-  ./esmf_version 3_eddy                    >> ${COMPILE_LOG} 2>&1
+  ./esmf_version 3_eddy                  >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake nmm                              >> ${COMPILE_LOG} 2>&1
 
@@ -444,7 +456,7 @@ export GBRG=glob
 
 if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = zeus ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
-elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = eddy ]; then
+elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = eddy -o ${MACHINE_ID} = wcoss ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
 fi
 export timingc=`cat ${RTPWD}/NMMB_glob/timing.txt`
@@ -658,7 +670,7 @@ export GBRG=reg ; export WPREC=true
 
 if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = zeus ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
-elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = eddy ]; then
+elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = eddy -o ${MACHINE_ID} = wcoss ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
 fi
 export timingc=`cat ${RTPWD}/NMMB_reg/timing.txt`
@@ -1122,7 +1134,7 @@ export INPES=$INPES_mvg2 ; export JNPES=$JNPES_mvg2 ; export WTPG=$WTPG_mvg2
 fi # endif test
 
 #RV# Temporary, until GFS is ready on Eddy
-if [ ${MACHINE_ID} = eddy ]; then
+if [ ${MACHINE_ID} = eddy -o ${MACHINE_ID} = wcoss ]; then
   echo REGRESSION TEST WAS SUCCESSFUL
   echo REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
   exit
@@ -2190,6 +2202,12 @@ if [ ${MACHINE_ID} = ccs ]; then
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake nmm                              >> ${COMPILE_LOG} 2>&1
 
+elif [ ${MACHINE_ID} = wcoss ]; then 
+
+  ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
+  gmake clean                            >> ${COMPILE_LOG} 2>&1
+  gmake nmm                              >> ${COMPILE_LOG} 2>&1
+
 elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
 
   esmf_version 3_zeus                    >> ${COMPILE_LOG} 2>&1
@@ -2328,6 +2346,12 @@ if [ ${MACHINE_ID} = ccs ]; then
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake gfs                              >> ${COMPILE_LOG} 2>&1
 
+elif [ ${MACHINE_ID} = wcoss ]; then 
+
+  ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
+  gmake clean                            >> ${COMPILE_LOG} 2>&1
+  gmake nmm                              >> ${COMPILE_LOG} 2>&1
+
 elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
 
   esmf_version 3_zeus                    >> ${COMPILE_LOG} 2>&1
@@ -2400,7 +2424,7 @@ rm -rf ${RUNDIR_ROOT}
 
 date >> ${REGRESSIONTEST_LOG}
 
-if [ ${MACHINE_ID} = zeus -o ${MACHINE_ID} = eddy ]; then
+if [ ${MACHINE_ID} = zeus -o ${MACHINE_ID} = eddy -o ${MACHINE_ID} = wcoss ]; then
   echo REGRESSION TEST WAS SUCCESSFUL
   echo REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
 else

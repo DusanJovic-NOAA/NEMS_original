@@ -54,7 +54,15 @@ job_running=0
 until [ $job_running -eq 1 ]
 do
 echo "TEST is waiting to enter the queue"
-job_running=`llq -u ${LOGIN} -f %st %jn | grep ${JBNME} | wc -l`;sleep 5
+if [ $SCHEDULER = 'loadleveler' ]; then
+  job_running=`llq -u ${USER} -f %st %jn | grep ${JBNME} | wc -l`;sleep 5
+elif [ $SCHEDULER = 'moab' ]; then
+  job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
+elif [ $SCHEDULER = 'pbs' ]; then
+  job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
+elif [ $SCHEDULER = 'lsf' ]; then
+  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep hpc | wc -l`;sleep 5
+fi
 done
 
 job_running=1
