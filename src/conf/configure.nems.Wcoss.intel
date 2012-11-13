@@ -6,10 +6,8 @@ ESMF_LIB    = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 
 NETCDF_LIB  = /usrx/local/netcdf-4.2.1.1/lib/libnetcdf.a
 
-#NEMSIO_INC  = -I/nwprod/lib/incmod/nemsio
-#NEMSIO_LIB  = -L/nwprod/lib -lnemsio
-NEMSIO_INC  = -I/u/Ratko.Vasic/lib_tmp/incmod/nemsio
-NEMSIO_LIB  = -L/u/Ratko.Vasic/lib_tmp -lnemsio
+NEMSIO_INC  = -I/nwprod/lib/incmod/nemsio
+NEMSIO_LIB  = -L/nwprod/lib -lnemsio
 
 W3_LIB      = -L/nwprod/lib -lw3nco_4 -lw3emc_4
 BACIO_LIB   = -L/nwprod/lib -lbacio_4
@@ -32,7 +30,7 @@ R8          = -r8
 FINCS       = $(ESMF_INC) $(NEMSIO_INC)
 TRAPS       =
 
-FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model strict
+FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise -xAVX
 
 OPTS_NMM    = -O2
 OPTS_GFS    = -O2

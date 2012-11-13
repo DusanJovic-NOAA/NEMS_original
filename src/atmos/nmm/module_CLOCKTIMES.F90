@@ -126,7 +126,8 @@
 #ifdef IBM
       FACTOR=1.
 #else
-      FACTOR=1.0E-3
+!!!   FACTOR=1.0E-3
+      FACTOR=1.
 #endif
 !
       td%totalsum_tim=td%adv1_tim                                       &

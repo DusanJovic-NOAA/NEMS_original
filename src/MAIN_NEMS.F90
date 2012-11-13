@@ -96,7 +96,8 @@
 !
       TYPE(ESMF_Config) :: CF_MAIN                                         !<-- The Configure object
 !
-      LOGICAL :: RUN_CONTINUE                                              !<-- Flag for more than one NEMS run.
+      LOGICAL :: RUN_CONTINUE                                           &  !<-- Flag for more than one NEMS run.
+                ,PRINT_ESMF                                                !<-- Flag for ESMF PET files
 !
       INTEGER :: HH_START                                               &
                 ,HH_FINAL
@@ -123,13 +124,26 @@
       RC_MAIN=ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
+!***  Check if we want ESMF PET files or not
+!-----------------------------------------------------------------------
+!
+      CALL CHECK_ESMF_PET(PRINT_ESMF)
+!
+!-----------------------------------------------------------------------
 !***  Initialize the ESMF framework. 
 !-----------------------------------------------------------------------
 ! 
-      CALL ESMF_Initialize(VM             =VM                           & !<-- The ESMF Virtual Machine
-                          ,defaultCalKind =ESMF_CALKIND_GREGORIAN       & !<-- Set up the default calendar.
-                          ,logkindflag    =ESMF_LOGKIND_MULTI           & !<-- Define multiple log error output file;
-                          ,rc             =RC)
+      IF(PRINT_ESMF) THEN
+        CALL ESMF_Initialize(VM             =VM                         & !<-- The ESMF Virtual Machine
+                            ,defaultCalKind =ESMF_CALKIND_GREGORIAN     & !<-- Set up the default calendar.
+                            ,logkindflag    =ESMF_LOGKIND_MULTI         & !<-- Define multiple log error output files;
+                            ,rc             =RC)
+      ELSE
+        CALL ESMF_Initialize(VM             =VM                         & !<-- The ESMF Virtual Machine
+                            ,defaultCalKind =ESMF_CALKIND_GREGORIAN     & !<-- Set up the default calendar.
+                            ,logkindflag    =ESMF_LOGKIND_NONE          & !<-- Define no log error output files;
+                            ,rc             =RC)
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Get the processor(host) name
@@ -173,31 +187,33 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+      IF(PRINT_ESMF) THEN
 #ifdef ESMF_3
-      CALL ESMF_LogSet(verbose    =ESMF_TRUE                            &
-                      ,flush      =ESMF_TRUE                            &
-                      ,rootOnly   =ESMF_FALSE                           &
-                      ,halt       =ESMF_LOG_HALTNEVER                   &  !<-- The job will not stop automatically
+        CALL ESMF_LogSet(verbose    =ESMF_TRUE                          &
+                        ,flush      =ESMF_TRUE                          &
+                        ,rootOnly   =ESMF_FALSE                         &
+                        ,halt       =ESMF_LOG_HALTNEVER                 &  !<-- The job will not stop automatically
                                                                            !    when an ESMF error occurs.
-                      ,maxElements=1                                    &  !<-- Maximum number of elements in the log
+                        ,maxElements=1                                  &  !<-- Maximum number of elements in the log
                                                                            !    before printing them to the log file.
-                      ,rc         =RC)
+                        ,rc         =RC)
 #else
 #ifdef ESMF_520r
-      CALL ESMF_LogSet(flush      =.true.                               &
-                      ,trace      =.false.                               &
-                      ,rc         =RC)
+        CALL ESMF_LogSet(flush      =.true.                             &
+                        ,trace      =.false.                            &
+                        ,rc         =RC)
 #else
-      CALL ESMF_LogSet(verbose    =.true.                               &
-                      ,flush      =.true.                               &
-                      ,rootOnly   =.false.                              &
-                      ,halt       =ESMF_LOG_HALTNEVER                   &  !<-- The job will not stop automatically
+        CALL ESMF_LogSet(verbose    =.true.                             &
+                        ,flush      =.true.                             &
+                        ,rootOnly   =.false.                            &
+                        ,halt       =ESMF_LOG_HALTNEVER                 &  !<-- The job will not stop automatically
                                                                            !    when an ESMF error occurs.
-                      ,maxElements=1                                    &  !<-- Maximum number of elements in the log
+                        ,maxElements=1                                  &  !<-- Maximum number of elements in the log
                                                                            !    before printing them to the log file.
-                      ,rc         =RC)
+                        ,rc         =RC)
 #endif
 #endif
+      ENDIF
 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
