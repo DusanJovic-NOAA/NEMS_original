@@ -243,6 +243,21 @@
           rcToReturn=rc)) &
           return  ! bail out
 
+
+        ! SetServices for OCN
+        call ESMF_GridCompSetServices(is%wrap%ocn, OCN_REGISTER, &
+          userRc=localrc, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+        if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__, &
+          rcToReturn=rc)) &
+          return  ! bail out
+
+
         ! Get internal clock and set the timeStep equal to runDuration
         call ESMF_GridCompGet(gcomp, clock=internalClock, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
