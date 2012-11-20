@@ -33,6 +33,7 @@
 !  May 05 2011      Weiyu Yang, modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !  Nov 27 2011      Sarah Lu, add kdt to physics export state
 !  Feb 06 2012      Weiyu Yang, modified for using the ESMF 5.2.0r library.
+!  Nov 07 2012      J.Wang, remove quilting, which is not used in gfs phys
 !                           
 !
 ! !interface:
@@ -51,7 +52,7 @@
       USE gfs_physics_getcf_mod,          ONLY: gfs_physics_getcf
       USE gfs_physics_internal_state_mod, ONLY: gfs_physics_internal_state, &
                                                 gfs_phy_wrap
-      USE mpi_def,                        ONLY: mpi_comm_all,quilting
+      USE mpi_def,                        ONLY: mpi_comm_all
       USE layout1,                        ONLY: me
       USE date_def,                       ONLY: idate, fhour
       USE namelist_physics_def,           ONLY: fhini, fhmax, lssav,ndfi,ldfi

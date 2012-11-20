@@ -2,7 +2,7 @@ include ../../conf/configure.nems
 
 MAKEFILE = makefile
 
-UTILINCS = -I../share -Ilibutil -Iio
+UTILINCS = -I../share -I../io -Ilibutil
 
 ARCH=$(shell uname -s)
 GOCARTINCS = -I../../chem/gocart/${ARCH}/include/Chem_Base \
@@ -12,7 +12,6 @@ GOCARTINCS = -I../../chem/gocart/${ARCH}/include/Chem_Base \
 LIBRARY = libgfs.a
 
 DIR_LIBUTIL = libutil
-DIR_IO      = io
 DIR_DYN     = dyn
 DIR_PHY     = phys
 GCINCS      = -I$(DIR_DYN) -I$(DIR_PHY)
@@ -23,8 +22,8 @@ OPTSGOC  = $(FFLAGS_GFS) $(R8) -O3  $(UTILINCS) $(GCINCS) $(GOCARTINCS)
 FFLAG90  = $(OPTS) $(FREE)
 FFLAG90GOC  = $(OPTSGOC) $(FREE)
 
-OBJS   = module_GFS_CORE_SETUP.o module_GFS_WRITE.o \
-	 module_GFS_INTERNAL_STATE.o module_GFS_INTEGRATE.o module_GFS_GRID_COMP.o
+OBJS   = module_GFS_CORE_SETUP.o module_GFS_INTERNAL_STATE.o \
+	 module_GFS_INTEGRATE.o module_GFS_GRID_COMP.o
 
 OBJSGOC   = module_GOCART_ROUTINES.o
 OBJSGOC_STUB   = module_GOCART_ROUTINES_stub.o
@@ -39,7 +38,6 @@ endif
 
 all default: depend
 	cd $(DIR_LIBUTIL) && gmake gocart_stub && cd ..
-	cd $(DIR_IO) && gmake && cd ..
 	cd $(DIR_DYN) && gmake && cd ..
 	cd $(DIR_PHY) && gmake && cd ..
 	@gmake -f makefile $(LIBRARY)
@@ -55,7 +53,6 @@ gocart_full: gfs_gocart_full_libs  $(OBJSGOC) $(OBJS)
 
 gfs_gocart_full_libs:
 	cd $(DIR_LIBUTIL) && gmake gocart_full && cd ..
-	cd $(DIR_IO) && gmake && cd ..
 	cd $(DIR_DYN) && gmake gocart_full && cd ..
 	cd $(DIR_PHY) && gmake && cd ..
 
@@ -64,7 +61,6 @@ gocart_stub: gfs_gocart_stub_libs  $(OBJSGOC_STUB) $(OBJS)
 
 gfs_gocart_stub_libs:
 	cd $(DIR_LIBUTIL) && gmake gocart_stub && cd ..
-	cd $(DIR_IO) && gmake && cd ..
 	cd $(DIR_DYN) && gmake && cd ..
 	cd $(DIR_PHY) && gmake && cd ..
 
@@ -82,7 +78,6 @@ $(MODULES_STUB): %.o: %.f90
 
 clean:
 	cd $(DIR_LIBUTIL) && gmake clean && cd ..
-	cd $(DIR_IO) && gmake clean && cd ..
 	cd $(DIR_DYN) && gmake clean && cd ..
 	cd $(DIR_PHY) && gmake clean && cd ..
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map depend

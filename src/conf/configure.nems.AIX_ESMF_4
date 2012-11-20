@@ -3,6 +3,9 @@ SHELL        = /bin/sh
 ESMF_INC     = -I/gpfs/t3/global/save/wx20wy/BASELIBS/esmf_4_0_0rp2_src/AIX/include/esmf/modO
 ESMF_LIB     = /gpfs/t3/global/save/wx20wy/BASELIBS/esmf_4_0_0rp2_src/AIX/lib/libO/libesmf.a -lC_r
 
+gfs=gsm
+gfsdir=atmos/$(gfs)
+
 POSTDIR=/climate/save/wx20wa/unipost/trunk
 POSTMOD=${POSTDIR}/incmod/post_4
 POST_INC=-I${POSTDIR}/incmod/post_4

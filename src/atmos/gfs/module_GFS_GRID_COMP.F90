@@ -57,6 +57,7 @@
 !   2011-05-11  Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !   2011-10-01  Wang/Lu  - MYPE added to GOCART_INIT argument
 !   2012-02-08  Yang  - Modified for using the ESMF 5.2.0rp1.
+!   2012-11-06  Wang  - separate io from gfs for generalization
 !
 ! USAGE: GFS Gridded component parts called from subroutines within
 !        module_ATM_GRID_COMP.F90.
@@ -77,8 +78,8 @@
 !
       USE gfs_dyn_phy_cpl_comp_mod,  ONLY: gfs_cpl_setservices
 !
-      USE MODULE_GFS_MPI_DEF        ,ONLY: ENSMEM_NAME                  &
-                                          ,PETLIST_FCST                 &
+      USE MODULE_GFS_MPI_DEF        ,ONLY: PETLIST_FCST 
+      USE MODULE_IO_MPI_DEF         ,ONLY: ENSMEM_NAME                  &
                                           ,WRITE_GROUPS
 !
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK

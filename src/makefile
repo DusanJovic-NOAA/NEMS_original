@@ -18,7 +18,7 @@ INCS = -Iatmos \
        -IENS_Cpl \
        -Iatmos/nmm \
        -Iatmos/fim \
-       -Iatmos/gfs \
+       -I$(gfsdir) \
        -Iatmos/phys \
        -Iatmos/gen \
        -Iocean/hycom \
@@ -33,14 +33,14 @@ OBJS = module_EARTH_INTERNAL_STATE.o \
 
 LIBS = atmos/libatmos.a                 \
        atmos/nmm/libnmm.a               \
-       atmos/gfs/libgfs.a               \
+       $(gfsdir)/libgfs.a         \
+       atmos/io/libio.a                 \
        atmos/gen/libgen.a               \
        atmos/fim/libfimtop.a            \
-       atmos/gfs/libutil/gfs_libutil.a  \
-       atmos/gfs/io/gfs_io.a            \
-       atmos/gfs/phys/gfs_physics.a     \
+       $(gfsdir)/libutil/gfs_libutil.a  \
+       $(gfsdir)/phys/gfs_physics.a     \
        atmos/phys/libphys.a             \
-       atmos/gfs/dyn/gfs_dynamics.a     \
+       $(gfsdir)/dyn/gfs_dynamics.a     \
        atmos/share/libshare.a           \
        atmos/post/libpost.a             \
        ocean/libocean.a                 \
@@ -50,7 +50,7 @@ LIBS = atmos/libatmos.a                 \
 
 LIBS_NMM = atmos/libatmos.a             \
            atmos/nmm/libnmm.a           \
-           atmos/gfs/libgfs.a           \
+           $(gfsdir)/libgfs.a           \
            atmos/fim/libfimtop.a        \
            atmos/gen/libgen.a           \
            atmos/phys/libphys.a         \
@@ -63,7 +63,8 @@ LIBS_NMM = atmos/libatmos.a             \
 
 LIBS_GEN = atmos/libatmos.a             \
            atmos/nmm/libnmm.a           \
-           atmos/gfs/libgfs.a           \
+           atmos/io/libio.a             \
+           $(gfsdir)/libgfs.a           \
            atmos/fim/libfimtop.a        \
            atmos/gen/libgen.a           \
            atmos/phys/libphys.a         \
@@ -76,7 +77,7 @@ LIBS_GEN = atmos/libatmos.a             \
 
 LIBS_HYCOM_ONLY = atmos/share/libshare.a   \
        atmos/nmm/libnmm.a                  \
-       atmos/gfs/libgfs.a                  \
+       $(gfsdir)/libgfs.a                  \
        atmos/fim/libfimtop.a               \
        atmos/gen/libgen.a                  \
        atmos/libatmos.a                    \
@@ -107,7 +108,7 @@ FIMSRCLIBS = atmos/fim/FIMsrc_devccs/lib/libfim.a      \
 
 LIBS_FIM = atmos/libatmos.a                     \
            atmos/nmm/libnmm.a                   \
-           atmos/gfs/libgfs.a                   \
+           $(gfsdir)/libgfs.a             \
            atmos/fim/libfimtop.a                \
            $(SMSLIB) $(FIMSRCLIBS)              \
            atmos/gen/libgen.a                   \
@@ -189,7 +190,7 @@ nmm_libs:
 	cd atmos/share         && gmake
 	cd atmos/phys          && gmake gocart_stub
 	cd atmos/nmm           && gmake
-	cd atmos/gfs           && gmake stub
+	cd $(gfsdir)           && gmake stub
 	cd atmos/gen           && gmake stub
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake stub
@@ -213,7 +214,7 @@ nmm_post_libs:
 	cd atmos/share         && gmake
 	cd atmos/phys          && gmake gocart_stub
 	cd atmos/nmm           && gmake
-	cd atmos/gfs           && gmake stub
+	cd $(gfsdir)           && gmake stub
 	cd atmos/gen           && gmake stub
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake gfs_stub
@@ -230,7 +231,7 @@ nmm_post_libs:
 ################################################################################
 
 gfs: gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) atmos/gfs/phys/gfs_physics.a $(EXTLIBS)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(EXTLIBS)
 	@echo "nems.x is created for GFS core."
 
 gfs_libs:
@@ -241,10 +242,11 @@ endif
 	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
 	cd atmos/nmm           && gmake stub
 	cd atmos/gen           && gmake stub
+	cd atmos/io            && gmake
 ifeq ($(GOCART_MODE),full)
-	cd atmos/gfs           && gmake gocart_full
+	cd $(gfsdir)           && gmake gocart_full
 else
-	cd atmos/gfs           && gmake gocart_stub
+	cd $(gfsdir)           && gmake gocart_stub
 endif
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake stub
@@ -261,7 +263,7 @@ endif
 ################################################################################
 
 gfs_post: gfs_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) atmos/gfs/phys/gfs_physics.a $(EXTLIBS_POST)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(EXTLIBS_POST)
 	@echo "nems.x is created for GFS core."
 
 gfs_post_libs:
@@ -272,10 +274,11 @@ endif
 	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
 	cd atmos/nmm           && gmake stub
 	cd atmos/gen           && gmake stub
+	cd atmos/io            && gmake
 ifeq ($(GOCART_MODE),full)
-	cd atmos/gfs           && gmake gocart_full
+	cd $(gfsdir)     && gmake gocart_full
 else
-	cd atmos/gfs           && gmake gocart_stub
+	cd $(gfsdir)     && gmake gocart_stub
 endif
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake nmm_stub
@@ -299,7 +302,7 @@ gen_libs:
 	cd atmos/share         && gmake
 	cd atmos/phys          && gmake
 	cd atmos/nmm           && gmake stub
-	cd atmos/gfs           && gmake stub
+	cd $(gfsdir)     && gmake stub
 	cd atmos/fim           && gmake stub
 	cd atmos/gen           && gmake
 	cd atmos/post          && gmake stub
@@ -317,7 +320,7 @@ gen_libs:
 ################################################################################
 
 nmm_gfs_gen: nmm_gfs_gen_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) atmos/gfs/phys/gfs_physics.a $(EXTLIBS)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(EXTLIBS)
 	@echo "nems.x is created for GEN, NMM and GFS core."
 
 nmm_gfs_gen_libs:
@@ -327,10 +330,11 @@ endif
 	cd atmos/share         && gmake
 	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
 	cd atmos/nmm           && gmake
+	cd atmos/io            && gmake
 ifeq ($(GOCART_MODE),full)
-	cd atmos/gfs           && gmake gocart_full
+	cd $(gfsdir)     && gmake gocart_full
 else
-	cd atmos/gfs           && gmake gocart_stub
+	cd $(gfsdir)     && gmake gocart_stub
 endif
 	cd atmos/gen           && gmake 
 	cd atmos/fim           && gmake stub
@@ -348,7 +352,7 @@ endif
 ################################################################################
 
 nmm_gfs_gen_post: nmm_gfs_gen_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) atmos/gfs/phys/gfs_physics.a $(EXTLIBS_POST)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(EXTLIBS_POST)
 	@echo "nems.x is created for GEN, NMM and GFS core."
 
 nmm_gfs_gen_post_libs:
@@ -358,10 +362,11 @@ endif
 	cd atmos/share         && gmake
 	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
 	cd atmos/nmm           && gmake
+	cd atmos/io            && gmake
 ifeq ($(GOCART_MODE),full)
-	cd atmos/gfs           && gmake gocart_full
+	cd $(gfsdir)     && gmake gocart_full
 else
-	cd atmos/gfs           && gmake gocart_stub
+	cd $(gfsdir)     && gmake gocart_stub
 endif
 	cd atmos/gen           && gmake
 	cd atmos/fim           && gmake stub
@@ -379,7 +384,7 @@ endif
 ################################################################################
 
 nmm_gfs: nmm_gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) atmos/gfs/phys/gfs_physics.a $(EXTLIBS)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(EXTLIBS)
 	@echo "nems.x is created for NMM and GFS core."
 
 nmm_gfs_libs:
@@ -389,10 +394,11 @@ endif
 	cd atmos/share         && gmake
 	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
 	cd atmos/nmm           && gmake
+	cd atmos/io            && gmake
 ifeq ($(GOCART_MODE),full)
-	cd atmos/gfs           && gmake gocart_full
+	cd $(gfsdir)     && gmake gocart_full
 else
-	cd atmos/gfs           && gmake gocart_stub
+	cd $(gfsdir)     && gmake gocart_stub
 endif
 	cd atmos/fim           && gmake stub
 	cd atmos/gen           && gmake stub
@@ -418,7 +424,7 @@ fim: fim_libs $(OBJS) $(MAIN)
 fim_libs:
 	cd atmos/share         && gmake
 	cd atmos/nmm           && gmake stub
-	cd atmos/gfs           && gmake stub 
+	cd $(gfsdir)     && gmake stub 
 	cd atmos/fim           && gmake
 	cd atmos/gen           && gmake stub
 	cd atmos/post          && gmake stub
@@ -444,7 +450,8 @@ fim_gfs: fim_gfs_libs $(OBJS) $(MAIN)
 fim_gfs_libs:
 	cd atmos/share         && gmake
 	cd atmos/nmm           && gmake stub
-	cd atmos/gfs           && gmake
+	cd atmos/io            && gmake
+	cd $(gfsdir)     && gmake
 	cd atmos/fim           && gmake
 	cd atmos/gen           && gmake stub
 	cd atmos/post          && gmake stub
@@ -468,7 +475,7 @@ hycom_libs:
 	cd atmos/share         && gmake
 	cd atmos/nmm           && gmake stub
 	cd atmos/gen           && gmake stub
-	cd atmos/gfs           && gmake stub
+	cd $(gfsdir)     && gmake stub
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake stub
 	cd atmos               && gmake
@@ -484,7 +491,7 @@ hycom_libs:
 ################################################################################
 
 hycom_gfs: hycom_gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) atmos/gfs/phys/gfs_physics.a $(EXTLIBS)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(EXTLIBS)
 	@echo "nems.x is created for HYCOM and GFS core."
 
 hycom_gfs_libs:
@@ -495,10 +502,11 @@ endif
 	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
 	cd atmos/nmm           && gmake stub
 	cd atmos/gen           && gmake stub
+	cd atmos/io            && gmake
 ifeq ($(GOCART_MODE),full)
-	cd atmos/gfs           && gmake gocart_full
+	cd $(gfsdir)     && gmake gocart_full
 else
-	cd atmos/gfs           && gmake gocart_stub
+	cd $(gfsdir)     && gmake gocart_stub
 endif
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake stub

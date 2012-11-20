@@ -1,4 +1,4 @@
-#include "../../../ESMFVersionDefine.h"
+#include "../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
 #undef ESMF_520r
@@ -43,6 +43,8 @@
 !
 !-----------------------------------------------------------------------
       USE MODULE_WRITE_INTERNAL_STATE_GFS
+      USE MODULE_IO_MPI_DEF, only: write_groups,write_tasks_per_group,  &
+				   QUILTING
 !-----------------------------------------------------------------------
 !
       TYPE(ESMF_GridComp)       , INTENT(INOUT) :: GRID_COMP              !<-- The Write gridded component
@@ -146,6 +148,7 @@
                                   ,value =int_state%WRITE_GROUPS        &  !<-- Put extracted quantity here
                                   ,label ='write_groups:'               &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
+      write_groups=int_state%WRITE_GROUPS
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
@@ -162,6 +165,7 @@
                                   ,value =int_state%WRITE_TASKS_PER_GROUP  &  !<-- Put extracted quantity here
                                   ,label ='write_tasks_per_group:'         &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
+      write_tasks_per_group=int_state%write_tasks_per_group
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)

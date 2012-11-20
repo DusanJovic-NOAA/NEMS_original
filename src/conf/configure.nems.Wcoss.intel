@@ -4,6 +4,9 @@ include /usrx/local/esmf-3.1.0rp5/lib/libO/Linux.intel.64.intelmpi.default/esmf.
 ESMF_INC    = $(ESMF_F90COMPILEPATHS)
 ESMF_LIB    = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 
+gfs=gsm
+gfsdir=atmos/$(gfs)
+
 NETCDF_LIB  = /usrx/local/netcdf-4.2.1.1/lib/libnetcdf.a
 
 NEMSIO_INC  = -I/nwprod/lib/incmod/nemsio

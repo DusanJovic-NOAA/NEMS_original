@@ -1,4 +1,4 @@
-#include "../../../ESMFVersionDefine.h"
+#include "../../ESMFVersionDefine.h"
 
 !-----------------------------------------------------------------------
       MODULE MODULE_WRITE_INTERNAL_STATE_GFS

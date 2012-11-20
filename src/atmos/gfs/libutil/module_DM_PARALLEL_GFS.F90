@@ -12,11 +12,9 @@
 !-----------------------------------------------------------------------
 !
       use module_gfs_machine
-      use module_gfs_mpi_def,only : mpi_comm_inter_array         &
-                                   ,mc_comp                      &
+      use module_gfs_mpi_def,only : mc_comp                      &
                                    ,mpi_comm_comp                &
                                    ,mpi_comm_inter               &
-                                   ,max_inter_groups             &
                                    ,num_pes_fcst
 !
 !-----------------------------------------------------------------------
@@ -34,9 +32,10 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      subroutine setup_servers_gfs(mype,npes,last_fcst_pe       &
+      subroutine setup_servers_gfs(mype,npes,last_fcst_pe               &
                               ,ngroups_write,write_tasks_per_group      &
-                              ,mpi_intra)
+                              ,mpi_intra,max_inter_groups               &
+                              ,mpi_comm_inter_array)
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -73,8 +72,11 @@
 ,last_fcst_pe  &            ! last fcst pe ID
 ,ngroups_write &            ! number of groups of write tasks
 ,write_tasks_per_group &    ! number of groups of write tasks per group
-,mpi_intra                  ! global communicator
+,mpi_intra     &            ! global communicator
+,max_inter_groups           ! max number of quilt server groups
 !
+      INTEGER,dimension(max_inter_groups),intent(inout)  ::            &
+ mpi_comm_inter_array       ! quilt server group mpi communicators
       integer(kind=kind_io4),intent(inout) :: &
  npes                       ! total number of tasks provided
                             ! then converted to the number of fcst tasks

@@ -1,4 +1,4 @@
-#include "../../../ESMFVersionDefine.h"
+#include "../../ESMFVersionDefine.h"
 
 !-----------------------------------------------------------------------
 !
@@ -25,16 +25,17 @@
 !       13 May 2011:  W. yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !       05 May 2011:  J. Wang - add run post option on write quilt
 !       28 Sep 2011:  W. yang - Modified for using the ESMF 5.2.0r library.
+!       07 Nov 2012:  J. Wang  - generalize io for atmosphere
 !--------------------------------------------------------------------------------
 !
       USE esmf_mod
 !
       USE MODULE_WRITE_INTERNAL_STATE_GFS
 !
-      USE MODULE_GFS_MPI_DEF, ONLY :  MPI_COMM_INTER_ARRAY,MPI_COMM_COMP   &
+      USE MODULE_IO_MPI_DEF, ONLY :   MPI_COMM_INTER_ARRAY,MPI_COMM_COMP   &
                                      ,N_GROUP,ENSMEM_NAME
 !
-      USE MODULE_INCLUDE_GFS
+      USE MODULE_INCLUDE_IO 
 !
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !

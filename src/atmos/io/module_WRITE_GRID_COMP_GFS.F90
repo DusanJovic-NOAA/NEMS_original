@@ -1,4 +1,4 @@
-#include "../../../ESMFVersionDefine.h"
+#include "../../ESMFVersionDefine.h"
 
 #if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
 #undef ESMF_520r
@@ -41,6 +41,7 @@
 !       28 Sep 2011:  W. Yang  - Modified for using the ESMF 5.2.0r library.
 !       15 Feb 2012:  J. Wang  - replace deallocate by post_finalize
 !       23 Mar 2012:  W. Yang  - Modified for using the ESMF 5.2.0rp1 library.
+!       07 Nov 2012:  J. Wang  - generalize io for atmosphere
 !
 !---------------------------------------------------------------------------------
 !
@@ -49,13 +50,13 @@
       USE MODULE_WRITE_ROUTINES_GFS,ONLY : FIRST_PASS_GFS               &
                                       ,WRITE_NEMSIO_OPEN 
 !
-      USE MODULE_GFS_MPI_DEF,ONLY    : NUM_PES_FCST,NUM_PES_WRT         &
+      USE MODULE_IO_MPI_DEF,ONLY    :  NUM_PES_FCST,NUM_PES_WRT         &
                                       ,N_GROUP,PETLIST_WRITE            &
                                       ,MPI_COMM_COMP                    &
                                       ,MPI_COMM_INTER_ARRAY
       USE MODULE_GET_CONFIG_WRITE_GFS
       USE MODULE_ERR_MSG       ,ONLY : ERR_MSG,MESSAGE_CHECK
-      USE MODULE_INCLUDE_GFS
+      USE MODULE_INCLUDE_IO
       USE NEMSIO_MODULE
 !
 !
@@ -538,7 +539,7 @@
 !-----------------------------------------------------------------------
 !
       USE ESMF_FieldGetMOD
-      use module_gfs_mpi_def, only: WRITE_GROUPS, WRITE_TASKS_PER_GROUP
+      USE MODULE_IO_MPI_DEF, only: WRITE_GROUPS, WRITE_TASKS_PER_GROUP
 !
       TYPE(ESMF_GridComp),INTENT(IN) :: WRT_COMP
       TYPE(ESMF_Clock)   ,INTENT(IN) :: CLOCK

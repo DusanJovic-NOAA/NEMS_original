@@ -20,6 +20,7 @@
 ! Dec 2010 Sarah Lu, g2d_fld%met contains both instant and time-avg;
 !                    wrtaer is called only when gocart is on
 ! Dec 2010 Jun Wang, change to nemsio library
+! Nov 2012 Jun Wang, removing quilting, which is not used
 !
 
       use resol_def,               ONLY: latr, levs, levp1, lonr, nfxr,
@@ -30,7 +31,7 @@
      &                                   hybrid, fhlwr, fhswr, ens_nam,
      &                                   nst_fcst, lggfs3d
       use mpi_def,                 ONLY: liope, info, mpi_comm_all, 
-     &                                   mc_comp, mpi_comm_null,quilting
+     &                                   mc_comp, mpi_comm_null
       use gfs_physics_sfc_flx_mod, ONLY: Sfc_Var_Data, Flx_Var_Data
       use gfs_physics_nst_var_mod, ONLY: Nst_Var_Data
       use gfs_physics_g2d_mod,     ONLY: G2D_Var_Data

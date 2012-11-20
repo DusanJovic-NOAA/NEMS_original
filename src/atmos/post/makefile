@@ -2,8 +2,8 @@ include ../../conf/configure.nems
 
 MAKEFILE = makefile
 
-UTILINCSPOST = -I../share -I../nmm/ -I../gfs/io $(POST_INC)
-UTILINCSPOSTGFS = -I../share -I../gfs/io $(POST_INC)
+UTILINCSPOST = -I../share -I../nmm/ -I../io $(POST_INC)
+UTILINCSPOSTGFS = -I../share -I../io $(POST_INC)
 UTILINCSPOSTNMM = -I../share -I../nmm $(POST_INC)
 UTILINCSPOSTSTUB = -I../share
 

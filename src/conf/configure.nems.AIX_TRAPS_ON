@@ -3,6 +3,9 @@ SHELL        = /bin/sh
 ESMF_INC     = -I/nwprod/lib/incmod/esmf_3_1_0rp2
 ESMF_LIB     = -L/nwprod/lib -lesmf_3_1_0rp2 -lC_r
 
+gfs=gsm
+gfsdir=atmos/$(gfs)
+
 POSTDIR=/climate/save/wx20wa/unipost/trunk
 POSTMOD=${POSTDIR}/incmod/post_4
 POST_INC=-I${POSTDIR}/incmod/post_4

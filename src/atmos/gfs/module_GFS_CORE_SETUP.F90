@@ -18,6 +18,7 @@
 !***  (ATM INITIALIZE CALLS DYNAMICS INITIALIZE, ETC.)
 !***  IN MODULE_MAIN_GRID_COMP.F.
 !
+!
 !-----------------------------------------------------------------------
 !
       USE esmf_mod
@@ -51,17 +52,19 @@
 !
 !
       USE MODULE_INCLUDE
-      USE module_gfs_mpi_def,ONLY : num_pes_fcst,last_fcst_pe         &
+      USE MODULE_GFS_MPI_DEF,ONLY : num_pes_fcst,last_fcst_pe         &
                                ,first_fcst_pe                         &
-                               ,write_tasks_per_group                 &
-                               ,write_groups                          &
-                               ,petlist_fcst,petlist_write            &
+                               ,petlist_fcst                          &
                                ,mpi_comm_inter                        &
-                               ,mpi_comm_inter_array                  &
                                ,mc_comp,mpi_comm_comp                 &
                                ,quilting
-
-
+      USE MODULE_IO_MPI_DEF,ONLY : wrt_num_pes_fcst=>num_pes_fcst     &
+                               ,wrt_last_fcst_pe=>last_fcst_pe        &
+                               ,wrt_quilting=>quilting                &
+                               ,wrt_mpi_comm_comp=>mpi_comm_comp      &
+                               ,petlist_write,write_tasks_per_group   &
+                               ,write_groups,max_inter_groups         &
+                               ,mpi_comm_inter_array 
 !
       type(ESMF_gridcomp),intent(inout) :: gc_atm
       type(ESMF_grid),intent(out)  :: grid_atmos    ! the ESMF grid for the integration attached to
@@ -157,11 +160,12 @@
                      ,rc             =RC)
 !
       CALL mpi_comm_dup(mpi_intra,mpi_intra_b,rc)
-!jw
+!
       CALL ESMF_configgetattribute(cf                      &
                                   ,value =quilting         &  !<-- # of fcst tasks in j direction
                                   ,label ='quilting:'      &
                                   ,rc    =RC)
+      wrt_quilting=quilting
 
 !
 !-----------------------------------------------------------------------
@@ -177,15 +181,18 @@
                                   ,WRITE_TASKS_PER_GROUP                &  !<-- Number of write tasks per group from config file
                                   ,label ='write_tasks_per_group:'      &
                                   ,rc    =RC)
+!
       IF(quilting) THEN
           num_pes_fcst = num_pes_tot - WRITE_GROUPS * WRITE_TASKS_PER_GROUP
       ELSE
           num_pes_fcst = num_pes_tot
       END IF
+      wrt_num_pes_fcst=num_pes_fcst
       
       allocate(petlist_fcst(num_pes_fcst))
       petlist_fcst(1:num_pes_fcst)=petlistvm(1:num_pes_fcst)
       last_fcst_pe=maxval(petlist_fcst(1:num_pes_fcst) )
+      wrt_last_fcst_pe=last_fcst_pe
       first_fcst_pe=minval(petlist_fcst(1:num_pes_fcst) )
       write(0,*)'gfs_setup,first_fcst_pe=',first_fcst_pe,'last_fcst_pe=', &
         last_fcst_pe
@@ -198,7 +205,8 @@
 !
       CALL SETUP_SERVERS_GFS(MYPE,NUM_PES,last_fcst_pe                  &
                         ,WRITE_GROUPS,WRITE_TASKS_PER_GROUP             &
-                        ,mpi_intra_b)
+                        ,mpi_intra_b,max_inter_groups                   &
+                        ,mpi_comm_inter_array)
       write(0,*)'after setup_servers_gfs, write_groups=',write_groups,  &
         'WRITE_TASKS_PER_GROUP=', WRITE_TASKS_PER_GROUP,                &
         'last_fcst_pe=', last_fcst_pe
@@ -209,6 +217,7 @@
         mc_comp=mpi_intra_b
         mpi_comm_comp=mc_comp
       endif
+      wrt_mpi_comm_comp=mpi_comm_comp
 !***
 !***  NOTE: At this point, NUM_PES is the number of Forecast tasks only.
 !***

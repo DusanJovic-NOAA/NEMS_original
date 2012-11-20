@@ -2,11 +2,6 @@
 ! 
       use machine,   ONLY: KIND_io4, KIND_ior
       use module_gfs_mpi_def
-!jw      include 'mpif.h'
-!jw      integer stat(MPI_STATUS_SIZE),info
-!jw      INTEGER :: icolor
-!jw      INTEGER :: MC_COMP, MC_IO, MPI_COMM_ALL, MPI_COMM_ALL_DUP
-!jw      logical LIOPE
 
       integer MPI_R_IO, MPI_R_MPI, MPI_R_DEF, MPI_A_DEF
      &,       MPI_R_IO_R,MPI_R_MPI_R

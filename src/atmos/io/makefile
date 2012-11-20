@@ -1,12 +1,15 @@
-include ../../../conf/configure.nems
+include ../../conf/configure.nems
 
 MAKEFILE=makefile
 
-UTILINCS = -I../../share -I../libutil
+UTILINCS = -I../share 
 
-LIBRARY = gfs_io.a
+LIBRARY = libio.a
 
 OBJ_IO	= \
+	  module_include_io.o                 \
+	  module_io_mpi_def.o                 \
+	  module_GFS_WRITE.o                  \
 	  module_WRITE_INTERNAL_STATE_GFS.o   \
 	  module_GET_CONFIG_WRITE_GFS.o       \
 	  module_WRITE_ROUTINES_GFS.o         \
@@ -26,6 +29,6 @@ $(OBJ_IO): %.o: %.f90
 clean:
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map depend
 
-include ../../../conf/make.rules
+include ../../conf/make.rules
 
 include depend

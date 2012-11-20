@@ -24,20 +24,22 @@
 !       03 Sep 2009:  W. Yang - Ensemble GEFS.
 !       12 May 2011:  Theurich & Yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !       03 Sep 2011:  W. Yang - Modified for using the ESMF 5.2.0r library.
+!       08 Oct 2012:  J. Wang - move module_GFS_WRITE.F90 back to io, and use io related mpi info.
 !
 !-----------------------------------------------------------------------
 !
       USE esmf_mod
 !
-      USE MODULE_GFS_MPI_DEF, ONLY :  MPI_COMM_INTER_ARRAY,   &
+      USE MODULE_IO_MPI_DEF, ONLY :   MPI_COMM_INTER_ARRAY,   &
                                       N_GROUP,                &
                                       num_pes_fcst,           &
+                                      last_fcst_pe,           &
                                       write_tasks_per_group,  &
                                       write_groups,           &
                                       petlist_write,          &
                                       NUM_PES_WRT
 !
-      USE MODULE_INCLUDE_GFS
+      USE MODULE_INCLUDE_IO
 !
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 
@@ -319,7 +321,6 @@
                                 ,exp_state_dyn,exp_state_phy       &
                                 ,imp_state_write,exp_state_write)
 ! 
-      use module_gfs_mpi_def, only : LAST_FCST_PE
 !-----------------------------------------------------------------------
 !***  SET UP THE WRITE COMPONENTS WITH THE FORECAST TASKS AND
 !***  THE GROUPS OF WRITE TASKS NEEDED FOR QUILTING THE OUTPUT
