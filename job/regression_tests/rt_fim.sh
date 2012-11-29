@@ -72,7 +72,7 @@ n=1
 until [ $job_running -eq 0 ]
 do
 
-export status=`llq -u ${LOGIN} -f %st %jn | grep ${JBNME} | awk '{ print $1}'` ; export status=${status:--}
+export status=`llq -u ${USER} -f %st %jn | grep ${JBNME} | awk '{ print $1}'` ; export status=${status:--}
 
 if   [ $status = 'I' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
 elif [ $status = 'R' ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status
@@ -83,7 +83,7 @@ fi
 
 sleep 60
 
-job_running=`llq -u ${LOGIN} -f %st %jn | grep ${JBNME} | wc -l`
+job_running=`llq -u ${USER} -f %st %jn | grep ${JBNME} | wc -l`
   (( n=n+1 ))
 done
 
@@ -148,7 +148,7 @@ do
   outfile="${outdir}/${i}"
   printf %s " Moving " $i "....."
   if [ -f ${outfile} ] ; then
-    cp ${outfile} /stmp/${LOGIN}/REGRESSION_TEST/${CNTL_DIR}/${i}
+    cp ${outfile} /stmp/${USER}/REGRESSION_TEST/${CNTL_DIR}/${i}
   else
     echo "Missing " ${outfile} " output file"
     echo;echo " Set ${TEST_NR} failed "

@@ -29,7 +29,7 @@
 !            IX, IM, LM, iflip, me, lprnt, ipt, kdt,                   !
 !         output:                                                      !
 !            htrsw,topfsw,sfcfsw,sfalb,                                !
-!            htrlw,topflw,sfcflw,tsflw,semis,cldcov,                   !
+!            htrlw,topflw,sfcflw,tsflw,semis,cldcov,cldsa              !
 !         input/output:                                                !
 !            fluxr                                                     !
 !         optional output:                                             !
@@ -130,6 +130,17 @@
 !                    argument list of subrotine setaer call for the    !
 !                    newly modified horizontal bi-linear interpolation !
 !                    in climatological aerosols schem.                 !
+!     09-30-11    H.M. Lin   - rename "grrad" to "grrad_nmmb" for using!
+!                    in regional to avoid the confliction with global  !
+!                    when compile the nems. Also change names of the   !
+!                    related subroutines to "astronomy_nmmb" &         !
+!                    "solinit_nmmb"                                    !
+!     03-15-12    H.M. Lin   - changed grrad interface to allow 'cldsa'!
+!                    (fraction of clouds for low, mid, hi, tot, bl)    !
+!                     passed to the calling program.                   !
+!     09-25-12    y. hou     - added optional extra top layer 'LTP' on !
+!                    top of low ceiling models                         !
+!                    (** to cover the gases atop, expecially O3)       !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -142,8 +153,9 @@
 !.............................................!
 !
       use machine ,                 only : kind_phys
-      use physcons,                 only : con_eps,  con_epsm1
-      use funcphys,                 only : fpvs
+      use physcons,                 only : con_eps, con_epsm1, con_cpor,&
+     &                                     con_rocp
+      use funcphys,                 only : fpvs, fpkapx
 
       use module_nmmb_radiation_astronomy,only : solinit_nmmb
       use module_radiation_gases,   only : NF_VGAS, getgases, getozn,   &
@@ -180,6 +192,7 @@
 !     parameter (QMIN=1.0e-10, QME5=1.0e-5,  QME6=1.0e-6,  EPSQ=1.0e-12)
       parameter (QMIN=1.0e-10, QME5=1.0e-7,  QME6=1.0e-7,  EPSQ=1.0e-12)
 !     parameter (QMIN=1.0e-10, QME5=1.0e-20, QME6=1.0e-20, EPSQ=1.0e-12)
+      real, parameter :: prsmin = 1.0e-6 ! toa pressure minimum value in mb (hpa)
 
 !  ---  data input control variables
       integer :: irad1st=1,   month0=0,   iyear0=0,   monthd=0
@@ -189,6 +202,12 @@
 
 !  ---  lw surface air/ground interface temperature setting variable
       integer :: itsfc=0
+
+!  ---  optional extra top layer on top of low ceiling models (Y. Hou, 2012-09-25)
+!
+!     integer, parameter :: LTP = 0   ! do no add an extra top layer
+      integer, parameter :: LTP = 1   ! add an extra top layer
+      logical :: lextop = (LTP > 0)
 
       public radinit, grrad_nmmb
 
@@ -354,6 +373,7 @@
      &            ' ISOL=',isol,' ICO2=',ico2,' NP3D=',np3d,' ICWP=',   &
      &            icwp,' IALB=',ialb,' IEMS=',iems,' IAER=',iaer,       &
      &            ' ISUBC_LW=',isubclw,' ISUBC_SW=',isubcsw
+        print *,' LTP =',LTP,', add extra top layer =',lextop
 
           if ( ICTM==0 .or. ICTM==-2 ) then
             print *,'   Data usage is limited by initial condition ',   &
@@ -494,10 +514,10 @@
      &       crick_proof, ccnorm,                                       &
      &       IX, IM, LM, iflip, me, lprnt, ipt, kdt,                    &
 !  ---  additional inputs:                                                 !carlos
-     &       tauclouds,cldf,albtype,                                    &  !carlos
+     &       tauclouds,cldf,                                            &  !carlos
 !  ---  outputs:
      &       htrsw,topfsw,sfcfsw,sfalb,                                 &
-     &       htrlw,topflw,sfcflw,tsflw,semis,cldcov,                    &
+     &       htrlw,topflw,sfcflw,tsflw,semis,cldcov,cldsa,              &
 !  ---  input/output:
      &       fluxr                                                      &
 !! ---  optional outputs:
@@ -609,6 +629,7 @@
 !       %dnfx0           - clear sky downward sw flux at sfc (w/m**2)   !
 !      sfalb (IM)      : mean surface diffused sw albedo                !
 !      cldcov(IX,LM)   : 3-d cloud fraction                             !
+!      cldsa(IX,5)     : fraction of clouds for low, mid, hi, tot, bl   !
 !      htrlw (IX,LM)   : total sky lw heating rate in k/sec             !
 !      topflw(IM)      : lw radiation fluxes at top, component:         !
 !                        (check module_radlw_paramters for definition)  !
@@ -798,8 +819,6 @@
       real (kind=kind_phys), intent(in) ::  solcon, facoz, dtlw, dtsw,  &
      &       oz(IX,LM,NTRAC)
 
-      integer,  intent(in) :: albtype                                     !carlos
-
       real (kind=kind_phys), dimension(IX,LM), intent(in) ::            & !carlos
      & tauclouds,cldf                                                     !carlos
 
@@ -827,10 +846,10 @@
      &                       intent(out) :: htrlwb
 
 !  ---  local variables: (horizontal dimensioned by IM)
-      real (kind=kind_phys), dimension(IM,LM+1) :: plvl, tlvl
+      real (kind=kind_phys), dimension(IM,LM+1+LTP):: plvl, tlvl
 
-      real (kind=kind_phys), dimension(IM,LM)   :: plyr, tlyr, qlyr,    &
-     &       olyr, rhly, qstl, vvel, clw, tem2da, tem2db
+      real (kind=kind_phys), dimension(IM,LM+LTP)  :: plyr, tlyr, qlyr, &
+     &       olyr, rhly, qstl, vvel, clw, prslk1, tem2da, tem2db
 
       real (kind=kind_phys), dimension(IM) :: tsfa, cvt1, cvb1, tem1d,  &
      &       sfcemis, tsfg, tskn
@@ -838,37 +857,39 @@
 ! --- The following 2 lines are for newer version (Hsin-mu Lin, 2011-04-25)
 
       ! real (kind=kind_phys), dimension(IM,   NSPC+1)  :: aod
-      ! real (kind=kind_phys), dimension(IM,LM,NSPC)    :: tau_gocart
+      ! real (kind=kind_phys), dimension(IM,LM+LTP,NSPC):: tau_gocart
 
       real (kind=kind_phys), dimension(IM,NSPC)       :: aod
 
-      real (kind=kind_phys), dimension(IM,LM,NF_CLDS) :: clouds
-      real (kind=kind_phys), dimension(IM,LM,NF_VGAS) :: gasvmr
-      real (kind=kind_phys), dimension(IM,   NF_ALBD) :: sfcalb
+      real (kind=kind_phys), dimension(IM,LM+LTP,NF_CLDS) :: clouds
+      real (kind=kind_phys), dimension(IM,LM+LTP,NF_VGAS) :: gasvmr
+      real (kind=kind_phys), dimension(IM,       NF_ALBD) :: sfcalb
+      real (kind=kind_phys), dimension(IM,LM+LTP,NTRAC)   :: tracer1
 
-      real (kind=kind_phys), dimension(IM,LM,NBDSW,NF_AESW) :: faersw
-      real (kind=kind_phys), dimension(IM,LM,NBDLW,NF_AELW) :: faerlw
-      real (kind=kind_phys), dimension(IM,LM,NSPC-1) :: tau_gocart
+      real (kind=kind_phys), dimension(IM,LM+LTP,NBDSW,NF_AESW):: faersw
+      real (kind=kind_phys), dimension(IM,LM+LTP,NBDLW,NF_AELW):: faerlw
+      real (kind=kind_phys), dimension(IM,LM+LTP,NSPC-1) :: tau_gocart
 
-      real (kind=kind_phys), dimension(IM,LM) :: htswc
-      real (kind=kind_phys), dimension(IM,LM) :: htlwc
+      real (kind=kind_phys), dimension(IM,LM+LTP) :: htswc
+      real (kind=kind_phys), dimension(IM,LM+LTP) :: htlwc
 
 
 !! ---  may be used for optional sw/lw outputs:
 !!      take out "!!" as needed
-!!    real (kind=kind_phys), dimension(IM,LM)   :: htsw0
-!!    type (profsw_type),    dimension(IM,LM+1) :: fswprf
-      type (cmpfsw_type),    dimension(IM)      :: scmpsw
-      real (kind=kind_phys), dimension(IM,LM,NBDSW) :: htswb
+!!    real (kind=kind_phys), dimension(IM,LM+LTP)   :: htsw0
+!!    type (profsw_type),    dimension(IM,LM+1+LTP) :: fswprf
+      type (cmpfsw_type),    dimension(IM)          :: scmpsw
+      real (kind=kind_phys), dimension(IM,LM+LTP,NBDSW) :: htswb
 
-!!    real (kind=kind_phys), dimension(IM,LM)   :: htlw0
-!!    type (proflw_type),    dimension(IM,LM+1) :: flwprf
-      real (kind=kind_phys), dimension(IM,LM,NBDLW) :: htlwb
+!!    real (kind=kind_phys), dimension(IM,LM+LTP)   :: htlw0
+!!    type (proflw_type),    dimension(IM,LM+1+LTP) :: flwprf
+      real (kind=kind_phys), dimension(IM,LM+LTP,NBDLW) :: htlwb
 
       real (kind=kind_phys) :: raddt, es, qs, delt, tem0d, cldsa(IM,5)
 
       integer :: i, j, k, k1, lv, icec, itop, ibtc, nday, idxday(IM),   &
-     &       mbota(IM,3), mtopa(IM,3), LP1, nb
+     &       mbota(IM,3), mtopa(IM,3), LP1, nb, LMK, LMP, kd, lla, llb, &
+     &       lya, lyb
 
 !  ---  for debug test use
 !     real (kind=kind_phys) :: temlon, temlat, alon, alat
@@ -878,7 +899,35 @@
 !
 !===> ...  begin here
 !
-      LP1 = LM + 1
+      LP1 = LM + 1               ! num of in/out levels
+
+!===========================================================================
+!  --- ...  set local /level/layer indexes corresponding to in/out variables
+!           ( for optional extra top layer)
+
+      LMK = LM + LTP             ! num of local layer
+      LMP = LMK + 1              ! num of local level
+
+      if ( lextop ) then
+        if ( iflip == 1 ) then   ! vertical from sfc upward
+          kd = 0                   ! index diff between in/out and local
+          lla = LMK                ! local index at the 2nd level from top
+          llb = LMP                ! local index at toa level
+          lya = LM                 ! local index for the 2nd layer from top
+          lyb = LP1                ! local index for the top layer
+        else                     ! vertical from toa downward
+          kd = 1                   ! index diff between in/out and local
+          lla = 2                  ! local index at the 2nd level from to
+          llb = 1                  ! local index at toa level
+          lya = 2                  ! local index for the 2nd layer from top
+          lyb = 1                  ! local index for the top layer
+        endif                    ! end if_iflip_block
+      else
+        kd = 0
+      endif   ! end if_lextop_block
+!
+!  --- End of index setting for optional extra top layer
+!===========================================================================
 
       raddt = min(dtsw, dtlw)
 
@@ -898,52 +947,6 @@
 !     enddo
 
 !     print *,' in grrad : raddt=',raddt
-!  --- ...  compute relative humidity
-
-      do k = 1, LM
-        do i = 1, IM
-
-          ! Note for qs:
-          !   ** prsl unit in NMMB is kPa
-          !   it can be done in es for 0.001*fpvs
-          !   or multiple every prsl by 1000
-          !   (Hsin-mu Lin, 20110927)
-
-          es  = min( prsl(i,k), 0.001 * fpvs( tgrs(i,k) ) )   ! fpvs in pa
-          qs  = max( QMIN, con_eps * es / (prsl(i,k) + con_epsm1*es) )
-          rhly(i,k) = max( 0.0, min( 1.0, max(QMIN, qgrs(i,k))/qs ) )
-          qstl(i,k) = qs
-        enddo
-      enddo
-
-!  --- ...  get layer ozone mass mixing ratio
-
-      if (ntoz > 0) then            ! interactive ozone generation
-
-        do k = 1, LM
-          do i = 1, IM
-            olyr(i,k) = oz(i,k,ntoz)
-          enddo
-        enddo
-
-      else                          ! climatological ozone
-
-        do k = 1, LM
-          do i = 1, IM
-            tem2da(i,k) = prslk(i,k)
-          enddo
-        enddo
-
-!     print *,' in grrad : calling getozn'
-        call getozn                                                     &
-!  ---  inputs:
-     &     ( tem2da,xlat,k1oz,k2oz,facoz,                               &
-     &       IM, LM, iflip,                                             &
-!  ---  outputs:
-     &       olyr                                                       &
-     &     )
-
-      endif                            ! end_if_ntoz
 
 !  --- ...  setup surface ground temp and ground/air skin temp if required
 
@@ -957,6 +960,7 @@
         tsfg(:) = tsfc(:)
       endif
 
+!
 !  --- ...  prepare atmospheric profiles for radiation input
 !           convert pressure unit from Pa to mb
 
@@ -971,34 +975,104 @@
 !=============================================================
 
       do k = 1, LM
+        k1 = k + kd      ! kd: index diff between in/out and local
+
         do i = 1, IM
-          plvl(i,k) = 10.0 * prsi(i,k)   ! cb to mb
-          plyr(i,k) = 10.0 * prsl(i,k)   ! cb to mb
-!         plvl(i,k) = 0.01 * prsi(i,k)   ! Pa to mb
-!         plyr(i,k) = 0.01 * prsl(i,k)   ! Pa to mb
-          tlyr(i,k) = tgrs(i,k)
-          olyr(i,k) = max( QMIN, olyr(i,k) )
+          plvl(i,k1) = 10.0 * prsi(i,k)   ! cb to mb
+          plyr(i,k1) = 10.0 * prsl(i,k)   ! cb to mb
+!         plvl(i,k1) = 0.01 * prsi(i,k)   ! Pa to mb
+!         plyr(i,k1) = 0.01 * prsl(i,k)   ! Pa to mb
+          tlyr(i,k1) = tgrs(i,k)
+          prslk1(i,k1) = prslk(i,k)
+
+!  --- ...  compute relative humidity
+
+          ! Note for qs:
+          !   ** prsl unit in NMMB is kPa
+          !   it can be done in es for 0.001*fpvs
+          !   or multiple every prsl by 1000
+          !   (Hsin-mu Lin, 20110927)
+
+          es  = min( prsl(i,k), 0.001 * fpvs( tgrs(i,k) ) )   ! fpvs in pa
+          qs  = max( QMIN, con_eps * es / (prsl(i,k) + con_epsm1*es) )
+          rhly(i,k1) = max( 0.0, min( 1.0, max(QMIN, qgrs(i,k))/qs ) )
+          qstl(i,k1) = qs
+        enddo
+
+        do j = 1, NTRAC
+          do i = 1, IM
+             tracer1(i,k1,j) = oz(i,k,j)
+          enddo
         enddo
       enddo
 
       do i = 1, IM
-        plvl(i,LP1) = 10.0 * prsi(i,LP1)  ! cb to mb
-!       plvl(i,LP1) = 0.01 * prsi(i,LP1)  ! Pa to mb
+        plvl(i,LP1+kd) = 10.0 * prsi(i,LP1)  ! cb to mb
+!       plvl(i,LP1+kd) = 0.01 * prsi(i,LP1)  ! Pa to mb
       enddo
+
+!======================================================================
+!  --- ...  values for extra top layer
+
+      if ( lextop ) then                 ! values for extra top layer
+        do i = 1, IM
+          plvl(i,llb) = prsmin
+          if ( plvl(i,lla)<=prsmin ) plvl(i,lla) = 2.0*prsmin
+          plyr(i,lyb) = 0.5 * plvl(i,lla)
+          tlyr(i,lyb) = tlyr(i,lya)
+          prslk1(i,lyb) = fpkapx(plyr(i,lyb)*100.0)    ! fpkapx in pa
+
+          rhly(i,lyb) = rhly(i,lya)
+          qstl(i,lyb) = qstl(i,lya)
+        enddo
+
+        do j = 1, NTRAC
+          do i = 1, IM
+!  ---  note: may need to take care the top layer mount
+            tracer1(i,lyb,j) = tracer1(i,lya,j)
+          enddo
+        enddo
+      endif
+!
+!======================================================================
+
+!  --- ...  get layer ozone mass mixing ratio
+
+      if (ntoz > 0) then            ! interactive ozone generation
+
+        do k = 1, LMK
+          do i = 1, IM
+            olyr(i,k) = max( QMIN, tracer1(i,k,ntoz) )
+          enddo
+        enddo
+
+      else                          ! climatological ozone
+
+!     print *,' in grrad : calling getozn'
+
+        call getozn                                                     &
+!  ---  inputs:
+     &     ( prslk1,xlat,k1oz,k2oz,facoz,                               &
+     &       IM, LMK, iflip,                                            &
+!  ---  outputs:
+     &       olyr                                                       &
+     &     )
+
+      endif                            ! end_if_ntoz
 
 !  --- ...  set up non-prognostic gas volume mixing ratioes
 
       call getgases                                                     &
 !  ---  inputs:
      &    ( plvl, xlon, xlat,                                           &
-     &      IM, LM, iflip,                                              &
+     &      IM, LMK, iflip,                                             &
 !  ---  outputs:
      &      gasvmr                                                      &
      &     )
 
 !  --- ...  get temperature at layer interface, and layer moisture
 
-      do k = 2, LM
+      do k = 2, LMK
         do i = 1, IM
           tem2da(i,k) = log( plyr(i,k) )
           tem2db(i,k) = log( plvl(i,k) )
@@ -1011,19 +1085,32 @@
           tem1d (i)   = QME6
           tem2da(i,1) = log( plyr(i,1) )
           tem2db(i,1) = 1.0
-          tsfa  (i)   = tlyr(i,LM)                   ! sfc layer air temp
+          tsfa  (i)   = tlyr(i,LMK)                  ! sfc layer air temp
           tlvl(i,1)   = tlyr(i,1)
-          tlvl(i,LP1) = tskn(i)
+          tlvl(i,LMP) = tskn(i)
         enddo
 
         do k = 1, LM
+          k1 = k + kd      ! kd: index diff between in/out and local
+
           do i = 1, IM
-            qlyr(i,k) = max( tem1d(i), qgrs(i,k) )
-            tem1d(i)  = min( QME5, qlyr(i,k) )
+            qlyr(i,k1) = max( tem1d(i), qgrs(i,k) )
+            tem1d(i)   = min( QME5, qlyr(i,k1) )
           enddo
         enddo
 
-        do k = 2, LM
+        !============================================
+        !  --- ...  values for extra top layer
+
+        if ( lextop ) then
+          do i = 1, IM
+            qlyr(i,lyb) = qlyr(i,lya)
+          enddo
+        endif
+
+        !============================================
+
+        do k = 2, LMK
           do i = 1, IM
             tlvl(i,k) = tlyr(i,k) + (tlyr(i,k-1) - tlyr(i,k))           &
      &                * (tem2db(i,k)   - tem2da(i,k))                   &
@@ -1039,7 +1126,7 @@
           tem2db(i,1) = log( plvl(i,1) )
           tsfa  (i)   = tlyr(i,1)                    ! sfc layer air temp
           tlvl(i,1)   = tskn(i)
-          tlvl(i,LP1) = tlyr(i,LM)
+          tlvl(i,LMP) = tlyr(i,LMK)
         enddo
 
         do k = LM, 1, -1
@@ -1049,7 +1136,18 @@
           enddo
         enddo
 
-        do k = 1, LM-1
+        !============================================
+        !  --- ...  values for extra top layer
+
+        if ( lextop ) then
+          do i = 1, IM
+            qlyr(i,lyb) = qlyr(i,lya)
+          enddo
+        endif
+
+        !============================================
+
+        do k = 1, LMK-1
           do i = 1, IM
             tlvl(i,k+1) = tlyr(i,k) + (tlyr(i,k+1) - tlyr(i,k))         &
      &                  * (tem2db(i,k+1) - tem2da(i,k))                 &
@@ -1073,20 +1171,12 @@
 
       if ( iaerflg > 0 ) then
 
-!  --- ...  prslk -> tem2da (added for gocart coupling)
-
-        do k = 1, LM
-          do i = 1, IM
-            tem2da(i,k) = prslk(i,k)
-          enddo
-        enddo
-
 !check  print *,' in grrad : calling setaer '
 
         call setaer                                                     &
 !  ---  inputs:
-     &     ( xlon,xlat,plvl,plyr,tlyr,qlyr,rhly,slmsk,tem2da,oz,        &
-     &       IM,LM,LP1, iflip, lsswr,lslwr,                             &
+     &     ( xlon,xlat,plvl,plyr,tlyr,qlyr,rhly,slmsk,prslk1,tracer1,   &
+     &       IM,LMK,LMP, iflip, lsswr,lslwr,                            &
 !  ---  outputs:
      &       faersw,faerlw,tau_gocart                                   &
      &     )
@@ -1095,7 +1185,7 @@
 
         do j=1,nf_aesw
           do nb=1,nbdsw
-            do k=1,lm
+            do k=1,lmk
               do i=1,im
                  faersw(i,k,nb,j) = 0.0
                  faerlw(i,k,nb,j) = 0.0
@@ -1113,7 +1203,7 @@
 
         do i = 1, IM
           do j = 1, NSPC+1
-            do k = 1, LM
+            do k = 1, LMK
               if ( j <= NSPC ) then
                 aod(i,j) = aod(i,j) + tau_gocart(i,k,j)
               else
@@ -1133,7 +1223,7 @@
 
       if (ntcw > 0) then                   ! prognostic cloud scheme
 
-        do k = 1, LM
+        do k = 1, LMK
           do i = 1, IM
             clw(i,k) = 0.0
           enddo
@@ -1141,7 +1231,7 @@
           do j = 1, ncld
             lv = ntcw + j - 1
             do i = 1, IM
-              clw(i,k) = clw(i,k) + oz(i,k,lv)    ! cloud condensate amount
+              clw(i,k) = clw(i,k) + tracer1(i,k,lv)    ! cloud condensate amount
             enddo
           enddo
         enddo
@@ -1156,7 +1246,7 @@
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,qlyr,qstl,rhly,clw,                         &
      &       xlat,xlon,slmsk,                                           &
-     &       IM, LM, LP1, iflip, iovrsw, sashal, crick_proof, ccnorm,   &
+     &       IM, LMK, LMP, iflip, iovrsw, sashal, crick_proof, ccnorm,  &
 !  ---  outputs:
      &       clouds,cldsa,mtopa,mbota                                   &
      &      )
@@ -1168,7 +1258,7 @@
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,qlyr,qstl,rhly,clw,                         &
      &       xlat,xlon,slmsk, fcice,frain,rrime,flgmin,                 &
-     &       IM, LM, LP1, iflip, iovrsw, sashal, norad_precip,          &
+     &       IM, LMK, LMP, iflip, iovrsw, sashal, norad_precip,         &
      &       crick_proof, ccnorm,                                       &
 !  ---  outputs:
      &       clouds,cldsa,mtopa,mbota                                   &
@@ -1187,7 +1277,7 @@
 !  ---  inputs:
 !    &     ( plyr,plvl,tlyr,qlyr,qstl,rhly,clw,                         &
 !    &       xlat,xlon,slmsk, fcice,frain,rrime,flgmin,                 &
-!    &       IM, LM, LP1, iflip, iovrsw,                                &
+!    &       IM, LMK, LMP, iflip, iovrsw,                               &
 !  ---  outputs:
 !    &       clouds,cldsa,mtopa,mbota                                   &
 !    &      )
@@ -1195,16 +1285,32 @@
  !     print *,' in grrad : !!! need to develop progcld3 for nmmb',      &
  !    &        ' temporarily using progcld2 !!!'
 
-        do k = 1, LM                                                       !carlos
-          do i = 1, IM                                                     !carlos
-            clouds(i,k,1) = cldf(i,k)                                      !carlos
-            clouds(i,k,2) = tauclouds(i,k)                                 !carlos
-            clouds(i,k,3) = 0.99                                           !carlos
-            clouds(i,k,4) = 0.84                                           !carlos
-          enddo                                                            !carlos
-        enddo                                                              !carlos
-!
-        endif                            ! end if_np3d
+          do k = 1, LM                                          !carlos
+            k1 = k + kd      ! kd: index diff between in/out and local
+
+            do i = 1, IM                                        !carlos
+              clouds(i,k1,1) = cldf(i,k)                        !carlos
+              clouds(i,k1,2) = tauclouds(i,k)                   !carlos
+              clouds(i,k1,3) = 0.99                             !carlos
+              clouds(i,k1,4) = 0.84                             !carlos
+            enddo                                               !carlos
+          enddo                                                 !carlos
+
+          !============================================
+          !  --- ...  values for extra top layer
+
+          if ( lextop ) then
+            do i = 1, IM
+              clouds(i,lyb,1) = clouds(i,lya,1)
+              clouds(i,lyb,2) = clouds(i,lya,2)
+              clouds(i,lyb,3) = clouds(i,lya,3)
+              clouds(i,lyb,4) = clouds(i,lya,4)
+            enddo
+          endif
+
+          !============================================
+
+        endif                              ! end if_np3d
 !
       else                                 ! diagnostic cloud scheme
 
@@ -1216,11 +1322,24 @@
         enddo
 
         do k = 1, LM
+          k1 = k + kd      ! kd: index diff between in/out and local
+
           do i = 1, IM
-            vvel(i,k) = 10.0 * vvl (i,k)
-!           vvel(i,k) = 0.01 * vvl (i,k)
+            vvel(i,k1) = 10.0 * vvl (i,k)
+!           vvel(i,k1) = 0.01 * vvl (i,k)
           enddo
         enddo
+
+        !============================================
+        !  --- ...  values for extra top layer
+
+        if ( lextop ) then
+          do i = 1, IM
+            vvel(i,lyb) = vvel(i,lya)
+          enddo
+        endif
+
+        !============================================
 
 !  ---  compute diagnostic cloud related quantities
 
@@ -1228,7 +1347,7 @@
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,rhly,vvel,cv,cvt1,cvb1,                     &
      &       xlat,xlon,slmsk,                                           &
-     &       IM, LM, LP1, iflip, iovrsw,                                &
+     &       IM, LMK, LMP, iflip, iovrsw,                               &
 !  ---  outputs:
      &       clouds,cldsa,mtopa,mbota                                   &
      &      )
@@ -1240,8 +1359,6 @@
 
       if (lsswr) then
 
-       if(albtype==0)then  !!4 component GFS seasonal climatology         !carlos
-
 !  ---  setup surface albedo for sw radiation, incl xw (nov04) sea-ice
 
         call setalb                                                     &
@@ -1252,17 +1369,6 @@
 !  ---  outputs:
      &       sfcalb                                                     &
      &     )
-
-       else  !nmmb climatology                                            !carlos
-
-          do i = 1, IM                                                    !carlos
-          sfcalb(i,1)= alnsf(i)                                           !carlos
-          sfcalb(i,2)= alnwf(i)                                           !carlos
-          sfcalb(i,3)= alvsf(i)                                           !carlos
-          sfcalb(i,4)= alvwf(i)                                           !carlos
-          enddo                                                           !carlos
-
-       endif !albtype                                                     !carlos
 
 !  --- lu [+4L]: derive SFALB from vis- and nir- diffuse surface albedo
         do i = 1, IM
@@ -1280,7 +1386,7 @@
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
      &       clouds,icsdsw,faersw,sfcalb,                               &
      &       coszen,solcon, nday,idxday,                                &
-     &       IM, LM, LP1, iflip, lprnt,                                 &
+     &       IM, LMK, LMP, iflip, lprnt,                                &
 !  ---  outputs:
      &       htswc,topfsw,sfcfsw                                        &
 !! ---  optional:
@@ -1288,10 +1394,12 @@
      &,      HSWB=htswb,FDNCMP=scmpsw                                   &
      &     )
 
-            do j = 1, NBDSW
-              do k = 1, LM
+            do k = 1, LM
+              k1 = k + kd      ! kd: index diff between in/out and local
+
+              do j = 1, NBDSW
                 do i = 1, IM
-                  htrswb(i,k,j) = htswb(i,k,j)
+                  htrswb(i,k,j) = htswb(i,k1,j)
                 enddo
               enddo
             enddo
@@ -1303,7 +1411,7 @@
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
      &       clouds,icsdsw,faersw,sfcalb,                               &
      &       coszen,solcon, nday,idxday,                                &
-     &       IM, LM, LP1, iflip, lprnt,                                 &
+     &       IM, LMK, LMP, iflip, lprnt,                                &
 !  ---  outputs:
      &       htswc,topfsw,sfcfsw                                        &
 !! ---  optional:
@@ -1316,8 +1424,10 @@
         ! if (lprnt) write(0,*)' htswc=',htswc(ipt,1:5)
 
           do k = 1, LM
+            k1 = k + kd      ! kd: index diff between in/out and local
+
             do i = 1, IM
-              htrsw(i,k) = htswc(i,k)
+              htrsw(i,k) = htswc(i,k1)
             enddo
           enddo
 
@@ -1370,7 +1480,7 @@
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
      &       clouds,icsdlw,faerlw,sfcemis,tsfg,                         &
-     &       IM, LM, LP1, iflip, lprnt,                                 &
+     &       IM, LMK, LMP, iflip, lprnt,                                &
 !  ---  outputs:
      &       htlwc,topflw,sfcflw                                        &
 !! ---  optional:
@@ -1378,10 +1488,12 @@
      &,      HLWB=htlwb                                                 &
      &     )
 
-          do j = 1, NBDLW
-            do k = 1, LM
+          do k = 1, LM
+            k1 = k + kd      ! kd: index diff between in/out and local
+
+            do j = 1, NBDLW
               do i = 1, IM
-                htrlwb(i,k,j) = htlwb(i,k,j)
+                htrlwb(i,k,j) = htlwb(i,k1,j)
               enddo
             enddo
           enddo
@@ -1392,7 +1504,7 @@
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
      &       clouds,icsdlw,faerlw,sfcemis,tsfg,                         &
-     &       IM, LM, LP1, iflip, lprnt,                                 &
+     &       IM, LMK, LMP, iflip, lprnt,                                &
 !  ---  outputs 
      &       htlwc,topflw,sfcflw                                        &
 !! ---  optional:
@@ -1409,8 +1521,10 @@
         enddo
 
         do k = 1, LM
+          k1 = k + kd      ! kd: index diff between in/out and local
+
           do i = 1, IM
-            htrlw(i,k) = htlwc(i,k)
+            htrlw(i,k) = htlwc(i,k1)
           enddo
         enddo
 
@@ -1495,8 +1609,10 @@
         endif
 
         do k = 1, LM
+          k1 = k + kd       ! kd: index diff between in/out and local
+
           do i = 1, IM
-            cldcov(i,k) = clouds(i,k,1)
+            cldcov(i,k) = clouds(i,k1,1)
           enddo
         enddo
 

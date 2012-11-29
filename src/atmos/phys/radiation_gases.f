@@ -68,6 +68,9 @@
 !                  to the initial condition data (currently co2 only)  !
 !     nov 2008 - y-t hou     fix bugs in superimposing climatology     !
 !                  seasonal cycle calculations                         !
+!     oct 2012 - h-m lin     fix the potential error when fpkap        !
+!                            mulfunction at pressure is smaller than   !
+!                            0.1 mb                                    !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -81,7 +84,7 @@
 !
       use machine ,                only : kind_phys, kind_io4
       use funcphys,                only : fpkap
-      use physcons,                only : con_pi
+      use physcons,                only : con_pi, con_rocp
       use ozne_def,                only : jmr => latsozc, loz => levozc &
      &,                                   blte => blatc, dlte=> dphiozc &
      &,                                   timeozc => timeozc
@@ -816,8 +819,16 @@
          print *,' FOUND OZONE DATA FOR LEVELS PSTR=',(pstr(l),l=1,LOZ)
 !        print *,' O3=',(o3r(15,l,1),l=1,LOZ)
 
+         !==== NOTE: function fpkap will mulfunction when pstr<0.1
+         !     In order to eliminate the potential error, exact Exner
+         !     will be used instead of using fpkap. (HM Lin, 201210)
+
          do l = 1, LOZ
-           pkstr(l) = fpkap(pstr(l)*100.0)
+           if ( pstr(l) >= 0.1 ) then
+              pkstr(l) = fpkap(pstr(l)*100.0)
+           else
+              pkstr(l) = (pstr(l)/1000.)**(con_rocp)
+           endif
          enddo
 
          first  = .false.

@@ -954,6 +954,7 @@
         alon(i) = xlon(i) * rdg
         if (alon(i) < f_zero) alon(i) = alon(i) + 360.0
         alat(i) = xlat(i) * rdg
+        alat(i)=min(max(alat(i),-90.0),90.0)
       enddo
 
 !  ---  ...  compute level height and layer thickness

@@ -243,7 +243,7 @@ igbp: 0                     # Use (1) or do not use (0) IGBP types
 
 #---------------------------------
 
-gfs:  _gfsP_                # Select entire GFS physics suite
+gfs:  false_                # Select entire GFS physics suite
 
 
 ########################################

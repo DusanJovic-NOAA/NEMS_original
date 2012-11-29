@@ -190,8 +190,8 @@ dpmin:      5.00            # minimum thickness of the reference layer (check un
 ####################################
 
 #---------------------------------
-shortwave: gfdl             # Radiation schemes
-longwave:  gfdl
+shortwave: _RADTN_          # Radiation schemes
+longwave:  _RADTN_
                                 # gfdl--> GFDL (shortwave and longwave)
                                 # gsfc--> Goddard shortwave
                                 # dudh--> Dudhia shortwave

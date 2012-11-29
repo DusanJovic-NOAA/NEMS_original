@@ -1,6 +1,4 @@
-#!/bin/sh
-
-#set -aeux
+#!/bin/ksh
 
 RUNDIR=_RUND_
 SRCDIR=_SRCD_

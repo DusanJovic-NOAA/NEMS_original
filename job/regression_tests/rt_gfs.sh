@@ -323,7 +323,7 @@ for i in ${LIST_FILES}
 do
   printf %s " Moving " $i "....."
   if [ -f ${RUNDIR}/$i ] ; then
-    cp ${RUNDIR}/${i} /stmp/${LOGIN}/REGRESSION_TEST/${CNTL_DIR}/${i}
+    cp ${RUNDIR}/${i} /stmp/${USER}/REGRESSION_TEST/${CNTL_DIR}/${i}
   else
     echo "Missing " ${RUNDIR}/$i " output file"
     echo;echo " Set ${TEST_NR} failed "

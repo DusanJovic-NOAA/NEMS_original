@@ -83,7 +83,9 @@
 !                  layer and upward to the low/mid boundary (include   !
 !                  bl-cld). h,m,l clds domain boundaries are adjusted  !
 !                  for better agreement with observations.             !
-!                                                                      !
+!       19 mar 2012, brad ferrier, hsin-mu lin, yu-tai hou             !
+!                  subroutine rsipath2_tmp was added to approximate    !
+!                  the separation of cloud ice & snow in the NMMB      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
 !!!!!  ==========================================================  !!!!!
@@ -97,7 +99,7 @@
       use physcons,               only : con_pi,    con_g,   con_rd,    &
      &                                   con_fvirt, con_ttp, con_rocp,  &
      &                                   con_t0c
-      use module_microphysics,    only : rsipath2
+!BSF 20120319      use module_microphysics,    only : rsipath2
       use module_iounitdef,       only : NICLTUN
 !
       implicit   none
@@ -126,6 +128,14 @@
       real (kind=kind_phys), parameter :: reice_def = 50.0    ! default ice radius to 50 micron
       real (kind=kind_phys), parameter :: rrain_def = 1000.0  ! default rain radius to 1000 micron
       real (kind=kind_phys), parameter :: rsnow_def = 250.0   ! default snow radius to 250 micron
+
+!--- set default quantities for new version of progcld2
+
+      real (kind=kind_phys), parameter :: cclimit = 0.01, cclimit2=0.05
+      real (kind=kind_phys), parameter :: recwat_def = 5.0    ! default liq radius to 5 microns
+      real (kind=kind_phys), parameter :: recice_def = 50.0   ! default ice radius to 10 microns
+      real (kind=kind_phys), parameter :: rerain_def = 100.0  ! default rain radius to 100 microns
+      real (kind=kind_phys), parameter :: resnow_def = 100.0  ! default snow radius to 100 microns
 
 !  ---  set look-up table dimensions and other parameters (for diagnostic cloud)
 
@@ -411,10 +421,10 @@
           cip   (i,k) = 0.0
           crp   (i,k) = 0.0
           csp   (i,k) = 0.0
-          rew   (i,k) = reliq_def            ! default liq radius to 10 micron
-          rei   (i,k) = reice_def            ! default ice radius to 50 micron
-          rer   (i,k) = rrain_def            ! default rain radius to 1000 micron
-          res   (i,k) = rsnow_def            ! default snow radius to 250 micron
+          rew   (i,k) = reliq_def            ! default liq radius
+          rei   (i,k) = reice_def            ! default ice radius
+          rer   (i,k) = rrain_def            ! default rain radius
+          res   (i,k) = rsnow_def            ! default snow radius
           tem2d (i,k) = min( 1.0, max( 0.0, (con_ttp-tlyr(i,k))*0.05 ) )
           clwf(i,k)   = 0.0
         enddo
@@ -824,10 +834,10 @@
           cip   (i,k) = 0.0
           crp   (i,k) = 0.0
           csp   (i,k) = 0.0
-          rew   (i,k) = reliq_def            ! default liq radius to 10 micron
-          rei   (i,k) = reice_def            ! default ice radius to 50 micron
-          rer   (i,k) = rrain_def            ! default rain radius to 1000 micron
-          res   (i,k) = rsnow_def            ! default snow radius to 250 micron
+          rew   (i,k) = recwat_def            ! default cloud water radius
+          rei   (i,k) = recice_def            ! default cloud ice radius
+          rer   (i,k) = rerain_def            ! default rain radius
+          res   (i,k) = resnow_def            ! default snow radius
           fcice (i,k) = max(0.0, min(1.0, f_ice(i,k)))
           frain (i,k) = max(0.0, min(1.0, f_rain(i,k)))
           rrime (i,k) = max(1.0, r_rime(i,k))
@@ -887,7 +897,8 @@
         enddo
       enddo
 
-      call  rsipath2                                                    &
+!BSF 20120319      call  rsipath2                                                    &
+      call  rsipath2_tmp                                                &
 !  ---  inputs:
      &     ( plyr, plvl, tlyr, qlyr, qcwat, qcice, qrain, rrime,        &
      &       IX, NLAY, iflip, flgmin,                                   &
@@ -921,32 +932,40 @@
         do k = NLAY, 1, -1
           do i = 1, IX
 !           clwt = 1.0e-7 * (plyr(i,k)*0.001)
-!           clwt = 1.0e-6 * (plyr(i,k)*0.001)
-            clwt = 2.0e-6 * (plyr(i,k)*0.001)
+            clwt = 1.0e-6 * (plyr(i,k)*0.001)
+!            clwt = 2.0e-6 * (plyr(i,k)*0.001)
 !           clwt = 5.0e-6 * (plyr(i,k)*0.001)
 !           clwt = 5.0e-6
 
             if (clw2(i,k) > clwt) then
 
-              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
-              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
-
-!             tem1  = min(max(sqrt(onemrh*qstl(i,k)),0.0001),1.0)
-!             tem1  = 100.0 / tem1
-
-              tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
-              tem1  = 2000.0 / tem1
-!             tem1  = 2400.0 / tem1
-!cnt          tem1  = 2500.0 / tem1
-!             tem1  = min(max(sqrt(onemrh*qstl(i,k)),0.0001),1.0)
-!             tem1  = 2000.0 / tem1
-!             tem1  = 1000.0 / tem1
-!             tem1  = 100.0 / tem1
-
-              value = max( min( tem1*(clw2(i,k)-clwm), 50.0 ), 0.0 )
-              tem2  = sqrt( sqrt(rhly(i,k)) )
-
-              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
+!              onemrh= max( 1.e-10, 1.0-rhly(i,k) )
+!              clwm  = clwmin / max( 0.01, plyr(i,k)*0.001 )
+!
+!!             tem1  = min(max(sqrt(onemrh*qstl(i,k)),0.0001),1.0)
+!!             tem1  = 100.0 / tem1
+!
+!              tem1  = min(max(sqrt(sqrt(onemrh*qstl(i,k))),0.0001),1.0)
+!              tem1  = 2000.0 / tem1
+!!             tem1  = 2400.0 / tem1
+!!cnt          tem1  = 2500.0 / tem1
+!!             tem1  = min(max(sqrt(onemrh*qstl(i,k)),0.0001),1.0)
+!!             tem1  = 2000.0 / tem1
+!!             tem1  = 1000.0 / tem1
+!!             tem1  = 100.0 / tem1
+!
+!              value = max( min( tem1*(clw2(i,k)-clwm), 50.0 ), 0.0 )
+!              tem2  = sqrt( sqrt(rhly(i,k)) )
+!
+!              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
+!
+!-- The following are valid at 1000 hPa, actual values are normalized by pressure
+!-- 100% cloud fractions at 0.1 g/kg cloud mixing ratios
+!-- 10% cloud fractions at 0.01 g/kg cloud mixing ratios
+!-- 1% cloud fractions at 0.001 g/kg cloud mixing ratios
+!
+              tem1 = 1.0e5*clw2(i,k)*plyr(i,k)*0.001
+              cldtot(i,k) = min(1.0, tem1)
             endif
           enddo
         enddo
@@ -1061,7 +1080,7 @@
 
       do k = 1, NLAY
         do i = 1, IX
-          if (cldtot(i,k) < climit) then
+          if (cldtot(i,k) < cclimit) then
             cldtot(i,k) = 0.0
             cwp(i,k)    = 0.0
             cip(i,k)    = 0.0
@@ -1070,7 +1089,7 @@
           endif
         enddo
       enddo
-!     where (cldtot < climit)
+!     where (cldtot < cclimit)
 !       cldtot = 0.0
 !       cwp    = 0.0
 !       cip    = 0.0
@@ -1091,8 +1110,8 @@
       if (ccnorm) then
         do k = 1, NLAY
           do i = 1, IX
-            if (cldtot(i,k) >= climit) then
-              tem1 = 1.0 / max(climit2, cldtot(i,k))
+            if (cldtot(i,k) >= cclimit) then
+              tem1 = 1.0 / max(cclimit2, cldtot(i,k))
               cwp(i,k) = cwp(i,k) * tem1
               cip(i,k) = cip(i,k) * tem1
               crp(i,k) = crp(i,k) * tem1
@@ -1113,6 +1132,8 @@
             tem3 = tem2d(i,k) * tem2                                    &
      &           / (tlyr(i,k) * (1.0 + con_fvirt * qlyr(i,k)))
 
+!-- Heymsfield & McFarquhar (1996) estimates
+
             if (tem1 < -50.0) then
               rei(i,k) = (1250.0/9.917) * tem3 ** 0.109
             elseif (tem1 < -40.0) then
@@ -1126,10 +1147,10 @@
 !           if (lprnt .and. k == l) print *,' reiL=',rei(i,k),' icec=', &
 !    &        icec,' cip=',cip(i,k),' tem=',tem,' delt=',delt
 
-            rei(i,k)   = max(10.0, min(rei(i,k), 300.0))
+!            rei(i,k)   = max(10.0, min(rei(i,k), 300.0))
 !           rei(i,k)   = max(20.0, min(rei(i,k), 300.0))
 !!!!        rei(i,k)   = max(30.0, min(rei(i,k), 300.0))
-!           rei(i,k)   = max(50.0, min(rei(i,k), 300.0))
+            rei(i,k)   = max(50.0, min(rei(i,k), 300.0))
 !           rei(i,k)   = max(100.0, min(rei(i,k), 300.0))
           endif
         enddo
@@ -1140,13 +1161,25 @@
           clouds(i,k,1) = cldtot(i,k)
           clouds(i,k,2) = cwp(i,k)
           clouds(i,k,3) = rew(i,k)
-          clouds(i,k,4) = cip(i,k)
-          clouds(i,k,5) = rei(i,k)
+
+         ! clouds(i,k,4) = cip(i,k)
+          clouds(i,k,4) = cip(i,k)+csp(i,k)
+
+          if (clouds(i,k,4) > 0.) then
+             clouds(i,k,5) = ( rei(i,k)*cip(i,k) + res(i,k)*csp(i,k) )  &
+     &                      / clouds(i,k,4)
+          else
+             clouds(i,k,5) = rei(i,k)
+          endif
+
           clouds(i,k,6) = crp(i,k)
           clouds(i,k,7) = rer(i,k)
-!         clouds(i,k,8) = csp(i,k)               !ncar scheme
-          clouds(i,k,8) = csp(i,k) * rsden(i,k)  !fu's scheme
-          clouds(i,k,9) = rei(i,k)
+
+         ! clouds(i,k,8) = csp(i,k)
+         ! clouds(i,k,9) = res(i,k)
+
+          clouds(i,k,8) = 0. !csp(i,k)
+          clouds(i,k,9) = 0. !res(i,k)
         enddo
       enddo
 
@@ -2368,6 +2401,266 @@
       end subroutine rhtable
 !-----------------------------------
 
+!-----------------------------------
+!-- BSF 20120319: Change w/r/t original rsipath2 is that this code uses
+!      simpler approximations for determining water paths and effective
+!      radius for cloud ice and snow.  The original rsipath2 code 
+!      requires 'subroutine GSMCONST' within module_bfmicrophysics.f,
+!      which is not called within the NMMB.  
+!
+      subroutine rsipath2_tmp                                           &
+!...................................
+
+!  ---  inputs:
+     &     ( plyr, plvl, tlyr, qlyr, qcwat, qcice, qrain, rrime,        &
+     &       IM, LEVS, iflip, flgmin,                                   &
+!  ---  outputs:
+     &       cwatp, cicep, rainp, snowp, recwat, rerain, resnow, snden  &
+     &     )
+
+! =================   subprogram documentation block   ================ !
+!                                                                       !
+! abstract:  this program is a modified version of ferrier's original   !
+!   "rsipath" subprogram.  it computes layer's cloud liquid, ice, rain, !
+!   and snow water condensate path and the partical effective radius    !
+!   for liquid droplet, rain drop, and snow flake.                      !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+! input variables:                                                      !
+!   plyr  (IM,LEVS) : model layer mean pressure in mb (100Pa)           !
+!   plvl  (IM,LEVS+1):model level pressure in mb (100Pa)                !
+!   tlyr  (IM,LEVS) : model layer mean temperature in k                 !
+!   qlyr  (IM,LEVS) : layer specific humidity in gm/gm                  !
+!   qcwat (IM,LEVS) : layer cloud liquid water condensate amount        !
+!   qcice (IM,LEVS) : layer cloud ice water condensate amount           !
+!   qrain (IM,LEVS) : layer rain drop water amount                      !
+!   rrime (IM,LEVS) : mass ratio of total to unrimed ice ( >= 1 )       !
+!   IM              : horizontal dimention                              !
+!   LEVS            : vertical layer dimensions                         !
+!   iflip           : control flag for in/out vertical indexing         !
+!                     =0: index from toa to surface                     !
+!                     =1: index from surface to toa                     !
+!   flgmin          : Minimum large ice fraction                        !
+!   lprnt           : logical check print control flag                  !
+!                                                                       !
+! output variables:                                                     !
+!   cwatp (IM,LEVS) : layer cloud liquid water path          (g/m**2)   !
+!   cicep (IM,LEVS) : layer cloud ice water path             (g/m**2)   !
+!   rainp (IM,LEVS) : layer rain water path                  (g/m**2)   !
+!   snowp (IM,LEVS) : layer snow water path                  (g/m**2)   !
+!   recwat(IM,LEVS) : layer cloud eff radius for liqid water (micron)   !
+!   rerain(IM,LEVS) : layer rain water effective radius      (micron)   !
+!   resnow(IM,LEVS) : layer snow flake effective radius      (micron)   !
+!   snden (IM,LEVS) : 1/snow density                                    !
+!                                                                       !
+!                                                                       !
+! usage:     call rsipath2                                              !
+!                                                                       !
+! subroutines called:  none                                             !
+!                                                                       !
+! program history log:                                                  !
+!      xx-xx-2001   b. ferrier     - original program                   !
+!      xx-xx-2004   s. moorthi     - modified for use in gfs model      !
+!      05-20-2004   y. hou         - modified, added vertical index flag!
+!                     to reduce data flipping, and rearrange code to    !
+!                     be comformable with radiation part programs.      !
+!      02-24-2012   b. ferrier     - simple, temporary fix              !
+!                     to separate cloud ice & snow                      !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+
+      implicit none
+
+!  ---  constant parameter:
+      real, parameter :: CEXP= 1./3., EPSQ=1.E-12
+! CN0r0=2511.54=1.E6/(3.1415*1000.*8.e6)**.25
+      real, parameter :: CN0r0=2511.54    !-- N0r=8.e6 m^-4, RHOL=1000 kg m^-3
+!
+!-- Snow is complicated.  From eq. (3.10) of Fu (1996, J. Clim, p. 2068):
+!     Dge=2*sqrt(3)*IWC/(3*RHOice*AC), where IWC is the ice water content,
+!     RHOice is the density of pure ice (see 4th line after eq. 3.9d on p. 2067), 
+!     and AC is the total cross sectional area per unit volume of the particles.  
+!
+!     After some derivation in which the snow is assumed to be spherical ice of 
+!     constant density (RHOs, 100 kg m^-3), exponential distribution (N0s=5e6 m^-4), 
+!     then (Dge)snow=0.25184*DSmean=DGES*DSmean, DGES=0.25184=4*RHOs/(sqrt(3)*RHOice),
+!     DSmean (microns)=1.e6/DSmean(m) (mean size of exponential snow)
+!                     =1.E6*(rho*Qsnow/(pi*RHOs*N0s))**.25
+!                     =1.E6*(rho*Qsnow/(3.1415*100.*5.e6))**.25
+!                     =CN0s0*(rho*Qsnow)**0.25, 
+!     CN0s0=5023.08=1.E6/(3.1415*100.*5.e6)**.25
+!
+      real, parameter :: CN0s0=5023.08, DGES=0.25184
+!
+!-- Cloud droplet distribution:
+!     Reff=0.5*Deff, (1)
+!       Deff=0.75*Dmean (monodisperse) or 3*Dmean (exponential), (2)
+!       Reff=(3/8)*Dmean (monodisperse) or 1.5*Dmean (exponential), (3)
+!       Dmean=mean diameter=1.e6*(6*rho*Qcw/(pi*TNW*RHOL))**(1/3) in microns (4)
+!     Combining (1)-(4),
+!       Reff=0.375e6*(6*rho*Qcw/(pi*Ncw*RHOL))**(1/3) in microns (monodisperse), (5)
+!       where rho*Qcw in kg/m**3, Ncw in m^-3
+!     RHOL=1000 kg m^-3, Ncw=1.e6*TNW, TNW in cm^-3 (6)
+!     Substitute (6) into (5),
+!       Reff=465.26*(Qcw/TNW)**(1/3) for rho*Qcw in kg/m**3, TNW in cm^-3 (monodisperse) (7)
+      real, parameter :: TNW=200.                    !--  Droplet # cm^-3
+      real, parameter :: recwmin=recwat_def
+!  ---  inputs:
+      real, dimension(:,:), intent(in) ::                               &
+     &       plyr, plvl, tlyr, qlyr, qcwat, qcice, qrain, rrime
+
+      integer, intent(in) :: IM, LEVS, iflip
+      real, dimension(:),   intent(in) :: flgmin
+!     logical, intent(in) :: lprnt
+
+!  ---  output:
+      real, dimension(:,:), intent(out) ::                              &
+     &       cwatp, cicep, rainp, snowp, recwat, rerain, resnow, snden
+
+!  ---  locals:
+!     real,    dimension(IM,LEVS) :: delp, pp1, pp2
+
+      real    :: dsnow, qsnow, qclice, fsmall, xsimass, pfac            &
+     &           nlice, xli, nlimax, dum, tem,                          &
+     &           rho, cpath, rc, totcnd, tc, recw1
+
+      integer :: i, k, indexs, ksfc, k1
+!
+!===>  ...  begin here
+!
+      recw1=465.26/TNW**CEXP    !-- Monodisperse
+!      recw1=1861.052/TNW**CEXP   !-- Exponential
+!
+      do k = 1, LEVS
+        do i = 1, IM
+                                           !--- hydrometeor's optical path
+           cwatp(i,k) = 0.0
+           cicep(i,k) = 0.0
+           rainp(i,k) = 0.0
+           snowp(i,k) = 0.0
+           snden(i,k) = 0.0
+        enddo
+      enddo
+
+!  ---  set up pressure related arrays, convert unit from mb to cb (10Pa)
+!       cause the rest part uses cb in computation
+
+      if (iflip == 0) then        ! data from toa to sfc
+        ksfc = levs + 1
+        k1   = 0
+      else                        ! data from sfc to top
+        ksfc = 1
+        k1   = 1
+      endif                       ! end_if_iflip
+!
+      do k = 1, LEVS
+        do i = 1, IM
+          totcnd = qcwat(i,k) + qcice(i,k) + qrain(i,k)
+          qsnow = 0.0
+          if(totcnd > EPSQ) then
+
+!  ---  air density (rho, kg/m**3), temperature (tc, deg C)
+!       model mass thickness (cpath, g/m**2)
+
+            rho   = 100. * plyr(i,k)                                     &
+     &            / (con_RD* tlyr(i,k) * (1.0 + con_FVirt*qlyr(i,k)))
+
+           ! ---- convert presure unit from mb to Pa ==> x100
+           ! ---- convert NT unit from kg/sec^2 to g/sec^2 ==> x1000
+           ! ---- combine the conversion ==> "100000.0"
+
+            cpath = abs(plvl(i,k+1) - plvl(i,k)) * (100000.0 / con_G)
+            tc    = tlyr(i,k) - con_T0C
+
+!! cloud water
+!
+!  ---  effective radius (recwat) & total water path (cwatp):
+!       assume monodisperse distribution of droplets (no factor of 1.5)
+
+            if (qcwat(i,k) > 0.0) then
+              tem         = recw1*(rho*qcwat(i,k))**CEXP
+              recwat(i,k) = MAX(recwmin, tem)
+              cwatp (i,k) = cpath * qcwat(i,k)           ! cloud water path
+            endif
+
+!! rain
+!
+!  ---  effective radius (rerain) & total water path (rainp):
+!       factor of 1.5 accounts for r**3/r**2 moments for exponentially
+!       distributed drops in effective radius calculations
+!       (from m.d. chou's code provided to y.-t. hou)
+
+            if (qrain(i,k) > 0.0) then
+              tem         = CN0r0 * sqrt(sqrt(rho*qrain(i,k)))
+              rerain(i,k) = 1.5*max(50., min(1000.,tem))
+              rainp (i,k) = cpath * qrain(i,k)           ! rain water path
+            endif
+
+!! snow (large ice) & cloud ice
+!
+!  ---  effective radius (resnow) & total ice path (snowp) for snow, and
+!       total ice path (cicep) for cloud ice:
+!       factor of 1.5 accounts for r**3/r**2 moments for exponentially
+!       distributed ice particles in effective radius calculations
+!       separation of cloud ice & "snow" uses algorithm from subroutine gsmcolumn
+
+!-- BSF 20120224:
+!-- Use a simple algorithm to obtain a 'ball park estimate' that's a function only 
+!   of temperature to separate cloud ice & snow 
+!-- qcice - input: total ice = cloud ice + snow
+!-- fsmall - new definition here, different from microphysics code;
+!            here is w/r/t the mass/mixing ratio fraction of small cloud ice
+!
+            if (qcice(i,k) > 0.0) then
+              if (tc>=-15.) then
+                 fsmall=0.01
+              else if (tc>=-20.) then
+                 fsmall=0.02
+              else if (tc>=-25.) then
+                 fsmall=0.05
+              else if (tc>=-30.) then
+                 fsmall=0.075
+              else if (tc>=-35.) then
+                 fsmall=0.1
+              else
+                 fsmall=0.15
+              endif
+
+              qclice=fsmall*qcice(i,k)
+              qsnow=max(0.0, qcice(i,k)-qclice)
+
+!-- BSF 20120507:
+!-- Snow effective radius is approximated based on assuming: (1) an exponential
+!   size distribution, (2) a fixed density of 100 kg m^-3, (3) a fixed intercept 
+!   of 5.e6 m^-4, and (4) approximately spherical snow particles.
+!
+!   Dge (effective size of snow, microns)=DGES*DSmean (see comments above)
+!
+              tem=CN0s0*sqrt(sqrt(rho*qsnow))
+              resnow(i,k)=DGES*max(50.,min(1000.,tem))
+              cicep (i,k) = cpath * qclice          ! cloud ice path
+              snden (i,k) = 1.                      ! turn this off
+              snowp (i,k) = cpath*qsnow             ! snow path
+
+!             if (lprnt .and. i .eq. ipr) then
+!             if (i .eq. 2) then
+!               print *,' L=',k,' snowp=',snowp(i,k),' cpath=',cpath,   &
+!    &         ' qsnow=',qsnow,' sden=',snden(i,k),' rrime=',rrime(i,k),&
+!    &         ' indexs=',indexs,' sdens=',sdens(indexs),' resnow=',    &
+!    &           resnow(i,k),' qcice=',qclice,' cicep=',cicep(i,k)
+!           endif
+
+            endif                                 ! end if_qcice block
+          endif                                   ! end if_totcnd block
+
+        enddo
+      enddo
+!
+!...................................
+      end subroutine rsipath2_tmp
+!-----------------------------------
 
 !
 !........................................!

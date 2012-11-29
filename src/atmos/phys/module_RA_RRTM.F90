@@ -59,8 +59,28 @@
      &,  CTauCW=ABSCOEF_W*Qconv  &
      &,  CTauCI=ABSCOEF_I*Qconv
 
-
-
+!-- Set to TRUE to bogus in small amounts of convective clouds into the
+!   input cloud calculations, but only if all of the following conditions 
+!   are met:
+!     (1) The maximum condensate mixing ratio is < QWmax.
+!     (2) Only shallow convection is present, do not apply to deep convection.
+!     (3) Only apply if the depth of shallow convection is between 
+!         CU_DEEP_MIN (50 hPa) and CU_DEEP_MAX (200 hPa).
+!     (4) Convective precipitation rate must be <0.01 mm/h.  
+!
+      LOGICAL, SAVE :: CUCLD=.TRUE.
+!
+!-- After several tuning experiments, a value for QW_CU=0.003 g/kg should 
+!   produce a cloud fraction of O(25%) and a SW reduction of O(100 W/m**2) 
+!   for shallow convection with a maximum depth/thickness of O(200 hPa).
+!-- QW_Cu=0.003 g/kg, which translates to a 3% cloud fraction in 
+!   subroutine progcld2 at each model layer near line 960 in 
+!   radiation_clouds.f, which translates to a O(25%) total cloud fraction
+!   in the lower atmosphere (i.e., for "low-level" cloud fractions).
+!
+      REAL, PARAMETER :: QW_Cu=0.003E-3,QWmax=1.E-7,CUPPT_min=1.e-5   &
+                        ,CU_DEEP_MIN=50.E2,CU_DEEP_MAX=200.E2
+ 
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  THE RADIATION PACKAGE OPTIONS
@@ -112,6 +132,7 @@
      &                     ,NUM_WATER                      
 !
       INTEGER,INTENT(IN) :: JDAT(8)
+      ! INTEGER,INTENT(IN) :: IDAT(8)    ! not in use at this moment
 !
       INTEGER,INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
 !
@@ -161,29 +182,27 @@
       LOGICAL :: LSLWR, LSSAV, LDIAG3D, LPRNT, SASHAL, LSSWR
       LOGICAL :: norad_precip, crick_proof, ccnorm
 !
-      INTEGER,PARAMETER :: IFLIP=0                                         
+      INTEGER,PARAMETER :: IFLIP=0, NFLUXR=39
 !
-      INTEGER :: NP3D, ISOL, ICO2, ICWP, IALB, IEMS, IAER, ALBTYPE, LONR, &
-                 LATS_NODE_R, LATR, IPT_LATS_NODE_R, NFXR, NTRAC, KFLIP,  &
+      INTEGER :: NP3D, ISOL, ICO2, ICWP, IALB, IEMS, IAER, NUMX, NUMY,    &
+                 NFXR, NTRAC, KFLIP,                                      &
                  I, L, J, K, NTOZ, NCLDX, NTCW, IOVR_SW, IOVR_LW,         &
                  ICTM, ISUBCSW, ISUBCLW, IOVRSW, IOVRLW,                  &
-                 ipt,  kdt
+                 ipt,  kdt, I_t, J_t, N
 !
       INTEGER,SAVE :: K1OZ, K2OZ
-!
-      INTEGER,DIMENSION(JTS:JTE) :: LONSPERLAR, GLOBAL_LATS_R
 !
       REAL*8 :: FHSWR, FHLWR, FHAER, SOLCON,SLAG, SDEC, CDEC,DTSW, DTLW, RTvR
 !
       REAL*8,SAVE :: FACOZ
 !
-      REAL*8,DIMENSION(1) :: FLGMIN_L, CV, CVB, CVT,XLAT, HPRIME_V, TSEA, &
+      REAL*8,DIMENSION(1) :: FLGMIN_L, CV, CVB, CVT, HPRIME_V, TSEA,      &
                              TISFC, FICE, ZORL, SLMSK, SNWDPH, SNCOVR,    &
                              SNOALB, ALVSF1, ALNSF1, ALVWF1, ALNWF1,      &
                              FACSF1, FACWF1, SFCNSW, SFCDSW, SFALB,       &
                              SFCDLW, TSFLW, TOAUSW, TOADSW, SFCCDSW,      &
                              TOAULW, SFCUSW,                              &
-                             SEMIS
+                             SEMIS, XLAT, XLON
 
                            !===================================
                            ! SEMIS: surface lw emissivity
@@ -209,21 +228,18 @@
 
       REAL*8,DIMENSION(LM+1) :: PRSI , RSGM
       real (kind=kind_phys)  :: raddt, fdaer
-
 !
-      REAL*8,DIMENSION(JTS:JTE) :: COSLAT_R, SINLAT_R
+      REAL*8,DIMENSION(5)  :: CLDSA_V
 !
-      REAL*8,DIMENSION(ITS:ITE,JTS:JTE) :: XLON, COSZEN,      &
-                                                       COSZDG, SFCALBEDO
+      REAL*8,DIMENSION(ITE-ITS+1,JTE-JTS+1) :: SINLAT_t,COSLAT_t,XLON_t   &
+                                              ,COSZEN_t,COSZDG_t
 !
-      REAL*8,DIMENSION(27) :: FLUXR_V
+      REAL*8,DIMENSION(NFLUXR) :: FLUXR_V
 !
       REAL*8,DIMENSION(1,LM,3) :: GR1   
 !
       REAL*8,DIMENSION(LM) :: SWH, HLW
 !
-      REAL,DIMENSION(ITS:ITE,JTS:JTE,27) :: FLUXR_VIJ
-      
       REAL :: BLATC4
 !
       REAL,DIMENSION(ITS:ITE,JTS:JTE,1:LM+1) :: P8W
@@ -342,7 +358,7 @@
       REAL :: WV,QICE,QCLD,CLFR,ESAT,QSAT,RHUM,RHtot,ARG,SDM,   &
                PMOD,CONVPRATE,CLSTP,P1,P2,CC1,CC2,CLDMAX,CL1,CL2, &
                CR1,DPCL,PRS1,PRS2,DELP,TCLD,CTau,CFSmax,CFCmax,  &
-               CFRAVG,TDUM
+               CFRAVG,TDUM,CU_DEPTH
 !
       INTEGER :: IXSD,NTSPH,NRADPP,NC,NMOD,LCNVT,LCNVB,NLVL,MALVL, &
                  LLTOP,LLBOT,KBT2,KTH1,KBT1,KTH2,KTOP1,LM1,LL
@@ -355,13 +371,14 @@
 !
       REAL,DIMENSION(10),SAVE :: CC,PPT
       LOGICAL, SAVE :: CNCLD=.TRUE.
+      LOGICAL, SAVE :: OPER=.TRUE.
 !
       DATA CC/0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0/
       DATA PPT/0.,.14,.31,.70,1.6,3.4,7.7,17.,38.,85./
 !
       REAL,DIMENSION(0:LM)  :: CLDAMT
 !
-      LOGICAL :: BITX,BITY,BITZ,BITW,BIT1,BIT2,NEW_CLOUD
+      LOGICAL :: BITX,BITY,BITZ,BITW,BIT1,BIT2,NEW_CLOUD,CU_cloud
 !
       REAL :: CTHK(3)
       DATA CTHK/20000.0,20000.0,20000.0/
@@ -371,8 +388,7 @@
 
       REAL,DIMENSION(ITS:ITE,JTS:JTE):: CUTOP,CUBOT
       
-      REAL,DIMENSION(ITS:ITE,JTS:JTE,LM) :: TauCI  &
-                                                        ,CSMID,CCMID
+      REAL,DIMENSION(ITS:ITE,JTS:JTE,LM) :: TauCI,CSMID,CCMID
 !
       INTEGER,DIMENSION(ITS:ITE,JTS:JTE,LM+1) :: KTOP, KBTM
 
@@ -384,7 +400,7 @@
 !
       INTEGER :: NKTP,NBTM,NCLD,LML
 !
-      REAL :: CLFR1,TauC,QSUM,DELPTOT
+      REAL :: CLFR1,TauC,QSUM,DELPTOT,SFCALBEDO
 !--------------------------------------------------------------------------------------------------
 !
 !***THIS SUBROUTINE SELECTS AND PREPARES THE NECESSARY INPUTS FOR GRRAD (GFS RRTM DRIVER)
@@ -395,7 +411,7 @@
 !    INPUT VARIABLES:                                                   !
 !      PRSI  (LM+1)    : MODEL LEVEL PRESSURE IN CB (KPA)               !
 !      PRSL  (LM)      : MODEL LAYER MEAN PRESSURE IN CB (KPA)          !
-!      PRSLK (LM)      : PRESSURE IN CB (KPA)                           !
+!      PRSLK (LM)      : Exner function (dimensionless)                 !
 !      GT    (LM)      : MODEL LAYER MEAN TEMPERATURE IN K              !
 !      GQ    (LM)      : LAYER SPECIFIC HUMIDITY IN GM/GM               !
 !      GR1   (LM,NTRAC): TRACER ARRAY (WATER, OZONE,....)               !
@@ -417,8 +433,14 @@
 !      FICE  (1)       : ICE FRACTION OVER OPEN WATER GRID              !
 !      TISFC (1)       : SURFACE TEMPERATURE OVER ICE FRACTION          !
 !      SOLCON          : SOLAR CONSTANT (SUN-EARTH DISTANT ADJUSTED)    !
-!      COSZEN          : MEAN COS OF ZENITH ANGLE OVER RAD CALL PERIOD  !
-!      COSZDG          : DAYTIME MEAN COSZ OVER RAD CALL PERIOD         !
+!
+!-- Following 5 quantities are defined within a local 'tile':
+!      SINLAT_t        : SINE OF LATITUDE                               !
+!      COSLAT_t        : COSINE OF LATITUDE                             !
+!      XLON_t          : LONGITUDE                                      !
+!      COSZEN_t        : MEAN COS OF ZENITH ANGLE OVER RAD CALL PERIOD  !
+!      COSZDG_t        : MEAN COS OF ZENITH ANGLE OVER RAD CALL PERIOD  !
+!
 !      K1OZ,K2OZ,FACOZ : PARAMETERS FOR CLIMATOLOGICAL OZONE            !
 !      CV    (1)       : FRACTION OF CONVECTIVE CLOUD                   ! !not used
 !      CVT, CVB (1)    : CONVECTIVE CLOUD TOP/BOTTOM PRESSURE IN CB     ! !not used
@@ -429,9 +451,12 @@
 !      F_RAINC(LM)     : FRACTION OF RAIN WATER (IN FERRIER SCHEME)     !
 !      RRIME  (LM)     : MASS RATIO OF TOTAL TO UNRIMED ICE ( >= 1 )    !
 !      FLGMIN_L(1)     : MINIMIM LARGE ICE FRACTION                     !
-!      NP3D            : =3 BRAD FERRIER MICROPHYSICS SCHEME            ! !only stratiform clouds. optical prop. and cloud fractions are calculated in grrad
+!      NP3D            : =3 BRAD FERRIER MICROPHYSICS SCHEME            ! 
+!                           only stratiform clouds.                     !
+!                           optical prop. and cloud fractions are calculated in grrad
 !                        =4 ZHAO/CARR/SUNDQVIST MICROPHYSICS SCHEME     ! !not used
-!                        =5 NAM stratiform + convective cloud optical   ! !new - clouds optical depth and fraction calculated here and are input for grrad
+!                        =5 NAM stratiform + convective cloud optical   !
+!                           clouds optical depth and fraction calculated here and are input for grrad
 !      NTCW            : =0 NO CLOUD CONDENSATE CALCULATED              !
 !                        >0 ARRAY INDEX LOCATION FOR CLOUD CONDENSATE   !
 !      NCLDX           : ONLY USED WHEN NTCW .GT. 0                     !
@@ -451,7 +476,6 @@
 !      LPRNT           : CONTROL FLAG FOR DIAGNOSTIC PRINT OUT          !
 !
 !      LATSOZC,LEVOZC,BLATC,DPHIOZC,TIMEOZC: OZONE PARAMETERS FOR NMMB  ! !new
-!      ALBTYPE         : OPTION FOR SELCTING NMMB ALBEDO                ! !new
 !      TAUCLOUDS(LM)   : CLOUD OPTICAL DEPTH FROM NMMB (ferrier+bmj)    ! !new
 !      CLDF(LM)        : CLOUD FRACTION FROM NMMB (ferrier+bmj)         ! !new
 !                                                                       !
@@ -471,27 +495,34 @@
 !      SFCUSW (IM)    : TOTAL SKY SURFACE SW UPWARD FLUX IN W/M**2     ! !new
 !                                                                       !
 !    INPUT AND OUTPUT VARIABLES:                                        !
-!      FLUXR_V (IX,NFXR) : TO SAVE 2-D FIELDS                             !
-!      CLDCOV_V(IX,LM)   : TO SAVE 3-D CLOUD FRACTION                     !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!      FLUXR_V (IX,NFXR) : TO SAVE 2-D FIELDS                           !
+!                          (bucket)                                     !
+!      CLDSA_V(IX,5)     : TO SAVE 2-D CLOUD FRACTION. L/M/H/TOT/BL     !
+!                          (instantaneous)                              !
+!      CLDCOV_V(IX,LM)   : TO SAVE 3-D CLOUD FRACTION                   !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! 
 !SELECT OPTIONS IN GRRAD
 !
-       NP3D=3         ! 3: ferrier's microphysics cloud scheme (only stratiform cloud) (set iflagliq>0 in radsw_param.f and radlw_param.f)
-                      ! 4: zhao/carr/sundqvist microphysics cloud (not in use for NMMB)
-                      ! NEW OPTIONS FOR NMMB
-                      ! 5: NAM stratiform + convective cloud optical depth and fraction (set iflagliq=0 in radsw_param.f and radlw_param.f)
+       NP3D=3         ! 3: ferrier's microphysics cloud scheme (only stratiform cloud)
+                      !    (set iflagliq>0 in radsw_param.f and radlw_param.f)
+                      ! 4: zhao/carr/sundqvist microphysics cloud (now available in the NMMB)
+                      ! 5: NAM stratiform + convective cloud optical depth and fraction 
+                      !    (set iflagliq=0 in radsw_param.f and radlw_param.f)
        ISOL=0         ! 0: use a fixed solar constant value (default)
                       ! 1: use 11-year cycle solar constant table
-       ICO2=0         ! 0: use prescribed global mean co2   (default)
+       ICO2=1         ! 0: use prescribed global mean co2   (default)
                       ! 1: use observed co2 annual mean value only
                       ! 2: use obs co2 monthly data with 2-d variation
        ICWP=1         ! control flag for cloud generation schemes
-                      ! 0: use diagnostic cloud scheme (use with NMMB for NP3D=5)(GFDL type)
-                      ! 1: use prognostic cloud scheme (use with NMMB for NP3D=3)  
-       IALB=1         ! control flag for surface albedo schemes
-                      ! 0: climatology, based on surface veg types   !ONLY THIS ONE WORKS
+                      !  0: use diagnostic cloud scheme
+                      ! -1: use diagnostic cloud scheme (use with NMMB for NP3D=5)(GFDL type)
+                      !  1: use prognostic cloud scheme (use with NMMB for NP3D=3)
+       IALB=2         ! control flag for surface albedo schemes
+                      ! 0: climatology, based on surface veg types  ! ONLY THIS ONE WORKS (GFS)
                       ! 1: modis retrieval based surface albedo scheme
+                      ! 2: use externally provided albedoes directly. ! ONLY THIS ONE WORKS for regional
+                      !    (CALCULATES ALBEDO FROM NMMB MONTHLY CLIMATOLOGY AS IN GFDL RADIATION)
        IEMS=0         ! control flag for surface emissivity schemes 
                       ! 0: fixed value of 1.0   (default)
                       ! 1: varying value based on surface veg types
@@ -511,15 +542,17 @@
                       !    =102: volc and gocart trops aerosol for sw only                 !
                       !    =120: volc and gocart trops aerosol for lw only                 !
                       !    =122: volc and gocart trops aerosol for both sw and lw          !
-       FHAER=0.       ! = 0 aerosol determined from gocart clim  !!Only this option works since on-line aerosol is not available in this version
+       FHAER=0.       ! = 0 aerosol determined from gocart clim 
+                      !     ** Only this option works since on-line aerosol is not available in this version
                       ! > 0. and <99999. aerosol determined from fcst and gocart clim
                       ! >99999. aerosol determined from fcst
 
 
 !
-       NFXR=27        ! second dimension of input/output array fluxr
+       NFXR=NFLUXR    ! second dimension of input/output array fluxr (FLUXR_V)
        NTRAC=3        ! dimension veriable for array oz
-       LSSAV=.FALSE.  ! logical flag for store 3-d cloud field
+       LSSAV=.TRUE.   ! logical flag for store 3-d cloud field
+                      !  ** need to be .TRUE. for non-zero FLUXR_V & CLDCOV_V off GRRAD
        LDIAG3D=.FALSE.! logical flag for store 3-d diagnostic fields
        LPRNT=.FALSE.
        SASHAL=.FALSE. ! New Massflux based shallow convection           ! Not in use for NMMB
@@ -561,21 +594,22 @@
 
        norad_precip=.FALSE.  ! flag for precip in radiation
                              ! .true. snow/rain has no impact on radiation
-       crick_proof=.FALSE.   ! flag for eliminating CRICK
+       crick_proof=.FALSE.    ! flag for eliminating CRICK (smooths profiles)
        ccnorm=.TRUE.         ! flag for incloud condensate mixing ratio
 
 !
-!ADDITIONAL OPTIONS FOR NMMB
+!=========================================================================
 !
-       ALBTYPE=0      ! 0: CALCULATES ALBEDO FROM NMMB MONTHLY CLIMATOLOGY AS IN GFDL RADIATION
-!
+       IF (ICWP/=-1 .AND. CNCLD) THEN
+          CNCLD=.FALSE.        !-- Not used when ICWP=1, 0
+       ENDIF
+
        FHSWR=FLOAT(NRADS*DT_INT)/3600.   ! [h]
        FHLWR=FLOAT(NRADL*DT_INT)/3600.   ! [h]
        DTLW =FLOAT(NRADL*DT_INT)         ! [s]
        DTSW =FLOAT(NRADS*DT_INT)         ! [s]
        LSSWR=MOD(NTIMESTEP,NRADS)==0
        LSLWR=MOD(NTIMESTEP,NRADL)==0
-
 !
 ! --- TEMPORARY SETTING FOR THE "RADDT & FDAER" FOR THE GOCART VALUE
 !     NEED TO MODIFY THIS SECTION WHEN USE THE DATA
@@ -596,35 +630,45 @@
                     ! =================================
       !                FHSWR, FHLWR, FHAER )
 
+      !---- for forcast purpose IDAT=JDAT
+      !
+      ! CALL RADINIT (RSGM, LM, IFLIP, IDAT, JDAT, ICTM, ISOL, ICO2,   &
        CALL RADINIT (RSGM, LM, IFLIP, JDAT, JDAT, ICTM, ISOL, ICO2,   &
                      IAER, IALB, IEMS, ICWP, NP3D, ISUBCSW, ISUBCLW,  &
                      IOVR_SW, IOVR_LW, MYPE, raddt, fdaer )
-
 !
-       LONR             =ITE-ITS+1
-       LATS_NODE_R      =JTE-JTS+1
-       LATR             =1                                 
-       IPT_LATS_NODE_R  =1
+!==========================================================================
+!-- Begin 20120703 modifications (BSF)
+!-----
+! Calculate quantities within local tiles, denoted by variables with '_t' 
+! appended to their names (Hsin-Mu Lin, BSF)
+!==========================================================================
 !
+       NUMX=ITE-ITS+1    !-- # of zonal (x-direction) grid points
+       NUMY=JTE-JTS+1    !-- # of meridional (y-direction) grid points
        DO J=JTS,JTE
-          GLOBAL_LATS_R(J)= J-JTS+1
-          LONSPERLAR(J)   = ITE-ITS+1
-          SINLAT_R(J)     = SIN(GLAT( (ITS+ITE)/2 ,J))
-          COSLAT_R(J)     = SQRT( 1.d0 - SINLAT_R(J)*SINLAT_R(J) )
+          J_t=J-JTS+1
           DO I=ITS,ITE
-             XLON(I,J)      = GLON(I,J)
-             SFCALBEDO(I,J) = ALBEDO(I,J)
+             I_t=I-ITS+1
+             SINLAT_t(I_t,J_t)=SIN( GLAT(I,J) )
+             COSLAT_t(I_t,J_t)=COS( GLAT(I,J) ) 
+             XLON_t(I_t,J_t)=GLON(I,J)
           ENDDO
        ENDDO
-!
+
        CALL ASTRONOMY_NMMB                                              &
 !  --- inputs:
-           ( LONSPERLAR, GLOBAL_LATS_R, SINLAT_R, COSLAT_R, XLON,       &
+           ( SINLAT_t, COSLAT_t, XLON_t,                                &
              FHSWR, JDAT, NRADS,                                        &
-             LONR, LATS_NODE_R, LATR, IPT_LATS_NODE_R, LSSWR, MYPE,     &
+             NUMX, NUMY, LSSWR, MYPE,                                   &
 !  --- outputs:
-             SOLCON, SLAG, SDEC, CDEC, COSZEN, COSZDG                   &
+             SOLCON, SLAG, SDEC, CDEC, COSZEN_t, COSZDG_t               &
             )
+
+!==========================================================================
+!-- End 20120703 modifications (BSF)
+!==========================================================================
+
 ! ----
 !
 !OZONE CLIMATOLOGY
@@ -690,6 +734,8 @@
       NRADPP=MIN(NRADS,NRADL)
       CLSTP=1.0*NRADPP/NTSPH
       CONVPRATE=CUPRATE/CLSTP
+
+      IF (ICWP>0 .AND. CUCLD) CONVPRATE=1000./CLSTP    !-- convert to mm/h
 !
       LM1=LM-1
 !
@@ -752,16 +798,37 @@
 !    to be larger for convective clouds than grid-scale (stratiform) clouds.
 !-----------------------------------------------------------------------
 !
+!-----------------------------------------------------------------------
+      ICWP_Test: IF (ICWP==-1) THEN   !-- *** Start of old NAM/GFDL cloud inputs ***
+!-----------------------------------------------------------------------
        DO J=JTS,JTE
        DO I=ITS,ITE 
 !
         DO 255 L=1,LM
 !
-            WV=MAX(EPSQ,Q(I,J,L))/(1.-MAX(EPSQ,Q(I,J,L)))               !--- Water vapor mixing ratio
+            WV=MAX(EPSQ,Q(I,J,L))/(1.-MAX(EPSQ,Q(I,J,L)))   !-- Water vapor mixing ratio
+            QICE=MAX(WATER(I,J,L,P_QS),0.)                  !-- Ice mixing ratio
+            QCLD=QICE+MAX(WATER(I,J,L,P_QC),0.)             !-- Total cloud water + ice mixing ratio
+!rv------------------------------------
+!rv   This should be temporary fix!!!!!
+!rv   New (currently operational) calculation of cloud fraction is
+!rv   causing different results with different decomposition
+!rv   We should find cause of this!!!!!
+!rv------------------------------------
+          OPER_flag: IF (OPER) THEN
+!rv------------------------------------
+!-- From model tuning experiments vs CLAVR grid-to-grid verification:
+!-- 100% cloud fractions at 0.01 g/kg (1.e-5 kg/kg) cloud mixing ratios
+!-- 10% cloud fractions at 1.e-4 g/kg (1.e-7 kg/kg) cloud mixing ratios
+!-- 1% cloud fractions at 1.e-6 g/kg (1.e-9 kg/kg) cloud mixing ratios
 !
-            QICE=MAX(WATER(I,J,L,P_QS),0.)
-!
-            QCLD=QICE+MAX(WATER(I,J,L,P_QC),0.)                         !--- Total cloud water + ice mixing ratio
+            CLFR=MIN(H1, MAX(H0,1.e5*QCLD))
+            CLFR=SQRT(CLFR)
+            IF (CLFR>=CLFRmin) CSMID(I,J,L)=CLFR
+!rv------------------------------------
+          else OPER_flag
+!rv------------------------------------
+
 !
             IF (QCLD .LE. EPSQ) GO TO 255                               !--- Skip if no condensate is present
             CLFR=H0
@@ -810,8 +877,11 @@
                ENDIF        !--- End IF (ARG .LE. XSDmin)
             ENDIF           !--- IF (ARG.LE.DXSD2 .AND. ARG.GE.DXSD2N)
             CSMID(I,J,L)=CLFR
+!rv------------------------------------
+          endif  OPER_flag
+!rv------------------------------------
 !
-255       CONTINUE         !--- End DO L=1,LML
+255       CONTINUE         !--- End DO L=1,LM
 
        ENDDO ! End DO I=ITS,ITE
        ENDDO ! End DO J=JTS,JTE
@@ -828,7 +898,7 @@
 !    constant cloud fraction of 0.1  (Ferrier, Feb '02).
 !***********************************************************************
 !
-      IF (CNCLD) THEN
+      GFDL_Conv: IF (CNCLD) THEN
 
        DO J=JTS,JTE
         DO I=ITS,ITE
@@ -874,7 +944,7 @@
           ENDIF             !--- IF (CUBOT(I,J)-CUTOP(I,J) .GT. 1.0) ...
         ENDDO               ! End DO I=ITS,ITE
        ENDDO                ! End DO J=JTS,JTE
-      ENDIF                 !--- End IF (CNCLD) ...
+      ENDIF  GFDL_Conv      !--- End IF (CNCLD) ...
 !
 !*********************************************************************
 !***************  END OF CONVECTIVE CLOUD FRACTIONS  *****************
@@ -963,7 +1033,7 @@
 !***
 !*** NOTE: THE FOLLOWING CALCULATIONS, THE UNIT FOR PRESSURE IS MB!!!
 !***
-        DO 580 NC=2,NCLD+1
+        DO NC=2,NCLD+1
 !
         TauC=0.    !--- Total optical depth for each cloud layer (solar & longwave)
         QSUM=0.0
@@ -1005,32 +1075,33 @@
 !
           ENDIF      !--- End IF(LL.GE.KTOP(I,NC) ....
         ENDDO        !--- End DO LL
-
 !
-  580   CONTINUE
+      ENDDO
 !
-      ENDIF        !!!NCLD.GE.1
+      ENDIF       ! NCLD.GE.1
 !
       ENDDO  !  DO I=ITS,ITE
       ENDDO  !  DO J=JTS,JTE
+!-----------------------------------------------------------------------
+      ENDIF  ICWP_Test   !*** End of Old NAM/GFDL cloud inputs ***
+!-----------------------------------------------------------------------
 !
 ! Main domain loop: calling grrad
 !
       FLGMIN_L(1)= 0.20d0 ! --- for ferrier
-      FLUXR_V= 0.0d0      ! to save 2-d fields
 
       CV (1)=0.d0         ! not in use 
       CVB(1)=0.d0         ! not in use
       CVT(1)=0.d0         ! not in use
 !
       DO J=JTS,JTE  !start grrad loop column by column
+         J_t=J-JTS+1
       DO I=ITS,ITE
-!
-       CZMEAN(I,J)=COSZEN(I,J)
+         I_t=I-ITS+1
+
+       CZMEAN(I,J)=COSZEN_t(I_t,J_t)        ! BSF
        XLAT(1)=GLAT(I,J)
-!rv
-       xlat(1)=min(max(XLAT(1),1.5707d0),-1.5707d0)
-!rv
+       XLON(1)=GLON(I,J)
        TSEA(1)=TSKIN(I,J)
        TISFC(1)=TSKIN(I,J)                  ! change later if necessary
        ZORL(1)=Z0(I,J)*100.d0
@@ -1049,7 +1120,8 @@
 !
 !!!ALBEDOS
 ! 
-       IF (ALBTYPE==0) THEN
+       IF (IALB==2) THEN
+          SFCALBEDO=ALBEDO(I,J)           ! BSF
 !..... THE FOLLOWING CODE GETS ALBEDO FROM PAYNE,1972 TABLES IF
 !         1) OPEN SEA POINT (SLMSK=1);2) KALB=0
             IQ=INT(TWENTY*HP537+ONE)
@@ -1062,33 +1134,37 @@
              DZEN=-(ZEN-ZA(JX))/DZA(JX)
              ALB1=ALBD(IQ,JX)+DZEN*(ALBD(IQ,JX+1)-ALBD(IQ,JX))
              ALB2=ALBD(IQ+1,JX)+DZEN*(ALBD(IQ+1,JX+1)-ALBD(IQ+1,JX))
-             SFCALBEDO(I,J)=ALB1+TWENTY*(ALB2-ALB1)*(HP537-TRN(IQ))
+             SFCALBEDO=ALB1+TWENTY*(ALB2-ALB1)*(HP537-TRN(IQ))    ! BSF
             ENDIF
 !.....     VISIBLE AND NEAR IR DIFFUSE ALBEDO
-             ALVD(1) = SFCALBEDO(I,J)
-             ALND(1) = SFCALBEDO(I,J)
+             ALVD(1) = SFCALBEDO    ! BSF
+             ALND(1) = SFCALBEDO    ! BSF
 !.....     VISIBLE AND NEAR IR DIRECT BEAM ALBEDO
-             ALVB(1) = SFCALBEDO(I,J)
-             ALNB(1) = SFCALBEDO(I,J)
+             ALVB(1) = SFCALBEDO    ! BSF
+             ALNB(1) = SFCALBEDO    ! BSF
 !
 !--- Remove diurnal variation of land surface albedos (Ferrier, 6/28/05)
 !--- Turn back on to mimic NAM 8/17/05
 !
 !.....     VISIBLE AND NEAR IR DIRECT BEAM ALBEDO, IF NOT OCEAN NOR SNOW
 !        ..FUNCTION OF COSINE SOLAR ZENITH ANGLE..
-            IF (SM(I,J).LT.0.5) THEN
-             IF (SFCALBEDO(I,J).LE.0.5) THEN
-             ALBD0=-18.0 * (0.5 - ACOS(CZMEAN(I,J))/PI)
-             ALBD0=EXP (ALBD0)
-             ALVD1=(ALVD(1) - 0.054313) / 0.945687
-             ALND1=(ALND(1) - 0.054313) / 0.945687
-             ALVB(1)=ALVD1 + (1.0 - ALVD1) * ALBD0
-             ALNB(1)=ALND1 + (1.0 - ALND1) * ALBD0
-! !-- Put in an upper limit on beam albedos
-             ALVB(1)=MIN(0.5,ALVB(1))
-             ALNB(1)=MIN(0.5,ALNB(1))
-            END IF
-           END IF
+!
+!=== The following line commented out by the "fixed" are used instead of the
+!    original version (09/2012)
+!
+!fixed            IF (SM(I,J).LT.0.5) THEN
+!fixed             IF (SFCALBEDO.LE.0.5) THEN
+!fixed             ALBD0=-18.0 * (0.5 - ACOS(CZMEAN(I,J))/PI)
+!fixed             ALBD0=EXP (ALBD0)
+!fixed             ALVD1=(ALVD(1) - 0.054313) / 0.945687
+!fixed             ALND1=(ALND(1) - 0.054313) / 0.945687
+!fixed             ALVB(1)=ALVD1 + (1.0 - ALVD1) * ALBD0
+!fixed             ALNB(1)=ALND1 + (1.0 - ALND1) * ALBD0
+!fixed! !-- Put in an upper limit on beam albedos
+!fixed             ALVB(1)=MIN(0.5,ALVB(1))
+!fixed             ALNB(1)=MIN(0.5,ALNB(1))
+!fixed            END IF
+!fixed           END IF
 
 !!! WE INTRODUCE HERE DIRECT AND DIFFUSE ALBEDO... FOR THIS OPTION, THERE IS A CHANGE IN GRRAD.f
             ALVSF1(1)=ALVB(1) !For this option ALVSF1 is direct visible albedo
@@ -1098,7 +1174,8 @@
             FACSF1(1)=0.      !not used with this option
             FACWF1(1)=0.      !not used for this option
 !
-       ENDIF
+       ENDIF    !---- end of IALB=2  GFDL TYPE RADIATION 
+
 !
 !---
       PRSI(1)=P8W(I,J,1)/1000.                                  ! [kPa]
@@ -1120,21 +1197,54 @@
 !
         GR1(1,L,2)=0.d0
         GR1(1,L,3)=CW(I,J,L)
-        CLDCOV_V(L)=0.                                        !not used
+        CLDCOV_V(L)=0.d0                !used for prognostic cloud
         F_ICEC(L)=F_ICE(I,J,L)
         F_RAINC(L)=F_RAIN(I,J,L)
         R_RIME(L)=F_RIMEF(I,J,L)
-        TAUCLOUDS(L)=TAUTOTAL(I,J,L)    !CLOUD OPTICAL DEPTH
-        CLDF(L)=CLDFRA(I,J,L)           !CLOUD FRACTION 
+        TAUCLOUDS(L)=TAUTOTAL(I,J,L)    !CLOUD OPTICAL DEPTH (ICWP==-1)
+        CLDF(L)=CLDFRA(I,J,L)           !CLOUD FRACTION (ICWP==-1)
+      ENDDO
+!
+!-- Bogus in tiny amounts of shallow convection, but only if there are no
+!   grid-scale clouds nor convective precipitation present.  Arrays CUTOP,
+!   CUBOT are flipped with 1 at the top & LM at the surface (BSF, 7/18/2012)
+!-- There are extra, nested IF statements to filter conditions as an extra
+!   layer of caution.  
+!
+      CU_cloud=.FALSE.
+      CU_Bogus1: IF (CUCLD) THEN
+         LCNVT=MIN(LM, NINT(CUTOP(I,J)) )   !-- Convective cloud top
+         LCNVB=MIN(LM, NINT(CUBOT(I,J)) )   !-- Convective cloud base
+         CU_DEPTH=0.
+         CU_Index: IF (LCNVB-LCNVT>1) THEN
+            CU_DEPTH=1000.*(PRSL(LCNVB)-PRSL(LCNVT))   !- Pa
+            CU_Deep: IF (CU_DEPTH>=CU_DEEP_MIN .AND. CU_DEPTH<=CU_DEEP_MAX) THEN
+               QCLD=MAXVAL( GR1(1,1:LM,3) )       !-- Maximum condensate
+               PMOD=CUPPT(I,J)*CONVPRATE
+               CU_Clds: IF (QCLD<QWmax .AND. PMOD<=CUPPT_min) THEN
+                  CU_cloud=.TRUE.
+                  DO L=LCNVT,LCNVB
+                     GR1(1,L,3)=GR1(1,L,3)+QW_Cu
+                  ENDDO
+               ENDIF CU_Clds
+            ENDIF CU_Deep
+         ENDIF CU_Index
+      ENDIF CU_Bogus1
+!
+      DO NC=1,5
+        CLDSA_V(NC)=0.d0                 !used for prognostic cloud
+      ENDDO
+      DO NC=1,NFLUXR
+        FLUXR_V(NC)=0.d0                 !used for prognostic cloud
       ENDDO
 !
 !---
       CALL GRRAD_NMMB                                                        &
 !  ---  INPUTS:
            ( PRSI,PRSL,PRSLK,GT,GQ,GR1,VVEL,SLMSK,                           &
-             XLON(I,J),XLAT,TSEA,SNWDPH,SNCOVR,SNOALB,ZORL,HPRIME_V,         &
+             XLON,XLAT,TSEA,SNWDPH,SNCOVR,SNOALB,ZORL,HPRIME_V,              &
              ALVSF1,ALNSF1,ALVWF1,ALNWF1,FACSF1,FACWF1,FICE,TISFC,           &
-             SOLCON,COSZEN(I,J),COSZDG(I,J),K1OZ,K2OZ,FACOZ,                 &
+             SOLCON,COSZEN_t(I_t,J_t),COSZDG_t(I_t,J_t),K1OZ,K2OZ,FACOZ,     &   !-- BSF
              CV,CVT,CVB,IOVR_SW, IOVR_LW, F_ICEC, F_RAINC, R_RIME, FLGMIN_L, &
              ICSDSW, ICSDLW,                                                 &
              NP3D,NTCW,NCLDX,NTOZ,NTRAC,NFXR,                                &
@@ -1145,12 +1255,12 @@
              ipt, kdt,                                                       &
 !  ---  ADDITIONAL INPUTS:
         !     LATSOZC,LEVOZC,BLATC,DPHIOZC,TIMEOZC,                           &
-             TAUCLOUDS,CLDF,ALBTYPE,                                         &
+             TAUCLOUDS,CLDF,                                                 &
 !  ---  OUTPUTS:
         !     SWH,SFCNSW,SFCDSW,SFALB,                                        &
         !     HLW,SFCDLW,TSFLW,                                               &
              SWH,TOPFSW,SFCFSW,SFALB,                                        &
-             HLW,TOPFLW,SFCFLW,TSFLW,SEMIS,CLDCOV_V,                         &
+             HLW,TOPFLW,SFCFLW,TSFLW,SEMIS,CLDCOV_V,CLDSA_V,                 &
 !  ---  ADDITIONAL OUTPUT
         !     TOAUSW,TOADSW,SFCCDSW,TOAULW,SFCUSW,                    &
 !  ---  INPUT/OUTPUT:
@@ -1161,6 +1271,36 @@
         RLWTT(I,J,L)=HLW(L)
         RSWTT(I,J,L)=SWH(L)
       ENDDO
+
+!=================================================================
+! For non GFDL type cloud (use cloud fields from outputs of GRRAD)
+!=================================================================
+
+      IF (ICWP /= -1) THEN
+         IF ( LSSAV ) THEN
+            DO L=1,LM
+               CLDFRA(I,J,L)=CLDCOV_V(L)
+               CSMID(I,J,L)=CLDCOV_V(L)
+            ENDDO
+
+            CFRACL(I,J)=CLDSA_V(1)
+            CFRACM(I,J)=CLDSA_V(2)
+            CFRACH(I,J)=CLDSA_V(3)
+!
+!@@@ To Do:  @@@
+!@@@ Add CFRACT array to calculate the total cloud fraction, replace
+!    the instantaneous cloud fraction in the post
+!
+            ACFRST(I,J)=ACFRST(I,J) + CLDSA_V(4)
+            NCFRST(I,J)=NCFRST(I,J) + 1
+!-- Added a time-averaged convective cloud fraction calculation
+            IF (CU_cloud) ACFRCV(I,J)=ACFRCV(I,J)+CLDSA_V(4)
+            NCFRCV(I,J)=NCFRCV(I,J)+1
+         ELSE
+            PRINT *, '*** CLDFRA=0, need to set LSSAV=TRUE'
+            STOP
+         ENDIF
+      ENDIF
 !
 
 !=========================================================
@@ -1175,11 +1315,12 @@
       ! RLWTOA(I,J)=TOAULW(1)
       ! RSWTOA(I,J)=TOAUSW(1)
 
-      RLWIN(I,J)=SFCFLW(1)%dnfxc
-      RSWIN(I,J)=SFCFSW(1)%dnfxc
-      RSWINC(I,J)=SFCFSW(1)%dnfx0
+      ! RSWOUT(I,J)=RSWIN(I,J)*SFALB(1)
 
-      RSWOUT(I,J)=RSWIN(I,J)*SFALB(1)
+      RLWIN(I,J) =SFCFLW(1)%dnfxc
+      RSWIN(I,J) =SFCFSW(1)%dnfxc
+      RSWOUT(I,J)=SFCFSW(1)%upfxc
+      RSWINC(I,J)=SFCFSW(1)%dnfx0
 
       RLWTOA(I,J)=TOPFLW(1)%upfxc
       RSWTOA(I,J)=TOPFSW(1)%upfxc
@@ -1189,6 +1330,7 @@
 !
       ENDDO     ! --- END I LOOP for grrad
       ENDDO     ! --- END J LOOP for grrad
+
 !
 !*** --------------------------------------------------------------------------
 !***  DETERMINE THE FRACTIONAL CLOUD COVERAGE FOR HIGH, MID
@@ -1198,6 +1340,10 @@
 !***
 !***
 !
+!----------------------------------------------------------------------------
+      ICWP_Test2: IF (ICWP==-1) THEN   !-- *** Start of old NAM/GFDL cloud ***
+!----------------------------------------------------------------------------
+
        DO J=JTS,JTE
        DO I=ITS,ITE
 !!
@@ -1322,6 +1468,7 @@
 
       ENDDO ! End DO I=ITS,ITE
       ENDDO ! End DO J=ITS,JTE
+
 !!
       DO J=JTS,JTE
       DO I=ITS,ITE
@@ -1329,6 +1476,7 @@
         CFRACL(I,J)=CLDCFR(I,J,1)
         CFRACM(I,J)=CLDCFR(I,J,2)
         CFRACH(I,J)=CLDCFR(I,J,3)
+
         IF(CNCLD)THEN
           CFSmax=0.   !-- Maximum cloud fraction (stratiform component)
           CFCmax=0.   !-- Maximum cloud fraction (convective component)
@@ -1350,6 +1498,11 @@
 
       ENDDO  !  DO I=ITS,ITE
       ENDDO  !  DO J=JTS,JTE
+
+!-----------------------------------------------------------------------
+      ENDIF  ICWP_Test2   !*** End of Old NAM/GFDL cloud ***
+!-----------------------------------------------------------------------
+
 !
 !-----------------------------------------------------------------------
 !***  LONGWAVE

@@ -132,7 +132,7 @@ do
 
 if [ $SCHEDULER = 'loadleveler' ]; then
 
-export status=`llq -u ${LOGIN} -f %st %jn | grep ${JBNME} | awk '{ print $1}'` ; export status=${status:--}
+export status=`llq -u ${USER} -f %st %jn | grep ${JBNME} | awk '{ print $1}'` ; export status=${status:--}
 
 if   [ $status = 'I' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
 elif [ $status = 'R' ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status

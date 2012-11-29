@@ -173,9 +173,6 @@
                  REFKDT_DATA,FRZK_DATA,ZBOT_DATA,  SMLOW_DATA,SMHIGH_DATA, &
                         CZIL_DATA
 
-!nmmb        CHARACTER*256  :: err_message
-
-!dusan
         INTEGER, SAVE :: MYPE_SHARE,MPI_COMM_COMP
 
 !-----------------------------------------------------------------------
@@ -1278,18 +1275,6 @@
    
       ENDIF   !-- IF(.NOT.FNDSOILW) THEN
 
-!bsf!! initialize physical snow height SNOWH
-!bsf!
-!bsf!        IF(.NOT.FNDSNOWH)THEN
-!bsf!! If no SNOWH do the following
-!bsf!          CALL wrf_message( 'SNOW HEIGHT NOT FOUND - VALUE DEFINED IN LSMINIT' )
-!bsf!          DO J = jts,jtf
-!bsf!          DO I = its,itf
-!bsf!            SNOWH(I,J)=SNOW(I,J)*0.005               ! SNOW in mm and SNOWH in m
-!bsf!          ENDDO
-!bsf!          ENDDO
-!bsf!        ENDIF
-
       ENDIF     !-- IF(.not.restart)THEN
 !------------------------------------------------------------------------------
   END SUBROUTINE NOAH_LSM_INIT
@@ -1323,9 +1308,6 @@
         INTEGER , PARAMETER :: OPEN_OK = 0
 
         character*4 :: MMINLU, MMINSL
-        character*128 :: mess , message
-!nmmb        logical, external :: wrf_dm_on_monitor
- 
 
 !-----SPECIFY VEGETATION RELATED CHARACTERISTICS :
 !             ALBBCK: SFC albedo (in percentage)
@@ -1351,21 +1333,13 @@
 !-----READ IN VEGETAION PROPERTIES FROM VEGPARM.TBL 
 !                                                                       
 
-!nmmb       IF ( wrf_dm_on_monitor() ) THEN
-            IF ( mype_share==0 ) THEN
+      IF ( mype_share==0 ) THEN
 
         OPEN(19, FILE='VEGPARM.TBL',FORM='FORMATTED',STATUS='OLD',IOSTAT=ierr)  
              IF(ierr .NE. OPEN_OK ) THEN
-!nmmb          WRITE(message,FMT='(A)') &
-!nmmb          'module_sf_noahlsm.F: soil_veg_gen_parm: failure opening VEGPARM.TBL'
-!nmmb          CALL wrf_error_fatal ( message ) 
                write(0,*)'NOAHLSM: soil_veg_gen_parm: failure opening VEGPARM.TBL'
-!dusan               CALL NMMB_FINALIZE
                STOP
              END IF
-
-!nmmb        WRITE ( mess, * ) 'INPUT LANDUSE = ',MMINLU                                 
-!nmmb        CALL wrf_message( mess )
 
         LUMATCH=0                                                       
 
@@ -1375,13 +1349,8 @@
  2000   FORMAT (A4) 
 
         IF(LUTYPE.EQ.MMINLU)THEN                                        
-!nmmb          WRITE( mess , * ) 'LANDUSE TYPE = ',LUTYPE,' FOUND',           &                 
-!nmmb                  LUCATS,' CATEGORIES'
-!nmmb          CALL wrf_message( mess )
           LUMATCH=1                                                     
-        ENDIF                                                           
 
-            IF(LUTYPE.EQ.MMINLU)THEN                                    
           DO LC=1,LUCATS                                                
               READ (19,*)IINDEX,ALBTBL(LC),Z0TBL(LC),SHDTBL(LC),   &  
                         NROTBL(LC),RSTBL(LC),RGLTBL(LC),HSTBL(LC), & 
@@ -1398,32 +1367,13 @@
           READ (19,*)RSMAX_DATA
           READ (19,*)
           READ (19,*)BARE
-           ENDIF
+        ENDIF
 !
  2002   CONTINUE                                                        
 
         CLOSE (19)                                                        
-           ENDIF
 
-!nmmb      CALL wrf_dm_bcast_string  ( LUTYPE  , 4 )
-!nmmb      CALL wrf_dm_bcast_integer ( LUCATS  , 1 )
-!nmmb      CALL wrf_dm_bcast_integer ( IINDEX  , 1 )
-!nmmb      CALL wrf_dm_bcast_integer ( LUMATCH , 1 )
-!nmmb      CALL wrf_dm_bcast_real    ( ALBTBL  , NLUS )
-!nmmb      CALL wrf_dm_bcast_real    ( Z0TBL   , NLUS )
-!nmmb      CALL wrf_dm_bcast_real    ( SHDTBL  , NLUS )
-!nmmb      CALL wrf_dm_bcast_real    ( NROTBL  , NLUS )
-!nmmb      CALL wrf_dm_bcast_real    ( RSTBL   , NLUS )
-!nmmb      CALL wrf_dm_bcast_real    ( RGLTBL  , NLUS )
-!nmmb      CALL wrf_dm_bcast_real    ( HSTBL   , NLUS )
-!nmmb      CALL wrf_dm_bcast_real    ( SNUPTBL , NLUS )
-!nmmb      CALL wrf_dm_bcast_real    ( LAITBL  , NLUS )
-!nmmb      CALL wrf_dm_bcast_real    ( MAXALB  , NLUS )
-!nmmb      CALL wrf_dm_bcast_real    ( TOPT_DATA    , 1 )
-!nmmb      CALL wrf_dm_bcast_real    ( CMCMAX_DATA  , 1 )
-!nmmb      CALL wrf_dm_bcast_real    ( CFACTR_DATA  , 1 )
-!nmmb      CALL wrf_dm_bcast_real    ( RSMAX_DATA  , 1 )
-!nmmb      CALL wrf_dm_bcast_integer ( BARE    , 1 )
+      ENDIF
 !
   CALL MPI_BCAST(LUTYPE      ,4    ,MPI_CHARACTER ,0,MPI_COMM_COMP,IRTN)
   CALL MPI_BCAST(LUCATS      ,1    ,MPI_INTEGER   ,0,MPI_COMM_COMP,IRTN)
@@ -1444,27 +1394,18 @@
   CALL MPI_BCAST(CFACTR_DATA ,1    ,MPI_REAL      ,0,MPI_COMM_COMP,IRTN)
   CALL MPI_BCAST(RSMAX_DATA  ,1    ,MPI_REAL      ,0,MPI_COMM_COMP,IRTN)
   CALL MPI_BCAST(BARE        ,1    ,MPI_INTEGER   ,0,MPI_COMM_COMP,IRTN)
-!nmmb
-
 !                                                                       
 !-----READ IN SOIL PROPERTIES FROM SOILPARM.TBL
 !                                                                       
-!nmmb      IF ( wrf_dm_on_monitor() ) THEN
             IF ( mype_share==0 ) THEN
 !
         OPEN(19, FILE='SOILPARM.TBL',FORM='FORMATTED',STATUS='OLD',IOSTAT=ierr) 
              IF(ierr .NE. OPEN_OK ) THEN
-!nmmb          WRITE(message,FMT='(A)') &
-!nmmb          'module_sf_noahlsm.F: soil_veg_gen_parm: failure opening SOILPARM.TBL'
-!nmmb          CALL wrf_error_fatal ( message ) 
                write(0,*)'NOAHLSM: soil_veg_gen_parm: failure opening SOILPARM.TBL'
-!dusan               CALL NMMB_FINALIZE
                STOP
              END IF
 
         MMINSL='STAS'                       !oct2
-!nmmb        WRITE(mess,*) 'INPUT SOIL TEXTURE CLASSIFICAION = ',MMINSL
-!nmmb        CALL wrf_message( mess )
 
         LUMATCH=0                                                       
 
@@ -1472,9 +1413,6 @@
         READ (19,2000,END=2003)SLTYPE
         READ (19,*)SLCATS,IINDEX                                        
         IF(SLTYPE.EQ.MMINSL)THEN                                        
-!nmmb            WRITE( mess , * ) 'SOIL TEXTURE CLASSIFICATION = ',SLTYPE,' FOUND', &                 
-!nmmb                  SLCATS,' CATEGORIES'
-!nmmb            CALL wrf_message ( mess )
           LUMATCH=1                                                     
         ENDIF                                                           
             IF(SLTYPE.EQ.MMINSL)THEN                                    
@@ -1489,22 +1427,6 @@
 
         CLOSE (19)                                                        
            ENDIF
-!
-!nmmb      CALL wrf_dm_bcast_integer ( LUMATCH , 1 )
-!nmmb      CALL wrf_dm_bcast_string  ( SLTYPE  , 4 )
-!nmmb      CALL wrf_dm_bcast_string  ( MMINSL  , 4 )  ! since this is reset above, see oct2 ^
-!nmmb      CALL wrf_dm_bcast_integer ( SLCATS  , 1 )
-!nmmb      CALL wrf_dm_bcast_integer ( IINDEX  , 1 )
-!nmmb      CALL wrf_dm_bcast_real    ( BB      , NSLTYPE )
-!nmmb      CALL wrf_dm_bcast_real    ( DRYSMC  , NSLTYPE )
-!nmmb      CALL wrf_dm_bcast_real    ( F11     , NSLTYPE )
-!nmmb      CALL wrf_dm_bcast_real    ( MAXSMC  , NSLTYPE )
-!nmmb      CALL wrf_dm_bcast_real    ( REFSMC  , NSLTYPE )
-!nmmb      CALL wrf_dm_bcast_real    ( SATPSI  , NSLTYPE )
-!nmmb      CALL wrf_dm_bcast_real    ( SATDK   , NSLTYPE )
-!nmmb      CALL wrf_dm_bcast_real    ( SATDW   , NSLTYPE )
-!nmmb      CALL wrf_dm_bcast_real    ( WLTSMC  , NSLTYPE )
-!nmmb      CALL wrf_dm_bcast_real    ( QTZ     , NSLTYPE )
 !
   CALL MPI_BCAST(LUMATCH ,1       ,MPI_INTEGER   ,0,MPI_COMM_COMP,IRTN)
   CALL MPI_BCAST(SLTYPE  ,4       ,MPI_CHARACTER ,0,MPI_COMM_COMP,IRTN)
@@ -1521,27 +1443,14 @@
   CALL MPI_BCAST(SATDW   ,NSLTYPE ,MPI_REAL      ,0,MPI_COMM_COMP,IRTN)
   CALL MPI_BCAST(WLTSMC  ,NSLTYPE ,MPI_REAL      ,0,MPI_COMM_COMP,IRTN)
   CALL MPI_BCAST(QTZ     ,NSLTYPE ,MPI_REAL      ,0,MPI_COMM_COMP,IRTN)
-!nmmb
-
-!nmmb      IF(LUMATCH.EQ.0)THEN                                            
-!nmmb          CALL wrf_message( 'SOIl TEXTURE IN INPUT FILE DOES NOT ' )
-!nmmb          CALL wrf_message( 'MATCH SOILPARM TABLE'                 )
-!nmmb          CALL wrf_error_fatal ( 'INCONSISTENT OR MISSING SOILPARM FILE' )
-!nmmb      ENDIF                                                           
-
 !
 !-----READ IN GENERAL PARAMETERS FROM GENPARM.TBL 
 !                                                                       
-!nmmb      IF ( wrf_dm_on_monitor() ) THEN
             IF ( mype_share==0 ) THEN
 !
         OPEN(19, FILE='GENPARM.TBL',FORM='FORMATTED',STATUS='OLD',IOSTAT=ierr) 
              IF(ierr .NE. OPEN_OK ) THEN
-!nmmb          WRITE(message,FMT='(A)') &
-!nmmb          'module_sf_noahlsm.F: soil_veg_gen_parm: failure opening GENPARM.TBL'
-!nmmb          CALL wrf_error_fatal ( message ) 
                write(0,*)'NOAHLSM: soil_veg_gen_parm: failure opening GENPARM.TBL'
-!dusan               CALL NMMB_FINALIZE
                STOP
              END IF
 
@@ -1580,21 +1489,6 @@
         CLOSE (19)                                                        
            ENDIF
 !
-!nmmb      CALL wrf_dm_bcast_integer ( NUM_SLOPE    ,  1 )
-!nmmb      CALL wrf_dm_bcast_integer ( SLPCATS      ,  1 )
-!nmmb      CALL wrf_dm_bcast_real    ( SLOPE_DATA   ,  NSLOPE )
-!nmmb      CALL wrf_dm_bcast_real    ( SBETA_DATA   ,  1 )
-!nmmb      CALL wrf_dm_bcast_real    ( FXEXP_DATA   ,  1 )
-!nmmb      CALL wrf_dm_bcast_real    ( CSOIL_DATA   ,  1 )
-!nmmb      CALL wrf_dm_bcast_real    ( SALP_DATA    ,  1 )
-!nmmb      CALL wrf_dm_bcast_real    ( REFDK_DATA   ,  1 )
-!nmmb      CALL wrf_dm_bcast_real    ( REFKDT_DATA  ,  1 )
-!nmmb      CALL wrf_dm_bcast_real    ( FRZK_DATA    ,  1 )
-!nmmb      CALL wrf_dm_bcast_real    ( ZBOT_DATA    ,  1 )
-!nmmb      CALL wrf_dm_bcast_real    ( CZIL_DATA    ,  1 )
-!nmmb      CALL wrf_dm_bcast_real    ( SMLOW_DATA   ,  1 )
-!nmmb      CALL wrf_dm_bcast_real    ( SMHIGH_DATA  ,  1 )
-!
   CALL MPI_BCAST(NUM_SLOPE   ,1      ,MPI_INTEGER   ,0,MPI_COMM_COMP,IRTN)
   CALL MPI_BCAST(SLPCATS     ,1      ,MPI_INTEGER   ,0,MPI_COMM_COMP,IRTN)
   CALL MPI_BCAST(SLOPE_DATA  ,NSLOPE ,MPI_REAL      ,0,MPI_COMM_COMP,IRTN)
@@ -1609,7 +1503,6 @@
   CALL MPI_BCAST(CZIL_DATA   ,1      ,MPI_REAL      ,0,MPI_COMM_COMP,IRTN)
   CALL MPI_BCAST(SMLOW_DATA  ,1      ,MPI_REAL      ,0,MPI_COMM_COMP,IRTN)
   CALL MPI_BCAST(SMHIGH_DATA ,1      ,MPI_REAL      ,0,MPI_COMM_COMP,IRTN)
-!nmmb
 
 !-----------------------------------------------------------------
       END SUBROUTINE SOIL_VEG_GEN_PARM
@@ -3602,20 +3495,7 @@
       REAL,DIMENSION(1:NSOIL),INTENT(IN) :: SLDPTH,ZSOIL
       REAL,DIMENSION(1:NSOIL),INTENT(OUT):: RTDIS                           
       REAL                   :: FRZFACT,FRZK,REFDK
-                                                                                 
-!      SAVE                                                                       
-! ----------------------------------------------------------------------         
-!                                                                                
-!nmmb               IF (SOILTYP .gt. SLCATS) THEN                                     
-!nmmb                        CALL wrf_error_fatal ( 'Warning: too many input soil types' )
-!nmmb               END IF                                                            
-!nmmb               IF (VEGTYP .gt. LUCATS) THEN                                      
-!nmmb                     CALL wrf_error_fatal ( 'Warning: too many input landuse types' )
-!nmmb               END IF                                                            
-!nmmb               IF (SLOPETYP .gt. SLPCATS) THEN                                   
-!nmmb                     CALL wrf_error_fatal ( 'Warning: too many input slope types' )
-!nmmb               END IF                                                            
-                                                                                 
+
 ! ----------------------------------------------------------------------         
 !  SET-UP SOIL PARAMETERS                                                        
 ! ----------------------------------------------------------------------         
@@ -3675,7 +3555,6 @@
                IF (NROOT .gt. NSOIL) THEN
                   WRITE (0,*) 'Error: too many root layers ',  &
                                                  NSOIL,NROOT
-!nmmb                  CALL wrf_error_fatal ( err_message )
 ! ----------------------------------------------------------------------         
 ! CALCULATE ROOT DISTRIBUTION.  PRESENT VERSION ASSUMES UNIFORM                  
 ! DISTRIBUTION BASED ON SOIL LAYER DEPTHS.                                       

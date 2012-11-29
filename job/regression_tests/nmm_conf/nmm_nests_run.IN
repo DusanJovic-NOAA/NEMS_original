@@ -1,6 +1,4 @@
-#!/bin/sh
-
-#set -aeux
+#!/bin/ksh
 
 RUNDIR=_RUND_
 SRCDIR=_SRCD_
@@ -18,6 +16,9 @@ cp _RTPWD_/NMMB_nests/nmmb_rst_04_bin_0012h_00m_00.00s  restart_file_04
 cp _RTPWD_/NMMB_nests/boco.* .
 cp _RTPWD_/data/* .
 cp _RTPWD_/NMMB_nests/GWD_bin_* .
+#cp IGBP_VEGPARM.TBL VEGPARM.TBL
+#cp IGBP_LANDUSE.TBL LANDUSE.TBL
+#cp ETAMPNEW_DATA.expanded_rain ETAMPNEW_DATA
 
 cp $SRCDIR/job/regression_tests/atmos.configure_nmm atmos.configure
 cp $SRCDIR/job/regression_tests/ocean.configure .
@@ -29,7 +30,7 @@ ln -sf global_o3clim.txt fort.48
 
 cp $SRCDIR/job/regression_tests/solver_state.txt .
 cp $SRCDIR/job/regression_tests/moving_nest_shift.txt .
-_TS_cp $SRCDIR/job/regression_tests/ts_locations.nml .
+_TS_ cp $SRCDIR/job/regression_tests/ts_locations.nml .
 
 cp $SRCDIR/exe/NEMS.x .
 

@@ -182,8 +182,8 @@ dpmin:      5.00            # minimum thickness of the reference layer (check un
 ##### Physics Scheme Options #####
 ##################################
 #---------------------------------
-shortwave: gfdl             # Radiation schemes
-longwave:  gfdl        
+shortwave: _RADTN_          # Radiation schemes
+longwave:  _RADTN_     
                                 # gfdl--> GFDL (shortwave and longwave)
                                 # gsfc--> Goddard shortwave
                                 # dudh--> Dudhia shortwave
@@ -193,7 +193,7 @@ co2tf:  1                       # co2tf--> Read (0) or generate internally (1)
                                 #          the GFDL CO2 transmission functions
 
 #---------------------------------
-convection:  bmj            # Convection scheme
+convection:  _CONVC_        # Convection scheme
                                 # bmj --> Betts-Miller-Janjic
                                 # bmj_dev--> BMJ (development)
                                 # kf  --> Kain-Fritsch
@@ -202,7 +202,7 @@ convection:  bmj            # Convection scheme
                                 # none--> No convection
 
 #---------------------------------
-microphysics:  fer          # Microphysics scheme
+microphysics:  _MICRO_      # Microphysics scheme
                                 # fer --> Ferrier
                                 # fer_hires--> Ferrier operational
                                 # kes --> Kessler
@@ -213,7 +213,7 @@ microphysics:  fer          # Microphysics scheme
 spec_adv:  .false.          # Individual cloud species advected
                                                                                                                                               
 #---------------------------------
-turbulence:  myj            # Turbulence schemes
+turbulence:  _TURBL_        # Turbulence schemes
                                 # myj--> Mellor-Yamada-Janjic
                                                                                                                                               
 #---------------------------------
@@ -228,11 +228,11 @@ land_surface:  noah         # Land surface schemes
                                 # noah--> NOAH scheme
 
 ucmcall: 0                  # Use (1) or do not use (0) the Urban Canopy Model
-igbp: 0                     # Use (1) or do not use (0) IGBP types
+igbp: _VGTAB_               # Use (1) or do not use (0) IGBP types
 
 #---------------------------------
                                                                                                                                               
-gfs:  false                 # Select entire GFS physics suite
+gfs:  _gfsP_                # Select entire GFS physics suite
 
 
 ######################################

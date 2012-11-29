@@ -1,11 +1,11 @@
-Fri Nov 16 07:12:12 EST 2012
+Mon Nov 26 22:58:00 EST 2012
 Start Regression test
 
 
 
-Fri Nov 16 07:12:13 EST 2012
+Mon Nov 26 22:58:00 EST 2012
 Compilation ALL
-Fri Nov 16 07:53:48 EST 2012
+Tue Nov 27 00:09:20 EST 2012
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  153.50
+ Original timing:  151.20  , test_glob timing:  152.40
 
 
 Test 002
@@ -128,7 +128,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  251.38
+ Original timing:  240.82  , test_reg timing:  250.22
 
 
 Test 009
@@ -205,23 +205,6 @@ Checking test 014 results ....
 
 
 
-Test 015
-Test NMMB-regional with selected GFS physics schemes
-
-
-Checking test 015 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s..... ......NOT OK
-
-   nmmb_hst_01_bin_0024h_00m_00.00s differ!   
-Fri Nov 16 09:59:57 EST 2012
-Start Regression test
-
-
-
-Fri Nov 16 09:59:57 EST 2012
-Compilation ALL
-Fri Nov 16 09:59:57 EST 2012
 Test 015
 Test NMMB-regional with selected GFS physics schemes
 
@@ -315,58 +298,108 @@ Checking test 019 results ....
 
 
 Test 020
-Test NMMB-regional digital filter with static nests
+Test NMMB-regional with static nests
 
 
 Checking test 020 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_02_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_02_nio_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_03_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_03_nio_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_04_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_04_nio_0012h_00m_00.00s.........OK
+ Test 020 passed 
+
+
+
+Test 021
+Test NMMB-regional static nests with restart
+
+
+Checking test 021 results ....
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_nio_0024h_00m_00.00s.........OK
+ Test 021 passed 
+
+
+
+Test 022
+Test NMMB-regional digital filter with static nests
+
+
+Checking test 022 results ....
  Comparing nmmb_hst_01_bin_0003h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0003h_00m_00.00s.........OK
  Comparing nmmb_hst_02_bin_0003h_00m_00.00s.........OK
  Comparing nmmb_hst_02_nio_0003h_00m_00.00s.........OK
  Comparing nmmb_hst_03_bin_0003h_00m_00.00s.........OK
  Comparing nmmb_hst_03_nio_0003h_00m_00.00s.........OK
- Test 020 passed 
-
-
-
-Test 021
-Test NMMB-regional with moving nests
-
-
-Checking test 021 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
- Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
- Test 021 passed 
-
-
-
-Test 022
-Test NMMB-regional with moving nests and generational task assignments
-
-
-Checking test 022 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
- Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
  Test 022 passed 
 
 
 
 Test 023
+Test NMMB-regional with moving nests
+
+
+Checking test 023 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
+ Test 023 passed 
+
+
+
+Test 024
+Test NMMB-regional with moving nests and generational task assignments
+
+
+Checking test 024 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
+ Test 024 passed 
+
+
+
+Test 025
 Compare GFS results with previous trunk version
 GFS, 32 proc, 1 thread
 
 
 
 
-Checking test 023 results ....
+Checking test 025 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -385,44 +418,10 @@ Checking test 023 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 023 passed 
-Test 024
-Compare GFS adiabatic results with previous trunk version
-GFS, 32 proc, 1 thread
-
-
-
-
-Checking test 024 results ....
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Test 024 passed 
-Test 025
-Test GFS with 2-copy option
-GFS, 32 proc, 1 thread
-
-
-
-
-Checking test 025 results ....
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
  Test 025 passed 
 Test 026
-Test GFS different decomposition and restart
-GFS, 48 proc, 1 thread
+Compare GFS adiabatic results with previous trunk version
+GFS, 32 proc, 1 thread
 
 
 
@@ -432,21 +431,10 @@ Checking test 026 results ....
  Comparing sigf06.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
- Comparing sigf48.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing sfcf48.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
- Comparing flxf48.........OK
  Test 026 passed 
 Test 027
-Test GFS threads
-GFS, 16 proc, 2 thread
+Test GFS with 2-copy option
+GFS, 32 proc, 1 thread
 
 
 
@@ -466,8 +454,8 @@ Checking test 027 results ....
  Comparing flxf24.........OK
  Test 027 passed 
 Test 028
-GFS, 32 proc, 1 thread, no quilt, output every 4 timestep
-GFS, 32 proc, 1 thread
+Test GFS different decomposition and restart
+GFS, 48 proc, 1 thread
 
 
 
@@ -490,8 +478,8 @@ Checking test 028 results ....
  Comparing flxf48.........OK
  Test 028 passed 
 Test 029
-Test GFS single processor
-GFS, 1 proc, 1 thread
+Test GFS threads
+GFS, 16 proc, 2 thread
 
 
 
@@ -511,8 +499,8 @@ Checking test 029 results ....
  Comparing flxf24.........OK
  Test 029 passed 
 Test 030
-Test GFS, 1 proc, 1 thread, no quilting,nsout=1
-GFS, 1 proc, 1 thread
+GFS, 32 proc, 1 thread, no quilt, output every 4 timestep
+GFS, 32 proc, 1 thread
 
 
 
@@ -535,8 +523,8 @@ Checking test 030 results ....
  Comparing flxf48.........OK
  Test 030 passed 
 Test 031
-Test GFS, 16 proc, 2 threads,no quilt, output every 2 time steps
-GFS, 16 proc, 2 thread
+Test GFS single processor
+GFS, 1 proc, 1 thread
 
 
 
@@ -556,8 +544,8 @@ Checking test 031 results ....
  Comparing flxf24.........OK
  Test 031 passed 
 Test 032
-Test GFS, 48 proc, 1 thread, no quilt
-GFS, 48 proc, 1 thread
+Test GFS, 1 proc, 1 thread, no quilting,nsout=1
+GFS, 1 proc, 1 thread
 
 
 
@@ -580,13 +568,34 @@ Checking test 032 results ....
  Comparing flxf48.........OK
  Test 032 passed 
 Test 033
-GFS,32 total proc (tasks), 1 thread, quilt, digital filter on reduced grid
-GFS, 32 proc, 1 thread
+Test GFS, 16 proc, 2 threads,no quilt, output every 2 time steps
+GFS, 16 proc, 2 thread
 
 
 
 
 Checking test 033 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Test 033 passed 
+Test 034
+Test GFS, 48 proc, 1 thread, no quilt
+GFS, 48 proc, 1 thread
+
+
+
+
+Checking test 034 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
  Comparing sigf12.........OK
@@ -602,31 +611,10 @@ Checking test 033 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 033 passed 
-Test 034
-GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
-GFS, 16 proc, 2 thread
-
-
-
-
-Checking test 034 results ....
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
  Test 034 passed 
 Test 035
-GFS,1 proc, no quilt, digital filter on reduced grid
-GFS, 1 proc, 1 thread
+GFS,32 total proc (tasks), 1 thread, quilt, digital filter on reduced grid
+GFS, 32 proc, 1 thread
 
 
 
@@ -649,8 +637,8 @@ Checking test 035 results ....
  Comparing flxf48.........OK
  Test 035 passed 
 Test 036
-GFS, use the OPAC climo scheme for SW and LW
-GFS, 32 proc, 1 thread
+GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
+GFS, 16 proc, 2 thread
 
 
 
@@ -670,8 +658,8 @@ Checking test 036 results ....
  Comparing flxf24.........OK
  Test 036 passed 
 Test 037
-GFS, 16tasks, 2threads, quilt, dfi3hr, reduced grid, NDSL
-GFS, 16 proc, 2 thread
+GFS,1 proc, no quilt, digital filter on reduced grid
+GFS, 1 proc, 1 thread
 
 
 
@@ -681,18 +669,21 @@ Checking test 037 results ....
  Comparing sigf06.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
+ Comparing sigf48.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
  Comparing flxf03.........OK
  Comparing flxf06.........OK
  Comparing flxf12.........OK
  Comparing flxf24.........OK
+ Comparing flxf48.........OK
  Test 037 passed 
 Test 038
-GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid
-GFS, 16 proc, 2 thread
+GFS, use the OPAC climo scheme for SW and LW
+GFS, 32 proc, 1 thread
 
 
 
@@ -712,13 +703,55 @@ Checking test 038 results ....
  Comparing flxf24.........OK
  Test 038 passed 
 Test 039
-GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid, restart
+GFS, 16tasks, 2threads, quilt, dfi3hr, reduced grid, NDSL
 GFS, 16 proc, 2 thread
 
 
 
 
 Checking test 039 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Test 039 passed 
+Test 040
+GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid
+GFS, 16 proc, 2 thread
+
+
+
+
+Checking test 040 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Test 040 passed 
+Test 041
+GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid, restart
+GFS, 16 proc, 2 thread
+
+
+
+
+Checking test 041 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
  Comparing sigf12.........OK
@@ -734,15 +767,15 @@ Checking test 039 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 039 passed 
-Test 040
+ Test 041 passed 
+Test 042
 GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid with nst
 GFS, 16 proc, 2 thread
 
 
 
 
-Checking test 040 results ....
+Checking test 042 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
  Comparing sigf12.........OK
@@ -763,15 +796,15 @@ Checking test 040 results ....
  Comparing nstf12.........OK
  Comparing nstf24.........OK
  Comparing nstf48.........OK
- Test 040 passed 
-Test 041
+ Test 042 passed 
+Test 043
 GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 1loop digital filter on reduced grid
 GFS, 16 proc, 2 thread
 
 
 
 
-Checking test 041 results ....
+Checking test 043 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -790,15 +823,15 @@ Checking test 041 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 041 passed 
-Test 042
+ Test 043 passed 
+Test 044
 Concurrency GEFS, stochastic perturbations, 4 members, T190L28.
 GFS, 64 proc, 1 thread
 
 
 
 
-Checking test 042 results ....
+Checking test 044 results ....
  Comparing SIG.F06_01.........OK
  Comparing SIG.F06_02.........OK
  Comparing SIG.F06_03.........OK
@@ -847,39 +880,42 @@ Checking test 042 results ....
  Comparing FLX.F24_02.........OK
  Comparing FLX.F24_03.........OK
  Comparing FLX.F24_04.........OK
- Test 042 passed 
-Test 043
+ Test 044 passed 
+Test 045
 GEN, 1 members.
 GEN, 16 proc, 1 thread
 
 
 
 
-Checking test 043 results ....
- Test 043 passed 
+Checking test 045 results ....
+ Test 045 passed 
 
 
 
-Test 044
+Test 046
 Concurrency GEN, 4 members.
 GEN, 64 proc, 1 thread
 
 
 
 
-Checking test 044 results ....
- Test 044 passed 
+Checking test 046 results ....
+ Test 046 passed 
 
 
 
-Test 045
+Tue Nov 27 13:42:38 EST 2012
+Compilation only FIM
+Tue Nov 27 14:09:43 EST 2012
+Test 047
 Compare FIM results with previous trunk version, only FIM compiled
 FIM, 40 proc, 1 thread
 
 
 
 
-Checking test 045 results ....
+Checking test 047 results ....
  Comparing fim_out_2D__000000hr.........OK
  Comparing fim_out_2D__000003hr.........OK
  Comparing fim_out_2D__000006hr.........OK
@@ -911,13 +947,15 @@ Checking test 045 results ....
  Comparing fim_out_vp3P000024hr.........OK
  Comparing fim_out_vs3D000024hr.........OK
  Comparing fim_out_ws3D000024hr.........OK
- Test 045 passed 
-Test 046
-
+ Test 047 passed 
+Tue Nov 27 14:15:23 EST 2012
+Compilation with POST
+Tue Nov 27 15:17:55 EST 2012
+Test 048
 NMMB-regional run with post on quilt
 
 
-Checking test 046 results ....
+Checking test 048 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
@@ -927,64 +965,12 @@ Checking test 046 results ....
  Comparing BGDAWP.GrbF48.........OK
  Comparing BGRD3D.GrbF48.........OK
  Comparing BGRDSF.GrbF48.........OK
- Test 046 passed 
-
-
-
-Test 047
-GFS with POST
-GFS, 32 proc, 1 thread
-
-
-
-
-Checking test 047 results ....
- Comparing sigf00.........OK
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sigf48.........OK
- Comparing sfcf00.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing sfcf48.........OK
- Comparing flxf00.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
- Comparing flxf48.........OK
- Comparing GFSPRS.GrbF03.........OK
- Comparing GFSPRS.GrbF06.........OK
- Comparing GFSPRS.GrbF12.........OK
- Comparing GFSPRS.GrbF24.........OK
- Comparing GFSPRS.GrbF48.........OK
- Test 047 passed 
-Sat Nov 17 00:05:36 EST 2012
-Compilation ESMF 5.2.0rp1
-Sat Nov 17 00:39:25 EST 2012
-Test 048
-Compare NMMB-global results with previous trunk version_ESMF_5.2.0rp1
-
-
-Checking test 048 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0048h_00m_00.00s.........OK
- Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
  Test 048 passed 
 
 
 
 Test 049
-Compare GFS results with previous trunk version ESMF5.2.0rp1
+GFS with POST
 GFS, 32 proc, 1 thread
 
 
@@ -1009,15 +995,67 @@ Checking test 049 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
+ Comparing GFSPRS.GrbF03.........OK
+ Comparing GFSPRS.GrbF06.........OK
+ Comparing GFSPRS.GrbF12.........OK
+ Comparing GFSPRS.GrbF24.........OK
+ Comparing GFSPRS.GrbF48.........OK
  Test 049 passed 
+Tue Nov 27 15:48:02 EST 2012
+Compilation ESMF 5.2.0rp1
+Tue Nov 27 16:31:59 EST 2012
 Test 050
+Compare NMMB-global results with previous trunk version_ESMF_5.2.0rp1
+
+
+Checking test 050 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0048h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
+ Test 050 passed 
+
+
+
+Test 051
+Compare GFS results with previous trunk version ESMF5.2.0rp1
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 051 results ....
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 051 passed 
+Test 052
 Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5.2.0rp1
 GFS, 64 proc, 1 thread
 
 
 
 
-Checking test 050 results ....
+Checking test 052 results ....
  Comparing SIG.F06_01.........OK
  Comparing SIG.F06_02.........OK
  Comparing SIG.F06_03.........OK
@@ -1066,48 +1104,48 @@ Checking test 050 results ....
  Comparing FLX.F24_02.........OK
  Comparing FLX.F24_03.........OK
  Comparing FLX.F24_04.........OK
- Test 050 passed 
-Sat Nov 17 00:55:29 EST 2012
+ Test 052 passed 
+Tue Nov 27 17:32:34 EST 2012
 Compilation only NMM
-Test 051
+Test 053
 Compare NMMB-global results with previous trunk version, only NMM compiled
 
 
-Checking test 051 results ....
+Checking test 053 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
  Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
- Test 051 passed 
+ Test 053 passed 
 
 
 
-Sat Nov 17 01:18:21 EST 2012
+Tue Nov 27 18:26:31 EST 2012
 Compilation NMM with TRAPS on
-Sat Nov 17 01:50:17 EST 2012
-Test 052
+Tue Nov 27 19:36:30 EST 2012
+Test 054
 Compare NMMB-global results with previous trunk version, TRAPS on
 
 
-Checking test 052 results ....
+Checking test 054 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Test 052 passed 
+ Test 054 passed 
 
 
 
-Sat Nov 17 01:53:45 EST 2012
+Tue Nov 27 19:43:09 EST 2012
 Compilation only GFS
-Sat Nov 17 02:18:19 EST 2012
-Test 053
+Tue Nov 27 20:05:05 EST 2012
+Test 055
 Compare GFS results with previous trunk version, only GFS compiled
 GFS, 32 proc, 1 thread
 
 
 
 
-Checking test 053 results ....
+Checking test 055 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -1126,8 +1164,8 @@ Checking test 053 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 053 passed 
-Sat Nov 17 02:23:40 EST 2012
+ Test 055 passed 
+Tue Nov 27 20:09:40 EST 2012
 ######  #######  #####  ######  #######  #####   #####    ###   ####### #     #
 #     # #       #     # #     # #       #     # #     #    #    #     # ##    #
 #     # #       #       #     # #       #       #          #    #     # # #   #

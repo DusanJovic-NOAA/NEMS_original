@@ -16,21 +16,23 @@ cat nmm_conf/nmm_${GBRG}_run.IN  | sed s:_JBNME_:${JBNME}:g                  \
                                  | sed s:_SRCD_:${PATHTR}:g                  \
                                  | sed s:_RUND_:${RUNDIR}:g   >  nmm_run
 
-cat nmm_conf/nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g   \
-                                 | sed s:_JNPES_:${JNPES}:g   \
-                                 | sed s:_WTPG_:${WTPG}:g     \
+cat nmm_conf/nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g                  \
+                                 | sed s:_JNPES_:${JNPES}:g                  \
+                                 | sed s:_WTPG_:${WTPG}:g                    \
                                  | sed s:_wrtdopost_:${WRITE_DOPOST}:g       \
                                  | sed s:_postgrbvs_:${POST_GRIBVERSION}:g   \
-                                 | sed s:_FCSTL_:${FCSTL}:g   \
-                                 | sed s:_NEMSI_:${NEMSI}:g   \
-                                 | sed s:_RSTRT_:${RSTRT}:g   \
-                                 | sed s:_gfsP_:${gfsP}:g     \
-                                 | sed s:_CONVC_:${CONVC}:g   \
-                                 | sed s:_MICRO_:${MICRO}:g   \
-                                 | sed s:_TURBL_:${TURBL}:g   \
-                                 | sed s:_PCPFLG_:${PCPFLG}:g \
-                                 | sed s:_WPREC_:${WPREC}:g   \
-                                 | sed s:_NCHILD_:${NCHILD}:g \
+                                 | sed s:_FCSTL_:${FCSTL}:g                  \
+                                 | sed s:_NEMSI_:${NEMSI}:g                  \
+                                 | sed s:_RSTRT_:${RSTRT}:g                  \
+                                 | sed s:_gfsP_:${gfsP}:g                    \
+                                 | sed s:_RADTN_:${RADTN}:g                  \
+                                 | sed s:_CONVC_:${CONVC}:g                  \
+                                 | sed s:_MICRO_:${MICRO}:g                  \
+                                 | sed s:_TURBL_:${TURBL}:g                  \
+                                 | sed s:_VGTAB_:${VGTAB}:g                  \
+                                 | sed s:_PCPFLG_:${PCPFLG}:g                \
+                                 | sed s:_WPREC_:${WPREC}:g                  \
+                                 | sed s:_NCHILD_:${NCHILD}:g                \
                                  | sed s:_MODE_:${MODE}:g >  configure_file_01
 
 if [ $SCHEDULER = 'loadleveler' ]; then
@@ -74,9 +76,36 @@ cat nmm_conf/nmm_bsub.IN         | sed s:_JBNME_:${JBNME}:g   \
 fi
 
 if [ ${GBRG} = nests ]; then
-  cat nmm_conf/nmm_nests_conf_02.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_02
-  cat nmm_conf/nmm_nests_conf_03.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_03
-  cat nmm_conf/nmm_nests_conf_04.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_04
+  cat nmm_conf/nmm_nests_conf_02.IN | sed s:_RSTRT_:${RSTRT}:g                  \
+                                    | sed s:_gfsP_:${gfsP}:g                    \
+                                    | sed s:_RADTN_:${RADTN}:g                  \
+                                    | sed s:_CONVC_:${CONVC}:g                  \
+                                    | sed s:_MICRO_:${MICRO}:g                  \
+                                    | sed s:_TURBL_:${TURBL}:g                  \
+                                    | sed s:_VGTAB_:${VGTAB}:g > configure_file_02
+
+  cat nmm_conf/nmm_nests_conf_03.IN | sed s:_RSTRT_:${RSTRT}:g                  \
+                                    | sed s:_gfsP_:${gfsP}:g                    \
+                                    | sed s:_RADTN_:${RADTN}:g                  \
+                                    | sed s:_CONVC_:${CONVC}:g                  \
+                                    | sed s:_MICRO_:${MICRO}:g                  \
+                                    | sed s:_TURBL_:${TURBL}:g                  \
+                                    | sed s:_VGTAB_:${VGTAB}:g > configure_file_03
+
+  cat nmm_conf/nmm_nests_conf_04.IN | sed s:_RSTRT_:${RSTRT}:g                  \
+                                    | sed s:_gfsP_:${gfsP}:g                    \
+                                    | sed s:_RADTN_:${RADTN}:g                  \
+                                    | sed s:_CONVC_:${CONVC}:g                  \
+                                    | sed s:_MICRO_:${MICRO}:g                  \
+                                    | sed s:_TURBL_:${TURBL}:g                  \
+                                    | sed s:_VGTAB_:${VGTAB}:g > configure_file_04
+
+  if [ ${RADTN} = rrtm -a ${MICRO} = fer_hires ]; then
+    cat nmm_run | sed s:NMMB_nests:NMMB_rrtm_nests:g \
+                | sed s:#cp:cp:g > tmp
+    mv tmp nmm_run
+  fi
+
 fi
 
 if [ ${GBRG} = mnests ]; then

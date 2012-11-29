@@ -15,10 +15,10 @@
 !                                                                      !
 !      'astronomy'  -- get astronomy related quantities                !
 !         input:                                                       !
-!           ( lons_lar,glb_lats_r,sinlat,coslat,xlon,                  !
+!           ( sinlat,coslat,xlon,                                      !
 !!            fhswr,jdate,deltim,                                      !
-!             fhswr,jdate,                                             !
-!             LON2,LATD,LATR,IPT_LATR, lsswr, me)                      !
+!             fhswr,jdate,nrads                                        !
+!             LON2,LATD, lsswr, me)                                    !
 !         output:                                                      !
 !           ( solcon,slag,sdec,cdec,coszen,coszdg)                     !
 !                                                                      !
@@ -36,6 +36,9 @@
 !     feb-15-2006  ---  yu-tai hou      add 11-yr solar constant cycle !
 !     mar-19-2009  ---  yu-tai hou      modified solinit for climate   !
 !                       hindcast situation.                            !
+!     Jul-08-2012  ---  Hsin-mu Lin     modified astronomy_nmmb fix the!
+!                       calculation of the time-averaged mean of the   !
+!                       cosine of the zenith angle                     !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -251,10 +254,10 @@
 !...................................
 
 !  ---  inputs:
-     &     ( lons_lar,glb_lats_r,sinlat,coslat,xlon,                    &
+     &     ( sinlat,coslat,xlon,                                        &
 !    &       fhswr,jdate,deltim,                                        &
      &       fhswr,jdate,nrads,                                         &
-     &       LON2,LATD,LATR,IPT_LATR, lsswr, me,                        &
+     &       LON2,LATD, lsswr, me,                                      &
 !  ---  outputs:
      &       solcon,slag,sdec,cdec,coszen,coszdg                        &
      &      )
@@ -264,16 +267,13 @@
 !  astronomy computes solar parameters at forecast time                 !
 !                                                                       !
 !  inputs:                                                   dimension  !
-!    lons_lar      - num of grid pts on a given lat circle        (LATR)!
-!    glb_lats_r    - index for global latitudes                   (LATR)!
-!    sinlat,coslat - sin and cos of latitude                      (LATR)!
+!    sinlat,coslat - sin and cos of latitude                 (LON2*LATD)!
 !    xlon          - longitude in radians                    (LON2*LATD)!
 !    fhswr         - sw radiation calling interval in hour              !
 !    jdate         - current forecast date and time               (8)   !
 !                    (yr, mon, day, t-zone, hr, min, sec, mil-sec)      !
 !!   deltim        - duration of model integration time step in seconds !
-!    LON2,LATD,LATR- dimensions for longitude/latitude directions       !
-!    IPT_LATR      - latitude index location indecator                  !
+!    LON2,LATD     - dimensions for longitude/latitude directions       !
 !    lsswr         - logical control flag for sw radiation call         !
 !    me            - integer control flag for diagnostic print out      !
 !                                                                       !
@@ -292,12 +292,11 @@
       implicit none
       
 !  ---  input:
-      integer,  intent(in) :: LON2, LATD, LATR, IPT_LATR, nrads, me
-      integer,  intent(in) :: lons_lar(:), glb_lats_r(:), jdate(:)
+      integer,  intent(in) :: LON2, LATD, jdate(:), nrads, me
 
       logical, intent(in) :: lsswr
 
-      real (kind=kind_phys), intent(in) :: sinlat(:), coslat(:),        &
+      real (kind=kind_phys), intent(in) :: sinlat(:,:), coslat(:,:),    &
      &       xlon(:,:), fhswr
 !    &       xlon(:,:), fhswr, deltim
 
@@ -309,7 +308,7 @@
       real (kind=kind_phys), parameter :: f24   = 24.0     ! hours/day
       real (kind=kind_phys), parameter :: f1440 = 1440.0   ! minutes/day
 
-      real (kind=kind_phys) :: solhr, fjd, fjd1, dlt, r1, alp, solc
+      real (kind=kind_phys) :: solhr, fjd, fjd1, dlt, r1, alp, solc, fhr
 
       integer :: jd, jd1, iyear, imon, iday, ihr, imin
       integer :: iw3jdn
@@ -347,7 +346,13 @@
 
 !  --- ...  hour of forecast time
 
-        solhr = mod( float(ihr), f24 )
+        !  solhr = mod( float(ihr), f24 )    ! previous version
+
+        !=== the new calculatuion will eliminate the time lag due to
+        !    "jdate(5)" handled by ESMF  (201208)
+
+        fhr = float(ihr)+float(imin)/60.
+        solhr = mod( fhr, f24 )
 
         call solar                                                      &
 !  ---  inputs:
@@ -360,10 +365,10 @@
 
         call coszmn                                                     &
 !  ---  inputs:
-     &     ( lons_lar,glb_lats_r,xlon,sinlat,coslat,                    &
+     &     ( xlon,sinlat,coslat,                                        &
 !    &       fhswr,deltim,solhr,sdec,cdec,slag,                         &
      &       fhswr,nrads ,solhr,sdec,cdec,slag,                         &
-     &       LON2,LATD,IPT_LATR,                                        &
+     &       LON2,LATD,                                                 &
 !  ---  outputs:
      &       coszen,coszdg                                              &
      &     )
@@ -569,10 +574,10 @@
 !...................................
 
 !  ---  inputs:
-     &     ( lons_lar,glb_lats_r,xlon,sinlat,coslat,                    &
+     &     ( xlon,sinlat,coslat,                                        &
 !    &       dtswav,deltim,solhr,sdec,cdec,slag,                        &
      &       dtswav,nrads ,solhr,sdec,cdec,slag,                        &
-     &       NLON2,LATD,IPT_LATR,                                       &
+     &       NLON2,LATD,                                                &
 !  ---  outputs:
      &       coszen,coszdg                                              &
      &     )
@@ -582,8 +587,6 @@
 !  coszmn computes mean cos solar zenith angle over 'dtswav' hours.     !
 !                                                                       !
 !  inputs:                                                              !
-!    lons_lar      - num of grid pts on a given lat circle              !
-!    glb_lats_r    - index for global latitude                          !
 !    xlon          - longitude in radians                               !
 !    sinlat,coslat - sin and cos of latitude                            !
 !    dtswav        - sw radiation calling interval in hour              !
@@ -592,7 +595,6 @@
 !    sdec, cdec    - sin and cos of the solar declination angle         !
 !    slag          - equation of time                                   !
 !    NLON2,LATD    - dimensions for longitude/latitude directions       !
-!    IPT_LATR      - latitude index location indecator                  !
 !                                                                       !
 !  outputs:                                                             !
 !    coszen        - average of cosz for daytime only in sw call interval
@@ -610,10 +612,9 @@
       implicit none
 
 !  ---  inputs:
-      integer, intent(in) :: NLON2, LATD, IPT_LATR, nrads
-      integer, intent(in) :: lons_lar(:), glb_lats_r(:)
+      integer, intent(in) :: NLON2, LATD, nrads
 
-      real (kind=kind_phys), intent(in) :: sinlat(:), coslat(:),        &
+      real (kind=kind_phys), intent(in) :: sinlat(:,:), coslat(:,:),    &
      &       xlon(:,:), dtswav, solhr, sdec, cdec, slag
 !    &       xlon(:,:), dtswav, deltim, solhr, sdec, cdec, slag
 
@@ -621,60 +622,40 @@
       real (kind=kind_phys), intent(out) :: coszen(:,:), coszdg(:,:)
 
 !  ---  locals:
-      real (kind=kind_phys) :: coszn(NLON2), pid12, cns, ss, cc, rnstp, &
-     &       ristp
+      real (kind=kind_phys) :: coszn, pid12, cns, ss, cc, rnstp, sol12
 
-      integer :: istsun(NLON2), nstp, istp, nlon, nlnsp, i, it, j, lat
+      integer :: istsun(NLON2), nn, i, it, j, lat
 
 !===>  ...  begin here
 
-      nlon = NLON2 / 2
-
-!     nstp = 6                               ! number of cosz calc per fcst hour
-!!     nstp = max(6, min(10, nint(3600.0/deltim) ))  ! for better time step sync
-
-!     istp = nint( dtswav*nstp )             ! total num of calc in dtswav interval
-
-      !!!=============== This is a crude test =================================
-
-      nstp = nrads
-      istp = nstp
-
-      rnstp = 1./float(nstp)
-      ristp = 1./float(istp)
-
-      !!!=============== end of crude test =================================
-
-!     pid12 = con_pi / 12.0                  ! angle per hour
+      rnstp = dtswav/float(nrads)
       pid12 = (2.0 * asin(1.0)) / 12.0
+      sol12 = solhr - 12.0
 
       do j = 1, LATD
-        lat   = glb_lats_r(IPT_LATR-1+j)
-        nlnsp = lons_lar(lat)
 
         do i = 1, NLON2
           coszen(i,j) = 0.0
+          coszdg(i,j) = 0.0
           istsun(i) = 0
         enddo
 
-        do it = 1, istp
-          cns = pid12 * (solhr - 12.0 + float(it-1)*rnstp) + slag
-        !  cns = pid12 * (solhr - 12.0 + float(it-1)/float(nstp)) + slag
-          ss  = sinlat(lat) * sdec
-          cc  = coslat(lat) * cdec
+        do it = 1, nrads
+          cns = pid12 * (sol12 + float(it-1)*rnstp) + slag
 
-          do i = 1, nlnsp
-            coszn(i) = ss + cc * cos(cns + xlon(i,j))
-            coszen(i,j) = coszen(i,j) + max(0.0, coszn(i))
-            if (coszn(i) > 0.0001) istsun(i) = istsun(i) + 1
+          do i = 1, NLON2
+            ss  = sinlat(i,j) * sdec
+            cc  = coslat(i,j) * cdec
+            coszn = ss + cc * cos(cns + xlon(i,j))
+            coszen(i,j) = coszen(i,j) + max(0.0, coszn)
+            if (coszn > 0.0001) istsun(i) = istsun(i) + 1
           enddo
         enddo
 
 !  --- ...  compute time averages
 
         do i = 1, NLON2
-          coszdg(i,j) = coszen(i,j)*ristp
-        !  coszdg(i,j) = coszen(i,j) / float(istp)
+          coszdg(i,j) = coszen(i,j)*rnstp
           if (istsun(i) > 0) coszen(i,j) = coszen(i,j) / istsun(i)
         enddo
       enddo

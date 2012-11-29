@@ -3007,6 +3007,8 @@
      &           rho, cpath, rc, totcnd, tc
 
       integer :: i, k, indexs, ksfc, k1
+
+      logical,save :: first=.true.
 !
 !===>  ...  begin here
 !
@@ -3212,6 +3214,11 @@
 
             endif                                 ! end if_qcice block
           endif                                   ! end if_totcnd block
+
+      if (first) then
+         write(0,*) 'Max of MASSI,SDENS=',maxval(MASSI),maxval(SDENS)
+         first=.false.
+      endif
 
         enddo
       enddo
