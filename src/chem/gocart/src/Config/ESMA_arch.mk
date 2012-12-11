@@ -25,6 +25,10 @@
 #                      added detection of intelmpi. Slowly, moving towards
 #                      use of mpif90. Added F2PY customization.
 # 22Jun2009  Stassi    Use mklpath.pl script to get Intel MKLPATH
+# 27Nov2012  Lu        Add zeus interface
+# 04Dec2012  Lu        Remove un-used flags and options
+# 06Dec2012  Lu        Add wcoss interface
+#
 #
 #--------------------------------------------------------------------------
 
@@ -177,9 +181,6 @@ ifeq ($(ARCH),AIX)
      FDEFS += $(D)MAPL_IMPORT_HAS_PRECISION $(D)MAPL_EXPORT_HAS_PRECISION
      FPPFLAGS += -W/dev/null
      ACG_FLAGS += -P # enforce native precision in specs
-     USER_FMODS_GMAO_Shared_GMAO_gfio_ccs = $(foreach dir,$(MOD_DIRS),$(M)$(dir))
-     FFLAGS_GMAO_Shared_GMAO_gfio_ccs = $(LD) $(LDFLAGS) -o GFIO_mean_$(RN).x GFIO_mean.o $(LIB) $(LIB_SDF) $(LIB_SYS)
-     FFLAGS_GMAO_Shared_GMAO_gfio_zeus =
   endif
 
   ifeq ($(SITE),ncep_stratus)
@@ -199,9 +200,6 @@ ifeq ($(ARCH),AIX)
      FDEFS += $(D)MAPL_IMPORT_HAS_PRECISION $(D)MAPL_EXPORT_HAS_PRECISION
      FPPFLAGS += -W/dev/null
      ACG_FLAGS += -P # enforce native precision in specs
-     USER_FMODS_GMAO_Shared_GMAO_gfio_ccs = $(foreach dir,$(MOD_DIRS),$(M)$(dir))
-     FFLAGS_GMAO_Shared_GMAO_gfio_ccs = $(LD) $(LDFLAGS) -o GFIO_mean_$(RN).x GFIO_mean.o $(LIB) $(LIB_SDF) $(LIB_SYS)
-     FFLAGS_GMAO_Shared_GMAO_gfio_zeus =
   endif
 
 endif  #  AIX
@@ -281,10 +279,7 @@ ifeq ($(ARCH),Linux)
 # Linux default compilers
 # -----------------------
   ifndef ESMA_FC
-    DIR_NETCDF =/apps/netcdf/3.6.3/intel
-    LIB_NETCDF = $(DIR_NETCDF)/lib
-    EXTENDED_SOURCE = -extend_source
-    FC := ifort -lmpi ${EXTENDED_SOURCE} -L${LIB_NETCDF} -lnetcdf
+     FC := ifort
   endif
   CC  = cc
   CXX = c++
@@ -303,7 +298,8 @@ ifeq ($(ARCH),Linux)
   SITE := $(patsubst cfe1,nas,$(SITE))
   SITE := $(patsubst cfe2,nas,$(SITE))
   SITE := $(patsubst palm,nccs,$(SITE))
-  SITE := $(patsubst fe*,zeus,$(SITE))
+  SITE := $(patsubst fe%,zeus,$(SITE))
+  SITE := $(patsubst t%,wcoss,$(SITE))
 echo SITE= ${SITE}
 
 #
@@ -312,10 +308,6 @@ echo SITE= ${SITE}
 
 # NSIPP specific
 # --------------
-  ifeq ($(SITE),zeus)
-     INC_CFIO = $(ESMAINC)/MAPL_cfio_r8
-     INC_GFIO = $(ESMAINC)/GMAO_gfio_r8
-  endif
   ifeq ($(SITE),nsipp)
     ifndef BASEDIR
        BASEDIR = /home/trayanov/baselibs/latest
@@ -431,7 +423,7 @@ echo SITE= ${SITE}
        endif
     endif
 
-#    LIB_ESMF = $(BASELIB)/libesmf.a
+    LIB_ESMF = $(BASELIB)/libesmf.a
 
     CC  = gcc
     CXX = g++
@@ -654,10 +646,40 @@ echo SITE= ${SITE}
 ##    CXX             = $(TAU_COMPILER) $(OPTS) $(TAU_CXX)
   endif
 
-FFLAGS_GMAO_Shared_GMAO_gfio_zeus = $(LD) GFIO_mean.o $(LIB_SYS) $(LIB) -lnetcdf $(LDFLAGS) -o GFIO_mean_$(RN).x
-FFLAGS_GMAO_Shared_GMAO_gfio_ccs =
+  ifeq (${SITE},zeus)
+     DIR_NETCDF = /apps/netcdf/3.6.3/intel
+     DIR_ESMF   =  /apps/esmf/3.1.0rp5
+     BASEDIR    = /usr/local# not really used
+     DEF_SDF =
+     ESMA_SDF = netcdf
+     INC_NETCDF = $(DIR_NETCDF)/include
+     LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdf.a
+     INC_SDF = $(INC_NETCDF)
+     LIB_SDF = $(LIB_NETCDF)
+     INC_ESMF = $(DIR_ESMF)/src/include $(DIR_ESMF)/mod/modO/Linux.intel.64.mpi.default/
+     LIB_ESMF  = $(DIR_ESMF)/lib/libO/Linux.intel.64.mpi.default/libesmf.a
+     INC_MPI =  /opt/sgi/mpt/mpt-2.05/include
+     LIB_MPI = -lmpi
+  endif
 
-USER_FMODS_GMAO_Shared_GMAO_gfio_ccs = 
+  ifeq ($(SITE),wcoss)
+     include /usrx/local/esmf-3.1.0rp5/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
+     DIR_NETCDF = /usrx/local/netcdf-3.6.3
+     DIR_ESMF = /usrx/local/esmf-3.1.0rp5
+     DEF_SDF =
+     ESMA_SDF = netcdf
+     INC_NETCDF = $(DIR_NETCDF)/include
+     LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdff.a $(DIR_NETCDF)/lib/libnetcdf.a
+     INC_SDF = $(INC_NETCDF)
+     LIB_SDF = $(LIB_NETCDF)
+     INC_ESMF = $(DIR_ESMF)/include $(DIR_ESMF)/mod/modO/Linux.intel.64.intelmpi.default/
+     LIB_ESMF  = $(DIR_ESMF)/lib/libO/Linux.intel.64.intelmpi.default/libesmf.a
+     INC_MPI = /usrx/local/intel/impi/4.0.3.008/include
+     EXTENDED_SOURCE = -extend_source
+     FC := mpiifort ${EXTENDED_SOURCE}
+  endif
+
+
 endif  #    Linux
 
 #                               -----------------

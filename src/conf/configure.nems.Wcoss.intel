@@ -7,7 +7,8 @@ ESMF_LIB    = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 gfs=gsm
 gfsdir=atmos/$(gfs)
 
-NETCDF_LIB  = /usrx/local/netcdf-4.2.1.1/lib/libnetcdf.a
+##NETCDF_LIB  = /usrx/local/netcdf-4.2.1.1/lib/libnetcdf.a
+NETCDF_LIB  = /usrx/local/netcdf-3.6.3/lib/libnetcdff.a  /usrx/local/netcdf-3.6.3/lib/libnetcdf.a
 
 NEMSIO_INC  = -I/nwprod/lib/incmod/nemsio
 NEMSIO_LIB  = -L/nwprod/lib -lnemsio
@@ -17,6 +18,20 @@ BACIO_LIB   = -L/nwprod/lib -lbacio_4
 SP_LIB      = -L/nwprod/lib -lsp_4
 SYS_LIB     =
 
+POSTDIR     = /global/save/Hui-Ya.Chuang/lib
+POSTMOD     = ${POSTDIR}/incmod/post_4
+POST_INC    = -I${POSTDIR}/incmod/post_4
+POST_LIB    = -L${POSTDIR} -lnceppost
+W3_POST_LIB = -L/nwprod/lib -lw3nco_4 -lw3emc_4
+CRTM_LIB    = -L/nwprod/lib -lcrtm_v2.0.6
+G2_LIB      = -L/nwprod/lib -lg2tmpl -lg2_4 -ljasper -lpng -lz
+XML_LIB     = -L/nwprod/lib -lxmlparse
+SIGIO_LIB   =  /global/save/Hui-Ya.Chuang/lib/libsigio_big_4.a	  
+SFCIO_LIB   = /nwprod/lib/libsfcio_4.a
+
+##FC          = mpiifort -g -traceback
+
+
 EXTLIBS     = $(NEMSIO_LIB) \
               $(W3_LIB) \
               $(BACIO_LIB) \
@@ -25,7 +40,23 @@ EXTLIBS     = $(NEMSIO_LIB) \
               $(NETCDF_LIB) \
               $(SYS_LIB)
 
-FC          = mpiifort -g -traceback
+
+EXTLIBS_POST = $(NEMSIO_LIB) \
+               $(W3_POST_LIB) \
+               $(XML_LIB) \
+               $(POST_LIB) \
+               $(G2_LIB) \
+               $(BACIO_LIB) \
+               $(SIGIO_LIB) \
+               $(SFCIO_LIB) \
+               $(SP_LIB) \
+               $(CRTM_LIB) \
+               $(ESMF_LIB) \
+               $(NETCDF_LIB) \
+               $(SYS_LIB)
+
+##FC          = mpiifort -g -traceback
+FC          = mpiifort -g -traceback -openmp  -mkl=sequential
 FREE        = -free
 FIXED       = -fixed
 R8          = -r8

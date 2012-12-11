@@ -11,6 +11,7 @@ set -xa
 # 02Feb2012 J. Wang     Add forecast run with grb2 post                  #
 # 29Mar2012 Sarah Lu    Add ngac_para_config                             #
 # 15Jun2012 Sarah Lu    Streamline the code to comply the NCO guideline  #
+# 05Dec2012 Sarah Lu    Correct typo FCST_SCRIP                          #
 ##########################################################################
 
 #
@@ -245,7 +246,7 @@ fi
 msg="Submit NGAC Fcst Job"
 postmsg "$jlogfile" "$msg"
 export FCST_SCRIPT_DIR=${FCST_SCRIPT_DIR:-$SCRIPTDIR}
-export FCST_SCRIP=${FCST_SCRIPT:-$FCST_SCRIPT_DIR/exngac_fcst.sh.sms}
+export FCST_SCRIPT=${FCST_SCRIPT:-$FCST_SCRIPT_DIR/exngac_fcst.sh.sms}
 $FCST_SCRIPT
 
 ##### --------- fcst job ends here --------------------------------

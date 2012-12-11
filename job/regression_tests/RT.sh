@@ -401,7 +401,8 @@ elif [ ${MACHINE_ID} = wcoss ]; then
 
   ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
-  gmake nmm                              >> ${COMPILE_LOG} 2>&1
+# gmake nmm                              >> ${COMPILE_LOG} 2>&1
+  gmake nmm_gfs_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
 
 elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then 
 
@@ -589,6 +590,7 @@ fi # endif test
 #
 ####################################################################################################
 
+if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = zeus ]; then
 if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test NMMB-global threading "
@@ -612,6 +614,7 @@ export INPES=$INPES_thrd ; export JNPES=$JNPES_thrd ; export WTPG=$WTPG_thrd
 #---------------------
 
 fi # endif test
+fi # endif ccs/zeus
 
 ####################################################################################################
 #
@@ -799,6 +802,7 @@ fi # endif test
 #
 ####################################################################################################
 
+if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = zeus ]; then
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test NMMB-regional threading "
@@ -822,6 +826,7 @@ export INPES=$INPES_thrd ; export JNPES=$JNPES_thrd ; export WTPG=$WTPG_thrd
 #---------------------
 
 fi # endif test
+fi # endif ccs/zeus
 
 ####################################################################################################
 #
@@ -1060,6 +1065,7 @@ export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
 
 fi # endif test
 
+
 ####################################################################################################
 #
 # TEST   - NMM-B using RRTM radiation (restart static nests)
@@ -1095,6 +1101,7 @@ export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
 #---------------------
 
 fi # endif test
+
 
 ####################################################################################################
 #
@@ -2098,7 +2105,7 @@ fi # endif machine (only CCS)
 #
 #################################################################################################
 
-if [  1 = 0 ]; then # skip non working test
+if [ ${MACHINE_ID} = ccs ]; then
 if [ ${RT_FULL} = true -o ${CB_arg} = post -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="GFS_GOCART with POST"
@@ -2125,7 +2132,7 @@ export WLCLK=10
 #---------------------
 
 fi # endif test
-fi # skip non working test
+fi # endif machine (only CCS)
 
 #########################################################################
 # Clean and compile both NMMB & GFS cores, using ESMF 5.2.0rp1 library.

@@ -50,6 +50,8 @@
 # 2012-02-20  Jun Wang: add POST_NCEPGRB2TBL for post
 # 2012-03-15  Sarah Lu: modify how POST_GRIBVERSION is specified
 # 2012-05-12  Sarah Lu: modify how LATG is specified
+# 2012-09-24  Sarah Lu: add SCHEDULER dependence
+# 2012-12-05  Sarah Lu: add lsf SCHEDULER as the place holder
 #
 # Usage:  global_forecast.sh GRDI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO NSTI NSTO G3DO FHOUT_HF FHMAX_HF
 #
@@ -388,11 +390,39 @@
 ####
 ################################################################################
 #  Set environment.
-export MP_I_BINDPROC=${MP_I_BINDPROC:-yes}
-export MEMORY_AFFINIY=${MEMORY_AFFINIY:-MCM}
-export MP_SYNC_QP=${MP_SYNC_QP:-yes}
-export MP_SHARED_MEMORY=${MP_SHARED_MEMORY:-"NO"}
-export MP_COREFILE_FORMAT=${MP_COREFILE_FORMAT:-"lite"}
+if [ $SCHEDULER = 'loadleveler' ]; then
+  export MP_BINDPROC=${MP_BINDPROC:-yes}
+  export MEMORY_AFFINIY=${MEMORY_AFFINIY:-MCM}
+  export MP_SYNC_QP=${MP_SYNC_QP:-yes}
+  export MP_SHARED_MEMORY=${MP_SHARED_MEMORY:-"NO"}
+  export MP_COREFILE_FORMAT=${MP_COREFILE_FORMAT:-"lite"}
+elif [ $SCHEDULER = 'pbs' ]; then
+  export MPI_BUFS_PER_PROC=256
+  export MPI_BUFS_PER_HOST=256
+elif [ $SCHEDULER = 'moab' ]; then
+  export MPICH_FAST_MEMCPY=${MPICH_FAST_MEMCPY:-"ENABLE"}
+  export MPICH_MAX_SHORT_MSG_SIZE=${MPICH_MAX_SHORT_MSG_SIZE:-4096}
+  export MPICH_UNEX_BUFFER_SIZE=${MPICH_UNEX_BUFFER_SIZE:-1024000000}
+  export MPICH_PTL_UNEX_EVENTS=${MPICH_PTL_UNEX_EVENTS:-400000}
+  export MPICH_PTL_OTHER_EVENTS=${MPICH_PTL_OTHER_EVENTS:-100000}
+  export MPMD_PROC=${MPMD_PROC:-NO}
+elif [ $SCHEDULER = 'lsf' ]; then
+  export MP_EUIDEVICE=sn_all
+#  export MP_EUILIB=us
+#  export MP_TASK_AFFINITY=cpu
+  export MP_EUIDEVELOP=min
+  export KMP_STACKSIZE=1024m
+  export F_UFMTENDIAN=big
+  export NLSPATH=/usr/share/locale/en_US/%N
+  export MPICH_ALLTOALL_THROTTLE=0
+  export MP_SINGLE_THREAD=yes
+  export MP_EAGER_LIMIT=65536 
+  export MP_USE_BULK_XFER=yes
+  export MP_COLLECTIVE_OFFLOAD=yes
+  export MP_SHARED_MEMORY=no
+#  export MP_MPILIB=mpich2
+fi
+
 
 export VERBOSE=${VERBOSE:-"NO"}
 if [[ "$VERBOSE" = "YES" ]]
@@ -440,7 +470,17 @@ if [ $ENS_SPS = .false. ] ; then export FH_INC=$FHMAX ; fi
 export HOMEDIR=${HOMEDIR:-/nwprod}
 export NWPROD=${NWPROD:-$HOMEDIR}
 export FIXSUBDA=${FIXSUBDA:-fix}
-export FIXGLOBAL=${FIXGLOBAL:-$NWPROD/$FIXSUBDA}
+#  export FIXGLOBAL=${FIXGLOBAL:-$NWPROD/$FIXSUBDA}
+export FIXGLOBAL=
+if [ $SCHEDULER = 'loadleveler' ]; then
+   export FIXGLOBAL=${FIXGLOBAL:-/nwprod/fix}
+elif [ $SCHEDULER = 'moab' ]; then
+   export FIXGLOBAL=${FIXGLOBAL}
+elif [ $SCHEDULER = 'pbs' ]; then
+   export FIXGLOBAL=${FIXGLOBAL:-/scratch2/portfolios/NCEPDEV/rstprod/nwprod/fix}
+elif [ $SCHEDULER = 'lsf' ]; then
+   export FIXGLOBAL=${FIXGLOBAL:-/nwprod/fix}
+fi
 export FIX_RAD=${FIX_RAD:-$FIXGLOBAL}
 export EXECGLOBAL=${EXECGLOBAL:-$NWPROD/exec}
 export DATA=${DATA:-$(pwd)}
@@ -451,7 +491,20 @@ MN=${MN:-""}
 export XC=${XC}
 export SUFOUT=${SUFOUT}
 export SIGI=${SIGI:-$GRDI}
-export SIGHDR=${SIGHDR:-${EXECGLOBAL}/nemsio_get$XC}
+##export SIGHDR=${SIGHDR:-${EXECGLOBAL}/nemsio_get$XC}
+if [ $NEMSIO_IN = .true. ]; then
+  if [ $SCHEDULER = 'loadleveler' ]; then
+    export SIGHDR=${SIGHDR:-/climate/save/wx20wa/gfsio/nems/nemsio_get}
+  elif [ $SCHEDULER = 'moab' ]; then
+    export SIGHDR=${SIGHDR}
+  elif [ $SCHEDULER = 'pbs' ]; then
+    export SIGHDR=${SIGHDR:-/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get}
+  elif [ $SCHEDULER = 'lsf' ]; then
+    export SIGHDR=${SIGHDR:-/nems/save/Jun.Wang/util/nemsio_get}
+  fi
+else
+  export SIGHDR=${SIGHDR:-${EXECGLOBAL}/global_sighdr$XC}
+fi
 export JCAP=${JCAP:-$($SIGHDR ${GRDI}$FM jcap |grep -i "jcap" |awk -F"= " '{print $2}')}
 export JCAPG=${JCAPG:-$($SIGHDR ${GRDI}$FM jcap|grep -i "jcap" |awk -F"= " '{print $2}')}
 export LEVS=${LEVS:-$($SIGHDR ${GRDI}$FM levs|grep -i "levs" |awk -F"= " '{print $2}')}
@@ -478,7 +531,8 @@ export LDFIFLTO=${LDFIFLTO:-.false.}
 export QUILTING=${QUILTING:-.true.}
 export REDUCED_GRID=${REDUCED_GRID:-.true.}
 export SPECTRAL_LOOP=${SPECTRAL_LOOP:-2}                 
-export nemsioget=${nemsioget:-${EXECGLOBAL}/nemsio_get}  
+##export nemsioget=${nemsioget:-${EXECGLOBAL}/nemsio_get}  
+export nemsioget=${nemsioget:-${SIGHDR}}
 export PASSIVE_TRACER=${PASSIVE_TRACER:-.false.}
 export NST_FCST=${NST_FCST:-0}
 export GOCART=${GOCART:-0}
@@ -668,13 +722,19 @@ export FILESTYLE=${FILESTYLE:-'L'}
 export PGMOUT=${PGMOUT:-${pgmout:-'&1'}}
 export PGMERR=${PGMERR:-${pgmerr:-'&2'}}
 export MEMBER_NAMES=${MEMBER_NAMES:-''}
-export BIND_TASKS=${BIND_TASKS:-no}
-typeset -L1 l=$PGMOUT
-[[ $l = '&' ]]&&a=''||a='>'
-export REDOUT=${REDOUT:-'1>'$a}
-typeset -L1 l=$PGMERR
-[[ $l = '&' ]]&&a=''||a='>'
-export REDERR=${REDERR:-'2>'$a}
+
+if [ $SCHEDULER = 'loadleveler' ]; then
+  export BIND_TASKS=${BIND_TASKS:-no}
+  typeset -L1 l=$PGMOUT
+  [[ $l = '&' ]]&&a=''||a='>'
+  export REDOUT=${REDOUT:-'1>'$a}
+  typeset -L1 l=$PGMERR
+  [[ $l = '&' ]]&&a=''||a='>'
+  export REDERR=${REDERR:-'2>'$a}
+else
+  export REDOUT=${REDOUT:-'1>'}
+  export REDERR=${REDERR:-'2>'}
+fi
 ################################################################################
 #  Preprocessing
 $INISCRIPT
@@ -949,7 +1009,17 @@ while [ $c -le $ENS_NUM ] ; do
  c=$((c+1))
 done
 
-export wgrib=${wgrib:-/nwprod/util/exec/wgrib}
+##export wgrib=${wgrib:-/nwprod/util/exec/wgrib}
+if [ $SCHEDULER = 'loadleveler' ]; then
+   export wgrib=${wgrib:-/nwprod/util/exec/wgrib}
+elif [ $SCHEDULER = 'moab' ]; then
+   export wgrib=${wgrib:-/nwprod/util/exec/wgrib}
+elif [ $SCHEDULER = 'pbs' ]; then
+   export wgrib=${wgrib:-/home/George.Vandenberghe/nwprod/util/exec/wgrib}
+elif [ $SCHEDULER = 'lsf' ]; then
+   export wgrib=${wgrib:-/nwprod/util/exec/wgrib}
+fi
+
 if [ $FHINI -eq 0 ]; then
   if [[ $ENS_NUM -le 1 ]] ; then
      CDATE=$($wgrib -4yr $GRDI | grep -i hgt |awk -F: '{print $3}' |awk -F= '{print $2}')
@@ -1354,8 +1424,17 @@ EOF
 
 ln -sf atm_namelist.rc ./model_configure
 
-eval $PGM $REDOUT$PGMOUT $REDERR$PGMERR
+##eval $PGM $REDOUT$PGMOUT $REDERR$PGMERR
 #eval hpmcount -o gfs_test $PGM $REDOUT$PGMOUT $REDERR$PGMERR
+if [ $SCHEDULER = 'loadleveler' ]; then
+   eval $PGM $REDOUT$PGMOUT $REDERR$PGMERR
+elif [ $SCHEDULER = 'moab' ]; then
+   aprun -n $TASKSIZE $PGM
+elif [ $SCHEDULER = 'pbs' ]; then
+   mpiexec_mpt -np $TASKSIZE $PGM
+elif [ $SCHEDULER = 'lsf' ]; then
+  echo " WCOSS option, work in progress"
+fi
 
 export ERR=$?
 export err=$ERR

@@ -25,8 +25,8 @@ EXTLIBS      = $(NEMSIO_LIB) \
                $(NETCDF_LIB) \
                $(SYS_LIB)
 
-FC           = ifort -lmpi -openmp -convert big_endian -assume byterecl -mkl
-F77          = ifort -lmpi -openmp -convert big_endian -assume byterecl -mkl
+FC           = ifort -lmpi -openmp -convert big_endian -assume byterecl -mkl=sequential
+F77          = ifort -lmpi -openmp -convert big_endian -assume byterecl -mkl=sequential
 FREE         = -free
 FIXED        = -fixed
 R8           = -r8

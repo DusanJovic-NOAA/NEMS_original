@@ -11,6 +11,7 @@
 # 26apr2005  da Silva  MADE BOPT=O the default
 # 08Jun2006  Stassi    Added Check Environment section
 # 26Jun2006  da SIlva  Removed Assert.pl related staff; see Assert.mk instead
+# 27Nov2012  Lu        Revert zeus-related code changes
 #
 #--------------------------------------------------------------------------
 
@@ -29,9 +30,6 @@ endif
 ifndef SITE             # Site name, e.g., halem3
   SITE := $(shell uname -n)
 endif
-  ifeq ($(ARCH),Linux)
-      SITE := $(patsubst fe%,zeus,$(SITE))
-  endif
 ifndef NODE             # same as SITE name, except sometimes SITE comes predefined
   NODE := $(shell uname -n)
 endif
@@ -140,10 +138,10 @@ LIB_HDF = $(wildcard $(foreach lib,mfhdf df hdfjpeg jpeg hdfz z sz,\
 
 ifeq ($(ESMA_SDF),hdf)
    INC_SDF = $(INC_HDF)
-#   LIB_SDF = 
+   LIB_SDF = $(LIB_HDF)
 else
    INC_SDF = $(INC_NETCDF)
-#   LIB_SDF = $(LIB_NETCDF)
+   LIB_SDF = $(LIB_NETCDF)
    ifneq ($(wildcard $(INC_SDF)/netcdf.inc), )
      ifneq ($(shell grep -c netcdf4 $(INC_SDF)/netcdf.inc),0)
         DEF_SDF += $(D)HAS_NETCDF4
@@ -165,26 +163,6 @@ LIB_ESMF = $(DIR_ESMF)/$(ARCH)/lib/libesmf.a
 
 INC_MPI = /usr/include
 LIB_MPI = -lmpi
-
-  ifeq (${SITE},zeus)
-    DIR_NETCDF =/apps/netcdf/3.6.3/intel
-    ESMA_SDF = netcdf
-    INC_NETCDF = $(DIR_NETCDF)/include
-    LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdf.a
-    INC_SDF = $(INC_NETCDF)
-        ESMF_F90COMPILEPATHS=/home/Ratko.Vasic/lib_tmp/esmf/mod/modg/Linux.intel.64.mpi.default /home/Ratko.Vasic/lib_tmp/esmf/include
-        ESMF_F90COMPILEPATHS_ESMF=/home/Ratko.Vasic/lib_tmp/esmf/mod/modg/Linux.intel.64.mpi.default
-        ESMF_F90LINKPATHS=-L/home/Ratko.Vasic/lib_tmp/esmf/lib/libg/Linux.intel.64.mpi.default -L/apps/intel/composerxe-2011.4.191/mkl/lib/intel64 -L/opt/sgi/mpt/mpt-2.05/lib -L/apps/intel/composerxe-2011.4.191/composerxe-2011.4.191/compiler/lib/intel64 -L/usr/lib/gcc/x86_64-redhat-linux/4.4.4 -L/usr/lib/gcc/x86_64-redhat-linux/4.4.4/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/apps/intel/composerxe-2011.4.191/mkl/lib/intel64 -L/opt/sgi/mpt/mpt-2.05/lib -L/usr/lib/gcc/x86_64-redhat-linux/4.4.4/../../.. -L/lib64 -L/lib -L/usr/lib64 -L/usr/lib
-        ESMF_F90LINKPATHS_ESMF=/home/Ratko.Vasic/lib_tmp/esmf/lib/libg/Linux.intel.64.mpi.default
-        ESMF_F90ESMFLINKLIBS=-lesmf  -lmpi -lmpi++ -limf -lsvml -lm -lipgo -ldecimal -lcilkrts -lstdc++ -lgcc_s -lgcc -lirc -lpthread -lgcc_s -lgcc -lirc_s -ldl -lrt -ldl
-        INC_ESMF_1    = $(ESMF_F90COMPILEPATHS_ESMF)
-        INC_ESMF    = $(ESMF_F90COMPILEPATHS)
-        INC_MPI = /opt/sgi/mpt/mpt-2.05/include
-        LIB_MPI = -lmpi
-        MOD_ESMF = $(ESMF_F90COMPILEPATHS)
-        LIB_ESMF_1   = $(ESMF_F90LINKPATHS_ESMF)
-        LIB_ESMF   = $(ESMF_F90LINKPATHS)
-    endif
 
 DIR_THIS := $(shell basename `pwd`)
 INC_THIS = $(ESMAINC)/$(DIR_THIS)

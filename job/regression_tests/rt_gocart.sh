@@ -7,14 +7,24 @@ mkdir -p ${RUNDIR}
 
 export NEMSDIR=${PATHTR}
 export WORKDIR=${RUNDIR}
-export REGSDIR=${RTPWD}/GFS_GOCART_POST
-export PARA_CONFIG=${REGSDIR}/ngac_para_config
+
+if [ $SCHEDULER = 'loadleveler' ]; then
+ export REGSDIR=${RTPWD}/GFS_GOCART_POST
+elif [ $SCHEDULER = 'pbs' ]; then
+ export REGSDIR=/scratch2/portfolios/NCEPDEV/global/save/Sarah.Lu/NEMS/GFS_GOCART_POST
+elif [ $SCHEDULER = 'lsf' ]; then
+ export REGSDIR=/global/save/Sarah.Lu/NEMS/GFS_GOCART_POST
+fi
+export PARA_CONFIG=${NEMSDIR}/job/regression_tests/ngac_para_config
+
 
 ####################################################################################################
 # Submit test
 ####################################################################################################
 
 JBNME=RT_${TEST_NR}_$$
+
+if [ $SCHEDULER = 'loadleveler' ]; then
 
 cat ngac_ll.IN      | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_CLASS_:${CLASS}:g   \
@@ -27,14 +37,72 @@ cat ngac_ll.IN      | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_ACCNR_:${ACCNR}:g   \
                     | sed s:_WLCLK_:${WLCLK}:g   \
                     | sed s:_TASKS_:${TASKS}:g   \
-                    | sed s:_THRDS_:${THRD}:g    >  ngac_ll
+                    | sed s:_THRDS_:${THRD}:g    \
+                    | sed s:_SCHED_:${SCHEDULER}:g   > ngac_ll
 
-llsubmit ngac_ll 2>&1 | grep submitted > /dev/null
+
+elif [ $SCHEDULER = 'moab' ]; then
+
+cat ngac_msub.IN    | sed s:_JBNME_:${JBNME}:g   \
+                    | sed s:_WLCLK_:${WLCLK}:g   \
+                    | sed s:_TPN_:${TPN}:g       \
+                    | sed s:_THRD_:${THRD}:g     >  ngac_msub
+
+elif [ $SCHEDULER = 'pbs' ]; then
+
+cat ngac_qsub.IN    | sed s:_JBNME_:${JBNME}:g   \
+                    | sed s:_NEMSDIR_:${NEMSDIR}:g   \
+                    | sed s:_WORKDIR_:${WORKDIR}:g   \
+                    | sed s:_REGSDIR_:${REGSDIR}:g   \
+                    | sed s:_CONFIG_:${PARA_CONFIG}:g   \
+                    | sed s:_ACCNR_:${ACCNR}:g   \
+                    | sed s:_WLCLK_:${WLCLK}:g   \
+                    | sed s:_TASKS_:${TASKS}:g   \
+                    | sed s:_THRDS_:${THRD}:g    \
+                    | sed s:_RUND_:${RUNDIR}:g   \
+                    | sed s:_SCHED_:${SCHEDULER}:g   > ngac_qsub
+
+elif [ $SCHEDULER = 'lsf' ]; then
+
+cat ngac_bsub.IN    | sed s:_JBNME_:${JBNME}:g   \
+                    | sed s:_NEMSDIR_:${NEMSDIR}:g   \
+                    | sed s:_WORKDIR_:${WORKDIR}:g   \
+                    | sed s:_REGSDIR_:${REGSDIR}:g   \
+                    | sed s:_CONFIG_:${PARA_CONFIG}:g   \
+                    | sed s:_ACCNR_:${ACCNR}:g   \
+                    | sed s:_WLCLK_:${WLCLK}:g   \
+                    | sed s:_TASKS_:${TASKS}:g   \
+                    | sed s:_THRDS_:${THRD}:g    \
+                    | sed s:_RUND_:${RUNDIR}:g   \
+                    | sed s:_TPN_:${TPN}:g       \
+                    | sed s:_SCHED_:${SCHEDULER}:g   > ngac_bsub
+
+
+
+fi
+
+## copy J-job script and OCN rc file
+cp ${NEMSDIR}/job/regression_tests/JNGAC_FORECAST.sms.para ${RUNDIR}
+cp ${NEMSDIR}/job/regression_tests/ocean.configure ${RUNDIR}/ocean.configure
+
+## submit the job
+if [ $SCHEDULER = 'loadleveler' ]; then
+  llsubmit ngac_ll 2>&1 | grep submitted > /dev/null
+elif [ $SCHEDULER = 'moab' ]; then
+  msub ngac_msub > /dev/null
+elif [ $SCHEDULER = 'pbs' ]; then
+  qsub ngac_qsub > /dev/null
+elif [ $SCHEDULER = 'lsf' ]; then
+  bsub < ngac_bsub > /dev/null
+fi
+
 
 echo "Test ${TEST_NR}" >> ${REGRESSIONTEST_LOG}
 echo "Test ${TEST_NR}"
 echo ${TEST_DESCR} >> ${REGRESSIONTEST_LOG}
 echo ${TEST_DESCR}
+
+
 (echo "GFS, ${TASKS} proc, ${THRD} thread";echo;echo)>> ${REGRESSIONTEST_LOG}
  echo "GFS, ${TASKS} proc, ${THRD} thread";echo;echo
 
@@ -54,27 +122,77 @@ elif [ $SCHEDULER = 'lsf' ]; then
 fi
 done
 
-job_running=1
-
 # wait for the job to finish and compare results
+job_running=1
 n=1
 until [ $job_running -eq 0 ]
 do
 
-export status=`llq -u ${USER} -f %st %jn | grep ${JBNME} | awk '{ print $1}'` ; export status=${status:--}
-
-if   [ $status = 'I' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
-elif [ $status = 'R' ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status
-elif [ $status = 'ST' ]; then echo $n "min. TEST ${TEST_NR} is ready to run,       Status: " $status
-elif [ $status = 'C' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status
-else                          echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status
+sleep 60
+if [ $SCHEDULER = 'loadleveler' ]; then
+  job_running=`llq -u ${USER} -f %st %jn | grep ${JBNME} | wc -l`
+elif [ $SCHEDULER = 'moab' ]; then
+  job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`
+elif [ $SCHEDULER = 'pbs' ]; then
+  job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`
+elif [ $SCHEDULER = 'lsf' ]; then
+  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | wc -l`
 fi
 
-sleep 60
+if [ $SCHEDULER = 'loadleveler' ]; then
 
-job_running=`llq -u ${USER} -f %st %jn | grep ${JBNME} | wc -l`
-  (( n=n+1 ))
+  status=`llq -u ${USER} -f %st %jn | grep ${JBNME} | awk '{ print $1}'` ; status=${status:--}
+  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $10 }'` ; fi
+  FnshHrs=${FnshHrs:-0}
+  if   [ $status = 'I' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
+  elif [ $status = 'R' ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
+  elif [ $status = 'ST' ]; then echo $n "min. TEST ${TEST_NR} is ready to run,       Status: " $status
+  elif [ $status = 'C' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
+  else                          echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
+  fi
+
+elif [ $SCHEDULER = 'moab' ]; then
+
+  status=`showq -u ${USER} -n | grep ${JBNME} | awk '{print $3}'` ; status=${status:--}
+  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $10 }'` ; fi
+  FnshHrs=${FnshHrs:-0}
+  if   [ $status = 'Idle' ];       then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
+  elif [ $status = 'Running' ];    then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
+  elif [ $status = 'Starting' ];   then echo $n "min. TEST ${TEST_NR} is ready to run,       Status: " $status  ", Finished " $FnshHrs "hours"
+  elif [ $status = 'Completed' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
+  else                                  echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
+  fi
+
+elif [ $SCHEDULER = 'pbs' ]; then
+
+  status=`qstat -u ${USER} -n | grep ${JBNME} | awk '{print $"10"}'` ; status=${status:--}
+  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $10 }'` ; fi
+  FnshHrs=${FnshHrs:-0}
+  if   [ $status = 'Q' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
+  elif [ $status = 'H' ];  then echo $n "min. TEST ${TEST_NR} is held in a queue,    Status: " $status
+  elif [ $status = 'R' ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
+  elif [ $status = 'E' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
+  elif [ $status = 'C' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
+  else                          echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
+  fi
+
+elif [ $SCHEDULER = 'lsf' ]; then
+
+  status=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep hpc | awk '{print $3}'` ; status=${status:--}
+  if [ $status != '-' ] ; then FnshHrs=`bpeek -J ${JBNME} | grep Finished | tail -1 | awk '{ print $9 }'` ; fi
+  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $9 }'` ; fi
+  FnshHrs=${FnshHrs:-0}
+  if   [ $status = 'PEND' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
+  elif [ $status = 'RUN'  ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
+  else                             echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
+  fi
+
+
+fi
+(( n=n+1 ))
 done
+
+####################################################################################################
 
 ####################################################################################################
 # Check results
@@ -131,7 +249,7 @@ for i in ${LIST_FILES}
 do
   printf %s " Moving " $i "....."
   if [ -f ${RUNDIR}/$i ] ; then
-    cp ${RUNDIR}/${i} /stmp/${USER}/REGRESSION_TEST/${CNTL_DIR}/${i}
+    cp ${RUNDIR}/${i} /stmp/${LOGIN}/REGRESSION_TEST/${CNTL_DIR}/${i}
   else
     echo "Missing " ${RUNDIR}/$i " output file"
     echo;echo " Set ${TEST_NR} failed "

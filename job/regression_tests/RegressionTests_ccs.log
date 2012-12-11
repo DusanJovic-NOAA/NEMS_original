@@ -1,11 +1,11 @@
-Mon Nov 26 22:58:00 EST 2012
+Sat Dec  8 00:11:09 EST 2012
 Start Regression test
 
 
 
-Mon Nov 26 22:58:00 EST 2012
+Sat Dec  8 00:11:09 EST 2012
 Compilation ALL
-Tue Nov 27 00:09:20 EST 2012
+Sat Dec  8 00:51:31 EST 2012
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  152.40
+ Original timing:  151.20  , test_glob timing:  154.80
 
 
 Test 002
@@ -128,7 +128,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  250.22
+ Original timing:  240.82  , test_reg timing:  254.35
 
 
 Test 009
@@ -905,9 +905,9 @@ Checking test 046 results ....
 
 
 
-Tue Nov 27 13:42:38 EST 2012
+Sat Dec  8 05:12:41 EST 2012
 Compilation only FIM
-Tue Nov 27 14:09:43 EST 2012
+Sat Dec  8 05:32:48 EST 2012
 Test 047
 Compare FIM results with previous trunk version, only FIM compiled
 FIM, 40 proc, 1 thread
@@ -948,9 +948,9 @@ Checking test 047 results ....
  Comparing fim_out_vs3D000024hr.........OK
  Comparing fim_out_ws3D000024hr.........OK
  Test 047 passed 
-Tue Nov 27 14:15:23 EST 2012
+Sat Dec  8 05:36:03 EST 2012
 Compilation with POST
-Tue Nov 27 15:17:55 EST 2012
+Sat Dec  8 06:20:33 EST 2012
 Test 048
 NMMB-regional run with post on quilt
 
@@ -1001,14 +1001,51 @@ Checking test 049 results ....
  Comparing GFSPRS.GrbF24.........OK
  Comparing GFSPRS.GrbF48.........OK
  Test 049 passed 
-Tue Nov 27 15:48:02 EST 2012
-Compilation ESMF 5.2.0rp1
-Tue Nov 27 16:31:59 EST 2012
 Test 050
-Compare NMMB-global results with previous trunk version_ESMF_5.2.0rp1
+GFS_GOCART with POST
+GFS, 64 proc, 1 thread
+
+
 
 
 Checking test 050 results ....
+ Comparing ngac.t00z.sigf00.........OK
+ Comparing ngac.t00z.sigf03.........OK
+ Comparing ngac.t00z.sigf06.........OK
+ Comparing ngac.t00z.sigf12.........OK
+ Comparing ngac.t00z.sigf24.........OK
+ Comparing ngac.t00z.sfcf00.........OK
+ Comparing ngac.t00z.sfcf03.........OK
+ Comparing ngac.t00z.sfcf06.........OK
+ Comparing ngac.t00z.sfcf12.........OK
+ Comparing ngac.t00z.sfcf24.........OK
+ Comparing ngac.t00z.flxf00.........OK
+ Comparing ngac.t00z.flxf03.........OK
+ Comparing ngac.t00z.flxf06.........OK
+ Comparing ngac.t00z.flxf12.........OK
+ Comparing ngac.t00z.flxf24.........OK
+ Comparing ngac.t00z.aerf00.........OK
+ Comparing ngac.t00z.aerf03.........OK
+ Comparing ngac.t00z.aerf06.........OK
+ Comparing ngac.t00z.aerf12.........OK
+ Comparing ngac.t00z.aerf24.........OK
+ Comparing NGAC2d.GrbF03.........OK
+ Comparing NGAC2d.GrbF06.........OK
+ Comparing NGAC2d.GrbF12.........OK
+ Comparing NGAC2d.GrbF24.........OK
+ Comparing NGAC3d.GrbF03.........OK
+ Comparing NGAC3d.GrbF06.........OK
+ Comparing NGAC3d.GrbF12.........OK
+ Comparing NGAC3d.GrbF24.........OK
+ Test 050 passed 
+Sat Dec  8 06:39:53 EST 2012
+Compilation ESMF 5.2.0rp1
+Sat Dec  8 07:13:23 EST 2012
+Test 051
+Compare NMMB-global results with previous trunk version_ESMF_5.2.0rp1
+
+
+Checking test 051 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
@@ -1017,18 +1054,18 @@ Checking test 050 results ....
  Comparing nmmb_hst_01_nio_0048h_00m_00.00s.........OK
  Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
- Test 050 passed 
+ Test 051 passed 
 
 
 
-Test 051
+Test 052
 Compare GFS results with previous trunk version ESMF5.2.0rp1
 GFS, 32 proc, 1 thread
 
 
 
 
-Checking test 051 results ....
+Checking test 052 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -1047,15 +1084,15 @@ Checking test 051 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 051 passed 
-Test 052
+ Test 052 passed 
+Test 053
 Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5.2.0rp1
 GFS, 64 proc, 1 thread
 
 
 
 
-Checking test 052 results ....
+Checking test 053 results ....
  Comparing SIG.F06_01.........OK
  Comparing SIG.F06_02.........OK
  Comparing SIG.F06_03.........OK
@@ -1104,48 +1141,48 @@ Checking test 052 results ....
  Comparing FLX.F24_02.........OK
  Comparing FLX.F24_03.........OK
  Comparing FLX.F24_04.........OK
- Test 052 passed 
-Tue Nov 27 17:32:34 EST 2012
+ Test 053 passed 
+Sat Dec  8 07:29:03 EST 2012
 Compilation only NMM
-Test 053
+Test 054
 Compare NMMB-global results with previous trunk version, only NMM compiled
 
 
-Checking test 053 results ....
+Checking test 054 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
  Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
- Test 053 passed 
-
-
-
-Tue Nov 27 18:26:31 EST 2012
-Compilation NMM with TRAPS on
-Tue Nov 27 19:36:30 EST 2012
-Test 054
-Compare NMMB-global results with previous trunk version, TRAPS on
-
-
-Checking test 054 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Test 054 passed 
 
 
 
-Tue Nov 27 19:43:09 EST 2012
-Compilation only GFS
-Tue Nov 27 20:05:05 EST 2012
+Sat Dec  8 07:52:15 EST 2012
+Compilation NMM with TRAPS on
+Sat Dec  8 08:21:47 EST 2012
 Test 055
+Compare NMMB-global results with previous trunk version, TRAPS on
+
+
+Checking test 055 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Test 055 passed 
+
+
+
+Sat Dec  8 08:25:06 EST 2012
+Compilation only GFS
+Sat Dec  8 08:43:05 EST 2012
+Test 056
 Compare GFS results with previous trunk version, only GFS compiled
 GFS, 32 proc, 1 thread
 
 
 
 
-Checking test 055 results ....
+Checking test 056 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -1164,8 +1201,8 @@ Checking test 055 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 055 passed 
-Tue Nov 27 20:09:40 EST 2012
+ Test 056 passed 
+Sat Dec  8 08:47:16 EST 2012
 ######  #######  #####  ######  #######  #####   #####    ###   ####### #     #
 #     # #       #     # #     # #       #     # #     #    #    #     # ##    #
 #     # #       #       #     # #       #       #          #    #     # # #   #
