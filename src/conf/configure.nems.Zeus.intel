@@ -56,5 +56,3 @@ AR           = ar
 ARFLAGS      = -r
 
 RM           = rm
-
-MAKEDEPF90   = makedepf90

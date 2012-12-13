@@ -33,12 +33,6 @@ elif [ ${MACHINE_ID} = zeus ]; then
   export STMP=/scratch2/portfolios/NCEPDEV/stmp
   export PTMP=/scratch2/portfolios/NCEPDEV/ptmp
   export SCHEDULER=pbs
-elif [ ${MACHINE_ID} = eddy ]; then
-  export ACCNR=hpc_ibm
-  export DISKNM=/u/Ratko.Vasic
-  export STMP=/u/$USER/stmp ; mkdir -p $STMP
-  export PTMP=/u/$USER/ptmp ; mkdir -p $PTMP
-  export SCHEDULER=lsf
 else
   echo "Unknown machine ID, please edit detect_machine.sh file"
   exit
@@ -142,6 +136,7 @@ if [ $argn -eq 1 ]; then
      cp ${RTPWD}/NMMB_reg_pcpadj/*           ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_pcpadj/.
      cp ${RTPWD}/NMMB_reg_sel_phy/*          ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_sel_phy/.
      cp ${RTPWD}/NMMB_reg_timesr/*           ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_timesr/.
+     cp ${RTPWD}/NMMB_rrtm_nests/*           ${STMP}/${USER}/REGRESSION_TEST/NMMB_rrtm_nests/.
   fi
   if [ ${CP_fim} = true ]; then
     echo "copy fim"
@@ -226,7 +221,7 @@ fi
 # CLASS       - job class (LoadLeveler)
 # GROUP       - job group (LoadLeveler)
 # ACCNR       - account number (LoadLeveler)
-# MACHINE_ID  - =ccs (cirrus/stratus), =gaea, =zeus, =eddy, =wcoss (tide)
+# MACHINE_ID  - =ccs (cirrus/stratus), =gaea, =zeus, =wcoss (tide)
 # DISKNM      - disk name ( /meso or /mtb)
 # CREATE_BASELINE - true/false
 # CB_arg      - baseline arguments:
@@ -311,7 +306,7 @@ if [ ${MACHINE_ID} = ccs ]; then
   TASKS_mvg1=    ; TPN_mvg1=32 ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
   TASKS_mvg2=    ; TPN_mvg2=32 ; INPES_mvg2=04 ; JNPES_mvg2=23 ; WTPG_mvg2=1
 
-elif [ ${MACHINE_ID} = wcoss -o ${MACHINE_ID} = eddy ]; then
+elif [ ${MACHINE_ID} = wcoss ]; then
 
   TASKS_dflt=32  ; TPN_dflt=32 ; INPES_dflt=05 ; JNPES_dflt=06 ; WTPG_dflt=2
   TASKS_thrd=16  ; TPN_thrd=16 ; INPES_thrd=03 ; JNPES_thrd=05 ; WTPG_thrd=1
@@ -410,12 +405,6 @@ elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake nmm_gfs_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
 
-elif [ ${MACHINE_ID} = eddy ]; then 
-
-  ./esmf_version 3_eddy                  >> ${COMPILE_LOG} 2>&1
-  gmake clean                            >> ${COMPILE_LOG} 2>&1
-  gmake nmm                              >> ${COMPILE_LOG} 2>&1
-
 fi
 date                                     >> ${REGRESSIONTEST_LOG}
 
@@ -460,7 +449,7 @@ export GBRG=glob
 
 if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = zeus ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
-elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = eddy -o ${MACHINE_ID} = wcoss ]; then
+elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = wcoss ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
 fi
 export timingc=`cat ${RTPWD}/NMMB_glob/timing.txt`
@@ -665,7 +654,8 @@ nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_nio_0000h_00m_00.00s \
 nmmb_hst_01_bin_0012h_00m_00.00s nmmb_hst_01_nio_0012h_00m_00.00s \
 nmmb_hst_01_bin_0048h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
 nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s \
-fort.41  fort.42  fort.43  fort.44  fort.45  fort.46  fort.47"
+pcp.hr1.01.bin  pcp.hr2.01.bin  pcp.hr3.01.bin  pcp.hr4.01.bin    \
+pcp.hr5.01.bin  pcp.hr6.01.bin  pcp.hr7.01.bin"
 #---------------------
 export_nmm
 export GBRG=reg ; export WPREC=true
@@ -676,7 +666,7 @@ export GBRG=reg ; export WPREC=true
 
 if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = zeus ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
-elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = eddy -o ${MACHINE_ID} = wcoss ]; then
+elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = wcoss ]; then
   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
 fi
 export timingc=`cat ${RTPWD}/NMMB_reg/timing.txt`
@@ -1032,7 +1022,7 @@ fi # endif test
 
 if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
 
-export TEST_DESCR="Test NMMB-regional with static nests"
+export TEST_DESCR="Test NMMB-regional/RRTM with static nests"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
@@ -1077,7 +1067,7 @@ fi # endif test
 
 if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
 
-export TEST_DESCR="Test NMMB-regional static nests with restart"
+export TEST_DESCR="Test NMMB-regional/RRTM static nests with restart"
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
@@ -1223,8 +1213,8 @@ export INPES=$INPES_mvg2 ; export JNPES=$JNPES_mvg2 ; export WTPG=$WTPG_mvg2
 
 fi # endif test
 
-#RV# Temporary, until GFS is ready on Eddy
-if [ ${MACHINE_ID} = eddy -o ${MACHINE_ID} = wcoss ]; then
+#RV# Temporary, until GFS is ready on WCOSS
+if [ ${MACHINE_ID} = wcoss ]; then
   echo REGRESSION TEST WAS SUCCESSFUL
   echo REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
   exit
@@ -2304,12 +2294,6 @@ elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake nmm                              >> ${COMPILE_LOG} 2>&1
 
-elif [ ${MACHINE_ID} = eddy ]; then
-
-  esmf_version 3_eddy                    >> ${COMPILE_LOG} 2>&1
-  gmake clean                            >> ${COMPILE_LOG} 2>&1
-  gmake nmm                              >> ${COMPILE_LOG} 2>&1
-
 fi
 
 if [ -f ../exe/NEMS.x ] ; then
@@ -2448,12 +2432,6 @@ elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake gfs                              >> ${COMPILE_LOG} 2>&1
 
-elif [ ${MACHINE_ID} = eddy ]; then
-
-  esmf_version 3_eddy                    >> ${COMPILE_LOG} 2>&1
-  gmake clean                            >> ${COMPILE_LOG} 2>&1
-  gmake gfs                              >> ${COMPILE_LOG} 2>&1
-
 fi
 
 date                                     >> ${REGRESSIONTEST_LOG}
@@ -2514,7 +2492,7 @@ rm -rf ${RUNDIR_ROOT}
 
 date >> ${REGRESSIONTEST_LOG}
 
-if [ ${MACHINE_ID} = zeus -o ${MACHINE_ID} = eddy -o ${MACHINE_ID} = wcoss ]; then
+if [ ${MACHINE_ID} = zeus -o ${MACHINE_ID} = wcoss ]; then
   echo REGRESSION TEST WAS SUCCESSFUL
   echo REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
 else

@@ -666,7 +666,7 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-      SUBROUTINE WRT_2D(ARRAY,MYPE,NPES,MPI_COMM_COMP                  &
+      SUBROUTINE WRT_PCP(ARRAY,MYPE,NPES,MPI_COMM_COMP,MY_DOMAIN_ID    &
                     ,IHOUR                                             &
                     ,IDS,IDE,JDS,JDE                                   &
                     ,IMS,IME,JMS,JME                                   &
@@ -681,7 +681,8 @@
       INTEGER(KIND=KINT),INTENT(IN) :: IDS,IDE,JDS,JDE                 &
                                       ,IMS,IME,JMS,JME                 &
                                       ,ITS,ITE,JTS,JTE                 &
-                                      ,MPI_COMM_COMP,MYPE,NPES,IHOUR
+                                      ,MPI_COMM_COMP,MYPE,MY_DOMAIN_ID &
+                                      ,NPES,IHOUR
 !
       REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: ARRAY
 !
@@ -690,11 +691,18 @@
       INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
       INTEGER(KIND=KINT),DIMENSION(2)    :: IT_REM,JT_REM
 !
-      INTEGER(KIND=KINT) :: I,J,N,IPE,IRECV,ISEND,NSIZE
+      INTEGER(KIND=KINT) :: I,J,N,NN,IPE,IRECV,ISEND,NSIZE,IER,NUNIT_PCP
       INTEGER(KIND=KINT) :: ITS_REM,ITE_REM,JTS_REM,JTE_REM
 !
       REAL(KIND=KFPT),DIMENSION(IDS:IDE,JDS:JDE) :: TWRITE
       REAL(KIND=KFPT),ALLOCATABLE,DIMENSION(:)   :: VALUES
+!
+      CHARACTER(14) :: FILENAME
+      CHARACTER(6)  :: FMT_ID='(I2.2)',FMT_HR='(I1.1)'
+      CHARACTER(2)  :: CHAR_ID
+      CHARACTER(1)  :: CHAR_HR
+      LOGICAL       :: OPENED
+!
 !----------------------------------------------------------------------
 !**********************************************************************
 !----------------------------------------------------------------------
@@ -734,8 +742,25 @@
 !
         ENDDO
 !
-        WRITE(40+IHOUR)((TWRITE(I,J)*1000.,I=IDS,IDE),J=JDS,JDE)
-        CLOSE(40+IHOUR)
+        WRITE(CHAR_ID,FMT_ID)MY_DOMAIN_ID
+        WRITE(CHAR_HR,FMT_HR)IHOUR
+        FILENAME='pcp.hr'//CHAR_HR//'.'//CHAR_ID//'.bin'
+!
+        DO NN=51,99
+          INQUIRE(NN,opened=OPENED)
+          IF(.NOT.OPENED)THEN
+            NUNIT_PCP=NN
+            EXIT
+          ENDIF
+        ENDDO
+!
+        OPEN(unit=NUNIT_PCP,file=FILENAME,form='UNFORMATTED'        &
+            ,STATUS='REPLACE',IOSTAT=IER)
+        IF(IER/=0)THEN
+          WRITE(0,*)' Failed to open ',FILENAME,' in WRT_PCP ier=',IER
+        ENDIF
+        WRITE(NUNIT_PCP)((TWRITE(I,J)*1000.,I=IDS,IDE),J=JDS,JDE)
+        CLOSE(NUNIT_PCP)
 !
       ELSE
 !
@@ -771,7 +796,7 @@
 !
 !----------------------------------------------------------------------
 !
-      END SUBROUTINE WRT_2D
+      END SUBROUTINE WRT_PCP
 !
 !----------------------------------------------------------------------
 !
@@ -1662,7 +1687,7 @@
 
       REAL :: CUPRATE, CUREFL, CUREFL_I, ZFRZ, DBZ1avg, FCTR, DELZ
       REAL :: T02, RH02, TERM
-      REAL :: CAPPA_MOIST, VAPOR_PRESS, EPSILON, ONE_MINUS_EPSILON, SAT_VAPOR_PRESS
+      REAL,SAVE :: CAPPA_MOIST, VAPOR_PRESS, EPSILON, ONE_MINUS_EPSILON, SAT_VAPOR_PRESS
       REAL :: R_FACTOR,CP_FACTOR
       REAL, SAVE:: DTPHS, RDTPHS
       REAL :: MAGW2

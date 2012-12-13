@@ -36,5 +36,3 @@ AR        = ar
 ARFLAGS   = -r
 
 RM        = rm
-
-MAKEDEPF90 = /ccs/home/dusan/bin/makedepf90

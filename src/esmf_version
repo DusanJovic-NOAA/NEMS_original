@@ -12,10 +12,6 @@ elif [[ $1 = 3_wcoss ]]; then
      cp conf/configure.nems.Wcoss.intel conf/configure.nems
      cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
      echo "Use the ESMF 3.1.0rp2 library"
-elif [[ $1 = 3_eddy ]]; then
-     cp conf/configure.nems.Eddy.intel conf/configure.nems
-     cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
-     echo "Use the ESMF 3.1.0rp2 library"
 elif [[ $1 = 4 ]]; then
      cp conf/configure.nems.AIX_ESMF_4 conf/configure.nems
      cp ESMFVersionDefine_ESMF_4.h ESMFVersionDefine.h
@@ -36,7 +32,6 @@ else
      echo;echo "     Run ./esmf_version with one argument:"
      echo "When using the ESMF 3.1.0rp2 library on the CCS   machine, enter 'esmf_version 3'"
      echo "When using the ESMF 3.1.0rp2 library on the ZEUS  machine, enter 'esmf_version 3_zeus'"
-     echo "When using the ESMF 3.1.0rp2 library on the EDDY  machine, enter 'esmf_version 3_eddy'"
      echo "When using the ESMF 3.1.0rp2 library on the WCOSS machine, enter 'esmf_version 3_wcoss'"
      echo "When using the ESMF 3.1.0rp2 library and turn on traps,   enter 'esmf_version traps_on'"
      echo "When using the ESMF 4.0.0rp2 library on the CCS   machine, enter 'esmf_version 4'"

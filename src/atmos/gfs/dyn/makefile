@@ -289,6 +289,8 @@ gfs_dynamics_grid_comp_mod.o:	 gfs_dynamics_grid_comp_mod.f90
 #
 #
 
+MKDEPENDS = ../../../../exe/mkDepends.pl
+
 include ../../../conf/make.rules
 
 include depend

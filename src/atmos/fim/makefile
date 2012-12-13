@@ -47,6 +47,8 @@ clean:
 	$(RM) -f $(LIBRARY) *.o *.mod *.f90 *.lst lm map depend
 	(cd FIMsrc && ./makefim clean)
 
+MKDEPENDS = ../../../exe/mkDepends.pl
+
 include ../../conf/make.rules
 
 include depend

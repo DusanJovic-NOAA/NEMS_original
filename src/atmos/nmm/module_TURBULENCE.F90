@@ -354,7 +354,7 @@
 
       REAL(kind=KFPT), DIMENSION( IMS:IME, JMS:JME )  :: RIB   ! Bulk Richardson Number
 !
-      LOGICAL(kind=KLOG) :: FRPCPN,MYJ,WARM_RAIN
+      LOGICAL(kind=KLOG) :: FRPCPN,MYJ,WARM_RAIN,FER_MIC
       LOGICAL(kind=KLOG) :: E_BDY,N_BDY,S_BDY,W_BDY
 !
 !-----------------------------------------------------------------------
@@ -397,6 +397,12 @@
           WRITE(0,*)' Improper selection of Land Surface scheme in TURBL'
           CALL NMMB_FINALIZE
       END SELECT
+!
+      IF(TRIM(MICROPHYSICS)=='fer' .OR. TRIM(MICROPHYSICS)=='fer_hires')THEN
+        FER_MIC=.TRUE.
+      ELSE
+        FER_MIC=.FALSE.
+      ENDIF
 !
 !.......................................................................
 !$omp parallel do private(j,k,i)
@@ -1268,7 +1274,7 @@
 !           Q(I,J,K)=MAX(Q(I,J,K),EPSQ)
             QW=MAX(0.,WATER(I,J,K,P_QC)+RQCBLTEN(I,J,K)*DTPHS )
 
-            IF(TRIM(MICROPHYSICS)=='fer')THEN
+            IF(FER_MIC)THEN
               QI=MAX(0.,WATER(I,J,K,P_QS)+RQIBLTEN(I,J,K)*DTPHS )
             ELSE
               QI=MAX(0.,WATER(I,J,K,P_QI)+RQIBLTEN(I,J,K)*DTPHS )
@@ -1289,8 +1295,8 @@
               ELSEIF(I_M==P_QC)THEN
                 CWM(I,J,K)=MAX(0.,(CWM(I,J,K)+RQCBLTEN(I,J,K)*DTPHS))
 !              ELSEIF(I_M==P_QI)THEN
-               ELSEIF( (I_M==P_QI .and. TRIM(MICROPHYSICS)/='fer') .or.        &
-                       (I_M==P_QS .and. TRIM(MICROPHYSICS)=='fer') ) THEN
+               ELSEIF( (I_M==P_QI .and. .NOT.FER_MIC) .or.        &
+                       (I_M==P_QS .and. FER_MIC) ) THEN
                 CWM(I,J,K)=MAX(0.,(CWM(I,J,K)+RQIBLTEN(I,J,K)*DTPHS))
               ENDIF
 
@@ -1299,7 +1305,7 @@
             WATER(I,J,K,P_QC)=QW
             WATER(I,J,K,P_QR)=QR
 
-            IF(TRIM(MICROPHYSICS)=='fer')THEN
+            IF(FER_MIC)THEN
               WATER(I,J,K,P_QS)=QI
               IF(QI<=EPSQ)THEN
                 F_ICE(I,J,K)=0.

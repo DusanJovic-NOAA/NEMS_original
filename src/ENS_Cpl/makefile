@@ -117,6 +117,8 @@ Cal_Sto_Coef.o: Cal_Sto_Coef.f90
 #
 #
 
+MKDEPENDS = ../../exe/mkDepends.pl
+
 include ../conf/make.rules
 
 include depend

@@ -87,5 +87,3 @@ AR           = ar
 ARFLAGS      = -r
 
 RM           = rm
-
-MAKEDEPF90   = /u/wx20du/bin/makedepf90

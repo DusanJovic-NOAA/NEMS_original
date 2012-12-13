@@ -25,6 +25,7 @@
 !-----------------------------------------------------------------------
       SUBROUTINE READPCP(MYPE,MPI_COMM_COMP                             &
                         ,PPTDAT,DDATA,LSPA,PCPHR                        &
+                        ,MY_DOMAIN_ID                                   &
                         ,IDS,IDE,JDS,JDE,LM                             &
                         ,IMS,IME,JMS,JME                                &
                         ,ITS,ITE,JTS,JTE                                &
@@ -47,6 +48,7 @@
 
       IMPLICIT NONE
       INTEGER,INTENT(IN) :: MYPE,MPI_COMM_COMP                         &
+                           ,MY_DOMAIN_ID                               &
                            ,IDS,IDE,JDS,JDE,LM                         &
                            ,IMS,IME,JMS,JME                            &
                            ,ITS,ITE,JTS,JTE                            &
@@ -56,8 +58,14 @@
       REAL,DIMENSION(IMS:IME,JMS:JME) :: TEMPL
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: DDATA, LSPA
       REAL,DIMENSION(IMS:IME,JMS:JME,1:PCPHR),INTENT(OUT) :: PPTDAT
-      INTEGER :: I, J, IHR
+      INTEGER :: I, IER, IHR, J, N, NUNIT_PCP
       CHARACTER*256 :: MESSAGE
+      CHARACTER(14) :: FILENAME
+      CHARACTER(6),SAVE :: FMT_ID='(I2.2)'                              &
+                          ,FMT_HR='(I1.1)'
+      CHARACTER(2) :: CHAR_ID
+      CHARACTER(1) :: CHAR_HR
+      LOGICAL :: OPENED
 !-----------------------------------------------------------------------
 !
 ! Get the value of MYPE:
@@ -69,12 +77,35 @@
       write(0,*)'IDS,IDE,JDS,JDE in ADJPCP=',IDS,IDE,JDS,JDE
       ENDIF
 !
-      DO IHR=1,PCPHR
+      WRITE(CHAR_ID,FMT_ID)MY_DOMAIN_ID
+!
+      hours: DO IHR=1,PCPHR
+!
+        WRITE(CHAR_HR,FMT_HR)IHR
+        FILENAME='pcp.hr'//CHAR_HR//'.'//CHAR_ID//'.bin'
+!
         IF(MYPE==0)THEN
-          READ(40+IHR) ((TEMPG(I,J),I=IDS,IDE),J=JDS,JDE)
-          WRITE(60+IHR,*)((TEMPG(I,J),I=IDS,IDE),J=JDS,JDE)
+!
+          DO N=51,99
+            INQUIRE(N,opened=OPENED)
+            IF(.NOT.OPENED)THEN
+              NUNIT_PCP=N
+              EXIT
+            ENDIF
+          ENDDO
+!
+          CLOSE(NUNIT_PCP)
+!rv       OPEN(unit=NUNIT_PCP,file=FILENAME,form='UNFORMATTED'        &
+!rv           ,STATUS='REPLACE',IOSTAT=IER)
+          OPEN(unit=NUNIT_PCP,file=FILENAME,form='UNFORMATTED',IOSTAT=IER)
+!rv
+          IF(IER/=0)THEN
+            WRITE(0,*)' Failed to open ',FILENAME,' in READPCP ier=',IER
+          ENDIF
+          READ(NUNIT_PCP) ((TEMPG(I,J),I=IDS,IDE),J=JDS,JDE)
+!         WRITE(60+IHR,*)((TEMPG(I,J),I=IDS,IDE),J=JDS,JDE)
           WRITE(0,*) 'IHR=', IHR, ' FINISHED READING PCP TO TEMPG'
-          CLOSE(40+IHR)
+          CLOSE(NUNIT_PCP)
 !
           DO J=JDS,JDE
             DO I=IDS,IDE
@@ -102,7 +133,7 @@
      &      PPTDAT(1,1,IHR)
         ENDIF
 
-      ENDDO
+      ENDDO hours
 !
 ! Give DDATA (hourly precipitation analysis partitioned into each physics
 ! timestep; partitioning done in ADJPPT) an initial value of 999, because

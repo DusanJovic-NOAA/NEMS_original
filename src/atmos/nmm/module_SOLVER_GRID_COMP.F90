@@ -65,7 +65,7 @@
 !
       USE MODULE_DIAGNOSE,ONLY : EXIT,FIELD_STATS                       &
                                 ,MAX_FIELDS,MAX_FIELDS_HR               &
-                                ,TWR,VWR,WRT_2D
+                                ,TWR,VWR,WRT_PCP
 !
       USE MODULE_OUTPUT,ONLY: POINT_OUTPUT
 !
@@ -5225,6 +5225,7 @@
                         ,int_state%DDATA                                &
                         ,int_state%LSPA                                 &
                         ,int_state%PCPHR                                &
+                        ,MY_DOMAIN_ID                                   &
                         ,IDS,IDE,JDS,JDE,LM                             &
                         ,IMS,IME,JMS,JME                                &
                         ,ITS,ITE,JTS,JTE                                &
@@ -6903,7 +6904,8 @@
       IF( int_state%WRITE_PREC_ADJ   .AND.                              &
           MOD(XTIME,60.) <= 0.001    .AND.                              &
           INT(XTIME/60.) <= int_state%PCPHR ) THEN
-        CALL WRT_2D(int_state%PREC,MYPE,NUM_PES,MPI_COMM_COMP           &
+        CALL WRT_PCP(int_state%PREC                                     &
+                ,MYPE,NUM_PES,MPI_COMM_COMP,MY_DOMAIN_ID                &
                 ,INT(XTIME/60.)+1                                       &
                 ,IDS,IDE,JDS,JDE                                        &
                 ,IMS,IME,JMS,JME                                        &

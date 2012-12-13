@@ -47,6 +47,8 @@ $(MODULES_STUB): %.o: %.f
 clean:
 	$(RM) -f $(LIBRARY) *.o *.mod *.lst lm map depend
 
+MKDEPENDS = ../../../exe/mkDepends.pl
+
 include ../../conf/make.rules
 
 include depend

@@ -13,7 +13,7 @@ cp _RTPWD_/NMMB_reg/nmmb_rst_01_bin_0024h_00m_00.00s  restart_file_01
 cp _RTPWD_/NMMB_reg/nmmb_rst_01_nio_0024h_00m_00.00s  restart_file_01_nemsio
 cp _RTPWD_/NMMB_reg/GWD_bin_01 .
 cp _RTPWD_/NMMB_reg/boco.* .
-_CPPCP_cp ../NMM_REG_CTL/fort.4* .
+_CPPCP_cp ../NMM_REG_CTL/pcp.hr* .
 
 cp $SRCDIR/job/regression_tests/atmos.configure_nmm atmos.configure
 cp $SRCDIR/job/regression_tests/ocean.configure .

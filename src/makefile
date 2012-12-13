@@ -1,4 +1,4 @@
-SEXTLIBSHEL = /bin/sh
+SHELL = /bin/sh
 
 # check if configure.nems file exists
 

@@ -33,6 +33,8 @@ $(MODULES_IDEA): %.o: %.f
 clean:
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst *.a lm map depend
 
+MKDEPENDS = ../../../exe/mkDepends.pl
+
 include ../../conf/make.rules
 
 include depend

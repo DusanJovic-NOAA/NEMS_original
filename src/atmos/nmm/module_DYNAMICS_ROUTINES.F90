@@ -2973,7 +2973,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
 ,pdwdt &                     ! previous nonhydrostatic correction factor
 ,w                           ! w wind component
            
-real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1),intent(out):: &
+real(kind=kfpt),dimension(ims:ime,jms:jme),intent(out):: &
  baro
 
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(out):: &
@@ -3932,7 +3932,7 @@ real(kind=kfpt),dimension(1:lm),intent(in):: &
  dsg2 &                      ! delta sigmas
 ,pdsg1                       ! delta pressures
 
-real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1),intent(in):: &
+real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
  baro 
 
 real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &

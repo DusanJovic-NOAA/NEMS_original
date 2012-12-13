@@ -30,8 +30,6 @@ case `hostid` in
   b20a077e)           MACHINE_ID=jet ;;     ### jet3
   b20a087e)           MACHINE_ID=jet ;;     ### jet4
 
-  010afa01)           MACHINE_ID=eddy ;;    ### eddy
-
 esac
 
 

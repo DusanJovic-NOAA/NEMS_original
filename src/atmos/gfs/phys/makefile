@@ -196,6 +196,8 @@ gfs_physics_err_msg_mod.o:      gfs_physics_err_msg_mod.f
 	$(FC) $(FFLAG90) -c gfs_physics_err_msg_mod.f90
 
 
+MKDEPENDS = ../../../../exe/mkDepends.pl
+
 include ../../../conf/make.rules
 
 include depend

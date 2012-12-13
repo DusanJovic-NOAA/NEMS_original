@@ -31,6 +31,8 @@ clean:
 	cd post         && gmake clean
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst depend
 
+MKDEPENDS = ../../exe/mkDepends.pl
+
 include ../conf/make.rules
 
 include depend

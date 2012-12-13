@@ -4133,7 +4133,7 @@
                               ,par_chi_time_ratio =PARENT_CHILD_TIME_RATIO    &
                               ,my_domain_moves    =MY_DOMAIN_MOVES            &
                               ,last_generation    =LAST_GENERATION            &
-                              ,mype               =MYPE                       &
+                              ,mype               =MYPE_LOCAL                 &
                               ,generation_finished=GENERATION_FINISHED(N)     &
                               ,timers_domain      =TIMERS(MY_DOMAIN_ID)       &
                               ,npe_print          =NPE_PRINT                  &
@@ -4423,7 +4423,7 @@
                               ,par_chi_time_ratio =PARENT_CHILD_TIME_RATIO     &
                               ,my_domain_moves    =MY_DOMAIN_MOVES             &
                               ,last_generation    =LAST_GENERATION             &
-                              ,mype               =MYPE                        &
+                              ,mype               =MYPE_LOCAL                  &
                               ,timers_domain      =TIMERS(MY_DOMAIN_ID)        &
                               ,npe_print          =NPE_PRINT                   &
                               ,print_timing       =PRINT_TIMING )
@@ -4769,7 +4769,7 @@
                               ,par_chi_time_ratio =PARENT_CHILD_TIME_RATIO     &
                               ,my_domain_moves    =MY_DOMAIN_MOVES             &
                               ,last_generation    =LAST_GENERATION             &
-                              ,mype               =MYPE                        &
+                              ,mype               =MYPE_LOCAL                  &
                               ,generation_finished=GENERATION_FINISHED(N)      &
                               ,timers_domain      =TIMERS(MY_DOMAIN_ID)        &
                               ,npe_print          =NPE_PRINT                   &
@@ -5077,7 +5077,7 @@
                               ,par_chi_time_ratio =PARENT_CHILD_TIME_RATIO     &
                               ,my_domain_moves    =MY_DOMAIN_MOVES             &
                               ,last_generation    =LAST_GENERATION             &
-                              ,mype               =MYPE                        &
+                              ,mype               =MYPE_LOCAL                  &
                               ,timers_domain      =TIMERS(MY_DOMAIN_ID)        &
                               ,npe_print          =NPE_PRINT                   &
                               ,print_timing       =PRINT_TIMING )

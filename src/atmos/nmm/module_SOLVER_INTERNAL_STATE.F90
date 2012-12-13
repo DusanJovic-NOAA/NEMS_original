@@ -176,7 +176,7 @@
                                                ,RDDV                    &
                                                ,WFFTRH,WFFTRW
 !
-        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: F,FIS                 &
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: BARO,F,FIS            &
                                                  ,GLAT,GLON             &
                                                  ,HDACX,HDACY           &
                                                  ,HDACVX,HDACVY         &
@@ -201,8 +201,7 @@
         REAL(kind=KFPT) :: DT_TEST_RATIO                                &
                           ,DT_LAST
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: BARO                &
-                                                   ,PINT,RTOP           &
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: PINT,RTOP           &
                                                    ,T,U,V               &
                                                    ,Q,CW,O3             &
                                                    ,Q2,E2               &
@@ -744,6 +743,7 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'TBPVS_STAT' ,int_state%TBPVS_STATE       ,1 ,MICRO_RESTART    ) 
       CALL SET_VAR_PTR(int_state%VARS,NV,'TBPVS0_STA' ,int_state%TBPVS0_STATE      ,1 ,MICRO_RESTART    ) 
 
+      CALL SET_VAR_PTR(int_state%VARS,NV,'BARO'      ,int_state%BARO    ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'FIS'       ,int_state%FIS     ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'F'         ,int_state%F       ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'GLAT'      ,int_state%GLAT    ,(/ IMS,JMS /),(/ IME,JME /) )
@@ -765,7 +765,6 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'CW'        ,int_state%CW      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'W'         ,int_state%W       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'W_TOT'     ,int_state%W_TOT   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,NV,'BARO'      ,int_state%BARO    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'DWDT'      ,int_state%DWDT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'PINT'      ,int_state%PINT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM+1 /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'OMGALF'    ,int_state%OMGALF  ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
