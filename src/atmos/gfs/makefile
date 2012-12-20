@@ -82,8 +82,6 @@ clean:
 	cd $(DIR_PHY) && gmake clean && cd ..
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map depend
 
-MKDEPENDS = ../../../exe/mkDepends.pl
-
 include ../../conf/make.rules
 
 include depend

@@ -2522,7 +2522,7 @@
 !  ---  locals:
 !     real,    dimension(IM,LEVS) :: delp, pp1, pp2
 
-      real    :: dsnow, qsnow, qclice, fsmall, xsimass, pfac            &
+      real    :: dsnow, qsnow, qclice, fsmall, xsimass, pfac,           &
      &           nlice, xli, nlimax, dum, tem,                          &
      &           rho, cpath, rc, totcnd, tc, recw1
 
