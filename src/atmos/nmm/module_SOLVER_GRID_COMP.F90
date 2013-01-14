@@ -335,7 +335,7 @@
                            ,MY_DOMAIN_ID_LOC,MYPE,NUM_PES
 !
       INTEGER(kind=KINT) :: I,IDENOMINATOR_DT,IEND,IERR,INTEGER_DT      &
-                           ,J,JEND,KOUNT,KSE,KSS,L,LL,LMP1              &
+                           ,J,JEND,KK,KOUNT,KSE,KSS,L,LL,LMP1           &
                            ,N,NUMERATOR_DT,RC
 !
       INTEGER(kind=KINT) :: ITE_H2,ITS_H2,JTE_H2,JTS_H2
@@ -603,6 +603,7 @@
                            ,int_state%PCPHR                             &
                            ,int_state%GFS                               &
                            ,int_state%MICROPHYSICS                      &
+                           ,int_state%LMPRATE                           &
                            ,int_state%LNSH, int_state%LNSV              &
                            ,RC)
 !
@@ -1027,6 +1028,12 @@
           int_state%TBPVS_STATE(L)=0.
           int_state%TBPVS0_STATE(L)=0.
         ENDDO
+        DO L=1, int_state%MDRMAXout-int_state%MDRMINout+1
+           int_state%MASSRout(L)=0.
+        ENDDO
+        DO L=1, int_state%MDIMAXout-int_state%MDIMINout+1
+           int_state%MASSIout(L)=0.
+        ENDDO
 !
         int_state%NSOIL=NUM_SOIL_LAYERS
 !
@@ -1166,13 +1173,16 @@
           int_state%AVCNVC(I,J)= 0.
         ENDDO
         ENDDO
-
+!
         DO L=1,LM
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%F_ICE(I,J,L)=0.
           int_state%F_RAIN(I,J,L)=0.
           int_state%F_RIMEF(I,J,L)=0.
+          do KK=1,int_state%d_ss
+            int_state%MPRATES(I,J,L,KK)=0.
+          enddo
         ENDDO
         ENDDO
         ENDDO
@@ -2405,6 +2415,8 @@
       REAL(kind=KFPT) :: JULIAN,XTIME, FILT_DT, FUND_DT, DTRATIO
 !
       REAL(kind=KFPT),DIMENSION(LM+1) :: PSG1
+!
+      INTEGER :: KK
 !
       LOGICAL(kind=KLOG) :: CALL_LONGWAVE                               &
                            ,CALL_SHORTWAVE                              &
@@ -5659,6 +5671,9 @@
           DO I=ITS,ITE
             int_state%TRAIN(I,J,L)=0.
             int_state%TCUCN(I,J,L)=0.
+            do KK=1,int_state%d_ss
+              int_state%MPRATES(I,J,L,KK)=0.
+            enddo
           ENDDO
           ENDDO
           ENDDO
@@ -5841,7 +5856,8 @@
                        ,IDS,IDE,JDS,JDE,LM                                 &
                        ,IMS,IME,JMS,JME                                    &
                        ,ITS,ITE,JTS,JTE                                    &
-                       ,ITS_B1,ITE_B1,JTS_B1,JTE_B1 )
+                       ,ITS_B1,ITE_B1,JTS_B1,JTE_B1,int_state%MPRATES      &
+                       ,int_state%D_SS)
 !
           td%gsmdrive_tim=td%gsmdrive_tim+(timef()-btim)
 !
@@ -9075,7 +9091,8 @@
                              ,IDS,IDE,JDS,JDE,1,LM+1                   &
                              ,IMS,IME,JMS,JME,1,LM                     &
                              ,ITS,ITE,JTS,JTE,1,LM                     &
-                             ,MPI_COMM_COMP,MYPE )
+                             ,MPI_COMM_COMP,MYPE,int_state%MASSRout    &
+                             ,int_state%MASSIout)
 !
           CASE ('fer_hires')
             DT_MICRO=int_state%NPRECIP*DT
@@ -9093,7 +9110,9 @@
                                 ,IDS,IDE,JDS,JDE,1,LM+1                   &
                                 ,IMS,IME,JMS,JME,1,LM                     &
                                 ,ITS,ITE,JTS,JTE,1,LM                     &
-                                ,MPI_COMM_COMP,MYPE )
+                                ,MPI_COMM_COMP,MYPE,int_state%MASSRout    &
+                                ,int_state%MASSIout)
+
 !
           CASE ('gfs')
              CALL GFSMP_INIT

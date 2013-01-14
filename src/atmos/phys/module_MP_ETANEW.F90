@@ -100,17 +100,17 @@
      &                      RAINNC,RAINNCV,                             &
      &                      ids,ide, jds,jde, kds,kde,		        &
      &                      ims,ime, jms,jme, kms,kme,		        &
-     &                      its,ite, jts,jte, kts,kte )
+     &                      its,ite, jts,jte, kts,kte,d_ss,mprates)
 !-----------------------------------------------------------------------
       IMPLICIT NONE
 !-----------------------------------------------------------------------
       INTEGER, PARAMETER :: ITLO=-60, ITHI=40
-
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,KDS,KDE                     &
      &                     ,IMS,IME,JMS,JME,KMS,KME                     &
      &                     ,ITS,ITE,JTS,JTE,KTS,KTE                     &
      &                     ,ITIMESTEP
 
+      INTEGER :: D_SS
       REAL, INTENT(IN) 	    :: DT,DX,DY
       REAL, INTENT(IN),     DIMENSION(ims:ime, jms:jme, kms:kme)::      &
      &                      dz8w,p_phy,pi_phy,rho_phy
@@ -122,6 +122,9 @@
      &                      F_ICE_PHY,F_RAIN_PHY,F_RIMEF_PHY
       REAL, INTENT(INOUT),  DIMENSION(ims:ime,jms:jme)           ::     &
      &                                                   RAINNC,RAINNCV
+      REAL,               DIMENSION(ims:ime, jms:jme,kms:kme,d_ss) ::  &
+     &                     mprates 
+
       REAL, INTENT(OUT),    DIMENSION(ims:ime,jms:jme):: SR
 !
       REAL,DIMENSION(*),INTENT(INOUT) :: MP_RESTART_STATE
@@ -153,7 +156,7 @@
       REAL,  DIMENSION(ims:ime,jms:jme):: APREC,PREC,ACPREC
       REAL,  DIMENSION(its:ite, jts:jte, kts:kte):: t_phy
 
-      INTEGER :: I,J,K
+      INTEGER :: I,J,K,KK
       REAL :: wc
 !------------------------------------------------------------------------
 ! For ECGP01
@@ -163,7 +166,9 @@
       INTEGER,DIMENSION(its:ite,jts:jte) :: LMH
       REAL :: TC,QI,QRdum,QW,Fice,Frain,DUM,ASNOW,ARAIN
       REAL,DIMENSION(kts:kte) :: P_col,Q_col,T_col,QV_col,WC_col,       &
-         RimeF_col,QI_col,QR_col,QW_col, THICK_col,DPCOL
+         RimeF_col,QI_col,QR_col,QW_col, THICK_col,DPCOL,pcond1d,       &
+         pidep1d,piacw1d,piacwi1d,piacwr1d,piacr1d,picnd1d,pievp1d,     &
+         pimlt1d,praut1d,pracw1d,prevp1d,pisub1d,pevap1d
       REAL,DIMENSION(2) :: PRECtot,PRECmax
 !
 !-----------------------------------------------------------------------
@@ -341,8 +346,9 @@
           J_index=J
        CALL EGCP01COLUMN ( ARAIN, ASNOW, DT, I_index, J_index, LSFC,  &
      & P_col, QI_col, QR_col, QV_col, QW_col, RimeF_col, T_col,         &
-     & THICK_col, WC_col,KTS,KTE,NSTATS,QMAX,QTOT )
-
+     & THICK_col, WC_col,KTS,KTE,NSTATS,QMAX,QTOT,pcond1d,pidep1d,    &
+     & piacw1d,piacwi1d,piacwr1d,piacr1d,picnd1d,pievp1d,pimlt1d,       &
+     & praut1d,pracw1d,prevp1d,pisub1d,pevap1d)
 !#######################################################################
 !
 !--- Update storage arrays
@@ -353,6 +359,28 @@
             T_phy(I,J,L)=T_col(L)
             qv(I,J,L)=QV_col(L)
             qt(I,J,L)=WC_col(L)
+!---convert 1D source/sink terms to one 4D array
+!---d_ss is the total number of source/sink terms in the 4D mprates array
+!---if d_ss=1, only 1 source/sink term is used
+!
+          IF(D_SS.EQ.1)THEN
+            mprates(I,J,L,1)=0.
+          ELSE
+            mprates(I,J,L,1)=mprates(I,J,L,1)+pcond1d(L)
+            mprates(I,J,L,2)=mprates(I,J,L,2)+pidep1d(L)
+            mprates(I,J,L,3)=mprates(I,J,L,3)+piacw1d(L)
+            mprates(I,J,L,4)=mprates(I,J,L,4)+piacwi1d(L)
+            mprates(I,J,L,5)=mprates(I,J,L,5)+piacwr1d(L)
+            mprates(I,J,L,6)=mprates(I,J,L,6)+piacr1d(L)
+            mprates(I,J,L,7)=mprates(I,J,L,7)+picnd1d(L)
+            mprates(I,J,L,8)=mprates(I,J,L,8)+pievp1d(L)
+            mprates(I,J,L,9)=mprates(I,J,L,9)+pimlt1d(L)
+            mprates(I,J,L,10)=mprates(I,J,L,10)+praut1d(L)
+            mprates(I,J,L,11)=mprates(I,J,L,11)+pracw1d(L)
+            mprates(I,J,L,12)=mprates(I,J,L,12)+prevp1d(L)
+            mprates(I,J,L,13)=mprates(I,J,L,13)+pisub1d(L)
+            mprates(I,J,L,14)=mprates(I,J,L,14)+pevap1d(L)
+          ENDIF
 !
 !--- REAL*4 array storage
 !
@@ -528,7 +556,9 @@
 !
       SUBROUTINE EGCP01COLUMN ( ARAIN, ASNOW, DTPH, I_index, J_index,   &
      & LSFC, P_col, QI_col, QR_col, QV_col, QW_col, RimeF_col, T_col,   &
-     & THICK_col, WC_col ,KTS,KTE,NSTATS,QMAX,QTOT)                          
+     & THICK_col, WC_col ,KTS,KTE,NSTATS,QMAX,QTOT,pcond1d,pidep1d,     &
+     & piacw1d,piacwi1d,piacwr1d,piacr1d,picnd1d,pievp1d,pimlt1d,        &
+     & praut1d,pracw1d,prevp1d,pisub1d,pevap1d)
 !
 !###############################################################################
 !###############################################################################
@@ -623,7 +653,10 @@
       INTEGER,INTENT(IN) :: KTS,KTE,I_index, J_index, LSFC
       REAL,INTENT(INOUT) ::  ARAIN, ASNOW
       REAL,DIMENSION(KTS:KTE),INTENT(INOUT) ::  P_col, QI_col,QR_col    &
-     & ,QV_col ,QW_col, RimeF_col, T_col, THICK_col,WC_col
+      & ,QV_col ,QW_col, RimeF_col, T_col, THICK_col,WC_col,pcond1d     &
+      & ,pidep1d,piacw1d,piacwi1d,piacwr1d,piacr1d,picnd1d,pievp1d      &
+      & ,pimlt1d,praut1d,pracw1d,prevp1d,pisub1d,pevap1d
+
 !
 !------------------------------------------------------------------------- 
 !-------------- Common blocks for microphysical statistics ---------------
@@ -737,7 +770,20 @@
 !
 
       DO 10 L=1,LSFC
-
+      pcond1d(L)=0.
+      pidep1d(L)=0.
+      piacw1d(L)=0.
+      piacwi1d(L)=0.
+      piacwr1d(L)=0.
+      piacr1d(L)=0.
+      picnd1d(L)=0.
+      pievp1d(L)=0.
+      pimlt1d(L)=0.
+      praut1d(L)=0.
+      pracw1d(L)=0.
+      prevp1d(L)=0.
+      pisub1d(L)=0.
+      pevap1d(L)=0.
 !--- Skip this level and go to the next lower level if no condensate 
 !      and very low specific humidities
 !
@@ -1817,6 +1863,28 @@
           RimeF_col(L)=RimeF                      ! Updated rime factor
           ASNOW=ASNOWnew                          ! Updated accumulated snow
           ARAIN=ARAINnew                          ! Updated accumulated rain
+!assign microphysical processes and fall speeds to 1D array
+
+      if(pcond.gt.0)then
+        pcond1d(L)=pcond
+      elseif(pcond.lt.0)then
+        pevap1d(L)=pcond
+      endif
+      if(pidep.gt.0)then
+        pidep1d(L)=pidep
+      elseif(pidep.lt.0)then
+        pisub1d(L)=pidep
+      endif
+      piacw1d(L)=piacw
+      piacwi1d(L)=piacwi
+      piacwr1d(L)=piacwr
+      piacr1d(L)=piacr
+      picnd1d(L)=picnd
+      pievp1d(L)=pievp
+      pimlt1d(L)=pimlt
+      praut1d(L)=praut
+      pracw1d(L)=pracw
+      prevp1d(L)=prevp
 !
 !#######################################################################
 !
@@ -1949,7 +2017,7 @@ nsteps = 0
      &   IDS,IDE,JDS,JDE,KDS,KDE,                                       &
      &   IMS,IME,JMS,JME,KMS,KME,                                       &
      &   ITS,ITE,JTS,JTE,KTS,KTE,                                       &
-     &   MPI_COMM_COMP,MYPE)
+     &   MPI_COMM_COMP,MYPE,MASSRout,MASSIout)
 !-----------------------------------------------------------------------
 !-------------------------------------------------------------------------------
 !---  SUBPROGRAM DOCUMENTATION BLOCK
@@ -2037,6 +2105,8 @@ nsteps = 0
       real,DIMENSION(NX), INTENT(INOUT) :: TBPVS_STATE,TBPVS0_STATE
       real,DIMENSION(ims:ime, jms:jme, kms:kme),INTENT(OUT) ::          &
      &  F_ICE_PHY,F_RAIN_PHY,F_RIMEF_PHY
+      real,DIMENSION(MDRmin:MDRmax) :: MASSRout 
+      real,DIMENSION(MDImin:MDImax) :: MASSIout 
       INTEGER, PARAMETER :: ITLO=-60, ITHI=40
 !     integer,DIMENSION(ITLO:ITHI,4),INTENT(INOUT) :: NSTATS
 !     real,DIMENSION(ITLO:ITHI,5),INTENT(INOUT) :: QMAX
@@ -2143,6 +2213,8 @@ nsteps = 0
           READ(etampnew_unit1) VEL_RF
 !        read(etampnew_unit1) my_growth    ! Applicable only for DTPH=180 s
           CLOSE (etampnew_unit1)
+          MASSRout=MASSR
+          MASSIout=MASSI
         ENDIF
 !
         CALL MPI_BCAST(VENTR1,SIZE(VENTR1),MPI_REAL,0  &

@@ -101,7 +101,7 @@
 !
       TYPE(ESMF_Logical),TARGET :: ADIABATIC_ESMF                       &
                                   ,GLOBAL_ESMF                          &
-                                  ,RUN_ESMF
+                                  ,RUN_ESMF,MPRATE_ESMF
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -116,11 +116,12 @@
       RUN_ESMF      =ESMF_False
       GLOBAL_ESMF   =ESMF_False
       ADIABATIC_ESMF=ESMF_False
+      MPRATE_ESMF   =ESMF_False
 !
       IF(int_state%RUN)RUN_ESMF=ESMF_True
       IF(int_state%GLOBAL)GLOBAL_ESMF=ESMF_True
       IF(int_state%ADIABATIC)ADIABATIC_ESMF=ESMF_True
-
+      IF(int_state%LMPRATE)MPRATE_ESMF=ESMF_True
 #endif
 
 !
@@ -401,6 +402,15 @@
       CALL ESMF_AttributeSet(FIELDBUNDLE=HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
                             ,name       ='MP_PHYSICS'                   &  !<-- Name of microphysics scheme variable
                             ,value      =MP_PHYSICS                     &  !<-- The microphysics scheme integer specification
+                            ,rc         =RC)
+!insert lmprate to header
+      CALL ESMF_AttributeSet(FIELDBUNDLE=HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
+                            ,name       ='MPRATE'                        &  !<-- Name of microphysics scheme variable
+#ifdef ESMF_3
+                            ,value      =MPRATE_ESMF                    &  !<-- The microphysics scheme integer specification
+#else
+                            ,value      =int_state%LMPRATE              &
+#endif
                             ,rc         =RC)
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

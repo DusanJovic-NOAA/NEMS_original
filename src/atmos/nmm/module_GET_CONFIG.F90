@@ -38,6 +38,7 @@
                                  ,PCPHR                                 &
                                  ,GFS                                   &
                                  ,MICROPHYSICS                          &
+                                 ,lmprate                               &
                                  ,LNSH,LNSV                             &
                                  ,RC_CONF)
 !
@@ -55,7 +56,7 @@
                                            ,NUM_TRACERS_MET             &
                                            ,NUM_TRACERS_CHEM            &
                                            ,PCPHR
-      LOGICAL,             INTENT(OUT)   :: GFS
+      LOGICAL,             INTENT(OUT)   :: GFS,LMPRATE
       CHARACTER(LEN=*),    INTENT(OUT)   :: MICROPHYSICS
       INTEGER,             INTENT(OUT)   :: RC_CONF                       !<-- Final return code
 !
@@ -220,6 +221,22 @@
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
                                   ,value =MICROPHYSICS                  &  !<-- Put extracted quantity here
                                   ,label ='microphysics:'               &  !<-- The quantity's label in the configure file
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="GET_CONFIG: Extract LMPRATE from Config File"
+!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
+                                  ,value =LMPRATE                       &  !<-- Put extracted quantity here
+                                  ,label ='lmprate:'                    &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1168,6 +1185,23 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="GET_CONFIG: Extract LMPRATE from Config File"
+      IF(int_state%PRINT_ESMF .OR. int_state%PRINT_ALL) &
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
+                                  ,value =int_state%LMPRATE             &  !<-- Put extracted quantity here
+                                  ,label ='lmprate:'                    &  !<-- The quantity's label in the configure file
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="GET_CONFIG: Extract ADIABATIC from Config File"
       IF(int_state%PRINT_ESMF .OR. int_state%PRINT_ALL) &
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
@@ -1966,6 +2000,23 @@
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
                                   ,value =int_state%MICROPHYSICS        &  !<-- Put extracted quantity here
                                   ,label ='microphysics:'               &  !<-- The quantity's label in the configure file
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="GET_CONFIG: Extract LMPRATE from Config File"
+      IF(int_state%PRINT_ESMF .OR. int_state%PRINT_ALL) &
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
+                                  ,value =int_state%LMPRATE             &  !<-- Put extracted quantity here
+                                  ,label ='lmprate:'                    &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

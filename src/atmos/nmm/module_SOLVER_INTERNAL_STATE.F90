@@ -192,7 +192,9 @@
         LOGICAL(kind=KLOG) :: FIRST_STEP,READBC                         &
                              ,ADV_STANDARD,ADV_UPSTREAM
 !
-        INTEGER(kind=KINT), POINTER :: IHRST
+        INTEGER(kind=KINT), POINTER :: IHRST,MDRMINout,MDRMAXout        &
+                                      ,MDIMINout,MDIMAXout
+!
         INTEGER(kind=KINT) :: NTSD,IDTAD,IDTADT,IHR,IHREND              &
                              ,LNSAD,NBOCO,NTSTI,NTSTM,NTSTM_MAX
 !
@@ -220,13 +222,14 @@
                                                    ,TCT,TCU,TCV
 !
         LOGICAL(kind=KLOG) :: FIRST_PASS                                &
-                             ,RUN
+                             ,LMPRATE,RUN
 !
 !-----------------------------------------------------------------------
 !***  The general 4-D arrays for 3-D "tracers".
 !-----------------------------------------------------------------------
 !
-        INTEGER(kind=KINT) :: NUM_TRACERS_TOTAL                            !<-- Total number of "tracer" variables.
+        INTEGER(kind=KINT) :: NUM_TRACERS_TOTAL                            !<-- Total number of "tracer" variables.  
+        INTEGER(kind=KINT) :: D_SS                                         !<-- Total number of mp "source/sink" variables.
 !
 !-----------------------------------------------
 !***  Declare indices of meteorological tracers
@@ -316,7 +319,9 @@
         INTEGER(kind=KINT) :: INDX_WATER_START                          &  !<-- Start index of the water in tracers array
                              ,INDX_WATER_END                               !<-- End index of the water in tracers array
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: WATER                !<-- Storage array for water substance
+        REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: MPRATES,WATER         !<-- Storage array for MP source/sink terms and water substance
+!
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: MASSRout,MASSIout           !<-- Mass of rain and ice for different particle sizes-Fer/Ferhires
 !
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: F_ICE,F_RAIN        &  !<-- Fractions of ice, rain, and rime
                                                    ,F_RIMEF
@@ -607,6 +612,7 @@
 !***  For the excluded species (F_*=.FALSE.), set the P_ variable to 1.
 !-----------------------------------------------------------------------
 !
+        int_state%D_SS=1
       IF(TRIM(int_state%MICROPHYSICS)=='fer'.OR. &
          TRIM(int_state%MICROPHYSICS)=='fer_hires')THEN
         int_state%NUM_WATER=1+4
@@ -622,6 +628,7 @@
         int_state%F_QS=.TRUE.
         int_state%F_QI=.FALSE.
         int_state%F_QG=.FALSE.
+        if(int_state%lmprate) int_state%D_SS=14
 !      ELSEIF(TRIM(int_state%MICROPHYSICS)=='wsm3')THEN
 !        int_state%NUM_WATER=1+3
 !        int_state%P_QV=2
@@ -650,6 +657,7 @@
         int_state%F_QS=.TRUE.
         int_state%F_QI=.TRUE.
         int_state%F_QG=.TRUE.
+        if(int_state%lmprate) int_state%D_SS=40
       ELSEIF(TRIM(int_state%MICROPHYSICS)=='gfs')THEN
         int_state%NUM_WATER=1+3
         int_state%P_QV=2
@@ -699,7 +707,21 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'I_PAR_STA' ,int_state%I_PAR_STA )
       CALL SET_VAR_PTR(int_state%VARS,NV,'J_PAR_STA' ,int_state%J_PAR_STA )
       CALL SET_VAR_PTR(int_state%VARS,NV,'LPT2'      ,int_state%LPT2      )
-
+      CALL SET_VAR_PTR(int_state%VARS,NV,'MDRMINout' ,int_state%MDRMINout )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'MDRMAXout' ,int_state%MDRMAXout )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'MDIMINout' ,int_state%MDIMINout )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'MDIMAXout' ,int_state%MDIMAXout )
+     IF(TRIM(int_state%MICROPHYSICS)=='fer') THEN
+       int_state%MDRMINout=50
+       int_state%MDRMAXout=450
+       int_state%MDIMINout=50
+       int_state%MDIMAXout=1000
+     ELSEIF  (TRIM(int_state%MICROPHYSICS)=='fer_hires')THEN
+       int_state%MDRMINout=50
+       int_state%MDRMAXout=1000
+       int_state%MDIMINout=50
+       int_state%MDIMAXout=1000
+     ENDIF
       CALL SET_VAR_PTR(int_state%VARS,NV,'NSOIL'      ,int_state%NSOIL ) 
       CALL SET_VAR_PTR(int_state%VARS,NV,'NPHS'       ,int_state%NPHS  )  
       CALL SET_VAR_PTR(int_state%VARS,NV,'NCLOD'      ,int_state%NCLOD ) 
@@ -732,6 +754,9 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'SGML1'     ,int_state%SGML1   ,1, LM    )
       CALL SET_VAR_PTR(int_state%VARS,NV,'SGML2'     ,int_state%SGML2   ,1, LM    )
       CALL SET_VAR_PTR(int_state%VARS,NV,'SGM'       ,int_state%SGM     ,1, LM+1  )
+
+      CALL SET_VAR_PTR(int_state%VARS,NV,'MASSRout'  ,int_state%MASSRout ,1, int_state%MDRMAXout-int_state%MDRMINout+1 )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'MASSIout'  ,int_state%MASSIout ,1, int_state%MDIMAXout-int_state%MDIMINout+1 )
 
       CALL SET_VAR_PTR(int_state%VARS,NV,'ISLTYP'     ,int_state%ISLTYP   ,(/ IMS,JMS /),(/ IME,JME /) )  
       CALL SET_VAR_PTR(int_state%VARS,NV,'IVGTYP'     ,int_state%IVGTYP   ,(/ IMS,JMS /),(/ IME,JME /) )  
@@ -920,6 +945,7 @@
 
       CALL SET_VAR_PTR(int_state%VARS,NV,'TRACERS'     ,int_state%TRACERS      ,(/ IMS,JMS,1,1 /),(/ IME,JME,LM,int_state%NUM_TRACERS_TOTAL /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'TRACERS_PREV',int_state%TRACERS_PREV ,(/ IMS,JMS,1,1 /),(/ IME,JME,LM,int_state%NUM_TRACERS_TOTAL /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'MPRATES'     ,int_state%MPRATES      ,(/ IMS,JMS,1,1 /),(/ IME,JME,LM,int_state%D_SS /) )
 
       DO N=1,NV
         IF (int_state%VARS(N)%TKR==0) THEN

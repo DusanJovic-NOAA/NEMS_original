@@ -73,7 +73,7 @@
                          ,IDS,IDE,JDS,JDE,LM                            &
                          ,IMS,IME,JMS,JME                               &
                          ,ITS,ITE,JTS,JTE                               &
-                         ,ITS_B1,ITE_B1,JTS_B1,JTE_B1 )
+                         ,ITS_B1,ITE_B1,JTS_B1,JTE_B1,MPRATES,D_SS)   
 !***********************************************************************
 !$$$  SUBPROGRAM DOCUMENTATION BLOCK
 !                .      .    .
@@ -106,15 +106,18 @@
 !***  Argument Variables
 !------------------------
 !
-      INTEGER,INTENT(IN) :: ITIMESTEP,NPHS,NUM_WATER                    &
+      INTEGER,INTENT(IN) :: D_SS,ITIMESTEP,NPHS,NUM_WATER               &
                            ,IDS,IDE,JDS,JDE,LM                          &
                            ,IMS,IME,JMS,JME                             &
                            ,ITS,ITE,JTS,JTE                             &
-                           ,ITS_B1,ITE_B1,JTS_B1,JTE_B1
+                           ,ITS_B1,ITE_B1,JTS_B1,JTE_B1                 
+      INTEGER :: KK
 !
       INTEGER,INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
 !
       REAL,INTENT(IN) :: DT,DX,DY,PT
+!
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,D_SS)  :: MPRATES 
 !
       REAL,DIMENSION(1:LM),INTENT(IN) :: DSG2,PDSG1,PSGML1,SGML2
 !
@@ -327,6 +330,7 @@
                   ,ITS=itsloc,ITE=iteloc, JTS=jtsloc,JTE=jteloc, KTS=1,KTE=LM &
                   ,MP_RESTART_STATE=mp_restart_state                          &
                   ,TBPVS_STATE=tbpvs_state,TBPVS0_STATE=tbpvs0_state          &
+                  ,D_SS=d_ss,MPRATES=mprates                                  &
                                                                             )
           CASE ('fer_hires')
             CALL FER_HIRES(                                                   &
@@ -346,7 +350,7 @@
                   ,ITS=itsloc,ITE=iteloc, JTS=jtsloc,JTE=jteloc, KTS=1,KTE=LM &
                   ,MP_RESTART_STATE=mp_restart_state                          &
                   ,TBPVS_STATE=tbpvs_state,TBPVS0_STATE=tbpvs0_state          &
-                                                                            )
+                  ,D_SS=d_ss,MPRATES=mprates)   
           CASE ('gfs')
                !  write(0,*)'before call gfsmp,cwm=',cwm(10,10,:)
                !  write(0,*)'water(p_qi)=',water(10,10,:,p_qi)
@@ -386,7 +390,7 @@
                  ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=LM+1  &
                  ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=LM    &
                  ,ITS=itsloc,ITE=iteloc, JTS=jtsloc,JTE=jteloc, KTS=1,KTE=LM &
-                                                                    )
+                 ,D_SS=d_ss,MPRATES=mprates)    
                 DO K=1,LM
                 DO J=JMS,JME
                 DO I=IMS,IME

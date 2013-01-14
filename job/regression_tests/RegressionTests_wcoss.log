@@ -1,11 +1,11 @@
-Wed Dec 19 18:06:57 UTC 2012
+Sat Jan 12 16:31:44 UTC 2013
 Start Regression test
 
 
 
-Wed Dec 19 18:06:58 UTC 2012
+Sat Jan 12 16:31:45 UTC 2013
 Compilation ALL
-Wed Dec 19 18:23:00 UTC 2012
+Sat Jan 12 16:47:51 UTC 2013
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,57 +23,59 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  169.49
+ Original timing:  151.20  , test_glob timing:  171.00
 
 
 Test 002
-Test NMMB-global restart run from NEMSIO file
+Test NMMB-global NEMSIO as input file
 
 
 Checking test 002 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0048h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
  Test 002 passed 
 
 
 
 Test 003
-Test NMMB-global different decomposition
+Test NMMB-global restart run
 
 
 Checking test 003 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
  Test 003 passed 
 
 
 
 Test 004
-Test NMMB-regional NEMSIO as input file
+Test NMMB-global restart run from NEMSIO file
 
 
 Checking test 004 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
  Test 004 passed 
 
 
 
 Test 005
-Test NMMB-regional restart run
+Test NMMB-global different decomposition
 
 
 Checking test 005 results ....
- Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
  Test 005 passed 
 
 
 
 Test 006
-Test NMMB-regional with GFS physics package
+Test NMMB-global with GFS physics package
 
 
 Checking test 006 results ....
@@ -88,27 +90,171 @@ Checking test 006 results ....
 
 
 Test 007
-Test NMMB-regional static nests with restart
+Compare NMMB-regional results with previous trunk version
 
 
 Checking test 007 results ....
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_02_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_02_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_03_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_03_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_04_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_04_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0048h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
+ Comparing pcp.hr1.01.bin.........OK
+ Comparing pcp.hr2.01.bin.........OK
+ Comparing pcp.hr3.01.bin.........OK
+ Comparing pcp.hr4.01.bin.........OK
+ Comparing pcp.hr5.01.bin.........OK
+ Comparing pcp.hr6.01.bin.........OK
+ Comparing pcp.hr7.01.bin.........OK
  Test 007 passed 
 
 
 
+ Original timing:  240.82  , test_reg timing:  277.83
+
+
 Test 008
-Test NMMB-regional/RRTM static nests with restart
+Test NMMB-regional NEMSIO as input file
 
 
 Checking test 008 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0012h_00m_00.00s.........OK
+ Test 008 passed 
+
+
+
+Test 009
+Test NMMB-regional restart run
+
+
+Checking test 009 results ....
+ Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
+ Test 009 passed 
+
+
+
+Test 010
+Test NMMB-regional restart run with NEMSIO file
+
+
+Checking test 010 results ....
+ Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
+ Test 010 passed 
+
+
+
+Test 011
+Test NMMB-regional different decomposition
+
+
+Checking test 011 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
+ Test 011 passed 
+
+
+
+Test 012
+Test NMMB-regional with GFS physics package
+
+
+Checking test 012 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
+ Test 012 passed 
+
+
+
+Test 013
+Test NMMB-regional with selected GFS physics schemes
+
+
+Checking test 013 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
+ Test 013 passed 
+
+
+
+Test 014
+Test NMMB-regional with precipitation adjustment on
+
+
+Checking test 014 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
+ Test 014 passed 
+
+
+
+Test 015
+Test NMMB-regional writing time series
+
+
+Checking test 015 results ....
+ Comparing nmmb_hst_01_bin_0006h_00m_00.00s.........OK
+ Comparing ts_p01_d01.bin.........OK
+ Comparing ts_p02_d01.bin.........OK
+ Test 015 passed 
+
+
+
+Test 016
+Test NMMB-regional with static nests
+
+
+Checking test 016 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_02_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_02_nio_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_03_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_03_nio_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_04_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_04_nio_0012h_00m_00.00s.........OK
+ Test 016 passed 
+
+
+
+Test 017
+Test NMMB-regional static nests with restart
+
+
+Checking test 017 results ....
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_02_bin_0024h_00m_00.00s.........OK
@@ -117,7 +263,102 @@ Checking test 008 results ....
  Comparing nmmb_hst_03_nio_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_04_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_04_nio_0024h_00m_00.00s.........OK
- Test 008 passed 
+ Test 017 passed 
+
+
+
+Test 018
+Test NMMB-regional/RRTM with static nests
+
+
+Checking test 018 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_02_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_02_nio_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_03_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_03_nio_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_04_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_04_nio_0012h_00m_00.00s.........OK
+ Test 018 passed 
+
+
+
+Test 019
+Test NMMB-regional/RRTM static nests with restart
+
+
+Checking test 019 results ....
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_nio_0024h_00m_00.00s.........OK
+ Test 019 passed 
+
+
+
+Test 020
+Test NMMB-regional digital filter with static nests
+
+
+Checking test 020 results ....
+ Comparing nmmb_hst_01_bin_0003h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0003h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_bin_0003h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_nio_0003h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_bin_0003h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_nio_0003h_00m_00.00s.........OK
+ Test 020 passed 
+
+
+
+Test 021
+Test NMMB-regional with moving nests
+
+
+Checking test 021 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
+ Test 021 passed 
+
+
+
+Test 022
+Test NMMB-regional with moving nests and generational task assignments
+
+
+Checking test 022 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
+ Test 022 passed 
 
 
 

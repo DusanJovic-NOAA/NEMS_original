@@ -64,7 +64,7 @@ CONTAINS
                  ,sr                                               &
                  ,ids,ide, jds,jde, kds,kde                        &
                  ,ims,ime, jms,jme, kms,kme                        &
-                 ,its,ite, jts,jte, kts,kte                        &
+                 ,its,ite, jts,jte, kts,kte,d_ss,mprates           &
                                                                    )
 !-------------------------------------------------------------------
   IMPLICIT NONE
@@ -143,14 +143,30 @@ CONTAINS
   REAL, DIMENSION( ims:ime , jms:jme ), OPTIONAL,                &
         INTENT(INOUT) ::                                graupel, &
                                                         graupelncv
+
+     INTEGER :: d_ss
+     REAL,               DIMENSION(ims:ime, jms:jme,kms:kme,d_ss) ::  &
+                          mprates 
 ! LOCAL VAR
   REAL, DIMENSION( its:ite , kts:kte ) ::   t
   REAL, DIMENSION( ims:ime , kms:kme ) ::   q2,den2,p2,delz2
   REAL, DIMENSION( its:ite , kts:kte, 2 ) ::   qci
   REAL, DIMENSION( its:ite , kts:kte, 3 ) ::   qrs
 
-  INTEGER ::               i,j,k, kflip 
-
+  INTEGER ::               i,j,k,kflip 
+  REAL, DIMENSION( its:ite , kts:kte ) ::                        &
+                  pigen2d, praci2d, piacr2d                      &
+                 ,psacr2d, psmlt2d, pgfrz2d, pgacw2d, psacw2d    &
+                 ,pimlt2d, pihmf2d, pihtf2d                      &
+                 ,praut2d, psaut2d, pgaut2d, pracw2d, psevp2d    &
+                 ,pgacr2d, psaci2d, pgmlt2d, pgevp2d             &
+                 ,pgaci2d, pseml2d, pgeml2d                      &
+                 ,praci2d_s,praci2d_g                            &
+                 ,piacr2d_s,piacr2d_g,pracs2d_sg,psacr2d_s       &
+                 ,psacr2d_g,psdep2d_d,psdep2d_s                  &
+                 ,pgdep2d_d,pgdep2d_s,pidep2d_d,pidep2d_s        &
+                 ,pcondc0,pconde0,prevp2d_e                      &
+                 ,prevp2d_c
 !-------------------------------------------------------------------
 ! IN NEMS k index is from top to bottom, while from bot to top in wsm6
       DO j=jts,jte
@@ -173,6 +189,47 @@ CONTAINS
             p2(i,k) = p(i,j,kflip)
             delz2(i,k) = delz(i,j,kflip)
             den2(i,k) = den(i,j,kflip)            
+          prevp2d_e(i,k)=0.
+          prevp2d_c(i,k)=0.
+          pigen2d(i,k)=0.
+          psacr2d(i,k)=0.
+          psmlt2d(i,k)=0.
+          pgfrz2d(i,k)=0.
+          pgacw2d(i,k)=0.
+          psacw2d(i,k)=0.
+          pimlt2d(i,k)=0.
+          pihmf2d(i,k)=0.
+          pihtf2d(i,k)=0.
+          praut2d(i,k)=0.
+          psaut2d(i,k)=0.
+          pgaut2d(i,k)=0.
+          pracw2d(i,k)=0.
+          pgevp2d(i,k)=0.
+          pgacr2d(i,k)=0.
+          psaci2d(i,k)=0.
+          pgmlt2d(i,k)=0.
+          pgaci2d(i,k)=0.
+          pgeml2d(i,k)=0.
+          psevp2d(i,k)=0.
+          pseml2d(i,k)=0.
+          praci2d(i,k)=0.
+          praci2d_s(i,k)=0.
+          praci2d_g(i,k)=0.
+          piacr2d(i,k)=0.
+          piacr2d_s(i,k)=0.
+          piacr2d_g(i,k)=0.
+          pracs2d_sg(i,k)=0.
+          psacr2d_s(i,k)=0.
+          psacr2d_g(i,k)=0.
+          psdep2d_d(i,k)=0.
+          psdep2d_s(i,k)=0.
+          pgdep2d_d(i,k)=0.
+          pgdep2d_s(i,k)=0.
+          pidep2d_d(i,k)=0.
+          pidep2d_s(i,k)=0.
+          pcondc0(i,k)=0.
+          pconde0(i,k)=0.
+
          ENDDO
          ENDDO
             
@@ -191,6 +248,15 @@ CONTAINS
                     ,its,ite, jts,jte, kts,kte                     &
                     ,snow(ims,j),snowncv(ims,j)                    &
                     ,graupel(ims,j),graupelncv(ims,j)              &
+                 ,pigen2d,   praci2d,   piacr2d,   psacr2d,    psmlt2d    &
+                 ,pgfrz2d,   pgacw2d,   psacw2d,   pimlt2d,    pihmf2d    &
+                 ,pihtf2d,   praut2d,   psaut2d,   pgaut2d,    pracw2d    &
+                 ,pgevp2d,   pgacr2d,   psaci2d,   pgmlt2d,    pgaci2d    &
+                 ,pgeml2d,   psevp2d,   pseml2d,   praci2d_s              &
+                 ,praci2d_g, piacr2d_s, piacr2d_g, pracs2d_sg, prevp2d_e  &
+                 ,psacr2d_s, psacr2d_g, psdep2d_d, prevp2d_c,  pconde0    &
+                 ,psdep2d_s, pgdep2d_d, pidep2d_d, pidep2d_s,  pcondc0    &
+                 ,pgdep2d_s                                                &
                                                                    )
 
          DO K=kts,kte
@@ -209,6 +275,53 @@ CONTAINS
             qs(i,j,k) = qrs(i,kflip,2)
             qg(i,j,k) = qrs(i,kflip,3)
              q(i,j,k) = q2(i,kflip)
+!---convert 2D source/sink terms to one 4D array
+!---d_ss is the number of source/sink terms.  When d_ss is 1
+!---only 1 source/sink term is used
+         IF(D_SS.EQ.1)THEN
+           mprates(I,J,K,1) = 0. 
+         ELSE
+           mprates(I,J,K,1) = mprates(I,J,K,1) + prevp2d_e(i,kflip)
+           mprates(I,J,K,2) = mprates(I,J,K,2) + prevp2d_c(i,kflip)
+           mprates(I,J,K,3) = mprates(I,J,K,3) + pigen2d(i,kflip)
+           mprates(I,J,K,4) = mprates(I,J,K,4) + psacr2d(i,kflip)
+           mprates(I,J,K,5) = mprates(I,J,K,5) + psmlt2d(i,kflip)
+           mprates(I,J,K,6) = mprates(I,J,K,6) + pgfrz2d(i,kflip)
+           mprates(I,J,K,7) = mprates(I,J,K,7) + pgacw2d(i,kflip)
+           mprates(I,J,K,8) = mprates(I,J,K,8) + psacw2d(i,kflip)
+           mprates(I,J,K,9) = mprates(I,J,K,9) + pimlt2d(i,kflip)
+           mprates(I,J,K,10) = mprates(I,J,K,10) + pihmf2d(i,kflip)
+           mprates(I,J,K,11) = mprates(I,J,K,11) + pihtf2d(i,kflip)
+           mprates(I,J,K,12) = mprates(I,J,K,12) + praut2d(i,kflip)
+           mprates(I,J,K,13) = mprates(I,J,K,13) + psaut2d(i,kflip)
+           mprates(I,J,K,14) = mprates(I,J,K,14) + pgaut2d(i,kflip)
+           mprates(I,J,K,15) = mprates(I,J,K,15) + pracw2d(i,kflip)
+           mprates(I,J,K,16) = mprates(I,J,K,16) + pgacr2d(i,kflip)
+           mprates(I,J,K,17) = mprates(I,J,K,17) + psaci2d(i,kflip)
+           mprates(I,J,K,18) = mprates(I,J,K,18) + pgmlt2d(i,kflip)
+           mprates(I,J,K,19) = mprates(I,J,K,19) + pgaci2d(i,kflip)
+           mprates(I,J,K,20) = mprates(I,J,K,20) + pseml2d(i,kflip)
+           mprates(I,J,K,21) = mprates(I,J,K,21) + pgeml2d(i,kflip)
+           mprates(I,J,K,22) = mprates(I,J,K,22) + psevp2d(i,kflip)
+           mprates(I,J,K,23) = mprates(I,J,K,23) + pgevp2d(i,kflip)
+           mprates(I,J,K,24) = mprates(I,J,K,24) + praci2d(i,kflip)
+           mprates(I,J,K,25) = mprates(I,J,K,25) + praci2d_s(i,kflip)
+           mprates(I,J,K,26) = mprates(I,J,K,26) + praci2d_g(i,kflip)
+           mprates(I,J,K,27) = mprates(I,J,K,27) + piacr2d(i,kflip)
+           mprates(I,J,K,28) = mprates(I,J,K,28) + piacr2d_s(i,kflip)
+           mprates(I,J,K,29) = mprates(I,J,K,29) + piacr2d_g(i,kflip)
+           mprates(I,J,K,30) = mprates(I,J,K,30) + pracs2d_sg(i,kflip)
+           mprates(I,J,K,31) = mprates(I,J,K,31) + psacr2d_s(i,kflip)
+           mprates(I,J,K,32) = mprates(I,J,K,32) + psacr2d_g(i,kflip)
+           mprates(I,J,K,33) = mprates(I,J,K,33) + psdep2d_d(i,kflip)
+           mprates(I,J,K,34) = mprates(I,J,K,34) + psdep2d_s(i,kflip)
+           mprates(I,J,K,35) = mprates(I,J,K,35) + pgdep2d_d(i,kflip)
+           mprates(I,J,K,36) = mprates(I,J,K,36) + pgdep2d_s(i,kflip)
+           mprates(I,J,K,37) = mprates(I,J,K,37) + pidep2d_d(i,kflip)
+           mprates(I,J,K,38) = mprates(I,J,K,38) + pidep2d_s(i,kflip)
+           mprates(I,J,K,39) = mprates(I,J,K,39) + pcondc0(i,kflip)
+           mprates(I,J,K,40) = mprates(I,J,K,40) + pconde0(i,kflip)
+         ENDIF
          ENDDO
          ENDDO
       ENDDO
@@ -228,6 +341,15 @@ CONTAINS
                    ,its,ite, jts,jte, kts,kte                     &
                    ,snow,snowncv                                  &
                    ,graupel,graupelncv                            &
+                 ,pigen2d,   praci2d,   piacr2d,   psacr2d,    psmlt2d    &
+                 ,pgfrz2d,   pgacw2d,   psacw2d,   pimlt2d,    pihmf2d    &
+                 ,pihtf2d,   praut2d,   psaut2d,   pgaut2d,    pracw2d    &
+                 ,pgevp2d,   pgacr2d,   psaci2d,   pgmlt2d,    pgaci2d    &
+                 ,pgeml2d,   psevp2d,   pseml2d,   praci2d_s  &
+                 ,praci2d_g, piacr2d_s, piacr2d_g, pracs2d_sg, prevp2d_e  &
+                 ,psacr2d_s, psacr2d_g, psdep2d_d, prevp2d_c,  pconde0    &
+                 ,psdep2d_s, pgdep2d_d, pidep2d_d, pidep2d_s,  pcondc0    &
+                 ,pgdep2d_s                                                &
                                                                   )
 !-------------------------------------------------------------------
   IMPLICIT NONE
@@ -296,6 +418,21 @@ CONTAINS
   REAL, DIMENSION( its:ite , kts:kte ) ::                         &
         pigen, pidep, pcond, xl, cpm, work2, psmlt, psevp, denfac,     &
         xni, pgevp,n0sfac
+  REAL, DIMENSION( its:ite , kts:kte ) ::                         &
+                  pigen2d, praci2d, piacr2d     &
+                 ,psacr2d, psmlt2d, pgfrz2d, pgacw2d, psacw2d     &
+                 ,pimlt2d, pihmf2d, pihtf2d      &
+                 ,praut2d, psaut2d, pgaut2d, pracw2d, psevp2d     &
+                 ,pgacr2d, psaci2d, pgmlt2d, pgevp2d     &
+                 ,pgaci2d, pseml2d, pgeml2d     &
+                 ,pihtf,pgfrz,pimlt,pihmf &
+                 ,praci2d_s       &
+                 ,praci2d_g,piacr2d_s,piacr2d_g,fdelta2,fdelta3  &
+                 ,pracs2d_sg,psacr2d_s,psacr2d_g &
+                 ,psdep2d_d,psdep2d_s  &
+                 ,pgdep2d_d,pgdep2d_s,pidep2d_d,pidep2d_s          &
+                 ,pcondc0,pconde0,prevp2d_e     &
+                 ,prevp2d_c
 ! variables for optimization
   REAL, DIMENSION( its:ite )           :: tvec1
   REAL :: temp
@@ -470,6 +607,10 @@ CONTAINS
           pigen(i,k) = 0.
           pidep(i,k) = 0.
           pcond(i,k) = 0.
+          pimlt(i,k) = 0.
+          pihmf(i,k) = 0.
+          pihtf(i,k) = 0.
+          pgfrz(i,k) = 0.
           psmlt(i,k) = 0.
           pgmlt(i,k) = 0.
           pseml(i,k) = 0.
@@ -484,6 +625,8 @@ CONTAINS
           fall(i,k,3) = 0.
           fallc(i,k) = 0.
           falkc(i,k) = 0.
+          fdelta3(i,k)=0.
+          fdelta2(i,k)=0.
           xni(i,k) = 1.e3
         enddo
       enddo
@@ -725,6 +868,17 @@ CONTAINS
           xlf = xls-xl(i,k)
           if(supcol.lt.0.) xlf = xlf0
           if(supcol.lt.0.and.qci(i,k,2).gt.0.) then
+!
+!aligo
+!  pimlt was added as a diagnostic array not in any other version of
+!  the WSM6 scheme.
+!  pimlt,pihmf,pihtf,and pgfrz are the added diagnostics.  Declared
+!  in wsm62D and initialized there as well 
+! 
+!not instantaneous
+            pimlt(i,k)=qci(i,k,2)
+            pimlt(i,k) = max(qmin,pimlt(i,k))
+!aligo
             qci(i,k,1) = qci(i,k,1) + qci(i,k,2)
             t(i,k) = t(i,k) - xlf/cpm(i,k)*qci(i,k,2)*c88
             qci(i,k,2) = 0.
@@ -734,6 +888,10 @@ CONTAINS
 !        (T<-40C: C->I)
 !---------------------------------------------------------------
           if(supcol.gt.40..and.qci(i,k,1).gt.0.) then
+!aligo
+            pihmf(i,k) = qci(i,k,1)
+            pihmf(i,k) = max(qmin,pihmf(i,k))
+!aligo
             qci(i,k,2) = qci(i,k,2) + qci(i,k,1)
             t(i,k) = t(i,k) + xlf/cpm(i,k)*qci(i,k,1)*c88
             qci(i,k,1) = 0.
@@ -747,6 +905,10 @@ CONTAINS
 !              *den(i,k)/denr/xncr*qci(i,k,1)**2*dtcld,qci(i,k,1))
             pfrzdtc = min(pfrz1*(exp(pfrz2*supcol)-1.)                  &
             *den(i,k)/denr/xncr*qci(i,k,1)*qci(i,k,1)*dtcld,qci(i,k,1))
+!aligo
+            pihtf(i,k) = pfrzdtc
+            pihtf(i,k) = max(qmin,pihtf(i,k))
+!aligo
             qci(i,k,2) = qci(i,k,2) + pfrzdtc
             t(i,k) = t(i,k) + xlf/cpm(i,k)*pfrzdtc*c88
             qci(i,k,1) = qci(i,k,1)-pfrzdtc
@@ -772,7 +934,10 @@ CONTAINS
                   pfrzdtr = pfrzdtr*ppp1
               pfrzdtr = pfrzdtr*dtcld
                pfrzdtr = min( pfrzdtr, qrs(i,k,1) ) 
-
+!aligo
+            pgfrz(i,k) = pfrzdtr
+            pgfrz(i,k) = max(qmin,pgfrz(i,k))
+!aligo
             qrs(i,k,3) = qrs(i,k,3) + pfrzdtr
             t(i,k) = t(i,k) + xlf/cpm(i,k)*pfrzdtr*c88
             qrs(i,k,1) = qrs(i,k,1)-pfrzdtr
@@ -1402,6 +1567,78 @@ CONTAINS
           t(i,k) = t(i,k)+pcond(i,k)*xl(i,k)/cpm(i,k)*dtcld*c88
         enddo
       enddo
+      do k = kts, kte
+        do i = its, ite
+
+            psmlt2d(i,k)= psmlt2d(i,k) + psmlt(i,k)
+            pgmlt2d(i,k)= pgmlt2d(i,k) + pgmlt(i,k)
+            pimlt2d(i,k)= pimlt2d(i,k) + pimlt(i,k)
+            pihmf2d(i,k)= pihmf2d(i,k) + pihmf(i,k)
+            pihtf2d(i,k)= pihtf2d(i,k) + pihtf(i,k)
+            pgfrz2d(i,k)= pgfrz2d(i,k) + pgfrz(i,k)
+            praut2d(i,k)= praut2d(i,k) + praut(i,k)*dtcld
+            pracw2d(i,k)= pracw2d(i,k) + pracw(i,k)*dtcld
+            praci2d(i,k)= praci2d(i,k) + praci(i,k)*dtcld
+            praci2d_s(i,k)=praci2d_s(i,k)+praci(i,k)*dtcld*fdelta3(i,k)
+            praci2d_g(i,k)=praci2d_g(i,k)+praci(i,k)*dtcld*(1-fdelta3(i,k))
+            piacr2d(i,k)= piacr2d(i,k) + piacr(i,k)*dtcld
+            piacr2d_s(i,k)=piacr2d_s(i,k)+piacr(i,k)*dtcld*fdelta3(i,k)
+            piacr2d_g(i,k)=piacr2d_g(i,k)+piacr(i,k)*dtcld*(1-fdelta3(i,k))
+            psaci2d(i,k)= psaci2d(i,k) + psaci(i,k)*dtcld
+            pgaci2d(i,k)= pgaci2d(i,k) + pgaci(i,k)*dtcld
+            psacw2d(i,k)= psacw2d(i,k) + psacw(i,k)*dtcld
+            pgacw2d(i,k)= pgacw2d(i,k) + pgacw(i,k)*dtcld
+            pracs2d_sg(i,k)=pracs2d_sg(i,k)+pracs(i,k)*dtcld*(1-fdelta2(i,k))
+            psacr2d(i,k)= psacr2d(i,k) + psacr(i,k)*dtcld
+            psacr2d_s(i,k)=psacr2d_s(i,k)+psacr(i,k)*dtcld*fdelta2(i,k)
+            psacr2d_g(i,k)=psacr2d_g(i,k)+psacr(i,k)*dtcld*(1-fdelta2(i,k))
+            pgacr2d(i,k)= pgacr2d(i,k) + pgacr(i,k)*dtcld
+            pseml2d(i,k)= pseml2d(i,k) + pseml(i,k)*dtcld
+            pgeml2d(i,k)= pgeml2d(i,k) + pgeml(i,k)*dtcld
+            pigen2d(i,k)= pigen2d(i,k) + pigen(i,k)*dtcld
+            psaut2d(i,k)= psaut2d(i,k) + psaut(i,k)*dtcld
+            pgaut2d(i,k)= pgaut2d(i,k) + pgaut(i,k)*dtcld
+            psevp2d(i,k)= psevp2d(i,k) + psevp(i,k)*dtcld
+            pgevp2d(i,k)= pgevp2d(i,k) + pgevp(i,k)*dtcld
+            if(prevp(i,k).lt.0)then
+              prevp2d_e(i,k)=prevp2d_e(i,k)-prevp(i,k)*dtcld
+            elseif(prevp(i,k).gt.0)then
+              prevp2d_c(i,k)=prevp2d_c(i,k)+prevp(i,k)*dtcld
+            endif
+
+            if(psdep(i,k).lt.0)then
+              psdep2d_s(i,k)=psdep2d_s(i,k)-psdep(i,k)*dtcld
+            elseif(psdep(i,k).gt.0)then
+              psdep2d_d(i,k)=psdep2d_d(i,k)+psdep(i,k)*dtcld
+            endif
+            if(pgdep(i,k).lt.0)then
+              pgdep2d_s(i,k)=pgdep2d_s(i,k)-pgdep(i,k)*dtcld
+            elseif(pgdep(i,k).gt.0)then
+              pgdep2d_d(i,k)=pgdep2d_d(i,k)+pgdep(i,k)*dtcld
+            endif
+
+            if(pidep(i,k).lt.0)then
+              pidep2d_s(i,k)=pidep2d_s(i,k)-pidep(i,k)*dtcld
+            elseif(pidep(i,k).gt.0)then
+              pidep2d_d(i,k)=pidep2d_d(i,k)+pidep(i,k)*dtcld
+            endif
+
+
+!          ------------------------------------------------------
+!           Separate condensation and evaporation of cloud water
+!           to be consistent with the Detailed mp (12/16/2008 ki)
+!          ------------------------------------------------------
+
+!
+!                  condensation/evaporation of cloud drops
+!
+           if (pcond(i,k) .ge. 0.0) then      ! > 0 for deposition
+              pcondc0(i,k) = pcondc0(i,k) + pcond(i,k) * dtcld
+           else                               ! < 0 for evaporation of cloud drops
+              pconde0(i,k) = pconde0(i,k) - pcond(i,k) * dtcld
+           endif
+      enddo
+       enddo
 !
 !
 !----------------------------------------------------------------
