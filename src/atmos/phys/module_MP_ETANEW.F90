@@ -156,7 +156,7 @@
       REAL,  DIMENSION(ims:ime,jms:jme):: APREC,PREC,ACPREC
       REAL,  DIMENSION(its:ite, jts:jte, kts:kte):: t_phy
 
-      INTEGER :: I,J,K,KK
+      INTEGER :: I,J,K
       REAL :: wc
 !------------------------------------------------------------------------
 ! For ECGP01

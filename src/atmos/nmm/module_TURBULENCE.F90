@@ -523,7 +523,7 @@
 !
 !.......................................................................
 !$omp parallel do                                                     &
-!$omp private(j,i,pdsl,psfc,plm,tlmh,factrl,k,plyr,ql,tl              &
+!$omp private(j,i,pdsl,psfc,plm,tlmh,factrl,k,kflip,plyr,ql,tl        &
 !$omp        ,rxner),SCHEDULE(dynamic)
 !.......................................................................
       DO J=JTS,JTE
@@ -675,7 +675,7 @@
 !
 !.......................................................................
 !$omp parallel do                                                       &
-!$omp& private(j,i,k)
+!$omp& private(j,i,k,kflip)
 !.......................................................................
       DO J=JTS_B1,JTE_B1
         DO K=1,LM
@@ -1338,7 +1338,7 @@
 !
       gwd_update: IF(GWDFLG) THEN
 !.......................................................................
-!$omp parallel do private(j,k,i)
+!$omp parallel do private(j,k,i,kflip)
 !.......................................................................
         DO J=JMS,JME
           DO K=1,LM

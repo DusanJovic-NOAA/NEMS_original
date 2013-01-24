@@ -12,6 +12,9 @@ cp _RTPWD_/NMMB_nests/input_nmmb_regional.d01_nemsio    input_domain_01_nemsio
 cp _RTPWD_/NMMB_nests/boco* .
 cp _RTPWD_/data/* .
 cp _RTPWD_/NMMB_reg_filt/GWD_bin_* .
+cp IGBP_VEGPARM.TBL VEGPARM.TBL
+cp IGBP_LANDUSE.TBL LANDUSE.TBL
+cp ETAMPNEW_DATA.expanded_rain ETAMPNEW_DATA
 
 cp $SRCDIR/job/regression_tests/atmos.configure_nmm atmos.configure
 cp $SRCDIR/job/regression_tests/ocean.configure .

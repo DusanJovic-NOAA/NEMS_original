@@ -213,7 +213,6 @@ fi
 # CONVC       - convective scheme (bmj, sas)
 # MICRO       - microphysics scheme (fer, gfs, fer_hires)
 # TURBL       - PBL scheme (myj,gfs)
-# VGTAB       - Vegetation table (0=USGS,1=IGBP)
 # GBRG        - NMMB global/regional/nest/filter option
 # QUILT       - quilting ON/OFF
 # NSOUT       - number of timesteps for output
@@ -308,7 +307,7 @@ if [ ${MACHINE_ID} = ccs ]; then
 
 elif [ ${MACHINE_ID} = wcoss ]; then
 
-  TASKS_dflt=32  ; TPN_dflt=32 ; INPES_dflt=05 ; JNPES_dflt=06 ; WTPG_dflt=2
+  TASKS_dflt=32  ; TPN_dflt=16 ; INPES_dflt=05 ; JNPES_dflt=06 ; WTPG_dflt=2
   TASKS_thrd=16  ; TPN_thrd=16 ; INPES_thrd=03 ; JNPES_thrd=05 ; WTPG_thrd=1
   TASKS_nest=96  ; TPN_nest=16 ; INPES_nest=02 ; JNPES_nest=02 ; WTPG_nest=1
   TASKS_fltr=64  ; TPN_fltr=16 ; INPES_fltr=02 ; JNPES_fltr=02 ; WTPG_fltr=1
@@ -345,8 +344,8 @@ export TASKS=$TASKS_dflt ; export TPN=$TPN_dflt
 export GBRG=reg     ; export NEMSI=false    ; export RSTRT=false ; export AFFN=core
 export NCHILD=0     ; export MODE=1-way     ; export NODE=1      ; export FCSTL=48
 export PCPFLG=false ; export WPREC=false    ; export CPPCP=#     ; export TS=#
-export RADTN=gfdl   ; export CONVC=bmj      ; export MICRO=fer   ; export TURBL=myj
-export gfsP=false   ; export VGTAB=0
+export RADTN=gfdl   ; export CONVC=bmj      ; export TURBL=myj   ; export MICRO=fer_hires
+export gfsP=false
 }
 
 export_gfs ()
@@ -396,7 +395,6 @@ elif [ ${MACHINE_ID} = wcoss ]; then
 
   ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
-# gmake nmm                              >> ${COMPILE_LOG} 2>&1
   gmake nmm_gfs_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
 
 elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then 
@@ -1043,7 +1041,7 @@ nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
 nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
 #---------------------
 export_nmm
-export RADTN=rrtm ; export MICRO=fer_hires ; export VGTAB=1
+export RADTN=rrtm
 export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
 export AFFN=cpu   ; export NODE=3   ; export WLCLK=30
 export TASKS=$TASKS_nest ; export TPN=$TPN_nest
@@ -1080,7 +1078,7 @@ nmmb_hst_03_bin_0024h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
 nmmb_hst_04_bin_0024h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s"
 #---------------------
 export_nmm
-export RADTN=rrtm ; export MICRO=fer_hires ; export VGTAB=1 ;export RSTRT=true
+export RADTN=rrtm ; export RSTRT=true
 export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
 export AFFN=cpu   ; export NODE=3   ; export WLCLK=20
 export TASKS=$TASKS_nest ; export TPN=$TPN_nest
@@ -1135,6 +1133,7 @@ fi # endif test
 #
 ####################################################################################################
 
+if [ 1 = 0 ]; then # temporary removed from tests
 if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="Test NMMB-regional with moving nests"
@@ -1168,6 +1167,7 @@ export INPES=$INPES_mvg1 ; export JNPES=$JNPES_mvg1 ; export WTPG=$WTPG_mvg1
 #---------------------
 
 fi # endif test
+fi # temporary removed from tests
 
 
 ####################################################################################################
@@ -1178,6 +1178,7 @@ fi # endif test
 #
 ####################################################################################################
 
+if [ 1 = 0 ]; then # temporary removed from tests
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test NMMB-regional with moving nests and generational task assignments"
@@ -1212,6 +1213,7 @@ export INPES=$INPES_mvg2 ; export JNPES=$JNPES_mvg2 ; export WTPG=$WTPG_mvg2
 #---------------------
 
 fi # endif test
+fi # temporary removed from tests
 
 #RV# Temporary, until GFS is ready on WCOSS
 if [ ${MACHINE_ID} = wcoss ]; then

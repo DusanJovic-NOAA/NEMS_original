@@ -16,6 +16,9 @@ cp _RTPWD_/data/* .
 cp _RTPWD_/NMMB_mvg_nests/GWD_bin_* .
 cp _RTPWD_/NMMB_mvg_nests/*_3 .
 cp _RTPWD_/NMMB_mvg_nests/*_9 .
+cp IGBP_VEGPARM.TBL VEGPARM.TBL
+cp IGBP_LANDUSE.TBL LANDUSE.TBL
+cp ETAMPNEW_DATA.expanded_rain ETAMPNEW_DATA
 
 cp $SRCDIR/job/regression_tests/atmos.configure_nmm atmos.configure
 cp $SRCDIR/job/regression_tests/ocean.configure .

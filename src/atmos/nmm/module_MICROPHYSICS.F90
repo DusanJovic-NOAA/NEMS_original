@@ -111,7 +111,6 @@
                            ,IMS,IME,JMS,JME                             &
                            ,ITS,ITE,JTS,JTE                             &
                            ,ITS_B1,ITE_B1,JTS_B1,JTE_B1                 
-      INTEGER :: KK
 !
       INTEGER,INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
 !

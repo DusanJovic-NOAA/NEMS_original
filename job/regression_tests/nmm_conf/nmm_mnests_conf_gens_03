@@ -135,8 +135,8 @@ idtadt:  2                  # Number of adjustment timesteps between tracer adve
 num_tracers_met:   4        # Number of specified meterological "tracer" scalars (e.g., water)
 num_tracers_chem:  0        # Number of specified chem/aerosol "tracer" scalars
                  
-lnsh:  5                    # Number of boundary blending rows for H points
-lnsv:  5                    # Number of boundary blending rows for V points
+lnsh:  1                    # Number of boundary blending rows for H points
+lnsv:  1                    # Number of boundary blending rows for V points
 
 
 ###################################
@@ -210,7 +210,7 @@ convection:  bmj            # Convection scheme
                                 # none--> No convection
 
 #---------------------------------
-microphysics:  fer          # Microphysics scheme
+microphysics:  fer_hires    # Microphysics scheme
                                 # fer --> Ferrier
                                 # kes --> Kessler
                                 # lin --> Lin
@@ -219,6 +219,10 @@ microphysics:  fer          # Microphysics scheme
                                 # gfs--> GFS microphy
 
 spec_adv:  .false.          # Individual cloud species advected
+lmprate:  .false.           # .true.: 4D array called MPRATES containing
+                            # 3D microphysics source/sink terms
+                            # .false.: One 3D array called MPRATES
+                            # with zero values
                                                                                                                                               
 #---------------------------------
 turbulence:  myj            # Turbulence schemes

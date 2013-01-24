@@ -60,9 +60,9 @@ filt_dt_den: 34                  # Denominator of fractional second
 ##### Forecast Start Time #####
 ###############################
 
-start_year:   2011   
-start_month:  02
-start_day:    04
+start_year:   2013
+start_month:  01
+start_day:    20
 start_hour:   00
 start_minute: 0
 start_second: 0
@@ -202,7 +202,7 @@ convection:  bmj            # Convection scheme
                                 # none--> No convection
 
 #---------------------------------
-microphysics:  fer          # Microphysics scheme
+microphysics:  fer_hires    # Microphysics scheme
                                 # fer --> Ferrier
                                 # fer_hires--> Ferrier operational
                                 # kes --> Kessler
@@ -211,6 +211,10 @@ microphysics:  fer          # Microphysics scheme
                                 # wsm3--> WSM3
 
 spec_adv:  .false.          # Individual cloud species advected
+lmprate:  .false.           # .true.: 4D array called MPRATES containing
+                            # 3D microphysics source/sink terms
+                            # .false.: One 3D array called MPRATES
+                            # with zero values
                                                                                                                                               
 #---------------------------------
 turbulence:  myj            # Turbulence schemes
@@ -228,7 +232,7 @@ land_surface:  noah         # Land surface schemes
                                 # noah--> NOAH scheme
 
 ucmcall: 0                  # Use (1) or do not use (0) the Urban Canopy Model
-igbp: 0                     # Use (1) or do not use (0) IGBP types
+igbp: 1                     # Use (1) or do not use (0) IGBP types
 
 #---------------------------------
                                                                                                                                               

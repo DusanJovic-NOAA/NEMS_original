@@ -1217,7 +1217,8 @@
         td%prefft_tim=0.
         td%presmud_tim=0.
         td%solver_init_tim=0.
-        td%solver_run_tim=0.
+        td%solver_dyn_tim=0.
+        td%solver_phy_tim=0.
         td%swaphn_tim=0.
         td%swapwn_tim=0.
         td%updatet_tim=0.
@@ -5008,13 +5009,25 @@
                         ,IDS,IDE,JDS,JDE)
       ENDIF
 !
+      td%solver_dyn_tim=td%solver_dyn_tim+(timef()-btim0)
+!
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !----PHY_RUN START -----------------------------------------------------
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
+!rv - please do not remove this template call:
+!     if(mod(ntimestep,20)==0.or.ntimestep<=5)then
+!       call twr(int_state%t,lm,'t',ntimestep,mype,num_pes,mpi_comm_comp &
+!               ,ids,ide,jds,jde &
+!               ,ims,ime,jms,jme &
+!               ,its,ite,jts,jte)
+!     endif
+!rv
 !
       physics: IF(INTEGER_DT>0)THEN                                     !<-- Physics is active
+!
+      btim0=timef()
 !
 !-----------------------------------------------------------------------
 !***  Call radiation so that updated fields are written to the
@@ -5026,10 +5039,6 @@
       ELSE
          NTIMESTEP_RAD=NTIMESTEP+1
       ENDIF
-!
-!-----------------------------------------------------------------------
-!
-!rv   btim0=timef()
 !
 !-----------------------------------------------------------------------
 !***  Dereference some internal state components for convenience.
@@ -6981,7 +6990,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      td%solver_run_tim=td%solver_run_tim+(timef()-btim0)
+      td%solver_phy_tim=td%solver_phy_tim+(timef()-btim0)
 !
 !-----------------------------------------------------------------------
 !

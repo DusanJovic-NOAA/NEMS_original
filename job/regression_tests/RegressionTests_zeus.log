@@ -1,11 +1,11 @@
-Sat Jan 12 03:43:11 UTC 2013
+Wed Jan 23 21:00:20 UTC 2013
 Start Regression test
 
 
 
-Sat Jan 12 03:43:11 UTC 2013
+Wed Jan 23 21:00:20 UTC 2013
 Compilation ALL
-Sat Jan 12 04:04:20 UTC 2013
+Wed Jan 23 21:16:53 UTC 2013
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  82.974
+ Original timing:  151.20  , test_glob timing:  83.052
 
 
 Test 002
@@ -128,7 +128,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  141.91
+ Original timing:  240.82  , test_reg timing:  131.58
 
 
 Test 009
@@ -363,43 +363,13 @@ Checking test 022 results ....
 
 
 Test 023
-Test NMMB-regional with moving nests
-
-
-Checking test 023 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
- Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
- Test 023 passed 
-
-
-
-Test 024
-Test NMMB-regional with moving nests and generational task assignments
-
-
-Checking test 024 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
- Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
- Test 024 passed 
-
-
-
-Test 025
 Compare GFS results with previous trunk version
 GFS, 32 proc, 1 thread
 
 
 
 
-Checking test 025 results ....
+Checking test 023 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -418,10 +388,44 @@ Checking test 025 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 025 passed 
-Test 026
+ Test 023 passed 
+Test 024
 Compare GFS adiabatic results with previous trunk version
 GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 024 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Test 024 passed 
+Test 025
+Test GFS with 2-copy option
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 025 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Test 025 passed 
+Test 026
+Test GFS different decomposition and restart
+GFS, 48 proc, 1 thread
 
 
 
@@ -431,10 +435,21 @@ Checking test 026 results ....
  Comparing sigf06.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
  Test 026 passed 
 Test 027
-Test GFS with 2-copy option
-GFS, 32 proc, 1 thread
+Test GFS threads
+GFS, 16 proc, 2 thread
 
 
 
@@ -454,8 +469,8 @@ Checking test 027 results ....
  Comparing flxf24.........OK
  Test 027 passed 
 Test 028
-Test GFS different decomposition and restart
-GFS, 48 proc, 1 thread
+GFS, 32 proc, 1 thread, no quilt, output every 4 timestep
+GFS, 32 proc, 1 thread
 
 
 
@@ -478,7 +493,7 @@ Checking test 028 results ....
  Comparing flxf48.........OK
  Test 028 passed 
 Test 029
-Test GFS threads
+Test GFS, 16 proc, 2 threads,no quilt, output every 2 time steps
 GFS, 16 proc, 2 thread
 
 
@@ -499,8 +514,8 @@ Checking test 029 results ....
  Comparing flxf24.........OK
  Test 029 passed 
 Test 030
-GFS, 32 proc, 1 thread, no quilt, output every 4 timestep
-GFS, 32 proc, 1 thread
+Test GFS, 48 proc, 1 thread, no quilt
+GFS, 48 proc, 1 thread
 
 
 
@@ -523,8 +538,8 @@ Checking test 030 results ....
  Comparing flxf48.........OK
  Test 030 passed 
 Test 031
-Test GFS, 16 proc, 2 threads,no quilt, output every 2 time steps
-GFS, 16 proc, 2 thread
+GFS,32 total proc (tasks), 1 thread, quilt, digital filter on reduced grid
+GFS, 32 proc, 1 thread
 
 
 
@@ -534,18 +549,21 @@ Checking test 031 results ....
  Comparing sigf06.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
+ Comparing sigf48.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
  Comparing flxf03.........OK
  Comparing flxf06.........OK
  Comparing flxf12.........OK
  Comparing flxf24.........OK
+ Comparing flxf48.........OK
  Test 031 passed 
 Test 032
-Test GFS, 48 proc, 1 thread, no quilt
-GFS, 48 proc, 1 thread
+GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
+GFS, 16 proc, 2 thread
 
 
 
@@ -555,71 +573,23 @@ Checking test 032 results ....
  Comparing sigf06.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
- Comparing sigf48.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
- Comparing sfcf48.........OK
  Comparing flxf03.........OK
  Comparing flxf06.........OK
  Comparing flxf12.........OK
  Comparing flxf24.........OK
- Comparing flxf48.........OK
  Test 032 passed 
 Test 033
-GFS,32 total proc (tasks), 1 thread, quilt, digital filter on reduced grid
-GFS, 32 proc, 1 thread
-
-
-
-
-Checking test 033 results ....
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sigf48.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing sfcf48.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
- Comparing flxf48.........OK
- Test 033 passed 
-Test 034
-GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
-GFS, 16 proc, 2 thread
-
-
-
-
-Checking test 034 results ....
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
- Test 034 passed 
-Test 035
 Concurrency GEFS, stochastic perturbations, 4 members, T190L28.
 GFS, 64 proc, 1 thread
 
 
 
 
-Checking test 035 results ....
+Checking test 033 results ....
  Comparing SIG.F06_01.........OK
  Comparing SIG.F06_02.........OK
  Comparing SIG.F06_03.........OK
@@ -632,35 +602,35 @@ Checking test 035 results ....
  Comparing FLX.F06_02.........OK
  Comparing FLX.F06_03.........OK
  Comparing FLX.F06_04.........OK
- Test 035 passed 
-Sat Jan 12 07:25:18 UTC 2013
+ Test 033 passed 
+Thu Jan 24 02:34:54 UTC 2013
 Compilation only NMM
-Test 036
+Test 034
 Compare NMMB-global results with previous trunk version, only NMM compiled
 
 
-Checking test 036 results ....
+Checking test 034 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
  Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
- Test 036 passed 
+ Test 034 passed 
 
 
 
-Sat Jan 12 07:37:38 UTC 2013
+Thu Jan 24 02:46:37 UTC 2013
 Compilation only GFS
-Sat Jan 12 07:47:34 UTC 2013
-Test 037
+Thu Jan 24 02:52:47 UTC 2013
+Test 035
 Compare GFS results with previous trunk version, only GFS compiled
 GFS, 32 proc, 1 thread
 
 
 
 
-Checking test 037 results ....
+Checking test 035 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -679,6 +649,6 @@ Checking test 037 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 037 passed 
-Sat Jan 12 07:51:46 UTC 2013
+ Test 035 passed 
+Thu Jan 24 02:55:26 UTC 2013
 REGRESSION TEST WAS SUCCESSFUL

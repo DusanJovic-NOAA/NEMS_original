@@ -16,15 +16,14 @@ cp _RTPWD_/NMMB_nests/nmmb_rst_04_bin_0012h_00m_00.00s  restart_file_04
 cp _RTPWD_/NMMB_nests/boco.* .
 cp _RTPWD_/data/* .
 cp _RTPWD_/NMMB_nests/GWD_bin_* .
-#cp IGBP_VEGPARM.TBL VEGPARM.TBL
-#cp IGBP_LANDUSE.TBL LANDUSE.TBL
-#cp ETAMPNEW_DATA.expanded_rain ETAMPNEW_DATA
+cp IGBP_VEGPARM.TBL VEGPARM.TBL
+cp IGBP_LANDUSE.TBL LANDUSE.TBL
+cp ETAMPNEW_DATA.expanded_rain ETAMPNEW_DATA
 
 cp $SRCDIR/job/regression_tests/atmos.configure_nmm atmos.configure
 cp $SRCDIR/job/regression_tests/ocean.configure .
 cp $SRCDIR/job/regression_tests/configure_file_0* .
 cp configure_file_01 model_configure
-cp _RTPWD_/data/* .
 ln -sf global_o3prdlos.f77 fort.28
 ln -sf global_o3clim.txt fort.48
 

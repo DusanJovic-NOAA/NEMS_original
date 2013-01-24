@@ -374,11 +374,12 @@
 !
 !-----------------------------------------------------------------------
 !***  The microphysics scheme specification is needed in the output
-!***  so add it directly.
+!***  so add it directly.  Values based on what's in WRF.
 !-----------------------------------------------------------------------
 !
-      IF(int_state%MICROPHYSICS=='fer'.OR. &
-         int_state%MICROPHYSICS=='fer_hires')THEN
+      IF(int_state%MICROPHYSICS=='fer')THEN
+        MP_PHYSICS=95
+      ELSEIF(int_state%MICROPHYSICS=='fer_hires')THEN
         MP_PHYSICS=5
       ELSEIF(int_state%MICROPHYSICS=='kes')THEN
         MP_PHYSICS=1

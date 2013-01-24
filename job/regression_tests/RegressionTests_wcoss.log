@@ -1,11 +1,11 @@
-Sat Jan 12 16:31:44 UTC 2013
+Wed Jan 23 21:56:01 UTC 2013
 Start Regression test
 
 
 
-Sat Jan 12 16:31:45 UTC 2013
+Wed Jan 23 21:56:01 UTC 2013
 Compilation ALL
-Sat Jan 12 16:47:51 UTC 2013
+Wed Jan 23 21:56:01 UTC 2013
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  171.00
+ Original timing:  151.20  , test_glob timing:  94.941
 
 
 Test 002
@@ -113,7 +113,7 @@ Checking test 007 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  277.83
+ Original timing:  240.82  , test_reg timing:  154.72
 
 
 Test 008
@@ -329,36 +329,6 @@ Checking test 020 results ....
  Comparing nmmb_hst_03_bin_0003h_00m_00.00s.........OK
  Comparing nmmb_hst_03_nio_0003h_00m_00.00s.........OK
  Test 020 passed 
-
-
-
-Test 021
-Test NMMB-regional with moving nests
-
-
-Checking test 021 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
- Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
- Test 021 passed 
-
-
-
-Test 022
-Test NMMB-regional with moving nests and generational task assignments
-
-
-Checking test 022 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
- Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
- Test 022 passed 
 
 
 

@@ -57,9 +57,9 @@ filt_dt_den: 34             # Denominator of fractional second
 #####  Forecast Start Time  #####
 #################################
 
-start_year:   2011
-start_month:  02
-start_day:    04
+start_year:   2013
+start_month:  01
+start_day:    20
 start_hour:   00
 start_minute: 0
 start_second: 0
@@ -243,7 +243,7 @@ land_surface:  noah         # Land surface schemes
                                 # liss--> Janjic LSM
 
 ucmcall: 0                  # Use (1) or do not use (0) the Urban Canopy Model
-igbp: _VGTAB_               # Use (1) or do not use (0) IGBP types
+igbp: 1                     # Use (1) or do not use (0) IGBP types
 
 #---------------------------------
 

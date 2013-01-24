@@ -1939,7 +1939,8 @@
         timers(n)%prefft_tim=0.
         timers(n)%presmud_tim=0.
         timers(n)%solver_init_tim=0.
-        timers(n)%solver_run_tim=0.
+        timers(n)%solver_dyn_tim=0.
+        timers(n)%solver_phy_tim=0.
         timers(n)%swaphn_tim=0.
         timers(n)%swapwn_tim=0.
         timers(n)%updatet_tim=0.

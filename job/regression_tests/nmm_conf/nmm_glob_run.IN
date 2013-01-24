@@ -18,6 +18,9 @@ cp $SRCDIR/job/regression_tests/ocean.configure .
 cp $SRCDIR/job/regression_tests/configure_file_01 .
 cp configure_file_01 model_configure
 cp _RTPWD_/data/* .
+cp IGBP_VEGPARM.TBL VEGPARM.TBL
+cp IGBP_LANDUSE.TBL LANDUSE.TBL
+cp ETAMPNEW_DATA.expanded_rain ETAMPNEW_DATA
 ln -sf global_o3prdlos.f77 fort.28
 ln -sf global_o3clim.txt fort.48
 
