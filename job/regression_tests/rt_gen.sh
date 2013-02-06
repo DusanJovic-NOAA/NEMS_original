@@ -119,7 +119,7 @@ elif [ $SCHEDULER = 'moab' ]; then
 elif [ $SCHEDULER = 'pbs' ]; then
   job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
 elif [ $SCHEDULER = 'lsf' ]; then
-  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep hpc | wc -l`;sleep 5
+  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep " dev " | wc -l`;sleep 5
 fi
 done
 

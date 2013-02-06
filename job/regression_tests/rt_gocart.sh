@@ -118,7 +118,7 @@ elif [ $SCHEDULER = 'moab' ]; then
 elif [ $SCHEDULER = 'pbs' ]; then
   job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
 elif [ $SCHEDULER = 'lsf' ]; then
-  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep hpc | wc -l`;sleep 5
+  job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep " dev " | wc -l`;sleep 5
 fi
 done
 
@@ -178,7 +178,7 @@ elif [ $SCHEDULER = 'pbs' ]; then
 
 elif [ $SCHEDULER = 'lsf' ]; then
 
-  status=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep hpc | awk '{print $3}'` ; status=${status:--}
+  status=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep " dev " | awk '{print $3}'` ; status=${status:--}
   if [ $status != '-' ] ; then FnshHrs=`bpeek -J ${JBNME} | grep Finished | tail -1 | awk '{ print $9 }'` ; fi
   if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $9 }'` ; fi
   FnshHrs=${FnshHrs:-0}

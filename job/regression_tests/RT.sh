@@ -17,7 +17,7 @@ if [ ${MACHINE_ID} = ccs ]; then
   export SCHEDULER=loadleveler
   STMP=/stmp
 elif [ ${MACHINE_ID} = wcoss ]; then
-  export ACCNR=hpc_ibm
+  export ACCNR=dev
   export DISKNM=/meso
   export STMP=/stmp ; mkdir -p $STMP/$USER
   export PTMP=/ptmp ; mkdir -p $PTMP/$USER
@@ -308,7 +308,7 @@ if [ ${MACHINE_ID} = ccs ]; then
 elif [ ${MACHINE_ID} = wcoss ]; then
 
   TASKS_dflt=32  ; TPN_dflt=16 ; INPES_dflt=05 ; JNPES_dflt=06 ; WTPG_dflt=2
-  TASKS_thrd=16  ; TPN_thrd=16 ; INPES_thrd=03 ; JNPES_thrd=05 ; WTPG_thrd=1
+  TASKS_thrd=16  ; TPN_thrd=08 ; INPES_thrd=03 ; JNPES_thrd=05 ; WTPG_thrd=1
   TASKS_nest=96  ; TPN_nest=16 ; INPES_nest=02 ; JNPES_nest=02 ; WTPG_nest=1
   TASKS_fltr=64  ; TPN_fltr=16 ; INPES_fltr=02 ; JNPES_fltr=02 ; WTPG_fltr=1
   TASKS_mvg1=96  ; TPN_mvg1=16 ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
@@ -577,7 +577,6 @@ fi # endif test
 #
 ####################################################################################################
 
-if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = zeus ]; then
 if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test NMMB-global threading "
@@ -601,7 +600,6 @@ export INPES=$INPES_thrd ; export JNPES=$JNPES_thrd ; export WTPG=$WTPG_thrd
 #---------------------
 
 fi # endif test
-fi # endif ccs/zeus
 
 ####################################################################################################
 #
@@ -790,7 +788,6 @@ fi # endif test
 #
 ####################################################################################################
 
-if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = zeus ]; then
 if [ ${RT_FULL} = true ]; then
 
 export TEST_DESCR="Test NMMB-regional threading "
@@ -814,7 +811,6 @@ export INPES=$INPES_thrd ; export JNPES=$JNPES_thrd ; export WTPG=$WTPG_thrd
 #---------------------
 
 fi # endif test
-fi # endif ccs/zeus
 
 ####################################################################################################
 #
