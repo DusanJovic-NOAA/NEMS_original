@@ -75,7 +75,9 @@
       INTEGER,PARAMETER :: MAX_LENGTH_I1D=5000                            !<-- Max words in all 1-D integer history variables
       INTEGER,PARAMETER :: MAX_LENGTH_I2D=50000                           !<-- Max I,J points in each integer 2D subdomain
       INTEGER,PARAMETER :: MAX_LENGTH_R1D=25000                           !<-- Max words in all 1-D real history variables
-      INTEGER,PARAMETER :: MAX_LENGTH_R2D=700000                          !<-- Max I,J points in each real 2D subdomain
+!      INTEGER,PARAMETER :: MAX_LENGTH_R2D=100000                          !<-- Max I,J points in each real 2D subdomain
+      INTEGER,PARAMETER :: MAX_LENGTH_R2D=100000                          !<-- Max I,J points in each real 2D subdomain
+!      INTEGER,PARAMETER :: MAX_LENGTH_R2D=700000                          !<-- Max I,J points in each real 2D subdomain
       INTEGER,PARAMETER :: MAX_LENGTH_LOG=MAX_DATA_LOG                    !<-- Max logical variables
 !
       INTEGER,SAVE      :: LAST_FCST_TASK                                 !<-- Rank of the last forecast task
@@ -394,25 +396,25 @@
 !***  WRITE TASKS THAT OBTAIN IT FROM THE FORECAST TASKS FOR WRITING.
 !-----------------------------------------------------------------------
 !
-      IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_I1D))THEN
+      IF(.NOT.ASSOCIATED(wrt_int_state%ALL_DATA_I1D))THEN
         ALLOCATE(wrt_int_state%ALL_DATA_I1D(MAX_LENGTH_I1D,wrt_int_state%num_file),stat=ISTAT)
       ENDIF
 !
-      IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_I2D))THEN
+      IF(.NOT.ASSOCIATED(wrt_int_state%ALL_DATA_I2D))THEN
         ALLOCATE(wrt_int_state%ALL_DATA_I2D(MAXSIZE_I2D,wrt_int_state%num_file),stat=ISTAT)
 !        ALLOCATE(wrt_int_state%ALL_DATA_I2D(MAXSIZE_I2D),stat=ISTAT)
       ENDIF
 !
-      IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_R1D))THEN
+      IF(.NOT.ASSOCIATED(wrt_int_state%ALL_DATA_R1D))THEN
         ALLOCATE(wrt_int_state%ALL_DATA_R1D(MAX_LENGTH_R1D,wrt_int_state%num_file),stat=ISTAT)
       ENDIF
 !
-      IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_R2D))THEN
+      IF(.NOT.ASSOCIATED(wrt_int_state%ALL_DATA_R2D))THEN
          ALLOCATE(wrt_int_state%ALL_DATA_R2D(MAXSIZE_R2D,wrt_int_state%num_file),stat=ISTAT)
 !        ALLOCATE(wrt_int_state%ALL_DATA_R2D(MAXSIZE_R2D),stat=ISTAT)
       ENDIF
 !
-      IF(.NOT.ALLOCATED(wrt_int_state%ALL_DATA_LOG))THEN
+      IF(.NOT.ASSOCIATED(wrt_int_state%ALL_DATA_LOG))THEN
         ALLOCATE(wrt_int_state%ALL_DATA_LOG(MAX_LENGTH_LOG,wrt_int_state%num_file),stat=ISTAT)
       ENDIF
 !

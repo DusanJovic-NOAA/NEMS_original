@@ -1814,12 +1814,12 @@
       CHARACTER(40)                       :: CFHOUR,CFORM
       CHARACTER(16)                       :: VLEVTYP
 !
-      CHARACTER(16),DIMENSION(:) ,POINTER :: ARYINAME                    &
-                                            ,ARYRNAME                    &
-                                            ,RECNAME                     &
-                                            ,VARINAME                    &
-                                            ,VARRNAME                    &
-                                            ,VARLNAME
+      CHARACTER(16),DIMENSION(:) ,POINTER :: ARYINAME => null()          &
+                                            ,ARYRNAME => null()          &
+                                            ,RECNAME  => null()          &
+                                            ,VARINAME => null()          &
+                                            ,VARRNAME => null()          &
+                                            ,VARLNAME => null()
 !
       CHARACTER(16),DIMENSION(:),POINTER :: RECLEVTYP
 !

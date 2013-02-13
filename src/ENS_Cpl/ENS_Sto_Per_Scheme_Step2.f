@@ -38,7 +38,7 @@
  INTEGER,                      INTENT(out)   :: rc
  INTEGER                                     :: USES1, GRIDUSE
  INTEGER,                      INTENT(in)    :: Jul_Day
- INTEGER                                     :: ireg, imem, k500
+ INTEGER                                     :: ireg, k500
  REAL(KIND = kind_evod)                      :: slat1, slat2
 
  INTEGER                                     :: i, j, k, l
@@ -266,8 +266,6 @@
 
 ! Do the Rescaling for all model variables except ps.
 !----------------------------------------------------
- imem     = Int_State%member_id(Int_State%me)
-
  DO j = 1, Int_State%lats_node_a
      lat      = Int_State%global_lats_a(Int_State%ipt_lats_node_a - 1 + j)
      lon_lat  = Int_State%lonsperlat(lat)
