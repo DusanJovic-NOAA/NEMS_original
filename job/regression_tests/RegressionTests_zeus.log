@@ -1,92 +1,230 @@
-Tue Jan 22 21:39:53 UTC 2013
+Tue Feb 19 21:03:55 UTC 2013
 Start Regression test
 
 
 
-Tue Jan 22 21:39:53 UTC 2013
-Compilation ESMF 5.2.0rp1
-Tue Jan 22 21:52:35 UTC 2013
+Tue Feb 19 21:03:55 UTC 2013
+Compilation ALL
+Tue Feb 19 21:23:52 UTC 2013
 Test 001
-Compare GFS results with previous trunk version ESMF5.2.0rp1
-GFS, 32 proc, 1 thread
+Compare NMMB-global results with previous trunk version
 
 
+Checking test 001 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0048h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
  Test 001 passed 
+
+
+
+ Original timing:  151.20  , test_glob timing:  83.032
+
+
 Test 002
-Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5.2.0rp1
-GFS, 64 proc, 1 thread
+Test NMMB-global restart run from NEMSIO file
 
 
+Checking test 002 results ....
+ Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
  Test 002 passed 
-Tue Jan 22 22:45:04 UTC 2013
-Compilation ESMF 5.3.0
-Tue Jan 22 22:55:58 UTC 2013
+
+
+
 Test 003
-Compare GFS results with previous trunk version ESMF5.3.0
-GFS, 32 proc, 1 thread
+Test NMMB-global different decomposition
 
 
- Test 003 passed 
-Test 004
-Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5.3.0
-GFS, 64 proc, 1 thread
-
-
- Test 004 passed 
-Tue Jan 22 23:49:01 UTC 2013
-Compilation ESMF 6.1.0
-Wed Jan 23 00:00:30 UTC 2013
-Test 005
-Compare GFS results with previous trunk version ESMF6.1.0
-GFS, 32 proc, 1 thread
-
-
- Test 005 passed 
-Test 006
-Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF6.1.0
-GFS, 64 proc, 1 thread
-
-
- Test 006 passed 
-Wed Jan 23 00:43:05 UTC 2013
-Compilation ESMF 6.1.1
-Wed Jan 23 01:02:58 UTC 2013
-Test 007
-Compare GFS results with previous trunk version ESMF6.1.1
-GFS, 32 proc, 1 thread
-
-
- Test 007 passed 
-Test 008
-Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF6.1.1
-GFS, 64 proc, 1 thread
-
-
- Test 008 passed 
-Wed Jan 23 01:51:15 UTC 2013
-Compilation only NMM
-Test 009
-Compare NMMB-global results with previous trunk version, only NMM compiled
-
-
-Checking test 009 results ....
+Checking test 003 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Test 003 passed 
+
+
+
+Test 004
+Test NMMB-global threading
+
+
+Checking test 004 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0048h_00m_00.00s.........OK
  Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
+ Test 004 passed 
+
+
+
+Test 005
+Test NMMB-regional NEMSIO as input file
+
+
+Checking test 005 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0012h_00m_00.00s.........OK
+ Test 005 passed 
+
+
+
+Test 006
+Test NMMB-regional restart run
+
+
+Checking test 006 results ....
+ Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
+ Test 006 passed 
+
+
+
+Test 007
+Test NMMB-regional with GFS physics package
+
+
+Checking test 007 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0012h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0012h_00m_00.00s.........OK
+ Test 007 passed 
+
+
+
+Test 008
+Test NMMB-regional static nests with restart
+
+
+Checking test 008 results ....
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_nio_0024h_00m_00.00s.........OK
+ Test 008 passed 
+
+
+
+Test 009
+Test NMMB-regional/RRTM static nests with restart
+
+
+Checking test 009 results ....
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_02_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_03_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_04_nio_0024h_00m_00.00s.........OK
  Test 009 passed 
 
 
 
-Wed Jan 23 02:04:51 UTC 2013
-Compilation only GFS
-Wed Jan 23 02:14:30 UTC 2013
 Test 010
-Compare GFS results with previous trunk version, only GFS compiled
+Compare GFS results with previous trunk version
 GFS, 32 proc, 1 thread
 
 
+
+
+Checking test 010 results ....
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
  Test 010 passed 
+Test 011
+Test GFS threads
+GFS, 16 proc, 2 thread
+
+
+
+
+Checking test 011 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Test 011 passed 
+Test 012
+GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
+GFS, 16 proc, 2 thread
+
+
+
+
+Checking test 012 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Test 012 passed 
+Test 013
+Concurrency GEFS, stochastic perturbations, 4 members, T190L28.
+GFS, 64 proc, 1 thread
+
+
+
+
+Checking test 013 results ....
+ Comparing SIG.F06_01.........OK
+ Comparing SIG.F06_02.........OK
+ Comparing SIG.F06_03.........OK
+ Comparing SIG.F06_04.........OK
+ Comparing SFC.F06_01.........OK
+ Comparing SFC.F06_02.........OK
+ Comparing SFC.F06_03.........OK
+ Comparing SFC.F06_04.........OK
+ Comparing FLX.F06_01.........OK
+ Comparing FLX.F06_02.........OK
+ Comparing FLX.F06_03.........OK
+ Comparing FLX.F06_04.........OK
+ Test 013 passed 
+Tue Feb 19 22:41:47 UTC 2013
 REGRESSION TEST WAS SUCCESSFUL

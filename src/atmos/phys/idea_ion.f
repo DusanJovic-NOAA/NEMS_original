@@ -1,4 +1,5 @@
 ! Apr 06 2012 Henry Juang, initial implement for nems
+! Dec    2012    Jun Wang, move init out of column physics
 !========================================================
 !=                    GetIonParams                      =
 !========================================================
@@ -466,12 +467,9 @@
       integer i,k,iref,jref
       real utsec_last,dx,dy,aa,bb,maglond,maglatd,                      &
      &ed11(0:nmlon,0:nmlat),ed22(0:nmlon,0:nmlat)
-!hmhj real  latm1(0:nmlat),ylonm1(0:nmlon)
-      logical first
 !
-      data first/.true./
       data utsec_last/-1./
-      save first,utsec_last,ed11,ed22
+      save utsec_last,ed11,ed22
 !hmhj save ylatm1,ylonm1
 ! initiate
 ! calculate efield only if diff time step
@@ -486,24 +484,12 @@
         bz = .433726 - kp*(.0849999*kp + .0810363)                      &
      &        + f107d*(.00793738 - .00219316*kp)
         by=0.
-      if (first) then
-        call efield_init
-!hmhj   call efield_init('/mtb/save/wx20fw/test/coeff_lflux.dat',       &
-!hmhj&'/mtb/save/wx20fw/test/coeff_hflux.dat',                          &
-!hmhj&'/mtb/save/wx20fw/test/wei96.cofcnts')
-      endif
         call get_efield
 !       print*,'www'
 !       print'(8f10.4)',potent(0:180,68)
         ed11=ed1
         ed22=ed2
 !     print*,'ed2',ed2(149,65)
-      endif
-!
-      if (first) then
-        first=.false.
-!hmhj   ylatm1=ylatm
-!hmhj   ylonm1=ylonm
       endif
 !
 !     call locate(maglon,maglat,ed1,ed2,elx,ely)

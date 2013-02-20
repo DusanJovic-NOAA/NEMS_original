@@ -7,6 +7,9 @@ c data
 c September, 2007: made by Rashid Akmaev for a pressure grid going 
 c       upward
 ! Spr 06 2012    Henry Juang, initial implement for nems
+! Oct    2012    Jun Wang,    change reading files by 1 pe reading and
+!                             broardcasting to all pes
+! Dec    2012    Jun Wang,    move init out of column physics
 !
 c Contains
 c      module h2ocm
@@ -31,7 +34,6 @@ c Integers precalculated in h2ocin:
 c -number of model starting layer (counted from the top)
 c -number of model layers in a 1 scale height above the top
 C       parameterization layer
-!hmhj integer,save:: lh2oc,ltop1
       integer        lh2oc,ltop1
 
 c Parameterization arrays precalculated for model grid from band data
@@ -39,7 +41,6 @@ c in h2ocin:
 c -optical band parameters
 c -reference H2O MMR
 c -interpolation coefficients
-!hmhj real,save,allocatable,dimension(:):: gh2ort,gh2ovb,dg1rt,dg2rt,
       real     ,allocatable,dimension(:):: gh2ort,gh2ovb,dg1rt,dg2rt,
      $     dg1vb,dg2vb,gdp,xx,wvmmrc,coeff
 
@@ -48,7 +49,7 @@ c -interpolation coefficients
 c***********************************************************************
 c***********************************************************************
 
-      subroutine h2ocin(p0,lx)
+      subroutine h2ocin(p0,lx,me,mpi_ior,mpi_comm)
 !hmhj subroutine h2ocin(p0,lx,dir)
 
 c Subroutine to initialize calculations of H2O IR cooling rates done 
@@ -63,7 +64,7 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 c Arguments
 c INPUT
 c -mid-layer model pressure (Pa) grid levels going up
-      integer,intent(in):: lx
+      integer,intent(in):: lx,me,mpi_ior,mpi_comm
       real,intent(in),dimension(lx):: p0
 
 c -directory where input files are located
@@ -136,10 +137,10 @@ c     print*,'www1',lx,lh2oc,ltop1
       l=lx-lh2oc+1
 
       call g1rtxz(l,tref(lh2oc:),p0(l:1:-1),wvmmrc(lh2oc:),
-     $     lmr,lmt,gamyrt(lh2oc:,:,:))
+     $     lmr,lmt,gamyrt(lh2oc:,:,:),me,mpi_ior,mpi_comm)
 !hmhj$     lmr,lmt,gamyrt(lh2oc:,:,:),dir)
       call g1vbxz(l,tref(lh2oc:),p0(l:1:-1),wvmmrc(lh2oc:),
-     $     lmr,lmt,gamyvb(lh2oc:,:,:))
+     $     lmr,lmt,gamyvb(lh2oc:,:,:),me,mpi_ior,mpi_comm)
 !hmhj$     lmr,lmt,gamyvb(lh2oc:,:,:),dir)
       call gtoaxz(l,lmr,gamyrt(lh2oc:,:,:),gamyvb(lh2oc:,:,:),
      $     dg1rt(lh2oc:),dg2rt(lh2oc:),dg1vb(lh2oc:),dg2vb(lh2oc:))
@@ -273,12 +274,15 @@ CC
 
 c***********************************************************************
 
-      subroutine g1rtxz(kus,tus0,pus,rus0,lmr,lmt,gamav)
+      subroutine g1rtxz(kus,tus0,pus,rus0,lmr,lmt,gamav,                 &
+     &  me,mpi_ior,mpi_comm)
 !hmhj subroutine g1rtxz(kus,tus0,pus,rus0,lmr,lmt,gamav,dirin)
 
 c Sept, 2007: made by Rashid Akmaev from Xun Zhu's code for H2O cooling
+!
+      include 'mpif.h'
 
-      integer,intent(in):: kus,lmr,lmt
+      integer,intent(in):: kus,lmr,lmt,me,mpi_ior,mpi_comm
       real,intent(in):: pus(kus),TUS0(KUS),RUS0(KUS)
 !hmhj character(len=*),intent(in) :: dirin
 
@@ -287,8 +291,11 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 c Internal parameters and work space
       PARAMETER (NQUS=17,KFS=20,KM=40,MM4=7,NQ=17)
 
-      dimension PRE(KFS),TEM4(MM4),GG(KM),WW(KM),XK2(KFS,NQ,KM,MM4)
-      dimension T77(MM4),XKUS(KUS,NQ,KM,MM4)
+      real,dimension(km) :: GG,WW
+      real :: XK2(KFS,NQ,KM,MM4)
+      real :: PRE(KFS),TEM4(MM4),T77(MM4)
+      real :: XKUS(KUS,NQ,KM,MM4)
+      integer info
 
       dimension TUS(KUS),RUS(KUS)
 
@@ -303,25 +310,34 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
       DO 2 N1=1,NQ
    2  VNQ(N1)=V00+DDV*(FLOAT(N1)-0.5)
+!
+! open first pe to read the file
+      if(me==0) then
 
-!hmhj OPEN(11,FILE=dirin//'ggww_in4.par',STATUS='OLD')
-      OPEN(11,FILE='global_idea_ggww_in4.par',STATUS='OLD')
-      DO 5 K2=1,KM
-   5  READ(11,*) GG(K2),WW(K2)
-      CLOSE(UNIT=11)
+        OPEN(11,FILE='global_idea_ggww_in4.par',STATUS='OLD')
+        DO 5 K2=1,KM
+   5      READ(11,*) GG(K2),WW(K2)
+        CLOSE(UNIT=11)
 
-!hmhj OPEN(71,FILE=dirin//'h2ort_kg7t.par',STATUS='OLD')
-      OPEN(71,FILE='global_idea_h2ort_kg7t.par',STATUS='OLD')
-      DO 7 ICON=1,MM4
-      DO 7 N1=1,NQ
-      DO 7 K1=1,KFS       !  read in the k-coefficient in m*m/kg
-      READ(71,*) (XK2(K1,N1,K2,ICON),K2=1,KM)
-   7  CONTINUE
-      CLOSE(UNIT=71)
+        OPEN(71,FILE='global_idea_h2ort_kg7t.par',STATUS='OLD')
+        DO 7 ICON=1,MM4
+        DO 7 N1=1,NQ
+        DO 7 K1=1,KFS       !  read in the k-coefficient in m*m/kg
+          READ(71,*) (XK2(K1,N1,K2,ICON),K2=1,KM)
+   7    CONTINUE
+        CLOSE(UNIT=71)
+
+      endif
+!
+!      print *,'bf mpi_bcast, km=',km,'MPI_IOR=',MPI_IOR,mpi_comm,
+!     &   size(gg),mpi_real4
+      call mpi_bcast(GG,KM,MPI_REAL8,0,mpi_comm,info)
+      call mpi_bcast(WW,KM,MPI_REAL8,0,mpi_comm,info)
+      call mpi_bcast(XK2,MM4*NQ*KFS*KM,MPI_REAL8,0,mpi_comm,info)
 
       DO 9 M=1,MM4
-      TEM4(M)=150.0+FLOAT(M-1)*25.0     !  7 reference temperatures
-   9  T77(M)=TEM4(M)
+        TEM4(M)=150.0+FLOAT(M-1)*25.0     !  7 reference temperatures
+   9    T77(M)=TEM4(M)
 
       KFSM1=KFS-1
       PRE(1)=1.0E-4
@@ -329,52 +345,53 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       PRE(2)=10.0E0**0.5E0
       PRE(3)=10.0E0
       DO 10 K=4,KFSM1
-      PRE(K)=PRE(K-1)*FACT2
+        PRE(K)=PRE(K-1)*FACT2
  10   CONTINUE
 
       PRE(KFS)=1.1E5             ! 20 reference pressures
 
       DELTR=0.5
-      
+    
       DO 500 LLR=1,LMR
       DO 500 LLT=1,LMT
       
-      DO 33 K=1,KUS
-      TUS(K)=TUS0(K)
-      RUS(K)=RUS0(K)*(1.0+DELTR*FLOAT(LLR-2))
-  33  CONTINUE
+        DO 33 K=1,KUS
+         TUS(K)=TUS0(K)
+         RUS(K)=RUS0(K)*(1.0+DELTR*FLOAT(LLR-2))
+  33    CONTINUE
       
-      CALL INTERK(kus,kfs,km,mm4,nq,pre,xk2,pus,xkus)
+        CALL INTERK(kus,kfs,km,mm4,nq,pre,xk2,pus,xkus)
 
-      DO 80 N=1,NQUS
-      VNQS(N)=V00+DDV*(FLOAT(N)-0.5)
-      CALL QSINGL(WK1,WK2,RUS,PUS,TUS,WK3,WK4,KUS,
-     &    WW,GG,KM,N,VNQS(N),DDV,1,mm4,nq,t77,xkus)
-      DO 60 K=1,KUS
-      QB1(K,N)=WK1(K)
-      QB2(K,N)=WK2(K)
-      QBT(K,N)=QB1(K,N)+QB2(K,N)
-      STRB(K,N)=WK3(K)
-      GAMSP(K,N)=WK4(K)
-  60  CONTINUE
-  80  CONTINUE
+        DO 80 N=1,NQUS
+          VNQS(N)=V00+DDV*(FLOAT(N)-0.5)
+          CALL QSINGL(WK1,WK2,RUS,PUS,TUS,WK3,WK4,KUS,
+     &      WW,GG,KM,N,VNQS(N),DDV,1,mm4,nq,t77,xkus)
+          DO 60 K=1,KUS
+            QB1(K,N)=WK1(K)
+            QB2(K,N)=WK2(K)
+            QBT(K,N)=QB1(K,N)+QB2(K,N)
+            STRB(K,N)=WK3(K)
+            GAMSP(K,N)=WK4(K)
+  60      CONTINUE
+  80    CONTINUE
 
-      DO 100 K=1,KUS
-      QAL1(K,LLR,LLT)=0.0
-      QAL2(K,LLR,LLT)=0.0
-      QALT(K,LLR,LLT)=0.0
-      GAMAV(K,LLR,LLT)=0.0
-      SUMX1=0.0
-      DO 90 N=1,NQUS
-      QAL1(K,LLR,LLT)=QAL1(K,LLR,LLT)+QB1(K,N)
-      QAL2(K,LLR,LLT)=QAL2(K,LLR,LLT)+QB2(K,N)
-      QALT(K,LLR,LLT)=QALT(K,LLR,LLT)+QBT(K,N)
-      FACX1=STRB(K,N)*BLAC(VNQS(N),TUS(K))
-      GAMAV(K,LLR,LLT)=GAMAV(K,LLR,LLT)+FACX1*GAMSP(K,N)
-      SUMX1=SUMX1+FACX1
-  90  CONTINUE
-      GAMAV(K,LLR,LLT)=GAMAV(K,LLR,LLT)/SUMX1
- 100  CONTINUE
+        DO 100 K=1,KUS
+          QAL1(K,LLR,LLT)=0.0
+          QAL2(K,LLR,LLT)=0.0
+          QALT(K,LLR,LLT)=0.0
+          GAMAV(K,LLR,LLT)=0.0
+          SUMX1=0.0
+!
+          DO 90 N=1,NQUS
+            QAL1(K,LLR,LLT)=QAL1(K,LLR,LLT)+QB1(K,N)
+            QAL2(K,LLR,LLT)=QAL2(K,LLR,LLT)+QB2(K,N)
+            QALT(K,LLR,LLT)=QALT(K,LLR,LLT)+QBT(K,N)
+            FACX1=STRB(K,N)*BLAC(VNQS(N),TUS(K))
+            GAMAV(K,LLR,LLT)=GAMAV(K,LLR,LLT)+FACX1*GAMSP(K,N)
+            SUMX1=SUMX1+FACX1
+  90      CONTINUE
+          GAMAV(K,LLR,LLT)=GAMAV(K,LLR,LLT)/SUMX1
+ 100    CONTINUE
   
  500  CONTINUE
 
@@ -382,19 +399,20 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 c***********************************************************************
 
-      subroutine g1vbxz(kus,tus0,pus,rus0,lmr,lmt,gamav)
-!hmhj subroutine g1vbxz(kus,tus0,pus,rus0,lmr,lmt,gamav,dirin)
+      subroutine g1vbxz(kus,tus0,pus,rus0,lmr,lmt,gamav,                 &
+     &   me,mpi_ior,mpi_comm)
 
 c Sept, 2007: made by Rashid Akmaev from Xun Zhu's code for H2O cooling
+!
+       include 'mpif.h'
 
-      integer,intent(in):: kus,lmr,lmt
-      real,intent(in):: pus(kus),TUS0(KUS),RUS0(KUS)
-!hmhj character(len=*),intent(in) :: dirin
+       integer,intent(in):: kus,lmr,lmt
+       real,intent(in):: pus(kus),TUS0(KUS),RUS0(KUS)
 
-      real,intent(out):: gamav(kus,lmr,lmt)
+       real,intent(out):: gamav(kus,lmr,lmt)
 c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 c Internal parameters and work space
-      PARAMETER (NQUS=14,KFS=20,KM=30,MM4=7,NQ=14)
+       PARAMETER (NQUS=14,KFS=20,KM=30,MM4=7,NQ=14)
 
       dimension PRE(KFS),TEM4(MM4),GG(KM),WW(KM),XK2(KFS,NQ,KM,MM4)
       dimension T77(MM4),XKUS(KUS,NQ,KM,MM4)
@@ -412,25 +430,33 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
       DO 2 N1=1,NQ
    2  VNQ(N1)=V00+DDV*(FLOAT(N1)-0.5)
+!
+! only pe 0 read the file
+      if(me==0) then
 
-!hmhj OPEN(11,FILE=dirin//'ggww_in1.par',STATUS='OLD')
-      OPEN(11,FILE='global_idea_ggww_in1.par',STATUS='OLD')
-      DO 5 K2=1,KM
-   5  READ(11,*) GG(K2),WW(K2)
-      CLOSE(UNIT=11)
+        OPEN(11,FILE='global_idea_ggww_in1.par',STATUS='OLD')
+        DO 5 K2=1,KM
+   5      READ(11,*) GG(K2),WW(K2)
+        CLOSE(UNIT=11)
 
-!hmhj OPEN(71,FILE=dirin//'h2ovb_kg7t.par',STATUS='OLD')
-      OPEN(71,FILE='global_idea_h2ovb_kg7t.par',STATUS='OLD')
-      DO 7 ICON=1,MM4
-      DO 7 N1=1,NQ
-      DO 7 K1=1,KFS         !  read in the k-coefficient in m*m/kg
-      READ(71,*) (XK2(K1,N1,K2,ICON),K2=1,KM)
-   7  CONTINUE
-      CLOSE(UNIT=71)
+        OPEN(71,FILE='global_idea_h2ovb_kg7t.par',STATUS='OLD')
+        DO 7 ICON=1,MM4
+        DO 7 N1=1,NQ
+        DO 7 K1=1,KFS         !  read in the k-coefficient in m*m/kg
+          READ(71,*) (XK2(K1,N1,K2,ICON),K2=1,KM)
+   7    CONTINUE
+        CLOSE(UNIT=71)
+
+      endif
+!
+      call mpi_bcast(GG,KM,MPI_IOR,0,mpi_comm,info)
+      call mpi_bcast(WW,KM,MPI_IOR,0,mpi_comm,info)
+      call mpi_bcast(XK2,MM4*NQ*KFS*KM,MPI_IOR,0,mpi_comm,info)
+
 
       DO 9 M=1,MM4
-      TEM4(M)=150.0+FLOAT(M-1)*25.0     !  7 reference temperatures
-   9  T77(M)=TEM4(M)
+        TEM4(M)=150.0+FLOAT(M-1)*25.0     !  7 reference temperatures
+   9    T77(M)=TEM4(M)
 
       KFSM1=KFS-1
       PRE(1)=1.0E-4
@@ -438,7 +464,7 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       PRE(2)=10.0E0**0.5E0
       PRE(3)=10.0E0
       DO 10 K=4,KFSM1
-      PRE(K)=PRE(K-1)*FACT2
+        PRE(K)=PRE(K-1)*FACT2
  10   CONTINUE
 
       PRE(KFS)=1.1E5             ! 20 reference pressures
@@ -448,42 +474,43 @@ c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       DO 500 LLR=1,LMR
       DO 500 LLT=1,LMT
       
-      DO 33 K=1,KUS
-      TUS(K)=TUS0(K)
-      RUS(K)=RUS0(K)*(1.0+DELTR*FLOAT(LLR-2))
-  33  CONTINUE
+        DO 33 K=1,KUS
+          TUS(K)=TUS0(K)
+          RUS(K)=RUS0(K)*(1.0+DELTR*FLOAT(LLR-2))
+  33    CONTINUE
       
-      CALL INTERK(kus,kfs,km,mm4,nq,pre,xk2,pus,xkus)
+        CALL INTERK(kus,kfs,km,mm4,nq,pre,xk2,pus,xkus)
 
-      DO 80 N=1,NQUS
-      VNQS(N)=V00+DDV*(FLOAT(N)-0.5)
-      CALL QSINGL(WK1,WK2,RUS,PUS,TUS,WK3,WK4,KUS,
-     &    WW,GG,KM,N,VNQS(N),DDV,1,mm4,nq,t77,xkus)
-      DO 60 K=1,KUS
-      QB1(K,N)=WK1(K)
-      QB2(K,N)=WK2(K)
-      QBT(K,N)=QB1(K,N)+QB2(K,N)
-      STRB(K,N)=WK3(K)
-      GAMSP(K,N)=WK4(K)
-  60  CONTINUE
-  80  CONTINUE
+        DO 80 N=1,NQUS
+          VNQS(N)=V00+DDV*(FLOAT(N)-0.5)
+          CALL QSINGL(WK1,WK2,RUS,PUS,TUS,WK3,WK4,KUS,
+     &      WW,GG,KM,N,VNQS(N),DDV,1,mm4,nq,t77,xkus)
+          DO 60 K=1,KUS
+            QB1(K,N)=WK1(K)
+            QB2(K,N)=WK2(K)
+            QBT(K,N)=QB1(K,N)+QB2(K,N)
+            STRB(K,N)=WK3(K)
+            GAMSP(K,N)=WK4(K)
+  60      CONTINUE
+  80    CONTINUE
 
-      DO 100 K=1,KUS
-      QAL1(K,LLR,LLT)=0.0
-      QAL2(K,LLR,LLT)=0.0
-      QALT(K,LLR,LLT)=0.0
-      GAMAV(K,LLR,LLT)=0.0
-      SUMX1=0.0
-      DO 90 N=1,NQUS
-      QAL1(K,LLR,LLT)=QAL1(K,LLR,LLT)+QB1(K,N)
-      QAL2(K,LLR,LLT)=QAL2(K,LLR,LLT)+QB2(K,N)
-      QALT(K,LLR,LLT)=QALT(K,LLR,LLT)+QBT(K,N)
-      FACX1=STRB(K,N)*BLAC(VNQS(N),TUS(K))
-      GAMAV(K,LLR,LLT)=GAMAV(K,LLR,LLT)+FACX1*GAMSP(K,N)
-      SUMX1=SUMX1+FACX1
-  90  CONTINUE
-      GAMAV(K,LLR,LLT)=GAMAV(K,LLR,LLT)/SUMX1
- 100  CONTINUE
+        DO 100 K=1,KUS
+          QAL1(K,LLR,LLT)=0.0
+          QAL2(K,LLR,LLT)=0.0
+          QALT(K,LLR,LLT)=0.0
+          GAMAV(K,LLR,LLT)=0.0
+          SUMX1=0.0
+!
+          DO 90 N=1,NQUS
+            QAL1(K,LLR,LLT)=QAL1(K,LLR,LLT)+QB1(K,N)
+            QAL2(K,LLR,LLT)=QAL2(K,LLR,LLT)+QB2(K,N)
+            QALT(K,LLR,LLT)=QALT(K,LLR,LLT)+QBT(K,N)
+            FACX1=STRB(K,N)*BLAC(VNQS(N),TUS(K))
+            GAMAV(K,LLR,LLT)=GAMAV(K,LLR,LLT)+FACX1*GAMSP(K,N)
+            SUMX1=SUMX1+FACX1
+  90      CONTINUE
+          GAMAV(K,LLR,LLT)=GAMAV(K,LLR,LLT)/SUMX1
+ 100    CONTINUE
   
  500  CONTINUE
 

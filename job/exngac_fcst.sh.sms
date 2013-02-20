@@ -431,6 +431,7 @@ then
    set -x
 fi
 #  Command line arguments.
+export LWRTGRDCMP=${LWRTGRDCMP:-".true."}
 export NEMSIO_IN=${NEMSIO_IN:-".true."}
 if [ $NEMSIO_IN = .false. ] ; then
 export SIGI=${1:-${SIGI:-?}}
@@ -1168,6 +1169,7 @@ lsoil:                    $LSOIL
 passive_tracer:           $PASSIVE_TRACER
 ldfiflto:                 $LDFIFLTO
 nemsio_in:                $NEMSIO_IN
+lwrtgrdcmp:               $LWRTGRDCMP
 
 
 #jwstart added quilt

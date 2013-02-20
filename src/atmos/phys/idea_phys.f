@@ -1,13 +1,16 @@
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       subroutine idea_phys(im,ix,levs,prsi,prsl,                        &
-     &adu,adv,adt,adr,nbdsw,nbdlw,ntrac,dtp,lat,                        &
+     &adu,adv,adt,adr,ntrac,dtp,lat,                                    &
      &solhr,slag,sdec,cdec,sinlat,coslat,                               &
-     &xlon,xlat,oro,cozen,swhb,hlwb,dt6dt,                              &
-     &thermodyn_id,sfcpress_id,gen_coord_hybrid)
+     &xlon,xlat,oro,cozen,swh,hlw,dt6dt,                                &
+     &thermodyn_id,sfcpress_id,gen_coord_hybrid,me,mpi_ior,mpi_comm)
 !-----------------------------------------------------------------------
 ! add temp, wind changes due to viscosity and thermal conductivity
 ! also solar heating
 ! Apr 06 2012   Henry Juang, initial implement for NEMS
+! Jul 26 2012   Jun Wang, add mpi info
+! Sep 06 2012   Jun Wang, add changing pressure to cb
+! Dec    2012   Jun Wang, change to new rad_merge (from Rashid and Fei)
 !-----------------------------------------------------------------------
       use physcons,  amo2=>con_amo2,avgd => con_avgd
       use idea_composition
@@ -19,13 +22,15 @@
       integer, intent(in) :: levs   ! number of pressure levels
       integer, intent(in) :: lat    ! latitude index
       integer, intent(in) :: ntrac  ! number of tracer
-      integer, intent(in) :: nbdsw  ! number of sw band
-      integer, intent(in) :: nbdlw  ! number of lw band
+      integer, intent(in) :: me     ! my pe
+      integer, intent(in) :: mpi_ior      ! mpi real for io
+      integer, intent(in) :: mpi_comm     ! mpi communicator
+!
       real,    intent(in) :: dtp    ! time step in second
-      real, intent(in)    :: prsi(ix,levs+1) ! pressure
-      real, intent(in)    :: prsl(ix,levs)   ! pressure
-      real, intent(in)    :: hlwb(ix,levs,nbdlw)   ! long wave rad (K/s)
-      real, intent(in)    :: swhb(ix,levs,nbdsw)   ! short wave rad (K/s)
+      real, intent(inout) :: prsi(ix,levs+1) ! pressure
+      real, intent(inout) :: prsl(ix,levs)   ! pressure
+      real, intent(in)    :: hlw(ix,levs)    ! long wave rad (K/s)
+      real, intent(in)    :: swh(ix,levs)    ! short wave rad (K/s)
       real, intent(in)    :: cozen(im)   ! time avg(1 hour) cos zenith angle
       real, intent(in)    :: oro(im)   ! surface height (m)
       real, intent(in) :: solhr,slag,sdec,cdec ! for solar zenith angle
@@ -35,15 +40,17 @@
       real, intent(inout) :: adu(ix,levs)    ! real u
       real, intent(inout) :: adv(ix,levs)    ! real v
       real, intent(inout) :: dt6dt(ix,levs,6)! diagnostic array 
-      integer thermodyn_id, sfcpress_id
-      logical gen_coord_hybrid
+      integer,intent(in)  :: thermodyn_id, sfcpress_id
+      logical,intent(in)  :: gen_coord_hybrid
 ! Local variables
+      real,parameter :: pa2cb=0.001,cb2pa=1000.
+!
       real cp(ix,levs),cospass(im),dt(ix,levs),rtime1,hold1,n(ix,levs) 
       real  o_n(ix,levs),o2_n(ix,levs),n2_n(ix,levs),o3_n(ix,levs),     &
      & am(ix,levs),dudt(ix,levs),dvdt(ix,levs),dtdt(ix,levs),xmu(im),   &
      & dtco2c(ix,levs),dtco2h(ix,levs)                                  &
      &,dth2oh(ix,levs),dth2oc(ix,levs),dto3(ix,levs),rho(ix,levs)       &
-     &,wvl(ix,levs),wvm(ix,levs),wvs(ix,levs),zg(ix,levs)               &
+     &,wtot(ix,levs),zg(ix,levs)                                        &
      &,amin,amax,grav(ix,levs)                                          &
      &,prslk(ix,levs),prsik(ix,levs+1),phil(ix,levs),phii(ix,levs+1)
 ! solar
@@ -56,6 +63,17 @@
 !hmhj   adv(i,1:levs)=adv(i,1:levs)/coslat(i)
 !hmhj enddo ! i
 ! get phil geopotential from temperature
+! change prsi and prsl to centibar from pascal
+      do k=1,levs
+      do i=1,im
+        prsi(i,k)=prsi(i,k)*pa2cb
+        prsl(i,k)=prsl(i,k)*pa2cb
+      enddo
+      enddo
+      do i=1,im
+        prsi(i,levs+1)=prsi(i,levs+1)*pa2cb
+      enddo
+
 !hmhj call GET_PHI_gc_h(im,ix,levs,ntrac,adt,adr,prsi,phii,phil)
       call get_phi(im,ix,levs,ntrac,adt,adr,                            &
      &             thermodyn_id, sfcpress_id,                           &
@@ -95,10 +113,14 @@
 !
 ! ion_drag
 ! change to /m3
-      o_n=o_n*1.e6
-      o2_n=o2_n*1.e6
-      n2_n=n2_n*1.e6
-      n=n*1.e6
+      do i=1,im
+        do k=1,levs
+          o_n(i,k)=o_n(i,k)*1.e6
+          o2_n(i,k)=o2_n(i,k)*1.e6
+          n2_n(i,k)=n2_n(i,k)*1.e6
+          n(i,k)=n(i,k)*1.e6
+        enddo
+      enddo
       call idea_ion(solhr,cospass,zg,o_n,o2_n,n2_n,cp,                  &
      &adu,adv,adt,dudt,dvdt,dtdt,rho,xlat,xlon,ix,im,levs,              &
      &dayno,utsec,sda,maglon,maglat,btot,dipang,essa) 
@@ -156,13 +178,32 @@
 !     enddo
 !     enddo
 ! merge
-      call rad_merge(im,ix,levs,nbdsw,nbdlw,hlwb,swhb,wvl,              &
-     &wvm,wvs,xmu,dtco2c,dtco2h,dth2oh,dth2oc,dto3,dt6dt)
+      call rad_merge(im,ix,levs,hlw,swh,prsi,prsl,wtot,
+     &xmu,dtco2c,dtco2h,dth2oh,dth2oc,dto3,dt6dt)
       do i=1,im
         do k=1,levs
-          adt(i,k)=adt(i,k)+(wvl(i,k)+wvm(i,k)+wvs(i,k))*dtp
+          adt(i,k)=adt(i,k)+wtot(i,k)*dtp
         enddo !k
       enddo ! i
+!
+! dt6dt
+      do i=1,im
+      do k=1,levs
+      dt6dt(i,k,2)=wtot(i,k)
+      enddo
+      enddo
+!
+! change prsi and prsl back to pascal
+      do k=1,levs
+      do i=1,im
+        prsi(i,k)=prsi(i,k)*cb2pa
+        prsl(i,k)=prsl(i,k)*cb2pa
+      enddo
+      enddo
+      do i=1,im
+        prsi(i,levs+1)=prsi(i,levs+1)*cb2pa
+      enddo
+
       return
       end subroutine
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -223,97 +264,47 @@
       endif
       return
       end
-      subroutine rad_merge(im,ix,levs,nbdsw,nbdlw,hlwb,swhb,wvl,        &
-     &wvm,wvs,xmu,dtco2c,dtco2h,dth2oh,dth2oc,dto3,dt6dt)
+      subroutine rad_merge(im,ix,levs,hlw,swh,prsi,prsl,wtot,
+     &xmu,dtco2c,dtco2h,dth2oh,dth2oc,dto3,dt6dt)
 !
-      use idea_composition
-!     use module_radsw_parameters,   only : NBDSW
-!     use module_radlw_parameters,   only : NBDLW
       implicit none
       integer, intent(in) :: im  ! number of data points in hlw,dt..(first dim)
       integer, intent(in) :: ix  ! max data points in hlw,... (first dim)
       integer, intent(in) :: levs   ! number of pressure levels
-      integer, intent(in) :: nbdsw   ! number of sw band
-      integer, intent(in) :: nbdlw   ! number of lw band
-      real, intent(in) :: hlwb(ix,levs,nbdlw) ! GFS lw rad (K/s) 16band
-      real, intent(in) :: swhb(ix,levs,nbdsw) ! GFS sw rad (K/s) 11band
+      real, parameter  :: xb=7.5, xt=8.5, rdx=1./(xt-xb)
+      real, intent(in) :: hlw(ix,levs) ! GFS lw rad (K/s)
+      real, intent(in) :: swh(ix,levs) ! GFS sw rad (K/s)
+      real, intent(in)    :: prsi(ix,levs+1) ! pressure
+      real, intent(in)    :: prsl(ix,levs)   ! pressure
       real, intent(in) :: xmu(im) ! mormalized cos zenith angle
       real, intent(in) :: dtco2c(ix,levs)  ! idea co2 cooling(K/s)
       real, intent(in) :: dtco2h(ix,levs)  ! idea co2 heating(K/s)
       real, intent(in) :: dth2oc(ix,levs)  ! idea h2o cooling(K/s)
       real, intent(in) :: dth2oh(ix,levs)  ! idea h2o heating(K/s)
       real, intent(in) :: dto3(ix,levs)    ! idea o3 heating(K/s)
-      real, intent(out) :: wvl(ix,levs)  ! GFS idea combined lw rad
-      real, intent(out) :: wvm(ix,levs)  ! GFS idea combined mid rad
-      real, intent(out) :: wvs(ix,levs)  ! GFS idea combined sw rad
-      real, intent(inout) :: dt6dt(ix,levs,6)  
+      real, intent(out) :: wtot(ix,levs)  ! GFS idea combined  rad
+      real, intent(inout) :: dt6dt(ix,levs,6)
 !     local
-      real dx
-      integer i,k,j,levb(2),levt(2)
-      levb(1)=k81
-      levb(2)=k47
-      levt(1)=k87
-      levt(2)=k64
-!     data levb/81,47/
-!     data levt/87,64/
+      real xk,wl,wh
+      integer i,k,j
 !
       do i=1,im
         do k=1,levs
-           wvl(i,k)=0.
-           wvm(i,k)=0.
-           wvs(i,k)=0.
-! lw 1-11
-           do j=1,11
-              wvl(i,k)=wvl(i,k)+hlwb(i,k,j)
-           enddo
-! mid (lw 12-16 sw 9-11)
-           do j=12,16
-              wvm(i,k)=wvm(i,k)+hlwb(i,k,j)
-           enddo
-           do j=9,11
-              wvm(i,k)=wvm(i,k)+swhb(i,k,j)*xmu(i)
-           enddo
-! sw 1-8
-           do j=1,5
-              wvs(i,k)=wvs(i,k)+swhb(i,k,j)*xmu(i)*ef(k)
-           enddo
-           do j=6,8
-              wvs(i,k)=wvs(i,k)+swhb(i,k,j)*xmu(i)
-           enddo
+          xk=log(prsi(i,1)/prsl(i,k))
+          wh=dtco2c(i,k)+dth2oc(i,k)+dtco2h(i,k)+dth2oh(i,k)+dto3(i,k)
+          wl=hlw(i,k)+swh(i,k)*xmu(i)
+          if(xk.lt.xb) then
+             wtot(i,k)=wl
+          elseif(xk.ge.xb.and.xk.le.xt) then
+             wtot(i,k)=(wl*(xt-xk)+wh*(xk-xb))*rdx
+          else
+             wtot(i,k)=wh
+          endif
         enddo
-!       dt6dt(i,1:levs,1)=wvl(i,1:levs)
-!       dt6dt(i,1:levs,2)=dth2oc(i,1:levs)+dtco2c(i,1:levs)
-!       dt6dt(i,1:levs,3)=wvm(i,1:levs)
-!       dt6dt(i,1:levs,4)=dth2oh(i,1:levs)+dtco2h(i,1:levs)
-!       dt6dt(i,1:levs,5)=wvs(i,1:levs)
-!       dt6dt(i,1:levs,6)=dto3(i,1:levs)
-! merge wvl,wvs
-        dx=prlog(levt(1))-prlog(levb(1))
-        do k=levb(1)+1,levt(1)-1
-           wvl(i,k)=(wvl(i,k)*(prlog(levt(1))-prlog(k))+                &
-     &     (dth2oc(i,k)+dtco2c(i,k))*(prlog(k)-prlog(levb(1))))/dx
-           wvs(i,k)=(wvs(i,k)*(prlog(levt(1))-prlog(k))+                &
-     &            dto3(i,k)*(prlog(k)-prlog(levb(1))))/dx
-        enddo
-        do k=levt(1),levs
-           wvl(i,k)=dtco2c(i,k)+dth2oc(i,k)
-           wvs(i,k)=dto3(i,k)
-        enddo
-! merge wvm
-        dx=prlog(levt(2))-prlog(levb(2))
-        do k=levb(2)+1,levt(2)-1                                        &
-           wvm(i,k)=(wvm(i,k)*(prlog(levt(2))-prlog(k))+
-     &     (dth2oh(i,k)+dtco2h(i,k))*(prlog(k)-prlog(levb(2))))/dx
-        enddo
-        do k=levt(2),levs
-           wvm(i,k)=dtco2h(i,k)+dth2oh(i,k)
-        enddo
-!       dt6dt(i,1:levs,3)=wvl(i,1:levs)
-!       dt6dt(i,1:levs,4)=wvm(i,1:levs)
-!       dt6dt(i,1:levs,5)=wvs(i,1:levs)
       enddo
       return
       end
+!
       subroutine getmax(ain,n1,n,m,amin,j1,amax,j2)
       real ain(n1,m)
       amin=1.e36
@@ -347,7 +338,7 @@
       j2=500
       do i=1,n
       do j=1,m
-      sq=sqrt(ain(i,j)**2+ain1(i,j)**2)
+      sq=sqrt(ain(i,j)*ain(i,j)+ain1(i,j)*ain1(i,j))
       if(amax.lt.sq) then
       amax=sq
       i2=i
@@ -385,7 +376,7 @@
 ! uncomment this line
 !      real, parameter:: re = 6.3712e+6, g0 = 9.80665e+0
 
-      real, parameter:: g0re = g0*re, g0re2 = g0*re**2
+      real, parameter:: g0re = g0*re, g0re2 = g0*re*re
 
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ! Subroutine parameters
@@ -439,8 +430,179 @@
          grav(:,:) = 0.
          do l = 1,levs
             do i = 1,im
-               grav(i,l)=g0re2/(re+z(i,l))**2
+               grav(i,l)=g0re2/((re+z(i,l))*(re+z(i,l)))
             enddo
          enddo
 !     endif
       end subroutine phi2z
+!----------------------------------------------------------------------------
+      subroutine gravco2(levs,phi,soro,gg)
+
+! Subroutine is modified from phi2z above to compute gravity for co2cin,
+! the first gaussian point is chosen to represent the whole data domain
+
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+! File history
+
+! Dec 26, 2012: Jun Wang        modified from phi2z from Rashid
+
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+! Define constants
+! - Earth radius (m) and
+! - gravity at sea level (m/s**2)
+
+! If used with GFS/WAM codes "use" this module
+      use physcons, only: re => con_rerth, g0 => con_g
+
+      implicit none
+
+! If the module is not available, comment out the "use" line above and
+      real, parameter:: g0re = g0*re, g0re2 = g0*re**2
+
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+! Subroutine parameters
+! INPUTS
+
+      integer, intent(in):: levs
+
+! - geopotential (m**2/s**2)
+! - surface orography (m)
+
+      real, intent(in):: phi(levs),soro
+
+! OUTPUTS
+
+! Optional output
+! - gravity (m/s**2)
+
+      real, intent(out):: gg(levs)
+
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+! Local variables
+
+      integer:: i,l
+      real:: phis
+      real:: z(levs)
+
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+! Calculate surface geopotential
+
+      phis=g0re*soro/(re+soro)
+      print *,'in grevco2 phis=',phis,'phi=',phi(1:100:10),'soro=',soro,
+     &   're=',re
+
+! Calculate height
+
+      z(:) = 0.
+      do l = 1,levs
+        z(l)=re*(phis+phi(l))/(g0re-(phis+phi(l)))
+      enddo
+
+! ***Optionally*** calculate gravity
+
+      gg(:) = 0.
+      do l = 1,levs
+         gg(l)=g0re2/((re+z(l))*(re+z(l)))
+      enddo
+      print *,'in grevco2 gg=',gg(1:100:10)
+!
+      end subroutine gravco2
+!----------------------------------------------------------------------------
+      subroutine getphilvl(levs,ntrac,ps,t,q,dp,gen_coord_hybrid,
+     &  thermodyn_id,phil,prsi)
+
+! Subroutine computes phi on a single point on model levels from p,tmp,
+!  and trcers for general
+
+! hybrid for enthalpy
+
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+! File history
+
+! Dec 26, 2010: Jun Wang
+
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+      use tracer_const, only : ri
+      implicit none
+
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+! Subroutine parameters
+! INPUTS
+
+      integer, intent(in):: levs,ntrac
+      logical, intent(in):: gen_coord_hybrid
+      integer, intent(in):: thermodyn_id
+!
+! Local variables
+      real,parameter :: pa2cb=0.001,zero=0.0
+! - sfc pressure  (pascal)
+! - pressure  thickness (pascal)
+! - tmp (k)
+! - tracers
+
+      real, intent(in):: ps,t(levs),dp(levs),q(levs,ntrac)
+
+! OUTPUTS
+
+! Optional output
+! - model layer enthalpy
+
+      real, intent(out):: phil(levs),prsi(levs+1)
+
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+! Local variables
+      real:: tem,dphi,phii,sumq(levs),xr(levs)
+      integer :: k,n
+
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+! init
+
+      phii=zero
+
+! Calculate enthalpy
+!
+!       print *,'in getphilvl,thermodyn_id=',thermodyn_id,
+!     &    thermodyn_id.eq.3
+      if( gen_coord_hybrid ) then
+        if( thermodyn_id.eq.3 ) then           ! Enthalpy case
+!get r
+          sumq = zero
+          xr   = zero
+          do n=1,ntrac
+            if( ri(n) > 0.0 ) then
+              do k=1,levs
+                xr(k)   = xr(k)   + q(k,n) * ri(n)
+                sumq(k) = sumq(k) + q(k,n)
+              enddo
+            endif
+          enddo
+          do k=1,levs
+            xr(k)    = (1.-sumq(k))*ri(0)  + xr(k)
+          enddo
+!
+          prsi(1)=ps*pa2cb
+          do k=1,levs
+            prsi(k+1)=prsi(k)-dp(k)*pa2cb
+          enddo
+          prsi(levs+1)=0.
+!          print *,'in getphilvl,prsi=',prsi(1:100:10)
+!
+          do k = 1,levs
+            tem         = xr(k) * T(k)
+            dphi        = (prsi(k) - prsi(k+1)) * TEM
+     &                   /(prsi(k) + prsi(k+1))
+            phil(k)   = phii + dphi
+            phii      = phil(k) + dphi
+          enddo
+!
+        else
+          print *,'ERROR: No phil is compute, this routine is ',
+     &          'for gen-hybrid  with enthalpy'
+!
+        endif
+      endif
+!
+      end subroutine getphilvl
+!------------------------------------------------------------------
+

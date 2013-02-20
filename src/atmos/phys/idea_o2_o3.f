@@ -2,6 +2,7 @@
      &zg,grav,dth)
 !
 ! Apr 06 2012  Henry Juang, initial implement for nems
+! Jan 02 2013  Jun Wang,    move o3ini out of column physics
 !
       use physcons,    pi=>con_pi, avgd=>con_avgd                       &
      &               , amo3=> con_amo3 , amo2=> con_amo2
@@ -27,14 +28,6 @@
       real clmo2(levs),clmo3(levs) 
       integer i,k
 !
-      logical first
-      data first/.true./
-      save first
-    
-      if (first) then
-        call o3ini(levs)
-        first=.false.
-      endif
 !
       fc=370.  !J/m2/s
       dc=2.85E-25 !m2

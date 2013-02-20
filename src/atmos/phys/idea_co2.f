@@ -4,6 +4,7 @@
 !hmhj&dtdt,cosz,dtdth)
 !
 ! Apr 06 2012   Henry Juang, initial implement for nems
+! Dec 13 2012   Jun Wang     move init step out of column physics
 !
       use co2pro_mod, only: co2my
 !     use co2c_mod
@@ -28,26 +29,10 @@
       real, intent(out)   :: dtdt(ix,levs)    ! cooling rate k/s
       real, intent(out)   :: dtdth(ix,levs)    ! heating rate k/s
 !
-!     real pmod(levs),gg(levs),q_n2(ix,nlev_co2),ma(ix,nlev_co2)        &
-!    &,q_o(ix,nlev_co2),q_o2(ix,nlev_co2),hold(levs)
       real pmod(levs),gg(levs),q_n2(ix,nlev),ma(ix,nlev)                &
      &,q_o(ix,nlev),q_o2(ix,nlev),hold(levs)
       integer i,k,kk
 !
-      logical first
-      data first/.true./
-      save first
-! initiate
-      if (first) then
-        first=.false.
-        pmod=pr_idea*100.
-        gg=grav(1,1:levs)
-        call co2cin(prlog(k43),pmod(k43),amgm(k43),gg(k43),             &
-     &nlev)
-!hmhj&nlev,dir)
-!     print*,'wwwco2 init ok'
-      endif
-!     print*,'wwwco2',prlog(1),prlog(levs)
 ! precalling
       dtdth=0.
       dtdt=0.

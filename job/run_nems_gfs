@@ -16,7 +16,7 @@ export fcst_begin=YES
 MDL=NEMSGFS
 whenrun=+0000
  NST_FCST=0         # valid values are 0 (AM), 1(am,nst) and 2(cpld nstnst)
- export ADIAB=.true.
+ export ADIAB=.false.
  if [[ $ADIAB = .true. ]] ; then 
      export NUM_FILE=1 ; 
     export FILENAME_BASE="'SIG.F'"
@@ -41,8 +41,6 @@ whenrun=+0000
  lingg_a=.false.
  export REDUCED_GRID=.true.
  export nsout=1
-# export SIGINP=/ptmp/wx20wa/NEMSGFS/nems_62_2012010100nems_t62_fullgrid_adb_1nsouta_sh/gfsanl.2012010100
-# export SFCINP=/ptmp/wx20wa/NEMSGFS/nems_62_2012010100nems_t62_fullgrid_adb_1nsouta_sh/sfnanl.2012010100
 
 runid=nemsgfs_sigio
 sdate=2012010100
@@ -118,6 +116,8 @@ if [ $mac = d -o $mac = m  -o $mac = c -o $mac = s ] ; then
   rdir=/global
   dmpdir=$rdir/shared
   export acc=GFS-T2O
+#  export class=1
+#  export group=class1onprod
 #  export group=devonprod
   export group=dev
   export MACHINE_ID=ccs
@@ -178,15 +178,14 @@ export FH_INC=6
 export HOUTASPS=12
 
 #jw tasks=384  ; export PE1=384 ; export nodes=$((tasks*NUMTHRD/npe_node))
-#jwtest1    tasks=1  ; export PE1=1 ; export nodes=$((tasks*NUMTHRD/npe_node))
-   tasks=16  ; export PE1=16 ; export nodes=$((tasks*NUMTHRD/npe_node))
+#jw export  tasks=1  ; export PE1=1 ; export nodes=$((tasks*NUMTHRD/npe_node))
+ tasks=16  ; export PE1=16 ; export nodes=$((tasks*NUMTHRD/npe_node))
 
 if [ $nodes = 0 ] ; then export nodes=1 ; fi
 if [ $tasks -gt $wave ] ; then tasks=$((wave-1)) ; PE1=$tasks ; fi
 #
  export NCEPPOST=YES
  export hybrid=YES
- export NEMSIO_IN=.false.
  export OUTTYP=2
 if [ $ndsl = .true. ] ; then
  export hybrid=NO
@@ -202,7 +201,7 @@ fi
 #
 #    Set up experiment and directory names
 #
-  export expt=nems_${wave}_${sdate}
+  export expt=nems_${wave}_${sdate}_16pe
 #
 #
  export fcst_begin=${fcst_begin:-YES}
@@ -216,9 +215,10 @@ fi
  export dir_save=/global/save
  export dir_nosc=/global/noscrub
 
- export NEMSIO_IN=${NEMSIO_IN:-.true.}
+ export NEMSIO_IN=${NEMSIO_IN:-.false.}
  export NEMSIO_OUT=${NEMSIO_OUT:-.false.}
  export SIGIO_OUT=${SIGIO_OUT:-.true.}
+ export SFCIO_OUT=${SFCIO_OUT:-.true.}
  export OUTTYP=${OUTTYP:-1}
  export CHGQ0=${CHGQ0:-0}
  
@@ -278,7 +278,8 @@ if [[ $nhourb -eq 0 ]] ; then
 #jw   export change_res=YES
   export change_res=${change_res:-NO}
 #
-  export ic_type=local
+#  export ic_type=local
+  export ic_type=special
 fi
 #
  export fmax=$nhours
@@ -414,7 +415,8 @@ ldiag3d=${ldiag3d:-.false.}
               lgoc3d=.false.,trans_trac=.true.,cal_pre=.false.,\
               CCWF=$ccwf,dlqf=$dlqf,psautco=$psautco,prautco=$prautco,evpco=$evpco,\
               bkgd_vdif_m=$bkgd_vdif_m,bkgd_vdif_h=$bkgd_vdif_h,\
-              grid_aldata=$grid_aldata,bkgd_vdif_s=$bkgd_vdif_s,hdif_fac=$hdif_fac"
+              grid_aldata=$grid_aldata,bkgd_vdif_s=$bkgd_vdif_s,hdif_fac=$hdif_fac,
+              nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,sfcio_out=$SFCIO_OUT"
 
  export TRACERVARS="RI=$RIlist,CPI=$CPIlist,"
 #
@@ -467,9 +469,9 @@ cd $RUNDIR
 export COMOUT=$RUNDIR
 
 #
-cp -p /climate/save/wx20wa/esmf/nems/20120424/trunk/job/regression_tests/ocean.configure $RUNDIR
-cp -p /global/save/wx23sm/NEMS/f2011/trunk/job/regression_tests/Chem_Registry.rc $RUNDIR
-cp -p /global/save/wx23sm/NEMS/f2011/trunk/job/regression_tests/MAPL.rc $RUNDIR
+cp -p ${NEMSDIR}/job/regression_tests/ocean.configure $RUNDIR
+cp -p ${NEMSDIR}/job/regression_tests/Chem_Registry.rc $RUNDIR
+cp -p ${NEMSDIR}/job/regression_tests/MAPL.rc $RUNDIR
 #
 #$NCP /nfsuser/g01/wx23sm/gsm/sfccyc/aeros_data/aeropac3a* $RUNDIR
 #
@@ -691,7 +693,7 @@ if [[ $nhourb -eq 0 ]] ; then
     export sfc_fname=sfcanl.$CDATE
   fi
   if [[ ${ic_type} = special ]] ; then
-    export datic=/ptmp/wx23sm/Aug302004f
+    export datic=/climate/save/wx20wa/esmf/nems/20120913/data
     export sig_fname=siganl.$CDATE
     export sfc_fname=sfcanl.$CDATE
   fi

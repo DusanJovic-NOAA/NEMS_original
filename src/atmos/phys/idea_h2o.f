@@ -2,6 +2,7 @@
      &adt,dth,cosz,dtc)
 !
 ! Apr 06 2012  Henry Juang, initial implement for nems
+! Dec    2012    Jun Wang,  move init step out of column physics
 !
       use physcons,  amo2=>con_amo2, amo3=>con_amo3,                    &
      &               amh2o=>con_amw
@@ -29,18 +30,9 @@
       real h2ommrc(nlevc),temp(nlevc),qr(nlevc),qv(nlevc),prpa(nlevc)
       integer i,k,k1
 !
-      logical first
-      data first/.true./
-      save first
-! initiate
 ! cooling idea pressure level 71-150 up ward
       prpa(1:nlevc)=100.*pr_idea(k71:levs)
-      if (first) then
-        first=.false.
-!hmhj   call h2ocin(prpa,nlevc,'/mtb/save/wx20fw/fcst07rd/')
-        call h2ocin(prpa,nlevc)
-      endif
-!
+
 !     print*,'www1',nlev_h2o,nlevc_h2o,k41,k110,k71,k100,k105
 !     print*,'www1',h2ora(71),h2ora(150)
 !

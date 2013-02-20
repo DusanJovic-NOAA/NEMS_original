@@ -10,6 +10,10 @@
 !     for variable critical lapse rate.
 !
 ! Apr 06 2012   Henry Juang, initial implement for nems
+! Dec    2012   Jun Wang, move init out of column physics
+! Jan    2013   Jun Wang, fix the neutral layer index k when mdoel top 
+!                         layer has instability and affects adjacent
+!                         layers underneath
 !
 ! Contains
 !      module ideaca_mod
@@ -48,9 +52,6 @@
 ! - CA procedure weigths (dimensioned by the number of model layers
 !     above starting pressure p0 in subrotine ideaca_init)
 
-      logical:: first = .true.
-!hmhj integer,save:: loff,nlay
-!hmhj real,dimension(:),allocatable,save:: r,q
       integer loff,nlay
       real,dimension(:),allocatable:: r,q
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -118,6 +119,8 @@
      &        (pm(l-1)/p(loff+l))**rdcp
       enddo
       q(:)=dp(:)/r(:)
+!
+      deallocate(pm,dp)
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
       end subroutine ideaca_init
@@ -145,13 +148,6 @@
       integer:: i,j,k,l,n
       integer,dimension(nlev):: nml
       real,dimension(nlev):: teta,tpp,pdp
-! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-! Initialize once
-
-      if(first) then
-         call ideaca_init(p(1,:),nlev)
-         first=.false.
-      endif
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ! Outer (horizontal) loop
 
@@ -193,6 +189,7 @@
 !     point), go to next model layer
 
                   i=j+1
+                  k=i
                   exit
                else
 

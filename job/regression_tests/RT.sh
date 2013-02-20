@@ -361,6 +361,8 @@ export lm=64       ; export lsoil=4         ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  ; export NDSLFV=.false.  ; export IDEA=.false.
 export GOCART_AER2POST=.false. ;  export NEMSIOIN=.true. ; export rungfstest=.false.
+export NEMSIOOUT=.true. ;  export SIGIOOUT=.false. ; export SFCIOOUT=.false. 
+export CDATE=2010010100
 }
 
 export_fim ()

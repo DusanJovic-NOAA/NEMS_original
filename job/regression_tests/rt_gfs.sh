@@ -38,6 +38,9 @@ cd $PATHRT
 cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_PE1_:${PE1}:g       \
                     | sed s:_NEMSIOIN_:${NEMSIOIN}:g      \
+                    | sed s:_NEMSIOOUT_:${NEMSIOOUT}:g      \
+                    | sed s:_SIGIOOUT_:${SIGIOOUT}:g      \
+                    | sed s:_SFCIOOUT_:${SFCIOOUT}:g      \
                     | sed s:_WPG_:${WTPG}:g      \
                     | sed s:_WRTGP_:${WRTGP}:g   \
                     | sed s:_wrtdopost_:${WRITE_DOPOST}:g   \
@@ -69,6 +72,7 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_NDSLFV_:${NDSLFV}:g \
                     | sed s:_SPECTRALLOOP_:${SPECTRALLOOP}:g \
                     | sed s:_IDEA_:${IDEA}:g \
+                    | sed s:_CDATE_:${CDATE}:g \
                     | sed s:_NDAYS_:${NDAYS}:g   >  gfs_fcst_run
 
 chmod 755 gfs_fcst_run
@@ -123,6 +127,11 @@ else
    fi
 fi
 
+if [ "$IDEA" = ".true." ]; then
+  cp /climate/save/wx20wa/wam/Fei_Wu/data/*anl*${CDATE} ${RUNDIR}/.
+fi
+
+#ensembl
 else
 
 

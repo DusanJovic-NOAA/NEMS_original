@@ -9,6 +9,8 @@
 !     qnir1.f
 !     co2c.f
 ! Apr 06 2012   Henry Juang, initial implement for NEMS
+! Oct 12 2012   Jun Wang     change reading files by 1 pe reading and 
+!                            broardcasting to all pes
 !
 ! Contains modules and subroutines
 !     1) To create a global mean vertical CO2 profile either according
@@ -989,8 +991,7 @@
 
 !***********************************************************************
 
-      subroutine co2cin(xmod,pmod,mu,gr,lmod)
-!hmhj subroutine co2cin(xmod,pmod,mu,gr,lmod,dir)
+      subroutine co2cin(xmod,pmod,mu,gr,lmod,me,mpi_ior,mpi_comm)
 
 ! Routine to prepare matrices and other parameters for implementation
 ! of full CO2 cooling scheme by Fomichev et al. (1998) modified later 
@@ -1004,6 +1005,7 @@
 
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ! Dec 2006: Rashid Akmaev
+! Oct 2012: Jun Wang: change reading for MPI environment
 
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       use co2c_mod
@@ -1013,6 +1015,8 @@
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       implicit none
 
+      include 'mpif.h'
+!
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ! Subroutine arguments
 ! INPUT
@@ -1027,6 +1031,9 @@
 !
       integer,intent(in)::lmod
       real,intent(in),dimension(lmod)::xmod,pmod,mu,gr
+      integer, intent(in) :: me     ! my pe
+      integer, intent(in) :: mpi_ior      ! mpi real for io
+      integer, intent(in) :: mpi_comm     ! mpi communicator
 !
 ! -directory where matrix files are located
 !
@@ -1045,7 +1052,7 @@
 !
 ! Temp work space
 !
-      integer:: i,j,l
+      integer:: i,j,l,info
       real:: w1,wcolmy(lmod),war1(100),war2(100)
       real:: vmu(ivict),vgrav(ivict)
 
@@ -1256,46 +1263,62 @@
 !hmhj open(11,file=dir//'/coeff_lte.360',status = 'OLD')
 !hmhj open(12,file=dir//'/coeff_lte.540',status = 'OLD')
 !hmhj open(13,file=dir//'/coeff_lte.720',status = 'OLD')
-      open(30,file='global_idea_coeff_lte.150',status = 'OLD')
-      open(31,file='global_idea_coeff_lte.360',status = 'OLD')
-      open(32,file='global_idea_coeff_lte.540',status = 'OLD')
-      open(33,file='global_idea_coeff_lte.720',status = 'OLD')
-      rewind(30)
-      rewind(31)
-      rewind(32)
-      rewind(33)
-      read(30,100)
-      read(31,100)
-      read(32,100)
-      read(33,100)
-      do i=1,43
-         read(30,101) (a150(i,j), j=1,57)
-         read(31,101) (a360(i,j), j=1,57)
-         read(32,101) (a540(i,j), j=1,57)
-         read(33,101) (a720(i,j), j=1,57)
-      enddo
+!
+!jw: only pe0 will read the data
+      if(me==0) then
+
+        open(30,file='global_idea_coeff_lte.150',status = 'OLD')
+        open(31,file='global_idea_coeff_lte.360',status = 'OLD')
+        open(32,file='global_idea_coeff_lte.540',status = 'OLD')
+        open(33,file='global_idea_coeff_lte.720',status = 'OLD')
+        rewind(30)
+        rewind(31)
+        rewind(32)
+        rewind(33)
+        read(30,100)
+        read(31,100)
+        read(32,100)
+        read(33,100)
+        do i=1,43
+          read(30,101) (a150(i,j), j=1,57)
+          read(31,101) (a360(i,j), j=1,57)
+          read(32,101) (a540(i,j), j=1,57)
+          read(33,101) (a720(i,j), j=1,57)
+        enddo
 !     call mymaxmin(a150,43*57,43*57,1,' co2cin a150 ')
 !     call mymaxmin(a360,43*57,43*57,1,' co2cin a360 ')
 !     call mymaxmin(a540,43*57,43*57,1,' co2cin a540 ')
 !     call mymaxmin(a720,43*57,43*57,1,' co2cin a720 ')
-      read(30,100)
-      read(31,100)
-      read(32,100)
-      read(33,100)
-      do i=1,43
-         read(30,101) (b150(i,j), j=1,57)
-         read(31,101) (b360(i,j), j=1,57)
-         read(32,101) (b540(i,j), j=1,57)
-         read(33,101) (b720(i,j), j=1,57)
-      enddo
+        read(30,100)
+        read(31,100)
+        read(32,100)
+        read(33,100)
+        do i=1,43
+          read(30,101) (b150(i,j), j=1,57)
+          read(31,101) (b360(i,j), j=1,57)
+          read(32,101) (b540(i,j), j=1,57)
+          read(33,101) (b720(i,j), j=1,57)
+        enddo
 !     call mymaxmin(b150,43*57,43*57,1,' co2cin b150 ')
 !     call mymaxmin(b360,43*57,43*57,1,' co2cin b360 ')
 !     call mymaxmin(b540,43*57,43*57,1,' co2cin b540 ')
 !     call mymaxmin(b720,43*57,43*57,1,' co2cin b720 ')
-      close(30)
-      close(31)
-      close(32)
-      close(33)
+        close(30)
+        close(31)
+        close(32)
+        close(33)
+!
+!jw pe 0 finish reading
+      endif
+
+      call mpi_bcast(a150,size(a150),mpi_ior,0,mpi_comm,info)
+      call mpi_bcast(a360,size(a360),mpi_ior,0,mpi_comm,info)
+      call mpi_bcast(a540,size(a540),mpi_ior,0,mpi_comm,info)
+      call mpi_bcast(a720,size(a720),mpi_ior,0,mpi_comm,info)
+      call mpi_bcast(b150,size(b150),mpi_ior,0,mpi_comm,info)
+      call mpi_bcast(b360,size(b360),mpi_ior,0,mpi_comm,info)
+      call mpi_bcast(b540,size(b540),mpi_ior,0,mpi_comm,info)
+      call mpi_bcast(b720,size(b720),mpi_ior,0,mpi_comm,info)
 
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ! This is again from parcof with modifications: Linear interpolation

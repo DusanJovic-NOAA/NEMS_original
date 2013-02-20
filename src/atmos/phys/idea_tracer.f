@@ -19,9 +19,10 @@
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       subroutine idea_tracer(im,ix,levs,ntrac,ntrac_i,grav,prsi,prsl,   &
      &adt,q,dtp,n1,n2,n3,n,rho,am)
-      use physcons, amo2=>con_amo2, avgd => con_avgd, amo3 => con_amo3, &
-     &              amh2o => con_amw
-      use idea_composition
+!
+      use physcons, only : amo2=>con_amo2,avgd => con_avgd,             &
+     &                     amo3 => con_amo3,amh2o => con_amw
+      use idea_composition, only : bz,amo,amn2
       use idea_tracer_mod
       implicit none
 ! Argument
@@ -96,11 +97,11 @@
         enddo
       enddo
 ! change n unit from /m3 to /cm3 to use in dissipation and solar_heating
-      n1=n1*1.e-6
-      n2=n2*1.e-6
-      n=n*1.e-6
       do i=1,im
         do k=1,levs
+          n1(i,k)=n1(i,k)*1.e-6
+          n2(i,k)=n2(i,k)*1.e-6
+          n(i,k)=n(i,k)*1.e-6
           n3(i,k)=n(i,k)-n1(i,k)-n2(i,k)
         enddo
       enddo
@@ -114,7 +115,7 @@
 ! calaulate tracer changes caused by molecular diffusion
 !
 !-----------------------------------------------------------------------
-      use physcons, rgas=>con_rgas, amo2=>con_amo2,                     &
+      use physcons, only :rgas=>con_rgas, amo2=>con_amo2,               &
      &               avgd => con_avgd
       use machine, only : kind_phys
       use idea_composition
@@ -305,8 +306,8 @@ c
 ! calaulate tracer changes caused by chemistry reaction
 !
 !-----------------------------------------------------------------------
-      use physcons, rgas=>con_rgas, amo2=>con_amo2
-      use physcons,  avgd => con_avgd
+      use physcons, only : rgas=>con_rgas, amo2=>con_amo2
+      use physcons, only : avgd => con_avgd
       use machine, only : kind_phys
       use idea_composition
       implicit none
@@ -350,9 +351,10 @@ c
       enddo
       return
       end subroutine
+!-------------------------------------------------------------------------
       SUBROUTINE jprofile(levs,J)
 ! get photo dissociation rate
-      use idea_composition, f107 => f107_idea
+      use idea_composition, only : f107 => f107_idea
       implicit none
       integer, parameter :: np=17  !number of pressure levels of orig
       integer, intent(in) :: levs  !number of pressure levels of output 
@@ -374,10 +376,11 @@ c
       call z17toz(levs,J17,J,0.)
       return
       end
+!-------------------------------------------------------------------------
       subroutine z17toz(levs,ain,aout,down)
 ! interpolate 17 pressure levels (from Tim's grid) to
 ! idea pressure grid pr(levs)
-      use idea_composition, pr=> pr_idea
+      use idea_composition, only : pr=> pr_idea
       implicit none
       integer, parameter :: np=17  !number of pressure levels of input
       integer, intent(in) :: levs  !number of pressure levels of output 

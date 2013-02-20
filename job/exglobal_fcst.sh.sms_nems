@@ -445,6 +445,7 @@ then
 fi
 #  Command line arguments.
 export NEMSIO_IN=${NEMSIO_IN:-".true."}
+export NEMSIO_OUT=${NEMSIO_OUT:-".true."}
 
 export ENS_NUM=${ENS_NUM:-1}
 export FM=${FM}
@@ -661,6 +662,12 @@ export QUILTING=${QUILTING:-.true.}
 export WRITE_DOPOST=${WRITE_DOPOST:-.false.}
 export POST_GRIBVERSION=${POST_GRIBVERSION:-'"grib1"'}
 export GOCART_AER2POST=${GOCART_AER2POST:-.false.}
+#
+export LWRTGRDCMP=${LWRTGRDCMP:-".true."}
+if [ $NEMSIO_OUT = .false. -a $WRITE_DOPOST = .false. ];
+then
+  export LWRTGRDCMP=.false.
+fi
 #
 dp_import=0
 if [ $NDSLFV = .true. ]; then dp_import=1; fi
@@ -1107,6 +1114,7 @@ adiabatic:                $ADIAB
 lsoil:                    $LSOIL
 passive_tracer:           $PASSIVE_TRACER
 ldfiflto:                 $LDFIFLTO
+lwrtgrdcmp:               $LWRTGRDCMP
 nemsio_in:                $NEMSIO_IN
 
 

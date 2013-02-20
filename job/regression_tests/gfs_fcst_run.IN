@@ -3,7 +3,8 @@
 set -x
 #
 #
- export CDATE=2010010100
+ export CDATE=_CDATE_
+ export CDATE=${CDATE:-2010010100}
  cyc=`echo $CDATE|cut -c9-10`
 #***************************************************************
 #

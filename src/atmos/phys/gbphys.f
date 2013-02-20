@@ -885,7 +885,7 @@
       end if
 ! idea : moved temp adjust to idea_phys
       if( lsidea ) then
-        print *,' in gbphys: lsidea is true '
+!        print *,' in gbphys: lsidea is true '
         DTDT=0.
       endif
 
