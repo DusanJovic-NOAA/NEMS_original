@@ -28,6 +28,10 @@ elif [[ $1 = traps_on ]]; then
      cp conf/configure.nems.AIX_TRAPS_ON conf/configure.nems
      cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
      echo "Use the ESMF 3.1.0rp2 library"
+elif [[ $1 = 5.2_wcoss ]]; then
+     cp conf/configure.nems.Wcoss.intel_ESMF_520rp1 conf/configure.nems
+     cp ESMFVersionDefine_ESMF_520rp1.h ESMFVersionDefine.h
+     echo "Use the ESMF 5.2.0rp1 library"
 elif [[ $1 = 5.2_zeus ]]; then
      cp conf/configure.nems.Zeus.intel_ESMF_520rp1 conf/configure.nems
      cp ESMFVersionDefine_ESMF_520rp1.h ESMFVersionDefine.h
@@ -52,8 +56,9 @@ else
      echo "When using the ESMF 3.1.0rp2 library and turn on traps,   enter 'esmf_version traps_on'"
      echo "When using the ESMF 4.0.0rp2 library on the CCS   machine, enter 'esmf_version 4'"
      echo "When using the ESMF 5.1.0    library on the CCS   machine, enter 'esmf_version 5'"
-     echo "Wgen using the ESMF 5.2.0rp1 library on the CCS   machine, enter 'esmf_version 5.2'"
+     echo "When using the ESMF 5.2.0rp1 library on the CCS   machine, enter 'esmf_version 5.2'"
      echo "When using the ESMF 5.2.0rp1 library on the ZEUS   machine, enter 'esmf_version 5.2_zeus'"
+     echo "When using the ESMF 5.2.0rp1 library on the WCOSS machine, enter 'esmf_version 5.2_wcoss'"
      echo "When using the ESMF 5.3.0 library on the ZEUS   machine, enter 'esmf_version 5.3_zeus'"
      echo "When using the ESMF 6.1.0 library on the ZEUS   machine, enter 'esmf_version 6.1_zeus'"
      echo "When using the ESMF 6.1.1 library on the ZEUS   machine, enter 'esmf_version 6.1.1_zeus'"

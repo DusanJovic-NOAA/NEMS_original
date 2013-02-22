@@ -10,7 +10,14 @@
 !
       USE MODULE_INCLUDE
 !
-      USE MODULE_MY_DOMAIN_SPECS
+      USE MODULE_DM_PARALLEL,ONLY : ITS_B1,ITE_B1,ITE_B2                &
+                                   ,ITS_B1_H1,ITE_B1_H1,ITE_B1_H2       &
+                                   ,ITS_B1_H2,ITE_H1,ITE_H2             &
+                                   ,JTS_B1,JTE_B1,JTE_B2                &
+                                   ,JTS_B1_H1,JTE_B1_H1,JTE_B1_H2       &
+                                   ,JTS_B1_H2,JTE_H2                    &
+                                   ,MPI_COMM_COMP                       &
+                                   ,MYPE_SHARE
 !
       USE MODULE_CONTROL,ONLY : NMMB_FINALIZE
 
@@ -71,8 +78,8 @@
                        ,SICE,QWBS,TWBS,PBLH,dudt_phy,dvdt_phy           &
 !!!
                        ,IDS,IDE,JDS,JDE,LM                              &
-                       ,IMS,IME,JMS,JME,kms,kme                         &
-                       ,ITS,ITE,JTS,JTE,kts,kte)
+                       ,IMS,IME,JMS,JME                                 &
+                       ,ITS,ITE,JTS,JTE)
 
 !***********************************************************************
 !$$$  SUBPROGRAM DOCUMENTATION BLOCK
@@ -110,8 +117,8 @@
       ,f_qv,f_qc,f_qr,f_qi,f_qs,f_qg
 !
       integer(kind=kint),intent(in):: &
-       ids,ide,jds,jde,kts,kte,lm &
-      ,ims,ime,jms,jme,kms,kme &
+       ids,ide,jds,jde,lm &
+      ,ims,ime,jms,jme &
       ,its,ite,jts,jte &
       ,ncnvc,minutes_history &
       ,nrads,nradl,ntsd,num_water &
@@ -166,7 +173,7 @@
       real(kind=kfpt),dimension(ims:ime,1:lm+1,jms:jme),intent(inout):: &
        w0avg
 !
-      real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,num_water) &
+      real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,1:num_water) &
                      ,intent(inout):: &
        water
 !-----------------------------------------------------------------------
@@ -181,7 +188,7 @@
 !
       integer(kind=kint):: &
        cu_physics,i,j &
-      ,k,kde,kds &
+      ,k &
       ,mnto &
       ,n,ncubot,ncutop,n_timstps_output
 !
@@ -215,8 +222,6 @@
       REAL(kind=kfpt) :: TCHANGE
 !-----------------------------------------------------------------------
 !***********************************************************************
-      kds=1
-      kde=lm
 !-----------------------------------------------------------------------
 !***  TRANSLATE THE CONVECTION OPTIONS IN THE CONFIG FILE TO THEIR
 !***  ANALOGS IN THE WRF
@@ -270,8 +275,8 @@
       IF(CONVECTION=='kf')THEN
 !
         IF(.NOT.RESTART.AND.NTSD==0)THEN
-!jaa!$omp parallel do                                                       &
-!jaa!$omp& private(i,j,k)
+!jaa!zj$omp parallel do                                                       &
+!jaa!zj$omp& private(i,j,k)
           DO J=JTS,JTE
           DO K=1,LM+1
           DO I=ITS,ITE
@@ -301,8 +306,8 @@
       G_INV=1./G
 !
 !.......................................................................
-!$omp parallel do &
-!$omp& private(j,i,k,pdsl,plyr,ql,tl)
+!zj$omp parallel do &
+!zj$omp& private(j,i,k,pdsl,plyr,ql,tl)
 !.......................................................................
       DO J=JTS,JTE
       DO I=ITS,ITE
@@ -347,7 +352,7 @@
       ENDDO
       ENDDO
 !.......................................................................
-!$omp end parallel do
+!zj$omp end parallel do
 !.......................................................................
 !
 !-----------------------------------------------------------------------
@@ -355,8 +360,8 @@
 !-----------------------------------------------------------------------
 !
 !.......................................................................
-!$omp parallel do &
-!$omp& private(j,i,k)
+!zj$omp parallel do &
+!zj$omp& private(j,i,k)
 !.......................................................................
       do k=1,lm
         do j=jms,jme
@@ -386,12 +391,12 @@
         ENDDO
       ENDDO
 !.......................................................................
-!$omp end parallel do
+!zj$omp end parallel do
 !.......................................................................
 !-----------------------------------------------------------------------
 !.......................................................................
-!$omp parallel do                                                       &
-!$omp private(i,j,k,pdsl,plyr,ql_k)
+!zj$omp parallel do                                                       &
+!zj$omp private(i,j,k,pdsl,plyr,ql_k)
 !.......................................................................
       DO J=JTS,JTE
         DO I=ITS,ITE
@@ -413,7 +418,7 @@
 !
       ENDDO
 !.......................................................................
-!$omp end parallel do
+!zj$omp end parallel do
 !.......................................................................
 !
 !-----------------------------------------------------------------------
@@ -421,7 +426,7 @@
 !-----------------------------------------------------------------------
 !
 !.......................................................................
-!$omp parallel do private(i,j,k)
+!zj$omp parallel do private(i,j,k)
 !.......................................................................
       DO K=1,LM
         DO J=JMS,JME
@@ -432,7 +437,7 @@
         ENDDO
       ENDDO
 !.......................................................................
-!$omp end parallel do
+!zj$omp end parallel do
 !.......................................................................
 
 !write(0,*)'A2,A3,A4,cappa,CP,ELIV,ELWV,EPSQ,p608,PQ0,R_D,TIW' &
@@ -469,12 +474,11 @@
                         )
 !-----------------------------------------------------------------------
            CASE (SASSCHEME)
-
            call sasdrv( &
                        ims,ime,jms,jme &
                       ,its,ite,jts,jte,lm &
                       ,dt,ntsd,ncnvc &
-                      ,th,t,sice,omgalf,twbs,qwbs,pblh,u_phy,v_phy &
+                      ,th,t,sice,omgalf,twbs,qwbs,pblh,u_phy,v_phy & !zj orig u&v 
                       ,water,p_qv,p_qc,p_qr,p_qs,p_qi,p_qg,num_water &
                       ,pint,pmid,exner,rr,dz &
                       ,xland,cu_act_flag &
@@ -486,8 +490,6 @@
                       ,rqicuten, rqscuten &
                       ,rqgcuten  &
                       )
-!                                                                              )
-
             CASE DEFAULT
 
               WRITE( 0 , * ) 'The cumulus option does not exist: cu_physics = ', cu_physics
@@ -522,8 +524,8 @@
 !
 !-----------------------------------------------------------------------
 !.......................................................................
-!$omp parallel do                                                       &
-!$omp& private(j,k,i,dqdt,dtdt,tchange,pcpcol,ncubot,ncutop)
+!zj$omp parallel do                                                       &
+!zj$omp& private(j,k,i,dqdt,dtdt,tchange,pcpcol,ncubot,ncutop)
 !.......................................................................
 !-----------------------------------------------------------------------
       do j=jts_b1,jte_b1
@@ -610,7 +612,7 @@
       ENDDO
       ENDDO
 !.......................................................................
-!$omp end parallel do
+!zj$omp end parallel do
 !.......................................................................
 !
 !-----------------------------------------------------------------------

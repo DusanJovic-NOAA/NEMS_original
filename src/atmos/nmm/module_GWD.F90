@@ -366,7 +366,7 @@ test=abs(dudt(i,k,j))+abs(dvdt(i,k,j))
 !
 !=== Output fields
 !
-!-- A (DUDT), B (DVDT) - output zonal & meridional wind tendencies in Earth coordinates (m s^-2)
+!-- A (DVDT), B (DUDT) - output zonal & meridional wind tendencies in Earth coordinates (m s^-2)
 !-- DUsfc, DVsfc - surface zonal meridional wind stresses in Earth coordinates (m s^-1?)
 !
 !=== Input fields

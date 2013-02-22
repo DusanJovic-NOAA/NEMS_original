@@ -401,6 +401,17 @@
       IF(NEST_MODE=='1-way')THEN                                           !<-- Single domains and 1-way nests integrate to end of fcst
 !
         IF(FILTER_METHOD==0)THEN                                           !<-- Free forecast
+
+! without this ClockGet the FIRST_PASS from above represents the filter
+! clock if a filter case
+!
+          CALL ESMF_ClockGet(clock   =CLOCK_INTEGRATE &
+                            ,runTimeStepCount=domain_int_state%TIMESTEP_FINAL &
+                            ,stopTime=STOPTIME &
+                            ,rc      =RC)
+
+          CALL RESET_ALARMS
+
           LAST_STEP=NINT(domain_int_state%TIMESTEP_FINAL)-1
 !
         ELSE                                                               !<-- Digital filter
@@ -754,6 +765,8 @@
                                RST_OUT_00                               &
                                  .AND.                                  &
                                .NOT.domain_int_state%WROTE_1ST_HIST     &
+                                 .AND.                                  &
+                               (FILTER_METHOD == 0)                     &
                                  .AND.                                  &
                                domain_int_state%QUILTING)THEN
 !

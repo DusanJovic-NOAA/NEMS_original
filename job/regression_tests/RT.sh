@@ -2129,7 +2129,6 @@ fi # endif machine (only CCS)
 # Clean and compile both NMMB & GFS cores, using ESMF 5.2.0rp1 library.
 #########################################################################
 
-if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = zeus ]; then
 if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
 
 echo "Preparing model code for regression tests"
@@ -2144,6 +2143,12 @@ rm -f ../exe/NEMS.x
 if [ ${MACHINE_ID} = ccs ]; then
 
   esmf_version 5.2                       >> ${COMPILE_LOG} 2>&1
+  gmake clean                            >> ${COMPILE_LOG} 2>&1
+  gmake nmm_gfs                          >> ${COMPILE_LOG} 2>&1
+
+elif [ ${MACHINE_ID} = wcoss ]; then
+
+  ./esmf_version 5.2_wcoss               >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake nmm_gfs                          >> ${COMPILE_LOG} 2>&1
 
@@ -2167,7 +2172,6 @@ fi
 fi # endif compilation
 
 cd $PATHRT
-fi # endif machine (only CCS or zeus)
 
 ####################################################################################################
 #
@@ -2176,7 +2180,7 @@ fi # endif machine (only CCS or zeus)
 #
 ####################################################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
+if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = wcoss ]; then
 if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
 
 export TEST_DESCR="Compare NMMB-global results with previous trunk version_ESMF_5.2.0rp1"
@@ -2198,7 +2202,7 @@ export GBRG=glob
 #---------------------
 
 fi # endif test
-fi # endif machine (only CCS)
+fi # endif machine (only CCS or WCOSS)
 
 ####################################################################################################
 # 

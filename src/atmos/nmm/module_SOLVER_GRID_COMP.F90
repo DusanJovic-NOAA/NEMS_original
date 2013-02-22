@@ -5739,8 +5739,8 @@
                        ,int_state%SICE,int_state%QWBS,int_state%TWBS      &
                        ,int_state%PBLH,int_state%DUDT,int_state%DVDT      &
                        ,IDS,IDE,JDS,JDE,LM                                &
-                       ,IMS,IME,JMS,JME,1,lm+1                            &
-                       ,ITS,ITE,JTS,JTE,1,lm)
+                       ,IMS,IME,JMS,JME                                   &
+                       ,ITS,ITE,JTS,JTE)
 !
           ELSE
 !
@@ -9059,7 +9059,7 @@
             CALL BMJ_INIT(int_state%CLDEFI,int_state%RESTART &
                          ,a2,a3,a4,cappa,cp &
                          ,pq0,r_d &
-                         ,IDS,IDE,JDS,JDE,1,LM+1 &
+                         ,IDS,IDE,JDS,JDE &
                          ,IMS,IME,JMS,JME &
                          ,ITS,ITE,JTS,JTE,LM)
 

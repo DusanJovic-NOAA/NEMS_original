@@ -27,8 +27,7 @@
 !-----------------------------------------------------------------------
 !
       real(kind=kfpt),parameter:: &
-       dspc=-3000. &
-      ,dttop=0.,efifc=5.0,efimn=0.20 &
+       dttop=0.,efifc=5.0,efimn=0.20 &
       ,efmntl=0.70,efmnts=0.70 &
       ,eliwv=2.683e6,enplo=98500.,enpup=95000. &
       ,epsdn=1.05,epsdt=0. &
@@ -104,7 +103,8 @@
       ,rsfcp=1./101300.
 !
       real(kind=kfpt),parameter:: &
-       avgefi=(efimn+1.)*0.5
+       avgefi=(efimn+1.)*0.5 &
+      ,stefi=1.
 !
 !-----------------------------------------------------------------------
 !
@@ -238,11 +238,11 @@
         dtcnvc=dt*ncnvc
         rdxeq=1./dxh((jds+jde)/2+1)
 !.......................................................................
-!zj!$omp parallel do &
-!zj!$omp private (j,i,dqdt,dtdt,dudt,dvdt &
-!zj!$omp         ,dxh,fresp,pcpcol,psfc,ptop,seamask,k &
-!zj!$omp         ,tcol,pcol,dpcol,qcol,ucol,vcol &
-!zj!$omp         ,lmh,lpbl,delt,delq,plyr,lbot,ltop)
+!zj$omp parallel do &
+!zj$omp private (j,i,dqdt,dtdt,dudt,dvdt &
+!zj$omp         ,dxh,fresp,pcpcol,psfc,ptop,seamask,k &
+!zj$omp         ,tcol,pcol,dpcol,qcol,ucol,vcol &
+!zj$omp         ,lmh,lpbl,delt,delq,plyr,lbot,ltop)
 !.......................................................................
         do j=jts_b1,jte_b1
           fresp=fres !*(rdxeq*dxh(j))**0.125
@@ -330,13 +330,6 @@
 !-----------------------------------------------------------------------
 !***  compute momentum tendencies
 !
-!if(ltop.ne.64) then
-!write(0,*)'dqdt,lbot,ltop,i,j',dqdt,lbot,ltop,i,j
-!write(0,*)'dtdt',dtdt
-!write(0,*)'dudt',dudt
-!write(0,*)'dvdt',dvdt
-!endif
-
           do k=1,lm
             dudt_phy(i,j,k)=dudt(k)
             dvdt_phy(i,j,k)=dvdt(k)
@@ -405,7 +398,7 @@
         enddo
         enddo
 !.......................................................................
-!zj!$omp end parallel do
+!zj$omp end parallel do
 !.......................................................................
 !
       endif
@@ -471,13 +464,13 @@
        deep,mmntdeep,mmntshal1,mmntshal2,plume,shallow
 
       real(kind=kfpt):: &
-       dum,dvm,facuv,uvscaled,uvscales,ubar,vbar
+       dum,dvm,facuv,uvscald,uvscals1,uvscals2,ubar,vbar
 
       real(kind=kfpt),dimension(1:lm):: &
        rxnerk,rxnersk,el,fpk &
       ,pk,psk,qbte,qbtk,qk,qrefk,qsatk &
       ,therk,thesp,thevrf,thsk &
-      ,thvmod,thvref,tk,trefk
+      ,thvmod,thvref,tk,trefk,urefk,vrefk,wcld
 !
       real(kind=kfpt),dimension(1:lm):: &
        rxner,difq,dift,thee,thes,tref
@@ -486,7 +479,7 @@
        cpe,cpecnv,dtv,dtvcnv,thescnv    !<-- cpe for shallow convection buoyancy check (24 aug 2006)
 !
       real(kind=kfpt),dimension(1:lm):: &
-       dpk,rhk,thmak,thvmk
+       rhk,thmak,thvmk
 !
 !***  begin debugging convection
       logical(kind=klog) :: print_diag
@@ -530,7 +523,7 @@
 !-----------------------------------------------------------------------
 !
       real(kind=kfpt),parameter:: &
-       elevfc=0.6,stefi=1.
+       elevfc=0.6
 !
       real(kind=kfpt),parameter:: &
        slopst=(stabdf-stabds)/(1.-efimn) &
@@ -546,36 +539,24 @@
 !
       real(kind=kfpt):: &
        a23m4l,cprlg,elocp,rcp,qwat &
-      ,a11,a12,a21,a22,ama,aqs,arh,avm &
-      ,b1qsat,b1rh,b1thma,b1thvm,b2qsat,b2rh,b2thma,b2thvm &
-      ,bma,bqs,brh,bvm &
-      ,qcorr,rden,rhmean,rhref,sumdq,sumrh,wcld &
+      ,a11,a12,a21,a22,ama,aqs,arh,au,av,avm &
+      ,b1qsat,b1rh,b1thma,b1thvm,b1u,b1v &
+      ,b2qsat,b2rh,b2thma,b2thvm,b2u,b2v &
+      ,bma,bqs,brh,bu,bvm,bv &
+      ,qcorr,rden,rhmean,rhref,sumdq,sumdu,sumdv,sumrh &
+      ,ucorr,vcorr &
       ,adef,fk
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-
-!write(0,*)'dprs',dprs
-!write(0,*)'prsmid',prsmid
-!write(0,*)'q',q
-!write(0,*)'t',t
-!write(0,*)'exner',exner
-!write(0,*)'u',u
-!write(0,*)'v',v
-!write(0,*)'psfc,pt',psfc,pt
-!write(0,*)'pcpcol,lpbl',pcpcol,lpbl
-!write(0,*)'cp,r_d,elwv,eliv,g,tiw,p608',cp,r_d,elwv,eliv,g,tiw,p608 &
-!,a2,a3,a4,g 
-
-
-
       cprlg=cp/(row*g*elwv)
       elocp=eliwv/cp
       rcp=1./cp
       a23m4l=a2*(a3-a4)*elwv
 !
-      uvscaled=0.01
-      uvscales=0.01
+      uvscald=0.01
+      uvscals1=0.01
+      uvscals2=0.01
 !
       rdtcnvc=1./dtcnvc
       depmin=psh*psfc*rsfcp
@@ -585,8 +566,8 @@
       shallow=.false.
 !
       mmntdeep=.false. !.true. !.false. !.true.
-      mmntshal1=.false. !.true. !.false.
-      mmntshal2=.false. !.true. !.false.
+      mmntshal1=.true. !.false.
+      mmntshal2=.true. !.false.
 !-----------------------------------------------------------------------
       tauk  =dtcnvc/(trel*01.0)
       tauksc=dtcnvc/(trel*01.0)
@@ -611,13 +592,9 @@
         thes(l)=0.
         thesp(l)=0.
         thescnv(l)=0.
+        dudt(l)=0.
+        dvdt(l)=0.
       enddo
-
-!write(0,*)'bmj: lmh,lm',lmh,lm
-!write(0,*)'tk ',tk
-!write(0,*)'qk',qk
-!write(0,*)'rxner',rxner
-
 !-----------------------------------------------------------------------
 !----------------search for maximum buoyancy level----------------------
 !-----------------------------------------------------------------------
@@ -626,6 +603,8 @@
       capecnv=0.
       pspcnv =0.
       thbtcnv=0.
+      lbot=lmh
+      ltop=lmh
       lbotcnv=lbot
       ltopcnv=lbot
 !-----------------------------------------------------------------------
@@ -694,9 +673,6 @@
 !---choose cloud base as model level just below psp---------------------
 !-----------------------------------------------------------------------
         if(prsmid(kb).lt.pelevfc) exit
-!
-        lbot=lmh
-        ltop=lmh
 !---search over a scaled depth to find the parcel with the max cape-----
         qbt=q(kb)
         thbt=t(kb)*rxner(kb)
@@ -905,7 +881,7 @@
             endif
           enddo      !-- end do l=kb,1,-1
 !
-          ltop=min(ltp1,lbot)
+          ltop=max(min(ltp1,lbot),1)
 !
 !-----------------------------------------------------------------------
 !--------------- check for maximum instability  ------------------------
@@ -958,7 +934,6 @@
         ptop=pbot
         cldefi=avgefi*sm+stefi*(1.-sm)
         return
-!zj        go to 800
       endif
 !
 !***  depth of cloud required to make the point a deep convection point
@@ -966,9 +941,11 @@
 !
       depth=pbot-ptop
 !
-      if(depth.ge.depmin*0.50) then
-!zj      if(depth.ge.depmin*0.75) then
+!zj      if(depth.ge.depmin*0.50) then
 !zj      if(depth.ge.depmin*0.25) then
+!zj      if(depth.ge.depmin*0.625) then
+      if(depth.ge.depmin*0.75) then
+!zj      if(depth.ge.depmin*0.85) then
         plume=.true.
       endif
 !
@@ -1110,12 +1087,12 @@
       cloud_efficiency : do itrefi=1,itrefi_max
 !
 !-----------------------------------------------------------------------
-        dspbk=((efi-efimn)*slopbs+dspbss*pbotfc)*sm                      &
-      &       +((efi-efimn)*slopbl+dspbsl*pbotfc)*sm1
-        dsp0k=((efi-efimn)*slop0s+dsp0ss*pbotfc)*sm                      &
-      &       +((efi-efimn)*slop0l+dsp0sl*pbotfc)*sm1
-        dsptk=((efi-efimn)*slopts+dsptss*pbotfc)*sm                      &
-      &       +((efi-efimn)*sloptl+dsptsl*pbotfc)*sm1
+        dspbk=((efi-efimn)*slopbs+dspbss*pbotfc)*sm &
+             +((efi-efimn)*slopbl+dspbsl*pbotfc)*sm1
+        dsp0k=((efi-efimn)*slop0s+dsp0ss*pbotfc)*sm &
+             +((efi-efimn)*slop0l+dsp0sl*pbotfc)*sm1
+        dsptk=((efi-efimn)*slopts+dsptss*pbotfc)*sm &
+             +((efi-efimn)*sloptl+dsptsl*pbotfc)*sm1
 !
 !-----------------------------------------------------------------------
 !
@@ -1143,8 +1120,8 @@
             psk(l)=pk(l)+dsp
             rxnersk(l)=(1.e5/psk(l))**cappa
             thsk(l)=trefk(l)*rxnerk(l)
-            qrefk(l)=pq0/psk(l)*exp(a2*(thsk(l)-a3*rxnersk(l))             &
-      &                                /(thsk(l)-a4*rxnersk(l)))
+            qrefk(l)=pq0/psk(l)*exp(a2*(thsk(l)-a3*rxnersk(l)) &
+                                      /(thsk(l)-a4*rxnersk(l)))
           else
             qrefk(l)=qk(l)
           endif
@@ -1242,12 +1219,10 @@
 !-----------------------------------------------------------------------
 !---------------------- deep convection --------------------------------
 !-----------------------------------------------------------------------
-!
       if(dentpy>=epsntp.and.preck>epspr.and..not.nodeep) then
 !
         iswap=0 ! deep convection, no swap
         cldefi=efi
-!zj        fefi=efmnt+slope*(efi-efimn)
 !
         if(sm.gt.0.5) then
           fefi=(cldefi-efimn)*slopes+efmnts
@@ -1269,7 +1244,7 @@
         enddo
 !-----------------------------------------------------------------------
         if(mmntdeep) then
-          facuv=fefi*rdtcnvc*uvscaled
+          facuv=fefi*rdtcnvc*uvscald
           if(l0.gt.ltop.and.l0.lt.lb) then
             ubar=0.
             vbar=0.
@@ -1335,7 +1310,7 @@
 !          go to 300           !iterate cloud top
 !        endif                 !iterate cloud top
 !
-!        cldefi=avgefi
+!         cldefi=avgefi
          cldefi=efimn*sm+stefi*(1.-sm)
 !***
 !***  search for shallow cloud top
@@ -1461,7 +1436,7 @@
 !***  end debugging convection
 !-----------------------------------------------------------------------
 !
-      if(.not.shallow)go to 800
+      if(.not.shallow)return
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -1529,6 +1504,14 @@
       ltp1=ltop-1
       depth=pbot-ptop
 !-----------------------------------------------------------------------
+!zj      if(depth.ge.depmin*0.50) then
+!zj      if(depth.ge.depmin*0.25) then
+!zj      if(depth.ge.depmin*0.625) then
+!      if(depth.ge.depmin*0.75) then
+!zj      if(depth.ge.depmin*0.85) then
+!        plume=.true.
+!      endif
+!-----------------------------------------------------------------------
 !***  begin debugging convection
       if(print_diag)then
         write(6,"(a,4e12.4)") '{cu2b pbot,ptop,depth,depmin= ' &
@@ -1538,14 +1521,14 @@
 !-----------------------------------------------------------------------
 !
 !bsf      if(depth<depmin)then
-!bsf        go to 800
+!bsf        return
 !bsf      endif
 !-----------------------------------------------------------------------
       if(ptop>pbot-pno.or.ltop>lbot-2)then
         lbot=0
         ltop=lm
         ptop=pbot
-        go to 800
+        return
       endif
 !-----------------------------------------------------------------------
 !***  new cloud at all shallow points
@@ -1554,14 +1537,14 @@
 
 !zj      if(newall.and.sm.lt.0.5) go to 810 ! new cloud at land points
       if(newall.and.plume) go to 810 ! new cloud at plume points
-!zj      if(newall.and.plume.and.sm.lt.0.5) go to 810 ! new cloud at all shallow points
+!zj      if(newall.and.plume.and.sm.lt.0.5) go to 810 ! new cloud at plume land points
 !-----------------------------------------------------------------------
 !***  new cloud at swap shallow points
 !-----------------------------------------------------------------------
 !zj      if(newswap.and.iswap.gt.0) go to 810 ! new cloud only at swap pts.
 
 !zj      if(newswap.and.iswap.gt.0.and.sm.lt.0.5) go to 810 ! new cloud only at swap pts.
-      if(newswap.and.iswap.gt.0.and.plume) go to 810 ! new cloud if plume at swap pts.
+!zj      if(newswap.and.iswap.gt.0.and.plume) go to 810 ! new cloud if plume at swap pts.
 !zj      if(newswap.and.iswap.gt.0.and.plume.and.sm.lt.0.5) go to 810 ! new cloud only at swap pts.
 !-----------------------------------------------------------------------
 !
@@ -1612,18 +1595,15 @@
       endif
 !
 !----------------cloud top saturation point pressure--------------------
-!
       part1=(ptbl(iq+1,it)-ptbl(iq,it))*ppk
       part2=(ptbl(iq,it+1)-ptbl(iq,it))*qqk
-      part3=(ptbl(iq  ,it  )-ptbl(iq+1,it  )                             &
-      &      -ptbl(iq  ,it+1)+ptbl(iq+1,it+1))*ppk*qqk
+      part3=(ptbl(iq  ,it  )-ptbl(iq+1,it  ) &
+            -ptbl(iq  ,it+1)+ptbl(iq+1,it+1))*ppk*qqk
       ptpk=ptbl(iq,it)+part1+part2+part3
 !-----------------------------------------------------------------------
       dpmix=ptpk-psp
       if(abs(dpmix).lt.3000.)dpmix=-3000.
-!
 !----------------temperature profile slope------------------------------
-!
       smix=(thtpk-thbt)/dpmix*stabs
 !
       treflo=trefk(lbot+1)
@@ -1637,15 +1617,13 @@
       do l=lbot,ltop,-1
         treflo=((pkhi-pklo)*smix+treflo*rxnerlo)/rxnerhi
         trefk(l)=treflo
-        if(l<=lmid) trefk(l)=max(trefk(l), tk(l)+dtshal)
+        if(l<=lmid) trefk(l)=max(trefk(l),tk(l)+dtshal)
         rxnerlo=rxnerhi
         pklo=pkhi
         rxnerhi=rxnerk(l-1)
         pkhi=pk(l-1)
       enddo
-!
 !----------------temperature reference profile correction---------------
-!
       sumdt=0.
       sumdp=0.
 !
@@ -1664,9 +1642,7 @@
         trefk(l)=trfkl
         fpk  (l)=trfkl
       enddo
-!
 !----------------humidity profile equations-----------------------------
-!
       psum  =0.
       qsum  =0.
       potsum=0.
@@ -1713,26 +1689,22 @@
 !-----------------------------------------------------------------------
       if(dst.gt.0.) then 
         lbot=0          
-!!!!!    ltop=lbot    
         ltop=lm     
         ptop=pbot   
-        go to 800 
+        return 
       endif
 !-----------------------------------------------------------------------
 !***  otherwise continue with old cloud
 !----------------ensure positive entropy change-------------------------
       dstq=dst*epsdn
 !----------------check for isothermal atmosphere------------------------
-!
       den=potsum-psum
 !
       if(-den/psum<5.e-5)then
         lbot=0
-!!!!    ltop=lbot
         ltop=lm
         ptop=pbot
-        go to 800
-!
+        return
 !----------------slope of the reference humidity profile----------------
 !
       else
@@ -1743,10 +1715,9 @@
 !
       if(dqref<0.)then
         lbot=0
-!!!!    ltop=lbot
         ltop=lm
         ptop=pbot
-        go to 800
+        return
       endif
 !
 !----------------humidity at the cloud top------------------------------
@@ -1766,20 +1737,18 @@
 !
         if(qnew<qsatk(l)*rhlsc)then
           lbot=0
-!!!!      ltop=lbot
           ltop=lm
           ptop=pbot
-          go to 800
+          return
         endif
 !
 !-------------too moist clouds not allowed------------------------------
 !
         if(qnew>qsatk(l)*rhhsc)then
           lbot=0
-!!!!      ltop=lbot
           ltop=lm
           ptop=pbot
-          go to 800
+          return
         endif
 
 !
@@ -1793,10 +1762,9 @@
 !!
 !      if(qnew<qk(lbot+1)*stresh)then  !!?? stresh too large!!
 !        lbot=0
-!!!!!!   ltop=lbot
 !        ltop=lm
 !        ptop=pbot
-!        go to 800
+!        return
 !      endif
 !!
 !-------------- eliminate impossible slopes (betts,dtheta/dq)------------
@@ -1806,10 +1774,9 @@
 !
         if(dtdp<epsdt)then
           lbot=0
-!!!!!     ltop=lbot
           ltop=lm
           ptop=pbot
-          go to 800
+          return
         endif
 !
       enddo
@@ -1817,7 +1784,7 @@
 !***  relaxation to reference profiles
 !-----------------------------------------------------------------------
       if(mmntshal1) then
-        facuv=tauksc*rdtcnvc*uvscales
+        facuv=tauksc*rdtcnvc*uvscals1
 !
         ubar=0.
         vbar=0.
@@ -1844,7 +1811,7 @@
 !***  new cloud starts here
 !-----------------------------------------------------------------------
  810  do l=1,lmh
-        dpk(l)=dprs(l)
+        wcld(l)=0.
         rhk(l)=qk(l)/qsatk(l)
         thvmk(l)=tk(l)*rxnerk(l) !zj *(qk(l)*0p608+1.)
 !----calculate updraft temperature along moist adiabat tref(l)----------
@@ -1893,7 +1860,7 @@
         lbot=0
         ltop=lm
         ptop=pbot
-        go to 800
+        return
       endif
 !-----------------------------------------------------------------------
       a21=a12
@@ -1915,7 +1882,7 @@
         lbot=0           !soft2
         ltop=lm          !soft2
         ptop=pbot        !soft2
-        go to 800        !soft2
+        return        !soft2
       endif              !soft2
 !-------------first guess t & q profiles--------------------------------
       adef=(1.-deftop)*2./(pk(lbot)-pk(ltop)) !soft2
@@ -1924,9 +1891,9 @@
         fk=(pk(l)-pk(ltop))*adef+deftop !soft2
         rhref=rhmean*fk                 !soft2
 !
-        wcld=(1.-wdry)*rhref/(1.-wdry*rhref)
-        trefk(l)=((1.-wcld)*(avm*pk(l)+bvm) &
-                 +    wcld *(ama*pk(l)+bma))/rxnerk(l)
+        wcld(l)=(1.-wdry)*rhref/(1.-wdry*rhref)
+        trefk(l)=((1.-wcld(l))*(avm*pk(l)+bvm) &
+                 +    wcld(l) *(ama*pk(l)+bma))/rxnerk(l)
         qrefk(l)=rhref*(aqs*prsmid(l)+bqs)
       enddo
 !-------------enthalpy conservation-------------------------------------
@@ -1935,9 +1902,9 @@
       sumdq=0.
 !
       do l=ltop,lbot
-        sumdp=dpk(l)+sumdp
-        sumdt=(tk(l)-trefk(l))*dpk(l)+sumdt
-        sumdq=(qk(l)-qrefk(l))*dpk(l)+sumdq
+        sumdp=dprs(l)+sumdp
+        sumdt=(tk(l)-trefk(l))*dprs(l)+sumdt
+        sumdq=(qk(l)-qrefk(l))*dprs(l)+sumdq
       enddo
 !
       rdpsum=1./sumdp
@@ -1968,15 +1935,61 @@
 !
       if(dentpy.lt.0.) then
         lbot=0
-!!!!          ltop=lbot
         ltop=lm
         ptop=pbot
-        go to 800
+        return
       endif
 !-----------------------------------------------------------------------
       if(mmntshal2) then
-        facuv=tauksc*rdtcnvc*uvscales
+!-------------mean momentum and profile slopes--------------------------
+go to 8888
+        b1u=0.
+        b1v=0.
+        b2u=0.
+        b2v=0.
 !
+        do l=ltop,lbot
+          b1u=u(l)*prsmid(l)*dprs(l)+b1u
+          b1v=v(l)*prsmid(l)*dprs(l)+b1v
+          b2u=u(l)*dprs(l)+b2u
+          b2v=v(l)*dprs(l)+b2v
+        enddo
+!-----------------------------------------------------------------------
+        au=(b1u*a22-a12*b2u)*rden
+        av=(b1v*a22-a12*b2v)*rden
+        bu=(a11*b2u-b1u*a21)*rden
+        bv=(a11*b2v-b1v*a21)*rden
+!-------------first guess u & v profiles--------------------------------
+        do l=ltop,lbot
+          urefk(l)=(1.-wcld(l))*u(l)+wcld(l)*(au*pk(l)+bu)
+          vrefk(l)=(1.-wcld(l))*v(l)+wcld(l)*(av*pk(l)+bv)
+        enddo
+!-------------momentum conservation-------------------------------------
+        sumdu=0.
+        sumdv=0.
+!
+        do l=ltop,lbot
+          sumdu=(u(l)-urefk(l))*dprs(l)+sumdu
+          sumdv=(v(l)-vrefk(l))*dprs(l)+sumdv
+        enddo
+!
+        ucorr=sumdu*rdpsum
+        vcorr=sumdv*rdpsum
+!
+        do l=ltop,lbot
+          urefk(l)=urefk(l)+ucorr
+          vrefk(l)=vrefk(l)+vcorr
+        enddo
+!-----------------------------------------------------------------------
+        facuv=tauksc*rdtcnvc*uvscals2
+
+        do l=ltop,lbot
+          dudt(l)=(urefk(l)-u(l))*facuv
+          dvdt(l)=(vrefk(l)-v(l))*facuv
+        enddo
+8888 continue
+
+!go to 7777
         ubar=0.
         vbar=0.
         sumdp=0.
@@ -1991,10 +2004,13 @@
         ubar=ubar*rdpsum
         vbar=vbar*rdpsum
 !
+        facuv=tauksc*rdtcnvc*uvscals2
+!
         do l=ltop,lbot
           dudt(l)=(ubar-u(l))*facuv
           dvdt(l)=(vbar-v(l))*facuv
         enddo
+7777 continue
       endif
 !--------------relaxation towards reference profiles--------------------
  820  do l=ltop,lbot
@@ -2016,8 +2032,6 @@
 !scscscscscscscscscscscscscscscscscscscscscscscscscscscscscscscscscscscs
 !scscscscscscsc         end of shallow convection        scscscscscscscs
 !scscscscscscscscscscscscscscscscscscscscscscscscscscscscscscscscscscscs
-!-----------------------------------------------------------------------
-  800 continue
 !-----------------------------------------------------------------------
       end subroutine bmj
 !-----------------------------------------------------------------------
@@ -2113,7 +2127,7 @@
       subroutine bmj_init(cldefi,restart                                 &
                          ,a2,a3,a4,cappa,cp &
                          ,pq0,r_d &
-                         ,ids,ide,jds,jde,kds,kde &
+                         ,ids,ide,jds,jde &
                          ,ims,ime,jms,jme &
                          ,its,ite,jts,jte,lm)
 !-----------------------------------------------------------------------
@@ -2123,7 +2137,7 @@
        restart
 !
       integer(kind=kint),intent(in):: &
-       ids,ide,jds,jde,kds,kde &
+       ids,ide,jds,jde &
       ,ims,ime,jms,jme &
       ,its,ite,jts,jte,lm
 !

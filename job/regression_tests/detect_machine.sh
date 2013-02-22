@@ -6,10 +6,10 @@ case `hostid` in
   0xac7a006)          MACHINE_ID=ccs ;;     ### stratus1
   0xac7a012)          MACHINE_ID=ccs ;;     ### stratus2
 
-  0b0a010a)          MACHINE_ID=wcoss ;;     ### tide1
-  0b0a020a)          MACHINE_ID=wcoss ;;     ### tide2
-  0b0a010e)          MACHINE_ID=wcoss ;;     ### tide3
-  0b0a020e)          MACHINE_ID=wcoss ;;     ### tide4
+  0b0a010a)          MACHINE_ID=wcoss ;;    ### tide/gyre 1
+  0b0a020a)          MACHINE_ID=wcoss ;;    ### tide/gyre 2
+  0b0a010e)          MACHINE_ID=wcoss ;;    ### tide/gyre 3
+  0b0a020e)          MACHINE_ID=wcoss ;;    ### tide/gyre 4
 
   0xffffffffbcc090b2) MACHINE_ID=gaea ;;    ### gaea1
   0xffffffffbcc08fb2) MACHINE_ID=gaea ;;    ### gaea2
