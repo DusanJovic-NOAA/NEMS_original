@@ -1,11 +1,11 @@
-Thu Feb 21 02:35:56 UTC 2013
+Mon Feb 25 21:55:37 UTC 2013
 Start Regression test
 
 
 
-Thu Feb 21 02:35:56 UTC 2013
+Mon Feb 25 21:55:37 UTC 2013
 Compilation ALL
-Thu Feb 21 02:50:35 UTC 2013
+Mon Feb 25 22:15:48 UTC 2013
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  84.716
+ Original timing:  151.20  , test_glob timing:  82.619
 
 
 Test 002
@@ -128,7 +128,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  130.97
+ Original timing:  240.82  , test_reg timing:  130.75
 
 
 Test 009
@@ -603,34 +603,17 @@ Checking test 033 results ....
  Comparing FLX.F06_03.........OK
  Comparing FLX.F06_04.........OK
  Test 033 passed 
-Thu Feb 21 06:54:40 UTC 2013
-Compilation only NMM
+Tue Feb 26 00:43:27 UTC 2013
+Compilation ESMF 5.2.0rp1
+Tue Feb 26 00:54:37 UTC 2013
 Test 034
-Compare NMMB-global results with previous trunk version, only NMM compiled
-
-
-Checking test 034 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
- Test 034 passed 
-
-
-
-Thu Feb 21 07:05:58 UTC 2013
-Compilation only GFS
-Thu Feb 21 07:13:25 UTC 2013
-Test 035
-Compare GFS results with previous trunk version, only GFS compiled
+Compare GFS results with previous trunk version ESMF5.2.0rp1
 GFS, 32 proc, 1 thread
 
 
 
 
-Checking test 035 results ....
+Checking test 034 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -649,6 +632,227 @@ Checking test 035 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
+ Test 034 passed 
+Test 035
+Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5.2.0rp1
+GFS, 64 proc, 1 thread
+
+
+
+
+Checking test 035 results ....
+ Comparing SIG.F06_01.........OK
+ Comparing SIG.F06_02.........OK
+ Comparing SIG.F06_03.........OK
+ Comparing SIG.F06_04.........OK
+ Comparing SFC.F06_01.........OK
+ Comparing SFC.F06_02.........OK
+ Comparing SFC.F06_03.........OK
+ Comparing SFC.F06_04.........OK
+ Comparing FLX.F06_01.........OK
+ Comparing FLX.F06_02.........OK
+ Comparing FLX.F06_03.........OK
+ Comparing FLX.F06_04.........OK
  Test 035 passed 
-Thu Feb 21 07:17:00 UTC 2013
+Tue Feb 26 01:38:18 UTC 2013
+Compilation ESMF 5.3.0
+Tue Feb 26 01:48:56 UTC 2013
+Test 036
+Compare GFS results with previous trunk version ESMF5.3.0
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 036 results ....
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 036 passed 
+Test 037
+Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5.3.0
+GFS, 64 proc, 1 thread
+
+
+
+
+Checking test 037 results ....
+ Comparing SIG.F06_01.........OK
+ Comparing SIG.F06_02.........OK
+ Comparing SIG.F06_03.........OK
+ Comparing SIG.F06_04.........OK
+ Comparing SFC.F06_01.........OK
+ Comparing SFC.F06_02.........OK
+ Comparing SFC.F06_03.........OK
+ Comparing SFC.F06_04.........OK
+ Comparing FLX.F06_01.........OK
+ Comparing FLX.F06_02.........OK
+ Comparing FLX.F06_03.........OK
+ Comparing FLX.F06_04.........OK
+ Test 037 passed 
+Tue Feb 26 02:32:28 UTC 2013
+Compilation ESMF 6.1.0
+Tue Feb 26 02:43:56 UTC 2013
+Test 038
+Compare GFS results with previous trunk version ESMF6.1.0
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 038 results ....
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 038 passed 
+Test 039
+Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF6.1.0
+GFS, 64 proc, 1 thread
+
+
+
+
+Checking test 039 results ....
+ Comparing SIG.F06_01.........OK
+ Comparing SIG.F06_02.........OK
+ Comparing SIG.F06_03.........OK
+ Comparing SIG.F06_04.........OK
+ Comparing SFC.F06_01.........OK
+ Comparing SFC.F06_02.........OK
+ Comparing SFC.F06_03.........OK
+ Comparing SFC.F06_04.........OK
+ Comparing FLX.F06_01.........OK
+ Comparing FLX.F06_02.........OK
+ Comparing FLX.F06_03.........OK
+ Comparing FLX.F06_04.........OK
+ Test 039 passed 
+Tue Feb 26 03:28:41 UTC 2013
+Compilation ESMF 6.1.1
+Tue Feb 26 03:39:30 UTC 2013
+Test 040
+Compare GFS results with previous trunk version ESMF6.1.1
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 040 results ....
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 040 passed 
+Test 041
+Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF6.1.1
+GFS, 64 proc, 1 thread
+
+
+
+
+Checking test 041 results ....
+ Comparing SIG.F06_01.........OK
+ Comparing SIG.F06_02.........OK
+ Comparing SIG.F06_03.........OK
+ Comparing SIG.F06_04.........OK
+ Comparing SFC.F06_01.........OK
+ Comparing SFC.F06_02.........OK
+ Comparing SFC.F06_03.........OK
+ Comparing SFC.F06_04.........OK
+ Comparing FLX.F06_01.........OK
+ Comparing FLX.F06_02.........OK
+ Comparing FLX.F06_03.........OK
+ Comparing FLX.F06_04.........OK
+ Test 041 passed 
+Tue Feb 26 04:23:42 UTC 2013
+Compilation only NMM
+Test 042
+Compare NMMB-global results with previous trunk version, only NMM compiled
+
+
+Checking test 042 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
+ Test 042 passed 
+
+
+
+Tue Feb 26 04:33:34 UTC 2013
+Compilation only GFS
+Tue Feb 26 04:38:37 UTC 2013
+Test 043
+Compare GFS results with previous trunk version, only GFS compiled
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 043 results ....
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 043 passed 
+Tue Feb 26 04:41:03 UTC 2013
 REGRESSION TEST WAS SUCCESSFUL

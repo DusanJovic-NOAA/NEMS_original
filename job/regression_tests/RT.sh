@@ -1926,7 +1926,7 @@ date                                     >> ${REGRESSIONTEST_LOG}
 echo "Compilation only FIM"              >> ${REGRESSIONTEST_LOG}
 rm -f ../exe/NEMS.x
 gmake clean                              >> ${COMPILE_LOG} 2>&1
-esmf_version 3                           >> ${COMPILE_LOG} 2>&1
+./esmf_version 3                           >> ${COMPILE_LOG} 2>&1
 gmake fim                                >> ${COMPILE_LOG} 2>&1
 date                                     >> ${REGRESSIONTEST_LOG}
 
@@ -2004,7 +2004,7 @@ date                                     >> ${REGRESSIONTEST_LOG}
 echo "Compilation with POST"             >> ${REGRESSIONTEST_LOG}
 rm -f ../exe/NEMS.x
 gmake clean                              >> ${COMPILE_LOG} 2>&1
-esmf_version 3                           >> ${COMPILE_LOG} 2>&1
+./esmf_version 3                           >> ${COMPILE_LOG} 2>&1
 gmake nmm_gfs_gen_post GOCART_MODE=full  >> ${COMPILE_LOG} 2>&1
 date                                     >> ${REGRESSIONTEST_LOG}
 
@@ -2252,17 +2252,19 @@ export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF5.2.0rp1
 export CNTL_DIR=GEFS_m4_5.2.0rp1
 export LIST_FILES=" \
         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
-        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
-        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
-        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
         SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
-        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
-        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
-        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
-        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
-        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
-        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
+        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
+#        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
+#        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
+#        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
+#        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
+#        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
+#        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
+#        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
+#        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
+#        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
+#        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
+#        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
 #---------------------
 export_gfs
 export GEFS_ENSEMBLE=1
@@ -2293,7 +2295,7 @@ date                                     >> ${REGRESSIONTEST_LOG}
 echo "Compilation ESMF 5.3.0"         >> ${REGRESSIONTEST_LOG}
 rm -f ../exe/NEMS.x
 gmake clean                              >> ${COMPILE_LOG} 2>&1
-esmf_version 5.3_zeus                    >> ${COMPILE_LOG} 2>&1
+./esmf_version 5.3_zeus                    >> ${COMPILE_LOG} 2>&1
 gmake nmm_gfs                            >> ${COMPILE_LOG} 2>&1
 date                                     >> ${REGRESSIONTEST_LOG}
 
@@ -2389,17 +2391,20 @@ export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF5.3.0
 export CNTL_DIR=GEFS_m4_6.1.1
 export LIST_FILES=" \
         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
-        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
-        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
-        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
         SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
-        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
-        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
-        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
-        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
-        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
-        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
+        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
+#        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
+#        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
+#        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
+#        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
+#        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
+#        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
+#        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
+#        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
+#        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
+#        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
+#        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
+
 #---------------------
 export_gfs
 export GEFS_ENSEMBLE=1
@@ -2429,7 +2434,7 @@ date                                     >> ${REGRESSIONTEST_LOG}
 echo "Compilation ESMF 6.1.0"         >> ${REGRESSIONTEST_LOG}
 rm -f ../exe/NEMS.x
 gmake clean                              >> ${COMPILE_LOG} 2>&1
-esmf_version 6.1_zeus                    >> ${COMPILE_LOG} 2>&1
+./esmf_version 6.1_zeus                    >> ${COMPILE_LOG} 2>&1
 gmake nmm_gfs                            >> ${COMPILE_LOG} 2>&1
 date                                     >> ${REGRESSIONTEST_LOG}
 
@@ -2525,17 +2530,20 @@ export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF6.1.0
 export CNTL_DIR=GEFS_m4_6.1.1
 export LIST_FILES=" \
         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
-        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
-        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
-        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
         SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
-        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
-        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
-        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
-        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
-        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
-        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
+        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
+#        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
+#        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
+#        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
+#        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
+#        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
+#        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
+#        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
+#        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
+#        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
+#        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
+#        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
+
 #---------------------
 export_gfs
 export GEFS_ENSEMBLE=1
@@ -2566,7 +2574,7 @@ date                                     >> ${REGRESSIONTEST_LOG}
 echo "Compilation ESMF 6.1.1"         >> ${REGRESSIONTEST_LOG}
 rm -f ../exe/NEMS.x
 gmake clean                              >> ${COMPILE_LOG} 2>&1
-esmf_version 6.1.1_zeus                    >> ${COMPILE_LOG} 2>&1
+./esmf_version 6.1.1_zeus                    >> ${COMPILE_LOG} 2>&1
 gmake nmm_gfs                            >> ${COMPILE_LOG} 2>&1
 date                                     >> ${REGRESSIONTEST_LOG}
 
@@ -2662,17 +2670,19 @@ export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF6.1.1
 export CNTL_DIR=GEFS_m4_6.1.1
 export LIST_FILES=" \
         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
-        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
-        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
-        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
         SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
-        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
-        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
-        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
-        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
-        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
-        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
+        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
+#        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
+#        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
+#        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
+#        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
+#        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
+#        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
+#        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
+#        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
+#        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
+#        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
+#        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
 #---------------------
 export_gfs
 export GEFS_ENSEMBLE=1
@@ -2713,7 +2723,7 @@ elif [ ${MACHINE_ID} = wcoss ]; then
 
 elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
 
-  esmf_version 3_zeus                    >> ${COMPILE_LOG} 2>&1
+  ./esmf_version 3_zeus                    >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake nmm                              >> ${COMPILE_LOG} 2>&1
 
@@ -2777,7 +2787,7 @@ date                                     >> ${REGRESSIONTEST_LOG}
 echo "Compilation NMM with TRAPS on"     >> ${REGRESSIONTEST_LOG}
 rm -f ../exe/NEMS.x
 gmake clean                              >> ${COMPILE_LOG} 2>&1
-esmf_version traps_on                    >> ${COMPILE_LOG} 2>&1
+./esmf_version traps_on                    >> ${COMPILE_LOG} 2>&1
 gmake nmm                                >> ${COMPILE_LOG} 2>&1
 date                                     >> ${REGRESSIONTEST_LOG}
 
@@ -2851,7 +2861,7 @@ elif [ ${MACHINE_ID} = wcoss ]; then
 
 elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
 
-  esmf_version 3_zeus                    >> ${COMPILE_LOG} 2>&1
+  ./esmf_version 3_zeus                    >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake gfs                              >> ${COMPILE_LOG} 2>&1
 
@@ -2909,7 +2919,7 @@ rm -f err out configure_file* nmm_ll nmm_msub nmm_run gfs_fcst_run gfs_ll gen_fc
 
 cd ${PATHTR}/src
 gmake clean          > /dev/null 2>&1
-esmf_version 3       > /dev/null 2>&1
+./esmf_version 3       > /dev/null 2>&1
 
 rm -rf ${RUNDIR_ROOT}
 

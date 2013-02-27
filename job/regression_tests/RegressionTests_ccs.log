@@ -1,11 +1,11 @@
-Wed Feb 20 21:35:58 EST 2013
+Tue Feb 26 07:31:12 EST 2013
 Start Regression test
 
 
 
-Wed Feb 20 21:35:58 EST 2013
+Tue Feb 26 07:31:12 EST 2013
 Compilation ALL
-Wed Feb 20 22:14:12 EST 2013
+Tue Feb 26 08:13:04 EST 2013
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  147.71
+ Original timing:  151.20  , test_glob timing:  148.20
 
 
 Test 002
@@ -128,7 +128,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  237.35
+ Original timing:  240.82  , test_reg timing:  236.50
 
 
 Test 009
@@ -875,9 +875,9 @@ Checking test 044 results ....
 
 
 
-Thu Feb 21 03:22:40 EST 2013
+Tue Feb 26 14:21:43 EST 2013
 Compilation only FIM
-Thu Feb 21 03:39:18 EST 2013
+Tue Feb 26 14:43:16 EST 2013
 Test 045
 Compare FIM results with previous trunk version, only FIM compiled
 FIM, 40 proc, 1 thread
@@ -918,9 +918,9 @@ Checking test 045 results ....
  Comparing fim_out_vs3D000024hr.........OK
  Comparing fim_out_ws3D000024hr.........OK
  Test 045 passed 
-Thu Feb 21 03:43:43 EST 2013
+Tue Feb 26 14:48:41 EST 2013
 Compilation with POST
-Thu Feb 21 04:26:37 EST 2013
+Tue Feb 26 15:35:05 EST 2013
 Test 046
 NMMB-regional run with post on quilt
 
@@ -1008,9 +1008,9 @@ Checking test 048 results ....
  Comparing NGAC3d.GrbF12.........OK
  Comparing NGAC3d.GrbF24.........OK
  Test 048 passed 
-Thu Feb 21 04:46:14 EST 2013
+Tue Feb 26 15:54:46 EST 2013
 Compilation ESMF 5.2.0rp1
-Thu Feb 21 04:47:06 EST 2013
+Tue Feb 26 16:24:50 EST 2013
 Test 049
 Compare NMMB-global results with previous trunk version_ESMF_5.2.0rp1
 
@@ -1067,52 +1067,16 @@ Checking test 051 results ....
  Comparing SIG.F06_02.........OK
  Comparing SIG.F06_03.........OK
  Comparing SIG.F06_04.........OK
- Comparing SIG.F12_01.........OK
- Comparing SIG.F12_02.........OK
- Comparing SIG.F12_03.........OK
- Comparing SIG.F12_04.........OK
- Comparing SIG.F18_01.........OK
- Comparing SIG.F18_02.........OK
- Comparing SIG.F18_03.........OK
- Comparing SIG.F18_04.........OK
- Comparing SIG.F24_01.........OK
- Comparing SIG.F24_02.........OK
- Comparing SIG.F24_03.........OK
- Comparing SIG.F24_04.........OK
  Comparing SFC.F06_01.........OK
  Comparing SFC.F06_02.........OK
  Comparing SFC.F06_03.........OK
  Comparing SFC.F06_04.........OK
- Comparing SFC.F12_01.........OK
- Comparing SFC.F12_02.........OK
- Comparing SFC.F12_03.........OK
- Comparing SFC.F12_04.........OK
- Comparing SFC.F18_01.........OK
- Comparing SFC.F18_02.........OK
- Comparing SFC.F18_03.........OK
- Comparing SFC.F18_04.........OK
- Comparing SFC.F24_01.........OK
- Comparing SFC.F24_02.........OK
- Comparing SFC.F24_03.........OK
- Comparing SFC.F24_04.........OK
  Comparing FLX.F06_01.........OK
  Comparing FLX.F06_02.........OK
  Comparing FLX.F06_03.........OK
  Comparing FLX.F06_04.........OK
- Comparing FLX.F12_01.........OK
- Comparing FLX.F12_02.........OK
- Comparing FLX.F12_03.........OK
- Comparing FLX.F12_04.........OK
- Comparing FLX.F18_01.........OK
- Comparing FLX.F18_02.........OK
- Comparing FLX.F18_03.........OK
- Comparing FLX.F18_04.........OK
- Comparing FLX.F24_01.........OK
- Comparing FLX.F24_02.........OK
- Comparing FLX.F24_03.........OK
- Comparing FLX.F24_04.........OK
  Test 051 passed 
-Thu Feb 21 05:39:52 EST 2013
+Tue Feb 26 16:44:56 EST 2013
 Compilation only NMM
 Test 052
 Compare NMMB-global results with previous trunk version, only NMM compiled
@@ -1129,9 +1093,9 @@ Checking test 052 results ....
 
 
 
-Thu Feb 21 06:04:26 EST 2013
+Tue Feb 26 17:08:18 EST 2013
 Compilation NMM with TRAPS on
-Thu Feb 21 06:41:15 EST 2013
+Tue Feb 26 17:38:42 EST 2013
 Test 053
 Compare NMMB-global results with previous trunk version, TRAPS on
 
@@ -1142,9 +1106,9 @@ Checking test 053 results ....
 
 
 
-Thu Feb 21 06:44:45 EST 2013
+Tue Feb 26 17:42:04 EST 2013
 Compilation only GFS
-Thu Feb 21 07:07:54 EST 2013
+Tue Feb 26 18:01:12 EST 2013
 Test 054
 Compare GFS results with previous trunk version, only GFS compiled
 GFS, 32 proc, 1 thread
@@ -1172,7 +1136,7 @@ Checking test 054 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 054 passed 
-Thu Feb 21 07:12:32 EST 2013
+Tue Feb 26 18:04:47 EST 2013
 ######  #######  #####  ######  #######  #####   #####    ###   ####### #     #
 #     # #       #     # #     # #       #     # #     #    #    #     # ##    #
 #     # #       #       #     # #       #       #          #    #     # # #   #
