@@ -1,11 +1,11 @@
-Mon Feb 25 21:55:37 UTC 2013
+Wed Mar  6 16:20:30 UTC 2013
 Start Regression test
 
 
 
-Mon Feb 25 21:55:37 UTC 2013
+Wed Mar  6 16:20:30 UTC 2013
 Compilation ALL
-Mon Feb 25 22:15:48 UTC 2013
+Wed Mar  6 16:35:07 UTC 2013
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  82.619
+ Original timing:  151.20  , test_glob timing:  81.868
 
 
 Test 002
@@ -128,7 +128,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  130.75
+ Original timing:  240.82  , test_reg timing:  125.33
 
 
 Test 009
@@ -603,9 +603,9 @@ Checking test 033 results ....
  Comparing FLX.F06_03.........OK
  Comparing FLX.F06_04.........OK
  Test 033 passed 
-Tue Feb 26 00:43:27 UTC 2013
+Wed Mar  6 18:49:49 UTC 2013
 Compilation ESMF 5.2.0rp1
-Tue Feb 26 00:54:37 UTC 2013
+Wed Mar  6 19:01:38 UTC 2013
 Test 034
 Compare GFS results with previous trunk version ESMF5.2.0rp1
 GFS, 32 proc, 1 thread
@@ -654,9 +654,9 @@ Checking test 035 results ....
  Comparing FLX.F06_03.........OK
  Comparing FLX.F06_04.........OK
  Test 035 passed 
-Tue Feb 26 01:38:18 UTC 2013
+Wed Mar  6 19:43:55 UTC 2013
 Compilation ESMF 5.3.0
-Tue Feb 26 01:48:56 UTC 2013
+Wed Mar  6 19:55:00 UTC 2013
 Test 036
 Compare GFS results with previous trunk version ESMF5.3.0
 GFS, 32 proc, 1 thread
@@ -705,9 +705,9 @@ Checking test 037 results ....
  Comparing FLX.F06_03.........OK
  Comparing FLX.F06_04.........OK
  Test 037 passed 
-Tue Feb 26 02:32:28 UTC 2013
+Wed Mar  6 20:38:33 UTC 2013
 Compilation ESMF 6.1.0
-Tue Feb 26 02:43:56 UTC 2013
+Wed Mar  6 20:53:29 UTC 2013
 Test 038
 Compare GFS results with previous trunk version ESMF6.1.0
 GFS, 32 proc, 1 thread
@@ -756,9 +756,9 @@ Checking test 039 results ....
  Comparing FLX.F06_03.........OK
  Comparing FLX.F06_04.........OK
  Test 039 passed 
-Tue Feb 26 03:28:41 UTC 2013
+Wed Mar  6 21:56:00 UTC 2013
 Compilation ESMF 6.1.1
-Tue Feb 26 03:39:30 UTC 2013
+Wed Mar  6 22:08:23 UTC 2013
 Test 040
 Compare GFS results with previous trunk version ESMF6.1.1
 GFS, 32 proc, 1 thread
@@ -807,7 +807,7 @@ Checking test 041 results ....
  Comparing FLX.F06_03.........OK
  Comparing FLX.F06_04.........OK
  Test 041 passed 
-Tue Feb 26 04:23:42 UTC 2013
+Wed Mar  6 23:00:10 UTC 2013
 Compilation only NMM
 Test 042
 Compare NMMB-global results with previous trunk version, only NMM compiled
@@ -824,9 +824,9 @@ Checking test 042 results ....
 
 
 
-Tue Feb 26 04:33:34 UTC 2013
+Wed Mar  6 23:18:04 UTC 2013
 Compilation only GFS
-Tue Feb 26 04:38:37 UTC 2013
+Wed Mar  6 23:23:40 UTC 2013
 Test 043
 Compare GFS results with previous trunk version, only GFS compiled
 GFS, 32 proc, 1 thread
@@ -854,5 +854,5 @@ Checking test 043 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 043 passed 
-Tue Feb 26 04:41:03 UTC 2013
+Wed Mar  6 23:27:04 UTC 2013
 REGRESSION TEST WAS SUCCESSFUL

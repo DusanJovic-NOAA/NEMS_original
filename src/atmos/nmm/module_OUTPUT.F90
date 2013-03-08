@@ -392,7 +392,7 @@
       ELSEIF(int_state%MICROPHYSICS=='wsm6')THEN
         MP_PHYSICS=6
       ELSEIF(int_state%MICROPHYSICS=='gfs')THEN
-        MP_PHYSICS=9
+        MP_PHYSICS=99
       ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
