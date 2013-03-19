@@ -45,8 +45,8 @@ export SCHEDULER
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 
-#  export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
-   export RTPWD=${STMP}/${USER}/REGRESSION_TEST
+   export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+#  export RTPWD=${STMP}/${USER}/REGRESSION_TEST
 
 #########################################################################
 # Check if running regression test or creating baselines.
