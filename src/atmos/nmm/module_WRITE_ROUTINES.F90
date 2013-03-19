@@ -77,7 +77,8 @@
 
       PRIVATE
 !
-      PUBLIC :: WRITE_ASYNC                                             &
+      PUBLIC :: SEND_UPDATED_ATTRIBUTES                                 &
+               ,WRITE_ASYNC                                             &
                ,WRITE_INIT                                              &
                ,WRITE_NEMSIO_RUNHISTORY_OPEN                            &
                ,WRITE_NEMSIO_RUNRESTART_OPEN                            &
@@ -489,7 +490,7 @@
         ALLOCATE(LOCAL_JEND  (0:LAST_FCST_TASK),stat=RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Global Parameters from History Bundle" 
+        MESSAGE_CHECK="Extract Global Parameters from Output Bundle" 
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 ! 
@@ -2964,6 +2965,385 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
+      SUBROUTINE SEND_UPDATED_ATTRIBUTES(OUTPUT_BUNDLE                  &
+                                        ,ALL_DATA_INT_ATT               &
+                                        ,ALL_DATA_REAL_ATT              &
+                                        ,ALL_DATA_LOG_ATT               &
+                                        ,LENGTH_INT_DATA                &
+                                        ,LENGTH_REAL_DATA               &
+                                        ,LENGTH_LOG_DATA                &
+                                        ,MAX_GROUPS                     &
+                                        ,WRITE_GROUP                    &
+                                        ,INTERCOMM )
+!
+!-----------------------------------------------------------------------
+!***  The lead forecast task sends the updated ESMF Attributes in
+!***  the input Bundle to the lead quilt task.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: INTERCOMM                        &  !<-- Intercommunicator between fcst/quilt tasks
+                                      ,LENGTH_INT_DATA                  &  !<-- Length of integer Attribute datastring
+                                      ,LENGTH_LOG_DATA                  &  !<-- Length of logical Attribute datastring
+                                      ,LENGTH_REAL_DATA                 &  !<-- Length of real Attribute datastring
+                                      ,MAX_GROUPS                       &  !<-- Max # of Write groups
+                                      ,WRITE_GROUP                         !<-- The current Write group
+!
+      INTEGER(kind=KINT),DIMENSION(1:LENGTH_INT_DATA),INTENT(OUT) ::    &
+                                                       ALL_DATA_INT_ATT    !<-- The integer Attributes in the output Bundle
+!
+      REAL(kind=KFPT),DIMENSION(1:LENGTH_REAL_DATA),INTENT(OUT) ::      &
+                                                       ALL_DATA_REAL_ATT   !<-- The real Attributes in the output Bundle
+!
+      LOGICAL(kind=KLOG),DIMENSION(1:LENGTH_LOG_DATA),INTENT(OUT) ::    &
+                                                       ALL_DATA_LOG_ATT    !<-- The logical Attributes in the output Bundle
+!
+      TYPE(ESMF_FieldBundle),INTENT(INOUT) :: OUTPUT_BUNDLE                !<-- The ESMF output data Bundle (history/restart)
+!
+!---------------------
+!***  Local variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: KOUNT_INT_ATT,KOUNT_LOG_ATT,KOUNT_REAL_ATT  &
+                           ,L,LENGTH,LENGTH_SUM_INT_ATT                 &
+                           ,LENGTH_SUM_LOG_ATT,LENGTH_SUM_REAL_ATT      &
+                           ,N,NUM_ATTRIB
+!
+      INTEGER(kind=KINT) :: IERR,RC,RC_ATT
+!
+      INTEGER(kind=KINT),DIMENSION(MPI_STATUS_SIZE) :: JSTAT
+!
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: WORK_ARRAY_INT_ATT
+!
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: HANDLE_INT_ATT         &
+                                                ,HANDLE_LOG_ATT         &
+                                                ,HANDLE_REAL_ATT
+!
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE,TARGET,SAVE ::        &
+                                                    HANDLE_INT_ATT_HST  &
+                                                   ,HANDLE_INT_ATT_RST  &
+                                                   ,HANDLE_LOG_ATT_HST  &
+                                                   ,HANDLE_LOG_ATT_RST  &
+                                                   ,HANDLE_REAL_ATT_HST &
+                                                   ,HANDLE_REAL_ATT_RST
+!
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: WORK_ARRAY_REAL_ATT
+!
+#ifdef ESMF_3
+      TYPE(ESMF_Logical) :: WORK_LOGICAL
+#else
+      LOGICAL(kind=KLOG) :: WORK_LOGICAL
+#endif
+!
+      CHARACTER(len=14) :: BUNDLE_NAME
+!
+      CHARACTER(ESMF_MAXSTR) :: ATTRIB_NAME
+!
+      TYPE(ESMF_TypeKind) :: DATATYPE
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!     write(0,*)' enter SEND_UPDATED_ATTRIBUTES'
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Get Name of the Output Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_FieldBundleGet(FIELDBUNDLE   =OUTPUT_BUNDLE             &
+                              ,name          =BUNDLE_NAME               &
+                              ,rc            =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ATT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Get Attribute Count from Output Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(FIELDBUNDLE=OUTPUT_BUNDLE                  &  !<-- The write component's history data Bundle
+                            ,count      =NUM_ATTRIB                     &  !<-- # of Attributes in the history data Bundle
+                            ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ATT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      KOUNT_INT_ATT=0                                                      !<-- Initialize counter of integer Attributes
+      KOUNT_REAL_ATT=0                                                     !<-- Initialize counter of real Attributes
+      KOUNT_LOG_ATT=0                                                      !<-- Initialize counter of logical Attributes
+!
+      LENGTH_SUM_INT_ATT=0                                                 !<-- Initialize length of the integer Attribute datastring
+      LENGTH_SUM_REAL_ATT=0                                                !<-- Initialize length of the real Attribute datastring
+      LENGTH_SUM_LOG_ATT=0                                                 !<-- Initialize length of the logical Attribute datastring
+!
+!-----------------------------------------------------------------------
+!***  Allocate the ISend handles if not done already.
+!-----------------------------------------------------------------------
+!
+!     write(0,*)' SEND_UPDATED_ATTRIBUTES bundle_name=',trim(bundle_name)
+      IF(BUNDLE_NAME=='History Bundle')THEN
+!
+        IF(.NOT.ALLOCATED(HANDLE_INT_ATT_HST))THEN
+!
+          ALLOCATE(HANDLE_INT_ATT_HST(1:MAX_GROUPS))
+          ALLOCATE(HANDLE_REAL_ATT_HST(1:MAX_GROUPS))
+          ALLOCATE(HANDLE_LOG_ATT_HST(1:MAX_GROUPS))
+!
+          DO N=1,MAX_GROUPS
+            HANDLE_INT_ATT_HST(N)=MPI_REQUEST_NULL
+            HANDLE_REAL_ATT_HST(N)=MPI_REQUEST_NULL
+            HANDLE_LOG_ATT_HST(N)=MPI_REQUEST_NULL
+          ENDDO
+!
+        ENDIF
+!
+        HANDLE_INT_ATT=>HANDLE_INT_ATT_HST
+        HANDLE_REAL_ATT=>HANDLE_REAL_ATT_HST
+        HANDLE_LOG_ATT=>HANDLE_LOG_ATT_HST
+!
+      ELSEIF(BUNDLE_NAME=='Restart Bundle')THEN
+!
+        IF(.NOT.ALLOCATED(HANDLE_INT_ATT_RST))THEN
+!
+          ALLOCATE(HANDLE_INT_ATT_RST(1:MAX_GROUPS))
+          ALLOCATE(HANDLE_REAL_ATT_RST(1:MAX_GROUPS))
+          ALLOCATE(HANDLE_LOG_ATT_RST(1:MAX_GROUPS))
+!
+          DO N=1,MAX_GROUPS
+            HANDLE_INT_ATT_RST(N)=MPI_REQUEST_NULL
+            HANDLE_REAL_ATT_RST(N)=MPI_REQUEST_NULL
+            HANDLE_LOG_ATT_RST(N)=MPI_REQUEST_NULL
+          ENDDO
+!
+        ENDIF
+!
+        HANDLE_INT_ATT=>HANDLE_INT_ATT_RST
+        HANDLE_REAL_ATT=>HANDLE_REAL_ATT_RST
+        HANDLE_LOG_ATT=>HANDLE_LOG_ATT_RST
+!
+      ENDIF
+!
+!     write(0,*)' SEND_UPDATED_ATTRIBUTES before attrib_loop num_attrib=',num_attrib
+!-----------------------------------------------------------------------
+!
+      attrib_loop: DO N=1,NUM_ATTRIB
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Get Attribute Names, Datatypes, and Lengths"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(FIELDBUNDLE   =OUTPUT_BUNDLE             &  !<-- The history data Bundle
+                              ,attributeIndex=N                         &  !<-- Index of each Attribute
+                              ,name          =ATTRIB_NAME               &  !<-- Each Attribute's name
+                              ,typekind      =DATATYPE                  &  !<-- Each Attribute's ESMF Datatype
+                              ,itemCount     =LENGTH                    &  !<-- Each Attribute's length
+                              ,rc            =RC)
+!
+!     if(datatype==esmf_typekind_i4)then
+!     if(datatype==esmf_typekind_i4.and.trim(attrib_name)=='NMTS'.and.bundle_name=='Restart Bundle')then
+!       write(0,*)' SEND_UPDATED n=',n,' name=',trim(attrib_name),' in restart bundle'
+!     elseif(datatype==esmf_typekind_r4)then
+!       write(0,*)' n=',n,' name=',trim(attrib_name),' is a real'
+!     else
+!       write(0,*)' n=',n,' name=',trim(attrib_name),' is a logical'
+!     endif
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ATT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!                 -- Scalar and 1-D Integer Output Data --
+!-----------------------------------------------------------------------
+!
+        IF(DATATYPE==ESMF_TYPEKIND_I4)THEN                                 !<-- Extract integer data with rank <2
+!
+          ALLOCATE(WORK_ARRAY_INT_ATT(LENGTH),stat=RC)                     !<-- Allocate array to hold integer Attribute N
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Get Scalar/1-D Integer Data from Output Bundle"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(FIELDBUNDLE=OUTPUT_BUNDLE              &  !<-- The history data Bundle
+                                ,name       =ATTRIB_NAME                &  !<-- Name of the Attribute to extract
+                                ,itemCount  =LENGTH                     &  !<-- Length of Attribute
+                                ,valueList  =WORK_ARRAY_INT_ATT         &  !<-- Place the Attribute here
+                                ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ATT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          KOUNT_INT_ATT=KOUNT_INT_ATT+1                                    !<-- Count # of integer Attributes
+!
+          DO L=1,LENGTH
+            ALL_DATA_INT_ATT(LENGTH_SUM_INT_ATT+L)=WORK_ARRAY_INT_ATT(L)   !<-- String together the integer Attributes
+          ENDDO
+!
+          LENGTH_SUM_INT_ATT=LENGTH_SUM_INT_ATT+LENGTH                     !<-- Total word sum of integer Attributesd
+          DEALLOCATE(WORK_ARRAY_INT_ATT)
+!
+!-----------------------------------------------------------------------
+!                 -- Scalar and 1-D Real Output Data --
+!-----------------------------------------------------------------------
+!
+        ELSEIF(DATATYPE==ESMF_TYPEKIND_R4)THEN                             !<-- Extract real data with rank <2
+!
+          ALLOCATE(WORK_ARRAY_REAL_ATT(LENGTH),stat=RC)                   !<-- Allocate array to hold real Attribute N
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Get Scalar/1-D Real Data from Output Bundle"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(FIELDBUNDLE=OUTPUT_BUNDLE            &  !<-- The history data Bundle
+                                ,name       =ATTRIB_NAME              &  !<-- Name of the Attribute to extract
+                                ,itemCount  =LENGTH                   &  !<-- Length of Attribute
+                                ,valueList  =WORK_ARRAY_REAL_ATT      &  !<-- Place the Attribute here
+                                ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ATT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!     write(0,*)' attrib_loop n=',n,' r4 attrib_name=',trim(attrib_name),' length=',length &
+!              ,' value=',work_array_real_att(1:length)
+          KOUNT_REAL_ATT=KOUNT_REAL_ATT+1                                 !<-- Count # of real Attributes
+!
+          DO L=1,LENGTH
+            ALL_DATA_REAL_ATT(LENGTH_SUM_REAL_ATT+L)=WORK_ARRAY_REAL_ATT(L) !<-- String together the real Attributes
+          ENDDO
+!
+          LENGTH_SUM_REAL_ATT=LENGTH_SUM_REAL_ATT+LENGTH                  !<-- Total word sum of real Attributes
+          DEALLOCATE(WORK_ARRAY_REAL_ATT)
+!
+!-----------------------------------------------------------------------
+!                       -- Logical Output Data --
+!-----------------------------------------------------------------------
+!
+!!!     ELSEIF(DATATYPE==ESMF_TYPEKIND_LOGICAL)THEN                       !<-- Extract logical data
+        ELSE                                                              !<-- Extract logical data
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Get Scalar/1-D Logical Data from Output Bundle"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(FIELDBUNDLE=OUTPUT_BUNDLE            &  !<-- The history data Bundle
+                                ,name       =ATTRIB_NAME              &  !<-- Name of the Attribute to extract
+                                ,value      =WORK_LOGICAL             &  !<-- Place the Attribute here
+                                ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ATT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!     if(work_logical==esmf_true)then
+!       write(0,*)' attrib_loop n=',n,' log attrib_name=',trim(attrib_name),' value=T'
+!     else
+!       write(0,*)' attrib_loop n=',n,' log attrib_name=',trim(attrib_name),' value=F'
+!     endif
+          KOUNT_LOG_ATT=KOUNT_LOG_ATT+1                                   !<-- Count # of logical Attributes
+!
+          ALL_DATA_LOG_ATT(LENGTH_SUM_LOG_ATT+1)=WORK_LOGICAL             !<-- String together the logical Attributes
+!
+          LENGTH_SUM_LOG_ATT=LENGTH_SUM_LOG_ATT+1                         !<-- Total word sum of logical Attributes
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO attrib_loop
+!
+!-----------------------------------------------------------------------
+!***  Lead fcst task sends the integer Attributes to the lead
+!***  quilt task.
+!-----------------------------------------------------------------------
+!
+!     write(0,*)' ISend Update int length_sum_int_att=',length_sum_int_att
+      IF(LENGTH_SUM_INT_ATT>0)THEN
+!
+        CALL MPI_WAIT(HANDLE_INT_ATT(WRITE_GROUP),JSTAT,IERR)
+!
+!     write(0,*)' Sending int tag=',write_group
+        CALL MPI_ISSEND(ALL_DATA_INT_ATT                                &  !<-- String of integer Attribute output data
+                       ,LENGTH_SUM_INT_ATT                              &  !<-- # of words in the data string
+                       ,MPI_INTEGER                                     &  !<-- The datatype
+                       ,0                                               &  !<-- Send to the lead Write task in the group
+                       ,WRITE_GROUP                                     &  !<-- Use the Write group as the tag
+                       ,INTERCOMM                                       &  !<-- The MPI intercommunicator between fcst and quilt tasks
+                       ,HANDLE_INT_ATT(WRITE_GROUP)                     &  !<-- MPI communication request handle
+                       ,IERR )
+!     write(0,*)' SEND_UPDATE lead fcst task ISent ALL_DATA_INT_ATT with length=',LENGTH_SUM_INT_ATT
+!     write(0,*)' NMTS=ALL_DATA_INT_ATT(10)=',ALL_DATA_INT_ATT(10)
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Lead fcst task sends the real Attributes to the lead quilt task.
+!-----------------------------------------------------------------------
+!
+!     write(0,*)' ISend Update real length_sum_real_att=',length_sum_real_att
+      IF(LENGTH_SUM_REAL_ATT>0)THEN
+!
+        CALL MPI_WAIT(HANDLE_REAL_ATT(WRITE_GROUP),JSTAT,IERR)
+!
+!     write(0,*)' Sending real tag=',write_group
+        CALL MPI_ISSEND(ALL_DATA_REAL_ATT                               &  !<-- String of real Attribute output data
+                       ,LENGTH_SUM_REAL_ATT                             &  !<-- # of words in the data string
+                       ,MPI_REAL                                        &  !<-- The datatype
+                       ,0                                               &  !<-- Send to the lead Write task in the group
+                       ,WRITE_GROUP                                     &  !<-- Use the Write group as the tag
+                       ,INTERCOMM                                       &  !<-- The MPI intercommunicator between fcst and quilt tasks
+                       ,HANDLE_REAL_ATT(WRITE_GROUP)                    &  !<-- MPI communication request handle
+                       ,IERR )
+!     write(0,*)' Sent real tag=',write_group,' ierr=',ierr
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Lead fcst task sends the logical Attributes to the 
+!***  lead quilt task.
+!-----------------------------------------------------------------------
+!
+!     write(0,*)' ISend Update log length_sum_log_att=',length_sum_log_att
+      IF(LENGTH_SUM_LOG_ATT>0)THEN
+!
+        CALL MPI_WAIT(HANDLE_LOG_ATT(WRITE_GROUP),JSTAT,IERR)
+!
+!     write(0,*)' Sending log tag=',write_group
+        CALL MPI_ISSEND(ALL_DATA_LOG_ATT                                &  !<-- String of logical Attribute output data
+                       ,LENGTH_SUM_LOG_ATT                              &  !<-- # of words in the data string
+                       ,MPI_LOGICAL                                     &  !<-- The datatype
+                       ,0                                               &  !<-- Send to the lead Write task in the group
+                       ,WRITE_GROUP                                     &  !<-- Use the Write group as the tag
+                       ,INTERCOMM                                       &  !<-- The MPI intercommunicator between fcst and quilt tasks
+                       ,HANDLE_LOG_ATT(WRITE_GROUP)                     &  !<-- MPI communication request handle
+                       ,IERR )
+!     write(0,*)' Sent log tag=',write_group,' ierr=',ierr
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE SEND_UPDATED_ATTRIBUTES
+!
+!-----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+!
       SUBROUTINE WRITE_ASYNC(DOMAIN_GRID_COMP                           &
                             ,DOMAIN_INT_STATE                           &
                             ,CLOCK_DOMAIN                               &
@@ -4273,6 +4653,10 @@
           N2ISCALAR=N2ISCALAR+1
           VARINAME(N2ISCALAR)=TRIM(NAME)
           VARIVAL(N2ISCALAR)=wrt_int_state%RST_ALL_DATA_I1D(N2)
+!     if(n2==10)then
+!       write(0,*)' WRITE_NEMSIO_RUNRESTART_OPEN n2iscalar=',n2iscalar &
+!                ,' VARIVAL(N2ISCALAR)=',VARIVAL(N2ISCALAR),' variname=',variname(n2iscalar)
+!     endif
           IF(VARINAME(N2ISCALAR)=='IHRST') then
             IDATE(4)=VARIVAL(N2ISCALAR)
           ENDIF
@@ -4671,6 +5055,8 @@
         aryival=ARYIVAL,aryrname=ARYRNAME,aryrlen=ARYRLEN,               &
         aryrval=ARYRVAL,recname=RECNAME,reclevtyp=RECLEVTYP,reclev=RECLEV)
 !
+!     write(0,*)' WRITE_NEMSIO_RUNRESTART_OPEN after NEMSIO_OPEN variname(10)=',variname(10) &
+!              ,' varival(10)=',varival(10)
 !-----------------------------------------------------------------------
 !***  Get variables needed by the .ctl file.
 !-----------------------------------------------------------------------

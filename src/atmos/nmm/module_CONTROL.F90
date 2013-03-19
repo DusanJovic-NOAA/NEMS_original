@@ -19,7 +19,13 @@ use module_constants
 !
 !-----------------------------------------------------------------------
 !
+      integer(kind=kint),parameter :: num_domains_max=99
+!
+!-----------------------------------------------------------------------
+!
       public NMMB_Finalize
+      public grid_consts
+      public num_domains_max
 !
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -40,9 +46,6 @@ real(kind=kfpt),parameter :: &
 integer(kind=kint):: &
  kexm2 &                     ! internal points of exponentiation table
 ,kztm2                       ! internal pts. of the stability function table
-
-integer(kind=kint),private :: &
- mype
 
 real(kind=kfpt) :: &
  dex &                       ! exponentiation table step
@@ -91,285 +94,27 @@ real(kind=kfpt),dimension(1:jtb,1:itb):: &
 !-----------------------------------------------------------------------
 character(64):: &
  infile
-character(64):: &
- input_data
  
 logical(kind=klog):: &
- first &                     ! if true preparation for the first time step
-,hydro &                     ! if true hydrostatic dynamics
-,readbc &                    ! read regional boundary conditions
-,run &                       ! initial data ready, start run
-,runbc &                     ! boundary data ready, start run
-,global 
+ readbc &                    ! read regional boundary conditions
+,runbc                       ! boundary data ready, start run
+
 integer(kind=kint):: &
- ierr &                      ! error code
-,ihr &                       ! current forecast hour
+ ihr &                       ! current forecast hour
 ,ihrbc &                     ! boundary condition hour
-,ihrend &                    ! maximum forecast length, hours
-,ihrst &                     ! forecast starting time
 ,ihrstbc &                   ! boundary conditions starting time
-,nbc &                       ! boundary data logical unit
-,nboco &                     ! time steps between updating boundary conditions
-,ncnvc &                     ! time steps between convection calls
-,nfcst &                     ! initial data logical unit
-,nhours_fcst &               ! desired forecast length, hours
-,nphs &                      ! time steps between physics calls
-,nprec &                     ! time steps for precip accumulation
-,nradl &                     ! time steps between longwave radiation calls
-,nrads &                     ! time steps between shortwave radiation calls
-,nrain &                     ! time steps between grid scale precip calls
-,nradpp &                    ! time steps for precipitation in radiation
-,ntsti &                     ! initial time step
-,ntstm &                     ! final time step
-,ntstm_max &                 ! maximum final timestep
-,ntsd                        ! current time step
+,nbc                         ! boundary data logical unit
 
 integer(kind=kint),dimension(1:3):: &
- idat(3) &                   ! date of initial data, day, month, year
-,idatbc(3)                   ! date of boundary data, day, month, year
-
-integer(kind=kint),dimension(1:15):: & 
- nfftrh &                    ! fft working field, h points
-,nfftrw                      ! fft working field, v points
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!-----------------------------------------------------------------------
-!---grid constants------------------------------------------------------
-!-----------------------------------------------------------------------
-integer(kind=kint):: &
- icycle &                    ! # of independent points, x direction
-,im &                        ! maximum horizontal index, x direction
-,jm &                        ! maximum horizontal index, y direction
-!!!,lm &                        ! maximum vertical index, p direction
-,lnsad &                     ! # of boundary lines with upstream advection
-,lnsbc &                     ! # of boundary lines with enhanced diffusion
-,lnsh &                      ! # of boundary h lines for bc in reg. setup
-,lnsv &                      ! # of boundary v lines for bc in reg. setup
-,lpt2 &                      ! # of pressure layers
-,n2                          ! # starting address of 3d scratch fields
+ idatbc(3)                   ! date of boundary data, day, month, year
 
 real(kind=kfpt):: &
  bofac &                     ! amplification of diffusion along bndrs.
-,ctph0 &                     ! cos(tph0)
-,ddmpv &                     ! divergence damping coefficient, y direction
-,dlm &                       ! grid size, delta lambda, radians
-,dph &                      ! grid size, delta phi, degrees
-,dt &                        ! dynamics time step
-,dtq2 &                      ! turbulence time step
-,dyh &                       ! delta y, h points
-,dyv &                       ! delta y, v points 
-,ef4t &                      ! grid constant
-,f4d &                       ! grid constant
-,pdtop &                     ! depth of pressure range in hybrid v. coord.
-,pt &                        ! pressure at the top of model's atmosphere
-,ptsgm &                     ! approx. pressure at the top of sigma range
-,rdlm &                      ! 1 / delta lambda
-,rdph &                      ! 1 / delta phi
-,rdyh &                      ! 1 / delta y, h points
-,rdyv &                      ! 1 / delta y, v points
-,sb &                        ! radians from center to southern boundary
-,stph0 &                     ! sin(tph0)
-,tboco &                     ! boundary conditions interval, hours
-,tlm0 &                      ! radians grid rotated in lambda direction
-,tlm0d &                     ! degrees grid rotated in lambda direction
-,tph0 &                      ! radians grid rotated in phi direction
-,tph0d &                     ! degrees grid rotated in phi direction
-,wb                          ! radians from center to western boundary
+,dt                          ! dynamics time step
 
-!real(kind=kfpt),allocatable,dimension(:):: &      !lm
-! dsg1 &                      ! thicnesses of sigma layers in pressure range
-!,dsg2 &                      ! thicnesses of sigma layers in sigma range
-!,pdsg1 &                     ! thicnesses of pressure layers in press. range
-!,psgml1 &                    ! pressure at midlayers in pressure range
-!,sgml1 &                     ! sigma at midlayers in pressure range
-!,sgml2                       ! sigma at midlayers in sigma range
-
-!real(kind=kfpt),allocatable,dimension(:):: &      !lm+1
-!,psg1 &                      ! pressure at interfaces in pressure range
-!,sg1 &                       ! sigma at interfaces in pressure range
-!,sg2 &                       ! sigma at interfaces in sigma range
-!,sgm                         ! sigma at interfaces
-
-integer(kind=kint),allocatable,dimension(:):: &      !jm
- khfilt &                    ! polar filter, truncation wave #, h points
-,kvfilt &                    ! polar filter, truncation wave #, v points
-,nhsmud                      ! polar smoother for unfiltered variables
-
-!real(kind=kfpt),allocatable,dimension(:):: &      !jm
-! curv &                      ! curvature term in coriolis force
-!,dare &                      ! gridbox area
-!,ddmpu &                     ! divergence damping coefficient, x direction
-!,ddv &                       ! gridbox diagonal distance 
-!,dxh &                       ! delta x, h points
-!,dxv &                       ! delta x, v points
-!,fad &                       ! momentum advection factor
-!,fah &                       ! z, w advection factor
-!,fcp &                       ! temperature advection factor
-!,fdiv &                      ! divergence factor
-!,rare &                      ! 1 / gridbox area
-!,rddv &                      ! 1 / gridbox diagonal distance 
-!,rdxh &                      ! 1 / delta x, h points
-!,rdxv &                      ! 1 / delta x, v points
-!,wpdar                       ! weight of grid separaton filter
-
-real(kind=kfpt),allocatable,dimension(:):: &      !2*(im-3)
- wfftrh &                    ! fft working field, h points
-,wfftrw                      ! fft working field, v points
-
-real(kind=kfpt),allocatable,dimension(:,:):: &      !im,jm
- f &                         ! coriolis parameter
-!,glat &                      ! latitudes of h points
-!,glon &                      ! longitudes of h points
-!,hdac &                      ! lateral diffusion coefficient, h points
-!,hdacv &                     ! lateral diffusion coefficient, v points
-,hfilt &                     ! polar filter, h points
-,vfilt                       ! polar filter, v points
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!-----------------------------------------------------------------------
-!---fixed surface fields------------------------------------------------
-!-----------------------------------------------------------------------
-real(kind=kfpt),allocatable,dimension(:,:):: &      !im,jm
- albedo &                    ! base albedo
-!,epsr &                      ! emissivity
-!,fis &                       ! surface geopotential
-!,sice &                      ! sea ice mask
-!,sm &                        ! sea mask
-!,stdh &                      ! standard deviation of topography height
- ,stdh                        ! standard deviation of topography height
-!,sst &                       ! sea surface temperature
-!,vegfrc &                    ! vegetation fraction
-!,z0                          ! roughness
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!-----------------------------------------------------------------------
-!---surface variables---------------------------------------------------
-!-----------------------------------------------------------------------
-real(kind=kfpt),allocatable,dimension(:,:):: &      !im,jm
- akhs &                      ! heat exchange coeff. / sfc. layer depth
-,akms &                      ! momentum exchange coeff. / sfc. layer depth
-,acprec &                    ! accumulated total precipitation
-!,cldefi &                    ! convective cloud efficiency
-,cuppt &                     ! convective precipitation for radiation
-,cuprec &                    ! accumulated convective precipitation
-,deep &                      ! deep convection mask, 0. or 1.
-,ghct &                      ! countergradient correction
-,prcu &                      ! physics time step convective liquid precip
-,prec &                      ! total physics time step precipitation
-,prra &                      ! physics time step grid scale liquid precip
-,prsn &                      ! physics time step grid scale/conv. snow
-,q02 &                       ! 2m specific humidity
-,q10 &                       ! 10m specific humidity
-,qs &                        ! specific humidity at the surface
-,qz0 &                       ! spec. humidity at the top of viscous sublayer
-,radin &                     ! total incoming radiation at the surface
-,rlwin &                     ! downward lw at the surface
-,rswin &                     ! downward sw at the surface
-,roff &                      ! runoff
-,sno &                       ! snow water equivalent
-,th02 &                      ! 2m potential temperature
-,th10 &                      ! 10m potential temperature
-,ths &                       ! potential temperature at the surface
-,thz0 &                      ! pot. temperature at the top of viscous sublayer
-,u10 &                       ! 10m u
-,ustar &                     ! u star
-,uz0 &                       ! u at the top of viscous sublayer
-,v10 &                       ! 10m v
-,vz0 &                       ! v at the top of viscous sublayer
-,wliq                        ! canopy moisture
-
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!-----------------------------------------------------------------------
-!---regional boundary conditions----------------------------------------
-!-----------------------------------------------------------------------
-real(kind=kfpt),allocatable,dimension(:,:,:):: &      !im,lnsh,2
- pdbn &                      ! pressure difference at northern boundary
-,pdbs                        ! pressure difference at southern boundary
-
-real(kind=kfpt),allocatable,dimension(:,:,:):: &      !lnsh,jm,2
- pdbe &                      ! pressure difference at eastern boundary
-,pdbw                        ! pressure difference at western boundary
-
-real(kind=kfpt),allocatable,dimension(:,:,:,:):: &    !im,lnsh,lm,2
- tbn &                       ! temperature at northern boundary
-,tbs &                       ! temperature at southern boundary
-,qbn &                       ! specific humidity at northern boundary
-,qbs &                       ! specific humidity at southern boundary
-,wbn &                       ! condensate at northern boundary
-,wbs                         ! condensate at southern boundary
-
-real(kind=kfpt),allocatable,dimension(:,:,:,:):: &    !lnsh,jm,lm,2
- tbe &                       ! temperature at eastern boundary
-,tbw &                       ! temperature at western boundary
-,qbe &                       ! specific humidity at eastern boundary
-,qbw &                       ! specific humidity at western boundary
-,wbe &                       ! condensate at eastern boundary
-,wbw                         ! condensate at western boundary
-
-!real(kind=kfpt),allocatable,dimension(:,:,:,:):: &    !im,lnsv,lm,2
-! ubn &                       ! u wind component at northern boundary
-!,ubs &                       ! u wind component at southern boundary
-!,vbn &                       ! v wind component at northern boundary
-!,vbs                         ! v wind component at southern boundary
-
-!real(kind=kfpt),allocatable,dimension(:,:,:,:):: &    !lnsv,im,lm,2
-! ube &                       ! u wind component at eastern boundary
-!,ubw &                       ! u wind component at western boundary
-!,vbe &                       ! v wind component at eastern boundary
-!,vbw                         ! v wind component at western boundary
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!-----------------------------------------------------------------------
-!---atmospheric variables, hydrostatic----------------------------------
-!-----------------------------------------------------------------------
-!real(kind=kfpt),allocatable,dimension(:,:):: &      !im,jm
-! pd &                        ! pressure difference, sigma range
-!,pdo &                       ! previous pressure difference, sigma range
-!,psdt                        ! hydrostatic surface pressure tendency
-!real(kind=kfpt),allocatable,dimension(:,:,:):: &      !im,jm,lm
-! cw &                        ! condensate
-!,omgalf &                    ! omega-alpha
-!,q &                         ! specific humidity
-!,q2 &                        ! 2tke
-!,o3 &                        ! ozone
-!,t &                         ! temperature
-!,tp &                        ! previous temperature
-!,u &                         ! u wind component
-!,up &                        ! previous u wind component
-!,v &                         ! v wind component
-!,vp                          ! previous v wind component
-
-!real(kind=kfpt),allocatable,dimension(:,:,:):: &      !im,jm,lm+1
-! pint                        ! nonhydrostatic pressure at interfaces
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!-----------------------------------------------------------------------
-!---atmospheric variables, nonhydrostatic-------------------------------
-!-----------------------------------------------------------------------
-!real(kind=kfpt),allocatable,dimension(:,:,:):: &      !im,jm,lm
-! dwdt &                      ! vertical acceleration, correction factor
-!,pdwdt &                     ! previous correction factor
-!,rtop &                      ! RT/p, specific volume
-!,w &                         ! vertical velocity
-!,z                           ! height at midlayers
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!-----------------------------------------------------------------------
-!---physics variables---------------------------------------------------
-!-----------------------------------------------------------------------
-integer(kind=kint),allocatable,dimension(:,:):: &      !im,jm
- lbot &                      ! convective cloud base level
-,lpbl &                      ! pbl top level
-,ltop                        ! convective cloud top level
-!-----------------------------------------------------------------------
-!---scratch area for passing temporary arguments------------------------
-!-----------------------------------------------------------------------
-real(kind=kfpt),allocatable,dimension(:,:,:):: &      !im,jm,lm
- div &                       ! horizontal mass divergence
-,e2 &                        ! 2*TKE in the layers
-,pcne &                      ! second term of pgf, ne direction
-,pcnw &                      ! second term of pgf, nw direction
-,pcx &                       ! second term of pgf, x direction
-,pcy &                       ! second term of pgf, y direction
-,pfne &                      ! mass flux, ne direction
-,pfnw &                      ! mass flux, nw direction
-,pfx &                       ! mass flux, x direction
-,pfy &                       ! mass flux, y direction
-,tct                         ! time change of temperature
+integer(kind=kint):: &
+ lnsbc                       ! # of boundary lines with enhanced diffusion
+!
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -427,6 +172,8 @@ integer(kind=kint),intent(out) :: &
 
 real(kind=kfpt),intent(in) :: &
  codamp &    ! divergence damping coefficient
+,dlmd &      ! grid increment, delta lambda, degrees
+,dphd &      ! grid increment, delta phi, degrees
 ,pt &        ! Pressure at top of domain (Pa)
 ,sbd &       ! degrees from center of domain to southern boundary
 ,smag2 &     ! Smagorinsky coefficient for 2nd order diffusion 
@@ -434,10 +181,6 @@ real(kind=kfpt),intent(in) :: &
 ,tph0d &
 ,wbd &       ! degrees from center of domain to western boundary
 ,wcor
-
-real(kind=kfpt),intent(inout) :: &
- dlmd &      ! grid increment, delta lambda, degrees
-,dphd        ! grid increment, delta phi, degrees
 
 real(kind=kfpt),intent(out) :: &
  ddmpv &
@@ -490,80 +233,13 @@ logical(kind=klog),intent(out) :: &
 ,w_bdy                       ! is task on domain's western boundary?
 !
 !-----------------------------------------------------------------------
-!--local variables------------------------------------------------------
-!-----------------------------------------------------------------------
-!
-integer(kind=kint):: &
- i &                         ! index in x direction
-,i_hi &                      ! max i loop limit (cannot be > ide)
-,i_lo &                      ! min i loop limit (cannot be < ids)
-,j &                         ! index in y direction
-,j_hi &                      ! max j loop limit (cannot be > jde)
-,j_lo                        ! min j loop limit (cannot be < jds)
-
-real(kind=kfpt):: &
- acdt &                      ! diffusion coefficient parameter
-,alm &                       ! lambda
-,anum &                      ! numerator
-,aph &                       ! phi
-,ave &                       ! average
-,cddamp &                    ! divergence damping factor
-,coac &                      ! nonlinear diffusion coefficient
-,ctlm &                      ! temporary
-,denom &                     ! denominator
-,relm &                      ! temporary
-,fpole &                     ! factor to modify polar area
-,sph &                       ! temporary
-,stlm &                      ! temporary
-,stph &                      ! temporary
-,ctph &                      ! temporary
-,tlm &                       ! rotated lambda
-,tlm_base &                  ! temporary
-,tph &                       ! rotated phi
-,tph_base &                  ! temporary
-,tpv                         ! rotated phi, v points
-
-real(kind=kfpt),dimension(jds:jde):: &
- hdacxj &
-,hdacyj &
-,hdacvxj &
-,hdacvyj
-
-!
-!-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
- 1000 format(100a4)
-!
-      if(mype_share==0)then
-        write(0,*)' CONSTS ids=',ids,' ide=',ide,' jds=',jds,' jde=',jde 
-      endif
-!
-!-----------------------------------------------------------------------
-!***  Because subdomains that lie along the global domain boundary
-!***  may have haloes that extend beyond the global limits, create
-!***  limits here that keep loops from reaching beyond those
-!***  global limits.
-!-----------------------------------------------------------------------
-!
-      i_lo=max(ims,ids)
-      i_hi=min(ime,ide)
-      j_lo=max(jms,jds)
-      j_hi=min(jme,jde)
-!
 !-----------------------------------------------------------------------
       if(global) then
 !-----------------------------------------------------------------------
 !---global branch-------------------------------------------------------
 !-----------------------------------------------------------------------
-!
-        icycle=ide
-!
-!!!     dlmd=-wbd*2./real(ide-3)
-!!!     dphd=-sbd*2./real(jde-3)
-        if(mype_share==0)then
-          write(0,*)' CONSTS Global: dphd=',dphd,' dlmd=',dlmd
-        endif
 !
         lnsbc=lnsh
         bofac=0.
@@ -575,13 +251,6 @@ real(kind=kfpt),dimension(jds:jde):: &
 !---regional branch-----------------------------------------------------
 !-----------------------------------------------------------------------
 ! 
-        icycle=ide
-!!!     dlmd=-wbd*2./real(ide-1)
-!!!     dphd=-sbd*2./real(jde-1)
-        if(mype_share==0)then
-          write(0,*)' CONSTS Regional: dphd=',dphd,' dlmd=',dlmd
-        endif
-!
         lnsbc=lnsh
         bofac=4.
 !
@@ -601,6 +270,285 @@ real(kind=kfpt),dimension(jds:jde):: &
         adv_standard=.true.
       endif
 !-----------------------------------------------------------------------
+      if(.not.global.and.my_domain_id==1)then
+        ihrbc=0
+        write(infile,'(a,i4.4)')'boco.',ihrbc
+        nbc=18
+        open(unit=nbc,file=infile,status='old',form='unformatted')
+        read (nbc) runbc,idatbc,ihrstbc,tboco
+!	write(0,*) 'runbc: ', runbc
+!	write(0,*) 'idatbc: ', idatbc
+!	write(0,*) 'ihrstbc: ', ihrstbc
+!	write(0,*) 'tboco: ', tboco
+        rewind nbc
+        close(unit=nbc)
+        if(mype_share==0)then
+          write(0,*)'*** Read tboco in CONSTS from ',infile
+        endif
+        nboco=nint(tboco/dt)
+      endif
+!
+!-----------------------------------------------------------------------
+!---derived vertical grid constants-------------------------------------
+!-----------------------------------------------------------------------
+      ef4t=0.5*dt/cp
+!
+!-----------------------------------------------------------------------
+!-------------grid related arrays---------------------------------------
+!-----------------------------------------------------------------------
+!
+      call grid_consts(global &
+      ,smag2,codamp,wcor &
+      ,tph0d,tlm0d &
+      ,sbd,wbd &
+      ,dphd,dlmd &
+      ,dxh,rdxh &
+      ,dxv,rdxv &
+      ,dyh,rdyh &
+      ,dyv,rdyv &
+      ,ddv,rddv &
+      ,ddmpu,ddmpv &
+      ,wpdar &
+      ,fcp,fdiv &
+      ,curv,f &
+      ,fad,fah &
+      ,dare,rare &
+      ,glat,glon &
+      ,glat_sw,glon_sw &
+      ,vlat,vlon &
+      ,hdacx,hdacy &
+      ,hdacvx,hdacvy &
+      ,e_bdy,n_bdy,s_bdy,w_bdy &
+      ,its,ite,jts,jte &
+      ,ims,ime,jms,jme )
+!
+!-----------------------------------------------------------------------
+!-------------look-up tables--------------------------------------------
+!-----------------------------------------------------------------------
+!
+      call exptbl
+!
+!-----------------------------------------------------------------------
+      pl=max(pt,1000.)
+      call tablep
+      call tablet
+!-----------------------------------------------------------------------
+      call psitbl
+!-----------------------------------------------------------------------
+!
+                        end subroutine consts       
+!
+!-----------------------------------------------------------------------
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!-----------------------------------------------------------------------
+!
+                        subroutine grid_consts &
+      ( global &
+      ,smag2,codamp,wcor &
+      ,tph0d,tlm0d &
+      ,sbd,wbd &
+      ,dphd,dlmd &
+      ,dxh,rdxh &
+      ,dxv,rdxv &
+      ,dyh,rdyh &
+      ,dyv,rdyv &
+      ,ddv,rddv &
+      ,ddmpu,ddmpv &
+      ,wpdar &
+      ,fcp,fdiv &
+      ,curv,f &
+      ,fad,fah &
+      ,dare,rare &
+      ,glat,glon &
+      ,glat_sw,glon_sw &
+      ,vlat,vlon &
+      ,hdacx,hdacy &
+      ,hdacvx,hdacvy &
+      ,e_bdy,n_bdy,s_bdy,w_bdy &
+      ,its,ite,jts,jte &
+      ,ims,ime,jms,jme )
+!
+!-----------------------------------------------------------------------
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!-----------------------------------------------------------------------
+!
+      implicit none
+!
+!-----------------------------------------------------------------------
+integer(kind=kint),intent(in) :: &
+ its &   ! starting integration index in i
+,ite &   ! ending integration index in i
+,ims &   ! starting memory index in i
+,ime &   ! ending memory index in i
+,jts &   ! starting integration index in j
+,jte &   ! ending integration index in j
+,jms &   ! starting memory index in j
+,jme     ! ending memory index in j
+
+real(kind=kfpt),intent(in) :: &
+ codamp &    ! divergence damping coefficient
+,sbd &       ! degrees from center of domain to southern boundary
+,smag2 &     ! Smagorinsky coefficient for 2nd order diffusion 
+,tlm0d &
+,tph0d &
+,wbd &       ! degrees from center of domain to western boundary
+,dlmd &      ! grid increment, delta lambda, degrees
+,dphd &      ! grid increment, delta phi, degrees
+,wcor
+
+real(kind=kfpt),intent(out) :: &
+ ddmpv &
+,dyh &
+,dyv &
+,glat_sw &   ! geographic latitude (radians) of domain's SW corner
+,glon_sw &   ! geographic longitude (radians) of domain's SW corner (positive east)
+,rdyh &
+,rdyv
+ 
+real(kind=kfpt),dimension(jds:jde),intent(out) :: &
+ curv &
+,dare &
+,ddmpu &
+,ddv &
+,dxh &
+,dxv &
+,fad &
+,fah &
+,fcp &
+,fdiv &
+,rare &
+,rddv &
+,rdxh &
+,rdxv &
+,wpdar
+ 
+real(kind=kfpt),dimension(ims:ime,jms:jme),intent(out) :: &
+ f &
+,glat &
+,glon &
+,vlat &
+,vlon &
+,hdacx &
+,hdacy &
+,hdacvx &
+,hdacvy
+ 
+logical(kind=klog),intent(in) :: &
+ global      ! global forecast if true      
+
+logical(kind=klog),intent(inout) :: &
+ e_bdy &                     ! is task on domain's eastern boundary?
+,n_bdy &                     ! is task on domain's northern boundary?
+,s_bdy &                     ! is task on domain's southern boundary?
+,w_bdy                       ! is task on domain's western boundary?
+       
+!
+!-----------------------------------------------------------------------
+!--local variables------------------------------------------------------
+!-----------------------------------------------------------------------
+!      
+
+integer(kind=kint):: &
+ i &                         ! index in x direction
+,i_hi &                      ! max i loop limit (cannot be > ide)
+,i_lo &                      ! min i loop limit (cannot be < ids)
+,j &                         ! index in y direction
+,j_hi &                      ! max j loop limit (cannot be > jde)
+,j_lo                        ! min j loop limit (cannot be < jds)
+  
+real(kind=kfpt):: &
+ acdt &                      ! diffusion coefficient parameter
+,alm &                       ! lambda
+,anum &                      ! numerator
+,aph &                       ! phi
+,ave &                       ! average
+,cddamp &                    ! divergence damping factor
+,coac &                      ! nonlinear diffusion coefficient
+,ctlm &                      ! temporary
+,ctph &                      ! temporary
+,ctph0 &                     ! cos(tph0)
+,denom &                     ! denominator
+,dlm &                       ! grid size, delta lambda, radians
+,dph &                       ! grid size, delta phi, degrees
+,fpole &                     ! factor to modify polar area
+,rdlm &                      ! 1 / delta lambda
+,rdph &                      ! 1 / delta phi
+,relm &                      ! temporary
+,sb &                        ! radians from center to southern boundary
+,sph &                       ! temporary
+,stlm &                      ! temporary
+,stph &                      ! temporary
+,stph0 &                     ! sin(tph0)
+,tlm &                       ! rotated lambda
+,tlm_base &                  ! temporary
+,tph &                       ! rotated phi
+,tph_base &                  ! temporary
+,tpv &                       ! rotated phi, v points
+,tph0 &                      ! radians grid rotated in phi direction
+,wb                          ! radians from center to western boundary
+
+real(kind=kfpt),dimension(jds:jde):: &
+ hdacxj &
+,hdacyj &
+,hdacvxj &
+,hdacvyj     
+
+!-----------------------------------------------------------------------
+!***  Because subdomains that lie along the global domain boundary
+!***  may have haloes that extend beyond the global limits, create
+!***  limits here that keep loops from reaching beyond those
+!***  global limits.
+!-----------------------------------------------------------------------
+!
+      i_lo=max(ims,ids)
+      i_hi=min(ime,ide)
+      j_lo=max(jms,jds)
+      j_hi=min(jme,jde)
+!
+!-----------------------------------------------------------------------
+!---to be read from a namelist in the future----------------------------
+!-----------------------------------------------------------------------
+!
+      coac=smag2*smag2 !second order
+!
+!-----------------------------------------------------------------------
+!---derived physical constants------------------------------------------
+!-----------------------------------------------------------------------
+!
+      acdt=coac*dt
+      cddamp=codamp*dt
+!
+!-----------------------------------------------------------------------
+!***  Each task identifies whether or not it is adjacent to a boundary
+!***  of the full domain.
+!-----------------------------------------------------------------------
+!
+      w_bdy=(its==ids)  ! This task is on the western boundary
+      e_bdy=(ite==ide)  ! This task is on the eastern boundary
+      s_bdy=(jts==jds)  ! This task is on the southern boundary
+      n_bdy=(jte==jde)  ! This task is on the northern boundary
+!
+!-----------------------------------------------------------------------
+!--------------derived geometrical constants----------------------------
+!-----------------------------------------------------------------------
+!
+      tph0=tph0d*dtr
+      wb=wbd*dtr
+      sb=sbd*dtr
+      dlm=dlmd*dtr
+      dph=dphd*dtr
+      rdlm=1./dlm
+      rdph=1./dph
+!
+      stph0=sin(tph0)
+      ctph0=cos(tph0)
+!-----------------------------------------------------------------------
+!---derived horizontal grid constants-----------------------------------
+!-----------------------------------------------------------------------
+      dyh=a*dph
+      dyv=a*dph
+      rdyh=1./dyh
+      rdyv=1./dyv
 !-----------------------------------------------------------------------
       do j=jds,jde
         dxh(j)=0.
@@ -621,72 +569,6 @@ real(kind=kfpt),dimension(jds:jde):: &
         hdacvxj(j)=0.
         hdacvyj(j)=0.
       enddo
-!-----------------------------------------------------------------------
-      dtq2=nphs*dt
-!
-      if(.not.global.and.my_domain_id==1)then
-        ihrbc=0
-        write(infile,'(a,i4.4)')'boco.',ihrbc
-        nbc=18
-        open(unit=nbc,file=infile,status='old',form='unformatted')
-        read (nbc) runbc,idatbc,ihrstbc,tboco
-!	write(0,*) 'runbc: ', runbc
-!	write(0,*) 'idatbc: ', idatbc
-!	write(0,*) 'ihrstbc: ', ihrstbc
-!	write(0,*) 'tboco: ', tboco
-        rewind nbc
-        close(unit=nbc)
-        if(mype_share==0)then
-          write(0,*)'*** Read tboco in CONSTS from ',infile
-        endif
-        nboco=nint(tboco/dt)
-      endif
-!-----------------------------------------------------------------------
-!---to be read from a namelist in the future----------------------------
-!-----------------------------------------------------------------------
-!
-        coac=smag2*smag2 !second order
-!
-!-----------------------------------------------------------------------
-!--------------derived geometrical constants----------------------------
-!-----------------------------------------------------------------------
-      tph0=tph0d*dtr                                                    
-      wb=wbd*dtr
-      sb=sbd*dtr
-      dlm=dlmd*dtr                                                      
-      dph=dphd*dtr                                                      
-      rdlm=1./dlm                                                       
-      rdph=1./dph                                                       
-!                                                                       
-      stph0=sin(tph0)                                                   
-      ctph0=cos(tph0)                                                   
-!-----------------------------------------------------------------------
-!---derived horizontal grid constants-----------------------------------
-!-----------------------------------------------------------------------
-      dyh=a*dph
-      dyv=a*dph
-      rdyh=1./dyh
-      rdyv=1./dyv
-!-----------------------------------------------------------------------
-!---derived vertical grid constants-------------------------------------
-!-----------------------------------------------------------------------
-      ef4t=0.5*dt/cp
-      f4d=-0.5*dt
-!-----------------------------------------------------------------------
-!---derived physical constants------------------------------------------
-!-----------------------------------------------------------------------
-      acdt=coac*dt
-      cddamp=codamp*dt
-!-----------------------------------------------------------------------
-!***  Each task identifies whether or not it is adjacent to a boundary
-!***  of the full domain.
-!-----------------------------------------------------------------------
-!
-      w_bdy=(its==ids)  ! This task is on the western boundary
-      e_bdy=(ite==ide)  ! This task is on the eastern boundary
-      s_bdy=(jts==jds)  ! This task is on the southern boundary
-      n_bdy=(jte==jde)  ! This task is on the northern boundary
-!
 !-----------------------------------------------------------------------
 !
       global_regional_setup: if(global) then
@@ -736,10 +618,6 @@ real(kind=kfpt),dimension(jds:jde):: &
           dxh(j)=a*dlm*cos(tph)
           dxv(j)=a*dlm*cos(tpv)
           rdxh(j)=1./dxh(j)
-!     if(abs(dxv(j))<1.e-5)then
-!       write(0,*)' in CONSTS j=',j,' dxv=',dxv(j)
-!        dxv(j)=1.0*dxv(j)
-!     endif
           rdxv(j)=1./dxv(j)
           dare(j)=dxh(j)*dyh
           rare(j)=1./dare(j)
@@ -1155,13 +1033,13 @@ real(kind=kfpt),dimension(jds:jde):: &
 !	write(0,*) 'sb,dph: ', sb, dph
 !	write(0,*) 'wb,dlm: ', wb, dlm
 !
-        do j=jts,jte
+        do j=j_lo,j_hi
           tph=tph_base+(j-jds+1)*dph
           stph=sin(tph)
           ctph=cos(tph)                                                                       
 !
           tlm_base=wb-dlm
-          do i=its,ite
+          do i=i_lo,i_hi
             tlm=tlm_base+(i-ids+1)*dlm
             stlm=sin(tlm)
             ctlm=cos(tlm)
@@ -1210,29 +1088,16 @@ real(kind=kfpt),dimension(jds:jde):: &
 !-----------------------------------------------------------------------
 !
         glat_sw=asin(sin(sb)*ctph0+cos(sb)*stph0*cos(wb))
-        glon_sw=tlm0d*dtr+sign(1.,wb)*((cos(sb)*cos(wb))                &
-                                      /(cos(glat_sw)*ctph0)             &
-                                       -tan(glat_sw)*tan(tph0d*dtr))
+        glon_sw=tlm0d*dtr+sign(1.,wb)*acos((cos(sb)*cos(wb))            &
+                                          /(cos(glat_sw)*ctph0)         &
+                                          -tan(glat_sw)*tan(tph0d*dtr))
 !
 !-----------------------------------------------------------------------
 !
       endif global_regional_setup
-!
-!-----------------------------------------------------------------------
-!-------------look-up tables--------------------------------------------
-!-----------------------------------------------------------------------
-!
-      call exptbl
-!
-!-----------------------------------------------------------------------
-      pl=max(pt,1000.)
-      call tablep
-      call tablet
-!-----------------------------------------------------------------------
-      call psitbl
-!-----------------------------------------------------------------------
-!
-                        end subroutine consts       
+
+                        end subroutine grid_consts
+
 !
 !-----------------------------------------------------------------------
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -180,8 +180,8 @@ use module_my_domain_specs
           buf2(ic)=arr1(i,jte-j)
         enddo
         enddo
-        call mpi_isend(buf2,ic,mpi_real,my_neb(1),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(1),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -196,8 +196,8 @@ use module_my_domain_specs
           buf3(ic)=arr1(i,jts+j)
         enddo
         enddo
-        call mpi_isend(buf3,ic,mpi_real,my_neb(3),mype &
-                      ,mpi_comm_comp,ihandle(4),isend)
+        call mpi_issend(buf3,ic,mpi_real,my_neb(3),mype &
+                       ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -281,8 +281,8 @@ use module_my_domain_specs
           buf2(ic)=arr1(i,j)
         enddo
         enddo
-        call mpi_isend(buf2,ic,mpi_real,my_neb(2),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(2),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -299,8 +299,8 @@ use module_my_domain_specs
           buf3(ic)=arr1(i,j)
         enddo
         enddo
-       call mpi_isend(buf3,ic,mpi_real,my_neb(4),mype &
-                     ,mpi_comm_comp,ihandle(4),isend)
+       call mpi_issend(buf3,ic,mpi_real,my_neb(4),mype &
+                      ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -430,8 +430,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-        call mpi_isend(buf2,ic,mpi_real,my_neb(1),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(1),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -448,8 +448,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-        call mpi_isend(buf3,ic,mpi_real,my_neb(3),mype &
-                      ,mpi_comm_comp,ihandle(4),isend)
+        call mpi_issend(buf3,ic,mpi_real,my_neb(3),mype &
+                       ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -539,8 +539,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-        call mpi_isend(buf2,ic,mpi_real,my_neb(2),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(2),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -559,8 +559,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-       call mpi_isend(buf3,ic,mpi_real,my_neb(4),mype &
-                     ,mpi_comm_comp,ihandle(4),isend)
+       call mpi_issend(buf3,ic,mpi_real,my_neb(4),mype &
+                      ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -704,8 +704,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-        call mpi_isend(buf2,ic,mpi_real,my_neb(1),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(1),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -729,8 +729,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-        call mpi_isend(buf3,ic,mpi_real,my_neb(3),mype &
-                      ,mpi_comm_comp,ihandle(4),isend)
+        call mpi_issend(buf3,ic,mpi_real,my_neb(3),mype &
+                       ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -841,8 +841,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-        call mpi_isend(buf2,ic,mpi_real,my_neb(2),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(2),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -868,8 +868,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-       call mpi_isend(buf3,ic,mpi_real,my_neb(4),mype &
-                     ,mpi_comm_comp,ihandle(4),isend)
+       call mpi_issend(buf3,ic,mpi_real,my_neb(4),mype &
+                      ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -1034,8 +1034,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf2,ic,mpi_real,my_neb(1),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(1),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -1066,8 +1066,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf3,ic,mpi_real,my_neb(3),mype &
-                      ,mpi_comm_comp,ihandle(4),isend)
+        call mpi_issend(buf3,ic,mpi_real,my_neb(3),mype &
+                       ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -1199,8 +1199,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf2,ic,mpi_real,my_neb(2),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(2),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -1233,8 +1233,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-       call mpi_isend(buf3,ic,mpi_real,my_neb(4),mype &
-                     ,mpi_comm_comp,ihandle(4),isend)
+       call mpi_issend(buf3,ic,mpi_real,my_neb(4),mype &
+                      ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -1423,8 +1423,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf2,ic,mpi_real,my_neb(1),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(1),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -1462,8 +1462,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf3,ic,mpi_real,my_neb(3),mype &
-                      ,mpi_comm_comp,ihandle(4),isend)
+        call mpi_issend(buf3,ic,mpi_real,my_neb(3),mype &
+                       ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -1616,8 +1616,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf2,ic,mpi_real,my_neb(2),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(2),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -1657,8 +1657,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-       call mpi_isend(buf3,ic,mpi_real,my_neb(4),mype &
-                     ,mpi_comm_comp,ihandle(4),isend)
+       call mpi_issend(buf3,ic,mpi_real,my_neb(4),mype &
+                      ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -1842,8 +1842,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf2,ic,mpi_real,my_neb(1),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(1),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -1867,8 +1867,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf3,ic,mpi_real,my_neb(3),mype &
-                      ,mpi_comm_comp,ihandle(4),isend)
+        call mpi_issend(buf3,ic,mpi_real,my_neb(3),mype &
+                       ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -1979,8 +1979,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf2,ic,mpi_real,my_neb(2),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(2),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -2006,8 +2006,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-       call mpi_isend(buf3,ic,mpi_real,my_neb(4),mype &
-                     ,mpi_comm_comp,ihandle(4),isend)
+       call mpi_issend(buf3,ic,mpi_real,my_neb(4),mype &
+                      ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -2174,8 +2174,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-        call mpi_isend(buf2,ic,mpi_real,my_neb(1),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(1),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -2206,8 +2206,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-        call mpi_isend(buf3,ic,mpi_real,my_neb(3),mype &
-                      ,mpi_comm_comp,ihandle(4),isend)
+        call mpi_issend(buf3,ic,mpi_real,my_neb(3),mype &
+                       ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -2339,8 +2339,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-        call mpi_isend(buf2,ic,mpi_real,my_neb(2),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(2),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -2373,8 +2373,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-       call mpi_isend(buf3,ic,mpi_real,my_neb(4),mype &
-                     ,mpi_comm_comp,ihandle(4),isend)
+       call mpi_issend(buf3,ic,mpi_real,my_neb(4),mype &
+                      ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -2592,8 +2592,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf2,ic,mpi_real,my_neb(1),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(1),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -2643,8 +2643,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf3,ic,mpi_real,my_neb(3),mype &
-                      ,mpi_comm_comp,ihandle(4),isend)
+        call mpi_issend(buf3,ic,mpi_real,my_neb(3),mype &
+                       ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -2831,8 +2831,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf2,ic,mpi_real,my_neb(2),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(2),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -2884,8 +2884,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-       call mpi_isend(buf3,ic,mpi_real,my_neb(4),mype &
-                     ,mpi_comm_comp,ihandle(4),isend)
+       call mpi_issend(buf3,ic,mpi_real,my_neb(4),mype &
+                      ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -3096,8 +3096,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf2,ic,mpi_real,my_neb(1),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(1),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -3125,8 +3125,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf3,ic,mpi_real,my_neb(3),mype &
-                      ,mpi_comm_comp,ihandle(4),isend)
+        call mpi_issend(buf3,ic,mpi_real,my_neb(3),mype &
+                       ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -3249,8 +3249,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf2,ic,mpi_real,my_neb(2),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(2),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -3280,8 +3280,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-       call mpi_isend(buf3,ic,mpi_real,my_neb(4),mype &
-                     ,mpi_comm_comp,ihandle(4),isend)
+       call mpi_issend(buf3,ic,mpi_real,my_neb(4),mype &
+                      ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -3462,8 +3462,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf2,ic,mpi_real,my_neb(1),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(1),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -3500,8 +3500,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf3,ic,mpi_real,my_neb(3),mype &
-                      ,mpi_comm_comp,ihandle(4),isend)
+        call mpi_issend(buf3,ic,mpi_real,my_neb(3),mype &
+                       ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -3651,8 +3651,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf2,ic,mpi_real,my_neb(2),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(2),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -3691,8 +3691,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf3,ic,mpi_real,my_neb(4),mype &
-                      ,mpi_comm_comp,ihandle(4),isend)
+        call mpi_issend(buf3,ic,mpi_real,my_neb(4),mype &
+                       ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -3903,8 +3903,8 @@ use module_my_domain_specs
         enddo
         enddo
 !
-        call mpi_isend(buf2,ic,mpi_real,my_neb(1),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(1),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -3949,8 +3949,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-        call mpi_isend(buf3,ic,mpi_real,my_neb(3),mype &
-                      ,mpi_comm_comp,ihandle(4),isend)
+        call mpi_issend(buf3,ic,mpi_real,my_neb(3),mype &
+                       ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -4124,8 +4124,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-        call mpi_isend(buf2,ic,mpi_real,my_neb(2),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(2),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -4172,8 +4172,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-        call mpi_isend(buf3,ic,mpi_real,my_neb(4),mype &
-                      ,mpi_comm_comp,ihandle(4),isend)
+        call mpi_issend(buf3,ic,mpi_real,my_neb(4),mype &
+                       ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -4368,8 +4368,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-        call mpi_isend(buf2,ic,mpi_real,my_neb(1),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(1),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -4388,8 +4388,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-        call mpi_isend(buf3,ic,mpi_real,my_neb(3),mype &
-                      ,mpi_comm_comp,ihandle(4),isend)
+        call mpi_issend(buf3,ic,mpi_real,my_neb(3),mype &
+                       ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -4485,8 +4485,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-        call mpi_isend(buf2,ic,mpi_real,my_neb(2),mype &
-                      ,mpi_comm_comp,ihandle(3),isend)
+        call mpi_issend(buf2,ic,mpi_real,my_neb(2),mype &
+                       ,mpi_comm_comp,ihandle(3),isend)
       endif
 !
 !-----------------------------------------------------------------------
@@ -4507,8 +4507,8 @@ use module_my_domain_specs
         enddo
         enddo
         enddo
-       call mpi_isend(buf3,ic,mpi_real,my_neb(4),mype &
-                     ,mpi_comm_comp,ihandle(4),isend)
+       call mpi_issend(buf3,ic,mpi_real,my_neb(4),mype &
+                      ,mpi_comm_comp,ihandle(4),isend)
       endif
 !
 !-----------------------------------------------------------------------

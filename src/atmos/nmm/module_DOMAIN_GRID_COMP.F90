@@ -68,15 +68,16 @@
       USE MODULE_GET_CONFIG
       USE MODULE_GET_CONFIG_WRITE
 !
-      USE MODULE_CONTROL,ONLY: TIMEF
+      USE MODULE_CONTROL,ONLY: GRID_CONSTS,NUM_DOMAINS_MAX,TIMEF
       USE MODULE_DIAGNOSE,ONLY: FIELD_STATS
       USE NEMSIO_MODULE
 ! 
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
-      USE MODULE_VARS,ONLY: VAR,FIND_VAR_INDX
-
 !
-      USE MODULE_VARS,ONLY: VAR,FIND_VAR_INDX
+      USE MODULE_VARS,ONLY: FIND_VAR_INDX                               &
+                           ,TKR_I0D,TKR_I1D                             &
+                           ,TKR_R0D,TKR_R1D                             &
+                           ,VAR
 !
       USE module_SOLVER_INTERNAL_STATE,ONLY: SOLVER_INTERNAL_STATE      &
                                             ,WRAP_SOLVER_INT_STATE
@@ -122,6 +123,10 @@
                            ,NUM_TRACERS_MET                             &  !<-- Number of meteorological tracer variables
                            ,SFC_FILE_RATIO                              &  !<-- Ratio of upper parent -to- moving nest grid increment
                            ,WRITE_GROUP_READY_TO_GO                        !<-- The write group to use
+!
+      REAL(kind=DOUBLE) :: D2R,D_ONE,D_180,PI_LOC
+!
+      REAL(kind=KFPT),SAVE :: SBD_1,TPH0D_1,TLM0D_1,WBD_1                  !<-- SW corner & center (degrees) of upper parent
 !
       LOGICAL(kind=KLOG) :: QUILTING                                    &  !<-- Is asynchronous quilting specified?
                            ,WRITE_LAST_RESTART                          &  !<-- Write last restart file?
@@ -190,6 +195,8 @@
                                                      ,J_SEARCH_INC         !<-- J increment to search pt when fixing moving nest conflicts
 !
       INTEGER(kind=KINT),DIMENSION(:),POINTER,SAVE :: MY_CHILDREN_ID       !<-- A parent's children's domain IDs
+!
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: NTIMESTEP_CHILD_MOVES
 !
       REAL(kind=KFPT) :: EPS=1.E-4
 !
@@ -453,7 +460,7 @@
 !
       INTEGER(kind=KINT) :: CONFIG_ID,ISTAT,MAX_DOMAINS                 &
                            ,N,NFCST,NPHS,NTSD,NUM_DOMAINS,NUM_FIELDS    &
-                           ,UBOUND_VARS
+                           ,NUM_PES_FCST,UBOUND_VARS
 !
       INTEGER(kind=KINT) :: IYEAR_FCST                                  &  !<-- Current year from restart file
                            ,IMONTH_FCST                                 &  !<-- Current month from restart file
@@ -470,6 +477,8 @@
 !
       INTEGER(kind=KINT) :: IHI,ILO,JHI,JLO
 !
+      INTEGER(kind=KINT) :: I_PAR_STA, J_PAR_STA,NEXT_MOVE_TIMESTEP
+!
       INTEGER(kind=KINT) :: IERR,IRTN,RC          
 !
       INTEGER(ESMF_KIND_I8) :: NTSD_START                                  !<-- Timestep count (>0 for restarted runs)
@@ -481,14 +490,10 @@
       REAL(kind=KFPT) :: CODAMP                                         &  
                         ,DLMD,DPHD                                      &  !<-- Current second from restart file
                         ,DPH_1,DLM_1                                    &
-                        ,SBD_1,WBD_1                                    &  !<-- Transformed lat/lon of upper parent's south/west boundaries
                         ,SECOND_FCST                                    &  !<-- Current second from restart file
                         ,SMAG2                                          &  !<-- Smagorinsky constant
                         ,TLM0D                                          &  !<-- Central longitude of uppermost parent (degrees)
-                        ,TPH0D                                          &  !<-- Central latitude of uppermost parent (degrees)
-                        ,TPH0D_1,TLM0D_1
-!
-      REAL(kind=DOUBLE) :: D2R,D_ONE,D_180,PI
+                        ,TPH0D                                             !<-- Central latitude of uppermost parent (degrees)
 !
       REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SEA_MASK=>NULL()
 !
@@ -1046,6 +1051,8 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+      domain_int_state%RESTARTED_RUN=RESTARTED_RUN
+!
 !-----------------------------------------------------------------------
 !***  If this is a restarted run then read:
 !***    (1) The forecast time that the file was written.
@@ -1548,6 +1555,90 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !------------------------------------------------------------------------
+!***  Add the transformed lat/lon (degrees) of the SW corner of domain #1
+!***  domain #1 and the geographic lat/lon of its center to the Solver
+!***  import state.  That information will be used if this is a restarted
+!***  run containing moving nests in order to precisely determine the
+!***  location of those nests.
+!------------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Southern/Western Boundary of Uppermost Domain"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF(1)                         &  !<-- The config object of domain #1
+                                  ,value =SBD_1                         &  !<-- The variable filled
+                                  ,label ='sbd:'                        &  !<-- Give this label's value to the previous variable
+                                  ,rc    =RC)
+!
+      CALL ESMF_ConfigGetAttribute(config=CF(1)                         &  !<-- The config object of domain #1
+                                  ,value =WBD_1                         &  !<-- The variable filled
+                                  ,label ='wbd:'                        &  !<-- Give this label's value to the previous variable
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="DOMAIN_INIT: Add SW Corner of Domain #1 to Solver Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER    &  !<-- The Solver component import state
+                            ,name ='SBD_1'                              &  !<-- Attribute's name
+                            ,value=SBD_1                                &  !<-- Transformed lat (degrees) of domain #1's south bndry
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER    &  !<-- The Solver component import state
+                            ,name ='WBD_1'                              &  !<-- Attribute's name
+                            ,value=WBD_1                                &  !<-- Transformed lon (degrees) of domain #1's west bndry
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Central Lat/Lon of Uppermost Domain"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF(1)                         &  !<-- The config object of domain #1
+                                  ,value =TPH0D_1                       &  !<-- Geographic lat (degrees) of center of domain #1
+                                  ,label ='tph0d:'                      &  !<-- Give this label's value to the previous variable
+                                  ,rc    =RC)
+!
+      CALL ESMF_ConfigGetAttribute(config=CF(1)                         &  !<-- The config object of domain #1
+                                  ,value =TLM0D_1                       &  !<-- Geographic lon (degrees) of center of domain #1
+                                  ,label ='tlm0d:'                      &  !<-- Give this label's value to the previous variable
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="DOMAIN_INIT: Add Center of Domain #1 to Solver Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER    &  !<-- The Solver component import state
+                            ,name ='TPH0D_1'                            &  !<-- Attribute's name
+                            ,value=TPH0D_1                              &  !<-- Geographic lat (degrees) of domain #1's center
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER    &  !<-- The Solver component import state
+                            ,name ='TLM0D_1'                            &  !<-- Attribute's name
+                            ,value=TLM0D_1                              &  !<-- Geographic lon (degrees) of domain #1's center
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!------------------------------------------------------------------------
 !***  If this is a nest domain then insert the Parent-Child timestep
 !***  ratio into the Solver import state since that will be needed
 !***  to tell the Solver Run step how often to update the boundary
@@ -1668,6 +1759,34 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
+!***  Extract the Solver internal state so we can access it to insert
+!***  the values of the domain's SW corner if it is a nest. 
+!-----------------------------------------------------------------------
+!
+      NUM_PES_FCST=INPES*JNPES
+!
+      IF(MYPE<NUM_PES_FCST)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+       MESSAGE_CHECK="Domain_Init: Extract Solver Internal State"
+!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_GridCompGetInternalState(domain_int_state%SOLVER_GRID_COMP &  !<-- The Solver component
+                                          ,WRAP_SOLVER                  &
+                                          ,RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        SOLVER_INT_STATE=>wrap_solver%INT_STATE
+!
+!-----------------------------------------------------------------------
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
 !***  If quilting was selected for the generation of output,
 !***  execute the Initialize step of the Write component(s).
 !***  This must be done after the initialization of the
@@ -1717,6 +1836,10 @@
                             ,name ='Fcst-or-Write Flag'                 &  !<-- Use this name inside the state
                             ,value=I_AM_A_FCST_TASK                     &  !<-- The logical being inserted into the import state
                             ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Add NUM_PES_FCST to the Domain Export State"
@@ -1792,6 +1915,105 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
+!***  With the Solver internal state available set the location of
+!***  the SW corner of this domain if it is a nest.  This provides 
+!***  the corner location values to the Write (output) components
+!***  and therefore must precede the creation of those components
+!***  which immediately follows.
+!
+!***  If the input file was generated by NPS or this is a restarted
+!***  run then the value of the SW corner has already bee placed into
+!***  the Solver internal state.  If this is a free forecast without
+!***  a pre-generated input file then read the SW corner location
+!***  from the configure file.
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+      IF(I_AM_A_FCST_TASK==ESMF_TRUE.AND.I_AM_A_NEST==ESMF_TRUE)THEN
+!
+        IF(INPUT_READY==ESMF_False.AND..NOT.RESTARTED_RUN)THEN               !<-- If so then must get values from configure file.
+#else
+      IF(I_AM_A_FCST_TASK.AND.I_AM_A_NEST)THEN
+!
+        IF(.NOT.INPUT_READY.AND..NOT.RESTARTED_RUN)THEN                      !<-- If so then must get values from configure file.
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Domain Init: Child Gets SW Corner Point from Config File"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)            &  !<-- The nest domain's config object
+                                      ,value =I_PAR_STA                   &  !<-- The variable filled (parent I of nest SW corner)
+                                      ,label ='i_parent_start:'           &  !<-- Give this label's value to the previous variable
+                                      ,rc    =RC)
+!
+          CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)            &  !<-- The nest domain's config object
+                                      ,value =J_PAR_STA                   &  !<-- The variable filled (parent J of nest SW corner)
+                                      ,label ='j_parent_start:'           &  !<-- Give this label's value to the previous variable
+                                      ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          solver_int_state%I_PAR_STA = I_PAR_STA   
+          solver_int_state%J_PAR_STA = J_PAR_STA  
+!
+          NEXT_MOVE_TIMESTEP=-999
+          solver_int_state%NMTS=NEXT_MOVE_TIMESTEP 
+!
+        ELSE                                                                 !<-- If so values were read from input or restart file.
+!
+          I_PAR_STA=solver_int_state%I_PAR_STA
+          J_PAR_STA=solver_int_state%J_PAR_STA
+          NEXT_MOVE_TIMESTEP=solver_int_state%NMTS
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Transfer the domain's SW corner and next move timestep to the
+!***  Domain export state.  These values are dummies if not relevant.
+!***  The values are obtained directly from the Solver internal state
+!***  if this is a restarted run since they were read from the restart 
+!***  file in that case.
+!-----------------------------------------------------------------------
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert SW corner of Nest into Domain Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Domain export state
+                              ,name ='I_PAR_STA'                        &  !<-- Name of the attribute to extract
+                              ,value=I_PAR_STA                          &  !<-- Put the Attribute here
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Domain export state
+                              ,name ='J_PAR_STA'                        &  !<-- Name of the attribute to extract
+                              ,value=J_PAR_STA                          &  !<-- Put the Attribute here
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert Next Move Timestep into Domain Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Domain export state
+                              ,name ='NEXT_MOVE_TIMESTEP'               &  !<-- Name of the attribute to extract
+                              ,value=NEXT_MOVE_TIMESTEP                 &  !<-- Put the Attribute here
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF
+!
 !-----------------------------------------------------------------------
 !
 !***  If the current component/domain is the parent of nests then:
@@ -1867,25 +2089,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  Extract the Solver internal state.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Solver Internal State for Move Bundle"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_GridCompGetInternalState(domain_int_state%SOLVER_GRID_COMP &  !<-- The Solver component
-                                          ,WRAP_SOLVER                    &
-                                          ,RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-        SOLVER_INT_STATE=>wrap_solver%INT_STATE
 !
         LM=solver_int_state%LM
 !
@@ -2048,44 +2251,6 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Central Lat/Lon of Uppermost Domain"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_ConfigGetAttribute(config=CF(1)                     &  !<-- The config object
-                                      ,value =TPH0D_1                   &  !<-- The variable filled
-                                      ,label ='tph0d:'                  &  !<-- Give this label's value to the previous variable
-                                      ,rc    =RC)
-!
-          CALL ESMF_ConfigGetAttribute(config=CF(1)                     &  !<-- The config object
-                                      ,value =TLM0D_1                   &  !<-- The variable filled
-                                      ,label ='tlm0d:'                  &  !<-- Give this label's value to the previous variable
-                                      ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Southern/Western Boundary of Uppermost Domain"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_ConfigGetAttribute(config=CF(1)                     &  !<-- The config object
-                                      ,value =SBD_1                     &  !<-- The variable filled
-                                      ,label ='sbd:'                    &  !<-- Give this label's value to the previous variable
-                                      ,rc    =RC)
-!
-          CALL ESMF_ConfigGetAttribute(config=CF(1)                     &  !<-- The config object
-                                      ,value =WBD_1                     &  !<-- The variable filled
-                                      ,label ='wbd:'                    &  !<-- Give this label's value to the previous variable
-                                      ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
 !-----------------------------------------------------------------------
 !***  Compute some values needed by moving nests for reading their
 !***  full-resolution data that spans the uppermost parent.
@@ -2093,8 +2258,8 @@
 !
           D_ONE=1.
           D_180=180.
-          PI=DACOS(-D_ONE)
-          D2R=PI/D_180
+          PI_LOC=DACOS(-D_ONE)
+          D2R=PI_LOC/D_180
 !
           TPH0_1=TPH0D_1*D2R                                               !<-- Central geo lat of domain (radians, positive north)
           TLM0_1=TLM0D_1*D2R                                               !<-- Central geo lon of domain (radians, positive east)
@@ -2138,7 +2303,7 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          DEG_TO_RAD=PI/180.
+          DEG_TO_RAD=PI_LOC/180.
           DPH=DPHD*DEG_TO_RAD
           DLM=DLMD*DEG_TO_RAD
 !
@@ -2356,6 +2521,54 @@
           DEALLOCATE(MY_CHILDREN_ID)
         ENDIF
 !
+!-----------------------------------------------------------------------
+!***  Send the next move timestep of the moving children to the
+!***  Parent-Child coupler.  If this is a restarted run then the
+!***  values are were read from the restart file in Solver Init.
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+        IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
+#else
+        IF(I_AM_A_FCST_TASK)THEN
+#endif
+!
+          NTIMESTEP_CHILD_MOVES=>solver_int_state%NTSCM
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Initialize Next Timestep Children Move in Domain Import State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =IMP_STATE                    &  !<-- The Domain import state
+                                ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- Name of the attribute to extract
+                                ,itemCount=NUM_DOMAINS_MAX              &  !<-- Number of items in the array
+                                ,valueList=NTIMESTEP_CHILD_MOVES        &  !<-- Put the Attribute here
+                                ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Insert Next Timestep Children Move into Domain Export State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =EXP_STATE                    &  !<-- The Domain export state
+                                ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- Name of the attribute to extract
+                                ,itemCount=NUM_DOMAINS_MAX              &  !<-- Number of items in the array
+                                ,valueList=NTIMESTEP_CHILD_MOVES        &  !<-- Put the Attribute here
+                                ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
       ENDIF child_init_block
 !
 !-----------------------------------------------------------------------
@@ -2475,6 +2688,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      domain_int_state%I_AM_A_PARENT=I_AM_A_PARENT
 !
 !-----------------------------------------------------------------------
 !***  Initialize some variables used in NMM_INTEGRATE.
@@ -2618,13 +2833,22 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(ESMF_KIND_I4) :: INTEGER_DT,NUMERATOR_DT,IDENOMINATOR_DT     
+      INTEGER(ESMF_KIND_I4) :: INTEGER_DT,NEXT_MOVE_TIMESTEP            &
+                              ,NUMERATOR_DT,IDENOMINATOR_DT     
 !
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF                         !<-- The current forecast timestep
 !
-      INTEGER(kind=KINT) :: FILTER_METHOD,HDIFF_ON,J_CENTER             &
+      INTEGER(kind=KINT) :: I_INC,ITS,J_INC,JTS
+!
+      INTEGER(kind=KINT) :: FILTER_METHOD,HDIFF_ON,IERR,J_CENTER        &
                            ,LAST_STEP_MOVED,RC,NC,YY,MM,DD,H,M,S        &
                            ,USE_RADAR
+!
+      INTEGER(kind=KINT),DIMENSION(1:NUM_DOMAINS_MAX) :: NTIMESTEPCHILD_MOVES
+!
+      REAL(kind=KFPT) :: DLM,DPH,GLATX,GLONX,TLATX,TLONX,X,Y,Z
+!
+      REAL(kind=KFPT),DIMENSION(1:2) :: SW_X
 !
       LOGICAL(kind=KLOG) :: E_BDY,N_BDY,S_BDY,W_BDY                        !<-- Are tasks on a domain boundary?
 #ifdef ESMF_3
@@ -2738,15 +2962,16 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
-        CALL ESMF_ClockGet(clock   =CLOCK_DOMAIN                        &
-                          ,timeStep=DT_ESMF                             &
-                          ,currTime=CURRTIME                            &
-                          ,rc      =RC)
+        CALL ESMF_ClockGet(clock       =CLOCK_DOMAIN                    &
+                          ,timeStep    =DT_ESMF                         &
+                          ,currTime    =CURRTIME                        &
+                          ,advanceCount=NTIMESTEP_ESMF                  &  !<-- # of times the clock has advanced
+                          ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-
+!
         CALL ESMF_TimeGet(time=CURRTIME,mm=MM,dd=DD,h=H,m=M,s=S,rc=RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
@@ -2763,6 +2988,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+!
+        NTIMESTEP=NTIMESTEP_ESMF
 !
 !-----------------------------------------------------------------------
 !***  We must transfer the horizontal diffusion flag from the
@@ -2852,8 +3079,12 @@
         nests: IF(domain_int_state%I_AM_A_NEST)THEN
 #endif
 !         call print_memory()
-          CALL BOUNDARY_DATA_STATE_TO_STATE(S_BDY,N_BDY,W_BDY,E_BDY                    &  !<-- This task lies on which boundaries?
+          CALL BOUNDARY_DATA_STATE_TO_STATE(s_bdy    =S_BDY                            &  !<-- This task lies on a south boundary?
+                                           ,n_bdy    =N_BDY                            &  !<-- This task lies on a north boundary?
+                                           ,w_bdy    =W_BDY                            &  !<-- This task lies on a west boundary?
+                                           ,e_bdy    =E_BDY                            &  !<-- This task lies on an east boundary?
                                            ,clock    =CLOCK_DOMAIN                     &  !<-- The Domain Clock
+                                           ,nest     =domain_int_state%I_AM_A_NEST     &  !<-- The parent flag (yes or no)
                                            ,ratio    =PARENT_CHILD_TIME_RATIO          &  !<-- # of child timesteps per parent timestep
                                            ,state_in =IMP_STATE                        &  !<-- Domain component's import state
                                            ,state_out=domain_int_state%IMP_STATE_SOLVER)  !<-- The Solver import state
@@ -2866,6 +3097,59 @@
 #else
           IF(MY_DOMAIN_MOVES)THEN                                          !<-- Select the moving nests
 #endif
+!
+!-----------------------------------------------------------------------
+!***  If a nest is moving in its next timestep then update the
+!***  SW corner location in the Solver internal state now at the
+!***  end of the preceding timestep.  This is necessary for the
+!***  correct location to be in place if a restart file is to be
+!***  written that is valid for the beginning of the next timestep.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="DOMAIN_RUN: Get NEXT_MOVE_TIMESTEP from Import State"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeGet(state=IMP_STATE                      &  !<-- Domain component's import state
+                                  ,name ='NEXT_MOVE_TIMESTEP'           &  !<-- Extract Attribute with this name
+                                  ,value=NEXT_MOVE_TIMESTEP             &  !<-- When does this nest move again?
+                                  ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            solver_int_state%NMTS=NEXT_MOVE_TIMESTEP                       !<-- Save in the Solver internal state
+!
+            IF(NTIMESTEP==NEXT_MOVE_TIMESTEP-1)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              MESSAGE_CHECK="Domain_Run: Get I_SHIFT,J_SHIFT from Domain Import State"
+!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              CALL ESMF_AttributeGet(state=IMP_STATE                    &  !<-- The Domain import state
+                                    ,name ='I_SHIFT'                    &  !<-- Get Attribute with this name
+                                    ,value=I_SHIFT_CHILD                &  !<-- Motion of the nest in I on its grid
+                                    ,rc   =RC )
+!
+              CALL ESMF_AttributeGet(state=IMP_STATE                    &  !<-- The Domain import state
+                                    ,name ='J_SHIFT'                    &  !<-- Get Attribute with this name
+                                    ,value=J_SHIFT_CHILD                &  !<-- Motion of the nest in J on its grid
+                                    ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              solver_int_state%I_PAR_STA=solver_int_state%I_PAR_STA             &
+                                        +I_SHIFT_CHILD/PARENT_CHILD_SPACE_RATIO
+!
+              solver_int_state%J_PAR_STA=solver_int_state%J_PAR_STA             &
+                                        +J_SHIFT_CHILD/PARENT_CHILD_SPACE_RATIO
+!
+            ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -2906,27 +3190,125 @@
 #endif
 !
 !-----------------------------------------------------------------------
-!***  Update the 1-D (in J) arrays tied to the nest grid's 
-!***  transformed latitude.  Since the nest's grid is a subset
-!***  of the uppermost parent's then the transformed latitude
-!***  of the nest grid does change when it moves.
-!-----------------------------------------------------------------------
-!
-              CALL UPDATE_GRID_ARRAYS(IMP_STATE                         &  !<-- The Domain component import state
-                                     ,domain_int_state%SOLVER_GRID_COMP)   !<-- The Solver component 
-!
+!***  What are the nest's new transformed lat/lon of its south and
+!***  west boundaries following the move?
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-              MESSAGE_CHECK="DOMAIN_RUN: Extract Timestep from Clock"
+              MESSAGE_CHECK="Domain_Run: Get I_SHIFT,J_SHIFT from Domain Import State"
 !             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-              CALL ESMF_ClockGet(clock       =CLOCK_DOMAIN              &
-                                ,advanceCount=NTIMESTEP_ESMF            &  !<-- # of times the clock has advanced
-                                ,rc          =RC)
+              CALL ESMF_AttributeGet(state=IMP_STATE                    &  !<-- The Domain import state
+                                    ,name ='I_SHIFT'                    &  !<-- Get Attribute with this name
+                                    ,value=I_SHIFT_CHILD                &  !<-- Motion of the nest in I on its grid
+                                    ,rc   =RC )
 !
-              NTIMESTEP=NTIMESTEP_ESMF
+              CALL ESMF_AttributeGet(state=IMP_STATE                    &  !<-- The Domain import state
+                                    ,name ='J_SHIFT'                    &  !<-- Get Attribute with this name
+                                    ,value=J_SHIFT_CHILD                &  !<-- Motion of the nest in J on its grid
+                                    ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  What are the transformed lat/lon of the nest's SW corner at
+!***  the new nest location?
+!-----------------------------------------------------------------------
+!
+              IF(MYPE==0)THEN
+!
+                D_ONE=1.
+                D_180=180.
+                PI_LOC=DACOS(-D_ONE)
+                D2R=PI_LOC/D_180
+!
+                TPH0_1=TPH0D_1*D2R                                         !<-- The central lat/lon of domain #1 is the center
+                TLM0_1=TLM0D_1*D2R                                         !    for all grid-associated nests
+!
+                ITS=solver_int_state%ITS
+                JTS=solver_int_state%JTS
+                GLATX=solver_int_state%GLAT(ITS,JTS)                       !<-- Geographic lat (radians) of nest's pre-move SW corner
+                GLONX=solver_int_state%GLON(ITS,JTS)                       !<-- Geographic lon (radians) of nest's pre-move SW corner
+!
+                X=COS(TPH0_1)*COS(GLATX)*COS(GLONX-TLM0_1)+SIN(TPH0_1)*SIN(GLATX)
+                Y=COS(GLATX)*SIN(GLONX-TLM0_1)
+                Z=-SIN(TPH0_1)*COS(GLATX)*COS(GLONX-TLM0_1)+COS(TPH0_1)*SIN(GLATX)
+!
+                TLATX=ATAN(Z/SQRT(X*X+Y*Y))                                !<-- Transformed lat (radians) of nest's pre-move SW corner
+                TLONX=ATAN(Y/X)                                            !<-- Transformed lon (radians) of nest's pre-move SW corner
+                IF(X<0)TLONX=TLONX+PI
+!
+                SB_1=SBD_1*D2R                                             !<-- Transformed lat (radians) of domain #1's S bndry
+                WB_1=WBD_1*D2R                                             !<-- Transformed lon (radians) of domain #1's W bndry
+!
+                DPH=solver_int_state%DPHD*D2R                              !<-- Nest's angular grid increment in J (radians)
+                DLM=solver_int_state%DLMD*D2R                              !<-- Nest's angular grid increment in I (radians)
+!
+                TLATX=TLATX+J_SHIFT_CHILD*DPH                              !<-- Transformed lat (radians) of nest's post-move SW corner
+                TLONX=TLONX+I_SHIFT_CHILD*DLM                              !<-- Transformed lon (radians) of nest's post-move SW corner
+!
+                I_INC=NINT((TLONX-WB_1)/DLM)                               !<-- Nest grid increments (integer) between west/south
+                J_INC=NINT((TLATX-SB_1)/DPH)                               !    boundaries of the nest and domain #1.
+!
+                SW_X(1)=(SB_1+J_INC*DPH)/D2R                               !<-- Transformed lat (degrees) of nest domain's S bndry
+                SW_X(2)=(WB_1+I_INC*DLM)/D2R                               !<-- Transformed lon (degrees) of nest domain's S bndry
+!
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Local task 0 shares the transformed lat/lon of the nest domain's
+!***  south and west boundaries with all other fcst tasks.
+!-----------------------------------------------------------------------
+!
+              CALL MPI_BCAST(SW_X                                       &
+                            ,2                                          &
+                            ,MPI_REAL                                   &
+                            ,0                                          &
+                            ,MPI_COMM_COMP                              &
+                            ,IERR )
+!
+              solver_int_state%SBD=SW_X(1)
+              solver_int_state%WBD=SW_X(2)
+!
+!
+!-----------------------------------------------------------------------
+!***  Update quantities that are directly related to the nest's grid.
+!-----------------------------------------------------------------------
+!
+              CALL GRID_CONSTS(solver_int_state%GLOBAL                           &
+                              ,solver_int_state%SMAG2                            &
+                              ,solver_int_state%CODAMP,solver_int_state%WCOR     &
+                              ,solver_int_state%TPH0D,solver_int_state%TLM0D     &
+                              ,solver_int_state%SBD,solver_int_state%WBD         &
+                              ,solver_int_state%DPHD,solver_int_state%DLMD       &
+                              ,solver_int_state%DXH,solver_int_state%RDXH        &
+                              ,solver_int_state%DXV,solver_int_state%RDXV        &
+                              ,solver_int_state%DYH,solver_int_state%RDYH        &
+                              ,solver_int_state%DYV,solver_int_state%RDYV        &
+                              ,solver_int_state%DDV,solver_int_state%RDDV        &
+                              ,solver_int_state%DDMPU,solver_int_state%DDMPV     &
+                              ,solver_int_state%WPDAR                            &
+                              ,solver_int_state%FCP,solver_int_state%FDIV        &
+                              ,solver_int_state%CURV,solver_int_state%F          &
+                              ,solver_int_state%FAD,solver_int_state%FAH         &
+                              ,solver_int_state%DARE,solver_int_state%RARE       &
+                              ,solver_int_state%GLAT,solver_int_state%GLON       &
+                              ,solver_int_state%GLAT_SW,solver_int_state%GLON_SW &
+                              ,solver_int_state%VLAT,solver_int_state%VLON       &
+                              ,solver_int_state%HDACX,solver_int_state%HDACY     &
+                              ,solver_int_state%HDACVX,solver_int_state%HDACVY   &
+                              ,solver_int_state%E_BDY,solver_int_state%N_BDY     &
+                              ,solver_int_state%S_BDY,solver_int_state%W_BDY     &
+                              ,solver_int_state%ITS,solver_int_state%ITE         &
+                              ,solver_int_state%JTS,solver_int_state%JTE         &
+                              ,solver_int_state%IMS,solver_int_state%IME         &
+                              ,solver_int_state%JMS,solver_int_state%JME )
+!
+!-----------------------------------------------------------------------
+!
               LAST_STEP_MOVED=NTIMESTEP                                    !<-- Keep track of the most recent move timestep
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2969,7 +3351,16 @@
                                               ,MOVE_BUNDLE_V            &  !<-- The Bundle of pointers to update V variables
                                               ,NUM_FIELDS_MOVE_2D_V     &  !<-- Total # of 2-D V Fields in the Bundle
                                               ,NUM_FIELDS_MOVE_3D_V     &  !<-- Total # of 3-D V Fields in the Bundle
-                                      ,domain_int_state%EXP_STATE_SOLVER ) !<-- The Solver export state
+                                              ,solver_int_state%GLAT    &  !<-- This domain's geographic latitude (radians)
+                                              ,solver_int_state%GLON    &  !<-- This domain's geographic longitude (radians)
+                                              ,solver_int_state%ITS     &  !<-- Starting integration index in I
+                                              ,solver_int_state%ITE     &  !<-- Ending integration index in I
+                                              ,solver_int_state%JTS     &  !<-- Starting integration index in J
+                                              ,solver_int_state%JTE     &  !<-- Ending integration index in J
+                                              ,solver_int_state%IMS     &  !<-- Starting memory index in I
+                                              ,solver_int_state%IME     &  !<-- Ending memory index in I
+                                              ,solver_int_state%JMS     &  !<-- Starting memory index in J
+                                              ,solver_int_state%JME )      !<-- Ending memory index in J
 !
       timers(my_domain_id)%update_interior_from_parent_tim=             &
            timers(my_domain_id)%update_interior_from_parent_tim+(timef()-btim)
@@ -3005,6 +3396,45 @@
 !-----------------------------------------------------------------------
 !
         ENDIF nests
+!
+!-----------------------------------------------------------------------
+!***  Parents update the next timesteps their children move for the
+!***  Solver internal state in case it is needed for restart output.
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+!xxx    IF(domain_int_state%I_AM_A_PARENT==ESMF_True.AND.RESTARTED_RUN)THEN      
+        IF(domain_int_state%I_AM_A_PARENT==ESMF_True)THEN      
+#else
+!xxx    IF(domain_int_state%I_AM_A_PARENT.AND.RESTARTED_RUN)THEN      
+        IF(domain_int_state%I_AM_A_PARENT)THEN      
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="DOMAIN_RUN: Get NTIMESTEP_CHILD_MOVES from Import State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+          CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Domain component's import state
+                                ,name     ='NEXT_TIMESTEP_CHILD_MOVES'    &  !<-- Extract Attribute with this name
+                                ,count    =NUM_DOMAINS_MAX                &  !<-- How many items?
+                                ,valueList=NTIMESTEP_CHILD_MOVES          &  !<-- When do the children move again?
+                                ,rc       =RC )
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Domain component's import state
+                                ,name     ='NEXT_TIMESTEP_CHILD_MOVES'    &  !<-- Extract Attribute with this name
+                                ,valueList=NTIMESTEP_CHILD_MOVES          &  !<-- When do the children move again?
+                                ,rc       =RC )
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          solver_int_state%NTSCM=NTIMESTEP_CHILD_MOVES                       !<-- Save in the Solver internal state
+!
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Insert additional specifications into the Solver import state
@@ -4171,8 +4601,8 @@
 !
       TYPE(ESMF_GridComp) :: DOMAIN_GRID_COMP                              !<-- The Domain gridded component
 !
-      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The Domain Run step's import state
-                         ,EXP_STATE                                        !<-- The Domain Run step's export state
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The Domain component's import state
+                         ,EXP_STATE                                        !<-- The Domain component's export state
 !
       TYPE(ESMF_Clock) :: CLOCK_DOMAIN                                     !<-- The Domain ESMF Clock
 !
@@ -4185,6 +4615,8 @@
 !***  Local Variables
 !---------------------
 !
+      INTEGER(kind=KINT) :: LENGTH,N,NB,RC
+!
       TYPE(DOMAIN_INTERNAL_STATE),POINTER :: DOMAIN_INT_STATE              !<-- The Domain internal state pointer
 !
       TYPE(WRAP_DOMAIN_INTERNAL_STATE) :: WRAP                             !<-- The F90 wrap of the Domain internal state
@@ -4193,7 +4625,15 @@
 !
       LOGICAL(kind=KINT) :: LAST_TIME                                      !<-- Test time logical
 !
-      INTEGER(kind=KINT) :: RC                                             !<-- Error signal variable.
+#ifdef ESMF_3
+      TYPE(ESMF_Logical) :: I_AM_A_FCST_TASK
+#else
+      LOGICAL(kind=KLOG) :: I_AM_A_FCST_TASK
+#endif
+!
+      TYPE(SOLVER_INTERNAL_STATE),POINTER :: SOLVER_INT_STATE
+!
+      TYPE(WRAP_SOLVER_INT_STATE) :: WRAP_SOLVER
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -4226,8 +4666,30 @@
       DOMAIN_INT_STATE=>wrap%DOMAIN_INT_STATE
 !
 !-----------------------------------------------------------------------
+!***  Is this a forecast task?
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Get Fcst-or-Write Task Flag from the Domain Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=EXP_STATE                            &  !<-- The Domain component export state
+                            ,name ='Fcst-or-Write Flag'                 &  !<-- Use this name inside the state
+                            ,value=I_AM_A_FCST_TASK                     &  !<-- The logical being inserted into the import state
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN2)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Attributes are not automatically updated in the output Bundles
+!***  as Fields are.  If this is either a history or a restart
+!***  output time then update the Attributes in the Bundles.
+!-----------------------------------------------------------------------
 !***  Check to see if the history alarm is ringing and if so then
-!***  call the Write subroutine WRITE_ASYNC.
+!***  prepare to call the Write subroutine WRITE_ASYNC.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
@@ -4235,16 +4697,269 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
-      IF(ESMF_AlarmIsRinging(alarm=domain_int_state%ALARM_HISTORY       &  !<-- The history output alarm
+      alarms: IF(ESMF_AlarmIsRinging(alarm=domain_int_state%ALARM_HISTORY  &  !<-- The history output alarm
+                                    ,rc   =RC)                             &
+                                .OR.                                       &
+                 ESMF_AlarmIsRinging(alarm=domain_int_state%ALARM_RESTART  &  !<-- The restart output alarm
+                                    ,rc   =RC))THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN2)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+!
+!-----------------------------------------------------------------------
+!***  Extract the Solver internal state in order to access 
+!***  output-related variables within it.
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+        fcst_tasks: IF(I_AM_A_FCST_TASK==ESMF_True)THEN
+#else
+        fcst_tasks: IF(I_AM_A_FCST_TASK)THEN
+#endif
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="CALL_WRITE_ASYNC: Extract Solver Internal State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_GridCompGetInternalState(domain_int_state%SOLVER_GRID_COMP &  !<-- The Solver component
+                                            ,WRAP_SOLVER                       &
+                                            ,RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN2)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          SOLVER_INT_STATE=>wrap_solver%INT_STATE
+!
+!-----------------------------------------------------------------------
+!***  Refresh the values of the ESMF Attributes in the history/restart
+!***  Bundles because Attributes are not updated automatically as Fields
+!***  are.
+!-----------------------------------------------------------------------
+!
+          all_vars: DO N=1,solver_int_state%NUM_VARS                       !<-- Loop through all output variables.
+!
+!---------------------
+!***  Integer scalars
+!---------------------
+!
+            IF (solver_int_state%VARS(N)%TKR == TKR_I0D) THEN              !<-- Select integer scalars
+!
+              IF (solver_int_state%VARS(N)%HISTORY) THEN                   !<-- Is integer scalar specified for history output?
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="CALL_WRITE_ASYNC: Update Integer Scalar in History Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+                CALL ESMF_AttributeSet(FIELDBUNDLE=solver_int_state%BUNDLE_ARRAY(1)   &  !<-- The output Bundle
+                                      ,name       =solver_int_state%VARS(N)%VBL_NAME  &  !<-- Name of the integer scalar
+                                      ,value      =solver_int_state%VARS(N)%I0D       &  !<-- The scalar inserted into the Bundle
+                                      ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN2)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              ENDIF
+!
+              IF(solver_int_state%VARS(N)%RESTART)THEN                     !<-- Is integer scalar specified for restart output
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="CALL_WRITE_ASYNC: Update Integer Attribute in Restart Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+                CALL ESMF_AttributeSet(FIELDBUNDLE=solver_int_state%BUNDLE_ARRAY(2)  &  !<-- The restart Bundle
+                                      ,name       =solver_int_state%VARS(N)%VBL_NAME &  !<-- Name of the integer scalar
+                                      ,value      =solver_int_state%VARS(N)%I0D      &  !<-- The scalar being inserted into the import state
+                                      ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+                CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN2)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              ENDIF
+!
+            ENDIF
+!
+!------------------------
+!***  1-D integer arrays
+!------------------------
+!
+            IF (solver_int_state%VARS(N)%TKR == TKR_I1D) THEN              !<-- Select 1-D integer arrays
+!
+              LENGTH=SIZE(solver_int_state%VARS(N)%I1D)
+!
+              IF (solver_int_state%VARS(N)%HISTORY) THEN                   !<-- Is the array specified for history output?
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="CALL_WRITE_ASYNC: Update 1-D Integer Array in History Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+                CALL ESMF_AttributeSet(FIELDBUNDLE=solver_int_state%BUNDLE_ARRAY(1)  &  !<-- The history Bundle
+                                      ,name       =solver_int_state%VARS(N)%VBL_NAME &  !<-- Name of the 1-D integer array
+                                      ,itemCount  =LENGTH                            &  !<-- # of elements in this attribute
+                                      ,valueList  =solver_int_state%VARS(N)%I1D      &  !<-- The array being inserted into the import state
+                                      ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+                CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN2)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              ENDIF
+!
+              IF(solver_int_state%VARS(N)%RESTART)THEN                     !<-- Is 1-D integer array specified for restart output?
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="CALL_WRITE_ASYNC: Update 1-D Integer Array in Restart Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+                CALL ESMF_AttributeSet(FIELDBUNDLE=solver_int_state%BUNDLE_ARRAY(2)  &  !<-- The restart Bundle
+                                      ,name       =solver_int_state%VARS(N)%VBL_NAME &  !<-- Name of the integer scalar
+                                      ,itemCount  =LENGTH                            &  !<-- # of elements in this attribute
+                                      ,valueList  =solver_int_state%VARS(N)%I1D      &  !<-- The array being inserted into the import state
+                                      ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+                CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN2)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              ENDIF
+!
+            ENDIF
+!
+!------------------
+!***  Real scalars
+!------------------
+!
+            IF(solver_int_state%VARS(N)%TKR == TKR_R0D)THEN                !<-- Select real scalars
+!
+              IF(solver_int_state%VARS(N)%HISTORY)THEN                     !<-- Is real scalar specified for history output?
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="CALL_WRITE_ASYNC: Update Real Scalar in History Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+                CALL ESMF_AttributeSet(FIELDBUNDLE=solver_int_state%BUNDLE_ARRAY(1)  &  !<-- The history Bundle
+                                      ,name       =solver_int_state%VARS(N)%VBL_NAME &  !<-- Name of the real scalar
+                                      ,value      =solver_int_state%VARS(N)%R0D      &  !<-- The scalar being inserted into the import state
+                                      ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+                CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN2)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              ENDIF
+!
+              IF(solver_int_state%VARS(N)%RESTART)THEN                     !<-- Is real scalar specified for restart output
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="CALL_WRITE_ASYNC: Update Real Scalar in Restart Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+                CALL ESMF_AttributeSet(FIELDBUNDLE=solver_int_state%BUNDLE_ARRAY(2)  &  !<-- The restart Bundle
+                                      ,name       =solver_int_state%VARS(N)%VBL_NAME &  !<-- Name of the real scalar
+                                      ,value      =solver_int_state%VARS(N)%R0D      &  !<-- The scalar being inserted into the import state
+                                      ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+                CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN2)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              ENDIF
+!
+            ENDIF
+!
+!---------------------
+!***  1-D real arrays
+!---------------------
+!
+            IF(solver_int_state%VARS(N)%TKR == TKR_R1D)THEN                !<-- Select 1-D real arrays
+!
+              LENGTH=SIZE(solver_int_state%VARS(N)%R1D)
+!
+              IF(solver_int_state%VARS(N)%HISTORY)THEN                     !<-- Is the array specified for history output?
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="CALL_WRITE_ASYNC: Update 1-D Real Array in History Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+                CALL ESMF_AttributeSet(FIELDBUNDLE=solver_int_state%BUNDLE_ARRAY(1)  &  !<-- The history Bundle
+                                      ,name       =solver_int_state%VARS(N)%VBL_NAME &  !<-- Name of the 1-D real array
+                                      ,itemCount  =LENGTH                            &  !<-- # of elements in this attribute
+                                      ,valueList  =solver_int_state%VARS(N)%R1D      &  !<-- The array being inserted into the import state
+                                      ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+                CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN2)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              ENDIF
+!
+              IF(solver_int_state%VARS(N)%RESTART)THEN                     !<-- Is the array specified for restart output?
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="CALL_WRITE_ASYNC: Update 1-D Real Array in Restart Bundle"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+                CALL ESMF_AttributeSet(FIELDBUNDLE=solver_int_state%BUNDLE_ARRAY(2)  &  !<-- The restart Bundle
+                                      ,name       =solver_int_state%VARS(N)%VBL_NAME &  !<-- Name of the 1-D real array
+                                      ,itemCount  =LENGTH                            &  !<-- # of elements in this attribute
+                                      ,valueList  =solver_int_state%VARS(N)%R1D      &  !<-- The array being inserted into the import state
+                                      ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+                CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN2)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              ENDIF
+!
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!
+          ENDDO all_vars
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF fcst_tasks
+!
+!-----------------------------------------------------------------------
+!
+      ELSE
+!
+        RETURN                                                             !<-- No output alarm is ringing
+!
+      ENDIF alarms
+!
+!-----------------------------------------------------------------------
+!***  Check to see if the history alarm is ringing and if so then
+!***  call the Write subroutine WRITE_ASYNC to execute the writing
+!***  of a history file.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+      MESSAGE_CHECK="CALL_WRITE_ASYNC: Is ALARM_HISTORY ringing?"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
+!
+      IF(ESMF_AlarmIsRinging(alarm=domain_int_state%ALARM_HISTORY  &  !<-- The history output alarm
                             ,rc   =RC))THEN
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN2)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN2)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-!
-!-----------------------------------------------------------------------
-!***  Execute the writing of a history file.
-!-----------------------------------------------------------------------
 !
 !     call print_memory()
         IF(domain_int_state%QUILTING)THEN
@@ -4257,7 +4972,9 @@
         ENDIF
 !     call print_memory()
 !
-      ENDIF 
+!-----------------------------------------------------------------------
+!
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Write a restart file at the end of the appropriate timesteps.
@@ -5429,7 +6146,8 @@
 !-----------------------------------------------------------------------
 !***  After the nest has moved update all nest gridpoints in the
 !***  domain's interior whose new locations still lie within the
-!***  same MPI task subdomain (same memory) as before the move.
+!***  same MPI task subdomain (same processor memory) as before 
+!***  the move.
 !-----------------------------------------------------------------------
 !
 !------------------------
@@ -5535,7 +6253,6 @@
                   .OR.                                                  &  !    the same child task following a move.
          ABS(J_SHIFT_CHILD)>J_DIFF_MAX)THEN                                !<--
 !
-!     write(0,*)' no points to shift in SHIFT_INTRA_TASK_DATA so returning'
         RETURN                                                             !<-- Therefore exit.
 !
       ENDIF
@@ -6182,7 +6899,7 @@
               CALL ESMF_FieldGet(field    =HOLD_FIELD                   &  !<-- Field N_FIELD in the Bundle
                                  ,dimCount=NUM_DIMS                     &  !<-- Is this Field 2-D or 3-D?
                                  ,typeKind=DATATYPE                     &  !<-- Does the Field contain an integer or real array?
-                                 ,name      =FIELD_NAME                 &  !<-- This Field's name
+                                 ,name    =FIELD_NAME                   &  !<-- This Field's name
                                  ,rc      =RC )
 !
               N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
@@ -6304,27 +7021,27 @@
 !***  Send all the real data.
 !-----------------------------------------------------------------------
 !
-            CALL MPI_ISEND(SHIFT_DATA(N)%DATA_REAL                      &  !<-- All inter-task shift Real data for task N
-                          ,KOUNT_REAL                                   &  !<-- # of words in the Real data
-                          ,MPI_REAL                                     &  !<-- The words are real
-                          ,ID_RECV(N)                                   &  !<-- The nest task to which the sender is sending
-                          ,KOUNT_REAL                                   &  !<-- Use the word count as the tag
-                          ,MPI_COMM_COMP                                &  !<-- The MPI communicator for each domain
-                          ,HANDLE_SEND_INTER(N)                         &  !<-- Handle for this ISend
-                          ,IERR )
+            CALL MPI_ISSEND(SHIFT_DATA(N)%DATA_REAL                     &  !<-- All inter-task shift Real data for task N
+                           ,KOUNT_REAL                                  &  !<-- # of words in the Real data
+                           ,MPI_REAL                                    &  !<-- The words are real
+                           ,ID_RECV(N)                                  &  !<-- The nest task to which the sender is sending
+                           ,KOUNT_REAL                                  &  !<-- Use the word count as the tag
+                           ,MPI_COMM_COMP                               &  !<-- The MPI communicator for each domain
+                           ,HANDLE_SEND_INTER(N)                        &  !<-- Handle for this ISend
+                           ,IERR )
 !
 !-----------------------------------------------------------------------
 !***  Send all the integer data.
 !-----------------------------------------------------------------------
 !
-            CALL MPI_ISEND(SHIFT_DATA(N)%DATA_INTEGER                   &  !<-- All inter-task shift Integer data for task N
-                          ,KOUNT_INTEGER                                &  !<-- # of words in the Integer data
-                          ,MPI_INTEGER                                  &  !<-- The words are integer
-                          ,ID_RECV(N)                                   &  !<-- The nest task to which the sender is sending
-                          ,KOUNT_INTEGER                                &  !<-- Use the word count as the tag
-                          ,MPI_COMM_COMP                                &  !<-- The MPI communicator for each domain
-                          ,HANDLE_SEND_INTER(N)                         &  !<-- Handle for this ISend
-                          ,IERR )
+            CALL MPI_ISSEND(SHIFT_DATA(N)%DATA_INTEGER                  &  !<-- All inter-task shift Integer data for task N
+                           ,KOUNT_INTEGER                               &  !<-- # of words in the Integer data
+                           ,MPI_INTEGER                                 &  !<-- The words are integer
+                           ,ID_RECV(N)                                  &  !<-- The nest task to which the sender is sending
+                           ,KOUNT_INTEGER                               &  !<-- Use the word count as the tag
+                           ,MPI_COMM_COMP                               &  !<-- The MPI communicator for each domain
+                           ,HANDLE_SEND_INTER(N)                        &  !<-- Handle for this ISend
+                           ,IERR )
 !
 !-----------------------------------------------------------------------
 !
@@ -6829,7 +7546,10 @@
                                             ,MOVE_BUNDLE_V              &
                                             ,NUM_FIELDS_2D_V            &
                                             ,NUM_FIELDS_3D_V            &
-                                            ,EXP_STATE_SOLVER )
+                                            ,GLAT_H                     &
+                                            ,GLON_H                     &
+                                            ,ITS,ITE,JTS,JTE            &
+                                            ,IMS,IME,JMS,JME )
 !
 !-----------------------------------------------------------------------
 !***  After the nest has moved update all nest gridpoints in that
@@ -6841,14 +7561,19 @@
 !***  Argument Variables
 !------------------------
 !
+      INTEGER(kind=KINT),INTENT(IN) :: ITS,ITE,JTS,JTE                  &  !<-- Integration limits 
+                                      ,IMS,IME,JMS,JME                     !<-- Memory limits 
+!
       INTEGER(kind=KINT),INTENT(IN) :: NUM_FIELDS_2D_H_I                &  !<-- # of 2-D integer H variables to update
                                       ,NUM_FIELDS_2D_H_R                &  !<-- # of 2-D real H variables to update
                                       ,NUM_FIELDS_3D_H                  &  !<-- # of 3-D H variables to update
                                       ,NUM_FIELDS_2D_V                  &  !<-- # of 2-D V variables to update
                                       ,NUM_FIELDS_3D_V                     !<-- # of 3-D V variables to update
 !
-      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                       &  !<-- The Domain import state
-                                       ,EXP_STATE_SOLVER                   !<-- The Solver export state
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: GLAT_H   &  !<-- This domain's geographic latitude (radians) on H pts
+                                                              ,GLON_H      !<-- This domain's geographic longitude (radians) on H pts
+!
+      TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                          !<-- The Domain import state
 !
       TYPE(ESMF_FieldBundle),INTENT(INOUT) :: MOVE_BUNDLE_H             &  !<-- Bundle of internal state H arrays needing updates
                                              ,MOVE_BUNDLE_V                !<-- Bundle of internal state V arrays needing updates
@@ -6892,15 +7617,6 @@
                                                  ,UPDATE_REAL_DATA
 !
       REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ARRAY_2D=>NULL()        &
-                                               ,F=>NULL()               &
-                                               ,GLAT_H=>NULL()          &
-                                               ,GLON_H=>NULL()          &
-                                               ,GLAT_V=>NULL()          &
-                                               ,GLON_V=>NULL()          &
-                                               ,HDACX=>NULL()           &
-                                               ,HDACY=>NULL()           &
-                                               ,HDACVX=>NULL()          &
-                                               ,HDACVY=>NULL()          &
 !
                                                ,ALBASE=>NULL()          &
                                                ,SEA_MASK=>NULL()        &
@@ -6936,7 +7652,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="How Many Parent Tasks Sent Interior Updates?"
-
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The Domain import state
@@ -7108,75 +7824,6 @@
           ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Before we loop through all of the fields specified for updating
-!***  following this nest's move we must update the latitude and
-!***  longitude.  For all variables that are read from external files
-!***  whose data span the uppermost parent domain the updates of
-!***  lat/lon are needed in order for the correct points to be lifted 
-!***  from the external files.
-!
-!***  Extract the pre-move lat/lon from the Move Bundle then update
-!***  the values within the region of this nest's subdomain that has
-!***  moved beyond the pre-move footprint.  The routine that computes
-!***  the lat/lon also computes the HDAC variables which are directly
-!***  related to the latitude and longitude.
-!-----------------------------------------------------------------------
-!
-          CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
-                                  ,FIELDNAME  ='GLAT'//BUNDLE_X         &  !<-- Name of the latitude Field
-                                  ,field      =HOLD_FIELD               &  !<-- Field holding GLAT
-                                  ,rc         =RC )
-!
-          CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field containing GLAT
-                            ,localDe  =0                                &
-                            ,farrayPtr=GLAT_H                           &  !<-- Dummy 2-D array with Field's data
-                            ,rc       =RC )
-!
-          CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
-                                  ,FIELDNAME  ='GLON'//BUNDLE_X         &  !<-- Name of the longitude Field
-                                  ,field      =HOLD_FIELD               &  !<-- Field holding GLON
-                                  ,rc         =RC )
-!
-          CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field containing GLON
-                            ,localDe  =0                                &
-                            ,farrayPtr=GLON_H                           &  !<-- Dummy 2-D array with Field's data
-                            ,rc       =RC )
-!
-          CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
-                                  ,FIELDNAME  ='HDACX'//BUNDLE_X        &  !<-- Name of the HDACX Field
-                                  ,field      =HOLD_FIELD               &  !<-- Field holding HDACX
-                                  ,rc         =RC )
-!
-          CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field containing HDACX
-                            ,localDe  =0                                &
-                            ,farrayPtr=HDACX                            &  !<-- Dummy 2-D array with HDACX data
-                            ,rc       =RC )
-!
-          CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H            &  !<-- Bundle holding the H arrays for move updates
-                                  ,FIELDNAME  ='HDACY'//BUNDLE_X        &  !<-- Name of the HDACY Field
-                                  ,field      =HOLD_FIELD               &  !<-- Field holding HDACY
-                                  ,rc         =RC )
-!
-          CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field containing HDACY
-                            ,localDe  =0                                &
-                            ,farrayPtr=HDACY                            &  !<-- Dummy 2-D array with HDACY data
-                            ,rc       =RC )
-!
-          LBND=LBOUND(GLON_H)
-          UBND=UBOUND(GLON_H)
-! 
-          CALL UPDATE_LATLON(IMP_STATE                                  &  !<-- Lat/lon is now recomputed directly
-                            ,EXP_STATE_SOLVER                           &  !    in the parent update region.
-                            ,LBND(1),UBND(1)                            &  !    The HDAC variables are also
-                            ,LBND(2),UBND(2)                            &  !    computed.
-                            ,I_START,I_END                              &  !
-                            ,J_START,J_END                              &  !
-                            ,GLAT_H                                     &  !
-                            ,GLON_H                                     &  !
-                            ,HDACX                                      &  !
-                            ,HDACY  )                                      !<--
-!
-!-----------------------------------------------------------------------
 !***  Now proceed with the updating of all H-pt variables with data
 !***  sent from the parent.  All Fields in the Move Bundles have names
 !***  containing the suffix '-move' to distinguish them from the same
@@ -7320,7 +7967,7 @@
                                  ,SB_1,WB_1                             &  !<-- Rotated lat/lon of upper parent's S/W bndry (radians, N/E)
                                  ,RECIP_DPH_1,RECIP_DLM_1               &  !<-- Reciprocal of I/J grid increments (radians) on upper parent
                                  ,REAL_I                                &  !<-- Corresponding I index on uppermost parent grid
-                                 ,REAL_J)
+                                 ,REAL_J)                                  !<-- Corresponding J index on uppermost parent grid
 !
                 I_OFFSET=NINT((REAL_I-1.)*SFC_FILE_RATIO)                  !<-- Offset in I between sfc file index and nest index
                 J_OFFSET=NINT((REAL_J-1.)*SFC_FILE_RATIO)                  !<-- Offset in J between sfc file index and nest index
@@ -7474,61 +8121,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
                   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Geographic latitude and longitude are not sent from the parent.
-!***  Instead they needed to be computed directly prior to the start
-!***  of the updating of these regions where the nest has moved
-!***  beyond the footprint of its pre-move location so that external
-!***  files could be read properly for updates of certain surface
-!***  fields.  See above just prior to fields_h.
-!***  Now just fill in the lat/lon values with those already generated.
-!***  Note however that we still must increment the counter of data
-!***  elements.  That is because lat/lon are not specified as 'F'
-!***  update variables (updated from reading an external file) and only
-!***  the 'F' variables are automatically excluded from the word count
-!***  in the update object sent from the parent.
-!-----------------------------------------------------------------------
-!
-                  IF(FIELD_NAME=='GLAT')THEN   
-                    DO J=J_START,J_END 
-                    DO I=I_START,I_END
-                      ARRAY_2D(I,J)=GLAT_H(I,J)                   
-                    ENDDO
-                    ENDDO
-                    KOUNT_REAL=KOUNT_REAL+(I_END-I_START+1)*(J_END-J_START+1)
-                    CYCLE fields_h
-                  ENDIF
-!
-                  IF(FIELD_NAME=='GLON')THEN
-                    DO J=J_START,J_END 
-                    DO I=I_START,I_END
-                      ARRAY_2D(I,J)=GLON_H(I,J)                   
-                    ENDDO
-                    ENDDO
-                    KOUNT_REAL=KOUNT_REAL+(I_END-I_START+1)*(J_END-J_START+1)
-                    CYCLE fields_h
-                  ENDIF
-!
-                  IF(FIELD_NAME=='HDACX')THEN
-                    DO J=J_START,J_END 
-                    DO I=I_START,I_END
-                      ARRAY_2D(I,J)=HDACX(I,J)                   
-                    ENDDO
-                    ENDDO
-                    KOUNT_REAL=KOUNT_REAL+(I_END-I_START+1)*(J_END-J_START+1)
-                    CYCLE fields_h
-                  ENDIF
-!
-                  IF(FIELD_NAME=='HDACY')THEN
-                    DO J=J_START,J_END 
-                    DO I=I_START,I_END
-                      ARRAY_2D(I,J)=HDACY(I,J)                   
-                    ENDDO
-                    ENDDO
-                    KOUNT_REAL=KOUNT_REAL+(I_END-I_START+1)*(J_END-J_START+1)
-                    CYCLE fields_h
-                  ENDIF
 !
 !-----------------------------------------------------------------------
 !***  This nest task incorporates the standard 2-D Real update
@@ -7719,55 +8311,8 @@
                                 ,rc       =RC )
 !
 !-----------------------------------------------------------------------
-!***  As it did with H points, the nest task computes the geographic
-!***  lat/lon at V points that have moved outside of the pre-move 
-!***  footprint.  The HDAC variables which are directly related to
-!***  the lat/lon are also computed.
+!***  Update this 2-D array with values from the parent.
 !-----------------------------------------------------------------------
-!
-              IF(FIELD_NAME=='F')THEN
-                F=>ARRAY_2D
-                KOUNT_REAL=KOUNT_REAL+(I_END-I_START+1)*(J_END-J_START+1)
-                CYCLE fields_v                                             !<-- Lat/lon will be recomputed directly
-              ENDIF
-!
-              IF(FIELD_NAME=='HDACVX')THEN
-                HDACVX=>ARRAY_2D
-                KOUNT_REAL=KOUNT_REAL+(I_END-I_START+1)*(J_END-J_START+1)
-                CYCLE fields_v                                             !<-- Lat/lon will be recomputed directly
-              ENDIF
-!
-              IF(FIELD_NAME=='HDACVY')THEN
-                HDACVY=>ARRAY_2D
-                KOUNT_REAL=KOUNT_REAL+(I_END-I_START+1)*(J_END-J_START+1)
-                CYCLE fields_v                                             !<-- Lat/lon will be recomputed directly
-              ENDIF
-!
-              IF(FIELD_NAME=='VLAT')THEN
-                GLAT_V=>ARRAY_2D
-                KOUNT_REAL=KOUNT_REAL+(I_END-I_START+1)*(J_END-J_START+1)
-                CYCLE fields_v                                             !<-- Lat/lon will be recomputed directly
-              ENDIF
-!
-              IF(FIELD_NAME=='VLON')THEN
-                GLON_V=>ARRAY_2D
-                LBND=LBOUND(GLON_V)
-                UBND=UBOUND(GLON_V)
-!
-                CALL UPDATE_LATLON(IMP_STATE                            &  !<-- Lat/lon is now recomputed directly
-                                  ,EXP_STATE_SOLVER                        &  !    in the parent update region.
-                                  ,LBND(1),UBND(1)                      &  !    The HDAC variables are also 
-                                  ,LBND(2),UBND(2)                      &  !    computed.
-                                  ,I_START,I_END                        &
-                                  ,J_START,J_END                        &
-                                  ,GLAT_V                               &
-                                  ,GLON_V                               &
-                                  ,HDACVX                               &
-                                  ,HDACVY                               &
-                                  ,f=F )
-                KOUNT_REAL=KOUNT_REAL+(I_END-I_START+1)*(J_END-J_START+1)
-                CYCLE fields_v
-              ENDIF
 !
               DO J=J_START,J_END 
               DO I=I_START,I_END

@@ -23,6 +23,7 @@
       USE ESMF_Mod
 !
       USE module_INCLUDE
+      USE module_CONTROL, ONLY: NUM_DOMAINS_MAX
 
       USE module_LS_NOAHLSM, ONLY: NUM_SOIL_LAYERS
       USE module_MICROPHYSICS_NMM, ONLY: MICRO_RESTART
@@ -332,9 +333,13 @@
 !***  Nesting
 !-----------------------------------------------------------------------
 !
-        INTEGER(kind=KINT), POINTER :: I_PAR_STA                        &  !<-- SW corner of nest domain on this parent I
-                                      ,J_PAR_STA                           !<-- SW corner of nest domain on this parent J
+        INTEGER(kind=KINT),POINTER :: I_PAR_STA                         &  !<-- SW corner of nest domain on this parent I
+                                     ,J_PAR_STA                         &  !<-- SW corner of nest domain on this parent J
+                                     ,NMTS                                 !<-- Next Move TimeStep for a nest
+!
         INTEGER(kind=KINT) :: PARENT_CHILD_TIME_RATIO                      !<-- # of child timesteps per parent timestep
+!
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: NTSCM                   !<-- Next TimeStep a Child nest Moves
 !
 #ifdef ESMF_3
         TYPE(ESMF_Logical) :: I_AM_A_NEST                                  !<-- Am I in a nested domain?
@@ -707,21 +712,25 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'I_PAR_STA' ,int_state%I_PAR_STA )
       CALL SET_VAR_PTR(int_state%VARS,NV,'J_PAR_STA' ,int_state%J_PAR_STA )
       CALL SET_VAR_PTR(int_state%VARS,NV,'LPT2'      ,int_state%LPT2      )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'NMTS'      ,int_state%NMTS      )
+
       CALL SET_VAR_PTR(int_state%VARS,NV,'MDRMINout' ,int_state%MDRMINout )
       CALL SET_VAR_PTR(int_state%VARS,NV,'MDRMAXout' ,int_state%MDRMAXout )
       CALL SET_VAR_PTR(int_state%VARS,NV,'MDIMINout' ,int_state%MDIMINout )
       CALL SET_VAR_PTR(int_state%VARS,NV,'MDIMAXout' ,int_state%MDIMAXout )
-     IF(TRIM(int_state%MICROPHYSICS)=='fer') THEN
-       int_state%MDRMINout=50
-       int_state%MDRMAXout=450
-       int_state%MDIMINout=50
-       int_state%MDIMAXout=1000
-     ELSEIF  (TRIM(int_state%MICROPHYSICS)=='fer_hires')THEN
-       int_state%MDRMINout=50
-       int_state%MDRMAXout=1000
-       int_state%MDIMINout=50
-       int_state%MDIMAXout=1000
-     ENDIF
+
+      IF(TRIM(int_state%MICROPHYSICS)=='fer') THEN
+        int_state%MDRMINout=50
+        int_state%MDRMAXout=450
+        int_state%MDIMINout=50
+        int_state%MDIMAXout=1000
+      ELSEIF  (TRIM(int_state%MICROPHYSICS)=='fer_hires')THEN
+        int_state%MDRMINout=50
+        int_state%MDRMAXout=1000
+        int_state%MDIMINout=50
+        int_state%MDIMAXout=1000
+      ENDIF
+
       CALL SET_VAR_PTR(int_state%VARS,NV,'NSOIL'      ,int_state%NSOIL ) 
       CALL SET_VAR_PTR(int_state%VARS,NV,'NPHS'       ,int_state%NPHS  )  
       CALL SET_VAR_PTR(int_state%VARS,NV,'NCLOD'      ,int_state%NCLOD ) 
@@ -754,6 +763,8 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'SGML1'     ,int_state%SGML1   ,1, LM    )
       CALL SET_VAR_PTR(int_state%VARS,NV,'SGML2'     ,int_state%SGML2   ,1, LM    )
       CALL SET_VAR_PTR(int_state%VARS,NV,'SGM'       ,int_state%SGM     ,1, LM+1  )
+
+      CALL SET_VAR_PTR(int_state%VARS,NV,'NTSCM'     ,int_state%NTSCM   ,1, NUM_DOMAINS_MAX )
 
       CALL SET_VAR_PTR(int_state%VARS,NV,'MASSRout'  ,int_state%MASSRout ,1, int_state%MDRMAXout-int_state%MDRMINout+1 )
       CALL SET_VAR_PTR(int_state%VARS,NV,'MASSIout'  ,int_state%MASSIout ,1, int_state%MDIMAXout-int_state%MDIMINout+1 )

@@ -3,7 +3,7 @@
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use module_include
 
-use module_control,only : im,jm,klog,kint,kfpt 
+use module_control,only : klog,kint,kfpt 
  
 use module_my_domain_specs
 
@@ -4943,12 +4943,12 @@ real(kind=kfpt),allocatable,dimension(:) :: &
                 i_index(1)=its
                 i_index(2)=ite
 !
-                call mpi_isend(i_index,2,mpi_integer,jpe,ipe &              !<-- send my word count to other tasks
-                              ,mpi_comm_comp,ihandle(1),isend)
+                call mpi_issend(i_index,2,mpi_integer,jpe,ipe &             !<-- send my word count to other tasks
+                               ,mpi_comm_comp,ihandle(1),isend)
                 call mpi_wait(ihandle(1),istatw,ierr)
 !
-                call mpi_isend(h_send,nwords_mine,mpi_real,jpe,ipe &        !<-- send my mass points to other tasks
-                              ,mpi_comm_comp,ihandle(3),isend)
+                call mpi_issend(h_send,nwords_mine,mpi_real,jpe,ipe &       !<-- send my mass points to other tasks
+                               ,mpi_comm_comp,ihandle(3),isend)
                 call mpi_wait(ihandle(3),istatw,ierr)
 !
 !------------------------------------------------------------
@@ -5058,12 +5058,12 @@ real(kind=kfpt),allocatable,dimension(:) :: &
                 i_index(1)=its
                 i_index(2)=ite
 !
-                call mpi_isend(i_index,2,mpi_integer,jpe,ipe &              !<-- send my word count to other tasks
-                              ,mpi_comm_comp,ihandle(1),isend)
+                call mpi_issend(i_index,2,mpi_integer,jpe,ipe &             !<-- send my word count to other tasks
+                               ,mpi_comm_comp,ihandle(1),isend)
                 call mpi_wait(ihandle(1),istatw,ierr)
 !
-                call mpi_isend(h_send,nwords_mine,mpi_real,jpe,ipe &        !<-- send my mass points to other tasks
-                              ,mpi_comm_comp,ihandle(3),isend)
+                call mpi_issend(h_send,nwords_mine,mpi_real,jpe,ipe &       !<-- send my mass points to other tasks
+                               ,mpi_comm_comp,ihandle(3),isend)
                 call mpi_wait(ihandle(3),istatw,ierr)
 !
 !------------------------------------------------------
@@ -5358,12 +5358,12 @@ real(kind=kfpt),allocatable,dimension(:) :: &
                 i_index(1)=its
                 i_index(2)=ite
 !
-                call mpi_isend(i_index,2,mpi_integer,jpe,ipe &              !<-- send my word count to other tasks
-                              ,mpi_comm_comp,ihandle(1),isend)
+                call mpi_issend(i_index,2,mpi_integer,jpe,ipe &             !<-- send my word count to other tasks
+                               ,mpi_comm_comp,ihandle(1),isend)
                 call mpi_wait(ihandle(1),istatw,ierr)
 !
-                call mpi_isend(wind_send,nwords_mine,mpi_real,jpe,ipe &     !<-- send my winds to other tasks
-                              ,mpi_comm_comp,ihandle(3),isend)
+                call mpi_issend(wind_send,nwords_mine,mpi_real,jpe,ipe &    !<-- send my winds to other tasks
+                               ,mpi_comm_comp,ihandle(3),isend)
                 call mpi_wait(ihandle(3),istatw,ierr)
 !
 !-----------------------------------------------------
@@ -5477,12 +5477,12 @@ real(kind=kfpt),allocatable,dimension(:) :: &
                 i_index(1)=its
                 i_index(2)=ite
 !
-                call mpi_isend(i_index,2,mpi_integer,jpe,ipe &              !<-- send my word count to other tasks
-                              ,mpi_comm_comp,ihandle(1),isend)
+                call mpi_issend(i_index,2,mpi_integer,jpe,ipe &             !<-- send my word count to other tasks
+                               ,mpi_comm_comp,ihandle(1),isend)
                 call mpi_wait(ihandle(1),istatw,ierr)
 !
-                call mpi_isend(wind_send,nwords_mine,mpi_real,jpe,ipe &     !<-- send my winds to other tasks
-                              ,mpi_comm_comp,ihandle(3),isend)
+                call mpi_issend(wind_send,nwords_mine,mpi_real,jpe,ipe &    !<-- send my winds to other tasks
+                               ,mpi_comm_comp,ihandle(3),isend)
                 call mpi_wait(ihandle(3),istatw,ierr)
 !
 !-----------------------------------------------------

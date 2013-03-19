@@ -637,9 +637,13 @@
 #else
                NEST_MODE=='2-way'.AND.ALLCLEAR_FROM_PARENT)THEN
 #endif
-              CALL BOUNDARY_DATA_STATE_TO_STATE(S_BDY,N_BDY,W_BDY,E_BDY      &  !<-- Is this task on the domain's boundary?
-                                               ,state_in =EXP_STATE_CPL_NEST &  !<-- The Parent-Child coupler export state
-                                               ,state_out=IMP_STATE_DOMAIN)     !<-- The Domain import state
+              CALL BOUNDARY_DATA_STATE_TO_STATE(s_bdy    =S_BDY                          &  !<-- This task lies on a south boundary?
+                                               ,n_bdy    =N_BDY                          &  !<-- This task lies on a north boundary?
+                                               ,w_bdy    =W_BDY                          &  !<-- This task lies on a west boundary?
+                                               ,e_bdy    =E_BDY                          &  !<-- This task lies on an east boundary?
+                                               ,nest     =domain_int_state%I_AM_A_NEST   &  !<-- The nest flag (yes or no)
+                                               ,state_in =EXP_STATE_CPL_NEST             &  !<-- The P-C coupler export state
+                                               ,state_out=IMP_STATE_DOMAIN)                 !<-- The Domain import state
 !
 !-----------------------------------------------------------------------
 !***  If the nest is movable then the DOMAIN component must be 
@@ -894,27 +898,25 @@
 !
         IF(.NOT.INTEGRATED_SOLVER)THEN
           RETURN
+        ENDIF
 !
-        ELSE                                                               !<-- Reset these 2-way flags
-          IF(NEST_MODE=='2-way')THEN
+        IF(NEST_MODE=='2-way')THEN                                         !<-- Reset these 2-way flags
 #ifdef ESMF_3
-            IF(I_AM_A_NEST==ESMF_TRUE.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-              domain_int_state%RECVD_ALL_CHILD_DATA=ESMF_False
+          IF(I_AM_A_NEST==ESMF_TRUE.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
+            domain_int_state%RECVD_ALL_CHILD_DATA=ESMF_False
 #else
-            IF(I_AM_A_NEST.AND.I_AM_A_FCST_TASK)THEN
-              domain_int_state%RECVD_ALL_CHILD_DATA=.FALSE. 
+          IF(I_AM_A_NEST.AND.I_AM_A_FCST_TASK)THEN
+            domain_int_state%RECVD_ALL_CHILD_DATA=.FALSE. 
 #endif
 !
-              IF(MOD(KOUNT_STEPS+1,PAR_CHI_TIME_RATIO)==0)THEN
+            IF(MOD(KOUNT_STEPS+1,PAR_CHI_TIME_RATIO)==0)THEN
 #ifdef ESMF_3
-                domain_int_state%ALLCLEAR_FROM_PARENT=ESMF_False
+              domain_int_state%ALLCLEAR_FROM_PARENT=ESMF_False
 #else
-                domain_int_state%ALLCLEAR_FROM_PARENT=.FALSE.
+              domain_int_state%ALLCLEAR_FROM_PARENT=.FALSE.
 #endif
-              ENDIF
-!  
             ENDIF
-!
+!  
           ENDIF
 !
         ENDIF
@@ -976,6 +978,9 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+          CALL BOUNDARY_DATA_STATE_TO_STATE(parent   =domain_int_state%I_AM_A_PARENT  &  !<-- Is this a parent domain?
+                                           ,state_in =             EXP_STATE_CPL_NEST &  !<-- The P-C coupler export state
+                                           ,state_out=             IMP_STATE_DOMAIN)     !<-- The Domain import state
         ENDIF
 !
         td%pc_cpl_run_cpl3=td%pc_cpl_run_cpl3+(timef()-btim0)
@@ -1717,6 +1722,7 @@
         ENDIF
       ENDIF
 !
+#if 0
 !-------------------------------------------------
 !***  Adjust time of History Alarm if necessary.
 !-------------------------------------------------
@@ -1854,6 +1860,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       ENDIF
+#endif
 !
 !-----------------------------------------------------------------------
 !***  Now create the three Alarms using the final ringtimes.

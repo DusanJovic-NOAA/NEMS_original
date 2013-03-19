@@ -58,7 +58,7 @@
 !
       USE MODULE_GET_CONFIG
 !
-      USE MODULE_CONTROL,ONLY : TIMEF
+      USE MODULE_CONTROL,ONLY : NUM_DOMAINS_MAX,TIMEF
 !
       USE MODULE_CONSTANTS,ONLY : A2,A3,A4,CAPPA,CP,ELIV,ELWV,EPSQ,G &
                                  ,P608,PQ0,R_D,TIW
@@ -334,13 +334,22 @@
       INTEGER(kind=KINT) :: IHALO,JHALO,MPI_COMM_COMP,MY_DOMAIN_ID      &
                            ,MY_DOMAIN_ID_LOC,MYPE,NUM_PES
 !
-      INTEGER(kind=KINT) :: I,IDENOMINATOR_DT,IEND,IERR,INTEGER_DT      &
-                           ,J,JEND,KK,KOUNT,KSE,KSS,L,LL,LMP1           &
+      INTEGER(kind=KINT) :: I,I_INC,IDENOMINATOR_DT                     &
+                           ,IEND,IERR,INTEGER_DT                        &
+                           ,J,J_INC,JEND,KK,KOUNT,KSE,KSS,L,LL,LMP1     &
                            ,N,NUMERATOR_DT,RC
 !
       INTEGER(kind=KINT) :: ITE_H2,ITS_H2,JTE_H2,JTS_H2
 !
       INTEGER(kind=KINT),DIMENSION(1:8) :: MY_NEB
+!
+      REAL(kind=KFPT) :: DPH,DLM,GLATX,GLONX,SB_1,SBD_1,TLATX,TLONX     &
+                        ,TPH0_1,TPH0D_1,TLM0_1,TLM0D_1,WB_1,WBD_1       &
+                        ,X,Y,Z
+!
+      REAL(kind=KFPT),DIMENSION(1:2) :: SW_X
+!
+      REAL(kind=DOUBLE) :: D2R,D_ONE,D_180,PI
 !
       LOGICAL(kind=KLOG) :: RUN_LOCAL
 !
@@ -361,6 +370,10 @@
       TYPE(ESMF_TimeInterval) :: DT_ESMF                                   !<-- The ESMF fundamental timestep (s)
 !
       TYPE(ESMF_Config) :: CF                                              !<-- ESMF configure object
+!
+#ifdef ESMF_3
+      TYPE(ESMF_Logical) :: RESTART_ESMF
+#endif
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -989,6 +1002,7 @@
 !
         int_state%I_PAR_STA=0
         int_state%J_PAR_STA=0
+        int_state%NMTS=-999
 !
         DO L=1,LM
         DO J=JMS,JME
@@ -1185,6 +1199,10 @@
           enddo
         ENDDO
         ENDDO
+        ENDDO
+!
+        DO N=1,NUM_DOMAINS_MAX
+          int_state%NTSCM(N)=-999
         ENDDO
 !
 !-----------------------------------------------------------------------
@@ -1571,6 +1589,143 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!-----------------------------------------------------------------------
+!***  Currently moving nests are not allowed to use gravity wave drag.
+!***  One quantity used in that parameterization is the mountains'
+!***  angle with respect to east.  From the moving nest's perspective
+!***  the mountains are moving and thus that angle would need to be
+!***  updated with each shift of the domain.  That is not handled
+!***  yet in the code.
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+          IF(int_state%MY_DOMAIN_MOVES==ESMF_True)THEN
+#else
+          IF(int_state%MY_DOMAIN_MOVES)THEN
+#endif
+!
+            int_state%GWDFLG=.FALSE.
+!
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!***  If the domain does move and this is a restarted run then the
+!***  SW corner of the domain needs to be recomputed to account for
+!***  motion that occurred since the beginning of the original forecast.
+!***  Anchor the computation to the SW corner of the uppermost parent
+!***  so that answers will be bit-identical for all circumstances.
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+          IF(int_state%MY_DOMAIN_MOVES==ESMF_True.AND.int_state%RESTART)THEN
+#else
+          IF(int_state%MY_DOMAIN_MOVES.AND.int_state%RESTART)THEN
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Solver Init: Extract SW Corner of Domain #1"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeGet(state=IMP_STATE                      &  !<-- The Solver import state
+                                  ,name ='SBD_1'                        &  !<-- Attribute's name
+                                  ,value=SBD_1                          &  !<-- Transformed lat (degrees) of domain #1's south bndry
+                                  ,rc   =RC)
+!
+            CALL ESMF_AttributeGet(state=IMP_STATE                      &  !<-- The Solver import state
+                                  ,name ='WBD_1'                        &  !<-- Attribute's name
+                                  ,value=WBD_1                          &  !<-- Transformed lon (degrees) of domain #1's west bndry
+                                  ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Solver Init: Extract Central Lat/Lon of Domain #1"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeGet(state=IMP_STATE                      &  !<-- The Solver import state
+                                  ,name ='TPH0D_1'                      &  !<-- Attribute's name
+                                  ,value=TPH0D_1                        &  !<-- Geographic lat (degrees) of domain #1's center
+                                  ,rc   =RC)
+!
+            CALL ESMF_AttributeGet(state=IMP_STATE                      &  !<-- The Solver import state
+                                  ,name ='TLM0D_1'                      &  !<-- Attribute's name
+                                  ,value=TLM0D_1                        &  !<-- Geographic lon (degrees) of domain #1's center
+                                  ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  The SW corner of the moving nest domain lies within local task 0
+!***  therefore only that task can perform the computation.
+!-----------------------------------------------------------------------
+!
+            IF(MYPE==0)THEN
+!
+              D_ONE=1.
+              D_180=180.
+              PI=DACOS(-D_ONE)
+              D2R=PI/D_180
+!
+              TPH0_1=TPH0D_1*D2R                                           !<-- The central lat/lon of domain #1 is the center
+              TLM0_1=TLM0D_1*D2R                                           !    for all grid-associated nests
+!
+              GLATX=int_state%GLAT(ITS,JTS)                                !<-- Geographic lat (radians) of nest's SW corner
+              GLONX=int_state%GLON(ITS,JTS)                                !<-- Geographic lon (radians) of nest's SW corner
+!
+              X=COS(TPH0_1)*COS(GLATX)*COS(GLONX-TLM0_1)+SIN(TPH0_1)*SIN(GLATX)
+              Y=COS(GLATX)*SIN(GLONX-TLM0_1)
+              Z=-SIN(TPH0_1)*COS(GLATX)*COS(GLONX-TLM0_1)+COS(TPH0_1)*SIN(GLATX)
+!
+              TLATX=ATAN(Z/SQRT(X*X+Y*Y))                                  !<-- Transformed lat (radians) of nest domain's SW corner
+              TLONX=ATAN(Y/X)                                              !<-- Transformed lon (radians) of nest domain's SW corner
+              IF(X<0)TLONX=TLONX+PI
+!
+              SB_1=SBD_1*D2R                                               !<-- Transformed lat (radians) of domain #1's S bndry
+              WB_1=WBD_1*D2R                                               !<-- Transformed lon (radians) of domain #1's W bndry
+!
+              DPH=int_state%DPHD*D2R                                       !<-- Nest's angular grid increment in J (radians)
+              DLM=int_state%DLMD*D2R                                       !<-- Nest's angular grid increment in I (radians)
+!
+!     write(0,*)' Solver Init SW corner'
+!     write(0,*)' glatx=',glatx/d2r,' glonx=',glonx/d2r
+!     write(0,*)' tlatx=',tlatx/d2r,' tlonx=',tlonx/d2r
+!     write(0,*)' sbd_1=',sbd_1,' wbd_1=',wbd_1
+!     write(0,*)' dph=',dph,' dlm=',dlm
+              I_INC=NINT((TLONX-WB_1)/DLM)                                 !<-- Nest grid increments (integer) between west/south
+              J_INC=NINT((TLATX-SB_1)/DPH)                                 !    boundaries of the nest and domain #1.
+!
+              SW_X(1)=(SB_1+J_INC*DPH)/D2R                                 !<-- Transformed lat (degrees) of nest domain's S bndry
+              SW_X(2)=(WB_1+I_INC*DLM)/D2R                                 !<-- Transformed lon (degrees) of nest domain's S bndry
+!     write(0,*)' Solver Init SW corner rot lat=',sw_x(1),' lon=',sw_x(2)
+!     write(0,*)' i_inc=',i_inc,' j_inc=',j_inc
+!
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Local task 0 shares the transformed lat/lon of the nest domain's
+!***  south and west boundaries with all other fcst tasks.
+!-----------------------------------------------------------------------
+!
+            CALL MPI_BCAST(SW_X                                         &
+                          ,2                                            &
+                          ,MPI_REAL                                     &
+                          ,0                                            &
+                          ,MPI_COMM_COMP                                &
+                          ,IERR )
+!
+            int_state%SBD=SW_X(1)
+            int_state%WBD=SW_X(2)
+!
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -1579,6 +1734,9 @@
 !
         btim=timef()
 !
+!     if(its==1.and.jts==1)then
+!       write(0,*)' Solver Init before CONSTS int_state%SBD=',int_state%SBD,' int_state%WBD=',int_state%WBD
+!     endif
         CALL CONSTS(int_state%GLOBAL                                    &
                    ,int_state%SMAG2                                     &
                    ,int_state%CODAMP,int_state%WCOR                     &
@@ -1611,19 +1769,32 @@
 !
         td%consts_tim=td%consts_tim+(timef()-btim)
 !
+!     if(its==1.and.jts==1)then
+!       write(0,*)' Solver Init after CONSTS int_state%GLAT(1,1)=',int_state%GLAT(1,1)*57.29583 &
+!                ,' int_state%GLON(1,1)=',int_state%GLON(1,1)*57.29583
+!       write(0,*)' int_state%GLAT_SW=',int_state%GLAT_SW,' int_state%GLON_SW=',int_state%GLON_SW
+!     endif
 !-----------------------------------------------------------------------
-!***  Exchange haloes for latitudes/longitudes in case there are
+!***  Exchange haloes for some grid-related arrays in case there are
 !***  moving nests.
 !-----------------------------------------------------------------------
 !
         CALL HALO_EXCH                                                  &
              (int_state%GLAT,1                                          &
              ,int_state%GLON,1                                          &
+             ,int_state%VLAT,1                                          &
+             ,int_state%VLON,1                                          &
              ,3,3)
 !
         CALL HALO_EXCH                                                  &
-             (int_state%VLAT,1                                          &
-             ,int_state%VLON,1                                          &
+             (int_state%HDACX,1                                         &
+             ,int_state%HDACY,1                                         &
+             ,int_state%HDACVX,1                                        &
+             ,int_state%HDACVY,1                                        &
+             ,3,3)
+!
+        CALL HALO_EXCH                                                  &
+             (int_state%F,1                                             &
              ,3,3)
 !
 !-----------------------------------------------------------------------
@@ -2122,6 +2293,81 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert Restart Flag into the Solver Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+        RESTART_ESMF=ESMF_False
+        IF(int_state%RESTART)THEN
+          RESTART_ESMF=ESMF_True
+        ENDIF
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Solver export state
+                              ,name ='RESTART'                          &  !<-- Name of the Attribute
+                              ,value=RESTART_ESMF                       &  !<-- Is this a restarted run?
+                              ,rc   =RC)
+#else
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Solver export state
+                              ,name ='RESTART'                          &  !<-- Name of the Attribute
+                              ,value=int_state%RESTART                  &  !<-- Is this a restarted run?
+                              ,rc   =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  If this is a nested domain being restarted then it will have
+!***  read in the latest values for its SW corner on its parent grid.
+!***  Load those into the export state to transfer to the Parent-
+!***  Child coupler.  They are only relevant for nests in restarted
+!***  runs.  If this is not a nest the values will be dummies and are
+!***  never used.  Likewise a moving nest's next move timestep will
+!***  have been read from the restart file for a restarted run.
+!***  If this is a parent being restarted then it will have read in
+!***  the latest value of the next timestep that its moving children
+!***  will move.  Add those to the export state to transfer to the
+!***  parent-Child coupler.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert SW Corner of Nest into the Solver Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Solver export state
+                              ,name ='I_PAR_STA'                        &  !<-- Name of the Attribute
+                              ,value=int_state%I_PAR_STA                &  !<-- Parent I of SW corner of this nest
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Solver export state
+                              ,name ='J_PAR_STA'                        &  !<-- Name of the Attribute
+                              ,value=int_state%J_PAR_STA                &  !<-- Parent J of SW corner of this nest
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert Next Move Timestep into the Solver Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Solver export state
+                              ,name ='NEXT_MOVE_TIMESTEP'               &  !<-- Name of the Attribute
+                              ,value=int_state%NMTS                     &  !<-- Timestep of the nest's next move
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
 !***  Let SOLVER_RUN know that the first timestep is special as well
 !***  as the first time SOLVER_RUN is executed (which might not be the 
 !***  first timestep).
@@ -2385,7 +2631,7 @@
 !
       REAL(kind=KFPT) :: FICE,FRAIN,QI,QR,QW,SECONDS_TOTAL,WC
 !
-      REAL(kind=KFPT) :: DT,DT_TEST,DT_TEST_RATIO
+      REAL(kind=KFPT) :: DT,DT_TEST,DT_TEST_RATIO,DTPHY
 !
       REAL(kind=KFPT),SAVE :: DDMPV                                     &
                              ,DYH,DYV,EF4T,PDTOP,PT                     &
@@ -2882,6 +3128,33 @@
            ,int_state%HDACVX,1                                          &
            ,int_state%HDACVY,1                                          &
            ,2,2)
+!
+!-----------------------------------------------------------------------
+!***  Also the geography information for the gravity wave drag
+!***  must be updated to account for the domain's new position.
+!
+!***  NOTE:  Currently the gravity wave drag is turned off in
+!***         moving nests.  A quantity used by the parameterization
+!***         is mountains' angle with respect to east.  From the
+!***         moving nest's perspective the mountains are moving
+!***         and thus those angles would need to be updated.
+!***         Such updating is not yet included.
+!-----------------------------------------------------------------------
+!
+        IF(int_state%GWDFLG)THEN
+!
+          DTPHY=int_state%DT*int_state%NPHS
+!
+          CALL GWD_init(DTPHY,int_state%RESTART                         &
+                       ,int_state%TPH0D,int_state%TLM0D                 &
+                       ,int_state%GLAT,int_state%GLON                   &
+                       ,int_state%CROT,int_state%SROT,int_state%HANGL   &
+                       ,IDS,IDE,JDS,JDE                                 &
+                       ,IMS,IME,JMS,JME                                 &
+                       ,ITS,ITE,JTS,JTE,LM)
+        ENDIF
+!
+!-----------------------------------------------------------------------
 !
       ENDIF
 !
@@ -5021,7 +5294,8 @@
 !       call twr(int_state%t,lm,'t',ntimestep,mype,num_pes,mpi_comm_comp &
 !               ,ids,ide,jds,jde &
 !               ,ims,ime,jms,jme &
-!               ,its,ite,jts,jte)
+!               ,its,ite,jts,jte &
+!               ,my_domain_id )
 !     endif
 !rv
 !
@@ -5134,6 +5408,7 @@
                          ,ITS,ITE,JTS,JTE                                &
                          ,IMS,IME,JMS,JME                                &
                          ,IDE,JDE                                        &
+                         ,ITS_B1,ITE_B1,JTS_B1,JTE_B1                    &
                          ,LM,int_state%NCOUNT,int_state%FIRST_NMM)
 !
         ELSEIF (TRIM(int_state%MICROPHYSICS) == 'fer_hires') THEN
@@ -5168,6 +5443,7 @@
                             ,ITS,ITE,JTS,JTE                             &
                             ,IMS,IME,JMS,JME                             &
                             ,IDE,JDE                                     &
+                            ,ITS_B1,ITE_B1,JTS_B1,JTE_B1                 &
                             ,LM,int_state%NCOUNT,int_state%FIRST_NMM)
 !
         ENDIF
@@ -7339,6 +7615,10 @@
         DO I=I1,I2_H
           KOUNT=KOUNT+1
           PDBS(I,J,2)=(BND_DATA_S_H(KOUNT)-PDBS(I,J,1))*RECIP
+!     if(i==36)then
+!       write(0,*)' UPDATE_BC_TENDS j=',j,' kount=',kount
+!       write(0,*)' pdbs(2)=',pdbs(i,j,2),' bnd_data_s_h=',bnd_data_s_h(kount),' pdbs(1)=',pdbs(i,j,1),' recip=',recip
+!     endif
         ENDDO
         ENDDO
 !
@@ -7348,6 +7628,12 @@
           TBS(I,J,K,2)=(BND_DATA_S_H(KOUNT+1)-TBS(I,J,K,1))*RECIP
           QBS(I,J,K,2)=(BND_DATA_S_H(KOUNT+2)-QBS(I,J,K,1))*RECIP
           WBS(I,J,K,2)=(BND_DATA_S_H(KOUNT+3)-WBS(I,J,K,1))*RECIP
+!     if(i==36.and.k==lm)then
+!       write(0,*)' j=',j,' kount=',kount
+!       write(0,*)' tbs(2)=',tbs(i,j,k,2),' bnd_data_s_h=',bnd_data_s_h(kount+1),' tbs(1)=',tbs(i,j,k,1)
+!       write(0,*)' qbs(2)=',qbs(i,j,k,2),' bnd_data_s_h=',bnd_data_s_h(kount+2),' qbs(1)=',qbs(i,j,k,1)
+!       write(0,*)' wbs(2)=',wbs(i,j,k,2),' bnd_data_s_h=',bnd_data_s_h(kount+3),' wbs(1)=',wbs(i,j,k,1)
+!     endif
           KOUNT=KOUNT+3
         ENDDO
         ENDDO
@@ -7424,6 +7710,11 @@
         DO I=I1,I2_V
           UBS(I,J,K,2)=(BND_DATA_S_V(KOUNT+1)-UBS(I,J,K,1))*RECIP
           VBS(I,J,K,2)=(BND_DATA_S_V(KOUNT+2)-VBS(I,J,K,1))*RECIP
+!     if(i==36.and.k==lm)then
+!       write(0,*)' j=',j,' kount=',kount
+!       write(0,*)' ubs(2)=',ubs(i,j,k,2),' bnd_data_s_v=',bnd_data_s_v(kount+1),' ubs(1)=',ubs(i,j,k,1)
+!       write(0,*)' vbs(2)=',vbs(i,j,k,2),' bnd_data_s_v=',bnd_data_s_v(kount+2),' vbs(1)=',vbs(i,j,k,1)
+!     endif
           KOUNT=KOUNT+2
         ENDDO
         ENDDO
@@ -7515,6 +7806,10 @@
         DO I=I1,I2_H
           KOUNT=KOUNT+1
           PDBN(I,J,2)=(BND_DATA_N_H(KOUNT)-PDBN(I,J,1))*RECIP
+!     if(i==36)then
+!       write(0,*)' UPDATE_BC_TENDS j=',j,' kount=',kount
+!       write(0,*)' pdbn(2)=',pdbn(i,j,2),' bnd_data_n_h=',bnd_data_n_h(kount),' pdbn(1)=',pdbn(i,j,1),' recip=',recip
+!     endif
         ENDDO
         ENDDO
 !
@@ -7524,6 +7819,12 @@
           TBN(I,J,K,2)=(BND_DATA_N_H(KOUNT+1)-TBN(I,J,K,1))*RECIP
           QBN(I,J,K,2)=(BND_DATA_N_H(KOUNT+2)-QBN(I,J,K,1))*RECIP
           WBN(I,J,K,2)=(BND_DATA_N_H(KOUNT+3)-WBN(I,J,K,1))*RECIP
+!     if(i==36.and.k==lm)then
+!       write(0,*)' j=',j,' kount=',kount
+!       write(0,*)' tbn(2)=',tbn(i,j,k,2),' bnd_data_n_h=',bnd_data_n_h(kount+1),' tbn(1)=',tbn(i,j,k,1)
+!       write(0,*)' qbn(2)=',qbn(i,j,k,2),' bnd_data_n_h=',bnd_data_n_h(kount+2),' qbn(1)=',qbn(i,j,k,1)
+!       write(0,*)' wbn(2)=',wbn(i,j,k,2),' bnd_data_n_h=',bnd_data_n_h(kount+3),' wbn(1)=',wbn(i,j,k,1)
+!     endif
           KOUNT=KOUNT+3
         ENDDO
         ENDDO
@@ -7600,6 +7901,11 @@
         DO I=I1,I2_V
           UBN(I,J,K,2)=(BND_DATA_N_V(KOUNT+1)-UBN(I,J,K,1))*RECIP
           VBN(I,J,K,2)=(BND_DATA_N_V(KOUNT+2)-VBN(I,J,K,1))*RECIP
+!     if(i==36.and.k==lm)then
+!       write(0,*)' UPDATE_BC_TENDS j=',j,' kount=',kount
+!       write(0,*)' ubn(2)=',ubn(i,j,k,2),' bnd_data_n_v=',bnd_data_n_v(kount+1),' ubn(1)=',ubn(i,j,k,1)
+!       write(0,*)' vbn(2)=',vbn(i,j,k,2),' bnd_data_n_v=',bnd_data_n_v(kount+2),' vbn(1)=',vbn(i,j,k,1)
+!     endif
           KOUNT=KOUNT+2
         ENDDO
         ENDDO
@@ -7680,7 +7986,6 @@
                               ,itemCount=KOUNT_W_H                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_W_H                   &  !<-- The boundary data
                               ,rc       =RC )
-!     write(0,*)' UPDATE_BC_TENDS got WEST_H_Current itemCount=',KOUNT_W_H,' rc=',rc
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)

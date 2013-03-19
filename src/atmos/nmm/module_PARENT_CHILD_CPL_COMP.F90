@@ -42,7 +42,7 @@
 !
       USE module_INCLUDE
 !
-      USE module_CONTROL,ONLY: TIMEF
+      USE module_CONTROL,ONLY: NUM_DOMAINS_MAX,TIMEF
 !
       USE module_EXCHANGE,ONLY: HALO_EXCH
 !
@@ -58,6 +58,7 @@
                               ,HANDLE_CHILD_TOPO_N                      &
                               ,HANDLE_CHILD_TOPO_W                      &
                               ,HANDLE_CHILD_TOPO_E                      &
+                              ,HANDLE_IJ_SW                             &
                               ,HANDLE_PACKET_S_H                        &
                               ,HANDLE_PACKET_S_V                        &
                               ,HANDLE_PACKET_N_H                        &
@@ -229,7 +230,9 @@
         INTEGER(kind=KINT) :: I_SHIFT_CHILD
         INTEGER(kind=KINT) :: J_SHIFT_CHILD
         INTEGER(kind=KINT) :: I_SW_PARENT_CURRENT
+        INTEGER(kind=KINT) :: I_SW_PARENT_NEW
         INTEGER(kind=KINT) :: J_SW_PARENT_CURRENT
+        INTEGER(kind=KINT) :: J_SW_PARENT_NEW
         INTEGER(kind=KINT) :: ITS,ITE,JTS,JTE,LM
         INTEGER(kind=KINT) :: IMS,IME,JMS,JME
         INTEGER(kind=KINT) :: IDS,IDE,JDS,JDE
@@ -237,23 +240,25 @@
         INTEGER(kind=KINT) :: INPES,JNPES
         INTEGER(kind=KINT) :: INPES_PARENT,JNPES_PARENT
         INTEGER(kind=KINT) :: KOUNT_CHILDREN
+        INTEGER(kind=KINT) :: LAST_STEP_MOVED
         INTEGER(kind=KINT) :: MYPE
         INTEGER(kind=KINT) :: N_BLEND_H,N_BLEND_V
+        INTEGER(kind=KINT) :: NEXT_MOVE_TIMESTEP
         INTEGER(kind=KINT) :: NHALO
         INTEGER(kind=KINT) :: NPHS
         INTEGER(kind=KINT) :: NTIMESTEP_FINAL
+        INTEGER(kind=KINT) :: NTIMESTEPS_RESTART
         INTEGER(kind=KINT) :: NUM_CHILDREN
         INTEGER(kind=KINT) :: NUM_MOVING_CHILDREN
         INTEGER(kind=KINT) :: NUM_PES_FCST
         INTEGER(kind=KINT) :: NUM_FCST_TASKS_PARENT
         INTEGER(kind=KINT) :: NUM_TASKS_PARENT
-        INTEGER(kind=KINT) :: NEXT_MOVE_TIMESTEP
         INTEGER(kind=KINT) :: NUM_LEVELS_MOVE_3D_H
         INTEGER(kind=KINT) :: NUM_LEVELS_MOVE_3D_V
+        INTEGER(kind=KINT) :: NUM_SPACE_RATIOS_MVG
         INTEGER(kind=KINT) :: SPACE_RATIO_MY_PARENT
         INTEGER(kind=KINT) :: TIME_RATIO_MY_PARENT
 !
-        INTEGER(kind=KINT),DIMENSION(1:2) :: IJ_SHIFT_CHILD
         INTEGER(kind=KINT),DIMENSION(1:2) :: PARENT_SHIFT
 !
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: PARENT_CHILD_SPACE_RATIO  
@@ -280,6 +285,7 @@
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: FTASKS_DOMAIN
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: NTASKS_DOMAIN
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: HANDLE_BC_UPDATE
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: HANDLE_PARENT_SHIFT
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: HANDLE_TIMESTEP
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: HANDLE_SEND_2WAY_DATA
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: HANDLE_SEND_ALLCLEAR
@@ -288,6 +294,7 @@
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: LOCAL_IEND
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: LOCAL_JSTART
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: LOCAL_JEND
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: NTIMESTEP_CHILD_MOVES
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: NUM_TASKS_SEND_H_S
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: NUM_TASKS_SEND_H_N
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: NUM_TASKS_SEND_H_W
@@ -296,6 +303,7 @@
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: NUM_TASKS_SEND_V_N
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: NUM_TASKS_SEND_V_W
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: NUM_TASKS_SEND_V_E
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: SHIFT_INFO
 !
         REAL(kind=KFPT) :: DYH
         REAL(kind=KFPT) :: PDTOP
@@ -316,7 +324,7 @@
         REAL(kind=KFPT),DIMENSION(:),POINTER :: SG2
         REAL(kind=KFPT),DIMENSION(:),POINTER :: SGML2
 !
-        REAL(kind=KINT),DIMENSION(:),POINTER :: CHILD_PARENT_SPACE_RATIO  
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: CHILD_PARENT_SPACE_RATIO  
 !
         REAL(kind=KFPT),DIMENSION(:),POINTER :: BOUND_1D_SOUTH_H
         REAL(kind=KFPT),DIMENSION(:),POINTER :: BOUND_1D_SOUTH_V
@@ -367,7 +375,6 @@
         LOGICAL(kind=KLOG) :: I_WANT_TO_MOVE
         LOGICAL(kind=KLOG) :: MOVE_FLAG_SENT
         LOGICAL(kind=KLOG) :: MY_PARENT_MOVES
-        LOGICAL(kind=KLOG) :: RECVD_MOVE_TIMESTEP
 !
         LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: MOVE_FLAG
         LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: SEND_CHILD_DATA
@@ -554,7 +561,9 @@
                                    ,I_SHIFT_CHILD                       &
                                    ,J_SHIFT_CHILD                       &
                                    ,I_SW_PARENT_CURRENT                 &
+                                   ,I_SW_PARENT_NEW                     &
                                    ,J_SW_PARENT_CURRENT                 &
+                                   ,J_SW_PARENT_NEW                     &
                                    ,ITS,ITE,JTS,JTE,LM                  &
                                    ,IMS,IME,JMS,JME                     &
                                    ,IDS,IDE,JDS,JDE                     &
@@ -562,11 +571,13 @@
                                    ,INPES,JNPES                         &
                                    ,INPES_PARENT,JNPES_PARENT           &
                                    ,KOUNT_CHILDREN                      &
+                                   ,LAST_STEP_MOVED                     &
                                    ,MYPE                                &
                                    ,N_BLEND_H,N_BLEND_V                 &
                                    ,NHALO                               &
                                    ,NPHS                                &
                                    ,NTIMESTEP_FINAL                     &
+                                   ,NTIMESTEPS_RESTART                  &
                                    ,NUM_CHILDREN                        &
                                    ,NUM_MOVING_CHILDREN                 &
                                    ,NUM_PES_FCST                        &
@@ -575,11 +586,11 @@
                                    ,NEXT_MOVE_TIMESTEP                  &
                                    ,NUM_LEVELS_MOVE_3D_H                &
                                    ,NUM_LEVELS_MOVE_3D_V                &
+                                   ,NUM_SPACE_RATIOS_MVG                &
                                    ,SPACE_RATIO_MY_PARENT               &
                                    ,TIME_RATIO_MY_PARENT
 !                                         
       INTEGER(kind=KINT),DIMENSION(:),POINTER :: DOMAIN_ID_TO_RANK      &
-                                                ,IJ_SHIFT_CHILD         &
                                                 ,PARENT_SHIFT
 !
       INTEGER(kind=KINT),DIMENSION(:),POINTER :: PARENT_CHILD_SPACE_RATIO &
@@ -606,10 +617,12 @@
                                                 ,FTASKS_DOMAIN            &
                                                 ,NTASKS_DOMAIN            &
                                                 ,HANDLE_BC_UPDATE         &
+                                                ,HANDLE_PARENT_SHIFT      &
                                                 ,HANDLE_TIMESTEP          &
                                                 ,HANDLE_SEND_2WAY_DATA    &
                                                 ,HANDLE_SEND_ALLCLEAR     &
                                                 ,HANDLE_SEND_READY_RECV   &
+                                                ,NTIMESTEP_CHILD_MOVES    &
                                                 ,NUM_TASKS_SEND_H_S       &
                                                 ,NUM_TASKS_SEND_H_N       &
                                                 ,NUM_TASKS_SEND_H_W       &
@@ -617,7 +630,8 @@
                                                 ,NUM_TASKS_SEND_V_S       &
                                                 ,NUM_TASKS_SEND_V_N       &
                                                 ,NUM_TASKS_SEND_V_W       &
-                                                ,NUM_TASKS_SEND_V_E
+                                                ,NUM_TASKS_SEND_V_E       &
+                                                ,SHIFT_INFO 
 !
       REAL(kind=KFPT),POINTER :: DYH                                    &
                                 ,PDTOP                                  &
@@ -689,7 +703,6 @@
       LOGICAL(kind=KLOG),POINTER :: I_WANT_TO_MOVE
       LOGICAL(kind=KLOG),POINTER :: MOVE_FLAG_SENT
       LOGICAL(kind=KLOG),POINTER :: MY_PARENT_MOVES
-      LOGICAL(kind=KLOG),POINTER :: RECVD_MOVE_TIMESTEP
 !
       LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: MOVE_FLAG
       LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: SEND_CHILD_DATA
@@ -871,14 +884,12 @@
 !
       INTEGER(kind=KINT),SAVE :: MOVE_TAG=1111                          &  !<-- Arbitrary tag used for child's move
                                 ,MOVING_BC_TAG=1112                     &  !<-- Arbitrary tag used for moving nests' BC updates
-                                ,PARENT_SHIFT_TAG=1113                  &  !<-- Arbitrary tag used for parent's move
-                                ,TIME_TAG=1114                             !<-- Arbitrary tag used for child's move timestep
+                                ,PARENT_SHIFT_TAG=1113                     !<-- Arbitrary tag used for parent's move
 !
       INTEGER(kind=KINT),SAVE :: CHILD_ID                               &
                                 ,COMM_FCST_TASKS                        &
                                 ,ID_MY_PARENT                           &
                                 ,INDX_CW,INDX_Q                         &
-                                ,KOUNT_RATIOS_MN                        &
                                 ,NHOURS_FCST                            &
                                 ,NROWS_P_UPD_E                          &
                                 ,NROWS_P_UPD_N                          &
@@ -899,6 +910,8 @@
       CHARACTER(len=5),SAVE :: NEST_MODE                                   !<--- Is the nesting 1-way or 2-way
 !
       CHARACTER(len=99) :: CONFIG_FILE_NAME
+!
+      LOGICAL(kind=KLOG),SAVE :: RESTART                                   !<-- Is this a restarted run?
 !
       TYPE(ESMF_Config),SAVE :: CF_1                                       !<-- Domain #1's configure object
 !
@@ -941,9 +954,7 @@
       RC_NEST_REG=ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
-!***  Register the two phases of the Parent-Child coupler component.
-!***  The second argument is a pre-defined subroutine type, such as
-!***  ESMF_SETINIT, ESMF_SETRUN, or ESMF_SETFINAL.
+!***  Register the various pieces of the Parent-Child coupler component.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -953,7 +964,7 @@
 !
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
                                     ,ESMF_METHOD_INITIALIZE             &  !<-- subroutineType
-                                    ,PARENT_CHILD_CPL_INITIALIZE1       &  !<-- User's subroutineName
+                                    ,PARENT_CHILD_CPL_INITIALIZE0       &  !<-- User's subroutineName
 #ifdef ESMF_3
                                     ,1                                  &
                                     ,RC)
@@ -973,12 +984,12 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set Entry Point for Phase 2 of the P-C Coupler Initialize"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
                                     ,ESMF_METHOD_INITIALIZE             &  !<-- subroutineType
-                                    ,PARENT_CHILD_CPL_INITIALIZE2       &  !<-- User's subroutineName
+                                    ,PARENT_CHILD_CPL_INITIALIZE1       &  !<-- User's subroutineName
 #ifdef ESMF_3
                                     ,2                                  &
                                     ,RC)
@@ -996,18 +1007,45 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NEST_REG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Set Entry Point for Phase 3 of the P-C Coupler Initialize"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
+                                    ,ESMF_METHOD_INITIALIZE             &  !<-- subroutineType
+                                    ,PARENT_CHILD_CPL_INITIALIZE2       &  !<-- User's subroutineName
+#ifdef ESMF_3
+                                    ,3                                  &
+                                    ,RC)
+#else
+#ifdef ESMF_520r
+                                    ,phase=3                            &
+                                    ,rc=RC)
+#else
+                                    ,phase=3                            &
+                                    ,rc=RC)
+#endif
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NEST_REG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 !-----------------------------------------------------------------------
 !***  Register the Parent-Child coupler's Run subroutines.
 !
 !     The Parent-Child Run step of the coupler has three distinct parts:
-!     (1) The relevant parent tasks compute interpolation information
-!         needed for generating data to be sent to the nests.
-!     (2) At the top of certain timesteps a child receives data 
+!     (1) At the top of certain timesteps a child receives BC data 
 !         from its parent.
+!     (2) If using 2-way nesting then parents receive exchange data
+!         from their children.
 !     (3) At the end of every timestep a parent sends data to its
 !         children.  For those children that moved, the parent must
 !         regenerate new interpolation information before computing
 !         the new data for those nests.
+!     (4) Finally any 2-way children send exchange data to their
+!         parents.
 !
 !***  Thus register the coupler's Run step with those two phases.
 !-----------------------------------------------------------------------
@@ -1163,6 +1201,494 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
+      SUBROUTINE PARENT_CHILD_CPL_INITIALIZE0(CPL_COMP                  &
+                                             ,IMP_STATE                 &
+                                             ,EXP_STATE                 &
+                                             ,CLOCK                     &
+                                             ,RC_FINAL)   
+!
+!-----------------------------------------------------------------------
+!***  This preliminary routine is used only for runs containing nests.
+!***  It serves primarily to allow children to send their SW corner
+!***  location to their parents.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument variables
+!------------------------
+!
+      TYPE(ESMF_CplComp) :: CPL_COMP                                       !<-- The Parent-Child Coupler Component
+!
+      TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The Coupler's Import State
+                         ,EXP_STATE                                        !<-- The Coupler's Export State
+!
+      TYPE(ESMF_Clock) :: CLOCK                                            !<-- The ESMF Clock
+!
+      INTEGER,INTENT(OUT) :: RC_FINAL
+!
+!---------------------
+!***  Local variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: CHILDTASK_0,CONFIG_ID,HANDLE_X,ID_CHILD     &
+                           ,MAX_DOMAINS,MY_DOMAIN_ID,MYPE_X,N,NTAG
+!
+      INTEGER(kind=KINT) :: IERR,ISTAT,RC,RC_CPL_INIT
+!
+      CHARACTER(len=2) :: INT_TO_CHAR
+      CHARACTER(len=6) :: FMT='(I2.2)'
+!
+#ifdef ESMF_3
+      TYPE(ESMF_Logical) :: RESTART_ESMF
+!
+#endif
+      TYPE(COMPOSITE),POINTER :: CC
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Initialize the error signal variables.
+!-----------------------------------------------------------------------
+!
+      RC         =ESMF_SUCCESS
+      RC_FINAL   =ESMF_SUCCESS
+      RC_CPL_INIT=ESMF_SUCCESS
+!
+!-----------------------------------------------------------------------
+!***  What is this domain's ID?
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="P-C Init1: Extract Current Domain ID"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
+                            ,name ='MY_DOMAIN_ID'                       &  !<-- Name of the attribute to extract
+                            ,value=MY_DOMAIN_ID                         &  !<-- Current domain's ID
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+      CC=>CPL_COMPOSITE(MY_DOMAIN_ID)                                      !<-- Use dummy for shorter reference to composite
+!
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Number of Children
+!------------------------
+!
+      NUM_CHILDREN=>cc%NUM_CHILDREN
+      NUM_CHILDREN=0
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Number of Children on This Domain"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
+                            ,name ='NUM_CHILDREN'                       &  !<-- Name of the attribute to extract
+                            ,value=NUM_CHILDREN                         &  !<-- # of this domain's children
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-------------------------------
+!***  Maximum number of domains
+!-------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Maximum Number of Domains"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
+                            ,name ='MAX_DOMAINS'                        &  !<-- Name of the attribute to extract
+                            ,value=MAX_DOMAINS                          &  !<-- Maximum # of domains
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!----------------------------------
+!***  Child-to-Parent Communicator
+!----------------------------------
+!
+      COMM_TO_MY_PARENT=>CC%COMM_TO_MY_PARENT
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Child-to-Parent Comm in P-C Coupler Init1"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
+                            ,name ='Child-to-Parent Comm'               &  !<-- Name of the attribute to extract
+                            ,value=COMM_TO_MY_PARENT                    &  !<-- MPI communicator to my parent
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------
+!***  The association of domains and their configure files.
+!-----------------------------------------------------------
+!
+      IF(.NOT.ASSOCIATED(DOMAIN_ID_TO_RANK))THEN
+        ALLOCATE(DOMAIN_ID_TO_RANK(1:MAX_DOMAINS))
+      ENDIF
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Association of Domains and Config Files"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The parent-child coupler import state
+                            ,name     ='DOMAIN_ID_TO_RANK'              &  !<-- Name of the attribute to extract
+                            ,itemCount=MAX_DOMAINS                      &  !<-- Name of elements in the Attribute
+                            ,valueList=DOMAIN_ID_TO_RANK                &  !<-- Array associating domains and config files
+                            ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------
+!***  Intracommunicator for fcst tasks on each domain
+!-----------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Fcst Task Intracomm in P-C Coupler Init0"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
+                            ,name ='Comm Fcst Tasks'                    &  !<-- Name of the attribute to extract
+                            ,value=COMM_FCST_TASKS                      &  !<-- Intracommunicator for fcst tasks
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      I_AM_LEAD_FCST_TASK=>cc%I_AM_LEAD_FCST_TASK
+      I_AM_LEAD_FCST_TASK=.FALSE.
+!
+#ifdef ESMF_3
+      IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
+#else
+      IF(I_AM_A_FCST_TASK)THEN
+#endif
+!
+        CALL MPI_COMM_RANK(COMM_FCST_TASKS,MYPE_X,IERR)
+!
+        IF(MYPE_X==0)THEN
+          I_AM_LEAD_FCST_TASK=.TRUE.
+        ENDIF
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Tasks load their domain's configure file.
+!-----------------------------------------------------------------------
+!
+      CONFIG_ID=DOMAIN_ID_TO_RANK(MY_DOMAIN_ID)
+      WRITE(INT_TO_CHAR,FMT)CONFIG_ID
+      CONFIG_FILE_NAME='configure_file_'//INT_TO_CHAR                      !<-- Prepare the config file name
+!
+      cc%CF_MINE=ESMF_ConfigCreate(rc=RC)
+      CF_MINE=>cc%CF_MINE
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Parent-Child Init: Nest Loads Its Configure File"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigLoadFile(config  =CF_MINE                         &
+                              ,filename=CONFIG_FILE_NAME                &
+                              ,rc      =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Parent tasks must know the communicators to their children
+!***  and their domain IDs.
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+      IF(I_AM_A_FCST_TASK==ESMF_TRUE.AND.NUM_CHILDREN>0)THEN               !<-- Select parent fcst tasks for additional setup
+#else
+      IF(I_AM_A_FCST_TASK.AND.NUM_CHILDREN>0)THEN                          !<-- Select parent fcst tasks for additional setup
+#endif
+!
+        ALLOCATE(cc%COMM_TO_MY_CHILDREN(1:NUM_CHILDREN),stat=ISTAT)
+        IF(ISTAT/=0)THEN
+          WRITE(0,*)' Failed to allocate cpl_composite%COMM_TO_MY_CHILDREN stat=',ISTAT
+          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+        ENDIF
+        COMM_TO_MY_CHILDREN=>cc%COMM_TO_MY_CHILDREN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Parent-to-Child Comm in Coupler"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
+                              ,name     ='Parent-to-Child Comms'        &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_CHILDREN                   &  !<-- # of items in the Attribute
+                              ,valueList=COMM_TO_MY_CHILDREN            &  !<-- MPI communicators to my children
+                              ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------
+!***  The IDs of the Children
+!-----------------------------
+!
+        ALLOCATE(CC%MY_CHILDREN_ID(1:NUM_CHILDREN),stat=ISTAT)
+        IF(ISTAT/=0)THEN
+          WRITE(0,*)' Failed to allocate cpl_composite%MY_CHILDREN_ID stat=',ISTAT
+          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+        ENDIF
+!
+        MY_CHILDREN_ID=>cc%MY_CHILDREN_ID
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="P-C Init0: Extract IDs of Children"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
+                              ,name     ='CHILD_IDs'                    &  !<-- Name of the attribute to extract
+                              ,itemCount=NUM_CHILDREN                   &  !<-- # of items in the Attribute
+                              ,valueList=MY_CHILDREN_ID                 &  !<-- The domain IDs of the current domain's children
+                              ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Is this a restarted run?
+!-----------------------------------------------------------------------
+!
+      I_AM_A_FCST_TASK=>cc%I_AM_A_FCST_TASK
+!
+      RESTART=.FALSE.
+!
+#ifdef ESMF_3
+      IF(I_AM_A_FCST_TASK==ESMF_True)THEN
+#else
+      IF(I_AM_A_FCST_TASK)THEN
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="P-C Init0: Extract Restart Flag from P-C Cpl Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The parent-child coupler import state
+                              ,name ='RESTART'                          &  !<-- Name of the attribute to extract
+                              ,value=RESTART_ESMF                       &  !<-- The restart flag (true or false)
+                              ,rc   =RC)
+!
+        IF(RESTART_ESMF==ESMF_True)THEN
+          RESTART=.TRUE.
+        ENDIF
+!
+#else
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The parent-child coupler import state
+                              ,name ='RESTART'                          &  !<-- Name of the attribute to extract
+                              ,value=RESTART                            &  !<-- The restart flag (true or false)
+                              ,rc   =RC)
+!
+#endif
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  The children get the location of their SW corner. 
+!***  That information was exported from the Domain component. 
+!-----------------------------------------------------------------------
+!
+      child_block_0: IF(COMM_TO_MY_PARENT/=-999)THEN                        !<-- Select the children
+!
+        I_SW_PARENT_CURRENT=>cc%I_SW_PARENT_CURRENT
+        J_SW_PARENT_CURRENT=>cc%J_SW_PARENT_CURRENT
+!
+#ifdef ESMF_3
+        IF(I_AM_A_FCST_TASK==ESMF_True)THEN
+#else
+        IF(I_AM_A_FCST_TASK)THEN
+#endif
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Parent-Child Init: Gets SW Corner from Import State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(state=IMP_STATE                        &  !<-- The parent-child coupler import state
+                                ,name ='I_PAR_STA'                      &  !<-- Name of Attribute to extract
+                                ,value=I_SW_PARENT_CURRENT              &  !<-- Put the extracted Attribute here
+                                ,rc   =RC)
+!
+          CALL ESMF_AttributeGet(state=IMP_STATE                        &  !<-- The parent-child coupler import state
+                                ,name ='J_PAR_STA'                      &  !<-- Name of Attribute to extract
+                                ,value=J_SW_PARENT_CURRENT              &  !<-- Put the extracted Attribute here
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Fill the domain's next move timestep.  The value is a dummy if 
+!***  it is not relevant.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Parent-Child Init: Get Next Move Timestep from Import State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(state=IMP_STATE                        &  !<-- The parent-child coupler import state
+                                ,name ='NEXT_MOVE_TIMESTEP'             &  !<-- Name of Attribute to extract
+                                ,value=cc%NEXT_MOVE_TIMESTEP            &  !<-- Put the extracted Attribute here
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  The lead child task ISends its parent's lead task the child
+!***  domain's SW corner location.  There is no need for a Wait
+!***  since a task will only ever execute this send one time.
+!-----------------------------------------------------------------------
+!
+        IF(I_AM_LEAD_FCST_TASK)THEN
+!
+          NTAG=12121+100*MY_DOMAIN_ID                                      !<-- Use a unique tag dependent on the domain ID
+!
+          CALL MPI_ISSEND(I_SW_PARENT_CURRENT                           &  !<-- Parent I of SW corner of nest domain
+                         ,1                                             &  !<-- There is 1 word
+                         ,MPI_INTEGER                                   &  !<-- The message is an integer
+                         ,0                                             &  !<-- Send to lead parent task (always 0 in intracomm)
+                         ,NTAG                                          &  !<-- Unique MPI tag
+                         ,COMM_TO_MY_PARENT                             &  !<-- MPI intracommunicator to the parent
+                         ,HANDLE_X                                      &  !<-- Request handle for this ISend
+                         ,IERR )
+!
+          NTAG=12122+100*MY_DOMAIN_ID                                      !<-- Use a unique tag dependent on the domain ID
+!
+          CALL MPI_ISSEND(J_SW_PARENT_CURRENT                           &  !<-- Parent J of SW corner of nest domain
+                         ,1                                             &  !<-- There is 1 word
+                         ,MPI_INTEGER                                   &  !<-- The message is an integer
+                         ,0                                             &  !<-- Send to lead parent task (always 0 in intracomm)
+                         ,NTAG                                          &  !<-- Unique MPI tag
+                         ,COMM_TO_MY_PARENT                             &  !<-- MPI intracommunicator to the parent
+                         ,HANDLE_X                                      &  !<-- Request handle for this ISend
+                         ,IERR )
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      ENDIF child_block_0
+!
+!-----------------------------------------------------------------------
+!***  Parents receive their children's SW corner locations.
+!-----------------------------------------------------------------------
+!
+      parent_block_0: IF(NUM_CHILDREN>0)THEN                               !<-- Select the parents
+!
+!-----------------------------------------------------------------------
+!
+        ALLOCATE(cc%I_PARENT_SW(1:NUM_CHILDREN),stat=ISTAT)
+        IF(ISTAT/=0)THEN
+          WRITE(0,*)' Failed to allocate cpl_composite%I_PARENT_SW stat=',ISTAT
+          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        ENDIF
+!
+        ALLOCATE(cc%J_PARENT_SW(1:NUM_CHILDREN),stat=ISTAT)
+        IF(ISTAT/=0)THEN
+          WRITE(0,*)' Failed to allocate cpl_composite%J_PARENT_SW stat=',ISTAT
+          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        ENDIF
+!
+!
+        I_PARENT_SW=>cc%I_PARENT_SW
+        J_PARENT_SW=>cc%J_PARENT_SW
+!
+!-----------------------------------------------------------------------
+!
+        IF(I_AM_LEAD_FCST_TASK)THEN
+!
+          DO N=1,NUM_CHILDREN
+!
+            CHILDTASK_0=child_ranks(MY_DOMAIN_ID)%CHILDREN(N)%DATA(0)      !<-- Local rank of child's lead task in P-C communicator
+            ID_CHILD=MY_CHILDREN_ID(N)                                     !<-- Domain ID of child N
+            NTAG=12121+100*MY_CHILDREN_ID(N)
+!
+            CALL MPI_IRECV(I_PARENT_SW(N)                               &  !<-- Parent I of SW corner of child N
+                          ,1                                            &  !<-- There is 1 word
+                          ,MPI_INTEGER                                  &  !<-- The word is an integer
+                          ,CHILDTASK_0                                  &  !<-- The Child task who sent
+                          ,NTAG                                         &  !<-- Unique MPI tag
+                          ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI communicator between parent and child N
+                          ,HANDLE_IJ_SW(ID_CHILD)                       &  !<-- Request handle for IRecv from child N
+                          ,IERR ) 
+!
+            NTAG=12122+100*MY_CHILDREN_ID(N)
+!
+            CALL MPI_IRECV(J_PARENT_SW(N)                               &  !<-- Parent J of SW corner of child N
+                          ,1                                            &  !<-- There is 1 word
+                          ,MPI_INTEGER                                  &  !<-- The word is an integer
+                          ,CHILDTASK_0                                  &  !<-- The Child task who sent
+                          ,NTAG                                         &  !<-- Unique MPI tag
+                          ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI communicator between parent and child N
+                          ,HANDLE_IJ_SW(ID_CHILD)                       &  !<-- Request handle for IRecv from child N
+                          ,IERR )
+!
+          ENDDO
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      ENDIF parent_block_0
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE PARENT_CHILD_CPL_INITIALIZE0
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
       SUBROUTINE PARENT_CHILD_CPL_INITIALIZE1(CPL_COMP                  &
                                              ,IMP_STATE                 &
                                              ,EXP_STATE                 &
@@ -1177,7 +1703,7 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_CplComp) :: CPL_COMP                                       !<-- The Dyn-Phy Coupler Component
+      TYPE(ESMF_CplComp) :: CPL_COMP                                       !<-- The Parent-Child Coupler Component
 !
       TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The Coupler's Import State
                          ,EXP_STATE                                        !<-- The Coupler's Export State
@@ -1192,7 +1718,7 @@
 !
       INTEGER(kind=KINT) :: I,J,L
 !
-      INTEGER(kind=KINT) :: CHILDTASK_0,CONFIG_ID                       &
+      INTEGER(kind=KINT) :: CHILDTASK_0,CONFIG_ID,HANDLE_X              &
                            ,ID_CHILD,ID_DOM                             &
                            ,IDIM,IEND,ISTART,IUNIT_FIS_NEST             &
                            ,JCORNER,JDIM,JEND,JSTART,JSTOP              &
@@ -1317,7 +1843,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  How many forecast tasks On each domain?
+!***  How many forecast tasks on each domain?
 !-----------------------------------------------------------------------
 !
       ALLOCATE(cc%FTASKS_DOMAIN(1:NUM_DOMAINS),stat=ISTAT)
@@ -1344,27 +1870,6 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!------------------------
-!***  Number of Children
-!------------------------
-!
-      NUM_CHILDREN=>cc%NUM_CHILDREN
-      NUM_CHILDREN=0
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract Number of Children on This Domain"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
-                            ,name ='NUM_CHILDREN'                       &  !<-- Name of the attribute to extract
-                            ,value=NUM_CHILDREN                         &  !<-- # of this domain's children 
-                            ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
 !--------------------------------
 !***  Motion and moving children
 !--------------------------------
@@ -1378,7 +1883,6 @@
 #else
       MY_DOMAIN_MOVES=.FALSE.
 #endif
-!     write(0,*)' P-C Init1 initialized my_domain_moves=',cc%my_domain_moves
 !
 !---------------------------
 !***  Domain IDs of Parents
@@ -1424,8 +1928,6 @@
         NUM_FCST_TASKS_PARENT=0                                            !<-- Uppermost parent has no parent
       ENDIF
 !
-!-----------------------------------------------------------------------
-!
 !-------------------------------------------------------------
 !***  Task's local rank in its Parent-Child Intracommunicator
 !-------------------------------------------------------------
@@ -1440,24 +1942,6 @@
       CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
                             ,name ='MYPE_DOMAIN'                        &  !<-- Name of the attribute to extract
                             ,value=MYPE                                 &  !<-- Rank of task in Parent-Child intracomm
-                            ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-------------------------------
-!***  Maximum number of domains
-!-------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract Maximum Number of Domains"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
-                            ,name ='MAX_DOMAINS'                        &  !<-- Name of the attribute to extract
-                            ,value=MAX_DOMAINS                          &  !<-- Maximum # of domains
                             ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1482,23 +1966,6 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      I_AM_LEAD_FCST_TASK=>cc%I_AM_LEAD_FCST_TASK
-      I_AM_LEAD_FCST_TASK=.FALSE.
-!
-#ifdef ESMF_3
-      IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
-      IF(I_AM_A_FCST_TASK)THEN
-#endif
-!
-        CALL MPI_COMM_RANK(COMM_FCST_TASKS,MYPE_X,IERR)
-!
-        IF(MYPE_X==0)THEN
-          I_AM_LEAD_FCST_TASK=.TRUE.
-        ENDIF
-!
-      ENDIF
-!
 !-----------------------------------------
 !***  Number of fcst tasks on this domain
 !-----------------------------------------
@@ -1514,49 +1981,6 @@
                             ,name ='NUM_PES_FCST'                       &  !<-- Name of the attribute to extract
                             ,value=NUM_PES_FCST                         &  !<-- MPI communicator for this domain
                             ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!----------------------------------
-!***  Child-to-Parent Communicator
-!----------------------------------
-!
-      COMM_TO_MY_PARENT=>CC%COMM_TO_MY_PARENT
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract Child-to-Parent Comm in P-C Coupler Init1"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state=IMP_STATE                            &  !<-- The parent-child coupler import state
-                            ,name ='Child-to-Parent Comm'               &  !<-- Name of the attribute to extract
-                            ,value=COMM_TO_MY_PARENT                    &  !<-- MPI communicator to my parent
-                            ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------
-!***  The association of domains and their configure files.
-!-----------------------------------------------------------
-!
-      IF(.NOT.ASSOCIATED(DOMAIN_ID_TO_RANK))THEN
-        ALLOCATE(DOMAIN_ID_TO_RANK(1:MAX_DOMAINS))
-      ENDIF
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Extract Association of Domains and Config Files"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state    =IMP_STATE                        &  !<-- The parent-child coupler import state
-                            ,name     ='DOMAIN_ID_TO_RANK'              &  !<-- Name of the attribute to extract
-                            ,itemCount=MAX_DOMAINS                      &  !<-- Name of elements in the Attribute
-                            ,valueList=DOMAIN_ID_TO_RANK                &  !<-- Array associating domains and config files
-                            ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
@@ -1588,7 +2012,7 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!---------------------------------------------------------
+!-----------------------------------------------------------------------
 !***  Parent tasks must know the communicators to their children.
 !-----------------------------------------------------------------------
 !
@@ -2476,7 +2900,6 @@
       WRITE(INT_TO_CHAR,FMT)CONFIG_ID
       CONFIG_FILE_NAME='configure_file_'//INT_TO_CHAR                      !<-- Prepare the config file name
 !
-      cc%CF_MINE=ESMF_ConfigCreate(rc=RC)
       CF_MINE=>cc%CF_MINE
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2515,6 +2938,9 @@
 !***  know the forecast task layout of their moving children.  For
 !***  simplicity we will provide that information to all domain tasks
 !***  now.
+!***  The SW corner location of the nests is read from the configure
+!***  files for regular forecasts but must come from the restart
+!***  file data for restarted runs.
 !-----------------------------------------------------------------------
 !
         SPACE_RATIO_MY_PARENT=>cc%SPACE_RATIO_MY_PARENT
@@ -2533,27 +2959,7 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        I_SW_PARENT_CURRENT=>cc%I_SW_PARENT_CURRENT
-        J_SW_PARENT_CURRENT=>cc%J_SW_PARENT_CURRENT
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Parent-Child Init: Child Gets SW Corner Point"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_ConfigGetAttribute(config=CF_MINE                     &  !<-- The child's config object
-                                    ,value =I_SW_PARENT_CURRENT         &  !<-- The variable filled (parent I of nest SW corner)
-                                    ,label ='i_parent_start:'           &  !<-- Give this label's value to the previous variable
-                                    ,rc    =RC)
-!
-        CALL ESMF_ConfigGetAttribute(config=CF_MINE                     &  !<-- The child's config object
-                                    ,value =J_SW_PARENT_CURRENT         &  !<-- The variable filled (parent J of nest SW corner)
-                                    ,label ='j_parent_start:'           &  !<-- Give this label's value to the previous variable
-                                    ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!-----------------------------------------------------------------------
 !
         INPES=>cc%INPES
         JNPES=>cc%JNPES
@@ -2842,6 +3248,12 @@
           ENDIF
 !
 !-----------------------------------------------------------------------
+!***  Initialize the last timestep that the nest moved.
+!-----------------------------------------------------------------------
+!
+          cc%LAST_STEP_MOVED=0
+!
+!-----------------------------------------------------------------------
 !
         ENDIF
 !
@@ -2856,33 +3268,6 @@
       parent_block_1: IF(NUM_CHILDREN>0)THEN                               !<-- Select parents for additional setup 
 !
 !-----------------------------------------------------------------------
-!
-!-----------------------------
-!***  The IDs of the Children
-!-----------------------------
-!
-        ALLOCATE(CC%MY_CHILDREN_ID(1:NUM_CHILDREN),stat=ISTAT)
-        IF(ISTAT/=0)THEN
-          WRITE(0,*)' Failed to allocate cpl_composite%MY_CHILDREN_ID stat=',ISTAT
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
-        ENDIF
-!
-        MY_CHILDREN_ID=>cc%MY_CHILDREN_ID
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract IDs of Children in Parent-Child Coupler"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The parent-child coupler import state
-                              ,name     ='CHILD_IDs'                    &  !<-- Name of the attribute to extract
-                              ,itemCount=NUM_CHILDREN                   &  !<-- # of items in the Attribute
-                              ,valueList=MY_CHILDREN_ID                 &  !<-- The domain IDs of the current domain's children
-                              ,rc       =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Extract integer ratios of parent-to-child timesteps.
@@ -3030,6 +3415,7 @@
 !
           CF(N)=ESMF_ConfigCreate(rc=RC)
 !
+          MY_CHILDREN_ID=>cc%MY_CHILDREN_ID
           CHILD_ID=MY_CHILDREN_ID(N)
           CONFIG_ID=DOMAIN_ID_TO_RANK(CHILD_ID)
           WRITE(INT_TO_CHAR,FMT)CONFIG_ID
@@ -3193,7 +3579,7 @@
 !
 !-----------------------------------------------------------------------
 !***  Allocate arrays/pointers needed by the parents to compute
-!***  boundary data for their children.  The routine is called only
+!***  update data for their children.  The routine is called only
 !***  by parents.
 !-----------------------------------------------------------------------
 !
@@ -3208,6 +3594,38 @@
                                       ,CF                               &
                                       ,ITS,ITE,JTS,JTE                  &
                                       ,IDS,IDE,JDS,JDE )
+!
+!-----------------------------------------------------------------------
+!***  The lead parent task now broadcasts the locations of the
+!***  children's SW corner.  The lead tasks recvd this information 
+!***  from the children in phase 0 of the P-C coupler initialize
+!***  step (subroutine _INITIALIZE0).
+!-----------------------------------------------------------------------
+!
+        DO N=1,NUM_CHILDREN
+!
+          IF(I_AM_LEAD_FCST_TASK)THEN                                      !<-- Lead parent task clears IRecv in P-C Initialize0
+            ID_CHILD=MY_CHILDREN_ID(N)                                     !<-- Child N's domain ID
+            CALL MPI_WAIT(HANDLE_IJ_SW(ID_CHILD)                        &  !<-- Be sure the lead parent task has recvd child N's data.
+                         ,JSTAT                                         &
+                         ,IERR )
+          ENDIF
+!
+          CALL MPI_BCAST(I_PARENT_SW(N)                                 &  !<-- Parent I of chkid N's SW corner
+                        ,1                                              &  !<-- It is one word
+                        ,MPI_INTEGER                                    &  !<-- Datatype
+                        ,0                                              &  !<-- Lead parent task in parent-child intracomm is root
+                        ,COMM_FCST_TASKS                                &  !<-- Intracommunicator for fcst tasks
+                        ,IERR )
+!
+          CALL MPI_BCAST(J_PARENT_SW(N)                                 &  !<-- Parent J of chkid N's SW corner
+                        ,1                                              &  !<-- It is one word
+                        ,MPI_INTEGER                                    &  !<-- Datatype
+                        ,0                                              &  !<-- Lead parent task in parent-child intracomm is root
+                        ,COMM_FCST_TASKS                                &  !<-- Intracommunicator for fcst tasks
+                        ,IERR )
+!
+        ENDDO
 !
 !-----------------------------------------------------------------------
 !***  We now compute various indices and weights needed by the parents
@@ -3243,14 +3661,30 @@
         ALLOCATE(HANDLE_PACKET_E_V(MY_DOMAIN_ID)%CHILDREN(1:NUM_CHILDREN))
 !
         DO N=1,NUM_CHILDREN
-          HANDLE_PACKET_S_H(MY_DOMAIN_ID)%CHILDREN(N)%DATA=>NULL()
-          HANDLE_PACKET_S_V(MY_DOMAIN_ID)%CHILDREN(N)%DATA=>NULL()
-          HANDLE_PACKET_N_H(MY_DOMAIN_ID)%CHILDREN(N)%DATA=>NULL()
-          HANDLE_PACKET_N_V(MY_DOMAIN_ID)%CHILDREN(N)%DATA=>NULL()
-          HANDLE_PACKET_W_H(MY_DOMAIN_ID)%CHILDREN(N)%DATA=>NULL()
-          HANDLE_PACKET_W_V(MY_DOMAIN_ID)%CHILDREN(N)%DATA=>NULL()
-          HANDLE_PACKET_E_H(MY_DOMAIN_ID)%CHILDREN(N)%DATA=>NULL()
-          HANDLE_PACKET_E_V(MY_DOMAIN_ID)%CHILDREN(N)%DATA=>NULL()
+!
+          ID_CHILD=MY_CHILDREN_ID(N)
+          N1=0
+          N2=FTASKS_DOMAIN(ID_CHILD)-1
+          ALLOCATE(HANDLE_PACKET_S_H(MY_DOMAIN_ID)%CHILDREN(N)%DATA(N1:N2))
+          ALLOCATE(HANDLE_PACKET_S_V(MY_DOMAIN_ID)%CHILDREN(N)%DATA(N1:N2))
+          ALLOCATE(HANDLE_PACKET_N_H(MY_DOMAIN_ID)%CHILDREN(N)%DATA(N1:N2))
+          ALLOCATE(HANDLE_PACKET_N_V(MY_DOMAIN_ID)%CHILDREN(N)%DATA(N1:N2))
+          ALLOCATE(HANDLE_PACKET_W_H(MY_DOMAIN_ID)%CHILDREN(N)%DATA(N1:N2))
+          ALLOCATE(HANDLE_PACKET_W_V(MY_DOMAIN_ID)%CHILDREN(N)%DATA(N1:N2))
+          ALLOCATE(HANDLE_PACKET_E_H(MY_DOMAIN_ID)%CHILDREN(N)%DATA(N1:N2))
+          ALLOCATE(HANDLE_PACKET_E_V(MY_DOMAIN_ID)%CHILDREN(N)%DATA(N1:N2))
+!
+          DO NN=N1,N2
+            HANDLE_PACKET_S_H(MY_DOMAIN_ID)%CHILDREN(N)%DATA(NN)=MPI_REQUEST_NULL
+            HANDLE_PACKET_S_V(MY_DOMAIN_ID)%CHILDREN(N)%DATA(NN)=MPI_REQUEST_NULL
+            HANDLE_PACKET_N_H(MY_DOMAIN_ID)%CHILDREN(N)%DATA(NN)=MPI_REQUEST_NULL
+            HANDLE_PACKET_N_V(MY_DOMAIN_ID)%CHILDREN(N)%DATA(NN)=MPI_REQUEST_NULL
+            HANDLE_PACKET_W_H(MY_DOMAIN_ID)%CHILDREN(N)%DATA(NN)=MPI_REQUEST_NULL
+            HANDLE_PACKET_W_V(MY_DOMAIN_ID)%CHILDREN(N)%DATA(NN)=MPI_REQUEST_NULL
+            HANDLE_PACKET_E_H(MY_DOMAIN_ID)%CHILDREN(N)%DATA(NN)=MPI_REQUEST_NULL
+            HANDLE_PACKET_E_V(MY_DOMAIN_ID)%CHILDREN(N)%DATA(NN)=MPI_REQUEST_NULL
+          ENDDO
+!
         ENDDO
 !
 !-----------------------------------------------------------------------
@@ -3360,45 +3794,57 @@
             CHILDTASK_0=child_ranks(MY_DOMAIN_ID)%CHILDREN(N)%DATA(0)      !<-- Local rank of child N's lead task in parent-child intracomm
             NTAG=MY_CHILDREN_ID(N)*111+1
 !
-            CALL MPI_ISEND(LOCAL_ISTART                                 &  !<-- Starting I's of fcst tasks on parent domain
-                          ,FTASKS_DOMAIN(MY_DOMAIN_ID)                  &  !<-- # of fcst tasks on parent domain
-                          ,MPI_INTEGER                                  &  !<-- Indices are integers
-                          ,CHILDTASK_0                                  &  !<-- Send to each child's task 0
-                          ,NTAG                                         &  !<-- Unique MPI tag
-                          ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI intracommunicator to child N
-                          ,HANDLE_PARENT_ITS(MY_DOMAIN_ID)%DATA(N)      &  !<-- Request handle for this ISend
-                          ,IERR )
+            CALL MPI_ISSEND(LOCAL_ISTART                                &  !<-- Starting I's of fcst tasks on parent domain
+                           ,FTASKS_DOMAIN(MY_DOMAIN_ID)                 &  !<-- # of fcst tasks on parent domain
+                           ,MPI_INTEGER                                 &  !<-- Indices are integers
+                           ,CHILDTASK_0                                 &  !<-- Send to each child's task 0
+                           ,NTAG                                        &  !<-- Unique MPI tag
+                           ,COMM_TO_MY_CHILDREN(N)                      &  !<-- MPI intracommunicator to child N
+                           ,HANDLE_PARENT_ITS(MY_DOMAIN_ID)%DATA(N)     &  !<-- Request handle for this ISend
+                           ,IERR )
 !
             NTAG=NTAG+1
-            CALL MPI_ISEND(LOCAL_JSTART                                 &  !<-- Starting J's of fcst tasks on parent domain
-                          ,FTASKS_DOMAIN(MY_DOMAIN_ID)                  &  !<-- # of fcst tasks on parent domain
-                          ,MPI_INTEGER                                  &  !<-- Indices are integers
-                          ,CHILDTASK_0                                  &  !<-- Send to each child's task 0
-                          ,NTAG                                         &  !<-- Unique MPI tag
-                          ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI intracommunicator to child N
-                          ,HANDLE_PARENT_JTS(MY_DOMAIN_ID)%DATA(N)      &  !<-- Request handle for this ISend
-                          ,IERR )
+            CALL MPI_ISSEND(LOCAL_JSTART                                &  !<-- Starting J's of fcst tasks on parent domain
+                           ,FTASKS_DOMAIN(MY_DOMAIN_ID)                 &  !<-- # of fcst tasks on parent domain
+                           ,MPI_INTEGER                                 &  !<-- Indices are integers
+                           ,CHILDTASK_0                                 &  !<-- Send to each child's task 0
+                           ,NTAG                                        &  !<-- Unique MPI tag
+                           ,COMM_TO_MY_CHILDREN(N)                      &  !<-- MPI intracommunicator to child N
+                           ,HANDLE_PARENT_JTS(MY_DOMAIN_ID)%DATA(N)     &  !<-- Request handle for this ISend
+                           ,IERR )
 !
             NTAG=NTAG+1
-            CALL MPI_ISEND(LOCAL_IEND                                   &  !<-- Ending I's of fcst tasks on parent domain
-                          ,FTASKS_DOMAIN(MY_DOMAIN_ID)                  &  !<-- # of fcst tasks on parent domain
-                          ,MPI_INTEGER                                  &  !<-- Indices are integers
-                          ,CHILDTASK_0                                  &  !<-- Send to each child's task 0
-                          ,NTAG                                         &  !<-- Unique MPI tag
-                          ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI intracommunicator to child N
-                          ,HANDLE_PARENT_ITE(MY_DOMAIN_ID)%DATA(N)      &  !<-- Request handle for this ISend
-                          ,IERR )
+            CALL MPI_ISSEND(LOCAL_IEND                                  &  !<-- Ending I's of fcst tasks on parent domain
+                           ,FTASKS_DOMAIN(MY_DOMAIN_ID)                 &  !<-- # of fcst tasks on parent domain
+                           ,MPI_INTEGER                                 &  !<-- Indices are integers
+                           ,CHILDTASK_0                                 &  !<-- Send to each child's task 0
+                           ,NTAG                                        &  !<-- Unique MPI tag
+                           ,COMM_TO_MY_CHILDREN(N)                      &  !<-- MPI intracommunicator to child N
+                           ,HANDLE_PARENT_ITE(MY_DOMAIN_ID)%DATA(N)     &  !<-- Request handle for this ISend
+                           ,IERR )
 !
             NTAG=NTAG+1
-            CALL MPI_ISEND(LOCAL_JEND                                   &  !<-- Ending J's of fcst tasks on parent domain
-                          ,FTASKS_DOMAIN(MY_DOMAIN_ID)                  &  !<-- # of fcst tasks on parent domain
-                          ,MPI_INTEGER                                  &  !<-- Indices are integers
-                          ,CHILDTASK_0                                  &  !<-- Send to each child's task 0
-                          ,NTAG                                         &  !<-- Unique MPI tag
-                          ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI intracommunicator to child N
-                          ,HANDLE_PARENT_JTE(MY_DOMAIN_ID)%DATA(N)      &  !<-- Request handle for this ISend
-                          ,IERR )
+            CALL MPI_ISSEND(LOCAL_JEND                                  &  !<-- Ending J's of fcst tasks on parent domain
+                           ,FTASKS_DOMAIN(MY_DOMAIN_ID)                 &  !<-- # of fcst tasks on parent domain
+                           ,MPI_INTEGER                                 &  !<-- Indices are integers
+                           ,CHILDTASK_0                                 &  !<-- Send to each child's task 0
+                           ,NTAG                                        &  !<-- Unique MPI tag
+                           ,COMM_TO_MY_CHILDREN(N)                      &  !<-- MPI intracommunicator to child N
+                           ,HANDLE_PARENT_JTE(MY_DOMAIN_ID)%DATA(N)     &  !<-- Request handle for this ISend
+                           ,IERR )
 !
+          ENDDO
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Allocate the Handle for use by moving parents in ISends of their
+!***  shift information to their children.
+!-----------------------------------------------------------------------
+!
+        IF(I_AM_LEAD_FCST_TASK)THEN
+          ALLOCATE(cc%HANDLE_PARENT_SHIFT(1:NUM_CHILDREN))
+          DO N=1,NUM_CHILDREN
+            cc%HANDLE_PARENT_SHIFT(N)=MPI_REQUEST_NULL
           ENDDO
         ENDIF
 !
@@ -3438,7 +3884,7 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_CplComp) :: CPL_COMP                                       !<-- The Dyn-Phy Coupler Component
+      TYPE(ESMF_CplComp) :: CPL_COMP                                       !<-- The Parent-Child Coupler Component
 !
       TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The Coupler's Import State
                          ,EXP_STATE                                        !<-- The Coupler's Export State
@@ -3452,14 +3898,20 @@
 !---------------------
 !
       INTEGER(kind=KINT) :: CONFIG_ID                                   &
-                           ,ID_MY_PARENT,KOUNT_RATIOS_MN,KR             &
-                           ,MY_DOMAIN_ID,N,N_FIELD,N_MOVING,NN          &
-                           ,NROWS_P_UPD_X,NTAG,NUM_CHILD_TASKS,NUM_DIMS &
+                           ,ID_CHILD,ID_MY_PARENT,KR                    &
+                           ,MINUTES_RESTART,MY_DOMAIN_ID                &
+                           ,N,N_FIELD,N_MOVING,NN                       &
+                           ,NROWS_P_UPD_X,NTAG,NTIMESTEP                &
+                           ,NUM_CHILD_TASKS,NUM_DIMS                    &
                            ,SFC_FILE_RATIO,UPDATE_TYPE_INT
 !
       INTEGER(kind=KINT) :: IERR,ISTAT,RC,RC_CPL_INIT
 !
+      INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF
+!
       INTEGER(kind=KINT),DIMENSION(1:3) :: LIMITS_LO,LIMITS_HI
+!
+      INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
       REAL(kind=KFPT) :: DPH_1,DLM_1                                    &
                         ,SBD_1,WBD_1                                    &
@@ -3693,7 +4145,7 @@
 !***          subroutine PARENT_UPDATE_CHILD_PSFC.
 !-----------------------------------------------------------------------
 !
-        ALLOCATE(cc%CHILD_BOUND_H_SOUTH(1:NUM_CHILDREN,1:2),stat=ISTAT)       !<-- 1-D bndry data string for child tasks with Sbndry H points
+        ALLOCATE(cc%CHILD_BOUND_H_SOUTH(1:NUM_CHILDREN,1:2),stat=ISTAT)    !<-- 1-D bndry data string for child tasks with Sbndry H points
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%CHILD_BOUND_H_SOUTH stat=',ISTAT
           CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
@@ -4086,15 +4538,64 @@
             TASK_UPDATE_SPECS(N)%TASK_ID=>NULL()
             TASK_UPDATE_SPECS(N)%NUM_PTS_UPDATE_HZ=>NULL()
             TASK_UPDATE_SPECS(N)%NEXT_LINK=>NULL()
-!
             MOVING_CHILD_UPDATE(N)%TASKS=>NULL()
           ENDDO
+!
+!-----------------------------------------------------------------------
+!***  If this is a restarted run then take the value of the children's
+!***  next move timestep from the import state (the values having
+!***  originated from the Solver's read of the restart file).
+!-----------------------------------------------------------------------
+!
+          IF(RESTART)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="P-C Init2: Get Next Move Timestep of Children for Restart"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+            CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- The Parent-Child coupler import state
+                                  ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- Name in import state
+!!!                               ,count    =NUM_MOVING_CHILDREN          &  !<-- # of words in array
+                                  ,count    =NUM_DOMAINS_MAX              &  !<-- # of words in array
+                                  ,valueList=cc%NTIMESTEP_CHILD_MOVES     &  !<-- The next timestep the moving children move
+                                  ,rc       =RC)
+#else
+            CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- The Parent-Child coupler import state
+                                  ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- Name in import state
+                                  ,valueList=cc%NTIMESTEP_CHILD_MOVES     &  !<-- The next timestep the moving children move
+                                  ,rc       =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          ENDIF
+!
+!-----------------------------------------------------------------------
 !
         ENDIF
 !
 !-----------------------------------------------------------------------
 !
       ENDIF parent_block_2
+!
+!-----------------------------------------------------------------------
+!***  Both parent and child need to know the child's shift information.
+!-----------------------------------------------------------------------
+!
+      ALLOCATE(cc%SHIFT_INFO(1:3),stat=ISTAT)
+      IF(ISTAT/=0)THEN
+        WRITE(0,*)' Failed to allocate cpl_composite%SHIFT_INFO stat=',ISTAT
+        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+      ENDIF
+      SHIFT_INFO=>cc%SHIFT_INFO
+!
+      DO N=1,3
+        SHIFT_INFO(N)=-99999
+      ENDDO
 !
 !-----------------------------------------------------------------------
 !
@@ -4159,13 +4660,63 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!-----------------------------------------------------------------------
+!***  If this is not a restarted run then initialize the value of 
+!***  the nest's next move timestep to nonsense.  If this is a 
+!***  restarted run then the value originated in the restart file
+!***  and was obtained through the P-C coupler import state in
+!***  PARENT_CHILD_COUPLER_SETUP.
+!-----------------------------------------------------------------------
+!
+        NEXT_MOVE_TIMESTEP=>cc%NEXT_MOVE_TIMESTEP
+!
+        IF(.NOT.RESTART)THEN
+          NEXT_MOVE_TIMESTEP=-999999
+        ENDIF
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="P-C Init2: Insert NEST_MOVE_TIMESTEP into P-C Cpl Exp State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Parent_Child coupler export state
+                              ,name ='NEXT_MOVE_TIMESTEP'               &  !<-- The name of the Attribute
+                              ,value=NEXT_MOVE_TIMESTEP                 &  !<-- Initialized value for nest's next move timestep
+                              ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        I_SHIFT_CHILD=>cc%I_SHIFT_CHILD
+        J_SHIFT_CHILD=>cc%J_SHIFT_CHILD
+        I_SHIFT_CHILD=-999999
+        J_SHIFT_CHILD=-999999
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="P-C Init2: Insert I_SHIFT/J_SHIFT into P-C Cpl Exp State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                        &  !<-- The Parent-Child coupler export state
+                              ,name ='I_SHIFT'                        &  !<-- Insert Attribute with this name
+                              ,value=I_SHIFT_CHILD                    &  !<-- Motion of nest in I on its grid
+                              ,rc   =RC )
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                        &  !<-- The Parent-Child coupler export state
+                              ,name ='J_SHIFT'                        &  !<-- Insert Attribute with this name
+                              ,value=J_SHIFT_CHILD                    &  !<-- Motion of nest in J on its grid
+                              ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
         I_WANT_TO_MOVE=>cc%I_WANT_TO_MOVE
         MOVE_FLAG_SENT=>cc%MOVE_FLAG_SENT
-        RECVD_MOVE_TIMESTEP=>cc%RECVD_MOVE_TIMESTEP
 !
         I_WANT_TO_MOVE=.FALSE.                                             !<-- Initialize the nest 'move' flag
         MOVE_FLAG_SENT=.FALSE.                                             !<-- Initialize the flag for ISending the nest move flag
-        RECVD_MOVE_TIMESTEP=.FALSE.                                        !<-- Initialize the flag for receiving move timestep
 !
 !-----------------------------------------------------------------------
 !***  Allocate variables for children's handling their data exchange
@@ -4851,7 +5402,7 @@
         LINK_MRANK_RATIO=>cc%LINK_MRANK_RATIO
 !
         NN=0
-        KOUNT_RATIOS_MN=0                                                  !<-- Count the different resolutions of moving nests
+        NUM_SPACE_RATIOS_MVG=0                                             !<-- Count the different resolutions of moving children
 !
 !-----------------------------------------------------------------------
 !
@@ -4881,13 +5432,13 @@
           M_NEST_RATIO(NN)=SFC_FILE_RATIO                                  !<-- Moving child NN uses topography file with this ratio/ID
 !
           IF(NN==1)THEN
-            KOUNT_RATIOS_MN=1                                              !<-- Begin counting the ratios
+            NUM_SPACE_RATIOS_MVG=1                                         !<-- Begin counting the space ratios of moving children
             LIST_OF_RATIOS(1)=SFC_FILE_RATIO                               !<-- The 1st sfc file ratio is that of the 1st moving nest
             LINK_MRANK_RATIO(1)=1                                          !<-- 1st moving nest uses 1st sfc file ratio
 !
           ELSE
             FOUND=.FALSE.                                                  
-            DO KR=1,KOUNT_RATIOS_MN
+            DO KR=1,NUM_SPACE_RATIOS_MVG
               IF(SFC_FILE_RATIO==LIST_OF_RATIOS(KR))THEN
                 FOUND=.TRUE.
                 LINK_MRANK_RATIO(NN)=KR                                    !<-- Moving nest NN uses existing KR'th sfc file ratio 
@@ -4896,9 +5447,9 @@
             ENDDO
 !
             IF(.NOT.FOUND)THEN
-              KOUNT_RATIOS_MN=KOUNT_RATIOS_MN+1                            !<-- Increment the counter of different ratios
-              LIST_OF_RATIOS(KOUNT_RATIOS_MN)=SFC_FILE_RATIO               !<-- Save the new ratio in the list of different ratios
-              LINK_MRANK_RATIO(NN)=KOUNT_RATIOS_MN                         !<-- Moving child NN uses this rank in list of all different ratios
+              NUM_SPACE_RATIOS_MVG=NUM_SPACE_RATIOS_MVG+1                  !<-- Increment the counter of children's different space ratios
+              LIST_OF_RATIOS(NUM_SPACE_RATIOS_MVG)=SFC_FILE_RATIO          !<-- Save the new ratio in the list of different ratios
+              LINK_MRANK_RATIO(NN)=NUM_SPACE_RATIOS_MVG                    !<-- Moving child NN uses this rank in list of all different ratios
             ENDIF
 !
           ENDIF
@@ -4907,26 +5458,26 @@
 !
 !-----------------------------------------------------------------------
 !
-        ALLOCATE(cc%NEST_FIS_ON_PARENT(1:KOUNT_RATIOS_MN),stat=ISTAT)
+        ALLOCATE(cc%NEST_FIS_ON_PARENT(1:NUM_SPACE_RATIOS_MVG),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%NEST_FIS_ON_PARENT stat=',ISTAT
           CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
         ENDIF
         NEST_FIS_ON_PARENT=>cc%NEST_FIS_ON_PARENT
 !
-        ALLOCATE(cc%NEST_FIS_V_ON_PARENT(1:KOUNT_RATIOS_MN),stat=ISTAT)
+        ALLOCATE(cc%NEST_FIS_V_ON_PARENT(1:NUM_SPACE_RATIOS_MVG),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%NEST_FIS_V_ON_PARENT stat=',ISTAT
           CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
         ENDIF
         NEST_FIS_V_ON_PARENT=>cc%NEST_FIS_V_ON_PARENT
 !
-        DO N=1,KOUNT_RATIOS_MN
+        DO N=1,NUM_SPACE_RATIOS_MVG
           NEST_FIS_ON_PARENT(N)%DATA=>NULL()
           NEST_FIS_V_ON_PARENT(N)%DATA=>NULL()
         ENDDO
 !
-        ALLOCATE(cc%NEST_FIS_ON_PARENT_BNDS(1:KOUNT_RATIOS_MN),stat=ISTAT)
+        ALLOCATE(cc%NEST_FIS_ON_PARENT_BNDS(1:NUM_SPACE_RATIOS_MVG),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%NEST_FIS_ON_PARENT_BNDS stat=',ISTAT
           CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
@@ -4942,7 +5493,7 @@
                                            ,LINK_MRANK_RATIO            &
                                            ,LIST_OF_RATIOS              &
                                            ,M_NEST_RATIO                &
-                                           ,KOUNT_RATIOS_MN             &
+                                           ,NUM_SPACE_RATIOS_MVG        &
                                            ,IM_1,JM_1                   &
                                            ,TPH0_1,TLM0_1               &
                                            ,SB_1,WB_1                   &
@@ -4960,10 +5511,43 @@
 !
 !-----------------------------------------------------------------------
 !
-      IF(ASSOCIATED(DOMAIN_ID_TO_RANK))DEALLOCATE(DOMAIN_ID_TO_RANK)
+!-----------------------------------------------------------------------
+!***  Compute the number of timesteps between restart outputs.
+!***  this will be used if the domain is a moving nest.  The nest
+!***  will not be allowed to decide to move LAG_STEPS parent
+!***  timesteps before a restart output time.  This will postpone
+!***  such decisions until after the restart output time and thus
+!***  ensure that the same decision will be made in the forecast
+!***  when it is restarted.
+!-----------------------------------------------------------------------
 !
-      NEXT_MOVE_TIMESTEP=>cc%NEXT_MOVE_TIMESTEP
-      NEXT_MOVE_TIMESTEP=-999999
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="P-C Init2: Nest Reads NROWS_P_UPD_N"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF_MINE                       &  !<-- The nest's config object
+                                  ,value =MINUTES_RESTART               &  !<-- Minutes between restart output
+                                  ,label ='minutes_restart:'            &  !<-- The configure label
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      cc%NTIMESTEPS_RESTART=NINT((60.*MINUTES_RESTART)/DT_DOMAIN(MY_DOMAIN_ID))
+!
+      IF(ABS(cc%NTIMESTEPS_RESTART*DT_DOMAIN(MY_DOMAIN_ID)             &
+               -60.*MINUTES_RESTART)>0.0001)THEN
+        WRITE(0,*)' Timestep of this domain does not divide evenly'    &
+                 ,' into the restart interval!'
+        WRITE(0,*)' ABORTING!'
+        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      IF(ASSOCIATED(DOMAIN_ID_TO_RANK))DEALLOCATE(DOMAIN_ID_TO_RANK)
 !
 !-----------------------------------------------------------------------
 !
@@ -5087,13 +5671,13 @@
 !***  Local Variables
 !---------------------
 !
+      INTEGER(kind=KINT),SAVE :: LAG_STEPS=4                               !<-- Nest moves this many parent timesteps after deciding
+!                                                                               to move.
       INTEGER(kind=KINT),SAVE :: HANDLE_MOVE_FLAG=MPI_REQUEST_NULL      &
-                                ,HANDLE_NEXT_MOVE=MPI_REQUEST_NULL      &
-                                ,HANDLE_SW_CORNER=MPI_REQUEST_NULL
+                                ,HANDLE_NEXT_MOVE=MPI_REQUEST_NULL
 !
       INTEGER(kind=KINT),SAVE :: I_SW_PARENT_NEW                        &
                                 ,J_SW_PARENT_NEW                        &
-                                ,LAST_STEP_MOVED                        &
                                 ,NEXT_MOVE_TIMESTEP_PARENT
 !
       INTEGER(kind=KINT) :: ALLCLEAR_SIGNAL_TAG                         &
@@ -5107,17 +5691,14 @@
 !
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
-      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE,SAVE ::               &
-                                                   HANDLE_PARENT_SHIFT
-!
       LOGICAL(kind=KLOG) :: ALLCLEAR_SIGNAL_IS_PRESENT                  &
-                           ,ALLCLEAR_SIGNAL                             &
-                           ,MY_MOVE_FLAG
+                           ,ALLCLEAR_SIGNAL
+!
+      TYPE(COMPOSITE),POINTER :: CC
 !
       TYPE(INTERIOR_DATA_FROM_PARENT),DIMENSION(1:4) :: SEND_TASK          !<-- Specifics about interior data from sending parent tasks
 !
-      LOGICAL(kind=KLOG) :: MOVE_TIME_IS_PRESENT                        &
-                           ,PARENT_SHIFT_IS_PRESENT
+      LOGICAL(kind=KLOG) :: PARENT_SHIFT_IS_PRESENT
 !
 #ifdef ESMF_3
       TYPE(ESMF_Logical) :: ALLCLEAR_SIGNAL_PRESENT                     &
@@ -5175,6 +5756,8 @@
 !-----------------------------------------------------------------------
 !
       CALL POINT_TO_COMPOSITE(MY_DOMAIN_ID)
+!
+      CC=>CPL_COMPOSITE(MY_DOMAIN_ID)                                      !<-- Use dummy for shorter reference to composite
 !
 !-----------------------------------------------------------
 !***  Intracommunicator for current domain's forecast tasks
@@ -5289,20 +5872,17 @@
 !
 !-----------------------------------------------------------------------
 !***  The child is now at the beginning of a timestep that coincides
-!***  with the beginning of a parent timestep.  If the child has
-!***  determined that it wants its domain to move then it must send
-!***  its parent a signal to that effect along with its new position
-!***  on the parent's grid.  A parent must always run ahead of its
-!***  children therefore the parent will receive 'move' messages at the
-!***  end of a timestep in the future.  It is at that point in time
-!***  that the parent will generate new internal data for the children
-!***  who want to move as well as new starting boundary data for the
-!***  child's new location and thus it is at that point in time that 
-!***  the children will be able to execute their moves.  The parent
-!***  must send back to the child that (the parent's) timestep so the
-!***  child will know when to receive the new data.  The 'move' signal
-!***  (true) is sent to the parent only when the child has determined
-!***  it wants to move.
+!***  with the beginning of a parent timestep.  In 1-way nesting the
+!***  time that a parent will receive a child's shift information
+!***  cannot be predicted, a consequence of having the domains run
+!***  as fast as possible.  To eliminate potential randomness in
+!***  the nests' shifts they will always execute moves three parent
+!***  timesteps after they have decided they want to move.  It is
+!***  at that point in time that the parent will generate new internal
+!***  data for the children who want to move as well as new starting
+!***  boundary data for the child's new location and thus it is at
+!***  that point in time that the children will then be able to execute
+!***  their moves.
 !-----------------------------------------------------------------------
 !
 #ifdef ESMF_3
@@ -5311,105 +5891,24 @@
       moving_children_a: IF(MY_DOMAIN_MOVES)THEN                           !<-- Select the moving nests
 #endif
 !        
-!----------------------------------------------------------
-!***  If the child sent an affirmative 'move' signal at
-!***  the beginning of the previous parent timestep then
-!***  it now receives from the parent the parent's timestep
-!***  at which the new data is to be received.  We wait to
-!***  use the parent timestep for the move here rather than
-!***  immediately after the child sent its 'move' signal
-!***  to allow the child to proceed and not wait for a
-!***  parent who might not be ready to send its response
-!***  back to the child immediately.
-!----------------------------------------------------------
-!
-        new_move_time: IF(I_WANT_TO_MOVE                   &  !<-- Does this nest want to move but doesn't know when to?
-                               .AND.                       &  
-                          .NOT.RECVD_MOVE_TIMESTEP)THEN      
-!
-          nest_task_0_a: IF(I_AM_LEAD_FCST_TASK)THEN                       !<-- Lead forecast task on this moving nest
-!
-            CALL MPI_IPROBE(0                                           &  !<-- The message is sent by the parent's task 0.
-                           ,TIME_TAG                                    &  !<-- Tag associated with nest N's move timestep
-                           ,COMM_TO_MY_PARENT                           &  !<-- Communicator between this nest and its parent
-                           ,MOVE_TIME_IS_PRESENT                        &  !<-- Is the nest's new move time now available?
-                           ,JSTAT                                       &
-                           ,IERR)
-!
-!---------------------------------------------------------
-!***  If NEXT_MOVE_TIMESTEP_PARENT from the parent is now
-!***  present then use it to obtain the child timestep
-!***  at which new data from the parent for the move is
-!***  available.
-!---------------------------------------------------------
-!
-            IF(MOVE_TIME_IS_PRESENT)THEN
-              CALL MPI_RECV(NEXT_MOVE_TIMESTEP_PARENT                   &  !<-- Recv the message to clear the nest's ISEND
-                           ,1                                           &  !<-- # of words in the message
-                           ,MPI_INTEGER                                 &  !<-- The timestep is an integer
-                           ,0                                           &  !<-- Local rank of the parent task sending the word
-                           ,TIME_TAG                                    &  !<-- Arbitrary tag used for this data exchange
-                           ,COMM_TO_MY_PARENT                           &  !<-- Communicator betweenthis nest and its parent
-                           ,JSTAT                                       &
-                           ,IERR )
-!
-              NEXT_MOVE_TIMESTEP=(NEXT_MOVE_TIMESTEP_PARENT+1)*         &  !<-- Child will move at beginning of this timestep
-                                  TIME_RATIO_MY_PARENT
-              RECVD_MOVE_TIMESTEP=.TRUE.
-!
-            ELSE
-              RECVD_MOVE_TIMESTEP=.FALSE.
-            ENDIF
-!
-          ENDIF nest_task_0_a
-!
-!---------------------------------------------------------
-!***  Child task 0 needs to inform the other child tasks
-!***  if the new move timestep has been received from
-!***  the parent.  If it has then that new timestep is
-!***  broadcast to the nest tasks.  That will be the 
-!***  point in time at which BC data for the new nest
-!***  location is received along with internal shift 
-!***  data from the parent.
-!---------------------------------------------------------
-!
-          CALL MPI_BCAST(RECVD_MOVE_TIMESTEP                            &  !<-- Has the new move timestep been received?
-                        ,1                                              &  !<-- The timestep is one word
-                        ,MPI_LOGICAL                                    &  !<-- The timestep is type Logical
-                        ,0                                              &  !<-- Broadcast from nest forecast task 0
-                        ,COMM_FCST_TASKS                                &  !<-- MPI communicator for this nest's forecast tasks
-                        ,IRTN)
-!
-          IF(RECVD_MOVE_TIMESTEP)THEN
-            CALL MPI_BCAST(NEXT_MOVE_TIMESTEP                           &  !<-- The next timestep to move 
-                          ,1                                            &  !<-- The timestep is one word
-                          ,MPI_INTEGER                                  &  !<-- The timestep is type Integer
-                          ,0                                            &  !<-- Broadcast from nest forecast task 0
-                          ,COMM_FCST_TASKS                              &  !<-- MPI communicator for this nest's forecast tasks
-                          ,IRTN)
-!
-            LAST_STEP_MOVED=NEXT_MOVE_TIMESTEP                             !<-- Reset to this newest move even if in the future
-          ENDIF
-!
-        ENDIF new_move_time
-!
-!---------------------------------------------------------
-!***  If this is now the point in time at which the
-!***  parent learned the child was wanting to move,
-!***  and is thus the time at which the parent prepared
-!***  internal and boundary data for the child's new
-!***  position, then the child moves now.  It will receive
-!***  the data prepared for it by its parent for the 
-!***  child's new position and will also shift all of its 
-!***  internal data that remains within the lateral extent
-!***  of the child's grid position prior to the move.
-!---------------------------------------------------------
+!-----------------------------------------------------------------------
 !
 #ifdef ESMF_3
         MOVE_NOW=ESMF_FALSE
 #else
         MOVE_NOW=.FALSE.
 #endif
+!
+!----------------------------------------------------------
+!***  If this is now the point in time at which the
+!***  parent prepared internal and boundary data for the
+!***  child's new position, then the child moves now.  
+!***  It will receive the data prepared for it by its
+!***  parent for the child's new position and will also
+!***  shift all of its internal data that remains within
+!***  the lateral extent of the child's grid position 
+!***  prior to the move.
+!---------------------------------------------------------
 !
         the_child_moves: IF(NTIMESTEP==NEXT_MOVE_TIMESTEP)THEN
 !
@@ -5421,66 +5920,6 @@
 !
           I_WANT_TO_MOVE=.FALSE.                                           !<-- Reset the 'move' flag
           MOVE_FLAG_SENT=.FALSE.                                           !<-- Reset the flag for ISending the move flag
-          RECVD_MOVE_TIMESTEP=.FALSE.                                      !<-- Reset flag for receiving the move timestep
-!
-          I_SHIFT_CHILD=(I_SW_PARENT_NEW-I_SW_PARENT_CURRENT)           &  !<-- The shift in I in this domain's space
-                        *SPACE_RATIO_MY_PARENT
-          J_SHIFT_CHILD=(J_SW_PARENT_NEW-J_SW_PARENT_CURRENT)           &  !<-- The shift in J in this domain's space
-                        *SPACE_RATIO_MY_PARENT
-!
-!-----------------------------------------------------------------------
-!***  As stated at its outset the fundamental purpose of this routine
-!***  is for a nested domain to recv update data from its parent.
-!***  In the special case in which this child domain is also a parent
-!***  then one parent-specific action needs to be taken here.  The
-!***  domain is just now moving at this point in time and that will
-!***  change its tasks' relationships with the boundary tasks of its
-!***  (moving) children who remain in place with respect to the earth
-!***  and atmosphere.  Therefore this domain as a parent must signal
-!***  its children now that this is when their inter-task relationships
-!***  change.  This will force the children to wait to recv the new
-!***  parent-child task specifications before they execute their normal
-!***  recvs of BC data updates from the future at the end of this
-!***  routine.
-!-----------------------------------------------------------------------
-!
-          IF(NUM_CHILDREN>0.AND.I_AM_LEAD_FCST_TASK)THEN
-!
-            IF(.NOT.ALLOCATED(HANDLE_PARENT_SHIFT))THEN
-              ALLOCATE(HANDLE_PARENT_SHIFT(1:NUM_CHILDREN))
-              DO N=1,NUM_CHILDREN
-                HANDLE_PARENT_SHIFT(N)=MPI_REQUEST_NULL
-             ENDDO
-            ENDIF
-!
-            PARENT_SHIFT(1)=I_SHIFT_CHILD                                  !<-- Parent's I shift in its space
-            PARENT_SHIFT(2)=J_SHIFT_CHILD                                  !<-- Parent's J shift in its space
-!
-            DO N=1,NUM_CHILDREN
-!
-              CALL MPI_WAIT(HANDLE_PARENT_SHIFT(N)                      &  !<-- Handle for ISend of parent's shift
-                           ,JSTAT                                       &  !<-- MPI status
-                           ,IERR)
-!
-              NTAG0=PARENT_SHIFT_TAG+NTIMESTEP                             !<-- Unique timestep-dependent MPI tag
-              CHILDTASK_0=child_ranks(MY_DOMAIN_ID)%CHILDREN(N)%DATA(0)    !<-- Local rank of child N's lead task in parent-child intracomm
-!
-              CALL MPI_ISEND(PARENT_SHIFT                               &  !<-- Send parent's shift to all its children
-                            ,2                                          &  !<-- There are 2 words in the message
-                            ,MPI_INTEGER                                &  !<-- The shift increments are integers
-                            ,CHILDTASK_0                                &  !<-- Signal sent to all lead child tasks
-                            ,NTAG0                                      &  !<-- Tag used for this data exchange
-                            ,COMM_TO_MY_CHILDREN(N)                     &  !<-- MPI communicator between this parent and its children
-                            ,HANDLE_PARENT_SHIFT(N)                     &  !<-- Communication request handle for this ISend to children
-                            ,IERR )
-!
-            ENDDO
-!
-          ENDIF
-!
-!-----------------------------------------------------------------------
-!***  That completes the action of this domain as a parent.
-!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  Deallocate this moving nest's working arrays/pointers whose 
@@ -5586,42 +6025,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !---------------------------------------------------------
-!***  The moving nests load their motion in I and J
-!***  into the coupler export state so it can be sent 
-!***  to the DOMAIN component where intra-task and
-!***  inter-task updates on the nest domains can be
-!***  carried out.  Those updates have nothing to do
-!***  with their parents.
-!---------------------------------------------------------
-!
-#ifdef ESMF_3
-        IF(MOVE_NOW==ESMF_TRUE)THEN
-#else
-        IF(MOVE_NOW)THEN
-#endif
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Insert I_SHIFT/J_SHIFT in RUN_RECV"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_AttributeSet(state=EXP_STATE                        &  !<-- The Parent-Child coupler export state
-                                ,name ='I_SHIFT'                        &  !<-- Insert Attribute with this name
-                                ,value=I_SHIFT_CHILD                    &  !<-- Motion of nest in I on its grid
-                                ,rc   =RC )
-!
-          CALL ESMF_AttributeSet(state=EXP_STATE                        &  !<-- The Parent-Child coupler export state
-                                ,name ='J_SHIFT'                        &  !<-- Insert Attribute with this name
-                                ,value=J_SHIFT_CHILD                    &  !<-- Motion of nest in J on its grid
-                                ,rc   =RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_RUN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        ENDIF
-!
-!---------------------------------------------------------
 !
       ENDIF moving_children_a
 !
@@ -5715,12 +6118,11 @@
 !---------------------------------------------------------
 !***  Moving nests now decide if they want to move and
 !***  then tell their parents if the answer is yes.
-!***  The move will be executed in one of the next two
-!***  parent timesteps in this routine immediately above.
-!***  The move will be executed after the parent has 
-!***  learned that the nest wants to move and has then
-!***  prepared BC and internal shift data valid at the
-!***  timestep that the parent received the message.
+!***  The move will be executed three parent timesteps
+!***  later in this routine immediately above.  By
+!***  that time the parent will have learned that the
+!***  nest wants to move and will have prepared BC and
+!***  internal shift data valid at the proper timestep.
 !***  If the nest is still waiting to shift following
 !***  the most recent decision to do so then it does not
 !***  enter the storm motion routine.
@@ -5781,6 +6183,12 @@
                                    ,I_SW_PARENT_NEW                     &
                                    ,J_SW_PARENT_NEW                     &
                                    ,MY_DOMAIN_ID )
+!     if(i_am_lead_fcst_task)then
+!     write(0,*)' called COMPUTE_STORM_MOTION i_want_to_move=',i_want_to_move &
+!              ,' i_curr=',i_sw_parent_current,' j_curr=',j_sw_parent_current &
+!              ,' i_new=',i_sw_parent_new,' j_new=',j_sw_parent_new
+!     endif
+   
 !
 #else
           CALL ARTIFICIAL_MOVE5(NTIMESTEP                               &
@@ -5790,68 +6198,105 @@
                                ,J_SW_PARENT_CURRENT                     &
                                ,I_SW_PARENT_NEW                         &
                                ,J_SW_PARENT_NEW )
+!     write(0,*)' called ARTIFICIAL_MOVE5 i_want_to_move=',i_want_to_move &
+!              ,' i_curr=',i_sw_parent_current,' j_curr=',j_sw_parent_current &
+!              ,' i_new=',i_sw_parent_new,' j_new=',j_sw_parent_new
 
 #endif
+!
         ENDIF
 !
 !-----------------------------------------------------------------------
+!***  If the nest has decided it wants to shift then finalize the
+!***  key values and inform the parent.
+!-----------------------------------------------------------------------
 !
-        nest_task_0_b: IF(I_AM_LEAD_FCST_TASK)THEN                         !<-- Lead forecast task on this moving nest
+        IF(I_WANT_TO_MOVE.AND..NOT.MOVE_FLAG_SENT)THEN                     !<-- Nest wants to move; shift info not already sent
 !
-          IF(I_WANT_TO_MOVE.AND..NOT.MOVE_FLAG_SENT)THEN                   !<-- Nest wants to move; send flag if not already sent
+          NEXT_MOVE_TIMESTEP=NTIMESTEP+TIME_RATIO_MY_PARENT*LAG_STEPS      !<-- Nest will shift after LAG_STEPS parent timesteps
 !
-            CALL MPI_WAIT(HANDLE_MOVE_FLAG                              &  !<-- Handle for ISend of child's move flag to parent
-                         ,JSTAT                                         &  !<-- MPI status
-                         ,IERR)
+!-----------------------------------------------------------------------
+!***  Do not permit the nest to shift at what would be the first
+!***  timestep of a restarted run.  That is because of the large
+!***  amount of move-related information exchanged between the
+!***  nest and its parent across timesteps. 
+!-----------------------------------------------------------------------
 !
-            MY_MOVE_FLAG=I_WANT_TO_MOVE                                    !<-- Safe to reload the buffer variable
+          IF(cc%NTIMESTEPS_RESTART-MOD(NTIMESTEP,cc%NTIMESTEPS_RESTART)>TIME_RATIO_MY_PARENT*LAG_STEPS)THEN
 !
-            CALL MPI_ISEND(MY_MOVE_FLAG                                 &  !<-- Signal to parent:  Does this child want to move?
-                          ,1                                            &  !<-- There is 1 word in the flag
-                          ,MPI_LOGICAL                                  &  !<-- Signal is type Logical
-                          ,0                                            &  !<-- Signal sent to parent task 0
-                          ,MOVE_TAG                                     &  !<-- Arbitrary tag used for this data exchange
-                          ,COMM_TO_MY_PARENT                            &  !<-- MPI communicator between this child and its parent
-                          ,HANDLE_MOVE_FLAG                             &  !<-- Communication request handle for ISend to parent
-                          ,IERR )
+!-----------------------------------------------------------------------
+!
+            NEXT_MOVE_TIMESTEP_PARENT=NEXT_MOVE_TIMESTEP/TIME_RATIO_MY_PARENT-1  !<-- Nest will shift after LAG_STEPS parent timesteps
+            LAST_STEP_MOVED=NEXT_MOVE_TIMESTEP                                   !<-- Reset to this to the most recent move
+!
+            IF(I_AM_LEAD_FCST_TASK)THEN                                    !<-- Lead forecast task on this moving nest
+!
+              CALL MPI_WAIT(HANDLE_MOVE_FLAG                            &  !<-- Handle for ISend of child's move flag to parent
+                           ,JSTAT                                       &  !<-- MPI status
+                           ,IERR)
+!
+              SHIFT_INFO(1)=NEXT_MOVE_TIMESTEP_PARENT
+              SHIFT_INFO(2)=I_SW_PARENT_NEW-I_SW_PARENT_CURRENT            !<-- Nest's shift in I on its parent's grid
+              SHIFT_INFO(3)=J_SW_PARENT_NEW-J_SW_PARENT_CURRENT            !<-- Nest's shift in J on its parent's grid
+!
+              CALL MPI_ISSEND(SHIFT_INFO                                &  !<-- Key shift information 
+                             ,3                                         &  !<-- There are 3 words in the flag
+                             ,MPI_INTEGER                               &  !<-- Signal is type Integer
+                             ,0                                         &  !<-- Signal sent to parent task 0
+                             ,MOVE_TAG                                  &  !<-- Arbitrary tag used for this data exchange
+                             ,COMM_TO_MY_PARENT                         &  !<-- MPI communicator between this child and its parent
+                             ,HANDLE_MOVE_FLAG                          &  !<-- Communication request handle for ISend to parent
+                             ,IERR )
+!
+            ENDIF
 !
             MOVE_FLAG_SENT=.TRUE.
 !
-!-----------------------------------------------------------------------
-!***  If child wants to move, send the new location to parent.
-!-----------------------------------------------------------------------
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert NEXT_MOVE_TIMESTEP into P-C export start"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL MPI_WAIT(HANDLE_SW_CORNER                              &  !<-- Handle for ISend of child's new position to parent
-                         ,JSTAT                                         &  !<-- MPI status
-                         ,IERR)
+            CALL ESMF_AttributeSet(state=EXP_STATE                      &  !<-- The Parent-Child coupler export state
+                                  ,name ='NEXT_MOVE_TIMESTEP'           &  !<-- Insert Attribute with this name
+                                  ,value=NEXT_MOVE_TIMESTEP             &  !<-- Nest will shift during this timestep
+                                  ,rc   =RC )
 !
-            IJ_SHIFT_CHILD(1)=I_SW_PARENT_NEW-I_SW_PARENT_CURRENT          !<-- Safe to reload shift buffers
-            IJ_SHIFT_CHILD(2)=J_SW_PARENT_NEW-J_SW_PARENT_CURRENT          !<--
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL MPI_ISEND(IJ_SHIFT_CHILD                               &  !<-- Change in parent I,J of this child's SW corner after move
-                          ,2                                            &  !<-- Sending 2 words
-                          ,MPI_INTEGER                                  &  !<-- Indices are integers
-                          ,0                                            &  !<-- Indices sent to parent task 0
-                          ,9001                                         &  !<-- Arbitrary tag used for this data exchange
-                          ,COMM_TO_MY_PARENT                            &  !<-- MPI communicator between this child and its parent
-                          ,HANDLE_SW_CORNER                             &  !<-- Communication request handle for this ISend to parent
-                          ,IERR )
+            I_SHIFT_CHILD=(I_SW_PARENT_NEW-I_SW_PARENT_CURRENT)         &  !<-- The shift in I in this domain's space
+                          *SPACE_RATIO_MY_PARENT
+            J_SHIFT_CHILD=(J_SW_PARENT_NEW-J_SW_PARENT_CURRENT)         &  !<-- The shift in J in this domain's space
+                          *SPACE_RATIO_MY_PARENT
 !
-!-----------------------------------------------------------------------
-!***  After the parent receives the nest's move flag the parent will
-!***  send back the value of its own timestep at that moment.  That
-!***  will be the point in time at which the nest will actually be
-!***  able to execute its move since that is when the parent will
-!***  have prepared BC data for the nest's new position as well as
-!***  internal shift data for updating nest points outisde of the
-!***  pre-move footprint.
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert I_SHIFT/J_SHIFT in RUN_RECV"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeSet(state=EXP_STATE                      &  !<-- The Parent-Child coupler export state
+                                  ,name ='I_SHIFT'                      &  !<-- Insert Attribute with this name
+                                  ,value=I_SHIFT_CHILD                  &  !<-- Motion of nest in I on its grid
+                                  ,rc   =RC )
+!
+            CALL ESMF_AttributeSet(state=EXP_STATE                      &  !<-- The Parent-Child coupler export state
+                                  ,name ='J_SHIFT'                      &  !<-- Insert Attribute with this name
+                                  ,value=J_SHIFT_CHILD                  &  !<-- Motion of nest in J on its grid
+                                  ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 !-----------------------------------------------------------------------
 !
           ENDIF
 !
 !-----------------------------------------------------------------------
 !
-        ENDIF nest_task_0_b
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -5959,6 +6404,11 @@
 !         write(0,123)n,parent_task(n)%south_h%id_source,values(5),values(6),values(7),values(8)
   123     format(' Ready to recv South_H from parent task #',i1,' id=',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
+!     if(ntimestep==180)then
+!       write(0,*)' NEST_RECVS_BC_DATA(',trim(time_flag),') for South_H'
+!       write(0,*)' from parent task #',n,' id=',PARENT_TASK(N)%SOUTH_H%ID_SOURCE,' # words=',PARENT_TASK(N)%SOUTH_H%LENGTH &
+!                ,' ntag=',ntag
+!     endif
           btim=timef()
           CALL MPI_RECV(PARENT_TASK(N)%SOUTH_H%STRING                   &  !<-- 1-D boundary datastring from parent task
                        ,PARENT_TASK(N)%SOUTH_H%LENGTH                   &  !<-- # of words in the datastring
@@ -5970,10 +6420,12 @@
                        ,IERR)
           cpl1_south_h_recv_tim=cpl1_south_h_recv_tim+(timef()-btim)
           cpl1_recv_tim=cpl1_recv_tim+(timef()-btim)
-
 !         call date_and_time(values=values)     
 !         write(0,124)n,parent_task(n)%south_h%id_source,values(5),values(6),values(7),values(8)
   124     format(' Recvd South_H from parent task #',i1,' id=',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
+!     if(ntimestep==180)then
+!       write(0,*)' NEST_RECVS_BC_DATA(',trim(time_flag),') recvd for South_H ierr=',ierr
+!     endif
 ! 
 !-----------------------------------------------------------------------
 !
@@ -6513,7 +6965,7 @@
                            ,J_PARENT_SW_OLD                             &
                            ,KOUNT_MOVING,MY_DOMAIN_ID,N,N_MOVING        &
                            ,N_UPDATE_CHILD_TASKS                        &
-                           ,NR,NRES                                     &
+                           ,NR,NRES,NTAG0                               &
                            ,NTIMESTEP                                   &
                            ,NTIMESTEP_CHILD                             &
                            ,NTIMESTEP_MOVE                              &
@@ -6531,7 +6983,7 @@
       INTEGER(kind=KINT),DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
       LOGICAL(kind=KLOG) :: EXCH_DONE,INTEGRATE_TIMESTEP                &
-                           ,MOVE_FLAG_IS_PRESENT,PARENT_MOVED
+                           ,PARENT_MOVED,SHIFT_INFO_IS_PRESENT
 !
       TYPE(COMPOSITE),POINTER :: CC
 !
@@ -6609,9 +7061,18 @@
       KOUNT_MOVING=0                                                       !<-- Keep track of nests who want to move.
 !
 !-----------------------------------------------------------------------
-!***  The following block is for the very special setup in which
-!***  the parent domain is a moving nest and it contains children
-!***  (which must be moving and cannot be static).
+!***  The following block is for the setup in which this parent domain
+!***  is a moving nest and it contains children (which must be moving
+!***  and cannot be static).
+!***  If this domain is going to move in one of its parent's timesteps
+!***  from now (TIME_RATIO_MY_PARENT timesteps of this domain) then
+!***  it now notifies its children of the coming shift.  This is
+!***  required so that the children will be able to recompute the
+!***  parent-child task layout relationships which wil change when the
+!***  parent moves.This will force the children to wait to recv the
+!***  task update specifications for BCs from the parent before they
+!***  execute their normal recvs of BC data updates from the future
+!***  at the end of this routine.
 !***  If the parent just moved at the beginning of the current timestep
 !***  it must adjust its location of its children.
 !***  Note that I_SHIFT_CHILD and J_SHIFT_CHILD here are the shift
@@ -6626,6 +7087,50 @@
 #else
       parent_moves: IF(MY_DOMAIN_MOVES)THEN                                !<-- Does this parent domain move?
 #endif
+!
+!-----------------------------------------------------------------------
+!***  The lead task on this parent domain notifies the lead tasks on
+!***  each of its children's domains that it is going to shift.
+!-----------------------------------------------------------------------
+!
+        IF(NTIMESTEP==NEXT_MOVE_TIMESTEP-TIME_RATIO_MY_PARENT)THEN
+!
+          IF(NUM_CHILDREN>0.AND.I_AM_LEAD_FCST_TASK)THEN
+!
+            PARENT_SHIFT(1)=I_SHIFT_CHILD                                  !<-- Parent's I shift in its space
+            PARENT_SHIFT(2)=J_SHIFT_CHILD                                  !<-- Parent's J shift in its space
+!
+            DO N=1,NUM_CHILDREN
+!
+              CALL MPI_WAIT(HANDLE_PARENT_SHIFT(N)                      &  !<-- Handle for ISend of parent's shift
+                           ,JSTAT                                       &  !<-- MPI status
+                           ,IERR)
+!
+!             NTAG0=PARENT_SHIFT_TAG+NTIMESTEP                             !<-- Unique timestep-dependent MPI tag
+              NTAG0=PARENT_SHIFT_TAG+NEXT_MOVE_TIMESTEP                    !<-- Unique timestep-dependent MPI tag
+              CHILDTASK_0=child_ranks(MY_DOMAIN_ID)%CHILDREN(N)%DATA(0)    !<-- Local rank of child N's lead task in parent-child intracomm
+!
+              CALL MPI_ISSEND(PARENT_SHIFT                              &  !<-- Send parent's shift to all its children
+                             ,2                                         &  !<-- There are 2 words in the message
+                             ,MPI_INTEGER                               &  !<-- The shift increments are integers
+                             ,CHILDTASK_0                               &  !<-- Signal sent to all lead child tasks
+                             ,NTAG0                                     &  !<-- Tag used for this data exchange
+                             ,COMM_TO_MY_CHILDREN(N)                    &  !<-- MPI communicator between this parent and its children
+                             ,HANDLE_PARENT_SHIFT(N)                    &  !<-- Communication request handle for this ISend to children
+                             ,IERR )
+      call date_and_time(values=values)
+      write(0,*)' parent task issent parent shift=',parent_shift,' to childtask_0=',childtask_0,' tag=',ntag0 &
+               ,' ntimestep=',ntimestep
+      write(0,34983)values(5),values(6),values(7),values(8)
+34983 format(' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
+!
+            ENDDO
+!
+          ENDIF
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
 !
         this_timestep: IF(NTIMESTEP==NEXT_MOVE_TIMESTEP)THEN
 !
@@ -6648,7 +7153,7 @@
                                              ,LINK_MRANK_RATIO          &
                                              ,LIST_OF_RATIOS            &
                                              ,M_NEST_RATIO              &
-                                             ,KOUNT_RATIOS_MN           &
+                                             ,NUM_SPACE_RATIOS_MVG      &
                                              ,IM_1,JM_1                 &
                                              ,TPH0_1,TLM0_1             &
                                              ,SB_1,WB_1                 &
@@ -6670,10 +7175,10 @@
 !***  timestep and sends it to the children so they can form time
 !***  tendencies for their boundary variables as they integrate through
 !***  this parent timestep.  This is relevant for all children, both
-!***  static and moving.  However, if the parent learned a timestep
-!***  ago that a child wants to move then it must now reset those
-!***  working pointers/arrays that are used for the preparation of
-!***  the standard child boundary updates that are sent back in time
+!***  static and moving.  If this is now the timestep at which the
+!***  child shifts then the parent must now reset those working
+!***  pointers/arrays that are used for the preparation of the
+!***  standard child boundary updates that are sent back in time
 !***  to all children every parent timestep so the child can generate
 !***  its boundary tendencies.  The reset is needed because the child's
 !***  boundary has different associations with the parent tasks after
@@ -6693,9 +7198,14 @@
         IF(STATIC_OR_MOVING(N)=='Moving')THEN                              !<-- Select the children who can move.
           KOUNT_MOVING=KOUNT_MOVING+1
 !
-          IF(MOVE_FLAG(KOUNT_MOVING).OR.PARENT_MOVED)THEN                  !<-- If true, this child just moved relative to parent
+          IF(NTIMESTEP==NTIMESTEP_CHILD_MOVES(N)+1                      &  !<-- If either of these statements is true
+                     .OR.                                               &  !    then child N just moved relative
+             PARENT_MOVED)THEN                                             !    to this parent.
+!
             NRES=LINK_MRANK_RATIO(KOUNT_MOVING)                            !<-- Rank of space ratio value among the moving children
+!
             CALL RESET_WORK_PARENT(N,NRES,'Future',PARENT_MOVED)           !<-- Reset working arrays for this moving nest.
+!
             MOVE_FLAG(KOUNT_MOVING)=.FALSE.                                !<-- Flag will be 'false' until the next move. 
           ENDIF
 !
@@ -6712,28 +7222,14 @@
 !***  children who move then:
 !***
 !***  (1) The parent receives a message from each child who can move
-!***      only when the child wants to move.  A 2nd message contains
-!***      the new location of the nest domain's SW corner on the 
-!***      parent grid.  The signal is received by the parent at the
-!***      end of a parent timestep while the child will have sent
-!***      these messages from the beginning of this parent timestep
-!***      or from the beginning of the previous one depending on
-!***      the relative speeds of parent and child.
-!***  (2) When the child sends its move message it can't know the
-!***      parent's current timestep which is the timestep at which
-!***      the parent will generate new internal nest data as well as
-!***      new boundary data to begin forming time tendencies at the
-!***      child's new location.
-!***      Let's assume a moving child reaches the beginning of parent
-!***      timestep N and decides it wants to move.  It sends a move
-!***      signal to the parent which will receive it at either the
-!***      end of timestep N or N+1.  The parent then sends back to
-!***      the child the value of the parent's current timestep so
-!***      the child will know where in time to receive from its
-!***      parent the new internal data and starting boundary data
-!***      for its new location.  That timestep then must be the one 
-!***      at which the child will actually be able to execute its move.
-!***  (3) The parent computes and sends new information to the moving
+!***      only when the child wants to move.  The message contains
+!***      the parent timestep in which the child will shift as well
+!***      as the shift in I and J on the parent grid.  The message
+!***      is received by the parent at the end of a parent timestep
+!***      while the child will have sent it from the beginning of
+!***      this parent timestep or from the beginning of the previous
+!***      one depending on the relative speeds of parent and child.
+!***  (2) The parent computes and sends new information to the moving
 !***      children regarding the association of parent and child tasks
 !***      for the children's new locations after they move.  Then the
 !***      parent computes and sends the new internal child data for
@@ -6782,14 +7278,14 @@
             MOVING_BC_TAG=1112+1000*MY_CHILDREN_ID(N_MOVING)            &    !<-- Use domain ID and child's timestep to generate
                          +NTIMESTEP*TIME_RATIO_MY_CHILDREN(N_MOVING)         !    a unique tag
 !
-            CALL MPI_ISEND(PROCEED_AFTER_BC_RECV(N)                     &  !<-- Parent task 0 sends BC update flag to moving child N
-                          ,1                                            &  !<-- # of words sent
-                          ,MPI_INTEGER                                  &  !<-- The flag is an integer.
-                          ,CHILDTASK_0                                  &  !<-- Sending to moving child N's task 0.
-                          ,MOVING_BC_TAG                                &  !<-- Tag associated with moving nests' recvs of BC data
-                          ,COMM_TO_MY_CHILDREN(N_MOVING)                &  !<-- MPI communicator between parent and moving child N
-                          ,HANDLE_BC_UPDATE(N)                          &  !<-- Handle for this ISend of moving child N's BC update flag
-                          ,IERR)
+            CALL MPI_ISSEND(PROCEED_AFTER_BC_RECV(N)                    &  !<-- Parent task 0 sends BC update flag to moving child N
+                           ,1                                           &  !<-- # of words sent
+                           ,MPI_INTEGER                                 &  !<-- The flag is an integer.
+                           ,CHILDTASK_0                                 &  !<-- Sending to moving child N's task 0.
+                           ,MOVING_BC_TAG                               &  !<-- Tag associated with moving nests' recvs of BC data
+                           ,COMM_TO_MY_CHILDREN(N_MOVING)               &  !<-- MPI communicator between parent and moving child N
+                           ,HANDLE_BC_UPDATE(N)                         &  !<-- Handle for this ISend of moving child N's BC update flag
+                           ,IERR)
 !
           ENDDO child_loop_0
 !
@@ -6805,49 +7301,31 @@
 !
       btim=timef()
 !
-            MOVE_FLAG(N)=.FALSE.
             CHILDTASK_0=child_ranks(MY_DOMAIN_ID)%CHILDREN(N_MOVING)%DATA(0) !<-- Local rank of child's lead task in p-c communicator
 !
-            CALL MPI_IPROBE(CHILDTASK_0                                 &  !<-- Is move message present from moving child N's fcst task 0?
+            CALL MPI_IPROBE(CHILDTASK_0                                 &  !<-- Is shift info present from moving child N's fcst task 0?
                            ,MOVE_TAG                                    &  !<-- Tag associated with nest N's move flag
                            ,COMM_TO_MY_CHILDREN(N_MOVING)               &  !<-- MPI communicator between parent and moving child N
-                           ,MOVE_FLAG_IS_PRESENT                        &  !<-- Is the nest's move flag now available?
+                           ,SHIFT_INFO_IS_PRESENT                       &  !<-- Is the nest's shift information now available?
                            ,JSTAT                                       &
                            ,IERR)
 !
 !-----------------------------------------------------------------------
 !
-            IF(MOVE_FLAG_IS_PRESENT)THEN
+            IF(SHIFT_INFO_IS_PRESENT)THEN
 !
               MOVE_FLAG(N)=.TRUE.                                          !<-- Moving child N is saying it wants to move
 !
-              CALL MPI_RECV(MOVE_FLAG(N)                                &  !<-- Recv the message to clear the nest's ISEND 
-                           ,1                                           &  !<-- # of words in message
-                           ,MPI_LOGICAL                                 &  !<-- The message is type Logical.
+              CALL MPI_RECV(SHIFT_INFO                                  &  !<-- Recv the message and clear the nest's ISEND 
+                           ,3                                           &  !<-- # of words in message
+                           ,MPI_INTEGER                                 &  !<-- The message is type Integer.
                            ,CHILDTASK_0                                 &  !<-- The message was sent by moving child N's fcst task 0.
                            ,MOVE_TAG                                    &  !<-- Arbitrary tag used for this data exchange
                            ,COMM_TO_MY_CHILDREN(N_MOVING)               &  !<-- MPI communicator between parent and moving child N
                            ,JSTAT                                       &
                            ,IERR)
 !
-              IF(NTIMESTEP<NTIMESTEP_FINAL-2)THEN                          !<-- Children must not move just before the fcst ends
-!
-                CALL MPI_WAIT(HANDLE_TIMESTEP(N)                        &  !<-- Handle for ISend of parent's timestep for nest move
-                             ,JSTAT                                     &  !<-- MPI status
-                             ,IERR)
-!
-                NTIMESTEP_MOVE=NTIMESTEP                                   !<-- Safe to reload the buffer variable
-!
-                CALL MPI_ISEND(NTIMESTEP_MOVE                           &  !<-- Parent task 0 sends its current timestep.
-                              ,1                                        &  !<-- # of words sent
-                              ,MPI_INTEGER                              &  !<-- The timestep is an integer.
-                              ,CHILDTASK_0                              &  !<-- Sending to moving child N's task 0.
-                              ,TIME_TAG                                 &  !<-- Tag associated with nest N's move timestep
-                              ,COMM_TO_MY_CHILDREN(N_MOVING)            &  !<-- MPI communicator between parent and moving child N
-                              ,HANDLE_TIMESTEP(N)                       &  !<-- Handle for this ISend to moving child N's task 0
-                              ,IERR)
-!
-              ELSE
+              IF(NTIMESTEP>=NTIMESTEP_FINAL-2)THEN   
 !
                 MOVE_FLAG(N)=.FALSE.                                       !<--  Children must not move just before the fcst ends
 !
@@ -6871,8 +7349,11 @@
 !
 !-----------------------------------------------------------------------
 !***  Parent task 0 informs the other parent tasks if moving child N 
-!***  has signaled that it wants to move and if so what is the new 
-!***  location of that child's southwest corner.
+!***  has signaled that it wants to move and if so then it shares
+!***  the child's shift information.  The 3 words in the shift info are:
+!     (1) The parent's timestep in which child N will move.
+!     (2) The child's shift in I on the parent grid.
+!     (3) The child's shift in J on the parent grid.
 !-----------------------------------------------------------------------
 !
           CALL MPI_BCAST(MOVE_FLAG(N)                                   &  !<-- Moving child N's signal:  Does it want to move?
@@ -6886,11 +7367,30 @@
           NTIMESTEP_CHILD=(NTIMESTEP+1)                                 &  !<-- The nest's timestep at which it will recv parent data.
                           *PARENT_CHILD_SPACE_RATIO(N_MOVING)
 !
+          IF(MOVE_FLAG(N))THEN
+!
+            CALL MPI_BCAST(SHIFT_INFO                                   &  !<-- Moving child N's shift information
+                          ,3                                            &  !<-- # of words in message
+                          ,MPI_INTEGER                                  &  !<-- The message is type Integer
+                          ,0                                            &  !<-- Broadcast from parent forecast task 0
+                          ,COMM_FCST_TASKS                              &  !<-- Intracommunicator for this parent's forecast tasks
+                          ,IRTN )
+!
+            NTIMESTEP_CHILD_MOVES(N)=SHIFT_INFO(1)                         !<-- The parent timestep in which the child will move
+!
+          ENDIF
+!
 !-----------------------------------------------------------------------
-!***  Now all parent tasks consider the children who want to move.
+!***  Now if the parent is at a timestep in which child N will shift
+!***  then it prepares appropriate internal and BC update data for
+!***  the child's new position.
 !-----------------------------------------------------------------------
 !
-          child_moves: IF(MOVE_FLAG(N))THEN                                !<-- If true, child N wants to move.
+          child_moves: IF(MOVE_FLAG(N)                                  &  !<-- If true, child N wants to move.
+                               .AND.                                    &
+                          NTIMESTEP==NTIMESTEP_CHILD_MOVES(N))THEN         !<-- If true, child N will shift at this parent timestep.
+!
+!-----------------------------------------------------------------------
 !
             I_PARENT_SW_OLD=I_PARENT_SW(N_MOVING)                          !<-- Save the previous location of the nest.
             J_PARENT_SW_OLD=J_PARENT_SW(N_MOVING)                          !<--
@@ -6904,36 +7404,18 @@
 !
             CHILDTASK_0=child_ranks(MY_DOMAIN_ID)%CHILDREN(N_MOVING)%DATA(0) !<-- Local rank of child's lead task in p-c intracomm
 !
-            IF(I_AM_LEAD_FCST_TASK)THEN
-              CALL MPI_RECV(IJ_SHIFT_CHILD                              &  !<-- Moving child N's change in SW corner I,J on parent grid
-                           ,2                                           &  !<-- # of words in message
-                           ,MPI_INTEGER                                 &  !<-- The message is type Integer
-                           ,CHILDTASK_0                                 &  !<-- The message was sent by moving child N's fcst task 0.
-                           ,9001                                        &  !<-- Arbitrary tag used for this data exchange
-                           ,COMM_TO_MY_CHILDREN(N_MOVING)               &  !<-- MPI communicator between parent and moving child N
-                           ,JSTAT                                       &
-                           ,IERR)
-            ENDIF
-!
-            CALL MPI_BCAST(IJ_SHIFT_CHILD                               &  !<-- Moving child N's change in SW corner
-                          ,2                                            &  !<-- Two indices
-                          ,MPI_INTEGER                                  &  !<-- The signal is type Integer
-                          ,0                                            &  !<-- Broadcast from parent forecast task 0
-                          ,COMM_FCST_TASKS                              &  !<-- Intracommunicator for this parent's forecast tasks
-                          ,IRTN )
-!
-            I_PARENT_SW(N_MOVING)=I_PARENT_SW_OLD+IJ_SHIFT_CHILD(1)        !<-- Child N to move its SW corner to this parent I
-            J_PARENT_SW(N_MOVING)=J_PARENT_SW_OLD+IJ_SHIFT_CHILD(2)        !<-- Child N to move its SW corner to this parent J
+            I_PARENT_SW(N_MOVING)=I_PARENT_SW_OLD+SHIFT_INFO(2)            !<-- Child N to move its SW corner to this parent I
+            J_PARENT_SW(N_MOVING)=J_PARENT_SW_OLD+SHIFT_INFO(3)            !<-- Child N to move its SW corner to this parent J
 !
 !-----------------------------------------------------------------------
-!***  If this child wants to move then reset the working arrays/pointers
-!***  used to generate values interpolated from the parent to child's
-!***  boundary immediately after a move.  This set of working objects
-!***  is separate from the standard ones used to interpolate boundary
-!***  data for all nests since when a nest moves we need to have the
-!***  objects in place for both the old location and the new until we
-!***  know for certain those for the old location have been received by
-!***  the moving child.
+!***  If this child will shift in this timestep then reset the working
+!***  arrays/pointers used to generate values interpolated from the 
+!***  parent to child's boundary immediately after a move.  This set 
+!***  of working objects is separate from the standard ones used to 
+!***  interpolate boundary data for all nests since when a nest moves
+!***  we need to have the objects in place for both the old location 
+!***  and the new until we know for certain those for the old location
+!***  have been received by the moving child.
 !
 !***  Note that N_MOVING is the rank of the moving child among ALL of
 !***  children and NRES is the rank of the moving child's space ratio
@@ -7140,6 +7622,28 @@
 !-----------------------------------------------------------------------
 !
       ENDIF moving_children
+!
+!-----------------------------------------------------------------------
+!***  The values of the moving children's next move timesteps need
+!***  to be updated in the Solver's internal state so they can be 
+!***  written to the restart file.  Dummy values are set for static
+!***  children.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert the Children's Next Move Timesteps into Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(state    =EXP_STATE                        &  !<-- The parent-child coupler export state
+                            ,name     ='NEXT_TIMESTEP_CHILD_MOVES'      &  !<-- Name of the attribute to insert
+                            ,itemCount=NUM_DOMAINS_MAX                  &  !<-- # of words in array
+                            ,valueList=NTIMESTEP_CHILD_MOVES            &  !<-- The next timestep the moving children move
+                            ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Insert clocktimes into the coupler's export state that are related
@@ -7980,14 +8484,14 @@
 !              ,' rank=',childtask,' tag=',ntag
 !     write(0,*)' nstep_child_recv(n)=',nstep_child_recv(n),' id_add=',id_add,' my_children_id(n)=',my_children_id(n)
           btim=timef()
-          CALL MPI_ISEND(CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(NT)%DATA    &  !<-- Child south boundary H data on child task NT
-                        ,WORDS_BOUND_H_SOUTH(N)%TASKS(NT)               &  !<-- # of words in the data string
-                        ,MPI_REAL                                       &  !<-- Datatype
-                        ,CHILDTASK                                      &  !<-- Local rank of child to recv data
-                        ,NTAG                                           &  !<-- MPI tag
-                        ,COMM_TO_MY_CHILDREN(N)                         &  !<-- MPI intracommunicator
-                        ,HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(NT)     &  !<-- Handle for ISend to child N's task NT
-                        ,IERR )
+          CALL MPI_ISSEND(CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(NT)%DATA   &  !<-- Child south boundary H data on child task NT
+                         ,WORDS_BOUND_H_SOUTH(N)%TASKS(NT)              &  !<-- # of words in the data string
+                         ,MPI_REAL                                      &  !<-- Datatype
+                         ,CHILDTASK                                     &  !<-- Local rank of child to recv data
+                         ,NTAG                                          &  !<-- MPI tag
+                         ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI intracommunicator
+                         ,HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(NT)    &  !<-- Handle for ISend to child N's task NT
+                         ,IERR )
           cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !     write(0,*)' isent South_H to child #',n,' task #',nt,' count=',childtask_bndry_h_ranks(n)%south(nt,1) &
 !               ,' nrank=',nrank,' rank=',childtask
@@ -8013,19 +8517,19 @@
           NRANK=CHILDTASK_BNDRY_V_RANKS(N)%SOUTH(NT,1)                     !<-- Child task count in its list of fcst tasks
           CHILDTASK=child_ranks(MY_DOMAIN_ID)%CHILDREN(N)%DATA(NRANK-1)    !<-- Local rank of child task NT in p-c intracomm
 !
-          call date_and_time(values=values)
+!         call date_and_time(values=values)
 !         write(0,125)n,nt,childtask,values(5),values(6),values(7),values(8)
 ! 125     format(' Ready to send South_V to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
           btim=timef()
-          CALL MPI_ISEND(CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(NT)%DATA    &  !<-- Child south boundary V data on child task NT
-                        ,WORDS_BOUND_V_SOUTH(N)%TASKS(NT)               &  !<-- # of words in the data string
-                        ,MPI_REAL                                       &  !<-- Datatype
-                        ,CHILDTASK                                      &  !<-- Local rank of child to recv data
-                        ,NTAG                                           &  !<-- MPI tag
-                        ,COMM_TO_MY_CHILDREN(N)                         &  !<-- MPI communicator
-                        ,HANDLE_V_SOUTH(N,INDX2)%NTASKS_TO_RECV(NT)     &  !<-- Handle for ISend to child N's task NT
-                        ,IERR )
+          CALL MPI_ISSEND(CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(NT)%DATA   &  !<-- Child south boundary V data on child task NT
+                         ,WORDS_BOUND_V_SOUTH(N)%TASKS(NT)              &  !<-- # of words in the data string
+                         ,MPI_REAL                                      &  !<-- Datatype
+                         ,CHILDTASK                                     &  !<-- Local rank of child to recv data
+                         ,NTAG                                          &  !<-- MPI tag
+                         ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator
+                         ,HANDLE_V_SOUTH(N,INDX2)%NTASKS_TO_RECV(NT)    &  !<-- Handle for ISend to child N's task NT
+                         ,IERR )
           cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
 !           call date_and_time(values=values)
@@ -8051,14 +8555,14 @@
   127       format(' Ready to send North_H to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
           btim=timef()
-          CALL MPI_ISEND(CHILD_BOUND_H_NORTH(N,INDX2)%TASKS(NT)%DATA    &  !<-- Child north boundary H data on child task NT
-                        ,WORDS_BOUND_H_NORTH(N)%TASKS(NT)               &  !<-- # of words in the data string
-                        ,MPI_REAL                                       &  !<-- Datatype
-                        ,CHILDTASK                                      &  !<-- Local rank of child to recv data
-                        ,NTAG                                           &  !<-- MPI tag
-                        ,COMM_TO_MY_CHILDREN(N)                         &  !<-- MPI communicator
-                        ,HANDLE_H_NORTH(N,INDX2)%NTASKS_TO_RECV(NT)     &  !<-- Handle for ISend to child N's task NT
-                        ,IERR )
+          CALL MPI_ISSEND(CHILD_BOUND_H_NORTH(N,INDX2)%TASKS(NT)%DATA   &  !<-- Child north boundary H data on child task NT
+                         ,WORDS_BOUND_H_NORTH(N)%TASKS(NT)              &  !<-- # of words in the data string
+                         ,MPI_REAL                                      &  !<-- Datatype
+                         ,CHILDTASK                                     &  !<-- Local rank of child to recv data
+                         ,NTAG                                          &  !<-- MPI tag
+                         ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator
+                         ,HANDLE_H_NORTH(N,INDX2)%NTASKS_TO_RECV(NT)    &  !<-- Handle for ISend to child N's task NT
+                         ,IERR )
           cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
 !           call date_and_time(values=values)
@@ -8084,14 +8588,14 @@
   129       format(' Ready to send North_V to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
           btim=timef()
-          CALL MPI_ISEND(CHILD_BOUND_V_NORTH(N,INDX2)%TASKS(NT)%DATA    &  !<-- Child north boundary V data on child task NT
-                        ,WORDS_BOUND_V_NORTH(N)%TASKS(NT)               &  !<-- # of words in the data string
-                        ,MPI_REAL                                       &  !<-- Datatype
-                        ,CHILDTASK                                      &  !<-- Local rank of child to recv data
-                        ,NTAG                                           &  !<-- MPI tag
-                        ,COMM_TO_MY_CHILDREN(N)                         &  !<-- MPI communicator
-                        ,HANDLE_V_NORTH(N,INDX2)%NTASKS_TO_RECV(NT)     &  !<-- Handle for ISend to child N's task NT
-                        ,IERR )
+          CALL MPI_ISSEND(CHILD_BOUND_V_NORTH(N,INDX2)%TASKS(NT)%DATA   &  !<-- Child north boundary V data on child task NT
+                         ,WORDS_BOUND_V_NORTH(N)%TASKS(NT)              &  !<-- # of words in the data string
+                         ,MPI_REAL                                      &  !<-- Datatype
+                         ,CHILDTASK                                     &  !<-- Local rank of child to recv data
+                         ,NTAG                                          &  !<-- MPI tag
+                         ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator
+                         ,HANDLE_V_NORTH(N,INDX2)%NTASKS_TO_RECV(NT)    &  !<-- Handle for ISend to child N's task NT
+                         ,IERR )
           cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
 !           call date_and_time(values=values)
@@ -8117,14 +8621,14 @@
   131       format(' Ready to send West_H to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
           btim=timef()
-          CALL MPI_ISEND(CHILD_BOUND_H_WEST(N,INDX2)%TASKS(NT)%DATA     &  !<-- Child west boundary H data on child task NT
-                        ,WORDS_BOUND_H_WEST(N)%TASKS(NT)                &  !<-- # of words in the data string
-                        ,MPI_REAL                                       &  !<-- Datatype
-                        ,CHILDTASK                                      &  !<-- Local rank of child to recv data
-                        ,NTAG                                           &  !<-- MPI tag
-                        ,COMM_TO_MY_CHILDREN(N)                         &  !<-- MPI communicator
-                        ,HANDLE_H_WEST(N,INDX2)%NTASKS_TO_RECV(NT)      &  !<-- Handle for ISend to child N's task NT
-                        ,IERR )
+          CALL MPI_ISSEND(CHILD_BOUND_H_WEST(N,INDX2)%TASKS(NT)%DATA    &  !<-- Child west boundary H data on child task NT
+                         ,WORDS_BOUND_H_WEST(N)%TASKS(NT)               &  !<-- # of words in the data string
+                         ,MPI_REAL                                      &  !<-- Datatype
+                         ,CHILDTASK                                     &  !<-- Local rank of child to recv data
+                         ,NTAG                                          &  !<-- MPI tag
+                         ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator
+                         ,HANDLE_H_WEST(N,INDX2)%NTASKS_TO_RECV(NT)     &  !<-- Handle for ISend to child N's task NT
+                         ,IERR )
           cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
 !           call date_and_time(values=values)
@@ -8150,14 +8654,14 @@
   133       format(' Ready to send West_V to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
           btim=timef()
-          CALL MPI_ISEND(CHILD_BOUND_V_WEST(N,INDX2)%TASKS(NT)%DATA     &  !<-- Child west boundary V data on child task NT
-                        ,WORDS_BOUND_V_WEST(N)%TASKS(NT)                &  !<-- # of words in the data string
-                        ,MPI_REAL                                       &  !<-- Datatype
-                        ,CHILDTASK                                      &  !<-- Local rank of child to recv data
-                        ,NTAG                                           &  !<-- MPI tag
-                        ,COMM_TO_MY_CHILDREN(N)                         &  !<-- MPI communicator
-                        ,HANDLE_V_WEST(N,INDX2)%NTASKS_TO_RECV(NT)      &  !<-- Handle for ISend to child N's task NT
-                        ,IERR )
+          CALL MPI_ISSEND(CHILD_BOUND_V_WEST(N,INDX2)%TASKS(NT)%DATA    &  !<-- Child west boundary V data on child task NT
+                         ,WORDS_BOUND_V_WEST(N)%TASKS(NT)               &  !<-- # of words in the data string
+                         ,MPI_REAL                                      &  !<-- Datatype
+                         ,CHILDTASK                                     &  !<-- Local rank of child to recv data
+                         ,NTAG                                          &  !<-- MPI tag
+                         ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator
+                         ,HANDLE_V_WEST(N,INDX2)%NTASKS_TO_RECV(NT)     &  !<-- Handle for ISend to child N's task NT
+                         ,IERR )
           cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
 !           call date_and_time(values=values)
@@ -8182,14 +8686,14 @@
 !         write(0,135)n,nt,childtask,values(5),values(6),values(7),values(8)
   135     format(' Ready to send East_H to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3) !
           btim=timef()
-          CALL MPI_ISEND(CHILD_BOUND_H_EAST(N,INDX2)%TASKS(NT)%DATA     &  !<-- Child east boundary H data on child task NT
-                        ,WORDS_BOUND_H_EAST(N)%TASKS(NT)                &  !<-- # of words in the data string
-                        ,MPI_REAL                                       &  !<-- Datatype
-                        ,CHILDTASK                                      &  !<-- Local rank of child to recv data
-                        ,NTAG                                           &  !<-- MPI tag
-                        ,COMM_TO_MY_CHILDREN(N)                         &  !<-- MPI communicator
-                        ,HANDLE_H_EAST(N,INDX2)%NTASKS_TO_RECV(NT)      &  !<-- Handle for ISend to child N's task NT
-                        ,IERR )
+          CALL MPI_ISSEND(CHILD_BOUND_H_EAST(N,INDX2)%TASKS(NT)%DATA    &  !<-- Child east boundary H data on child task NT
+                         ,WORDS_BOUND_H_EAST(N)%TASKS(NT)               &  !<-- # of words in the data string
+                         ,MPI_REAL                                      &  !<-- Datatype
+                         ,CHILDTASK                                     &  !<-- Local rank of child to recv data
+                         ,NTAG                                          &  !<-- MPI tag
+                         ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator
+                         ,HANDLE_H_EAST(N,INDX2)%NTASKS_TO_RECV(NT)     &  !<-- Handle for ISend to child N's task NT
+                         ,IERR )
           cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
 !           call date_and_time(values=values)
@@ -8215,14 +8719,14 @@
   137     format(' Ready to send East_V to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
           btim=timef()
-          CALL MPI_ISEND(CHILD_BOUND_V_EAST(N,INDX2)%TASKS(NT)%DATA     &  !<-- Child east boundary V data on child task NT
-                        ,WORDS_BOUND_V_EAST(N)%TASKS(NT)                &  !<-- # of words in the data string
-                        ,MPI_REAL                                       &  !<-- Datatype
-                        ,CHILDTASK                                      &  !<-- Local rank of child to recv data
-                        ,NTAG                                           &  !<-- MPI tag
-                        ,COMM_TO_MY_CHILDREN(N)                         &  !<-- MPI communicator
-                        ,HANDLE_V_EAST(N,INDX2)%NTASKS_TO_RECV(NT)      &  !<-- Handle for ISend to child N's task NT
-                        ,IERR )
+          CALL MPI_ISSEND(CHILD_BOUND_V_EAST(N,INDX2)%TASKS(NT)%DATA    &  !<-- Child east boundary V data on child task NT
+                         ,WORDS_BOUND_V_EAST(N)%TASKS(NT)               &  !<-- # of words in the data string
+                         ,MPI_REAL                                      &  !<-- Datatype
+                         ,CHILDTASK                                     &  !<-- Local rank of child to recv data
+                         ,NTAG                                          &  !<-- MPI tag
+                         ,COMM_TO_MY_CHILDREN(N)                        &  !<-- MPI communicator
+                         ,HANDLE_V_EAST(N,INDX2)%NTASKS_TO_RECV(NT)     &  !<-- Handle for ISend to child N's task NT
+                         ,IERR )
           cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
 !           call date_and_time(values=values)
@@ -8518,14 +9022,14 @@
                          ,JSTAT                                         &  !<-- MPI status object 
                          ,IERR)
 !
-            CALL MPI_ISEND(ALLCLEAR_SIGNAL                              &  !<-- Send signal to children they may now integrate
-                          ,1                                            &  !<-- # of words in signal
-                          ,MPI_LOGICAL                                  &  !<-- The signal is type Logical (it is TRUE)
-                          ,CHILDTASK_0                                  &  !<-- The signal was sent by child N's fcst task 0.
-                          ,ALLCLEAR_SIGNAL_TAG                          &  !<-- Tag to free the children to integrate
-                          ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI communicator between parent and moving child N
-                          ,HANDLE_SEND_ALLCLEAR(N)                      &
-                          ,IERR)
+            CALL MPI_ISSEND(ALLCLEAR_SIGNAL                             &  !<-- Send signal to children they may now integrate
+                           ,1                                           &  !<-- # of words in signal
+                           ,MPI_LOGICAL                                 &  !<-- The signal is type Logical (it is TRUE)
+                           ,CHILDTASK_0                                 &  !<-- The signal was sent by child N's fcst task 0.
+                           ,ALLCLEAR_SIGNAL_TAG                         &  !<-- Tag to free the children to integrate
+                           ,COMM_TO_MY_CHILDREN(N)                      &  !<-- MPI communicator between parent and moving child N
+                           ,HANDLE_SEND_ALLCLEAR(N)                     &
+                           ,IERR)
 !
           ENDDO
 !
@@ -8669,14 +9173,14 @@
                      ,JSTAT                                             &  !<-- MPI status object 
                      ,IERR)
 !
-        CALL MPI_ISEND(MY_2WAY_SIGNAL                                   &  !<-- The child's affirmative 2-way signal
-                      ,1                                                &  !<-- The signal is 1 word
-                      ,MPI_LOGICAL                                      &  !<-- The signal is type Logical
-                      ,0                                                &  !<-- Target the parent lead task in the p-c intracomm
-                      ,TWOWAY_SIGNAL_TAG                                &  !<-- Tag associated with 2way signal from children
-                      ,COMM_TO_MY_PARENT                                &  !<-- The intracommunicator between this child and its parent
-                      ,HANDLE_SEND_2WAY_SIGNAL                          &  !<-- Handle for this ISend
-                      ,IERR )
+        CALL MPI_ISSEND(MY_2WAY_SIGNAL                                  &  !<-- The child's affirmative 2-way signal
+                       ,1                                               &  !<-- The signal is 1 word
+                       ,MPI_LOGICAL                                     &  !<-- The signal is type Logical
+                       ,0                                               &  !<-- Target the parent lead task in the p-c intracomm
+                       ,TWOWAY_SIGNAL_TAG                               &  !<-- Tag associated with 2way signal from children
+                       ,COMM_TO_MY_PARENT                               &  !<-- The intracommunicator between this child and its parent
+                       ,HANDLE_SEND_2WAY_SIGNAL                         &  !<-- Handle for this ISend
+                       ,IERR )
 !
       ENDIF
 !
@@ -8830,7 +9334,7 @@
                                            ,NTASKS_DOMAIN               &  !     |  
                                            ,ID_PARENTS_IN               &  !     |   
                                            ,DOMAIN_ID_TO_RANK           &  !     |   
-                                           ,MAX_DOMAINS                 &  !   Input 
+                                           ,MAX_DOMAINS                 &  !   Input
 !                                                                           -----------
                                            ,IMP_STATE_CPL_NEST          &  !   Output
                                            ,EXP_STATE_CPL_NEST          &  !     |
@@ -8887,6 +9391,7 @@
                            ,ID,ID_CHILD,IERR                            &
                            ,IHANDLE_RECV,IHANDLE_SEND                   &
                            ,INDX_CW,INDX_Q                              &
+                           ,I_PAR_STA,J_PAR_STA                         &
                            ,KOUNT,LM,LMP1,MYPE,MYPE_DOMAIN              &
                            ,N,N_BLEND_H,N_BLEND_V,NHALO                 &
                            ,NKOUNT,NN,NPHS,NTAG,NX
@@ -8906,6 +9411,12 @@
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
       TYPE(ESMF_VM) :: VM_DOMAIN
+!
+#ifdef ESMF_3
+      TYPE(ESMF_Logical) :: RESTART
+#else
+      LOGICAL(kind=KLOG) :: RESTART
+#endif
 !
       TYPE(WRAP_DOMAIN_INTERNAL_STATE) :: WRAP_DOMAIN
 !
@@ -8934,7 +9445,7 @@
 !
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Parent-Child composite object already allocated!'
-          WRITE(0,*)' ABORTING1'
+          WRITE(0,*)' ABORTING!'
           CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
         ENDIF
       ENDIF
@@ -8943,7 +9454,8 @@
 !
 !-----------------------------------------------------------------------
 !***  From the DOMAIN export state find out if this task is a forecast
-!***  task and if it is on a parent domain.
+!***  task and if it is on a parent domain.  Set them into the Parent-
+!***  Child coupler's export state s they are available.
 !-----------------------------------------------------------------------
 !
       I_AM_A_FCST_TASK=>cc%I_AM_A_FCST_TASK
@@ -8969,6 +9481,34 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
+                            ,name ='I-Am-A-Parent Flag'                 &  !<-- Name of the attribute to extract
+                            ,value=I_AM_A_PARENT                        &  !<-- Am I on a nested domain?
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Parent-Child CPL Setup: Insert Fcst-or-Write Flag into Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE_CPL_NEST                   &  !<-- The P-C coupler export state
+                            ,name ='Fcst-or-Write Flag'                 &  !<-- Name of the attribute to extract
+                            ,value=I_AM_A_FCST_TASK                     &  !<-- Am I a forecast task?
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert Parent/Not-a-Parent Flag into Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE_CPL_NEST                   &  !<-- The P-C coupler export state
                             ,name ='I-Am-A-Parent Flag'                 &  !<-- Name of the attribute to extract
                             ,value=I_AM_A_PARENT                        &  !<-- Am I on a nested domain?
                             ,rc   =RC)
@@ -9382,7 +9922,6 @@
                             ,name ='ITS'                                &  !<-- The name of the Attribute
                             ,value=ITS                                  &  !<-- The Attribute to be inserted
                             ,rc   =RC)
-!     write(0,*)' PARENT_CHILD_COUPLER_SETUP set my its=',its,' in P-C Cpl import state rc=',rc
 !
       CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                   &  !<-- The Parent-Child Coupler's import state
                             ,name ='ITE'                                &  !<-- The name of the Attribute
@@ -9587,6 +10126,116 @@
       CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                   &  !<-- The Parent-Child Coupler's import state
                             ,name ='N_BLEND_V'                          &  !<-- The name of the Attribute
                             ,value=N_BLEND_V                            &  !<-- The Attribute to be inserted
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!--------------------------------
+!***  Transfer SW Corner of Nest
+!--------------------------------
+!
+      nests_only: IF(ID_PARENTS_IN(MY_DOMAIN_ID)>0)THEN                    !<-- If so, this domain is a nest.
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract SW Corner of Nest from DOMAIN Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                   &  !<-- The DOMAIN export state
+                              ,name ='I_PAR_STA'                        &  !<-- The name of the Attribute
+                              ,value=I_PAR_STA                          &  !<-- The Attribute to be retrieved
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                   &  !<-- The DOMAIN export state
+                              ,name ='J_PAR_STA'                        &  !<-- The name of the Attribute
+                              ,value=J_PAR_STA                          &  !<-- The Attribute to be retrieved
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Add SW Corner of Nest to the Parent-Child Cpl Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                 &  !<-- The Parent-Child Coupler's import state
+                              ,name ='I_PAR_STA'                        &  !<-- The name of the Attribute
+                              ,value=I_PAR_STA                          &  !<-- The Attribute to be inserted
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                 &  !<-- The Parent-Child Coupler's import state
+                              ,name ='J_PAR_STA'                        &  !<-- The name of the Attribute
+                              ,value=J_PAR_STA                          &  !<-- The Attribute to be inserted
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------
+!***  Transfer the domain's next move timestep.
+!-----------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Next Move Timestep from DOMAIN Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                   &  !<-- The DOMAIN export state
+                              ,name ='NEXT_MOVE_TIMESTEP'               &  !<-- The name of the Attribute
+                              ,value=cc%NEXT_MOVE_TIMESTEP              &  !<-- The Attribute to be retrieved
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Add Next Move Timestep to the Parent-Child Cpl Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                 &  !<-- The Parent-Child Coupler's import state
+                              ,name ='NEXT_MOVE_TIMESTEP'               &  !<-- The name of the Attribute
+                              ,value=cc%NEXT_MOVE_TIMESTEP              &  !<-- The Attribute to be inserted
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF nests_only
+!
+!---------------------------
+!***  Transfer restart flag
+!---------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Restart Flag from DOMAIN Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
+                            ,name ='RESTART'                            &  !<-- The name of the Attribute
+                            ,value=RESTART                              &  !<-- The Attribute to be retrieved
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Add Restart Flag to the Parent-Child Cpl Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                   &  !<-- The Parent-Child Coupler's import state
+                            ,name ='RESTART'                            &  !<-- The name of the Attribute
+                            ,value=RESTART                              &  !<-- The Attribute to be inserted
                             ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -10263,6 +10912,67 @@
 !
         ENDDO
 !
+!-----------------------------------------------------------------------
+!***  Create then transfer the object holding the domain's children's 
+!***  next move timesteps if this is a restarted run.
+!-----------------------------------------------------------------------
+!
+        ALLOCATE(cc%NTIMESTEP_CHILD_MOVES(1:NUM_DOMAINS_MAX),stat=ISTAT)
+        IF(ISTAT/=0)THEN
+          WRITE(0,*)' Failed to allocate cpl_composite%NTIMESTEP_CHILD_MOVES stat=',ISTAT
+          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        ENDIF
+        NTIMESTEP_CHILD_MOVES=>cc%NTIMESTEP_CHILD_MOVES
+!
+        DO N=1,NUM_DOMAINS_MAX
+          NTIMESTEP_CHILD_MOVES(N)=-999
+        ENDDO
+!
+#ifdef ESMF_3
+        IF(RESTART==ESMF_True)THEN
+#else
+        IF(RESTART)THEN
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract Next Move Timestep of Children from DOMAIN Export State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+          CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN             &  !<-- The DOMAIN export state
+                                ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- The name of the Attribute
+                                ,count    =NUM_DOMAINS_MAX              &  !<-- The number of items
+                                ,valueList=NTIMESTEP_CHILD_MOVES        &  !<-- The Attribute to be retrieved
+                                ,rc       =RC)
+#else
+          CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN             &  !<-- The DOMAIN export state
+                                ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- The name of the Attribute
+                                ,valueList=NTIMESTEP_CHILD_MOVES        &  !<-- The Attribute to be retrieved
+                                ,rc       =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Add Next Move Timestep of Children to the Parent-Child Cpl Import State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST           &  !<-- The Parent-Child Coupler's import state
+                                ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- The name of the Attribute
+                                ,itemCount=NUM_DOMAINS_MAX              &  !<-- The number of items
+                                ,valueList=cc%NTIMESTEP_CHILD_MOVES     &  !<-- The Attribute to be inserted
+                                ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        ENDIF
+!
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -10350,7 +11060,9 @@
       I_SHIFT_CHILD        =>cc%I_SHIFT_CHILD
       J_SHIFT_CHILD        =>cc%J_SHIFT_CHILD
       I_SW_PARENT_CURRENT  =>cc%I_SW_PARENT_CURRENT
+      I_SW_PARENT_NEW      =>cc%I_SW_PARENT_NEW
       J_SW_PARENT_CURRENT  =>cc%J_SW_PARENT_CURRENT
+      J_SW_PARENT_NEW      =>cc%J_SW_PARENT_NEW
       ITS                  =>cc%ITS
       ITE                  =>cc%ITE
       JTS                  =>cc%JTS
@@ -10371,12 +11083,14 @@
       INPES_PARENT         =>cc%INPES_PARENT
       JNPES_PARENT         =>cc%JNPES_PARENT
       KOUNT_CHILDREN       =>cc%KOUNT_CHILDREN
+      LAST_STEP_MOVED      =>cc%LAST_STEP_MOVED
       MYPE                 =>cc%MYPE
       N_BLEND_H            =>cc%N_BLEND_H
       N_BLEND_V            =>cc%N_BLEND_V
       NHALO                =>cc%NHALO
       NPHS                 =>cc%NPHS
       NTIMESTEP_FINAL      =>cc%NTIMESTEP_FINAL
+      NTIMESTEPS_RESTART   =>cc%NTIMESTEPS_RESTART
       NUM_CHILDREN         =>cc%NUM_CHILDREN
       NUM_MOVING_CHILDREN  =>cc%NUM_MOVING_CHILDREN
       NUM_PES_FCST         =>cc%NUM_PES_FCST
@@ -10385,10 +11099,10 @@
       NEXT_MOVE_TIMESTEP   =>cc%NEXT_MOVE_TIMESTEP
       NUM_LEVELS_MOVE_3D_H =>cc%NUM_LEVELS_MOVE_3D_H
       NUM_LEVELS_MOVE_3D_V =>cc%NUM_LEVELS_MOVE_3D_V
+      NUM_SPACE_RATIOS_MVG =>cc%NUM_SPACE_RATIOS_MVG
       SPACE_RATIO_MY_PARENT=>cc%SPACE_RATIO_MY_PARENT
       TIME_RATIO_MY_PARENT =>cc%TIME_RATIO_MY_PARENT
 !
-      IJ_SHIFT_CHILD=>cc%IJ_SHIFT_CHILD
       PARENT_SHIFT  =>cc%PARENT_SHIFT
 !
       PARENT_CHILD_SPACE_RATIO=>cc%PARENT_CHILD_SPACE_RATIO
@@ -10415,10 +11129,13 @@
       FTASKS_DOMAIN           =>cc%FTASKS_DOMAIN
       NTASKS_DOMAIN           =>cc%NTASKS_DOMAIN
       HANDLE_BC_UPDATE        =>cc%HANDLE_BC_UPDATE
+      HANDLE_PARENT_SHIFT     =>cc%HANDLE_PARENT_SHIFT
       HANDLE_TIMESTEP         =>cc%HANDLE_TIMESTEP
       HANDLE_SEND_2WAY_SIGNAL =>cc%HANDLE_SEND_2WAY_SIGNAL
       HANDLE_SEND_ALLCLEAR    =>cc%HANDLE_SEND_ALLCLEAR
       HANDLE_SEND_READY_RECV  =>cc%HANDLE_SEND_READY_RECV
+      NTIMESTEP_CHILD_MOVES   =>cc%NTIMESTEP_CHILD_MOVES
+      SHIFT_INFO              =>cc%SHIFT_INFO
 !
       NUM_TASKS_SEND_H_S=>cc%NUM_TASKS_SEND_H_S
       NUM_TASKS_SEND_H_N=>cc%NUM_TASKS_SEND_H_N
@@ -10515,7 +11232,6 @@
       MY_DOMAIN_MOVES     =>cc%MY_DOMAIN_MOVES
       MY_PARENT_MOVES     =>cc%MY_PARENT_MOVES
       RECVD_ALL_CHILD_DATA=>cc%RECVD_ALL_CHILD_DATA
-      RECVD_MOVE_TIMESTEP =>cc%RECVD_MOVE_TIMESTEP
 !
       MOVE_FLAG             =>cc%MOVE_FLAG
       SEND_CHILD_DATA       =>cc%SEND_CHILD_DATA
@@ -10683,7 +11399,6 @@
       MOVING_CHILD_UPDATE=>cc%MOVING_CHILD_UPDATE
       TASK_UPDATE_SPECS=>cc%TASK_UPDATE_SPECS
 !
-!     write(0,*)' pointed into cpl_composite(',my_domain_id,')'
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE POINT_TO_COMPOSITE
@@ -10823,7 +11538,6 @@
       NUM_TASKS_SEND_H_W=>cc%NUM_TASKS_SEND_H_W
 !
       ALLOCATE(cc%NUM_TASKS_SEND_H_E(1:NUM_CHILDREN),stat=ISTAT)
-!     write(0,*)' PARENT_CHILD_INTERP_SETUP allocated cc%NUM_TASKS_SEND_H_E(1:NUM_CHILDREN) where num_children=',num_children
       NUM_TASKS_SEND_H_E=>cc%NUM_TASKS_SEND_H_E
 !
       ALLOCATE(cc%NUM_TASKS_SEND_V_S(1:NUM_CHILDREN),stat=ISTAT)
@@ -10878,59 +11592,12 @@
       CHILDTASK_V_SAVE=>cc%CHILDTASK_V_SAVE
 !
 !-----------------------------------------------------------------------
-!***  Allocate the arrays that hold the parent's grid location
-!***  of each child's southwest corner.
-!-----------------------------------------------------------------------
-!
-      ALLOCATE(cc%I_PARENT_SW(1:NUM_CHILDREN),stat=ISTAT)
-      IF(ISTAT/=0)THEN
-        WRITE(0,*)' Failed to allocate cpl_composite%I_PARENT_SW stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-      ENDIF
-      I_PARENT_SW=>cc%I_PARENT_SW
-!
-      ALLOCATE(cc%J_PARENT_SW(1:NUM_CHILDREN),stat=ISTAT)
-      IF(ISTAT/=0)THEN
-        WRITE(0,*)' Failed to allocate cpl_composite%J_PARENT_SW stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-      ENDIF
-      J_PARENT_SW=>cc%J_PARENT_SW
-!
-!-----------------------------------------------------------------------
 !***  Extract relevant information from the children's configure files.
 !-----------------------------------------------------------------------
 !
       child_loop_0: DO N=1,NUM_CHILDREN
 !
         THIS_CHILD_ID=MY_CHILDREN_ID(N)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Parent-Child_Interp_Setup: Extract I of SW Mass Point on Parent"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_ConfigGetAttribute(config=CF(N)                       &  !<-- The child's config object
-                                    ,value =I_PARENT_SW(N)              &  !<-- The variable filled (parent I of child's SW corner)
-                                    ,label ='i_parent_start:'           &  !<-- Give this label's value to the previous variable
-                                    ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SET)  
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Parent-Child_Interp_Setup: Extract J of SW Mass Point on Parent"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_ConfigGetAttribute(config=CF(N)                       &  !<-- The child's config object
-                                    ,value =J_PARENT_SW(N)              &  !<-- The variable filled (parent J of child's SW corner)
-                                    ,label ='j_parent_start:'           &  !<-- Give this label's value to the previous variable
-                                    ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SET)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Invert the Parent-to-Child space ratio for computation.
@@ -11219,6 +11886,7 @@
 !------------------------------------------------------------
 !
         CALL PARENT_TO_CHILD_INTERP_FACTORS('H_POINTS'                  &
+                                           ,N_CHILD                     &
                                            ,I_PARENT_SW(N)              &
                                            ,J_PARENT_SW(N)              &
                                            ,N_BLEND_H_CHILD(N)          &
@@ -11355,7 +12023,9 @@
 !------------------------------------------------------------
 !
         NUM_CHILD_TASKS=FTASKS_DOMAIN(MY_CHILDREN_ID(N))                   !<-- # of fcst tasks on this parent's Nth child
+!
         CALL PARENT_TO_CHILD_INTERP_FACTORS('V_POINTS'                  &
+                                           ,N_CHILD                     &
                                            ,I_PARENT_SW(N)              &
                                            ,J_PARENT_SW(N)              &
                                            ,N_BLEND_V_CHILD(N)          &
@@ -11439,6 +12109,7 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE PARENT_TO_CHILD_INTERP_FACTORS(FLAG_H_OR_V             &
+                                               ,N_CHILD                 &
                                                ,I_PARENT_SW             &
                                                ,J_PARENT_SW             &
                                                ,N_BLEND                 &
@@ -11502,6 +12173,7 @@
       INTEGER(kind=KINT),INTENT(IN) :: I_PARENT_SW,J_PARENT_SW          &  !<-- SW corner of nest lies on this I,J of parent
                                       ,IM_CHILD,JM_CHILD                &  !<-- Horizontal dimensions of nest domain
                                       ,N_BLEND                          &  !<-- Width (in rows) of boundary's blending region
+                                      ,N_CHILD                          &  !<-- Rank of this child in list of children
                                       ,NUM_CHILD_TASKS                     !<-- # of fcst tasks on the child's domain
 ! 
       INTEGER(kind=KINT),INTENT(IN) :: ITE,ITS,JTE,JTS                  &  !<-- Index limits on parent task subdomain
@@ -11817,6 +12489,27 @@
 !
         REAL_I_PARENT=REAL_I_START+(I_CHILD-1)*RATIO_C_P                   !<-- Parent I index coinciding with child domain point
 !
+!-----------------------------------------------------------------------
+!***  For now the run will stop if a nest comes too close to
+!***  the parent boundary.
+!-----------------------------------------------------------------------
+!
+        IF(REAL_I_PARENT<=REAL(IDS+2))THEN
+          WRITE(0,*)' Child #',N_CHILD,' is within 2 points of'  &
+                   ,' the parent west boundary!'
+          WRITE(0,*)' ABORTING!!'
+          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        ENDIF
+!
+        IF(REAL_I_PARENT>=REAL(IDE-2))THEN
+          WRITE(0,*)' Child #',N_CHILD,' is within 2 points of'  &
+                   ,' the parent east boundary!'
+          WRITE(0,*)' ABORTING!!'
+          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
 !       i_block: IF(REAL_I_PARENT>=R_ITS.AND.REAL_I_PARENT<=R_IEND)THEN    !<-- Column (I) of child's S/N bndry point lies on parent task?
         i_block: IF(REAL_I_PARENT>=R_ITS.AND.REAL_I_PARENT< R_IEND)THEN    !<-- Column (I) of child's S/N bndry point lies on parent task?
 !
@@ -11875,10 +12568,14 @@
 !
                 IF(I_SAVE_LO_SOUTH(NC_HOLD_S(NC))<0)THEN
                   I_SAVE_LO_SOUTH(NC_HOLD_S(NC))=I_CHILD                   !<-- Save westernmost Sbndry I of child task NC
+!     write(0,*)' PARENT_TO_CHILD_INTERP_FACTORS nc=',nc,' nc_hold_s=',nc_hold_s(nc) &
+!              ,' i_save_lo_south=',i_save_lo_south(nc_hold_s(nc))
                                                                            !    that is on this parent task.
                 ENDIF
                 I_SAVE_HI_SOUTH(NC_HOLD_S(NC))=I_CHILD                     !<-- Save easternmost Sbndry I of child task NC
                                                                            !    that is on this parent task.
+!     write(0,*)' PARENT_TO_CHILD_INTERP_FACTORS nc=',nc,' nc_hold_s=',nc_hold_s(nc) &
+!              ,' i_save_hi_south=',i_save_hi_south(nc_hold_s(nc))
 !
               ENDIF
 ! 
@@ -11924,7 +12621,7 @@
 !***  North
 !-----------
 !-----------
-!
+! 
           REAL_J_START=PARENT_J_CHILD_NBND
           KOUNT_J=0
 !
@@ -12058,6 +12755,25 @@
 !-----------------------------------------------------------------------
 
         REAL_J_PARENT=REAL_J_START+(J_CHILD-1)*RATIO_C_P                   !<-- Parent J index coinciding with child domain point
+!
+!-----------------------------------------------------------------------
+!***  For now the run will stop if a nest comes too close to
+!***  the parent boundary.
+!-----------------------------------------------------------------------
+!
+        IF(REAL_J_PARENT<=REAL(JDS+2))THEN
+          WRITE(0,*)' Child #',N_CHILD,' is within 2 points of'  &
+                   ,' the parent south boundary!'
+          WRITE(0,*)' ABORTING!!'
+          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        ENDIF
+!
+        IF(REAL_J_PARENT>=REAL(JDE-2))THEN
+          WRITE(0,*)' Child #',N_CHILD,' is within 2 points of'  &
+                   ,' the parent north boundary!'
+          WRITE(0,*)' ABORTING!!'
+          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        ENDIF
 !
 !       j_block: IF(REAL_J_PARENT>=R_JTS.AND.REAL_J_PARENT<=R_JEND)THEN    !<-- Row (J) of child's W/E bndry point lies on parent task?
         j_block: IF(REAL_J_PARENT>=R_JTS.AND.REAL_J_PARENT< R_JEND)THEN    !<-- Row (J) of child's W/E bndry point lies on parent task?
@@ -12981,7 +13697,6 @@
         ENDIF
         DO NN=1,NUM_TASKS_SEND_H_S(N)
           HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(NN)=MPI_REQUEST_NULL
-!     write(0,*)' n=',n,' indx2=',indx2,' nn=',nn,' HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(NN)=',HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(NN)
         ENDDO
       ELSE
         ALLOCATE(HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(1:1),stat=ISTAT)
@@ -13108,7 +13823,7 @@
 !xxx  INTEGER(kind=KINT),DIMENSION(6) :: INFO=(/-9999,0,0,0,0,0/)
       INTEGER(kind=KINT),DIMENSION(:),POINTER :: INFO
 !
-      INTEGER(kind=KINT),DIMENSION(MPI_STATUS_SIZE) :: STATUS
+      INTEGER(kind=KINT),DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
       TYPE(COMPOSITE),POINTER :: CC
 !
@@ -13181,16 +13896,14 @@
 !***  South H
 !-------------
 !
-!     write(0,*)' is HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA associated? ',ASSOCIATED(HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA)
-      IF(.NOT.ASSOCIATED(HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA))THEN
-        ALLOCATE(HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA(0:FTASKS_DOMAIN(ID_CHILD)-1),stat=ISTAT)
-!     write(0,*)' allocated HANDLE_PACKET_S_H(',id,')%CHILDREN(',n,')%DATA(0:',ftasks_domain(id_child)-1,') stat=',istat
-      ENDIF
-!
       sh_loop: DO NT=0,FTASKS_DOMAIN(ID_CHILD)-1                           !<-- Each parent task loops through all tasks on each child
 !
-!xxx    INFO(1:6)=>INFO_SEND(ID)%CHILDREN(ID_CHILD)%INFO(1:6,NT,1)         !<-- South H info to child N's task NT
-        INFO(1:6)=>INFO_SEND(ID)%CHILDREN(N)%INFO(1:6,NT,1)                !<-- South H info to child N's task NT
+        CALL MPI_WAIT(HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA(NT)        &  !<-- Be sure the previous send is complete.
+                     ,JSTAT                                             &
+                     ,IERR )
+!
+!xxx    INFO=>INFO_SEND(ID)%CHILDREN(ID_CHILD)%INFO(1:6,NT,1)              !<-- South H info to child N's task NT
+        INFO=>INFO_SEND(ID)%CHILDREN(N)%INFO(1:6,NT,1)                     !<-- South H info to child N's task NT
 !     write(0,*)' id=',id,' n=',n,' nt=',nt,' lbound(info)=',lbound(info),' ubound=',ubound(info)
 !     write(0,*)' info(1)=',info(1)
 !
@@ -13214,15 +13927,15 @@
               INFO(6)=ID_CHILD                                             !<-- Save the domain ID of the target child task
 !
 !     write(0,*)' S_H parent ready to ISend child #',n,' id_child=',id_child,' task #',nt,' nrank=',nrank,' intracomm rank=',id_childtask
-              CALL MPI_ISEND(INFO                                       &  !<-- Parent task sends the key data to the child Sbndry task
-                            ,6                                          &  !<-- # of words
-                            ,MPI_INTEGER                                &  !<-- Datatype
-                            ,ID_CHILDTASK                               &  !<-- Rank of target child task in parent-child intracomm
-!                           ,11111                                      &  !<-- Tag for south boundary H points
-                            ,NTAG_SEND                                  &  !<-- Tag for south boundary H points
-                            ,COMM_TO_MY_CHILDREN(N)                     &  !<-- Parent-child intracommunicator
-                            ,HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA(NT) &  !<-- Request handle for this ISend
-                            ,IERR)
+              CALL MPI_ISSEND(INFO                                       &  !<-- Parent task sends the key data to the child Sbndry task
+                             ,6                                          &  !<-- # of words
+                             ,MPI_INTEGER                                &  !<-- Datatype
+                             ,ID_CHILDTASK                               &  !<-- Rank of target child task in parent-child intracomm
+!                            ,11111                                      &  !<-- Tag for south boundary H points
+                             ,NTAG_SEND                                  &  !<-- Tag for south boundary H points
+                             ,COMM_TO_MY_CHILDREN(N)                     &  !<-- Parent-child intracommunicator
+                             ,HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA(NT) &  !<-- Request handle for this ISend
+                             ,IERR)
 !     write(0,*)' S_H parent ISent child #',n,' id_child=',id_child,' task #',nt,' nrank=',nrank,' ntx=',ntx &
 !               ,' child task count=',CHILDTASK_BNDRY_H_RANKS(N)%SOUTH(NTX,1) &
 !              ,' intracomm rank=',id_childtask,' ierr=',ierr
@@ -13239,16 +13952,10 @@
         NTAG_SEND=11111+ID_CHILDTASK+ID_ADD                                !<-- Combine child task rank and child domain ID for unique tag
 !     write(0,*)' PARENT_SENDS_CHILD_DATA_LIMITS my_domain_id=',id,' dummy South H isend to child #',n,' child rank ',ID_CHILDTASK &
 !              ,' task #',nt
-!     write(0,*)' lbound(comm_to_my_children)=',lbound(comm_to_my_children),' ubound=',ubound(comm_to_my_children)
-!     write(0,*)' lbound(HANDLE_PACKET_S_H)=',lbound(HANDLE_PACKET_S_H,1),' ubound=',ubound(HANDLE_PACKET_S_H,1)
-!     write(0,*)' lbound(HANDLE_PACKET_S_H(ID)%CHILDREN)=',lbound(HANDLE_PACKET_S_H(ID)%CHILDREN,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_S_H(ID)%CHILDREN,1)
-!     write(0,*)' lbound(HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA)=',lbound(HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA,1)
-        CALL MPI_ISEND(INFO,6,MPI_INTEGER,ID_CHILDTASK                  &  !<-- So send this child task some dummy information
-!                     ,11111,COMM_TO_MY_CHILDREN(N)                     &  
-                      ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                 &  
-                      ,HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA(NT),IERR)
+        CALL MPI_ISSEND(INFO,6,MPI_INTEGER,ID_CHILDTASK                 &  !<-- So send this child task some dummy information
+!                      ,11111,COMM_TO_MY_CHILDREN(N)                    &  
+                       ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                &  
+                       ,HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA(NT),IERR)
 !
       ENDDO sh_loop
 !
@@ -13256,20 +13963,14 @@
 !***  South V
 !-------------
 !
-!     write(0,*)' is HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA associated? ',ASSOCIATED(HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA)
-!     write(0,*)' id=',id,' lbound(HANDLE_PACKET_S_V)=',lbound(HANDLE_PACKET_S_V,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_S_V,1)
-!     write(0,*)' n=',n,' lbound(HANDLE_PACKET_S_V(ID)%CHILDREN)=',lbound(HANDLE_PACKET_S_V(ID)%CHILDREN,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_S_V(ID)%CHILDREN,1)
-      IF(.NOT.ASSOCIATED(HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA))THEN
-        ALLOCATE(HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA(0:FTASKS_DOMAIN(ID_CHILD)-1))
-!     write(0,*)' allocated HANDLE_PACKET_S_V(',id,')%CHILDREN(',n,')%DATA(0:',ftasks_domain(id_child)-1,') stat=',istat
-      ENDIF
-!
       sv_loop: DO NT=0,FTASKS_DOMAIN(ID_CHILD)-1                           !<-- Each parent task loops through all tasks on each child
 !
-!xxx    INFO(1:5)=>INFO_SEND(ID)%CHILDREN(ID_CHILD)%INFO(1:5,NT,2)         !<-- South V info to child N's task NT
-        INFO(1:5)=>INFO_SEND(ID)%CHILDREN(N)%INFO(1:5,NT,2)                !<-- South V info to child N's task NT
+        CALL MPI_WAIT(HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA(NT)        &  !<-- Be sure the previous send is complete.
+                     ,JSTAT                                             &
+                     ,IERR )
+!
+!xxx    INFO=>INFO_SEND(ID)%CHILDREN(ID_CHILD)%INFO(1:5,NT,2)              !<-- South V info to child N's task NT
+        INFO=>INFO_SEND(ID)%CHILDREN(N)%INFO(1:5,NT,2)                     !<-- South V info to child N's task NT
 !
         INFO(1)=-1
 !
@@ -13290,15 +13991,15 @@
               INFO(5)=ID_CHILD                                             !<-- Save the domain ID of the target child task
 !
 !     write(0,*)' S_V parent ready to ISend child #',n,' id_child=',id_child,' task #',nt,' nrank=',nrank,' intracomm rank=',id_childtask
-              CALL MPI_ISEND(INFO                                       &  !<-- Parent task sends the key data to the child Sbndry task
-                            ,5                                          &  !<-- # of words
-                            ,MPI_INTEGER                                &  !<-- Datatype
-                            ,ID_CHILDTASK                               &  !<-- Rank of target child task in parent-child intracomm
-!                           ,22222                                      &  !<-- Tag for south boundary H points
-                            ,NTAG_SEND                                  &  !<-- Tag for south boundary H points
-                            ,COMM_TO_MY_CHILDREN(N)                     &  !<-- Parent-child intracommunicator
-                            ,HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA(NT) &  !<-- Request handle for this ISend
-                            ,IERR)
+              CALL MPI_ISSEND(INFO                                       &  !<-- Parent task sends the key data to the child Sbndry task
+                             ,5                                          &  !<-- # of words
+                             ,MPI_INTEGER                                &  !<-- Datatype
+                             ,ID_CHILDTASK                               &  !<-- Rank of target child task in parent-child intracomm
+!                            ,22222                                      &  !<-- Tag for south boundary H points
+                             ,NTAG_SEND                                  &  !<-- Tag for south boundary H points
+                             ,COMM_TO_MY_CHILDREN(N)                     &  !<-- Parent-child intracommunicator
+                             ,HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA(NT) &  !<-- Request handle for this ISend
+                             ,IERR)
 !    write(0,*)' S_V parent ISent child #',n,' id_child=',id_child,' task #',nt,' nrank=',nrank,' intracomm rank=',id_childtask,' ierr=',ierr
 !
               CYCLE sv_loop                                                !<-- Move on to next child task
@@ -13312,16 +14013,10 @@
         NTAG_SEND=22222+ID_CHILDTASK+ID_ADD                                !<-- Combine child task rank and child domain ID for unique tag
 !     write(0,*)' PARENT_SENDS_CHILD_DATA_LIMITS my_domain_id=',id,' dummy South V isend to child #',n,' child rank ',ID_CHILDTASK &
 !              ,' task #',nt
-!     write(0,*)' lbound(comm_to_my_children)=',lbound(comm_to_my_children),' ubound=',ubound(comm_to_my_children)
-!     write(0,*)' lbound(HANDLE_PACKET_S_V)=',lbound(HANDLE_PACKET_S_V,1),' ubound=',ubound(HANDLE_PACKET_S_V,1)
-!     write(0,*)' lbound(HANDLE_PACKET_S_V(ID)%CHILDREN)=',lbound(HANDLE_PACKET_S_V(ID)%CHILDREN,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_S_V(ID)%CHILDREN,1)
-!     write(0,*)' lbound(HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA)=',lbound(HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA,1)
-        CALL MPI_ISEND(INFO,5,MPI_INTEGER,ID_CHILDTASK                  &  !<-- So send this child task some dummy information
-!                     ,22222,COMM_TO_MY_CHILDREN(N)                     &
-                      ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                 &
-                      ,HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA(NT),IERR)
+        CALL MPI_ISSEND(INFO,5,MPI_INTEGER,ID_CHILDTASK                 &  !<-- So send this child task some dummy information
+!                      ,22222,COMM_TO_MY_CHILDREN(N)                    &
+                       ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                &
+                       ,HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA(NT),IERR)
 !
       ENDDO sv_loop
 !
@@ -13330,15 +14025,15 @@
 !-------------
 !
 !     write(0,*)' is HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA associated? ',ASSOCIATED(HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA)
-      IF(.NOT.ASSOCIATED(HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA))THEN
-        ALLOCATE(HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA(0:FTASKS_DOMAIN(ID_CHILD)-1))
-!     write(0,*)' allocated HANDLE_PACKET_N_H(',id,')%CHILDREN(',n,')%DATA(0:',ftasks_domain(id_child)-1,') stat=',istat
-      ENDIF
 !
       nh_loop: DO NT=0,FTASKS_DOMAIN(ID_CHILD)-1                           !<-- Each parent task loops through all tasks on each child
 !
-!xxx    INFO(1:6)=>INFO_SEND(ID)%CHILDREN(ID_CHILD)%INFO(1:6,NT,3)         !<-- North H info to child N's task NT
-        INFO(1:6)=>INFO_SEND(ID)%CHILDREN(N)%INFO(1:6,NT,3)                !<-- North H info to child N's task NT
+        CALL MPI_WAIT(HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA(NT)        &  !<-- Be sure the previous send is complete.
+                     ,JSTAT                                             &
+                     ,IERR )
+!
+!xxx    INFO=>INFO_SEND(ID)%CHILDREN(ID_CHILD)%INFO(1:6,NT,3)              !<-- North H info to child N's task NT
+        INFO=>INFO_SEND(ID)%CHILDREN(N)%INFO(1:6,NT,3)                     !<-- North H info to child N's task NT
 !
         INFO(1)=-1
 !
@@ -13360,15 +14055,15 @@
               INFO(6)=ID_CHILD                                             !<-- Save the domain ID of the target child task
 !
 !     write(0,*)' N_H parent ready to ISend child #',n,' id_child=',id_child,' task #',nt,' nrank=',nrank,' intracomm rank=',id_childtask
-              CALL MPI_ISEND(INFO                                       &  !<-- Parent task sends the key data to the child Nbndry task
-                            ,6                                          &  !<-- # of words
-                            ,MPI_INTEGER                                &  !<-- Datatype
-                            ,ID_CHILDTASK                               &  !<-- Rank of target child task in parent-child intracomm
-!                           ,33333                                      &  !<-- Tag for south boundary H points
-                            ,NTAG_SEND                                  &  !<-- Tag for south boundary H points
-                            ,COMM_TO_MY_CHILDREN(N)                     &  !<-- Parent-child intracommunicator
-                            ,HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA(NT) &  !<-- Request handle for this ISend
-                            ,IERR)
+              CALL MPI_ISSEND(INFO                                       &  !<-- Parent task sends the key data to the child Nbndry task
+                             ,6                                          &  !<-- # of words
+                             ,MPI_INTEGER                                &  !<-- Datatype
+                             ,ID_CHILDTASK                               &  !<-- Rank of target child task in parent-child intracomm
+!                            ,33333                                      &  !<-- Tag for south boundary H points
+                             ,NTAG_SEND                                  &  !<-- Tag for south boundary H points
+                             ,COMM_TO_MY_CHILDREN(N)                     &  !<-- Parent-child intracommunicator
+                             ,HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA(NT) &  !<-- Request handle for this ISend
+                             ,IERR)
 !     write(0,*)' N_H parent ISent child #',n,' id_child=',id_child,' task #',nt,' nrank=',nrank,' ntx=',ntx &
 !               ,' child task count=',CHILDTASK_BNDRY_H_RANKS(N)%NORTH(NTX,1) &
 !              ,' intracomm rank=',id_childtask,' ierr=',ierr
@@ -13385,16 +14080,10 @@
         NTAG_SEND=33333+ID_CHILDTASK+ID_ADD                                !<-- Combine child task rank and child domain ID for unique tag
 !     write(0,*)' PARENT_SENDS_CHILD_DATA_LIMITS my_domain_id=',id,' dummy North H isend to child #',n,' child rank ',ID_CHILDTASK &
 !              ,' task #',nt
-!     write(0,*)' lbound(comm_to_my_children)=',lbound(comm_to_my_children),' ubound=',ubound(comm_to_my_children)
-!     write(0,*)' lbound(HANDLE_PACKET_N_H)=',lbound(HANDLE_PACKET_N_H,1),' ubound=',ubound(HANDLE_PACKET_N_H,1)
-!     write(0,*)' lbound(HANDLE_PACKET_N_H(ID)%CHILDREN)=',lbound(HANDLE_PACKET_N_H(ID)%CHILDREN,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_N_H(ID)%CHILDREN,1)
-!     write(0,*)' lbound(HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA)=',lbound(HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA,1)
-        CALL MPI_ISEND(INFO,6,MPI_INTEGER,ID_CHILDTASK                  &  !<-- So send this child task some dummy information
-!                     ,33333,COMM_TO_MY_CHILDREN(N)                     &  
-                      ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                 &  
-                      ,HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA(NT),IERR)
+        CALL MPI_ISSEND(INFO,6,MPI_INTEGER,ID_CHILDTASK                 &  !<-- So send this child task some dummy information
+!                      ,33333,COMM_TO_MY_CHILDREN(N)                    &  
+                       ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                &  
+                       ,HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA(NT),IERR)
 !
       ENDDO nh_loop
 !
@@ -13403,15 +14092,15 @@
 !-------------
 !
 !     write(0,*)' is HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA associated? ',ASSOCIATED(HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA)
-      IF(.NOT.ASSOCIATED(HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA))THEN
-        ALLOCATE(HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA(0:FTASKS_DOMAIN(ID_CHILD)-1))
-!     write(0,*)' allocated HANDLE_PACKET_N_V(',id,')%CHILDREN(',n,')%DATA(0:',ftasks_domain(id_child)-1,') stat=',istat
-      ENDIF
 !
       nv_loop: DO NT=0,FTASKS_DOMAIN(ID_CHILD)-1                           !<-- Each parent task loops through all tasks on each child
 !
-!xxx    INFO(1:5)=>INFO_SEND(ID)%CHILDREN(ID_CHILD)%INFO(1:5,NT,4)         !<-- North V info to child N's task NT
-        INFO(1:5)=>INFO_SEND(ID)%CHILDREN(N)%INFO(1:5,NT,4)                !<-- North V info to child N's task NT
+        CALL MPI_WAIT(HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA(NT)        &  !<-- Be sure the previous send is complete.
+                     ,JSTAT                                             &
+                     ,IERR )
+!
+!xxx    INFO=>INFO_SEND(ID)%CHILDREN(ID_CHILD)%INFO(1:5,NT,4)              !<-- North V info to child N's task NT
+        INFO=>INFO_SEND(ID)%CHILDREN(N)%INFO(1:5,NT,4)                     !<-- North V info to child N's task NT
 !
         INFO(1)=-1
 !
@@ -13432,15 +14121,15 @@
               INFO(5)=ID_CHILD                                             !<-- Save the domain ID of the target child task
 !
 !     write(0,*)' N_V parent ready to ISend child #',n,' id_child=',id_child,' task #',nt,' nrank=',nrank,' intracomm rank=',id_childtask
-              CALL MPI_ISEND(INFO                                       &  !<-- Parent task sends the key data to the child Nbndry task
-                            ,5                                          &  !<-- # of words
-                            ,MPI_INTEGER                                &  !<-- Datatype
-                            ,ID_CHILDTASK                               &  !<-- Rank of target child task in parent-child intracomm
-!                           ,44444                                      &  !<-- Tag for south boundary H points
-                            ,NTAG_SEND                                  &  !<-- Tag for south boundary H points
-                            ,COMM_TO_MY_CHILDREN(N)                     &  !<-- Parent-child intracommunicator
-                            ,HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA(NT) &  !<-- Request handle for this ISend
-                            ,IERR)
+              CALL MPI_ISSEND(INFO                                       &  !<-- Parent task sends the key data to the child Nbndry task
+                             ,5                                          &  !<-- # of words
+                             ,MPI_INTEGER                                &  !<-- Datatype
+                             ,ID_CHILDTASK                               &  !<-- Rank of target child task in parent-child intracomm
+!                            ,44444                                      &  !<-- Tag for south boundary H points
+                             ,NTAG_SEND                                  &  !<-- Tag for south boundary H points
+                             ,COMM_TO_MY_CHILDREN(N)                     &  !<-- Parent-child intracommunicator
+                             ,HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA(NT) &  !<-- Request handle for this ISend
+                             ,IERR)
 !   write(0,*)' N_V parent ISent child #',n,' id_child=',id_child,' task #',nt,' nrank=',nrank,' intracomm rank=',id_childtask,' ierr=',ierr
 
 !
@@ -13455,16 +14144,10 @@
         NTAG_SEND=44444+ID_CHILDTASK+ID_ADD                                !<-- Combine child task rank and child domain ID for unique tag
 !     write(0,*)' PARENT_SENDS_CHILD_DATA_LIMITS my_domain_id=',id,' dummy North V isend to child #',n,' child rank ',ID_CHILDTASK &
 !              ,' task #',nt
-!     write(0,*)' lbound(comm_to_my_children)=',lbound(comm_to_my_children),' ubound=',ubound(comm_to_my_children)
-!     write(0,*)' lbound(HANDLE_PACKET_N_V)=',lbound(HANDLE_PACKET_N_V,1),' ubound=',ubound(HANDLE_PACKET_N_V,1)
-!     write(0,*)' lbound(HANDLE_PACKET_N_V(ID)%CHILDREN)=',lbound(HANDLE_PACKET_N_V(ID)%CHILDREN,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_N_V(ID)%CHILDREN,1)
-!     write(0,*)' lbound(HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA)=',lbound(HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA,1)
-        CALL MPI_ISEND(INFO,5,MPI_INTEGER,ID_CHILDTASK                  &  !<-- So send this child task some dummy information
-!                     ,44444,COMM_TO_MY_CHILDREN(N)                     &
-                      ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                 &
-                      ,HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA(NT),IERR)
+        CALL MPI_ISSEND(INFO,5,MPI_INTEGER,ID_CHILDTASK                 &  !<-- So send this child task some dummy information
+!                      ,44444,COMM_TO_MY_CHILDREN(N)                    &
+                       ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                &
+                       ,HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA(NT),IERR)
 !
       ENDDO nv_loop
 !
@@ -13473,15 +14156,15 @@
 !------------
 !
 !     write(0,*)' is HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA associated? ',ASSOCIATED(HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA)
-      IF(.NOT.ASSOCIATED(HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA))THEN
-        ALLOCATE(HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA(0:FTASKS_DOMAIN(ID_CHILD)-1))
-!     write(0,*)' allocated HANDLE_PACKET_W_H(',id,')%CHILDREN(',n,')%DATA(0:',ftasks_domain(id_child)-1,') stat=',istat
-      ENDIF
 !
       wh_loop: DO NT=0,FTASKS_DOMAIN(ID_CHILD)-1                           !<-- Each parent task loops through all tasks on each child
 !
-!xxx    INFO(1:6)=>INFO_SEND(ID)%CHILDREN(ID_CHILD)%INFO(1:6,NT,5)         !<-- West H info to child N's task NT
-        INFO(1:6)=>INFO_SEND(ID)%CHILDREN(N)%INFO(1:6,NT,5)                !<-- West H info to child N's task NT
+        CALL MPI_WAIT(HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA(NT)        &  !<-- Be sure the previous send is complete.
+                     ,JSTAT                                             &
+                     ,IERR )
+!
+!xxx    INFO=>INFO_SEND(ID)%CHILDREN(ID_CHILD)%INFO(1:6,NT,5)              !<-- West H info to child N's task NT
+        INFO=>INFO_SEND(ID)%CHILDREN(N)%INFO(1:6,NT,5)                     !<-- West H info to child N's task NT
 !
         INFO(1)=-1
 !
@@ -13503,15 +14186,15 @@
               INFO(6)=ID_CHILD                                             !<-- Save the domain ID of the target child task
 !
 !     write(0,*)' W_H parent ready to ISend child #',n,' id_child=',id_child,' task #',nt,' nrank=',nrank,' intracomm rank=',id_childtask
-              CALL MPI_ISEND(INFO                                       &  !<-- Parent task sends the key data to the child Wbndry task
-                            ,6                                          &  !<-- # of words
-                            ,MPI_INTEGER                                &  !<-- Datatype
-                            ,ID_CHILDTASK                               &  !<-- Rank of target child task in parent-child intracomm
-!                           ,55555                                      &  !<-- Tag for south boundary H points
-                            ,NTAG_SEND                                  &  !<-- Tag for south boundary H points
-                            ,COMM_TO_MY_CHILDREN(N)                     &  !<-- Parent-child intracommunicator
-                            ,HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA(NT) &  !<-- Request handle for this ISend
-                            ,IERR)
+              CALL MPI_ISSEND(INFO                                       &  !<-- Parent task sends the key data to the child Wbndry task
+                             ,6                                          &  !<-- # of words
+                             ,MPI_INTEGER                                &  !<-- Datatype
+                             ,ID_CHILDTASK                               &  !<-- Rank of target child task in parent-child intracomm
+!                            ,55555                                      &  !<-- Tag for south boundary H points
+                             ,NTAG_SEND                                  &  !<-- Tag for south boundary H points
+                             ,COMM_TO_MY_CHILDREN(N)                     &  !<-- Parent-child intracommunicator
+                             ,HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA(NT) &  !<-- Request handle for this ISend
+                             ,IERR)
 !     write(0,*)' W_H parent ISent child #',n,' id_child=',id_child,' task #',nt,' nrank=',nrank,' ntx=',ntx &
 !               ,' child task count=',CHILDTASK_BNDRY_H_RANKS(N)%WEST(NTX,1) &
 !              ,' intracomm rank=',id_childtask,' ierr=',ierr
@@ -13528,16 +14211,10 @@
         NTAG_SEND=55555+ID_CHILDTASK+ID_ADD                                !<-- Combine child task rank and child domain ID for unique tag
 !     write(0,*)' PARENT_SENDS_CHILD_DATA_LIMITS my_domain_id=',id,' dummy West H isend to child #',n,' child rank ',ID_CHILDTASK &
 !              ,' task #',nt
-!     write(0,*)' lbound(comm_to_my_children)=',lbound(comm_to_my_children),' ubound=',ubound(comm_to_my_children)
-!     write(0,*)' lbound(HANDLE_PACKET_W_H)=',lbound(HANDLE_PACKET_W_H,1),' ubound=',ubound(HANDLE_PACKET_W_H,1)
-!     write(0,*)' lbound(HANDLE_PACKET_W_H(ID)%CHILDREN)=',lbound(HANDLE_PACKET_W_H(ID)%CHILDREN,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_W_H(ID)%CHILDREN,1)
-!     write(0,*)' lbound(HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA)=',lbound(HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA,1)
-        CALL MPI_ISEND(INFO,6,MPI_INTEGER,ID_CHILDTASK                  &  !<-- So send this child task some dummy information
-!                     ,55555,COMM_TO_MY_CHILDREN(N)                     &  
-                      ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                 &  
-                      ,HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA(NT),IERR)
+        CALL MPI_ISSEND(INFO,6,MPI_INTEGER,ID_CHILDTASK                 &  !<-- So send this child task some dummy information
+!                      ,55555,COMM_TO_MY_CHILDREN(N)                    &  
+                       ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                &  
+                       ,HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA(NT),IERR)
 !
       ENDDO wh_loop
 !
@@ -13546,30 +14223,15 @@
 !------------
 !
 !     write(0,*)' is HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA associated? ',ASSOCIATED(HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA)
-      IF(.NOT.ASSOCIATED(HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA))THEN
-        ALLOCATE(HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA(0:FTASKS_DOMAIN(ID_CHILD)-1))
-!     write(0,*)' allocated HANDLE_PACKET_W_V(',id,')%CHILDREN(',n,')%DATA(0:',ftasks_domain(id_child)-1,') stat=',istat
-!     else
-!     write(0,*)' HANDLE_PACKET_W_V(',id,')%CHILDREN(',n,')%DATA already associated lbound=' &
-!              ,lbound(HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA,1),' ubound=',ubound(HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA,1) &
-!              ,' ftasks_domain(id_child)=',ftasks_domain(id_child)
-      ENDIF
-!     if(ubound(HANDLE_H_SOUTH,2)==2)then
-!       lb1=lbound(HANDLE_H_SOUTH(1,2)%NTASKS_TO_RECV,1)
-!       ub1=ubound(HANDLE_H_SOUTH(1,2)%NTASKS_TO_RECV,1)
-!         write(0,*)' wv1 lbound(HANDLE_H_SOUTH(1,2)%NTASKS_TO_RECV,1)=',lb1 &
-!                  ,' ubound(HANDLE_H_SOUTH(1,2)%NTASKS_TO_RECV,1)=',ub1
-!       do nz=lb1,ub1
-!         write(0,*)' PARENT_SENDS_CHILD_DATA_LIMITS HANDLE_H_SOUTH(1,2)%NTASKS_TO_RECV(',nz,')=' &
-!                  ,HANDLE_H_SOUTH(1,2)%NTASKS_TO_RECV(nz)
-!       enddo
-!     endif
-!     write(0,*)' n=',n,' num_tasks_send_v_w(n)=',num_tasks_send_v_w(n)
 !
       wv_loop: DO NT=0,FTASKS_DOMAIN(ID_CHILD)-1                           !<-- Each parent task loops through all tasks on each child
 !
-!xxx    INFO(1:5)=>INFO_SEND(ID)%CHILDREN(ID_CHILD)%INFO(1:5,NT,6)         !<-- West V info to child N's task NT
-        INFO(1:5)=>INFO_SEND(ID)%CHILDREN(N)%INFO(1:5,NT,6)                !<-- West V info to child N's task NT
+        CALL MPI_WAIT(HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA(NT)        &  !<-- Be sure the previous send is complete.
+                     ,JSTAT                                             &
+                     ,IERR )
+!
+!xxx    INFO=>INFO_SEND(ID)%CHILDREN(ID_CHILD)%INFO(1:5,NT,6)              !<-- West V info to child N's task NT
+        INFO=>INFO_SEND(ID)%CHILDREN(N)%INFO(1:5,NT,6)                     !<-- West V info to child N's task NT
 !
         INFO(1)=-1
 !
@@ -13590,15 +14252,15 @@
               INFO(5)=ID_CHILD                                             !<-- Save the domain ID of the target child task
 !
 !     write(0,*)' W_V parent ready to ISend child #',n,' id_child=',id_child,' task #',nt,' nrank=',nrank,' intracomm rank=',id_childtask
-              CALL MPI_ISEND(INFO                                       &  !<-- Parent task sends the key data to the child Wbndry task
-                            ,5                                          &  !<-- # of words
-                            ,MPI_INTEGER                                &  !<-- Datatype
-                            ,ID_CHILDTASK                               &  !<-- Rank of target child task in parent-child intracomm
-!                           ,66666                                      &  !<-- Tag for south boundary H points
-                            ,NTAG_SEND                                  &  !<-- Tag for south boundary H points
-                            ,COMM_TO_MY_CHILDREN(N)                     &  !<-- Parent-child intracommunicator
-                            ,HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA(NT) &  !<-- Request handle for this ISend
-                            ,IERR)
+              CALL MPI_ISSEND(INFO                                       &  !<-- Parent task sends the key data to the child Wbndry task
+                             ,5                                          &  !<-- # of words
+                             ,MPI_INTEGER                                &  !<-- Datatype
+                             ,ID_CHILDTASK                               &  !<-- Rank of target child task in parent-child intracomm
+!                            ,66666                                      &  !<-- Tag for south boundary H points
+                             ,NTAG_SEND                                  &  !<-- Tag for south boundary H points
+                             ,COMM_TO_MY_CHILDREN(N)                     &  !<-- Parent-child intracommunicator
+                             ,HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA(NT) &  !<-- Request handle for this ISend
+                             ,IERR)
 !   write(0,*)' W_V parent ISent child #',n,' id_child=',id_child,' task #',nt,' nrank=',nrank,' intracomm rank=',id_childtask,' ierr=',ierr
 !
               CYCLE wv_loop                                                !<-- Move on to next child task
@@ -13613,41 +14275,27 @@
 !
 !     write(0,*)' PARENT_SENDS_CHILD_DATA_LIMITS my_domain_id=',id,' dummy West V isend to child #',n,' child rank ',ID_CHILDTASK &
 !              ,' task #',nt
-!     write(0,*)' lbound(comm_to_my_children)=',lbound(comm_to_my_children),' ubound=',ubound(comm_to_my_children)
-!     write(0,*)' lbound(HANDLE_PACKET_W_V)=',lbound(HANDLE_PACKET_W_V,1),' ubound=',ubound(HANDLE_PACKET_W_V,1)
-!     write(0,*)' lbound(HANDLE_PACKET_W_V(ID)%CHILDREN)=',lbound(HANDLE_PACKET_W_V(ID)%CHILDREN,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_W_V(ID)%CHILDREN,1)
-!     write(0,*)' lbound(HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA)=',lbound(HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA,1)
-        CALL MPI_ISEND(INFO,5,MPI_INTEGER,ID_CHILDTASK                  &  !<-- So send this child task some dummy information
-!                     ,66666,COMM_TO_MY_CHILDREN(N)                     &
-                      ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                 &
-                      ,HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA(NT),IERR)
+        CALL MPI_ISSEND(INFO,5,MPI_INTEGER,ID_CHILDTASK                 &  !<-- So send this child task some dummy information
+!                      ,66666,COMM_TO_MY_CHILDREN(N)                    &
+                       ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                &
+                       ,HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA(NT),IERR)
 !
       ENDDO wv_loop
 !
-!     if(ubound(HANDLE_H_SOUTH,2)==2)then
-!       lb1=lbound(HANDLE_H_SOUTH(1,2)%NTASKS_TO_RECV,1)
-!       ub1=ubound(HANDLE_H_SOUTH(1,2)%NTASKS_TO_RECV,1)
-!       do nz=lb1,ub1
-!         write(0,*)' wv2 PARENT_SENDS_CHILD_DATA_LIMITS HANDLE_H_SOUTH(1,2)%NTASKS_TO_RECV(',nz,')=' &
-!                  ,HANDLE_H_SOUTH(1,2)%NTASKS_TO_RECV(nz)
-!       enddo
-!     endif
 !------------
 !***  East H
 !------------
 !
 !     write(0,*)' is HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA associated? ',ASSOCIATED(HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA)
-      IF(.NOT.ASSOCIATED(HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA))THEN
-        ALLOCATE(HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA(0:FTASKS_DOMAIN(ID_CHILD)-1))
-!     write(0,*)' PARENT_SENDS_CHILD_DATA_LIMITS allocated HANDLE_PACKET_E_H(',id,')%data(0:',FTASKS_DOMAIN(ID_CHILD)-1,')'
-      ENDIF
 !
       eh_loop: DO NT=0,FTASKS_DOMAIN(ID_CHILD)-1                           !<-- Each parent task loops through all tasks on each child
 !
-!xxx    INFO(1:6)=>INFO_SEND(ID)%CHILDREN(ID_CHILD)%INFO(1:6,NT,7)         !<-- East H info to child N's task NT
-        INFO(1:6)=>INFO_SEND(ID)%CHILDREN(N)%INFO(1:6,NT,7)                !<-- East H info to child N's task NT
+        CALL MPI_WAIT(HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA(NT)        &  !<-- Be sure the previous send is complete.
+                     ,JSTAT                                             &
+                     ,IERR )
+!
+!xxx    INFO=>INFO_SEND(ID)%CHILDREN(ID_CHILD)%INFO(1:6,NT,7)              !<-- East H info to child N's task NT
+        INFO=>INFO_SEND(ID)%CHILDREN(N)%INFO(1:6,NT,7)                     !<-- East H info to child N's task NT
 !
         INFO(1)=-1
 !
@@ -13671,15 +14319,15 @@
 !
 !     write(0,*)' E_H parent ISending child #',n,' id_child=',id_child,' task #',nt,' nrank=',nrank,' intracomm rank=',id_childtask 
 !     write(0,*)' tag=',ntag_send,' id_add=',id_add
-              CALL MPI_ISEND(INFO                                       &  !<-- Parent task sends the key data to the child Ebndry task
-                            ,6                                          &  !<-- # of words
-                            ,MPI_INTEGER                                &  !<-- Datatype
-                            ,ID_CHILDTASK                               &  !<-- Rank of target child task in parent-child intracomm
-!                           ,77777                                      &  !<-- Tag for south boundary H points
-                            ,NTAG_SEND                                  &  !<-- Tag for south boundary H points
-                            ,COMM_TO_MY_CHILDREN(N)                     &  !<-- Parent-child intracommunicator
-                            ,HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA(NT) &  !<-- Request handle for this ISend
-                            ,IERR)
+              CALL MPI_ISSEND(INFO                                       &  !<-- Parent task sends the key data to the child Ebndry task
+                             ,6                                          &  !<-- # of words
+                             ,MPI_INTEGER                                &  !<-- Datatype
+                             ,ID_CHILDTASK                               &  !<-- Rank of target child task in parent-child intracomm
+!                            ,77777                                      &  !<-- Tag for south boundary H points
+                             ,NTAG_SEND                                  &  !<-- Tag for south boundary H points
+                             ,COMM_TO_MY_CHILDREN(N)                     &  !<-- Parent-child intracommunicator
+                             ,HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA(NT) &  !<-- Request handle for this ISend
+                             ,IERR)
 !     write(0,*)' E_H parent ISent child #',n,' id_child=',id_child,' task #',nt,' nrank=',nrank,' ntx=',ntx &
 !               ,' child task count=',CHILDTASK_BNDRY_H_RANKS(N)%EAST(NTX,1) &
 !              ,' intracomm rank=',id_childtask,' ierr=',ierr
@@ -13697,16 +14345,10 @@
 !
 !     write(0,*)' PARENT_SENDS_CHILD_DATA_LIMITS my_domain_id=',id,' dummy East H isend to child #',n,' child rank ',ID_CHILDTASK &
 !              ,' task #',nt,' ntag_send=',ntag_send
-!     write(0,*)' lbound(comm_to_my_children)=',lbound(comm_to_my_children),' ubound=',ubound(comm_to_my_children)
-!     write(0,*)' lbound(HANDLE_PACKET_E_H)=',lbound(HANDLE_PACKET_E_H,1),' ubound=',ubound(HANDLE_PACKET_E_H,1)
-!     write(0,*)' lbound(HANDLE_PACKET_E_H(ID)%CHILDREN)=',lbound(HANDLE_PACKET_E_H(ID)%CHILDREN,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_E_H(ID)%CHILDREN,1)
-!     write(0,*)' lbound(HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA)=',lbound(HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA,1)
-        CALL MPI_ISEND(INFO,6,MPI_INTEGER,ID_CHILDTASK                  &  !<-- So send this child task some dummy information
-!                     ,77777,COMM_TO_MY_CHILDREN(N)                     &  
-                      ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                 &  
-                      ,HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA(NT),IERR)
+        CALL MPI_ISSEND(INFO,6,MPI_INTEGER,ID_CHILDTASK                 &  !<-- So send this child task some dummy information
+!                      ,77777,COMM_TO_MY_CHILDREN(N)                    &  
+                       ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                &  
+                       ,HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA(NT),IERR)
 !
       ENDDO eh_loop
 !         call date_and_time(values=values)
@@ -13718,15 +14360,15 @@
 !------------
 !
 !     write(0,*)' is HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA associated? ',ASSOCIATED(HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA)
-      IF(.NOT.ASSOCIATED(HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA))THEN
-        ALLOCATE(HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA(0:FTASKS_DOMAIN(ID_CHILD)-1))
-!     write(0,*)' PARENT_SENDS_CHILD_DATA_LIMITS allocated HANDLE_PACKET_E_V(',id,')%child(',n,')%data(0:',FTASKS_DOMAIN(ID_CHILD)-1,')'
-      ENDIF
 !
       ev_loop: DO NT=0,FTASKS_DOMAIN(ID_CHILD)-1                           !<-- Each parent task loops through all tasks on each child
 !
-!xxx    INFO(1:5)=>INFO_SEND(ID)%CHILDREN(ID_CHILD)%INFO(1:5,NT,8)         !<-- East V info to child N's task NT
-        INFO(1:5)=>INFO_SEND(ID)%CHILDREN(N)%INFO(1:5,NT,8)                !<-- East V info to child N's task NT
+        CALL MPI_WAIT(HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA(NT)        &  !<-- Be sure the previous send is complete.
+                     ,JSTAT                                             &
+                     ,IERR )
+!
+!xxx    INFO=>INFO_SEND(ID)%CHILDREN(ID_CHILD)%INFO(1:5,NT,8)              !<-- East V info to child N's task NT
+        INFO=>INFO_SEND(ID)%CHILDREN(N)%INFO(1:5,NT,8)                     !<-- East V info to child N's task NT
 !
         INFO(1)=-1
 !
@@ -13749,15 +14391,15 @@
 !
 !     write(0,*)' E_V parent ready to ISend child #',n,' id_child=',id_child,' task #',nt,' nrank=',nrank,' intracomm rank=',id_childtask &
 !              ,' intracomm=',comm_to_my_children(n)
-              CALL MPI_ISEND(INFO                                       &  !<-- Parent task sends the key data to the child Ebndry task
-                            ,5                                          &  !<-- # of words
-                            ,MPI_INTEGER                                &  !<-- Datatype
-                            ,ID_CHILDTASK                               &  !<-- Rank of target child task in parent-child intracomm
-!                           ,88888                                      &  !<-- Tag for south boundary H points
-                            ,NTAG_SEND                                  &  !<-- Tag for south boundary H points
-                            ,COMM_TO_MY_CHILDREN(N)                     &  !<-- Parent-child intracommunicator
-                            ,HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA(NT) &  !<-- Request handle for this ISend
-                            ,IERR)
+              CALL MPI_ISSEND(INFO                                       &  !<-- Parent task sends the key data to the child Ebndry task
+                             ,5                                          &  !<-- # of words
+                             ,MPI_INTEGER                                &  !<-- Datatype
+                             ,ID_CHILDTASK                               &  !<-- Rank of target child task in parent-child intracomm
+!                            ,88888                                      &  !<-- Tag for south boundary H points
+                             ,NTAG_SEND                                  &  !<-- Tag for south boundary H points
+                             ,COMM_TO_MY_CHILDREN(N)                     &  !<-- Parent-child intracommunicator
+                             ,HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA(NT) &  !<-- Request handle for this ISend
+                             ,IERR)
 !   write(0,*)' real E_V parent ISent child #',n,' id_child=',id_child,' task #',nt,' nrank=',nrank &
 !            ,' intracomm rank=',id_childtask,' ierr=',ierr
 !   write(0,*)' real E_V info=',info(1:5)
@@ -13774,16 +14416,10 @@
 !
 !     write(0,*)' PARENT_SENDS_CHILD_DATA_LIMITS my_domain_id=',id,' dummy East V isend to child #',n,' child rank ',ID_CHILDTASK &
 !              ,' task #',nt
-!     write(0,*)' lbound(comm_to_my_children)=',lbound(comm_to_my_children),' ubound=',ubound(comm_to_my_children)
-!     write(0,*)' lbound(HANDLE_PACKET_E_V)=',lbound(HANDLE_PACKET_E_V,1),' ubound=',ubound(HANDLE_PACKET_E_V,1)
-!     write(0,*)' lbound(HANDLE_PACKET_E_V(ID)%CHILDREN)=',lbound(HANDLE_PACKET_E_V(ID)%CHILDREN,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_E_V(ID)%CHILDREN,1)
-!     write(0,*)' lbound(HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA)=',lbound(HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA,1) &
-!              ,' ubound=',ubound(HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA,1)
-        CALL MPI_ISEND(INFO,5,MPI_INTEGER,ID_CHILDTASK                  &  !<-- So send this child task some dummy information
-!                     ,88888,COMM_TO_MY_CHILDREN(N)                     &
-                      ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                 &
-                      ,HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA(NT),IERR)
+        CALL MPI_ISSEND(INFO,5,MPI_INTEGER,ID_CHILDTASK                 &  !<-- So send this child task some dummy information
+!                      ,88888,COMM_TO_MY_CHILDREN(N)                    &
+                       ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                &
+                       ,HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA(NT),IERR)
 !   write(0,*)' dummy E_V parent ISent child #',n,' id_child=',id_child,' task #',nt &
 !            ,' intracomm rank=',id_childtask,' ierr=',ierr
 !   write(0,*)' dummy E_V info=',info(1:5)
@@ -13897,6 +14533,7 @@
 !
       DO N=0,FTASKS_DOMAIN(ID_DOM)-1                                       !<-- Child task loops through its parent's tasks
 !
+!     write(0,*)' ready to recv from parent task ',n,' tag=',ntag_recv,' mype=',mype,' id_add=',id_add
         CALL MPI_RECV(INFO_R                                            &  !<-- Receive data packet from each parent task
                      ,6                                                 &  !<-- # of words in data packet
                      ,MPI_INTEGER                                       &  !<-- Datatype
@@ -13906,6 +14543,7 @@
                      ,COMM_TO_MY_PARENT                                 &  !<-- MPI intracommunicator between child and parent
                      ,STATUS                                            &  !<-- Status of Recv
                      ,IERR)
+!     write(0,*)' recvd from parent task ',n,' info_r(1)=',info_r(1)
 !
         IF(INFO_R(1)>=0)THEN                                               !<-- If yes, this parent task sent key preliminary bndry info
 !
@@ -14214,7 +14852,6 @@
           DO N1=1,4
             PARENT_INFO(N1,KOUNT)=INFO_R(N1)                               !<-- Save the data from that parent task
           ENDDO
-!     write(0,*)' CHILD_RECVS_CHILD_DATA_LIMITS north_h info_r(1)=',info_r(1),' kount=',kount
         ENDIF
 !
       ENDDO
@@ -14259,7 +14896,6 @@
         ALLOCATE( cc%TB_N(INDX_MIN_H%NORTH:INDX_MAX_H%NORTH,1:N_BLEND_H,1:LM))
         ALLOCATE( cc%QB_N(INDX_MIN_H%NORTH:INDX_MAX_H%NORTH,1:N_BLEND_H,1:LM))
         ALLOCATE(cc%CWB_N(INDX_MIN_H%NORTH:INDX_MAX_H%NORTH,1:N_BLEND_H,1:LM))
-!
 !
         ILIM_LO=INDX_MIN_H%NORTH
         ILIM_HI=INDX_MAX_H%NORTH
@@ -15182,7 +15818,7 @@
 !
       CALL MPI_COMM_RANK(COMM_TO_MY_PARENT,MYPE,IERR)                      !<-- Obtain rank of this child task
 !
-      NTAG_SEND=MYPE+1000*MY_DOMAIN_ID                                     !<-- A unique MPI tag for this Send
+!xxx  NTAG_SEND=MYPE+1000*MY_DOMAIN_ID                                     !<-- A unique MPI tag for this Send
 !
 !-----------------------------------------------------------------------
 !
@@ -15192,6 +15828,7 @@
 !
 !     write(0,*)' CHILD_SENDS_TOPO_TO_PARENT mype=',mype,' NUM_PARENT_TASKS_SENDING_H%SOUTH=',NUM_PARENT_TASKS_SENDING_H%SOUTH
       IF(NUM_PARENT_TASKS_SENDING_H%SOUTH>0)THEN                           !<-- Child tasks know which parent tasks compute their BCs
+        NTAG_SEND=MYPE+1000*MY_DOMAIN_ID                                   !<-- A unique MPI tag for this Send
 !
         DO N=1,NUM_PARENT_TASKS_SENDING_H%SOUTH                            !<-- Child sends its FIS to parent tasks that will be
 !                                                                               computing its BCs.
@@ -15206,6 +15843,9 @@
           DO N1=I_LO,I_HI
             KOUNT=KOUNT+1
             FIS_SEND(KOUNT)=FIS(N1-I_OFFSET,N2-J_OFFSET)                   !<-- 1-D FIS of child points covered by parent task N
+            if(abs(FIS_SEND(KOUNT))<1.e-2)then
+              FIS_SEND(KOUNT)=0.
+            endif
           ENDDO
           ENDDO
 !
@@ -15217,8 +15857,6 @@
                        ,NTAG_SEND                                       &  !<-- MPI tag
                        ,COMM_TO_MY_PARENT                               &  !<-- MPI intracommunicator between this child and its parent
                        ,IERR)
-!     write(0,*)' CHILD_SENDS_TOPO_TO_PARENT after child mype=',mype,' my_domain_id=',my_domain_id,' sent S topo to parent rank=' &
-!              ,PARENT_TASK(N)%SOUTH_H%ID_SOURCE,' ntag=',ntag_send
 !
           DEALLOCATE(FIS_SEND)
 !
@@ -15232,6 +15870,7 @@
 !
 !     write(0,*)' CHILD_SENDS_TOPO_TO_PARENT mype=',mype,' NUM_PARENT_TASKS_SENDING_H%NORTH=',NUM_PARENT_TASKS_SENDING_H%NORTH
       IF(NUM_PARENT_TASKS_SENDING_H%NORTH>0)THEN                           !<-- Child tasks know which parent tasks compute their BCs
+        NTAG_SEND=MYPE+2000*MY_DOMAIN_ID                                   !<-- A unique MPI tag for this Send
 !                                                                               
         DO N=1,NUM_PARENT_TASKS_SENDING_H%NORTH                            !<-- Child sends its FIS to parent tasks that will be
 !                                                                               computing its BCs.
@@ -15246,6 +15885,9 @@
           DO N1=I_LO,I_HI
             KOUNT=KOUNT+1
             FIS_SEND(KOUNT)=FIS(N1-I_OFFSET,N2-J_OFFSET)                   !<-- 1-D FIS of child points covered by parent task N
+            if(abs(FIS_SEND(KOUNT))<1.e-2)then
+              FIS_SEND(KOUNT)=0.
+            endif
           ENDDO
           ENDDO
 !
@@ -15273,6 +15915,7 @@
 !
 !     write(0,*)' CHILD_SENDS_TOPO_TO_PARENT mype=',mype,' NUM_PARENT_TASKS_SENDING_H%WEST=',NUM_PARENT_TASKS_SENDING_H%WEST
       IF(NUM_PARENT_TASKS_SENDING_H%WEST>0)THEN                            !<-- Child tasks know which parent tasks compute their BCs
+        NTAG_SEND=MYPE+3000*MY_DOMAIN_ID                                   !<-- A unique MPI tag for this Send
 !                                                                          
         DO N=1,NUM_PARENT_TASKS_SENDING_H%WEST                             !<-- Child sends its FIS to parent tasks that will be
 !                                                                               computing its BCs.
@@ -15287,6 +15930,9 @@
           DO N1=1,N_BLEND_H+1                                              !<-- Extra row for 4-pt interp of PD to V pts
             KOUNT=KOUNT+1
             FIS_SEND(KOUNT)=FIS(N1-I_OFFSET,N2-J_OFFSET)                   !<-- 1-D FIS of child points covered by parent task N
+            if(abs(FIS_SEND(KOUNT))<1.e-2)then
+              FIS_SEND(KOUNT)=0.
+            endif
           ENDDO
           ENDDO
 !
@@ -15312,6 +15958,7 @@
 !
 !     write(0,*)' CHILD_SENDS_TOPO_TO_PARENT mype=',mype,' NUM_PARENT_TASKS_SENDING_H%EAST=',NUM_PARENT_TASKS_SENDING_H%EAST
       IF(NUM_PARENT_TASKS_SENDING_H%EAST>0)THEN                            !<-- Child tasks know which parent tasks compute their BCs
+        NTAG_SEND=MYPE+4000*MY_DOMAIN_ID                                   !<-- A unique MPI tag for this Send
 !
         DO N=1,NUM_PARENT_TASKS_SENDING_H%EAST                             !<-- Child sends its FIS to parent tasks that will be
 !                                                                               computing its BCs.
@@ -15320,12 +15967,17 @@
           NUM_WORDS=(J_HI-J_LO+1)*(N_BLEND_H+1)                            !<-- # of child points covered by parent task N
           ALLOCATE(FIS_SEND(1:NUM_WORDS))                                  !<-- Array to hold child FIS values to go to parent task N
                                                                            !    with extra row of values for 4-pt interp to V pts
+!     write(0,*)' CHILD_SENDS_TOPO_TO_PARENT allocated fis_send(1:',num_words,') for east bndry'
+!     write(0,*)' num_words=',num_words,' j_lo=',j_lo,' j_hi=',j_hi,' n_blend_h=',n_blend_h,' ite=',ite
           KOUNT=0
 !
           DO N2=J_LO,J_HI
           DO N1=ITE-N_BLEND_H  ,ITE                                        !<-- Extra row for 4-pt interp of PD to V pts
             KOUNT=KOUNT+1
             FIS_SEND(KOUNT)=FIS(N1-I_OFFSET,N2-J_OFFSET)                   !<-- 1-D FIS of child points covered by parent task N
+            if(abs(FIS_SEND(KOUNT))<1.e-2)then
+              FIS_SEND(KOUNT)=0.
+            endif
           ENDDO
           ENDDO
 !
@@ -15339,8 +15991,8 @@
                        ,IERR)
 !     write(0,*)' CHILD_SENDS_TOPO_TO_PARENT after child mype=',mype,' my_domain_id=',my_domain_id,' sent E topo to parent rank=' &
 !              ,PARENT_TASK(N)%EAST_H%ID_SOURCE,' ntag=',ntag_send
-!     write(0,*)' CHILD_SENDS_TOPO_TO_PARENT sent east topo to parent task #',n,' rank=',PARENT_TASK(N)%EAST_H%ID_SOURCE &
-!              ,' tag=',ntag_send,' mype=',mype,' intracom=',COMM_TO_MY_PARENT
+!     write(0,*)' CHILD_SENDS_TOPO_TO_PARENT sent east topo to parent task #',n &
+!              ,' mype=',mype,' intracom=',COMM_TO_MY_PARENT
 !
           DEALLOCATE(FIS_SEND)
         ENDDO
@@ -15383,6 +16035,7 @@
 !
       TYPE(COMPOSITE),POINTER :: CC
 !
+      integer(kind=kint) :: nnnn
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -15409,6 +16062,7 @@
 !
         NDATA=NUM_TASKS_SEND_H_S(N)
         ALLOCATE(FIS_CHILD_SOUTH(N)%TASKS(1:NDATA))                        !<-- FIS data slot for each Sbndry child task on parent task
+!     write(0,*)' PARENT_RECVS_CHILD_TOPO allocated fis_child_south(',n,')%tasks(1:',ndata,')'
         ALLOCATE(HANDLE_CHILD_TOPO_S(ID)%CHILDREN(N)%DATA(NDATA))          !<-- Request handles for IRecv
 !
         DO NTX=1,NUM_TASKS_SEND_H_S(N)                                     !<-- Loop through those particular child tasks 
@@ -15446,7 +16100,10 @@
 !
           ALLOCATE(FIS_CHILD_SOUTH(N)%TASKS(NTX)%DATA(1:NUM_WORDS))        !<-- FIS on child S bndry covered by this parent task
                                                                            !    with extra row for 4-pt interpolation of PD to V pts
-!     write(0,*)' before IRecv S topo from child #',n,' child task #',ntx,' child task rank=',childtask,' ntag=',ntag_recv 
+!     write(0,*)' PARENT_RECVS_CHILD_TOPO allocated fis_child_south(',n,')%tasks(',ntx,')%data(1:',num_words,')'
+!     write(0,*)' before IRecv S topo from child #',n,' child task #',ntx,' child task rank=',childtask,' ntag=',ntag_recv &
+!              ,' num_words=',num_words
+!     write(0,*)' i_lo=',i_lo,' i_hi=',i_hi,' n_blend_h_child(n)=',n_blend_h_child(n)
 !
           CALL MPI_IRECV(FIS_CHILD_SOUTH(N)%TASKS(NTX)%DATA             &  !<-- Recv FIS values from Sbndry child task NTX
                         ,NUM_WORDS                                      &  !<-- # of FIS values
@@ -15458,6 +16115,7 @@
                         ,COMM_TO_MY_CHILDREN(N)                         &  !<-- MPI intracommunicator with child N
                         ,HANDLE_CHILD_TOPO_S(ID)%CHILDREN(N)%DATA(NTX)  &  !<-- MPI request handle for IRecvs
                         ,IERR)
+!     write(0,*)' after IRecv S topo from child #',n,' child task #',ntx,' child task rank=',childtask,' ntag=',ntag_recv 
 !
         ENDDO
 !
@@ -15503,7 +16161,8 @@
 !                ,' ubound=',ubound(CHILDTASK_BNDRY_H_RANKS(N)%NORTH)
 !     endif
           NTAG_RECV=CHILDTASK_BNDRY_H_RANKS(N)%NORTH(NTX,2)             &  !<-- A unique MPI tag for this Recv
-                   +1000*MY_CHILDREN_ID(N)             
+                   +2000*MY_CHILDREN_ID(N)             
+!xxx               +1000*MY_CHILDREN_ID(N)             
 !
           ALLOCATE(FIS_CHILD_NORTH(N)%TASKS(NTX)%DATA(1:NUM_WORDS))        !<-- FIS on child N bndry covered by this parent task
                                                                            !    with extra row for 4-pt interpolation of PD to V pts
@@ -15564,7 +16223,8 @@
 !                ,' ubound=',ubound(CHILDTASK_BNDRY_H_RANKS(N)%WEST)
 !     endif
           NTAG_RECV=CHILDTASK_BNDRY_H_RANKS(N)%WEST(NTX,2)              &  !<-- A unique MPI tag for this Recv
-                   +1000*MY_CHILDREN_ID(N)             
+                   +3000*MY_CHILDREN_ID(N)             
+!xxx               +1000*MY_CHILDREN_ID(N)             
 !
           ALLOCATE(FIS_CHILD_WEST(N)%TASKS(NTX)%DATA(1:NUM_WORDS))         !<-- FIS on child W bndry covered by this parent task
                                                                            !    with extra row for 4-pt interpolation of PD to V pts
@@ -15624,10 +16284,13 @@
 !                ,' ubound=',ubound(CHILDTASK_BNDRY_H_RANKS(N)%EAST)
 !     endif
           NTAG_RECV=CHILDTASK_BNDRY_H_RANKS(N)%EAST(NTX,2)              &  !<-- A unique MPI tag for this Recv
-                   +1000*MY_CHILDREN_ID(N)                 
+                   +4000*MY_CHILDREN_ID(N)                 
+!xxx               +1000*MY_CHILDREN_ID(N)                 
 !
           ALLOCATE(FIS_CHILD_EAST(N)%TASKS(NTX)%DATA(1:NUM_WORDS))         !<-- FIS on child E bndry covered by this parent task
                                                                            !    with extra row for 4-pt interpolation of PD to V pts
+!     write(0,*)' PARENT_RECVS_CHILD_TOPO allocated FIS_CHILD_EAST(',n,')%tasks(',ntx,')%data(1:',num_words,')'
+!     write(0,*)' j_lo=',j_lo,' j_hi=',j_hi,' n_blend_h_child(',n,')=',n_blend_h_child(n)
 !
 !     write(0,*)' before IRecv E topo from child #',n,' child task #',ntx,' child task rank=',childtask,' ntag=',ntag_recv 
           CALL MPI_IRECV(FIS_CHILD_EAST(N)%TASKS(NTX)%DATA              &  !<-- Recv FIS values from Ebndry child task NTX
@@ -15642,6 +16305,12 @@
                         ,IERR)
 !     write(0,*)' PARENT_RECVS_CHILD_TOPO my_domain_id=',my_domain_id,' irecvd east topo from child task #',ntx,' rank=',childtask &
 !              ,' tag=',ntag_recv,' intracomm=',COMM_TO_MY_CHILDREN(N)
+!     if(ntx==1.and.ubound(fis_child_east(n)%tasks(ntx)%data,1)>=12)then
+!     if(ntx==1.and.ubound(fis_child_east(n)%tasks(ntx)%data,1)==54)then
+!       do nnnn=1,54
+!         write(0,*)' fis_child_east(',n,')%tasks(',ntx,')%data(',nnnn,')=',fis_child_east(n)%tasks(ntx)%data(nnnn)
+!       enddo
+!     endif
 !
         ENDDO
 !
@@ -15689,8 +16358,8 @@
                                       ,JM_CHILD                         &  !<-- J dimension of child domain
                                       ,N_BLEND_H_CHILD                  &  !<-- Width of child's boundary blending region
 !
-                                      ,LBND1,LBND2                      &  !<-- I limits of nest-res FIS on this parentt ask
-                                      ,UBND1,UBND2                     
+                                      ,LBND1,UBND1                      &  !<-- I limits of nest-res FIS on this parent task
+                                      ,LBND2,UBND2                         !<-- J limits of nest-res FIS on this parent task
 !
       REAL(kind=KFPT),DIMENSION(LBND1:UBND1,LBND2:UBND2),INTENT(IN) ::  &
                                                       MOVING_NEST_TOPO     !<-- Nest-resolution topography on the parent task
@@ -15705,6 +16374,7 @@
 !
       REAL(kind=KFPT),DIMENSION(:),POINTER :: FIS_X
 !
+      integer(kind=kint) :: nnnn
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -16849,12 +17519,13 @@
                                       +WGHT_NW*PX_NW                    &  !    child task NTX.
                                       +WGHT_NE*PX_NE
 !     if(i==ixx.and.j==jxx)then 
+!     if(n_side==2.and.i==36.and.trim(vbl_flag)=='V')then 
 !       write(0,34371)pint_interp_lo(i,j,nlev+1)
 !       write(0,34372)wght_sw,wght_se,wght_nw,wght_ne
 !       write(0,34373)px_sw,px_se,px_nw,px_ne
-34371   format(' PARENT_UPDATE_CHILD_BNDRY pint_interp_lo=',z8)
-34372   format(' wgts=',4(1x,z8))
-34373   format(' parent pvalues=',4(1x,z8))
+34371   format(' PARENT_UPDATE_CHILD_BNDRY parent pint_interp_lo=',f9.2)
+34372   format(' wgts=',4(1x,f5.3))
+34373   format(' parent pvalues=',4(1x,f9.2))
 !     endif
 !
           ENDDO
@@ -16908,13 +17579,14 @@
                                    +WGHT_NE                             &  !
                                     *VBL_PARENT(I_EAST,J_NORTH,L)          !<--
 !     if(i==ixx.and.j==jxx.and.l==nlev)then 
+!     if(n_side==2.and.i==36.and.l==nlev.and.trim(vbl_flag)=='V')then 
 !       write(0,44371)vbl_interp(knt_pts,l),knt_pts,i_west,i_east,j_south,j_north
 !       write(0,44372)wght_sw,wght_se,wght_nw,wght_ne
 !       write(0,44373)vbl_parent(i_west,j_south,l),vbl_parent(i_east,j_south,l) &
 !                    ,vbl_parent(i_west,j_north,l),vbl_parent(i_east,j_north,l)
-44371   format(' vbl_interp=',z8,' knt_pnts=',i6,' i_west=',i3,' i_east=',i3,' j_south=',i3,' j_north=',i3)
-44372   format(' wgts=',4(1x,z8))
-44373   format(' parent values=',4(1x,z8))
+44371   format(' vbl_interp=',f6.2,' knt_pnts=',i6,' i_west=',i3,' i_east=',i3,' j_south=',i3,' j_north=',i3)
+44372   format(' wgts=',4(1x,f5.3))
+44373   format(' parent values=',4(1x,f6.2))
 !     endif
 !     if(n_side==3.and.i==5.and.j==7.and.l==1.and.trim(vbl_flag)=='T')THEN
 !       write(0,33891)knt_pts,vbl_interp(knt_pts,l)
@@ -17063,7 +17735,7 @@
                        ,PMID_CHILD                                      &  !<-- Child mid-layer pressures to interpolate to
                        ,VBL_COL_CHILD                                   &  !<-- Child mid-layer variable value returned
                        ,LM)                                                !<-- # of child mid-layers to interpolate to
-!     if(n_side==3.and.i==5.and.j==7.and.trim(vbl_flag)=='T')THEN
+!     if(n_side==2.and.i==36.trim(vbl_flag)=='V')THEN
 !       write(0,69471)ntx,loc_1,loc_2,n_stride,vbl_child_bnd(ntx)%data(105)
 !       write(0,69472)knt_pts,vbl_input(1),vbl_input(2),vbl_input(3)
 69471   format(' PARENT_UPDATE_CHILD_BNDRY after scsint ntx=',i2,' loc_1=',i5,' loc_2=',i5,' n_stride=',i5 &
@@ -17082,6 +17754,23 @@
                        ,LM                                              &  !<-- # of child mid-layers to interpolate to
                        ,PMID_CHILD                                      &  !<-- Child mid-layer pressures to interpolate to
                        ,VBL_COL_CHILD)                                     !<-- Child mid-layer variable value returned
+!     if(n_side==2.and.i==36.and.trim(vbl_flag)=='V')THEN
+!       write(0,69471)ntx,j,loc_1,loc_2,n_stride,vbl_child_bnd(ntx)%data(loc_2)
+!       write(0,69476)knt_pts,vbl_input(lm-2),vbl_input(lm-1),vbl_input(lm)
+!       write(0,69477)p_input(lm-2),p_input(lm-1),p_input(lm)
+69471   format(' PARENT_UPDATE_CHILD_BNDRY after SPLINE ntx=',i2,' j=',i2,' loc_1=',i5,' loc_2=',i5,' n_stride=',i5 &
+              ,' vbl_child_bnd(ntx)%data(loc_2)=',f6.2)
+69472   format(' PARENT_UPDATE_CHILD_BNDRY after SPLINE ntx=',i2,' loc_1=',i5,' loc_2=',i5,' n_stride=',i5 &
+              ,' vbl_child_bnd(ntx)%data(8740)=',f6.2)
+69473   format(' PARENT_UPDATE_CHILD_BNDRY after SPLINE ntx=',i2,' loc_1=',i5,' loc_2=',i5,' n_stride=',i5 &
+              ,' vbl_child_bnd(ntx)%data(8761)=',f6.2)
+69474   format(' PARENT_UPDATE_CHILD_BNDRY after SPLINE ntx=',i2,' loc_1=',i5,' loc_2=',i5,' n_stride=',i5 &
+              ,' vbl_child_bnd(ntx)%data(8782)=',f6.2)
+69475   format(' PARENT_UPDATE_CHILD_BNDRY after SPLINE ntx=',i2,' loc_1=',i5,' loc_2=',i5,' n_stride=',i5 &
+              ,' vbl_child_bnd(ntx)%data(8803)=',f6.2)
+69476   format(' knt_pts=',i6,' vbl_input=',3(1x,f6.2))
+69477   format(' p_input=',3(1x,f9.2))
+!     endif
 #endif
 !
 !-----------------------------------------------------------------------
@@ -17436,6 +18125,12 @@
                                      +PDB_H(NTX_H)%DATA(KNT_H+N_ADD_H)    &
                                      +PDB_H(NTX_H)%DATA(KNT_H+N_ADD_H+1)) &
                                      *0.25
+!     if(i==36.and.n_side==2)then
+!       write(0,*)' PRESSURE_ON_NEST_BNDRY_V j=',j,' ntx=',ntx,' n_offset_h=',n_offset_h
+!       write(0,*)' pdb_v=',pdb_v(ntx)%data(knt_v),' knt_v=',knt_v,' knt_h=',knt_h
+!       write(0,*)' pdb_h=',PDB_H(NTX_H)%DATA(KNT_H),PDB_H(NTX_H)%DATA(KNT_H+1) &
+!                ,PDB_H(NTX_H)%DATA(KNT_H+N_ADD_H),PDB_H(NTX_H)%DATA(KNT_H+N_ADD_H+1)
+!     endif
             ENDDO
           ENDDO
 !
@@ -17528,6 +18223,9 @@
         DO I=I_START,I_END
           N=N+1
           PDB(I,J)=DATASTRING(N)
+      if(i==36.and.j_start>5)then
+        write(0,*)' CHILD_DATA_FROM_STRING j=',j,' pdb=',pdb(i,j)
+      endif
         ENDDO
         ENDDO
 !
@@ -17540,10 +18238,6 @@
 !       write(0,*)' CHILD_DATA_FROM_STRING n=',n,' tb is a NaN at i=',i,' j=',j,' k=',k
 !     elseif(tb(i,j,k)<180..or.tb(i,j,k)>330.)then
 !       write(0,*)' CHILD_DATA_FROM_STRING n=',n,' tb(',i,',',j,',',k,')=',tb(i,j,k)
-!     endif
-!     if(i==5.and.j==7.and.k==1)then
-!       write(0,47741)n,tb(i,j,k),tb(i,j,k)
-47741   format(' CHILD_DATA_FROM_STRING n=',i7,' tb=',z8,1x,e12.5)
 !     endif
         ENDDO
         ENDDO
@@ -18583,14 +19277,14 @@
 !
         DO N=0,NUM_PES_FCST-1                                              !<-- Nest fcst tasks send their window status to each other
           IF(N/=MYPE_DOM)THEN                                              !<-- But not to themselves
-            CALL MPI_ISEND(IN_WINDOW(MYPE_DOM)                          &  !<-- This task's central window status
-                          ,1                                            &  !<-- Sending this many words
-                          ,MPI_LOGICAL                                  &  !<-- Datatype
-                          ,N                                            &  !<-- Sending to this local nest task ID
-                          ,MYPE_DOM                                     &  !<-- Use this task's ID as the tag
-                          ,COMM_FCST_TASKS                              &  !<-- Intracommunicator for fcst tasks
-                          ,HANDLE_WIN(N)                                &  !<-- Communication request handle for task N's Recv
-                          ,IERR )
+            CALL MPI_ISSEND(IN_WINDOW(MYPE_DOM)                         &  !<-- This task's central window status
+                           ,1                                           &  !<-- Sending this many words
+                           ,MPI_LOGICAL                                 &  !<-- Datatype
+                           ,N                                           &  !<-- Sending to this local nest task ID
+                           ,MYPE_DOM                                    &  !<-- Use this task's ID as the tag
+                           ,COMM_FCST_TASKS                             &  !<-- Intracommunicator for fcst tasks
+                           ,HANDLE_WIN(N)                               &  !<-- Communication request handle for task N's Recv
+                           ,IERR )
           ENDIF
         ENDDO
 !
@@ -18779,14 +19473,14 @@
       IF(IN_WINDOW(MYPE_DOM))THEN                                          !<-- Tasks only send if they are in the central window
         DO N=0,NUM_PES_FCST-1                                              !<-- Nest window tasks send their PDYN_MIN to all other tasks
           IF(N/=MYPE_DOM)THEN
-            CALL MPI_ISEND(PDYN_MIN(1,MYPE_DOM)                         &  !<-- This task's minimum PDYN with its I,J
-                          ,3                                            &  !<-- Sending this many words
-                          ,MPI_REAL                                     &  !<-- Datatype
-                          ,N                                            &  !<-- Sending to this local nest task ID
-                          ,MYPE_DOM                                     &  !<-- Use this task's ID as the tag
-                          ,COMM_FCST_TASKS                              &  !<-- Intracommunicator for fcst tasks
-                          ,HANDLE_PDYN(N)                               &  !<-- Communication request handle for task N's Recv
-                          ,IERR )
+            CALL MPI_ISSEND(PDYN_MIN(1,MYPE_DOM)                        &  !<-- This task's minimum PDYN with its I,J
+                           ,3                                           &  !<-- Sending this many words
+                           ,MPI_REAL                                    &  !<-- Datatype
+                           ,N                                           &  !<-- Sending to this local nest task ID
+                           ,MYPE_DOM                                    &  !<-- Use this task's ID as the tag
+                           ,COMM_FCST_TASKS                             &  !<-- Intracommunicator for fcst tasks
+                           ,HANDLE_PDYN(N)                              &  !<-- Communication request handle for task N's Recv
+                           ,IERR )
           ENDIF
         ENDDO
       ENDIF
@@ -18931,14 +19625,14 @@
           IF(NO_VALUE(N))CYCLE
           IF(I_HOLD_PG_POINT(N))THEN
             PVAL=SLP(I_PG(N),J_PG(N))
-            CALL MPI_ISEND(PVAL                                         &  !<-- SLP at cardinal point N around storm center
-                          ,1                                            &  !<-- It is one word
-                          ,MPI_REAL                                     &  !<-- Datatype
-                          ,ID_PE_MIN                                    &  !<-- ID of task holding the new storm center
-                          ,ITAG_PG                                      &  !<-- Tag used for exchange of pressure data for gradient
-                          ,COMM_FCST_TASKS                              &  !<-- Intracommunicator for fcst tasks
-                          ,HANDLE_PVAL(N)                               &  !<-- Communication request handle for task N's Recv
-                          ,IERR )
+            CALL MPI_ISSEND(PVAL                                        &  !<-- SLP at cardinal point N around storm center
+                           ,1                                           &  !<-- It is one word
+                           ,MPI_REAL                                    &  !<-- Datatype
+                           ,ID_PE_MIN                                   &  !<-- ID of task holding the new storm center
+                           ,ITAG_PG                                     &  !<-- Tag used for exchange of pressure data for gradient
+                           ,COMM_FCST_TASKS                             &  !<-- Intracommunicator for fcst tasks
+                           ,HANDLE_PVAL(N)                              &  !<-- Communication request handle for task N's Recv
+                           ,IERR )
           ENDIF
         ENDDO
       ELSE

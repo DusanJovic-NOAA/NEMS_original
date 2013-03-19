@@ -649,6 +649,7 @@ integer(kind=kint):: &
         read(nfcst) ! nphs
         read(nfcst) ! nclod
         read(nfcst) ! nheat
+        read(nfcst) ! nmts
         read(nfcst) ! nprec
         read(nfcst) ! nrdlw
         read(nfcst) ! nrdsw
@@ -657,6 +658,7 @@ integer(kind=kint):: &
 !-----------------------------------------------------------------------
 !***  Read from restart file: Integer 1D arrays
 !-----------------------------------------------------------------------
+        read(nfcst) ! int_state%NTSCM
         read(nfcst) int_state%IDAT
 !
         if(mype==0)then
@@ -844,10 +846,56 @@ integer(kind=kint):: &
         call dstrb(temp1,int_state%fis,1,1,1,1,1,mype,mpi_comm_comp)
         call halo_exch(int_state%fis,1,2,2)
 !-----------------------------------------------------------------------
+!-- glat
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          int_state%glat(i,j)=0.
+        enddo
+        enddo
+        call dstrb(temp1,int_state%glat,1,1,1,1,1,mype,mpi_comm_comp)
+        call halo_exch(int_state%glat,1,2,2)
+!-----------------------------------------------------------------------
+!-- glon
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          int_state%glon(i,j)=0.
+        enddo
+        enddo
+        call dstrb(temp1,int_state%glon,1,1,1,1,1,mype,mpi_comm_comp)
+        call halo_exch(int_state%glon,1,2,2)
+!-----------------------------------------------------------------------
+!-- hdacx
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          int_state%hdacx(i,j)=0.
+        enddo
+        enddo
+        call dstrb(temp1,int_state%hdacx,1,1,1,1,1,mype,mpi_comm_comp)
+        call halo_exch(int_state%hdacx,1,2,2)
+!-----------------------------------------------------------------------
+!-- hdacy
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          int_state%hdacy(i,j)=0.
+        enddo
+        enddo
+        call dstrb(temp1,int_state%hdacy,1,1,1,1,1,mype,mpi_comm_comp)
+        call halo_exch(int_state%hdacy,1,2,2)
+!-----------------------------------------------------------------------
 !--pd
         if(mype==0)then
-          read(nfcst) !glat
-          read(nfcst) !glon
           read(nfcst)temp1
         endif
         do j=jms,jme
@@ -858,10 +906,68 @@ integer(kind=kint):: &
         call dstrb(temp1,int_state%pd,1,1,1,1,1,mype,mpi_comm_comp)
         call halo_exch(int_state%pd,1,2,2)
 !-----------------------------------------------------------------------
+!-- f
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          int_state%f(i,j)=0.
+        enddo
+        enddo
+        call dstrb(temp1,int_state%f,1,1,1,1,1,mype,mpi_comm_comp)
+        call halo_exch(int_state%f,1,2,2)
+!-----------------------------------------------------------------------
+!-- vlat
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          int_state%vlat(i,j)=0.
+        enddo
+        enddo
+        call dstrb(temp1,int_state%vlat,1,1,1,1,1,mype,mpi_comm_comp)
+        call halo_exch(int_state%vlat,1,2,2)
+!-----------------------------------------------------------------------
+!-- vlon
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          int_state%vlon(i,j)=0.
+        enddo
+        enddo
+        call dstrb(temp1,int_state%vlon,1,1,1,1,1,mype,mpi_comm_comp)
+        call halo_exch(int_state%vlon,1,2,2)
+!-----------------------------------------------------------------------
+!-- hdacvx
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          int_state%hdacvx(i,j)=0.
+        enddo
+        enddo
+        call dstrb(temp1,int_state%hdacvx,1,1,1,1,1,mype,mpi_comm_comp)
+        call halo_exch(int_state%hdacvx,1,2,2)
+!-----------------------------------------------------------------------
+!-- hdacvy
+        if(mype==0)then
+          read(nfcst)temp1
+        endif
+        do j=jms,jme
+        do i=ims,ime
+          int_state%hdacvy(i,j)=0.
+        enddo
+        enddo
+        call dstrb(temp1,int_state%hdacvy,1,1,1,1,1,mype,mpi_comm_comp)
+        call halo_exch(int_state%hdacvy,1,2,2)
+!-----------------------------------------------------------------------
 !-- pdo
         if(mype==0)then
-          read(nfcst) !vlat
-          read(nfcst) !vlon
           read(nfcst)temp1
         endif
         do j=jms,jme

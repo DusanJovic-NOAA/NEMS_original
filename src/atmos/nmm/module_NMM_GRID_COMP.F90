@@ -43,6 +43,7 @@
                               ,HANDLE_CHILD_TOPO_N                      &
                               ,HANDLE_CHILD_TOPO_W                      &
                               ,HANDLE_CHILD_TOPO_E                      &
+                              ,HANDLE_IJ_SW                             &
                               ,HANDLE_PACKET_S_H                        &
                               ,HANDLE_PACKET_S_V                        &
                               ,HANDLE_PACKET_N_H                        &
@@ -56,14 +57,13 @@
                               ,HANDLE_PARENT_JTE                        &
                               ,HANDLE_PARENT_JTS                        &
                               ,INFO_SEND                                &
-                              ,NUM_DOMAINS_MAX                          &
                               ,PARENT_CHILD_COMMS                       &
                               ,PTASK_LIMITS       
 !
       USE module_PARENT_CHILD_CPL_COMP,ONLY: PARENT_CHILD_CPL_REGISTER  &  !<-- The Register routine for PARENT_CHILD Coupler
                                             ,PARENT_CHILD_COUPLER_SETUP
 !
-      USE module_CONTROL,ONLY: TIMEF
+      USE module_CONTROL,ONLY: NUM_DOMAINS_MAX,TIMEF
 !
       USE module_CLOCKTIMES,ONLY: TIMERS                                &
                                  ,cbcst_tim,pbcst_tim
@@ -425,6 +425,7 @@
 !
       INTEGER(kind=KINT) :: RC
 !
+      integer :: next_move_timestep
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -1410,7 +1411,6 @@
 !
         NSECONDS_FCST=NHOURS_FCST*3600                                     !<-- The forecast length (sec) (REAL)
         TIMESTEP_FINAL=NINT(NSECONDS_FCST/DT(ID_DOM))                      !<-- # of timesteps in the full forecast
-!       write(0,*)' NMM Init timestep_final=',timestep_final
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="NMM_INIT: Set the Forecast Length"
@@ -2017,6 +2017,8 @@
       ALLOCATE(HANDLE_PACKET_E_H(1:NUM_DOMAINS_TOTAL))                     !
       ALLOCATE(HANDLE_PACKET_E_V(1:NUM_DOMAINS_TOTAL))                     !<--
 !
+      ALLOCATE(HANDLE_IJ_SW(1:NUM_DOMAINS_TOTAL))                          !<-- Request handle for child ISend of its SW corner to parent
+!
       ALLOCATE(HANDLE_CHILD_LIMITS(1:NUM_DOMAINS_TOTAL))                   !<-- Request handles for parent IRecvs of child task limits
 !
       ALLOCATE(HANDLE_CHILD_TOPO_S(1:NUM_DOMAINS_TOTAL))                   !<-- Request handles for parent IRecvs of child bndry topo
@@ -2164,7 +2166,7 @@
 !***  then the setup and the 1st phase must be in their own loops.
 !-----------------------------------------------------------------------
 !
-      gens_1: DO NN=1,NUM_GENS
+      gens_0: DO NN=1,NUM_GENS
 !
 !-----------------------------------------------------------------------
 !
@@ -2258,6 +2260,7 @@
           ENDIF
 !
           TIMESTEP=>nmm_int_state%TIMESTEP(MY_DOMAIN_ID)                   !<-- This domain's fundamental timestep
+          RESTARTED_RUN=>nmm_int_state%RESTARTED_RUN(MY_DOMAIN_ID)         !<-- Is this a restarted forecast?
 !
           DOMAIN_GRID_COMP=>nmm_int_state%DOMAIN_GRID_COMP(MY_DOMAIN_ID)   !<-- This domain's ESMF component
           EXP_STATE_DOMAIN=>nmm_int_state%EXP_STATE_DOMAIN(MY_DOMAIN_ID)   !<-- Its export state
@@ -2334,10 +2337,47 @@
 !
 !-----------------------------------------------------------------------
 !
-      ENDDO gens_1
+      ENDDO gens_0
 !
 !-----------------------------------------------------------------------
 !***  The forecast tasks now execute phase 1 of the Parent-Child
+!***  coupler initialization.
+!-----------------------------------------------------------------------
+!
+!!!!  gens_1: DO NN=1,NUM_GENS
+      gens_1: DO NN=NUM_GENS,1,-1
+!
+        MY_DOMAIN_ID=MY_DOMAINS_IN_GENS(NN)                                !<-- This task's (only) domain in generation NN
+        IF(MY_DOMAIN_ID==0)CYCLE                                           !<-- This task not on a domain in generation NN
+!
+        nesting_block_4: IF(NESTING_NMM)THEN                               !<-- All parents and children initialize the Coupler.
+!
+          PARENT_CHILD_COUPLER_COMP=>nmm_int_state%PC_CPL_COMP(MY_DOMAIN_ID) !<-- P-C coupler associated with this domain
+          IMP_STATE_CPL_NEST=>nmm_int_state%IMP_STATE_PC_CPL(MY_DOMAIN_ID)   !<-- The P-C coupler's import state
+          EXP_STATE_CPL_NEST=>nmm_int_state%EXP_STATE_PC_CPL(MY_DOMAIN_ID)   !<-- The P-C coupler's export state
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Phase 1 Initialization of the Parent-Child Coupler"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_CplCompInitialize(cplcomp    =PARENT_CHILD_COUPLER_COMP &  !<-- The parent-child coupler component
+                                     ,importState=IMP_STATE_CPL_NEST        &  !<-- The parent-child coupler import state
+                                     ,exportState=EXP_STATE_CPL_NEST        &  !<-- The parent-child coupler export state
+                                     ,clock      =CLOCK_NMM(MY_DOMAIN_ID)   &  !<-- The DOMAIN Clock
+                                     ,phase      =1                         &  !<-- The phase (see P-C Register routine)
+                                     ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        ENDIF nesting_block_4
+!
+      ENDDO gens_1
+!
+!-----------------------------------------------------------------------
+!***  The forecast tasks now execute phase 2 of the Parent-Child
 !***  coupler initialization.
 !-----------------------------------------------------------------------
 !
@@ -2348,7 +2388,7 @@
 !
 !-----------------------------------------------------------------------
 !
-        nesting_block_4: IF(NESTING_NMM)THEN                               !<-- All parents and children initialize the Coupler.
+        nesting_block_5: IF(NESTING_NMM)THEN                               !<-- All parents and children initialize the Coupler.
 !
           DOMAIN_GRID_COMP=>nmm_int_state%DOMAIN_GRID_COMP(MY_DOMAIN_ID)
           I_AM_A_FCST_TASK=nmm_int_state%I_AM_A_FCST_TASK(MY_DOMAIN_ID)
@@ -2445,7 +2485,7 @@
           I_AM_A_FCST_TASK=nmm_int_state%I_AM_A_FCST_TASK(MY_DOMAIN_ID)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Phase 1 Initialization of the Parent-Child Coupler"
+            MESSAGE_CHECK="Phase 2 Initialization of the Parent-Child Coupler"
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -2453,7 +2493,7 @@
                                        ,importState=IMP_STATE_CPL_NEST        &  !<-- The parent-child coupler import state
                                        ,exportState=EXP_STATE_CPL_NEST        &  !<-- The parent-child coupler export state
                                        ,clock      =CLOCK_NMM(MY_DOMAIN_ID)   &  !<-- The DOMAIN Clock
-                                       ,phase      =1                         &  !<-- The phase (see P-C Register routine)
+                                       ,phase      =2                         &  !<-- The phase (see P-C Register routine)
                                        ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2504,7 +2544,7 @@
 !
 !-----------------------------------------------------------------------
 !
-        ENDIF nesting_block_4
+        ENDIF nesting_block_5
 !
 !-----------------------------------------------------------------------
 !
@@ -2900,7 +2940,7 @@
 !***  coupler initialization.
 !-----------------------------------------------------------------------
 !
-        nesting_block_5: IF(NESTING_NMM)THEN                               !<-- All parents and children create the Coupler.
+        nesting_block_6: IF(NESTING_NMM)THEN                               !<-- All parents and children create the Coupler.
 !
 !-----------------------------------------------------------------------
 !
@@ -2909,7 +2949,7 @@
           PARENT_CHILD_COUPLER_COMP=>nmm_int_state%PC_CPL_COMP(MY_DOMAIN_ID)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Phase 2 Initialization of Parent-Child Coupler"
+          MESSAGE_CHECK="Phase 3 Initialization of Parent-Child Coupler"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -2917,13 +2957,13 @@
                                      ,importState=IMP_STATE_CPL_NEST        &  !<-- The parent-child coupler import state
                                      ,exportState=EXP_STATE_CPL_NEST        &  !<-- The parent-child coupler export state
                                      ,clock      =CLOCK_NMM(MY_DOMAIN_ID)   &  !<-- The DOMAIN Clock
-                                     ,phase      =2                         &  !<-- The phase (see P-C Register routine)
+                                     ,phase      =3                         &  !<-- The phase (see P-C Register routine)
                                      ,rc         =RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        ENDIF nesting_block_5
+        ENDIF nesting_block_6
 !
 !-----------------------------------------------------------------------
 !
@@ -5239,6 +5279,7 @@
       CHARACTER(2)  :: INT_TO_CHAR
       CHARACTER(6)  :: FMT
 !
+      integer :: i_par_sta,j_par_sta,next_move_timestep
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -5265,6 +5306,7 @@
                                   ,exportState=nmm_int_state%EXP_STATE_DOMAIN(ID_DOMAIN)  &  !<-- The DOMAIN export state
                                   ,clock      =CLOCK_NMM(ID_DOMAIN)                       &  !<-- The DOMAIN clock
                                   ,rc         =RC)
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CALL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

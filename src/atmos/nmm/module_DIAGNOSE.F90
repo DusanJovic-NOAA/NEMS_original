@@ -1052,6 +1052,8 @@
                            ,ITS,ITE,JTS,JTE           & 
                            ,IMS,IME,JMS,JME           &
                            ,IDE,JDE                   & 
+                           ,ITS_B1,ITE_B1             &
+                           ,JTS_B1,JTE_B1             &
                            ,LM,NCOUNT,FIRST_NMM)
 
       USE MODULE_MP_ETANEW, ONLY : FERRIER_INIT, GPVS,FPVS,FPVS0,NX
@@ -1062,6 +1064,7 @@
       REAL, PARAMETER :: RCP=R_D/CP, P00_INV=1.E-5
 
       INTEGER,INTENT(IN) :: ITS,ITE,JTS,JTE,IMS,IME,JMS,JME,LM,NTSD
+      INTEGER,INTENT(IN) :: ITS_B1,ITE_B1,JTS_B1,JTE_B1
       INTEGER,INTENT(IN) :: IDE,JDE,NPHS
 
       REAL, DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: T, Q, U, V, CW   & 
@@ -1168,8 +1171,10 @@
        ENDDO
       ENDDO
 !
-      DO J=JTS,JTE
-       DO I=ITS,ITE
+!xxx  DO J=JTS,JTE
+!xxx   DO I=ITS,ITE
+      DO J=JTS_B1,JTE_B1
+       DO I=ITS_B1,ITE_B1
   vloop: DO L=8,LM-1
           IF ( (Z(I,J,L+1)-ZINTSFC(I,J)) .LE. 1000.                &
           .AND.(Z(I,J,L)-ZINTSFC(I,J))   .GE. 1000.)  THEN
@@ -1632,6 +1637,8 @@
                            ,ITS,ITE,JTS,JTE           & 
                            ,IMS,IME,JMS,JME           &
                            ,IDE,JDE                   & 
+                           ,ITS_B1,ITE_B1             &
+                           ,JTS_B1,JTE_B1             &
                            ,LM,NCOUNT,FIRST_NMM)
 
       USE MODULE_MP_FER_HIRES, ONLY : FERRIER_INIT_HR, GPVS_HR,FPVS,FPVS0,NX
@@ -1642,6 +1649,7 @@
       REAL, PARAMETER :: RCP=R_D/CP, P00_INV=1.E-5
 
       INTEGER,INTENT(IN) :: ITS,ITE,JTS,JTE,IMS,IME,JMS,JME,LM,NTSD
+      INTEGER,INTENT(IN) :: ITS_B1,ITE_B1,JTS_B1,JTE_B1
       INTEGER,INTENT(IN) :: IDE,JDE,NPHS
 
       REAL, DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: T, Q, U, V, CW   & 
@@ -1748,8 +1756,10 @@
        ENDDO
       ENDDO
 !
-      DO J=JTS,JTE
-       DO I=ITS,ITE
+!xxx  DO J=JTS,JTE
+!xxx   DO I=ITS,ITE
+      DO J=JTS_B1,JTE_B1
+       DO I=ITS_B1,ITE_B1
   vloop: DO L=8,LM-1
           IF ( (Z(I,J,L+1)-ZINTSFC(I,J)) .LE. 1000.                &
           .AND.(Z(I,J,L)-ZINTSFC(I,J))   .GE. 1000.)  THEN
@@ -1787,6 +1797,9 @@
             ENDIF
           ENDDO vloop2
 !
+!     if(i<lbound(htop,1).or.i>ubound(htop,1).or.j<lbound(htop,2).or.j>ubound(htop,2))then
+!       write(0,*)' MAX_FIELD i=',i,' j=',j,' lbound(htop)=',lbound(htop),' ubound=',ubound(htop)
+!     endif
           LCTOP=NINT(HTOP(I,J))
           CUREFL_I=-2./MAX( 1000., Z(I,J,LCTOP)-ZFRZ )
 !

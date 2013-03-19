@@ -43,13 +43,13 @@ write_tasks_per_group: _WTPG_
 #####  Fundamental Timestep (seconds)  #####
 ############################################
 
-dt_int: 105                 # Integer seconds
-dt_num: 30                  # Numerator of fractional second
-dt_den: 34                  # Denominator of fractional second
+dt_int: 90                  # Integer seconds
+dt_num:  0                  # Numerator of fractional second
+dt_den:  1                  # Denominator of fractional second
 
-filt_dt_int: 105            # Integer seconds
-filt_dt_num: 30             # Numerator of fractional second
-filt_dt_den: 34             # Denominator of fractional second
+filt_dt_int: 90             # Integer seconds
+filt_dt_num:  0             # Numerator of fractional second
+filt_dt_den:  1             # Denominator of fractional second
 
 
 

@@ -60,6 +60,7 @@
       USE MODULE_WRITE_ROUTINES,ONLY : OPEN_HST_FILE                    &
                                       ,OPEN_RST_FILE                    &
                                       ,WRITE_RUNHISTORY_OPEN            &
+                                      ,SEND_UPDATED_ATTRIBUTES          &
                                       ,WRITE_NEMSIO_RUNHISTORY_OPEN     &
                                       ,WRITE_RUNRESTART_OPEN            &
                                       ,WRITE_NEMSIO_RUNRESTART_OPEN     &
@@ -1073,7 +1074,8 @@
                            ,N_POSITION                                  &
                            ,NA,NB,NC,ND                                 &
                            ,NTASK                                       &
-                           ,NUM_ATTRIB
+                           ,NUM_ATTRIB                                  &
+                           ,WRITE_GROUP
 !
       INTEGER(kind=KINT) :: DIM1                                        &
                            ,DIM2                                        &
@@ -1201,6 +1203,7 @@
 !
       real(kind=kfpt) :: wait_time
 !
+      integer(kind=kint),dimension(8) :: values
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -1210,6 +1213,9 @@
       RC    =ESMF_SUCCESS
       RC_RUN=ESMF_SUCCESS
 !
+!     call date_and_time(values=values)
+!     write(0,100)values(5),values(6),values(7),values(8)
+  100 format(' enter Write Run at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  It is important to note that while the tasks executing this
@@ -1427,6 +1433,38 @@
         JDE=wrt_int_state%JDE(1)
 !
 !-----------------------------------------------------------------------
+!***  Collect and send the updated Attributes (scalars and 1-D arrays)
+!***  to the lead Write task for history output.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Get Attribute Count from History Bundle"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(FIELDBUNDLE=HISTORY_BUNDLE               &  !<-- The history data Bundle
+                              ,count      =NUM_ATTRIB                   &  !<-- # of Attributes in the history Bundle
+                              ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        IF(MYPE==0)THEN
+          WRITE_GROUP=NCURRENT_GROUP(ID_DOMAIN)
+          CALL SEND_UPDATED_ATTRIBUTES(HISTORY_BUNDLE                     &
+                                      ,wrt_int_state%ALL_DATA_I1D         &
+                                      ,wrt_int_state%ALL_DATA_R1D         &
+                                      ,wrt_int_state%ALL_DATA_LOG         &
+                                      ,MAX_LENGTH_I1D                     &
+                                      ,MAX_LENGTH_R1D                     &
+                                      ,MAX_LENGTH_LOG                     &
+                                      ,MAX_GROUPS                         &
+                                      ,WRITE_GROUP                        &
+                                      ,INTERCOMM_WRITE_GROUP )
+        ENDIF
+!
+!-----------------------------------------------------------------------
 !***  Be sure the Integer and Real buffers are available for ISends.
 !-----------------------------------------------------------------------
 !
@@ -1434,11 +1472,17 @@
         CALL MPI_WAIT(IH_INT,JSTAT,IERR) 
         wait_time=(timef()-btim)
         if(wait_time>1.e3)write(0,*)' Long integer buffer WAIT =',wait_time*1.e-3
+!     call date_and_time(values=values)
+!     write(0,555)values(5),values(6),values(7),values(8)
+  555 format(' Write Run after Wait IH_INT at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
         btim=timef()
         CALL MPI_WAIT(IH_REAL,JSTAT,IERR) 
         wait_time=(timef()-btim)
         if(wait_time>1.e3)write(0,*)' Long real buffer WAIT =',wait_time*1.e-3
+!     call date_and_time(values=values)
+!     write(0,556)values(5),values(6),values(7),values(8)
+  556 format(' Write Run after Wait IH_REAL at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
 !-----------------------------------------------------------------------
 !
@@ -1591,14 +1635,14 @@
 !-----------------------------------------------------------------------
 !
             IF(KOUNT_I2D>0)THEN
-              CALL MPI_ISEND(wrt_int_state%ALL_DATA_I2D                 &  !<-- Fcst tasks' string of 2D integer history data
-                            ,KOUNT_I2D_DATA                             &  !<-- #of words in the data string
-                            ,MPI_INTEGER                                &  !<-- The datatype
-                            ,NPE_WRITE                                  &  !<-- The target write task
-                            ,wrt_int_state%NFHOURS                      &  !<-- An MPI tag
-                            ,INTERCOMM_WRITE_GROUP                      &  !<-- The MPI intercommunicator between fcst and quilt tasks
-                            ,IH_INT                                     &  !<-- MPI communication request handle
-                            ,IERR )
+              CALL MPI_ISSEND(wrt_int_state%ALL_DATA_I2D                &  !<-- Fcst tasks' string of 2D integer history data
+                             ,KOUNT_I2D_DATA                            &  !<-- #of words in the data string
+                             ,MPI_INTEGER                               &  !<-- The datatype
+                             ,NPE_WRITE                                 &  !<-- The target write task
+                             ,wrt_int_state%NFHOURS                     &  !<-- An MPI tag
+                             ,INTERCOMM_WRITE_GROUP                     &  !<-- The MPI intercommunicator between fcst and quilt tasks
+                             ,IH_INT                                    &  !<-- MPI communication request handle
+                             ,IERR )
 !
               IF(IERR/=0)WRITE(0,*)' ISend of integer data by fcst task 0 has failed.  IERR=',IERR
             ENDIF
@@ -1608,14 +1652,14 @@
 !-----------------------------------------------------------------------
 !
             IF(KOUNT_R2D>0)THEN
-              CALL MPI_ISEND(wrt_int_state%ALL_DATA_R2D                   &  !<-- Fcst tasks' string of 2D real history data
-                            ,KOUNT_R2D_DATA                               &  !<-- #of words in the data string
-                            ,MPI_REAL                                     &  !<-- The datatype
-                            ,NPE_WRITE                                    &  !<-- The target write task
-                            ,wrt_int_state%NFHOURS                        &  !<-- An MPI tag
-                            ,INTERCOMM_WRITE_GROUP                        &  !<-- The MPI intercommunicator between fcst and quilt tasks
-                            ,IH_REAL                                      &  !<-- MPI communication request handle
-                            ,IERR )
+              CALL MPI_ISSEND(wrt_int_state%ALL_DATA_R2D                  &  !<-- Fcst tasks' string of 2D real history data
+                             ,KOUNT_R2D_DATA                              &  !<-- #of words in the data string
+                             ,MPI_REAL                                    &  !<-- The datatype
+                             ,NPE_WRITE                                   &  !<-- The target write task
+                             ,wrt_int_state%NFHOURS                       &  !<-- An MPI tag
+                             ,INTERCOMM_WRITE_GROUP                       &  !<-- The MPI intercommunicator between fcst and quilt tasks
+                             ,IH_REAL                                     &  !<-- MPI communication request handle
+                             ,IERR )
 !
               IF(IERR/=0)WRITE(0,*)' ISend of real data by fcst task 0 has failed.  IERR=',IERR
             ENDIF
@@ -1678,6 +1722,38 @@
 !
         IDE=wrt_int_state%IDE(1)
         JDE=wrt_int_state%JDE(1)
+!
+!-----------------------------------------------------------------------
+!***  Collect and send the updated Attributes (scalars and 1-D arrays)
+!***  to the lead Write task for restart output.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Get Attribute Count from Restart Bundle"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(FIELDBUNDLE=RESTART_BUNDLE               &  !<-- The restart data Bundle
+                              ,count      =NUM_ATTRIB                   &  !<-- # of Attributes in the restart Bundle
+                              ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        IF(MYPE==0)THEN
+          WRITE_GROUP=NCURRENT_GROUP(ID_DOMAIN)
+          CALL SEND_UPDATED_ATTRIBUTES(RESTART_BUNDLE                     &
+                                      ,wrt_int_state%RST_ALL_DATA_I1D     &
+                                      ,wrt_int_state%RST_ALL_DATA_R1D     &
+                                      ,wrt_int_state%RST_ALL_DATA_LOG     &
+                                      ,MAX_LENGTH_I1D                     &
+                                      ,MAX_LENGTH_R1D                     &
+                                      ,MAX_LENGTH_LOG                     &
+                                      ,MAX_GROUPS                         &
+                                      ,WRITE_GROUP                        &
+                                      ,INTERCOMM_WRITE_GROUP )
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Be sure the Integer and Real buffers are available for ISends.
@@ -1846,14 +1922,14 @@
 !-----------------------------------------------------------------------
 !
             IF(RST_KOUNT_I2D>0)THEN
-              CALL MPI_ISEND(wrt_int_state%RST_ALL_DATA_I2D             &  !<-- Fcst tasks' string of 2D integer restart data
-                            ,RST_KOUNT_I2D_DATA                         &  !<-- # of words in the data string
-                            ,MPI_INTEGER                                &  !<-- The datatype
-                            ,NPE_WRITE                                  &  !<-- The target write task
-                            ,wrt_int_state%NFHOURS                      &  !<-- An MPI tag
-                            ,INTERCOMM_WRITE_GROUP                      &  !<-- The MPI intercommunicator between fcst and quilt tasks
-                            ,RST_IH_INT                                 &  !<-- MPI communication request handle
-                            ,IERR )
+              CALL MPI_ISSEND(wrt_int_state%RST_ALL_DATA_I2D            &  !<-- Fcst tasks' string of 2D integer restart data
+                             ,RST_KOUNT_I2D_DATA                        &  !<-- # of words in the data string
+                             ,MPI_INTEGER                               &  !<-- The datatype
+                             ,NPE_WRITE                                 &  !<-- The target write task
+                             ,wrt_int_state%NFHOURS                     &  !<-- An MPI tag
+                             ,INTERCOMM_WRITE_GROUP                     &  !<-- The MPI intercommunicator between fcst and quilt tasks
+                             ,RST_IH_INT                                &  !<-- MPI communication request handle
+                             ,IERR )
 !
               IF(IERR/=0)WRITE(0,*)' ISend of integer data by fcst task 0 has failed.  IERR=',IERR
             ENDIF
@@ -1863,14 +1939,14 @@
 !-----------------------------------------------------------------------
 !
             IF(RST_KOUNT_R2D>0)THEN
-              CALL MPI_ISEND(wrt_int_state%RST_ALL_DATA_R2D               &  !<-- Fcst tasks' string of 2D real restart data
-                            ,RST_KOUNT_R2D_DATA                           &  !<-- # of words in the data string
-                            ,MPI_REAL                                     &  !<-- The datatype
-                            ,NPE_WRITE                                    &  !<-- The target write task
-                            ,wrt_int_state%NFHOURS                        &  !<-- An MPI tag
-                            ,INTERCOMM_WRITE_GROUP                        &  !<-- The MPI intercommunicator between fcst and quilt tasks
-                            ,RST_IH_REAL                                  &  !<-- MPI communication request handle
-                            ,IERR )
+              CALL MPI_ISSEND(wrt_int_state%RST_ALL_DATA_R2D              &  !<-- Fcst tasks' string of 2D real restart data
+                             ,RST_KOUNT_R2D_DATA                          &  !<-- # of words in the data string
+                             ,MPI_REAL                                    &  !<-- The datatype
+                             ,NPE_WRITE                                   &  !<-- The target write task
+                             ,wrt_int_state%NFHOURS                       &  !<-- An MPI tag
+                             ,INTERCOMM_WRITE_GROUP                       &  !<-- The MPI intercommunicator between fcst and quilt tasks
+                             ,RST_IH_REAL                                 &  !<-- MPI communication request handle
+                             ,IERR )
 !
               IF(IERR/=0)WRITE(0,*)' ISend of real data by fcst task 0 has failed.  IERR=',IERR
             ENDIF
@@ -2360,14 +2436,14 @@
           wait_time=timef()-btim
           if(wait_time>1.e3)write(0,*)' Long BC buffer WAIT =',wait_time*1.e-3
 !
-          CALL MPI_ISEND(wrt_int_state%RST_ALL_BC_DATA                  &  !<-- 1-D String of full domain BC wind data
-                        ,wrt_int_state%NUM_WORDS_SEND_BC(1)             &  !<-- # of words in the BC data string
-                        ,MPI_REAL                                       &  !<-- The datatype
-                        ,0                                              &  !<-- Local ID of lead write task
-                        ,wrt_int_state%NFHOURS                          &  !<-- An MPI tag
-                        ,INTERCOMM_WRITE_GROUP                          &  !<-- The MPI intercommunicator between fcst and quilt tasks
-                        ,RST_IH_BC                                      &  !<-- MPI communication request handle
-                        ,IERR )
+          CALL MPI_ISSEND(wrt_int_state%RST_ALL_BC_DATA                 &  !<-- 1-D String of full domain BC wind data
+                         ,wrt_int_state%NUM_WORDS_SEND_BC(1)            &  !<-- # of words in the BC data string
+                         ,MPI_REAL                                      &  !<-- The datatype
+                         ,0                                             &  !<-- Local ID of lead write task
+                         ,wrt_int_state%NFHOURS                         &  !<-- An MPI tag
+                         ,INTERCOMM_WRITE_GROUP                         &  !<-- The MPI intercommunicator between fcst and quilt tasks
+                         ,RST_IH_BC                                     &  !<-- MPI communication request handle
+                         ,IERR )
 !
           IF(IERR/=0)WRITE(0,*)' ISend of BC data by fcst task 0 has failed.  IERR=',IERR
 !
@@ -2392,6 +2468,80 @@
       btim0=timef()
 !
       history_time: IF(TIME_FOR_HISTORY) THEN
+!
+!-----------------------------------------------------------------------
+!***  The lead Write task receives the latest Attributes from the
+!***  lead fcst task.
+!-----------------------------------------------------------------------
+!
+      IF(MYPE==LEAD_WRITE_TASK)THEN
+!
+        WRITE_GROUP=NCURRENT_GROUP(ID_DOMAIN)
+!
+!--------------
+!***  Integers
+!--------------
+!
+!     write(0,*)' Write Run lead write task to recv int attrib length_sum_i1d=',wrt_int_state%length_sum_i1d(1) &
+!              ,' tag=',write_group
+        IF(wrt_int_state%LENGTH_SUM_I1D(1)>0)THEN
+!
+          CALL MPI_RECV(wrt_int_state%ALL_DATA_I1D                    &  !<-- Recv string of integer history Attributes
+                       ,wrt_int_state%LENGTH_SUM_I1D(1)               &  !<-- Words received
+                       ,MPI_INTEGER                                   &  !<-- Data is integer
+                       ,0                                             &  !<-- Sending task (lead fcst task)
+                       ,WRITE_GROUP                                   &  !<-- MPI tag
+                       ,INTERCOMM_WRITE_GROUP                         &  !<-- MPI domain commumicator
+                       ,JSTAT                                         &  !<-- MPI status object
+                       ,IERR )
+!     write(0,*)' Write Run lead write task recvd int attrib length_sum_i1d=',wrt_int_state%length_sum_i1d(1) &
+!              ,' tag=',write_group,' ierr=',ierr
+!
+        ENDIF
+!
+!-----------
+!***  Reals
+!-----------
+!
+!     write(0,*)' Write Run lead write task to recv real attrib length_sum_r1d=',wrt_int_state%length_sum_r1d(1) &
+!              ,' tag=',write_group
+        IF(wrt_int_state%LENGTH_SUM_R1D(1)>0)THEN
+!
+          CALL MPI_RECV(wrt_int_state%ALL_DATA_R1D                    &  !<-- Recv string of real history Attributes
+                       ,wrt_int_state%LENGTH_SUM_R1D(1)               &  !<-- Words received
+                       ,MPI_REAL                                      &  !<-- Data is real
+                       ,0                                             &  !<-- Sending task (lead fcst task)
+                       ,WRITE_GROUP                                   &  !<-- MPI tag
+                       ,INTERCOMM_WRITE_GROUP                         &  !<-- MPI domain commumicator
+                       ,JSTAT                                         &  !<-- MPI status object
+                       ,IERR )
+!     write(0,*)' Write Run lead write task recvd int attrib length_sum_r1d=',wrt_int_state%length_sum_r1d(1) &
+!              ,' tag=',write_group,' ierr=',ierr
+!
+        ENDIF
+!
+!--------------
+!***    Logicals
+!--------------
+!
+!     write(0,*)' Write Run lead write task to recv log attrib length_sum_log=',wrt_int_state%length_sum_log(1) &
+!              ,' tag=',write_group
+        IF(wrt_int_state%LENGTH_SUM_LOG(1)>0)THEN
+!
+          CALL MPI_RECV(wrt_int_state%ALL_DATA_LOG                    &  !<-- Recv string of logical history Attributes
+                       ,wrt_int_state%LENGTH_SUM_LOG(1)               &  !<-- Words received
+                       ,MPI_LOGICAL                                   &  !<-- Data is logical
+                       ,0                                             &  !<-- Sending task (lead fcst task)
+                       ,WRITE_GROUP                                   &  !<-- MPI tag
+                       ,INTERCOMM_WRITE_GROUP                         &  !<-- MPI domain commumicator
+                       ,JSTAT                                         &  !<-- MPI status object
+                       ,IERR )
+!     write(0,*)' Write Run lead write task recvd log attrib length_sum_log=',wrt_int_state%length_sum_log(1) &
+!              ,' tag=',write_group,' ierr=',ierr
+!
+        ENDIF
+!
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Each write task in the active write group receives the
@@ -2988,24 +3138,16 @@
                   wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)/G
 !
             IF(TRIM(NAME)=='GLAT')THEN
-               wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)=               &
-                 wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)*DEGRAD
                ALLOCATE(GLAT1D(FIELDSIZE))
                GLAT1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
+               GLAT1D(1:FIELDSIZE)=GLAT1D(1:FIELDSIZE)*DEGRAD
             ENDIF
 !
             IF(TRIM(NAME)=='GLON')THEN
-               wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)=               &
-                 wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)*DEGRAD
                ALLOCATE(GLON1D(FIELDSIZE))
                GLON1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
+               GLON1D(1:FIELDSIZE)=GLON1D(1:FIELDSIZE)*DEGRAD
             ENDIF
-!
-            IF(TRIM(NAME)=='VLAT')wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)=   &
-               wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)*DEGRAD
-!
-            IF(TRIM(NAME)=='VLON')wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)=   &
-               wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM)*DEGRAD
 !
             N=NFIELD+wrt_int_state%KOUNT_I2D(1)
             TMP=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
@@ -3204,6 +3346,70 @@
 !-----------------------------------------------------------------------
 !
       restart_time: IF(TIME_FOR_RESTART) THEN
+!
+!-----------------------------------------------------------------------
+!***  The lead Write task receives the latest Attributes from the
+!***  lead fcst task for restart output.
+!-----------------------------------------------------------------------
+!
+      IF(MYPE==LEAD_WRITE_TASK)THEN
+!
+        WRITE_GROUP=NCURRENT_GROUP(ID_DOMAIN)
+!
+!--------------
+!***  Integers
+!--------------
+!
+        IF(wrt_int_state%RST_LENGTH_SUM_I1D(1)>0)THEN
+!
+          CALL MPI_RECV(wrt_int_state%RST_ALL_DATA_I1D                &  !<-- Recv string of integer restart Attributes
+                       ,wrt_int_state%RST_LENGTH_SUM_I1D(1)           &  !<-- Words received
+                       ,MPI_INTEGER                                   &  !<-- Data is integer
+                       ,0                                             &  !<-- Sending task (lead fcst task)
+                       ,WRITE_GROUP                                   &  !<-- MPI tag
+                       ,INTERCOMM_WRITE_GROUP                         &  !<-- MPI domain commumicator
+                       ,JSTAT                                         &  !<-- MPI status object
+                       ,IERR )
+!     write(0,*)' Write Run lead write task recvd RST_ALL_DATA_I1D with length=',wrt_int_state%RST_LENGTH_SUM_I1D(1)
+!     write(0,*)' NMTS=wrt_int_state%RST_ALL_DATA_I1D(10)=',wrt_int_state%RST_ALL_DATA_I1D(10)
+!
+        ENDIF
+!
+!-----------
+!***    Reals
+!-----------
+!
+        IF(wrt_int_state%RST_LENGTH_SUM_R1D(1)>0)THEN
+!
+          CALL MPI_RECV(wrt_int_state%RST_ALL_DATA_R1D                &  !<-- Recv string of real restart Attributes
+                       ,wrt_int_state%RST_LENGTH_SUM_R1D(1)           &  !<-- Words received
+                       ,MPI_REAL                                      &  !<-- Data is real
+                       ,0                                             &  !<-- Sending task (lead fcst task)
+                       ,WRITE_GROUP                                   &  !<-- MPI tag
+                       ,INTERCOMM_WRITE_GROUP                         &  !<-- MPI domain commumicator
+                       ,JSTAT                                         &  !<-- MPI status object
+                       ,IERR )
+!
+        ENDIF
+!
+!--------------
+!***    Logicals
+!--------------
+!
+        IF(wrt_int_state%RST_LENGTH_SUM_LOG(1)>0)THEN
+!
+          CALL MPI_RECV(wrt_int_state%RST_ALL_DATA_LOG                &  !<-- Recv string of logical restart Attributes
+                       ,wrt_int_state%RST_LENGTH_SUM_LOG(1)           &  !<-- Words received
+                       ,MPI_LOGICAL                                   &  !<-- Data is logical
+                       ,0                                             &  !<-- Sending task (lead fcst task)
+                       ,WRITE_GROUP                                   &  !<-- MPI tag
+                       ,INTERCOMM_WRITE_GROUP                         &  !<-- MPI domain commumicator
+                       ,JSTAT                                         &  !<-- MPI status object
+                       ,IERR )
+!
+        ENDIF
+!
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Each Write task in the active Write group receives the
@@ -3842,24 +4048,16 @@
             ENDIF
 !
             IF(TRIM(NAME)=='GLAT')THEN
-               wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)=           &
-                 wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)*DEGRAD
                ALLOCATE(GLAT1D(FIELDSIZE))
                GLAT1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
+               GLAT1D(1:FIELDSIZE)=GLAT1D(1:FIELDSIZE)*DEGRAD
             ENDIF
 !
             IF(TRIM(NAME)=='GLON')THEN
-               wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)=           &
-                 wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)*DEGRAD
                ALLOCATE(GLON1D(FIELDSIZE))
                GLON1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
+               GLON1D(1:FIELDSIZE)=GLON1D(1:FIELDSIZE)*DEGRAD
             ENDIF
-!
-            IF(TRIM(NAME)=='VLAT')wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)=   &
-               wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)*DEGRAD
-!
-            IF(TRIM(NAME)=='VLON')wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)=   &
-               wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM)*DEGRAD
 !
             N=NFIELD+wrt_int_state%RST_KOUNT_I2D(1)
             TMP=RESHAPE(wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))

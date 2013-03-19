@@ -48,10 +48,12 @@
 #ifdef ESMF_3
         TYPE(ESMF_Logical) :: ALLCLEAR_FROM_PARENT                          &  !<-- Child can proceed after parent is free
                              ,I_AM_A_NEST                                   &  !<-- Am I in a nested domain?
+                             ,I_AM_A_PARENT                                 &  !<-- Am I in a parent domain?
                              ,RECVD_ALL_CHILD_DATA                             !<-- Parent is free after all 2-way data recvd
 #else
         LOGICAL(kind=KLOG) :: ALLCLEAR_FROM_PARENT                          &  !<-- Child can proceed after parent is free
                              ,I_AM_A_NEST                                   &  !<-- Am I in a nested domain?
+                             ,I_AM_A_PARENT                                 &  !<-- Am I in a parent domain?
                              ,RECVD_ALL_CHILD_DATA                             !<-- Parent is free after all 2-way data recvd
 #endif
 !
@@ -62,6 +64,7 @@
         REAL(ESMF_KIND_R8) :: TIMESTEP_FINAL                                   !<-- The forecast's final timestep
 !
         LOGICAL(kind=KLOG) :: FIRST_PASS                                    &  !<-- Note 1st time into NMM_INTEGRATE
+                             ,RESTARTED_RUN                                 &  !<-- Is this a restarted forecast?
                              ,TS_INITIALIZED 
 !
 !---------------------------------------------------------------------------

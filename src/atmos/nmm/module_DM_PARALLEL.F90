@@ -1552,9 +1552,9 @@ real(kind=kfpt),dimension(:,:),allocatable,save :: &
               enddo
             enddo
 !
-            call mpi_isend(dummy_send(1,npe),nbuf,mpi_real,     &
-                           npe,mype,mpi_comm_comp,              &
-                           handle(npe),ierr)
+            call mpi_issend(dummy_send(1,npe),nbuf,mpi_real,     &
+                            npe,mype,mpi_comm_comp,              &
+                            handle(npe),ierr)
 !
           endif
 !
@@ -1816,9 +1816,9 @@ real(kind=kfpt),dimension(:,:),allocatable,save :: &
               enddo
             enddo
 !
-            call mpi_isend(dummy_send(1,npe),nbuf,mpi_real              &
-                          ,npe,npe,mpi_comm_comp                        &
-                          ,handle(npe),ierr)
+            call mpi_issend(dummy_send(1,npe),nbuf,mpi_real             &
+                           ,npe,npe,mpi_comm_comp                       &
+                           ,handle(npe),ierr)
           endif
 !
         endif

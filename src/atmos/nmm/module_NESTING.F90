@@ -48,7 +48,7 @@
 !
       USE module_CONSTANTS,ONLY: P608,R_D
 !
-      USE module_CONTROL,ONLY: TIMEF
+      USE module_CONTROL,ONLY: NUM_DOMAINS_MAX,TIMEF
 !
       USE module_EXCHANGE,ONLY: HALO_EXCH
 !
@@ -75,6 +75,7 @@
                ,HANDLE_CHILD_TOPO_N                                     &
                ,HANDLE_CHILD_TOPO_W                                     &
                ,HANDLE_CHILD_TOPO_E                                     &
+               ,HANDLE_IJ_SW                                            &
                ,HANDLE_PACKET_S_H                                       &
                ,HANDLE_PACKET_S_V                                       &
                ,HANDLE_PACKET_N_H                                       &
@@ -97,7 +98,6 @@
                ,MIXED_DATA_TASKS                                        &
                ,MOVING_NEST_BOOKKEEPING                                 &
                ,MOVING_NEST_RECV_DATA                                   &
-               ,NUM_DOMAINS_MAX                                         &
                ,PARENT_BOOKKEEPING_MOVING                               &
                ,PARENT_CHILD_COMMS                                      &
                ,PARENT_READS_MOVING_CHILD_TOPO                          &
@@ -196,8 +196,6 @@
 !
 !-----------------------------------------------------------------------
 !
-      INTEGER(kind=KINT),PARAMETER :: NUM_DOMAINS_MAX=99
-!
       INTEGER(kind=KINT),PARAMETER :: NEAREST=0                         &  !<-- Flag for nearest neighbor interpolation (parent to child)
                                      ,BILINEAR=1                           !<-- Flag for bilinear interpolation (parent to child)
 !
@@ -211,6 +209,8 @@
 !-----------------------------------------------------------------------
 !
       REAL(kind=KDBL) :: btim,btim0
+!
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: HANDLE_IJ_SW
 !
       TYPE(INTEGER_DATA),DIMENSION(:),POINTER :: HANDLE_PARENT_ITE      &
                                                 ,HANDLE_PARENT_ITS      &
@@ -4797,6 +4797,7 @@
 !
       INTEGER(kind=KINT) :: ITS,ITE,JTS,JTE                             &
                            ,IDS,IDE,JDS,JDE                             &
+                           ,I_PAR_STA,J_PAR_STA                         &
                            ,INDX_CW,INDX_Q                              &
                            ,LMP1,LNSH,LNSV                              &      
                            ,N,NHALO,NKOUNT,NUM_DIMS
@@ -4825,6 +4826,12 @@
 !
       TYPE(ESMF_Grid) :: GRID_X
 !
+#ifdef ESMF_3
+      TYPE(ESMF_Logical) :: RESTART
+#else
+      LOGICAL(kind=KLOG) :: RESTART
+!
+#endif
       CHARACTER(len=8), DIMENSION(7) :: EXP_FIELD
 !
 !-----------------------------------------------------------------------
@@ -5130,15 +5137,6 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(EXP_STATE_DOMAIN                               &  !<-- Insert GLAT into DOMAIN export state
-                        ,LISTWRAPPER(HOLD_FIELD)                        &  !<-- The Field to be inserted
-                        ,rc   =RC)
-!
-      CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Domain export state
-                        ,itemcount   =itemcount                         &  !<-- # of items in the state
-                        ,itemnamelist=itemnamelist                      &  !<-- List of item names
-                        ,rc          =RC)
-!
 !--------------------------------------
 !***  LM is needed but not transferred
 !--------------------------------------
@@ -5435,6 +5433,29 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!-------------------------------
+!***  Transfer the restart flag
+!-------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Restart Flag from Solver Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=EXP_STATE_SOLVER                     &  !<-- The Solver export state
+                            ,name ='RESTART'                            &  !<-- Name of Attribute to extract
+                            ,value=RESTART                              &  !<-- Put the extracted Attribute here
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
+                            ,name ='RESTART'                            &  !<-- The name of the Attribute to insert
+                            ,value=RESTART                              &  !<-- The Attribute to be inserted
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 !------------------------
 !***  Transfer DX and DY 
 !------------------------
@@ -5499,6 +5520,8 @@
 !
       SUBROUTINE BOUNDARY_DATA_STATE_TO_STATE(S_BDY,N_BDY,W_BDY,E_BDY   &
                                              ,CLOCK                     &
+                                             ,PARENT                    &
+                                             ,NEST                      &
                                              ,RATIO                     &
                                              ,STATE_IN                  &
                                              ,STATE_OUT )
@@ -5512,12 +5535,19 @@
 !***  Argument Variables
 !------------------------
 !
-      LOGICAL(kind=KLOG),INTENT(IN) :: S_BDY,N_BDY,W_BDY,E_BDY             !<-- Is this task on the domain's boundary?
+      LOGICAL(kind=KLOG),INTENT(IN),OPTIONAL :: S_BDY,N_BDY,W_BDY,E_BDY    !<-- Is this task on the domain's boundary?
 !
       TYPE(ESMF_Clock),INTENT(IN),OPTIONAL :: CLOCK                        !<-- ESMF Clock
 !
       INTEGER(kind=KINT),INTENT(IN),OPTIONAL :: RATIO                      !<-- # of child timesteps per parent timestep          
 !
+#ifdef ESMF_3
+      TYPE(ESMF_Logical),INTENT(IN),OPTIONAL :: NEST                    &  !<-- Is task on a nest domain?
+                                               ,PARENT                     !<-- Is task on a parent domain?
+#else
+      LOGICAL(kind=KLOG),INTENT(IN),OPTIONAL :: NEST                    &  !<-- Is task on a nest domain?
+                                               ,PARENT                     !<-- Is task on a parent domain?
+#endif
       TYPE(ESMF_State),INTENT(INOUT) :: STATE_IN                        &  !<-- Input ESMF State
                                        ,STATE_OUT                          !<-- Output ESMF State
 !
@@ -5533,20 +5563,25 @@
       END TYPE SIDES_1D_REAL
 !
       INTEGER(kind=KINT) :: I_SHIFT,ISTAT,J_SHIFT,KOUNT,LIMIT           &
-                           ,NTIMESTEP,NTYPE,RC,RC_BND_MV
+                           ,NEXT_MOVE_TIMESTEP,NTIMESTEP,NTYPE          &
+                           ,RC,RC_BND_MV
 !
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF
+!
+      INTEGER(kind=KINT),DIMENSION(1:NUM_DOMAINS_MAX) :: NTIMESTEP_CHILD_MOVES
 !
       CHARACTER(len=7) :: TIME
 !
       LOGICAL(kind=KLOG),SAVE :: EXTRACTED_FLAGS=.FALSE.
 !
 #ifdef ESMF_3
-      TYPE(ESMF_Logical),SAVE :: I_AM_A_NEST                            &
-                                ,MY_DOMAIN_MOVES
+!!!   TYPE(ESMF_Logical),SAVE :: I_AM_A_NEST                            &
+      TYPE(ESMF_Logical) :: I_AM_A_NEST                                 &
+                           ,MY_DOMAIN_MOVES
 #else
-      LOGICAL(kind=KLOG),SAVE :: I_AM_A_NEST                            &
-                                ,MY_DOMAIN_MOVES
+!!!   LOGICAL(kind=KLOG),SAVE :: I_AM_A_NEST                            &
+      LOGICAL(kind=KLOG) :: I_AM_A_NEST                                 &
+                           ,MY_DOMAIN_MOVES
 #endif
 !
 #ifdef ESMF_3
@@ -5594,7 +5629,7 @@
 !***  they never change.
 !-----------------------------------------------------------------------
 !
-      IF(.NOT.EXTRACTED_FLAGS)THEN
+!!!   IF(.NOT.EXTRACTED_FLAGS)THEN
 !
         EXTRACTED_FLAGS=.TRUE.
 !
@@ -5662,6 +5697,60 @@
 !
         ENDIF
 !
+!!!   ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Parents transfer the next move timesteps of their moving
+!***  children.
+!-----------------------------------------------------------------------
+!
+      IF(PRESENT(PARENT))THEN
+!
+#ifdef ESMF_3
+        IF(PARENT==ESMF_True)THEN
+#else
+        IF(PARENT)THEN
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract NTIMESTEP_CHILD_MOVES in BOUNDARY_DATA_STATE_TO_STATE"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Look at the input state
+                                ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- Get this Attribute
+                                ,count    =NUM_DOMAINS_MAX              &  !<-- How many items?
+                                ,valueList=NTIMESTEP_CHILD_MOVES        &  !<-- What are the children's next move timesteps?
+                                ,rc       =RC )
+#else
+          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Look at the input state
+                                ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- Get this Attribute
+                                ,valueList=NTIMESTEP_CHILD_MOVES        &  !<-- What are the children's next move timesteps?
+                                ,rc       =RC )
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert NTIMESTEP_CHILD_MOVES into the Output State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state    =STATE_OUT                    &  !<-- Insert data into output state
+                                ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- Get this Attribute
+                                ,itemCount=NUM_DOMAINS_MAX              &  !<-- How many items?
+                                ,valueList=NTIMESTEP_CHILD_MOVES        &  !<-- What are the children's next move timesteps?
+                                ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        ENDIF
+!
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -5683,12 +5772,41 @@
 #ifdef ESMF_3
       MOVE_NOW=ESMF_FALSE
 !
-      IF(I_AM_A_NEST==ESMF_TRUE.AND.MY_DOMAIN_MOVES==ESMF_TRUE)THEN
+      IF(I_AM_A_NEST==ESMF_TRUE.AND.MY_DOMAIN_MOVES==ESMF_TRUE          &
+         .AND..NOT.PRESENT(PARENT))THEN
 #else
       MOVE_NOW=.FALSE.
 !
-      IF(I_AM_A_NEST.AND.MY_DOMAIN_MOVES)THEN
+      IF(I_AM_A_NEST.AND.MY_DOMAIN_MOVES.AND..NOT.PRESENT(PARENT))THEN
 #endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract NEXT_MOVE_TIMESTEP in BOUNDARY_DATA_STATE_TO_STATE"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=STATE_IN                           &  !<-- Look at the input state
+                              ,name ='NEXT_MOVE_TIMESTEP'               &  !<-- Is this name present?
+                              ,value=NEXT_MOVE_TIMESTEP                 &  !<-- At which timestep does the nest move?
+                              ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert NEXT_MOVE_TIMESTEP into the Output State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- Insert data into output state
+                              ,name ='NEXT_MOVE_TIMESTEP'               &  !<-- The name of the data 
+                              ,value=NEXT_MOVE_TIMESTEP                 &  !<-- At which timestep does the nest move?
+                              ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract the MOVE_NOW Flag in BOUNDARY_DATA_STATE_TO_STATE"
@@ -5703,6 +5821,53 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Also move the nest's shift in I and J on the parent grid
+!***  from the input state to the output state.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Nest Shift from Input State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=STATE_IN                           &  !<-- Extract data from input state
+                              ,name ='I_SHIFT'                          &  !<-- The name of the data 
+                              ,value=I_SHIFT                            &  !<-- Nest's shift in I on its grid
+                              ,rc   =RC )
+!
+        CALL ESMF_AttributeGet(state=STATE_IN                           &  !<-- Extract data from input state
+                              ,name ='J_SHIFT'                          &  !<-- The name of the data 
+                              ,value=J_SHIFT                            &  !<-- Nest's shift in J on its grid
+                              ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert Nest Shift into Output State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- Insert data into output state
+                              ,name ='I_SHIFT'                          &  !<-- The name of the data 
+                              ,value=I_SHIFT                            &  !<-- Nest's shift in I on its grid
+                              ,rc   =RC )
+!
+        CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- Insert data into output state
+                              ,name ='J_SHIFT'                          &  !<-- The name of the data 
+                              ,value=J_SHIFT                            &  !<-- Nest's shift in J on its grid
+                              ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Is the nest ready to move now?
+!-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Insert MOVE_NOW Flag into the Output State"
@@ -5720,59 +5885,14 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        IF(MOVE_NOW==ESMF_TRUE)THEN
-#else
-        IF(MOVE_NOW)THEN
-#endif
+      ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Also move the nest's shift in I and J on the parent grid
-!***  from the input state to the output state.
+!***  Return if this is not a (child) boundary task.
 !-----------------------------------------------------------------------
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Extract Nest Shift from Input State"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_AttributeGet(state=STATE_IN                         &  !<-- Extract data from input state
-                                ,name ='I_SHIFT'                        &  !<-- The name of the data 
-                                ,value=I_SHIFT                          &  !<-- Nest's shift in I on its grid
-                                ,rc   =RC )
-!
-          CALL ESMF_AttributeGet(state=STATE_IN                         &  !<-- Extract data from input state
-                                ,name ='J_SHIFT'                        &  !<-- The name of the data 
-                                ,value=J_SHIFT                          &  !<-- Nest's shift in J on its grid
-                                ,rc   =RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Insert Nest Shift into Output State"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_AttributeSet(state=STATE_OUT                        &  !<-- Insert data into output state
-                                ,name ='I_SHIFT'                        &  !<-- The name of the data 
-                                ,value=I_SHIFT                          &  !<-- Nest's shift in I on its grid
-                                ,rc   =RC )
-!
-          CALL ESMF_AttributeSet(state=STATE_OUT                        &  !<-- Insert data into output state
-                                ,name ='J_SHIFT'                        &  !<-- The name of the data 
-                                ,value=J_SHIFT                          &  !<-- Nest's shift in J on its grid
-                                ,rc   =RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-        ENDIF
-!
+      IF(.NOT.PRESENT(S_BDY))THEN
+        RETURN
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -6322,7 +6442,8 @@
 !---------------------
 !
       INTEGER(kind=KINT) :: I_SHIFT,J_SHIFT                             &
-                           ,N,NUM_PTASK_UPDATE                          &
+                           ,N,NEXT_MOVE_TIMESTEP                        &
+                           ,NUM_PTASK_UPDATE                            &
                            ,NUM_INTEGER_WORDS                           &
                            ,NUM_REAL_WORDS
 !
@@ -6725,6 +6846,40 @@
 !-----------------------------------------------------------------------
 !
       ENDIF move_check
+!
+!-----------------------------------------------------------------------
+!***  Finally transfer the value of the domain's next move timestep.
+!***  This variable is part of the Solver internal state and is thus
+!***  defined for all domains.  Its value is a dummy if not relevant.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="INTERIOR_DATA_STATE_TO_STATE: Unload the Next Move Timestep"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=STATE_IN                             &  !<-- The input State
+                            ,name ='NEXT_MOVE_TIMESTEP'                 &  !<-- Name of the variable
+                            ,value=NEXT_MOVE_TIMESTEP                   &  !<-- Timestep of domain's next shift.
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="INTERIOR_DATA_STATE_TO_STATE: Load the Next Move Timestep"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(state=STATE_OUT                            &  !<-- The output State
+                            ,name ='NEXT_MOVE_TIMESTEP'                 &  !<-- Name of the variable
+                            ,value=NEXT_MOVE_TIMESTEP                   &  !<-- Timestep of domain's next shift.
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !
@@ -8087,38 +8242,42 @@
 !***  nw_north IF block.
 !-----------------------------------------------
 !
-                  IF(ITE_PARENT_ON_CHILD(ID_N)+EPS<I_END_X                 &  !<-- 1st scenario of parent update task to northeast of 
-                                  .AND.                                    &  !    the first parent update task.  Not on corner.
-                     ITE_PARENT_ON_CHILD(ID_N)+EPS>=I_UPDATE(2))THEN          !<--
+                  IF(ITE_PARENT_ON_CHILD(ID_N)+EPS<I_UPDATE(2)             &  !<-- 1st scenario of parent update task to northeast of
+                                  .AND.                                    &  !    the first parent update task. It is on NW corner.
+                     JTS_PARENT_ON_CHILD(ID_N)-EPS<=J_UPDATE(2))THEN          !<-- It is a 'flag-shape' scenario.
 !
                     KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                   !<-- Increment parent task counter.
                     KP=KOUNT_PARENT_TASKS
                     SEND_TASK(KP)%ID=ID_N+1                                   !<-- Store the ID of this parent task northeast of the first
-                    ID_NE=SEND_TASK(KP)%ID                                 
+                    ID_NE=SEND_TASK(KP)%ID
                     SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_NE))  !<-- Starting I where parent task ID_NE updates nest task.
-                    SEND_TASK(KP)%IEND  (1)=I_END_X                           !<-- Ending I where parent task ID_NE updates nest task.
-                    SEND_TASK(KP)%JSTART(1)=MAX(J_UPDATE(3)                &  !<-- Starting J where parent task ID_NE updates nest task.
-                                           ,NINT(JTS_PARENT_ON_CHILD(ID_NE))) !<-- Starting J where parent task ID_NE updates nest task.
+                    SEND_TASK(KP)%IEND  (1)=I_UPDATE(2)                       !<-- Ending I where parent task ID_NE updates nest task.
+                    SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_NE))  !<-- Starting J where parent task ID_NE updates nest task.
                     SEND_TASK(KP)%JEND  (1)=J_END_X                           !<-- Ending J where parent task ID_NE updates nest task.
+                    SEND_TASK(KP)%ISTART(2)=I_UPDATE(3)                       !<-- Starting I where parent task ID_NE updates 2nd region.
+                    SEND_TASK(KP)%IEND  (2)=I_END_X                           !<-- Ending I where parent task ID_NE updates 2nd region.
+                    SEND_TASK(KP)%JSTART(2)=J_UPDATE(3)                       !<-- Starting J where parent task ID_NE updates 2nd region.
+                    SEND_TASK(KP)%JEND  (2)=J_END_X                           !<-- Ending J where parent task ID_NE updates 2nd region.
 !
                   ENDIF
 !
-                  IF(ITE_PARENT_ON_CHILD(ID_N)+EPS<I_UPDATE(2)            &  !<-- 2nd scenario of parent update task to northeast of
-                                  .AND.                                   &  !    the first update parent task.  On the corner.
-                     JTS_PARENT_ON_CHILD(ID_N)+EPS<=J_UPDATE(2))THEN         !<--
+                  IF(ITE_PARENT_ON_CHILD(ID_N)+EPS< I_END_X                &  !<-- 2nd scenario of parent update task to northeast of
+                                  .AND.                                    &  !    the first parent update task.  A simple rectangle.
+                    (JTS_PARENT_ON_CHILD(ID_N)+EPS>=J_UPDATE(3)            &  !
+                                  .OR.                                     &  !
+                     ITE_PARENT_ON_CHILD(ID_N)+EPS>=I_UPDATE(2)            &  !
+                                  .AND.                                    &  !
+                     JTS_PARENT_ON_CHILD(ID_N)-EPS<=J_UPDATE(2)))THEN         !<--
 !
-                    KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                  !<-- Increment parent task counter.
+                    KOUNT_PARENT_TASKS=KOUNT_PARENT_TASKS+1                   !<-- Increment parent task counter.
                     KP=KOUNT_PARENT_TASKS
-                    SEND_TASK(KP)%ID=ID_N+1                                  !<-- Store the ID of this parent task northeast of the first.
+                    SEND_TASK(KP)%ID=ID_N+1                                   !<-- Store the ID of this parent task northeast of the first.
                     ID_NE=SEND_TASK(KP)%ID
-                    SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_NE)) !<-- Starting I in nest task's 1st region updated by parent.
-                    SEND_TASK(KP)%IEND  (1)=I_UPDATE(2)                      !<-- Ending I in nest task's 1st region updated by parent.
-                    SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_NE)) !<-- Starting J in nest task's 1st region updated by parent.
-                    SEND_TASK(KP)%JEND  (1)=J_UPDATE(2)                      !<-- Ending J in nest task's 1st region updated by parent.
-                    SEND_TASK(KP)%ISTART(2)=SEND_TASK(KP)%ISTART(1)          !<-- Starting I in nest task's 2nd region updated by parent.
-                    SEND_TASK(KP)%IEND  (2)=I_END_X                          !<-- Ending I in nest task's 2nd region updated by parent.
-                    SEND_TASK(KP)%JSTART(2)=J_UPDATE(3)                      !<-- Starting J in nest task's 2nd region updated by parent.
-                    SEND_TASK(KP)%JEND  (2)=J_END_X                          !<-- Ending J in nest task's 2nd region updated by parent.
+                    SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_NE))  !<-- Starting I in nest task's update region.
+                    SEND_TASK(KP)%IEND  (1)=I_END_X                           !<-- Ending I in nest task's update region.
+                    SEND_TASK(KP)%JSTART(1)=MAX(J_UPDATE(3)                &  !<-- Starting J where parent task ID_NE updates nest.
+                                           ,NINT(JTS_PARENT_ON_CHILD(ID_NE)))
+                    SEND_TASK(KP)%JEND  (1)=J_END_X                           !<-- Ending J in nest task's update region.
 !
                   ENDIF
 !
@@ -8370,7 +8529,6 @@
 !***  Add up the number of points being updated by each parent task.
 !-----------------------------------------------------------------------
 !
-!     write(0,*)' exit MOVING_NEST_BOOKKEEPING kount_parent_tasks=',kount_parent_tasks
       DO KP=1,KOUNT_PARENT_TASKS
 !
         SEND_TASK(KP)%NPTS=(SEND_TASK(KP)%IEND(1)                       & 
@@ -11338,26 +11496,26 @@
           CHILDTASK=CHILD_TASK_RANKS(PTR_X%TASK_ID)
           ITAG=KNT_REAL_PTS(N)+NTIMESTEP_CHILD                             !<-- Tag that changes for data size and time
 !
-          CALL MPI_ISEND(CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL           &  !<-- Internal real update data for moving nest task N
-                        ,KNT_REAL_PTS(N)                                &  !<-- # of real words in the data string
-                        ,MPI_REAL                                       &  !<-- Datatype
-                        ,CHILDTASK                                      &  !<-- Local intracom rank of nest task to recv data
-                        ,ITAG                                           &  !<-- Unique MPI tag
-                        ,COMM_TO_MY_CHILD                               &  !<-- MPI intracommunicator
-                        ,HANDLE_UPDATE(PTR_X%TASK_ID)                   &  !<-- Handle for ISend to child task
-                        ,IERR )
+          CALL MPI_ISSEND(CHILD_UPDATE_DATA%TASKS(N)%DATA_REAL          &  !<-- Internal real update data for moving nest task N
+                         ,KNT_REAL_PTS(N)                               &  !<-- # of real words in the data string
+                         ,MPI_REAL                                      &  !<-- Datatype
+                         ,CHILDTASK                                     &  !<-- Local intracom rank of nest task to recv data
+                         ,ITAG                                          &  !<-- Unique MPI tag
+                         ,COMM_TO_MY_CHILD                              &  !<-- MPI intracommunicator
+                         ,HANDLE_UPDATE(PTR_X%TASK_ID)                  &  !<-- Handle for ISend to child task
+                         ,IERR )
 !
           IF(KNT_INTEGER_PTS(N)>0)THEN
             ITAG=KNT_INTEGER_PTS(N)+NTIMESTEP_CHILD                        !<-- Tag that changes for data size and time
 !
-            CALL MPI_ISEND(CHILD_UPDATE_DATA%TASKS(N)%DATA_INTEGER      &  !<-- Internal integer update data for moving nest task N
-                          ,KNT_INTEGER_PTS(N)                           &  !<-- # of integer words in the data string
-                          ,MPI_INTEGER                                  &  !<-- Datatype
-                          ,CHILDTASK                                    &  !<-- Local intracom rank of nest task to recv data
-                          ,ITAG                                         &  !<-- Unique MPI tag
-                          ,COMM_TO_MY_CHILD                             &  !<-- MPI intracommunicator
-                          ,HANDLE_UPDATE(PTR_X%TASK_ID)                 &  !<-- Handle for ISend to child task
-                          ,IERR )
+            CALL MPI_ISSEND(CHILD_UPDATE_DATA%TASKS(N)%DATA_INTEGER     &  !<-- Internal integer update data for moving nest task N
+                           ,KNT_INTEGER_PTS(N)                          &  !<-- # of integer words in the data string
+                           ,MPI_INTEGER                                 &  !<-- Datatype
+                           ,CHILDTASK                                   &  !<-- Local intracom rank of nest task to recv data
+                           ,ITAG                                        &  !<-- Unique MPI tag
+                           ,COMM_TO_MY_CHILD                            &  !<-- MPI intracommunicator
+                           ,HANDLE_UPDATE(PTR_X%TASK_ID)                &  !<-- Handle for ISend to child task
+                           ,IERR )
           ENDIF
 !
         ENDIF
@@ -11508,13 +11666,13 @@
         ICORNER=MAX(IMS,IDS)                                               !<-- Parent task covers its halos with data too since
         JCORNER=MAX(JMS,JDS)                                               !    the moving nest boundaries can extend into them.
 !
-        CALL LATLON_TO_IJ(GLAT(ICORNER,JCORNER)                         &
-                         ,GLON(ICORNER,JCORNER)                         &
-                         ,TPH0_1,TLM0_1                                 &
-                         ,SB_1,WB_1                                     &
+        CALL LATLON_TO_IJ(GLAT(ICORNER,JCORNER)                         &  !<-- Geographic lat (radians) of parent task's SW corner
+                         ,GLON(ICORNER,JCORNER)                         &  !<-- Geographic lon (radians) of parent task's SW corner
+                         ,TPH0_1,TLM0_1                                 &  !<-- Geographic lat,lon of upper parent's central point
+                         ,SB_1,WB_1                                     &  !<-- Rotated lat/lon of upper parent's SW corner
                          ,RECIP_DPH_1,RECIP_DLM_1                       &
-                         ,REAL_I                                        &
-                         ,REAL_J)
+                         ,REAL_I                                        &  !<-- Upper parent I of this task's SW corner
+                         ,REAL_J)                                          !<-- Upper parent J of this task's SW corner
 !
         ISTART=NINT((REAL_I-1.)*LOR+1.)                                    !<-- I index in sfc data at W bndry of this parent task
         JSTART=NINT((REAL_J-1.)*LOR+1.)                                    !<-- J index in sfc data at S bndry of this parent task
@@ -11654,6 +11812,17 @@
             NEST_FIS_ON_PARENT(N)%DATA(I,JEND)=ROW1(I)
           ENDDO
         ENDIF
+!
+        do j=jstart,jend
+        do i=istart,iend
+          if(abs(NEST_FIS_ON_PARENT(N)%DATA(i,j))<1.e-2)then
+            NEST_FIS_ON_PARENT(N)%DATA(i,j)=0
+          endif
+          if(abs(NEST_FIS_V_ON_PARENT(N)%DATA(i,j))<1.e-2)then
+            NEST_FIS_V_ON_PARENT(N)%DATA(i,j)=0
+          endif
+        enddo
+        enddo
 !
         DEALLOCATE(ROW1,ROW2)
         CLOSE(IUNIT_FIS_NEST)

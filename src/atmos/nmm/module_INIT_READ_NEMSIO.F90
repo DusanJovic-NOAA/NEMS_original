@@ -169,6 +169,13 @@ integer,allocatable       :: reclev(:)
         endif
 !
 !-----------------------------------------------------------------------
+!***  Get SW corner of nest domains on their parent grid.
+!-----------------------------------------------------------------------
+!
+        call nemsio_getheadvar(gfile,'IPARSTRT',int_state%I_PAR_STA,ierr)
+        call nemsio_getheadvar(gfile,'JPARSTRT',int_state%J_PAR_STA,ierr)
+!
+!-----------------------------------------------------------------------
 !
         call nemsio_getheadvar(gfile,'PT',int_state%PT,ierr)
         call nemsio_getheadvar(gfile,'PDTOP',int_state%PDTOP,ierr)
@@ -764,8 +771,6 @@ integer,allocatable       :: reclev(:)
 !
 !-----------------------------------------------------------------------
 !
-        call nemsio_getheadvar(gfile,'i_par_sta',int_state%i_par_sta,ierr)
-        call nemsio_getheadvar(gfile,'j_par_sta',int_state%j_par_sta,ierr)
         call nemsio_getheadvar(gfile,'dlmd',int_state%dlmd,ierr)
         call nemsio_getheadvar(gfile,'dphd',int_state%dphd,ierr)
         call nemsio_getheadvar(gfile,'wbd',int_state%wbd,ierr)
@@ -774,8 +779,6 @@ integer,allocatable       :: reclev(:)
         call nemsio_getheadvar(gfile,'tph0d',int_state%tph0d,ierr)
 !
         call mpi_bcast(int_state%pt,1,mpi_real,0,mpi_comm_comp,irtn)
-        call mpi_bcast(int_state%i_par_sta,1,mpi_integer,0,mpi_comm_comp,irtn)
-        call mpi_bcast(int_state%j_par_sta,1,mpi_integer,0,mpi_comm_comp,irtn)
         call mpi_bcast(int_state%dlmd,1,mpi_real,0,mpi_comm_comp,irtn)
         call mpi_bcast(int_state%dphd,1,mpi_real,0,mpi_comm_comp,irtn)
         call mpi_bcast(int_state%wbd,1,mpi_real,0,mpi_comm_comp,irtn)
@@ -808,13 +811,15 @@ integer,allocatable       :: reclev(:)
         iday_fcst=FCSTDATE(3)
         ihour_fcst=FCSTDATE(4)
         call nemsio_getheadvar(gfile,'IHRST',int_state%IHRST,ierr)
-        call nemsio_getheadvar(gfile,'i_par_sta',int_state%I_PAR_STA,ierr)
-        call nemsio_getheadvar(gfile,'j_par_sta',int_state%J_PAR_STA,ierr)
         call nemsio_getheadvar(gfile,'LPT2',int_state%LPT2,ierr)
+        call nemsio_getheadvar(gfile,'I_PAR_STA',int_state%I_PAR_STA,ierr)
+        call nemsio_getheadvar(gfile,'J_PAR_STA',int_state%J_PAR_STA,ierr)
+        call nemsio_getheadvar(gfile,'NMTS',int_state%NMTS,ierr)
 !-----------------------------------------------------------------------
 !***  Read from restart file: Integer 1D arrays
 !-----------------------------------------------------------------------
         call nemsio_getheadvar(gfile,'IDAT',int_state%idat,ierr)
+        call nemsio_getheadvar(gfile,'NTSCM',int_state%ntscm,ierr)
 !
         if(mype==0)then
           write(0,*)'**** in read_nemsio *****************'
@@ -1038,6 +1043,132 @@ integer,allocatable       :: reclev(:)
         enddo
       endif
       call halo_exch(int_state%fis,1,2,2)
+!-----------------------------------------------------------------------
+!-- glat
+      int_state%glat=0.
+      call getrecn(recname,reclevtyp,reclev,nrec,'glat','sfc',1,recn)
+      if(recn/=0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%glat(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+      call halo_exch(int_state%glat,1,2,2)
+!-----------------------------------------------------------------------
+!-- glon
+      int_state%glon=0.
+      call getrecn(recname,reclevtyp,reclev,nrec,'glon','sfc',1,recn)
+      if(recn/=0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%glon(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+      call halo_exch(int_state%glon,1,2,2)
+!-----------------------------------------------------------------------
+!-- vlat
+      int_state%vlat=0.
+      call getrecn(recname,reclevtyp,reclev,nrec,'vlat','sfc',1,recn)
+      if(recn/=0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%vlat(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+      call halo_exch(int_state%vlat,1,2,2)
+!-----------------------------------------------------------------------
+!-- vlon
+      int_state%vlon=0.
+      call getrecn(recname,reclevtyp,reclev,nrec,'vlon','sfc',1,recn)
+      if(recn/=0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%vlon(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+      call halo_exch(int_state%vlon,1,2,2)
+!-----------------------------------------------------------------------
+!-- hdacx
+      int_state%hdacx=0.
+      call getrecn(recname,reclevtyp,reclev,nrec,'hdacx','sfc',1,recn)
+      if(recn/=0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%hdacx(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+      call halo_exch(int_state%hdacx,1,2,2)
+!-----------------------------------------------------------------------
+!-- hdacy
+      int_state%hdacy=0.
+      call getrecn(recname,reclevtyp,reclev,nrec,'hdacy','sfc',1,recn)
+      if(recn/=0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%hdacy(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+      call halo_exch(int_state%hdacy,1,2,2)
+!-----------------------------------------------------------------------
+!-- f
+      int_state%f=0.
+      call getrecn(recname,reclevtyp,reclev,nrec,'f','sfc',1,recn)
+      if(recn/=0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%f(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+      call halo_exch(int_state%f,1,2,2)
+!-----------------------------------------------------------------------
+!-- hdacvx
+      int_state%hdacvx=0.
+      call getrecn(recname,reclevtyp,reclev,nrec,'hdacvx','sfc',1,recn)
+      if(recn/=0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%hdacvx(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+      call halo_exch(int_state%hdacvx,1,2,2)
+!-----------------------------------------------------------------------
+!-- hdacvy
+      int_state%hdacvy=0.
+      call getrecn(recname,reclevtyp,reclev,nrec,'hdacvy','sfc',1,recn)
+      if(recn/=0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%hdacvy(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+      call halo_exch(int_state%hdacvy,1,2,2)
 !-----------------------------------------------------------------------
 !--pd
       int_state%pd=0.

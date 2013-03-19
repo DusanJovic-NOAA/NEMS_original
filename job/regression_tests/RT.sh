@@ -45,8 +45,8 @@ export SCHEDULER
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 
-   export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
-#  export RTPWD=${STMP}/${USER}/REGRESSION_TEST
+#  export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+   export RTPWD=${STMP}/${USER}/REGRESSION_TEST
 
 #########################################################################
 # Check if running regression test or creating baselines.
@@ -964,7 +964,7 @@ nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
 #---------------------
 export_nmm
 export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
-export AFFN=cpu   ; export NODE=3   ; export WLCLK=20
+export AFFN=cpu   ; export NODE=3   ; export WLCLK=30
 export TASKS=$TASKS_nest ; export TPN=$TPN_nest
 export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
 #---------------------
@@ -1043,7 +1043,7 @@ nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
 export_nmm
 export RADTN=rrtm
 export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
-export AFFN=cpu   ; export NODE=3   ; export WLCLK=30
+export AFFN=cpu   ; export NODE=3   ; export WLCLK=40
 export TASKS=$TASKS_nest ; export TPN=$TPN_nest
 export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
 #---------------------
@@ -1080,7 +1080,7 @@ nmmb_hst_04_bin_0024h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s"
 export_nmm
 export RADTN=rrtm ; export RSTRT=true
 export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
-export AFFN=cpu   ; export NODE=3   ; export WLCLK=20
+export AFFN=cpu   ; export NODE=3   ; export WLCLK=25
 export TASKS=$TASKS_nest ; export TPN=$TPN_nest
 export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
 #---------------------
@@ -1158,7 +1158,7 @@ nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
 #---------------------
 export_nmm
 export GBRG=mnests ; export FCSTL=24 ; export NCHILD=02
-export NEMSI=true  ; export WLCLK=12 ; export NODE=3
+export NEMSI=true  ; export WLCLK=20 ; export NODE=3
 export TASKS=$TASKS_mvg1 ; export TPN=$TPN_mvg1
 export INPES=$INPES_mvg1 ; export JNPES=$JNPES_mvg1 ; export WTPG=$WTPG_mvg1
 #---------------------
@@ -1202,7 +1202,7 @@ nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
 #---------------------
 export_nmm
 export GBRG=mnests ; export FCSTL=24 ; export NCHILD=02
-export NEMSI=true  ; export WLCLK=20 ; export NODE=3
+export NEMSI=true  ; export WLCLK=25 ; export NODE=3
 export AFFN=cpu    ; export MODE=2-way
 export TASKS=$TASKS_mvg2 ; export TPN=$TPN_mvg2
 export INPES=$INPES_mvg2 ; export JNPES=$JNPES_mvg2 ; export WTPG=$WTPG_mvg2
