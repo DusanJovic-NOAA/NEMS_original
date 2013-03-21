@@ -1793,6 +1793,8 @@
 !
 !-----------------------------------------------------------------------
 !
+      CALL POINT_TO_COMPOSITE(MY_DOMAIN_ID)
+!
       CC=>CPL_COMPOSITE(MY_DOMAIN_ID)                                      !<-- Use dummy for shorter reference to composite
 !
 !-----------------------------------------------------------------------
