@@ -266,7 +266,6 @@ fi
 #
   export JCAP=$wave
   if [[ $NDSLFV = .true. ]] ; then export JCAP=` expr $jm - 2 ` ; fi
-  export JCAPG=$wave
   export LEVS=$lm
   export LONB=$im
   export LATB=$jm

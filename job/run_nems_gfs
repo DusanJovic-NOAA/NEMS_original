@@ -103,7 +103,7 @@ export orig_ic=NO
 CDUMP=gfs
 #jw  export wave=574 ; export lm=64 ; export lsoil=4 ; export NGPTC=15
  export wave=62 ; export lm=64 ; export lsoil=4 ; export NGPTC=12
-export JCAPG=$wave; export JCAP=$wave; export LEVS=$lm; export LEVR=$lm
+ export JCAP=$wave; export LEVS=$lm; export LEVR=$lm
 #
 #
 # Depending on the machine define certain prefixes to the directory path
@@ -119,7 +119,9 @@ if [ $mac = d -o $mac = m  -o $mac = c -o $mac = s ] ; then
 #  export class=1
 #  export group=class1onprod
 #  export group=devonprod
-  export group=dev
+#  export group=dev
+  export group=class1onprod
+  export class=1
   export MACHINE_ID=ccs
 elif [ $mac = h -o $mac = v ] ; then
                                  #           For haze or vapor
@@ -127,9 +129,9 @@ elif [ $mac = h -o $mac = v ] ; then
   rdir=/cdev
   dmpdir=/shared/glopara
   rdir=/mtb
-  export acc=MTB001-RES
-  export group=mtb
-  export class=mtb
+  export acc=GFS-T2O-RES
+  export group=class1onprod
+  export class=1
 fi
 export dir_save=$rdir/save
 export dir_nosc=$rdir/noscrub
@@ -184,7 +186,7 @@ export HOUTASPS=12
 if [ $nodes = 0 ] ; then export nodes=1 ; fi
 if [ $tasks -gt $wave ] ; then tasks=$((wave-1)) ; PE1=$tasks ; fi
 #
- export NCEPPOST=YES
+ export NCEPPOST=NO
  export hybrid=YES
  export OUTTYP=2
 if [ $ndsl = .true. ] ; then
@@ -201,7 +203,7 @@ fi
 #
 #    Set up experiment and directory names
 #
-  export expt=nems_${wave}_${sdate}_16pe
+  export expt=nems_${wave}_${sdate}_ticket22
 #
 #
  export fcst_begin=${fcst_begin:-YES}
@@ -317,7 +319,7 @@ fi
 #   Control for post and time averaging  If "YES" then run
 #   -- Defaults to "NO" 
 #
- export post=YES
+ export post=NO
 #
 if [ $post = YES ] ; then
   export rcpu_p=${NUMTHRD_POST:-1}
@@ -714,7 +716,7 @@ if [ $ENS_NUM -eq 1 ] ; then export COMOUT=$RUNDIR ; fi
 
 pwd
 
-export listvar=CDATE,COMOUT,FCSMEAN,SCRIPTS,fexec,fname,fmax,fout,listvar,fzer,fdfi,wave,im,jm,lm,lsoil,iop,jop,kop,OROGRAPHY,SLMASK,MTNVAR,fcyc,RUNDIR,sdate_avg,edate_avg,expt,post,index,avg,pgb,flx,d3d,znl,nhourb,nhours,datic,sig_fname,sfc_fname,change_res,cyclebc,cycle_date,DELTIM,CO2CON,SIGLEVEL,DYNVARS,PHYVARS,ZFLXTVD,POSTGPSH,POSTGPEXEC,POSTGPVARS,CTLFILE,NCEPPOST,CHGRESTHREAD,ntrc,SFCANADIR,CHGRESEXEC,CHGRESSH,FHRES,fixdir,varid,numcld,FNTSFA,FNACNA,FNLMEAN,NCP,chp,cmp,csp,IDVC,FHROT,IVS,cold_sfc,NEMSDIR,FCSTSCRIPT,NUMTHRD,JCAP,LEVS,LEVR,LONF,LATG,LONR,LATR,NTRAC,NTOZ,NTCW,NCLD,NMTVR,NGPTC,FHLWR,FHSWR,FNTSFC,FNAISC,FNVEGC,O3FORC,O3LOSS,O3CLIM,FNTG3C,ivssig,nvcoord,ivssfc,opr_chgres,default_ivs,LANDICE_OPT,CLIMO_FIELDS_OPT,hybrid,ENS_NUM,MEMBER_NAMES,FM,PE1,PE2,PE3,PE4,PE5,PE6,PE7,PE8,PE9,PE10,PE11,FTSFS,FAISS,acc,GEN_COORD_HYBRID,LATCH,IDVM,IDSL,dir_save,dir_nosc,NEMSIO_IN,NEMSIO_OUT,TRACERVARS,CPIlist,RIlist,lsm,class,group,rmem,rcpu,AERODIR,FIX_RAD,EMISDIR,MP_COREFILE_FORMAT,FNALBC,FNABSC,ialb,CHGQ0,ICO2,ISOL,IAER,OUTTYP,SFCPRESS_ID,THERMODYN_ID,ADIAB,mdir,sub,ADIAB,NTHSTACK,fmax_hf,fout_hf,LINK_FILES,QUILTING,WRT_GROUP,WRTPE_PER_GROUP,NUM_FILE,FILENAME_BASE,FILE_IO_FORM,GOCART_CLIM,GOCART_LUTS,COPYGB,ATMOS_CONFIG_GFS,SPECTRAL_LOOP,LDFIFLTO,JCAPG,SIGHDR,NEMSHDR,nemsioget,REDUCED_GRID,SIGINP,SFCINP,MACHINE_ID,nsout
+export listvar=CDATE,COMOUT,FCSMEAN,SCRIPTS,fexec,fname,fmax,fout,listvar,fzer,fdfi,wave,im,jm,lm,lsoil,iop,jop,kop,OROGRAPHY,SLMASK,MTNVAR,fcyc,RUNDIR,sdate_avg,edate_avg,expt,post,index,avg,pgb,flx,d3d,znl,nhourb,nhours,datic,sig_fname,sfc_fname,change_res,cyclebc,cycle_date,DELTIM,CO2CON,SIGLEVEL,DYNVARS,PHYVARS,ZFLXTVD,POSTGPSH,POSTGPEXEC,POSTGPVARS,CTLFILE,NCEPPOST,CHGRESTHREAD,ntrc,SFCANADIR,CHGRESEXEC,CHGRESSH,FHRES,fixdir,varid,numcld,FNTSFA,FNACNA,FNLMEAN,NCP,chp,cmp,csp,IDVC,FHROT,IVS,cold_sfc,NEMSDIR,FCSTSCRIPT,NUMTHRD,JCAP,LEVS,LEVR,LONF,LATG,LONR,LATR,NTRAC,NTOZ,NTCW,NCLD,NMTVR,NGPTC,FHLWR,FHSWR,FNTSFC,FNAISC,FNVEGC,O3FORC,O3LOSS,O3CLIM,FNTG3C,ivssig,nvcoord,ivssfc,opr_chgres,default_ivs,LANDICE_OPT,CLIMO_FIELDS_OPT,hybrid,ENS_NUM,MEMBER_NAMES,FM,PE1,PE2,PE3,PE4,PE5,PE6,PE7,PE8,PE9,PE10,PE11,FTSFS,FAISS,acc,GEN_COORD_HYBRID,LATCH,IDVM,IDSL,dir_save,dir_nosc,NEMSIO_IN,NEMSIO_OUT,TRACERVARS,CPIlist,RIlist,lsm,class,group,rmem,rcpu,AERODIR,FIX_RAD,EMISDIR,MP_COREFILE_FORMAT,FNALBC,FNABSC,ialb,CHGQ0,ICO2,ISOL,IAER,OUTTYP,SFCPRESS_ID,THERMODYN_ID,ADIAB,mdir,sub,ADIAB,NTHSTACK,fmax_hf,fout_hf,LINK_FILES,QUILTING,WRT_GROUP,WRTPE_PER_GROUP,NUM_FILE,FILENAME_BASE,FILE_IO_FORM,GOCART_CLIM,GOCART_LUTS,COPYGB,ATMOS_CONFIG_GFS,SPECTRAL_LOOP,LDFIFLTO,SIGHDR,NEMSHDR,nemsioget,REDUCED_GRID,SIGINP,SFCINP,MACHINE_ID,nsout
 echo $RIlist
 echo $CPIlist
 

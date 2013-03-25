@@ -244,8 +244,8 @@ fi
 #		  =110: volc and clim trops aerosol for lw only
 #		  =111: volc and clim trops aerosol for both sw/lw
 # FHRES       - restart interval in hours
-# wavecoef    - spectral truncation of the model wave (i.e. JCAP  like T878)
-# wavegrid    - spectral truncation of the model grid (i.e. JCAPG like T574)
+# wave        - spectral truncation of the model wave (i.e. JCAP  like T878)
+#               remove JCAPG (March 2013) grid is controlled by LONF and LATG
 # lm          - number of model levels
 # lsoil       - number of soil levels in the land model
 # IDVC        - integer describing the vertical coord - 2 means hybrid, 3 means
@@ -356,7 +356,7 @@ export_common
 export TASKS=32    ; export PE1=30          ; export NSOUT=0       ; export QUILT=.true.
 export NDAYS=2     ; export CP2=.false.     ; export IAER=0        ; export FHRES=24
 export WRTGP=1     ; export FDFI=0          ; export ADIAB=.false. ; export REDUCEDGRID=.true.
-export wavecoef=62 ; export wavegrid=62
+export wave=62 
 export lm=64       ; export lsoil=4         ; export MEMBER_NAMES=c00
 export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
 export NST_FCST=0  ; export NDSLFV=.false.  ; export IDEA=.false.

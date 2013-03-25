@@ -51,8 +51,7 @@ cat gfs_fcst_run.IN | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_NSOUT_:${NSOUT}:g   \
                     | sed s:_QUILT_:${QUILT}:g   \
                     | sed s:_IAER_:${IAER}:g       \
-                    | sed s:_wavecoef_:${wavecoef}:g     \
-                    | sed s:_wavegrid_:${wavegrid}:g     \
+                    | sed s:_wave_:${wave}:g     \
                     | sed s:_lm_:${lm}:g         \
                     | sed s:_lsoil_:${lsoil}:g   \
                     | sed s:_MEMBER_NAMES_:${MEMBER_NAMES}:g   \

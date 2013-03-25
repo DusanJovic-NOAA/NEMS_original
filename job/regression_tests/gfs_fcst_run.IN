@@ -10,8 +10,7 @@ set -x
 #
 #    Set up horizontal and vertical resolution ; default will be T6264
 #
- export wavec=_wavecoef_ ; export lm=_lm_ ; export lsoil=_lsoil_
- export waveg=_wavegrid_ ; export lm=_lm_ ; export lsoil=_lsoil_
+ export wave=_wave_ ; export lm=_lm_ ; export lsoil=_lsoil_
 
 #**************************************************************
 #
@@ -96,12 +95,12 @@ NST_SPINUP=${NST_SPINUP:-.false.}
 
 if [ $NDSLFV = .true. ]
 then
- if [[ $waveg -eq  62 ]] ; then export DELTIM=1200 ; fi
- if [[ $waveg -eq 126 ]] ; then export DELTIM=1200 ; fi
- if [[ $waveg -eq 254 ]] ; then export DELTIM=900  ; fi
- if [[ $waveg -eq 382 ]] ; then export DELTIM=600  ; fi
- if [[ $waveg -eq 574 ]] ; then export DELTIM=400  ; fi
- if [[ $waveg -eq 852 ]] ; then export DELTIM=300  ; fi
+ if [[ $wave -eq  62 ]] ; then export DELTIM=1200 ; fi
+ if [[ $wave -eq 126 ]] ; then export DELTIM=1200 ; fi
+ if [[ $wave -eq 254 ]] ; then export DELTIM=900  ; fi
+ if [[ $wave -eq 382 ]] ; then export DELTIM=600  ; fi
+ if [[ $wave -eq 574 ]] ; then export DELTIM=400  ; fi
+ if [[ $wave -eq 852 ]] ; then export DELTIM=300  ; fi
  export MASS_DP=.true.
  export PROCESS_SPLIT=.false.
 else
@@ -221,8 +220,7 @@ fi
 #    Forecast model : horizontal truncation  and vertical levels
 #                     ---------------------
 #
-export wavec=${wavec:-62}
-export waveg=${waveg:-62}
+export wave=${wave:-62}
 export lm=${lm:-64}
 export lsoil=${lsoil:-4}
 #
@@ -269,7 +267,7 @@ grid_aldata=_CP2_
  export TRACERVARS="RI=$RIlist,CPI=$CPIlist,"
 #
 export NGPTC=12
-export NGPTC=${NGPTC:-$((waveg/10))}
+export NGPTC=${NGPTC:-$((wave/10))}
 export LEVR=${levr:-0}
 #
 #     Forecaset script and executable name
@@ -308,7 +306,7 @@ fi
  export LANDICE_OPT=1
  export CLIMO_FIELDS_OPT=2
 #
-if [[ $waveg -eq 62 ]] ; then
+if [[ $wave -eq 62 ]] ; then
   export LONF=192 ; export LATG=94 ; export LONR=192 ; export LATR=94
   export im=$LONR ; export jm=$LATR ; export iop=144 ; export jop=73
   if [[ $lm -eq 64 ]] ; then
@@ -318,37 +316,37 @@ if [[ $waveg -eq 62 ]] ; then
     export DELTIM=${DELTIM:-180}
   fi
 
-elif [[ $waveg -eq 126 ]] ; then
+elif [[ $wave -eq 126 ]] ; then
   export LONF=384 ; export LATG=190 ; export LONR=384 ; export LATR=190
   export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
   export DELTIM=${DELTIM:-600}
 
-elif [[ $waveg -eq 170 ]] ; then
+elif [[ $wave -eq 170 ]] ; then
   export LONF=512 ; export LATG=256 ; export LONR=512 ; export LATR=256
   export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
   export DELTIM=${DELTIM:-450}
 
-elif [[ $waveg -eq 190 ]] ; then
+elif [[ $wave -eq 190 ]] ; then
   export LONF=576 ; export LATG=288 ; export LONR=576 ; export LATR=288
   export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
   export DELTIM=${DELTIM:-300}
 
-elif [[ $waveg -eq 254 ]] ; then
+elif [[ $wave -eq 254 ]] ; then
   export LONF=768 ; export LATG=384 ; export LONR=768 ; export LATR=384
   export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
   export DELTIM=${DELTIM:-300}
 
-elif [[ $waveg -eq 382 ]] ; then
+elif [[ $wave -eq 382 ]] ; then
   export LONF=1152 ; export LATG=576 ; export LONR=1152 ; export LATR=576
   export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
   export DELTIM=${DELTIM:-180}
 
-elif [[ $waveg -eq 574 ]] ; then
+elif [[ $wave -eq 574 ]] ; then
   export LONF=1760 ; export LATG=880 ; export LONR=1760 ; export LATR=880
   export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
   export DELTIM=${DELTIM:-120}
 
-elif [[ $waveg -eq 852 ]] ; then
+elif [[ $wave -eq 852 ]] ; then
   export LONF=2560 ; export LATG=1280 ; export LONR=2560 ; export LATR=1280
   export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
   export DELTIM=${DELTIM:-90}
@@ -357,8 +355,7 @@ fi
 #
 # ------------------------ initial condition ----------------
 #
-  export JCAP=$wavec
-  export JCAPG=$waveg
+  export JCAP=$wave
   export LEVS=$lm
   export LONB=$im
   export LATB=$jm

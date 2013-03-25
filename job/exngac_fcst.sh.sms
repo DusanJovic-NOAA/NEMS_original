@@ -52,6 +52,7 @@
 # 2012-05-12  Sarah Lu: modify how LATG is specified
 # 2012-09-24  Sarah Lu: add SCHEDULER dependence
 # 2012-12-05  Sarah Lu: add lsf SCHEDULER as the place holder
+# 2013-02-12  Henry Juang:  remove JCAPG
 #
 # Usage:  global_forecast.sh GRDI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO NSTI NSTO G3DO FHOUT_HF FHMAX_HF
 #
@@ -120,8 +121,6 @@
 #                   (required if JCAP, LEVS, or FHINI are not specified)
 #                   defaults to ${EXECGLOBAL}/global_sighdr$XC
 #     JCAP          Spectral truncation for model wave
-#     JCAPG         Spectral truncation for model Grid
-#                   defaults in nems script for always quardratic grid for grid number
 #     LEVS          Number of levels
 #                   defaults to the value in the input sigma file header
 #     LEVR          Number of levels over which radiation is computed
@@ -133,7 +132,7 @@
 #     CO2CON        Input CO2 radiation (vertical resolution dependent)
 #                   defaults to ${FIXGLOBAL}/global_co2con.l${LEVS}.f77
 #     MTNVAR        Input mountain variance (horizontal resolution dependent)
-#                   defaults to ${FIXGLOBAL}/global_mtnvar.t${JCAPG}.f77
+#                   defaults to ${FIXGLOBAL}/global_mtnvar.t${JCAP}.f77
 #     CLTUNE        Input cloud tuning file
 #                   defaults to ${FIXGLOBAL}/global_cldtune.f77
 #     DTBTHE        Input equivalent potential temperature file
@@ -175,7 +174,7 @@
 #     FNABSC        Input max snow albedo climatology GRIB file    
 #                   defaults to ${FIXGLOBAL}/global_snoalb.1x1.grb
 #     OROGRAPHY     Input orography GRIB file (horiz resolution dependent)
-#                   defaults to ${FIXGLOBAL}/global_orography.t$JCAPG.grb
+#                   defaults to ${FIXGLOBAL}/global_orography.t$JCAP.grb
 #     FNMSKH        Input high resolution land mask GRIB file
 #                   defaults to ${FIXGLOBAL}/seaice_newland.grb
 #     FNTSFA        Input SST analysis GRIB file
@@ -230,7 +229,7 @@
 #                   (only required if FHMAX is not specified)
 #                   defaults to 0
 #     DELTIM        Timestep in seconds
-#                   defaults to 3600/($JCAPG/20)
+#                   defaults to 3600/($JCAP/20)
 #     FHRES         Restart frequency in hours
 #                   defaults to 24
 #     FHZER         Zeroing frequency in hours
@@ -507,7 +506,6 @@ else
   export SIGHDR=${SIGHDR:-${EXECGLOBAL}/global_sighdr$XC}
 fi
 export JCAP=${JCAP:-$($SIGHDR ${GRDI}$FM jcap |grep -i "jcap" |awk -F"= " '{print $2}')}
-export JCAPG=${JCAPG:-$($SIGHDR ${GRDI}$FM jcap|grep -i "jcap" |awk -F"= " '{print $2}')}
 export LEVS=${LEVS:-$($SIGHDR ${GRDI}$FM levs|grep -i "levs" |awk -F"= " '{print $2}')}
 export LEVR=${LEVR:-$LEVS}
 export LONF=${LONF:-$($SIGHDR ${GRDI}$FM LONF|grep -i "lonf" |awk -F"= " '{print $2}')}
@@ -551,12 +549,12 @@ export POST_NCEPGRB2TBL=${POST_NCEPGRB2TBL:-$HOMEGLOBAL/lib/sorc/g2tmpl/params_g
 
 if [ $NDSLFV = .true. ]
 then
- if [[ $waveg -eq  62 ]] ; then export DELTIM=1200 ; fi
- if [[ $waveg -eq 126 ]] ; then export DELTIM=1200 ; fi
- if [[ $waveg -eq 254 ]] ; then export DELTIM=900  ; fi
- if [[ $waveg -eq 382 ]] ; then export DELTIM=600  ; fi
- if [[ $waveg -eq 574 ]] ; then export DELTIM=400  ; fi
- if [[ $waveg -eq 852 ]] ; then export DELTIM=300  ; fi
+ if [[ $wave -eq  62 ]] ; then export DELTIM=1200 ; fi
+ if [[ $wave -eq 126 ]] ; then export DELTIM=1200 ; fi
+ if [[ $wave -eq 254 ]] ; then export DELTIM=900  ; fi
+ if [[ $wave -eq 382 ]] ; then export DELTIM=600  ; fi
+ if [[ $wave -eq 574 ]] ; then export DELTIM=400  ; fi
+ if [[ $wave -eq 852 ]] ; then export DELTIM=300  ; fi
  export MASS_DP=.true.
  export PROCESS_SPLIT=.false.
 else
@@ -579,7 +577,7 @@ export GRDI2=${GRDI2:-NULL}
 export SIGI1=${SIGI1:-NULL}
 export SIGI2=${SIGI2:-NULL}
 export CO2CON=${CO2CON:-${FIXGLOBAL}/global_co2con.l${LEVS}.f77}
-export MTNVAR=${MTNVAR:-${FIXGLOBAL}/global_mtnvar.t${JCAPG}.f77}
+export MTNVAR=${MTNVAR:-${FIXGLOBAL}/global_mtnvar.t${JCAP}.f77}
 export CLTUNE=${CLTUNE:-${FIXGLOBAL}/global_cldtune.f77}
 export DTBTHE=${DTBTHE:-${FIXGLOBAL}/global_tbthe.f77}
 export O3FORC=${O3FORC:-${FIXGLOBAL}/global_o3prdlos.f77}
@@ -601,7 +599,7 @@ export FNVMXC=${FNVMXC:-${FIXGLOBAL}/global_shdmax.0.144x0.144.grb}
 export FNSLPC=${FNSLPC:-${FIXGLOBAL}/global_slope.1x1.grb}
 export FNABSC=${FNABSC:-${FIXGLOBAL}/global_snoalb.1x1.grb}
 export FNMSKH=${FNMSKH:-${FIXGLOBAL}/seaice_newland.grb}
-export OROGRAPHY=${OROGRAPHY:-${FIXGLOBAL}/global_orography.t$JCAPG.grb}
+export OROGRAPHY=${OROGRAPHY:-${FIXGLOBAL}/global_orography.t$JCAP.grb}
 export FNTSFA=${FNTSFA}
 export FNACNA=${FNACNA}
 export FNSNOA=${FNSNOA}
@@ -646,7 +644,7 @@ export ENDSCRIPT=${ENDSCRIPT}
 export FHINI=${FHINI:-$($SIGHDR ${GRDI}$FM NFHOUR |grep -i "NFHOUR" |awk -F"= " '{print $2}')}
 export FHSEG=${FHSEG:-0}
 export FHMAX=${FHMAX:-$((10#$FHINI+10#$FHSEG))}
-export DELTIM=${DELTIM:-$((3600/(JCAPG/20)))}
+export DELTIM=${DELTIM:-$((3600/(JCAP/20)))}
 export FHRES=${FHRES:-24}
 export FHZER=${FHZER:-6}
 export FHLWR=${FHLWR:-3}
@@ -1355,7 +1353,7 @@ cat  > atm_namelist <<EOF
   FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, DELTIM=$DELTIM,
   FHRES=$FHRES, FHROT=$FHROT, FHDFI=$FHDFI, nsout=$nsout,
   nxpt=1, nypt=2, jintmx=2, lonf=$LONF, latg=$LATG,
-  jcap=$JCAP, jcapg=$JCAPG, levs=$LEVS,  levr=$LEVR, 
+  jcap=$JCAP,   levs=$LEVS,  levr=$LEVR, 
   ntrac=$NTRAC, ntoz=$NTOZ, ntcw=$NTCW, ncld=$NCLD,
   ngptc=$NGPTC, hybrid=$HYBRID, tfiltc=$TFILTC,
   gen_coord_hybrid=$GEN_COORD_HYBRID, zflxtvd=$ZFLXTVD,

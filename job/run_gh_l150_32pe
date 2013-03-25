@@ -104,15 +104,26 @@ fi
 #
 #    Set up horizontal and vertical resolution ; default will be T6264
 #
-#export wave=1148 ; export waveg=764 ; export lm=64 ; export lsoil=4
-#export wave=878 ; export waveg=574 ; export lm=64 ; export lsoil=4
-#export wave=574 ; export waveg=382 ; export lm=64 ; export lsoil=4
-#export wave=382 ; export waveg=254 ; export lm=64 ; export lsoil=4
-#export wave=254 ; export waveg=170 ; export lm=64 ; export lsoil=4
-#export wave=188 ; export waveg=126 ; export lm=64 ; export lsoil=4
-#export wave=126 ; export waveg=126 ; export lm=64 ; export lsoil=4
- export wave=62 ; export waveg=62 ; export lm=150 ; export lsoil=4 ; export levr=90
-#export wave=92  ; export waveg=62  ; export lm=64 ; export lsoil=2 ; export lsm=0
+# ----- quadratic grid ----
+#wave=62   ; im=192  ; jm=94   ; lm=64  ; iop=144 ; jop=73  ; dt=900
+ wave=62   ; im=192  ; jm=94   ; lm=150 ; iop=144 ; jop=73  ; dt=180
+#wave=126  ; im=384  ; jm=190  ; lm=64  ; iop=360 ; jop=181 ; dt=600
+#wave=170  ; im=512  ; jm=256  ; lm=64  ; iop=360 ; jop=181 ; dt=450
+#wave=190  ; im=576  ; jm=288  ; lm=64  ; iop=360 ; jop=181 ; dt=300
+#wave=254  ; im=768  ; jm=384  ; lm=64  ; iop=360 ; jop=181 ; dt=300
+#wave=382  ; im=1152 ; jm=576  ; lm=64  ; iop=360 ; jop=181 ; dt=180
+#wave=574  ; im=1760 ; jm=880  ; lm=64  ; iop=360 ; jop=181 ; dt=120
+#wave=764  ; im=2304 ; jm=1152 ; lm=64  ; iop=360 ; jop=181 ; dt=90
+#
+# ----- linear grid -------
+#wave=92   ; im=192  ; jm=94   ; lm=64  ; iop=144 ; jop=73  ; dt=1200
+#wave=188  ; im=384  ; jm=190  ; lm=64  ; iop=360 ; jop=181 ; dt=900
+#wave=254  ; im=512  ; jm=256  ; lm=64  ; iop=360 ; jop=181 ; dt=600
+#wave=382  ; im=768  ; jm=384  ; lm=64  ; iop=360 ; jop=181 ; dt=600
+#wave=574  ; im=1152 ; jm=576  ; lm=64  ; iop=360 ; jop=181 ; dt=400
+#wave=878  ; im=1760 ; jm=880  ; lm=64  ; iop=360 ; jop=181 ; dt=300
+#wave=1148 ; im=2304 ; jm=1152 ; lm=64  ; iop=360 ; jop=181 ; dt=300
+#
 #
 export NCP=cp
 export FTSFS=0.0
@@ -193,7 +204,6 @@ export MALLOCMULTIHEAP=true
 #                     ---------------------
 #
 export wave=${wave:-62}
-export waveg=${waveg:-62}
 export lm=${lm:-64}
 #
 export LSOIL=${lsoil:-4}
@@ -223,7 +233,6 @@ export lsm=${lsm:-1}
 
 #
 export NGPTC=12
-export NGPTC=${NGPTC:-$((waveg/10))}
 export LEVR=${levr:-0}
 #
 #     Forecaset script and executable name
@@ -261,50 +270,9 @@ cd $RUNDIR
 #export CLIMO_FIELDS_OPT=3
  export CLIMO_FIELDS_OPT=2
 #
-if [[ $waveg -eq 62 ]] ; then
-  export LONF=192 ; export LATG=94 ; export LONR=192 ; export LATR=94
-  export im=$LONR ; export jm=$LATR ; export iop=144 ; export jop=73
-  if [[ $lm -eq 64 ]] ; then
-    export DELTIM=${DELTIM:-900}
-  fi
-  if [[ $lm -eq 150 ]] ; then
-    export DELTIM=${DELTIM:-180}
-  fi
-  export DELTIM=${DELTIM:-1200}
-elif [[ $waveg -eq 126 ]] ; then
-  export LONF=384 ; export LATG=190 ; export LONR=384 ; export LATR=190
-  export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
-  export DELTIM=${DELTIM:-600}
-elif [[ $waveg -eq 170 ]] ; then
-  export LONF=512 ; export LATG=256 ; export LONR=512 ; export LATR=256
-  export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
-  export DELTIM=${DELTIM:-450}
-elif [[ $waveg -eq 190 ]] ; then
-  export LONF=576 ; export LATG=288 ; export LONR=576 ; export LATR=288
-  export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
-  export DELTIM=${DELTIM:-300}
-elif [[ $waveg -eq 254 ]] ; then
-  export LONF=768 ; export LATG=384 ; export LONR=768 ; export LATR=384
-  export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
-  export DELTIM=${DELTIM:-300}
-elif [[ $waveg -eq 382 ]] ; then
-  export LONF=1152 ; export LATG=576 ; export LONR=1152 ; export LATR=576
-  export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
-  export DELTIM=${DELTIM:-180}
-elif [[ $waveg -eq 574 ]] ; then
-  export LONF=1760 ; export LATG=880 ; export LONR=1760 ; export LATR=880
-  export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
-  export DELTIM=${DELTIM:-120}
-elif [[ $waveg -eq 764 ]] ; then
-  export LONF=2304 ; export LATG=1152 ; export LONR=2304 ; export LATR=1152
-  export im=$LONR ; export jm=$LATR ; export iop=360 ; export jop=181
-  export DELTIM=${DELTIM:-90}
-fi
-#
 # ------------------------ initial condition ----------------
 #
   export JCAP=$wave
-  export JCAPG=$waveg
   export LEVS=$lm
   export LONB=$im
   export LATB=$jm
@@ -312,6 +280,7 @@ fi
   export LATR=$jm
   export LONF=$im
   export LATG=$jm
+  export DELTIM=$dt
   export VERBOSE=YES
 #
 #
