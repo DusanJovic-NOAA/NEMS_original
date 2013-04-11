@@ -243,7 +243,7 @@ land_surface:  noah         # Land surface schemes
                                 # liss--> Janjic LSM
 
 ucmcall: 0                  # Use (1) or do not use (0) the Urban Canopy Model
-igbp: 0                     # Use (1) or do not use (0) IGBP types
+ivegsrc: 0                  # Vegetation map identifier, 0--> USGS, 1--> IGBP
 
 #---------------------------------
 

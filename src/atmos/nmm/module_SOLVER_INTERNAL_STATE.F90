@@ -359,7 +359,7 @@
 !
         INTEGER(kind=KINT), POINTER :: NPHS
         INTEGER(kind=KINT) :: DT_INT,NPRECIP,NRADL,NRADS                &
-                             ,PCPHR,UCMCALL,IGBP
+                             ,PCPHR,UCMCALL
 !
         LOGICAL ::        GWDFLG,                   NESTED,NHRS_UDEF    &
                   ,PCPFLG,        SPECIFIED,WRITE_PREC_ADJ              &
@@ -388,6 +388,8 @@
                                       ,NRDLW                            &  !<-- # of fundamental timesteps LW radiation is accumulated
                                       ,NRDSW                            &  !<-- # of fundamental timesteps SW radiation is accumulated
                                       ,NSRFC                            &  !<-- # of fundamental timesteps sfc evap/flux is accumulated
+                                      ,IVEGSRC                          &  !<-- Vegetation map identifier, 0--> USGS, 1--> IGBP
+                                      ,CU_PHYSICS                       &  !<-- Convection physics, 1--> KF, 2--> BMJ, 3--> GD, 4--> SAS, 5--> RAS
                                       ,AVGMAXLEN                           !<-- Fcst sec over which avg/max diags are accumulated
 !
         INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: ISLTYP,IVGTYP      &
@@ -731,15 +733,17 @@
         int_state%MDIMAXout=1000
       ENDIF
 
-      CALL SET_VAR_PTR(int_state%VARS,NV,'NSOIL'      ,int_state%NSOIL ) 
-      CALL SET_VAR_PTR(int_state%VARS,NV,'NPHS'       ,int_state%NPHS  )  
-      CALL SET_VAR_PTR(int_state%VARS,NV,'NCLOD'      ,int_state%NCLOD ) 
-      CALL SET_VAR_PTR(int_state%VARS,NV,'NHEAT'      ,int_state%NHEAT ) 
-      CALL SET_VAR_PTR(int_state%VARS,NV,'NPREC'      ,int_state%NPREC ) 
-      CALL SET_VAR_PTR(int_state%VARS,NV,'NRDLW'      ,int_state%NRDLW ) 
-      CALL SET_VAR_PTR(int_state%VARS,NV,'NRDSW'      ,int_state%NRDSW ) 
-      CALL SET_VAR_PTR(int_state%VARS,NV,'NSRFC'      ,int_state%NSRFC ) 
-      CALL SET_VAR_PTR(int_state%VARS,NV,'AVGMAXLEN'  ,int_state%AVGMAXLEN ) 
+      CALL SET_VAR_PTR(int_state%VARS,NV,'NSOIL'      ,int_state%NSOIL )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'NPHS'       ,int_state%NPHS  )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'NCLOD'      ,int_state%NCLOD )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'NHEAT'      ,int_state%NHEAT )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'NPREC'      ,int_state%NPREC )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'NRDLW'      ,int_state%NRDLW )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'NRDSW'      ,int_state%NRDSW )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'NSRFC'      ,int_state%NSRFC )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'AVGMAXLEN'  ,int_state%AVGMAXLEN  )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'IVEGSRC'    ,int_state%IVEGSRC    )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'CU_PHYSICS' ,int_state%CU_PHYSICS )
 
       CALL SET_VAR_PTR(int_state%VARS,NV,'DT'        ,int_state%DT        )
       CALL SET_VAR_PTR(int_state%VARS,NV,'DYH'       ,int_state%DYH       )

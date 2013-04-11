@@ -1,6 +1,6 @@
 SHELL        = /bin/sh
 
-include /apps/esmf/3.1.0rp5/lib/libO/Linux.intel.64.mpi.default/esmf.mk
+include /apps/esmf/3.1.0rp5/intel/mpt/lib/libO/Linux.intel.64.mpi.default/esmf.mk
 ESMF_INC     = $(ESMF_F90COMPILEPATHS)
 ESMF_LIB     = $(ESMF_F90LINKPATHS) $(ESMF_F90ESMFLINKLIBS)
 

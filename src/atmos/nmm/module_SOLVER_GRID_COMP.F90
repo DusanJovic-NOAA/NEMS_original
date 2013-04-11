@@ -5822,7 +5822,7 @@
                     ,int_state%ASWIN,int_state%ASWOUT,int_state%ASWTOA  &
                     ,int_state%ALWIN,int_state%ALWOUT,int_state%ALWTOA  &
                     ,int_state%GWDFLG,LOC_PCPFLG                        &
-                    ,int_state%DDATA,int_state%UCMCALL,int_state%IGBP   &
+                    ,int_state%DDATA,int_state%UCMCALL,int_state%IVEGSRC&
                     ,int_state%TURBULENCE,int_state%SFC_LAYER           &
                     ,int_state%LAND_SURFACE                             &
                     ,int_state%MICROPHYSICS                             &
@@ -6011,7 +6011,7 @@
                        ,int_state%HBOT,int_state%HBOTD,int_state%HBOTS    &
                        ,int_state%AVCNVC,int_state%ACUTIM                 &
                        ,int_state%RSWIN,int_state%RSWOUT                  &
-                       ,int_state%CONVECTION                              &
+                       ,int_state%CONVECTION,int_state%CU_PHYSICS         &
                        ,int_state%SICE,int_state%QWBS,int_state%TWBS      &
                        ,int_state%PBLH,int_state%DUDT,int_state%DVDT      &
                        ,IDS,IDE,JDS,JDE,LM                                &
@@ -9340,7 +9340,7 @@
 
           CALL NOAH_LSM_INIT(int_state%CMC,     int_state%ISLTYP       &
                             ,int_state%STC,     int_state%SMC          &
-                            ,int_state%IGBP                            &
+                            ,int_state%IVEGSRC                         &
                             ,int_state%SH2O,    NUM_SOIL_LAYERS        &
                             ,int_state%RESTART, ALLOWED_TO_READ        &
                             ,IDS,IDE, JDS,JDE                          &
@@ -9361,6 +9361,7 @@
 !
         SELECT CASE (convection)
           CASE ('bmj')
+            int_state%CU_PHYSICS=2
             CALL BMJ_INIT(int_state%CLDEFI,int_state%RESTART &
                          ,a2,a3,a4,cappa,cp &
                          ,pq0,r_d &
@@ -9369,14 +9370,15 @@
                          ,ITS,ITE,JTS,JTE,LM)
 
           CASE ('sas')
+            int_state%CU_PHYSICS=4
             CALL SAS_INIT
 !
-!!!       CASE('kf')
-!!!         CALL KF_INIT
-!!!       CASE ('sas')
-!!!         CALL SAS_INIT
-!!!       CASE ('gd')
-!!!         CALL GD_INIT
+          CASE('kf')
+            int_state%CU_PHYSICS=1
+!           CALL KF_INIT
+          CASE ('gd')
+            int_state%CU_PHYSICS=3
+!           CALL GD_INIT
           CASE ('none')
 !           WRITE(0,*)' User has chosen to run with no parameterized convection.'
           CASE DEFAULT

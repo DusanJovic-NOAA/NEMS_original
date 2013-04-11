@@ -109,7 +109,7 @@
                       ,ASWIN,ASWOUT,ASWTOA,ALWIN,ALWOUT,ALWTOA          &
                       ,GWDFLG                                           &
                       ,PCPFLG,DDATA                                     & ! PRECIP ASSIM
-                      ,UCMCALL,IGBP                                     &
+                      ,UCMCALL,IVEGSRC                                  &
                       ,TURBULENCE,SFC_LAYER                             &
                       ,LAND_SURFACE                                     &
                       ,MICROPHYSICS                                     &
@@ -162,7 +162,7 @@
                                       ,IMS,IME,JMS,JME                  &
                                       ,ITS,ITE,JTS,JTE                  &
                                       ,NPHS,NSOIL,NTSD,NUM_WATER        &
-                                      ,UCMCALL,IGBP
+                                      ,UCMCALL,IVEGSRC
 !
       INTEGER(kind=KINT),INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
 !
@@ -870,7 +870,7 @@
                            IDS,IDE,JDS,JDE,1,LM+1,                      &
                            IMS,IME,JMS,JME,1,LM+1,                      &
                            ITS_B1,ITE_B1,JTS_B1,JTE_B1, 1,LM,           &
-                           UCMCALL,IGBP,                                &
+                           UCMCALL,IVEGSRC,                             &
 ! Optional urban
                            TR_URB2D,TB_URB2D,TG_URB2D,TC_URB2D,         & !H urban
                            QC_URB2D,UC_URB2D,                           & !H urban
@@ -904,7 +904,7 @@
               urban: IF(UCMCALL==1) THEN
 !
                 IW = 1
-                IF( IGBP == 1 ) IW = 13
+                IF( IVEGSRC == 1 ) IW = 13
 !
                 DO J=JTS_B1,JTE_B1
                 DO I=ITS_B1,ITE_B1

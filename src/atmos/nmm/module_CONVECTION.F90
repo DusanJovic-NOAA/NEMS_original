@@ -73,7 +73,7 @@
                        ,HBOT,HBOTD,HBOTS                                &
                        ,AVCNVC,ACUTIM                                   &
                        ,RSWIN,RSWOUT                                    &
-                       ,CONVECTION                                      &
+                       ,CONVECTION,CU_PHYSICS                           &
 !!!! added for SAS
                        ,SICE,QWBS,TWBS,PBLH,dudt_phy,dvdt_phy           &
 !!!
@@ -117,7 +117,8 @@
       ,f_qv,f_qc,f_qr,f_qi,f_qs,f_qg
 !
       integer(kind=kint),intent(in):: &
-       ids,ide,jds,jde,lm &
+       cu_physics &
+      ,ids,ide,jds,jde,lm &
       ,ims,ime,jms,jme &
       ,its,ite,jts,jte &
       ,ncnvc,minutes_history &
@@ -187,7 +188,7 @@
        cu_act_flag
 !
       integer(kind=kint):: &
-       cu_physics,i,j &
+       i,j &
       ,k &
       ,mnto &
       ,n,ncubot,ncutop,n_timstps_output
@@ -227,22 +228,23 @@
 !***  ANALOGS IN THE WRF
 !-----------------------------------------------------------------------
 !
-      SELECT CASE (TRIM(CONVECTION))
-        CASE ('bmj')
-          CU_PHYSICS=2
-        CASE ('kf')
-          CU_PHYSICS=1
-        CASE ('sas')
-          CU_PHYSICS=4
-        CASE ('gd')
-          CU_PHYSICS=3
-        CASE ('none')
+!rv - CU_PHYSICS already determined in init
+!rv   SELECT CASE (TRIM(CONVECTION))
+!rv     CASE ('bmj')
+!rv       CU_PHYSICS=2
+!rv     CASE ('kf')
+!rv       CU_PHYSICS=1
+!rv     CASE ('sas')
+!rv       CU_PHYSICS=4
+!rv     CASE ('gd')
+!rv       CU_PHYSICS=3
+!rv     CASE ('none')
 !         WRITE(0,*)' User selected to run without parameterized convection.'
-        CASE DEFAULT
-          WRITE(0,*)' User selected CONVECTION=',TRIM(CONVECTION)
-          WRITE(0,*)' Improper selection of Convection scheme in CUCNVC'
-          CALL NMMB_FINALIZE
-      END SELECT
+!rv     CASE DEFAULT
+!rv       WRITE(0,*)' User selected CONVECTION=',TRIM(CONVECTION)
+!rv       WRITE(0,*)' Improper selection of Convection scheme in CUCNVC'
+!rv       CALL NMMB_FINALIZE
+!rv   END SELECT
 !
 !-----------------------------------------------------------------------
 !***  RESET THE HBOT/HTOP CONVECTIVE CLOUD BOTTOM (BASE) AND TOP ARRAYS

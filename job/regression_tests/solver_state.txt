@@ -27,6 +27,8 @@
 'MDRMAXout'  H       -       O      -      -   -  ''
 'MDIMINout'  H       -       O      -      -   -  ''
 'MDIMAXout'  H       -       O      -      -   -  ''
+'IVEGSRC'    H       -       O      -      -   -  'Vegetation map identifier, 0--> USGS, 1--> IGBP'
+'CU_PHYSICS' H       -       O      -      -   -  'Convection physics, 1--> KF, 2--> BMJ, 3--> GD, 4--> SAS, 5--> RAS'
 
 
 ###    0D real (scalar)

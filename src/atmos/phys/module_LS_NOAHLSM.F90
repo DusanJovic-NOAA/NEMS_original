@@ -205,7 +205,7 @@
                   ids,ide, jds,jde, kds,kde,                    &
                   ims,ime, jms,jme, kms,kme,                    &
                   its,ite, jts,jte, kts,kte,                    &
-                  ucmcall,igbp,                                 &
+                  ucmcall,ivegsrc,                              &
 !Optional Urban
                   TR_URB2D,TB_URB2D,TG_URB2D,TC_URB2D,QC_URB2D, & !H urban
                   UC_URB2D,                                     & !H urban
@@ -353,7 +353,7 @@
                                     ims,ime, jms,jme, kms,kme,  &
                                     its,ite, jts,jte, kts,kte
 
-   INTEGER,  INTENT(IN   )   ::  ucmcall,igbp                   !urban
+   INTEGER,  INTENT(IN   )   ::  ucmcall,ivegsrc                !urban
 
    REAL,    DIMENSION( ims:ime, jms:jme )                     , &
             INTENT(IN   )    ::                            TMN, &
@@ -622,7 +622,7 @@
       SLOPETYP=1
 !
       IW=1
-      IF(IGBP==1) IW=13
+      IF(IVEGSRC==1) IW=13
 !
       NSOIL=num_soil_layers
 
@@ -821,7 +821,7 @@
                 IF( IVGTYP(I,J) == IW .or. IVGTYP(I,J) == 31 .or. &
                   IVGTYP(I,J) == 32 .or. IVGTYP(I,J) == 33) THEN
 		 VEGTYP = 5
-                 IF (IGBP == 1) VEGTYP = 14
+                 IF (IVEGSRC == 1) VEGTYP = 14
                  SHDFAC = 0.8 
                  ALBEDOK =0.2
                  ALBBRD  =0.2
@@ -835,7 +835,7 @@
                  IF( IVGTYP(I,J) == IW .or. IVGTYP(I,J) == 31 .or. &
                   IVGTYP(I,J) == 32 .or. IVGTYP(I,J) == 33) THEN
                   VEGTYP = 1 
-                  IF (IGBP == 1) VEGTYP = 13
+                  IF (IVEGSRC == 1) VEGTYP = 13
            	 ENDIF
            ENDIF
 
@@ -865,7 +865,7 @@
 
 
        CALL SFLX (FFROZP, ICE,DT,ZLVL,NSOIL,SLDPTH,               &    !C
-                 LOCAL,IGBP,                                      &    !L
+                 LOCAL,IVEGSRC,                                   &    !L
                  LUTYPE, SLTYPE,                                  &    !CL
                  LWDN,SOLDN,SOLNET,SFCPRS,PRCP,SFCTMP,Q2K,DUMMY,         &    !F
                  DUMMY,DUMMY, DUMMY,                              &    !F PRCPRAIN not used
@@ -1150,7 +1150,7 @@
  
   SUBROUTINE NOAH_LSM_INIT(CANWAT,  ISLTYP,           &
                            TSLB,    SMOIS,            &
-                           IGBP,                      &
+                           IVEGSRC,                   &
                            SH2O,    num_soil_layers,  &
                            restart, allowed_to_read , &
                            ids,ide, jds,jde,          &
@@ -1165,7 +1165,7 @@
                                     its,ite, jts,jte
 
    INTEGER, INTENT(IN)       ::     num_soil_layers
-   INTEGER, INTENT(IN)       ::     igbp
+   INTEGER, INTENT(IN)       ::     IVEGSRC
 
    LOGICAL      :: ALLOWED_TO_READ, RESTART
 
@@ -1194,7 +1194,7 @@
 
 ! initialize three Noah LSM related tables
         IF ( allowed_to_read ) THEN
-     CALL  LSM_PARM_INIT(IGBP)
+     CALL  LSM_PARM_INIT(IVEGSRC)
         ENDIF
    
         IF(.not.restart)THEN
@@ -1205,11 +1205,11 @@
    errflag = 0
    DO j = jts,jtf
      DO i = its,itf
-       IF ( IGBP == 0 .and. ISLTYP( i,j ) .LT. 1 ) THEN
+       IF ( IVEGSRC == 0 .and. ISLTYP( i,j ) .LT. 1 ) THEN
          errflag = 1
          WRITE(0,*)"module_sf_noahlsm.F: lsminit: out of range ISLTYP ",i,j,ISLTYP( i,j )
        ENDIF
-       IF ( IGBP == 1 .and. ISLTYP( i,j ) .LT. 0 ) THEN
+       IF ( IVEGSRC == 1 .and. ISLTYP( i,j ) .LT. 0 ) THEN
          errflag = 1
          WRITE(0,*)"module_sf_noahlsm.F: lsminit: out of range ISLTYP ",i,j,ISLTYP( i,j )
        ENDIF
@@ -1282,14 +1282,15 @@
 
 !
 !-----------------------------------------------------------------
-        SUBROUTINE LSM_PARM_INIT(IGBP)
+        SUBROUTINE LSM_PARM_INIT(IVEGSRC)
 !-----------------------------------------------------------------
 
         character*4 :: MMINLU, MMINSL 
-        integer, intent(in) :: IGBP
+        integer, intent(in) :: IVEGSRC
 
-        MMINLU='USGS'
-        IF(IGBP == 1) MMINLU='IGBP'
+        MMINLU=''
+        IF(IVEGSRC == 0) MMINLU='USGS'
+        IF(IVEGSRC == 1) MMINLU='IGBP'
         MMINSL='STAS'
         call SOIL_VEG_GEN_PARM( MMINLU, MMINSL)
 
@@ -1509,7 +1510,7 @@
 !-----------------------------------------------------------------
 
       SUBROUTINE SFLX (FFROZP,ICE,DT,ZLVL,NSOIL,SLDPTH,                 &    !C  
-                       LOCAL,IGBP,                                      &    !L  
+                       LOCAL,IVEGSRC,                                   &    !L  
                        LLANDUSE, LSOIL,                                 &    !CL 
                        LWDN,SOLDN,SOLNET,SFCPRS,PRCP,SFCTMP,Q2,SFCSPD,  &    !F  
                        COSZ,PRCPRAIN, SOLARDIRECT,                      &    !F  
@@ -1725,7 +1726,7 @@
 ! ----------------------------------------------------------------------         
 ! DECLARATIONS - INTEGER                                                         
 ! ----------------------------------------------------------------------         
-      INTEGER,INTENT(IN) ::  ICE,NSOIL,SLOPETYP,SOILTYP,VEGTYP,IGBP
+      INTEGER,INTENT(IN) ::  ICE,NSOIL,SLOPETYP,SOILTYP,VEGTYP,IVEGSRC
       INTEGER,INTENT(OUT)::  NROOT                                                             
       INTEGER  KZ, K, iout, IW
                                                                                  
@@ -1775,7 +1776,7 @@
          SNOMLT = 0.0                                                            
                                                                                  
          IW=1
-         IF(IGBP==1) IW=13
+         IF(IVEGSRC==1) IW=13
 ! ----------------------------------------------------------------------         
 !  THE VARIABLE "ICE" IS A FLAG DENOTING SEA-ICE CASE                            
 ! ----------------------------------------------------------------------         
@@ -2101,7 +2102,7 @@
                             DKSAT,DWSAT,TBOT,ZBOT,RUNOFF1,RUNOFF2,       &  
                             RUNOFF3,EDIR,EC,ET,ETT,NROOT,ICE,RTDIS,      &  
                             QUARTZ,FXEXP,CSOIL,                          &  
-                            BETA,DRIP,DEW,FLX1,FLX3,VEGTYP,IGBP)                  
+                            BETA,DRIP,DEW,FLX1,FLX3,VEGTYP,IVEGSRC)                  
             ETA_KINEMATIC = ETA                                                  
          ELSE                                                                    
             CALL SNOPAC (ETP,ETA,PRCP,PRCPF,SNOWNG,SMC,SMCMAX,SMCWLT,    & 
@@ -2114,7 +2115,7 @@
                          RUNOFF2,RUNOFF3,EDIR,EC,ET,ETT,NROOT,SNOMLT,    & 
                          ICE,RTDIS,QUARTZ,FXEXP,CSOIL,                   & 
                          BETA,DRIP,DEW,FLX1,FLX2,FLX3,ESNOW,ETNS,EMISSI, &               
-                         VEGTYP,RIBB,SOLDN,IGBP)
+                         VEGTYP,RIBB,SOLDN,IVEGSRC)
             ETA_KINEMATIC =  ESNOW + ETNS                                        
          END IF                                                                  
                                                                                  
@@ -2705,7 +2706,7 @@
                                                                                  
       SUBROUTINE HRT (RHSTS,STC,SMC,SMCMAX,NSOIL,ZSOIL,YY,ZZ1,          &        
                        TBOT,ZBOT,PSISAT,SH2O,DT,BEXP,                   &        
-                       F1,DF1,QUARTZ,CSOIL,AI,BI,CI,VEGTYP,IGBP)
+                       F1,DF1,QUARTZ,CSOIL,AI,BI,CI,VEGTYP,IVEGSRC)
                                                                                  
 ! ----------------------------------------------------------------------         
 ! SUBROUTINE HRT                                                                 
@@ -2716,7 +2717,7 @@
 ! ----------------------------------------------------------------------         
       IMPLICIT NONE                                                              
       LOGICAL              :: ITAVG 
-      INTEGER, INTENT(IN)  :: NSOIL, VEGTYP, IGBP
+      INTEGER, INTENT(IN)  :: NSOIL, VEGTYP, IVEGSRC
       INTEGER              :: I, K, IW
 
       REAL, INTENT(IN)     :: BEXP, CSOIL, DF1, DT,F1,PSISAT,QUARTZ,     &
@@ -2735,7 +2736,7 @@
 !urban
 !
         IW=1
-        IF(IGBP==1) IW=13
+        IF(IVEGSRC==1) IW=13
 !
         IF(VEGTYP==IW) then
             CSOIL_LOC=3.0E6
@@ -3131,7 +3132,7 @@
                          DKSAT,DWSAT,TBOT,ZBOT,RUNOFF1,RUNOFF2,         &        
                          RUNOFF3,EDIR,EC,ET,ETT,NROOT,ICE,RTDIS,        &        
                          QUARTZ,FXEXP,CSOIL,                            &        
-                         BETA,DRIP,DEW,FLX1,FLX3,VEGTYP,IGBP)                          
+                         BETA,DRIP,DEW,FLX1,FLX3,VEGTYP,IVEGSRC)                          
                                                                                  
 ! ----------------------------------------------------------------------         
 ! SUBROUTINE NOPAC                                                               
@@ -3142,7 +3143,7 @@
 ! ----------------------------------------------------------------------         
       IMPLICIT NONE                                                              
 
-      INTEGER, INTENT(IN)  :: ICE, NROOT,NSOIL,VEGTYP,IGBP
+      INTEGER, INTENT(IN)  :: ICE, NROOT,NSOIL,VEGTYP,IVEGSRC
       INTEGER              :: K
 
       REAL, INTENT(IN)     :: BEXP,CFACTR, CMCMAX,CSOIL,DKSAT,DT,DWSAT, &
@@ -3294,7 +3295,7 @@
 !urban
       CALL SHFLX (SSOIL,STC,SMC,SMCMAX,NSOIL,T1,DT,YY,ZZ1,ZSOIL,        &
                   TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,ICE,         &
-                  QUARTZ,CSOIL,VEGTYP,IGBP)
+                  QUARTZ,CSOIL,VEGTYP,IVEGSRC)
                                                                                  
 ! ----------------------------------------------------------------------         
 ! SET FLX1 AND FLX3 (SNOPACK PHASE CHANGE HEAT FLUXES) TO ZERO SINCE             
@@ -3649,7 +3650,7 @@
                                                                                  
       SUBROUTINE SHFLX (SSOIL,STC,SMC,SMCMAX,NSOIL,T1,DT,YY,ZZ1,ZSOIL,  &        
                          TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,ICE,  &        
-                         QUARTZ,CSOIL,VEGTYP,IGBP)
+                         QUARTZ,CSOIL,VEGTYP,IVEGSRC)
                                                                                  
 ! ----------------------------------------------------------------------         
 ! SUBROUTINE SHFLX                                                               
@@ -3660,7 +3661,7 @@
 ! ----------------------------------------------------------------------         
       IMPLICIT NONE                                                              
 
-      INTEGER, INTENT(IN)   :: ICE, NSOIL, VEGTYP, IGBP
+      INTEGER, INTENT(IN)   :: ICE, NSOIL, VEGTYP, IVEGSRC
       INTEGER               :: I
 
       REAL, INTENT(IN)      :: BEXP,CSOIL,DF1,DT,F1,PSISAT,QUARTZ,     & 
@@ -3692,7 +3693,7 @@
       ELSE                                                                       
          CALL HRT (RHSTS,STC,SMC,SMCMAX,NSOIL,ZSOIL,YY,ZZ1,TBOT,        &        
                     ZBOT,PSISAT,SH2O,DT,                                &        
-                    BEXP,F1,DF1,QUARTZ,CSOIL,AI,BI,CI,VEGTYP,IGBP)
+                    BEXP,F1,DF1,QUARTZ,CSOIL,AI,BI,CI,VEGTYP,IVEGSRC)
                                                                                  
          CALL HSTEP (STCF,STC,RHSTS,DT,NSOIL,AI,BI,CI)                           
       END IF                                                                     
@@ -3978,7 +3979,7 @@
                           RUNOFF2,RUNOFF3,EDIR,EC,ET,ETT,NROOT,SNOMLT,  &        
                           ICE,RTDIS,QUARTZ,FXEXP,CSOIL,                 &        
                           BETA,DRIP,DEW,FLX1,FLX2,FLX3,ESNOW,ETNS,EMISSI,&             
-                          VEGTYP,RIBB,SOLDN,IGBP)                                       
+                          VEGTYP,RIBB,SOLDN,IVEGSRC)                                       
                                                                                  
 ! ----------------------------------------------------------------------         
 ! SUBROUTINE SNOPAC                                                              
@@ -3989,7 +3990,7 @@
 ! ----------------------------------------------------------------------         
       IMPLICIT NONE                                                              
 
-      INTEGER, INTENT(IN)   :: ICE, NROOT, NSOIL,VEGTYP,IGBP
+      INTEGER, INTENT(IN)   :: ICE, NROOT, NSOIL,VEGTYP,IVEGSRC
       INTEGER               :: K
       LOGICAL, INTENT(IN)   :: SNOWNG
       REAL, INTENT(IN)      :: BEXP,CFACTR, CMCMAX,CSOIL,DF1,DKSAT,     &
@@ -4277,7 +4278,7 @@
       T11 = T1                                                                   
       CALL SHFLX (SSOIL1,STC,SMC,SMCMAX,NSOIL,T11,DT,YY,ZZ1,ZSOIL,      &        
                    TBOT,ZBOT,SMCWLT,PSISAT,SH2O,BEXP,F1,DF1,ICE,        &        
-                   QUARTZ,CSOIL,VEGTYP,IGBP)
+                   QUARTZ,CSOIL,VEGTYP,IVEGSRC)
                                                                                  
 ! ----------------------------------------------------------------------         
 ! SNOW DEPTH AND DENSITY ADJUSTMENT BASED ON SNOW COMPACTION.  YY IS             

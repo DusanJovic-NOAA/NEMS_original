@@ -1152,8 +1152,7 @@
 !
       INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: WORK_ARRAY_I2D
 !
-      REAL(kind=KFPT) :: DEGRAD                                         &
-                        ,NF_SECONDS                                     &
+      REAL(kind=KFPT) :: NF_SECONDS                                     &
                         ,SECOND_FCST
 !
       REAL(kind=KFPT),DIMENSION(:),POINTER :: GLAT1D,GLON1D,TMP         &
@@ -2800,7 +2799,6 @@
 !
         IF(wrt_int_state%WRITE_HST_NEMSIO)THEN
 !
-          DEGRAD=90./ASIN(1.)
           CALL WRITE_NEMSIO_RUNHISTORY_OPEN(WRT_INT_STATE               &
                                            ,NEMSIOFILE                  &
                                            ,IYEAR_FCST                  &
@@ -3140,13 +3138,11 @@
             IF(TRIM(NAME)=='GLAT')THEN
                ALLOCATE(GLAT1D(FIELDSIZE))
                GLAT1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
-               GLAT1D(1:FIELDSIZE)=GLAT1D(1:FIELDSIZE)*DEGRAD
             ENDIF
 !
             IF(TRIM(NAME)=='GLON')THEN
                ALLOCATE(GLON1D(FIELDSIZE))
                GLON1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
-               GLON1D(1:FIELDSIZE)=GLON1D(1:FIELDSIZE)*DEGRAD
             ENDIF
 !
             N=NFIELD+wrt_int_state%KOUNT_I2D(1)
@@ -3698,7 +3694,6 @@
 !
         IF(wrt_int_state%WRITE_RST_NEMSIO)THEN
 !
-          DEGRAD=90./ASIN(1.)
           CALL WRITE_NEMSIO_RUNRESTART_OPEN(WRT_INT_STATE               &
                                            ,NEMSIOFILE                  &
                                            ,IYEAR_FCST                  &
@@ -4050,13 +4045,11 @@
             IF(TRIM(NAME)=='GLAT')THEN
                ALLOCATE(GLAT1D(FIELDSIZE))
                GLAT1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
-               GLAT1D(1:FIELDSIZE)=GLAT1D(1:FIELDSIZE)*DEGRAD
             ENDIF
 !
             IF(TRIM(NAME)=='GLON')THEN
                ALLOCATE(GLON1D(FIELDSIZE))
                GLON1D(1:FIELDSIZE)=RESHAPE(wrt_int_state%RST_OUTPUT_ARRAY_R2D(1:IM,1:JM),(/FIELDSIZE/))
-               GLON1D(1:FIELDSIZE)=GLON1D(1:FIELDSIZE)*DEGRAD
             ENDIF
 !
             N=NFIELD+wrt_int_state%RST_KOUNT_I2D(1)

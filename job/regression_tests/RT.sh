@@ -124,6 +124,8 @@ if [ $argn -eq 1 ]; then
      cp ${RTPWD}/GFS_NODFI_5.2.0rp1/*        ${STMP}/${USER}/REGRESSION_TEST/GFS_NODFI_5.2.0rp1/.
      cp ${RTPWD}/GFS_NODFI_6.1.1/*           ${STMP}/${USER}/REGRESSION_TEST/GFS_NODFI_6.1.1/.
      cp ${RTPWD}/GFS_OPAC/*                  ${STMP}/${USER}/REGRESSION_TEST/GFS_OPAC/.
+     cp ${RTPWD}/GEFS_m4_6.1.1/*             ${STMP}/${USER}/REGRESSION_TEST/GEFS_m4_6.1.1/.
+     cp ${RTPWD}/GFS_NODFI_6.1.1/*           ${STMP}/${USER}/REGRESSION_TEST/GFS_NODFI_6.1.1/.
   fi
   if [ ${CP_nmm} = true ]; then
     echo "copy nmm"

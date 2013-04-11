@@ -648,7 +648,7 @@ echo SITE= ${SITE}
 
   ifeq (${SITE},zeus)
      DIR_NETCDF = /apps/netcdf/3.6.3/intel
-     DIR_ESMF   =  /apps/esmf/3.1.0rp5
+     DIR_ESMF   =  /apps/esmf/3.1.0rp5/intel/mpt
      BASEDIR    = /usr/local# not really used
      DEF_SDF =
      ESMA_SDF = netcdf
