@@ -38,8 +38,8 @@ SP_LIB       = -L/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para
 SYS_LIB      =
  
 EXTLIBS      = $(NEMSIO_LIB) \
-               $(W3_LIB) \
                $(BACIO_LIB) \
+               $(W3_LIB) \
                $(SP_LIB) \
                $(ESMF_LIB) \
                $(NETCDF_LIB) \

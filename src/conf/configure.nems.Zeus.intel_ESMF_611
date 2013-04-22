@@ -29,8 +29,8 @@ NEMSIO_INC   = -I/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/lib/nemsio
 SYS_LIB      =
  
 EXTLIBS      = $(NEMSIO_LIB) \
-               $(W3_LIB) \
                $(BACIO_LIB) \
+               $(W3_LIB) \
                $(SP_LIB) \
                $(ESMF_LIB) \
                $(NETCDF_LIB) \
