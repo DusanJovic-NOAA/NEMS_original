@@ -15,7 +15,7 @@
      & fhzer,fhini,fhcyc,fhdfi,crtrh(3),flgmin(2),
      & ccwf(2),dlqf(2),ctei_rm(2),fhgoc3d,fhout_hf,fhmax_hf,cdmbgwd(2),
      & bkgd_vdif_m, bkgd_vdif_h, hdif_fac, psautco(2), prautco(2), evpco
-     &,bkgd_vdif_s
+     &,bkgd_vdif_s,wminco(2)
       logical ldiag3d,ras,zhao_mic,sashal,newsas,crick_proof,ccnorm
       logical shal_cnv
       logical mom4ice,mstrat,trans_trac,moist_adj,lggfs3d,cal_pre

@@ -1,4 +1,5 @@
 #!/bin/ksh
+set -x
 
 if [[ $1 = 3 ]]; then
      cp conf/configure.nems.AIX_ESMF_3 conf/configure.nems

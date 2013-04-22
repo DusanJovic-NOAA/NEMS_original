@@ -54,9 +54,15 @@
 !-----------------------------------------------------------------------
 
        REAL(kind=kind_phys), PARAMETER    :: rh00 = 0.850
-       REAL(kind=kind_phys), PARAMETER    ::  psautco = 4.0E-4    &    ! Zhao scheme default opr value
-                             ,prautco = 1.0E-4    &    ! Zhao scheme default opr value
-                             ,evpco  = 2.0E-5
+! Zhao scheme default opr value
+
+       REAL(kind=kind_phys) psautco, prautco, evpco, wminco(2)
+       data psautco /4.0E-4/, prautco /1.0E-4/
+       data evpco   /2.0E-5/, wminco  /1.0E-5, 1.0E-5/
+
+!      REAL(kind=kind_phys), PARAMETER    :: psautco = 4.0E-4    &  ! Zhao scheme default opr value
+!                                           ,prautco = 1.0E-4    &  ! Zhao scheme default opr value
+!                                           ,evpco  = 2.0E-5
 
 !     TLATGS_PHY,TRAIN_PHY,APREC,PREC,ACPREC,SR are not directly related 
 !     the microphysics scheme. Instead, they will be used by Eta precip 
@@ -194,7 +200,7 @@
                        rhc,lprnt, ipr)
            call precpd(im, ix, KM, dtp, delp, prsl, ps,                 &
                        Q_COL, CWM_COL, T_COL, rain1,                    &
-                       rainp, rhc, psautco, prautco, evpco,             &
+                       rainp, rhc, psautco, prautco, evpco, wminco,    &
                        lprnt, ipr)
  300      continue 
 

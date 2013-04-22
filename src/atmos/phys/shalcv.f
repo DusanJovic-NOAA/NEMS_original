@@ -12,7 +12,7 @@
       real(kind=kind_phys) DEL(IX,KM),   PRSI(IX,KM+1), PRSL(IX,KM),
      &                     PRSLK(IX,KM), phil(ix,km),
      &                     Q(IX,KM),     T(IX,KM),      DT
-     &,                    ctei_r(im),   ctei_rm
+     &,                    ctei_r(im),   ctei_rm(im)
 !
 !     Locals
 !
@@ -39,7 +39,7 @@
       ENDDO
       DO K=1,KM-1
         DO I=1,IM
-          IF (kcnv(I) == 0 .or. ctei_r(i) > ctei_rm) then
+          IF (kcnv(I) == 0) then
             ELDQ    = HVAP*(Q(I,K)-Q(I,K+1))
             CPDT    = CP*(T(I,K)-T(I,K+1))
             DMSE    = ELDQ + CPDT + phil(i,k) - phil(i,k+1)
@@ -55,7 +55,7 @@
         ENDIF
       ENDDO
 !     if (lprnt) print *,' in shalcnv N2=',n2,' ipr=',ipr,' im=',im
-      IF(N2.EQ.0) RETURN
+      IF(N2 == 0) RETURN
       DO K=1,KM
         KK = (K-1)*N2
         DO I=1,N2
@@ -71,13 +71,13 @@
       do i=1,N2
         ii         = index2(i)
         ktopm(i)   = levshc(ii)
-        if (ctei_r(ii) > ctei_rm) then
+        if (ctei_r(ii) > ctei_rm(ii)) then
           ctei(i) = .true.
         else
           ctei(i) = .false.
           ktopm(i)  = min(ktopm(i),kinver(ii))
         endif
-!       if (ctei_r(ii) < ctei_rm) then
+!       if (ctei_r(ii) < ctei_rm(ii)) then
 !         ktopm(i)  = min(ktopm(i),kinver(ii))
 !       endif
 !       if (lprnt .and. ii == ipr) print *,' ktopm=',ktopm(i)
@@ -94,15 +94,15 @@
 !    &,                                           ' ktopb=',ktop(i)
         if (ktop(i) > kbot(i)) then
           KBOT(I) = min(KLCL(I)-1, ktopm(i)-1)
-          KTOP(I) = min(KTOP(I)+1, ktopm(i))
-!!!       KTOP(I) = min(KTOP(I), ktopm(i)) ! commented on 11/10/09 for test
+!         KTOP(I) = min(KTOP(I)+1, ktopm(i))
+          KTOP(I) = min(KTOP(I), ktopm(i)) ! commented on 11/10/09 for test
 !         ii = index2(i)
-!         if (ctei_r(ii) >= ctei_rm) then
+!         if (ctei_r(ii) >= ctei_rm(ii)) then
 !           KTOP(I) = min(KTOP(I)+1, ktopm(i))
 !         else
 !           KTOP(I) = min(KTOP(I), ktopm(i)) ! test on 11/11/09
 !         endif
-!         if (ctei_r(ii) >= ctei_rm) then
+!         if (ctei_r(ii) >= ctei_rm(ii)) then
 !           toppres = prsl(ii,ktop(i)) - ctei_dp
 !           do kk=ktop(i)+1,km-1
 !             if (prsl(ii,kk) > toppres) kkt = kk

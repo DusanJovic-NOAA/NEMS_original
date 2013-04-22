@@ -741,8 +741,8 @@
       private
 
       real (kind=kind_phys), public ::                                  &
-     &       absice0(2), absice1(2,5), absice2(40,16), abscoice(NBANDS),&
-     &       absliq1, absliq2, absliq3(58,16), abscoliq(NBANDS),        &
+     &       absice0(2), absice1(2,5), absice2(40,16),                  &
+     &       absliq1, absliq2, absliq3(58,16),                          &
      &       absrain, abssnow0, abssnow1
 
       integer, public :: ipat(NBANDS)

@@ -1412,9 +1412,11 @@
       real (kind=kind_phys), dimension(:,:), intent(out) :: taucloud
 
 !  ---  locals:
+
       real (kind=kind_phys) :: cliq, cice, radliq, radice, factor, fint
       real (kind=kind_phys) :: taurain, tausnow
       integer               :: j, k, index
+      real (kind=kind_phys) :: abscoliq(NBANDS),abscoice(NBANDS)
 
 !
 !===> ... begin here

@@ -285,7 +285,7 @@
 ! ---        these cover all possible mtn max heights
             VTJ(I,K)  = T1(J,K)  * (1.+FV*Q1(J,K))
             VTK(I,K)  = VTJ(I,K) / PRSLK(J,K)
-            RO(I,K)   = RDI * PRSL(J,K) / VTJ(I,K) ! DENSITY TONS/M**3
+            RO(I,K)   = RDI * PRSL(J,K) / VTJ(I,K) ! DENSITY Kg/M**3
           ENDDO
         ENDDO
 !

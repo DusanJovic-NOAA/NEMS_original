@@ -29,10 +29,12 @@
       integer, parameter :: kpdalb_1(4)=(/189,190,191,192/)
       integer, parameter :: kpdalf(2)=(/214,217/)
 !
+      integer, parameter :: xdata=5000, ydata=2500, mdata=xdata*ydata
+!
       end module sfccyc_module
       SUBROUTINE SFCCYCLE(LUGB,LEN,LSOIL,SIG1T,DELTSFC
      &,                   IY,IM,ID,IH,FH
-     &,                   RLA, RLO, SLMASK,OROG
+     &,                   RLA, RLO, SLMASK,OROG,orog_uf,use_ufo
 !Cwu [+1L] add SIHFCS and SICFCS
      &,                   SIHFCS,SICFCS,SITFCS                 
 !Clu [+2L] add SWD, SLC, VMN, VMX, SLP, ABS
@@ -46,6 +48,7 @@
       USE MACHINE , ONLY : kind_io8,kind_io4
       USE sfccyc_module
       implicit none
+      logical use_ufo
       real (kind=kind_io8) sllnd,slsea,aicice,aicsea,tgice,rlapse,
      &                     orolmx,orolmn,oroomx,oroomn,orosmx,
      &                     orosmn,oroimx,oroimn,orojmx,orojmn,
@@ -448,7 +451,8 @@
 !
 !  MASK OROGRAPHY AND VARIANCE ON GAUSSIAN GRID
 !
-      REAL (KIND=KIND_IO8) SLMASK(LEN),OROG(LEN)
+      REAL (KIND=KIND_IO8) SLMASK(LEN),OROG(LEN), orog_uf(len)
+     &,                    orogd(len)
       REAL (KIND=KIND_IO8) RLA(LEN), RLO(LEN)
 !
 !  Permanent/extremes
@@ -531,10 +535,7 @@
       REAL (KIND=KIND_IO8) CSMCL(25), CSMCS(25)
       REAL (KIND=KIND_IO8) CSTCL(25), CSTCS(25)
 !
-!Clu [-1L/+1L] increase the dimension size
-!Clu  REAL (KIND=KIND_IO8) SLMSKH(2048*1024)
-      REAL (KIND=KIND_IO8) SLMSKH(2500*1250)
-!     REAL (KIND=KIND_IO8) SLMSKH(5800*2900)    ! hmhj
+      REAL (KIND=KIND_IO8) SLMSKH(mdata)
       CHARACTER*500 FNMSKH
       Integer kpd9
 !
@@ -834,6 +835,7 @@
           FSTCL(K) = 99999.
           FSTCS(K) = 0.
         ENDDO
+!     print *,' IN SFCSUB NLUNIT=',NLUNIT,' me=',me,' ialb=',ialb
         rewind(NLUNIT)
         READ (NLUNIT,NAMSFC)
 !       WRITE(6,NAMSFC)
@@ -1206,6 +1208,7 @@
 !
       CALL SNOSFC(SNOCLM,TSFCLM,TSFSMX,LEN,me)
 !     CALL SNOSFC(SNOCLM,TSFCL2,TSFSMX,LEN)
+
 !
 !  Quality control
 !
@@ -1460,6 +1463,8 @@
      &,          IRTVMN,IRTVMX,IRTSLP,IRTABS, 
      &           IMSK, JMSK, SLMSKH, RLA, RLO, GAUSM, BLNMSK, BLTMSK,me)
 !     if(lprnt) print *,' tsfanl=',tsfanl(iprnt)
+
+
 !
 !  Scale ZOR and ALB to match forecast model units
 !
@@ -1483,6 +1488,15 @@
       IF(FH.GT.0.0.AND.FNTSFA(1:8).NE.'        '.AND.LANOM) THEN
         CALL ANOMINT(TSFAN0,TSFCLM,TSFCL0,TSFANL,LEN)
       ENDIF
+!
+!    If the TSFANL is at sea level, then bring it to the surface using
+!    unfiltered orography (for lakes).  If the analysis is at lake surface
+!    as in the NST model, then this call should be removed - Moorthi 09/23/2011
+!
+        if (use_ufo) then
+          ZTSFC = 0.0
+          CALL TSFCOR(TSFANL,OROG_uf,SLMASK,ZTSFC,LEN,RLAPSE)
+        endif
 !
 !  Ice concentration or ice mask (only ice mask used in the model now)
 !
@@ -1850,10 +1864,16 @@
 !  Make reverse angulation correction to TSF
 !  Make reverse orography correction to TG3
 !
-!       ZTSFC=1.
-!       CALL TSFCOR(TG3FCS,OROG,SLMASK,ZTSFC,LEN,-RLAPSE)
-        ZTSFC=0.
-        CALL TSFCOR(TSFFCS,OROG,SLMASK,ZTSFC,LEN,-RLAPSE)
+        if (use_ufo) then
+          ZTSFC = 1.0
+          orogd = orog - orog_uf
+          CALL TSFCOR(TG3FCS,OROGd,SLMASK,ZTSFC,LEN,-RLAPSE)
+          ZTSFC = 0.
+          CALL TSFCOR(TSFFCS,OROGd,SLMASK,ZTSFC,LEN,-RLAPSE)
+        else
+          ZTSFC = 0.
+          CALL TSFCOR(TSFFCS,OROG,SLMASK,ZTSFC,LEN,-RLAPSE)
+        endif
 
 !Clu [+12L]  --------------------------------------------------------------
 !
@@ -2251,10 +2271,15 @@
 !  Foreward correction to TG3 and TSF at the last stage
 !
 !     if(lprnt) print *,' tsfbc=',tsfanl(iprnt)
-!     ZTSFC=1.
-!     CALL TSFCOR(TG3ANL,OROG,SLMASK,ZTSFC,LEN,RLAPSE)
-      ZTSFC=0.
-      CALL TSFCOR(TSFANL,OROG,SLMASK,ZTSFC,LEN,RLAPSE)
+      if (use_ufo) then
+        ZTSFC = 1.
+        CALL TSFCOR(TG3ANL,OROGd,SLMASK,ZTSFC,LEN,RLAPSE)
+        ZTSFC = 0.
+        CALL TSFCOR(TSFANL,OROGd,SLMASK,ZTSFC,LEN,RLAPSE)
+      else
+        ZTSFC = 0.
+        CALL TSFCOR(TSFANL,OROG,SLMASK,ZTSFC,LEN,RLAPSE)
+      endif
 !     if(lprnt) print *,' tsfaf=',tsfanl(iprnt)
 !
 !  CHECK THE FINAL MERGED PRODUCT
@@ -2613,7 +2638,7 @@
       REAL (KIND=KIND_IO8) FLD(IJMAX), SLIMSK(IJMAX),SNO(IJMAX)
 !
       REAL (KIND=KIND_IO8) RMAX(5),RMIN(5)
-      CHARACTER*(*) LFLD
+      CHARACTER*8 LFLD
 !
 !  FIND MAX/MIN
 !
@@ -2687,27 +2712,23 @@
       SUBROUTINE HMSKRD(LUGB,IMSK,JMSK,FNMSKH,
      &                  KPDS5,SLMSKH,GAUSM,BLNMSK,BLTMSK,me)
       USE MACHINE , ONLY : kind_io8,kind_io4
+      use sfccyc_module, only : mdata, xdata, ydata
       implicit none
-      integer kpds5,me,i,imsk,jmsk,lugb,mdata
+      integer kpds5,me,i,imsk,jmsk,lugb
 !
       CHARACTER*500 FNMSKH
-!Clu [-1L/+1L] increase the dimension size
-!Clu  PARAMETER(MDATA=2048*1024)
-      PARAMETER(MDATA=2500*1250)
-!     PARAMETER(MDATA=5800*2900)        !hmhj
 !
-      REAL (KIND=KIND_IO8) SLMSKH(MDATA)
+      REAL (KIND=KIND_IO8) SLMSKH(mdata)
       LOGICAL GAUSM
       REAL (KIND=KIND_IO8) BLNMSK,BLTMSK
 !
+      IMSK = xdata
+      JMSK = ydata
 
-!Clu [-2L/+2L] increase the dimension size
-!Clu  IMSK = 2048
-!Clu  JMSK = 1024
-      IMSK = 2500
-      JMSK = 1250
-!     IMSK = 5800       !hmhj
-!     JMSK = 2900       !hmhj
+      if (me .eq. 0) then
+      write(6,*)' IMSK=',IMSK,' JMSK=',JMSK,' xdata=',xdata,' ydata='
+     &,ydata
+      endif
       CALL FIXRDG(LUGB,IMSK,JMSK,FNMSKH,
      &            KPDS5,SLMSKH,GAUSM,BLNMSK,BLTMSK,me)
       DO I=1,IMSK*JMSK
@@ -2719,19 +2740,13 @@
       SUBROUTINE FIXRDG(LUGB,IDIM,JDIM,FNGRIB,
      &                  KPDS5,GDATA,GAUS,BLNO,BLTO,me)
       USE MACHINE , ONLY : kind_io8,kind_io4
+      use sfccyc_module, only : mdata
       implicit none
       integer lgrib,n,lskip,jret,j,ndata,lugi,jdim,idim,lugb,
-     &        iret, me,kpds5,mdata,kdata,i
-!jw: get w3 real kind
-     &        ,w3kindreal,w3kindint
+     &        iret, me,kpds5,kdata,i
+     &,       w3kindreal,w3kindint
 !
-!WY bug fix
-      CHARACTER*80 FNGRIB
-!      CHARACTER*500 FNGRIB
-!Clu [-1L/+1L] increase the dimension size
-!Clu  PARAMETER(MDATA=2048*1024)
-      PARAMETER(MDATA=2500*1250)
-!     PARAMETER(MDATA=5800*2900)        !hmhj
+      CHARACTER*(*) FNGRIB
 !
       REAL (KIND=KIND_IO8) GDATA(IDIM*JDIM)
       LOGICAL GAUS
@@ -2739,7 +2754,7 @@
       real(kind=kind_io8) data8(idim*jdim)
       real(kind=kind_io4) data4(idim*jdim)
 !
-      LOGICAL*1 LBMS(MDATA)
+      LOGICAL*1 LBMS(mdata)
 !
       INTEGER KPDS(200),KGDS(200)
       INTEGER JPDS(200),JGDS(200), KPDS0(200)
@@ -2789,15 +2804,17 @@
       lskip = -1
       kdata=idim*jdim
       call w3kind(w3kindreal,w3kindint)
-      if(w3kindreal==8) then
+      if (w3kindreal == 8) then
         call getgb(lugb,lugi,kdata,lskip,jpds,jgds,ndata,lskip,
-     &                kpds,kgds,lbms,data8,jret)
-      else if (w3kindreal==4) then
+     &             kpds,kgds,lbms,data8,jret)
+      else if (w3kindreal == 4) then
         call getgb(lugb,lugi,kdata,lskip,jpds,jgds,ndata,lskip,
-     &                kpds,kgds,lbms,data4,jret)
-        data8=data4
+     &             kpds,kgds,lbms,data4,jret)
+        data8 = data4
+      else
+        write(0,*)' Invalid w3kindreal --- aborting'
+        call abort
       endif
-
 !
       if(jret.eq.0) then
         IF(NDATA.EQ.0) THEN
@@ -2811,10 +2828,12 @@
         gaus=kgds(1).eq.4
         blno=kgds(5)*1.d-3
         blto=kgds(4)*1.d-3
-        gdata(1:idim*jdim)=data8(1:idim*jdim)
+        gdata(1:idim*jdim) = data8(1:idim*jdim)
         if (me .eq. 0) WRITE(6,*) 'IDIM,JDIM=',IDIM,JDIM
      &,                ' gaus=',gaus,' blno=',blno,' blto=',blto
       ELSE
+        if (me .eq. 0) WRITE(6,*) 'IDIM,JDIM=',IDIM,JDIM
+     &,                ' gaus=',gaus,' blno=',blno,' blto=',blto
         WRITE(6,*) ' Error in GETGB : JRET=',JRET
         WRITE(6,*) ' KPDS(13)=',KPDS(13),' KPDS(15)=',KPDS(15)
         CALL ABORT
@@ -2972,48 +2991,63 @@
 !
       RETURN
       END
-      SUBROUTINE SUBST(DATA,IMAX,JMAX,IJMAX,DLON,DLAT,IJORDR,WORK)
+      SUBROUTINE SUBST(DATA,IMAX,JMAX,DLON,DLAT,IJORDR)
       USE MACHINE , ONLY : kind_io8,kind_io4
       implicit none
-      integer j,ij,i,ijo,ji,jmax,imax,ijmax
+      integer i,j,ii,jj,jmax,imax,iret
       REAL (KIND=KIND_IO8) dlat,dlon
 !
       LOGICAL IJORDR
 !
-      REAL (KIND=KIND_IO8) DATA(IJMAX), WORK(IJMAX)
+      REAL (KIND=KIND_IO8) DATA(imax,jmax)
+      REAL (KIND=KIND_IO8), allocatable ::  WORK(:,:)
 !
       IF(.NOT.IJORDR.OR.
      &  (IJORDR.AND.(DLAT.GT.0..OR.DLON.LT.0.))) THEN
+        allocate (WORK(imax,jmax))
+
         IF(.NOT.IJORDR) THEN
-          IJ=0
           DO J=1,JMAX
             DO I=1,IMAX
-              IJ       = (J-1)*IMAX+I
-              JI       = (I-1)*JMAX+J
-              WORK(IJ) = DATA(JI)
+              work(i,j) = data(j,i)
             ENDDO
           ENDDO
         ELSE
           DO J=1,JMAX
             DO I=1,IMAX
-              IJ       = (J-1)*IMAX+I
-              WORK(IJ) = DATA(IJ)
+              work(i,j) = data(i,j)
             ENDDO
           ENDDO
         ENDIF
-        DO J=1,JMAX
-          DO I=1,IMAX
-            IF(DLAT.GT.0..AND.DLON.GT.0.) THEN
-              IJ = IMAX*JMAX - IMAX*J + I
-            ELSEIF(DLAT.GT.0..AND.DLON.LT.0.) THEN
-              IJ = IMAX*JMAX - (J-1)*IMAX - IMAX + I - 1
-            ELSEIF(DLAT.LT.0..AND.DLON.LT.0.) THEN
-              IJ = IMAX*(J-1) + IMAX - I + 1
-            ENDIF
-            IJO      = (J-1)*IMAX + I
-            DATA(IJ) = WORK(IJO)
-          ENDDO
-        ENDDO
+        if (dlat > 0.0) then
+          if (dlon > 0.0) then
+            do j=1,jmax
+              jj = jmax - j + 1
+              do i=1,imax
+                data(i,jj) = work(i,j)
+              enddo
+            enddo
+          else
+            do i=1,imax
+              data(imax-i+1,jj) = work(i,j)
+            enddo
+          endif
+        else
+          if (dlon > 0.0) then
+            do j=1,jmax
+              do i=1,imax
+                data(i,j) = work(i,j)
+              enddo
+            enddo
+          else
+            do j=1,jmax
+              do i=1,imax
+                data(imax-i+1,j) = work(i,j)
+              enddo
+            enddo
+          endif
+        endif
+        deallocate (WORK, stat=iret)
       ENDIF
       RETURN
       END
@@ -3026,9 +3060,11 @@
      &                     wsum,tem,wsumiv,sums,sumn,wi2j2,x,y,wi1j1,
      &                     wi1j2,wi2j1,rlat,rlon,aphi,
      &                     rnume,alamd,denom
-      integer jy,ifill,ix,len,inttyp,me,i,j,jmxin,imxin,jq,jx,j1,j2,
+      integer jy,ifills,ix,len,inttyp,me,i,j,jmxin,imxin,jq,jx,j1,j2,
      &        ii,i1,i2,KMAMI,it
-      integer nx,kxs,kxt,imxnx
+      integer nx,kxs,kxt
+      integer, allocatable, save :: imxnx(:)
+      integer, allocatable       :: ifill(:)
 !
 !  INTERPOLATION FROM LAT/LON OR GAUSSIAN GRID TO OTHER LAT/LON GRID
 !
@@ -3052,10 +3088,12 @@
       integer NUM_PARTHDS
 !
       if (first) then
-         NUM_THREADS    = NUM_PARTHDS()
+         NUM_THREADS = NUM_PARTHDS()
          first = .false.
+         if (.not. allocated(imxnx)) allocate (imxnx(NUM_THREADS))
       endif
 !
+      if (me == 0) print *,' NUM_THREADS =',NUM_THREADS,' me=',me
 !
 !     if(me .eq. 0) then
 !     PRINT *,'RLON=',RLON,' me=',me
@@ -3089,15 +3127,17 @@
 !     PRINT *,(RINLON(I),I=1,IMXIN)
 !
       LEN_THREAD_M  = (LEN+NUM_THREADS-1) / NUM_THREADS
+
+      if (.not. allocated(ifill)) allocate (ifill(NUM_THREADS))
 !
 !$OMP PARALLEL DO PRIVATE(I1_T,I2_T,LEN_THREAD,IT,I,II,I1,I2)
-!$OMP+PRIVATE(J,J1,J2,JQ,IX,JY,NX,KXS,KXT,IMXNX,KMAMI)
+!$OMP+PRIVATE(J,J1,J2,JQ,IX,JY,NX,KXS,KXT,KMAMI)
 !$OMP+PRIVATE(ALAMD,DENOM,RNUME,APHI,X,Y,WSUM,WSUMIV,SUM1,SUM2)
 !$OMP+PRIVATE(SUM3,SUM4,WI1J1,WI2J1,WI1J2,WI2J2,WEI1,WEI2,WEI3,WEI4)
 !$OMP+PRIVATE(SUMN,SUMS)
 !$OMP+SHARED(IMXIN,JMXIN,IFILL)
 !$OMP+SHARED(OUTLON,OUTLAT,WRK,IINDX1,RINLON,JINDX1,RINLAT,DDX,DDY)
-!$OMP+SHARED(RLON,RLAT,REGIN,GAUOUT)
+!$OMP+SHARED(RLON,RLAT,REGIN,GAUOUT,IMXNX)
 !
       DO IT=1,NUM_THREADS   ! START OF THREADED LOOP ...................
         I1_T       = (IT-1)*LEN_THREAD_M+1
@@ -3345,8 +3385,10 @@
 !cggg here, set the gauout value to be 0, and let's sarah's land
 !cggg routine assign a default.
 
-              print*,'no matching mask found ',i,i1,j1,ix,jx
-              print*,'set to default value.'
+              if (NUM_THREADS == 1) then
+                print*,'no matching mask found ',i,i1,j1,ix,jx
+                print*,'set to default value.'
+              endif
               gauout(i) = 0.0
 
 
@@ -3360,15 +3402,16 @@
 
           ENDDO
           KMAMI=1
-          if (me .eq. 0) CALL MAXMIN(GAUOUT(I1_T),LEN_THREAD,KMAMI)
+          if (me == 0 .and. NUM_THREADS == 1)
+     &                  CALL MAXMIN(GAUOUT(I1_T),LEN_THREAD,KMAMI)
           CYCLE
         ENDIF  ! nearest neighbor interpolation
 
 !
 !  QUASI-BILINEAR INTERPOLATION
 !
-        IFILL = 0
-        IMXNX = 0
+        IFILL(it) = 0
+        IMXNX(it) = 0
         DO I=I1_T,I2_T
           Y  = DDY(I)
           J1 = JINDX1(I)
@@ -3457,13 +3500,14 @@
           I2 = IINDX2(I)
           IF(WRK(I) .EQ. 0.0) THEN
             IF(.NOT.LMASK) THEN
-              WRITE(6,*) ' LA2GA called with LMASK=.TRUE. but bad',
+              if (NUM_THREADS == 1)
+     &          WRITE(6,*) ' LA2GA called with LMASK=.TRUE. but bad',
      &                   ' RSLMSK or SLMASK given'
               CALL ABORT
             ENDIF
-            IFILL = IFILL + 1
-            IF(IFILL.LE.2) THEN
-              if (me .eq. 0) then
+            IFILL(it) = IFILL(it) + 1
+            IF(IFILL(it) <= 2 ) THEN
+              if (me == 0 .and. NUM_THREADS == 1) then
                 WRITE(6,*) 'I1,I2,J1,J2=',I1,I2,J1,J2
                 WRITE(6,*) 'RSLMSK=',RSLMSK(I1,J1),RSLMSK(I1,J2),
      &                               RSLMSK(I2,J1),RSLMSK(I2,J2)
@@ -3500,14 +3544,16 @@
               IX=MODULO(IX-1,IMXIN)+1
               IF(SLMASK(I).EQ.RSLMSK(IX,JX)) THEN
                 GAUOUT(I) = REGIN(IX,JX)
-                IMXNX=MAX(IMXNX,NX)
+                IMXNX(it) = MAX(IMXNX(it),NX)
                 GO TO 71
               ENDIF
             ENDDO
 !
-            WRITE(6,*) ' ERROR!!! No filling value found in LA2GA'
-!           WRITE(6,*) ' I IX JX SLMASK(I) RSLMSK ',
-!    &                   I,IX,JX,SLMASK(I),RSLMSK(IX,JX)
+            if (NUM_THREADS == 1) then
+              WRITE(6,*) ' ERROR!!! No filling value found in LA2GA'
+!             WRITE(6,*) ' I IX JX SLMASK(I) RSLMSK ',
+!    &                     I,IX,JX,SLMASK(I),RSLMSK(IX,JX)
+            endif
             CALL ABORT
 !
    71       CONTINUE
@@ -3517,12 +3563,19 @@
       ENDDO            ! END OF THREADED LOOP ...................
 !$OMP END PARALLEL DO
 !
-      IF(IFILL.GT.1) THEN
+      ifills = 0
+      do it=1,num_threads
+        ifills = ifills + ifill(it)
+      enddo
+
+      IF(IFILLS.GT.1) THEN
         if (me .eq. 0) then
         WRITE(6,*) ' Unable to interpolate.  Filled with nearest',
-     &             ' point value at ',IFILL,' points  imxnx=',imxnx
+     &             ' point value at ',IFILLS,' points'
+!    &             ' point value at ',IFILLS,' points  imxnx=',imxnx(:)
         endif
       ENDIF
+      deallocate (ifill)
 !
       KMAMI=1
       if (me .eq. 0) CALL MAXMIN(GAUOUT,LEN,KMAMI)
@@ -3554,8 +3607,8 @@
         ENDDO
 !
       WRITE(6,100) K,FMAX,IIMAX,FMIN,IIMIN
-  100 FORMAT(2X,'LEVEL=',I2,' MAX=',E10.4,' AT I=',I5,
-     &                      ' MIN=',E10.4,' AT I=',I5)
+  100 FORMAT(2X,'LEVEL=',I2,' MAX=',E11.4,' AT I=',I7,
+     &                      ' MIN=',E11.4,' AT I=',I7)
 !
       ENDDO
 !
@@ -4667,7 +4720,7 @@
       integer NUM_PARTHDS
 !
       if (first) then
-         NUM_THREADS    = NUM_PARTHDS()
+         NUM_THREADS = NUM_PARTHDS()
          first = .false.
       endif
 !
@@ -4816,9 +4869,9 @@
 !
       if (me .eq. 0) then
       WRITE(6,100) RTSFL,RALBL,RAISL,RSNOL,RSMCL,RZORL,RVEGL
-  100 FORMAT('RTSFL,RALBL,RAISL,RSNOL,RSMCL,RZORL,RVEGL=',7F7.3)
+  100 FORMAT('RTSFL,RALBL,RAISL,RSNOL,RSMCL,RZORL,RVEGL=',10F7.3)
       WRITE(6,101) RTSFS,RALBS,RAISS,RSNOS,RSMCS,RZORS,RVEGS
-  101 FORMAT('RTSFS,RALBS,RAISS,RSNOS,RSMCS,RZORS,RVEGS=',7F7.3)
+  101 FORMAT('RTSFS,RALBS,RAISS,RSNOS,RSMCS,RZORS,RVEGS=',10F7.3)
 !     print *,' ralfl=',ralfl,' ralfs=',ralfs,' rsotl=',rsotl
 !    *,' rsots=',rsots,' rvetl=',rvetl,' rvets=',rvets
       endif
@@ -5064,8 +5117,8 @@
             PRINT *,'INCONSISTENCY IN SLIFCS OR SLIANL'
             PRINT 910,RLA(I),RLO(I),SLIFCS(I),SLIANL(I),
      &                TSFFCS(I),TSFANL(I)
-  910       FORMAT(2X,'AT LAT=',F5.1,' LON=',F5.1,' SLIFCS=',F3.1,
-     &          ' SLIMSK=',F3.1,' TSFFCS=',F5.1,' SET TO TSFANL=',F5.1)
+  910       FORMAT(2X,'AT LAT=',F5.1,' LON=',F5.1,' SLIFCS=',F4.1,
+     &          ' SLIMSK=',F4.1,' TSFFCS=',F5.1,' SET TO TSFANL=',F5.1)
             CALL ABORT
           ENDIF
 !
@@ -5338,7 +5391,7 @@
       integer NUM_PARTHDS
 !
       if (first) then
-         NUM_THREADS    = NUM_PARTHDS()
+         NUM_THREADS = NUM_PARTHDS()
          first = .false.
       endif
 !
@@ -5385,13 +5438,13 @@
                IWK(KMINL) = I
             ENDIF
           ENDDO
-          if(me .eq. 0 . and. it .eq. 1) then
+          if(me == 0 . and. it == 1 .and. NUM_THREADS == 1) then
             NPRT = MIN(MMPRT,KMINL)
             DO I=1,NPRT
               IJ = IWK(I)
               PRINT 8001,RLA(IJ),RLO(IJ),FLD(IJ),FLDLMN
  8001         FORMAT(' Bare land min. check. LAT=',F5.1,
-     &             ' LON=',F6.1,' FLD=',E12.6, ' to ',E12.6)
+     &             ' LON=',F6.1,' FLD=',E13.6, ' to ',E13.6)
             ENDDO
           endif
           IF (MODE .EQ. 1) THEN
@@ -5411,13 +5464,13 @@
                IWK(KMAXL) = I
             ENDIF
           ENDDO
-          if(me .eq. 0 . and. it .eq. 1) then
+          if(me == 0 . and. it == 1 .and. NUM_THREADS == 1) then
             NPRT = MIN(MMPRT,KMAXL)
             DO I=1,NPRT
               IJ = IWK(I)
               PRINT 8002,RLA(IJ),RLO(IJ),FLD(IJ),FLDLMX
  8002         FORMAT(' Bare land max. check. LAT=',F5.1,
-     &             ' LON=',F6.1,' FLD=',E12.6, ' to ',E12.6)
+     &             ' LON=',F6.1,' FLD=',E13.6, ' to ',E13.6)
             ENDDO
           endif
           IF (MODE .EQ. 1) THEN
@@ -5437,13 +5490,13 @@
                IWK(KMINS) = I
             ENDIF
           ENDDO
-          if(me .eq. 0 . and. it .eq. 1) then
+          if(me == 0 . and. it == 1 .and. NUM_THREADS == 1) then
             NPRT = MIN(MMPRT,KMINS)
             DO I=1,NPRT
               IJ = IWK(I)
               PRINT 8003,RLA(IJ),RLO(IJ),FLD(IJ),FLDSMN
  8003         FORMAT(' Sno covrd land min. check. LAT=',F5.1,
-     &             ' LON=',F6.1,' FLD=',E10.4, ' to ',E10.4)
+     &             ' LON=',F6.1,' FLD=',E11.4, ' to ',E11.4)
             ENDDO
           endif
           IF (MODE .EQ. 1) THEN
@@ -5463,13 +5516,13 @@
                IWK(KMAXS) = I
             ENDIF
           ENDDO
-          if(me .eq. 0 . and. it .eq. 1) then
+          if(me == 0 . and. it == 1 .and. NUM_THREADS == 1) then
             NPRT = MIN(MMPRT,KMAXS)
             DO I=1,NPRT
               IJ = IWK(I)
               PRINT 8004,RLA(IJ),RLO(IJ),FLD(IJ),FLDSMX
  8004         FORMAT(' Snow land max. check. LAT=',F5.1,
-     &             ' LON=',F6.1,' FLD=',E10.4, ' to ',E10.4)
+     &             ' LON=',F6.1,' FLD=',E11.4, ' to ',E11.4)
             ENDDO
           endif
           IF (MODE .EQ. 1) THEN
@@ -5489,13 +5542,13 @@
                IWK(KMINO) = I
             ENDIF
           ENDDO
-          if(me .eq. 0 . and. it .eq. 1) then
+          if(me == 0 . and. it == 1 .and. NUM_THREADS == 1) then
             NPRT = MIN(MMPRT,KMINO)
             DO I=1,NPRT
               IJ = IWK(I)
               PRINT 8005,RLA(IJ),RLO(IJ),FLD(IJ),FLDOMN
  8005         FORMAT(' Open ocean min. check. LAT=',F5.1,
-     &             ' LON=',F6.1,' FLD=',E10.4,' to ',E10.4)
+     &             ' LON=',F6.1,' FLD=',E11.4,' to ',E11.4)
             ENDDO
           endif
           IF (MODE .EQ. 1) THEN
@@ -5515,13 +5568,13 @@
                IWK(KMAXO) = I
             ENDIF
           ENDDO
-          if(me .eq. 0 . and. it .eq. 1) then
+          if(me == 0 . and. it == 1 .and. NUM_THREADS == 1) then
             NPRT = MIN(MMPRT,KMAXO)
             DO I=1,NPRT
               IJ = IWK(I)
               PRINT 8006,RLA(IJ),RLO(IJ),FLD(IJ),FLDOMX
  8006         FORMAT(' Open ocean max. check. LAT=',F5.1,
-     &             ' LON=',F6.1,' FLD=',E10.4, ' to ',E10.4)
+     &             ' LON=',F6.1,' FLD=',E11.4, ' to ',E11.4)
             ENDDO
           endif
           IF (MODE .EQ. 1) THEN
@@ -5541,13 +5594,13 @@
                IWK(KMINI) = I
             ENDIF
           ENDDO
-          if(me .eq. 0 . and. it .eq. 1) then
+          if(me == 0 . and. it == 1 .and. NUM_THREADS == 1) then
             NPRT = MIN(MMPRT,KMINI)
             DO I=1,NPRT
               IJ = IWK(I)
               PRINT 8007,RLA(IJ),RLO(IJ),FLD(IJ),FLDIMN
  8007         FORMAT(' Seaice no snow min. check LAT=',F5.1,
-     &             ' LON=',F6.1,' FLD=',E10.4, ' to ',E10.4)
+     &             ' LON=',F6.1,' FLD=',E11.4, ' to ',E11.4)
             ENDDO
           endif
           IF (MODE .EQ. 1) THEN
@@ -5568,13 +5621,13 @@
                IWK(KMAXI) = I
             ENDIF
           ENDDO
-          if(me .eq. 0 . and. it .eq. 1) then
+          if(me == 0 . and. it == 1 .and. NUM_THREADS == 1) then
             NPRT = MIN(MMPRT,KMAXI)
             DO I=1,NPRT
               IJ = IWK(I)
               PRINT 8008,RLA(IJ),RLO(IJ),FLD(IJ),FLDIMX
  8008         FORMAT(' Seaice no snow max. check LAT=',F5.1,
-     &             ' LON=',F6.1,' FLD=',E10.4, ' to ',E10.4)
+     &             ' LON=',F6.1,' FLD=',E11.4, ' to ',E11.4)
             ENDDO
           endif
           IF (MODE .EQ. 1) THEN
@@ -5594,13 +5647,13 @@
                IWK(KMINJ) = I
             ENDIF
           ENDDO
-          if(me .eq. 0 . and. it .eq. 1) then
+          if(me == 0 . and. it == 1 .and. NUM_THREADS == 1) then
             NPRT = MIN(MMPRT,KMINJ)
             DO I=1,NPRT
               IJ = IWK(I)
               PRINT 8009,RLA(IJ),RLO(IJ),FLD(IJ),FLDJMN
  8009         FORMAT(' Sea ice snow min. check LAT=',F5.1,
-     &             ' LON=',F6.1,' FLD=',E10.4, ' to ',E10.4)
+     &             ' LON=',F6.1,' FLD=',E11.4, ' to ',E11.4)
             ENDDO
           endif
           IF (MODE .EQ. 1) THEN
@@ -5621,13 +5674,13 @@
                IWK(KMAXJ) = I
             ENDIF
           ENDDO
-          if(me .eq. 0 . and. it .eq. 1) then
+          if(me == 0 . and. it == 1 .and. NUM_THREADS == 1) then
             NPRT = MIN(MMPRT,KMAXJ)
             DO I=1,NPRT
               IJ = IWK(I)
               PRINT 8010,RLA(IJ),RLO(IJ),FLD(IJ),FLDJMX
  8010         FORMAT(' Seaice snow max check LAT=',F5.1,
-     &             ' LON=',F6.1,' FLD=',E10.4, ' to ',E10.4)
+     &             ' LON=',F6.1,' FLD=',E11.4, ' to ',E11.4)
             ENDDO
           endif
           IF (MODE .EQ. 1) THEN
@@ -5648,7 +5701,7 @@
         PER=FLOAT(KMINL)/FLOAT(LEN)*100.
         PRINT 9001,FLDLMN,KMINL,PER
  9001   FORMAT(' Bare land min check.  Modified to ',F8.1,
-     &         ' at ',I5,' points ',F4.1,'percent')
+     &         ' at ',I5,' points ',F8.1,'percent')
         IF(PER.GT.PERMAX) PERMAX=PER
       ENDIF
       IF(KMAXL.GT.0) THEN
@@ -6545,7 +6598,7 @@
       integer NUM_PARTHDS
 !
       if (first) then
-         NUM_THREADS    = NUM_PARTHDS()
+         NUM_THREADS = NUM_PARTHDS()
          first = .false.
       endif
 !
@@ -6980,13 +7033,12 @@ cjfe
           ida(3)=id
           ida(5)=ih
           call w3kind(w3kindreal,w3kindint)
-          if(w3kindreal==4) then
+          if(w3kindreal == 4) then
             fha4=fha
             call w3movdat(fha4,ida,jda)
           else
             call w3movdat(fha,ida,jda)
           endif
-
           jy=jda(1)
           jm=jda(2)
           jd=jda(3)
@@ -7065,14 +7117,17 @@ cjfe
       jm     = jda(2)
       jd     = jda(3)
       jh     = jda(5)
-      if (me .eq. 0) write(6,*) ' Forecast JY,JM,JD,JH,rjday=',
-     &               jy,jm,jd,jh,rjday
+!     if (me .eq. 0) write(6,*) ' Forecast JY,JM,JD,JH,rjday=',
+!    &               jy,jm,jd,jh,rjday
       jdow   = 0
       jdoy   = 0
       jday   = 0
       call w3doxdat(jda,jdow,jdoy,jday)
       rjday  = jdoy+jda(5)/24.
       IF(RJDAY.LT.DAYHF(1)) RJDAY=RJDAY+365.
+
+      if (me .eq. 0) write(6,*) ' Forecast JY,JM,JD,JH,rjday=',
+     &               jy,jm,jd,jh,rjday
 !
       if (me .eq. 0) WRITE(6,*) 'Forecast JY,JM,JD,JH=',JY,JM,JD,JH
 !
@@ -7792,12 +7847,12 @@ cjfe
      &                 GDATA,LEN,IRET
      &,                IMSK, JMSK, SLMSKH, GAUS,BLNO, BLTO
      &,                OUTLAT, OUTLON, me)
-      USE MACHINE , ONLY : kind_io8,kind_io4
+      USE MACHINE ,      ONLY : kind_io8,kind_io4
+      use sfccyc_module, only : mdata
       implicit none
-      integer mdata,imax,jmax,ijmax,i,j,n,jret,inttyp,iret,imsk,
+      integer imax,jmax,ijmax,i,j,n,jret,inttyp,iret,imsk,
      &        jmsk,len,lugb,kpds5,mon,lskip,lgrib,ndata,lugi,me,KMAMI
-!jw: get w3 real kind
-     &        ,w3kindreal,w3kindint
+     &,       jj,w3kindreal,w3kindint
       REAL (KIND=KIND_IO8) wlon,elon,rnlat,dlat,dlon,rslat,blno,blto
 !
 !   Read in GRIB climatology files and interpolate to the input
@@ -7805,26 +7860,19 @@ cjfe
 !   to be extracted from the description records.
 !
 !
-!Clu [-1L/+1L] increase the dimension size
-!Clu  PARAMETER(MDATA=2048*1024)
-      PARAMETER(MDATA=2500*1250)
-!     PARAMETER(MDATA=5800*2900)        !hmhj
-!
-!WY bug fix
-      CHARACTER*80 FNGRIB
-!      CHARACTER*500 FNGRIB
+      CHARACTER*500 FNGRIB
 !     CHARACTER*80 FNGRIB, ASGNSTR
 !
       REAL (KIND=KIND_IO8) SLMSKH(IMSK,JMSK)
 !
       REAL (KIND=KIND_IO8) GDATA(LEN), SLMASK(LEN)
-      REAL (KIND=KIND_IO8) DATA(MDATA),WORK(MDATA),RSLMSK(MDATA)
+      REAL (KIND=KIND_IO8), allocatable :: DATA(:,:), RSLMSK(:,:)
       real(kind=kind_io8) data8(mdata)
       real(kind=kind_io4) data4(mdata)
       real (kind=kind_io8), allocatable :: rlngrb(:), rltgrb(:)
 !
       LOGICAL LMASK, YR2KC, GAUS, IJORDR
-      LOGICAL*1 LBMS(MDATA)
+      LOGICAL*1 LBMS(mdata)
 !
       INTEGER KPDS(1000),KGDS(1000)
       INTEGER JPDS(1000),JGDS(1000), KPDS0(1000)
@@ -7886,13 +7934,12 @@ cjfe
       call w3kind(w3kindreal,w3kindint)
       if(w3kindreal==8) then
         call getgb(lugb,lugi,mdata,lskip,jpds,jgds,ndata,lskip,
-     &          kpds,kgds,lbms,data8,jret)
+     &             kpds,kgds,lbms,data8,jret)
       else if (w3kindreal==4) then
         call getgb(lugb,lugi,mdata,lskip,jpds,jgds,ndata,lskip,
-     &          kpds,kgds,lbms,data4,jret)
-        data8=data4
+     &             kpds,kgds,lbms,data4,jret)
+        data8 = data4
       endif
-
       if (me .eq. 0) WRITE(6,*) ' Input grib file dates=',
      &              (KPDS(I),I=8,11)
       if(jret.eq.0) then
@@ -7905,7 +7952,13 @@ cjfe
         IMAX=KGDS(2)
         JMAX=KGDS(3)
         IJMAX=IMAX*JMAX
-        data(1:ijmax)=data8(1:ijmax)
+        allocate (data(imax,jmax))
+        do j=1,jmax
+          jj = (j-1)*imax
+          do i=1,imax
+            data(i,j) = data8(jj+i)
+          enddo
+        enddo
         if (me .eq. 0) WRITE(6,*) 'IMAX,JMAX,IJMAX=',IMAX,JMAX,IJMAX
       ELSE
         WRITE(6,*) ' Error in getgb - jret=', jret
@@ -7915,7 +7968,7 @@ cjfe
       if (me .eq. 0) then
       WRITE(6,*) ' MAXMIN of input as is'
       KMAMI=1
-      CALL MAXMIN(DATA,IJMAX,KMAMI)
+      CALL MAXMIN(DATA(1,1),IJMAX,KMAMI)
       endif
 !
       CALL GETAREA(KGDS,DLAT,DLON,RSLAT,RNLAT,WLON,ELON,IJORDR,me)
@@ -7923,11 +7976,13 @@ cjfe
       WRITE(6,*) 'IMAX,JMAX,IJMAX,DLON,DLAT,IJORDR,WLON,RNLAT='
       WRITE(6,*)  IMAX,JMAX,IJMAX,DLON,DLAT,IJORDR,WLON,RNLAT
       endif
-      CALL SUBST(DATA,IMAX,JMAX,IJMAX,DLON,DLAT,IJORDR,WORK)
+      CALL SUBST(DATA,IMAX,JMAX,DLON,DLAT,IJORDR)
 !
 !   First get SLMASK over input grid
 !
         allocate (rlngrb(imax), rltgrb(jmax))
+        allocate (rslmsk(imax,jmax))
+
         CALL SETRMSK(KPDS5,SLMSKH,IMSK,JMSK,WLON,RNLAT,
      &               DATA,IMAX,JMAX,RLNGRB,RLTGRB,LMASK,RSLMSK
 !    &               DATA,IMAX,JMAX,ABS(DLON),ABS(DLAT),LMASK,RSLMSK
@@ -7951,6 +8006,8 @@ cjfe
 !
         deallocate (rlngrb, STAT=iret)
         deallocate (rltgrb, STAT=iret)
+        deallocate (data, STAT=iret)
+        deallocate (rslmsk, STAT=iret)
       call baclose(lugb,iret)
 !
       RETURN
@@ -7959,14 +8016,14 @@ cjfe
      &                 IY,IM,ID,IH,FH,GDATA,LEN,IRET
      &,                IMSK, JMSK, SLMSKH, GAUS,BLNO, BLTO
      &,                OUTLAT, OUTLON, me)
-      USE MACHINE , ONLY : kind_io8,kind_io4
+      USE MACHINE      , ONLY : kind_io8,kind_io4
+      use sfccyc_module, only : mdata
       implicit none
-      integer nrepmx,nvalid,mdata,imo,iyr,idy,jret,ihr,nrept,lskip,lugi,
+      integer nrepmx,nvalid,imo,iyr,idy,jret,ihr,nrept,lskip,lugi,
      &        lgrib,j,ndata,i,inttyp,jmax,imax,ijmax,ij,jday,len,iret,
      &        jmsk,imsk,ih,kpds5,lugb,iy,id,im,jh,jd,jdoy,jdow,jm,me,
-     &        monend,jy,iy4,KMAMI,iret2
-!jw get w3 real kind
-     &        ,w3kindreal,w3kindint
+     &        monend,jy,iy4,KMAMI,iret2,jj
+     &,       w3kindreal,w3kindint
       REAL (KIND=KIND_IO8) rnlat,rslat,wlon,elon,dlon,dlat,fh,blno,
      &                     rjday,blto
 !
@@ -7978,26 +8035,21 @@ cjfe
 !  NVALID:  Analysis later than (Current date - NVALID) is regarded as
 !           valid for current analysis
 !
-!Clu [-1L/+1L] increase the dimension size
-!Clu  PARAMETER(NREPMX=15, NVALID=4, MDATA=2048*1024)
-      PARAMETER(NREPMX=15, NVALID=4, MDATA=2500*1250)
-!     PARAMETER(NREPMX=15, NVALID=4, MDATA=5800*2900)   !hmhj
+      PARAMETER(NREPMX=15, NVALID=4)
 !
-!WY bug fix
-      CHARACTER*80 FNGRIB
-!      CHARACTER*500 FNGRIB
+      CHARACTER*500 FNGRIB
 !     CHARACTER*80 FNGRIB, ASGNSTR
 !
       REAL (KIND=KIND_IO8) SLMSKH(IMSK,JMSK)
 !
       REAL (KIND=KIND_IO8) GDATA(LEN), SLMASK(LEN)
-      REAL (KIND=KIND_IO8) DATA(MDATA),WORK(MDATA),RSLMSK(MDATA)
+      REAL (KIND=KIND_IO8), allocatable :: DATA(:,:),RSLMSK(:,:)
       real(kind=kind_io8) data8(mdata)
       real(kind=kind_io4) data4(mdata)
       real (kind=kind_io8), allocatable :: rlngrb(:), rltgrb(:)
 !
       LOGICAL LMASK, YR2KC, GAUS, IJORDR
-      LOGICAL*1  LBMS(MDATA)
+      LOGICAL*1  LBMS(mdata)
 !
       INTEGER KPDS(1000),KGDS(1000)
       INTEGER JPDS(1000),JGDS(1000), KPDS0(1000)
@@ -8015,7 +8067,7 @@ cjfe
       DATA MJDAY/31,28,31,30,31,30,31,31,30,31,30,31/
 !
       real (kind=kind_io8) fha(5)
-      real (kind=4) fha4(5)
+      real(4) fha4(5)
       integer ida(8),jda(8)
 !
       IRET   = 0
@@ -8044,14 +8096,17 @@ cjfe
       jm=jda(2)
       jd=jda(3)
       jh=jda(5)
-      if (me .eq. 0) write(6,*) ' Forecast JY,JM,JD,JH,rjday=',
-     &               jy,jm,jd,jh,rjday
+!     if (me .eq. 0) write(6,*) ' Forecast JY,JM,JD,JH,rjday=',
+!    &               jy,jm,jd,jh,rjday
       jdow = 0
       jdoy = 0
       jday = 0
       call w3doxdat(jda,jdow,jdoy,jday)
       rjday=jdoy+jda(5)/24.
       IF(RJDAY.LT.DAYHF(1)) RJDAY=RJDAY+365.
+
+      if (me .eq. 0) write(6,*) ' Forecast JY,JM,JD,JH,rjday=',
+     &               jy,jm,jd,jh,rjday
 !
       if (me .eq. 0) then
       WRITE(6,*) 'Forecast JY,JM,JD,JH=',JY,JM,JD,JH
@@ -8120,15 +8175,14 @@ cjfe
 !     JPDS(11)=IHR
       JPDS(21)=(IYR-1)/100+1
       call w3kind(w3kindreal,w3kindint)
-      if(w3kindreal==8) then
+      if (w3kindreal == 8) then
         call getgb(lugb,lugi,mdata,lskip,jpds,jgds,ndata,lskip,
-     &           kpds,kgds,lbms,data8,jret)
-      else if (w3kindreal==4) then
+     &             kpds,kgds,lbms,data8,jret)
+      elseif (w3kindreal == 4) then
         call getgb(lugb,lugi,mdata,lskip,jpds,jgds,ndata,lskip,
-     &           kpds,kgds,lbms,data4,jret)
-        data8=data4
+     &             kpds,kgds,lbms,data4,jret)
+        data8 = data4
       endif
-
       if (me .eq. 0) WRITE(6,*) ' Input grib file dates=',
      &              (KPDS(I),I=8,11)
       IF(jret.eq.0) THEN
@@ -8141,7 +8195,13 @@ cjfe
         IMAX=KGDS(2)
         JMAX=KGDS(3)
         IJMAX=IMAX*JMAX
-         data(1:ijmax)=data8(1:ijmax)
+        allocate (data(imax,jmax))
+        do j=1,jmax
+          jj = (j-1)*imax
+          do i=1,imax
+            data(i,j) = data8(jj+i)
+          enddo
+        enddo
       ELSE
         IF(NREPT.EQ.0) THEN
           if (me .eq. 0) then
@@ -8217,7 +8277,7 @@ cjfe
       if (me .eq. 0) then
       WRITE(6,*) ' MAXMIN of input as is'
       KMAMI=1
-      CALL MAXMIN(DATA,IJMAX,KMAMI)
+      CALL MAXMIN(DATA(1,1),IJMAX,KMAMI)
       endif
 !
       CALL GETAREA(KGDS,DLAT,DLON,RSLAT,RNLAT,WLON,ELON,IJORDR,me)
@@ -8225,11 +8285,12 @@ cjfe
       WRITE(6,*) 'IMAX,JMAX,IJMAX,DLON,DLAT,IJORDR,WLON,RNLAT='
       WRITE(6,*)  IMAX,JMAX,IJMAX,DLON,DLAT,IJORDR,WLON,RNLAT
       endif
-      CALL SUBST(DATA,IMAX,JMAX,IJMAX,DLON,DLAT,IJORDR,WORK)
+      CALL SUBST(DATA,IMAX,JMAX,DLON,DLAT,IJORDR)
 !
 !   First get SLMASK over input grid
 !
         allocate (rlngrb(imax), rltgrb(jmax))
+        allocate (rslmsk(imax,jmax))
         CALL SETRMSK(KPDS5,SLMSKH,IMSK,JMSK,WLON,RNLAT,
      &               DATA,IMAX,JMAX,RLNGRB,RLTGRB,LMASK,RSLMSK
 !    &               DATA,IMAX,JMAX,ABS(DLON),ABS(DLAT),LMASK,RSLMSK
@@ -8250,6 +8311,8 @@ cjfe
 !
       deallocate (rlngrb, STAT=iret)
       deallocate (rltgrb, STAT=iret)
+      deallocate (data, STAT=iret)
+      deallocate (rslmsk, STAT=iret)
       call baclose(lugb,iret2)
 !     WRITE(6,*) ' '
       RETURN
@@ -8264,210 +8327,6 @@ cjfe
 !
       RETURN
       END SUBROUTINE FIXRDA
-C-----------------------------------------------------------------------
-!     SUBROUTINE SPLATx(IDRT,JMAX,SLAT,WLAT)
-!C$$$  SUBPROGRAM DOCUMENTATION BLOCK
-!C
-!C SUBPROGRAM:  SPLAT      COMPUTE LATITUDE FUNCTIONS
-!C   PRGMMR: IREDELL       ORG: W/NMC23       DATE: 96-02-20
-!C
-!C ABSTRACT: COMPUTES COSINES OF COLATITUDE AND GAUSSIAN WEIGHTS
-!C           FOR ONE OF THE FOLLOWING SPECIFIC GLOBAL SETS OF LATITUDES.
-!C             GAUSSIAN LATITUDES (IDRT=4)
-!C             EQUALLY-SPACED LATITUDES INCLUDING POLES (IDRT=0)
-!C             EQUALLY-SPACED LATITUDES EXCLUDING POLES (IDRT=256)
-!C           THE GAUSSIAN LATITUDES ARE LOCATED AT THE ZEROES OF THE
-!C           LEGENDRE POLYNOMIAL OF THE GIVEN ORDER.  THESE LATITUDES
-!C           ARE EFFICIENT FOR REVERSIBLE TRANSFORMS FROM SPECTRAL SPACE.
-!C           (ABOUT TWICE AS MANY EQUALLY-SPACED LATITUDES ARE NEEDED.)
-!C           THE WEIGHTS FOR THE EQUALLY-SPACED LATITUDES ARE BASED ON
-!C           ELLSAESSER (JAM,1966).  (NO WEIGHT IS GIVEN THE POLE POINT.)
-!C           NOTE THAT WHEN ANALYZING GRID TO SPECTRAL IN LATITUDE PAIRS,
-!C           IF AN EQUATOR POINT EXISTS, ITS WEIGHT SHOULD BE HALVED.
-!C           THIS VERSION INVOKES THE IBM ESSL MATRIX SOLVER.
-!C
-!C PROGRAM HISTORY LOG:
-!C   96-02-20  IREDELL
-!C   97-10-20  IREDELL  ADJUST PRECISION
-!C   98-06-11  IREDELL  GENERALIZE PRECISION USING FORTRAN 90 INTRINSIC
-!C 1998-12-03  IREDELL  GENERALIZE PRECISION FURTHER
-!C 1998-12-03  IREDELL  USE BLAS CALLS
-!C
-!C USAGE:    CALL SPLAT(IDRT,JMAX,SLAT,WLAT)
-!C
-!C   INPUT ARGUMENT LIST:
-!C     IDRT     - INTEGER GRID IDENTIFIER
-!C                (IDRT=4 FOR GAUSSIAN GRID,
-!C                 IDRT=0 FOR EQUALLY-SPACED GRID INCLUDING POLES,
-!C                 IDRT=256 FOR EQUALLY-SPACED GRID EXCLUDING POLES)
-!C     JMAX     - INTEGER NUMBER OF LATITUDES.
-!C
-!C   OUTPUT ARGUMENT LIST:
-!C     SLAT     - REAL (JMAX) SINES OF LATITUDE.
-!C     WLAT     - REAL (JMAX) GAUSSIAN WEIGHTS.
-!C
-!C SUBPROGRAMS CALLED:
-!C   DGEF         MATRIX FACTORIZATION
-!C   DGES         MATRIX SOLVER
-!C
-!C ATTRIBUTES:
-!C   LANGUAGE: FORTRAN 90
-!C
-!C$$$
-!      USE MACHINE , ONLY : kind_io8,kind_io4
-!      implicit none
-!      REAL (KIND=KIND_IO8) pi,r,c
-!      integer jz,j,n,idrt,jmax,jh
-!      REAL (KIND=KIND_IO8) SLAT(JMAX),WLAT(JMAX)
-!      INTEGER,PARAMETER:: KD=SELECTED_REAL_KIND(15,45)
-!      REAL(KIND=KD):: PK(JMAX/2),PKM1(JMAX/2),PKM2(JMAX/2)
-!      REAL(KIND=KD):: SLATD(JMAX/2),SP,SPMAX,EPS=10.*EPSILON(SP)
-!      PARAMETER(JZ=50)
-!      REAL (KIND=KIND_IO8) BZ(JZ)
-!      DATA BZ        / 2.4048255577,  5.5200781103,
-!     &  8.6537279129, 11.7915344391, 14.9309177086, 18.0710639679,
-!     & 21.2116366299, 24.3524715308, 27.4934791320, 30.6346064684,
-!     & 33.7758202136, 36.9170983537, 40.0584257646, 43.1997917132,
-!     & 46.3411883717, 49.4826098974, 52.6240518411, 55.7655107550,
-!     & 58.9069839261, 62.0484691902, 65.1899648002, 68.3314693299,
-!     & 71.4729816036, 74.6145006437, 77.7560256304, 80.8975558711,
-!     & 84.0390907769, 87.1806298436, 90.3221726372, 93.4637187819,
-!     & 96.6052679510, 99.7468198587, 102.888374254, 106.029930916,
-!     & 109.171489649, 112.313050280, 115.454612653, 118.596176630,
-!     & 121.737742088, 124.879308913, 128.020877005, 131.162446275,
-!     & 134.304016638, 137.445588020, 140.587160352, 143.728733573,
-!     & 146.870307625, 150.011882457, 153.153458019, 156.295034268 /
-!      REAL (KIND=KIND_IO8):: DLT,D1=1.
-!      REAL (KIND=KIND_IO8) AWORK((JMAX+1)/2-1,((JMAX+1)/2)-1),
-!     &      BWORK(((JMAX+1)/2))
-!      REAL (KIND=KIND_IO8) AWORK1((JMAX+1)/2,((JMAX+1)/2))
-!      INTEGER(4):: JHE,JHO,J0=0, INFO, JS
-!      INTEGER(4) IPVT((JMAX+1)/2)
-!      PARAMETER(PI=3.14159265358979,C=(1.-(2./PI)**2)*0.25)
-!C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-!C  GAUSSIAN LATITUDES
-!      IF(IDRT.EQ.4) THEN
-!        JH=JMAX/2
-!        JHE=(JMAX+1)/2
-!        R=1./SQRT((JMAX+0.5)**2+C)
-!        DO J=1,MIN(JH,JZ)
-!          SLATD(J)=COS(BZ(J)*R)
-!        ENDDO
-!        DO J=JZ+1,JH
-!          SLATD(J)=COS((BZ(JZ)+(J-JZ)*PI)*R)
-!        ENDDO
-!        SPMAX=1.
-!        DO WHILE(SPMAX.GT.EPS)
-!          SPMAX=0.
-!          DO J=1,JH
-!            PKM1(J)=1.
-!            PK(J)=SLATD(J)
-!          ENDDO
-!          DO N=2,JMAX
-!            DO J=1,JH
-!              PKM2(J)=PKM1(J)
-!              PKM1(J)=PK(J)
-!              PK(J)=((2*N-1)*SLATD(J)*PKM1(J)-(N-1)*PKM2(J))/N
-!            ENDDO
-!          ENDDO
-!          DO J=1,JH
-!            SP=PK(J)*(1.-SLATD(J)**2)/(JMAX*(PKM1(J)-SLATD(J)*PK(J)))
-!            SLATD(J)=SLATD(J)-SP
-!            SPMAX=MAX(SPMAX,ABS(SP))
-!          ENDDO
-!        ENDDO
-!CDIR$ IVDEP
-!        DO J=1,JH
-!          SLAT(J)=SLATD(J)
-!          WLAT(J)=(2.*(1.-SLATD(J)**2))/(JMAX*PKM1(J))**2
-!          SLAT(JMAX+1-J)=-SLAT(J)
-!          WLAT(JMAX+1-J)=WLAT(J)
-!        ENDDO
-!        IF(JHE.GT.JH) THEN
-!          SLAT(JHE)=0.
-!          WLAT(JHE)=2./JMAX**2
-!          DO N=2,JMAX,2
-!            WLAT(JHE)=WLAT(JHE)*N**2/(N-1)**2
-!          ENDDO
-!        ENDIF
-!C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-!C  EQUALLY-SPACED LATITUDES INCLUDING POLES
-!      ELSEIF(IDRT.EQ.0) THEN
-!        JH=JMAX/2
-!        JHE=(JMAX+1)/2
-!        JHO=JHE-1
-!        DLT=PI/(JMAX-1)
-!        SLAT(1)=1.
-!        DO J=2,JH
-!          SLAT(J)=COS((J-1)*DLT)
-!        ENDDO
-!        DO JS=1,JHO
-!          DO J=1,JHO
-!            AWORK(JS,J)=COS(2*(JS-1)*J*DLT)
-!          ENDDO
-!        ENDDO
-!        DO JS=1,JHO
-!          BWORK(JS)=-D1/(4*(JS-1)**2-1)
-!        ENDDO
-!        CALL DGEF(AWORK,JHE,JHO,IPVT)
-!        CALL DGES(AWORK,JHE,JHO,IPVT,BWORK,J0)
-!!cjfe   CALL DGEF(AWORK,JHE,JHO,IPVT)
-!!cjfe   CALL DGES(AWORK,JHE,JHO,IPVT,BWORK,J0)
-!!       CALL DGESV(JHO,1,AWORK,JHO,IPVT,BWORK,JHO,INFO)
-!        WLAT(1)=0.
-!        DO J=1,JHO
-!          WLAT(J+1)=BWORK(J)
-!        ENDDO
-!CDIR$ IVDEP
-!        DO J=1,JH
-!          SLAT(JMAX+1-J)=-SLAT(J)
-!          WLAT(JMAX+1-J)=WLAT(J)
-!        ENDDO
-!        IF(JHE.GT.JH) THEN
-!          SLAT(JHE)=0.
-!          WLAT(JHE)=2.*WLAT(JHE)
-!        ENDIF
-!! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-!C  EQUALLY-SPACED LATITUDES EXCLUDING POLES
-!      ELSEIF(IDRT.EQ.256) THEN
-!        JH=JMAX/2
-!        JHE=(JMAX+1)/2
-!        JHO=JHE
-!        DLT=PI/JMAX
-!        SLAT(1)=1.
-!        DO J=1,JH
-!          SLAT(J)=COS((J-0.5)*DLT)
-!        ENDDO
-!        DO JS=1,JHO
-!          DO J=1,JHO
-!            AWORK1(JS,J)=COS(2*(JS-1)*(J-0.5)*DLT)
-!          ENDDO
-!        ENDDO
-!        DO JS=1,JHO
-!          BWORK(JS)=-D1/(4*(JS-1)**2-1)
-!        ENDDO
-!        CALL DGEF(AWORK1,JHE,JHO,IPVT)
-!        CALL DGES(AWORK1,JHE,JHO,IPVT,BWORK,J0)
-!!cjfe   CALL DGEF(AWORK1,JHE,JHO,IPVT)
-!!cjfe   CALL DGES(AWORK1,JHE,JHO,IPVT,BWORK,J0)
-!!       CALL DGESV(JHO,1,AWORK1,JHO,IPVT,BWORK,1,INFO)
-!        WLAT(1)=0.
-!        DO J=1,JHO
-!          WLAT(J)=BWORK(J)
-!        ENDDO
-!CDIR$ IVDEP
-!        DO J=1,JH
-!          SLAT(JMAX+1-J)=-SLAT(J)
-!          WLAT(JMAX+1-J)=WLAT(J)
-!        ENDDO
-!        IF(JHE.GT.JH) THEN
-!          SLAT(JHE)=0.
-!          WLAT(JHE)=2.*WLAT(JHE)
-!        ENDIF
-!      ENDIF
-!C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-!      RETURN
-!      END
       SUBROUTINE SNODPTH2(GLACIR,SNWMAX,SNOANL, LEN, me)
       USE MACHINE , ONLY : kind_io8,kind_io4
       implicit none

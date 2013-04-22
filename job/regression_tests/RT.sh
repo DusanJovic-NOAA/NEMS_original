@@ -1,5 +1,6 @@
 #!/bin/ksh
 
+set -x
 #########################################################################
 #         USER DEFINED PART!!!!!!
 # Setup machine related variables (CLASS, ACCNR, & DISKNM)
@@ -7,7 +8,27 @@
 
 . ./detect_machine.sh
 
-if [ ${MACHINE_ID} = ccs ]; then
+#   Uncomment any of the following skip options to skip those tests
+#   ---------------------------------------------------------------
+#SKIP_NMM=YES
+#SKIP_GFS=YES
+ SKIP_GENS=YES
+ SKIP_FIM=YES
+#SKIP_POST=YES
+ SKIP_GFS_POST=YES
+ SKIP_ESMF52=YES
+ SKIP_ESMF53=YES
+ SKIP_ESMF610=YES
+ SKIP_ESMF611=YES
+ SKIP_GEFS_CONCUR=YES
+ SKIP_NST=YES
+
+#COMPILE_SORC=NO                # uncomment not to recompile the basic test
+
+export dprefix1=""
+export dprefix2=""
+export MACHINE_ID=${MACHINE_ID:-wcoss}
+if [ $MACHINE_ID = ccs ]; then
   export CLASS=dev
   export GROUP=dev
   export ACCNR=GFS-T2O
@@ -15,38 +36,42 @@ if [ ${MACHINE_ID} = ccs ]; then
   export STMP=/stmp
   export PTMP=/ptmp
   export SCHEDULER=loadleveler
-  STMP=/stmp
-elif [ ${MACHINE_ID} = wcoss ]; then
+elif [ $MACHINE_ID = wcoss ]; then
+  export CLASS=dev
   export ACCNR=dev
   export DISKNM=/meso
-  export STMP=/stmp ; mkdir -p $STMP/$USER
-  export PTMP=/ptmp ; mkdir -p $PTMP/$USER
+  export STMP=/stmp
+  export PTMP=/ptmp
   export SCHEDULER=lsf
-elif [ ${MACHINE_ID} = gaea ]; then 
+elif [ $MACHINE_ID = gaea ]; then 
   export DISKNM=/lustre/ltfs/scratch/Ratko.Vasic
   export STMP=/lustre/fs/scratch
   export PTMP=/lustre/fs/scratch
   export SCHEDULER=moab
-elif [ ${MACHINE_ID} = zeus ]; then 
+elif [ $MACHINE_ID = zeus ]; then 
   export ACCNR
-  export DISKNM=/scratch2/portfolios/NCEPDEV/meso
-  export STMP=/scratch2/portfolios/NCEPDEV/stmp
-  export PTMP=/scratch2/portfolios/NCEPDEV/ptmp
+  export dprefix1=/scratch1/portfolios/NCEPDEV
+  export dprefix2=/scratch2/portfolios/NCEPDEV
+  export DISKNM=$dprefix2/meso
+  export STMP=$dprefix2/stmp
+  export PTMP=$dprefix2/ptmp
   export SCHEDULER=pbs
+  export SIGHDR=$dprefix2/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
 else
   echo "Unknown machine ID, please edit detect_machine.sh file"
   exit
 fi
+mkdir -p $STMP/$USER
+mkdir -p $PTMP/$USER
 
-export MACHINE_ID
-export SCHEDULER
 
 ############################################################
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 
-   export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+#  export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
 #  export RTPWD=${STMP}/${USER}/REGRESSION_TEST
+   export RTPWD=$dprefix2/global/noscrub/${USER}/REGRESSION_TEST
 
 #########################################################################
 # Check if running regression test or creating baselines.
@@ -68,7 +93,7 @@ fi
 if [ $argn -eq 1 ]; then
   export CREATE_BASELINE=true
   CB_arg=$1
-  if [ ${CB_arg} != nmm -a ${CB_arg} != gfs -a ${CB_arg} != gen -a ${CB_arg} != fim -a  ${CB_arg} != post -a ${CB_arg} != all ]; then
+  if [ $CB_arg != nmm -a $CB_arg != gfs -a $CB_arg != gen -a $CB_arg != fim -a  $CB_arg != post -a $CB_arg != all ]; then
     echo "Wrong CB_arg choice: " $CB_arg
     echo "  Options are: "
     echo "          RT.sh  nmm  (create baselines for NMM)"
@@ -92,67 +117,66 @@ if [ $argn -eq 1 ]; then
   CP_gfs=false
   CP_fim=false
   CP_post=false
-  if   [ ${CB_arg} = nmm ]; then
+  if   [ $CB_arg = nmm ]; then
     CP_gfs=true
     CP_fim=true
     CP_post=true
-  elif [ ${CB_arg} = gfs ]; then
+  elif [ $CB_arg = gfs ]; then
     CP_nmm=true
     CP_fim=true
     CP_post=true
-  elif [ ${CB_arg} = fim ]; then
+  elif [ $CB_arg = fim ]; then
     CP_nmm=true
     CP_gfs=true
     CP_post=true
-  elif [ ${CB_arg} = post ]; then
+  elif [ $CB_arg = post ]; then
     CP_nmm=true
     CP_gfs=true
     CP_fim=true
   fi
-  if [ ${CP_gfs} = true ]; then
+  RTPWD_U=${STMP}/${USER}/REGRESSION_TEST
+  if [ $CP_gfs = true ]; then
     echo "copy gfs"
-     cp ${RTPWD}/GEFS_m4/*                   ${STMP}/${USER}/REGRESSION_TEST/GEFS_m4/.
-     cp ${RTPWD}/GEFS_m4_5.2.0rp1/*          ${STMP}/${USER}/REGRESSION_TEST/GEFS_m4_5.2.0rp1/.
-     cp ${RTPWD}/GEFS_m4_6.1.1/*             ${STMP}/${USER}/REGRESSION_TEST/GEFS_m4_6.1.1/.
-     cp ${RTPWD}/GFS_ADIAB/*                 ${STMP}/${USER}/REGRESSION_TEST/GFS_ADIAB/.
-     cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*       ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID/.
-     cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/*   ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_HYB/.
-     cp ${RTPWD}/GFS_DFI_REDUCEDGRID_NDSL/*  ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_NDSL/.
-     cp ${RTPWD}/GFS_DFI_hyb_2loop/*         ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_hyb_2loop/.
-     cp ${RTPWD}/GFS_DFI_hyb_2loop_nst/*     ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_hyb_2loop_nst/.
-     cp ${RTPWD}/GFS_NODFI/*                 ${STMP}/${USER}/REGRESSION_TEST/GFS_NODFI/.
-     cp ${RTPWD}/GFS_NODFI_5.2.0rp1/*        ${STMP}/${USER}/REGRESSION_TEST/GFS_NODFI_5.2.0rp1/.
-     cp ${RTPWD}/GFS_NODFI_6.1.1/*           ${STMP}/${USER}/REGRESSION_TEST/GFS_NODFI_6.1.1/.
-     cp ${RTPWD}/GFS_OPAC/*                  ${STMP}/${USER}/REGRESSION_TEST/GFS_OPAC/.
-     cp ${RTPWD}/GEFS_m4_6.1.1/*             ${STMP}/${USER}/REGRESSION_TEST/GEFS_m4_6.1.1/.
-     cp ${RTPWD}/GFS_NODFI_6.1.1/*           ${STMP}/${USER}/REGRESSION_TEST/GFS_NODFI_6.1.1/.
+    cp ${RTPWD}/GEFS_m4/*                  ${RTPWD_U}/GEFS_m4/.
+    cp ${RTPWD}/GEFS_m4_5.2.0rp1/*         ${RTPWD_U}/GEFS_m4_5.2.0rp1/.
+    cp ${RTPWD}/GEFS_m4_6.1.1/*            ${RTPWD_U}/GEFS_m4_6.1.1/.
+    cp ${RTPWD}/GFS_ADIAB/*                ${RTPWD_U}/GFS_ADIAB/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*      ${RTPWD_U}/GFS_DFI_REDUCEDGRID/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/*  ${RTPWD_U}/GFS_DFI_REDUCEDGRID_HYB/.
+    cp ${RTPWD}/GFS_DFI_REDUCEDGRID_NDSL/* ${RTPWD_U}/GFS_DFI_REDUCEDGRID_NDSL/.
+    cp ${RTPWD}/GFS_DFI_hyb_2loop/*        ${RTPWD_U}/GFS_DFI_hyb_2loop/.
+    cp ${RTPWD}/GFS_DFI_hyb_2loop_nst/*    ${RTPWD_U}/GFS_DFI_hyb_2loop_nst/.
+    cp ${RTPWD}/GFS_NODFI/*                ${RTPWD_U}/GFS_NODFI/.
+    cp ${RTPWD}/GFS_NODFI_5.2.0rp1/*       ${RTPWD_U}/GFS_NODFI_5.2.0rp1/.
+    cp ${RTPWD}/GFS_NODFI_6.1.1/*          ${RTPWD_U}/GFS_NODFI_6.1.1/.
+    cp ${RTPWD}/GFS_OPAC/*                 ${RTPWD_U}/GFS_OPAC/.
   fi
-  if [ ${CP_nmm} = true ]; then
+  if [ $CP_nmm = true ]; then
     echo "copy nmm"
-     cp ${RTPWD}/NMMB_gfsP_glob/*            ${STMP}/${USER}/REGRESSION_TEST/NMMB_gfsP_glob/.
-     cp ${RTPWD}/NMMB_gfsP_reg/*             ${STMP}/${USER}/REGRESSION_TEST/NMMB_gfsP_reg/.
-     cp ${RTPWD}/NMMB_glob/*                 ${STMP}/${USER}/REGRESSION_TEST/NMMB_glob/.
-     cp ${RTPWD}/NMMB_glob_ESMF_5.2.0rp1/*   ${STMP}/${USER}/REGRESSION_TEST/NMMB_glob_ESMF_5.2.0rp1/.
-     cp ${RTPWD}/NMMB_mvg_nests/*            ${STMP}/${USER}/REGRESSION_TEST/NMMB_mvg_nests/.
-     cp ${RTPWD}/NMMB_nests/*                ${STMP}/${USER}/REGRESSION_TEST/NMMB_nests/.
-     cp ${RTPWD}/NMMB_reg/*                  ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg/.
-     cp ${RTPWD}/NMMB_reg_filt/*             ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_filt/.
-     cp ${RTPWD}/NMMB_reg_pcpadj/*           ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_pcpadj/.
-     cp ${RTPWD}/NMMB_reg_sel_phy/*          ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_sel_phy/.
-     cp ${RTPWD}/NMMB_reg_timesr/*           ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_timesr/.
-     cp ${RTPWD}/NMMB_rrtm_nests/*           ${STMP}/${USER}/REGRESSION_TEST/NMMB_rrtm_nests/.
+    cp ${RTPWD}/NMMB_gfsP_glob/*           ${RTPWD_U}/NMMB_gfsP_glob/.
+    cp ${RTPWD}/NMMB_gfsP_reg/*            ${RTPWD_U}/NMMB_gfsP_reg/.
+    cp ${RTPWD}/NMMB_glob/*                ${RTPWD_U}/NMMB_glob/.
+    cp ${RTPWD}/NMMB_glob_ESMF_5.2.0rp1/*  ${RTPWD_U}/NMMB_glob_ESMF_5.2.0rp1/.
+    cp ${RTPWD}/NMMB_mvg_nests/*           ${RTPWD_U}/NMMB_mvg_nests/.
+    cp ${RTPWD}/NMMB_nests/*               ${RTPWD_U}/NMMB_nests/.
+    cp ${RTPWD}/NMMB_reg/*                 ${RTPWD_U}/NMMB_reg/.
+    cp ${RTPWD}/NMMB_reg_filt/*            ${RTPWD_U}/NMMB_reg_filt/.
+    cp ${RTPWD}/NMMB_reg_pcpadj/*          ${RTPWD_U}/NMMB_reg_pcpadj/.
+    cp ${RTPWD}/NMMB_reg_sel_phy/*         ${RTPWD_U}/NMMB_reg_sel_phy/.
+    cp ${RTPWD}/NMMB_reg_timesr/*          ${RTPWD_U}/NMMB_reg_timesr/.
+    cp ${RTPWD}/NMMB_rrtm_nests/*          ${RTPWD_U}/NMMB_rrtm_nests/.
   fi
-  if [ ${CP_fim} = true ]; then
+  if [ $CP_fim = true ]; then
     echo "copy fim"
-     cp ${RTPWD}/FIMdata/*                   ${STMP}/${USER}/REGRESSION_TEST/FIMdata/.
+    cp ${RTPWD}/FIMdata/*                  ${RTPWD_U}/FIMdata/.
     #TODO:  generalize with $GLVL (see below)
-     cp ${RTPWD}/FIM_G4L38_24hr/*            ${STMP}/${USER}/REGRESSION_TEST/FIM_G4L38_24hr/.
+    cp ${RTPWD}/FIM_G4L38_24hr/*           ${RTPWD_U}/FIM_G4L38_24hr/.
   fi
-  if [ ${CP_post} = true ]; then
+  if [ $CP_post = true ]; then
     echo "copy post"
-     cp    ${RTPWD}/GFS_DFI_POST/*              ${STMP}/${USER}/REGRESSION_TEST/GFS_DFI_POST/.
-     cp    ${RTPWD}/NMMB_reg_post/*             ${STMP}/${USER}/REGRESSION_TEST/NMMB_reg_post/.
-     cp -r ${RTPWD}/GFS_GOCART_POST/*           ${STMP}/${USER}/REGRESSION_TEST/GFS_GOCART_POST/.
+    cp    ${RTPWD}/GFS_DFI_POST/*          ${RTPWD_U}/GFS_DFI_POST/.
+    cp    ${RTPWD}/NMMB_reg_post/*         ${RTPWD_U}/NMMB_reg_post/.
+    cp -r ${RTPWD}/GFS_GOCART_POST/*       ${RTPWD_U}/GFS_GOCART_POST/.
   fi
 fi
 
@@ -164,16 +188,14 @@ fi
 if [ $argn -eq 2 ]; then
   RT_arg1=$1
   RT_arg2=$2
-  if [ ${RT_arg1} != full -o ${RT_arg2} != test ]; then
+  if [ $RT_arg1 != full -o $RT_arg2 != test ]; then
     echo "Wrong RT_arg choice: " $RT_arg1 $RT_arg2
-    echo "  Option is: "
+    echo "  Options are: "
     echo "          RT.sh  full test  (run complete regression test)"
     exit
   fi
   RT_FULL=true
-fi
-
-if [ $argn -gt 2 ]; then
+elif [ $argn -gt 2 ]; then
   echo "Wrong argument choice"
   exit
 fi
@@ -273,12 +295,12 @@ fi
 # PATHRT - Path to regression test
 ###################################
 
-export PATHRT=`pwd`
+export PATHRT=`pwd`            # Path to regression test scripts
 cd ../../
-export PATHTR=`pwd`
+export PATHTR=`pwd`            # Path to NEMS trunk
 
-export REGRESSIONTEST_LOG=${PATHRT}/RegressionTests_${MACHINE_ID}.log
-export COMPILE_LOG=${PATHRT}/Compile_${MACHINE_ID}.log
+export REGRESSIONTEST_LOG=${PATHRT}/RegressionTests_$MACHINE_ID.log
+export COMPILE_LOG=${PATHRT}/Compile_$MACHINE_ID.log
 
 date > ${COMPILE_LOG}
 date > ${REGRESSIONTEST_LOG}
@@ -292,15 +314,15 @@ export TEST_NR=0
 
 clear;echo;echo
 
-####################################################################################################
+###############################################################################
 #
 # Export variables to the default values
 #  - first common variables, then model specific ones
 #  - different machines, different defaults:
 #
-####################################################################################################
+###############################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
+if [ $MACHINE_ID = ccs ]; then
 
   TASKS_dflt=    ; TPN_dflt=32 ; INPES_dflt=06 ; JNPES_dflt=05 ; WTPG_dflt=2
   TASKS_thrd=    ; TPN_thrd=32 ; INPES_thrd=06 ; JNPES_thrd=05 ; WTPG_thrd=2
@@ -309,7 +331,7 @@ if [ ${MACHINE_ID} = ccs ]; then
   TASKS_mvg1=    ; TPN_mvg1=32 ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
   TASKS_mvg2=    ; TPN_mvg2=32 ; INPES_mvg2=04 ; JNPES_mvg2=23 ; WTPG_mvg2=1
 
-elif [ ${MACHINE_ID} = wcoss ]; then
+elif [ $MACHINE_ID = wcoss ]; then
 
   TASKS_dflt=32  ; TPN_dflt=16 ; INPES_dflt=05 ; JNPES_dflt=06 ; WTPG_dflt=2
   TASKS_thrd=16  ; TPN_thrd=08 ; INPES_thrd=03 ; JNPES_thrd=05 ; WTPG_thrd=1
@@ -318,7 +340,7 @@ elif [ ${MACHINE_ID} = wcoss ]; then
   TASKS_mvg1=96  ; TPN_mvg1=16 ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
   TASKS_mvg2=96  ; TPN_mvg2=16 ; INPES_mvg2=04 ; JNPES_mvg2=23 ; WTPG_mvg2=1
 
-elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
+elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
 
   TASKS_dflt=48  ; TPN_dflt=   ; INPES_dflt=05 ; JNPES_dflt=09 ; WTPG_dflt=3
   TASKS_thrd=48  ; TPN_thrd=   ; INPES_thrd=05 ; JNPES_thrd=09 ; WTPG_thrd=3
@@ -345,26 +367,36 @@ export_nmm ()
 export_common
 export INPES=$INPES_dflt ; export JNPES=$JNPES_dflt ; export WTPG=$WTPG_dflt
 export TASKS=$TASKS_dflt ; export TPN=$TPN_dflt
-export GBRG=reg     ; export NEMSI=false    ; export RSTRT=false ; export AFFN=core
-export NCHILD=0     ; export MODE=1-way     ; export NODE=1      ; export FCSTL=48
-export PCPFLG=false ; export WPREC=false    ; export CPPCP=#     ; export TS=#
-export RADTN=gfdl   ; export CONVC=bmj      ; export TURBL=myj   ; export MICRO=fer_hires
-export gfsP=false
+export GBRG=reg          ; export NEMSI=false       ; export RSTRT=false
+export AFFN=core
+export NCHILD=0          ; export MODE=1-way        ; export NODE=1
+export FCSTL=48
+export PCPFLG=false      ; export WPREC=false       ; export CPPCP=#
+export TS=#
+export RADTN=gfdl        ; export CONVC=bmj         ; export TURBL=myj
+export MICRO=fer_hires   ; export gfsP=false
 }
 
 export_gfs ()
 {
 export_common
-export TASKS=32    ; export PE1=30          ; export NSOUT=0       ; export QUILT=.true.
-export NDAYS=2     ; export CP2=.false.     ; export IAER=0        ; export FHRES=24
-export WRTGP=1     ; export FDFI=0          ; export ADIAB=.false. ; export REDUCEDGRID=.true.
-export wave=62 
-export lm=64       ; export lsoil=4         ; export MEMBER_NAMES=c00
-export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=1
+export TASKS=32  ; export PE1=32       ; export NSOUT=0       ; export QUILT=.false.
+#export TASKS=8  ; export PE1=8        ; export NSOUT=0       ; export QUILT=.false.
+export NDAYS=2   ; export CP2=.false.  ; export IAER=0        ; export FHRES=180
+export WRTGP=1   ; export FDFI=0       ; export ADIAB=.false. ; export REDUCEDGRID=.true.
+#export wave=62  ; export THRD=4
+export wave=62   ; export THRD=1
+export lm=64     ; export lsoil=4         ; export MEMBER_NAMES=c00
+export IDVC=2    ; export THERMODYN_ID=1  ; export SFCPRESS_ID=1 ; export SPECTRALLOOP=2
+export NEMSIOIN=.false.  ; export NEMSIOOUT=.false. ; export rungfstest=.true.
+export SIGIOIN=.true.    ; export SIGIOOUT=.true.   ; export SFCIOOUT=.false.
+#export NEMSIOOUT=.true. ;  export SIGIOOUT=.false. ; export SFCIOOUT=.false. 
+export FHSWR=1           ;  export FHLWR=1          ; LDFI_SPECT=.true.
+export CDATE=2012010100
+#export CDATE=2010010100
+export GOCART_AER2POST=.false.
+#export GOCART_AER2POST=.false.
 export NST_FCST=0  ; export NDSLFV=.false.  ; export IDEA=.false.
-export GOCART_AER2POST=.false. ;  export NEMSIOIN=.true. ; export rungfstest=.false.
-export NEMSIOOUT=.true. ;  export SIGIOOUT=.false. ; export SFCIOOUT=.false. 
-export CDATE=2010010100
 }
 
 export_fim ()
@@ -376,1460 +408,1502 @@ export FIM_USE_NEMS=true
 export_nmm ; export_gfs
 
 ############################################################################
-# Clean and compile both NMMB & GFS cores, using ESMF 3.1.0rp2 library.
+# Clean and compile both NMMB & GFS cores, using ESMF 3.1.0rp5 library.
 ############################################################################
 
-if [ ${ST_test} = true -o ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
+if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
-echo "Preparing model code for regression tests"
-echo "Using the ESMF 3.1.0rp2 library"
-printf %s "Using the ESMF 3.1.0rp2 library.   "
-printf %s "Compiling model code (this will take some time)......."
-cd ${PATHTR}/src
+ echo "Preparing for regression tests"
 
-date                                     >> ${REGRESSIONTEST_LOG}
-echo "Compilation ALL"                   >> ${REGRESSIONTEST_LOG}
-rm -f ../exe/NEMS.x
+ if [ ${COMPILE_SORC:-YES} = YES ] ; then
+  echo "Preparing model code for regression tests"
+  echo "Using the ESMF 3.1.0rp2 library"
+  printf %s "Using the ESMF 3.1.0rp2 library.   "
+  printf %s "Compiling model code (this will take some time)......."
+  cd ${PATHTR}/src
 
-if [ ${MACHINE_ID} = ccs ]; then
+  date                                     >> ${REGRESSIONTEST_LOG}
+  echo "Compilation ALL"                   >> ${REGRESSIONTEST_LOG}
+  rm -f ../exe/NEMS.x
 
-  esmf_version 3                         >> ${COMPILE_LOG} 2>&1
-  gmake clean                            >> ${COMPILE_LOG} 2>&1
-  gmake nmm_gfs_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
+  if [ $MACHINE_ID = ccs ]; then
 
-elif [ ${MACHINE_ID} = wcoss ]; then 
+    cp atmos/gsm/dyn/makefile_essl atmos/gsm/dyn/makefile
+    esmf_version 3                         >> ${COMPILE_LOG} 2>&1
+    gmake clean                            >> ${COMPILE_LOG} 2>&1
+    gmake nmm_gfs_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
 
-  ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
-  gmake clean                            >> ${COMPILE_LOG} 2>&1
-  gmake nmm_gfs_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
+  elif [ $MACHINE_ID = wcoss ]; then 
 
-elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then 
+    cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
+    ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
+    gmake clean                            >> ${COMPILE_LOG} 2>&1
+    gmake nmm_gfs_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
 
-  ./esmf_version 3_zeus                    >> ${COMPILE_LOG} 2>&1
-  gmake clean                            >> ${COMPILE_LOG} 2>&1
-  gmake nmm_gfs_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
+  elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then 
 
-fi
-date                                     >> ${REGRESSIONTEST_LOG}
+    cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
+    ./esmf_version 3_zeus                  >> ${COMPILE_LOG} 2>&1
+    gmake clean                            >> ${COMPILE_LOG} 2>&1
+    gmake nmm_gfs_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
 
-if [ -f ../exe/NEMS.x ] ; then
-  echo "   Model code Compiled";echo;echo
-else
-  echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
-  echo "   Model code is NOT compiled"
-  exit
-fi
+  fi
+ else
+  cd ${PATHTR}/src
+  echo ' Compilation bypassed'
+ fi
+ date                                     >> ${REGRESSIONTEST_LOG}
+
+ if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+ else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+ fi
 
 fi # endif compilation
 
 cd $PATHRT
 
-####################################################################################################
+###############################################################################
 #
 # TEST   - Global NMM-B with pure binary input
 #        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
 #
-####################################################################################################
+###############################################################################
 
-if [ ${ST_test} = true -o ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
+if [ ${SKIP_NMM:-NO} = YES ] ; then
+ echo "Skipping NMMB tests"
+else
+ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
-export TEST_DESCR="Compare NMMB-global results with previous trunk version"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL
-export CNTL_DIR=NMMB_glob
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
-nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
-#---------------------
-export_nmm
-export GBRG=glob
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = zeus ]; then
-  export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
-elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = wcoss ]; then
-  export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
-fi
-export timingc=`cat ${RTPWD}/NMMB_glob/timing.txt`
-(echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo)>> ${REGRESSIONTEST_LOG}
- echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo
-
-fi # endif test
-
-
-####################################################################################################
-#
-# TEST   - Global NMM-B with NEMSIO input
-#        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / nemsio input
-#
-####################################################################################################
-
-if [ ${RT_FULL} = true ]; then
-
-export TEST_DESCR="Test NMMB-global NEMSIO as input file"
+  export TEST_DESCR="Compare NMMB-global results with previous trunk version"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_NEMSIO
-export CNTL_DIR=NMMB_glob
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
-nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL
+  export CNTL_DIR=NMMB_glob
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
+  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
+  nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
 #---------------------
-export_nmm
-export GBRG=glob ; export NEMSI=true
+  export_nmm
+  export GBRG=glob
 #---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-
-
-####################################################################################################
-#
-# TEST   - Global NMM-B restart from pure binary input
-#        - 6x5 compute tasks / 1 thread / opnl physics / restart / pure binary input
-#
-####################################################################################################
-
-if [ ${RT_FULL} = true ]; then
-
-export TEST_DESCR="Test NMMB-global restart run"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_REST
-export CNTL_DIR=NMMB_glob
-export LIST_FILES=" \
-nmmb_hst_01_bin_0048h_00m_00.00s"
-#---------------------
-export_nmm
-export GBRG=glob ; export RSTRT=true
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
+  if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus ]; then
+   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
+  elif [ $MACHINE_ID = gaea -o $MACHINE_ID = wcoss ]; then
+   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
+  fi
+  export timingc=`cat ${RTPWD}/NMMB_glob/timing.txt`
+  (echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo)>> ${REGRESSIONTEST_LOG}
+  echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo
 
-####################################################################################################
-#
-# TEST   - Global NMM-B restart from NEMSIO input
-#        - 6x5 compute tasks / 1 thread / opnl physics / restart / nemsio input
-#
-####################################################################################################
+ fi # endif test
 
-if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
 
-export TEST_DESCR="Test NMMB-global restart run from NEMSIO file"
+ ###############################################################################
+ #
+ # TEST   - Global NMM-B with NEMSIO input
+ #        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / nemsio input
+ #
+ ###############################################################################
 
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_REST_NIO
-export CNTL_DIR=NMMB_glob
-export LIST_FILES=" \
-nmmb_hst_01_bin_0048h_00m_00.00s"
-#---------------------
-export_nmm
-export GBRG=glob ; export NEMSI=true ; export RSTRT=true
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
+ if [ $RT_FULL = true ]; then
 
-fi # endif test
-
-####################################################################################################
-#
-# TEST   - Global NMM-B with different domain decomposition
-#        - 3x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
-#
-####################################################################################################
-
-if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
-
-export TEST_DESCR="Test NMMB-global different decomposition"
+  export TEST_DESCR="Test NMMB-global NEMSIO as input file"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_DECOMP
-export CNTL_DIR=NMMB_glob
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s"
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_NEMSIO
+  export CNTL_DIR=NMMB_glob
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
+  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
+  nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
 #---------------------
-export_nmm
-export GBRG=glob   ; export FCSTL=24
-export INPES=$JNPES_dflt ; export JNPES=$INPES_dflt
+  export_nmm
+  export GBRG=glob ; export NEMSI=true
 #---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-
-####################################################################################################
-#
-# TEST   - Global NMM-B with multiple threads
-#        - 6x5 compute tasks / 2 threads / opnl physics / free fcst / pure binary input
-#
-####################################################################################################
-
-if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
-
-export TEST_DESCR="Test NMMB-global threading "
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_THREAD
-export CNTL_DIR=NMMB_glob
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s        \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
-nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
-#---------------------
-export_nmm
-export GBRG=glob ; export THRD=2
-export TASKS=$TASKS_thrd ; export TPN=$TPN_thrd
-export INPES=$INPES_thrd ; export JNPES=$JNPES_thrd ; export WTPG=$WTPG_thrd
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
+ fi # endif test
 
-####################################################################################################
-#
-# TEST   - Global NMM-B with GFS physics
-#        - 6x5 compute tasks / 1 thread / GFS physics / free fcst / pure binary input
-#
-####################################################################################################
 
-if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
+ ###############################################################################
+ #
+ # TEST   - Global NMM-B restart from pure binary input
+ #        - 6x5 compute tasks / 1 thread / opnl physics / restart / pure binary input
+ #
+ ###############################################################################
+
+ if [ $RT_FULL = true ]; then
+
+  export TEST_DESCR="Test NMMB-global restart run"
+
+#---------------------
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_REST
+  export CNTL_DIR=NMMB_glob
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0048h_00m_00.00s"
+#---------------------
+  export_nmm
+  export GBRG=glob ; export RSTRT=true
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
+ ###############################################################################
+ #
+ # TEST   - Global NMM-B restart from NEMSIO input
+ #        - 6x5 compute tasks / 1 thread / opnl physics / restart / nemsio input
+ #
+ ###############################################################################
+
+ if [ $ST_test = true -o $RT_FULL = true ]; then
+
+  export TEST_DESCR="Test NMMB-global restart run from NEMSIO file"
+
+#---------------------
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_REST_NIO
+  export CNTL_DIR=NMMB_glob
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0048h_00m_00.00s"
+#---------------------
+  export_nmm
+  export GBRG=glob ; export NEMSI=true ; export RSTRT=true
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
+ ###############################################################################
+ #
+ # TEST   - Global NMM-B with different domain decomposition
+ #        - 3x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
+ #
+ ###############################################################################
+
+ if [ $ST_test = true -o $RT_FULL = true ]; then
+
+  export TEST_DESCR="Test NMMB-global different decomposition"
+
+#---------------------
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_DECOMP
+  export CNTL_DIR=NMMB_glob
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
+  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s"
+#---------------------
+  export_nmm
+  export GBRG=glob   ; export FCSTL=24
+  export INPES=$JNPES_dflt ; export JNPES=$INPES_dflt
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
+ ###############################################################################
+ #
+ # TEST   - Global NMM-B with multiple threads
+ #        - 6x5 compute tasks / 2 threads / opnl physics / free fcst / pure binary input
+ #
+ ###############################################################################
+
+ if [ $ST_test = true -o $RT_FULL = true ]; then
+
+  export TEST_DESCR="Test NMMB-global threading "
+
+#---------------------
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_THREAD
+  export CNTL_DIR=NMMB_glob
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s        \
+  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
+  nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
+#---------------------
+  export_nmm
+  export GBRG=glob ; export THRD=2
+  export TASKS=$TASKS_thrd ; export TPN=$TPN_thrd
+  export INPES=$INPES_thrd ; export JNPES=$JNPES_thrd ; export WTPG=$WTPG_thrd
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
+ ###############################################################################
+ #
+ # TEST   - Global NMM-B with GFS physics
+ #        - 6x5 compute tasks / 1 thread / GFS physics / free fcst / pure binary input
+ #
+ ###############################################################################
+
+ if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
  
-export TEST_DESCR="Test NMMB-global with GFS physics package "
+  export TEST_DESCR="Test NMMB-global with GFS physics package "
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_gfsP
-export CNTL_DIR=NMMB_gfsP_glob
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_gfsP
+  export CNTL_DIR=NMMB_gfsP_glob
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
+  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+  nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
 #---------------------
-export_nmm
-export GBRG=glob ; export gfsP=true ; export FCSTL=24
+  export_nmm
+  export GBRG=glob ; export gfsP=true ; export FCSTL=24
 #---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-
-####################################################################################################
-#
-# TEST   - Regional NMM-B with pure binary input
-#        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
-#
-####################################################################################################
-
-if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
-
-export TEST_DESCR="Compare NMMB-regional results with previous trunk version"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_REG_CTL
-export CNTL_DIR=NMMB_reg
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_nio_0000h_00m_00.00s \
-nmmb_hst_01_bin_0012h_00m_00.00s nmmb_hst_01_nio_0012h_00m_00.00s \
-nmmb_hst_01_bin_0048h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
-nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s \
-pcp.hr1.01.bin  pcp.hr2.01.bin  pcp.hr3.01.bin  pcp.hr4.01.bin    \
-pcp.hr5.01.bin  pcp.hr6.01.bin  pcp.hr7.01.bin"
-#---------------------
-export_nmm
-export GBRG=reg ; export WPREC=true
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = zeus ]; then
-  export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
-elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = wcoss ]; then
-  export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
-fi
-export timingc=`cat ${RTPWD}/NMMB_reg/timing.txt`
-(echo " Original timing: " $timingc " , test_reg timing: " $timing1;echo;echo)>> ${REGRESSIONTEST_LOG}
- echo " Original timing: " $timingc " , test_reg timing: " $timing1;echo;echo
+ fi # endif test
 
-fi # endif test
+ ###############################################################################
+ #
+ # TEST   - Regional NMM-B with pure binary input
+ #        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
+ #
+ ###############################################################################
 
-####################################################################################################
-# 
-# TEST   - Regional NMM-B with NEMSIO input
-#        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / nemsio input
-# 
-####################################################################################################
+ if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
 
-if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
-
-export TEST_DESCR="Test NMMB-regional NEMSIO as input file"
+  export TEST_DESCR="Compare NMMB-regional results with previous trunk version"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_REG_NEMSIO
-export CNTL_DIR=NMMB_reg
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0012h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0012h_00m_00.00s"
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_CTL
+  export CNTL_DIR=NMMB_reg
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_nio_0000h_00m_00.00s \
+  nmmb_hst_01_bin_0012h_00m_00.00s nmmb_hst_01_nio_0012h_00m_00.00s \
+  nmmb_hst_01_bin_0048h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
+  nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s \
+  pcp.hr1.01.bin  pcp.hr2.01.bin  pcp.hr3.01.bin  pcp.hr4.01.bin    \
+  pcp.hr5.01.bin  pcp.hr6.01.bin  pcp.hr7.01.bin"
 #---------------------
-export_nmm
-export GBRG=reg ; export NEMSI=true ; export FCSTL=12
+  export_nmm
+  export GBRG=reg ; export WPREC=true
 #---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-
-####################################################################################################
-#
-# TEST   - Regional NMM-B restart with pure binary input
-#        - 6x5 compute tasks / 1 thread / opnl physics / restart / pure binary input
-#
-####################################################################################################
-
-if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
-
-export TEST_DESCR="Test NMMB-regional restart run"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_REG_RST
-export CNTL_DIR=NMMB_reg
-export LIST_FILES=" \
-nmmb_hst_01_bin_0048h_00m_00.00s"
-#---------------------
-export_nmm
-export GBRG=reg ; export RSTRT=true
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
+  if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus ]; then
+   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
+  elif [ $MACHINE_ID = gaea -o $MACHINE_ID = wcoss ]; then
+   export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
+  fi
+  export timingc=`cat ${RTPWD}/NMMB_reg/timing.txt`
+ (echo " Original timing: " $timingc " , test_reg timing: " $timing1;echo;echo)>> ${REGRESSIONTEST_LOG}
+  echo " Original timing: " $timingc " , test_reg timing: " $timing1;echo;echo
 
-####################################################################################################
-#
-# TEST   - Regional NMM-B restart with NEMSIO input
-#        - 6x5 compute tasks / 1 thread / opnl physics / restart / nemsio input
-#
-####################################################################################################
+ fi # endif test
 
-if [ ${RT_FULL} = true ]; then
+ ###############################################################################
+ # 
+ # TEST   - Regional NMM-B with NEMSIO input
+ #        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / nemsio input
+ # 
+ ###############################################################################
 
-export TEST_DESCR="Test NMMB-regional restart run with NEMSIO file "
+ if [ $ST_test = true -o $RT_FULL = true ]; then
 
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_REG_RST_NIO
-export CNTL_DIR=NMMB_reg
-export LIST_FILES=" \
-nmmb_hst_01_bin_0048h_00m_00.00s"
-#---------------------
-export_nmm
-export GBRG=reg ; export NEMSI=true ; export RSTRT=true
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-
-####################################################################################################
-#
-# TEST   - Regional NMM-B with different domain decomposition
-#        - 3x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
-#
-####################################################################################################
-
-if [ ${RT_FULL} = true ]; then
-
-export TEST_DESCR="Test NMMB-regional different decomposition"
+  export TEST_DESCR="Test NMMB-regional NEMSIO as input file"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_REG_DECOMP
-export CNTL_DIR=NMMB_reg
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0012h_00m_00.00s"
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_NEMSIO
+  export CNTL_DIR=NMMB_reg
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0012h_00m_00.00s \
+  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0012h_00m_00.00s"
 #---------------------
-export_nmm
-export GBRG=reg    ; export FCSTL=12
-export INPES=$JNPES_dflt ; export JNPES=$INPES_dflt
+  export_nmm
+  export GBRG=reg ; export NEMSI=true ; export FCSTL=12
 #---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-
-####################################################################################################
-#
-# TEST   - Regional NMM-B with multiple threads
-#        - 6x5 compute tasks / 2 threads / opnl physics / free fcst / pure binary input
-#
-####################################################################################################
-
-if [ ${RT_FULL} = true ]; then
-
-export TEST_DESCR="Test NMMB-regional threading "
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_REG_THREAD
-export CNTL_DIR=NMMB_reg
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
-nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
-#---------------------
-export_nmm
-export GBRG=reg ; export THRD=2
-export TASKS=$TASKS_thrd ; export TPN=$TPN_thrd
-export INPES=$INPES_thrd ; export JNPES=$JNPES_thrd ; export WTPG=$WTPG_thrd
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
+ fi # endif test
 
-####################################################################################################
-#
-# TEST   - Regional NMM-B with GFS physics
-#        - 6x5 compute tasks / 1 thread / GFS physics / free fcst / pure binary input
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - Regional NMM-B restart with pure binary input
+ #        - 6x5 compute tasks / 1 thread / opnl physics / restart / pure binary input
+ #
+ ###############################################################################
 
-if [ ${ST_test} = true -o ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
+ if [ $ST_test = true -o $RT_FULL = true ]; then
 
-export TEST_DESCR="Test NMMB-regional with GFS physics package "
+  export TEST_DESCR="Test NMMB-regional restart run"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_REG_gfsP
-export CNTL_DIR=NMMB_gfsP_reg
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_RST
+  export CNTL_DIR=NMMB_reg
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0048h_00m_00.00s"
 #---------------------
-export_nmm
-export GBRG=reg ; export gfsP=true ; export FCSTL=24
+  export_nmm
+  export GBRG=reg ; export RSTRT=true
 #---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
+ ###############################################################################
+ #
+ # TEST   - Regional NMM-B restart with NEMSIO input
+ #        - 6x5 compute tasks / 1 thread / opnl physics / restart / nemsio input
+ #
+ ###############################################################################
+
+ if [ $RT_FULL = true ]; then
+
+  export TEST_DESCR="Test NMMB-regional restart run with NEMSIO file "
+
+#---------------------
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_RST_NIO
+  export CNTL_DIR=NMMB_reg
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0048h_00m_00.00s"
+#---------------------
+  export_nmm
+  export GBRG=reg ; export NEMSI=true ; export RSTRT=true
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
+ ###############################################################################
+ #
+ # TEST   - Regional NMM-B with different domain decomposition
+ #        - 3x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
+ #
+ ###############################################################################
+
+ if [ $RT_FULL = true ]; then
+
+  export TEST_DESCR="Test NMMB-regional different decomposition"
+
+#---------------------
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_DECOMP
+  export CNTL_DIR=NMMB_reg
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0012h_00m_00.00s"
+#---------------------
+  export_nmm
+  export GBRG=reg    ; export FCSTL=12
+  export INPES=$JNPES_dflt ; export JNPES=$INPES_dflt
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
+ ###############################################################################
+ #
+ # TEST   - Regional NMM-B with multiple threads
+ #        - 6x5 compute tasks / 2 threads / opnl physics / free fcst / pure binary input
+ #
+ ###############################################################################
+
+ if [ $RT_FULL = true ]; then
+
+  export TEST_DESCR="Test NMMB-regional threading "
+
+#---------------------
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_THREAD
+  export CNTL_DIR=NMMB_reg
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
+  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
+  nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
+#---------------------
+  export_nmm
+  export GBRG=reg ; export THRD=2
+  export TASKS=$TASKS_thrd ; export TPN=$TPN_thrd
+  export INPES=$INPES_thrd ; export JNPES=$JNPES_thrd ; export WTPG=$WTPG_thrd
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
+ ###############################################################################
+ #
+ # TEST   - Regional NMM-B with GFS physics
+ #        - 6x5 compute tasks / 1 thread / GFS physics / free fcst / pure binary input
+ #
+ ###############################################################################
+
+ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
+
+  export TEST_DESCR="Test NMMB-regional with GFS physics package "
+
+#---------------------
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_gfsP
+  export CNTL_DIR=NMMB_gfsP_reg
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
+  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+  nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
+#---------------------
+  export_nmm
+  export GBRG=reg ; export gfsP=true ; export FCSTL=24
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
  
-fi # endif test
+ fi # endif test
 
-####################################################################################################
-#
-# TEST   - Regional NMM-B with selected GFS physics schemes
-#        - 6x5 compute tasks / 1 thread / selected GFS physics / free fcst / pure binary input
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - Regional NMM-B with selected GFS physics schemes
+ #        - 6x5 compute tasks / 1 thread / selected GFS physics / free fcst / pure binary input
+ #
+ ###############################################################################
 
-if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
+ if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
-export TEST_DESCR="Test NMMB-regional with selected GFS physics schemes "
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_REG_SEL_PHY
-export CNTL_DIR=NMMB_reg_sel_phy
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
-#---------------------
-export_nmm
-export GBRG=reg  ; export FCSTL=24
-export CONVC=sas ; export MICRO=gfs ; export TURBL=gfs
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-
-####################################################################################################
-#
-# TEST   - Regional NMM-B with precipitation adjustment on
-#        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
-#
-####################################################################################################
-
-if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
-
-export TEST_DESCR="Test NMMB-regional with precipitation adjustment on"
+  export TEST_DESCR="Test NMMB-regional with selected GFS physics schemes "
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_REG_PCPADJ
-export CNTL_DIR=NMMB_reg_pcpadj
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0012h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0012h_00m_00.00s \
-nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_SEL_PHY
+  export CNTL_DIR=NMMB_reg_sel_phy
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
+  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+  nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
 #---------------------
-export_nmm
-export GBRG=reg    ; export FCSTL=12
-export PCPFLG=true ; export CPPCP=''
+  export_nmm
+  export GBRG=reg  ; export FCSTL=24
+  export CONVC=sas ; export MICRO=gfs ; export TURBL=gfs
 #---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-
-####################################################################################################
-#
-# TEST   - Regional NMM-B writing time series
-#        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
-#
-####################################################################################################
-
-if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
-
-export TEST_DESCR="Test NMMB-regional writing time series"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_REG_TIMESR
-export CNTL_DIR=NMMB_reg_timesr
-export LIST_FILES=" \
-nmmb_hst_01_bin_0006h_00m_00.00s ts_p01_d01.bin ts_p02_d01.bin"
-#---------------------
-export_nmm
-export GBRG=reg ; export TS='' ; export FCSTL=06
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
+ fi # endif test
 
-####################################################################################################
-#
-# TEST   - NMM-B static nests: Regional parent with two children and one grandchild
-#        - Compute tasks - Upper parent 2x3 | Child #1 4x8 | Child #2 2x4 | Grandchild 7x10
-#        - 1 thread / opnl physics / free fcst / pure binary input
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - Regional NMM-B with precipitation adjustment on
+ #        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
+ #
+ ###############################################################################
 
-if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
+ if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
-export TEST_DESCR="Test NMMB-regional with static nests"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_nests
-export CNTL_DIR=NMMB_nests
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s \
-nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
-nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
-nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
-nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
-nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
-nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s \
-nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
-nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
-nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
-#---------------------
-export_nmm
-export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
-export AFFN=cpu   ; export NODE=3   ; export WLCLK=30
-export TASKS=$TASKS_nest ; export TPN=$TPN_nest
-export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-
-####################################################################################################
-#
-# TEST   - NMM-B restart static nests: Regional parent with two children and one grandchild
-#        - Compute tasks - Upper parent 2x3 | Child #1 4x8 | Child #2 2x4 | Grandchild 7x10
-#        - 1 thread / opnl physics / free fcst / pure binary input
-#
-####################################################################################################
-
-if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
-
-export TEST_DESCR="Test NMMB-regional static nests with restart"
+  export TEST_DESCR="Test NMMB-regional with precipitation adjustment on"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_nest_rest
-export CNTL_DIR=NMMB_nests
-export LIST_FILES=" \
-nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-nmmb_hst_02_bin_0024h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
-nmmb_hst_03_bin_0024h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
-nmmb_hst_04_bin_0024h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s"
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_PCPADJ
+  export CNTL_DIR=NMMB_reg_pcpadj
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0012h_00m_00.00s \
+  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0012h_00m_00.00s \
+  nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
 #---------------------
-export_nmm
-export RSTRT=true
-export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
-export AFFN=cpu   ; export NODE=3   ; export WLCLK=12
-export TASKS=$TASKS_nest ; export TPN=$TPN_nest
-export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
+  export_nmm
+  export GBRG=reg    ; export FCSTL=12
+  export PCPFLG=true ; export CPPCP=''
 #---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
+ fi # endif test
 
-####################################################################################################
-#
-# TEST   - NMM-B using RRTM radiation (static nests)
-#        - Regional parent with two children and one grandchild
-#        - Compute tasks - Upper parent 2x3 | Child #1 4x8 | Child #2 2x4 | Grandchild 7x10
-#        - 1 thread / test physics / free fcst / pure binary input
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - Regional NMM-B writing time series
+ #        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
+ #
+ ###############################################################################
 
-if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
+ if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
-export TEST_DESCR="Test NMMB-regional/RRTM with static nests"
+  export TEST_DESCR="Test NMMB-regional writing time series"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_rrtm_nests
-export CNTL_DIR=NMMB_rrtm_nests
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s \
-nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
-nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
-nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
-nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
-nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
-nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s \
-nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
-nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
-nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_TIMESR
+  export CNTL_DIR=NMMB_reg_timesr
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0006h_00m_00.00s ts_p01_d01.bin ts_p02_d01.bin"
 #---------------------
-export_nmm
-export RADTN=rrtm
-export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
-export AFFN=cpu   ; export NODE=3   ; export WLCLK=40
-export TASKS=$TASKS_nest ; export TPN=$TPN_nest
-export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
+  export_nmm
+  export GBRG=reg ; export TS='' ; export FCSTL=06
 #---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
+ fi # endif test
 
+ ###############################################################################
+ #
+ # TEST   - NMM-B static nests: Regional parent with two children and one grandchild
+ #        - Compute tasks - Upper parent 2x3 | Child #1 4x8 | Child #2 2x4 | Grandchild 7x10
+ #        - 1 thread / opnl physics / free fcst / pure binary input
+ #
+ ###############################################################################
 
-####################################################################################################
-#
-# TEST   - NMM-B using RRTM radiation (restart static nests)
-#        - Regional parent with two children and one grandchild
-#        - Compute tasks - Upper parent 2x3 | Child #1 4x8 | Child #2 2x4 | Grandchild 7x10
-#        - 1 thread / test physics / free fcst / pure binary input
-#
-####################################################################################################
+ if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
-if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
-
-export TEST_DESCR="Test NMMB-regional/RRTM static nests with restart"
+  export TEST_DESCR="Test NMMB-regional with static nests"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_rrtm_nest_rest
-export CNTL_DIR=NMMB_rrtm_nests
-export LIST_FILES=" \
-nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-nmmb_hst_02_bin_0024h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
-nmmb_hst_03_bin_0024h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
-nmmb_hst_04_bin_0024h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s"
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_nests
+  export CNTL_DIR=NMMB_nests
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
+  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+  nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s \
+  nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
+  nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
+  nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
+  nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
+  nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
+  nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s \
+  nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
+  nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
+  nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
+# ---------------------
+  export_nmm
+  export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
+  export AFFN=cpu   ; export NODE=3   ; export WLCLK=40
+  export TASKS=$TASKS_nest ; export TPN=$TPN_nest
+  export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
 #---------------------
-export_nmm
-export RADTN=rrtm ; export RSTRT=true
-export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
-export AFFN=cpu   ; export NODE=3   ; export WLCLK=25
-export TASKS=$TASKS_nest ; export TPN=$TPN_nest
-export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-
-
-####################################################################################################
-#
-# TEST   - Regional NMM-B static nests with filter
-#        - Compute tasks - Upper parent 2x2 | Child #1 3x5 | Grandchild 6x7
-#        - 1 thread / opnl physics / free fcst / nemsio binary input
-#
-#
-####################################################################################################
-
-if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
-
-export TEST_DESCR="Test NMMB-regional digital filter with static nests"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_REG_FILT
-export CNTL_DIR=NMMB_reg_filt
-export LIST_FILES=" \
-nmmb_hst_01_bin_0003h_00m_00.00s nmmb_hst_01_nio_0003h_00m_00.00s \
-nmmb_hst_02_bin_0003h_00m_00.00s nmmb_hst_02_nio_0003h_00m_00.00s \
-nmmb_hst_03_bin_0003h_00m_00.00s nmmb_hst_03_nio_0003h_00m_00.00s"
-#---------------------
-export_nmm
-export GBRG=fltr  ; export FCSTL=03 ; export AFFN=cpu
-export NEMSI=true ; export NCHILD=01
-export TASKS=$TASKS_fltr ; export TPN=$TPN_fltr
-export INPES=$INPES_fltr ; export JNPES=$JNPES_fltr ; export WTPG=$WTPG_fltr
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
+ fi # endif test
 
-####################################################################################################
-#
-# TEST   - NMM-B moving nests: Regional parent with two children and one grandchild
-#        - Compute tasks - Upper parent 8x8 | Child #1 2x6 | Child #2 2x6 | Grandchild 5x6
-#        - 1 thread / opnl physics / free fcst / nemsio and pure binary input
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - NMM-B restart static nests: Regional parent with two children and one grandchild
+ #        - Compute tasks - Upper parent 2x3 | Child #1 4x8 | Child #2 2x4 | Grandchild 7x10
+ #        - 1 thread / opnl physics / free fcst / pure binary input
+ #
+ ###############################################################################
 
-if [ 1 = 0 ]; then # temporary removed from tests
-if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
+ if [ $ST_test = true -o $RT_FULL = true ] ; then
 
-export TEST_DESCR="Test NMMB-regional with moving nests"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_mvg_nests
-export CNTL_DIR=NMMB_mvg_nests
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
-#nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
-#nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
-#nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
-#nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
-#nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
-#nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s \
-#nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
-#nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
-#nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
-#---------------------
-export_nmm
-export GBRG=mnests ; export FCSTL=24 ; export NCHILD=02
-export NEMSI=true  ; export WLCLK=20 ; export NODE=3
-export TASKS=$TASKS_mvg1 ; export TPN=$TPN_mvg1
-export INPES=$INPES_mvg1 ; export JNPES=$JNPES_mvg1 ; export WTPG=$WTPG_mvg1
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-fi # temporary removed from tests
-
-####################################################################################################
-#
-# TEST   - NMM-B moving nests: Same as above except with generational task assignments.
-#        - Compute tasks - Upper parent 7x16 | Child #1 4x6 | Child #2 4x6 | Grandchild 5x10
-#        - 1 thread / opnl physics / free fcst / nemsio and pure binary input
-#
-####################################################################################################
-
-if [ 1 = 0 ]; then # temporary removed from tests
-if [ ${RT_FULL} = true ]; then
-
-export TEST_DESCR="Test NMMB-regional with moving nests and generational task assignments"
+  export TEST_DESCR="Test NMMB-regional static nests with restart"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_mvg_nests_gens
-export CNTL_DIR=NMMB_mvg_nests
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
-#nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
-#nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
-#nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
-#nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
-#nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
-#nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s \
-#nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
-#nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
-#nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_nest_rest
+  export CNTL_DIR=NMMB_nests
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+  nmmb_hst_02_bin_0024h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
+  nmmb_hst_03_bin_0024h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
+  nmmb_hst_04_bin_0024h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s"
 #---------------------
-export_nmm
-export GBRG=mnests ; export FCSTL=24 ; export NCHILD=02
-export NEMSI=true  ; export WLCLK=25 ; export NODE=3
-export AFFN=cpu    ; export MODE=2-way
-export TASKS=$TASKS_mvg2 ; export TPN=$TPN_mvg2
-export INPES=$INPES_mvg2 ; export JNPES=$JNPES_mvg2 ; export WTPG=$WTPG_mvg2
+  export_nmm
+  export RSTRT=true
+  export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
+  export AFFN=cpu   ; export NODE=3   ; export WLCLK=12
+  export TASKS=$TASKS_nest ; export TPN=$TPN_nest
+  export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
 #---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
-fi # temporary removed from tests
+ fi # endif test
+
+ ###############################################################################
+ #
+ # TEST   - NMM-B using RRTM radiation (static nests)
+ #        - Regional parent with two children and one grandchild
+ #        - Compute tasks - Upper parent 2x3 | Child #1 4x8 | Child #2 2x4 | Grandchild 7x10
+ #        - 1 thread / test physics / free fcst / pure binary input
+ #
+ ###############################################################################
+
+ if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
+
+  export TEST_DESCR="Test NMMB-regional/RRTM with static nests"
+
+#---------------------
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_rrtm_nests
+  export CNTL_DIR=NMMB_rrtm_nests
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
+  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+  nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s \
+  nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
+  nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
+  nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
+  nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
+  nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
+  nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s \
+  nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
+  nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
+  nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
+#---------------------
+  export_nmm
+  export RADTN=rrtm
+  export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
+  export AFFN=cpu   ; export NODE=3   ; export WLCLK=45
+  export TASKS=$TASKS_nest ; export TPN=$TPN_nest
+  export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
+
+ ###############################################################################
+ #
+ # TEST   - NMM-B using RRTM radiation (restart static nests)
+ #        - Regional parent with two children and one grandchild
+ #        - Compute tasks - Upper parent 2x3 | Child #1 4x8 | Child #2 2x4 | Grandchild 7x10
+ #        - 1 thread / test physics / free fcst / pure binary input
+ #
+ ###############################################################################
+
+ if [ $ST_test = true -o $RT_FULL = true ]; then
+
+  export TEST_DESCR="Test NMMB-regional/RRTM static nests with restart"
+
+#---------------------
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_rrtm_nest_rest
+  export CNTL_DIR=NMMB_rrtm_nests
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+  nmmb_hst_02_bin_0024h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
+  nmmb_hst_03_bin_0024h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
+  nmmb_hst_04_bin_0024h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s"
+#---------------------
+  export_nmm
+  export RADTN=rrtm ; export RSTRT=true
+  export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
+  export AFFN=cpu   ; export NODE=3   ; export WLCLK=30
+  export TASKS=$TASKS_nest ; export TPN=$TPN_nest
+  export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
+
+ ###############################################################################
+ #
+ # TEST   - Regional NMM-B static nests with filter
+ #        - Compute tasks - Upper parent 2x2 | Child #1 3x5 | Grandchild 6x7
+ #        - 1 thread / opnl physics / free fcst / nemsio binary input
+ #
+ #
+ ###############################################################################
+
+ if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
+
+  export TEST_DESCR="Test NMMB-regional digital filter with static nests"
+
+#---------------------
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_FILT
+  export CNTL_DIR=NMMB_reg_filt
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0003h_00m_00.00s nmmb_hst_01_nio_0003h_00m_00.00s \
+  nmmb_hst_02_bin_0003h_00m_00.00s nmmb_hst_02_nio_0003h_00m_00.00s \
+  nmmb_hst_03_bin_0003h_00m_00.00s nmmb_hst_03_nio_0003h_00m_00.00s"
+#---------------------
+  export_nmm
+  export GBRG=fltr  ; export FCSTL=03 ; export AFFN=cpu
+  export NEMSI=true ; export NCHILD=01
+  export TASKS=$TASKS_fltr ; export TPN=$TPN_fltr
+  export INPES=$INPES_fltr ; export JNPES=$JNPES_fltr ; export WTPG=$WTPG_fltr
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
+ ###############################################################################
+ #
+ # TEST   - NMM-B moving nests: Regional parent with two children and one grandchild
+ #        - Compute tasks - Upper parent 8x8 | Child #1 2x6 | Child #2 2x6 | Grandchild 5x6
+ #        - 1 thread / opnl physics / free fcst / nemsio and pure binary input
+ #
+ ###############################################################################
+
+ if [ 1 = 0 ]; then # temporary removed from tests
+  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
+
+   export TEST_DESCR="Test NMMB-regional with moving nests"
+
+#---------------------
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/NMM_mvg_nests
+   export CNTL_DIR=NMMB_mvg_nests
+   export LIST_FILES=" \
+   nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
+   nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+   nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
+#  nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
+#  nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
+#  nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
+#  nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
+#  nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
+#  nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s \
+#  nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
+#  nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
+#  nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
+#---------------------
+   export_nmm
+   export GBRG=mnests ; export FCSTL=24 ; export NCHILD=02
+   export NEMSI=true  ; export WLCLK=12 ; export NODE=3
+   export TASKS=$TASKS_mvg1 ; export TPN=$TPN_mvg1
+   export INPES=$INPES_mvg1 ; export JNPES=$JNPES_mvg1 ; export WTPG=$WTPG_mvg1
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+  fi # endif test
+ fi # temporary removed from tests
+
+ ###############################################################################
+ #
+ # TEST   - NMM-B moving nests: Same as above except with generational task assignments.
+ #        - Compute tasks - Upper parent 7x16 | Child #1 4x6 | Child #2 4x6 | Grandchild 5x10
+ #        - 1 thread / opnl physics / free fcst / nemsio and pure binary input
+ #
+ ###############################################################################
+
+ if [ 1 = 0 ]; then # temporary removed from tests
+  if [ $RT_FULL = true ]; then
+
+   export TEST_DESCR="Test NMMB-regional with moving nests and generational task assignments"
+
+#---------------------
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/NMM_mvg_nests_gens
+   export CNTL_DIR=NMMB_mvg_nests
+   export LIST_FILES=" \
+   nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
+   nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+   nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
+#  nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
+#  nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
+#  nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
+#  nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
+#  nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
+#  nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s \
+#  nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
+#  nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
+#  nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
+#---------------------
+   export_nmm
+   export GBRG=mnests ; export FCSTL=24 ; export NCHILD=02
+   export NEMSI=true  ; export WLCLK=20 ; export NODE=3
+   export AFFN=cpu    ; export MODE=2-way
+   export TASKS=$TASKS_mvg2 ; export TPN=$TPN_mvg2
+   export INPES=$INPES_mvg2 ; export JNPES=$JNPES_mvg2 ; export WTPG=$WTPG_mvg2
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+  fi # endif test
+ fi # temporary removed from tests
+
+fi # end of the loop SKIP_NMM
 
 #RV# Temporary, until GFS is ready on WCOSS
-if [ ${MACHINE_ID} = wcoss ]; then
-  echo REGRESSION TEST WAS SUCCESSFUL
-  echo REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
-  exit
-fi
-####################################################################################################
-#
-# TEST   - GFS 
-#        - 30 compute tasks / 1 thread 
-#
-####################################################################################################
+#if [ $MACHINE_ID = wcoss ]; then
+#  echo REGRESSION TEST WAS SUCCESSFUL
+#  echo REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
+## exit
+#fi
 
-if [ ${ST_test} = true -o ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
+if [ ${SKIP_GFS:-NO} = YES ] ; then
+ echo "Skipping GFS tests"
+else
+ ###############################################################################
+ #
+ # TEST   - GFS 
+ #        - 30 compute tasks / 1 thread 
+ #
+ ###############################################################################
 
-export TEST_DESCR="Compare GFS results with previous trunk version"
+ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ]; then
+
+  export TEST_DESCR="Compare GFS results with previous trunk version"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32
-export CNTL_DIR=GFS_NODFI
-export LIST_FILES=" \
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/GFS_32
+  export CNTL_DIR=GFS_NODFI
+  export LIST_FILES=" \
 	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
 	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
 	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
-export_gfs
+  export_gfs
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-
-####################################################################################################
-#
-# TEST   - GFS  adiabatic run
-#        - 30 compute tasks / 1 thread
-#
-####################################################################################################
-
-if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
-
-export TEST_DESCR="Compare GFS adiabatic results with previous trunk version"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32_ADIAB
-export CNTL_DIR=GFS_ADIAB
-export LIST_FILES=" sigf03 sigf06 sigf12 sigf24 "
-#---------------------
-export_gfs
-export NDAYS=1 ; export ADIAB=.true.
-#---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
+ fi # endif test
 
-####################################################################################################
-#
-# TEST   - GFS as two copies
-#        - 30 compute tasks / 1 thread  2 copy
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - GFS  adiabatic run
+ #        - 30 compute tasks / 1 thread
+ #
+ ###############################################################################
 
-if [ ${RT_FULL} = true ]; then
+ if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ]; then
 
-export TEST_DESCR="Test GFS with 2-copy option"
+  export TEST_DESCR="Compare GFS adiabatic results with previous trunk version"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32_48
-export CNTL_DIR=GFS_NODFI
-export LIST_FILES=" \
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/GFS_32_ADIAB
+  export CNTL_DIR=GFS_ADIAB
+  export LIST_FILES=" sigf03 sigf06 sigf12 sigf24 "
+#---------------------
+  export_gfs
+  export NDAYS=1 ; export ADIAB=.true.
+#---------------------
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
+ ###############################################################################
+ #
+ # TEST   - GFS as two copies
+ #        - 30 compute tasks / 1 thread  2 copy
+ #
+ ###############################################################################
+
+ if [ $RT_FULL = true ]; then
+
+  export TEST_DESCR="Test GFS with 2-copy option"
+
+#---------------------
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/GFS_32_48
+  export CNTL_DIR=GFS_NODFI
+  export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 \
 	sfcf03 sfcf06 sfcf12 sfcf24 \
 	flxf03 flxf06 flxf12 flxf24"
 #---------------------
-export_gfs
-export NDAYS=1 ; export CP2=.true.
+  export_gfs
+  export NDAYS=1 ; export CP2=.true.
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
+ fi # endif test
 
-####################################################################################################
-#
-# TEST   - GFS with different decomposition
-#        - 58 compute tasks / 1 thread  restart
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - GFS with different decomposition
+ #        - 58 compute tasks / 1 thread  restart
+ #
+ ###############################################################################
 
-if [ ${RT_FULL} = true ]; then
+ if [ $RT_FULL = true ]; then
 
-export TEST_DESCR="Test GFS different decomposition and restart"
+  export TEST_DESCR="Test GFS different decomposition and restart"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32_48
-export CNTL_DIR=GFS_NODFI
-export LIST_FILES=" \
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/GFS_32_48
+  export CNTL_DIR=GFS_NODFI
+  export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 sigf48 \
 	sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
 	flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
-export_gfs
-export TASKS=48 ; export PE1=46 ; export WLCLK=80
+  export_gfs
+  export TASKS=48 ; export PE1=46 ; export WLCLK=80
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
-export WLCLK=10
-
-#---------------------
-
-fi # endif test
-
-####################################################################################################
-#
-# TEST   - GFS with multiple threads
-#        - 12 compute tasks / 2 threads / 2WrtGrp & 2WrtPePerGrp
-#
-####################################################################################################
-
-if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
-
-export TEST_DESCR="Test GFS threads"
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
+   export WLCLK=10
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_16_32
-export CNTL_DIR=GFS_NODFI
-export LIST_FILES=" \
+
+ fi # endif test
+
+ ###############################################################################
+ #
+ # TEST   - GFS with multiple threads
+ #        - 12 compute tasks / 2 threads / 2WrtGrp & 2WrtPePerGrp
+ #
+ ###############################################################################
+
+ if [ $ST_test = true -o $RT_FULL = true ]; then
+
+  export TEST_DESCR="Test GFS threads"
+
+#---------------------
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/GFS_16_32
+  export CNTL_DIR=GFS_NODFI
+  export LIST_FILES=" \
        sigf03 sigf06 sigf12 sigf24 \
        sfcf03 sfcf06 sfcf12 sfcf24 \
        flxf03 flxf06 flxf12 flxf24"
 #---------------------
-export_gfs
-export TASKS=16 ; export PE1=12 ; export THRD=2
-export WRTGP=2  ; export NDAYS=1
+  export_gfs
+  export TASKS=16 ; export PE1=12 ; export THRD=2
+  export WRTGP=1  ; export NDAYS=1 ; export WTPG=1
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
+ fi # endif test
 
-####################################################################################################
-#
-# TEST   - GFS with multiple tasks, no quilting, and frequent output
-#        - 32 tasks / 1 thread
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - GFS with multiple tasks, no quilting, and frequent output
+ #        - 32 tasks / 1 thread
+ #
+ ###############################################################################
 
-if [ ${RT_FULL} = true ]; then
+ if [ $RT_FULL = true ]; then
 
-export TEST_DESCR="GFS, 32 proc, 1 thread, no quilt, output every 4 timestep"
+  export TEST_DESCR="GFS, 32 proc, 1 thread, no quilt, output every 4 timestep"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_16_32
-export CNTL_DIR=GFS_NODFI
-export LIST_FILES=" \
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/GFS_16_32
+  export CNTL_DIR=GFS_NODFI
+  export LIST_FILES=" \
         sigf03 sigf06 sigf12 sigf24 sigf48 \
         sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
         flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
-export_gfs
-export NSOUT=4 ; export QUILT=.false.
-export PE1=32  ; export WTPG=1 ; export WLCLK=80
+  export_gfs
+  export NSOUT=4 ; export QUILT=.false.
+  export PE1=32  ; export WTPG=1 ; export WLCLK=80 ; export WRTGP=1
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
-export WLCLK=10
+  export WLCLK=10
 
-fi # endif test
+ fi # endif test
 
-####################################################################################################
-#
-# TEST   - GFS on a single processor
-#        - 1 task / 1 thread
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - GFS on a single processor
+ #        - 1 task / 1 thread
+ #
+ ###############################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${RT_FULL} = true ]; then
+ if [ $MACHINE_ID = ccs ]; then
+  if [ $RT_FULL = true ]; then
 
-export TEST_DESCR="Test GFS single processor"
+   export TEST_DESCR="Test GFS single processor"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_01_NSOUT
-export CNTL_DIR=GFS_NODFI
-export LIST_FILES=" \
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/GFS_01_NSOUT
+   export CNTL_DIR=GFS_NODFI
+   export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 \
 	sfcf03 sfcf06 sfcf12 sfcf24 \
 	flxf03 flxf06 flxf12 flxf24"
 #---------------------
-export_gfs
-export TASKS=1 ; export PE1=1 ; export WTPG=1
-export QUILT=.false. ; export NDAYS=1 ; export WLCLK=80
+   export_gfs
+   export TASKS=1 ; export PE1=1 ; export WTPG=1 ; export WRTGP=1
+   export QUILT=.false. ; export NDAYS=1 ; export WLCLK=80
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
-export WLCLK=10
+   export WLCLK=10
 
-fi # endif test
+  fi # endif test
 
-####################################################################################################
-#
-# TEST   - GFS on a single processor with no quilting
-#        - 1 task / 1 thread
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - GFS on a single processor with no quilting
+ #        - 1 task / 1 thread
+ #
+ ###############################################################################
 
-if [ ${RT_FULL} = true ]; then
+  if [ $RT_FULL = true ]; then
 
-export TEST_DESCR="Test GFS, 1 proc, 1 thread, no quilting,nsout=1"
+   export TEST_DESCR="Test GFS, 1 proc, 1 thread, no quilting,nsout=1"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_01_NSOUT
-export CNTL_DIR=GFS_NODFI
-export LIST_FILES=" \
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/GFS_01_NSOUT
+   export CNTL_DIR=GFS_NODFI
+   export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 sigf48 \
 	sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
 	flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
-export_gfs
-export TASKS=1 ; export PE1=1 ; export WTPG=1
-export NSOUT=1 ; export WLCLK=80
-export QUILT=.false.
+   export_gfs
+   export TASKS=1 ; export PE1=1 ; export WTPG=1 ; export WRTGP=1
+   export NSOUT=1 ; export WLCLK=80
+   export QUILT=.false.
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
-fi # endif machine (only CCS)
+  fi # endif test
+ fi # endif machine (only CCS)
 
-####################################################################################################
-#
-# TEST   - GFS with multiple threads, no quilting, and frequent output
-#        - 16 tasks / 2 threads
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - GFS with multiple threads, no quilting, and frequent output
+ #        - 16 tasks / 2 threads
+ #
+ ###############################################################################
 
-if [ ${RT_FULL} = true ]; then
+ if [ $RT_FULL = true ]; then
 
-export TEST_DESCR="Test GFS, 16 proc, 2 threads,no quilt, output every 2 time steps"
+  export TEST_DESCR="Test GFS, 16 proc, 2 threads,no quilt, output every 2 time steps"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_16_48_NOQUILT_NSOUT
-export CNTL_DIR=GFS_NODFI
-export LIST_FILES=" \
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/GFS_16_48_NOQUILT_NSOUT
+  export CNTL_DIR=GFS_NODFI
+  export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 \
 	sfcf03 sfcf06 sfcf12 sfcf24 \
 	flxf03 flxf06 flxf12 flxf24"
 #---------------------
-export_gfs
-export TASKS=16 ; export PE1=16  ; export WTPG=1
-export THRD=2   ; export NSOUT=2 ; export NDAYS=1
-export QUILT=.false.
+  export_gfs
+  export TASKS=16 ; export PE1=16  ; export WTPG=1 ; export WRTGP=1
+  export THRD=2   ; export NSOUT=2 ; export NDAYS=1
+  export QUILT=.false.
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
+ fi # endif test
 
-####################################################################################################
-#
-# TEST   - GFS with multiple tasks and no quilting
-#        - 48 tasks / 1 thread
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - GFS with multiple tasks and no quilting
+ #        - 48 tasks / 1 thread
+ #
+ ###############################################################################
 
-if [ ${RT_FULL} = true ]; then
+ if [ $RT_FULL = true ]; then
 
-export TEST_DESCR="Test GFS, 48 proc, 1 thread, no quilt"
+  export TEST_DESCR="Test GFS, 48 proc, 1 thread, no quilt"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_16_48_NOQUILT_NSOUT
-export CNTL_DIR=GFS_NODFI
-export LIST_FILES=" \
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/GFS_16_48_NOQUILT_NSOUT
+  export CNTL_DIR=GFS_NODFI
+  export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 sigf48 \
 	sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
 	flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
-export_gfs
-export TASKS=48 ; export PE1=46 ; export WTPG=1
-export NSOUT=1  ; export QUILT=.false. ; export WLCLK=40
+  export_gfs
+  export TASKS=48 ; export PE1=46 ; export WTPG=1 ; export WRTGP=1
+  export NSOUT=1  ; export QUILT=.false. ; export WLCLK=40
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
-export WLCLK=10
+  export WLCLK=10
 
-fi # endif test
+ fi # endif test
 
-####################################################################################################
-#
-# TEST   - GFS digital filter
-#        - 30 compute tasks / 1 thread
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - GFS digital filter
+ #        - 30 compute tasks / 1 thread
+ #
+ ###############################################################################
 
-if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
+ if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ]; then
 
-export TEST_DESCR="GFS,32 total proc (tasks), 1 thread, quilt, digital filter on reduced grid"
+  export TEST_DESCR="GFS,32 total proc (tasks), 1 thread, quilt, digital filter on reduced grid"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32_16_dfi
-export CNTL_DIR=GFS_DFI_REDUCEDGRID
-export LIST_FILES=" \
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/GFS_32_16_dfi
+  export CNTL_DIR=GFS_DFI_REDUCEDGRID
+  export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 sigf48 \
 	sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
 	flxf03 flxf06 flxf12 flxf24 flxf48" 
 #---------------------
-export_gfs
-export FDFI=3
+  export_gfs
+  export FDFI=3
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
+ fi # endif test
 
-####################################################################################################
-#
-# TEST   - GFS digital filter
-#        - 12 compute tasks / 2 thread ,2 WrtGrp x 2 WrtPePerGrp
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - GFS digital filter
+ #        - 12 compute tasks / 2 thread ,2 WrtGrp x 2 WrtPePerGrp
+ #
+ ###############################################################################
 
-if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
+ if [ $ST_test = true -o $RT_FULL = true ]; then
 
-export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid"
+  export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_16_1_dfi
-export CNTL_DIR=GFS_DFI_REDUCEDGRID
-export LIST_FILES=" \
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/GFS_16_1_dfi
+  export CNTL_DIR=GFS_DFI_REDUCEDGRID
+  export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 \
 	sfcf03 sfcf06 sfcf12 sfcf24 \
 	flxf03 flxf06 flxf12 flxf24"
 #---------------------
-export_gfs
-export TASKS=16 ; export PE1=12 ; export WRTGP=2 ; export THRD=2
-export NDAYS=1  ; export FDFI=3 ; export CP2=.true.
+  export_gfs
+  export TASKS=16 ; export PE1=12 ; export WRTGP=1 ; export WTPG=1 ; export THRD=2
+  export NDAYS=1  ; export FDFI=3 ; export CP2=.true. ; export WTPG=1
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
+ fi # endif test
 
-####################################################################################################
-#
-# TEST   - GFS digital filter
-#        - 1pe nsout=0
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - GFS digital filter
+ #        - 1pe nsout=0
+ #
+ ###############################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${RT_FULL} = true ]; then
+ if [ $MACHINE_ID = ccs ]; then
+  if [ $RT_FULL = true ]; then
 
-export TEST_DESCR="GFS,1 proc, no quilt, digital filter on reduced grid"
+   export TEST_DESCR="GFS,1 proc, no quilt, digital filter on reduced grid"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_16_1_dfi
-export CNTL_DIR=GFS_DFI_REDUCEDGRID
-export LIST_FILES=" \
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/GFS_16_1_dfi
+   export CNTL_DIR=GFS_DFI_REDUCEDGRID
+   export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 sigf48 \
         sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
         flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
-export_gfs
-export TASKS=1 ; export PE1=1    ; export WTPG=1
-export FDFI=3  ; export WLCLK=20 ; export QUILT=.false.
+   export_gfs
+   export TASKS=1 ; export PE1=1    ; export WTPG=1 ; export WRTGP=1
+   export FDFI=3  ; export WLCLK=20 ; export QUILT=.false.
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
-fi # endif machine (only CCS)
+  fi # endif test
+ fi  # endif machine (only CCS)
 
-####################################################################################################
-#
-# TEST   - GFS
-#        - OPAC aerosols
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - GFS
+ #        - OPAC aerosols
+ #
+ ###############################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
+ if [ $MACHINE_ID = ccs ]; then
+  if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ]; then
 
-export TEST_DESCR="GFS, use the OPAC climo scheme for SW and LW"
+   export TEST_DESCR="GFS, use the OPAC climo scheme for SW and LW"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_OPAC
-export CNTL_DIR=GFS_OPAC
-export LIST_FILES=" \
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/GFS_OPAC
+   export CNTL_DIR=GFS_OPAC
+   export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 \
 	sfcf03 sfcf06 sfcf12 sfcf24 \
 	flxf03 flxf06 flxf12 flxf24"
 #---------------------
-export_gfs
-export IAER=11 ; export NDAYS=1
+   export_gfs
+   export IAER=11 ; export NDAYS=1
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
-fi # endif machine (only CCS)
+  fi # endif test
+ fi  # endif machine (only CCS)
 
-####################################################################################################
-#
-# TEST   - GFS 
-#        - NDSL 12 compute tasks / 2 thread
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - GFS 
+ #        - NDSL 12 compute tasks / 2 thread
+ #
+ ###############################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${ST_test} = true -o ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
+ if [ $MACHINE_ID = ccs ]; then
+  if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $B_arg = all ] ; then
 
-export TEST_DESCR="GFS, 16tasks, 2threads, quilt, dfi3hr, reduced grid, NDSL"
+   export TEST_DESCR="GFS, 16tasks, 2threads, quilt, dfi3hr, reduced grid, NDSL"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32_dfi_ndsl
-export CNTL_DIR=GFS_DFI_REDUCEDGRID_NDSL
-export LIST_FILES=" \
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/GFS_32_dfi_ndsl
+   export CNTL_DIR=GFS_DFI_REDUCEDGRID_NDSL
+   export LIST_FILES=" \
         sigf03 sigf06 sigf12 sigf24 \
         sfcf03 sfcf06 sfcf12 sfcf24 \
         flxf03 flxf06 flxf12 flxf24"
 #---------------------
-export_gfs
-export TASKS=16 ; export PE1=12 ; export THRD=2 ; export WRTGP=2
-export FDFI=3   ; export NDSLFV=.true.
+   export_gfs
+   export TASKS=16 ; export PE1=12 ; export THRD=2 ; export WRTGP=1 ; export WTPG=1
+   export FDFI=3   ; export NDSLFV=.true.
+   export NEMSIOIN=.true. ; export NEMSIOOUT=.true.
+   export CDATE=2010010100
+   if [ $NEMSIOIN = .true. ] ; then
+    export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2
+    export SPECTRALLOOP=1
+#   export IC_DIR=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_HYB/
+   fi
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
-fi # endif machine (only CCS)
+  fi # endif test
+ fi  # endif machine (only CCS)
 
-#
-####################################################################################################
-#
-# TEST   - GFS hyb 2 loop with digital filter
-#        - 12 compute tasks / 2 thread ,2 WrtGrp x 2 WrtPePerGrp
-#
-####################################################################################################
+ #
+ ###############################################################################
+ #
+ # TEST   - GFS hyb 2 loop with digital filter
+ #        - 12 compute tasks / 2 thread ,2 WrtGrp x 2 WrtPePerGrp
+ #
+ ###############################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
+ if [ $MACHINE_ID = ccs  -o $MACHINE_ID = wcoss ]; then
+  if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ]; then
 
-export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid"
+   export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_hyb_2loop
-export CNTL_DIR=GFS_DFI_hyb_2loop
-export LIST_FILES=" \
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/GFS_hyb_2loop
+   export CNTL_DIR=GFS_DFI_hyb_2loop
+   export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 \
 	sfcf03 sfcf06 sfcf12 sfcf24 \
 	flxf03 flxf06 flxf12 flxf24"
 #---------------------
-export_gfs
-export TASKS=16 ; export PE1=12 ; export WRTGP=2 ; export THRD=2
-export FDFI=3   ; export CP2=.true.
-export IDVC=2   ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=2
-export NDAYS=1
+   export_gfs
+   export TASKS=16 ; export PE1=12 ; export WRTGP=1 ; export WTPG=1 ; export THRD=2
+   export FDFI=3   ; export CP2=.true.
+   export IDVC=2   ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=2
+   export NDAYS=1
+#  export NEMSIOIN=.true. ; export NEMSIOOUT=.true.
+#  export CDATE=2010010100
+#  if [ $NEMSIOIN = .true. ] ; then
+#   export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2
+#   export SPECTRALLOOP=1
+##   export IC_DIR=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_H
+YB/
+#  fi
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
-fi # endif machine (only CCS)
+  fi # endif test
+ fi # endif machine (only CCS)
 
-###################################################################################################
-#
-#
-# TEST   - GFS hyb 2 loop with digital filter restart
-#        - 12 compute tasks / 2 thread ,2 WrtGrp x 2 WrtPePerGrp
-#
-###################################################################################################
+ ###############################################################################
+ #
+ #
+ # TEST   - GFS hyb 2 loop with digital filter restart
+ #        - 12 compute tasks / 2 thread ,2 WrtGrp x 2 WrtPePerGrp
+ #
+ ###############################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${RT_FULL} = true ]; then
-
-export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid, restart"
+ if [ $MACHINE_ID = ccs ]; then
+  if [ $RT_FULL = true ]; then
+ 
+   export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid, restart"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_hyb_2loop
-export CNTL_DIR=GFS_DFI_hyb_2loop
-export LIST_FILES=" \
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/GFS_hyb_2loop
+   export CNTL_DIR=GFS_DFI_hyb_2loop
+   export LIST_FILES=" \
         sigf03 sigf06 sigf12 sigf24 sigf48 \
         sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
         flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
-export_gfs
-export TASKS=16 ; export PE1=12 ; export WRTGP=2 ; export THRD=2
-export FDFI=3   ; export CP2=.true.
-export IDVC=2   ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=2
+   export_gfs
+   export TASKS=16 ; export PE1=12 ; export WRTGP=1 ; export WTPG=1 ; export THRD=2
+   export FDFI=3   ; export CP2=.true.
+   export IDVC=2   ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=2
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
-fi # endif machine (only CCS)
+  fi # endif test
+ fi # endif machine (only CCS)
 
-####################################################################################################
-#
-# TEST   - GFS hyb 2 loop with digital filter, with nst
-#        - 12 compute tasks / 2 thread ,2 WrtGrp x 2 WrtPePerGrp
-#
-####################################################################################################
+ if [ ${SKIP_NST:-NO} = YES ] ; then
+  echo "Skipping GFS NST option"
+ else
+ ###############################################################################
+ #
+ # TEST   - GFS hyb 2 loop with digital filter, with nst
+ #        - 12 compute tasks / 2 thread ,2 WrtGrp x 2 WrtPePerGrp
+ #
+ ###############################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${ST_test} = true -o ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
+  if [ $MACHINE_ID = ccs ]; then
+   if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
-export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid with nst"
+    export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid with nst"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_hyb_2loop_nst
-export CNTL_DIR=GFS_DFI_hyb_2loop_nst
-export LIST_FILES=" \
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/GFS_hyb_2loop_nst
+    export CNTL_DIR=GFS_DFI_hyb_2loop_nst
+    export LIST_FILES=" \
         sigf03 sigf06 sigf12 sigf24 sigf48 \
         sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
         flxf03 flxf06 flxf12 flxf24 flxf48 \
         nstf03 nstf06 nstf12 nstf24 nstf48"
 #---------------------
-export_gfs
-export TASKS=16 ; export PE1=12 ; export THRD=2 ; export WRTGP=2
-export FDFI=3   ; export NST_FCST=1 ; export CP2=.true.
-export IDVC=2   ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=2
+    export_gfs
+    export TASKS=16 ; export PE1=12 ; export THRD=2 ; export WRTGP=1 ; export WTPG=1
+    export FDFI=3   ; export NST_FCST=1 ; export CP2=.true.
+    export IDVC=2   ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=2
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+    ./rt_gfs.sh
+    if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
-fi # endif machine (only CCS)
+   fi # endif test
+  fi  # endif machine (only CCS)
+ fi   # SKIP_NST test
 
-####################################################################################################
-#
-# TEST   - GFS digital filter  HYb 1loop
-#        - 12 compute tasks / 2 thread ,2 WrtGrp x 2 WrtPePerGrp
-#
-####################################################################################################
+ ###############################################################################
+ #
+ # TEST   - GFS digital filter  HYb 1loop
+ #        - 12 compute tasks / 2 thread ,2 WrtGrp x 2 WrtPePerGrp
+ #
+ ###############################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${ST_test} = true -o ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
+ if [ $MACHINE_ID = ccs ]; then
+  if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
-export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 1loop digital filter on reduced grid"
+   export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 1loop digital filter on reduced grid"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_16_dfi_hyb_1loop
-export CNTL_DIR=GFS_DFI_REDUCEDGRID_HYB
-export LIST_FILES=" \
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/GFS_16_dfi_hyb_1loop
+   export CNTL_DIR=GFS_DFI_REDUCEDGRID_HYB
+   export LIST_FILES=" \
 	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
 	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
 	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
-export_gfs
-export TASKS=16 ; export PE1=12 ; export THRD=2 ; export WRTGP=2
-export FDFI=3 ; export CP2=.true.
-export IDVC=2 ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=1
+   export_gfs
+   export TASKS=16 ; export PE1=12 ; export THRD=2 ; export WRTGP=1 ; export WTPG=1
+   export FDFI=3 ; export CP2=.true.
+   export IDVC=2 ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=1
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
-fi # endif machine (only CCS)
+  fi # endif test
+ fi  # endif machine (only CCS)
+fi   # end of SKIP_GFS test
 
-####################################################################################################
-#
-# TEST   - Concurrency GEFS
-#        - 4 members, every 6 hours, couple and add stochastic perturbations, T190L28.
-#
-####################################################################################################
 
-if [ ${ST_test} = true -o ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
+if [ ${SKIP_GENS:-NO} = YES ] ; then
+ echo 'Skipping the global ensemble tests'
+else
+ ###############################################################################
+ #
+ # TEST   - Concurrency GEFS
+ #        - 4 members, every 6 hours, couple and add stochastic perturbations, T190L28.
+ #
+ ###############################################################################
+ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
-export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28."
+  export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28."
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run
-export CNTL_DIR=GEFS_m4
-if [ ${MACHINE_ID} = ccs ]; then
-export LIST_FILES=" \
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run
+  export CNTL_DIR=GEFS_m4
+  if [ $MACHINE_ID = ccs ]; then
+   export LIST_FILES=" \
         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
         SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
         SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
@@ -1842,128 +1916,133 @@ export LIST_FILES=" \
         FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
         FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
         FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
-else
-  export LIST_FILES=" \
+  else
+   export LIST_FILES=" \
         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
         SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
         FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
-fi
+  fi
 #---------------------
-export_gfs
-export GEFS_ENSEMBLE=1
-export TASKS=64 ; export WLCLK=20
+  export_gfs
+  export GEFS_ENSEMBLE=1
+  export TASKS=64 ; export WLCLK=20
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
+ fi # endif test
 
-####################################################################################################
+###############################################################################
 #
 # TEST   - GEN, 16 PEs, 1 node.
 #        - 1 members.
 #
-####################################################################################################
+###############################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${ST_test} = true -o ${RT_FULL} = true ]; then
+ if [ $MACHINE_ID = ccs ]; then
+  if [ $ST_test = true -o $RT_FULL = true ]; then
 
-export TEST_DESCR="GEN, 1 members."
+   export TEST_DESCR="GEN, 1 members."
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GEN_Run_m1
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/GEN_Run_m1
 #---------------------
-export_common
-export TASKS=16 ; export WLCLK=02
+   export_common
+   export TASKS=16 ; export WLCLK=02
 #---------------------
-  ./rt_gen.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gen.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
-fi # endif machine (only CCS)
+  fi # endif test
+ fi # endif machine (only CCS)
 
-####################################################################################################
+###############################################################################
 #
 # TEST   - Concurrency GEN, 64PEs, 1 node.
 #        - 4 members.
 #
-####################################################################################################
+###############################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${RT_FULL} = true ]; then
+ if [ $MACHINE_ID = ccs ]; then
+  if [ $RT_FULL = true ]; then
 
-export TEST_DESCR="Concurrency GEN, 4 members."
+   export TEST_DESCR="Concurrency GEN, 4 members."
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GEN_Concurrency_Run_m4
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/GEN_Concurrency_Run_m4
 #---------------------
-export_common
-export GEN_ENSEMBLE=1
-export TASKS=64 ; export WLCLK=02
+   export_common
+   export GEN_ENSEMBLE=1
+   export TASKS=64 ; export WLCLK=02
 #---------------------
-  ./rt_gen.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gen.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
-fi # endif machine (only CCS)
+  fi # endif test
+ fi  # endif machine (only CCS)
+fi   # SKIP_GENS test
 
-#########################################################################
-# Clean and compile only FIM core
-#########################################################################
-
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = fim -o ${CB_arg} = all ]; then
-
-echo "Preparing model code for regression tests"
-echo "Compilation only FIM"
-printf %s "Compiling model code (this will take some time)......."
-cd ${PATHTR}/src
-
-date                                     >> ${REGRESSIONTEST_LOG}
-echo "Compilation only FIM"              >> ${REGRESSIONTEST_LOG}
-rm -f ../exe/NEMS.x
-gmake clean                              >> ${COMPILE_LOG} 2>&1
-./esmf_version 3                           >> ${COMPILE_LOG} 2>&1
-gmake fim                                >> ${COMPILE_LOG} 2>&1
-date                                     >> ${REGRESSIONTEST_LOG}
-
-if [ -f ../exe/NEMS.x ] ; then
-  echo "   Model code Compiled";echo;echo
+if [ ${SKIP_FIM:-NO} = YES ] ; then
+ echo "Skipping FIM regression tests"
 else
-  echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
-  echo "   Model code is NOT compiled"
-  exit
-fi
+ #########################################################################
+ # Clean and compile only FIM core
+ #########################################################################
 
-fi # endif compilation
-fi # endif machine (only CCS)
 
-cd $PATHRT
+ if [ $MACHINE_ID = ccs ]; then
+  if [ $RT_FULL = true -o $CB_arg = fim -o $CB_arg = all ]; then
 
-####################################################################################################
-#
-# TEST   - FIM
-#        - 40 compute tasks / 1 thread, 1 node.  
-#
-####################################################################################################
+   echo "Preparing model code for regression tests"
+   echo "Compilation only FIM"
+   printf %s "Compiling model code (this will take some time)......."
+   cd ${PATHTR}/src
 
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = fim -o ${CB_arg} = all ]; then
+   date                                     >> ${REGRESSIONTEST_LOG}
+   echo "Compilation only FIM"              >> ${REGRESSIONTEST_LOG}
+   rm -f ../exe/NEMS.x
+   gmake clean                              >> ${COMPILE_LOG} 2>&1
+   esmf_version 3                           >> ${COMPILE_LOG} 2>&1
+   gmake fim                                >> ${COMPILE_LOG} 2>&1
+   date                                     >> ${REGRESSIONTEST_LOG}
 
-export TEST_DESCR="Compare FIM results with previous trunk version, only FIM compiled"
+   if [ -f ../exe/NEMS.x ] ; then
+    echo "   Model code Compiled";echo;echo
+   else
+    echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
+
+  fi # endif compilation
+ fi # endif machine (only CCS)
+
+ cd $PATHRT
+
+ #############################################################################
+ #
+ # TEST   - FIM
+ #        - 40 compute tasks / 1 thread, 1 node.  
+ #
+ #############################################################################
+
+ if [ $MACHINE_ID = ccs ]; then
+  if [ $RT_FULL = true -o $CB_arg = fim -o $CB_arg = all ]; then
+
+   export TEST_DESCR="Compare FIM results with previous trunk version, only FIM compiled"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export TASKS=40
-export GLVL=4
-export RUNDIR=${RUNDIR_ROOT}/FIM_G${GLVL}L38P${TASKS}_24hr
-export CNTL_DIR=FIM_G${GLVL}L38_24hr
-export LIST_FILES=" \
+   (( TEST_NR=TEST_NR+1 ))
+   export TASKS=40
+   export GLVL=4
+   export RUNDIR=${RUNDIR_ROOT}/FIM_G${GLVL}L38P${TASKS}_24hr
+   export CNTL_DIR=FIM_G${GLVL}L38_24hr
+   export LIST_FILES=" \
         fim_out_2D__000000hr fim_out_2D__000003hr fim_out_2D__000006hr \
         fim_out_2D__000009hr fim_out_2D__000012hr fim_out_2D__000015hr \
         fim_out_2D__000018hr fim_out_2D__000021hr fim_out_2D__000024hr \
@@ -1976,286 +2055,750 @@ export LIST_FILES=" \
         fim_out_vo3D000024hr fim_out_vp3P000024hr fim_out_vs3D000024hr \
         fim_out_ws3D000024hr"
 #---------------------
-export_fim
-export WLCLK=15
+   export_fim
+   export WLCLK=15
 #---------------------
-  ./rt_fim.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_fim.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
-fi # endif machine (only CCS)
+  fi # endif test
+ fi  # endif machine (only CCS)
+fi   # SKIP_FIM test
 
-cd $PATHRT
-
-################################################################################################
-# Clean and compile both NMMB & GFS cores, using ESMF 3.1.0rp2 and POST library.
-################################################################################################
-
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = post -o ${CB_arg} = nmm -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
-
-echo "Preparing model code for regression tests"
-echo "Compilation with POST"
-printf %s "Using the ESMF 3.1.0rp2 and POST library.   "
-printf %s "Compiling model code (this will take some time)......."
-cd ${PATHTR}/src
-
-
-date                                     >> ${REGRESSIONTEST_LOG}
-echo "Compilation with POST"             >> ${REGRESSIONTEST_LOG}
-rm -f ../exe/NEMS.x
-gmake clean                              >> ${COMPILE_LOG} 2>&1
-./esmf_version 3                           >> ${COMPILE_LOG} 2>&1
-gmake nmm_gfs_gen_post GOCART_MODE=full  >> ${COMPILE_LOG} 2>&1
-date                                     >> ${REGRESSIONTEST_LOG}
-
-if [ -f ../exe/NEMS.x ] ; then
-  echo "   Model code Compiled";echo;echo
+if [ ${SKIP_POST:-NO} = YES ] ; then
+ echo "Skipping NMMB & GFS tests with ESMF3.1.0rp5 and POST library"
 else
-  echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
-  echo "   Model code is NOT compiled"
-  exit
-fi
 
-fi # endif compilation
-fi # endif machine (only CCS)
+ cd $PATHRT
 
-cd $PATHRT
+###############################################################################
+# Clean and compile both NMMB & GFS cores, using ESMF 3.1.0rp5 and POST library.
+###############################################################################
 
-#################################################################################################
+ if [ $MACHINE_ID = ccs ]; then
+  if [ $RT_FULL = true -o $CB_arg = post -o $CB_arg = nmm -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+   echo "Preparing model code for regression tests"
+   echo "Compilation with POST"
+   printf %s "Using the ESMF 3.1.0rp2 and POST library.   "
+   printf %s "Compiling model code (this will take some time)......."
+   cd ${PATHTR}/src
+
+   date                                     >> ${REGRESSIONTEST_LOG}
+   echo "Compilation with POST"             >> ${REGRESSIONTEST_LOG}
+   rm -f ../exe/NEMS.x
+   cp atmos/gsm/dyn/makefile_essl atmos/gsm/dyn/makefile
+   gmake clean                              >> ${COMPILE_LOG} 2>&1
+   esmf_version 3                           >> ${COMPILE_LOG} 2>&1
+   gmake nmm_gfs_gen_post GOCART_MODE=full  >> ${COMPILE_LOG} 2>&1
+   date                                     >> ${REGRESSIONTEST_LOG}
+
+   if [ -f ../exe/NEMS.x ] ; then
+    echo "   Model code Compiled";echo;echo
+   else
+    echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
+  fi # endif compilation
+ fi # endif machine (only CCS)
+
+ cd $PATHRT
+
+ ###############################################################################
+ #
+ # TEST   - Regional NMM-B with pure binary input and post
+ #        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
+ #
+ ###############################################################################
+
+ if [ $MACHINE_ID = ccs ]; then
+  if [ $RT_FULL = true -o $CB_arg = post -o $CB_arg = nmm -o $CB_arg = all ] ; then
+
+   export TEST_DESCR="NMMB-regional run with post on quilt"
+
+#---------------------
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/NMM_reg_post
+   export CNTL_DIR=NMMB_reg_post
+   export LIST_FILES=" \
+   nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
+   nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
+   nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s \
+   BGDAWP.GrbF48 BGRD3D.GrbF48 BGRDSF.GrbF48"
+#---------------------
+   export_nmm
+   export GBRG=reg ; export WPREC=true
+   export WRITE_DOPOST=.true.
+#---------------------
+    ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+  fi # endif test
+ fi # endif machine (only CCS)
+
+ if [ ${SKIP_GFS_POST:-NO} = YES ] ; then
+  echo "Skipping GFS and NGAC post tests"
+ else
+ ###############################################################################
+ #
+ # TEST   - GFS_post
+ #        - 30 compute tasks / 1 thread
+ #
+ ###############################################################################
+
+  if [ $MACHINE_ID = ccs ] ; then
+   if [ $RT_FULL = true -o $CB_arg = post -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+    export TEST_DESCR="GFS with POST"
+
+#---------------------
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/GFS_DFI_POST
+    export CNTL_DIR=GFS_DFI_POST
+    export LIST_FILES=" \
+         sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
+         sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+         flxf00 flxf03 flxf06 flxf12 flxf24 flxf48 \
+         GFSPRS.GrbF03 GFSPRS.GrbF06 GFSPRS.GrbF12 \
+         GFSPRS.GrbF24 GFSPRS.GrbF48"
+#---------------------
+    export_gfs
 #
-# TEST   - Regional NMM-B with pure binary input and post
-#        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / pure binary input
+    export FDFI=3
+    export WRITE_DOPOST=.true.
+#---------------------
+    ./rt_gfs.sh
+    if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+   fi # endif test
+  fi  # endif machine (only CCS)
+
+ ###############################################################################
+ #
+ # TEST   - GFS_GOCART_POST
+ #        - 64 compute tasks / 1 thread
+ #
+ ###############################################################################
+
+  if [ $MACHINE_ID = ccs ]; then
+   if [ $RT_FULL = true -o $CB_arg = post -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+    export TEST_DESCR="GFS_GOCART with POST"
+
+#---------------------
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/GFS_GOCART_POST
+    export CNTL_DIR=GFS_GOCART_POST
+    export LIST_FILES=" \
+         ngac.t00z.sigf00 ngac.t00z.sigf03 ngac.t00z.sigf06 ngac.t00z.sigf12 ngac.t00z.sigf24 \
+         ngac.t00z.sfcf00 ngac.t00z.sfcf03 ngac.t00z.sfcf06 ngac.t00z.sfcf12 ngac.t00z.sfcf24 \
+        ngac.t00z.flxf00 ngac.t00z.flxf03 ngac.t00z.flxf06 ngac.t00z.flxf12 ngac.t00z.flxf24 \
+         ngac.t00z.aerf00 ngac.t00z.aerf03 ngac.t00z.aerf06 ngac.t00z.aerf12 ngac.t00z.aerf24 \
+         NGAC2d.GrbF03 NGAC2d.GrbF06 NGAC2d.GrbF12  NGAC2d.GrbF24 \
+         NGAC3d.GrbF03 NGAC3d.GrbF06 NGAC3d.GrbF12 NGAC3d.GrbF24"
+#---------------------
+    export_gfs
 #
-#################################################################################################
-
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = post -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
-
-export TEST_DESCR="NMMB-regional run with post on quilt"
-
+    export TASKS=64
+    export WLCLK=10
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_reg_post
-export CNTL_DIR=NMMB_reg_post
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
-nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s \
-BGDAWP.GrbF48 BGRD3D.GrbF48 BGRDSF.GrbF48"
-#---------------------
-export_nmm
-export GBRG=reg ; export WPREC=true
-export WRITE_DOPOST=.true.
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
+    ./rt_gocart.sh
+    if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
-fi # endif machine (only CCS)
+   fi # endif test
+  fi  # endif machine (only CCS)
+ fi  # SKIP_GFS_POST
 
-#################################################################################################
-#
-# TEST   - GFS_post
-#        - 30 compute tasks / 1 thread
-#
-#################################################################################################
+fi   # SKIP_POST test
 
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = post -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
+if [ ${SKIP_ESMF52:-NO} = YES ] ; then
+ echo "Skipping NMMB and GFS tests using ESMF 5.2.0rp1 library"
+else
+ #########################################################################
+ # Clean and compile both NMMB & GFS cores, using ESMF 5.2.0rp1 library.
+ #########################################################################
 
-export TEST_DESCR="GFS with POST"
+ if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+  echo "Preparing model code for regression tests"
+  echo "Using the ESMF 5.2.0rp1 library"
+  printf %s "Using the ESMF 5.2.0rp1 library.   "
+  printf %s "Compiling model code (this will take some time)......."
+  cd ${PATHTR}/src
+
+  date                                     >> ${REGRESSIONTEST_LOG}
+  echo "Compilation ESMF 5.2.0rp1"         >> ${REGRESSIONTEST_LOG}
+  rm -f ../exe/NEMS.x
+  if [ $MACHINE_ID = ccs ]; then
+
+    cp atmos/gsm/dyn/makefile_essl atmos/gsm/dyn/makefile
+    esmf_version 5.2                       >> ${COMPILE_LOG} 2>&1
+    gmake clean                            >> ${COMPILE_LOG} 2>&1
+    gmake nmm_gfs                          >> ${COMPILE_LOG} 2>&1
+
+  elif [ $MACHINE_ID = wcoss ]; then
+
+    cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
+    ./esmf_version 5.2_wcoss               >> ${COMPILE_LOG} 2>&1
+    gmake clean                            >> ${COMPILE_LOG} 2>&1
+    gmake nmm_gfs                          >> ${COMPILE_LOG} 2>&1
+
+  elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
+
+    cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
+    ./esmf_version 5.2_zeus                >> ${COMPILE_LOG} 2>&1
+    gmake clean                            >> ${COMPILE_LOG} 2>&1
+    gmake nmm_gfs                          >> ${COMPILE_LOG} 2>&1
+
+   fi
+   date                                     >> ${REGRESSIONTEST_LOG}
+
+   if [ -f ../exe/NEMS.x ] ; then
+    echo "   Model code Compiled";echo;echo
+   else
+    echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
+
+  fi # endif compilation
+
+  cd $PATHRT
+
+ ###############################################################################
+ #
+ # TEST   - Global NMM-B with pure binary input
+ #        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
+ #
+ ###############################################################################
+
+ if [ $MACHINE_ID = ccs -o $MACHINE_ID = wcoss ] ; then
+  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
+
+   export TEST_DESCR="Compare NMMB-global results with previous trunk version_ESMF_5.2.0rp1"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_DFI_POST
-export CNTL_DIR=GFS_DFI_POST
-export LIST_FILES=" \
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF_5.2.0rp1
+   export CNTL_DIR=NMMB_glob_ESMF_5.2.0rp1
+   export LIST_FILES=" \
+   nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
+   nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
+   nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
+#---------------------
+   export_nmm
+   export GBRG=glob
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+  fi # endif test
+ fi # endif machine (only CCS or WCOSS)
+
+ ###############################################################################
+ # 
+ # TEST   - GFS 
+ #        - 30 compute tasks / 1 thread 
+ #
+ ###############################################################################
+
+ if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus ] ; then
+  if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+   export TEST_DESCR="Compare GFS results with previous trunk version ESMF5.2.0rp1"
+
+#---------------------
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF5.2.0rp1
+   export CNTL_DIR=GFS_NODFI_5.2.0rp1
+   export LIST_FILES=" \
+	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
+	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
+#---------------------
+   export_gfs
+#---------------------
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+  fi # endif test
+ fi # endif machine (only CCS or zeus)
+
+ if [ ${SKIP_GEFS_CONCUR:-NO} = YES ] ; then
+   echo "Skipping GEFS Concurrency test for ESMF53"
+ else
+
+ ###############################################################################
+ #
+ # TEST   - Concurrency GEFS
+ #        - 4 members, every 6 hours, couple and add stochastic perturbations, T190L28.
+ #
+ ###############################################################################
+
+  if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus ] ; then
+   if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+    export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5.2.0rp1"
+
+#---------------------
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF5.2.0rp1
+    export CNTL_DIR=GEFS_m4_5.2.0rp1
+    export LIST_FILES=" \
+         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
+         SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
+         FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
+#        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
+#        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
+#        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
+#        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
+#        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
+#        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
+#        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
+#        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
+#        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
+#        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
+#        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
+#---------------------
+    export_gfs
+    export GEFS_ENSEMBLE=1
+    export TASKS=64 ; export WLCLK=40
+#---------------------
+    ./rt_gfs.sh
+    if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+   fi # endif test
+  fi # endif machine (only CCS or zeus)
+ fi   # SKIP_GENS_CONCUR test
+fi   # SKIP_ESMF52 test
+
+if [ ${SKIP_ESMF53:-NO} = YES ] ; then
+ echo "Skipping NMMB and GFS tests using ESMF 5.3.0 library"
+else
+ #########################################################################
+ # Clean and compile both NMMB & GFS cores, using ESMF 5.3.0 library.
+ #########################################################################
+
+ if [ $MACHINE_ID = zeus ] ; then
+  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+   echo "Preparing model code for regression tests"
+   echo "Using the ESMF 5.3.0 library"
+   printf %s "Using the ESMF 5.3.0 library.   "
+   printf %s "Compiling model code (this will take some time)......."
+   cd ${PATHTR}/src
+
+   date                                     >> ${REGRESSIONTEST_LOG}
+   echo "Compilation ESMF 5.3.0"            >> ${REGRESSIONTEST_LOG}
+   rm -f ../exe/NEMS.x
+   gmake clean                              >> ${COMPILE_LOG} 2>&1
+   cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
+   esmf_version 5.3_$MACHINE_ID             >> ${COMPILE_LOG} 2>&1
+   gmake nmm_gfs                            >> ${COMPILE_LOG} 2>&1
+   date                                     >> ${REGRESSIONTEST_LOG}
+
+   if [ -f ../exe/NEMS.x ] ; then
+    echo "   Model code Compiled";echo;echo
+   else
+    echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
+
+  fi # endif compilation
+
+  cd $PATHRT
+ fi # endif machine (only zeus)
+
+ ###############################################################################
+ #
+ # TEST   - Global NMM-B with pure binary input
+ #        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
+ #
+ ###############################################################################
+
+ #if [ $MACHINE_ID = ccs ] ; then
+ #if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
+ #
+ #export TEST_DESCR="Compare NMMB-global results with previous trunk version_ESMF_5.3.0"
+ #
+ ##---------------------
+ #(( TEST_NR=TEST_NR+1 ))
+ #export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF_5.3.0
+ #export CNTL_DIR=NMMB_glob_ESMF_6.1.1
+ #export LIST_FILES=" \
+ #nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
+ #nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
+ #nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
+ ##---------------------
+ #export_nmm
+ #export GBRG=glob
+ ##---------------------
+ #  ./rt_nmm.sh
+ #  if [ $? = 2 ]; then exit ; fi
+ ##---------------------
+ #
+ #fi # endif test
+ #fi # endif machine (only CCS)
+
+ ###############################################################################
+ # 
+ # TEST   - GFS 
+ #        - 30 compute tasks / 1 thread 
+ #
+ ###############################################################################
+
+ if [ $MACHINE_ID = zeus ] ; then
+  if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+   export TEST_DESCR="Compare GFS results with previous trunk version ESMF5.3.0"
+
+#---------------------
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF5.3.0
+   export CNTL_DIR=GFS_NODFI_6.1.1
+   export LIST_FILES=" \
+	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
+	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
+#---------------------
+  export_gfs
+#---------------------
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+  fi # endif test
+ fi # endif machine (only eus)
+
+ if [ ${SKIP_GEFS_CONCUR:-NO} = YES ] ; then
+   echo "Skipping GEFS Concurrency test for ESMF53"
+ else
+  ##############################################################################
+  #
+  # TEST   - Concurrency GEFS
+  #        - 4 members, every 6 hours, couple and add stochastic perturbations, T190L28.
+  #
+  ##############################################################################
+
+  if [ ${MACHINE_ID} = zeus ]; then
+   if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
+    export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5.3.0"
+
+#---------------------
+   (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF5.3.0
+    export CNTL_DIR=GEFS_m4_6.1.1
+    export LIST_FILES=" \
+         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
+         SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
+         FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
+#        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
+#        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
+#        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
+#        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
+#        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
+#        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
+#        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
+#        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
+#        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
+#        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
+#        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
+
+#---------------------
+     export_gfs
+     export GEFS_ENSEMBLE=1
+     export TASKS=64 ; export WLCLK=40
+#---------------------
+     ./rt_gfs.sh
+     if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+    fi # endif test
+   fi  # endif machine (only zeus)
+ fi    # end of SKI_GENS_CONCUR test
+fi   # SKIP_ESMF53 test
+
+if [ ${SKIP_ESMF610:-NO} = YES ] ; then
+ echo "Skipping NMMB & GFS tests using ESMF 6.1.0 library"
+else
+ #########################################################################
+ # Clean and compile both NMMB & GFS cores, using ESMF 6.1.0 library.
+ #########################################################################
+
+ if [ $MACHINE_ID = zeus ] ; then
+  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+   echo "Preparing model code for regression tests"
+   echo "Using the ESMF 6.1.0 library"
+   printf %s "Using the ESMF 6.1.0 library.   "
+   printf %s "Compiling model code (this will take some time)......."
+   cd ${PATHTR}/src
+
+   date                                     >> ${REGRESSIONTEST_LOG}
+   echo "Compilation ESMF 6.1.0"            >> ${REGRESSIONTEST_LOG}
+   rm -f ../exe/NEMS.x
+   gmake clean                              >> ${COMPILE_LOG} 2>&1
+   cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
+   esmf_version 6.1_zeus                    >> ${COMPILE_LOG} 2>&1
+   gmake nmm_gfs                            >> ${COMPILE_LOG} 2>&1
+   date                                     >> ${REGRESSIONTEST_LOG}
+
+   if [ -f ../exe/NEMS.x ] ; then
+    echo "   Model code Compiled";echo;echo
+   else
+    echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
+
+  fi # endif compilation
+
+  cd $PATHRT
+ fi # endif machine (only zeus)
+
+ ###############################################################################
+ #
+ # TEST   - Global NMM-B with pure binary input
+ #        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
+ #
+ ###############################################################################
+
+ #if [ $MACHINE_ID = ccs ]; then
+ #if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
+ #
+ #export TEST_DESCR="Compare NMMB-global results with previous trunk version_ESMF_6.1.0"
+ #
+ ##---------------------
+ #(( TEST_NR=TEST_NR+1 ))
+ #export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF_6.1.0
+ #export CNTL_DIR=NMMB_glob_ESMF_6.1.1
+ #export LIST_FILES=" \
+ #nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
+ #nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
+ #nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
+ ##---------------------
+ #export_nmm
+ #export GBRG=glob
+ ##---------------------
+ #  ./rt_nmm.sh
+ #  if [ $? = 2 ]; then exit ; fi
+ ##---------------------
+ #
+ #fi # endif test
+ #fi # endif machine (only CCS)
+
+ ###############################################################################
+ # 
+ # TEST   - GFS 
+ #        - 30 compute tasks / 1 thread 
+ #
+ ###############################################################################
+
+ if [ $MACHINE_ID = zeus ] ; then
+  if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+   export TEST_DESCR="Compare GFS results with previous trunk version ESMF6.1.0"
+
+#---------------------
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF6.1.0
+   export CNTL_DIR=GFS_NODFI_6.1.1
+   export LIST_FILES=" \
+	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
+	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
+#---------------------
+   export_gfs
+#---------------------
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+  fi # endif test
+ fi  # endif machine (only eus)
+
+ if [ ${SKIP_GEFS_CONCUR:-NO} = YES ] ; then
+   echo "Skipping GEFS Concurrency test for ESMF610"
+ else
+  ##############################################################################
+  #
+  # TEST   - Concurrency GEFS
+  #        - 4 members, every 6 hours, couple and add stochastic perturbations, T190L28.
+  #
+  ##############################################################################
+
+  if [ ${MACHINE_ID} = zeus ] ; then
+   if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+    export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF6.1.0"
+
+#---------------------
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF6.1.0
+    export CNTL_DIR=GEFS_m4_6.1.1
+    export LIST_FILES=" \
+         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
+         SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
+         FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
+#        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
+#        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
+#        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
+#        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
+#        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
+#        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
+#        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
+#        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
+#        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
+#        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
+#        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
+
+#---------------------
+    export_gfs
+    export GEFS_ENSEMBLE=1
+    export TASKS=64 ; export WLCLK=40
+#---------------------
+    ./rt_gfs.sh
+    if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+   fi # endif test
+  fi  # endif machine (only zeus)
+ fi   # end of SKI_GENS_CONCUR test
+fi    # SKIP_ESMF610 test
+
+if [ ${SKIP_ESMF611:-NO} = YES ] ; then
+ echo "Skipping NMMB & GFS tests using ESMF 6.1.0 library"
+else
+ #########################################################################
+ # Clean and compile both NMMB & GFS cores, using ESMF 6.1.1 library.
+ #########################################################################
+
+ if [ $MACHINE_ID = zeus ]; then
+  if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
+
+   echo "Preparing model code for regression tests"
+   echo "Using the ESMF 6.1.1 library"
+   printf %s "Using the ESMF 6.1.1 library.   "
+   printf %s "Compiling model code (this will take some time)......."
+   cd ${PATHTR}/src
+
+   date                                     >> ${REGRESSIONTEST_LOG}
+   echo "Compilation ESMF 6.1.1"            >> ${REGRESSIONTEST_LOG}
+   rm -f ../exe/NEMS.x
+   gmake clean                              >> ${COMPILE_LOG} 2>&1
+   cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
+   esmf_version 6.1.1_zeus                  >> ${COMPILE_LOG} 2>&1
+   gmake nmm_gfs                            >> ${COMPILE_LOG} 2>&1
+   date                                     >> ${REGRESSIONTEST_LOG}
+
+   if [ -f ../exe/NEMS.x ] ; then
+    echo "   Model code Compiled";echo;echo
+   else
+    echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
+
+  fi # endif compilation
+
+  cd $PATHRT
+ fi # endif machine (only zeus)
+
+ ###############################################################################
+ #
+ # TEST   - Global NMM-B with pure binary input
+ #        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
+ #
+ ###############################################################################
+
+ #if [ $MACHINE_ID = ccs ]; then
+ #if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
+ #
+ #export TEST_DESCR="Compare NMMB-global results with previous trunk version_ESMF_6.1.1"
+ #
+ ##---------------------
+ #(( TEST_NR=TEST_NR+1 ))
+ #export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF_6.1.1
+ #export CNTL_DIR=NMMB_glob_ESMF_6.1.1
+ #export LIST_FILES=" \
+ #nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
+ #nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
+ #nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
+ ##---------------------
+ #export_nmm
+ #export GBRG=glob
+ ##---------------------
+ #  ./rt_nmm.sh
+ #  if [ $? = 2 ]; then exit ; fi
+ ##---------------------
+ #
+ #fi # endif test
+ #fi # endif machine (only CCS
+ 
+
+ ###############################################################################
+ #
+ # TEST   - GFS
+ #        - 30 compute tasks / 1 thread
+ #
+ ###############################################################################
+
+ if [ $MACHINE_ID = zeus ] ; then
+  if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+   export TEST_DESCR="Compare GFS results with previous trunk version ESMF6.1.1"
+
+#---------------------
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF6.1.1
+   export CNTL_DIR=GFS_NODFI_6.1.1
+   export LIST_FILES=" \
         sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
         sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-        flxf00 flxf03 flxf06 flxf12 flxf24 flxf48 \
-        GFSPRS.GrbF03 GFSPRS.GrbF06 GFSPRS.GrbF12 \
-        GFSPRS.GrbF24 GFSPRS.GrbF48"
+        flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
-export_gfs
-#
-export FDFI=3
-export WRITE_DOPOST=.true.
+   export_gfs
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
-fi # endif machine (only CCS)
+  fi # endif test
+ fi  # endif machine (only zeus)
 
-#################################################################################################
-#
-# TEST   - GFS_GOCART_POST
-#        - 64 compute tasks / 1 thread
-#
-#################################################################################################
+ if [ ${SKIP_GEEFS_CONCUR:-NO} = YES ] ; then
+   echo "Skipping GEFS Concurrency test for ESMF611"
+ else
 
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = post -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
+  ##############################################################################
+  #
+  # TEST   - Concurrency GEFS
+  #        - 4 members, every 6 hours, couple and add stochastic perturbations, T190L28.
+  #
+  ##############################################################################
 
-export TEST_DESCR="GFS_GOCART with POST"
+  if [ $MACHINE_ID = zeus ] ; then
+   if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_GOCART_POST
-export CNTL_DIR=GFS_GOCART_POST
-export LIST_FILES=" \
-        ngac.t00z.sigf00 ngac.t00z.sigf03 ngac.t00z.sigf06 ngac.t00z.sigf12 ngac.t00z.sigf24 \
-        ngac.t00z.sfcf00 ngac.t00z.sfcf03 ngac.t00z.sfcf06 ngac.t00z.sfcf12 ngac.t00z.sfcf24 \
-        ngac.t00z.flxf00 ngac.t00z.flxf03 ngac.t00z.flxf06 ngac.t00z.flxf12 ngac.t00z.flxf24 \
-        ngac.t00z.aerf00 ngac.t00z.aerf03 ngac.t00z.aerf06 ngac.t00z.aerf12 ngac.t00z.aerf24 \
-        NGAC2d.GrbF03 NGAC2d.GrbF06 NGAC2d.GrbF12  NGAC2d.GrbF24 \
-        NGAC3d.GrbF03 NGAC3d.GrbF06 NGAC3d.GrbF12 NGAC3d.GrbF24"
-#---------------------
-export_gfs
-#
-export TASKS=64
-export WLCLK=10
-#---------------------
-  ./rt_gocart.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-fi # endif machine (only CCS)
-
-#########################################################################
-# Clean and compile both NMMB & GFS cores, using ESMF 5.2.0rp1 library.
-#########################################################################
-
-if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
-
-echo "Preparing model code for regression tests"
-echo "Using the ESMF 5.2.0rp1 library"
-printf %s "Using the ESMF 5.2.0rp1 library.   "
-printf %s "Compiling model code (this will take some time)......."
-cd ${PATHTR}/src
-
-date                                     >> ${REGRESSIONTEST_LOG}
-echo "Compilation ESMF 5.2.0rp1"         >> ${REGRESSIONTEST_LOG}
-rm -f ../exe/NEMS.x
-if [ ${MACHINE_ID} = ccs ]; then
-
-  esmf_version 5.2                       >> ${COMPILE_LOG} 2>&1
-  gmake clean                            >> ${COMPILE_LOG} 2>&1
-  gmake nmm_gfs                          >> ${COMPILE_LOG} 2>&1
-
-elif [ ${MACHINE_ID} = wcoss ]; then
-
-  ./esmf_version 5.2_wcoss               >> ${COMPILE_LOG} 2>&1
-  gmake clean                            >> ${COMPILE_LOG} 2>&1
-  gmake nmm_gfs                          >> ${COMPILE_LOG} 2>&1
-
-elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
-
-  ./esmf_version 5.2_zeus                >> ${COMPILE_LOG} 2>&1
-  gmake clean                            >> ${COMPILE_LOG} 2>&1
-  gmake nmm_gfs                          >> ${COMPILE_LOG} 2>&1
-
-fi
-date                                     >> ${REGRESSIONTEST_LOG}
-
-if [ -f ../exe/NEMS.x ] ; then
-  echo "   Model code Compiled";echo;echo
-else
-  echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
-  echo "   Model code is NOT compiled"
-  exit
-fi
-
-fi # endif compilation
-
-cd $PATHRT
-
-####################################################################################################
-#
-# TEST   - Global NMM-B with pure binary input
-#        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
-#
-####################################################################################################
-
-if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = wcoss ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
-
-export TEST_DESCR="Compare NMMB-global results with previous trunk version_ESMF_5.2.0rp1"
+    export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF6.1.1"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF_5.2.0rp1
-export CNTL_DIR=NMMB_glob_ESMF_5.2.0rp1
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
-nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
-#---------------------
-export_nmm
-export GBRG=glob
-#---------------------
-  ./rt_nmm.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-fi # endif machine (only CCS or WCOSS)
-
-####################################################################################################
-# 
-# TEST   - GFS 
-#        - 30 compute tasks / 1 thread 
-#
-####################################################################################################
-
-if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = zeus ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
-
-export TEST_DESCR="Compare GFS results with previous trunk version ESMF5.2.0rp1"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF5.2.0rp1
-export CNTL_DIR=GFS_NODFI_5.2.0rp1
-export LIST_FILES=" \
-	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
-	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
-#---------------------
-export_gfs
-#---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-fi # endif machine (only CCS or zeus)
-
-####################################################################################################
-#
-# TEST   - Concurrency GEFS
-#        - 4 members, every 6 hours, couple and add stochastic perturbations, T190L28.
-#
-####################################################################################################
-
-if [ ${MACHINE_ID} = ccs -o ${MACHINE_ID} = zeus ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
-
-export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5.2.0rp1"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF5.2.0rp1
-export CNTL_DIR=GEFS_m4_5.2.0rp1
-export LIST_FILES=" \
-        SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
-        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF6.1.1
+    export CNTL_DIR=GEFS_m4_6.1.1
+    export LIST_FILES=" \
+         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
+         SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
+         FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
 #        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
 #        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
 #        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
@@ -2268,503 +2811,91 @@ export LIST_FILES=" \
 #        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
 #        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
 #---------------------
-export_gfs
-export GEFS_ENSEMBLE=1
-export TASKS=64 ; export WLCLK=40
+    export_gfs
+    export GEFS_ENSEMBLE=1
+    export TASKS=64 ; export WLCLK=40
 #---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-fi # endif machine (only CCS or zeus)
-
-
-#########################################################################
-# Clean and compile both NMMB & GFS cores, using ESMF 5.3.0 library.
-#########################################################################
-
-if [ ${MACHINE_ID} = zeus ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
-
-echo "Preparing model code for regression tests"
-echo "Using the ESMF 5.3.0 library"
-printf %s "Using the ESMF 5.3.0 library.   "
-printf %s "Compiling model code (this will take some time)......."
-cd ${PATHTR}/src
-
-date                                     >> ${REGRESSIONTEST_LOG}
-echo "Compilation ESMF 5.3.0"         >> ${REGRESSIONTEST_LOG}
-rm -f ../exe/NEMS.x
-gmake clean                              >> ${COMPILE_LOG} 2>&1
-./esmf_version 5.3_zeus                    >> ${COMPILE_LOG} 2>&1
-gmake nmm_gfs                            >> ${COMPILE_LOG} 2>&1
-date                                     >> ${REGRESSIONTEST_LOG}
-
-if [ -f ../exe/NEMS.x ] ; then
-  echo "   Model code Compiled";echo;echo
-else
-  echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
-  echo "   Model code is NOT compiled"
-  exit
-fi
-
-fi # endif compilation
-
-cd $PATHRT
-fi # endif machine (only zeus)
-
-####################################################################################################
-#
-# TEST   - Global NMM-B with pure binary input
-#        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
-#
-####################################################################################################
-
-#if [ ${MACHINE_ID} = ccs ]; then
-#if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
-#
-#export TEST_DESCR="Compare NMMB-global results with previous trunk version_ESMF_5.3.0"
-#
-##---------------------
-#(( TEST_NR=TEST_NR+1 ))
-#export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF_5.3.0
-#export CNTL_DIR=NMMB_glob_ESMF_6.1.1
-#export LIST_FILES=" \
-#nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
-#nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
-#nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
-##---------------------
-#export_nmm
-#export GBRG=glob
-##---------------------
-#  ./rt_nmm.sh
-#  if [ $? = 2 ]; then exit ; fi
-##---------------------
-#
-#fi # endif test
-#fi # endif machine (only CCS)
-
-####################################################################################################
-# 
-# TEST   - GFS 
-#        - 30 compute tasks / 1 thread 
-#
-####################################################################################################
-
-if [ ${MACHINE_ID} = zeus ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
-
-export TEST_DESCR="Compare GFS results with previous trunk version ESMF5.3.0"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF5.3.0
-export CNTL_DIR=GFS_NODFI_6.1.1
-export LIST_FILES=" \
-	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
-	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
-#---------------------
-export_gfs
-#---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
+    ./rt_gfs.sh
+    if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
-fi # endif machine (only eus)
+   fi # endif test
+  fi  # endif machine (only zeus)
+ fi   # SKIP_GEFS_CONCUR test
+fi    # SKIP_ESMF611 test
 
-####################################################################################################
-#
-# TEST   - Concurrency GEFS
-#        - 4 members, every 6 hours, couple and add stochastic perturbations, T190L28.
-#
-####################################################################################################
-
-if [ ${MACHINE_ID} = zeus ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
-
-export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5.3.0"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF5.3.0
-export CNTL_DIR=GEFS_m4_6.1.1
-export LIST_FILES=" \
-        SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
-        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
-#        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
-#        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
-#        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
-#        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-#        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
-#        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
-#        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
-#        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
-#        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
-#        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
-#        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
-
-#---------------------
-export_gfs
-export GEFS_ENSEMBLE=1
-export TASKS=64 ; export WLCLK=40
-#---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-fi # endif machine (only zeus)
-
-#########################################################################
-# Clean and compile both NMMB & GFS cores, using ESMF 6.1.0 library.
-#########################################################################
-
-if [ ${MACHINE_ID} = zeus ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
-
-echo "Preparing model code for regression tests"
-echo "Using the ESMF 6.1.0 library"
-printf %s "Using the ESMF 6.1.0 library.   "
-printf %s "Compiling model code (this will take some time)......."
-cd ${PATHTR}/src
-
-date                                     >> ${REGRESSIONTEST_LOG}
-echo "Compilation ESMF 6.1.0"         >> ${REGRESSIONTEST_LOG}
-rm -f ../exe/NEMS.x
-gmake clean                              >> ${COMPILE_LOG} 2>&1
-./esmf_version 6.1_zeus                    >> ${COMPILE_LOG} 2>&1
-gmake nmm_gfs                            >> ${COMPILE_LOG} 2>&1
-date                                     >> ${REGRESSIONTEST_LOG}
-
-if [ -f ../exe/NEMS.x ] ; then
-  echo "   Model code Compiled";echo;echo
-else
-  echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
-  echo "   Model code is NOT compiled"
-  exit
-fi
-
-fi # endif compilation
-
-cd $PATHRT
-fi # endif machine (only zeus)
-
-####################################################################################################
-#
-# TEST   - Global NMM-B with pure binary input
-#        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
-#
-####################################################################################################
-
-#if [ ${MACHINE_ID} = ccs ]; then
-#if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
-#
-#export TEST_DESCR="Compare NMMB-global results with previous trunk version_ESMF_6.1.0"
-#
-##---------------------
-#(( TEST_NR=TEST_NR+1 ))
-#export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF_6.1.0
-#export CNTL_DIR=NMMB_glob_ESMF_6.1.1
-#export LIST_FILES=" \
-#nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
-#nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
-#nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
-##---------------------
-#export_nmm
-#export GBRG=glob
-##---------------------
-#  ./rt_nmm.sh
-#  if [ $? = 2 ]; then exit ; fi
-##---------------------
-#
-#fi # endif test
-#fi # endif machine (only CCS)
-
-####################################################################################################
-# 
-# TEST   - GFS 
-#        - 30 compute tasks / 1 thread 
-#
-####################################################################################################
-
-if [ ${MACHINE_ID} = zeus ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
-
-export TEST_DESCR="Compare GFS results with previous trunk version ESMF6.1.0"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF6.1.0
-export CNTL_DIR=GFS_NODFI_6.1.1
-export LIST_FILES=" \
-	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
-	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
-#---------------------
-export_gfs
-#---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-fi # endif machine (only eus)
-
-####################################################################################################
-#
-# TEST   - Concurrency GEFS
-#        - 4 members, every 6 hours, couple and add stochastic perturbations, T190L28.
-#
-####################################################################################################
-
-if [ ${MACHINE_ID} = zeus ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
-
-export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF6.1.0"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF6.1.0
-export CNTL_DIR=GEFS_m4_6.1.1
-export LIST_FILES=" \
-        SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
-        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
-#        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
-#        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
-#        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
-#        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-#        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
-#        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
-#        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
-#        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
-#        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
-#        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
-#        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
-
-#---------------------
-export_gfs
-export GEFS_ENSEMBLE=1
-export TASKS=64 ; export WLCLK=40
-#---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-fi # endif machine (only zeus)
-
-
-#########################################################################
-# Clean and compile both NMMB & GFS cores, using ESMF 6.1.1 library.
-#########################################################################
-
-if [ ${MACHINE_ID} = zeus ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
-
-echo "Preparing model code for regression tests"
-echo "Using the ESMF 6.1.1 library"
-printf %s "Using the ESMF 6.1.1 library.   "
-printf %s "Compiling model code (this will take some time)......."
-cd ${PATHTR}/src
-
-date                                     >> ${REGRESSIONTEST_LOG}
-echo "Compilation ESMF 6.1.1"         >> ${REGRESSIONTEST_LOG}
-rm -f ../exe/NEMS.x
-gmake clean                              >> ${COMPILE_LOG} 2>&1
-./esmf_version 6.1.1_zeus                    >> ${COMPILE_LOG} 2>&1
-gmake nmm_gfs                            >> ${COMPILE_LOG} 2>&1
-date                                     >> ${REGRESSIONTEST_LOG}
-
-if [ -f ../exe/NEMS.x ] ; then
-  echo "   Model code Compiled";echo;echo
-else
-  echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
-  echo "   Model code is NOT compiled"
-  exit
-fi
-
-fi # endif compilation
-
-cd $PATHRT
-fi # endif machine (only zeus)
-
-####################################################################################################
-#
-# TEST   - Global NMM-B with pure binary input
-#        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
-#
-####################################################################################################
-
-#if [ ${MACHINE_ID} = ccs ]; then
-#if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
-#
-#export TEST_DESCR="Compare NMMB-global results with previous trunk version_ESMF_6.1.1"
-#
-##---------------------
-#(( TEST_NR=TEST_NR+1 ))
-#export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF_6.1.1
-#export CNTL_DIR=NMMB_glob_ESMF_6.1.1
-#export LIST_FILES=" \
-#nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
-#nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
-#nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
-##---------------------
-#export_nmm
-#export GBRG=glob
-##---------------------
-#  ./rt_nmm.sh
-#  if [ $? = 2 ]; then exit ; fi
-##---------------------
-#
-#fi # endif test
-#fi # endif machine (only CCS)
-
-####################################################################################################
-# 
-# TEST   - GFS 
-#        - 30 compute tasks / 1 thread 
-#
-####################################################################################################
-
-if [ ${MACHINE_ID} = zeus ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
-
-export TEST_DESCR="Compare GFS results with previous trunk version ESMF6.1.1"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF6.1.1
-export CNTL_DIR=GFS_NODFI_6.1.1
-export LIST_FILES=" \
-	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
-	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
-#---------------------
-export_gfs
-#---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-fi # endif machine (only eus)
-
-####################################################################################################
-#
-# TEST   - Concurrency GEFS
-#        - 4 members, every 6 hours, couple and add stochastic perturbations, T190L28.
-#
-####################################################################################################
-
-if [ ${MACHINE_ID} = zeus ]; then
-if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
-
-export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF6.1.1"
-
-#---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF6.1.1
-export CNTL_DIR=GEFS_m4_6.1.1
-export LIST_FILES=" \
-        SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
-        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
-#        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
-#        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
-#        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
-#        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-#        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
-#        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
-#        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
-#        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
-#        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
-#        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
-#        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
-#---------------------
-export_gfs
-export GEFS_ENSEMBLE=1
-export TASKS=64 ; export WLCLK=40
-#---------------------
-  ./rt_gfs.sh
-  if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-fi # endif test
-fi # endif machine (only zeus)
 #########################################################################
 # Clean and compile only NMMB core
 #########################################################################
 
-if [ ${RT_FULL} = true ]; then
+if [ $RT_FULL = true ] ; then
 
-echo "Preparing model code for regression tests"
-echo "Compilation only NMM"
-printf %s "Compiling model code (this will take some time)......."
-cd ${PATHTR}/src
+ echo "Preparing model code for regression tests"
+ echo "Compilation only NMM"
+ printf %s "Compiling model code (this will take some time)......."
+ cd ${PATHTR}/src
 
-date                                     >> ${REGRESSIONTEST_LOG}
-echo "Compilation only NMM"              >> ${REGRESSIONTEST_LOG}
-rm -f ../exe/NEMS.x
+ date                                    >> ${REGRESSIONTEST_LOG}
+ echo "Compilation only NMM"             >> ${REGRESSIONTEST_LOG}
+ rm -f ../exe/NEMS.x
 
-if [ ${MACHINE_ID} = ccs ]; then
+ if [ $MACHINE_ID = ccs ]; then
 
+  cp atmos/gsm/dyn/makefile_essl atmos/gsm/dyn/makefile
   esmf_version 3                         >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake nmm                              >> ${COMPILE_LOG} 2>&1
 
-elif [ ${MACHINE_ID} = wcoss ]; then 
+ elif [ $MACHINE_ID = wcoss ]; then 
 
+  cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
   ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake nmm                              >> ${COMPILE_LOG} 2>&1
 
-elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
+ elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
 
-  ./esmf_version 3_zeus                    >> ${COMPILE_LOG} 2>&1
+  cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
+  ./esmf_version 3_zeus                  >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake nmm                              >> ${COMPILE_LOG} 2>&1
 
-fi
+ fi
 
-if [ -f ../exe/NEMS.x ] ; then
+ if [ -f ../exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
-else
+ else
   echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
   echo "   Model code is NOT compiled"
   exit
-fi
+ fi
 
 fi # endif compilation
 
 cd $PATHRT
 
-####################################################################################################
+###############################################################################
 #
 # TEST   - Global NMM-B with pure binary input
 #        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
 #
-####################################################################################################
+###############################################################################
 
-if [ ${RT_FULL} = true ]; then
+if [ $RT_FULL = true ] ; then
 
-export TEST_DESCR="Compare NMMB-global results with previous trunk version, only NMM compiled"
+ export TEST_DESCR="Compare NMMB-global results with previous trunk version, only NMM compiled"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_NMM_only
-export CNTL_DIR=NMMB_glob
-export LIST_FILES=" \
-nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
-nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s "
+ (( TEST_NR=TEST_NR+1 ))
+ export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_NMM_only
+ export CNTL_DIR=NMMB_glob
+ export LIST_FILES=" \
+ nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
+ nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+ nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s "
 #---------------------
-export_nmm
-export GBRG=glob ; export FCSTL=24
+ export_nmm
+ export GBRG=glob ; export FCSTL=24
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
@@ -2777,61 +2908,61 @@ fi # endif test
 # Clean and compile only NMMB core with TRAPS turned on
 #########################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${RT_FULL} = true ]; then
+if [ $MACHINE_ID = ccs ] ; then
+ if [ $RT_FULL = true ] ; then
 
-echo "Preparing model code for regression tests"
-echo "Compilation NMM with TRAPS on"
-printf %s "Compiling model code (this will take some time)......."
-cd ${PATHTR}/src
+  echo "Preparing model code for regression tests"
+  echo "Compilation NMM with TRAPS on"
+  printf %s "Compiling model code (this will take some time)......."
+  cd ${PATHTR}/src
 
-date                                     >> ${REGRESSIONTEST_LOG}
-echo "Compilation NMM with TRAPS on"     >> ${REGRESSIONTEST_LOG}
-rm -f ../exe/NEMS.x
-gmake clean                              >> ${COMPILE_LOG} 2>&1
-./esmf_version traps_on                    >> ${COMPILE_LOG} 2>&1
-gmake nmm                                >> ${COMPILE_LOG} 2>&1
-date                                     >> ${REGRESSIONTEST_LOG}
+  date                                     >> ${REGRESSIONTEST_LOG}
+  echo "Compilation NMM with TRAPS on"     >> ${REGRESSIONTEST_LOG}
+  rm -f ../exe/NEMS.x
+  gmake clean                              >> ${COMPILE_LOG} 2>&1
+  esmf_version traps_on                    >> ${COMPILE_LOG} 2>&1
+  gmake nmm                                >> ${COMPILE_LOG} 2>&1
+  date                                     >> ${REGRESSIONTEST_LOG}
 
-if [ -f ../exe/NEMS.x ] ; then
-  echo "   Model code Compiled";echo;echo
-else
-  echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
-  echo "   Model code is NOT compiled"
-  exit
-fi
+  if [ -f ../exe/NEMS.x ] ; then
+   echo "   Model code Compiled";echo;echo
+  else
+   echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
-fi # endif compilation
+ fi # endif compilation
 fi # endif machine (only CCS)
 
 cd $PATHRT
 
-####################################################################################################
+###############################################################################
 #
 # TEST   - Global NMM-B with pure binary input
 #        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
 #
-####################################################################################################
+###############################################################################
 
-if [ ${MACHINE_ID} = ccs ]; then
-if [ ${RT_FULL} = true ]; then
+if [ $MACHINE_ID = ccs ] ; then
+ if [ $RT_FULL = true ] ; then
 
-export TEST_DESCR="Compare NMMB-global results with previous trunk version, TRAPS on"
+  export TEST_DESCR="Compare NMMB-global results with previous trunk version, TRAPS on"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_TRAPS_on
-export CNTL_DIR=NMMB_glob
-export LIST_FILES=" nmmb_hst_01_bin_0000h_00m_00.00s "
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_TRAPS_on
+  export CNTL_DIR=NMMB_glob
+  export LIST_FILES=" nmmb_hst_01_bin_0000h_00m_00.00s "
 #---------------------
-export_nmm
-export GBRG=glob ; export FCSTL=12
+  export_nmm
+  export GBRG=glob ; export FCSTL=12
 #---------------------
   ./rt_nmm.sh
   if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-fi # endif test
+ fi # endif test
 fi # endif machine (only CCS)
 
 
@@ -2839,72 +2970,72 @@ fi # endif machine (only CCS)
 # Clean and compile only GFS core
 #########################################################################
 
-if [ ${RT_FULL} = true ]; then
+if [ $RT_FULL = true ] ; then
 
-echo "Preparing model code for regression tests"
-echo "Compilation only GFS"
-printf %s "Compiling model code (this will take some time)......."
-cd ${PATHTR}/src
+ echo "Preparing model code for regression tests"
+ echo "Compilation only GFS"
+ printf %s "Compiling model code (this will take some time)......."
+ cd ${PATHTR}/src
 
-date                                     >> ${REGRESSIONTEST_LOG}
-echo "Compilation only GFS"              >> ${REGRESSIONTEST_LOG}
-rm -f ../exe/NEMS.x
-if [ ${MACHINE_ID} = ccs ]; then
+ date                                    >> ${REGRESSIONTEST_LOG}
+ echo "Compilation only GFS"             >> ${REGRESSIONTEST_LOG}
+ rm -f ../exe/NEMS.x
+ if [ $MACHINE_ID = ccs ]; then
 
   esmf_version 3                         >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake gfs                              >> ${COMPILE_LOG} 2>&1
 
-elif [ ${MACHINE_ID} = wcoss ]; then 
+ elif [ $MACHINE_ID = wcoss ]; then 
 
   ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
-  gmake nmm                              >> ${COMPILE_LOG} 2>&1
+  gmake gfs                              >> ${COMPILE_LOG} 2>&1
 
-elif [ ${MACHINE_ID} = gaea -o ${MACHINE_ID} = zeus ]; then
+ elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
 
-  ./esmf_version 3_zeus                    >> ${COMPILE_LOG} 2>&1
+  ./esmf_version 3_zeus                  >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake gfs                              >> ${COMPILE_LOG} 2>&1
 
-fi
+ fi
 
-date                                     >> ${REGRESSIONTEST_LOG}
+ date                                    >> ${REGRESSIONTEST_LOG}
 
-if [ -f ../exe/NEMS.x ] ; then
+ if [ -f ../exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
-else
+ else
   echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
   echo "   Model code is NOT compiled"
   exit
-fi
+ fi
 
 fi # endif compilation
 
 cd $PATHRT
 
 
-####################################################################################################
+###############################################################################
 #
 # TEST   - GFS
 #        - 30 compute tasks / 1 thread
 #
-####################################################################################################
+###############################################################################
 
 if [ ${RT_FULL} = true ]; then
 
-export TEST_DESCR="Compare GFS results with previous trunk version, only GFS compiled"
+ export TEST_DESCR="Compare GFS results with previous trunk version, only GFS compiled"
 
 #---------------------
-(( TEST_NR=TEST_NR+1 ))
-export RUNDIR=${RUNDIR_ROOT}/GFS_32_GFS_only
-export CNTL_DIR=GFS_NODFI
-export LIST_FILES=" \
+ (( TEST_NR=TEST_NR+1 ))
+ export RUNDIR=${RUNDIR_ROOT}/GFS_32_GFS_only
+ export CNTL_DIR=GFS_NODFI
+ export LIST_FILES=" \
         sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
         sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
         flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
-export_gfs
+ export_gfs
 #---------------------
   ./rt_gfs.sh
   if [ $? = 2 ]; then exit ; fi
@@ -2913,21 +3044,21 @@ export_gfs
 fi # endif test
 
 
-####################################################################################################
+################################################################################
 # Finalize
-####################################################################################################
+################################################################################
 
 rm -f err out configure_file* nmm_ll nmm_msub nmm_run gfs_fcst_run gfs_ll gen_fcst_run gen_ll fim_fcst_run fim_ll
 
 cd ${PATHTR}/src
-gmake clean          > /dev/null 2>&1
+gmake clean            > /dev/null 2>&1
 ./esmf_version 3       > /dev/null 2>&1
 
 rm -rf ${RUNDIR_ROOT}
 
 date >> ${REGRESSIONTEST_LOG}
 
-if [ ${MACHINE_ID} = zeus -o ${MACHINE_ID} = wcoss ]; then
+if [ $MACHINE_ID = zeus -o $MACHINE_ID = wcoss ]; then
   echo REGRESSION TEST WAS SUCCESSFUL
   echo REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
 else

@@ -496,6 +496,11 @@ cc
               endif
 !
             endif             ! if ( xt(i) > 0.0 ) then
+!           Reset DTL at mignight
+            if ( abs(soltim) < 2.0*timestep ) then
+              call dtl_reset
+     &           (xt(i),xs(i),xu(i),xv(i),xz(i),xzts(i),xtts(i))
+            endif
 
           endif             ! IF (solar_time > solar_time_6am .and. ifd(i) == 0.0 ) THEN: too late to start the first day
 

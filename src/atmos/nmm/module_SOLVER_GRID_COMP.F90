@@ -303,7 +303,7 @@
       USE MODULE_INIT_READ_BIN,ONLY : READ_BINARY
       USE MODULE_INIT_READ_NEMSIO,ONLY : READ_NEMSIO
 !
-#ifdef IBM
+#ifdef IBMP6
       USE MODULE_FLTBNDS,ONLY : PREFFT
 #else
       USE MODULE_FLTBNDS,ONLY : PREFFT, PRESMUD
@@ -1807,7 +1807,7 @@
           CALL PREFFT(int_state%DLMD,int_state%DPHD,int_state%SBD,LM      &
                      ,int_state%KHFILT,int_state%KVFILT                   &
                      ,int_state%HFILT,int_state%VFILT                     &
-#ifdef IBM
+#ifdef IBMP6
                      ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3  &
                      ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3  &
 #else
@@ -1820,7 +1820,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifndef IBM
+#ifndef IBMP6
           btim=timef()
 !
 !-----------------------------------------------------------------------
@@ -2532,7 +2532,7 @@
                                             ,PSAUTCO,PRAUTCO,EVPCO      &
                                             ,CAL_PRE,MOM4ICE,MSTRAT     &
                                             ,TRANS_TRAC,NST_FCST        &
-                                            ,MOIST_ADJ
+                                            ,MOIST_ADJ,WMINCO
 
       USE N_LAYOUT1,                  ONLY : IPT_LATS_NODE_R            &
                                             ,LATS_NODE_R
@@ -2692,7 +2692,7 @@
       INTEGER                                      :: ISEED,IDE_GR
       INTEGER ,SAVE                                :: ID,IDAY,IMON,MIDMON,MIDM,MIDP,K1OZ,K2OZ,SEED0
       INTEGER ,DIMENSION(1)                        :: ICSDSW,ICSDLW
-      INTEGER ,DIMENSION(:),ALLOCATABLE            :: LONSPERLAR, GLOBAL_LATS_R
+      INTEGER ,DIMENSION(:),ALLOCATABLE            :: LONSPERLAR, GLOBAL_LATS_R,NLNSP
 !
       REAL (kind=KDBL)                             :: T850,FACOZ,DTLW,DTSW,DTLWI,DTSWI,RTvR,CLSTP,DTP,DTF,SOLHR,RADDT
       REAL (kind=KDBL)                             :: XLVRW,XLVRWI,DTPHS,DTPHSI,RoCP,MINDT
@@ -2707,7 +2707,7 @@
       REAL (kind=KDBL) ,DIMENSION(:,:),ALLOCATABLE :: GR3,ADR
       REAL (kind=KDBL) ,DIMENSION(:),ALLOCATABLE   :: PRSI,PRSIK,RSGM,PHII
       REAL (kind=KDBL) ,DIMENSION(:),ALLOCATABLE   :: SINLAT_R,COSLAT_R
-      REAL (kind=KDBL) ,DIMENSION(:,:),ALLOCATABLE :: XLON,COSZEN,COSZDG,RANN
+      REAL (kind=KDBL) ,DIMENSION(:,:),ALLOCATABLE :: XLON,COSZEN,COSZDG,RANN,SINLAT_V,COSLAT_V
       REAL (kind=KDBL) ,DIMENSION(:),ALLOCATABLE   :: RANNUM
 !
       REAL (kind=KDBL) ,DIMENSION(39)              :: FLUXR_V
@@ -3527,7 +3527,7 @@
            ,int_state%KHFILT                                            &
            ,int_state%HFILT                                             &
            ,int_state%DIV                                               &
-#ifdef IBM
+#ifdef IBMP6
            ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3          &
            ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3          &
 #else
@@ -4065,7 +4065,7 @@
             (LM                                                         &
             ,int_state%KVFILT,int_state%VFILT                           &
             ,int_state%TCU,int_state%TCV                                &
-#ifdef IBM
+#ifdef IBMP6
             ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3         &
             ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3         &
 #else
@@ -4186,7 +4186,7 @@
            ,int_state%KHFILT                                            &
            ,int_state%HFILT                                             &
            ,int_state%DIV                                               &
-#ifdef IBM
+#ifdef IBMP6
            ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3          &
            ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3          &
 #else
@@ -4428,7 +4428,7 @@
                   ,int_state%KHFILT                                     &
                   ,int_state%HFILT                                      &
                   ,int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,KS)      &
-#ifdef IBM
+#ifdef IBMP6
                   ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3   &
                   ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3   &
 #else
@@ -4625,7 +4625,7 @@
           ,int_state%KHFILT                                             &
           ,int_state%HFILT                                              &
           ,int_state%TCT                                                &
-#ifdef IBM
+#ifdef IBMP6
           ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3           &
           ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3           &
 #else
@@ -4716,7 +4716,7 @@
           ,int_state%KHFILT                                             &
           ,int_state%HFILT                                              &
           ,int_state%W                                                  &
-#ifdef IBM
+#ifdef IBMP6
           ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3           &
           ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3           &
 #else
@@ -4777,7 +4777,7 @@
           ,int_state%KHFILT                                             &
           ,int_state%HFILT                                              &
           ,int_state%DWDT                                               &
-#ifdef IBM
+#ifdef IBMP6
           ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3           &
           ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3           &
 #else
@@ -4950,7 +4950,7 @@
             ,int_state%KHFILT                                           &
             ,int_state%HFILT                                            &
             ,int_state%CW                                               &
-#ifdef IBM
+#ifdef IBMP6
             ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3         &
             ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3         &
 #else
@@ -4963,7 +4963,7 @@
             ,int_state%KHFILT                                           &
             ,int_state%HFILT                                            &
             ,int_state%Q                                                &
-#ifdef IBM
+#ifdef IBMP6
             ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3         &
             ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3         &
 #else
@@ -4976,7 +4976,7 @@
             ,int_state%KHFILT                                           &
             ,int_state%HFILT                                            &
             ,int_state%E2                                               &
-#ifdef IBM
+#ifdef IBMP6
             ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3         &
             ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3         &
 #else
@@ -4989,7 +4989,7 @@
             ,int_state%KHFILT                                           &
             ,int_state%HFILT                                            &
             ,int_state%O3                                               &
-#ifdef IBM
+#ifdef IBMP6
             ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3         &
             ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3         &
 #else
@@ -5005,7 +5005,7 @@
                 ,int_state%KHFILT                                       &
                 ,int_state%HFILT                                        &
                 ,int_state%WATER(:,:,:,N)                               &
-#ifdef IBM
+#ifdef IBMP6
                 ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3     &
                 ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3     &
 #else
@@ -6265,6 +6265,7 @@
         btim=timef()
 !
         ALLOCATE(LONSPERLAR(JTS:JTE))
+        ALLOCATE(NLNSP(JTS:JTE))
         ALLOCATE(GLOBAL_LATS_R(JTS:JTE))
         ALLOCATE(CLDCOV_V(LM))
         ALLOCATE(PRSL(LM))
@@ -6292,6 +6293,8 @@
         ALLOCATE(XLON(ITS:ITE,JTS:JTE))
         ALLOCATE(COSZEN(ITS:ITE,JTS:JTE))
         ALLOCATE(COSZDG(ITS:ITE,JTS:JTE))
+        ALLOCATE(SINLAT_V(ITS:ITE,JTS:JTE))
+        ALLOCATE(COSLAT_V(ITS:ITE,JTS:JTE))
         ALLOCATE(RANN(ITS:ITE,JTS:JTE))
         ALLOCATE(RANNUM((ITE-ITS+1)*(JTE-JTS+1)))
         ALLOCATE(GR1(1,LM,NTRAC-1))
@@ -6407,14 +6410,24 @@
 !
           ENDIF
 !
-        FLGMIN_L(1)     = 0.2D0      ! --- for ferrier (for now, any number)
+          FLGMIN_L(1)     = 0.2D0      ! --- for ferrier (for now, any number)
+
+          DO J=JTS,JTE
+            DO I=ITS,ITE
+              SINLAT_V(I,J) = SINLAT_R(J)
+              COSLAT_V(I,J) = COSLAT_R(J)
+            ENDDO
+          ENDDO
+          DO J=JTS,JTE
+            NLNSP(J) = LONR
+          ENDDO
+         
 
 ! ----
           CALL ASTRONOMY                                                &
 !  ---  inputs:
-             ( LONSPERLAR, GLOBAL_LATS_R, SINLAT_R, COSLAT_R, XLON,     &
-               FHSWR, JDAT,                                             &
-               LONR, LATS_NODE_R, LATR, IPT_LATS_NODE_R, LSSWR, MYPE,   &
+             ( SINLAT_V, COSLAT_V, XLON, FHSWR, JDAT,                   &
+               LONR, LATS_NODE_R, NLNSP, LSSWR, MYPE,                   &
 !  ---  outputs:
                int_state%SOLCON, int_state%SLAG, int_state%SDEC,        &
                int_state%CDEC, COSZEN, COSZDG )
@@ -6913,10 +6926,11 @@
            GT, GR3, VVEL, PRSI, PRSL, PRSLK, PRSIK, PHII, PHIL,             &
            RANN, OZPLOUT_V, PL_PRES, DPSHC, HPRIME, XLON(I,J), XLAT,        &
            XSLPFCS, SHDMIN, SHDMAX, SNOALB, XTG3FCS, SLMSK, XVEGFCS,        &
-           XVETFCS, XSOTFCS, UUSTAR, ORO, COSZEN(I,J), SFCDSW, SFCNSW,      &
+           XVETFCS, XSOTFCS, UUSTAR, ORO, oro, COSZEN(I,J), SFCDSW, SFCNSW, &
            SFCDLW, TSFLW, SEMIS, SFALB, SWH, HLW, RAS, PRE_RAD,             &
            LDIAG3D, LGGFS3D, LGOCART, LSSAV, LSSAV_CC,                      &
            BKGD_VDIF_M, BKGD_VDIF_H, BKGD_VDIF_S, PSAUTCO, PRAUTCO, EVPCO,  &
+           WMINCO,                                                          &
            FLIPV, OLD_MONIN, CNVGWD, SHAL_CNV, SASHAL, NEWSAS, CAL_PRE,     &
            MOM4ICE, MSTRAT, TRANS_TRAC, NST_FCST, MOIST_ADJ, FSCAV,         &
            THERMODYN_ID, SFCPRESS_ID, GEN_COORD_HYBRID,                     &
@@ -6924,14 +6938,14 @@
            SRFLAG, SNWDPH, WEASD, SNCOVR, ZORL, CANOPY,                     &
            FFMM, FFHH, F10M, SRUNOFF, EVBSA, EVCWA, SNOHFA,                 &
            TRANSA, SBSNOA, SNOWCA, SOILM, int_state%TMPMIN(I,J),            &
-             int_state%TMPMAX(I,J), &
+           int_state%TMPMAX(I,J),                                           &
            DUSFC, DVSFC, DTSFC, DQSFC, TOTPRCP, GFLUX,                      &
            DLWSFC, ULWSFC, SUNTIM, RUNOFF, EP, CLDWRK,                      &
            int_state%DUGWD(I,J), int_state%DVGWD(I,J), PSMEAN, CNVPRCP,     &
            SPFHMIN, SPFHMAX, RAIN, RAINC,                                   &
            DT3DT, DQ3DT, DU3DT, DV3DT, DQDT, ACV, ACVB, ACVT,               &
            SLC_V, SMC_V, STC_V, UPD_MF, DWN_MF, DET_MF, DKH, RNP, PHY_F3DV, &
-             PHY_F2DV,  &
+             PHY_F2DV,                                                      &
            DLWSFC_CC, ULWSFC_CC, DTSFC_CC, SWSFC_CC,                        &
            DUSFC_CC, DVSFC_CC, DQSFC_CC, PRECR_CC,                          &
            XT, XS, XU, XV, XZ, ZM, XTTS, XZTS, D_CONV, IFD, DT_COOL, QRAIN, &
@@ -9136,7 +9150,8 @@
 !
       CALL SFCCYCLE(204,(ITE-ITS+1)*(JTE-JTS+1),4,SIG1T,FHCYC              &
      &,             JDAT(1), JDAT(2), JDAT(3), JDAT(5), FHOUR              &
-     &,             RLA, RLO, SLMASK, OROG                                 &
+!    &,             RLA, RLO, SLMASK, OROG                                 &
+     &,             RLA, RLO, SLMASK, OROG, OROG, .FALSE.                  &
      &,             SIHFCS,   SICFCS, SITFCS                               &
      &,             SWDFCS,   SLCFC1                                       &
      &,             VMNFCS,   VMXFCS, SLPFCS, ABSFCS                       &
@@ -9506,7 +9521,7 @@
 !
 ! ATTRIBUTES:
 !   LANGUAGE: FORTRAN 90
-!   MACHINE : IBM
+!   MACHINE : IBMP6
 !-----------------------------------------------------------------------
       USE MODULE_CONSTANTS,ONLY : EPSQ,TIW
 !-----------------------------------------------------------------------

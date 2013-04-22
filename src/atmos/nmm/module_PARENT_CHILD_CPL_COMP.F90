@@ -16910,7 +16910,7 @@
           ALLOCATE(   LOG_PTOP(I_START:I_END,J_START:J_END))
           ALLOCATE(   LOG_PBOT(I_START:I_END,J_START:J_END))
 !
-#ifdef IBM
+#ifdef IBMP6
           ALLOCATE(TMP(I_START:I_END,J_START:J_END))
           LOG_LENGTH=(I_END-I_START+1)*(J_END-J_START+1)
 #endif
@@ -17002,7 +17002,7 @@
                       +WGHT_NW*Q(I_WEST,J_NORTH,L)                      &
                       +WGHT_NE*Q(I_EAST,J_NORTH,L)
 !
-#ifndef IBM
+#ifndef IBMP6
               LOG_PTOP(I,J)=LOG(PINT_INTERP(I,J,L))                        !<-- Log of parent (top) interface pressure at child bndry point
 !
               PHI_INTERP(I,J,L)=PHI_INTERP(I,J,L+1)                     &  !<-- Top interface geopotl of parent at child gridpoint (I,J)
@@ -17017,7 +17017,7 @@
             ENDDO
             ENDDO
 !
-#ifdef IBM
+#ifdef IBMP6
             CALL VSLOG(LOG_PTOP,PINT_INTERP(:,:,L),LOG_LENGTH)             !<-- Log of parent (top) interface pressure at child bndry point
             DO J=J_START,J_END                                             !<-- J limits of child task bndry region on parent task
             DO I=I_START,I_END                                             !<-- I limits of child task bndry region on parent task
@@ -17125,7 +17125,7 @@
           DEALLOCATE(LOG_PTOP)  
           DEALLOCATE(LOG_PBOT)  
 !
-#ifdef IBM
+#ifdef IBMP6
           DEALLOCATE(TMP)
 #endif
 !
@@ -17728,7 +17728,7 @@
 !
             ENDIF
 !
-#ifdef IBM
+#ifdef IBMP6
             CALL SCSINT(P_INPUT                                         &  !<-- Input mid-layer pressure
                        ,VBL_INPUT                                       &  !<-- Input mid-layer mass variable value
                        ,C_TMP                                           &  !<-- Auxiliary matrix, C(1:num_levs_spline,1:4)

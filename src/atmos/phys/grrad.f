@@ -481,6 +481,7 @@
      &       htrlw,topflw,sfcflw,tsflw,semis,cldcov,                    &
 !  ---  input/output:
      &       fluxr                                                      &
+!    &,      dbgu                                                       &
 !! ---  optional outputs:
      &,      HTRSWB,HTRLWB                                              &
      &     )
@@ -574,6 +575,7 @@
 !      lprnt           : control flag for diagnostic print out          !
 !      ipt             : index for diagnostic printout point            !
 !      kdt             : time-step number                               !
+!      dbgu            : unit numberfor debugging output                !
 !                                                                       !
 !    output variables:                                                  !
 !      htrsw (IX,LM)   : total sky sw heating rate in k/sec             !
@@ -760,6 +762,7 @@
       integer,  intent(in) :: IX,IM, LM, NTRAC,NFXR, iflip, me,         &
      &       k1oz, k2oz, iovrsw, iovrlw, np3d, ntoz, ntcw, ncld,        &
      &       ipt,  kdt
+!    &       ipt,  kdt, dbgu
       integer, dimension(IM), intent(in) ::  icsdsw, icsdlw
 
       logical,  intent(in) :: lsswr,  lslwr, lssav, lprnt,              &
@@ -916,13 +919,17 @@
 !  --- ...  setup surface ground temp and ground/air skin temp if required
 
       if ( itsfc == 0 ) then            ! use same sfc skin-air/ground temp
-        tskn(:) = tsfc(:)
-        tsfg(:) = tsfc(:)
+        do i = 1, IM
+          tskn(i) = tsfc(i)
+          tsfg(i) = tsfc(i)
+        enddo
       else                              ! use diff sfc skin-air/ground temp
-!!      tskn(:) = ta  (:)               ! not yet
-!!      tsfg(:) = tg  (:)               ! not yet
-        tskn(:) = tsfc(:)
-        tsfg(:) = tsfc(:)
+        do i = 1, IM
+!!        tskn(i) = ta  (i)             ! not yet
+!!        tsfg(i) = tg  (i)             ! not yet
+          tskn(i) = tsfc(i)
+          tsfg(i) = tsfc(i)
+        enddo
       endif
 
 !  --- ...  prepare atmospheric profiles for radiation input
@@ -1034,6 +1041,16 @@
 
 !  --- ...  setup aerosols property profile for radiation
 
+      do j=1,nf_aesw
+        do nb=1,nbdsw
+          do k=1,lm
+            do i=1,im
+               faersw(i,k,nb,j) = 0.0
+               faerlw(i,k,nb,j) = 0.0
+            enddo
+          enddo
+        enddo
+      enddo
       if ( iaerflg > 0 ) then
 
 !  --- ...  prslk -> tem2da (added for gocart coupling)
@@ -1054,38 +1071,27 @@
      &       faersw,faerlw,tau_gocart                                   &
      &     )
 
-      else
-
-        do j=1,nf_aesw
-          do nb=1,nbdsw
-            do k=1,lm
-              do i=1,im
-                 faersw(i,k,nb,j) = 0.0
-                 faerlw(i,k,nb,j) = 0.0
-              enddo
-            enddo
-          enddo
-        enddo
-
       endif           ! end_if_iaerflg
 
       ! if ( laswflg ) then
-      if ( iaerflg==2 .and. laswflg ) then
+      if ( iaerflg == 2 .and. laswflg ) then
  
 !  --- ...  update aod (column integrated aerosol optical depth)
 
-        do i = 1, IM
-          do j = 1, NSPC+1
-            do k = 1, LM
-              if ( j <= NSPC ) then
-                aod(i,j) = aod(i,j) + tau_gocart(i,k,j)
-              else
-                aod(i,j) = aod(i,j) + faersw(i,k,nv_aod,1)
-              endif
+        do j = 1, NSPC
+          do k = 1, LM
+            do i=1,im
+              aod(i,j) = aod(i,j) + tau_gocart(i,k,j)
             enddo
           enddo
         enddo
-
+        j = NSPC + 1
+        do k = 1, LM
+          do i=1,im
+            aod(i,j) = aod(i,j) + faersw(i,k,nv_aod,1)
+          enddo
+        enddo
+ 
       else
 
         aod(:,:) = 0.0
@@ -1107,11 +1113,11 @@
               clw(i,k) = clw(i,k) + oz(i,k,lv)    ! cloud condensate amount
             enddo
           enddo
-        enddo
 
-        where (clw < EPSQ)
-          clw = 0.0
-        endwhere
+          do i = 1, IM
+            if( clw(i,k) < EPSQ ) clw(i,k) = 0.0
+          enddo
+        enddo
 
         if (np3d == 4) then              ! zhao/moorthi's prognostic cloud scheme
 
@@ -1225,6 +1231,7 @@
      &       clouds,icsdsw,faersw,sfcalb,                               &
      &       coszen,solcon, nday,idxday,                                &
      &       IM, LM, LP1, iflip, lprnt,                                 &
+!    &       IM, LM, LP1, iflip, lprnt, dbgu,                           &
 !  ---  outputs:
      &       htswc,topfsw,sfcfsw                                        &
 !! ---  optional:
@@ -1248,6 +1255,7 @@
      &       clouds,icsdsw,faersw,sfcalb,                               &
      &       coszen,solcon, nday,idxday,                                &
      &       IM, LM, LP1, iflip, lprnt,                                 &
+!    &       IM, LM, LP1, iflip, lprnt, dbgu,                           &
 !  ---  outputs:
      &       htswc,topfsw,sfcfsw                                        &
 !! ---  optional:

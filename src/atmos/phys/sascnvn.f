@@ -226,6 +226,7 @@ c
         enddo
       enddo
       do i=1,im
+        kmax(i)  = min(km,kmax(i))
         kbmax(i) = min(kbmax(i),kmax(i))
         kbm(i)   = min(kbm(i),kmax(i))
       enddo

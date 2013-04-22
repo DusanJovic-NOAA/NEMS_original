@@ -5,15 +5,12 @@ cfpp$ noconcur r
      &     prsi,del,prsl,prslk,phii,phil,deltim,
      &     dusfc,dvsfc,dtsfc,dqsfc,hpbl,hgamt,hgamq,dkt,kinver)
 !
-      use machine     , only : kind_phys
+      use machine  , only : kind_phys
       use funcphys , only : fpvs
       use physcons, grav => con_g, rd => con_rd, cp => con_cp
      &,             hvap => con_hvap, rog => con_rog, fv => con_fvirt
      &,             eps => con_eps, epsm1 => con_epsm1
       implicit none
-!
-!     include 'constant.h'
-!
 !
 !     arguments
 !

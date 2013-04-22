@@ -27,7 +27,7 @@
             ! getfd :: Fortran function to get C file descriptor 
             integer :: getfd
           
-#ifdef IBM
+#ifdef IBMP6
             !Get file descriptor for interlanguage call to C fsync
             cfd=getfd(fn)
 

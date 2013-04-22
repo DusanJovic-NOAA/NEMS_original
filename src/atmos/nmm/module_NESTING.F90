@@ -11162,7 +11162,7 @@
                     VBL_INPUT(NUM_LEVELS+1+1)=VBL_INPUT(NUM_LEVELS+1)   &  !<-- Create extrapolated value at parent's new lowest
                                              +COEFF_1*DELP_EXTRAP          !    level for input to the spline.
                   ENDIF
-#ifdef IBM
+#ifdef IBMP6
                   CALL SCSINT(P_INPUT                                   &  !<-- Input variable is at these input pressure values
                              ,VBL_INPUT                                 &  !<-- The column of input variable values
                              ,C_TMP                                     &  !<-- Auxiliary matrix, C(1:NUM_LYRS+2,1:4)
@@ -11326,7 +11326,7 @@
                                              +COEFF_1*DELP_EXTRAP          !    level for input to the spline.
                     ENDIF
 !
-#ifdef IBM
+#ifdef IBMP6
                     CALL SCSINT(P_INPUT                                   &  !<-- Input variable is at these input pressure values
                                ,VBL_INPUT                                 &  !<-- The column of input variable values
                                ,C_TMP                                     &  !<-- Auxiliary matrix, C(1:NUM_LYRS+2,1:4)

@@ -34,7 +34,8 @@ MODULE module_nst_parameters
        ,eps_z_w=0.01            &          ! criteria to finish iterations for z_w
        ,eps_conv=0.01           &          ! criteria to finish iterations for d_conv
        ,eps_sfs=0.01            &          ! criteria to finish iterations for d_sfs
-       ,z_w_max=100.0           &          ! max warm layer thickness
+       ,z_w_max=30.0            &          ! max warm layer thickness
+!      ,z_w_max=100.0           &          ! max warm layer thickness
        ,z_w_min=0.2             &          ! min warm layer thickness
        ,z_w_ini=0.2             &          ! initial warm layer thickness in dtl_onset
        ,z_c_max=0.01            &          ! maximum of sub-layer thickness (m)
@@ -50,7 +51,7 @@ MODULE module_nst_parameters
        ,tw_max=5.0              &
        ,wd_max=2.0              &
        ,omg_m =1.0              &          ! trace factor to apply salinity effect
-       ,omg_rot = 0.0           &          ! trace factor to apply rotation effect
+       ,omg_rot = 1.0           &          ! trace factor to apply rotation effect
        ,omg_sh = 1.0            &          ! trace factor to apply sensible heat due to rainfall effect
 !dbgz
        ,visw=1.e-6 &                       !m2/s kinematic viscosity water

@@ -2,9 +2,9 @@
 
 # Moab options used on Gaea
 
-#MSUB -S /bin/sh
-#MSUB -o out
-#MSUB -e err
+#MSUB -S /bin/ksh
+#MSUB -e _RUND_/err
+#MSUB -o _RUND_/out
 #MSUB -N _JBNME_
 #MSUB -l partition=c1ms
 #MSUB -l size=_TPN_

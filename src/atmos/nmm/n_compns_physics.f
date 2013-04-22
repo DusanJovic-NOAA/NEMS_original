@@ -117,7 +117,7 @@
      & ccwf,shal_cnv,sashal,newsas,crick_proof,ccnorm,ctei_rm,mom4ice,
 !    & ccwf,sashal,newsas,zflxtvd,crick_proof,ccnorm,ctei_rm,mom4ice,
      & norad_precip,num_reduce,mstrat,trans_trac,dlqf,moist_adj,
-     & nst_fcst,nst_spinup,lsea,cal_pre,psautco,prautco,evpco,
+     & nst_fcst,nst_spinup,lsea,cal_pre,psautco,prautco,evpco,wminco,
      & fhout_hf,fhmax_hf,cdmbgwd,bkgd_vdif_m,bkgd_vdif_h,hdif_fac
      &,grid_aldata,bkgd_vdif_s
 !
@@ -192,6 +192,7 @@
       psautco(:)       = 4.0E-4        ! Zhao scheme default opr value
       prautco(:)       = 1.0E-4        ! Zhao scheme default opr value
       evpco            = 2.0E-5
+      wminco(:)        = 1.0E-5        ! Zhao scheme default water and ice floor value
       cdmbgwd(:)       = 1.0             ! Mtn Blking and GWD tuning factors
 
 !                                         For NST model

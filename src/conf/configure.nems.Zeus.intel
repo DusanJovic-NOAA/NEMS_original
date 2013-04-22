@@ -9,11 +9,15 @@ gfsdir=atmos/$(gfs)
 
 NETCDF_LIB   = /apps/netcdf/3.6.3/intel/lib/libnetcdf.a
 
-NEMSIO_INC   = -I/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/lib/nemsio/incmod
-NEMSIO_LIB   = -L/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/lib/nemsio -lnemsio
+#NEMSIO_INC   = -I/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/lib/nemsio/incmod
+#NEMSIO_LIB   = -L/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/lib/nemsio -lnemsio
+#BACIO_LIB    = -L/home/Ratko.Vasic/lib_tmp -lbacio_4
+
+NEMSIO_INC   = -I/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/nemsio/trunk/incmod
+NEMSIO_LIB   = /scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/nemsio/trunk/libnemsio.a
+BACIO_LIB    = /scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/bacio/trunk/libbacio_4.a
 
 W3_LIB       = -L/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/w3 -lw3-2.0_4
-BACIO_LIB    = -L/home/Ratko.Vasic/lib_tmp -lbacio_4
 SP_LIB       = -L/home/Ratko.Vasic/lib_tmp -lsp_4
 SYS_LIB      =
  

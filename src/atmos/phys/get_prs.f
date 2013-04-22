@@ -154,7 +154,7 @@
         endif
       else                                   ! Not gc Virtual Temp (Orig Joe)
         if (prki(1,1) <= zero) then
-!                                      Pressure is in centibars!!!!
+!                                      Pressure is in Pa!!!!
           do i=1,im
             prki(i,1) = (prsi(i,1)*p00i) ** rkap
           enddo

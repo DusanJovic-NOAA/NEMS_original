@@ -1,5 +1,6 @@
        SUBROUTINE PRECPD (IM,IX,KM,DT,DEL,PRSL,PS,Q,CWM,T,RN
-     &,                   rainp,u00k,psautco,prautco,evpco,lprnt,jpr)
+     &,                   rainp,u00k,psautco,prautco,evpco,wminco
+     &,                   lprnt,jpr)
 !
 !
 !     ******************************************************************
@@ -77,7 +78,7 @@
 !hchuang code change [+1L] : add record to record information in vertical in
 !                       addition to total column PRECRL
      &,                     RAINP(IM,KM), RNP(IM),
-     &                      psautco, prautco, evpco
+     &                      psautco, prautco, evpco, wminco(2)
 !
 !
       real (kind=kind_phys) ERR(IM),      ERS(IM),     PRECRL(IM)
@@ -160,13 +161,13 @@
           tem   = (prsl(i,k)*0.00001)
 !         tem   = sqrt(tem)
           IW(I,K)    = 0.0
-          wmin(i,k)  = 1.0e-5 * tem
-          wmini(i,k) = 1.0e-5 * tem       ! Testing for RAS
-!         wmin(i,k)  = 5.0e-6 * tem       ! Testing 
-!         wmini(i,k) = 5.0e-6 * tem       ! Testing
-!         wmin(i,k)  = 3.0e-6 * tem       ! Testing 
-!         wmini(i,k) = 3.0e-6 * tem       ! Testing
-!         wmini(i,k) = 1.0e-6 * tem       ! for SAS
+!         wmin(i,k)  = 1.0e-5 * tem
+!         wmini(i,k) = 1.0e-5 * tem       ! Testing for RAS
+!
+
+          wmin(i,k)  = wminco(1) * tem
+          wmini(i,k) = wminco(2) * tem
+
 
           rainp(i,k) = 0.0
 
@@ -353,8 +354,8 @@
 !
 !          For using Sundqvist precip formulation of rain
 !
-!              AMAXCM    = MAX(cons_0, CWMK - WMINK(N))
-               AMAXCM    = CWMK
+               AMAXCM    = MAX(cons_0, CWMK - WMINK(N))
+!!             AMAXCM    = CWMK
                TEM1      = PRECSL1(N) + PRECRL1(N)
                TEM2      = MIN(MAX(cons_0, 268.0-TT(N)), cons_20)
                TEM       = (1.0+C1*SQRT(TEM1*RDT)) * (1+C2*SQRT(TEM2))

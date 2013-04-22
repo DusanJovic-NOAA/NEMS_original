@@ -13,8 +13,10 @@ POST_LIB=-L${POSTDIR} -lnceppost
 
 NETCDF_LIB   = -L/nwprod/lib -lnetcdf_64
 
-NEMSIO_INC   = -I/climate/save/wx20wa/gfsio/lib/nemsio/incmod
-NEMSIO_LIB   = -L/climate/save/wx20wa/gfsio/lib/nemsio -lnemsio
+NEMSIO_INC   = -I/climate/save/wx20wa/gfsio/lib/ibmp6/nemsio/incmod
+NEMSIO_LIB   = -L/climate/save/wx20wa/gfsio/lib/ibmp6/nemsio -lnemsio
+#NEMSIO_INC  = -I/climate/save/wx20wa/gfsio/lib/nemsio/incmod
+#NEMSIO_LIB  = -L/climate/save/wx20wa/gfsio/lib/nemsio -lnemsio
 
 W3_LIB       = -L/climate/save/wx20wa/gfsio/w3/sorc_opn -lw3_d
 W3_POST_LIB  = -L/climate/save/wx20wa/lib -lw3_v2.2.3_4
@@ -54,6 +56,7 @@ EXTLIBS_POST = $(NEMSIO_LIB) \
                $(SYS_LIB)
 
 FC           = mpxlf95_r
+CC           = mpcc
 FREE         = -qfree=f90
 FIXED        = -qfixed
 R8           = -qrealsize=8
@@ -81,7 +84,7 @@ FFLAGS_FIM   = $(OPTS_FIM) $(FFLAGS)
 SUFFIX_FLAG  = -qsuffix=cpp=F
 
 CPP          = /lib/cpp -P
-CPPFLAGS     = -DENABLE_SMP -DIBM
+CPPFLAGS     = -DENABLE_SMP -DIBMP6
 
 AR           = ar
 ARFLAGS      = -r

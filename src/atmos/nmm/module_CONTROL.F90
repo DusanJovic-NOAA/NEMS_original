@@ -1897,7 +1897,7 @@ real(kind=kfpt):: &
 !
 !-----------------------------------------------------------------------
 !
-#ifdef IBM
+#ifdef IBMP6
       REAL*8 TIMEF,rtc
 !
       TIMEF=rtc()

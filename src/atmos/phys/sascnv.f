@@ -224,6 +224,7 @@ C
         ENDDO
       ENDDO
       DO I=1,IM
+        kmax(i)  = min(km,kmax(i))
         KBMAX(I) = MIN(KBMAX(I),KMAX(I))
         KBM(I)   = MIN(KBM(I),KMAX(I))
       ENDDO

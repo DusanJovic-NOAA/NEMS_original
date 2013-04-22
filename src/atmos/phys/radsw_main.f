@@ -329,6 +329,7 @@
      &       clouds,iauxil,aerosols,sfcalb,                             &
      &       cosz,solcon,NDAY,idxday,                                   &
      &       IMAX, NLAY, NLP1, iflip, lprnt,                            &
+!    &       IMAX, NLAY, NLP1, iflip, lprnt,dbgu,                       &
 !  ---  outputs:
      &       hswc,topflx,sfcflx                                         &
 !! ---  optional:
@@ -512,6 +513,8 @@
       integer, intent(in) :: IMAX, NLAY, NLP1, iflip, NDAY, iauxil(:)
 
       integer, intent(in) :: idxday(:)
+!     integer, intent(in) :: idxday(:), dbgu
+      integer  dbgu
 
       logical, intent(in) :: lprnt
 
@@ -570,6 +573,7 @@
 
       integer :: i, ib, ipts, j1, j2, k, kk, jp1, laytrop, mb
 
+      dbgu = 0
 !
 !===> ... begin here
 !
@@ -639,6 +643,10 @@
             pavel(k) = plyr(j1,kk)
             tavel(k) = tlyr(j1,kk)
             delp (k) = plvl(j1,kk+1) - plvl(j1,kk)
+
+!     if (ipts == 1) then
+!       write(dbgu,*)' pavel=',pavel(k),' tavel=',tavel(k),' k=',k
+!     endif
 
 !  ---  set absorber amount
 !test use
@@ -727,8 +735,12 @@
             colamt(k,1) =                coldry(k)*h2ovmr(k)          ! h2o
             colamt(k,2) = max(temcol(k), coldry(k)*gasvmr(j1,k,1))    ! co2
             colamt(k,3) =                coldry(k)*o3vmr(k)           ! o3
-          enddo
 
+!           if (ipts == 1) then
+!             write(dbgu,*)' pavel=',pavel(k),' tavel=',tavel(k),' k=',k
+!           endif
+
+          enddo
 !  ---  set aerosol optical properties
 
           if (iaersw > 0) then
@@ -945,7 +957,10 @@
 
         enddo    ! end_do_k_loop
 
+!       write(dbgu,*)' lfdncmp=',lfdncmp
         if ( lfdncmp ) then
+
+!     write(dbgu,*)' colamt=',colamt(:,1),' ipts=',ipts
 
           call spcvrt                                                   &
 !  ---  inputs:
@@ -954,6 +969,7 @@
      &       forfac, forfrac, indfor, selffac, selffrac, indself,       &
      &       fac00, fac01, fac10, fac11, jp, jt, jt1, laytrop,          &
      &       NLAY, NLP1,                                                &
+!    &       NLAY, NLP1, dbgu,                                          &
 !  ---  outputs:
      &       flxdcb, flxucb, flxd0b, flxu0b                             &
 !! ---  optional outputs:
@@ -980,6 +996,7 @@
      &       forfac, forfrac, indfor, selffac, selffrac, indself,       &
      &       fac00, fac01, fac10, fac11, jp, jt, jt1, laytrop,          &
      &       NLAY, NLP1,                                                &
+!    &       NLAY, NLP1, dbgu,                                          &
 !  ---  outputs:
      &       flxdcb, flxucb, flxd0b, flxu0b                             &
      &     )
@@ -988,6 +1005,8 @@
 
         do mb = 1, NBDSW
           do k = 1, NLP1
+!          if (j1 == 1) write(dbgu,*)' k=',k,' mb=',mb,' zcf1=',zcf1,
+!    &' zcf0=',zcf0,' flxucb=',flxucb(k,mb),flxu0b(k,mb)
             flxucb(k,mb) = zcf1*flxucb(k,mb) + zcf0*flxu0b(k,mb)
             flxdcb(k,mb) = zcf1*flxdcb(k,mb) + zcf0*flxd0b(k,mb)
           enddo
@@ -1071,10 +1090,14 @@
 
         else                        ! output from sfc to toa
 
+!          write(dbgu,*)' fnetc=',fnetc(1:5)
 !  ---  compute heating rates
           do k = 1, NLAY
+!        if (ipts == 1) write(dbgu,*)' fnetc=',fnetc(k),fnetc(k+1),heatfac
+!    &,' delp=',delp(k)
             hswc(j1,k) = (fnetc(k+1) - fnetc(k)) * heatfac / delp(k)
           enddo
+!      write(dbgu,*)' j1=',j1,' hswc=',hswc(j1,:)
 
 !! ---  optional flux profiles
           if ( lflxprf ) then
@@ -1530,6 +1553,7 @@
      &       forfac, forfrac, indfor, selffac, selffrac, indself,       &
      &       fac00, fac01, fac10, fac11, jp, jt, jt1, laytrop,          &
      &       NLAY, NLP1,                                                &
+!    &       NLAY, NLP1,dbgu,                                           &
 !  ---  outputs: 
      &       flxdc, flxuc, flxd0, flxu0                                 &
 !! ---  optional outputs:
@@ -1623,12 +1647,15 @@
 !
       use module_radsw_sflux, only : sfluxref01, sfluxref02,            &
      &                               sfluxref03, strrat, specwt,        &
-     &                               scalekur, layreffr, ix1, ix2, ibx
+     &                               scalekur, layreffr, ix1, ix2, ibx, &
+     &                               mfs01, mfs02, mfs03
+      use module_radsw_parameters, only : NGMAX
 !
       implicit none
 
 !  ---  inputs:
       integer,               intent(in) :: NLAY, NLP1, laytrop
+!     integer,               intent(in) :: NLAY, NLP1, laytrop, dbgu
 
       integer, dimension(:), intent(in) :: indfor, indself, jp, jt, jt1
 
@@ -1655,7 +1682,8 @@
 !  ---  locals:
       real (kind=kind_phys) :: fs, speccomb, specmult, colm1, colm2
 
-      real (kind=kind_phys), dimension(:,:), pointer :: sflxptr=>null()
+!     real (kind=kind_phys), dimension(:,:), pointer :: sflxptr=>null()
+      real (kind=kind_phys), allocatable :: sflxptr(:,:)
 
       integer, dimension(NLAY,NBLOW:NBHGH) :: id0, id1
       integer :: ibd, ifb, j, jb, js, k, klow, khgh, klim, ks, njb
@@ -1723,13 +1751,19 @@
         ibd = ibx(jb)
         njb = NG(jb)
 
-        NULLIFY (sflxptr)
+!       NULLIFY (sflxptr)
 
+!       write(dbgu,*)' jb=',jb
+!    &,' mfs01=',mfs01,' mfs02=',mfs02,' mfs03=',mfs03
+
+        if (allocated(sflxptr)) deallocate (sflxptr)
         select case (jb)
 
           case (16, 20, 23, 25, 26, 29)
             
-            sflxptr => sfluxref01(:,:,ibd)
+            if (.not. allocated(sflxptr)) allocate(sflxptr(ngmax,mfs01))
+            sflxptr = sfluxref01(:,:,ibd)
+!           sflxptr => sfluxref01(:,:,ibd)
 
             do j = 1, njb
               sfluxzen(j) = sflxptr(j,1)
@@ -1737,7 +1771,10 @@
 
           case (27)
             
-            sflxptr => sfluxref01(:,:,ibd)
+                        allocate(sflxptr(ngmax,mfs01))
+!           if (.not. allocated(sflxptr)) allocate(sflxptr(ngmax,mfs01))
+            sflxptr = sfluxref01(:,:,ibd)
+!           sflxptr => sfluxref01(:,:,ibd)
 
             do j = 1, njb
               sfluxzen(j) = scalekur * sflxptr(j,1)
@@ -1746,12 +1783,20 @@
           case default
 
             if (jb==17 .or. jb==28) then
-              sflxptr => sfluxref02(:,:,ibd)
+                        allocate(sflxptr(ngmax,mfs02))
+!             if (.not. allocated(sflxptr))                             &
+!    &                  allocate(sflxptr(ngmax,mfs02))
+              sflxptr = sfluxref02(:,:,ibd)
+!             sflxptr => sfluxref02(:,:,ibd)
               klow = laytrop
               khgh = NLAY - 1
               klim = NLAY
             else
-              sflxptr => sfluxref03(:,:,ibd)
+                        allocate(sflxptr(ngmax,mfs03))
+!             if (.not. allocated(sflxptr))                             &
+!    &                  allocate(sflxptr(ngmax,mfs03))
+              sflxptr = sfluxref03(:,:,ibd)
+!             sflxptr => sfluxref03(:,:,ibd)
               klow = 1
               khgh = laytrop - 1
               klim = laytrop
@@ -1772,10 +1817,13 @@
             js = 1 + int( specmult )
             fs = mod(specmult, one)
 
+!       write(dbgu,*)' js=',js,' specmult=',specmult
             do j = 1, njb
+!       write(dbgu,*)' j=',j,' js=',js,' specmult=',specmult
               sfluxzen(j) = sflxptr(j,js)                               &
      &                    + fs * (sflxptr(j,js+1) - sflxptr(j,js))
             enddo
+!           if (allocated(sflxptr)) deallocate (sflxptr)
 
         end select
 
@@ -1860,6 +1908,8 @@
           flxu0(k,ifb) = fxup(k,1)
           flxd0(k,ifb) = fxdn(k,1)
         enddo
+!       write(dbgu,*)' ifb=',ifb,' fxup=',fxup(1:5,:),
+!    &' fxdn=',fxdn(1:5,:)
 
         if ( lfdncmp ) then
 !! ---  optional uv-b surface downward flux

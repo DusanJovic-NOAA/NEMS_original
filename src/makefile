@@ -231,7 +231,7 @@ nmm_post_libs:
 ################################################################################
 
 gfs: gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(EXTLIBS)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
 	@echo "nems.x is created for GFS core."
 
 gfs_libs:
@@ -263,7 +263,7 @@ endif
 ################################################################################
 
 gfs_post: gfs_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(EXTLIBS_POST)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS_POST)
 	@echo "nems.x is created for GFS core."
 
 gfs_post_libs:
@@ -320,7 +320,7 @@ gen_libs:
 ################################################################################
 
 nmm_gfs_gen: nmm_gfs_gen_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(EXTLIBS)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
 	@echo "nems.x is created for GEN, NMM and GFS core."
 
 nmm_gfs_gen_libs:
@@ -352,7 +352,7 @@ endif
 ################################################################################
 
 nmm_gfs_gen_post: nmm_gfs_gen_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(EXTLIBS_POST)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS_POST)
 	@echo "nems.x is created for GEN, NMM and GFS core."
 
 nmm_gfs_gen_post_libs:
@@ -384,7 +384,7 @@ endif
 ################################################################################
 
 nmm_gfs: nmm_gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(EXTLIBS)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
 	@echo "nems.x is created for NMM and GFS core."
 
 nmm_gfs_libs:
@@ -491,7 +491,7 @@ hycom_libs:
 ################################################################################
 
 hycom_gfs: hycom_gfs_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(EXTLIBS)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
 	@echo "nems.x is created for HYCOM and GFS core."
 
 hycom_gfs_libs:

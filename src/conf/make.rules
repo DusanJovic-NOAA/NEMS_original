@@ -1,11 +1,13 @@
 .SUFFIXES:
-.SUFFIXES: .F90 .f90 .f .o
+.SUFFIXES: .F90 .f90 .f .o .c
 
 .F90.f90:
 	$(CPP) $(CPPFLAGS) $< > $*.f90
 
 .f.f90:
 	$(CPP) $(CPPFLAGS) $< > $*.f90
+
+	
 
 depend: $(DEPEND_FILES)
 	ls -1 $(DEPEND_FILES) > Srcfiles
