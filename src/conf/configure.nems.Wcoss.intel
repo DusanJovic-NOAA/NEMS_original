@@ -7,9 +7,6 @@ ESMF_LIB    = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 gfs=gsm
 gfsdir=atmos/$(gfs)
 
-#NETCDF_LIB = /usrx/local/netcdf-4.2.1.1/lib/libnetcdf.a
-#NETCDF_LIB = /usrx/local/netcdf-3.6.3/lib/libnetcdff.a  /usrx/local/netcdf-3.6.3/lib/libnetcdf.a
-
 NETCDF_LIB  = /usrx/local/NetCDF/3.6.3/lib/libnetcdf.a
 
 NEMSIO_INC  = -I/nwprod/lib/incmod/nemsio

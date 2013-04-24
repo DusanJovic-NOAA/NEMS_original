@@ -665,13 +665,11 @@ echo SITE= ${SITE}
 
   ifeq ($(SITE),wcoss)
      include /usrx/local/esmf-3.1.0rp5/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
-##     DIR_NETCDF = /usrx/local/netcdf-3.6.3
      DIR_NETCDF = /usrx/local/NetCDF/3.6.3
      DIR_ESMF = /usrx/local/esmf-3.1.0rp5
      DEF_SDF =
      ESMA_SDF = netcdf
      INC_NETCDF = $(DIR_NETCDF)/include
-##   LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdff.a $(DIR_NETCDF)/lib/libnetcdf.a
      LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdf.a
      INC_SDF = $(INC_NETCDF)
      LIB_SDF = $(LIB_NETCDF)

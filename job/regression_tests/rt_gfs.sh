@@ -1,5 +1,5 @@
 #!/bin/ksh
-set -xua
+#set -xua
 
 export GEFS_ENSEMBLE=${GEFS_ENSEMBLE:-0}
 echo "GEFS_ENSEMBLE=" $GEFS_ENSEMBLE

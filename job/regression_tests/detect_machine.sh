@@ -1,36 +1,45 @@
-case `hostid` in
+HOSTNAME='hostname -f' ; if [ `uname` = AIX ]; then HOSTNAME='hostname' ; fi
 
-  0xac7c006)          MACHINE_ID=ccs ;;     ### cirrus1
-  0xac7c012)          MACHINE_ID=ccs ;;     ### cirrus2
+case `$HOSTNAME` in
 
-  0xac7a006)          MACHINE_ID=ccs ;;     ### stratus1
-  0xac7a012)          MACHINE_ID=ccs ;;     ### stratus2
+  c1n6.ncep.noaa.gov)                MACHINE_ID=ccs ;;     ### cirrus1
+  c2n6.ncep.noaa.gov)                MACHINE_ID=ccs ;;     ### cirrus2
 
-  0b0a010a)          MACHINE_ID=wcoss ;;    ### tide/gyre 1
-  0b0a020a)          MACHINE_ID=wcoss ;;    ### tide/gyre 2
-  0b0a010e)          MACHINE_ID=wcoss ;;    ### tide/gyre 3
-  0b0a020e)          MACHINE_ID=wcoss ;;    ### tide/gyre 4
+  s1n6.ncep.noaa.gov)                MACHINE_ID=ccs ;;     ### stratus1
+  s2n6.ncep.noaa.gov)                MACHINE_ID=ccs ;;     ### stratus2
 
-  0xffffffffbcc090b2) MACHINE_ID=gaea ;;    ### gaea1
-  0xffffffffbcc08fb2) MACHINE_ID=gaea ;;    ### gaea2
-  0xffffffffbcc08eb2) MACHINE_ID=gaea ;;    ### gaea3
-  0xffffffffbcc08db2) MACHINE_ID=gaea ;;    ### gaea4
+  g10a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;;   ### gyre 1
+  g10a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;;   ### gyre 2
+  g14a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;;   ### gyre 3
+  g14a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;;   ### gyre 4
 
-  ae0a2500)           MACHINE_ID=zeus ;;    ### zeus1
-  ae0a2600)           MACHINE_ID=zeus ;;    ### zeus2
-  ae0a2700)           MACHINE_ID=zeus ;;    ### zeus3
-  ae0a2800)           MACHINE_ID=zeus ;;    ### zeus4
-  ae0a2900)           MACHINE_ID=zeus ;;    ### zeus5
-  ae0a2a00)           MACHINE_ID=zeus ;;    ### zeus6
-  ae0a7d13)           MACHINE_ID=zeus ;;    ### zeus7
-  ae0a7e13)           MACHINE_ID=zeus ;;    ### zeus8
+  t10a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;;   ### tide 1
+  t10a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;;   ### tide 2
+  t14a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;;   ### tide 3
+  t14a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;;   ### tide 4
 
-  b20a057e)           MACHINE_ID=jet ;;     ### jet1
-  b20a067e)           MACHINE_ID=jet ;;     ### jet2
-  b20a077e)           MACHINE_ID=jet ;;     ### jet3
-  b20a087e)           MACHINE_ID=jet ;;     ### jet4
+  gaea1.ncrc.gov)                    MACHINE_ID=gaea ;;    ### gaea1
+  gaea2.ncrc.gov)                    MACHINE_ID=gaea ;;    ### gaea2
+  gaea3.ncrc.gov)                    MACHINE_ID=gaea ;;    ### gaea3
+  gaea4.ncrc.gov)                    MACHINE_ID=gaea ;;    ### gaea4
+  gaea5.ncrc.gov)                    MACHINE_ID=gaea ;;    ### gaea5
+  gaea6.ncrc.gov)                    MACHINE_ID=gaea ;;    ### gaea6
+  gaea7.ncrc.gov)                    MACHINE_ID=gaea ;;    ### gaea7
+  gaea8.ncrc.gov)                    MACHINE_ID=gaea ;;    ### gaea8
+  gaea9.ncrc.gov)                    MACHINE_ID=gaea ;;    ### gaea9
+  gaea10.ncrc.gov)                   MACHINE_ID=gaea ;;    ### gaea10
+
+  fe1.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;;    ### zeus1
+  fe2.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;;    ### zeus2
+  fe3.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;;    ### zeus3
+  fe4.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;;    ### zeus4
+  fe5.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;;    ### zeus5
+  fe6.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;;    ### zeus6
+  fe7.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;;    ### zeus7
+  fe8.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;;    ### zeus8
 
 esac
+echo $MACHINE_ID
 
 
 # --- for Zeus, find available account ID

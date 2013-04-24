@@ -1,6 +1,5 @@
 #!/bin/ksh
 
-set -x
 #########################################################################
 #         USER DEFINED PART!!!!!!
 # Setup machine related variables (CLASS, ACCNR, & DISKNM)
@@ -69,9 +68,8 @@ mkdir -p $PTMP/$USER
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 
-#  export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+   export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
 #  export RTPWD=${STMP}/${USER}/REGRESSION_TEST
-   export RTPWD=$dprefix2/global/noscrub/${USER}/REGRESSION_TEST
 
 #########################################################################
 # Check if running regression test or creating baselines.
@@ -1381,8 +1379,6 @@ else
 #---------------------
    ./rt_gfs.sh
    if [ $? = 2 ]; then exit ; fi
-   export WLCLK=10
-
 #---------------------
 
  fi # endif test
@@ -1444,7 +1440,6 @@ else
    ./rt_gfs.sh
    if [ $? = 2 ]; then exit ; fi
 #---------------------
-  export WLCLK=10
 
  fi # endif test
 
@@ -1476,7 +1471,6 @@ else
    ./rt_gfs.sh
    if [ $? = 2 ]; then exit ; fi
 #---------------------
-   export WLCLK=10
 
   fi # endif test
 
@@ -1570,7 +1564,6 @@ else
    ./rt_gfs.sh
    if [ $? = 2 ]; then exit ; fi
 #---------------------
-  export WLCLK=10
 
  fi # endif test
 
@@ -1656,7 +1649,7 @@ else
 #---------------------
    export_gfs
    export TASKS=1 ; export PE1=1    ; export WTPG=1 ; export WRTGP=1
-   export FDFI=3  ; export WLCLK=20 ; export QUILT=.false.
+   export FDFI=3  ; export WLCLK=40 ; export QUILT=.false.
 #---------------------
    ./rt_gfs.sh
    if [ $? = 2 ]; then exit ; fi
@@ -2202,9 +2195,7 @@ else
          NGAC3d.GrbF03 NGAC3d.GrbF06 NGAC3d.GrbF12 NGAC3d.GrbF24"
 #---------------------
     export_gfs
-#
     export TASKS=64
-    export WLCLK=10
 #---------------------
     ./rt_gocart.sh
     if [ $? = 2 ]; then exit ; fi
