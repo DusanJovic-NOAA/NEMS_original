@@ -335,6 +335,7 @@
 !
         INTEGER(kind=KINT),POINTER :: I_PAR_STA                         &  !<-- SW corner of nest domain on this parent I
                                      ,J_PAR_STA                         &  !<-- SW corner of nest domain on this parent J
+                                     ,LAST_STEP_MOVED                   &  !<-- Last time step this domain moved
                                      ,NMTS                                 !<-- Next Move TimeStep for a nest
 !
         INTEGER(kind=KINT) :: PARENT_CHILD_TIME_RATIO                      !<-- # of child timesteps per parent timestep
@@ -707,14 +708,15 @@
 !
       NV=int_state%NUM_VARS
 
-      CALL SET_VAR_PTR(int_state%VARS,NV,'IM'        ,int_state%IM        )
-      CALL SET_VAR_PTR(int_state%VARS,NV,'JM'        ,int_state%JM        )
-      CALL SET_VAR_PTR(int_state%VARS,NV,'LM'        ,int_state%LM        )
-      CALL SET_VAR_PTR(int_state%VARS,NV,'IHRST'     ,int_state%IHRST     )
-      CALL SET_VAR_PTR(int_state%VARS,NV,'I_PAR_STA' ,int_state%I_PAR_STA )
-      CALL SET_VAR_PTR(int_state%VARS,NV,'J_PAR_STA' ,int_state%J_PAR_STA )
-      CALL SET_VAR_PTR(int_state%VARS,NV,'LPT2'      ,int_state%LPT2      )
-      CALL SET_VAR_PTR(int_state%VARS,NV,'NMTS'      ,int_state%NMTS      )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'IM'               ,int_state%IM              )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'JM'               ,int_state%JM              )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'LM'               ,int_state%LM              )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'IHRST'            ,int_state%IHRST           )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'I_PAR_STA'        ,int_state%I_PAR_STA       )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'J_PAR_STA'        ,int_state%J_PAR_STA       )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'LAST_STEP_MOVED'  ,int_state%LAST_STEP_MOVED )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'LPT2'             ,int_state%LPT2            )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'NMTS'             ,int_state%NMTS            )
 
       CALL SET_VAR_PTR(int_state%VARS,NV,'MDRMINout' ,int_state%MDRMINout )
       CALL SET_VAR_PTR(int_state%VARS,NV,'MDRMAXout' ,int_state%MDRMAXout )
@@ -1132,35 +1134,31 @@
       ALLOCATE(int_state%VBE(1:LNSV,JMS:JME,1:LM,1:2))    ;int_state%VBE  = R4_IN  !<-- V wind component at eastern boundary  (m s-1)
       ALLOCATE(int_state%VBW(1:LNSV,JMS:JME,1:LM,1:2))    ;int_state%VBW  = R4_IN  !<-- V wind component at western boundary  (m s-1)
 !
-      IF(.NOT.int_state%GLOBAL)THEN
+      ALLOCATE(int_state%PDBN(IMS:IME,1:LNSH,1:2))        ;int_state%PDBN = R4_IN  !<-- Pressure difference at northern boundary  (Pa)
+      ALLOCATE(int_state%PDBS(IMS:IME,1:LNSH,1:2))        ;int_state%PDBS = R4_IN  !<-- Pressure difference at southern boundary  (Pa)
 !
-        ALLOCATE(int_state%PDBN(IMS:IME,1:LNSH,1:2))      ;int_state%PDBN = R4_IN  !<-- Pressure difference at northern boundary  (Pa)
-        ALLOCATE(int_state%PDBS(IMS:IME,1:LNSH,1:2))      ;int_state%PDBS = R4_IN  !<-- Pressure difference at southern boundary  (Pa)
+      ALLOCATE(int_state%PDBE(1:LNSH,JMS:JME,1:2))        ;int_state%PDBE = R4_IN  !<-- Pressure difference at eastern boundary  (Pa)
+      ALLOCATE(int_state%PDBW(1:LNSH,JMS:JME,1:2))        ;int_state%PDBW = R4_IN  !<-- Pressure difference at western boundary  (Pa)
 !
-        ALLOCATE(int_state%PDBE(1:LNSH,JMS:JME,1:2))      ;int_state%PDBE = R4_IN  !<-- Pressure difference at eastern boundary  (Pa)
-        ALLOCATE(int_state%PDBW(1:LNSH,JMS:JME,1:2))      ;int_state%PDBW = R4_IN  !<-- Pressure difference at western boundary  (Pa)
+      ALLOCATE(int_state%QBN(IMS:IME,1:LNSH,1:LM,1:2))    ;int_state%QBN  = R4_IN  !<-- Specific humidity at northern boundary  (kg kg-1)
+      ALLOCATE(int_state%QBS(IMS:IME,1:LNSH,1:LM,1:2))    ;int_state%QBS  = R4_IN  !<-- Specific humidity at southern boundary  (kg kg-1)
+      ALLOCATE(int_state%TBN(IMS:IME,1:LNSH,1:LM,1:2))    ;int_state%TBN  = R4_IN  !<-- Temperature at northern boundary  (K)
+      ALLOCATE(int_state%TBS(IMS:IME,1:LNSH,1:LM,1:2))    ;int_state%TBS  = R4_IN  !<-- Temperature at southern boundary  (K)
+      ALLOCATE(int_state%WBN(IMS:IME,1:LNSH,1:LM,1:2))    ;int_state%WBN  = R4_IN  !<-- Vertical velocity at northern boundary  (m s-1)
+      ALLOCATE(int_state%WBS(IMS:IME,1:LNSH,1:LM,1:2))    ;int_state%WBS  = R4_IN  !<-- Vertical velocity at southern boundary  (m s-1)
 !
-        ALLOCATE(int_state%QBN(IMS:IME,1:LNSH,1:LM,1:2))  ;int_state%QBN  = R4_IN  !<-- Specific humidity at northern boundary  (kg kg-1)
-        ALLOCATE(int_state%QBS(IMS:IME,1:LNSH,1:LM,1:2))  ;int_state%QBS  = R4_IN  !<-- Specific humidity at southern boundary  (kg kg-1)
-        ALLOCATE(int_state%TBN(IMS:IME,1:LNSH,1:LM,1:2))  ;int_state%TBN  = R4_IN  !<-- Temperature at northern boundary  (K)
-        ALLOCATE(int_state%TBS(IMS:IME,1:LNSH,1:LM,1:2))  ;int_state%TBS  = R4_IN  !<-- Temperature at southern boundary  (K)
-        ALLOCATE(int_state%WBN(IMS:IME,1:LNSH,1:LM,1:2))  ;int_state%WBN  = R4_IN  !<-- Vertical velocity at northern boundary  (m s-1)
-        ALLOCATE(int_state%WBS(IMS:IME,1:LNSH,1:LM,1:2))  ;int_state%WBS  = R4_IN  !<-- Vertical velocity at southern boundary  (m s-1)
-!
-        ALLOCATE(int_state%QBE(1:LNSH,JMS:JME,1:LM,1:2))  ;int_state%QBE  = R4_IN  !<-- Specific humidity at eastern boundary  (kg kg-1)
-        ALLOCATE(int_state%QBW(1:LNSH,JMS:JME,1:LM,1:2))  ;int_state%QBW  = R4_IN  !<-- Specific humidity at western boundary  (kg kg-1)
-        ALLOCATE(int_state%TBE(1:LNSH,JMS:JME,1:LM,1:2))  ;int_state%TBE  = R4_IN  !<-- Temperature at eastern boundary  (K)
-        ALLOCATE(int_state%TBW(1:LNSH,JMS:JME,1:LM,1:2))  ;int_state%TBW  = R4_IN  !<-- Temperature at western boundary  (K)
-        ALLOCATE(int_state%WBE(1:LNSH,JMS:JME,1:LM,1:2))  ;int_state%WBE  = R4_IN  !<-- Vertical velocity at eastern boundary  (m s-1)
-        ALLOCATE(int_state%WBW(1:LNSH,JMS:JME,1:LM,1:2))  ;int_state%WBW  = R4_IN  !<-- Vertical velocity at western boundary  (m s-1)
-!
-      ENDIF
+      ALLOCATE(int_state%QBE(1:LNSH,JMS:JME,1:LM,1:2))    ;int_state%QBE  = R4_IN  !<-- Specific humidity at eastern boundary  (kg kg-1)
+      ALLOCATE(int_state%QBW(1:LNSH,JMS:JME,1:LM,1:2))    ;int_state%QBW  = R4_IN  !<-- Specific humidity at western boundary  (kg kg-1)
+      ALLOCATE(int_state%TBE(1:LNSH,JMS:JME,1:LM,1:2))    ;int_state%TBE  = R4_IN  !<-- Temperature at eastern boundary  (K)
+      ALLOCATE(int_state%TBW(1:LNSH,JMS:JME,1:LM,1:2))    ;int_state%TBW  = R4_IN  !<-- Temperature at western boundary  (K)
+      ALLOCATE(int_state%WBE(1:LNSH,JMS:JME,1:LM,1:2))    ;int_state%WBE  = R4_IN  !<-- Vertical velocity at eastern boundary  (m s-1)
+      ALLOCATE(int_state%WBW(1:LNSH,JMS:JME,1:LM,1:2))    ;int_state%WBW  = R4_IN  !<-- Vertical velocity at western boundary  (m s-1)
 !
 !-----------------------------------------------------------------------
 !***  Atmospheric variables, hydrostatic (mostly)
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(int_state%PSDT(IMS:IME,JMS:JME))           ;int_state%PSDT    = R4_IN  !<-- Hydrostatic surface pressure tendency  (Pa s-1)
+      ALLOCATE(int_state%PSDT(IMS:IME,JMS:JME))           ;int_state%PSDT = R4_IN  !<-- Hydrostatic surface pressure tendency  (Pa s-1)
 !
 !-----------------------------------------------------------------------
 !***  The TRACERS array holds all general "tracer" variables including

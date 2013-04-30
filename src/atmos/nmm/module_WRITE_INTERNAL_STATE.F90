@@ -219,7 +219,11 @@
 !
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: NUM_WORDS_SEND_BC     !<-- Word count of full-domain 1-D boundary data string
 !
-      REAL(kind=KFPT),DIMENSION(:,:,:,:),ALLOCATABLE :: UBS,UBN,UBW,UBE &  !<-- 1-D string for U,V on each side of domain
+      REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE :: PDBS,PDBN,PDBW,PDBE  !<-- 1-D string for PD on each side of domain
+      REAL(kind=KFPT),DIMENSION(:,:,:,:),ALLOCATABLE :: TBS,TBN,TBW,TBE &  !<-- 1-D string for T on each side of domain
+                                                       ,QBS,QBN,QBW,QBE &  !<-- 1-D string for Q on each side of domain
+                                                       ,WBS,WBN,WBW,WBE &  !<-- 1-D string for CW on each side of domain
+                                                       ,UBS,UBN,UBW,UBE &  !<-- 1-D string for U,V on each side of domain
                                                        ,VBS,VBN,VBW,VBE
 !
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: RST_ALL_BC_DATA          !<-- 1-D string of full-domain boundary data

@@ -1113,7 +1113,6 @@ real(kind=kfpt),dimension(jds:jde):: &
       ,cw,cwbs,cwbn,cwbw,cwbe &
       ,u,ubs,ubn,ubw,ube &
       ,v,vbs,vbn,vbw,vbe &
-      ,restart &
        )
 !
 !-----------------------------------------------------------------------
@@ -1185,9 +1184,7 @@ real(kind=kfpt),dimension(1:lnsv,jms:jme,1:lm,1:2),intent(out) :: &
 ,vbe &
 ,ubw &
 ,vbw
-
-logical(kind=klog) :: &
- restart
+!
 !-----------------------------------------------------------------------
 !***  Local variables
 !-----------------------------------------------------------------------
@@ -1240,18 +1237,16 @@ logical(kind=klog) :: &
           enddo
         enddo
 !
-        if(.not.restart)then
-          do k=1,lm
-            n=0
-            do j=1,lnsv
-              n=n+1
-              do i=ims,ime
-                ubs(i,j,k,1)=u(i,jds-1+n,k)
-                vbs(i,j,k,1)=v(i,jds-1+n,k)
-              enddo
+        do k=1,lm
+          n=0
+          do j=1,lnsv
+            n=n+1
+            do i=ims,ime
+              ubs(i,j,k,1)=u(i,jds-1+n,k)
+              vbs(i,j,k,1)=v(i,jds-1+n,k)
             enddo
           enddo
-        endif
+        enddo
 !
       endif
 !
@@ -1282,18 +1277,16 @@ logical(kind=klog) :: &
           enddo
         enddo
 !
-        if(.not.restart)then
-          do k=1,lm
-            n=0
-            do j=1,lnsv
-              n=n+1
-              do i=ims,ime
-                ubn(i,j,k,1)=u(i,jde-1-lnsv+n,k)
-                vbn(i,j,k,1)=v(i,jde-1-lnsv+n,k)
-              enddo
+        do k=1,lm
+          n=0
+          do j=1,lnsv
+            n=n+1
+            do i=ims,ime
+              ubn(i,j,k,1)=u(i,jde-1-lnsv+n,k)
+              vbn(i,j,k,1)=v(i,jde-1-lnsv+n,k)
             enddo
           enddo
-        endif
+        enddo
 !
       endif
 !
@@ -1324,18 +1317,16 @@ logical(kind=klog) :: &
           enddo
         enddo
 !
-        if(.not.restart)then
-          do k=1,lm
-            do j=jms,jme
-              n=0
-              do i=1,lnsv
-                n=n+1
-                ubw(i,j,k,1)=u(ids-1+n,j,k)
-                vbw(i,j,k,1)=v(ids-1+n,j,k)
-              enddo
+        do k=1,lm
+          do j=jms,jme
+            n=0
+            do i=1,lnsv
+              n=n+1
+              ubw(i,j,k,1)=u(ids-1+n,j,k)
+              vbw(i,j,k,1)=v(ids-1+n,j,k)
             enddo
           enddo
-        endif
+        enddo
 !
       endif
 !
@@ -1366,18 +1357,16 @@ logical(kind=klog) :: &
           enddo
         enddo
 !
-        if(.not.restart)then
-          do k=1,lm
-            do j=jms,jme
-              n=0
-              do i=1,lnsv
-                n=n+1
-                ube(i,j,k,1)=u(ide-1-lnsv+n,j,k)
-                vbe(i,j,k,1)=v(ide-1-lnsv+n,j,k)
-              enddo
+        do k=1,lm
+          do j=jms,jme
+            n=0
+            do i=1,lnsv
+              n=n+1
+              ube(i,j,k,1)=u(ide-1-lnsv+n,j,k)
+              vbe(i,j,k,1)=v(ide-1-lnsv+n,j,k)
             enddo
           enddo
-        endif
+        enddo
 !
       endif
 !

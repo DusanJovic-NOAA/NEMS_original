@@ -11,6 +11,7 @@
 'IHRST'      H       R       O      -      -   -  ''
 'I_PAR_STA'  H       R       O      -      -   -  ''
 'J_PAR_STA'  H       R       O      -      -   -  ''
+'LAST_STEP_MOVED'  -       R       O      -      -   -  ''
 'LPT2'       -       R       O      -      -   -  ''
 'NSOIL'      -       R       O      -      -   -  ''
 'NPHS'       H       R       O      -      -   -  ''

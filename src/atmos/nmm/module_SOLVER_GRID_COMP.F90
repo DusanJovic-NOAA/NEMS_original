@@ -1528,6 +1528,8 @@
 !
 !-----------------------------------------------------------------------
 !
+          IF (.NOT. int_state%RESTART )THEN
+
           CALL BOUNDARY_INIT(ITS,ITE,JTS,JTE,LM                         &
                             ,IMS,IME,JMS,JME                            &
                             ,IDS,IDE,JDS,JDE                            &
@@ -1550,8 +1552,9 @@
                             ,int_state%V                                &
                             ,int_state%VBS,int_state%VBN                &
                             ,int_state%VBW,int_state%VBE                &
-                            ,int_state%RESTART                          &
                               )
+          END IF
+!
 !-----------------------------------------------------------------------
 !***  Also we need to retrieve the Parent-Child timestep ratio in order
 !***  to know how often to update the boundary tendencies.
@@ -2398,11 +2401,11 @@
         int_state%NSTEPS_BC_RESTART=NINT((int_state%MINUTES_RESTART*60)   &  !<-- Timestep frequency for BC data insertion into
                                          /int_state%DT)                      !    1-D local datastrings
 !
-        IEND=MIN(ITE,IDE-1)
-        JEND=MIN(JTE,JDE-1)
+        IEND=ITE
+        JEND=JTE
 !
 !       IF(JTS==1)THEN                                                       !<-- South boundary tasks
-          int_state%NUM_WORDS_BC_SOUTH=2*2*int_state%LNSV*LM*(IEND-ITS+1)
+          int_state%NUM_WORDS_BC_SOUTH=(5*LM+1)*2*int_state%LNSV*(IEND-ITS+1)
           ALLOCATE(int_state%RST_BC_DATA_SOUTH(1:int_state%NUM_WORDS_BC_SOUTH))
           DO N=1,int_state%NUM_WORDS_BC_SOUTH
             int_state%RST_BC_DATA_SOUTH(N)=0.
@@ -2410,7 +2413,7 @@
 !       ENDIF
 !
 !       IF(JTE==JM)THEN                                                      !<-- North boundary tasks
-          int_state%NUM_WORDS_BC_NORTH=2*2*int_state%LNSV*LM*(IEND-ITS+1)
+          int_state%NUM_WORDS_BC_NORTH=(5*LM+1)*2*int_state%LNSV*(IEND-ITS+1)
           ALLOCATE(int_state%RST_BC_DATA_NORTH(1:int_state%NUM_WORDS_BC_NORTH))
           DO N=1,int_state%NUM_WORDS_BC_NORTH
             int_state%RST_BC_DATA_NORTH(N)=0.
@@ -2418,7 +2421,7 @@
 !       ENDIF
 !
 !       IF(ITS==1)THEN                                                       !<-- West boundary tasks
-          int_state%NUM_WORDS_BC_WEST=2*2*int_state%LNSV*LM*(JEND-JTS+1)
+          int_state%NUM_WORDS_BC_WEST=(5*LM+1)*2*int_state%LNSV*(JEND-JTS+1)
           ALLOCATE(int_state%RST_BC_DATA_WEST(1:int_state%NUM_WORDS_BC_WEST))
           DO N=1,int_state%NUM_WORDS_BC_WEST
             int_state%RST_BC_DATA_WEST(N)=0.
@@ -2426,7 +2429,7 @@
 !       ENDIF
 !
 !       IF(ITE==IM)THEN                                                      !<-- East boundary tasks
-          int_state%NUM_WORDS_BC_EAST=2*2*int_state%LNSV*LM*(JEND-JTS+1)
+          int_state%NUM_WORDS_BC_EAST=(5*LM+1)*2*int_state%LNSV*(JEND-JTS+1)
           ALLOCATE(int_state%RST_BC_DATA_EAST(1:int_state%NUM_WORDS_BC_EAST))
           DO N=1,int_state%NUM_WORDS_BC_EAST
             int_state%RST_BC_DATA_EAST(N)=0.
@@ -4142,6 +4145,10 @@
         IF(MOD(NTIMESTEP+1,int_state%NSTEPS_BC_RESTART)==0)THEN            !<-- Look ahead to the end of this timestep
           CALL SAVE_BC_DATA                                             &
             (LM,LNSV                                                    &
+            ,int_state%PDBS,int_state%PDBN,int_state%PDBW,int_state%PDBE&
+            ,int_state%TBS,int_state%TBN,int_state%TBW,int_state%TBE    &
+            ,int_state%QBS,int_state%QBN,int_state%QBW,int_state%QBE    &
+            ,int_state%WBS,int_state%WBN,int_state%WBW,int_state%WBE    &
             ,int_state%UBS,int_state%UBN,int_state%UBW,int_state%UBE    &
             ,int_state%VBS,int_state%VBN,int_state%VBW,int_state%VBE    &
             ,int_state%NUM_WORDS_BC_SOUTH,int_state%RST_BC_DATA_SOUTH   &
@@ -7629,10 +7636,6 @@
         DO I=I1,I2_H
           KOUNT=KOUNT+1
           PDBS(I,J,2)=(BND_DATA_S_H(KOUNT)-PDBS(I,J,1))*RECIP
-!     if(i==36)then
-!       write(0,*)' UPDATE_BC_TENDS j=',j,' kount=',kount
-!       write(0,*)' pdbs(2)=',pdbs(i,j,2),' bnd_data_s_h=',bnd_data_s_h(kount),' pdbs(1)=',pdbs(i,j,1),' recip=',recip
-!     endif
         ENDDO
         ENDDO
 !
@@ -7642,12 +7645,6 @@
           TBS(I,J,K,2)=(BND_DATA_S_H(KOUNT+1)-TBS(I,J,K,1))*RECIP
           QBS(I,J,K,2)=(BND_DATA_S_H(KOUNT+2)-QBS(I,J,K,1))*RECIP
           WBS(I,J,K,2)=(BND_DATA_S_H(KOUNT+3)-WBS(I,J,K,1))*RECIP
-!     if(i==36.and.k==lm)then
-!       write(0,*)' j=',j,' kount=',kount
-!       write(0,*)' tbs(2)=',tbs(i,j,k,2),' bnd_data_s_h=',bnd_data_s_h(kount+1),' tbs(1)=',tbs(i,j,k,1)
-!       write(0,*)' qbs(2)=',qbs(i,j,k,2),' bnd_data_s_h=',bnd_data_s_h(kount+2),' qbs(1)=',qbs(i,j,k,1)
-!       write(0,*)' wbs(2)=',wbs(i,j,k,2),' bnd_data_s_h=',bnd_data_s_h(kount+3),' wbs(1)=',wbs(i,j,k,1)
-!     endif
           KOUNT=KOUNT+3
         ENDDO
         ENDDO
@@ -7724,11 +7721,6 @@
         DO I=I1,I2_V
           UBS(I,J,K,2)=(BND_DATA_S_V(KOUNT+1)-UBS(I,J,K,1))*RECIP
           VBS(I,J,K,2)=(BND_DATA_S_V(KOUNT+2)-VBS(I,J,K,1))*RECIP
-!     if(i==36.and.k==lm)then
-!       write(0,*)' j=',j,' kount=',kount
-!       write(0,*)' ubs(2)=',ubs(i,j,k,2),' bnd_data_s_v=',bnd_data_s_v(kount+1),' ubs(1)=',ubs(i,j,k,1)
-!       write(0,*)' vbs(2)=',vbs(i,j,k,2),' bnd_data_s_v=',bnd_data_s_v(kount+2),' vbs(1)=',vbs(i,j,k,1)
-!     endif
           KOUNT=KOUNT+2
         ENDDO
         ENDDO
@@ -7820,10 +7812,6 @@
         DO I=I1,I2_H
           KOUNT=KOUNT+1
           PDBN(I,J,2)=(BND_DATA_N_H(KOUNT)-PDBN(I,J,1))*RECIP
-!     if(i==36)then
-!       write(0,*)' UPDATE_BC_TENDS j=',j,' kount=',kount
-!       write(0,*)' pdbn(2)=',pdbn(i,j,2),' bnd_data_n_h=',bnd_data_n_h(kount),' pdbn(1)=',pdbn(i,j,1),' recip=',recip
-!     endif
         ENDDO
         ENDDO
 !
@@ -7833,12 +7821,6 @@
           TBN(I,J,K,2)=(BND_DATA_N_H(KOUNT+1)-TBN(I,J,K,1))*RECIP
           QBN(I,J,K,2)=(BND_DATA_N_H(KOUNT+2)-QBN(I,J,K,1))*RECIP
           WBN(I,J,K,2)=(BND_DATA_N_H(KOUNT+3)-WBN(I,J,K,1))*RECIP
-!     if(i==36.and.k==lm)then
-!       write(0,*)' j=',j,' kount=',kount
-!       write(0,*)' tbn(2)=',tbn(i,j,k,2),' bnd_data_n_h=',bnd_data_n_h(kount+1),' tbn(1)=',tbn(i,j,k,1)
-!       write(0,*)' qbn(2)=',qbn(i,j,k,2),' bnd_data_n_h=',bnd_data_n_h(kount+2),' qbn(1)=',qbn(i,j,k,1)
-!       write(0,*)' wbn(2)=',wbn(i,j,k,2),' bnd_data_n_h=',bnd_data_n_h(kount+3),' wbn(1)=',wbn(i,j,k,1)
-!     endif
           KOUNT=KOUNT+3
         ENDDO
         ENDDO
@@ -7915,11 +7897,6 @@
         DO I=I1,I2_V
           UBN(I,J,K,2)=(BND_DATA_N_V(KOUNT+1)-UBN(I,J,K,1))*RECIP
           VBN(I,J,K,2)=(BND_DATA_N_V(KOUNT+2)-VBN(I,J,K,1))*RECIP
-!     if(i==36.and.k==lm)then
-!       write(0,*)' UPDATE_BC_TENDS j=',j,' kount=',kount
-!       write(0,*)' ubn(2)=',ubn(i,j,k,2),' bnd_data_n_v=',bnd_data_n_v(kount+1),' ubn(1)=',ubn(i,j,k,1)
-!       write(0,*)' vbn(2)=',vbn(i,j,k,2),' bnd_data_n_v=',bnd_data_n_v(kount+2),' vbn(1)=',vbn(i,j,k,1)
-!     endif
           KOUNT=KOUNT+2
         ENDDO
         ENDDO
@@ -8299,6 +8276,10 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE SAVE_BC_DATA(LM,LNSV                                   &
+                             ,PDBS,PDBN,PDBW,PDBE                       &
+                             ,TBS,TBN,TBW,TBE                           &
+                             ,QBS,QBN,QBW,QBE                           &
+                             ,WBS,WBN,WBW,WBE                           &
                              ,UBS,UBN,UBW,UBE                           &
                              ,VBS,VBN,VBW,VBE                           &
                              ,NUM_WORDS_BC_SOUTH,RST_BC_DATA_SOUTH      &
@@ -8337,12 +8318,24 @@
                                       ,ITS,ITE,JTS,JTE                  &  !<-- 
                                       ,LM                                  !<--
 !
+      REAL(kind=KFPT),DIMENSION(IMS:IME,1:LNSV,1:2),INTENT(IN) ::  &
+                                                             PDBS,PDBN     !<-- South/north boundary PD
+!
       REAL(kind=KFPT),DIMENSION(IMS:IME,1:LNSV,1:LM,1:2),INTENT(IN) ::  &
-                                                               UBS,UBN  &  !<-- South/north boundary U
+                                                               TBS,TBN  &  !<-- South/north boundary T
+                                                              ,QBS,QBN  &  !<-- South/north boundary Q
+                                                              ,WBS,WBN  &  !<-- South/north boundary CW
+                                                              ,UBS,UBN  &  !<-- South/north boundary U
                                                               ,VBS,VBN     !<-- South/north boundary V
 !
+      REAL(kind=KFPT),DIMENSION(1:LNSV,JMS:JME,1:2),INTENT(IN) ::  &
+                                                             PDBW,PDBE     !<-- West/east boundary PS
+!
       REAL(kind=KFPT),DIMENSION(1:LNSV,JMS:JME,1:LM,1:2),INTENT(IN) ::  &
-                                                               UBW,UBE  &  !<-- West/east boundary U
+                                                               TBW,TBE  &  !<-- West/east boundary T
+                                                              ,QBW,QBE  &  !<-- West/east boundary Q
+                                                              ,WBW,WBE  &  !<-- West/east boundary CW
+                                                              ,UBW,UBE  &  !<-- West/east boundary U
                                                               ,VBW,VBE     !<-- West/east boundary V
 !
 !---------------------
@@ -8379,20 +8372,34 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  Southern boundary winds to 1-D
+!***  Southern boundary data to 1-D
 !-----------------------------------------------------------------------
 !
       IF(JTS==JDS)THEN                                                     !<-- Tasks on south boundary
         KOUNT=0
 !
+          DO JB=1,LNSV
+            DO IB=ITS,ITE
+              RST_BC_DATA_SOUTH(KOUNT+ 1)=PDBS(IB,JB,1)
+              RST_BC_DATA_SOUTH(KOUNT+ 2)=PDBS(IB,JB,2)
+              KOUNT=KOUNT+2
+            ENDDO
+          ENDDO
+
         DO L=1,LM
           DO JB=1,LNSV
-            DO IB=ITS,MIN(ITE,IDE-1)
-              RST_BC_DATA_SOUTH(KOUNT+1)=UBS(IB,JB,L,1)
-              RST_BC_DATA_SOUTH(KOUNT+2)=UBS(IB,JB,L,2)
-              RST_BC_DATA_SOUTH(KOUNT+3)=VBS(IB,JB,L,1)
-              RST_BC_DATA_SOUTH(KOUNT+4)=VBS(IB,JB,L,2)
-              KOUNT=KOUNT+4
+            DO IB=ITS,ITE
+              RST_BC_DATA_SOUTH(KOUNT+ 1)=TBS(IB,JB,L,1)
+              RST_BC_DATA_SOUTH(KOUNT+ 2)=TBS(IB,JB,L,2)
+              RST_BC_DATA_SOUTH(KOUNT+ 3)=QBS(IB,JB,L,1)
+              RST_BC_DATA_SOUTH(KOUNT+ 4)=QBS(IB,JB,L,2)
+              RST_BC_DATA_SOUTH(KOUNT+ 5)=WBS(IB,JB,L,1)
+              RST_BC_DATA_SOUTH(KOUNT+ 6)=WBS(IB,JB,L,2)
+              RST_BC_DATA_SOUTH(KOUNT+ 7)=UBS(IB,JB,L,1)
+              RST_BC_DATA_SOUTH(KOUNT+ 8)=UBS(IB,JB,L,2)
+              RST_BC_DATA_SOUTH(KOUNT+ 9)=VBS(IB,JB,L,1)
+              RST_BC_DATA_SOUTH(KOUNT+10)=VBS(IB,JB,L,2)
+              KOUNT=KOUNT+10
             ENDDO
           ENDDO
         ENDDO
@@ -8429,20 +8436,34 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Northern boundary winds to 1-D
+!***  Northern boundary data to 1-D
 !-----------------------------------------------------------------------
 !
       IF(JTE==JDE)THEN                                                     !<-- Tasks on north boundary
         KOUNT=0
 !
+          DO JB=1,LNSV
+            DO IB=ITS,ITE
+              RST_BC_DATA_NORTH(KOUNT+ 1)=PDBN(IB,JB,1)
+              RST_BC_DATA_NORTH(KOUNT+ 2)=PDBN(IB,JB,2)
+              KOUNT=KOUNT+2
+            ENDDO
+          ENDDO
+
         DO L=1,LM
           DO JB=1,LNSV
-            DO IB=ITS,MIN(ITE,IDE-1)
-              RST_BC_DATA_NORTH(KOUNT+1)=UBN(IB,JB,L,1)
-              RST_BC_DATA_NORTH(KOUNT+2)=UBN(IB,JB,L,2)
-              RST_BC_DATA_NORTH(KOUNT+3)=VBN(IB,JB,L,1)
-              RST_BC_DATA_NORTH(KOUNT+4)=VBN(IB,JB,L,2)
-              KOUNT=KOUNT+4
+            DO IB=ITS,ITE
+              RST_BC_DATA_NORTH(KOUNT+ 1)=TBN(IB,JB,L,1)
+              RST_BC_DATA_NORTH(KOUNT+ 2)=TBN(IB,JB,L,2)
+              RST_BC_DATA_NORTH(KOUNT+ 3)=QBN(IB,JB,L,1)
+              RST_BC_DATA_NORTH(KOUNT+ 4)=QBN(IB,JB,L,2)
+              RST_BC_DATA_NORTH(KOUNT+ 5)=WBN(IB,JB,L,1)
+              RST_BC_DATA_NORTH(KOUNT+ 6)=WBN(IB,JB,L,2)
+              RST_BC_DATA_NORTH(KOUNT+ 7)=UBN(IB,JB,L,1)
+              RST_BC_DATA_NORTH(KOUNT+ 8)=UBN(IB,JB,L,2)
+              RST_BC_DATA_NORTH(KOUNT+ 9)=VBN(IB,JB,L,1)
+              RST_BC_DATA_NORTH(KOUNT+10)=VBN(IB,JB,L,2)
+              KOUNT=KOUNT+10
             ENDDO
           ENDDO
         ENDDO
@@ -8479,20 +8500,34 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Western boundary winds to 1-D
+!***  Western boundary data to 1-D
 !-----------------------------------------------------------------------
 !
       IF(ITS==IDS)THEN                                                     !<-- Tasks on west boundary
         KOUNT=0
 !
-        DO L=1,LM
-          DO JB=JTS,MIN(JTE,JDE-1)
+          DO JB=JTS,JTE
             DO IB=1,LNSV
-              RST_BC_DATA_WEST(KOUNT+1)=UBW(IB,JB,L,1)
-              RST_BC_DATA_WEST(KOUNT+2)=UBW(IB,JB,L,2)
-              RST_BC_DATA_WEST(KOUNT+3)=VBW(IB,JB,L,1)
-              RST_BC_DATA_WEST(KOUNT+4)=VBW(IB,JB,L,2)
-              KOUNT=KOUNT+4
+              RST_BC_DATA_WEST(KOUNT+ 1)=PDBW(IB,JB,1)
+              RST_BC_DATA_WEST(KOUNT+ 2)=PDBW(IB,JB,2)
+              KOUNT=KOUNT+2
+            ENDDO
+          ENDDO
+
+        DO L=1,LM
+          DO JB=JTS,JTE
+            DO IB=1,LNSV
+              RST_BC_DATA_WEST(KOUNT+ 1)=TBW(IB,JB,L,1)
+              RST_BC_DATA_WEST(KOUNT+ 2)=TBW(IB,JB,L,2)
+              RST_BC_DATA_WEST(KOUNT+ 3)=QBW(IB,JB,L,1)
+              RST_BC_DATA_WEST(KOUNT+ 4)=QBW(IB,JB,L,2)
+              RST_BC_DATA_WEST(KOUNT+ 5)=WBW(IB,JB,L,1)
+              RST_BC_DATA_WEST(KOUNT+ 6)=WBW(IB,JB,L,2)
+              RST_BC_DATA_WEST(KOUNT+ 7)=UBW(IB,JB,L,1)
+              RST_BC_DATA_WEST(KOUNT+ 8)=UBW(IB,JB,L,2)
+              RST_BC_DATA_WEST(KOUNT+ 9)=VBW(IB,JB,L,1)
+              RST_BC_DATA_WEST(KOUNT+10)=VBW(IB,JB,L,2)
+              KOUNT=KOUNT+10
             ENDDO
           ENDDO
         ENDDO
@@ -8529,20 +8564,34 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Eastern boundary winds to 1-D
+!***  Eastern boundary data to 1-D
 !-----------------------------------------------------------------------
 !
       IF(ITE==IDE)THEN                                                     !<-- Tasks on east boundary
         KOUNT=0
 !
-        DO L=1,LM
-          DO JB=JTS,MIN(JTE,JDE-1)
+          DO JB=JTS,JTE
             DO IB=1,LNSV
-              RST_BC_DATA_EAST(KOUNT+1)=UBE(IB,JB,L,1)
-              RST_BC_DATA_EAST(KOUNT+2)=UBE(IB,JB,L,2)
-              RST_BC_DATA_EAST(KOUNT+3)=VBE(IB,JB,L,1)
-              RST_BC_DATA_EAST(KOUNT+4)=VBE(IB,JB,L,2)
-              KOUNT=KOUNT+4
+              RST_BC_DATA_EAST(KOUNT+ 1)=PDBE(IB,JB,1)
+              RST_BC_DATA_EAST(KOUNT+ 2)=PDBE(IB,JB,2)
+              KOUNT=KOUNT+2
+            ENDDO
+          ENDDO
+
+        DO L=1,LM
+          DO JB=JTS,JTE
+            DO IB=1,LNSV
+              RST_BC_DATA_EAST(KOUNT+ 1)=TBE(IB,JB,L,1)
+              RST_BC_DATA_EAST(KOUNT+ 2)=TBE(IB,JB,L,2)
+              RST_BC_DATA_EAST(KOUNT+ 3)=QBE(IB,JB,L,1)
+              RST_BC_DATA_EAST(KOUNT+ 4)=QBE(IB,JB,L,2)
+              RST_BC_DATA_EAST(KOUNT+ 5)=WBE(IB,JB,L,1)
+              RST_BC_DATA_EAST(KOUNT+ 6)=WBE(IB,JB,L,2)
+              RST_BC_DATA_EAST(KOUNT+ 7)=UBE(IB,JB,L,1)
+              RST_BC_DATA_EAST(KOUNT+ 8)=UBE(IB,JB,L,2)
+              RST_BC_DATA_EAST(KOUNT+ 9)=VBE(IB,JB,L,1)
+              RST_BC_DATA_EAST(KOUNT+10)=VBE(IB,JB,L,2)
+              KOUNT=KOUNT+10
             ENDDO
           ENDDO
         ENDDO

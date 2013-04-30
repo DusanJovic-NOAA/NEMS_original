@@ -789,8 +789,8 @@
         JTS=wrt_int_state%LOCAL_JSTART(MYPE)
         JTE=wrt_int_state%LOCAL_JEND(MYPE)
 !
-        IEND=MIN(ITE,IDE-1)
-        JEND=MIN(JTE,JDE-1)
+        IEND=ITE
+        JEND=JTE
 !
 !-----------------------------------------------------------------------
 !***  And how many boundary rows for V points?
@@ -810,7 +810,7 @@
 !-----------------------------------------------------------------------
 !
         IF(JTS==1)THEN                                                     !<-- Fcst tasks on south boundary
-          wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE)=2*2*LNSV*LM*(IEND-ITS+1)
+          wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE)=(5*LM+1)*2*LNSV*(IEND-ITS+1)
           ALLOCATE(wrt_int_state%RST_BC_DATA_SOUTH(1:wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE)),stat=ISTAT)
           if(istat/=0)write(0,*)' failed to allocate RST_BC_DATA_SOUTH'
 !
@@ -829,7 +829,7 @@
 !-----------------------------------------------------------------------
 !
         IF(JTE==JDE)THEN                                                   !<-- Fcst tasks on north boundary
-          wrt_int_state%NUM_WORDS_BC_NORTH(MYPE)=2*2*LNSV*LM*(IEND-ITS+1)
+          wrt_int_state%NUM_WORDS_BC_NORTH(MYPE)=(5*LM+1)*2*LNSV*(IEND-ITS+1)
           ALLOCATE(wrt_int_state%RST_BC_DATA_NORTH(1:wrt_int_state%NUM_WORDS_BC_NORTH(MYPE)),stat=ISTAT)
           if(istat/=0)write(0,*)' failed to allocate RST_BC_DATA_NORTH'
 !
@@ -848,7 +848,7 @@
 !-----------------------------------------------------------------------
 !
         IF(ITS==1)THEN                                                     !<-- Fcst tasks on west boundary
-          wrt_int_state%NUM_WORDS_BC_WEST(MYPE)=2*2*LNSV*LM*(JEND-JTS+1)
+          wrt_int_state%NUM_WORDS_BC_WEST(MYPE)=(5*LM+1)*2*LNSV*(JEND-JTS+1)
           ALLOCATE(wrt_int_state%RST_BC_DATA_WEST(1:wrt_int_state%NUM_WORDS_BC_WEST(MYPE)),stat=ISTAT)
           if(istat/=0)write(0,*)' failed to allocate RST_BC_DATA_WEST'
 !
@@ -867,7 +867,7 @@
 !-----------------------------------------------------------------------
 !
         IF(ITE==IDE)THEN                                                   !<-- Fcst tasks on east boundary
-          wrt_int_state%NUM_WORDS_BC_EAST(MYPE)=2*2*LNSV*LM*(JEND-JTS+1)
+          wrt_int_state%NUM_WORDS_BC_EAST(MYPE)=(5*LM+1)*2*LNSV*(JEND-JTS+1)
           ALLOCATE(wrt_int_state%RST_BC_DATA_EAST(1:wrt_int_state%NUM_WORDS_BC_EAST(MYPE)),stat=ISTAT)
           if(istat/=0)write(0,*)' failed to allocate RST_BC_DATA_EAST'
 !
@@ -953,20 +953,37 @@
 !***  Each side of domain
 !-------------------------
 !
-        ALLOCATE(wrt_int_state%UBS(1:IDE-1,1:LNSV,1:LM,1:2))
-        ALLOCATE(wrt_int_state%UBN(1:IDE-1,1:LNSV,1:LM,1:2))
-        ALLOCATE(wrt_int_state%VBS(1:IDE-1,1:LNSV,1:LM,1:2))
-        ALLOCATE(wrt_int_state%VBN(1:IDE-1,1:LNSV,1:LM,1:2))
-        ALLOCATE(wrt_int_state%UBW(1:LNSV,1:JDE-1,1:LM,1:2))
-        ALLOCATE(wrt_int_state%UBE(1:LNSV,1:JDE-1,1:LM,1:2))
-        ALLOCATE(wrt_int_state%VBW(1:LNSV,1:JDE-1,1:LM,1:2))
-        ALLOCATE(wrt_int_state%VBE(1:LNSV,1:JDE-1,1:LM,1:2))
+        ALLOCATE(wrt_int_state%PDBS(1:IDE,1:LNSV,1:2))
+        ALLOCATE(wrt_int_state%PDBN(1:IDE,1:LNSV,1:2))
+        ALLOCATE(wrt_int_state%TBS(1:IDE,1:LNSV,1:LM,1:2))
+        ALLOCATE(wrt_int_state%TBN(1:IDE,1:LNSV,1:LM,1:2))
+        ALLOCATE(wrt_int_state%QBS(1:IDE,1:LNSV,1:LM,1:2))
+        ALLOCATE(wrt_int_state%QBN(1:IDE,1:LNSV,1:LM,1:2))
+        ALLOCATE(wrt_int_state%WBS(1:IDE,1:LNSV,1:LM,1:2))
+        ALLOCATE(wrt_int_state%WBN(1:IDE,1:LNSV,1:LM,1:2))
+        ALLOCATE(wrt_int_state%UBS(1:IDE,1:LNSV,1:LM,1:2))
+        ALLOCATE(wrt_int_state%UBN(1:IDE,1:LNSV,1:LM,1:2))
+        ALLOCATE(wrt_int_state%VBS(1:IDE,1:LNSV,1:LM,1:2))
+        ALLOCATE(wrt_int_state%VBN(1:IDE,1:LNSV,1:LM,1:2))
+
+        ALLOCATE(wrt_int_state%PDBW(1:LNSV,1:JDE,1:2))
+        ALLOCATE(wrt_int_state%PDBE(1:LNSV,1:JDE,1:2))
+        ALLOCATE(wrt_int_state%TBW(1:LNSV,1:JDE,1:LM,1:2))
+        ALLOCATE(wrt_int_state%TBE(1:LNSV,1:JDE,1:LM,1:2))
+        ALLOCATE(wrt_int_state%QBW(1:LNSV,1:JDE,1:LM,1:2))
+        ALLOCATE(wrt_int_state%QBE(1:LNSV,1:JDE,1:LM,1:2))
+        ALLOCATE(wrt_int_state%WBW(1:LNSV,1:JDE,1:LM,1:2))
+        ALLOCATE(wrt_int_state%WBE(1:LNSV,1:JDE,1:LM,1:2))
+        ALLOCATE(wrt_int_state%UBW(1:LNSV,1:JDE,1:LM,1:2))
+        ALLOCATE(wrt_int_state%UBE(1:LNSV,1:JDE,1:LM,1:2))
+        ALLOCATE(wrt_int_state%VBW(1:LNSV,1:JDE,1:LM,1:2))
+        ALLOCATE(wrt_int_state%VBE(1:LNSV,1:JDE,1:LM,1:2))
 !
 !-----------------
 !***  Full domain
 !-----------------
 !
-        NUM_WORDS_TOT=2*2*2*LNSV*LM*((IDE-1)+(JDE-1))                      !<-- Total # of words, full-domain bndry U,V arrays
+        NUM_WORDS_TOT=(5*LM+1)*2*2*LNSV*(IDE+JDE)                  !<-- Total # of words, full-domain bndry U,V arrays
         ALLOCATE(wrt_int_state%NUM_WORDS_SEND_BC(1))
         wrt_int_state%NUM_WORDS_SEND_BC(1)=NUM_WORDS_TOT
         ALLOCATE(wrt_int_state%RST_ALL_BC_DATA(1:NUM_WORDS_TOT),stat=ISTAT)
@@ -2129,14 +2146,28 @@
 !
               NX=0
 !
+              DO NB=1,LNSV
+              DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
+                wrt_int_state%PDBS(NA,NB,1)=BUFF_NTASK(NX+1)
+                wrt_int_state%PDBS(NA,NB,2)=BUFF_NTASK(NX+2)
+                NX=NX+2
+              ENDDO 
+              ENDDO 
+!
               DO NC=1,LM
               DO NB=1,LNSV
-              DO NA=wrt_int_state%LOCAL_ISTART(NTASK),MIN(wrt_int_state%LOCAL_IEND(NTASK),IDE-1)
-                wrt_int_state%UBS(NA,NB,NC,1)=BUFF_NTASK(NX+1)
-                wrt_int_state%UBS(NA,NB,NC,2)=BUFF_NTASK(NX+2)
-                wrt_int_state%VBS(NA,NB,NC,1)=BUFF_NTASK(NX+3)
-                wrt_int_state%VBS(NA,NB,NC,2)=BUFF_NTASK(NX+4)
-                NX=NX+4
+              DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
+                wrt_int_state%TBS(NA,NB,NC,1)=BUFF_NTASK(NX+ 1)
+                wrt_int_state%TBS(NA,NB,NC,2)=BUFF_NTASK(NX+ 2)
+                wrt_int_state%QBS(NA,NB,NC,1)=BUFF_NTASK(NX+ 3)
+                wrt_int_state%QBS(NA,NB,NC,2)=BUFF_NTASK(NX+ 4)
+                wrt_int_state%WBS(NA,NB,NC,1)=BUFF_NTASK(NX+ 5)
+                wrt_int_state%WBS(NA,NB,NC,2)=BUFF_NTASK(NX+ 6)
+                wrt_int_state%UBS(NA,NB,NC,1)=BUFF_NTASK(NX+ 7)
+                wrt_int_state%UBS(NA,NB,NC,2)=BUFF_NTASK(NX+ 8)
+                wrt_int_state%VBS(NA,NB,NC,1)=BUFF_NTASK(NX+ 9)
+                wrt_int_state%VBS(NA,NB,NC,2)=BUFF_NTASK(NX+10)
+                NX=NX+10
               ENDDO 
               ENDDO 
               ENDDO 
@@ -2176,14 +2207,28 @@
 !
               NX=0
 !
+              DO NB=1,LNSV
+              DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
+                wrt_int_state%PDBN(NA,NB,1)=BUFF_NTASK(NX+1)
+                wrt_int_state%PDBN(NA,NB,2)=BUFF_NTASK(NX+2)
+                NX=NX+2
+              ENDDO 
+              ENDDO 
+!
               DO NC=1,LM
               DO NB=1,LNSV
-              DO NA=wrt_int_state%LOCAL_ISTART(NTASK),MIN(wrt_int_state%LOCAL_IEND(NTASK),IDE-1)
-                wrt_int_state%UBN(NA,NB,NC,1)=BUFF_NTASK(NX+1)
-                wrt_int_state%UBN(NA,NB,NC,2)=BUFF_NTASK(NX+2)
-                wrt_int_state%VBN(NA,NB,NC,1)=BUFF_NTASK(NX+3)
-                wrt_int_state%VBN(NA,NB,NC,2)=BUFF_NTASK(NX+4)
-                NX=NX+4
+              DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
+                wrt_int_state%TBN(NA,NB,NC,1)=BUFF_NTASK(NX+ 1)
+                wrt_int_state%TBN(NA,NB,NC,2)=BUFF_NTASK(NX+ 2)
+                wrt_int_state%QBN(NA,NB,NC,1)=BUFF_NTASK(NX+ 3)
+                wrt_int_state%QBN(NA,NB,NC,2)=BUFF_NTASK(NX+ 4)
+                wrt_int_state%WBN(NA,NB,NC,1)=BUFF_NTASK(NX+ 5)
+                wrt_int_state%WBN(NA,NB,NC,2)=BUFF_NTASK(NX+ 6)
+                wrt_int_state%UBN(NA,NB,NC,1)=BUFF_NTASK(NX+ 7)
+                wrt_int_state%UBN(NA,NB,NC,2)=BUFF_NTASK(NX+ 8)
+                wrt_int_state%VBN(NA,NB,NC,1)=BUFF_NTASK(NX+ 9)
+                wrt_int_state%VBN(NA,NB,NC,2)=BUFF_NTASK(NX+10)
+                NX=NX+10
               ENDDO 
               ENDDO 
               ENDDO 
@@ -2218,14 +2263,28 @@
 !
               NX=0
 !
-              DO NC=1,LM
-              DO NB=wrt_int_state%LOCAL_JSTART(NTASK),MIN(wrt_int_state%LOCAL_JEND(NTASK),JDE-1)
+              DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
               DO NA=1,LNSV
-                wrt_int_state%UBW(NA,NB,NC,1)=BUFF_NTASK(NX+1)
-                wrt_int_state%UBW(NA,NB,NC,2)=BUFF_NTASK(NX+2)
-                wrt_int_state%VBW(NA,NB,NC,1)=BUFF_NTASK(NX+3)
-                wrt_int_state%VBW(NA,NB,NC,2)=BUFF_NTASK(NX+4)
-                NX=NX+4
+                wrt_int_state%PDBW(NA,NB,1)=BUFF_NTASK(NX+1)
+                wrt_int_state%PDBW(NA,NB,2)=BUFF_NTASK(NX+2)
+                NX=NX+2
+              ENDDO 
+              ENDDO 
+!
+              DO NC=1,LM
+              DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
+              DO NA=1,LNSV
+                wrt_int_state%TBW(NA,NB,NC,1)=BUFF_NTASK(NX+ 1)
+                wrt_int_state%TBW(NA,NB,NC,2)=BUFF_NTASK(NX+ 2)
+                wrt_int_state%QBW(NA,NB,NC,1)=BUFF_NTASK(NX+ 3)
+                wrt_int_state%QBW(NA,NB,NC,2)=BUFF_NTASK(NX+ 4)
+                wrt_int_state%WBW(NA,NB,NC,1)=BUFF_NTASK(NX+ 5)
+                wrt_int_state%WBW(NA,NB,NC,2)=BUFF_NTASK(NX+ 6)
+                wrt_int_state%UBW(NA,NB,NC,1)=BUFF_NTASK(NX+ 7)
+                wrt_int_state%UBW(NA,NB,NC,2)=BUFF_NTASK(NX+ 8)
+                wrt_int_state%VBW(NA,NB,NC,1)=BUFF_NTASK(NX+ 9)
+                wrt_int_state%VBW(NA,NB,NC,2)=BUFF_NTASK(NX+10)
+                NX=NX+10
               ENDDO 
               ENDDO 
               ENDDO 
@@ -2265,14 +2324,28 @@
 !
               NX=0
 !
-              DO NC=1,LM
-              DO NB=wrt_int_state%LOCAL_JSTART(NTASK),MIN(wrt_int_state%LOCAL_JEND(NTASK),JDE-1)
+              DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
               DO NA=1,LNSV
-                wrt_int_state%UBE(NA,NB,NC,1)=BUFF_NTASK(NX+1)
-                wrt_int_state%UBE(NA,NB,NC,2)=BUFF_NTASK(NX+2)
-                wrt_int_state%VBE(NA,NB,NC,1)=BUFF_NTASK(NX+3)
-                wrt_int_state%VBE(NA,NB,NC,2)=BUFF_NTASK(NX+4)
-                NX=NX+4
+                wrt_int_state%PDBE(NA,NB,1)=BUFF_NTASK(NX+1)
+                wrt_int_state%PDBE(NA,NB,2)=BUFF_NTASK(NX+2)
+                NX=NX+2
+              ENDDO 
+              ENDDO 
+!
+              DO NC=1,LM
+              DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
+              DO NA=1,LNSV
+                wrt_int_state%TBE(NA,NB,NC,1)=BUFF_NTASK(NX+ 1)
+                wrt_int_state%TBE(NA,NB,NC,2)=BUFF_NTASK(NX+ 2)
+                wrt_int_state%QBE(NA,NB,NC,1)=BUFF_NTASK(NX+ 3)
+                wrt_int_state%QBE(NA,NB,NC,2)=BUFF_NTASK(NX+ 4)
+                wrt_int_state%WBE(NA,NB,NC,1)=BUFF_NTASK(NX+ 5)
+                wrt_int_state%WBE(NA,NB,NC,2)=BUFF_NTASK(NX+ 6)
+                wrt_int_state%UBE(NA,NB,NC,1)=BUFF_NTASK(NX+ 7)
+                wrt_int_state%UBE(NA,NB,NC,2)=BUFF_NTASK(NX+ 8)
+                wrt_int_state%VBE(NA,NB,NC,1)=BUFF_NTASK(NX+ 9)
+                wrt_int_state%VBE(NA,NB,NC,2)=BUFF_NTASK(NX+10)
+                NX=NX+10
               ENDDO 
               ENDDO 
               ENDDO 
@@ -2289,14 +2362,28 @@
           IF(JTS==1)THEN                                                   !<-- Fcst task 0's south boundary data    
             NX=0
 !
+            DO NB=1,LNSV
+            DO NA=ITS,ITE
+              wrt_int_state%PDBS(NA,NB,1)=wrt_int_state%RST_BC_DATA_SOUTH(NX+1)
+              wrt_int_state%PDBS(NA,NB,2)=wrt_int_state%RST_BC_DATA_SOUTH(NX+2)
+              NX=NX+2
+            ENDDO 
+            ENDDO 
+!
             DO NC=1,LM
             DO NB=1,LNSV
-            DO NA=ITS,MIN(ITE,IDE-1)
-              wrt_int_state%UBS(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_SOUTH(NX+1)
-              wrt_int_state%UBS(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_SOUTH(NX+2)
-              wrt_int_state%VBS(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_SOUTH(NX+3)
-              wrt_int_state%VBS(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_SOUTH(NX+4)
-              NX=NX+4
+            DO NA=ITS,ITE
+              wrt_int_state%TBS(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 1)
+              wrt_int_state%TBS(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 2)
+              wrt_int_state%QBS(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 3)
+              wrt_int_state%QBS(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 4)
+              wrt_int_state%WBS(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 5)
+              wrt_int_state%WBS(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 6)
+              wrt_int_state%UBS(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 7)
+              wrt_int_state%UBS(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 8)
+              wrt_int_state%VBS(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 9)
+              wrt_int_state%VBS(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_SOUTH(NX+10)
+              NX=NX+10
             ENDDO 
             ENDDO 
             ENDDO 
@@ -2305,14 +2392,28 @@
           IF(JTE==JDE)THEN                                                 !<-- Fcst task 0's north boundary data    
             NX=0
 !
+            DO NB=1,LNSV
+            DO NA=ITS,ITE
+              wrt_int_state%PDBN(NA,NB,1)=wrt_int_state%RST_BC_DATA_NORTH(NX+1)
+              wrt_int_state%PDBN(NA,NB,2)=wrt_int_state%RST_BC_DATA_NORTH(NX+2)
+              NX=NX+2
+            ENDDO 
+            ENDDO 
+!
             DO NC=1,LM
             DO NB=1,LNSV
-            DO NA=ITS,MIN(ITE,IDE-1)
-              wrt_int_state%UBN(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_NORTH(NX+1)
-              wrt_int_state%UBN(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_NORTH(NX+2)
-              wrt_int_state%VBN(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_NORTH(NX+3)
-              wrt_int_state%VBN(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_NORTH(NX+4)
-              NX=NX+4
+            DO NA=ITS,ITE
+              wrt_int_state%TBN(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 1)
+              wrt_int_state%TBN(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 2)
+              wrt_int_state%QBN(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 3)
+              wrt_int_state%QBN(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 4)
+              wrt_int_state%WBN(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 5)
+              wrt_int_state%WBN(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 6)
+              wrt_int_state%UBN(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 7)
+              wrt_int_state%UBN(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 8)
+              wrt_int_state%VBN(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 9)
+              wrt_int_state%VBN(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_NORTH(NX+10)
+              NX=NX+10
             ENDDO 
             ENDDO 
             ENDDO 
@@ -2321,14 +2422,28 @@
           IF(ITS==1)THEN                                                   !<-- Fcst task 0's west boundary data    
             NX=0
 !
-            DO NC=1,LM
-            DO NB=JTS,MIN(JTE,JDE-1)
+            DO NB=JTS,JTE
             DO NA=1,LNSV
-              wrt_int_state%UBW(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_WEST(NX+1)
-              wrt_int_state%UBW(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_WEST(NX+2)
-              wrt_int_state%VBW(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_WEST(NX+3)
-              wrt_int_state%VBW(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_WEST(NX+4)
-              NX=NX+4
+              wrt_int_state%PDBW(NA,NB,1)=wrt_int_state%RST_BC_DATA_WEST(NX+1)
+              wrt_int_state%PDBW(NA,NB,2)=wrt_int_state%RST_BC_DATA_WEST(NX+2)
+              NX=NX+2
+            ENDDO 
+            ENDDO 
+!
+            DO NC=1,LM
+            DO NB=JTS,JTE
+            DO NA=1,LNSV
+              wrt_int_state%TBW(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_WEST(NX+ 1)
+              wrt_int_state%TBW(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_WEST(NX+ 2)
+              wrt_int_state%QBW(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_WEST(NX+ 3)
+              wrt_int_state%QBW(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_WEST(NX+ 4)
+              wrt_int_state%WBW(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_WEST(NX+ 5)
+              wrt_int_state%WBW(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_WEST(NX+ 6)
+              wrt_int_state%UBW(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_WEST(NX+ 7)
+              wrt_int_state%UBW(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_WEST(NX+ 8)
+              wrt_int_state%VBW(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_WEST(NX+ 9)
+              wrt_int_state%VBW(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_WEST(NX+10)
+              NX=NX+10
             ENDDO 
             ENDDO 
             ENDDO 
@@ -2337,21 +2452,35 @@
           IF(ITE==IDE)THEN                                                  !<-- Fcst task 0's east boundary data    
             NX=0
 !
-            DO NC=1,LM
-            DO NB=JTS,MIN(JTE,JDE-1)
+            DO NB=JTS,JTE
             DO NA=1,LNSV
-              wrt_int_state%UBE(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_EAST(NX+1)
-              wrt_int_state%UBE(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_EAST(NX+2)
-              wrt_int_state%VBE(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_EAST(NX+3)
-              wrt_int_state%VBE(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_EAST(NX+4)
-              NX=NX+4
+              wrt_int_state%PDBE(NA,NB,1)=wrt_int_state%RST_BC_DATA_EAST(NX+1)
+              wrt_int_state%PDBE(NA,NB,2)=wrt_int_state%RST_BC_DATA_EAST(NX+2)
+              NX=NX+2
+            ENDDO 
+            ENDDO 
+!
+            DO NC=1,LM
+            DO NB=JTS,JTE
+            DO NA=1,LNSV
+              wrt_int_state%TBE(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_EAST(NX+ 1)
+              wrt_int_state%TBE(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_EAST(NX+ 2)
+              wrt_int_state%QBE(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_EAST(NX+ 3)
+              wrt_int_state%QBE(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_EAST(NX+ 4)
+              wrt_int_state%WBE(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_EAST(NX+ 5)
+              wrt_int_state%WBE(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_EAST(NX+ 6)
+              wrt_int_state%UBE(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_EAST(NX+ 7)
+              wrt_int_state%UBE(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_EAST(NX+ 8)
+              wrt_int_state%VBE(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_EAST(NX+ 9)
+              wrt_int_state%VBE(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_EAST(NX+10)
+              NX=NX+10
             ENDDO 
             ENDDO 
             ENDDO 
           ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Forecast task 0 renders all the boundary wind data into 
+!***  Forecast task 0 renders all the boundary data into 
 !***  a single 1-D string to send to the lead write task.
 !-----------------------------------------------------------------------
 !
@@ -2362,12 +2491,21 @@
 !------------------------
 !
           DO ND=1,2
+          DO NB=1,LNSV
+          DO NA=1,IDE
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%PDBS(NA,NB,ND)
+            KOUNT=KOUNT+1
+          ENDDO
+          ENDDO
           DO NC=1,LM
           DO NB=1,LNSV
-          DO NA=1,IDE-1
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%UBS(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+2)=wrt_int_state%VBS(NA,NB,NC,ND)
-            KOUNT=KOUNT+2
+          DO NA=1,IDE
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%TBS(NA,NB,NC,ND)
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+2)=wrt_int_state%QBS(NA,NB,NC,ND)
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+3)=wrt_int_state%WBS(NA,NB,NC,ND)
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+4)=wrt_int_state%UBS(NA,NB,NC,ND)
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+5)=wrt_int_state%VBS(NA,NB,NC,ND)
+            KOUNT=KOUNT+5
           ENDDO
           ENDDO
           ENDDO
@@ -2378,12 +2516,21 @@
 !------------------------
 !
           DO ND=1,2
+          DO NB=1,LNSV
+          DO NA=1,IDE
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%PDBN(NA,NB,ND)
+            KOUNT=KOUNT+1
+          ENDDO
+          ENDDO
           DO NC=1,LM
           DO NB=1,LNSV
-          DO NA=1,IDE-1
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%UBN(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+2)=wrt_int_state%VBN(NA,NB,NC,ND)
-            KOUNT=KOUNT+2
+          DO NA=1,IDE
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%TBN(NA,NB,NC,ND)
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+2)=wrt_int_state%QBN(NA,NB,NC,ND)
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+3)=wrt_int_state%WBN(NA,NB,NC,ND)
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+4)=wrt_int_state%UBN(NA,NB,NC,ND)
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+5)=wrt_int_state%VBN(NA,NB,NC,ND)
+            KOUNT=KOUNT+5
           ENDDO
           ENDDO
           ENDDO
@@ -2394,12 +2541,21 @@
 !-----------------------
 !
           DO ND=1,2
-          DO NC=1,LM
-          DO NB=1,JDE-1
+          DO NB=1,JDE
           DO NA=1,LNSV
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%UBW(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+2)=wrt_int_state%VBW(NA,NB,NC,ND)
-            KOUNT=KOUNT+2
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%PDBW(NA,NB,ND)
+            KOUNT=KOUNT+1
+          ENDDO
+          ENDDO
+          DO NC=1,LM
+          DO NB=1,JDE
+          DO NA=1,LNSV
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%TBW(NA,NB,NC,ND)
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+2)=wrt_int_state%QBW(NA,NB,NC,ND)
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+3)=wrt_int_state%WBW(NA,NB,NC,ND)
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+4)=wrt_int_state%UBW(NA,NB,NC,ND)
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+5)=wrt_int_state%VBW(NA,NB,NC,ND)
+            KOUNT=KOUNT+5
           ENDDO
           ENDDO
           ENDDO
@@ -2410,12 +2566,21 @@
 !-----------------------
 !
           DO ND=1,2
-          DO NC=1,LM
-          DO NB=1,JDE-1
+          DO NB=1,JDE
           DO NA=1,LNSV
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%UBE(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+2)=wrt_int_state%VBE(NA,NB,NC,ND)
-            KOUNT=KOUNT+2
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%PDBE(NA,NB,ND)
+            KOUNT=KOUNT+1
+          ENDDO
+          ENDDO
+          DO NC=1,LM
+          DO NB=1,JDE
+          DO NA=1,LNSV
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%TBE(NA,NB,NC,ND)
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+2)=wrt_int_state%QBE(NA,NB,NC,ND)
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+3)=wrt_int_state%WBE(NA,NB,NC,ND)
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+4)=wrt_int_state%UBE(NA,NB,NC,ND)
+            wrt_int_state%RST_ALL_BC_DATA(KOUNT+5)=wrt_int_state%VBE(NA,NB,NC,ND)
+            KOUNT=KOUNT+5
           ENDDO
           ENDDO
           ENDDO

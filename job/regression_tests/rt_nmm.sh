@@ -102,9 +102,9 @@ fi
 
 if [ ${GBRG} = mnests ]; then
   rm -f configure_file_02 configure_file_03 configure_file_04
-  cp nmm_conf/nmm_mnests_conf_02 configure_file_02
-  cp nmm_conf/nmm_mnests_conf_03 configure_file_03
-  cp nmm_conf/nmm_mnests_conf_04 configure_file_04
+  cat nmm_conf/nmm_mnests_conf_02.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_02
+  cat nmm_conf/nmm_mnests_conf_03.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_03
+  cat nmm_conf/nmm_mnests_conf_04.IN | sed s:_RSTRT_:${RSTRT}:g > configure_file_04
 fi
 
 if [ ${MODE} = 2-way  ]; then

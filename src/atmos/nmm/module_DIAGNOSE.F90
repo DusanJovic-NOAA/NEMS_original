@@ -1713,7 +1713,7 @@
       Ilook=99
       Jlook=275
 
-      IF (FIRST_NMM) THEN
+!     IF (FIRST_NMM) THEN
         DTPHS=DT*NPHS
         RDTPHS=3.6e6/DTPHS
         EPSILON=R_D/R_V
@@ -1723,7 +1723,7 @@
 ! Make sure saturation vapor pressure lookup table is initialized
         CALL GPVS_HR
         FIRST_NMM=.false.
-      ENDIF
+!     ENDIF
 
       DO L=1,LM
        DO J=JTS,JTE

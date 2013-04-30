@@ -4797,7 +4797,6 @@
 !
       INTEGER(kind=KINT) :: ITS,ITE,JTS,JTE                             &
                            ,IDS,IDE,JDS,JDE                             &
-                           ,I_PAR_STA,J_PAR_STA                         &
                            ,INDX_CW,INDX_Q                              &
                            ,LMP1,LNSH,LNSV                              &      
                            ,N,NHALO,NKOUNT,NUM_DIMS
@@ -5562,7 +5561,9 @@
         REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: EAST
       END TYPE SIDES_1D_REAL
 !
-      INTEGER(kind=KINT) :: I_SHIFT,ISTAT,J_SHIFT,KOUNT,LIMIT           &
+      INTEGER(kind=KINT) :: I_SHIFT,I_SW_PARENT_NEW,ISTAT               &
+                           ,J_SHIFT,J_SW_PARENT_NEW,LAST_STEP_MOVED     &
+                           ,KOUNT,LIMIT                                 &
                            ,NEXT_MOVE_TIMESTEP,NTIMESTEP,NTYPE          &
                            ,RC,RC_BND_MV
 !
@@ -5842,6 +5843,21 @@
                               ,value=J_SHIFT                            &  !<-- Nest's shift in J on its grid
                               ,rc   =RC )
 !
+        CALL ESMF_AttributeGet(state=STATE_IN                           &  !<-- Extract data from input state
+                              ,name ='I_SW_PARENT_NEW'                  &  !<-- The name of the data 
+                              ,value=I_SW_PARENT_NEW                    &  !<-- Nest's shift in I on its grid
+                              ,rc   =RC )
+!
+        CALL ESMF_AttributeGet(state=STATE_IN                           &  !<-- Extract data from input state
+                              ,name ='J_SW_PARENT_NEW'                  &  !<-- The name of the data 
+                              ,value=J_SW_PARENT_NEW                    &  !<-- Nest's shift in J on its grid
+                              ,rc   =RC )
+!
+        CALL ESMF_AttributeGet(state=STATE_IN                           &  !<-- Extract data from input state
+                              ,name ='LAST_STEP_MOVED'                  &  !<-- The name of the data 
+                              ,value=LAST_STEP_MOVED                    &  !<-- Nest's shift in J on its grid
+                              ,rc   =RC )
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -5859,6 +5875,21 @@
         CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- Insert data into output state
                               ,name ='J_SHIFT'                          &  !<-- The name of the data 
                               ,value=J_SHIFT                            &  !<-- Nest's shift in J on its grid
+                              ,rc   =RC )
+!
+        CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- Insert data into output state
+                              ,name ='I_SW_PARENT_NEW'                  &  !<-- The name of the data 
+                              ,value=I_SW_PARENT_NEW                    &  !<-- Nest's shift in I on its grid
+                              ,rc   =RC )
+!
+        CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- Insert data into output state
+                              ,name ='J_SW_PARENT_NEW'                  &  !<-- The name of the data 
+                              ,value=J_SW_PARENT_NEW                    &  !<-- Nest's shift in J on its grid
+                              ,rc   =RC )
+!
+        CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- Insert data into output state
+                              ,name ='LAST_STEP_MOVED'                  &  !<-- The name of the data 
+                              ,value=LAST_STEP_MOVED                    &  !<-- Nest's shift in J on its grid
                               ,rc   =RC )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -6441,7 +6472,9 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: I_SHIFT,J_SHIFT                             &
+      INTEGER(kind=KINT) :: I_SHIFT,I_SW_PARENT_NEW                     &
+                           ,J_SHIFT,J_SW_PARENT_NEW                     &
+                           ,LAST_STEP_MOVED                             &
                            ,N,NEXT_MOVE_TIMESTEP                        &
                            ,NUM_PTASK_UPDATE                            &
                            ,NUM_INTEGER_WORDS                           &
@@ -6535,6 +6568,11 @@
                               ,value=I_SHIFT                            &  !<-- Nest moves this far in I in its space
                               ,rc   =RC)
 !
+        CALL ESMF_AttributeGet(state=STATE_IN                           &  !<-- The input State
+                              ,name ='I_SW_PARENT_NEW'                  &  !<-- Name of the variable
+                              ,value=I_SW_PARENT_NEW                    &  !<-- Nest moves this far in I in its space
+                              ,rc   =RC)
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -6547,6 +6585,11 @@
         CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- The output State
                               ,name ='I_SHIFT'                          &  !<-- Name of the variable
                               ,value=I_SHIFT                            &  !<-- Load this into STATE_OUT
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- The output State
+                              ,name ='I_SW_PARENT_NEW'                  &  !<-- Name of the variable
+                              ,value=I_SW_PARENT_NEW                    &  !<-- Load this into STATE_OUT
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -6563,6 +6606,11 @@
                               ,value=J_SHIFT                            &  !<-- Nest moves this far in J in its space
                               ,rc   =RC)
 !
+        CALL ESMF_AttributeGet(state=STATE_IN                           &  !<-- The input State
+                              ,name ='J_SW_PARENT_NEW'                  &  !<-- Name of the variable
+                              ,value=J_SW_PARENT_NEW                    &  !<-- Nest moves this far in J in its space
+                              ,rc   =RC)
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -6575,6 +6623,39 @@
         CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- The output State
                               ,name ='J_SHIFT'                          &  !<-- Name of the variable
                               ,value=J_SHIFT                            &  !<-- Load this into STATE_OUT
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- The output State
+                              ,name ='J_SW_PARENT_NEW'                  &  !<-- Name of the variable
+                              ,value=J_SW_PARENT_NEW                    &  !<-- Load this into STATE_OUT
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Unload LAST_STEP_MOVED from P-C Cpl Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=STATE_IN                           &  !<-- The input State
+                              ,name ='LAST_STEP_MOVED'                  &  !<-- Name of the variable
+                              ,value=LAST_STEP_MOVED                    &  !<-- Nest moves this far in J in its space
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_S2S)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Load LAST_STEP_MOVED into DOMAIN Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=STATE_OUT                          &  !<-- The output State
+                              ,name ='LAST_STEP_MOVED'                          &  !<-- Name of the variable
+                              ,value=LAST_STEP_MOVED                            &  !<-- Load this into STATE_OUT
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -8253,8 +8334,8 @@
                     SEND_TASK(KP)%ISTART(1)=NINT(ITS_PARENT_ON_CHILD(ID_NE))  !<-- Starting I where parent task ID_NE updates nest task.
                     SEND_TASK(KP)%IEND  (1)=I_UPDATE(2)                       !<-- Ending I where parent task ID_NE updates nest task.
                     SEND_TASK(KP)%JSTART(1)=NINT(JTS_PARENT_ON_CHILD(ID_NE))  !<-- Starting J where parent task ID_NE updates nest task.
-                    SEND_TASK(KP)%JEND  (1)=J_END_X                           !<-- Ending J where parent task ID_NE updates nest task.
-                    SEND_TASK(KP)%ISTART(2)=I_UPDATE(3)                       !<-- Starting I where parent task ID_NE updates 2nd region.
+                    SEND_TASK(KP)%JEND  (1)=J_UPDATE(2)                       !<-- Ending J where parent task ID_NE updates nest task.
+                    SEND_TASK(KP)%ISTART(2)=SEND_TASK(KP)%ISTART(1)           !<-- Starting I where parent task ID_NE updates 2nd region.
                     SEND_TASK(KP)%IEND  (2)=I_END_X                           !<-- Ending I where parent task ID_NE updates 2nd region.
                     SEND_TASK(KP)%JSTART(2)=J_UPDATE(3)                       !<-- Starting J where parent task ID_NE updates 2nd region.
                     SEND_TASK(KP)%JEND  (2)=J_END_X                           !<-- Ending J where parent task ID_NE updates 2nd region.

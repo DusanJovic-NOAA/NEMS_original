@@ -414,6 +414,7 @@
                                ,DOMAIN_GRID_COMP_NAME,STATE_NAME
 !
       TYPE(ESMF_TimeInterval) :: TIMEINTERVAL_RECV_FROM_PARENT             !<-- ESMF time interval between Recv times from parent
+      TYPE(ESMF_TimeInterval) :: ZERO_INTERVAL                             !<-- Zero time interval used in comparison of time step and restart interval
 !
 #ifdef ESMF_3
       TYPE(ESMF_LOGICAL) :: PHYSICS_ON                                     !<-- Does the integration include physics?
@@ -1360,6 +1361,32 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Ensure that the timestep divides evenly into the restart interval
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="NMM_INIT: Create zero time interval"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_TimeIntervalSet(timeinterval=ZERO_INTERVAL            &
+                                 ,s           =0                        &
+                                 ,sn          =0                        &
+                                 ,sd          =1                        &
+                                 ,rc          =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        IF (MOD(INTERVAL_RESTART,TIMESTEP) /= ZERO_INTERVAL) THEN
+          WRITE(0,*)'Timestep of this domain does not divide evenly'    &
+                   ,' into the restart interval!'
+          WRITE(0,*)' ABORTING!'
+          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !

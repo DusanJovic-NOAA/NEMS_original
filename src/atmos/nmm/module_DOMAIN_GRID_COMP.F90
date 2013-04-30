@@ -477,7 +477,7 @@
 !
       INTEGER(kind=KINT) :: IHI,ILO,JHI,JLO
 !
-      INTEGER(kind=KINT) :: I_PAR_STA, J_PAR_STA,NEXT_MOVE_TIMESTEP
+      INTEGER(kind=KINT) :: I_PAR_STA, J_PAR_STA, LAST_STEP_MOVED, NEXT_MOVE_TIMESTEP
 !
       INTEGER(kind=KINT) :: IERR,IRTN,RC          
 !
@@ -1179,13 +1179,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          call esmf_clockget(clock       =CLOCK_DOMAIN &
-                            ,currtime    =CURRTIME     &
-                            ,advanceCount=NTSD_START   &
-                            ,rc          =RC)
-!
-!-----------------------------------------------------------------------
 ! 
 !-----------------------------------------------------------------------
 !***  Create the time interval for printing clocktimes used by model 
@@ -1962,11 +1955,13 @@
 !
           NEXT_MOVE_TIMESTEP=-999
           solver_int_state%NMTS=NEXT_MOVE_TIMESTEP 
+          solver_int_state%LAST_STEP_MOVED=0
 !
         ELSE                                                                 !<-- If so values were read from input or restart file.
 !
           I_PAR_STA=solver_int_state%I_PAR_STA
           J_PAR_STA=solver_int_state%J_PAR_STA
+          LAST_STEP_MOVED=solver_int_state%LAST_STEP_MOVED
           NEXT_MOVE_TIMESTEP=solver_int_state%NMTS
 !
         ENDIF
@@ -2006,6 +2001,20 @@
         CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Domain export state
                               ,name ='NEXT_MOVE_TIMESTEP'               &  !<-- Name of the attribute to extract
                               ,value=NEXT_MOVE_TIMESTEP                 &  !<-- Put the Attribute here
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert Last Move Timestep into Domain Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Domain export state
+                              ,name ='LAST_STEP_MOVED'                  &  !<-- Name of the attribute to extract
+                              ,value=LAST_STEP_MOVED                    &  !<-- Put the Attribute here
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2840,6 +2849,8 @@
 !
       INTEGER(kind=KINT) :: I_INC,ITS,J_INC,JTS
 !
+      INTEGER(kind=KINT) :: I_SW_PARENT_NEW,J_SW_PARENT_NEW
+!
       INTEGER(kind=KINT) :: FILTER_METHOD,HDIFF_ON,IERR,J_CENTER        &
                            ,LAST_STEP_MOVED,RC,NC,YY,MM,DD,H,M,S        &
                            ,USE_RADAR
@@ -3139,17 +3150,41 @@
                                     ,value=J_SHIFT_CHILD                &  !<-- Motion of the nest in J on its grid
                                     ,rc   =RC )
 !
+              CALL ESMF_AttributeGet(state=IMP_STATE                    &  !<-- The Domain import state
+                                    ,name ='LAST_STEP_MOVED'            &  !<-- Get Attribute with this name
+                                    ,value=LAST_STEP_MOVED              &  !<-- Motion of the nest in J on its grid
+                                    ,rc   =RC )
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
               CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-              solver_int_state%I_PAR_STA=solver_int_state%I_PAR_STA             &
-                                        +I_SHIFT_CHILD/PARENT_CHILD_SPACE_RATIO
-!
-              solver_int_state%J_PAR_STA=solver_int_state%J_PAR_STA             &
-                                        +J_SHIFT_CHILD/PARENT_CHILD_SPACE_RATIO
+              solver_int_state%LAST_STEP_MOVED=LAST_STEP_MOVED
 !
             ENDIF
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Domain_Run: Get I_SW_PARENT_NEW,J_SW_PARENT_NEW from Domain Import State"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeGet(state=IMP_STATE                      &  !<-- The Domain import state
+                                  ,name ='I_SW_PARENT_NEW'              &  !<-- Get Attribute with this name
+                                  ,value=I_SW_PARENT_NEW                &  !<-- Motion of the nest in I on its grid
+                                  ,rc   =RC   )
+!
+            CALL ESMF_AttributeGet(state=IMP_STATE                      &  !<-- The Domain import state
+                                  ,name ='J_SW_PARENT_NEW'              &  !<-- Get Attribute with this name
+                                  ,value=J_SW_PARENT_NEW                &  !<-- Motion of the nest in J on its grid
+                                  ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            solver_int_state%I_PAR_STA=I_SW_PARENT_NEW
+!
+            solver_int_state%J_PAR_STA=J_SW_PARENT_NEW
 !
 !-----------------------------------------------------------------------
 !
@@ -3306,14 +3341,6 @@
                               ,solver_int_state%JTS,solver_int_state%JTE         &
                               ,solver_int_state%IMS,solver_int_state%IME         &
                               ,solver_int_state%JMS,solver_int_state%JME )
-!
-!-----------------------------------------------------------------------
-!
-              LAST_STEP_MOVED=NTIMESTEP                                    !<-- Keep track of the most recent move timestep
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Update all nest points that remain inside of its domain's 
@@ -7141,6 +7168,8 @@
                            ,NUM_WORDS_IJ                                 &
                            ,NUM_WORDS_INTEGER,NUM_WORDS_REAL
 !
+      INTEGER(kind=KINT) :: IDE_BND,IDS_BND,JDE_BND,JDS_BND
+!
       INTEGER(kind=KINT) :: IERR,RC
 !
       INTEGER(kind=KINT),DIMENSION(1:3) :: LIMITS_LO                     &
@@ -7251,12 +7280,17 @@
 !
       KOUNT=0                                                              !<-- Initialize counter of tasks that will send intertask data
 !
+      IDS_BND=IDS+NROWS_P_UPD_W
+      IDE_BND=IDE-NROWS_P_UPD_E
+      JDS_BND=JDS+NROWS_P_UPD_S
+      JDE_BND=JDE-NROWS_P_UPD_N
+!
 !-----------------------------------------------------------------------
       search: DO I_TASK=I_ID_STA_SEARCH,I_ID_END_SEARCH,I_ID_INC_SEARCH
 !-----------------------------------------------------------------------
 !
-        ITS_X=MAX(domain_int_state%LOCAL_ISTART(I_TASK)-IHALO,IDS)         !<-- East limit of task I_TASK including halo
-        ITE_X=MIN(domain_int_state%LOCAL_IEND(I_TASK)  +IHALO,IDE)         !<-- West limit of task I_TASK including halo
+        ITS_X=MAX(domain_int_state%LOCAL_ISTART(I_TASK),IDS_BND)           !<-- West limit of task I_TASK's integration region
+        ITE_X=MIN(domain_int_state%LOCAL_IEND(I_TASK)  ,IDE_BND)           !<-- East limit of task I_TASK's integration region
 !
         IF(I_END_X+I_SHIFT>=ITS_X.AND.I_START_X+I_SHIFT<=ITE_X)THEN        !<-- If so, some of current task's subdomain moved onto I_TASK's
 !
@@ -7281,8 +7315,8 @@
 !
           DO J_TASK=J_ID_STA_SEARCH,J_ID_END_SEARCH,J_ID_INC_SEARCH        !<-- If so then search north/south.
 !
-            JTS_X=domain_int_state%LOCAL_JSTART(J_TASK)-JHALO              !<-- South limit of task J_TASK integration region
-            JTE_X=domain_int_state%LOCAL_JEND(J_TASK)                      !<-- North limit of task J_TASK integration region
+            JTS_X=MAX(domain_int_state%LOCAL_JSTART(J_TASK),JDS_BND)       !<-- South limit of task J_TASK integration region
+            JTE_X=MIN(domain_int_state%LOCAL_JEND(J_TASK)  ,JDE_BND)       !<-- North limit of task J_TASK integration region
 !
             IF(J_END_X+J_SHIFT>=JTS_X.AND.J_START_X+J_SHIFT<=JTE_X)THEN    !<-- If so, current task has moved onto J_TASK's subdomain
 !

@@ -10,7 +10,16 @@ rm -rf $RUNDIR/*
 cp _RTPWD_/NMMB_mvg_nests/input_domain_01_nemsio  input_domain_01_nemsio
 cp _RTPWD_/NMMB_mvg_nests/input_domain_02_nemsio  input_domain_02_nemsio
 cp _RTPWD_/NMMB_mvg_nests/input_domain_03_nemsio  input_domain_03_nemsio
-cp _RTPWD_/NMMB_mvg_nests/input_domain_04         input_domain_04
+cp _RTPWD_/NMMB_mvg_nests/input_domain_04_nemsio  input_domain_04_nemsio
+cp _RTPWD_/NMMB_mvg_nests/nmmb_rst_01_bin_0012h_00m_00.00s  restart_file_01
+cp _RTPWD_/NMMB_mvg_nests/nmmb_rst_01_nio_0012h_00m_00.00s  restart_file_01_nemsio
+cp _RTPWD_/NMMB_mvg_nests/nmmb_rst_02_bin_0012h_00m_00.00s  restart_file_02
+cp _RTPWD_/NMMB_mvg_nests/nmmb_rst_02_nio_0012h_00m_00.00s  restart_file_02_nemsio
+cp _RTPWD_/NMMB_mvg_nests/nmmb_rst_03_bin_0012h_00m_00.00s  restart_file_03
+cp _RTPWD_/NMMB_mvg_nests/nmmb_rst_03_nio_0012h_00m_00.00s  restart_file_03_nemsio
+cp _RTPWD_/NMMB_mvg_nests/nmmb_rst_04_bin_0012h_00m_00.00s  restart_file_04
+cp _RTPWD_/NMMB_mvg_nests/nmmb_rst_04_nio_0012h_00m_00.00s  restart_file_04_nemsio
+
 cp _RTPWD_/NMMB_mvg_nests/boco.* .
 cp _RTPWD_/data/* .
 cp _RTPWD_/NMMB_mvg_nests/GWD_bin_* .

@@ -29,9 +29,6 @@ XML_LIB     = -L/nwprod/lib -lxmlparse
 SIGIO_LIB   = -L/nwprod/lib -lsigio_4
 SFCIO_LIB   = -L/nwprod/lib -lsfcio_4
 
-##FC          = mpiifort -g -traceback
-
-
 EXTLIBS     = $(NEMSIO_LIB) \
               $(W3_LIB) \
               $(BACIO_LIB) \
@@ -55,7 +52,6 @@ EXTLIBS_POST = $(NEMSIO_LIB) \
                $(NETCDF_LIB) \
                $(SYS_LIB)
 
-##FC          = mpiifort -g -traceback
 #FC         = mpiifort -openmp  -mkl=sequential
 FC          = mpiifort -g -traceback -openmp  -mkl=sequential
 CC          = mpcc

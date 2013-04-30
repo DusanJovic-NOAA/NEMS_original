@@ -1170,36 +1170,35 @@ else
 
  fi # endif test
 
- ###############################################################################
- #
- # TEST   - NMM-B moving nests: Regional parent with two children and one grandchild
- #        - Compute tasks - Upper parent 8x8 | Child #1 2x6 | Child #2 2x6 | Grandchild 5x6
- #        - 1 thread / opnl physics / free fcst / nemsio and pure binary input
- #
- ###############################################################################
+####################################################################################################
+#
+# TEST   - NMM-B moving nests: Regional parent with two children and one grandchild
+#        - Compute tasks - Upper parent 8x8 | Child #1 2x6 | Child #2 2x6 | Grandchild 5x6
+#        - 1 thread / opnl physics / free fcst / nemsio binary input
+#
+####################################################################################################
 
- if [ 1 = 0 ]; then # temporary removed from tests
-  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
+if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
 
    export TEST_DESCR="Test NMMB-regional with moving nests"
 
 #---------------------
-   (( TEST_NR=TEST_NR+1 ))
-   export RUNDIR=${RUNDIR_ROOT}/NMM_mvg_nests
-   export CNTL_DIR=NMMB_mvg_nests
-   export LIST_FILES=" \
-   nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
-   nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-   nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
-#  nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
-#  nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
-#  nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
-#  nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
-#  nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
-#  nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s \
-#  nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
-#  nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
-#  nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_mvg_nests
+export CNTL_DIR=NMMB_mvg_nests
+export LIST_FILES=" \
+nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
+nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s \
+nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
+nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
+nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
+nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
+nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
+nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s \
+nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
+nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
+nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
 #---------------------
    export_nmm
    export GBRG=mnests ; export FCSTL=24 ; export NCHILD=02
@@ -1211,16 +1210,54 @@ else
    if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-  fi # endif test
- fi # temporary removed from tests
+fi # endif test
 
- ###############################################################################
- #
- # TEST   - NMM-B moving nests: Same as above except with generational task assignments.
- #        - Compute tasks - Upper parent 7x16 | Child #1 4x6 | Child #2 4x6 | Grandchild 5x10
- #        - 1 thread / opnl physics / free fcst / nemsio and pure binary input
- #
- ###############################################################################
+####################################################################################################
+#
+# TEST   - NMM-B moving nests: (RESTART) Regional parent with two children and one grandchild
+#        - Compute tasks - Upper parent 8x8 | Child #1 2x6 | Child #2 2x6 | Grandchild 5x6
+#        - 1 thread / opnl physics / free fcst / nemsio input
+#
+####################################################################################################
+
+if [ ${RT_FULL} = true ]; then
+
+export TEST_DESCR="Test NMMB-regional with moving nests - RESTART"
+
+#---------------------
+(( TEST_NR=TEST_NR+1 ))
+export RUNDIR=${RUNDIR_ROOT}/NMM_mvg_nests_restart
+export CNTL_DIR=NMMB_mvg_nests
+export LIST_FILES=" \
+nmmb_hst_01_bin_0024h_00m_00.00s \
+nmmb_hst_01_nio_0024h_00m_00.00s \
+nmmb_hst_02_bin_0024h_00m_00.00s \
+nmmb_hst_02_nio_0024h_00m_00.00s \
+nmmb_hst_03_bin_0024h_00m_00.00s \
+nmmb_hst_03_nio_0024h_00m_00.00s \
+nmmb_hst_04_bin_0024h_00m_00.00s \
+nmmb_hst_04_nio_0024h_00m_00.00s"
+#---------------------
+export_nmm
+export GBRG=mnests ; export FCSTL=24 ; export NCHILD=02
+export NEMSI=true  ; export WLCLK=20 ; export NODE=3
+export TASKS=$TASKS_mvg1 ; export TPN=$TPN_mvg1
+export INPES=$INPES_mvg1 ; export JNPES=$JNPES_mvg1 ; export WTPG=$WTPG_mvg1
+export RSTRT=true
+#---------------------
+  ./rt_nmm.sh
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi # endif test
+
+####################################################################################################
+#
+# TEST   - NMM-B moving nests: Same as above except with generational task assignments.
+#        - Compute tasks - Upper parent 7x16 | Child #1 4x6 | Child #2 4x6 | Grandchild 5x10
+#        - 1 thread / opnl physics / free fcst / nemsio and pure binary input
+#
+####################################################################################################
 
  if [ 1 = 0 ]; then # temporary removed from tests
   if [ $RT_FULL = true ]; then

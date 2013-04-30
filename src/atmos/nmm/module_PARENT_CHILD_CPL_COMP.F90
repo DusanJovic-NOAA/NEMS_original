@@ -303,7 +303,9 @@
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: NUM_TASKS_SEND_V_N
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: NUM_TASKS_SEND_V_W
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: NUM_TASKS_SEND_V_E
-        INTEGER(kind=KINT),DIMENSION(:),POINTER :: SHIFT_INFO
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: SHIFT_INFO_MINE
+!
+        INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: SHIFT_INFO_CHILDREN
 !
         REAL(kind=KFPT) :: DYH
         REAL(kind=KFPT) :: PDTOP
@@ -631,7 +633,9 @@
                                                 ,NUM_TASKS_SEND_V_N       &
                                                 ,NUM_TASKS_SEND_V_W       &
                                                 ,NUM_TASKS_SEND_V_E       &
-                                                ,SHIFT_INFO 
+                                                ,SHIFT_INFO_MINE
+!
+      INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: SHIFT_INFO_CHILDREN
 !
       REAL(kind=KFPT),POINTER :: DYH                                    &
                                 ,PDTOP                                  &
@@ -1534,6 +1538,7 @@
 !
         I_SW_PARENT_CURRENT=>cc%I_SW_PARENT_CURRENT
         J_SW_PARENT_CURRENT=>cc%J_SW_PARENT_CURRENT
+        LAST_STEP_MOVED=>cc%LAST_STEP_MOVED
 !
 #ifdef ESMF_3
         IF(I_AM_A_FCST_TASK==ESMF_True)THEN
@@ -1556,6 +1561,20 @@
           CALL ESMF_AttributeGet(state=IMP_STATE                        &  !<-- The parent-child coupler import state
                                 ,name ='J_PAR_STA'                      &  !<-- Name of Attribute to extract
                                 ,value=J_SW_PARENT_CURRENT              &  !<-- Put the extracted Attribute here
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Parent-Child Init: Get Last Move Timestep from Import State"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(state=IMP_STATE                        &  !<-- The parent-child coupler import state
+                                ,name ='LAST_STEP_MOVED'                &  !<-- Name of Attribute to extract
+                                ,value=LAST_STEP_MOVED                  &  !<-- Put the extracted Attribute here
                                 ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3250,12 +3269,6 @@
           ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Initialize the last timestep that the nest moved.
-!-----------------------------------------------------------------------
-!
-          cc%LAST_STEP_MOVED=0
-!
-!-----------------------------------------------------------------------
 !
         ENDIF
 !
@@ -3902,7 +3915,7 @@
       INTEGER(kind=KINT) :: CONFIG_ID                                   &
                            ,ID_CHILD,ID_MY_PARENT,KR                    &
                            ,MINUTES_RESTART,MY_DOMAIN_ID                &
-                           ,N,N_FIELD,N_MOVING,NN                       &
+                           ,N,N_FIELD,N_MOVING,N1,N2,NN                 &
                            ,NROWS_P_UPD_X,NTAG,NTIMESTEP                &
                            ,NUM_CHILD_TASKS,NUM_DIMS                    &
                            ,SFC_FILE_RATIO,UPDATE_TYPE_INT
@@ -4543,6 +4556,19 @@
             MOVING_CHILD_UPDATE(N)%TASKS=>NULL()
           ENDDO
 !
+          ALLOCATE(cc%SHIFT_INFO_CHILDREN(1:3,1:NUM_MOVING_CHILDREN),stat=ISTAT)
+          IF(ISTAT/=0)THEN
+            WRITE(0,*)' Failed to allocate cpl_composite%SHIFT_INFO_CHILDREN stat=',ISTAT
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          ENDIF
+          SHIFT_INFO_CHILDREN=>cc%SHIFT_INFO_CHILDREN
+!
+          DO N2=1,NUM_MOVING_CHILDREN
+          DO N1=1,3
+            SHIFT_INFO_CHILDREN(N1,N2)=0
+          ENDDO
+          ENDDO
+!
 !-----------------------------------------------------------------------
 !***  If this is a restarted run then take the value of the children's
 !***  next move timestep from the import state (the values having
@@ -4588,15 +4614,15 @@
 !***  Both parent and child need to know the child's shift information.
 !-----------------------------------------------------------------------
 !
-      ALLOCATE(cc%SHIFT_INFO(1:3),stat=ISTAT)
+      ALLOCATE(cc%SHIFT_INFO_MINE(1:3),stat=ISTAT)
       IF(ISTAT/=0)THEN
-        WRITE(0,*)' Failed to allocate cpl_composite%SHIFT_INFO stat=',ISTAT
+        WRITE(0,*)' Failed to allocate cpl_composite%SHIFT_INFO_MINE stat=',ISTAT
         CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
       ENDIF
-      SHIFT_INFO=>cc%SHIFT_INFO
+      SHIFT_INFO_MINE=>cc%SHIFT_INFO_MINE
 !
       DO N=1,3
-        SHIFT_INFO(N)=-99999
+        SHIFT_INFO_MINE(N)=-99999
       ENDDO
 !
 !-----------------------------------------------------------------------
@@ -4695,6 +4721,13 @@
         I_SHIFT_CHILD=-999999
         J_SHIFT_CHILD=-999999
 !
+        I_SW_PARENT_NEW=>cc%I_SW_PARENT_NEW
+        J_SW_PARENT_NEW=>cc%J_SW_PARENT_NEW
+        I_SW_PARENT_NEW=-999999
+        J_SW_PARENT_NEW=-999999
+!
+        LAST_STEP_MOVED=>cc%LAST_STEP_MOVED
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="P-C Init2: Insert I_SHIFT/J_SHIFT into P-C Cpl Exp State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
@@ -4708,6 +4741,21 @@
         CALL ESMF_AttributeSet(state=EXP_STATE                        &  !<-- The Parent-Child coupler export state
                               ,name ='J_SHIFT'                        &  !<-- Insert Attribute with this name
                               ,value=J_SHIFT_CHILD                    &  !<-- Motion of nest in J on its grid
+                              ,rc   =RC )
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                        &  !<-- The Parent-Child coupler export state
+                              ,name ='I_SW_PARENT_NEW'                &  !<-- Insert Attribute with this name
+                              ,value=I_SW_PARENT_NEW                  &  !<-- Motion of nest in I on its grid
+                              ,rc   =RC )
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                        &  !<-- The Parent-Child coupler export state
+                              ,name ='J_SW_PARENT_NEW'                &  !<-- Insert Attribute with this name
+                              ,value=J_SW_PARENT_NEW                  &  !<-- Motion of nest in J on its grid
+                              ,rc   =RC )
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                        &  !<-- The Parent-Child coupler export state
+                              ,name ='LAST_STEP_MOVED'                &  !<-- Insert Attribute with this name
+                              ,value=LAST_STEP_MOVED                  &  !<-- Motion of nest in J on its grid
                               ,rc   =RC )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -5539,14 +5587,6 @@
 !
       cc%NTIMESTEPS_RESTART=NINT((60.*MINUTES_RESTART)/DT_DOMAIN(MY_DOMAIN_ID))
 !
-      IF(ABS(cc%NTIMESTEPS_RESTART*DT_DOMAIN(MY_DOMAIN_ID)             &
-               -60.*MINUTES_RESTART)>0.0001)THEN
-        WRITE(0,*)' Timestep of this domain does not divide evenly'    &
-                 ,' into the restart interval!'
-        WRITE(0,*)' ABORTING!'
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-      ENDIF
-!
 !-----------------------------------------------------------------------
 !
       IF(ASSOCIATED(DOMAIN_ID_TO_RANK))DEALLOCATE(DOMAIN_ID_TO_RANK)
@@ -6087,6 +6127,16 @@
           I_SW_PARENT_NEW=I_SW_PARENT_NEW-PARENT_SHIFT(1)                  !<-- Shifted parent I,J of SW corner of this child's domain
           J_SW_PARENT_NEW=J_SW_PARENT_NEW-PARENT_SHIFT(2)                  !<--
 !
+          CALL ESMF_AttributeSet(state=EXP_STATE                        &  !<-- The Parent-Child coupler export state
+                                ,name ='I_SW_PARENT_NEW'                &  !<-- Insert Attribute with this name
+                                ,value=I_SW_PARENT_NEW                  &  !<-- Motion of nest in I on its grid
+                                ,rc   =RC )
+!
+          CALL ESMF_AttributeSet(state=EXP_STATE                        &  !<-- The Parent-Child coupler export state
+                                ,name ='J_SW_PARENT_NEW'                &  !<-- Insert Attribute with this name
+                                ,value=J_SW_PARENT_NEW                  &  !<-- Motion of nest in J on its grid
+                                ,rc   =RC )
+!
           CALL DEALLOC_WORK_CHILDREN(MY_DOMAIN_ID)                         !<-- Reset this child's working pointers for 'new' location
 !
           CALL CHILD_RECVS_CHILD_DATA_LIMITS(EXP_STATE,MY_DOMAIN_ID)       !<-- Parent/child bndry task associations
@@ -6228,8 +6278,8 @@
 !
 !-----------------------------------------------------------------------
 !
-            NEXT_MOVE_TIMESTEP_PARENT=NEXT_MOVE_TIMESTEP/TIME_RATIO_MY_PARENT-1  !<-- Nest will shift after LAG_STEPS parent timesteps
-            LAST_STEP_MOVED=NEXT_MOVE_TIMESTEP                                   !<-- Reset to this to the most recent move
+            NEXT_MOVE_TIMESTEP_PARENT=NEXT_MOVE_TIMESTEP/TIME_RATIO_MY_PARENT  !<-- Nest will shift after LAG_STEPS parent timesteps
+            LAST_STEP_MOVED=NEXT_MOVE_TIMESTEP                                 !<-- Reset to this to the most recent move
 !
             IF(I_AM_LEAD_FCST_TASK)THEN                                    !<-- Lead forecast task on this moving nest
 !
@@ -6237,11 +6287,11 @@
                            ,JSTAT                                       &  !<-- MPI status
                            ,IERR)
 !
-              SHIFT_INFO(1)=NEXT_MOVE_TIMESTEP_PARENT
-              SHIFT_INFO(2)=I_SW_PARENT_NEW-I_SW_PARENT_CURRENT            !<-- Nest's shift in I on its parent's grid
-              SHIFT_INFO(3)=J_SW_PARENT_NEW-J_SW_PARENT_CURRENT            !<-- Nest's shift in J on its parent's grid
+              SHIFT_INFO_MINE(1)=NEXT_MOVE_TIMESTEP_PARENT                 !<-- Nest will shift at start of this parent timestep
+              SHIFT_INFO_MINE(2)=I_SW_PARENT_NEW-I_SW_PARENT_CURRENT       !<-- Nest's shift in I on its parent's grid
+              SHIFT_INFO_MINE(3)=J_SW_PARENT_NEW-J_SW_PARENT_CURRENT       !<-- Nest's shift in J on its parent's grid
 !
-              CALL MPI_ISSEND(SHIFT_INFO                                &  !<-- Key shift information 
+              CALL MPI_ISSEND(SHIFT_INFO_MINE                           &  !<-- Key shift information 
                              ,3                                         &  !<-- There are 3 words in the flag
                              ,MPI_INTEGER                               &  !<-- Signal is type Integer
                              ,0                                         &  !<-- Signal sent to parent task 0
@@ -6286,6 +6336,21 @@
             CALL ESMF_AttributeSet(state=EXP_STATE                      &  !<-- The Parent-Child coupler export state
                                   ,name ='J_SHIFT'                      &  !<-- Insert Attribute with this name
                                   ,value=J_SHIFT_CHILD                  &  !<-- Motion of nest in J on its grid
+                                  ,rc   =RC )
+!
+            CALL ESMF_AttributeSet(state=EXP_STATE                      &  !<-- The Parent-Child coupler export state
+                                  ,name ='I_SW_PARENT_NEW'              &  !<-- Insert Attribute with this name
+                                  ,value=I_SW_PARENT_NEW                &  !<-- Motion of nest in I on its grid
+                                  ,rc   =RC )
+!
+            CALL ESMF_AttributeSet(state=EXP_STATE                      &  !<-- The Parent-Child coupler export state
+                                  ,name ='J_SW_PARENT_NEW'              &  !<-- Insert Attribute with this name
+                                  ,value=J_SW_PARENT_NEW                &  !<-- Motion of nest in J on its grid
+                                  ,rc   =RC )
+!
+            CALL ESMF_AttributeSet(state=EXP_STATE                      &  !<-- The Parent-Child coupler export state
+                                  ,name ='LAST_STEP_MOVED'              &  !<-- Insert Attribute with this name
+                                  ,value=LAST_STEP_MOVED                &  !<-- Motion of nest in J on its grid
                                   ,rc   =RC )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -7120,11 +7185,6 @@
                              ,COMM_TO_MY_CHILDREN(N)                    &  !<-- MPI communicator between this parent and its children
                              ,HANDLE_PARENT_SHIFT(N)                    &  !<-- Communication request handle for this ISend to children
                              ,IERR )
-      call date_and_time(values=values)
-      write(0,*)' parent task issent parent shift=',parent_shift,' to childtask_0=',childtask_0,' tag=',ntag0 &
-               ,' ntimestep=',ntimestep
-      write(0,34983)values(5),values(6),values(7),values(8)
-34983 format(' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
             ENDDO
 !
@@ -7177,7 +7237,7 @@
 !***  timestep and sends it to the children so they can form time
 !***  tendencies for their boundary variables as they integrate through
 !***  this parent timestep.  This is relevant for all children, both
-!***  static and moving.  If this is now the timestep at which the
+!***  static and moving.  If this is now a timestep in which the
 !***  child shifts then the parent must now reset those working
 !***  pointers/arrays that are used for the preparation of the
 !***  standard child boundary updates that are sent back in time
@@ -7200,7 +7260,7 @@
         IF(STATIC_OR_MOVING(N)=='Moving')THEN                              !<-- Select the children who can move.
           KOUNT_MOVING=KOUNT_MOVING+1
 !
-          IF(NTIMESTEP==NTIMESTEP_CHILD_MOVES(N)+1                      &  !<-- If either of these statements is true
+          IF(NTIMESTEP==NTIMESTEP_CHILD_MOVES(N)                        &  !<-- If either of these statements is true
                      .OR.                                               &  !    then child N just moved relative
              PARENT_MOVED)THEN                                             !    to this parent.
 !
@@ -7303,39 +7363,47 @@
 !
       btim=timef()
 !
-            CHILDTASK_0=child_ranks(MY_DOMAIN_ID)%CHILDREN(N_MOVING)%DATA(0) !<-- Local rank of child's lead task in p-c communicator
-!
-            CALL MPI_IPROBE(CHILDTASK_0                                 &  !<-- Is shift info present from moving child N's fcst task 0?
-                           ,MOVE_TAG                                    &  !<-- Tag associated with nest N's move flag
-                           ,COMM_TO_MY_CHILDREN(N_MOVING)               &  !<-- MPI communicator between parent and moving child N
-                           ,SHIFT_INFO_IS_PRESENT                       &  !<-- Is the nest's shift information now available?
-                           ,JSTAT                                       &
-                           ,IERR)
+            check_block1: IF(NTIMESTEP>NTIMESTEP_CHILD_MOVES(N))THEN
 !
 !-----------------------------------------------------------------------
 !
-            IF(SHIFT_INFO_IS_PRESENT)THEN
+              CHILDTASK_0=child_ranks(MY_DOMAIN_ID)%CHILDREN(N_MOVING)%DATA(0) !<-- Local rank of child's lead task in p-c communicator
 !
-              MOVE_FLAG(N)=.TRUE.                                          !<-- Moving child N is saying it wants to move
+              CALL MPI_IPROBE(CHILDTASK_0                               &  !<-- Is shift info present from moving child N's fcst task 0?
+                             ,MOVE_TAG                                  &  !<-- Tag associated with nest N's move flag
+                             ,COMM_TO_MY_CHILDREN(N_MOVING)             &  !<-- MPI communicator between parent and moving child N
+                             ,SHIFT_INFO_IS_PRESENT                     &  !<-- Is the nest's shift information now available?
+                             ,JSTAT                                     &
+                             ,IERR)
 !
-              CALL MPI_RECV(SHIFT_INFO                                  &  !<-- Recv the message and clear the nest's ISEND 
-                           ,3                                           &  !<-- # of words in message
-                           ,MPI_INTEGER                                 &  !<-- The message is type Integer.
-                           ,CHILDTASK_0                                 &  !<-- The message was sent by moving child N's fcst task 0.
-                           ,MOVE_TAG                                    &  !<-- Arbitrary tag used for this data exchange
-                           ,COMM_TO_MY_CHILDREN(N_MOVING)               &  !<-- MPI communicator between parent and moving child N
-                           ,JSTAT                                       &
-                           ,IERR)
+!-----------------------------------------------------------------------
 !
-              IF(NTIMESTEP>=NTIMESTEP_FINAL-2)THEN   
+              IF(SHIFT_INFO_IS_PRESENT)THEN
 !
-                MOVE_FLAG(N)=.FALSE.                                       !<--  Children must not move just before the fcst ends
+                MOVE_FLAG(N)=.TRUE.                                        !<-- Moving child N is saying it wants to move
+!
+                CALL MPI_RECV(SHIFT_INFO_CHILDREN(1,N)                  &  !<-- Recv the message and clear the nest's ISEND 
+                             ,3                                         &  !<-- # of words in message
+                             ,MPI_INTEGER                               &  !<-- The message is type Integer.
+                             ,CHILDTASK_0                               &  !<-- The message was sent by moving child N's fcst task 0.
+                             ,MOVE_TAG                                  &  !<-- Arbitrary tag used for this data exchange
+                             ,COMM_TO_MY_CHILDREN(N_MOVING)             &  !<-- MPI communicator between parent and moving child N
+                             ,JSTAT                                     &
+                             ,IERR)
+!
+                IF(NTIMESTEP>=NTIMESTEP_FINAL-2)THEN   
+!
+                  MOVE_FLAG(N)=.FALSE.                                     !<--  Children must not move just before the fcst ends
+!
+                ENDIF
 !
               ENDIF
 !
-            ENDIF
-!
       t0_recv_move_tim=t0_recv_move_tim+(timef()-btim)
+!
+!-----------------------------------------------------------------------
+!
+            ENDIF check_block1   
 !
 !-----------------------------------------------------------------------
 !
@@ -7349,6 +7417,8 @@
 !
         child_loop_2: DO N=1,NUM_MOVING_CHILDREN                           !<-- Loop through this parent's moving children
 !
+          N_MOVING=RANK_MOVING_CHILD(N)                                    !<-- In the list of this parent's children, these can move.
+!
 !-----------------------------------------------------------------------
 !***  Parent task 0 informs the other parent tasks if moving child N 
 !***  has signaled that it wants to move and if so then it shares
@@ -7358,40 +7428,45 @@
 !     (3) The child's shift in J on the parent grid.
 !-----------------------------------------------------------------------
 !
-          CALL MPI_BCAST(MOVE_FLAG(N)                                   &  !<-- Moving child N's signal:  Does it want to move?
-                        ,1                                              &  !<-- The timestep is one word
-                        ,MPI_LOGICAL                                    &  !<-- The signal is type Logical
-                        ,0                                              &  !<-- Broadcast from parent forecast task 0
-                        ,COMM_FCST_TASKS                                &  !<-- Intracommunicator for this parent's forecast tasks
-                        ,IRTN )
+          check_block2: IF(NTIMESTEP>NTIMESTEP_CHILD_MOVES(N))THEN
 !
-          N_MOVING=RANK_MOVING_CHILD(N)                                    !<-- In the list of this parent's children, these can move.
-          NTIMESTEP_CHILD=(NTIMESTEP+1)                                 &  !<-- The nest's timestep at which it will recv parent data.
-                          *PARENT_CHILD_SPACE_RATIO(N_MOVING)
+!-----------------------------------------------------------------------
 !
-          IF(MOVE_FLAG(N))THEN
-!
-            CALL MPI_BCAST(SHIFT_INFO                                   &  !<-- Moving child N's shift information
-                          ,3                                            &  !<-- # of words in message
-                          ,MPI_INTEGER                                  &  !<-- The message is type Integer
+            CALL MPI_BCAST(MOVE_FLAG(N)                                 &  !<-- Moving child N's signal:  Does it want to move?
+                          ,1                                            &  !<-- The timestep is one word
+                          ,MPI_LOGICAL                                  &  !<-- The signal is type Logical
                           ,0                                            &  !<-- Broadcast from parent forecast task 0
                           ,COMM_FCST_TASKS                              &  !<-- Intracommunicator for this parent's forecast tasks
                           ,IRTN )
 !
-            NTIMESTEP_CHILD_MOVES(N)=SHIFT_INFO(1)                         !<-- The parent timestep in which the child will move
+            IF(MOVE_FLAG(N))THEN
 !
-          ENDIF
+              CALL MPI_BCAST(SHIFT_INFO_CHILDREN(1,N)                   &  !<-- Moving child N's shift information
+                            ,3                                          &  !<-- # of words in message
+                            ,MPI_INTEGER                                &  !<-- The message is type Integer
+                            ,0                                          &  !<-- Broadcast from parent forecast task 0
+                            ,COMM_FCST_TASKS                            &  !<-- Intracommunicator for this parent's forecast tasks
+                            ,IRTN )
+!
+              NTIMESTEP_CHILD_MOVES(N)=SHIFT_INFO_CHILDREN(1,N)            !<-- The parent timestep in which the child will move
+!
+            ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Now if the parent is at a timestep in which child N will shift
-!***  then it prepares appropriate internal and BC update data for
-!***  the child's new position.
+!
+          ENDIF check_block2
+!
+!-----------------------------------------------------------------------
+!***  If the parent is at the end of a timestep immediately preceding
+!***  a child's shift at the start of the next parent timestep then
+!***  it prepares appropriate internal and BC update data for the
+!***  child's new position.
 !-----------------------------------------------------------------------
 !
           child_moves: IF(MOVE_FLAG(N)                                  &  !<-- If true, child N wants to move.
                                .AND.                                    &
-                          NTIMESTEP==NTIMESTEP_CHILD_MOVES(N))THEN         !<-- If true, child N will shift at this parent timestep.
-!
+                          NTIMESTEP==NTIMESTEP_CHILD_MOVES(N)-1)THEN       !<-- If true, moving child N will shift at the 
+!                                                                          !    beginning of the next parent timestep.
 !-----------------------------------------------------------------------
 !
             I_PARENT_SW_OLD=I_PARENT_SW(N_MOVING)                          !<-- Save the previous location of the nest.
@@ -7406,8 +7481,8 @@
 !
             CHILDTASK_0=child_ranks(MY_DOMAIN_ID)%CHILDREN(N_MOVING)%DATA(0) !<-- Local rank of child's lead task in p-c intracomm
 !
-            I_PARENT_SW(N_MOVING)=I_PARENT_SW_OLD+SHIFT_INFO(2)            !<-- Child N to move its SW corner to this parent I
-            J_PARENT_SW(N_MOVING)=J_PARENT_SW_OLD+SHIFT_INFO(3)            !<-- Child N to move its SW corner to this parent J
+            I_PARENT_SW(N_MOVING)=I_PARENT_SW_OLD+SHIFT_INFO_CHILDREN(2,N)   !<-- Child N to move its SW corner to this parent I
+            J_PARENT_SW(N_MOVING)=J_PARENT_SW_OLD+SHIFT_INFO_CHILDREN(3,N)   !<-- Child N to move its SW corner to this parent J
 !
 !-----------------------------------------------------------------------
 !***  If this child will shift in this timestep then reset the working
@@ -7518,7 +7593,9 @@
 !***  First do the H point updates for moving nest N.
 !-----------------------------------------------------------------------
 !
-              NR=M_NEST_RATIO(N)
+              NR=M_NEST_RATIO(N)                                           !<-- Child's space ratio with uppermost parent.
+              NTIMESTEP_CHILD=(NTIMESTEP+1)                             &  !<-- The nest's timestep in which it will recv 
+                              *PARENT_CHILD_SPACE_RATIO(N_MOVING)          !    parent shift data.
 !
               CALL PARENT_UPDATES_MOVING('H'                                 &
                                         ,N_UPDATE_CHILD_TASKS                &
@@ -9394,6 +9471,7 @@
                            ,IHANDLE_RECV,IHANDLE_SEND                   &
                            ,INDX_CW,INDX_Q                              &
                            ,I_PAR_STA,J_PAR_STA                         &
+                           ,LAST_STEP_MOVED                             &
                            ,KOUNT,LM,LMP1,MYPE,MYPE_DOMAIN              &
                            ,N,N_BLEND_H,N_BLEND_V,NHALO                 &
                            ,NKOUNT,NN,NPHS,NTAG,NX
@@ -10172,6 +10250,38 @@
         CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                 &  !<-- The Parent-Child Coupler's import state
                               ,name ='J_PAR_STA'                        &  !<-- The name of the Attribute
                               ,value=J_PAR_STA                          &  !<-- The Attribute to be inserted
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------
+!***  Transfer the domain's last move timestep.
+!-----------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Last Move Timestep from DOMAIN Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                   &  !<-- The DOMAIN export state
+                              ,name ='LAST_STEP_MOVED'                  &  !<-- The name of the Attribute
+                              ,value=LAST_STEP_MOVED                    &  !<-- The Attribute to be retrieved
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Add Next Move Timestep to the Parent-Child Cpl Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                 &  !<-- The Parent-Child Coupler's import state
+                              ,name ='LAST_STEP_MOVED'                  &  !<-- The name of the Attribute
+                              ,value=LAST_STEP_MOVED                    &  !<-- The Attribute to be inserted
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -11137,7 +11247,9 @@
       HANDLE_SEND_ALLCLEAR    =>cc%HANDLE_SEND_ALLCLEAR
       HANDLE_SEND_READY_RECV  =>cc%HANDLE_SEND_READY_RECV
       NTIMESTEP_CHILD_MOVES   =>cc%NTIMESTEP_CHILD_MOVES
-      SHIFT_INFO              =>cc%SHIFT_INFO
+      SHIFT_INFO_MINE         =>cc%SHIFT_INFO_MINE
+!
+      SHIFT_INFO_CHILDREN=>cc%SHIFT_INFO_CHILDREN
 !
       NUM_TASKS_SEND_H_S=>cc%NUM_TASKS_SEND_H_S
       NUM_TASKS_SEND_H_N=>cc%NUM_TASKS_SEND_H_N
@@ -17526,7 +17638,7 @@
 !       write(0,34372)wght_sw,wght_se,wght_nw,wght_ne
 !       write(0,34373)px_sw,px_se,px_nw,px_ne
 34371   format(' PARENT_UPDATE_CHILD_BNDRY parent pint_interp_lo=',f9.2)
-34372   format(' wgts=',4(1x,f5.3))
+34372   format(' wgts=',4(1x,f6.3))
 34373   format(' parent pvalues=',4(1x,f9.2))
 !     endif
 !
@@ -17587,7 +17699,7 @@
 !       write(0,44373)vbl_parent(i_west,j_south,l),vbl_parent(i_east,j_south,l) &
 !                    ,vbl_parent(i_west,j_north,l),vbl_parent(i_east,j_north,l)
 44371   format(' vbl_interp=',f6.2,' knt_pnts=',i6,' i_west=',i3,' i_east=',i3,' j_south=',i3,' j_north=',i3)
-44372   format(' wgts=',4(1x,f5.3))
+44372   format(' wgts=',4(1x,f6.3))
 44373   format(' parent values=',4(1x,f6.2))
 !     endif
 !     if(n_side==3.and.i==5.and.j==7.and.l==1.and.trim(vbl_flag)=='T')THEN

@@ -644,6 +644,7 @@ integer(kind=kint):: &
         read(nfcst) int_state%IHRST
         read(nfcst) int_state%I_PAR_STA
         read(nfcst) int_state%J_PAR_STA
+        read(nfcst) int_state%LAST_STEP_MOVED
         read(nfcst) int_state%LPT2
         read(nfcst) ! nsoil
         read(nfcst) ! nphs
@@ -725,7 +726,7 @@ integer(kind=kint):: &
 !***  Each task isolates its own piece of that data.
 !-----------------------------------------------------------------------
 !
-        length=2*2*2*int_state%lnsv*lm*((ide-ids)+(jde-jds))
+        length=(5*lm+1)*2*2*int_state%lnsv*((ide-ids+1)+(jde-jds+1))
         allocate(all_bc_data(1:length))
 !
         read(nfcst) all_bc_data
@@ -736,59 +737,103 @@ integer(kind=kint):: &
 !
 !-----------------------------------------------------------------------
 !
-        iend=min(ite_h2,ide-1)
+        iend=min(ite_h2,ide)
         do n=1,2
-        do l=1,lm
         do j=1,int_state%lnsv
-        do i=ids,ide-1
+        do i=ids,ide
           if(jts==jds.and.i>=its_h2.and.i<=iend)then                         !<-- South boundary tasks extract their BC winds
-            int_state%ubs(i,j,l,n)=all_bc_data(kount+1)
-            int_state%vbs(i,j,l,n)=all_bc_data(kount+2)
+            int_state%pdbs(i,j,n)=all_bc_data(kount+1)
           endif
-          kount=kount+2
+          kount=kount+1
         enddo
         enddo
-        enddo
-        enddo
-!
-        do n=1,2
         do l=1,lm
         do j=1,int_state%lnsv
-        do i=ids,ide-1
-          if(jte==jde.and.i>=its_h2.and.i<=iend)then                         !<-- North boundary tasks extract their BC winds
-            int_state%ubn(i,j,l,n)=all_bc_data(kount+1)
-            int_state%vbn(i,j,l,n)=all_bc_data(kount+2)
+        do i=ids,ide
+          if(jts==jds.and.i>=its_h2.and.i<=iend)then                         !<-- South boundary tasks extract their BC winds
+            int_state%tbs(i,j,l,n)=all_bc_data(kount+1)
+            int_state%qbs(i,j,l,n)=all_bc_data(kount+2)
+            int_state%wbs(i,j,l,n)=all_bc_data(kount+3)
+            int_state%ubs(i,j,l,n)=all_bc_data(kount+4)
+            int_state%vbs(i,j,l,n)=all_bc_data(kount+5)
           endif
-          kount=kount+2
+          kount=kount+5
         enddo
         enddo
         enddo
         enddo
 !
-        jend=min(jte_h2,jde-1)
         do n=1,2
+        do j=1,int_state%lnsv
+        do i=ids,ide
+          if(jte==jde.and.i>=its_h2.and.i<=iend)then                         !<-- North boundary tasks extract their BC winds
+            int_state%pdbn(i,j,n)=all_bc_data(kount+1)
+          endif
+          kount=kount+1
+        enddo
+        enddo
         do l=1,lm
-        do j=jds,jde-1
+        do j=1,int_state%lnsv
+        do i=ids,ide
+          if(jte==jde.and.i>=its_h2.and.i<=iend)then                         !<-- North boundary tasks extract their BC winds
+            int_state%tbn(i,j,l,n)=all_bc_data(kount+1)
+            int_state%qbn(i,j,l,n)=all_bc_data(kount+2)
+            int_state%wbn(i,j,l,n)=all_bc_data(kount+3)
+            int_state%ubn(i,j,l,n)=all_bc_data(kount+4)
+            int_state%vbn(i,j,l,n)=all_bc_data(kount+5)
+          endif
+          kount=kount+5
+        enddo
+        enddo
+        enddo
+        enddo
+!
+        jend=min(jte_h2,jde)
+        do n=1,2
+        do j=jds,jde
         do i=1,int_state%lnsv
           if(its==ids.and.j>=jts_h2.and.j<=jend)then                         !<-- West boundary tasks extract their BC winds
-            int_state%ubw(i,j,l,n)=all_bc_data(kount+1)
-            int_state%vbw(i,j,l,n)=all_bc_data(kount+2)
+            int_state%pdbw(i,j,n)=all_bc_data(kount+1)
           endif
-          kount=kount+2
+          kount=kount+1
+        enddo
+        enddo
+        do l=1,lm
+        do j=jds,jde
+        do i=1,int_state%lnsv
+          if(its==ids.and.j>=jts_h2.and.j<=jend)then                         !<-- West boundary tasks extract their BC winds
+            int_state%tbw(i,j,l,n)=all_bc_data(kount+1)
+            int_state%qbw(i,j,l,n)=all_bc_data(kount+2)
+            int_state%wbw(i,j,l,n)=all_bc_data(kount+3)
+            int_state%ubw(i,j,l,n)=all_bc_data(kount+4)
+            int_state%vbw(i,j,l,n)=all_bc_data(kount+5)
+          endif
+          kount=kount+5
         enddo
         enddo
         enddo
         enddo
 !
         do n=1,2
-        do l=1,lm
-        do j=jds,jde-1
+        do j=jds,jde
         do i=1,int_state%lnsv
           if(ite==ide.and.j>=jts_h2.and.j<=jend)then                         !<-- West boundary tasks extract their BC winds
-            int_state%ube(i,j,l,n)=all_bc_data(kount+1)
-            int_state%vbe(i,j,l,n)=all_bc_data(kount+2)
+            int_state%pdbe(i,j,n)=all_bc_data(kount+1)
           endif
-          kount=kount+2
+          kount=kount+1
+        enddo
+        enddo
+        do l=1,lm
+        do j=jds,jde
+        do i=1,int_state%lnsv
+          if(ite==ide.and.j>=jts_h2.and.j<=jend)then                         !<-- West boundary tasks extract their BC winds
+            int_state%tbe(i,j,l,n)=all_bc_data(kount+1)
+            int_state%qbe(i,j,l,n)=all_bc_data(kount+2)
+            int_state%wbe(i,j,l,n)=all_bc_data(kount+3)
+            int_state%ube(i,j,l,n)=all_bc_data(kount+4)
+            int_state%vbe(i,j,l,n)=all_bc_data(kount+5)
+          endif
+          kount=kount+5
         enddo
         enddo
         enddo
