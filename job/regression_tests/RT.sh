@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/ksh -l
 
 #########################################################################
 #         USER DEFINED PART!!!!!!
@@ -12,17 +12,16 @@
 #SKIP_NMM=YES
 #SKIP_GFS=YES
  SKIP_GENS=YES
+ SKIP_NST=YES
  SKIP_FIM=YES
 #SKIP_POST=YES
  SKIP_GFS_POST=YES
- SKIP_ESMF52=YES
- SKIP_ESMF53=YES
- SKIP_ESMF610=YES
- SKIP_ESMF611=YES
+ SKIP_ESMF520rAPI=YES
  SKIP_GEFS_CONCUR=YES
- SKIP_NST=YES
+#SKIP_SINGLECORE=YES
 
 #COMPILE_SORC=NO                # uncomment not to recompile the basic test
+#COMPILE_SORC_520rAPI=NO        # uncomment not to recompile the basic test
 
 export dprefix1=""
 export dprefix2=""
@@ -68,7 +67,7 @@ mkdir -p $PTMP/$USER
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 
-   export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+  export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
 #  export RTPWD=${STMP}/${USER}/REGRESSION_TEST
 
 #########################################################################
@@ -310,6 +309,8 @@ mkdir -p ${RUNDIR_ROOT}
 typeset -Z3 TEST_NR
 export TEST_NR=0
 
+echo ${RUNDIR_ROOT}
+
 clear;echo;echo
 
 ###############################################################################
@@ -406,7 +407,7 @@ export FIM_USE_NEMS=true
 export_nmm ; export_gfs
 
 ############################################################################
-# Clean and compile both NMMB & GFS cores, using ESMF 3.1.0rp5 library.
+# Clean and compile both NMMB & GFS cores, using ESMF 3.1.0r series library.
 ############################################################################
 
 if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB_arg = all ] ; then
@@ -415,8 +416,8 @@ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB
 
  if [ ${COMPILE_SORC:-YES} = YES ] ; then
   echo "Preparing model code for regression tests"
-  echo "Using the ESMF 3.1.0rp2 library"
-  printf %s "Using the ESMF 3.1.0rp2 library.   "
+  echo "Using an ESMF 3.1.0r series library"
+  printf %s "Using an ESMF 3.1.0r series library.   "
   printf %s "Compiling model code (this will take some time)......."
   cd ${PATHTR}/src
 
@@ -442,6 +443,8 @@ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB
 
     cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
     ./esmf_version 3_zeus                  >> ${COMPILE_LOG} 2>&1
+    source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
+    module list                            >> ${COMPILE_LOG} 2>&1
     gmake clean                            >> ${COMPILE_LOG} 2>&1
     gmake nmm_gfs_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
 
@@ -457,7 +460,7 @@ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB
  else
    echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
    echo "   Model code is NOT compiled"
-   exit
+#   exit
  fi
 
 fi # endif compilation
@@ -2103,7 +2106,7 @@ else
  cd $PATHRT
 
 ###############################################################################
-# Clean and compile both NMMB & GFS cores, using ESMF 3.1.0rp5 and POST library.
+# Clean and compile both NMMB & GFS cores, using ESMF 3.1.0r series and POST library.
 ###############################################################################
 
  if [ $MACHINE_ID = ccs ]; then
@@ -2111,7 +2114,7 @@ else
 
    echo "Preparing model code for regression tests"
    echo "Compilation with POST"
-   printf %s "Using the ESMF 3.1.0rp2 and POST library.   "
+   printf %s "Using the ESMF 3.1.0r series and POST library.   "
    printf %s "Compiling model code (this will take some time)......."
    cd ${PATHTR}/src
 
@@ -2244,23 +2247,28 @@ else
 
 fi   # SKIP_POST test
 
-if [ ${SKIP_ESMF52:-NO} = YES ] ; then
- echo "Skipping NMMB and GFS tests using ESMF 5.2.0rp1 library"
+if [ ${SKIP_ESMF520rAPI:-NO} = YES ] ; then
+ echo "Skipping NMMB and GFS tests using ESMF 5.2.0r API"
 else
  #########################################################################
- # Clean and compile both NMMB & GFS cores, using ESMF 5.2.0rp1 library.
+ # Clean and compile both NMMB & GFS cores, using ESMF 5.2.0r API.
  #########################################################################
 
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
+  if [ ${COMPILE_SORC_520rAPI:-YES} = YES ] ; then
+  
   echo "Preparing model code for regression tests"
-  echo "Using the ESMF 5.2.0rp1 library"
-  printf %s "Using the ESMF 5.2.0rp1 library.   "
+  echo "Using the ESMF 5.2.0r API"
+  printf %s "Using the ESMF 5.2.0r API.   "
+  
+  
+  
   printf %s "Compiling model code (this will take some time)......."
   cd ${PATHTR}/src
 
   date                                     >> ${REGRESSIONTEST_LOG}
-  echo "Compilation ESMF 5.2.0rp1"         >> ${REGRESSIONTEST_LOG}
+  echo "Compilation ESMF 5.2.0r API"       >> ${REGRESSIONTEST_LOG}
   rm -f ../exe/NEMS.x
   if [ $MACHINE_ID = ccs ]; then
 
@@ -2279,7 +2287,9 @@ else
   elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
 
     cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
-    ./esmf_version 5.2_zeus                >> ${COMPILE_LOG} 2>&1
+    ./esmf_version 5.2.0rAPI_zeus          >> ${COMPILE_LOG} 2>&1
+    source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
+    module list                            >> ${COMPILE_LOG} 2>&1
     gmake clean                            >> ${COMPILE_LOG} 2>&1
     gmake nmm_gfs                          >> ${COMPILE_LOG} 2>&1
 
@@ -2295,6 +2305,7 @@ else
    fi
 
   fi # endif compilation
+  fi # endif skipping compilation
 
   cd $PATHRT
 
@@ -2308,12 +2319,13 @@ else
  if [ $MACHINE_ID = ccs -o $MACHINE_ID = wcoss ] ; then
   if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
-   export TEST_DESCR="Compare NMMB-global results with previous trunk version_ESMF_5.2.0rp1"
+   export TEST_DESCR="Compare NMMB-global results with previous trunk
+   version_ESMF_5.2.0r API"
 
 #---------------------
    (( TEST_NR=TEST_NR+1 ))
-   export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF_5.2.0rp1
-   export CNTL_DIR=NMMB_glob_ESMF_5.2.0rp1
+   export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF_5.2.0rAPI
+   export CNTL_DIR=NMMB_glob_ESMF_5.2.0rAPI
    export LIST_FILES=" \
    nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
    nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
@@ -2339,12 +2351,13 @@ else
  if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus ] ; then
   if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
-   export TEST_DESCR="Compare GFS results with previous trunk version ESMF5.2.0rp1"
+   export TEST_DESCR="Compare GFS results with previous trunk version
+   ESMF5.2.0rAPI"
 
 #---------------------
    (( TEST_NR=TEST_NR+1 ))
-   export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF5.2.0rp1
-   export CNTL_DIR=GFS_NODFI_5.2.0rp1
+   export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF5.2.0rAPI
+   export CNTL_DIR=GFS_NODFI
    export LIST_FILES=" \
 	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
 	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
@@ -2360,7 +2373,7 @@ else
  fi # endif machine (only CCS or zeus)
 
  if [ ${SKIP_GEFS_CONCUR:-NO} = YES ] ; then
-   echo "Skipping GEFS Concurrency test for ESMF53"
+   echo "Skipping GEFS Concurrency test for ESMF520r API"
  else
 
  ###############################################################################
@@ -2373,12 +2386,13 @@ else
   if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus ] ; then
    if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
-    export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5.2.0rp1"
+    export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members,
+    T190L28. ESMF5.2.0r API"
 
 #---------------------
     (( TEST_NR=TEST_NR+1 ))
-    export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF5.2.0rp1
-    export CNTL_DIR=GEFS_m4_5.2.0rp1
+    export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF5.2.0rAPI
+    export CNTL_DIR=GEFS_m4_ESMF5.2.0rAPI
     export LIST_FILES=" \
          SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
          SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
@@ -2406,451 +2420,12 @@ else
    fi # endif test
   fi # endif machine (only CCS or zeus)
  fi   # SKIP_GENS_CONCUR test
-fi   # SKIP_ESMF52 test
+fi   # SKIP_ESMF520rAPI test
 
-if [ ${SKIP_ESMF53:-NO} = YES ] ; then
- echo "Skipping NMMB and GFS tests using ESMF 5.3.0 library"
+
+if [ ${SKIP_SINGLECORE:-NO} = YES ] ; then
+ echo "Skipping single core NMMB and GFS tests"
 else
- #########################################################################
- # Clean and compile both NMMB & GFS cores, using ESMF 5.3.0 library.
- #########################################################################
-
- if [ $MACHINE_ID = zeus ] ; then
-  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB_arg = all ] ; then
-
-   echo "Preparing model code for regression tests"
-   echo "Using the ESMF 5.3.0 library"
-   printf %s "Using the ESMF 5.3.0 library.   "
-   printf %s "Compiling model code (this will take some time)......."
-   cd ${PATHTR}/src
-
-   date                                     >> ${REGRESSIONTEST_LOG}
-   echo "Compilation ESMF 5.3.0"            >> ${REGRESSIONTEST_LOG}
-   rm -f ../exe/NEMS.x
-   gmake clean                              >> ${COMPILE_LOG} 2>&1
-   cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
-   esmf_version 5.3_$MACHINE_ID             >> ${COMPILE_LOG} 2>&1
-   gmake nmm_gfs                            >> ${COMPILE_LOG} 2>&1
-   date                                     >> ${REGRESSIONTEST_LOG}
-
-   if [ -f ../exe/NEMS.x ] ; then
-    echo "   Model code Compiled";echo;echo
-   else
-    echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
-    echo "   Model code is NOT compiled"
-    exit
-   fi
-
-  fi # endif compilation
-
-  cd $PATHRT
- fi # endif machine (only zeus)
-
- ###############################################################################
- #
- # TEST   - Global NMM-B with pure binary input
- #        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
- #
- ###############################################################################
-
- #if [ $MACHINE_ID = ccs ] ; then
- #if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
- #
- #export TEST_DESCR="Compare NMMB-global results with previous trunk version_ESMF_5.3.0"
- #
- ##---------------------
- #(( TEST_NR=TEST_NR+1 ))
- #export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF_5.3.0
- #export CNTL_DIR=NMMB_glob_ESMF_6.1.1
- #export LIST_FILES=" \
- #nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
- #nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
- #nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
- ##---------------------
- #export_nmm
- #export GBRG=glob
- ##---------------------
- #  ./rt_nmm.sh
- #  if [ $? = 2 ]; then exit ; fi
- ##---------------------
- #
- #fi # endif test
- #fi # endif machine (only CCS)
-
- ###############################################################################
- # 
- # TEST   - GFS 
- #        - 30 compute tasks / 1 thread 
- #
- ###############################################################################
-
- if [ $MACHINE_ID = zeus ] ; then
-  if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
-
-   export TEST_DESCR="Compare GFS results with previous trunk version ESMF5.3.0"
-
-#---------------------
-   (( TEST_NR=TEST_NR+1 ))
-   export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF5.3.0
-   export CNTL_DIR=GFS_NODFI_6.1.1
-   export LIST_FILES=" \
-	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
-	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
-#---------------------
-  export_gfs
-#---------------------
-   ./rt_gfs.sh
-   if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-  fi # endif test
- fi # endif machine (only eus)
-
- if [ ${SKIP_GEFS_CONCUR:-NO} = YES ] ; then
-   echo "Skipping GEFS Concurrency test for ESMF53"
- else
-  ##############################################################################
-  #
-  # TEST   - Concurrency GEFS
-  #        - 4 members, every 6 hours, couple and add stochastic perturbations, T190L28.
-  #
-  ##############################################################################
-
-  if [ ${MACHINE_ID} = zeus ]; then
-   if [ ${RT_FULL} = true -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
-    export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF5.3.0"
-
-#---------------------
-   (( TEST_NR=TEST_NR+1 ))
-    export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF5.3.0
-    export CNTL_DIR=GEFS_m4_6.1.1
-    export LIST_FILES=" \
-         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
-         SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-         FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
-#        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
-#        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
-#        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
-#        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-#        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
-#        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
-#        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
-#        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
-#        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
-#        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
-#        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
-
-#---------------------
-     export_gfs
-     export GEFS_ENSEMBLE=1
-     export TASKS=64 ; export WLCLK=40
-#---------------------
-     ./rt_gfs.sh
-     if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-    fi # endif test
-   fi  # endif machine (only zeus)
- fi    # end of SKI_GENS_CONCUR test
-fi   # SKIP_ESMF53 test
-
-if [ ${SKIP_ESMF610:-NO} = YES ] ; then
- echo "Skipping NMMB & GFS tests using ESMF 6.1.0 library"
-else
- #########################################################################
- # Clean and compile both NMMB & GFS cores, using ESMF 6.1.0 library.
- #########################################################################
-
- if [ $MACHINE_ID = zeus ] ; then
-  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB_arg = all ] ; then
-
-   echo "Preparing model code for regression tests"
-   echo "Using the ESMF 6.1.0 library"
-   printf %s "Using the ESMF 6.1.0 library.   "
-   printf %s "Compiling model code (this will take some time)......."
-   cd ${PATHTR}/src
-
-   date                                     >> ${REGRESSIONTEST_LOG}
-   echo "Compilation ESMF 6.1.0"            >> ${REGRESSIONTEST_LOG}
-   rm -f ../exe/NEMS.x
-   gmake clean                              >> ${COMPILE_LOG} 2>&1
-   cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
-   esmf_version 6.1_zeus                    >> ${COMPILE_LOG} 2>&1
-   gmake nmm_gfs                            >> ${COMPILE_LOG} 2>&1
-   date                                     >> ${REGRESSIONTEST_LOG}
-
-   if [ -f ../exe/NEMS.x ] ; then
-    echo "   Model code Compiled";echo;echo
-   else
-    echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
-    echo "   Model code is NOT compiled"
-    exit
-   fi
-
-  fi # endif compilation
-
-  cd $PATHRT
- fi # endif machine (only zeus)
-
- ###############################################################################
- #
- # TEST   - Global NMM-B with pure binary input
- #        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
- #
- ###############################################################################
-
- #if [ $MACHINE_ID = ccs ]; then
- #if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
- #
- #export TEST_DESCR="Compare NMMB-global results with previous trunk version_ESMF_6.1.0"
- #
- ##---------------------
- #(( TEST_NR=TEST_NR+1 ))
- #export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF_6.1.0
- #export CNTL_DIR=NMMB_glob_ESMF_6.1.1
- #export LIST_FILES=" \
- #nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
- #nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
- #nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
- ##---------------------
- #export_nmm
- #export GBRG=glob
- ##---------------------
- #  ./rt_nmm.sh
- #  if [ $? = 2 ]; then exit ; fi
- ##---------------------
- #
- #fi # endif test
- #fi # endif machine (only CCS)
-
- ###############################################################################
- # 
- # TEST   - GFS 
- #        - 30 compute tasks / 1 thread 
- #
- ###############################################################################
-
- if [ $MACHINE_ID = zeus ] ; then
-  if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
-
-   export TEST_DESCR="Compare GFS results with previous trunk version ESMF6.1.0"
-
-#---------------------
-   (( TEST_NR=TEST_NR+1 ))
-   export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF6.1.0
-   export CNTL_DIR=GFS_NODFI_6.1.1
-   export LIST_FILES=" \
-	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
-	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
-#---------------------
-   export_gfs
-#---------------------
-   ./rt_gfs.sh
-   if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-  fi # endif test
- fi  # endif machine (only eus)
-
- if [ ${SKIP_GEFS_CONCUR:-NO} = YES ] ; then
-   echo "Skipping GEFS Concurrency test for ESMF610"
- else
-  ##############################################################################
-  #
-  # TEST   - Concurrency GEFS
-  #        - 4 members, every 6 hours, couple and add stochastic perturbations, T190L28.
-  #
-  ##############################################################################
-
-  if [ ${MACHINE_ID} = zeus ] ; then
-   if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
-
-    export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF6.1.0"
-
-#---------------------
-    (( TEST_NR=TEST_NR+1 ))
-    export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF6.1.0
-    export CNTL_DIR=GEFS_m4_6.1.1
-    export LIST_FILES=" \
-         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
-         SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-         FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
-#        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
-#        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
-#        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
-#        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-#        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
-#        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
-#        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
-#        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
-#        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
-#        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
-#        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
-
-#---------------------
-    export_gfs
-    export GEFS_ENSEMBLE=1
-    export TASKS=64 ; export WLCLK=40
-#---------------------
-    ./rt_gfs.sh
-    if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-   fi # endif test
-  fi  # endif machine (only zeus)
- fi   # end of SKI_GENS_CONCUR test
-fi    # SKIP_ESMF610 test
-
-if [ ${SKIP_ESMF611:-NO} = YES ] ; then
- echo "Skipping NMMB & GFS tests using ESMF 6.1.0 library"
-else
- #########################################################################
- # Clean and compile both NMMB & GFS cores, using ESMF 6.1.1 library.
- #########################################################################
-
- if [ $MACHINE_ID = zeus ]; then
-  if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = gfs -o ${CB_arg} = all ]; then
-
-   echo "Preparing model code for regression tests"
-   echo "Using the ESMF 6.1.1 library"
-   printf %s "Using the ESMF 6.1.1 library.   "
-   printf %s "Compiling model code (this will take some time)......."
-   cd ${PATHTR}/src
-
-   date                                     >> ${REGRESSIONTEST_LOG}
-   echo "Compilation ESMF 6.1.1"            >> ${REGRESSIONTEST_LOG}
-   rm -f ../exe/NEMS.x
-   gmake clean                              >> ${COMPILE_LOG} 2>&1
-   cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
-   esmf_version 6.1.1_zeus                  >> ${COMPILE_LOG} 2>&1
-   gmake nmm_gfs                            >> ${COMPILE_LOG} 2>&1
-   date                                     >> ${REGRESSIONTEST_LOG}
-
-   if [ -f ../exe/NEMS.x ] ; then
-    echo "   Model code Compiled";echo;echo
-   else
-    echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
-    echo "   Model code is NOT compiled"
-    exit
-   fi
-
-  fi # endif compilation
-
-  cd $PATHRT
- fi # endif machine (only zeus)
-
- ###############################################################################
- #
- # TEST   - Global NMM-B with pure binary input
- #        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
- #
- ###############################################################################
-
- #if [ $MACHINE_ID = ccs ]; then
- #if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
- #
- #export TEST_DESCR="Compare NMMB-global results with previous trunk version_ESMF_6.1.1"
- #
- ##---------------------
- #(( TEST_NR=TEST_NR+1 ))
- #export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF_6.1.1
- #export CNTL_DIR=NMMB_glob_ESMF_6.1.1
- #export LIST_FILES=" \
- #nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
- #nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
- #nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
- ##---------------------
- #export_nmm
- #export GBRG=glob
- ##---------------------
- #  ./rt_nmm.sh
- #  if [ $? = 2 ]; then exit ; fi
- ##---------------------
- #
- #fi # endif test
- #fi # endif machine (only CCS
- 
-
- ###############################################################################
- #
- # TEST   - GFS
- #        - 30 compute tasks / 1 thread
- #
- ###############################################################################
-
- if [ $MACHINE_ID = zeus ] ; then
-  if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
-
-   export TEST_DESCR="Compare GFS results with previous trunk version ESMF6.1.1"
-
-#---------------------
-   (( TEST_NR=TEST_NR+1 ))
-   export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF6.1.1
-   export CNTL_DIR=GFS_NODFI_6.1.1
-   export LIST_FILES=" \
-        sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
-        sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-        flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
-#---------------------
-   export_gfs
-#---------------------
-   ./rt_gfs.sh
-   if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-  fi # endif test
- fi  # endif machine (only zeus)
-
- if [ ${SKIP_GEEFS_CONCUR:-NO} = YES ] ; then
-   echo "Skipping GEFS Concurrency test for ESMF611"
- else
-
-  ##############################################################################
-  #
-  # TEST   - Concurrency GEFS
-  #        - 4 members, every 6 hours, couple and add stochastic perturbations, T190L28.
-  #
-  ##############################################################################
-
-  if [ $MACHINE_ID = zeus ] ; then
-   if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
-
-    export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28. ESMF6.1.1"
-
-#---------------------
-    (( TEST_NR=TEST_NR+1 ))
-    export RUNDIR=${RUNDIR_ROOT}/GEFS_Concurrency_Run_ESMF6.1.1
-    export CNTL_DIR=GEFS_m4_6.1.1
-    export LIST_FILES=" \
-         SIG.F06_01 SIG.F06_02 SIG.F06_03 SIG.F06_04 \
-         SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-         FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04"
-#        SIG.F12_01 SIG.F12_02 SIG.F12_03 SIG.F12_04 \
-#        SIG.F18_01 SIG.F18_02 SIG.F18_03 SIG.F18_04 \
-#        SIG.F24_01 SIG.F24_02 SIG.F24_03 SIG.F24_04 \
-#        SFC.F06_01 SFC.F06_02 SFC.F06_03 SFC.F06_04 \
-#        SFC.F12_01 SFC.F12_02 SFC.F12_03 SFC.F12_04 \
-#        SFC.F18_01 SFC.F18_02 SFC.F18_03 SFC.F18_04 \
-#        SFC.F24_01 SFC.F24_02 SFC.F24_03 SFC.F24_04 \
-#        FLX.F06_01 FLX.F06_02 FLX.F06_03 FLX.F06_04 \
-#        FLX.F12_01 FLX.F12_02 FLX.F12_03 FLX.F12_04 \
-#        FLX.F18_01 FLX.F18_02 FLX.F18_03 FLX.F18_04 \
-#        FLX.F24_01 FLX.F24_02 FLX.F24_03 FLX.F24_04"
-#---------------------
-    export_gfs
-    export GEFS_ENSEMBLE=1
-    export TASKS=64 ; export WLCLK=40
-#---------------------
-    ./rt_gfs.sh
-    if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-   fi # endif test
-  fi  # endif machine (only zeus)
- fi   # SKIP_GEFS_CONCUR test
-fi    # SKIP_ESMF611 test
 
 #########################################################################
 # Clean and compile only NMMB core
@@ -2885,6 +2460,8 @@ if [ $RT_FULL = true ] ; then
 
   cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
   ./esmf_version 3_zeus                  >> ${COMPILE_LOG} 2>&1
+  source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
+  module list                            >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake nmm                              >> ${COMPILE_LOG} 2>&1
 
@@ -3023,6 +2600,8 @@ if [ $RT_FULL = true ] ; then
  elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
 
   ./esmf_version 3_zeus                  >> ${COMPILE_LOG} 2>&1
+  source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
+  module list                            >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake gfs                              >> ${COMPILE_LOG} 2>&1
 
@@ -3071,6 +2650,7 @@ if [ ${RT_FULL} = true ]; then
 
 fi # endif test
 
+fi # SKIP_SINGLECORE tests
 
 ################################################################################
 # Finalize
@@ -3079,10 +2659,10 @@ fi # endif test
 rm -f err out configure_file* nmm_ll nmm_msub nmm_run gfs_fcst_run gfs_ll gen_fcst_run gen_ll fim_fcst_run fim_ll
 
 cd ${PATHTR}/src
-gmake clean            > /dev/null 2>&1
-./esmf_version 3       > /dev/null 2>&1
+#gmake clean            > /dev/null 2>&1
+#./esmf_version 3       > /dev/null 2>&1
 
-rm -rf ${RUNDIR_ROOT}
+#rm -rf ${RUNDIR_ROOT}
 
 date >> ${REGRESSIONTEST_LOG}
 

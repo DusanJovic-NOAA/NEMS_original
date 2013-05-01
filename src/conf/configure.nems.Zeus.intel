@@ -1,8 +1,20 @@
-SHELL        = /bin/sh
+## NEMS configuration file
+##
+## Platform: Zeus
+## Compiler: Intel with MPT
+## 
+## This configuration file leverages the ESMFMKFILE mechanism to switch
+## between different ESMF versions and installations. The only environment
+## variable used by this  mechanism is ESMFMKFILE, which appears below in 
+## the include statment. Systems that use "modules" to manage environments
+## will set ESMFMKFILE as part of loading an "esmf" module. The user can
+## also set ESMFMKFILE manually to target a different ESMF installation.
 
-include /apps/esmf/3.1.0rp5/intel/mpt/lib/libO/Linux.intel.64.mpi.default/esmf.mk
-ESMF_INC     = $(ESMF_F90COMPILEPATHS)
-ESMF_LIB     = $(ESMF_F90LINKPATHS) $(ESMF_F90ESMFLINKLIBS)
+SHELL           = /bin/sh
+
+include         $(ESMFMKFILE)
+ESMF_INC        = $(ESMF_F90COMPILEPATHS)
+ESMF_LIB        = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 
 gfs=gsm
 gfsdir=atmos/$(gfs)

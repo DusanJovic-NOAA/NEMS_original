@@ -1,8 +1,9 @@
-#!/bin/ksh
+#!/bin/ksh -l
 #
 set -x
 #
 #
+
  export CDATE=_CDATE_
  cyc=`echo $CDATE|cut -c9-10`
 #***************************************************************
@@ -325,12 +326,15 @@ elif [ $SCHEDULER = 'moab' ]; then
    export FIXGLOBAL=${FIXGLOBAL}
    export FCST_LAUNCHER=aprun
 elif [ $SCHEDULER = 'pbs' ]; then
+   source _PATHTR_/src/conf/modules.nems.Zeus
+   module list
    export FIXGLOBAL=${FIXGLOBAL:-/scratch2/portfolios/NCEPDEV/rstprod/nwprod/fix}
    export OMP_NUM_THREADS=$NTHREADS
+   mpiexec=`which mpiexec_mpt`
    if [ $NTHREADS -eq 1 ] ; then
-    export FCST_LAUNCHER="mpiexec_mpt -n $PE1"
+    export FCST_LAUNCHER="env LD_LIBRARY_PATH=$LD_LIBRARY_PATH $mpiexec -n $PE1"
    else
-    export FCST_LAUNCHER="mpiexec_mpt -np $PE1 omplace -nt $NTHREADS"
+    export FCST_LAUNCHER="env LD_LIBRARY_PATH=$LD_LIBRARY_PATH $mpiexec -np $PE1 omplace -nt $NTHREADS"
    fi
 elif [ $SCHEDULER = 'lsf' ]; then
    export FIXGLOBAL=${FIXGLOBAL:-/global/noscrub/Shrinivas.Moorthi/para/fix/fix_am}

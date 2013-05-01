@@ -10,6 +10,9 @@
 set -x
 export MPI_GROUP_MAX=96
 
+source _SRCD_/src/conf/modules.nems.Zeus
+module list
+
 cd _RUND_
 
 echo "Model started:  " `date`

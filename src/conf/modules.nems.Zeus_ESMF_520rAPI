@@ -1,0 +1,4 @@
+#!/bin/sh
+
+module purge
+module load mpt intel esmf/5.2.0rp2

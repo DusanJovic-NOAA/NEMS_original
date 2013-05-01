@@ -40,7 +40,7 @@
 
 #ifdef WITH_NUOPC
       use NUOPC
-      use NUOPC_ModelExplicit, only: &
+      use NUOPC_Model, only: &
         model_routine_SS    => routine_SetServices, &
         model_label_Advance => label_Advance
 #endif
@@ -113,7 +113,7 @@
         file=__FILE__)) &
         return  ! bail out
 
-      ! NUOPC_ModelExplicit requires InitP0, even if it is NOOP
+      ! NUOPC_Model requires InitP0, even if it is NOOP
       CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP, ESMF_METHOD_INITIALIZE, &
         NOOP, phase=0, rc=RC_REG)
       if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &

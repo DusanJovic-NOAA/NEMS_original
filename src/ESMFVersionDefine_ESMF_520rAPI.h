@@ -1,7 +1,7 @@
 #if 0
 //
 // Make this header file available as ESMFVersionDefine.h in order to build
-// NEMS against a public ESMF 5 installation (i.e. 5.2.0rp1 and up).
+// NEMS against an ESMF installation that is compatible with the ESMF 5.2.0r API.
 //
 #endif
 

@@ -39,7 +39,7 @@
 
 #ifdef WITH_NUOPC
       use NUOPC
-      use NUOPC_DriverExplicitAtmOcn, only: &
+      use NUOPC_DriverAtmOcn, only: &
         driver_routine_SS             => routine_SetServices, &
         driver_type_IS                => type_InternalState, &
         driver_label_IS               => label_InternalState, &
@@ -102,7 +102,7 @@
 !
 #ifdef WITH_NUOPC
 
-      ! NUOPC_DriverExplicitAtmOcn registers the generic methods
+      ! NUOPC_DriverAtmOcn registers the generic methods
       call driver_routine_SS(EARTH_GRID_COMP, rc=RC_REG)
       if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &

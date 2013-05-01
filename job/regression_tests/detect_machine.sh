@@ -46,7 +46,7 @@ echo $MACHINE_ID
 if [ ${MACHINE_ID} = zeus ]; then
   clear
   ACCNR=null
-  for i in rm gm ada cmp gefs omd
+  for i in rm gm ada cmp gefs omd nems
   do
     printf %s "Looking for accout ID: " $i " ..."
     nr=`account_params 2>&1 | grep -v Initial | grep " "$i" " | wc -l`

@@ -80,7 +80,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Create/Load the Configure Object"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 !
@@ -92,7 +92,7 @@
                                      ,RC)
 #else
       CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
-                                     ,ESMF_SETINIT                      &  !<-- Subroutine type
+                                     ,ESMF_METHOD_INITIALIZE            &  !<-- Subroutine type
                                      ,GEN_INITIALIZE                    &  !<-- User's subroutine name
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
@@ -119,7 +119,7 @@
                                        ,RC)
 #else
         CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
-                                       ,ESMF_SETRUN                       &  !<-- Subroutine type
+                                       ,ESMF_METHOD_RUN                   &  !<-- Subroutine type
                                        ,GEN_RUN                           &  !<-- The primary Dynamics / Physics /Coupler sequence
                                        ,phase=ESMF_SINGLEPHASE            &
                                        ,rc=RC)
@@ -136,7 +136,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       MESSAGE_CHECK="Set Entry Point for GEN Finalize"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
 #ifdef ESMF_3
@@ -147,7 +147,7 @@
                                      ,RC)
 #else
       CALL ESMF_GridCompSetEntryPoint(GEN_GRID_COMP                     &  !<-- GEN gridded component
-                                     ,ESMF_SETFINAL                     &  !<-- Subroutine type
+                                     ,ESMF_METHOD_FINALIZE              &  !<-- Subroutine type
                                      ,GEN_FINALIZE                      &  !<-- User's subroutine name
                                      ,phase=ESMF_SINGLEPHASE            &
                                      ,rc=RC)
@@ -215,7 +215,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Set the GEN Internal State"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompSetInternalState(GEN_GRID_COMP                  &
@@ -353,7 +353,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Retrieve Config Object from GEN Component"
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompGet(gridcomp=GEN_GRID_COMP                      &  !<-- The GEN gridded component
