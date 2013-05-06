@@ -4,8 +4,6 @@
 # Setup machine related variables (CLASS, ACCNR, & DISKNM)
 #########################################################################
 
-. ./detect_machine.sh
-
 #   Uncomment any of the following skip options to skip those tests
 #   ---------------------------------------------------------------
 #SKIP_NMM=YES

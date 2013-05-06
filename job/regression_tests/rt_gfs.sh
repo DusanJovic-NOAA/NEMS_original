@@ -262,7 +262,7 @@ elif [ $SCHEDULER = 'pbs' ]; then
   rm -f $PATHRT/err $PATHRT/out
   qsub $PATHRT/gfs_qsub > /dev/null
 elif [ $SCHEDULER = 'lsf' ]; then
-  bsub <$PATHRT/gfs_bsub
+  bsub <$PATHRT/gfs_bsub > /dev/null
 fi
 
 echo "Test ${TEST_NR}" >> ${REGRESSIONTEST_LOG}

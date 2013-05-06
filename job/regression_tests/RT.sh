@@ -6,7 +6,11 @@
 
 argn=$#
 
-if [ `uname` = AIX ]; then
+. ./detect_machine.sh
+export MACHINE_ID
+export ACCNR
+
+if [ $MACHINE_ID = ccs -o $MACHINE_ID = wcoss ]; then
  echo "#!/bin/ksh" > tmp.sh
  cat RT.sh_IN >> tmp.sh
  chmod 755 tmp.sh
