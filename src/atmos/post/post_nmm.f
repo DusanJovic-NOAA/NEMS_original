@@ -124,6 +124,12 @@
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !-----------------------------------------------------------------------
     subroutine set_postvars_nmm(wrt_int_state,mpicomp,jts,jte)
+
+!
+!***  HISTORY
+!     15Jan2013:  Sarah Lu, EL_MYJ changed to EL_PBL to be consistent with
+!                 nceppost upgrade
+
 !
 !-----------------------------------------------------------------------
 !*** set up int_state
@@ -478,7 +484,8 @@
 
            if(name(1:INDX_2d-4).eq.'XLEN_MIX') then
              do j=jsta,jend
-              EL_MYJ(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
+!             EL_MYJ(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
+              EL_PBL(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
            endif
            if(name(1:INDX_2d-4).eq.'F_ICE') then

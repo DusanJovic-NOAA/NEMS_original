@@ -17,8 +17,8 @@ BACIO_LIB   = -L/nwprod/lib -lbacio_4
 SP_LIB      = -L/nwprod/lib -lsp_d
 SYS_LIB     =
 
-#POSTDIR    = /global/save/Hui-Ya.Chuang/lib
-POSTDIR     = /nwprod/lib
+##POSTDIR     = /nwprod/lib
+POSTDIR     = /global/save/Hui-Ya.Chuang/nceppost/post_tag_2013_GFS_SummerSchool/lib
 POSTMOD     = ${POSTDIR}/incmod/post_4
 POST_INC    = -I${POSTDIR}/incmod/post_4
 POST_LIB    = -L${POSTDIR} -lnceppost
@@ -38,10 +38,10 @@ EXTLIBS     = $(NEMSIO_LIB) \
               $(SYS_LIB)
 
 
-EXTLIBS_POST = $(NEMSIO_LIB) \
+EXTLIBS_POST = $(POST_LIB) \
+               $(NEMSIO_LIB) \
                $(W3_POST_LIB) \
                $(XML_LIB) \
-               $(POST_LIB) \
                $(G2_LIB) \
                $(BACIO_LIB) \
                $(SIGIO_LIB) \
@@ -52,7 +52,6 @@ EXTLIBS_POST = $(NEMSIO_LIB) \
                $(NETCDF_LIB) \
                $(SYS_LIB)
 
-#FC         = mpiifort -openmp  -mkl=sequential
 FC          = mpiifort -g -traceback -openmp  -mkl=sequential
 CC          = mpcc
 FREE        = -free
@@ -60,17 +59,13 @@ FIXED       = -fixed
 R8          = -r8
 
 FINCS       = $(ESMF_INC) $(NEMSIO_INC)
-#TRAPS        = -check all -ftrapuv -fp-stack-check -fstack-protector
+#TRAPS      = -check all -ftrapuv -fp-stack-check -fstack-protector
 TRAPS       =
-#TRAPS       = -ftrapuv -check all -fp-stack-check
 
-#FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise -xAVX
 FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise
 
 OPTS_NMM    = -O2
-#OPTS_GFS    = -O0
-#OPTS_GFS    = -O0 -g -traceback -check all -ftrapuv -fstack-protector
- OPTS_GFS    = -O3
+OPTS_GFS    = -O3
 OPTS_GEN    = -O2
 OPTS_FIM    = -O2
 
@@ -87,3 +82,6 @@ AR          = ar
 ARFLAGS     = -r
 
 RM          = rm
+
+MAKEDEPF90  = /nwprod/util/exec/makedepf90
+

@@ -261,6 +261,7 @@ CONTAINS
 !                      now the GFIO one does horizontal interp/binning
 !                      and swap only if necessary.
 !  29Feb2008 Nielsen   Masking
+!  07May2013 Lu        Initialize pointers (for wcoss porting)
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -274,8 +275,10 @@ CONTAINS
     character(len=257) :: fname, vname
     real :: const
     integer :: imf, jmf, kmf                  ! dimensions on file
-    real,  pointer :: latf(:), lonf(:), levf(:)
-    real,  pointer :: lat(:),  lon(:)
+!    real,  pointer :: latf(:), lonf(:), levf(:)
+!    real,  pointer :: lat(:),  lon(:)
+    real,  pointer :: latf(:)=>null(), lonf(:)=>null(), levf(:)=>null()
+    real,  pointer :: lat(:)=>null(),  lon(:)=>null()
 
     real, pointer :: ptr2(:,:), ptr2f(:,:)
 !
@@ -1521,8 +1524,10 @@ END SUBROUTINE Chem_UtilExtractIntegers
     character(len=*), parameter :: Iam = 'GridGetLatLons'
 
     real(KIND=8), pointer  :: R8D2(:,:)
-    real, pointer          :: lons2d(:,:), lats2d(:,:)
-    real, pointer          :: LONSLocal(:,:), LATSlocal(:,:)
+!    real, pointer          :: lons2d(:,:), lats2d(:,:)
+!    real, pointer          :: LONSLocal(:,:), LATSlocal(:,:)
+    real, pointer          :: lons2d(:,:)=>null(), lats2d(:,:)=>null()
+    real, pointer          :: LONSLocal(:,:)=>null(), LATSlocal(:,:)=>null()
     integer                :: IM_WORLD, JM_WORLD, dims(3), STATUS, RC
 
 !                          ----
@@ -1536,17 +1541,17 @@ END SUBROUTINE Chem_UtilExtractIntegers
 
 !      Allocate memory for output if necessary
 !      ---------------------------------------
-       if ( .not. associated(lons) ) then
+!!       if ( .not. associated(lons) ) then
             allocate(lons(IM_WORLD), stat=STATUS)
-       else
-            if(size(LONS,1) /= IM_WORLD) STATUS = 1
-       end if
+!!       else
+!!            if(size(LONS,1) /= IM_WORLD) STATUS = 1
+!!       end if
        VERIFY_(status)
-       if ( .not. associated(lats) ) then
+!!       if ( .not. associated(lats) ) then
             allocate(lats(JM_WORLD), stat=STATUS)
-       else
-            if(size(LATS,1) /= JM_WORLD) STATUS = 1
-       end if
+!!       else
+!!            if(size(LATS,1) /= JM_WORLD) STATUS = 1
+!!       end if
        VERIFY_(status)
 
 !      Local work space
@@ -1626,6 +1631,9 @@ END SUBROUTINE Chem_UtilExtractIntegers
 !      Applies diurnal cycle to biomass emissions.       
 !
 ! !DESCRIPTION:
+! !REVISION HISTORY:
+!
+!  08Mar2012  Sarah Lu  Adopted GEOS-5 code update
 !
 !  This module implements assorted odds & ends for fvChem.
 !
@@ -1642,47 +1650,48 @@ END SUBROUTINE Chem_UtilExtractIntegers
 !      -------------------------------------------
        integer, parameter :: N = 240
        real,    parameter :: DT = 86400. / N
-       real,    parameter :: Boreal(N) = &
-       (/ 0.0277, 0.0292, 0.0306, 0.0318, 0.0327, 0.0335, &
-          0.0340, 0.0342, 0.0341, 0.0338, 0.0333, 0.0326, &
-          0.0316, 0.0305, 0.0292, 0.0278, 0.0263, 0.0248, &
-          0.0233, 0.0217, 0.0202, 0.0187, 0.0172, 0.0158, &
-          0.0145, 0.0133, 0.0121, 0.0110, 0.0100, 0.0091, &
-          0.0083, 0.0075, 0.0068, 0.0062, 0.0056, 0.0051, &
-          0.0046, 0.0042, 0.0038, 0.0035, 0.0032, 0.0030, &
-          0.0028, 0.0026, 0.0025, 0.0024, 0.0024, 0.0024, &
-          0.0024, 0.0026, 0.0027, 0.0030, 0.0033, 0.0036, &
-          0.0041, 0.0046, 0.0052, 0.0060, 0.0069, 0.0079, &
-          0.0090, 0.0104, 0.0119, 0.0137, 0.0157, 0.0180, &
-          0.0205, 0.0235, 0.0268, 0.0305, 0.0346, 0.0393, &
-          0.0444, 0.0502, 0.0565, 0.0634, 0.0711, 0.0794, &
-          0.0884, 0.0982, 0.1087, 0.1201, 0.1323, 0.1453, &
-          0.1593, 0.1742, 0.1900, 0.2069, 0.2249, 0.2439, &
-          0.2642, 0.2858, 0.3086, 0.3329, 0.3587, 0.3860, &
-          0.4149, 0.4455, 0.4776, 0.5115, 0.5470, 0.5840, &
-          0.6227, 0.6628, 0.7043, 0.7470, 0.7908, 0.8355, &
-          0.8810, 0.9271, 0.9735, 1.0200, 1.0665, 1.1126, &
-          1.1580, 1.2026, 1.2460, 1.2880, 1.3282, 1.3664, &
-          1.4023, 1.4356, 1.4660, 1.4933, 1.5174, 1.5379, &
-          1.5548, 1.5679, 1.5772, 1.5826, 1.5841, 1.5818, &
-          1.5758, 1.5661, 1.5529, 1.5365, 1.5169, 1.4944, &
-          1.4693, 1.4417, 1.4119, 1.3801, 1.3467, 1.3117, &
-          1.2755, 1.2383, 1.2003, 1.1616, 1.1225, 1.0832, &
-          1.0437, 1.0044, 0.9653, 0.9265, 0.8882, 0.8504, &
-          0.8134, 0.7771, 0.7416, 0.7070, 0.6734, 0.6407, &
-          0.6092, 0.5787, 0.5493, 0.5210, 0.4939, 0.4680, &
-          0.4433, 0.4197, 0.3974, 0.3763, 0.3565, 0.3380, &
-          0.3209, 0.3051, 0.2907, 0.2777, 0.2662, 0.2561, &
-          0.2476, 0.2407, 0.2352, 0.2313, 0.2289, 0.2279, &
-          0.2283, 0.2300, 0.2329, 0.2369, 0.2417, 0.2474, &
-          0.2536, 0.2602, 0.2670, 0.2738, 0.2805, 0.2869, &
-          0.2927, 0.2979, 0.3024, 0.3059, 0.3085, 0.3101, &
-          0.3107, 0.3102, 0.3087, 0.3061, 0.3026, 0.2983, &
-          0.2931, 0.2871, 0.2806, 0.2735, 0.2659, 0.2579, &
-          0.2497, 0.2412, 0.2326, 0.2240, 0.2153, 0.2066, &
-          0.1979, 0.1894, 0.1809, 0.1726, 0.1643, 0.1562, &
-          0.1482, 0.1404, 0.1326, 0.1250, 0.1175, 0.1101, &
-          0.1028, 0.0956, 0.0886, 0.0818, 0.0751, 0.0687 /)       
+       real,    parameter :: Boreal(N) =  1.0                        ! UPDATE
+!       real,    parameter :: Boreal(N) = &
+!       (/ 0.0277, 0.0292, 0.0306, 0.0318, 0.0327, 0.0335, &
+!          0.0340, 0.0342, 0.0341, 0.0338, 0.0333, 0.0326, &
+!          0.0316, 0.0305, 0.0292, 0.0278, 0.0263, 0.0248, &
+!          0.0233, 0.0217, 0.0202, 0.0187, 0.0172, 0.0158, &
+!          0.0145, 0.0133, 0.0121, 0.0110, 0.0100, 0.0091, &
+!          0.0083, 0.0075, 0.0068, 0.0062, 0.0056, 0.0051, &
+!          0.0046, 0.0042, 0.0038, 0.0035, 0.0032, 0.0030, &
+!          0.0028, 0.0026, 0.0025, 0.0024, 0.0024, 0.0024, &
+!          0.0024, 0.0026, 0.0027, 0.0030, 0.0033, 0.0036, &
+!          0.0041, 0.0046, 0.0052, 0.0060, 0.0069, 0.0079, &
+!          0.0090, 0.0104, 0.0119, 0.0137, 0.0157, 0.0180, &
+!          0.0205, 0.0235, 0.0268, 0.0305, 0.0346, 0.0393, &
+!          0.0444, 0.0502, 0.0565, 0.0634, 0.0711, 0.0794, &
+!          0.0884, 0.0982, 0.1087, 0.1201, 0.1323, 0.1453, &
+!          0.1593, 0.1742, 0.1900, 0.2069, 0.2249, 0.2439, &
+!          0.2642, 0.2858, 0.3086, 0.3329, 0.3587, 0.3860, &
+!          0.4149, 0.4455, 0.4776, 0.5115, 0.5470, 0.5840, &
+!          0.6227, 0.6628, 0.7043, 0.7470, 0.7908, 0.8355, &
+!          0.8810, 0.9271, 0.9735, 1.0200, 1.0665, 1.1126, &
+!          1.1580, 1.2026, 1.2460, 1.2880, 1.3282, 1.3664, &
+!          1.4023, 1.4356, 1.4660, 1.4933, 1.5174, 1.5379, &
+!          1.5548, 1.5679, 1.5772, 1.5826, 1.5841, 1.5818, &
+!          1.5758, 1.5661, 1.5529, 1.5365, 1.5169, 1.4944, &
+!          1.4693, 1.4417, 1.4119, 1.3801, 1.3467, 1.3117, &
+!          1.2755, 1.2383, 1.2003, 1.1616, 1.1225, 1.0832, &
+!          1.0437, 1.0044, 0.9653, 0.9265, 0.8882, 0.8504, &
+!          0.8134, 0.7771, 0.7416, 0.7070, 0.6734, 0.6407, &
+!          0.6092, 0.5787, 0.5493, 0.5210, 0.4939, 0.4680, &
+!          0.4433, 0.4197, 0.3974, 0.3763, 0.3565, 0.3380, &
+!          0.3209, 0.3051, 0.2907, 0.2777, 0.2662, 0.2561, &
+!          0.2476, 0.2407, 0.2352, 0.2313, 0.2289, 0.2279, &
+!          0.2283, 0.2300, 0.2329, 0.2369, 0.2417, 0.2474, &
+!          0.2536, 0.2602, 0.2670, 0.2738, 0.2805, 0.2869, &
+!          0.2927, 0.2979, 0.3024, 0.3059, 0.3085, 0.3101, &
+!          0.3107, 0.3102, 0.3087, 0.3061, 0.3026, 0.2983, &
+!          0.2931, 0.2871, 0.2806, 0.2735, 0.2659, 0.2579, &
+!          0.2497, 0.2412, 0.2326, 0.2240, 0.2153, 0.2066, &
+!          0.1979, 0.1894, 0.1809, 0.1726, 0.1643, 0.1562, &
+!          0.1482, 0.1404, 0.1326, 0.1250, 0.1175, 0.1101, &
+!          0.1028, 0.0956, 0.0886, 0.0818, 0.0751, 0.0687 /)       
        real,    parameter :: NonBoreal(N) = &
        (/ 0.0121, 0.0150, 0.0172, 0.0185, 0.0189, 0.0184, &
           0.0174, 0.0162, 0.0151, 0.0141, 0.0133, 0.0126, &
@@ -1732,7 +1741,7 @@ END SUBROUTINE Chem_UtilExtractIntegers
        real,   save :: fDT=-1
 
        integer :: hh, mm, ss, ndt, i, j, k
-       integer :: i1, i2, j1, j2
+       integer :: i1, i2, j1, j2, NN                         ! UPDATE: add NN
        real :: secs, secs_local, aBoreal, aNonBoreal, alpha
 
 !                              -----
@@ -1742,11 +1751,15 @@ END SUBROUTINE Chem_UtilExtractIntegers
        if ( fDT /= cdt ) then
             fBoreal = 0.0
             fNonBoreal = 0.0
+            NN = 0                                          ! UPDATE
             ndt = max(1,nint(cdt/DT))
             do k = 1, N, ndt
+               NN = NN + 1                                  ! UPDATE
                fBoreal    = fboreal    + Boreal(k)
                fNonBoreal = fNonBoreal + NonBoreal(k)
             end do
+            fBoreal    = fBoreal / NN                       ! UPDATE
+            fnonBoreal = fnonBoreal / NN                    ! UPDATE
             fDT = cdt ! so it recalculates only if necessary
        end if
 
@@ -1755,11 +1768,13 @@ END SUBROUTINE Chem_UtilExtractIntegers
 !      ---------------------------------------------------
        hh = nhms/10000
        mm = (nhms - 10000*hh) / 100
-       ss = nhms - 10000*hh - 100*ss
+!      ss = nhms - 10000*hh - 100*ss                        ! UPDATE
+       ss = nhms - 10000*hh - 100*mm                        ! UPDATE
        secs = 3600.*hh + 60.*mm + ss
 
 !      Apply factors depending on latitude
 !      -----------------------------------
+!
        do i = lbound(Ein,1), ubound(Ein,1)
 
 !            Find corresponding index in hardwired diurnal cycle
@@ -1776,13 +1791,17 @@ END SUBROUTINE Chem_UtilExtractIntegers
              do j = lbound(Ein,2), ubound(Ein,2)
                 if ( lats(j) >= 50. ) then
                    Eout(i,j) = aBoreal    * Ein(i,j)
-                else if ( lats(j) >= 45. ) then
-                   alpha = (lats(j) - 45. ) / 5.
+!                else if ( lats(j) >= 45. ) then                    ! UPDATE
+!                   alpha = (lats(j) - 45. ) / 5.                   ! UPDATE
+                else if ( lats(j) >= 30. ) then
+                   alpha = (lats(j) - 30. ) / 20.
                    Eout(i,j) = (1-alpha) * aNonBoreal * Ein(i,j) + &
                                   alpha  * aBoreal    * Ein(i,j)
                 else                  
                    Eout(i,j) = aNonBoreal * Ein(i,j)
                 end if
+
+
           end do
        end do
 

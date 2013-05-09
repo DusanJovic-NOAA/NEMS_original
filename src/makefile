@@ -243,11 +243,7 @@ endif
 	cd atmos/nmm           && gmake stub
 	cd atmos/gen           && gmake stub
 	cd atmos/io            && gmake
-ifeq ($(GOCART_MODE),full)
-	cd $(gfsdir)           && gmake gocart_full
-else
-	cd $(gfsdir)           && gmake gocart_stub
-endif
+	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake stub
 	cd atmos               && gmake
@@ -275,11 +271,7 @@ endif
 	cd atmos/nmm           && gmake stub
 	cd atmos/gen           && gmake stub
 	cd atmos/io            && gmake
-ifeq ($(GOCART_MODE),full)
-	cd $(gfsdir)     && gmake gocart_full
-else
-	cd $(gfsdir)     && gmake gocart_stub
-endif
+	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake nmm_stub
 	cd atmos               && gmake
@@ -331,11 +323,7 @@ endif
 	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
 	cd atmos/nmm           && gmake
 	cd atmos/io            && gmake
-ifeq ($(GOCART_MODE),full)
-	cd $(gfsdir)     && gmake gocart_full
-else
-	cd $(gfsdir)     && gmake gocart_stub
-endif
+	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
 	cd atmos/gen           && gmake 
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake stub
@@ -363,11 +351,7 @@ endif
 	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
 	cd atmos/nmm           && gmake
 	cd atmos/io            && gmake
-ifeq ($(GOCART_MODE),full)
-	cd $(gfsdir)     && gmake gocart_full
-else
-	cd $(gfsdir)     && gmake gocart_stub
-endif
+	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
 	cd atmos/gen           && gmake
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake 
@@ -395,11 +379,7 @@ endif
 	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
 	cd atmos/nmm           && gmake
 	cd atmos/io            && gmake
-ifeq ($(GOCART_MODE),full)
-	cd $(gfsdir)     && gmake gocart_full
-else
-	cd $(gfsdir)     && gmake gocart_stub
-endif
+	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
 	cd atmos/fim           && gmake stub
 	cd atmos/gen           && gmake stub
 	cd atmos/post          && gmake stub
@@ -503,11 +483,7 @@ endif
 	cd atmos/nmm           && gmake stub
 	cd atmos/gen           && gmake stub
 	cd atmos/io            && gmake
-ifeq ($(GOCART_MODE),full)
-	cd $(gfsdir)     && gmake gocart_full
-else
-	cd $(gfsdir)     && gmake gocart_stub
-endif
+	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake stub
 	cd atmos               && gmake

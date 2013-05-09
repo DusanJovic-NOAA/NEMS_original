@@ -54,6 +54,8 @@
 ! !REVISION HISTORY:
 !
 !  16Sep2003 da Silva  First crack.
+!  13Mar2013 Lu        Add NEMS option
+
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -71,6 +73,7 @@
         real :: eBiofuel             ! Emission factor of Biofuel to BC aerosol
         real :: eBiomassBurning      ! Emission factor of Biomass Burning to BC
         integer :: nymd   ! date of last emissions/prodction
+        integer :: doing_scav        ! compute tracer scavenging for NEMS
         character(len=255) :: bb_srcfilen
         character(len=255) :: bf_srcfilen
         character(len=255) :: ebcant1_srcfilen
@@ -134,6 +137,7 @@ CONTAINS
    character(len=255) :: rcfilen = 'BC_GridComp.rc'
    integer :: ios, n
    integer :: i1, i2, im, j1, j2, jm, nbins, nbeg, nend, nbins_rc
+   integer :: idoing_scav  ! NEMS option to re-activate convective removal 
    integer :: nTimes, begTime, incSecs
    integer, allocatable :: ier(:)
    real, allocatable :: buffer(:,:)
@@ -283,6 +287,33 @@ CONTAINS
       call final_(50)
       return
    end if
+
+!                          -------
+!  NEMS Option to compute convective rainout/washout in GOCART
+!  ---------------
+
+   gcBC%doing_scav = 0     ! Default is to compute convective
+!                          ! rainout/washout in GFS physics
+#ifdef NEMS
+   call i90_label ( 'doing_scav:', ier(1) )
+   idoing_scav                 = i90_gint ( ier(2) )
+   gcBC%doing_scav             = idoing_scav
+   if ( any(ier(1:2) /= 0) ) then
+      call final_(50)
+      return
+   end if
+
+!  invoke the option to compute convective removal in GOCART
+!  set fscav (scav used in GFS RAS) to 0.
+   if ( gcBC%doing_scav == 1 ) then
+     do n = 1, nbins
+      w_c%reg%fscav(nbeg+n-1)   = 0.
+      w_c%qa(nbeg+n-1)%fscav    = 0.
+     end do
+   endif
+#endif
+
+
 !                          -------
 
 !  Check initial date of inventory emission/oxidant files
@@ -1324,7 +1355,11 @@ K_LOOP: do k = km, 1, -1
 
 !  Duration of rain: ls = model timestep, cv = 1800 s (<= cdt)
    Td_ls = cdt
+#ifdef NEMS
+   Td_cv = cdt
+#else
    Td_cv = 1800.
+#endif
 
 !  Accumulate the 3-dimensional arrays of rhoa and pdog
    pdog = w_c%delp/grav
@@ -1362,6 +1397,12 @@ K_LOOP: do k = km, 1, -1
      do k = LH, km
       qls(k) = -dqcond(i,j,k)*pls/pac*rhoa(i,j,k)
 !      qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
+#ifdef NEMS
+      if ( gcBC%doing_scav == 1 ) then
+      qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
+      endif
+#endif
+
      end do
 
 !    Loop over vertical to do the scavenging!

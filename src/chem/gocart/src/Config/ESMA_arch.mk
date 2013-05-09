@@ -28,7 +28,7 @@
 # 27Nov2012  Lu        Add zeus interface
 # 04Dec2012  Lu        Remove un-used flags and options
 # 06Dec2012  Lu        Add wcoss interface
-#
+# 07May2013  Lu        Revise zeus and wcoss interface
 #
 #--------------------------------------------------------------------------
 
@@ -648,19 +648,32 @@ echo SITE= ${SITE}
   endif
 
   ifeq (${SITE},zeus)
+     ESMF_ROOT = /apps/esmf/3.1.0rp5/intel/mpt
+     include $(ESMF_ROOT)/lib/libO/Linux.intel.64.mpi.default/esmf.mk
      DIR_NETCDF = /apps/netcdf/3.6.3/intel
-     DIR_ESMF   =  /apps/esmf/3.1.0rp5/intel/mpt
-     BASEDIR    = /usr/local# not really used
+     DIR_ESMF   = ${ESMF_DIR}
      DEF_SDF =
      ESMA_SDF = netcdf
      INC_NETCDF = $(DIR_NETCDF)/include
      LIB_NETCDF = $(DIR_NETCDF)/lib/libnetcdf.a
      INC_SDF = $(INC_NETCDF)
      LIB_SDF = $(LIB_NETCDF)
-     INC_ESMF = $(DIR_ESMF)/src/include $(DIR_ESMF)/mod/modO/Linux.intel.64.mpi.default/
-     LIB_ESMF  = $(DIR_ESMF)/lib/libO/Linux.intel.64.mpi.default/libesmf.a
-     INC_MPI =  /opt/sgi/mpt/mpt-2.05/include
-     LIB_MPI = -lmpi
+     INC_ESMF =  $(ESMF_ROOT)/include $(ESMF_ROOT)/mod/modO/Linux.intel.64.mpi.default
+     LIB_ESMF =  $(ESMF_ROOT)/lib/libO/Linux.intel.64.mpi.default/libesmf.a
+     INC_MPI =  ${MPI_ROOT}/include
+
+     EXTENDED_SOURCE = -extend_source
+     FC := ifort
+     FOPT := -O0 -g -traceback  -debug ${EXTENDED_SOURCE}
+     FPE := -fp-model precise
+     BIG_ENDIAN =-convert big_endian
+     BYTERECLEN =-assume byterecl
+     FREAL8 = -r8
+     ESMA_REAL=$(FREAL8)
+     FDEFS += $(D)MAPL_IMPORT_HAS_PRECISION $(D)MAPL_EXPORT_HAS_PRECISION
+     FREE_SOURCE = -free
+     FIXED_SOURCE = -fixed
+     ACG_FLAGS += -P # enforce native precision in specs
   endif
 
   ifeq ($(SITE),wcoss)
@@ -676,8 +689,19 @@ echo SITE= ${SITE}
      INC_ESMF = $(DIR_ESMF)/include $(DIR_ESMF)/mod/modO/Linux.intel.64.intelmpi.default/
      LIB_ESMF  = $(DIR_ESMF)/lib/libO/Linux.intel.64.intelmpi.default/libesmf.a
      INC_MPI = /usrx/local/intel/impi/4.0.3.008/include
+
      EXTENDED_SOURCE = -extend_source
-     FC := mpiifort ${EXTENDED_SOURCE}
+     FC := mpiifort
+     FOPT := -O0 -g -traceback  -debug ${EXTENDED_SOURCE}
+     FPE := -fp-model precise
+     BIG_ENDIAN =-convert big_endian
+     BYTERECLEN =-assume byterecl
+     FREAL8 = -r8
+     ESMA_REAL=$(FREAL8)
+     FDEFS += $(D)MAPL_IMPORT_HAS_PRECISION $(D)MAPL_EXPORT_HAS_PRECISION
+     FREE_SOURCE = -free
+     FIXED_SOURCE = -fixed
+     ACG_FLAGS += -P # enforce native precision in specs
   endif
 
 

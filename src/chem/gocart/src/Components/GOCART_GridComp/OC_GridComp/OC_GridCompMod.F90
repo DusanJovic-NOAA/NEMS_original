@@ -56,6 +56,9 @@
 ! !REVISION HISTORY:
 !
 !  16Sep2003 da Silva  First crack.
+!  13Mar2013 Lu        Add NEMS option
+!
+
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -68,6 +71,7 @@
         character(len=255) :: regionsString   ! Comma-delimited string of regions
 
         integer :: instance                   ! instance number
+        integer :: doing_scav                 ! compute tracer scavenging for NEMS
 
         type(Chem_Mie), pointer :: mie_tables     ! aod LUTs
         real, pointer :: biofuel_src(:,:)
@@ -429,6 +433,7 @@ CONTAINS
    integer :: nymd1, nhms1, j
    integer :: nTimes, begTime, incSecs
    integer, allocatable :: ier(:)
+   integer :: idoing_scav  ! NEMS option to re-activate convective removal
    real, allocatable :: buffer(:,:)
    real :: qmax, qmin
    LOGICAL :: NoRegionalConstraint 
@@ -615,6 +620,34 @@ CONTAINS
       call final_(50)
       return
    end if
+
+!                          -------
+!  NEMS Option to compute convective rainout/washout in GOCART
+!  ---------------
+
+   gcOC%doing_scav = 0     ! Default is to compute convective
+!                          ! rainout/washout in GFS physics
+#ifdef NEMS
+   call i90_label ( 'doing_scav:', ier(1) )
+   idoing_scav                 = i90_gint ( ier(2) )
+   gcOC%doing_scav             = idoing_scav
+   if ( any(ier(1:2) /= 0) ) then
+      call final_(50)
+      return
+   end if
+
+!  invoke the option to compute convective removal in GOCART
+!  set fscav (scav used in GFS RAS) to 0.
+   if (  gcOC%doing_scav == 1 ) then
+     do n = 1, nbins
+      w_c%reg%fscav(nbeg+n-1) = 0.
+      w_c%qa(nbeg+n-1)%fscav  = 0.
+     end do
+   endif
+
+
+#endif
+
 !                          -------
 
 !  Check initial date of inventory emission/oxidant files
@@ -1802,7 +1835,11 @@ K_LOOP: do k = km, 1, -1
 
 !  Duration of rain: ls = model timestep, cv = 1800 s (<= cdt)
    Td_ls = cdt
+#ifdef NEMS
+   Td_cv = cdt
+#else
    Td_cv = 1800.
+#endif
 
 !  Accumulate the 3-dimensional arrays of rhoa and pdog
    pdog = w_c%delp/grav
@@ -1840,6 +1877,12 @@ K_LOOP: do k = km, 1, -1
      do k = LH, km
       qls(k) = -dqcond(i,j,k)*pls/pac*rhoa(i,j,k)
 !      qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
+#ifdef NEMS
+      if ( gcOC%doing_scav == 1 ) then
+      qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
+      endif
+#endif
+
      end do
 
 !    Loop over vertical to do the scavenging!

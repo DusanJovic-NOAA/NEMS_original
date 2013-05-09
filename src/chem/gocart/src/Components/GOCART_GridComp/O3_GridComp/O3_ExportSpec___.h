@@ -15,6 +15,7 @@
         UNITS              = 'kg/kg', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        PRECISION          = KIND(0.0),&
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -25,6 +26,7 @@
         UNITS              = 'ppmv', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        PRECISION          = KIND(0.0),&
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -35,6 +37,7 @@
         UNITS              = 'Dobsons', &
         DIMS               = MAPL_DimsHorzOnly,    &
         VLOCATION          = MAPL_VLocationNone,    &
+        PRECISION          = KIND(0.0),&
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -45,6 +48,7 @@
         UNITS              = 'Dobsons', &
         DIMS               = MAPL_DimsHorzOnly,    &
         VLOCATION          = MAPL_VLocationNone,    &
+        PRECISION          = KIND(0.0),&
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 

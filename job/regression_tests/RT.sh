@@ -23,11 +23,11 @@ else
 fi
 
   if [ $argn = 0 ]; then
-    tmp.sh
+    ./tmp.sh
   elif [ $argn = 1 ]; then
-    tmp.sh $1
+    ./tmp.sh $1
   elif [ $argn = 2 ]; then
-    tmp.sh $1 $2
+    ./tmp.sh $1 $2
   fi
 
   rm -f tmp.sh gfs_fcst_run.IN

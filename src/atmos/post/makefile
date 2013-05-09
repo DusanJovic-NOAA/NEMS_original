@@ -33,13 +33,13 @@ nmm_stub: $(MODULES_NMM_STUB)
 	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_NMM_STUB)
 	
 $(MODULE): %.o: %.f
-	$(FC) $(FFLAGS) $(TRAPS) $(UTILINCSPOST) -c $*.f
+	$(FC) $(FFLAGS_GFS) $(TRAPS) $(UTILINCSPOST) -c $*.f
 
 $(MODULE_GFS_STUB): %.o: %.f
 	$(FC) $(FFLAGS) $(TRAPS) $(UTILINCSPOSTNMM) -c $*.f
 
 $(MODULE_NMM_STUB): %.o: %.f
-	$(FC) $(FFLAGS) $(TRAPS) $(UTILINCSPOSTGFS) -c $*.f
+	$(FC) $(FFLAGS_GFS) $(TRAPS) $(UTILINCSPOSTGFS) -c $*.f
 
 $(MODULES_STUB): %.o: %.f
 	$(FC) $(FFLAGS) $(UTILINCSPOSTSTUB) -c $*.f

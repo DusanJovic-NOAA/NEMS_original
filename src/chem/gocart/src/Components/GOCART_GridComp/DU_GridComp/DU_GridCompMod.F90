@@ -316,7 +316,7 @@ CONTAINS
 
 !  invoke the option to compute convective removal in GOCART
 !  set fscav (scav used in GFS RAS) to 0.    
-   if ( idoing_scav == 1 ) then
+   if ( gcDU%doing_scav == 1 ) then
      do n = 1, nbins
       w_c%reg%fscav(n1+n-1)   = 0.
       w_c%qa(n1+n-1)%fscav    = 0.

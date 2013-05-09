@@ -5,6 +5,7 @@
 #
 # 3mar2004  Zaslavsky  Initial imlementation.
 # 20oct2004  da Silva  Standardization.
+# 14Mar2013  Lu        Add NEMS option
 #
 
 # Make sure ESMADIR is defined
@@ -18,6 +19,8 @@ endif
   include $(ESMADIR)/Config/ESMA_base.mk  # Generic stuff
   include $(ESMADIR)/Config/ESMA_arch.mk  # System dependencies
   include $(ESMADIR)/Config/GMAO_base.mk  # GMAO stuff
+  include $(ESMADIR)/Config/NCEP_base.mk  # NCEP stuff
+
 
 #                  ---------------------
 #                  Standard ESMA Targets
@@ -64,6 +67,10 @@ ifeq ($(DOING_GEOS5),TRUE)
   DGEOS5 = $(D)GEOS5
 endif
 
+ifeq ($(DOING_NEMS),TRUE)
+  DNEMS = $(D)NEMS
+endif
+
 SPMD = $(D)SPMD
 DEBUG = $(D)DEBUG
 
@@ -77,7 +84,8 @@ MOD_DIRS = . $(INC_ESMF) $(INC_MPEU) $(INC_PILGRIM) \
              $(INC_DIRS) $(INC_GEOS_SHARED) \
              $(INC_CHEM_BASE) $(INC_CHEM_SHARED) $(INC_CHEM) 
 
-USER_FDEFS  = $(DGEOS5) $(DEBUG)
+##USER_FDEFS  = $(DGEOS5) $(DEBUG)
+USER_FDEFS  = $(DGEOS5) $(DEBUG) ${DNEMS}
 USER_FFLAGS = $(BIG_ENDIAN) 
 USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
 USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir)) 

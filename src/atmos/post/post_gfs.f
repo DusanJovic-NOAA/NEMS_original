@@ -9,6 +9,10 @@
 !     Jun 2010    J. Wang      Initial code
 !     Jan 2012    J. Wang      Add aerosol fields
 !     Feb 2012    J. Wang      setvar_aerfile is reset after post
+!     Jan 2013    Sarah Lu     EL_MYJ changed to EL_PBL to be consistent
+!                              with nceppost upgrade
+!     Jan30 2013    Sarah Lu   Add mrshltr, snonc, u10h, v10h, epsr,
+!                              mdltaux, mdltauy
 !
 !-----------------------------------------------------------------------
 !*** run post on quilt
@@ -476,7 +480,8 @@
 ! GFS does not have sst????
       sst=spval
 ! GFS does not have mixing length
-      el_myj=spval
+!     el_myj=spval
+      el_pbl=spval
 
 ! GFS does not output exchange coefficient
       exch_h=spval

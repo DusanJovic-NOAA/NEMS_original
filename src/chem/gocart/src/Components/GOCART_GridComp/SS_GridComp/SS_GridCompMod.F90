@@ -54,6 +54,7 @@
 ! !REVISION HISTORY:
 !
 !  16Sep2003 da Silva  First crack.
+!  13Mar2013 Lu        Add NEMS option
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -66,6 +67,7 @@
         real, pointer :: rLow(:)        ! lower radius of particle bin [um]
         real, pointer :: rUp(:)         ! upper radius of particle bin [um]
         real, pointer :: rhop(:)        ! dry salt particle density [kg m-3]
+        integer       :: doing_scav     ! compute tracer scavenging for NEMS
   end type SS_GridComp
 
   real, parameter :: OCEAN=0.0, LAND = 1.0, SEA_ICE = 2.0
@@ -124,6 +126,7 @@ CONTAINS
    real :: qmin, qmax
    real :: radius, rlow, rup, rmrat, rmin, rhop, fscav
    integer :: irhFlag
+   integer :: idoing_scav  ! NEMS option to re-activate convective removal 
    character(len=255) :: CARMA_Services = ' '
 
 
@@ -250,6 +253,32 @@ CONTAINS
       call final_(50)
       return
    end if
+
+!                          -------
+!  Option to compute convective rainout/washout in GOCART
+!  ---------------
+
+   gcSS%doing_scav = 0     ! Default is to compute convective
+!                          ! rainout/washout in GFS physics
+#ifdef NEMS
+   call i90_label ( 'doing_scav:', ier(1) )
+   idoing_scav                 = i90_gint ( ier(2) )
+   gcSS%doing_scav             = idoing_scav
+   if ( any(ier(1:2) /= 0) ) then
+      call final_(50)
+      return
+   end if
+
+!  invoke the option to compute convective removal in GOCART
+!  set fscav (scav used in GFS RAS) to 0.
+   if ( gcSS%doing_scav == 1 ) then
+     do n = 1, nbins
+      w_c%reg%fscav(n1+n-1)   = 0.
+      w_c%qa(n1+n-1)%fscav    = 0.
+     end do
+   endif
+#endif
+
 !                          -------
 
 !  Particle affected by relative humidity?
@@ -776,8 +805,10 @@ CONTAINS
 
 !  Seasalt Source
 !  -----------
+!   call SS_Emission ( i1, i2, j1, j2, km, nbins, cdt, gcSS, w_c, &
+!                      oro, u10m, v10m, SS_emis, rc )
    call SS_Emission ( i1, i2, j1, j2, km, nbins, cdt, gcSS, w_c, &
-                      oro, u10m, v10m, SS_emis, rc )
+                      oro, u10m, v10m, tmpu, SS_emis, rc )
 
 #ifdef DEBUG
    do n = nbeg, nend
@@ -870,8 +901,10 @@ CONTAINS
 ! !INTERFACE:
 !
 
+!   subroutine SS_Emission ( i1, i2, j1, j2, km, nbins, cdt, gcSS, w_c, &
+!                            oro, u10m, v10m, SS_emis, rc )
    subroutine SS_Emission ( i1, i2, j1, j2, km, nbins, cdt, gcSS, w_c, &
-                            oro, u10m, v10m, SS_emis, rc )
+                            oro, u10m, v10m, tmpu, SS_emis, rc )
 
 ! !USES:
 
@@ -883,6 +916,7 @@ CONTAINS
    real, intent(in)    :: cdt
    type(SS_GridComp), intent(in)    :: gcSS       ! SS Grid Component
    real, pointer, dimension(:,:) :: oro, u10m, v10m
+   real, pointer, dimension(:,:,:) :: tmpu    ! temperature [K]
 
 ! !OUTPUT PARAMETERS:
 
@@ -920,6 +954,7 @@ CONTAINS
 !
 ! !REVISION HISTORY:
 !
+!  19Apr2013, Sarah Lu, add GEOS-Chem upgrade
 !  06Nov2003, Colarco
 !  Based on Ginoux
 !
@@ -940,6 +975,8 @@ CONTAINS
    real            ::  w10m, src, src2
    real            ::  rDry, aFac, bFac
    real :: qmax, qmin
+   real :: sst, wgt                     ! temp adj (Jaegle et al., 2011)
+
 
 
 !  Initialize local variables
@@ -1000,7 +1037,20 @@ CONTAINS
       if ( oro(i,j) /= OCEAN ) cycle ! only over OCEAN gridpoints
 
       w10m = sqrt(u10m(i,j)**2.+v10m(i,j)**2.)
+
+!! 
+! Based on a comparison of GEOS-Chem sea salt simulation with coarse mode 
+! sea salt mass concentration observations obtained on 6 PMEL cruises, a 
+! new SST dependent source function was derived (Jaegle et al., 2011):
+      sst = tmpu(i,j,km) - 273.15
+      sst = min (30., max(sst, 0.))
+      wgt = 0.3 + 0.1*sst - 0.0076*sst*sst + 0.00021*sst*sst*sst
+      wgt = min (1.0, wgt)
+#ifdef NEMS
+      emis(i,j) = wgt*src*w10m**3.41               
+#else
       emis(i,j) = src*w10m**3.41
+#endif
       w_c%qa(nbeg+n-1)%data3d(i,j,km) = &
             w_c%qa(nbeg+n-1)%data3d(i,j,km) + emis(i,j)*cdt*grav/w_c%delp(i,j,km)
      end do   ! i
@@ -1109,7 +1159,11 @@ CONTAINS
 
 !  Duration of rain: ls = model timestep, cv = 1800 s (<= cdt)
    Td_ls = cdt
+#ifdef NEMS
+   Td_cv = cdt
+#else
    Td_cv = 1800.
+#endif
 
 !  Accumulate the 3-dimensional arrays of rhoa and pdog
    pdog = w_c%delp/grav
@@ -1147,6 +1201,11 @@ CONTAINS
      do k = LH, km
       qls(k) = -dqcond(i,j,k)*pls/pac*rhoa(i,j,k)
 !      qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
+#ifdef NEMS
+      if ( gcSS%doing_scav == 1 ) then
+      qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
+      endif
+#endif
      end do
 
 !    Loop over vertical to do the scavenging!
