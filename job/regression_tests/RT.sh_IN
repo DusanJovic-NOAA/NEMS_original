@@ -1135,6 +1135,36 @@ else
 
  fi # endif test
 
+ ###############################################################################
+ #
+ # TEST   - NMM-B using RRTM radiation
+ #        - 2 threads / test physics / free fcst / pure binary input
+ #
+ ###############################################################################
+
+ if [ $RT_FULL = true ]; then
+
+  export TEST_DESCR="Test NMMB-regional/RRTM threading"
+
+#---------------------
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_rrtm_THREAD
+  export CNTL_DIR=NMMB_rrtm_nests
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
+  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+  nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
+#---------------------
+  export_nmm
+  export RADTN=rrtm        ; export THRD=2            ; export FCSTL=24
+  export TASKS=$TASKS_thrd ; export TPN=$TPN_thrd
+  export INPES=$INPES_thrd ; export JNPES=$JNPES_thrd ; export WTPG=$WTPG_thrd
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
 
  ###############################################################################
  #
@@ -1733,8 +1763,8 @@ else
  #
  ###############################################################################
 
- if [ $MACHINE_ID = ccs ]; then
-  if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $B_arg = all ] ; then
+ if [ $MACHINE_ID = ccsx ]; then
+  if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
    export TEST_DESCR="GFS, 16tasks, 2threads, quilt, dfi3hr, reduced grid, NDSL"
 
@@ -1797,8 +1827,7 @@ else
 #  if [ $NEMSIOIN = .true. ] ; then
 #   export IDVC=3      ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2
 #   export SPECTRALLOOP=1
-##   export IC_DIR=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_H
-YB/
+#   export IC_DIR=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST/GFS_DFI_REDUCEDGRID_HYB/
 #  fi
 #---------------------
    ./rt_gfs.sh

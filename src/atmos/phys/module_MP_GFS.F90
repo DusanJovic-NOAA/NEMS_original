@@ -3,6 +3,10 @@
 !-----------------------------------------------------------------------------
 !
 !    12-10-2010   Created by Weiguo Wang
+!-- 7 May 2013 changes:
+!   1) rh00=0.95 rather than 0.85 (critical threshold for the onset of condensation)
+!   2) Update SR (snow ratio) array from the GFS microphysics and pass to the rest of the model
+!
        USE MACHINE , ONLY : kind_phys
        USE FUNCPHYS , ONLY : gpvs, fpvs
        IMPLICIT NONE
@@ -53,7 +57,7 @@
 !     LOCAL VARS
 !-----------------------------------------------------------------------
 
-       REAL(kind=kind_phys), PARAMETER    :: rh00 = 0.850
+       REAL(kind=kind_phys), PARAMETER    :: rh00 = 0.950  ! was 0.850
 ! Zhao scheme default opr value
 
        REAL(kind=kind_phys) psautco, prautco, evpco, wminco(2)
@@ -78,7 +82,7 @@
        Integer, parameter :: IX=1, IM=1, ipr=1
        REAL(kind=kind_phys), DIMENSION(IX,KTE) :: PRSL, Q_COL, CWM_COL,T_COL, RHC, DELP &
                                  ,TP1_COL,QP1_COL,TP2_COL,QP2_COL
-       REAL(kind=kind_phys), DIMENSION(IX) :: PS ,rain1, psp1_1,psp2_1
+       REAL(kind=kind_phys), DIMENSION(IX) :: PS ,rain1, psp1_1,psp2_1, sratio
        REAL(kind=kind_phys) :: dtp,frain,fice
        INTEGER, dimension(ix,kte) :: IW            !! ice flag
        logical lprnt
@@ -140,8 +144,8 @@
 !.......................................................................
 !$omp parallel do                &
 !$omp     private(j,i,k,kflip,delp,prsl,q_col,cwm_col,t_col,tp1_col, &
-!$omp             qp1_col,tp2_col,qp2_col,psp1_1,psp2_1,iw,ps,rain1,fice &
-!$omp             )
+!$omp             qp1_col,tp2_col,qp2_col,psp1_1,psp2_1,iw,ps,rain1, &
+!$omp             fice,sratio)
 !.......................................................................
        DO J=JTS,JTE    
         DO I=ITS,ITE  
@@ -178,6 +182,7 @@
 
             PS(IX) = DELP(IX,1)*0.5+PRSL(IX,1)
             rain1(ix) = 0.0
+            sratio(ix) = 0.0
 
                IF(DIAG .and. i == 10 .and. j == 10 ) THEN
                   write(0,*)'before calling MICRO'
@@ -198,8 +203,8 @@
                        TP1_COL, QP1_COL,  PSP1_1,                     &
                        TP2_COL, QP2_COL,  PSP2_1,                     &
                        rhc,lprnt, ipr)
-           call precpd(im, ix, KM, dtp, delp, prsl, ps,                 &
-                       Q_COL, CWM_COL, T_COL, rain1,                    &
+           call precpd_nmmb(im, ix, KM, dtp, delp, prsl, ps,           &
+                       Q_COL, CWM_COL, T_COL, rain1, sratio,           &
                        rainp, rhc, psautco, prautco, evpco, wminco,    &
                        lprnt, ipr)
  300      continue 
@@ -251,6 +256,7 @@
         APREC(I,J)=rain1(1)*frain       ! Accumulated surface precip (depth in m)  !<--- Ying
         PREC(I,J)=PREC(I,J)+APREC(I,J)
         ACPREC(I,J)=ACPREC(I,J)+APREC(I,J)
+        SR(I,J)=sratio(ix)
     !    IF(APREC(I,J) .LT. 1.E-8) THEN
     !      SR(I,J)=0.
     !    ELSE

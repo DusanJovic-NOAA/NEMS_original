@@ -25,7 +25,14 @@ MODULES_NMM_SMP  = module_BL_MYJPBL.o \
                    module_SF_JSFC.o
 
 MODULES_NMM_RRTM = grrad_nmmb.o              \
-                   radiation_astronomy_nmmb.o
+                   radiation_astronomy_nmmb.o\
+                   radiation_aerosols_nmmb.o \
+                   radiation_gases_nmmb.o    \
+                   radiation_clouds_nmmb.o   \
+                   radiation_surface_nmmb.o  \
+                   rad_initialize.o          \
+                   precpd_nmmb.o             \
+                   physpara_nmmb.o
 
 MODULE_FGFS =                                \
 	           num_parthds.o

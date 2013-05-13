@@ -1962,6 +1962,33 @@ integer(kind=kint):: &
 !***  Read from restart file: Real 3D arrays
 !-----------------------------------------------------------------------
         call mpi_barrier(mpi_comm_comp,irtn)
+!-----------------------------------------------------------------------
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+          do j=jms,jme
+          do i=ims,ime
+            int_state%Told(i,j,l)=0.
+          enddo
+          enddo
+          call dstrb(temp1,int_state%Told,1,1,1,lm,l,mype,mpi_comm_comp)
+        enddo
+        call halo_exch(int_state%Told,lm,2,2)
+!-----------------------------------------------------------------------
+        do l=1,lm
+          if(mype==0)then
+            read(nfcst)temp1
+          endif
+          do j=jms,jme
+          do i=ims,ime
+            int_state%Tadj(i,j,l)=0.
+          enddo
+          enddo
+          call dstrb(temp1,int_state%Tadj,1,1,1,lm,l,mype,mpi_comm_comp)
+        enddo
+        call halo_exch(int_state%Tadj,lm,2,2)
+!-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
             read(nfcst)temp1 ! cldfra

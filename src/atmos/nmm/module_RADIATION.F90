@@ -21,6 +21,10 @@
       USE MODULE_DM_PARALLEL,ONLY : LOOPLIMITS
 !
       USE MODULE_CONTROL,ONLY : NMMB_FINALIZE
+
+      use module_nmmb_radiation_driver,  only : radupdate
+      use machine, only : kind_phys
+
 !
 !-----------------------------------------------------------------------
 !
@@ -194,6 +198,8 @@
 !
       REAL :: DAYI,GMT,HOUR,PDSL,PLYR,RADT,TIMES,TDUM
 !
+      real (kind=kind_phys) :: SLAG, SDEC, CDEC, SOLCON, DTSW, DTX
+!
       REAL,DIMENSION(1:LM) :: QL
 !
       REAL,DIMENSION(IMS:IME,JMS:JME) :: GSW                            &
@@ -207,7 +213,7 @@
                                              ,THRATEN,THRATENLW         &
                                              ,THRATENSW
 !
-      LOGICAL :: GFDL_LW,GFDL_SW
+      LOGICAL :: GFDL_LW, GFDL_SW, LSSWR
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -355,7 +361,7 @@
           WRITE(0,*)' Improper selection of SW scheme in RADIATION'
           CALL NMMB_FINALIZE
       END SELECT
-!
+
       SELECT CASE (TRIM(LONGWAVE))
         CASE ('gfdl')
           LW_PHYSICS=99
@@ -366,6 +372,30 @@
           WRITE(0,*)' Improper selection of LW scheme in RADIATION'
           CALL NMMB_FINALIZE
       END SELECT
+
+
+!==========================================================================
+! Put "call radupdate" here for threading safe
+!==========================================================================
+!---- for forcast purpose IDAT=JDAT
+
+       DTSW =FLOAT(NRADS*DT_INT)         ! [s]
+       LSSWR=MOD(ITIMESTEP,NRADS)==0
+
+      IF (SW_PHYSICS .EQ. 3 .or. LW_PHYSICS .EQ. 3) THEN
+         DTX =DT
+         call radupdate                                               &
+!  ---   inputs:
+     &      ( JDAT, JDAT, DTSW, DTX, LSSWR, MYPE,                     &
+!  ---   outputs:
+     &        SLAG, SDEC, CDEC, SOLCON                                &
+     &      )
+      ENDIF
+
+!==========================================================================
+!==========================================================================
+
+
 !
 !-----------------------------------------------------------------------
 !     CALL RADIATION_DRIVER
@@ -470,8 +500,10 @@
                    ,HTOP,HBOT                                       &
                    ,TSKIN,Z0,SICE,F_RIMEF,MXSNAL,SGM,STDH,OMGALF    &
                    ,IMS,IME,JMS,JME                                 &
-                   ,ITS,ITE,JTS,JTE                                 &
+                !   ,ITS,ITE,JTS,JTE                                 &
+                   ,ITS,ITE,jqs,jqe                                 &
                    ,LM                                              &
+                   ,SOLCON                                          &
                    ,MYPE )
 
         CASE (GFDLLWSCHEME)

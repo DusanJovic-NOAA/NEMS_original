@@ -2832,6 +2832,48 @@ integer,allocatable       :: reclev(:)
 !
         DO J=JMS,JME
         DO I=IMS,IME
+          int_state%Told(I,J,K)=0.
+        ENDDO
+        ENDDO
+        call getrecn(recname,reclevtyp,reclev,nrec,'told','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%Told(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+!
+      ENDDO
+!-----------------------------------------------------------------------
+!
+      DO K=1,LM
+!
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%Tadj(I,J,K)=0.
+        ENDDO
+        ENDDO
+        call getrecn(recname,reclevtyp,reclev,nrec,'tadj','mid layer',k,recn)
+        if(recn>0) then
+          fldst=(recn-1)*fldsize
+          do j=jts,jte
+            js=(j-jts)*(ite-its+1)
+            do i=its,ite
+              int_state%Tadj(i,j,k)=tmp(i-its+1+js+fldst)
+            enddo
+          enddo
+        endif
+!
+      ENDDO
+!-----------------------------------------------------------------------
+!
+      DO K=1,LM
+!
+        DO J=JMS,JME
+        DO I=IMS,IME
           int_state%CLDFRA(I,J,K)=0.
         ENDDO
         ENDDO

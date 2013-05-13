@@ -64,7 +64,7 @@
                                  ,P608,PQ0,R_D,TIW
 !
       USE MODULE_DIAGNOSE,ONLY : EXIT,FIELD_STATS                       &
-                                ,MAX_FIELDS,MAX_FIELDS_HR               &
+                                ,MAX_FIELDS,MAX_FIELDS_HR,MAX_FIELDS_W6 &
                                 ,TWR,VWR,WRT_PCP
 !
       USE MODULE_OUTPUT,ONLY: POINT_OUTPUT
@@ -961,6 +961,8 @@
         DO L=1,LM
         DO J=JMS,JME
         DO I=IMS,IME
+          int_state%Told(I,J,L)=0.
+          int_state%Tadj(I,J,L)=0.
           int_state%F_ICE(I,J,L)=0.
           int_state%F_RAIN(I,J,L)=0.
           int_state%F_RIMEF(I,J,L)=0.
@@ -1191,6 +1193,8 @@
         DO L=1,LM
         DO J=JMS,JME
         DO I=IMS,IME
+          int_state%Told(I,J,L)=0.
+          int_state%Tadj(I,J,L)=0.
           int_state%F_ICE(I,J,L)=0.
           int_state%F_RAIN(I,J,L)=0.
           int_state%F_RIMEF(I,J,L)=0.
@@ -2591,7 +2595,7 @@
       INTEGER(kind=KINT) :: DFIHR,I,IER,INPES,IRTN,ISTAT,J,JNPES        &
                            ,K,KFLIP,KS,KSE1,L,N,NSTEPS_HISTORY          &
                            ,NTIMESTEP,NTIMESTEP_BC,NTIMESTEP_RAD        &
-                           ,RC                                          &
+                           ,RC,ICLTEND                                  &
                            ,WRITE_BC_FLAG,WRITE_BC_FLAG_NEST
 !
       INTEGER(kind=KINT) :: FILTER_METHOD,FILTER_METHOD_LAST            &
@@ -5453,6 +5457,42 @@
                             ,ITS_B1,ITE_B1,JTS_B1,JTE_B1                 &
                             ,LM,int_state%NCOUNT,int_state%FIRST_NMM)
 !
+       ELSEIF (TRIM(int_state%MICROPHYSICS) == 'wsm6') THEN
+!
+         CALL MAX_FIELDS_W6(int_state%T,int_state%Q,int_state%U         &
+                           ,int_state%V,int_state%Z,int_state%W_TOT     &
+                           ,int_state%WATER                             &
+                           ,int_state%PINT,int_state%PD                 &
+                           ,int_state%CPRATE,int_state%HTOP             &
+                           ,int_state%T2,int_state%U10,int_state%V10    &
+                           ,int_state%PSHLTR,int_state%TSHLTR           &
+                           ,int_state%QSHLTR                            &
+                           ,int_state%SGML2,int_state%PSGML1            &
+                           ,int_state%REFDMAX                           &
+                           ,int_state%UPVVELMAX,int_state%DNVVELMAX     &
+                           ,int_state%TLMAX,int_state%TLMIN             &
+                           ,int_state%T02MAX,int_state%T02MIN           &
+                           ,int_state%RH02MAX,int_state%RH02MIN         &
+                           ,int_state%U10MAX,int_state%V10MAX           &
+                           ,int_state%TH10,int_state%T10                &
+                           ,int_state%SPD10MAX,int_state%T10AVG         &
+                           ,int_state%PSFCAVG                           &
+                           ,int_state%AKHS,int_state%AKMS               &
+                           ,int_state%AKHSAVG,int_state%AKMSAVG         &
+                           ,int_state%SNO,int_state%SNOAVG              &
+                           ,int_state%UPHLMAX                           &
+                           ,int_state%DT,int_state%NPHS,int_state%NTSD  &
+                           ,int_state%DXH,int_state%DYH                 &
+                           ,int_state%FIS                               &
+                           ,int_state%P_QR,int_state%P_QS               &
+                           ,int_state%P_QG                              &
+                           ,ITS,ITE,JTS,JTE                             &
+                           ,IMS,IME,JMS,JME                             &
+                           ,IDE,JDE                                     &
+                           ,ITS_B1,ITE_B1,JTS_B1,JTE_B1                 &
+                           ,LM,int_state%NUM_WATER                      &
+                           ,int_state%NCOUNT,int_state%FIRST_NMM)
+!
         ENDIF
 !
       ENDIF
@@ -5972,6 +6012,19 @@
         ENDIF    !-- IF(MOD(NTSD_BUCKET,NHEAT)==0)THEN
 !
 !-----------------------------------------------------------------------
+!***  1 of 3 calls to CLTEND, save Told array before convection & microphysics
+!-----------------------------------------------------------------------
+!
+        cld_tend: IF(CALL_PRECIP)THEN
+            ICLTEND=-1
+            CALL CLTEND(ICLTEND,int_state%NPRECIP,int_state%T           &
+                       ,int_state%Told,int_state%Tadj                   &
+                       ,IDS,IDE,JDS,JDE,LM                              &
+                       ,IMS,IME,JMS,JME                                 &
+                       ,ITS,ITE,JTS,JTE)
+         ENDIF cld_tend
+!
+!-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  Convection
 !-----------------------------------------------------------------------
@@ -6154,6 +6207,17 @@
           td%gsmdrive_tim=td%gsmdrive_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
+!***  2 of 3 calls to CLTEND, calculate Tadj and replace T with Told
+!-----------------------------------------------------------------------
+!
+          ICLTEND=0
+          CALL CLTEND(ICLTEND,int_state%NPRECIP,int_state%T             &
+                     ,int_state%Told,int_state%Tadj                     &
+                     ,IDS,IDE,JDS,JDE,LM                                &
+                     ,IMS,IME,JMS,JME                                   &
+                     ,ITS,ITE,JTS,JTE)
+!
+!-----------------------------------------------------------------------
 !***  Precipitation Assimilation
 !-----------------------------------------------------------------------
 !
@@ -6197,9 +6261,11 @@
           IF(int_state%GLOBAL)THEN
             btim=timef()
 !
-            CALL SWAPHN(int_state%T,IMS,IME,JMS,JME,LM,int_state%INPES)
-            CALL POLEHN(int_state%T,IMS,IME,JMS,JME,LM                  &
-                       ,int_state%INPES,int_state%JNPES)
+!bsf: Apply these after last (3rd) call to CLTEND below
+!
+!            CALL SWAPHN(int_state%T,IMS,IME,JMS,JME,LM,int_state%INPES)
+!            CALL POLEHN(int_state%T,IMS,IME,JMS,JME,LM                  &
+!                       ,int_state%INPES,int_state%JNPES)
 !
             CALL SWAPHN(int_state%Q,IMS,IME,JMS,JME,LM,int_state%INPES)
             CALL POLEHN(int_state%Q,IMS,IME,JMS,JME,LM                  &
@@ -6227,6 +6293,28 @@
 !-----------------------------------------------------------------------
 !
         ENDIF microphysics
+!
+!-----------------------------------------------------------------------
+!***  3 of 3 calls to CLTEND, incremental updates of T using Told & Tadj
+!-----------------------------------------------------------------------
+!
+        ICLTEND=1
+        CALL CLTEND(ICLTEND,int_state%NPRECIP,int_state%T               &
+                   ,int_state%Told,int_state%Tadj                       &
+                   ,IDS,IDE,JDS,JDE,LM                                  &
+                   ,IMS,IME,JMS,JME                                     &
+                   ,ITS,ITE,JTS,JTE)
+!
+!bsf: Call SWAPHN & POLEHN for temperature here after temperature update
+!
+        IF(int_state%GLOBAL)THEN
+           btim=timef()
+!
+           CALL SWAPHN(int_state%T,IMS,IME,JMS,JME,LM,int_state%INPES)
+           CALL POLEHN(int_state%T,IMS,IME,JMS,JME,LM                  &
+                      ,int_state%INPES,int_state%JNPES)
+           td%pole_swap_tim=td%pole_swap_tim+(timef()-btim)
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Always exchange Temperature array since radiative updates
@@ -8690,6 +8778,19 @@
                                        ,CAL_PRE,MOM4ICE,MSTRAT          &
                                        ,TRANS_TRAC,NST_FCST             &
                                        ,MOIST_ADJ
+
+!
+!-----------------------------------------------------------------------
+!***  For threading safe  (rad_initialize)
+!-----------------------------------------------------------------------
+!
+
+      USE physpara,      ONLY : ISOLx,ICO2x,IALBx,IEMSx,IAERx,ICTMx     &
+     &                         ,IOVR_SWx,IOVR_LWx,SASHALx               &
+     &                         ,NTOZx,NTCWx,IFLIPx,IAER_MDL             &
+     &                         ,NP3Dx, ISUBCSWx, ISUBCLWx               &
+     &                         ,CRICK_PROOFx,CCNORMx,NORAD_PRECIPx
+
 !
 !-----------------------------------------------------------------------
 !
@@ -9314,6 +9415,47 @@
             CALL GPKAP    ! for ozone by using the unified RRTM from GFS
             CALL GPVS     ! for aerosol by using the unified RRTM from GFS
 
+!-----------------------------------------------------------------------
+!***  Initialize ozone
+!-----------------------------------------------------------------------
+
+!OZONE CLIMATOLOGY
+!
+! there is no header in global_o3clim.txt file
+
+            IF (NTOZx .LE. 0) THEN     ! DIAGNOSTIC OZONE, ONLY THIS ONE WORKS
+               LEVOZC  = 17
+               LATSOZC = 18
+               BLATC   = -85.0
+               TIMEOZC = 12            !!!  this is not in header
+               LATSOZP   = 2
+               LEVOZP    = 1
+               TIMEOZ    = 1
+               PL_COEFF  = 0
+            ENDIF
+
+            DPHIOZC = -(BLATC+BLATC)/(LATSOZC-1)
+
+!-----------------------------------------------------------------------
+!***  End initialization  of ozone
+!-----------------------------------------------------------------------
+
+!==========================================================================
+!  Similar to GFS "GFS_Initialize_ESMFMod.f" line #1103
+!==========================================================================
+
+            call rad_initialize                                        &
+!        ---  inputs:
+     &       ( SFULL,LM,ICTMx,ISOLx,ICO2x,IAERx,IAER_MDL,IALBx,IEMSx,  &
+     &         NTCWx,NP3Dx,NTOZx,IOVR_SWx,IOVR_LWx,ISUBCSWx,ISUBCLWx,  &
+     &         SASHALx,CRICK_PROOFx,CCNORMx,NORAD_PRECIPx,IFLIPx,MYPE )
+!  ---        outputs:
+!                ( none )
+
+!==========================================================================
+!==========================================================================
+
+
             DO K=1,LM
               KFLIP=LM+1-K
               SFULL_FLIP(KFLIP)=SFULL(K+1)
@@ -9322,6 +9464,13 @@
             SFULL_FLIP(LM+1)=SFULL(1)
 !
             GMT=REAL(START_HOUR)
+
+
+!==========================================================================
+! This following "RRTM_INIT" is only a L,M,H  DIAGNOSTIC cloud.
+! It is not a real RRTM initialization
+!==========================================================================
+
 
             CALL RRTM_INIT(EMISS,SFULL_FLIP,SMID_FLIP,PT_CB            &
                           ,JULYR,START_MONTH,START_DAY,GMT             &
@@ -9741,7 +9890,7 @@
         CASE ('wsm6')      !-- Update fields for WSM6 microphysics
 !----------------------------------------------------------------------
 !
-          spec_adv_wsm6: IF (CLD_INIT) THEN
+          init_adv_wsm6: IF (CLD_INIT) THEN
 !-- Assume only cloud ice is present at initial time
             DO K=1,LM
              DO J=JMS,JME
@@ -9761,9 +9910,43 @@
               ENDDO
              ENDDO
             ENDDO
-          ELSE IF(SPEC_ADV) THEN  spec_adv_wsm6
+          ELSE init_adv_wsm6
+            notspec_adv_wsm6: IF (.NOT.SPEC_ADV) THEN
+!-- Update WATER arrays when advecting only total condensate (spec_adv=F).
+!-- Assume fraction of each water category is unchanged by advection. 
+              DO K=1,LM
+               DO J=JMS,JME
+                DO I=IMS,IME
+                  OLDCWM=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)   &
+                        +WATER(I,J,K,P_QI)+WATER(I,J,K,P_QS)   &
+                        +WATER(I,J,K,P_QG)
+                  IF (OLDCWM>EPSQ) THEN
+                    FRACTION=CWM(I,J,K)/OLDCWM
+                    WATER(I,J,K,P_QC)=FRACTION*WATER(I,J,K,P_QC)
+                    WATER(I,J,K,P_QR)=FRACTION*WATER(I,J,K,P_QR)
+                    WATER(I,J,K,P_QI)=FRACTION*WATER(I,J,K,P_QI)
+                    WATER(I,J,K,P_QS)=FRACTION*WATER(I,J,K,P_QS)
+                    WATER(I,J,K,P_QG)=FRACTION*WATER(I,J,K,P_QG)
+                  ELSE
+                    WATER(I,J,K,P_QC)=0.0
+                    WATER(I,J,K,P_QR)=0.0
+                    WATER(I,J,K,P_QI)=0.0
+                    WATER(I,J,K,P_QS)=0.0
+                    WATER(I,J,K,P_QG)=0.0
+                    IF (T(I,J,K)<233.15) THEN
+                      WATER(I,J,K,P_QI)=CWM(I,J,K)
+                    ELSE
+                      WATER(I,J,K,P_QC)=CWM(I,J,K)
+                    ENDIF
+                  ENDIF
+                ENDDO
+               ENDDO
+              ENDDO
+            ENDIF  notspec_adv_wsm6
+!
 !-- Couple 4D WATER(:,:,:,P_Qx) <=> CWM,F_ice,F_rain,F_RimeF arrays
 !-- Update CWM,F_XXX arrays from separate species advection (spec_adv=T)
+!
             DO K=1,LM
              DO J=JMS,JME
               DO I=IMS,IME
@@ -9791,38 +9974,8 @@
               ENDDO
              ENDDO
             ENDDO
-          ELSE  spec_adv_wsm6
-!-- Update WATER arrays when advecting only total condensate (spec_adv=F).
-!-- Assume fraction of each water category is unchanged by advection. 
-            DO K=1,LM
-             DO J=JMS,JME
-              DO I=IMS,IME
-                OLDCWM=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)   &
-                      +WATER(I,J,K,P_QI)+WATER(I,J,K,P_QS)   &
-                      +WATER(I,J,K,P_QG)
-                IF (OLDCWM>EPSQ) THEN
-                  FRACTION=CWM(I,J,K)/OLDCWM
-                  WATER(I,J,K,P_QC)=FRACTION*WATER(I,J,K,P_QC)
-                  WATER(I,J,K,P_QR)=FRACTION*WATER(I,J,K,P_QR)
-                  WATER(I,J,K,P_QI)=FRACTION*WATER(I,J,K,P_QI)
-                  WATER(I,J,K,P_QS)=FRACTION*WATER(I,J,K,P_QS)
-                  WATER(I,J,K,P_QG)=FRACTION*WATER(I,J,K,P_QG)
-                ELSE
-                  WATER(I,J,K,P_QC)=0.0
-                  WATER(I,J,K,P_QR)=0.0
-                  WATER(I,J,K,P_QI)=0.0
-                  WATER(I,J,K,P_QS)=0.0
-                  WATER(I,J,K,P_QG)=0.0
-                  IF (T(I,J,K)<233.15) THEN
-                    WATER(I,J,K,P_QI)=CWM(I,J,K)
-                  ELSE
-                    WATER(I,J,K,P_QC)=CWM(I,J,K)
-                  ENDIF
-                ENDIF
-              ENDDO
-             ENDDO
-            ENDDO
-          ENDIF  spec_adv_wsm6
+!
+          ENDIF init_adv_wsm6
 !
 !----------------------------------------------------------------------
         CASE DEFAULT
@@ -9837,11 +9990,104 @@
 !----------------------------------------------------------------------
 !
       END SUBROUTINE UPDATE_WATER
+ 
+!----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+ 
+      SUBROUTINE CLTEND (ICLTEND,NPRECIP, T,Told,Tadj                    &
+                        ,IDS,IDE,JDS,JDE,LM                              &
+                        ,IMS,IME,JMS,JME                                 &
+                        ,ITS,ITE,JTS,JTE)
+!----------------------------------------------------------------------
+!$$$  SUBPROGRAM DOCUMENTATION BLOCK
+!                .      .    .     
+! SUBPROGRAM:    CLTEND      TEMPERATURE CHANGE BY CLOUD PROCESSES
+!   PRGRMMR: FERRIER         ORG: W/NP22     DATE: 01-09-26
+!     
+! ABSTRACT:
+!     CLTEND GRADUALLY UPDATES TEMPERATURE TENDENCIES FROM CONVECTION 
+!     AND GRID-SCALE MICROPHYSICS.
+!     
+! USAGE: CALL CLTEND FROM SOLVER_RUN
+!   INPUT ARGUMENT LIST:
+!     ICLTEND - FLAG SET TO -1 PRIOR TO PHYSICS CALLS, 0 AFTER PHYSICS
+!               CALLS, AND 1 FOR UPDATING TEMPERATURES EVERY TIME STEP
+!  
+!   OUTPUT ARGUMENT LIST:  NONE
+!     
+!   OUTPUT FILES:  NONE
+!     
+!   SUBPROGRAMS CALLED:  NONE
+!  
+!   UNIQUE: NONE
+!  
+!   LIBRARY: NONE
+!  
+! ATTRIBUTES:
+!   LANGUAGE: FORTRAN 90
+!   MACHINE : IBM SP
+!$$$  
+!----------------------------------------------------------------------
 !
+      IMPLICIT NONE
+!
+!----------------------------------------------------------------------
+!
+      INTEGER,INTENT(IN) :: ICLTEND,NPRECIP                            &
+                           ,IDS,IDE,JDS,JDE,LM                         &
+                           ,IMS,IME,JMS,JME                            &
+                           ,ITS,ITE,JTS,JTE
+!
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: T          &
+                                                           ,Tadj       &
+                                                           ,Told
+!
+!***  LOCAL VARIABLES 
+!
+      INTEGER :: I,J,K
+      REAL :: RDTPH
+!
+!----------------------------------------------------------------------
+!----------------------------------------------------------------------
+!
+      IF(ICLTEND<0)THEN
+         DO K=1,LM
+         DO J=JTS,JTE
+         DO I=ITS,ITE
+            Told(I,J,K)=T(I,J,K)
+         ENDDO
+         ENDDO
+         ENDDO
+      ELSE IF(ICLTEND==0)THEN
+         RDTPH=1./REAL(NPRECIP)
+         DO K=1,LM
+         DO J=JTS,JTE
+         DO I=ITS,ITE
+            Tadj(I,J,K)=RDTPH*(T(I,J,K)-Told(I,J,K))
+            T(I,J,K)=Told(I,J,K)
+         ENDDO
+         ENDDO
+         ENDDO
+      ELSE
+         DO K=1,LM
+         DO J=JTS,JTE
+         DO I=ITS,ITE
+            T(I,J,K)=T(I,J,K)+Tadj(I,J,K)
+         ENDDO
+         ENDDO
+         ENDDO
+      ENDIF
+!----------------------------------------------------------------------
+!
+      END SUBROUTINE CLTEND
+!
+!-----------------------------------------------------------------------
+ 
 !----------------------------------------------------------------------
 !######################################################################
 !-----------------------------------------------------------------------
-!
+ 
       END MODULE MODULE_SOLVER_GRID_COMP
 !
 !-----------------------------------------------------------------------

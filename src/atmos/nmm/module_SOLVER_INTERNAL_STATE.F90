@@ -220,7 +220,8 @@
                                                    ,PFNE,PFNW           &
                                                    ,PCX,PCY             &
                                                    ,PFX,PFY             &
-                                                   ,TCT,TCU,TCV
+                                                   ,TCT,TCU,TCV         &
+                                                   ,Told,Tadj
 !
         LOGICAL(kind=KLOG) :: FIRST_PASS                                &
                              ,LMPRATE,RUN
@@ -822,6 +823,8 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'E2'        ,int_state%E2      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'PSGDT'     ,int_state%PSGDT   ,(/ IMS,JMS,1 /),(/ IME,JME,LM-1 /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'Z'         ,int_state%Z       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'Told'      ,int_state%Told    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'Tadj'      ,int_state%Tadj    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
 
       CALL SET_VAR_PTR(int_state%VARS,NV,'ACFRCV'     ,int_state%ACFRCV   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'ACFRST'     ,int_state%ACFRST   ,(/ IMS,JMS /),(/ IME,JME /) )

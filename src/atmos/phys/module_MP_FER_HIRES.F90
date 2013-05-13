@@ -1,7 +1,6 @@
-!-- This version is based on changes in 
-!   (1) /meso/save/wx20bf/kid/kid_script.cirrus/exe/module_mp_etanew.f90_20091106m
-!       -> NLImax=50.e3, NCW=200.E6
-!   (2) /meso/save/wx20bf/kid/kid_script.cirrus/exe/module_mp_etanew.f90_20101108a
+!   (1) NLImax=20.e3 rather than 50.e3
+!   (2) Improve algorithm for defining NLICE, INDEXS, and RimeF1
+!   (3) Added code blocks for enhanced warning diagnostics at "!-- Debug 20120111"
 !-----------------------------------------------------------------------------
 !
      MODULE MODULE_MP_FER_HIRES
@@ -62,6 +61,11 @@
       INTEGER, PARAMETER :: MDR1=XMR1, MDR2=XMR2, MDR3=XMR3, MDR4=XMR4  &
      &  , MDR5=XMR5
 
+!-- Debug 20120111
+LOGICAL, SAVE :: WARN1=.TRUE.,WARN2=.TRUE.,WARN3=.TRUE.,WARN5=.TRUE.
+REAL, SAVE :: Pwarn=75.E2, QTwarn=1.E-3
+INTEGER, PARAMETER :: MAX_ITERATIONS=10
+
 !
 ! ======================================================================
 !--- Important tunable parameters that are exported to other modules
@@ -79,11 +83,11 @@
 !          presence of ice saturated/supersaturated conditions
 ! ======================================================================
       REAL, PUBLIC,PARAMETER ::                                         &
-     &  RHgrd=1.                                                        &
+     &  RHgrd=1.00                                                      &
      & ,T_ICE=-40.                                                      &
      & ,T_ICEK=T0C+T_ICE                                                &
      & ,T_ICE_init=0.                                                   &
-     & ,NLImax=50.E3                                                    &
+     & ,NLImax=10.E3                                                    &
      & ,NLImin=1.E3                                                     &
      & ,N0r0=8.E6                                                       &
      & ,N0rmin=1.E4                                                     &
@@ -308,6 +312,21 @@
               F_RimeF_phy(I,J,L)=1.
             ELSE
               WC_col(L)=qt(I,J,L)
+
+!-- Debug 20120111
+!   TC==TC will fail if NaN, preventing unnecessary error messages
+IF (WC_col(L)>QTwarn .AND. P_col(L)<Pwarn .AND. TC==TC) THEN
+   WRITE(0,*) 'WARN4: >1 g/kg condensate in stratosphere; I,J,L,TC,P,QT=',   &
+              I,J,L,TC,.01*P_col(L),1000.*WC_col(L)
+   QTwarn=MAX(WC_col(L),10.*QTwarn)
+   Pwarn=MIN(P_col(L),0.5*Pwarn)
+ENDIF
+!-- TC/=TC will pass if TC is NaN
+IF (WARN5 .AND. TC/=TC) THEN
+   WRITE(0,*) 'WARN5: NaN temperature; I,J,L,P=',I,J,L,.01*P_col(L)
+   WARN5=.FALSE.
+ENDIF
+
             ENDIF
 !     !
 !     !--- Determine composition of condensate in terms of 
@@ -1071,7 +1090,8 @@
                   EXIT
                 ELSE
 !-- Enforce NLImin at all temperatures                  IF (TC < 0) THEN
-                    XLI=RHO*(QTICE/DUM-XSIMASS)/RimeF1
+                    DUM=MAX(NLImin, MIN(NLImax, NLICE) )
+                    XLI=RHO*QLICE/(DUM*RimeF1)
                     IF (XLI .LE. MASSI(MDImin) ) THEN
                       INDEXS=MDImin
                     ELSE IF (XLI .LE. MASSI(450) ) THEN
@@ -1082,7 +1102,6 @@
                       INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
                     ELSE
                       INDEXS=MDImax
-                    ENDIF             ! End IF (XLI .LE. MASSI(MDImin) )
 !-- Enforce NLImin at all temperatures                  ENDIF               ! End IF (TC < 0)
         !
         !--- Reduce excessive accumulation of ice at upper levels
@@ -1095,9 +1114,9 @@
         !    are reached for number concentration (NLImax) and mean size 
         !    (MDImax).  Done to increase fall out of ice.
         !
-                  DUM=MAX(NLImin, MIN(NLImax, NLICE) )
-                  IF (DUM.GE.NLImax .AND. INDEXS.GE.MDImax)             &
-     &                RimeF1=RHO*(QTICE/NLImax-XSIMASS)/MASSI(INDEXS)
+                      IF (DUM>=NLImax)                                  &
+     &                   RimeF1=RHO*QLICE/(NLImax*MASSI(INDEXS))
+                    ENDIF             ! End IF (XLI .LE. MASSI(MDImin) )
 
 !            WRITE(6,"(4(a12,g11.4,1x))") 
 !     & '{$ TC=',TC,'P=',.01*PP,'NLICE=',NLICE,'DUM=',DUM,
@@ -1151,7 +1170,15 @@
             DUM2=WV+QW                         ! Updated (dummy) water vapor mixing ratio
             DUM=MIN(1000.*FPVS(DUM1),0.99*PP)  ! Updated (dummy) saturation vapor pressure w/r/t ice
             DUM=RHgrd*EPS*DUM/(PP-DUM)         ! Updated (dummy) saturation mixing ratio w/r/t ice
-            IF (DUM2 .GT. DUM) PIDEP=DEPOSIT (PP, DUM1, DUM2)
+
+!-- Debug 20120111
+IF (WARN1 .AND. DUM1<XMIN) THEN
+   WRITE(0,*) 'WARN1: Water saturation T<180K; I,J,L,TC,P=',   &
+              I_index,J_index,L,DUM1-T0C,.01*PP
+   WARN1=.FALSE.
+ENDIF
+            IF (DUM2>DUM) PIDEP=DEPOSIT(PP,DUM1,DUM2,I_index,J_index,L)
+
             DWVi=0.    ! Used only for debugging
    !
           ELSE IF (TC .LT. 0.) THEN
@@ -1231,7 +1258,7 @@
 !
           IF (TC.GE.T_ICE .AND. (QW.GT.EPSQ .OR. WV.GT.QSWgrd)) THEN
             IF (PIACWI.EQ.0. .AND. PIDEP.EQ.0.) THEN
-              PCOND=CONDENSE (PP, QW, TK, WV)
+              PCOND=CONDENSE(PP,QW,TK,WV,I_index,J_index,L)    !-- Debug 20120111
             ELSE
    !
    !--- Modify cloud condensation in response to ice processes
@@ -1840,7 +1867,7 @@
 !--------- Produces accurate calculation of cloud condensation ---------
 !#######################################################################
 !
-      REAL FUNCTION CONDENSE (PP, QW, TK, WV)
+      REAL FUNCTION CONDENSE (PP,QW,TK,WV,I,J,L)    !-- Debug 20120111
 !
 !---------------------------------------------------------------------------------
 !------   The Asai (1965) algorithm takes into consideration the release of ------
@@ -1857,7 +1884,11 @@
 !
       REAL,INTENT(IN) :: QW,PP,WV,TK
       REAL WVdum,Tdum,XLV2,DWV,WS,ESW,XLV1,XLV
-integer nsteps
+
+integer,INTENT(IN) :: I,J,L     !-- Debug 20120111
+integer :: niter
+real :: DWVinp,SSATinp
+
 !
 !-----------------------------------------------------------------------
 !
@@ -1874,10 +1905,11 @@ integer nsteps
       DWV=WVdum-WS                              ! Deficit grid-scale water vapor mixing ratio
       SSAT=DWV/WS                               ! Supersaturation ratio
       CONDENSE=0.
-nsteps = 0
-      DO WHILE ((SSAT.LT.RHLIMIT1 .AND. WCdum.GT.EPSQ)                  &
-     &           .OR. SSAT.GT.RHLIMIT)
-        nsteps = nsteps + 1
+
+DWVinp=DWV     !-- Debug 20120111
+SSATinp=SSAT
+
+      DO NITER=1,MAX_ITERATIONS
         COND=DWV/(1.+XLV2*WS/(Tdum*Tdum))       ! Asai (1965, J. Japan)
         COND=MAX(COND, -WCdum)                  ! Limit cloud water evaporation
         Tdum=Tdum+XLV1*COND                     ! Updated temperature
@@ -1888,7 +1920,22 @@ nsteps = 0
         WS=RHgrd*EPS*ESW/(PP-ESW)               ! Updated saturation mixing ratio w/r/t water
         DWV=WVdum-WS                            ! Deficit grid-scale water vapor mixing ratio
         SSAT=DWV/WS                             ! Grid-scale supersaturation ratio
+        IF (SSAT>=RHLIMIT1 .AND. SSAT<=RHLIMIT) EXIT   !-- Exit if SSAT is near 0
+        IF (SSAT<RHLIMIT1 .AND. WCdum<=EPSQ) EXIT      !-- Exit if SSAT<0 & no cloud water
       ENDDO
+
+!-- Debug 20120111
+IF (NITER>MAX_ITERATIONS) THEN
+!-- Too many iterations - indicates possible numerical instability
+   IF (WARN3) THEN
+      write(0,*) 'WARN3: Too many iterations in function CONDENSE; ', &
+         ' I,J,L,TC,SSAT,QW,DWV=',I,J,L,TK-T0C,SSATinp,1000.*QW,DWVinp
+      WARN3=.FALSE.
+   ENDIF
+   SSAT=0.
+   CONDENSE=DWVinp
+ENDIF
+
 !
       END FUNCTION CONDENSE
 !
@@ -1896,7 +1943,7 @@ nsteps = 0
 !---------------- Calculate ice deposition at T<T_ICE ------------------
 !#######################################################################
 !
-      REAL FUNCTION DEPOSIT (PP, Tdum, WVdum)
+      REAL FUNCTION DEPOSIT (PP,Tdum,WVdum,I,J,L)   !-- Debug 20120111
 !
 !--- Also uses the Asai (1965) algorithm, but uses a different target
 !      vapor pressure for the adjustment
@@ -1911,6 +1958,11 @@ nsteps = 0
       real,INTENT(IN) ::  PP
       real,INTENT(INOUT) ::  WVdum,Tdum
       real ESI,WS,DWV
+
+integer,INTENT(IN) :: I,J,L   !-- Debug 20120111
+integer :: niter
+real :: Tinp,DWVinp,SSATinp
+
 !
 !-----------------------------------------------------------------------
 !
@@ -1919,7 +1971,12 @@ nsteps = 0
       DWV=WVdum-WS                              ! Deficit grid-scale water vapor mixing ratio
       SSAT=DWV/WS                               ! Supersaturation ratio
       DEPOSIT=0.
-      DO WHILE (SSAT.GT.RHLIMIT .OR. SSAT.LT.RHLIMIT1)
+
+Tinp=Tdum     !-- Debug 20120111
+DWVinp=DWV
+SSATinp=SSAT
+
+      DO NITER=1,MAX_ITERATIONS
    !
    !--- Note that XLVS2=LS*LV/(CP*RV)=LV*WS/(RV*T*T)*(LS/CP*DEP1), 
    !     where WS is the saturation mixing ratio following Clausius-
@@ -1933,7 +1990,21 @@ nsteps = 0
         WS=RHgrd*EPS*ESI/(PP-ESI)               ! Updated saturation mixing ratio w/r/t ice
         DWV=WVdum-WS                            ! Deficit grid-scale water vapor mixing ratio
         SSAT=DWV/WS                             ! Grid-scale supersaturation ratio
+        IF (SSAT>=RHLIMIT1 .AND. SSAT<=RHLIMIT) EXIT   !-- Exit if SSAT is near 0
       ENDDO
+
+!-- Debug 20120111
+IF (NITER>MAX_ITERATIONS) THEN
+!-- Too many iterations - indicates possible numerical instability
+   IF (WARN2) THEN
+      write(0,*) 'WARN2: Too many iterations in function DEPOSIT; ', &
+         ' I,J,L,TC,SSAT,DWV=',I,J,L,Tinp-T0C,SSATinp,DWVinp
+      WARN2=.FALSE.
+   ENDIF
+   SSAT=0.
+   DEPOSIT=DWVinp
+ENDIF
+
 !
       END FUNCTION DEPOSIT
 !

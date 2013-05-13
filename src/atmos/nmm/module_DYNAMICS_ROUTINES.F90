@@ -2654,7 +2654,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
         facdif=1.0
       else
         defm=9999.
-        facdif=4.0
+        facdif=1.0   !bsf: was 4.0 in 10/18/2011 NAM implementation
       endif
 !-----------------------------------------------------------------------
 !
@@ -2885,7 +2885,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
           do j=jts_b1,jte_b1
             do i=its_b1,ite_b1
               t (i,j,l)=t (i,j,l)+tdif (i,j)
-!-- Enhanced diffusion for Q & CWM (doubling smag2 = 4X diffusion)
+!-- Enhanced diffusion for Q & CWM if facdif>1    !bsf:
               q (i,j,l)=q (i,j,l)+facdif*qdif (i,j)
               cw(i,j,l)=cw(i,j,l)+facdif*cdif (i,j)
               q2(i,j,l)=q2(i,j,l)+q2dif(i,j)
