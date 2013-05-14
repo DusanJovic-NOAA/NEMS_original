@@ -24,7 +24,7 @@
       real, intent(out)   :: dtc(ix,levs)    ! cooling rate k/s
       real, intent(out)   :: dth(ix,levs)    ! heating rate k/s
 !
-      real pmodi(nlev),gg(nlev),                                        &
+      real pmodi(nlev),ggg(nlev),                                        &
      &h2ommr(nlev),mu(nlev),rcp(nlev),dthi(nlev),                       &
      &adrn2,rate,dx
       real h2ommrc(nlevc),temp(nlevc),qr(nlevc),qv(nlevc),prpa(nlevc)
@@ -54,7 +54,7 @@
               endif
             adrn2=1.-adr(i,k1,4)-adr(i,k1,5)-adr(i,k1,1)                &
      &           -adr(i,k1,2)
-            gg(k)=grav(i,k1)
+            ggg(k)=grav(i,k1)
             mu(k)=1./(adr(i,k1,4)/amo+adr(i,k1,5)/amo2+                 &
      &            adr(i,k1,1)/amh2o+adr(i,k1,2)/amo3+adrn2/amn2)
             rcp(k)=1./cp(i,k1)
@@ -62,7 +62,7 @@
           enddo
         dthi=0.
 ! get heating
-        call h2ohdc(cosz(i),pmodi,h2ommr,gg,mu,dthi,nlev)
+        call h2ohdc(cosz(i),pmodi,h2ommr,ggg,mu,dthi,nlev)
 !
         do k=k41,k110
           dth(i,k)=rcp(k-k41+1)*dthi(k-k41+1)

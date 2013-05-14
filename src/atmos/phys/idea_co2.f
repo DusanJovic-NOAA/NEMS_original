@@ -5,6 +5,7 @@
 !
 ! Apr 06 2012   Henry Juang, initial implement for nems
 ! Dec 13 2012   Jun Wang     move init step out of column physics
+! Feb 13 2012   Jun Wang     move gravity array gg to idea_compistion module
 !
       use co2pro_mod, only: co2my
 !     use co2c_mod
@@ -29,7 +30,7 @@
       real, intent(out)   :: dtdt(ix,levs)    ! cooling rate k/s
       real, intent(out)   :: dtdth(ix,levs)    ! heating rate k/s
 !
-      real pmod(levs),gg(levs),q_n2(ix,nlev),ma(ix,nlev)                &
+      real pmod(levs),q_n2(ix,nlev),ma(ix,nlev)                         &
      &,q_o(ix,nlev),q_o2(ix,nlev),hold(levs)
       integer i,k,kk
 !

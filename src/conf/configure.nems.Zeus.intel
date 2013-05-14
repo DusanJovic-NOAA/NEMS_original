@@ -21,20 +21,11 @@ gfsdir=atmos/$(gfs)
 
 NETCDF_LIB   = /apps/netcdf/3.6.3/intel/lib/libnetcdf.a
 
-#NEMSIO_INC   = -I/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/lib/nemsio/incmod
-#NEMSIO_LIB   = -L/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/lib/nemsio -lnemsio
-#BACIO_LIB    = -L/home/Ratko.Vasic/lib_tmp -lbacio_4
-
-#NEMSIO_INC   = -I/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/nemsio/trunk/incmod
-#NEMSIO_LIB   = /scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/nemsio/trunk/libnemsio.a
-NEMSIO_INC   = -I/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/lib/nemsio/incmod
-NEMSIO_LIB   = -L/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/lib/nemsio -lnemsio
-#BACIO_LIB    = /scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/bacio/trunk/libbacio_4.a
-BACIO_LIB    = -L/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/bacio/bacio_v2.0.0_r21386/lib -lbacio_4
-
+NEMSIO_INC   = -I/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/nemsio/trunk/incmod
+NEMSIO_LIB   = -L/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/nemsio/trunk -lnemsio
+BACIO_LIB    = -L/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/bacio/trunk/lib -lbacio_4
 #W3_LIB       = -L/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/w3 -lw3-2.0_4
 W3_LIB        = -L/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/lib_test2 -lw3lib-2.0_4
-#SP_LIB       = -L/home/Ratko.Vasic/lib_tmp -lsp_4
 SP_LIB       = -L/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/lib_test2 -lsp_d
 SYS_LIB      =
  
@@ -58,7 +49,7 @@ TRAPS        =
 FFLAGS       = $(TRAPS) $(FINCS) -fp-model strict
 
 OPTS_NMM     = -O3
-OPTS_GFS     = -O3
+OPTS_GFS     = -g -O3
 OPTS_GEN     = -O3
 OPTS_FIM     = -O3
 

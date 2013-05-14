@@ -137,7 +137,7 @@
       real n1_i(levs+1),n2_i(levs+1),n3_i(levs+1),n_i(levs+1)
       real t_i(levs+1),am_i(levs+1),qout(ix,levs,ntrac_i)
       real beta(2,2,levs+1),a(2,2,levs),b(2,2,levs),c(2,2,levs)
-      real gg(2,2),ee(2,2,levs+1),f(2,levs+1),                          &
+      real ggg(2,2),ee(2,2,levs+1),f(2,levs+1),                         &
      &     d12,d13,d23,a12,a13,a23,s12,s13,s23,mo,mo2,mn2,              &
      &     dp1(levs),dp1_i(levs+1)
       real partb_i(levs+1),parta(levs),hold1,dtp1,hold2
@@ -264,22 +264,22 @@ c
      &(hold2/mo2+.5)
       b(2,1,levs)=parta(levs)*partb_i(levs)*beta(2,1,levs)*             &
      &(hold2/mo+.5)
-        do k=levs,1,-1
-          gg(1,1)=b(2,2,k)-c(2,1,k)*ee(1,2,k+1)-c(2,2,k)*ee(2,2,k+1)
-          gg(2,2)=b(1,1,k)-c(1,1,k)*ee(1,1,k+1)-c(1,2,k)*ee(2,1,k+1)
-          gg(1,2)=-1.*b(1,2,k)+c(1,1,k)*ee(1,2,k+1)+c(1,2,k)*ee(2,2,k+1)
-          gg(2,1)=-1.*b(2,1,k)+c(2,1,k)*ee(1,1,k+1)+c(2,2,k)*ee(2,1,k+1)
-          hold1=1./(gg(1,1)*gg(2,2)-gg(1,2)*gg(2,1))
-          gg=gg*hold1
-          ee(1,1,k)=gg(1,1)*a(1,1,k)+gg(1,2)*a(2,1,k)       
-          ee(1,2,k)=gg(1,1)*a(1,2,k)+gg(1,2)*a(2,2,k)       
-          ee(2,1,k)=gg(2,1)*a(1,1,k)+gg(2,2)*a(2,1,k)       
-          ee(2,2,k)=gg(2,1)*a(1,2,k)+gg(2,2)*a(2,2,k)       
-      f(1,k)=gg(1,1)*(qin(i,k,1)+c(1,1,k)*f(1,k+1)                      &
-     &+c(1,2,k)*f(2,k+1))+gg(1,2)*(qin(i,k,2)+c(2,1,k)*f(1,k+1)         &
+       do k=levs,1,-1
+         ggg(1,1)=b(2,2,k)-c(2,1,k)*ee(1,2,k+1)-c(2,2,k)*ee(2,2,k+1)
+         ggg(2,2)=b(1,1,k)-c(1,1,k)*ee(1,1,k+1)-c(1,2,k)*ee(2,1,k+1)
+         ggg(1,2)=-1.*b(1,2,k)+c(1,1,k)*ee(1,2,k+1)+c(1,2,k)*ee(2,2,k+1)
+         ggg(2,1)=-1.*b(2,1,k)+c(2,1,k)*ee(1,1,k+1)+c(2,2,k)*ee(2,1,k+1)
+         hold1=1./(ggg(1,1)*ggg(2,2)-ggg(1,2)*ggg(2,1))
+         ggg=ggg*hold1
+         ee(1,1,k)=ggg(1,1)*a(1,1,k)+ggg(1,2)*a(2,1,k)       
+         ee(1,2,k)=ggg(1,1)*a(1,2,k)+ggg(1,2)*a(2,2,k)       
+         ee(2,1,k)=ggg(2,1)*a(1,1,k)+ggg(2,2)*a(2,1,k)       
+         ee(2,2,k)=ggg(2,1)*a(1,2,k)+ggg(2,2)*a(2,2,k)       
+      f(1,k)=ggg(1,1)*(qin(i,k,1)+c(1,1,k)*f(1,k+1)                      &
+     &+c(1,2,k)*f(2,k+1))+ggg(1,2)*(qin(i,k,2)+c(2,1,k)*f(1,k+1)         &
      &+c(2,2,k)*f(2,k+1))
-      f(2,k)=gg(2,1)*(qin(i,k,1)+c(1,1,k)*f(1,k+1)                      &
-     &+c(1,2,k)*f(2,k+1))+gg(2,2)*(qin(i,k,2)+c(2,1,k)*f(1,k+1)         &
+      f(2,k)=ggg(2,1)*(qin(i,k,1)+c(1,1,k)*f(1,k+1)                      &
+     &+c(1,2,k)*f(2,k+1))+ggg(2,2)*(qin(i,k,2)+c(2,1,k)*f(1,k+1)         &
      &+c(2,2,k)*f(2,k+1))
         enddo
         do in=1,ntrac_i

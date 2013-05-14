@@ -93,6 +93,7 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_IAER_:${IAER}:g                     \
                      | sed s:_SIGHDR_:${SIGHDR}:g                 \
                      | sed s:_MACHINE_ID_:${MACHINE_ID}:g          \
+                     | sed s:_RTPWD_:${RTPWD}:g                     \
                      | sed s:_SCHEDULER_:${SCHEDULER}:g            \
                      | sed s:_NDAYS_:${NDAYS}:g   >  gfs_fcst_run
 
@@ -148,24 +149,23 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
 
 #                     NO NEMSIO INPUT
 #                     ---------------
- else
-   export dprefix2=${dprefix2:-""}
-   if [ "$rungfstest" = ".true." ] ; then
-     if [ $MACHINE_ID = wcoss ] ; then
-       IC_DIR=${IC_DIR:-$dprefix2/global/noscrub/Shrinivas.Moorthi/data}
-     elif [ $MACHINE_ID = ccs ] ; then
-       IC_DIR=${IC_DIR:-$dprefix2/global/noscrub/wx23sm/data}
-     elif [ $MACHINE_ID = zeus ] ; then
-       IC_DIR=${IC_DIR:-$dprefix2/global/noscrub/Shrinivas.Moorthi/data}
+ else 
+   if [ "$IDEA" = ".true." ]; then
+     cp ${RTPWD}/WAM_gh_l150/*anl*${CDATE} ${RUNDIR}/.
+   else
+     export dprefix2=${dprefix2:-""}
+     if [ "$rungfstest" = ".true." ] ; then
+       if [ $MACHINE_ID = wcoss ] ; then
+         IC_DIR=${IC_DIR:-$dprefix2/global/noscrub/Shrinivas.Moorthi/data}
+       elif [ $MACHINE_ID = ccs ] ; then
+         IC_DIR=${IC_DIR:-$dprefix2/global/noscrub/wx23sm/data}
+       elif [ $MACHINE_ID = zeus ] ; then
+         IC_DIR=${IC_DIR:-$dprefix2/global/noscrub/Shrinivas.Moorthi/data}
+       fi
+       cp $IC_DIR/siganl.$CDATE ${RUNDIR}/.
+       cp $IC_DIR/sfcanl.$CDATE ${RUNDIR}/.
      fi
-#    IC_DIR=/climate/save/wx20wa/esmf/nems/20120913/data
-     cp $IC_DIR/siganl.$CDATE ${RUNDIR}/.
-     cp $IC_DIR/sfcanl.$CDATE ${RUNDIR}/.
    fi
- fi
-
- if [ "$IDEA" = ".true." ]; then
-  cp /climate/save/wx20wa/wam/Fei_Wu/data/*anl*${CDATE} ${RUNDIR}/.
  fi
 
 else

@@ -17,14 +17,16 @@
 ### @ group = class1onprod
 # @ class = dev
 # @ group = dev
-# @ wall_clock_limit = 00:20:00
+# @ wall_clock_limit = 04:00:00
 # @ queue
 #
 set -x
 #
 #jw  export CDATE=2006033100
- export CDATE=2006093000
+#jw export CDATE=2006093000
+ export CDATE=2011092300
 
+ export fcst_begin=YES
 #export EXPLICIT=.true.
  export ADIAB=.false.
  export IDEA=.true.
@@ -159,7 +161,7 @@ export MALLOCMULTIHEAP=true
 #
 #    Set up experiment and directory names
 #
- export expt=testwam
+ export expt=testwam_clm
 
 #
  export NSCDIR=/global/noscrub
@@ -175,6 +177,7 @@ export MALLOCMULTIHEAP=true
  export ldiag3d=${ldiag3d:-.false.}
 #
  export NCP=${NCP:-/u/wx20mi/bin/ncp}
+ export nemsioget=${nemsioget:-/climate/save/wx20wa/gfsio/nems/nemsio_get}
 #
 #
 #
@@ -182,10 +185,9 @@ export MALLOCMULTIHEAP=true
 #    needs to be specified. ndays is the Length of #orecast in days
 #    begining from nhourb
 #
- export ndays=5
+ export ndays=3
 #
  export nhours=`expr $ndays \* 24`
-#export nhours=72
 
 #
 # For two tracers
@@ -194,7 +196,7 @@ export MALLOCMULTIHEAP=true
 #
 #
  export fmax=$nhours
- export fout=6  
+ export fout=1  
  export fzer=6  
  export fcyc=24 
  export fdfi=3 
@@ -251,7 +253,10 @@ mkdir -p $RUNDIR/restart
 cd $RUNDIR
 #ic
 #jw  cp /climate/save/wx20wa/wam/henry/data/ic/nems/*anl* $RUNDIR
-  cp /climate/save/wx20wa/wam/Fei_Wu/data/*anl*${CDATE} $RUNDIR
+#jw  cp /climate/save/wx20wa/wam/Fei_Wu/data/*anl*${CDATE} $RUNDIR
+ if [[ ${fcst_begin} = YES ]] ; then
+   cp /global/save/wx23rm/WAM/chgres_test/replay/*anl.${CDATE} $RUNDIR
+ fi
  export COMOUT=$RUNDIR
 #
  cp -p ${NEMSDIR}/job/regression_tests/ocean.configure $RUNDIR
@@ -327,6 +332,12 @@ cd $RUNDIR
       nhourb=$((ndays*24))
     fi
   fi
+#
+  export SIGO='sigf$(/nwprod/util/exec/ndate $FH $CDATE)'
+  export SFCO='sfcf$(/nwprod/util/exec/ndate $FH $CDATE)'
+  export FLXO='flxf$(/nwprod/util/exec/ndate $FH $CDATE)'
+  export LOGO='logf$(/nwprod/util/exec/ndate $FH $CDATE)'
+  export D3DO='d3df$(/nwprod/util/exec/ndate $FH $CDATE)'
 #
 # ---------------------------------------- fcst ----------------------
 #

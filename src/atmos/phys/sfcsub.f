@@ -2716,7 +2716,7 @@
       implicit none
       integer kpds5,me,i,imsk,jmsk,lugb
 !
-      CHARACTER*500 FNMSKH
+      CHARACTER(*) FNMSKH
 !
       REAL (KIND=KIND_IO8) SLMSKH(mdata)
       LOGICAL GAUSM
@@ -7860,7 +7860,7 @@ cjfe
 !   to be extracted from the description records.
 !
 !
-      CHARACTER*500 FNGRIB
+      CHARACTER(*) FNGRIB
 !     CHARACTER*80 FNGRIB, ASGNSTR
 !
       REAL (KIND=KIND_IO8) SLMSKH(IMSK,JMSK)
@@ -8037,7 +8037,8 @@ cjfe
 !
       PARAMETER(NREPMX=15, NVALID=4)
 !
-      CHARACTER*500 FNGRIB
+!WY bug fix
+      CHARACTER(*) FNGRIB
 !     CHARACTER*80 FNGRIB, ASGNSTR
 !
       REAL (KIND=KIND_IO8) SLMSKH(IMSK,JMSK)

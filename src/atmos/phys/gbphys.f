@@ -99,6 +99,7 @@
 !      sep  2011  - sarah lu    correct dqdt_v calculations             !
 !      apr  2012  - henry juang add idea                                !
 !      sep  2012  - s. moorthi  merge with operational version          !
+!      Mar  2013  - Jun Wang    set idea heating rate to tmp tendency   !
 !                                                                       !
 !                                                                       !
 !  ====================  defination of variables  ====================  !
@@ -851,6 +852,17 @@
      &     )
 
       endif
+!
+      if (lsidea) then
+!        print *,' in gbphys: lsidea is true '
+!idea jw
+        do k = 1, levs
+        do i = 1, im
+          dtdt(i,k) = hlwd(i,k,2)
+        enddo
+        enddo
+      endif
+
 
 !  ---  convert lw fluxes for land/ocean/sea-ice models
 !  note: adjsfcdlw and adjsfculw are time-step adjusted lw sfc dn/up fluxes.
@@ -889,10 +901,10 @@
 
 !     write(0,*)' In GBPHYS LSIDEA2=',lsidea
 ! idea : moved temp adjust to idea_phys
-      if( lsidea ) then
+!      if( lsidea ) then
 !        print *,' in gbphys: lsidea is true '
-        DTDT = 0.
-      endif
+!        DTDT = 0.
+!      endif
 
 !  --- ...  accumulate/save output variables
      
@@ -1538,11 +1550,11 @@
 
 ! idea convective adjustment
       if( lsidea ) then
-        do  k = 1, levs
-          do i = 1, im
-            gt0(i,k)   = tgrs(i,k)
-          enddo
-        enddo
+!        do  k = 1, levs
+!          do i = 1, im
+!            gt0(i,k)   = tgrs(i,k)
+!          enddo
+!        enddo
         call ideaca_up(prsi,gt0,ix,im,levs+1)
       endif
 

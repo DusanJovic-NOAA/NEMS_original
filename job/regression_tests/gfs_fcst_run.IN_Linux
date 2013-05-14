@@ -37,6 +37,7 @@ set -x
 # wam model to couple with idea, default is false
  export IDEA=_IDEA_
  export IDEA=${IDEA:-.false.}
+ export RTPWD=_RTPWD_
 
 # nemsio input/output
  export NEMSIO_IN=_NEMSIOIN_
@@ -127,14 +128,19 @@ else
  export PROCESS_SPLIT=.false.
 fi
 #
+if [ $IDEA = .true. ]; then
 #***************************************************************
 #                    N2 ,    H2O,     O3,        CLW,    O,      O2
-#export CPIlist=" 1039.645, 1846.0, 820.2391,    0.0, 1299.185, 918.0969"
-#export RIlist="  296.8034, 461.50, 173.2247,    0.0,  519.674, 259.837 "
+ export CPIlist=" 1039.645, 1846.0, 820.2391,    0.0, 1299.185, 918.0969"
+ export RIlist="  296.8034, 461.50, 173.2247,    0.0,  519.674, 259.837 "
 #***************************************************************
+ export NTRAC=5
+else
 #                   Dry ,    H2O,     O3,        CLW,    O,      O2
 export CPIlist=" 1004.6,   1846.0, 820.2391,    0.0"
 export RIlist="  286.05,   461.50, 173.2247,    0.0"
+
+fi
 #
 export NCP=cp
 export FTSFS=0.0
@@ -252,6 +258,11 @@ export fdfi=_FDFI_
 #
 export wave=${wave:-62}
 export lm=${lm:-64}
+if [ $IDEA = .true. ]; then
+  export lm=150;
+  export levr=90
+  export DELTIM=180
+fi
 export lsoil=${lsoil:-4}
 #
 export PASSIVE_TRACER=_TRACER_ 
@@ -342,6 +353,7 @@ elif [ $SCHEDULER = 'lsf' ]; then
 fi
 #export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
  export FIX_RAD=${FIX_RAD:-$FIXGLOBAL}
+ export FIX_IDEA=${FIX_IDEA:-${RTPWD}/WAM_gh_l150}
 #export FIX_RAD=/global/save/wx23lu/NEMS/fix/fix_rad
  export GOCARTDIR=/global/save/wx23lu/NEMS/fix
  export GOCART_CLIM=$GOCARTDIR/gocart_clim

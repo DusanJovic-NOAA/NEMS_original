@@ -463,10 +463,7 @@ export FIXSUBDA=${FIXSUBDA:-fix/fix_am}
 export FIXGLOBAL=${FIXGLOBAL:-$NWPROD/$FIXSUBDA}
 export FIX_RAD=${FIX_RAD:-$FIXGLOBAL}
 export EXECGLOBAL=${EXECGLOBAL:-$NWPROD/exec}
-export FIX_IDEA=${FIX_IDEA:-$NWPROD/fix/idea_fix}
-
-#export FIX_IDEA=${FIX_IDEA:-/gpfs/t3/global/save/wx23hh/idea_fix}
-export EXECGLOBAL=${EXECGLOBAL:-$NWPROD/exec}
+export FIX_IDEA=${FIX_IDEA:-/meso/noscrub/wx20rv/REGRESSION_TEST/WAM_gh_l150}
 export DATA=${DATA:-$(pwd)}
 export COMOUT=${COMOUT:-$(pwd)}
 

@@ -144,6 +144,7 @@ if [ $argn -eq 1 ]; then
     cp ${RTPWD}/GFS_NODFI_5.2.0rp1/*       ${RTPWD_U}/GFS_NODFI_5.2.0rp1/.
     cp ${RTPWD}/GFS_NODFI_6.1.1/*          ${RTPWD_U}/GFS_NODFI_6.1.1/.
     cp ${RTPWD}/GFS_OPAC/*                 ${RTPWD_U}/GFS_OPAC/.
+    cp ${RTPWD}/WAM_gh_l150/*              ${RTPWD_U}/WAM_gh_l150/.
   fi
   if [ $CP_nmm = true ]; then
     echo "copy nmm"
@@ -1941,6 +1942,39 @@ else
 
   fi # endif test
  fi  # endif machine (only CCS)
+
+ ###############################################################################
+ #
+ # TEST   - WAM enthalpy on general hybrid 2loop 150levels
+ #        - 32 compute tasks / 1 thread ,no quilting
+ #
+ ###############################################################################
+
+ if [ $ST_test = true -o -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+   export TEST_DESCR="WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting"
+
+#---------------------
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/WAM_gh_l150
+   export CNTL_DIR=WAM_gh_l150
+   export LIST_FILES=" \
+        sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
+        sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+        flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
+#---------------------
+   export_gfs
+   export CDATE=2011092300 ; export WLCLK=20
+   export TASKS=32 ; export PE1=32 ; export THRD=1 ; export QUILT=.false.
+   export FDFI=3 ; export CP2=.false. ; export IDEA=.true.
+   export IDVC=3 ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=2
+#---------------------
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
 fi   # end of SKIP_GFS test
 
 

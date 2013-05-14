@@ -2,6 +2,7 @@
 !-----------------------------------------------------------------------
 ! hold composition of O O2 N2
 ! Apr 06 2012   Henry Juang, initial implement  into NEMS
+! Mar 08 2012   Jun Wang,    add fields for restart
 !-----------------------------------------------------------------------
       implicit none
 !hmhj save
@@ -13,9 +14,10 @@
       real, dimension(1:4) :: f107_idea=(/70.,70.,70.,240./) 
       real, dimension(1:4) :: kp_idea=(/3.,3.,0.,9./) 
       real  prlog150(150),h2ora150(80),o3ra150(80)              
-      real  amgm(150)                   ! global mean wght of mix (g/mol)
+      real  amgm(150),amgms(150)        ! global mean wght of mix (g/mol)
       real, allocatable::  pr_idea(:), prlog(:), ef(:)
       real, allocatable::  h2ora(:),o3ra(:)
+      real, allocatable::  gg(:), prsilvl(:)
       integer nlev_h2o,nlevc_h2o,nlev_co2,k41,k71,k110,k105,k100,k43
       integer k91,k47,k64,k81,k87
 !
@@ -133,18 +135,25 @@
 ! local
       integer k
 !
-      print *,' plyr idea_composition_init ',(plyr(k),k=1,levs)
-      allocate (pr_idea(levs))
+      if (.not.allocated(pr_idea)) then
+        print *,' plyr idea_composition_init ',(plyr(k),k=1,levs)
+        allocate (pr_idea(levs))
+        do k=1,levs
+          pr_idea(k) = plyr(k)/100.    ! mb
+        enddo
+      endif
+!
       allocate (prlog(levs))
-      allocate (h2ora(levs))
-      allocate (o3ra(levs))
 !
       do k=1,levs
-        pr_idea(k) = plyr(k)/100.	! mb
         prlog  (k) = log(1000./pr_idea(k))
         print *,' idea_composition_init: k pr_idea prlog ',k,
      &               pr_idea(k),prlog(k)
       enddo
+!
+      allocate (h2ora(levs))
+      allocate (o3ra(levs))
+!
 ! init h2o rad 
         if(levs.eq.150) then
           k41=41

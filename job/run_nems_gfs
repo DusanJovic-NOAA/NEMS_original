@@ -2,7 +2,7 @@
 set -x
 #
 #######################################################################
-#### Spe 2012 Jun Wang
+#### Sep 2012 Jun Wang
 #### this script is modified from Moorthi's run_gfs_2012(March/2012version)
 #### to run nems gfs.
 #######################################################################

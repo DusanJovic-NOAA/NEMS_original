@@ -11,6 +11,7 @@
 ! Jul 26 2012   Jun Wang, add mpi info
 ! Sep 06 2012   Jun Wang, add changing pressure to cb
 ! Dec    2012   Jun Wang, change to new rad_merge (from Rashid and Fei)
+! Feb    2013   Jun Wang, tmp is not updated after rad_merge
 !-----------------------------------------------------------------------
       use physcons,  amo2=>con_amo2,avgd => con_avgd
       use idea_composition
@@ -180,11 +181,11 @@
 ! merge
       call rad_merge(im,ix,levs,hlw,swh,prsi,prsl,wtot,
      &xmu,dtco2c,dtco2h,dth2oh,dth2oc,dto3,dt6dt)
-      do i=1,im
-        do k=1,levs
-          adt(i,k)=adt(i,k)+wtot(i,k)*dtp
-        enddo !k
-      enddo ! i
+!      do i=1,im
+!        do k=1,levs
+!          adt(i,k)=adt(i,k)+wtot(i,k)*dtp
+!        enddo !k
+!      enddo ! i
 !
 ! dt6dt
       do i=1,im

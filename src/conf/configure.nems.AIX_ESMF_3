@@ -14,19 +14,13 @@ POST_LIB=-L${POSTDIR} -lnceppost
 
 NETCDF_LIB   = -L/nwprod/lib -lnetcdf_64
 
-#NEMSIO_INC   = -I/climate/save/wx20wa/gfsio/lib/ibmp6/nemsio/incmod
-#NEMSIO_LIB   = -L/climate/save/wx20wa/gfsio/lib/ibmp6/nemsio -lnemsio
 NEMSIO_INC   = -I/climate/save/wx20wa/gfsio/nemsio/trunk/incmod
 NEMSIO_LIB   = -L/climate/save/wx20wa/gfsio/nemsio/trunk -lnemsio
-#NEMSIO_INC  = -I/climate/save/wx20wa/gfsio/lib/nemsio/incmod
-#NEMSIO_LIB  = -L/climate/save/wx20wa/gfsio/lib/nemsio -lnemsio
 
 W3_LIB       = -L/climate/save/wx20wa/gfsio/w3/sorc_opn -lw3_d
 W3_POST_LIB  = -L/climate/save/wx20wa/lib -lw3_v2.2.3_4
 XML_LIB      = -L/climate/save/wx20wa/lib -lxmlparse
 G2TMPL_LIB   = -L/climate/save/wx20wa/lib -lg2tmpl
-#BACIO_LIB    = -L/nwprod/lib -lbacio_4
-#BACIO_LIB    = -L/climate/save/wx20wa/gfsio/bacio/trunk/lib -lbacio_4
 BACIO_LIB    = /climate/save/wx20wa/gfsio/bacio/trunk/lib/libbacio_4.a
 SP_LIB       = -L/nwprod/lib -lsp_d
 G2_LIB       = -L/nco/sib/gribdev/lib -lg2_4 -L/usrx/local/64bit/lib -ljasper -lpng -lz
@@ -47,11 +41,11 @@ EXTLIBS      = $(NEMSIO_LIB) \
 
 EXTLIBS_POST = $(NEMSIO_LIB) \
                $(W3_POST_LIB) \
+               $(BACIO_LIB) \
                $(XML_LIB) \
                $(G2TMPL_LIB) \
                $(POST_LIB) \
                $(G2_LIB) \
-               $(BACIO_LIB) \
                $(SIGIO_LIB) \
                $(SFCIO_LIB) \
                $(SP_LIB) \
