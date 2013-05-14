@@ -1950,7 +1950,7 @@ else
  #
  ###############################################################################
 
- if [ $ST_test = true -o -o $CB_arg = gfs -o $CB_arg = all ] ; then
+ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
    export TEST_DESCR="WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting"
 
