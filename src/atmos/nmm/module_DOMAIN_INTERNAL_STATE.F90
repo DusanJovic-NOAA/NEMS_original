@@ -30,7 +30,13 @@
 !
 !---------------------------------------------------------------------------
 !
-        INTEGER(kind=KINT) :: KOUNT_TIMESTEPS
+        INTEGER(kind=KINT) :: KOUNT_TIMESTEPS                               &
+                             ,SFC_FILE_RATIO                                   !<-- Ratio of upper parent's grid increment to this domain's
+!
+        INTEGER(kind=KINT) :: LEAD_TASK_DOMAIN                              &  !<-- The first task on a given domain
+                             ,NUM_PES_FCST                                     !<-- The number of forecast tasks
+!
+        INTEGER(kind=KINT),DIMENSION(1:9) :: HANDLE_SEND_INTER                 !<-- For ISSends of intertask data after domain shifts
 !
         TYPE(ESMF_GridComp),ALLOCATABLE,DIMENSION(:) :: DOMAIN_CHILD_COMP      !<-- DOMAIN components of child domains
 !
@@ -42,19 +48,16 @@
         TYPE(ESMF_State) :: EXP_STATE_SOLVER                                   !<-- The export state of the Solver component
         TYPE(ESMF_State) :: EXP_STATE_WRITE                                    !<-- The export state of the write components
 !
-        INTEGER(kind=KINT) :: LEAD_TASK_DOMAIN                              &  !<-- The first task on a given domain
-                             ,NUM_PES_FCST                                     !<-- The number of forecast tasks
-!
 #ifdef ESMF_3
         TYPE(ESMF_Logical) :: ALLCLEAR_FROM_PARENT                          &  !<-- Child can proceed after parent is free
                              ,I_AM_A_NEST                                   &  !<-- Am I in a nested domain?
                              ,I_AM_A_PARENT                                 &  !<-- Am I in a parent domain?
-                             ,RECVD_ALL_CHILD_DATA                             !<-- Parent is free after all 2-way data recvd
+                             ,RECV_ALL_CHILD_DATA                              !<-- Parent is free after all 2-way data recvd
 #else
         LOGICAL(kind=KLOG) :: ALLCLEAR_FROM_PARENT                          &  !<-- Child can proceed after parent is free
                              ,I_AM_A_NEST                                   &  !<-- Am I in a nested domain?
                              ,I_AM_A_PARENT                                 &  !<-- Am I in a parent domain?
-                             ,RECVD_ALL_CHILD_DATA                             !<-- Parent is free after all 2-way data recvd
+                             ,RECV_ALL_CHILD_DATA                              !<-- Parent is free after all 2-way data recvd
 #endif
 !
         TYPE(ESMF_Alarm) :: ALARM_HISTORY                                   &  !<-- The ESMF Alarm for history output
@@ -66,6 +69,9 @@
         LOGICAL(kind=KLOG) :: FIRST_PASS                                    &  !<-- Note 1st time into NMM_INTEGRATE
                              ,RESTARTED_RUN                                 &  !<-- Is this a restarted forecast?
                              ,TS_INITIALIZED 
+!
+        TYPE(ESMF_FieldBundle) :: MOVE_BUNDLE_H                             &  !<-- ESMF Bundle of update H variables on moving nests
+                                 ,MOVE_BUNDLE_V                                !<-- ESMF Bundle of update V variables on moving nests
 !
 !---------------------------------------------------------------------------
 !***  The following are specific to asynchronous quilting/writing.

@@ -229,10 +229,10 @@
 !
 #ifdef ESMF_3
       TYPE(ESMF_Logical) :: ALLCLEAR_FROM_PARENT                        &
-                           ,RECVD_ALL_CHILD_DATA 
+                           ,RECV_ALL_CHILD_DATA 
 #else
       LOGICAL(kind=KLOG) :: ALLCLEAR_FROM_PARENT                        &
-                           ,RECVD_ALL_CHILD_DATA 
+                           ,RECV_ALL_CHILD_DATA 
 #endif
       LOGICAL(kind=KLOG) :: E_BDY,N_BDY,S_BDY,W_BDY                     &
                            ,FREE_TO_INTEGRATE                           &
@@ -402,8 +402,8 @@
 !
         IF(FILTER_METHOD==0)THEN                                           !<-- Free forecast
 
-! without this ClockGet the FIRST_PASS from above represents the filter
-! clock if a filter case
+!***  Without this ClockGet the FIRST_PASS from above represents the filter
+!***  clock if a filter case.
 !
           CALL ESMF_ClockGet(clock   =CLOCK_INTEGRATE &
                             ,runTimeStepCount=domain_int_state%TIMESTEP_FINAL &
@@ -482,7 +482,7 @@
 !***  tasks will execute straight through from the beginning of the
 !***  forecast (or the restart time) to the end of the forecast.
 !***  For runs with 2-way nesting the tasks integrate only through
-!***  one or a few timesteps as described above.  However note that
+!***  one or a few timesteps at a time as described above.  However note that
 !***  the timestep will be incremented only after phase 1 of the
 !***  Domain component's Run step is executed.  Due to the nature of
 !***  the generational use of task assignments in 2-way nesting some
@@ -502,15 +502,126 @@
 !
       timeloop_drv: DO NSTEP_INTEGRATE=FIRST_STEP,LAST_STEP                !<-- For 1-way nesting this would go from start to end of the fcst
 !
-!!!   call print_memory()
+!     call print_memory()
 !-----------------------------------------------------------------------
 !
         KOUNT_STEPS=domain_int_state%KOUNT_TIMESTEPS
 !
 !-----------------------------------------------------------------------
-!***  Call the 1st Phase of the Parent_Child coupler where children
-!***  will recv boundary data from their parents.
+!***  For 2-way nesting check for the signals from parents and
+!***  children to know if the execution can proceed into this timestep.
+!***  Call phase 1 of the Parent-Child coupler's Run step to perform
+!***  these checks.  The subroutine name is CHECK_2WAY_SIGNALS.
 !-----------------------------------------------------------------------
+!
+      check_2way: IF(NEST_MODE=='2-way'                                 &
+                         .AND.                                          &
+#ifdef ESMF_3
+                     I_AM_A_FCST_TASK==ESMF_True)THEN     
+#else
+                     I_AM_A_FCST_TASK)THEN     
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Call Phase 1 Coupler Run: Check 2-Way Signals"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_CplCompRun(cplcomp    =PARENT_CHILD_CPL               &  !<-- The Parent-Child coupler component
+                            ,importState=IMP_STATE_CPL_NEST             &  !<-- The Parent-Child coupler import state
+                            ,exportState=EXP_STATE_CPL_NEST             &  !<-- The Parent-Child coupler export state
+                            ,clock      =CLOCK_INTEGRATE                &  !<-- The Domain Clock
+                            ,phase      =1                              &  !<-- The phase (subroutine) of the coupler to execute
+                            ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  What are the values of the 2-way signals?
+!-----------------------------------------------------------------------
+!
+        IF(KOUNT_STEPS>0)THEN
+!
+!--------------------------------------------------------------
+!***  Is 2-way data ready for my parent from all its children?
+!--------------------------------------------------------------
+!
+#ifdef ESMF_3
+          IF(I_AM_A_NEST==ESMF_True)THEN
+#else
+          IF(I_AM_A_NEST)THEN
+#endif
+            IF(MOD(NSTEP_INTEGRATE,PAR_CHI_TIME_RATIO)==0)THEN
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="NMM_INTEGRATE: Extract ALLCLEAR from P-C Exp State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST           &  !<-- The parent-child coupler export state
+                                    ,name ='ALLCLEAR'                   &  !<-- Flag for proceeding now in timestep
+                                    ,value=ALLCLEAR_FROM_PARENT         &  !<-- Parent did/not recv all exch data; child can/not proceed
+                                    ,rc   =RC)
+!
+              domain_int_state%ALLCLEAR_FROM_PARENT=ALLCLEAR_FROM_PARENT
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+              IF(domain_int_state%ALLCLEAR_FROM_PARENT==ESMF_False)THEN
+#else
+              IF(.NOT.domain_int_state%ALLCLEAR_FROM_PARENT)THEN
+#endif
+!
+                RETURN                                                     !<-- All my siblings are not yet ready to send our parent
+!                                                                          !    their 2-way data.
+              ENDIF
+            ENDIF
+          ENDIF
+!
+!------------------------------------------------------------------
+!***  Are all of my children ready to send their 2-way data to me?
+!------------------------------------------------------------------
+!
+          IF(NUM_CHILDREN>0)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Call Coupler: Extract RECV_ALL_CHILD_DATA from P-C Exp State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST             &  !<-- The parent-child coupler export state
+                                  ,name ='Recv All Child Data'          &  !<-- Flag for integration (true or false)
+                                  ,value=RECV_ALL_CHILD_DATA            &  !<-- The value of the integration flag
+                                  ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            domain_int_state%RECV_ALL_CHILD_DATA=RECV_ALL_CHILD_DATA
+!
+#ifdef ESMF_3
+            IF(domain_int_state%RECV_ALL_CHILD_DATA==ESMF_False)THEN
+#else
+            IF(domain_int_state%RECV_ALL_CHILD_DATA)THEN
+#endif
+!
+              RETURN                                                       !<-- All my children are not yet ready to send me
+!                                                                          !    their 2-way data.
+            ENDIF
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      ENDIF check_2way
 !
 !-----------------------------------------------------------------------
 !***   Children receive data from their parents at the beginning
@@ -528,44 +639,25 @@
 !***       domains that are static nests.
 !
 !***   (2) If a child is a moving nest that has decided it must move:
-!***       (a) It ISends a message to its parent informing it of that
+!***       (a) It sends a message to its parent informing it of that
 !***           fact along with the location to which it is moving on
-!***           the parent grid.  That move must happen one or two
-!***           parent timesteps in the future because the parent
+!***           the parent grid.  That move must happen at a
+!***           parent timestep in the future because the parent
 !***           must provide data to some internal child points
 !***           following a move and since the parent must always
 !***           run ahead of its children (to provide the boundary
 !***           data from the future) then the new data for those
 !***           internal child points must also originate at a
-!***           future timestep.
-!***       (b) If the child did send the parent a message in (a) that
-!***           it wants to move then it now Recvs from the parent the
-!***           timestep of the parent at which the child will actually
-!***           execute the move, i.e., the step at which the parent
-!***           will provide the data for the child's interior points
-!***           that have moved over a new region of the parent domain.
-!***       (c) If the current timestep was determined one or two
-!***           parent timesteps ago to be one at which a child moves
-!***           then the child now Recvs the parent data for its
-!***           internal gridpoints that have moved over a new portion
-!***           of the parent grid as well as the first boundary data
-!***           at the new location.
-!***       (d) The child Recvs the new boundary data sent by the parent
+!***           future timestep.  That future parent timestep in
+!***           which the nest will shift is also sent to the parent.
+!***       (b) If the current timestep is equal to the timestep
+!***           in which the nest determined it wants to shift then
+!***           the child now Recvs the parent data for its internal
+!***           gridpoints that have moved over a new portion of the
+!***           parent grid as well as the first boundary data at the
+!***           new location.
+!***       (c) The child Recvs the new boundary data sent by the parent
 !***           from the future [see (1) above].
-!
-!***   (3) If 2-way nesting is being used then the child must check to
-!***       see if its parent has sent a message indicating the child
-!***       may proceed with its integration.  The parent's message is
-!***       affirmative only after the parent has received 2-way update
-!***       data from ALL of its children at the end of the parent 
-!***       timestep.  If the parent has not received 2-way update data
-!***       from all its children then the parent must wait and cannot
-!***       proceed another timestep in its own integration and send
-!***       BC data back to its children from the future.  When a parent
-!***       is waiting then it sends no message to its children since
-!***       the children must not proceed in their integration until
-!***       they can expect to receive BC data from their parent from
-!***       the children's future.
 !-----------------------------------------------------------------------
 !
         btim0=timef()
@@ -576,22 +668,16 @@
         IF(I_AM_A_NEST.AND.I_AM_A_FCST_TASK)THEN
 #endif
 !
-          IF(MOD(KOUNT_STEPS,PAR_CHI_TIME_RATIO)==0                     &
-                    .AND.                                               &
-#ifdef ESMF_3
-             domain_int_state%ALLCLEAR_FROM_PARENT==ESMF_False)THEN
-#else
-             .NOT.domain_int_state%ALLCLEAR_FROM_PARENT)THEN
-#endif
+          IF(MOD(KOUNT_STEPS,PAR_CHI_TIME_RATIO)==0)THEN                   !<-- Child is at the start of a parent timestep.
 !
 !-----------------------------------------------------------------------
-!***  Call the Run step for Phase 1 of the Parent-Child coupler in
+!***  Call the Run step for phase 2 of the Parent-Child coupler in
 !***  which children receive BC data with their parents.  The
 !***  name of the subroutine is CHILDREN_RECV_PARENT_DATA.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Call Coupler: Children Recv Data from Parents"
+            MESSAGE_CHECK="Call Phase 2 Coupler Run: Children Recv Data from Parents"
 !           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -599,51 +685,25 @@
                                 ,importState=IMP_STATE_CPL_NEST         &  !<-- The Parent-Child coupler import state
                                 ,exportState=EXP_STATE_CPL_NEST         &  !<-- The Parent-Child coupler export state
                                 ,clock      =CLOCK_INTEGRATE            &  !<-- The Domain Clock
-                                ,phase      =1                          &  !<-- The phase (subroutine) of the coupler to execute
+                                ,phase      =2                          &  !<-- The phase (subroutine) of the coupler to execute
                                 ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            IF(NEST_MODE=='2-way')THEN
-
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-              MESSAGE_CHECK="NMM_INTEGRATE: Extract ALLCLEAR from P-C Exp State"
-!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-              CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST           &  !<-- The parent-child coupler export state
-                                    ,name ='ALLCLEAR'                   &  !<-- Flag for proceeding now in timestep
-                                    ,value=ALLCLEAR_FROM_PARENT         &  !<-- Parent did/not recv all exch data; child can/not proceed
-                                    ,rc   =RC)
-              domain_int_state%ALLCLEAR_FROM_PARENT=ALLCLEAR_FROM_PARENT
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            ENDIF
-!
 !-----------------------------------------------------------------------
 !***  The new nest boundary data must be moved from the Parent-Child
-!***  coupler into the nests' DOMAIN components.
+!***  coupler into the nest's DOMAIN component.
 !-----------------------------------------------------------------------
 !
-            IF(NEST_MODE=='1-way'                                       &
-                      .OR.                                              &
-#ifdef ESMF_3
-               NEST_MODE=='2-way'.AND.ALLCLEAR_FROM_PARENT==ESMF_True)THEN
-#else
-               NEST_MODE=='2-way'.AND.ALLCLEAR_FROM_PARENT)THEN
-#endif
-              CALL BOUNDARY_DATA_STATE_TO_STATE(s_bdy    =S_BDY                          &  !<-- This task lies on a south boundary?
-                                               ,n_bdy    =N_BDY                          &  !<-- This task lies on a north boundary?
-                                               ,w_bdy    =W_BDY                          &  !<-- This task lies on a west boundary?
-                                               ,e_bdy    =E_BDY                          &  !<-- This task lies on an east boundary?
-                                               ,nest     =domain_int_state%I_AM_A_NEST   &  !<-- The nest flag (yes or no)
-                                               ,state_in =EXP_STATE_CPL_NEST             &  !<-- The P-C coupler export state
-                                               ,state_out=IMP_STATE_DOMAIN)                 !<-- The Domain import state
+            CALL BOUNDARY_DATA_STATE_TO_STATE(s_bdy    =S_BDY                          &  !<-- This task lies on a south boundary?
+                                             ,n_bdy    =N_BDY                          &  !<-- This task lies on a north boundary?
+                                             ,w_bdy    =W_BDY                          &  !<-- This task lies on a west boundary?
+                                             ,e_bdy    =E_BDY                          &  !<-- This task lies on an east boundary?
+                                             ,nest     =domain_int_state%I_AM_A_NEST   &  !<-- The nest flag (yes or no)
+                                             ,state_in =EXP_STATE_CPL_NEST             &  !<-- The P-C coupler export state
+                                             ,state_out=IMP_STATE_DOMAIN)                 !<-- The Domain import state
 !
 !-----------------------------------------------------------------------
 !***  If the nest is movable then the DOMAIN component must be 
@@ -653,16 +713,14 @@
 !***  import state.
 !-----------------------------------------------------------------------
 !
-              IF(MY_DOMAIN_MOVES)THEN
+            IF(MY_DOMAIN_MOVES)THEN
 !
-                CALL INTERIOR_DATA_STATE_TO_STATE(EXP_STATE_CPL_NEST    &
-                                                 ,IMP_STATE_DOMAIN )
-!
-              ENDIF
-!
-!-----------------------------------------------------------------------
+              CALL INTERIOR_DATA_STATE_TO_STATE(EXP_STATE_CPL_NEST      &
+                                               ,IMP_STATE_DOMAIN )
 !
             ENDIF
+!
+!-----------------------------------------------------------------------
 !
           ENDIF
 !
@@ -673,16 +731,10 @@
         td%pc_cpl_run_cpl1=td%pc_cpl_run_cpl1+(timef()-btim0)
 !
 !-----------------------------------------------------------------------
-!***  Call phase 2 of the Run step of the Parent-Child coupler.
+!***  Call phase 3 of the Run step of the Parent-Child coupler.
 !***  The name of the subroutine is PARENTS_RECV_CHILD_2WAY_DATA.
 !***  It is at this point that the appropriate parent tasks receive
-!***  2-way exchange data from their children.  Only in this routine
-!***  can the timestepping be suspended.  Until the parent has 
-!***  received exchange data from all its children it cannot integrate
-!***  any further.  Note that the quilt tasks must be included here
-!***  since they also must know whether or not to proceed with the
-!***  integration by calling phase 1 of the Domain component's Run
-!***  step below.
+!***  2-way exchange data from their children.
 !-----------------------------------------------------------------------
 !
         btim0=timef()
@@ -693,42 +745,29 @@
         IF(I_AM_A_FCST_TASK)THEN
 #endif
 !
-          IF(NUM_CHILDREN>0.AND.NEST_MODE=='2-way')THEN                    !<-- Parents call phase 2 of the P-C coupler
+          IF(NUM_CHILDREN>0.AND.NEST_MODE=='2-way')THEN                    !<-- Parents call phase 3 of the P-C coupler
+!
+            IF(KOUNT_STEPS>0)THEN
 !
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Call Coupler: Parents Recv Exchange Data from Children"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+        MESSAGE_CHECK="Call Phase 3 Coupler Run: Parents Recv Exchange Data from Children"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_CplCompRun(cplcomp    =PARENT_CHILD_CPL           &  !<-- The parent-child coupler component
-                                ,importState=IMP_STATE_CPL_NEST         &  !<-- The parent-child coupler import state
-                                ,exportState=EXP_STATE_CPL_NEST         &  !<-- The parent-child coupler export state
-                                ,clock      =CLOCK_INTEGRATE            &  !<-- The DOMAIN Clock
-                                ,phase      =2                          &  !<-- The phase (subroutine) of the coupler to execute
-                                ,rc         =RC)
+              CALL ESMF_CplCompRun(cplcomp    =PARENT_CHILD_CPL         &  !<-- The parent-child coupler component
+                                  ,importState=IMP_STATE_CPL_NEST       &  !<-- The parent-child coupler import state
+                                  ,exportState=EXP_STATE_CPL_NEST       &  !<-- The parent-child coupler export state
+                                  ,clock      =CLOCK_INTEGRATE          &  !<-- The DOMAIN Clock
+                                  ,phase      =3                        &  !<-- The phase (subroutine) of the coupler to execute
+                                  ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Call Coupler: Extract Integration Flag from P-C Exp State"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST             &  !<-- The parent-child coupler export state
-!                                 ,name ='Integrate Flag'               &  !<-- Flag for integration (true or false)
-!                                 ,value=INTEGRATE_TIMESTEP             &  !<-- The value of the integration flag
-                                  ,name ='Recvd All Child Data'         &  !<-- Flag for integration (true or false)
-                                  ,value=RECVD_ALL_CHILD_DATA           &  !<-- The value of the integration flag
-                                  ,rc   =RC)
-            domain_int_state%RECVD_ALL_CHILD_DATA=RECVD_ALL_CHILD_DATA
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            ENDIF
 !
           ENDIF
 !
@@ -820,49 +859,9 @@
 !-----------------------------------------------------------------------
 !***  We are now ready to execute phase 1 of the Domain component's
 !***  Run step.  This is where the forecast integration takes place.
-!***  For 2-way nesting certain conditions must first be met for
-!***  parent and child domains as described above.
 !-----------------------------------------------------------------------
 !
         btim0=timef()
-!
-        FREE_TO_INTEGRATE=.TRUE.
-#ifdef ESMF_3
-        IF(NEST_MODE=='2-way'.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
-        IF(NEST_MODE=='2-way'.AND.I_AM_A_FCST_TASK)THEN
-#endif
-!
-          IF(NUM_CHILDREN>0)THEN
-#ifdef ESMF_3
-            IF(domain_int_state%RECVD_ALL_CHILD_DATA==ESMF_False)THEN      !<-- If so then parents cannot proceed (2-way only)
-#else
-            IF(.NOT.domain_int_state%RECVD_ALL_CHILD_DATA)THEN             !<-- If so then parents cannot proceed (2-way only)
-#endif
-              FREE_TO_INTEGRATE=.FALSE.
-            ENDIF
-          ENDIF
-!
-#ifdef ESMF_3
-          IF(I_AM_A_NEST==ESMF_TRUE)THEN
-#else
-          IF(I_AM_A_NEST)THEN
-#endif
-!
-#ifdef ESMF_3
-            IF(domain_int_state%ALLCLEAR_FROM_PARENT==ESMF_False)THEN      !<-- If so then children cannot proceed (2-way only)
-#else
-            IF(.NOT.domain_int_state%ALLCLEAR_FROM_PARENT)THEN             !<-- If so then children cannot proceed (2-way only)
-#endif
-              FREE_TO_INTEGRATE=.FALSE.
-            ENDIF
-          ENDIF
-!
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!
-        IF(FREE_TO_INTEGRATE)THEN
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="NMM_INTEGRATE: Run DOMAIN Component "//INT_TO_CHAR
@@ -880,33 +879,22 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          INTEGRATED_SOLVER=.TRUE.
-!
-        ELSE
-!
-          INTEGRATED_SOLVER=.FALSE.
-!
-        ENDIF
-!
         phase1_tim = (timef()-btim0)
         td%domain_run_1=td%domain_run_1+phase1_tim
 !
 !-----------------------------------------------------------------------
-!***  If the domain was unable to integrate then exit this iteration
-!***  of the timeloop.  This can happen only in 2-way nesting.
+!***  Now that this domain has integrated a timestep, if it is a 
+!***  2-way run then reset the 2-way signal flags from the parent
+!***  and children of this domain.
 !-----------------------------------------------------------------------
-!
-        IF(.NOT.INTEGRATED_SOLVER)THEN
-          RETURN
-        ENDIF
 !
         IF(NEST_MODE=='2-way')THEN                                         !<-- Reset these 2-way flags
 #ifdef ESMF_3
           IF(I_AM_A_NEST==ESMF_TRUE.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-            domain_int_state%RECVD_ALL_CHILD_DATA=ESMF_False
+            domain_int_state%RECV_ALL_CHILD_DATA=ESMF_False
 #else
           IF(I_AM_A_NEST.AND.I_AM_A_FCST_TASK)THEN
-            domain_int_state%RECVD_ALL_CHILD_DATA=.FALSE. 
+            domain_int_state%RECV_ALL_CHILD_DATA=.FALSE. 
 #endif
 !
             IF(MOD(KOUNT_STEPS+1,PAR_CHI_TIME_RATIO)==0)THEN
@@ -915,6 +903,22 @@
 #else
               domain_int_state%ALLCLEAR_FROM_PARENT=.FALSE.
 #endif
+              ALLCLEAR_FROM_PARENT=domain_int_state%ALLCLEAR_FROM_PARENT
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="NMM_Integrate: Set ALLCLEAR Signal in P-C Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              CALL ESMF_AttributeSet(state=EXP_STATE_CPL_NEST           &  !<-- The parent-child coupler import state
+                                    ,name ='ALLCLEAR'                   &  !<-- Flag for ALLCLEAR from parent (reset to false) 
+                                    ,value=ALLCLEAR_FROM_PARENT         &  !<-- The value of the ALLCLEAR flag
+                                    ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
             ENDIF
 !  
           ENDIF
@@ -922,12 +926,8 @@
         ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Call the 3rd Phase of the Parent_Child coupler where parents
-!***  send data to their children.  The subroutine name is called
-!***  PARENTS_SEND_CHILD_DATA.
-!
-!***  Parents send BC data to their children at the end of all parents'
-!***  timesteps but before any potential filter averaging.
+!***  A parent sends BC data to its children at the end of each parent
+!***  timestep and before any potential filter averaging.
 !***
 !***  (1) For static nests the parents compute only once the association
 !***      between their tasks and their children's boundary tasks then
@@ -940,13 +940,10 @@
 !***      boundary tasks as well as with child tasks in the new
 !***      region of the parent into which the children moved.  Parents
 !***      send the pertinent child tasks information they need in
-!***      order to receive forecast data.  Finally the parents send
-!***      their children new boundary data plus new internal data
+!***      order to receive BC data.  Finally the parents send their
+!***      moving children new boundary data plus new internal data 
 !***      for the new area of the parent newly covered by the most
 !***      recent motion of the nests.
-!***
-!***  For 2-way nesting the parents will also send internal exchange 
-!***  data.
 !-----------------------------------------------------------------------
 !
         btim0=timef()
@@ -958,12 +955,12 @@
 #endif
 !
 !-----------------------------------------------------------------------
-!***  Call the Run step for Phase 3 of the Parent-Child coupler.
+!***  Call the Run step for phase 4 of the Parent-Child coupler.
 !***  The name of the subroutine is PARENTS_SEND_CHILD_DATA.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Call Coupler: Parents Send Child Data"
+          MESSAGE_CHECK="Call Phase 4 Coupler Run: Parents Send Child Data"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -971,7 +968,7 @@
                                 ,importState=IMP_STATE_CPL_NEST         &  !<-- The parent-child coupler import state
                                 ,exportState=EXP_STATE_CPL_NEST         &  !<-- The parent-child coupler export state
                                 ,clock      =CLOCK_INTEGRATE            &  !<-- The DOMAIN Clock
-                                ,phase      =3                          &  !<-- The phase (subroutine) of the coupler to execute
+                                ,phase      =4                          &  !<-- The phase (subroutine) of the coupler to execute
                                 ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -986,7 +983,7 @@
         td%pc_cpl_run_cpl3=td%pc_cpl_run_cpl3+(timef()-btim0)
 !
 !-----------------------------------------------------------------------
-!***  Call the Run step for Phase 4 of the Parent-Child coupler.
+!***  Call the Run step for phase 5 of the Parent-Child coupler.
 !***  The name of the subroutine is CHILDREN_SEND_PARENTS_2WAY_DATA.
 !***  For 2-way nesting the children send exchange data to their
 !***  parents at the end of each parent timestep.
@@ -1006,7 +1003,7 @@
                COMM_TO_MY_PARENT/=-999)THEN                                !    its parent's timesteps.
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-              MESSAGE_CHECK="Call Coupler4: Children Send Data to Parents"
+              MESSAGE_CHECK="Call Phase 5 Coupler Run: Children Send 2-Way Data to Parents"
 !             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -1014,7 +1011,7 @@
                                   ,importState=IMP_STATE_CPL_NEST       &  !<-- The Parent-Child coupler import state
                                   ,exportState=EXP_STATE_CPL_NEST       &  !<-- The Parent-Child coupler export state
                                   ,clock      =CLOCK_INTEGRATE          &  !<-- The Domain Clock
-                                  ,phase      =4                        &  !<-- The phase (subroutine) of the coupler to execute
+                                  ,phase      =5                        &  !<-- The phase (subroutine) of the coupler to execute
                                   ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1088,7 +1085,7 @@
 !
 !-----------------------------------------------------------------------
 !***  Retrieve the timestep from the DOMAIN clock and
-!***  print forecast time.
+!***  print the forecast time.
 !-----------------------------------------------------------------------
 !
         CALL ESMF_ClockGet(clock       =CLOCK_INTEGRATE                 &
@@ -1117,7 +1114,7 @@
 !***  Now that the clock has been advanced, write the history output
 !***  if it is time to do so.  This must be done through the DOMAIN
 !***  component since its internal state contains the output data 
-!***  so we call Phase 3 of the Run step for the DOMAIN components.
+!***  so we call phase 3 of the Run step for the DOMAIN components.
 !***  The subroutine name of this phase is CALL_WRITE_ASYNC.
 !-----------------------------------------------------------------------
 !
@@ -1232,7 +1229,7 @@
 !
           CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler export state
                                 ,name ='Cpl1_Recv_Time'                 &  !<-- Name of the attribute to extract
-                                ,value=td%cpl1_recv_tim                 &  !<-- Clocktime for Recv in Phase 1 of Cpl
+                                ,value=td%cpl1_recv_tim                 &  !<-- Clocktime for Recv in phase 1 of Cpl Init
                                 ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1254,7 +1251,7 @@
 !
           CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler export state
                                 ,name ='Cpl2_Wait_Time'                 &  !<-- Name of the attribute to extract
-                                ,value=td%cpl2_wait_tim                 &  !<-- Clocktime for Wait in Phase 2 of Cpl
+                                ,value=td%cpl2_wait_tim                 &  !<-- Clocktime for Wait in phase 2 of Cpl
                                 ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1674,7 +1671,7 @@
       ENDIF  driver_run_end
 !
 !-----------------------------------------------------------------------
-!***  THE FINAL ERROR SIGNAL INFORMATION.
+!***  The final error signal information.
 !-----------------------------------------------------------------------
 !
       IF(RC_INTEG==ESMF_SUCCESS)THEN

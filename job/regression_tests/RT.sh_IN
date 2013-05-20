@@ -326,7 +326,7 @@ if [ $MACHINE_ID = ccs ]; then
   TASKS_nest=    ; TPN_nest=32 ; INPES_nest=02 ; JNPES_nest=02 ; WTPG_nest=1
   TASKS_fltr=    ; TPN_fltr=64 ; INPES_fltr=02 ; JNPES_fltr=02 ; WTPG_fltr=1
   TASKS_mvg1=    ; TPN_mvg1=32 ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
-  TASKS_mvg2=    ; TPN_mvg2=32 ; INPES_mvg2=04 ; JNPES_mvg2=23 ; WTPG_mvg2=1
+  TASKS_mvg2=    ; TPN_mvg2=32 ; INPES_mvg2=05 ; JNPES_mvg2=18 ; WTPG_mvg2=2
 
 elif [ $MACHINE_ID = wcoss ]; then
 
@@ -335,7 +335,7 @@ elif [ $MACHINE_ID = wcoss ]; then
   TASKS_nest=96  ; TPN_nest=16 ; INPES_nest=02 ; JNPES_nest=02 ; WTPG_nest=1
   TASKS_fltr=64  ; TPN_fltr=16 ; INPES_fltr=02 ; JNPES_fltr=02 ; WTPG_fltr=1
   TASKS_mvg1=96  ; TPN_mvg1=16 ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
-  TASKS_mvg2=96  ; TPN_mvg2=16 ; INPES_mvg2=04 ; JNPES_mvg2=23 ; WTPG_mvg2=1
+  TASKS_mvg2=96  ; TPN_mvg2=16 ; INPES_mvg2=05 ; JNPES_mvg2=18 ; WTPG_mvg2=2
 
 elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
 
@@ -344,7 +344,7 @@ elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
   TASKS_nest=96  ; TPN_nest=   ; INPES_nest=02 ; JNPES_nest=02 ; WTPG_nest=1
   TASKS_fltr=64  ; TPN_fltr=   ; INPES_fltr=02 ; JNPES_fltr=02 ; WTPG_fltr=1
   TASKS_mvg1=96  ; TPN_mvg1=   ; INPES_mvg1=05 ; JNPES_mvg1=07 ; WTPG_mvg1=1
-  TASKS_mvg2=96  ; TPN_mvg2=   ; INPES_mvg2=04 ; JNPES_mvg2=23 ; WTPG_mvg2=1
+  TASKS_mvg2=96  ; TPN_mvg2=   ; INPES_mvg2=05 ; JNPES_mvg2=18 ; WTPG_mvg2=2
 
 fi
 
@@ -495,9 +495,9 @@ else
    if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-  if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus ]; then
+  if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus -o $MACHINE_ID = wcoss ]; then
    export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
-  elif [ $MACHINE_ID = gaea -o $MACHINE_ID = wcoss ]; then
+  elif [ $MACHINE_ID = gaea ]; then
    export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
   fi
   export timingc=`cat ${RTPWD}/NMMB_glob/timing.txt`
@@ -710,9 +710,9 @@ else
    if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-  if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus ]; then
+  if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus -o $MACHINE_ID = wcoss ]; then
    export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $5 }'`
-  elif [ $MACHINE_ID = gaea -o $MACHINE_ID = wcoss ]; then
+  elif [ $MACHINE_ID = gaea ]; then
    export timing1=`grep total_integration_tim $RUNDIR/err | tail -1 | awk '{ print $4 }'`
   fi
   export timingc=`cat ${RTPWD}/NMMB_reg/timing.txt`
@@ -1285,12 +1285,11 @@ fi # endif test
 ####################################################################################################
 #
 # TEST   - NMM-B moving nests: Same as above except with generational task assignments.
-#        - Compute tasks - Upper parent 7x16 | Child #1 4x6 | Child #2 4x6 | Grandchild 5x10
+#        - Compute tasks - Upper parent 5x18 | Child #1 5x9 | Child #2 5x9 | Grandchild 10x9
 #        - 1 thread / opnl physics / free fcst / nemsio and pure binary input
 #
 ####################################################################################################
 
- if [ 1 = 0 ]; then # temporary removed from tests
   if [ $RT_FULL = true ]; then
 
    export TEST_DESCR="Test NMMB-regional with moving nests and generational task assignments"
@@ -1302,16 +1301,16 @@ fi # endif test
    export LIST_FILES=" \
    nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
    nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-   nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
-#  nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
-#  nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
-#  nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
-#  nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
-#  nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
-#  nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s \
-#  nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
-#  nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
-#  nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
+   nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s \
+   nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
+   nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
+   nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
+   nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
+   nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
+   nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s \
+   nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
+   nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
+   nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
 #---------------------
    export_nmm
    export GBRG=mnests ; export FCSTL=24 ; export NCHILD=02
@@ -1325,7 +1324,6 @@ fi # endif test
 #---------------------
 
   fi # endif test
- fi # temporary removed from tests
 
 fi # end of the loop SKIP_NMM
 

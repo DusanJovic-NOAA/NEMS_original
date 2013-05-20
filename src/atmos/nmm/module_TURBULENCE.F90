@@ -414,6 +414,8 @@
         V_PHY(I,J,K)=0.
         U_GWD(I,K,J)=0.
         V_GWD(I,K,J)=0.
+        DUDT_PHY(I,J,K)=0.
+        DVDT_PHY(I,J,K)=0.
       ENDDO
       ENDDO
       ENDDO
@@ -432,6 +434,7 @@
       DO J=JMS,JME
       DO I=IMS,IME
         ONE(I,J)=1.
+        KPBL(I,J)=0
         RMOL(I,J)=0.     !Reciprocal of Monin-Obukhov length
         SFCEVPX(I,J)=0.  !Dummy for accumulated latent energy, not flux
       ENDDO
@@ -1230,7 +1233,7 @@
         ENDDO
         ENDDO
 
-        CALL GWD_DRIVER(U_GWD,V_GWD,T_GWD,Q_GWD                         &
+        CALL GWD_DRIVER(DTPHS,U_GWD,V_GWD,T_GWD,Q_GWD                   &
                        ,Z_GWD,DP_GWD                                    &
                        ,PINT_GWD,PMID_GWD,EXNR_GWD                      &
                        ,KPBL                                            &
@@ -1245,7 +1248,7 @@
                        ,IDS,IDE,JDS,JDE                                 &
                        ,IMS,IME,JMS,JME                                 &
                        ,ITS,ITE,JTS,JTE,LM )
-
+!
       ENDIF
 !
 !=======================================================================

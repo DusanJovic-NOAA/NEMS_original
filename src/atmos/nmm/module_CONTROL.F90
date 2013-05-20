@@ -2,17 +2,11 @@
                         module module_control
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
-use module_include
-use module_dm_parallel,only : ids,ide,jds,jde &
-                             ,ims,ime,jms,jme &
-                             ,its,ite,jts,jte &
-                             ,its_h2,ite_h2,jts_h2,jte_h2 &
-                             ,lm &
-                             ,mype_share,npes,num_pts_max &
-                             ,mpi_comm_comp
 !
+use module_include
 use module_exchange
 use module_constants
+!
 !-----------------------------------------------------------------------
 !
       implicit none
@@ -109,8 +103,7 @@ integer(kind=kint),dimension(1:3):: &
  idatbc(3)                   ! date of boundary data, day, month, year
 
 real(kind=kfpt):: &
- bofac &                     ! amplification of diffusion along bndrs.
-,dt                          ! dynamics time step
+ bofac                       ! amplification of diffusion along bndrs.
 
 integer(kind=kint):: &
  lnsbc                       ! # of boundary lines with enhanced diffusion
@@ -128,6 +121,7 @@ integer(kind=kint):: &
 !
       subroutine consts &
       (global &
+      ,dt &
       ,smag2,codamp,wcor &
       ,pt &
       ,tph0d,tlm0d &
@@ -153,7 +147,10 @@ integer(kind=kint):: &
       ,adv_standard,adv_upstream &
       ,e_bdy,n_bdy,s_bdy,w_bdy &
       ,nboco,tboco &
-      ,my_domain_id)
+      ,my_domain_id,mype &
+      ,its,ite,jts,jte &
+      ,ims,ime,jms,jme &
+      ,ids,ide,jds,jde )
 !
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -163,8 +160,12 @@ integer(kind=kint):: &
 !
 !-----------------------------------------------------------------------
 integer(kind=kint),intent(in) :: &
- lnsh &
-,my_domain_id
+ ids,ide,jds,jde &
+,ims,ime,jms,jme &
+,its,ite,jts,jte &
+,lnsh &
+,my_domain_id &
+,mype
 
 integer(kind=kint),intent(out) :: &
  lnsad &
@@ -172,6 +173,7 @@ integer(kind=kint),intent(out) :: &
 
 real(kind=kfpt),intent(in) :: &
  codamp &    ! divergence damping coefficient
+,dt &        ! fundamental dynamics timestep (sec)
 ,dlmd &      ! grid increment, delta lambda, degrees
 ,dphd &      ! grid increment, delta phi, degrees
 ,pt &        ! Pressure at top of domain (Pa)
@@ -259,8 +261,10 @@ logical(kind=klog),intent(out) :: &
       endif
 !-----------------------------------------------------------------------
       adv_upstream=.false.
-      if(jts<jds+1+lnsad.or.jte>jde-1-lnsad.or. &
-         its<ids+1+lnsad.or.ite>ide-1-lnsad)then
+!!!   if(jts<jds+1+lnsad.or.jte>jde-1-lnsad.or. &
+!!!      its<ids+1+lnsad.or.ite>ide-1-lnsad)then
+      if(jts<jds+1+lnsad.or.jte>=jde-1-lnsad.or. &
+         its<ids+1+lnsad.or.ite>=ide-1-lnsad)then
         adv_upstream=.true.
       endif
 !
@@ -282,7 +286,7 @@ logical(kind=klog),intent(out) :: &
 !	write(0,*) 'tboco: ', tboco
         rewind nbc
         close(unit=nbc)
-        if(mype_share==0)then
+        if(mype==0)then
           write(0,*)'*** Read tboco in CONSTS from ',infile
         endif
         nboco=nint(tboco/dt)
@@ -298,7 +302,7 @@ logical(kind=klog),intent(out) :: &
 !-----------------------------------------------------------------------
 !
       call grid_consts(global &
-      ,smag2,codamp,wcor &
+      ,dt,smag2,codamp,wcor &
       ,tph0d,tlm0d &
       ,sbd,wbd &
       ,dphd,dlmd &
@@ -320,7 +324,8 @@ logical(kind=klog),intent(out) :: &
       ,hdacvx,hdacvy &
       ,e_bdy,n_bdy,s_bdy,w_bdy &
       ,its,ite,jts,jte &
-      ,ims,ime,jms,jme )
+      ,ims,ime,jms,jme &
+      ,ids,ide,jds,jde )
 !
 !-----------------------------------------------------------------------
 !-------------look-up tables--------------------------------------------
@@ -344,7 +349,7 @@ logical(kind=klog),intent(out) :: &
 !
                         subroutine grid_consts &
       ( global &
-      ,smag2,codamp,wcor &
+      ,dt,smag2,codamp,wcor &
       ,tph0d,tlm0d &
       ,sbd,wbd &
       ,dphd,dlmd &
@@ -366,7 +371,8 @@ logical(kind=klog),intent(out) :: &
       ,hdacvx,hdacvy &
       ,e_bdy,n_bdy,s_bdy,w_bdy &
       ,its,ite,jts,jte &
-      ,ims,ime,jms,jme )
+      ,ims,ime,jms,jme &
+      ,ids,ide,jds,jde )
 !
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -380,13 +386,18 @@ integer(kind=kint),intent(in) :: &
 ,ite &   ! ending integration index in i
 ,ims &   ! starting memory index in i
 ,ime &   ! ending memory index in i
+,ids &   ! starting domain index in i
+,ide &   ! ending domain index in i
 ,jts &   ! starting integration index in j
 ,jte &   ! ending integration index in j
 ,jms &   ! starting memory index in j
-,jme     ! ending memory index in j
+,jme &   ! ending memory index in j
+,jds &   ! starting domain index in j
+,jde     ! ending domain index in j
 
 real(kind=kfpt),intent(in) :: &
  codamp &    ! divergence damping coefficient
+,dt &        ! fundamental dynamics timestep (sec)
 ,sbd &       ! degrees from center of domain to southern boundary
 ,smag2 &     ! Smagorinsky coefficient for 2nd order diffusion 
 ,tlm0d &

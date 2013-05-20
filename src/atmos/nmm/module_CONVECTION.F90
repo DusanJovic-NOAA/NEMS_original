@@ -10,15 +10,6 @@
 !
       USE MODULE_INCLUDE
 !
-      USE MODULE_DM_PARALLEL,ONLY : ITS_B1,ITE_B1,ITE_B2                &
-                                   ,ITS_B1_H1,ITE_B1_H1,ITE_B1_H2       &
-                                   ,ITS_B1_H2,ITE_H1,ITE_H2             &
-                                   ,JTS_B1,JTE_B1,JTE_B2                &
-                                   ,JTS_B1_H1,JTE_B1_H1,JTE_B1_H2       &
-                                   ,JTS_B1_H2,JTE_H2                    &
-                                   ,MPI_COMM_COMP                       &
-                                   ,MYPE_SHARE
-!
       USE MODULE_CONTROL,ONLY : NMMB_FINALIZE
 
       USE MODULE_CU_BMJ
@@ -54,9 +45,7 @@
 !-----------------------------------------------------------------------
       SUBROUTINE CUCNVC(NTSD,DT,NCNVC,NRADS,NRADL,MINUTES_HISTORY       &
                        ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP           &
-                       ,a2,a3,a4,cappa,cp,eliv,elwv,epsq,g &
-                       ,p608,pq0,r_d,tiw  &
-                       ,fres,fr,fsl,fss                                 &
+                       ,FRES,FR,FSL,FSS                                 &
                        ,DYH,RESTRT,HYDRO                                &
                        ,CLDEFI,NUM_WATER                                &
                        ,F_ICE,F_RAIN                                    &
@@ -75,12 +64,15 @@
                        ,RSWIN,RSWOUT                                    &
                        ,CONVECTION,CU_PHYSICS                           &
 !!!! added for SAS
-                       ,SICE,QWBS,TWBS,PBLH,dudt_phy,dvdt_phy           &
+                       ,SICE,QWBS,TWBS,PBLH,DUDT_PHY,DVDT_PHY           &
 !!!
+                       ,A2,A3,A4,CAPPA,CP,ELIV,ELWV,EPSQ,G              &
+                       ,P608,PQ0,R_D,TIW                                &
                        ,IDS,IDE,JDS,JDE,LM                              &
                        ,IMS,IME,JMS,JME                                 &
-                       ,ITS,ITE,JTS,JTE)
-
+                       ,ITS,ITE,JTS,JTE                                 &
+                       ,ITS_B1,ITE_B1,JTS_B1,JTE_B1                     &
+                                                    )
 !***********************************************************************
 !$$$  SUBPROGRAM DOCUMENTATION BLOCK
 !                .      .    .     
@@ -121,6 +113,7 @@
       ,ids,ide,jds,jde,lm &
       ,ims,ime,jms,jme &
       ,its,ite,jts,jte &
+      ,its_b1,ite_b1,jts_b1,jte_b1 &
       ,ncnvc,minutes_history &
       ,nrads,nradl,ntsd,num_water &
       ,p_qv,p_qc,p_qr,p_qi,p_qs,p_qg

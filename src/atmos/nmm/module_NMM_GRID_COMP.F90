@@ -2035,14 +2035,14 @@
       ALLOCATE(nmm_int_state%IMP_STATE_PC_CPL(1:NUM_DOMAINS_TOTAL))        !<-- The couplers' import states.
       ALLOCATE(nmm_int_state%EXP_STATE_PC_CPL(1:NUM_DOMAINS_TOTAL))        !<-- The couplers' export states.
 !
-      ALLOCATE(HANDLE_PACKET_S_H(1:NUM_DOMAINS_TOTAL))                     !<-- Request handles for parent ISends of bndry data packets
-      ALLOCATE(HANDLE_PACKET_S_V(1:NUM_DOMAINS_TOTAL))                     !    to children
-      ALLOCATE(HANDLE_PACKET_N_H(1:NUM_DOMAINS_TOTAL))                     !
-      ALLOCATE(HANDLE_PACKET_N_V(1:NUM_DOMAINS_TOTAL))                     !
-      ALLOCATE(HANDLE_PACKET_W_H(1:NUM_DOMAINS_TOTAL))                     !
-      ALLOCATE(HANDLE_PACKET_W_V(1:NUM_DOMAINS_TOTAL))                     !
-      ALLOCATE(HANDLE_PACKET_E_H(1:NUM_DOMAINS_TOTAL))                     !
-      ALLOCATE(HANDLE_PACKET_E_V(1:NUM_DOMAINS_TOTAL))                     !<--
+      ALLOCATE(HANDLE_PACKET_S_H(1:NUM_DOMAINS_TOTAL,1:2))                 !<-- Request handles for parent ISends of bndry data packets
+      ALLOCATE(HANDLE_PACKET_S_V(1:NUM_DOMAINS_TOTAL,1:2))                 !    to children
+      ALLOCATE(HANDLE_PACKET_N_H(1:NUM_DOMAINS_TOTAL,1:2))                 !
+      ALLOCATE(HANDLE_PACKET_N_V(1:NUM_DOMAINS_TOTAL,1:2))                 !
+      ALLOCATE(HANDLE_PACKET_W_H(1:NUM_DOMAINS_TOTAL,1:2))                 !
+      ALLOCATE(HANDLE_PACKET_W_V(1:NUM_DOMAINS_TOTAL,1:2))                 !
+      ALLOCATE(HANDLE_PACKET_E_H(1:NUM_DOMAINS_TOTAL,1:2))                 !
+      ALLOCATE(HANDLE_PACKET_E_V(1:NUM_DOMAINS_TOTAL,1:2))                 !<--
 !
       ALLOCATE(HANDLE_IJ_SW(1:NUM_DOMAINS_TOTAL))                          !<-- Request handle for child ISend of its SW corner to parent
 !
@@ -2149,14 +2149,16 @@
 !***  the gens_1 loop below as well as the object holding those limits.
 !-----------------------------------------------------------------------
 !
-        HANDLE_PACKET_S_H(N)%CHILDREN=>NULL()
-        HANDLE_PACKET_S_V(N)%CHILDREN=>NULL()
-        HANDLE_PACKET_N_H(N)%CHILDREN=>NULL()
-        HANDLE_PACKET_N_V(N)%CHILDREN=>NULL()
-        HANDLE_PACKET_W_H(N)%CHILDREN=>NULL()
-        HANDLE_PACKET_W_V(N)%CHILDREN=>NULL()
-        HANDLE_PACKET_E_H(N)%CHILDREN=>NULL()
-        HANDLE_PACKET_E_V(N)%CHILDREN=>NULL()
+        DO NN=1,2
+          HANDLE_PACKET_S_H(N,NN)%CHILDREN=>NULL()
+          HANDLE_PACKET_S_V(N,NN)%CHILDREN=>NULL()
+          HANDLE_PACKET_N_H(N,NN)%CHILDREN=>NULL()
+          HANDLE_PACKET_N_V(N,NN)%CHILDREN=>NULL()
+          HANDLE_PACKET_W_H(N,NN)%CHILDREN=>NULL()
+          HANDLE_PACKET_W_V(N,NN)%CHILDREN=>NULL()
+          HANDLE_PACKET_E_H(N,NN)%CHILDREN=>NULL()
+          HANDLE_PACKET_E_V(N,NN)%CHILDREN=>NULL()
+        ENDDO
 !
         HANDLE_PARENT_ITS(N)%DATA=>NULL()
         HANDLE_PARENT_ITE(N)%DATA=>NULL()
@@ -2169,11 +2171,6 @@
         HANDLE_CHILD_TOPO_N(N)%CHILDREN=>NULL()
         HANDLE_CHILD_TOPO_W(N)%CHILDREN=>NULL()
         HANDLE_CHILD_TOPO_E(N)%CHILDREN=>NULL()
-!
-        PTASK_LIMITS(N)%ITS=>NULL()
-        PTASK_LIMITS(N)%ITE=>NULL()
-        PTASK_LIMITS(N)%JTS=>NULL()
-        PTASK_LIMITS(N)%JTE=>NULL()
 !
         CTASK_LIMITS(N)%CHILDREN=>NULL()
 !
@@ -2316,8 +2313,6 @@
                                          ,IMP_STATE_CPL_NEST            &  !   Output
                                          ,EXP_STATE_CPL_NEST            &  !     |
                                                              )             !     v
-!                                        ,EXP_STATE_CPL_NEST            &  !     |
-!                                        ,PARENT_CHILD_COUPLER_COMP )      !     v
 !
 !-----------------------------------------------------------------------
 !
@@ -2371,7 +2366,6 @@
 !***  coupler initialization.
 !-----------------------------------------------------------------------
 !
-!!!!  gens_1: DO NN=1,NUM_GENS
       gens_1: DO NN=NUM_GENS,1,-1
 !
         MY_DOMAIN_ID=MY_DOMAINS_IN_GENS(NN)                                !<-- This task's (only) domain in generation NN
@@ -2512,19 +2506,19 @@
           I_AM_A_FCST_TASK=nmm_int_state%I_AM_A_FCST_TASK(MY_DOMAIN_ID)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Phase 2 Initialization of the Parent-Child Coupler"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+          MESSAGE_CHECK="Phase 2 Initialization of the Parent-Child Coupler"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-            CALL ESMF_CplCompInitialize(cplcomp    =PARENT_CHILD_COUPLER_COMP &  !<-- The parent-child coupler component
-                                       ,importState=IMP_STATE_CPL_NEST        &  !<-- The parent-child coupler import state
-                                       ,exportState=EXP_STATE_CPL_NEST        &  !<-- The parent-child coupler export state
-                                       ,clock      =CLOCK_NMM(MY_DOMAIN_ID)   &  !<-- The DOMAIN Clock
-                                       ,phase      =2                         &  !<-- The phase (see P-C Register routine)
-                                       ,rc         =RC)
+          CALL ESMF_CplCompInitialize(cplcomp    =PARENT_CHILD_COUPLER_COMP &  !<-- The parent-child coupler component
+                                     ,importState=IMP_STATE_CPL_NEST        &  !<-- The parent-child coupler import state
+                                     ,exportState=EXP_STATE_CPL_NEST        &  !<-- The parent-child coupler export state
+                                     ,clock      =CLOCK_NMM(MY_DOMAIN_ID)   &  !<-- The DOMAIN Clock
+                                     ,phase      =2                         &  !<-- The phase (see P-C Register routine)
+                                     ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
@@ -2648,7 +2642,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Create the Clocktime Output Alarm"
+!       MESSAGE_CHECK="Create the Clocktime Output Alarm"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -2660,7 +2654,7 @@
 !!!                                     ,rc               =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+!       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
@@ -2785,8 +2779,9 @@
             ENDDO
           ENDIF
 !
+!
           DO N=1,NUM_CHILDREN
-            IF(MYPE==0)THEN
+            IF(ASSOCIATED(HANDLE_PARENT_ITS(ID)%DATA))THEN
               CALL MPI_WAIT(HANDLE_PARENT_ITS(ID)%DATA(N)               &
                            ,JSTAT                                       &
                            ,IERR)
@@ -2825,14 +2820,14 @@
 !
           ID=MY_DOMAIN_ID
 !
-          IF(ASSOCIATED(HANDLE_PACKET_S_H(ID)%CHILDREN))THEN
+          IF(ASSOCIATED(HANDLE_PACKET_S_H(ID,1)%CHILDREN))THEN
 !
             DO N=1,NUM_CHILDREN
-              IF(ASSOCIATED(HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA))THEN
-                INDX2=UBOUND(HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA,1)
+              IF(ASSOCIATED(HANDLE_PACKET_S_H(ID,1)%CHILDREN(N)%DATA))THEN
+                INDX2=UBOUND(HANDLE_PACKET_S_H(ID,1)%CHILDREN(N)%DATA,1)
                 DO NT=1,INDX2
-                  CALL MPI_WAIT(HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA(NT) &
-                               ,JSTAT                                      &
+                  CALL MPI_WAIT(HANDLE_PACKET_S_H(ID,1)%CHILDREN(N)%DATA(NT) &
+                               ,JSTAT                                        &
                                ,IERR)
                 ENDDO
 !
@@ -2840,14 +2835,14 @@
             ENDDO
           ENDIF
 !
-          IF(ASSOCIATED(HANDLE_PACKET_S_V(ID)%CHILDREN))THEN
+          IF(ASSOCIATED(HANDLE_PACKET_S_V(ID,1)%CHILDREN))THEN
 !
             DO N=1,NUM_CHILDREN
-              IF(ASSOCIATED(HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA))THEN
-                INDX2=UBOUND(HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA,1)
+              IF(ASSOCIATED(HANDLE_PACKET_S_V(ID,1)%CHILDREN(N)%DATA))THEN
+                INDX2=UBOUND(HANDLE_PACKET_S_V(ID,1)%CHILDREN(N)%DATA,1)
                 DO NT=1,INDX2
-                  CALL MPI_WAIT(HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA(NT) &
-                               ,JSTAT                                      &
+                  CALL MPI_WAIT(HANDLE_PACKET_S_V(ID,1)%CHILDREN(N)%DATA(NT) &
+                               ,JSTAT                                        &
                                ,IERR)
                 ENDDO
 !
@@ -2855,14 +2850,14 @@
             ENDDO
           ENDIF
 !
-          IF(ASSOCIATED(HANDLE_PACKET_N_H(ID)%CHILDREN))THEN
+          IF(ASSOCIATED(HANDLE_PACKET_N_H(ID,1)%CHILDREN))THEN
 !
             DO N=1,NUM_CHILDREN
-              IF(ASSOCIATED(HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA))THEN
-                INDX2=UBOUND(HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA,1)
+              IF(ASSOCIATED(HANDLE_PACKET_N_H(ID,1)%CHILDREN(N)%DATA))THEN
+                INDX2=UBOUND(HANDLE_PACKET_N_H(ID,1)%CHILDREN(N)%DATA,1)
                 DO NT=1,INDX2
-                  CALL MPI_WAIT(HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA(NT) &
-                               ,JSTAT                                      &
+                  CALL MPI_WAIT(HANDLE_PACKET_N_H(ID,1)%CHILDREN(N)%DATA(NT) &
+                               ,JSTAT                                        &
                                ,IERR)
                 ENDDO
 !
@@ -2870,14 +2865,14 @@
             ENDDO
           ENDIF
 !
-          IF(ASSOCIATED(HANDLE_PACKET_N_V(ID)%CHILDREN))THEN
+          IF(ASSOCIATED(HANDLE_PACKET_N_V(ID,1)%CHILDREN))THEN
 !
             DO N=1,NUM_CHILDREN
-              IF(ASSOCIATED(HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA))THEN
-                INDX2=UBOUND(HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA,1)
+              IF(ASSOCIATED(HANDLE_PACKET_N_V(ID,1)%CHILDREN(N)%DATA))THEN
+                INDX2=UBOUND(HANDLE_PACKET_N_V(ID,1)%CHILDREN(N)%DATA,1)
                 DO NT=1,INDX2
-                  CALL MPI_WAIT(HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA(NT) &
-                               ,JSTAT                                      &
+                  CALL MPI_WAIT(HANDLE_PACKET_N_V(ID,1)%CHILDREN(N)%DATA(NT) &
+                               ,JSTAT                                        &
                                ,IERR)
                 ENDDO
 !
@@ -2885,14 +2880,14 @@
             ENDDO
           ENDIF
 !
-          IF(ASSOCIATED(HANDLE_PACKET_W_H(ID)%CHILDREN))THEN
+          IF(ASSOCIATED(HANDLE_PACKET_W_H(ID,1)%CHILDREN))THEN
 !
             DO N=1,NUM_CHILDREN
-              IF(ASSOCIATED(HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA))THEN
-                INDX2=UBOUND(HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA,1)
+              IF(ASSOCIATED(HANDLE_PACKET_W_H(ID,1)%CHILDREN(N)%DATA))THEN
+                INDX2=UBOUND(HANDLE_PACKET_W_H(ID,1)%CHILDREN(N)%DATA,1)
                 DO NT=1,INDX2
-                  CALL MPI_WAIT(HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA(NT) &
-                               ,JSTAT                                      &
+                  CALL MPI_WAIT(HANDLE_PACKET_W_H(ID,1)%CHILDREN(N)%DATA(NT) &
+                               ,JSTAT                                        &
                                ,IERR)
                 ENDDO
 !
@@ -2900,14 +2895,14 @@
             ENDDO
           ENDIF
 !
-          IF(ASSOCIATED(HANDLE_PACKET_W_V(ID)%CHILDREN))THEN
+          IF(ASSOCIATED(HANDLE_PACKET_W_V(ID,1)%CHILDREN))THEN
 !
             DO N=1,NUM_CHILDREN
-              IF(ASSOCIATED(HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA))THEN
-                INDX2=UBOUND(HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA,1)
+              IF(ASSOCIATED(HANDLE_PACKET_W_V(ID,1)%CHILDREN(N)%DATA))THEN
+                INDX2=UBOUND(HANDLE_PACKET_W_V(ID,1)%CHILDREN(N)%DATA,1)
                 DO NT=1,INDX2
-                  CALL MPI_WAIT(HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA(NT) &
-                               ,JSTAT                                      &
+                  CALL MPI_WAIT(HANDLE_PACKET_W_V(ID,1)%CHILDREN(N)%DATA(NT) &
+                               ,JSTAT                                        &
                                ,IERR)
                 ENDDO
 !
@@ -2915,14 +2910,14 @@
             ENDDO
           ENDIF
 !
-          IF(ASSOCIATED(HANDLE_PACKET_E_H(ID)%CHILDREN))THEN
+          IF(ASSOCIATED(HANDLE_PACKET_E_H(ID,1)%CHILDREN))THEN
 !
             DO N=1,NUM_CHILDREN
-              IF(ASSOCIATED(HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA))THEN
-                INDX2=UBOUND(HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA,1)
+              IF(ASSOCIATED(HANDLE_PACKET_E_H(ID,1)%CHILDREN(N)%DATA))THEN
+                INDX2=UBOUND(HANDLE_PACKET_E_H(ID,1)%CHILDREN(N)%DATA,1)
                 DO NT=1,INDX2
-                  CALL MPI_WAIT(HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA(NT) &
-                               ,JSTAT                                      &
+                  CALL MPI_WAIT(HANDLE_PACKET_E_H(ID,1)%CHILDREN(N)%DATA(NT) &
+                               ,JSTAT                                        &
                                ,IERR)
                 ENDDO
 !
@@ -2930,26 +2925,20 @@
             ENDDO
           ENDIF
 !
-          IF(ASSOCIATED(HANDLE_PACKET_E_V(ID)%CHILDREN))THEN
+          IF(ASSOCIATED(HANDLE_PACKET_E_V(ID,1)%CHILDREN))THEN
 !
             DO N=1,NUM_CHILDREN
-              IF(ASSOCIATED(HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA))THEN
-                INDX2=UBOUND(HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA,1)
+              IF(ASSOCIATED(HANDLE_PACKET_E_V(ID,1)%CHILDREN(N)%DATA))THEN
+                INDX2=UBOUND(HANDLE_PACKET_E_V(ID,1)%CHILDREN(N)%DATA,1)
                 DO NT=1,INDX2
-                  CALL MPI_WAIT(HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA(NT) &
-                               ,JSTAT                                      &
+                  CALL MPI_WAIT(HANDLE_PACKET_E_V(ID,1)%CHILDREN(N)%DATA(NT) &
+                               ,JSTAT                                        &
                                ,IERR)
                 ENDDO
 !
               ENDIF
             ENDDO
           ENDIF
-!
-!         DO N=1,NUM_CHILDREN
-!           IF(ASSOCIATED(INFO_SEND(ID)%CHILDREN(N)%INFO))THEN
-!             DEALLOCATE(INFO_SEND(ID)%CHILDREN(N)%INFO)     !<---- NO!!! This is needed in integration for moving nests.
-!           ENDIF
-!         ENDDO
 !
         ENDIF parent_waits_bc_info
 !
@@ -3344,21 +3333,6 @@
 !-----------------------------------------------------------------------
 !
           ENDIF domain
-!
-!-----------------------------------------------------------------------
-!***  For generational use of the MPI tasks we need to insert a
-!***  barrier between the executions of different generations 
-!***  otherwise sends/recvs between those generations will become
-!***  jumbled.
-!-----------------------------------------------------------------------
-!
-#ifdef ESMF_3
-          IF(MY_DOMAIN_ID>0.AND.I_AM_A_FCST_TASK==ESMF_True)THEN
-#else
-          IF(MY_DOMAIN_ID>0.AND.I_AM_A_FCST_TASK)THEN
-#endif
-            CALL MPI_BARRIER(comms_domain(MY_DOMAIN_ID)%TO_FCST_TASKS,IERR)
-          ENDIF
 !
 !-----------------------------------------------------------------------
 !***  All tasks that are finished on all generations may leave.
@@ -5335,7 +5309,7 @@
                                   ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!!!   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CALL_INIT)
+!     CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CALL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
@@ -5356,7 +5330,6 @@
       IF(N_CHILDREN>0)THEN                                                 !<-- Does the current DOMAIN have any children?
         DO N=1,N_CHILDREN                                                  !<-- If so, loop through the children to Initialize them
           ID_CHILD=ID_CHILDREN(N,ID_DOMAIN)
-!         write(0,*)' recursive call  n_children=',n_children,' id_domain=',id_domain,' id_child=',id_child
           CALL CALL_DOMAIN_INITIALIZE(ID_CHILD,CLOCK_NMM)
         ENDDO
       ENDIF

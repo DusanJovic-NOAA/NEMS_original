@@ -4,9 +4,11 @@ How to use restart:
 
 1) Keep same end time (nhours_fcst: in config file) like in original run.
 2) Change restart: argument in config file from false to true
-   That's the only change in config file
+   That's the only change in config file.
 3) The only difference from original run script is you don't use main_input_filename.
-   Instead, you use restart_file which you get from original output (i.e. nmm_b_restart.006)
+   Instead, you use restart_file_XX_nemsio which you get from original restart output 
+   file nmmb_rst_XX_nio_HHHHh_00m_00.00s where XX is the domain ID and HHHH is the
+   forecast hour of the restart time.
 
 Limitations:
 

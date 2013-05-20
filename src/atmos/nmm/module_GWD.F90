@@ -16,7 +16,7 @@
 !
       INTEGER, PARAMETER :: KIND_PHYS=SELECTED_REAL_KIND(13,60) ! the '60' maps to 64-bit real
       INTEGER,PRIVATE,SAVE :: NMTVR, IDBG, JDBG
-      REAL (KIND=KIND_PHYS),PRIVATE,SAVE :: DELTIM,RDELTIM
+      REAL (KIND=KIND_PHYS),PRIVATE :: DELTIM,RDELTIM
 !rv   REAL(kind=kind_phys),PRIVATE,PARAMETER :: SIGFAC=0.0   !-- Key tunable parameter
 !
 !-----------------------------------------------------------------------
@@ -113,7 +113,7 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE GWD_driver(U,V,T,Q,Z,DP,PINT,PMID,EXNR,KPBL            &
+      SUBROUTINE GWD_driver(DTPHS,U,V,T,Q,Z,DP,PINT,PMID,EXNR,KPBL      &
                            ,HSTDV,HCNVX,HASYW,HASYS,HASYSW,HASYNW       &
                            ,HLENW,HLENS,HLENSW,HLENNW                   &
                            ,HANGL,HANIS,HSLOP,HZMAX,CROT,SROT           &
@@ -173,7 +173,7 @@
 !
 !-- INPUT variables:
 !
-      REAL, INTENT(IN):: CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN
+      REAL, INTENT(IN):: DTPHS,CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN
       REAL, INTENT(IN), DIMENSION (ims:ime, 1:lm+1, jms:jme) ::        &
      &                                   Z,PINT
       REAL, INTENT(IN), DIMENSION (ims:ime, 1:lm, jms:jme) ::        &
@@ -215,6 +215,9 @@
 !--------------------------  Executable below  -------------------------
 !
 !-- Initialize variables
+!
+      DELTIM=DTPHS
+      RDELTIM=1./DTPHS
 !
       DO J=JMS,JME
       DO K=1,LM

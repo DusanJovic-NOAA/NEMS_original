@@ -45,7 +45,7 @@
       USE esmf_mod
       USE MODULE_INCLUDE
       USE MODULE_VARS_STATE
-      USE MODULE_SOLVER_INTERNAL_STATE                                   !<-- Horizontal loop limits obtained here
+      USE MODULE_SOLVER_INTERNAL_STATE                                     !<-- Horizontal loop limits obtained here
 !
       USE MODULE_MY_DOMAIN_SPECS, IDS_share=>IDS,IDE_share=>IDE         &
                                  ,IMS_share=>IMS,IME_share=>IME         &
@@ -295,10 +295,7 @@
 !***  Carry out all necessary setups for the model Solver.
 !-----------------------------------------------------------------------
 !
-      USE MODULE_CONTROL,ONLY : DT                                      &  !  <--
-                               ,NPES                                    &  !  <--
-!
-                               ,BOUNDARY_INIT,CONSTS                       !  <-- Subroutines
+      USE MODULE_CONTROL,ONLY : BOUNDARY_INIT,CONSTS                       !  <-- Subroutines
 !
       USE MODULE_INIT_READ_BIN,ONLY : READ_BINARY
       USE MODULE_INIT_READ_NEMSIO,ONLY : READ_NEMSIO
@@ -343,7 +340,7 @@
 !
       INTEGER(kind=KINT),DIMENSION(1:8) :: MY_NEB
 !
-      REAL(kind=KFPT) :: DPH,DLM,GLATX,GLONX,SB_1,SBD_1,TLATX,TLONX     &
+      REAL(kind=KFPT) :: DPH,DLM,DT,GLATX,GLONX,SB_1,SBD_1,TLATX,TLONX  &
                         ,TPH0_1,TPH0D_1,TLM0_1,TLM0D_1,WB_1,WBD_1       &
                         ,X,Y,Z
 !
@@ -1699,18 +1696,11 @@
               DPH=int_state%DPHD*D2R                                       !<-- Nest's angular grid increment in J (radians)
               DLM=int_state%DLMD*D2R                                       !<-- Nest's angular grid increment in I (radians)
 !
-!     write(0,*)' Solver Init SW corner'
-!     write(0,*)' glatx=',glatx/d2r,' glonx=',glonx/d2r
-!     write(0,*)' tlatx=',tlatx/d2r,' tlonx=',tlonx/d2r
-!     write(0,*)' sbd_1=',sbd_1,' wbd_1=',wbd_1
-!     write(0,*)' dph=',dph,' dlm=',dlm
               I_INC=NINT((TLONX-WB_1)/DLM)                                 !<-- Nest grid increments (integer) between west/south
               J_INC=NINT((TLATX-SB_1)/DPH)                                 !    boundaries of the nest and domain #1.
 !
               SW_X(1)=(SB_1+J_INC*DPH)/D2R                                 !<-- Transformed lat (degrees) of nest domain's S bndry
               SW_X(2)=(WB_1+I_INC*DLM)/D2R                                 !<-- Transformed lon (degrees) of nest domain's S bndry
-!     write(0,*)' Solver Init SW corner rot lat=',sw_x(1),' lon=',sw_x(2)
-!     write(0,*)' i_inc=',i_inc,' j_inc=',j_inc
 !
             ENDIF
 !
@@ -1741,10 +1731,8 @@
 !
         btim=timef()
 !
-!     if(its==1.and.jts==1)then
-!       write(0,*)' Solver Init before CONSTS int_state%SBD=',int_state%SBD,' int_state%WBD=',int_state%WBD
-!     endif
         CALL CONSTS(int_state%GLOBAL                                    &
+                   ,int_state%DT                                        &
                    ,int_state%SMAG2                                     &
                    ,int_state%CODAMP,int_state%WCOR                     &
                    ,int_state%PT                                        &
@@ -1772,15 +1760,13 @@
                    ,int_state%E_BDY,int_state%N_BDY                     &
                    ,int_state%S_BDY,int_state%W_BDY                     &
                    ,int_state%NBOCO,int_state%TBOCO                     &
-                   ,MY_DOMAIN_ID)
+                   ,MY_DOMAIN_ID,MYPE                                   &
+                   ,ITS,ITE,JTS,JTE                                     &
+                   ,IMS,IME,JMS,JME                                     &
+                   ,IDS,IDE,JDS,JDE )
 !
         td%consts_tim=td%consts_tim+(timef()-btim)
 !
-!     if(its==1.and.jts==1)then
-!       write(0,*)' Solver Init after CONSTS int_state%GLAT(1,1)=',int_state%GLAT(1,1)*57.29583 &
-!                ,' int_state%GLON(1,1)=',int_state%GLON(1,1)*57.29583
-!       write(0,*)' int_state%GLAT_SW=',int_state%GLAT_SW,' int_state%GLON_SW=',int_state%GLON_SW
-!     endif
 !-----------------------------------------------------------------------
 !***  Exchange haloes for some grid-related arrays in case there are
 !***  moving nests.
@@ -5301,13 +5287,17 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !rv - please do not remove this template call:
-!     if(mod(ntimestep,20)==0.or.ntimestep<=5)then
-!       call twr(int_state%t,lm,'t',ntimestep,mype,num_pes,mpi_comm_comp &
+!     if(mod(nint(dt*ntimestep),60)==0.and.nint(dt*ntimestep)<=1800)then
+!       call twr(int_state%t,lm,'tphy',ntimestep,mype,num_pes,mpi_comm_comp &
 !               ,ids,ide,jds,jde &
 !               ,ims,ime,jms,jme &
 !               ,its,ite,jts,jte &
 !               ,my_domain_id )
-!     endif
+!       call vwr(int_state%u,lm,'uphy',ntimestep,mype,num_pes,mpi_comm_comp &
+!               ,ids,ide,jds,jde &
+!               ,ims,ime,jms,jme &
+!               ,its,ite,jts,jte &
+!               ,my_domain_id )
 !rv
 !
       physics: IF(INTEGER_DT>0)THEN                                     !<-- Physics is active
@@ -6044,10 +6034,8 @@
                        ,int_state%ENTRAIN,int_state%NEWALL                &
                        ,int_state%NEWSWAP,int_state%NEWUPUP               &
                        ,int_state%NODEEP                                  &
-                       ,a2,a3,a4,cappa,cp,eliv,elwv,epsq,g &
-                       ,p608,pq0,r_d,tiw &
-                       ,int_state%fres,int_state%fr                       &
-                       ,int_state%fsl,int_state%fss                       &
+                       ,int_state%FRES,int_state%FR                       &
+                       ,int_state%FSL,int_state%FSS                       &
                        ,int_state%DYH,int_state%RESTART,int_state%HYDRO   &
                        ,int_state%CLDEFI,int_state%NUM_WATER              &
                        ,int_state%F_ICE,int_state%F_RAIN                  &
@@ -6074,9 +6062,12 @@
                        ,int_state%CONVECTION,int_state%CU_PHYSICS         &
                        ,int_state%SICE,int_state%QWBS,int_state%TWBS      &
                        ,int_state%PBLH,int_state%DUDT,int_state%DVDT      &
+                       ,A2,A3,A4,CAPPA,CP,ELIV,ELWV,EPSQ,G                &
+                       ,P608,PQ0,R_D,TIW                                  &
                        ,IDS,IDE,JDS,JDE,LM                                &
                        ,IMS,IME,JMS,JME                                   &
-                       ,ITS,ITE,JTS,JTE)
+                       ,ITS,ITE,JTS,JTE                                   &
+                       ,ITS_B1,ITE_B1,JTS_B1,JTE_B1)
 !
           ELSE
 !
@@ -7334,7 +7325,6 @@
 !***  Deallocate temporary arrays.
 !-----------------------------------------------------------------------
 !
-!     write(0,*)' Solver Run before deallocates'
       DEALLOCATE(DSG2)
       DEALLOCATE(PDSG1)
       DEALLOCATE(PSGML1)

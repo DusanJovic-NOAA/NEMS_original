@@ -121,8 +121,9 @@
                            ,NTIMESTEP                                   &  !<-- Integration timestep
                            ,NUM_TRACERS_CHEM                            &  !<-- Number of chemistry tracer variables
                            ,NUM_TRACERS_MET                             &  !<-- Number of meteorological tracer variables
-                           ,SFC_FILE_RATIO                              &  !<-- Ratio of upper parent -to- moving nest grid increment
                            ,WRITE_GROUP_READY_TO_GO                        !<-- The write group to use
+!
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE,SAVE :: COMM_FCST_TASKS  !<-- Hold the intracommunicator for each domain's fcst tasks.
 !
       REAL(kind=DOUBLE) :: D2R,D_ONE,D_180,PI_LOC
 !
@@ -225,8 +226,14 @@
                            ,MY_DOMAIN_MOVES                                !<-- Does this domain move?
 #endif
 !
-      TYPE(ESMF_FieldBundle),SAVE :: MOVE_BUNDLE_H                      &  !<-- ESMF Bundle of update H variables on moving nests
-                                    ,MOVE_BUNDLE_V                         !<-- ESMF Bundle of update V variables on moving nests
+      TYPE :: DIST
+        REAL(kind=KFPT) :: VALUE
+        INTEGER(kind=KINT) :: I_INC
+        INTEGER(kind=KINT) :: J_INC
+        TYPE(DIST),POINTER :: NEXT_VALUE
+      END TYPE
+!
+      TYPE(DIST),DIMENSION(:),POINTER :: LARGEX,SMALLX
 !
 !---------------------------------
 !***  For determining clocktimes.
@@ -460,7 +467,7 @@
 !
       INTEGER(kind=KINT) :: CONFIG_ID,ISTAT,MAX_DOMAINS                 &
                            ,N,NFCST,NPHS,NTSD,NUM_DOMAINS,NUM_FIELDS    &
-                           ,NUM_PES_FCST,UBOUND_VARS
+                           ,NUM_PES_FCST,SFC_FILE_RATIO,UBOUND_VARS
 !
       INTEGER(kind=KINT) :: IYEAR_FCST                                  &  !<-- Current year from restart file
                            ,IMONTH_FCST                                 &  !<-- Current month from restart file
@@ -1256,6 +1263,17 @@
                        ,GRID_DOMAIN )
 !
 !-----------------------------------------------------------------------
+!***  Save the intracommunicator for this domain's forecast tasks
+!***  since it is used each timestep in DOMAIN_RUN.
+!-----------------------------------------------------------------------
+!
+      IF(.NOT.ALLOCATED(COMM_FCST_TASKS))THEN
+        ALLOCATE(COMM_FCST_TASKS(1:NUM_DOMAINS))
+      ENDIF
+!
+      COMM_FCST_TASKS(MY_DOMAIN_ID)=MPI_COMM_COMP
+!
+!-----------------------------------------------------------------------
 !***  Attach the NMM-specific ESMF Grid to the Domain component.
 !-----------------------------------------------------------------------
 !
@@ -1961,8 +1979,18 @@
 !
           I_PAR_STA=solver_int_state%I_PAR_STA
           J_PAR_STA=solver_int_state%J_PAR_STA
-          LAST_STEP_MOVED=solver_int_state%LAST_STEP_MOVED
           NEXT_MOVE_TIMESTEP=solver_int_state%NMTS
+!
+#ifdef ESMF_3
+          IF(INPUT_READY==ESMF_True.AND..NOT.RESTARTED_RUN)THEN
+#else
+          IF(INPUT_READY.AND..NOT.RESTARTED_RUN)THEN
+#endif
+            solver_int_state%LAST_STEP_MOVED=0
+!
+          ENDIF
+!
+          LAST_STEP_MOVED=solver_int_state%LAST_STEP_MOVED
 !
         ENDIF
 !
@@ -2087,11 +2115,11 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        MOVE_BUNDLE_H=ESMF_FieldBundleCreate(name='Move_Bundle H'       &  !<-- The Bundle's name
-                                            ,rc  =RC)
+        domain_int_state%MOVE_BUNDLE_H=ESMF_FieldBundleCreate(name='Move_Bundle H'  &  !<-- The H-pt Bundle's name
+                                                             ,rc  =RC)
 !
-        MOVE_BUNDLE_V=ESMF_FieldBundleCreate(name='Move_Bundle V'       &  !<-- The Bundle's name
-                                            ,rc  =RC)
+        domain_int_state%MOVE_BUNDLE_V=ESMF_FieldBundleCreate(name='Move_Bundle V'  &  !<-- The V-pt Bundle's name
+                                                             ,rc  =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -2171,19 +2199,19 @@
           CALL BUILD_MOVE_BUNDLE(GRID_DOMAIN                            &  !<-- Adding Solver variables to H and V Move Bundles
                                 ,UBOUND_VARS                            &
                                 ,solver_int_state%VARS                  &
-                                ,MOVE_BUNDLE_H                          &
+                                ,domain_int_state%MOVE_BUNDLE_H         &
                                 ,NUM_FIELDS_MOVE_2D_H_I                 &
                                 ,NUM_FIELDS_MOVE_2D_H_R                 &
                                 ,NUM_FIELDS_MOVE_3D_H                   &
                                 ,NUM_LEVELS_MOVE_3D_H                   &
-                                ,MOVE_BUNDLE_V                          &
+                                ,domain_int_state%MOVE_BUNDLE_V         &
                                 ,NUM_FIELDS_MOVE_2D_V                   &
                                 ,NUM_FIELDS_MOVE_3D_V                   &
                                 ,NUM_LEVELS_MOVE_3D_V                   &
                                   ) 
 !
-!         CALL ESMF_FieldBundlePrint(MOVE_BUNDLE_H)
-!         CALL ESMF_FieldBundlePrint(MOVE_BUNDLE_V)
+!         CALL ESMF_FieldBundlePrint(domain_int_state%MOVE_BUNDLE_H)
+!         CALL ESMF_FieldBundlePrint(domain_int_state%MOVE_BUNDLE_V)
 !
         ENDIF
 !
@@ -2199,11 +2227,11 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_StateAdd(            EXP_STATE                        &  !<-- The Domain export state
-                          ,LISTWRAPPER(MOVE_BUNDLE_H)                   &  !<-- Insert H-point MOVE_BUNDLE into the state
+                          ,LISTWRAPPER(domain_int_state%MOVE_BUNDLE_H)  &  !<-- Insert H-point MOVE_BUNDLE into the state
                           ,rc         =RC)
 !
         CALL ESMF_StateAdd(            EXP_STATE                        &  !<-- The Domain export state
-                          ,LISTWRAPPER(MOVE_BUNDLE_V)                   &  !<-- Insert V-point MOVE_BUNDLE into the state
+                          ,LISTWRAPPER(domain_int_state%MOVE_BUNDLE_V)  &  !<-- Insert V-point MOVE_BUNDLE into the state
                           ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2222,9 +2250,9 @@
 !-----------------------------------------------------------------------
 !
 #ifdef ESMF_3
-       i_move: IF(MY_DOMAIN_MOVES==ESMF_TRUE)THEN
+        i_move: IF(MY_DOMAIN_MOVES==ESMF_TRUE)THEN
 #else
-       i_move: IF(MY_DOMAIN_MOVES)THEN
+        i_move: IF(MY_DOMAIN_MOVES)THEN
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2236,6 +2264,8 @@
                                       ,value =SFC_FILE_RATIO            &  !<-- Ratio of upper parent's grid increment to this nest's
                                       ,label ='ratio_sfc_files:'        &  !<-- The variable read from the configure file
                                       ,rc    =RC)
+!
+          domain_int_state%SFC_FILE_RATIO=SFC_FILE_RATIO
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -2285,7 +2315,15 @@
 !***  Generate the I,J increments needed to search for neighboring
 !***  points to fix values at moving nest points where land points
 !***  receive water point values from the parent and vice versa.
+!***  Create empty objects for sorting distances between points on
+!***  moving nests for patching mismatches between parent and child
+!***  water and land points in 2-way exchange.
 !-----------------------------------------------------------------------
+!
+          IF(.NOT.ASSOCIATED(SMALLX))THEN
+            ALLOCATE(SMALLX(1:NUM_DOMAINS))
+            ALLOCATE(LARGEX(1:NUM_DOMAINS))
+          ENDIF
 !
           CALL SEARCH_INIT
 !
@@ -2463,6 +2501,44 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
+!***  Due to the complexities of the parent's updating of the child
+!***  for nest motion that is due east, west, south, or north 
+!***  task subdomains cannot be too thin.  Stop the run if they are.
+!-----------------------------------------------------------------------
+!
+          IF(IHALO>ITE-ITS+1-NROWS_P_UPD_W.OR.                          &
+             IHALO>ITE-ITS+1-NROWS_P_UPD_E.OR.                          &
+             JHALO>JTE-JTS+1-NROWS_P_UPD_S.OR.                          &
+             JHALO>JTE-JTS+1-NROWS_P_UPD_N )THEN
+            WRITE(0,*)' Task subdomains cannot be narrower than '
+            WRITE(0,*)' the width of the halo plus the width of '
+            WRITE(0,*)' the parent update region on the outer '
+            WRITE(0,*)' edge of a nest pre-move footprint.'
+            WRITE(0,11111)IHALO,JHALO
+            WRITE(0,*)' The width of the parent update region on the '
+            WRITE(0,*)' south, north, west, and east side of a moving '
+            WRITE(0,*)' nest pre-move footprint are:'
+            WRITE(0,11112)NROWS_P_UPD_S,NROWS_P_UPD_N                   &
+                         ,NROWS_P_UPD_W,NROWS_P_UPD_E
+            WRITE(0,11113)ITE-ITS+1,JTE-JTS+1
+            WRITE(0,*)' The user must reset the domain decomposition.'
+            WRITE(0,*)' Aborting!!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+11111       FORMAT(' The halo width in I is ',I2,' and in J is ',I2)
+11112       FORMAT(4(1X,I2))
+11113       FORMAT(' The subdomain widths in I and J are ',I4,1X,I4)
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Initialize the handle used in ISSends of intertask data when
+!***  a moving domain shifts.
+!-----------------------------------------------------------------------
+!
+          DO N=1,9
+            domain_int_state%HANDLE_SEND_INTER(N)=MPI_REQUEST_NULL
+          ENDDO
+!
+!-----------------------------------------------------------------------
 !
         ENDIF i_move
 !
@@ -2601,8 +2677,10 @@
          .NOT.INPUT_READY)THEN
 #endif
 !
-        CALL RESET_SFC_VARS(MOVE_BUNDLE_H)
-        CALL RESET_SFC_VARS(MOVE_BUNDLE_V)
+        CALL RESET_SFC_VARS(domain_int_state%SFC_FILE_RATIO             &
+                           ,domain_int_state%MOVE_BUNDLE_H)
+        CALL RESET_SFC_VARS(domain_int_state%SFC_FILE_RATIO             &
+                           ,domain_int_state%MOVE_BUNDLE_V)
 !
 !-----------------------------------------------------------------------
 !***  Now the nest's sea mask array contains the nest-resolution 
@@ -2624,14 +2702,14 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifdef ESMF_520r
-        CALL ESMF_FieldBundleGet(fieldbundle=MOVE_BUNDLE_H              &  !<-- Bundle holding the H arrays for move updates
-                                ,fieldname  =FIELD_NAME                 &  !<-- Name of the seamask Field in the Bundle
-                                ,field      =HOLD_FIELD                 &  !<-- Field containing the seamask
+        CALL ESMF_FieldBundleGet(fieldbundle=domain_int_state%MOVE_BUNDLE_H  &  !<-- Bundle holding the H arrays for move updates
+                                ,fieldname  =FIELD_NAME                      &  !<-- Name of the seamask Field in the Bundle
+                                ,field      =HOLD_FIELD                      &  !<-- Field containing the seamask
                                 ,rc         =RC )
 #else
-        CALL ESMF_FieldBundleGet(bundle=MOVE_BUNDLE_H                   &  !<-- Bundle holding the H arrays for move updates
-                                ,name  =FIELD_NAME                      &  !<-- Name of the seamask Field in the Bundle
-                                ,field =HOLD_FIELD                      &  !<-- Field containing the seamask
+        CALL ESMF_FieldBundleGet(bundle=domain_int_state%MOVE_BUNDLE_H       &  !<-- Bundle holding the H arrays for move updates
+                                ,name  =FIELD_NAME                           &  !<-- Name of the seamask Field in the Bundle
+                                ,field =HOLD_FIELD                           &  !<-- Field containing the seamask
                                 ,rc    =RC )
 #endif
 !
@@ -2669,7 +2747,7 @@
                   +NUM_FIELDS_MOVE_2D_H_R                               &
                   +NUM_FIELDS_MOVE_3D_H
 !
-        CALL FIX_SFC(MOVE_BUNDLE_H                                      &
+        CALL FIX_SFC(domain_int_state%MOVE_BUNDLE_H                     &
                     ,NUM_FIELDS                                         &
                     ,SEA_MASK                                           &
                     ,ILO,IHI,JLO,JHI                                    &
@@ -2709,10 +2787,10 @@
       domain_int_state%KOUNT_TIMESTEPS=0                                   !<-- Timestep counter
 !
 #ifdef ESMF_3
-      domain_int_state%RECVD_ALL_CHILD_DATA=ESMF_False                     !<-- Parent has recvd 2-way data from all children
+      domain_int_state%RECV_ALL_CHILD_DATA=ESMF_False                      !<-- Parent has recvd 2-way data from all children
       domain_int_state%ALLCLEAR_FROM_PARENT=ESMF_False                     !<-- Child told that parent has recvd all 2-way data
 #else
-      domain_int_state%RECVD_ALL_CHILD_DATA=.FALSE.                        !<-- Parent has recvd 2-way data from all children
+      domain_int_state%RECV_ALL_CHILD_DATA=.FALSE.                         !<-- Parent has recvd 2-way data from all children
       domain_int_state%ALLCLEAR_FROM_PARENT=.FALSE.                        !<-- Child told that parent has recvd all 2-way data
 #endif
 !
@@ -2847,7 +2925,7 @@
 !
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF                         !<-- The current forecast timestep
 !
-      INTEGER(kind=KINT) :: I_INC,ITS,J_INC,JTS
+      INTEGER(kind=KINT) :: I_INC,J_INC
 !
       INTEGER(kind=KINT) :: I_SW_PARENT_NEW,J_SW_PARENT_NEW
 !
@@ -3090,6 +3168,7 @@
         nests: IF(domain_int_state%I_AM_A_NEST)THEN
 #endif
 !         call print_memory()
+!
           CALL BOUNDARY_DATA_STATE_TO_STATE(s_bdy    =S_BDY                            &  !<-- This task lies on a south boundary?
                                            ,n_bdy    =N_BDY                            &  !<-- This task lies on a north boundary?
                                            ,w_bdy    =W_BDY                            &  !<-- This task lies on a west boundary?
@@ -3302,18 +3381,18 @@
                             ,2                                          &
                             ,MPI_REAL                                   &
                             ,0                                          &
-                            ,MPI_COMM_COMP                              &
+                            ,COMM_FCST_TASKS(MY_DOMAIN_ID)              &
                             ,IERR )
 !
               solver_int_state%SBD=SW_X(1)
               solver_int_state%WBD=SW_X(2)
-!
 !
 !-----------------------------------------------------------------------
 !***  Update quantities that are directly related to the nest's grid.
 !-----------------------------------------------------------------------
 !
               CALL GRID_CONSTS(solver_int_state%GLOBAL                           &
+                              ,solver_int_state%DT                               &
                               ,solver_int_state%SMAG2                            &
                               ,solver_int_state%CODAMP,solver_int_state%WCOR     &
                               ,solver_int_state%TPH0D,solver_int_state%TLM0D     &
@@ -3340,7 +3419,9 @@
                               ,solver_int_state%ITS,solver_int_state%ITE         &
                               ,solver_int_state%JTS,solver_int_state%JTE         &
                               ,solver_int_state%IMS,solver_int_state%IME         &
-                              ,solver_int_state%JMS,solver_int_state%JME )
+                              ,solver_int_state%JMS,solver_int_state%JME         &
+                              ,solver_int_state%IDS,solver_int_state%IDE         &
+                              ,solver_int_state%JDS,solver_int_state%JDE )
 !
 !-----------------------------------------------------------------------
 !***  Update all nest points that remain inside of its domain's 
@@ -3349,17 +3430,32 @@
 !
       btim=timef()
 !
-              CALL UPDATE_INTERIOR_FROM_NEST(IMP_STATE                  &  !<-- Domain import state (for nest's I_SHIFT and J_SHIFT)
-                                            ,MOVE_BUNDLE_H              &  !<-- The Bundle of pointers to update H variables
-                                            ,NUM_FIELDS_MOVE_2D_H_I     &  !<-- Total # of 2-D integer H Fields in the Bundle
-                                            ,NUM_FIELDS_MOVE_2D_H_R     &  !<-- Total # of 2-D real H Fields in the Bundle
-                                            ,NUM_FIELDS_MOVE_3D_H       &  !<-- Total # of 3-D H Fields in the Bundle
-                                            ,NUM_LEVELS_MOVE_3D_H       &  !<-- Total # of 2-D levels in all 3-D H update arrays
-                                            ,MOVE_BUNDLE_V              &  !<-- The Bundle of pointers to update V variables
-                                            ,NUM_FIELDS_MOVE_2D_V       &  !<-- Total # of 2-D V Fields in the Bundle
-                                            ,NUM_FIELDS_MOVE_3D_V       &  !<-- Total # of 3-D V Fields in the Bundle
-                                            ,NUM_LEVELS_MOVE_3D_V )        !<-- Total # of 2-D levels in all 3-D V update arrays
-!
+              CALL UPDATE_INTERIOR_FROM_NEST(IMP_STATE                       &  !<-- Domain import state (for nest's I_SHIFT and J_SHIFT)
+                                            ,domain_int_state%MOVE_BUNDLE_H  &  !<-- The Bundle of pointers to update H variables
+                                            ,NUM_FIELDS_MOVE_2D_H_I          &  !<-- Total # of 2-D integer H Fields in the Bundle
+                                            ,NUM_FIELDS_MOVE_2D_H_R          &  !<-- Total # of 2-D real H Fields in the Bundle
+                                            ,NUM_FIELDS_MOVE_3D_H            &  !<-- Total # of 3-D H Fields in the Bundle
+                                            ,NUM_LEVELS_MOVE_3D_H            &  !<-- Total # of 2-D levels in all 3-D H update arrays
+                                            ,domain_int_state%MOVE_BUNDLE_V  &  !<-- The Bundle of pointers to update V variables
+                                            ,NUM_FIELDS_MOVE_2D_V            &  !<-- Total # of 2-D V Fields in the Bundle
+                                            ,NUM_FIELDS_MOVE_3D_V            &  !<-- Total # of 3-D V Fields in the Bundle
+                                            ,NUM_LEVELS_MOVE_3D_V            &  !<-- Total # of 2-D levels in all 3-D V update arrays
+                                            ,solver_int_state%INPES          &  !<-- # of tasks in east-west on this domain
+                                            ,solver_int_state%JNPES          &  !<-- # of tasks in north-south on this domain
+                                            ,solver_int_state%ITS            &  !<-- Starting integration index in I
+                                            ,solver_int_state%ITE            &  !<-- Ending integration index in I
+                                            ,solver_int_state%JTS            &  !<-- Starting integration index in J
+                                            ,solver_int_state%JTE            &  !<-- Ending integration index in J
+                                            ,solver_int_state%IMS            &  !<-- Starting memory index in I
+                                            ,solver_int_state%IME            &  !<-- Ending memory index in I
+                                            ,solver_int_state%JMS            &  !<-- Starting memory index in J
+                                            ,solver_int_state%JME            &  !<-- Ending memory index in J
+                                            ,solver_int_state%IDS            &  !<-- Starting domain index in I
+                                            ,solver_int_state%IDE            &  !<-- Ending domain index in I
+                                            ,solver_int_state%JDS            &  !<-- Starting domain index in J
+                                            ,solver_int_state%JDE            &  !<-- Ending domain index in J
+                                              )
+!                      
       timers(my_domain_id)%update_interior_from_nest_tim=               &
            timers(my_domain_id)%update_interior_from_nest_tim+(timef()-btim)
 !
@@ -3370,24 +3466,25 @@
 !
       btim=timef()
 !
-              CALL UPDATE_INTERIOR_FROM_PARENT(IMP_STATE                &  !<-- The Domain import state
-                                              ,MOVE_BUNDLE_H            &  !<-- The Bundle of pointers to update H variables
-                                              ,NUM_FIELDS_MOVE_2D_H_I   &  !<-- Total # of 2-D integer H Fields in the Bundle
-                                              ,NUM_FIELDS_MOVE_2D_H_R   &  !<-- Total # of 2-D real H Fields in the Bundle
-                                              ,NUM_FIELDS_MOVE_3D_H     &  !<-- Total # of 3-D H Fields in the Bundle
-                                              ,MOVE_BUNDLE_V            &  !<-- The Bundle of pointers to update V variables
-                                              ,NUM_FIELDS_MOVE_2D_V     &  !<-- Total # of 2-D V Fields in the Bundle
-                                              ,NUM_FIELDS_MOVE_3D_V     &  !<-- Total # of 3-D V Fields in the Bundle
-                                              ,solver_int_state%GLAT    &  !<-- This domain's geographic latitude (radians)
-                                              ,solver_int_state%GLON    &  !<-- This domain's geographic longitude (radians)
-                                              ,solver_int_state%ITS     &  !<-- Starting integration index in I
-                                              ,solver_int_state%ITE     &  !<-- Ending integration index in I
-                                              ,solver_int_state%JTS     &  !<-- Starting integration index in J
-                                              ,solver_int_state%JTE     &  !<-- Ending integration index in J
-                                              ,solver_int_state%IMS     &  !<-- Starting memory index in I
-                                              ,solver_int_state%IME     &  !<-- Ending memory index in I
-                                              ,solver_int_state%JMS     &  !<-- Starting memory index in J
-                                              ,solver_int_state%JME )      !<-- Ending memory index in J
+              CALL UPDATE_INTERIOR_FROM_PARENT(IMP_STATE                       &  !<-- The Domain import state
+                                              ,domain_int_state%SFC_FILE_RATIO &  !<-- Ratio of upper parent grid increment to this domain's
+                                              ,domain_int_state%MOVE_BUNDLE_H  &  !<-- The Bundle of pointers to update H variables
+                                              ,NUM_FIELDS_MOVE_2D_H_I          &  !<-- Total # of 2-D integer H Fields in the Bundle
+                                              ,NUM_FIELDS_MOVE_2D_H_R          &  !<-- Total # of 2-D real H Fields in the Bundle
+                                              ,NUM_FIELDS_MOVE_3D_H            &  !<-- Total # of 3-D H Fields in the Bundle
+                                              ,domain_int_state%MOVE_BUNDLE_V  &  !<-- The Bundle of pointers to update V variables
+                                              ,NUM_FIELDS_MOVE_2D_V            &  !<-- Total # of 2-D V Fields in the Bundle
+                                              ,NUM_FIELDS_MOVE_3D_V            &  !<-- Total # of 3-D V Fields in the Bundle
+                                              ,solver_int_state%GLAT           &  !<-- This domain's geographic latitude (radians)
+                                              ,solver_int_state%GLON           &  !<-- This domain's geographic longitude (radians)
+                                              ,solver_int_state%ITS            &  !<-- Starting integration index in I
+                                              ,solver_int_state%ITE            &  !<-- Ending integration index in I
+                                              ,solver_int_state%JTS            &  !<-- Starting integration index in J
+                                              ,solver_int_state%JTE            &  !<-- Ending integration index in J
+                                              ,solver_int_state%IMS            &  !<-- Starting memory index in I
+                                              ,solver_int_state%IME            &  !<-- Ending memory index in I
+                                              ,solver_int_state%JMS            &  !<-- Starting memory index in J
+                                              ,solver_int_state%JME )             !<-- Ending memory index in J
 !
       timers(my_domain_id)%update_interior_from_parent_tim=             &
            timers(my_domain_id)%update_interior_from_parent_tim+(timef()-btim)
@@ -3430,10 +3527,8 @@
 !-----------------------------------------------------------------------
 !
 #ifdef ESMF_3
-!xxx    IF(domain_int_state%I_AM_A_PARENT==ESMF_True.AND.RESTARTED_RUN)THEN      
         IF(domain_int_state%I_AM_A_PARENT==ESMF_True)THEN      
 #else
-!xxx    IF(domain_int_state%I_AM_A_PARENT.AND.RESTARTED_RUN)THEN      
         IF(domain_int_state%I_AM_A_PARENT)THEN      
 #endif
 !
@@ -3518,11 +3613,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
 !       call print_memory()
+!
         CALL ESMF_GridCompRun(gridcomp   =domain_int_state%SOLVER_GRID_COMP  &  !<-- The Solver component
                              ,importState=domain_int_state%IMP_STATE_SOLVER  &  !<-- The Solver import state
                              ,exportState=domain_int_state%EXP_STATE_SOLVER  &  !<-- The Solver export state
                              ,clock      =CLOCK_DOMAIN                       &  !<-- The Domain Clock
                              ,rc         =RC)        
+!
 !       call print_memory()
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
@@ -3648,18 +3745,18 @@
 #ifdef ESMF_3
       IF(TRIM(MODE)=='TRUE')THEN
         PHYSICS_ON=ESMF_FALSE
-        write(0,*)' Finalize without physics coupling. '
+        WRITE(0,*)' Finalize without physics coupling. '
       ELSE
         PHYSICS_ON=ESMF_TRUE
-        write(0,*)' Finalize with physics coupling. '
+        WRITE(0,*)' Finalize with physics coupling. '
       ENDIF
 #else
       IF(TRIM(MODE)=='TRUE')THEN
         PHYSICS_ON=.FALSE.
-        write(0,*)' Finalize without physics coupling. '
+        WRITE(0,*)' Finalize without physics coupling. '
       ELSE
         PHYSICS_ON=.TRUE.
-        write(0,*)' Finalize with physics coupling. '
+        WRITE(0,*)' Finalize with physics coupling. '
       ENDIF
 #endif
 !
@@ -5321,7 +5418,7 @@
 
 
         ELSE
-!          if (MYPE .eq. 0) then
+!          if (MYPE==0) then
 !          write(0,*) 'will ignore ' , VARS(N)%VBL_NAME , ' for Bundle'
 !          endif
 
@@ -5993,6 +6090,10 @@
                                           ,NUM_FIELDS_2D_V              &
                                           ,NUM_FIELDS_3D_V              &
                                           ,NUM_LEVELS_3D_V              &
+                                          ,INPES,JNPES                  &
+                                          ,ITS,ITE,JTS,JTE              &
+                                          ,IMS,IME,JMS,JME              &
+                                          ,IDS,IDE,JDS,JDE              &
                                             )
 !
 !-----------------------------------------------------------------------
@@ -6012,6 +6113,12 @@
                                       ,NUM_FIELDS_2D_V                   &  !<-- # of 3-D V variables to update
                                       ,NUM_FIELDS_3D_V                   &  !<-- # of 3-D V variables to update
                                       ,NUM_LEVELS_3D_V                      !<-- # of 2-D levels in all 3-D V update variables
+!
+      INTEGER(kind=KINT),INTENT(IN) :: INPES,JNPES                          !<-- # of tasks west-east,north-south on this domain
+!
+      INTEGER(kind=KINT),INTENT(IN) :: ITS,ITE,JTS,JTE                   &  !<-- This domain's integration,
+                                      ,IMS,IME,JMS,JME                   &  !    memory,
+                                      ,IDS,IDE,JDS,JDE                      !<-- and domain limits.
 !
       TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                           !<-- The Domain import state
 !
@@ -6604,9 +6711,6 @@
       INTEGER(kind=KINT),DIMENSION(1:3) :: LIMITS_LO                    &
                                           ,LIMITS_HI
 !
-      INTEGER(kind=KINT),DIMENSION(1:9),SAVE :: HANDLE_SEND_INTER=      &
-                                                       MPI_REQUEST_NULL
-!
       INTEGER(kind=KINT),DIMENSION(1:9) :: ID_RECV
 !
       INTEGER(kind=KINT),DIMENSION(MPI_STATUS_SIZE) :: JSTAT
@@ -6876,7 +6980,7 @@
 !***  so we can deallocate it then reallocate it for the current move.
 !-----------------------------------------------------------------------
 !
-            CALL MPI_WAIT(HANDLE_SEND_INTER(N)                          &  !<-- Handle for the ISend of inter-task data on nest
+            CALL MPI_WAIT(domain_int_state%HANDLE_SEND_INTER(N)         &  !<-- Handle for the ISend of inter-task data on nest
                          ,JSTAT                                         &  !<-- MPI status
                          ,IERR )
 !
@@ -7053,8 +7157,8 @@
                            ,MPI_REAL                                    &  !<-- The words are real
                            ,ID_RECV(N)                                  &  !<-- The nest task to which the sender is sending
                            ,KOUNT_REAL                                  &  !<-- Use the word count as the tag
-                           ,MPI_COMM_COMP                               &  !<-- The MPI communicator for each domain
-                           ,HANDLE_SEND_INTER(N)                        &  !<-- Handle for this ISend
+                           ,COMM_FCST_TASKS(MY_DOMAIN_ID)               &  !<-- The MPI intracommunicator for this domain's fcst tasks
+                           ,domain_int_state%HANDLE_SEND_INTER(N)       &  !<-- Handle for this ISend
                            ,IERR )
 !
 !-----------------------------------------------------------------------
@@ -7066,8 +7170,8 @@
                            ,MPI_INTEGER                                 &  !<-- The words are integer
                            ,ID_RECV(N)                                  &  !<-- The nest task to which the sender is sending
                            ,KOUNT_INTEGER                               &  !<-- Use the word count as the tag
-                           ,MPI_COMM_COMP                               &  !<-- The MPI communicator for each domain
-                           ,HANDLE_SEND_INTER(N)                        &  !<-- Handle for this ISend
+                           ,COMM_FCST_TASKS(MY_DOMAIN_ID)               &  !<-- The MPI intracommunicator for this domain's fcst tasks
+                           ,domain_int_state%HANDLE_SEND_INTER(N)       &  !<-- Handle for this ISend
                            ,IERR )
 !
 !-----------------------------------------------------------------------
@@ -7394,7 +7498,7 @@
                          ,MPI_REAL                                      &  !<-- The words are Real
                          ,ID_SEND(N)                                    &  !<-- The nest task who is sending
                          ,NUM_WORDS_REAL                                &  !<-- Use the word count as the tag
-                         ,MPI_COMM_COMP                                 &  !<-- The MPI communicator for each domain
+                         ,COMM_FCST_TASKS(MY_DOMAIN_ID)                 &  !<-- The MPI intracommunicator for this domain's fcst tasks
                          ,JSTAT                                         &  !<-- MPI status object
                          ,IERR )
 !
@@ -7407,7 +7511,7 @@
                          ,MPI_INTEGER                                   &  !<-- The words are Integer
                          ,ID_SEND(N)                                    &  !<-- The nest task who is sending
                          ,NUM_WORDS_INTEGER                             &  !<-- Use the word count as the tag
-                         ,MPI_COMM_COMP                                 &  !<-- The MPI communicator for each domain
+                         ,COMM_FCST_TASKS(MY_DOMAIN_ID)                 &  !<-- The MPI intracommunicator for this domain's fcst tasks
                          ,JSTAT                                         &  !<-- MPI status object
                          ,IERR )
 !
@@ -7573,6 +7677,7 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE UPDATE_INTERIOR_FROM_PARENT(IMP_STATE                  &
+                                            ,SFC_FILE_RATIO             &
                                             ,MOVE_BUNDLE_H              &
                                             ,NUM_FIELDS_2D_H_I          &
                                             ,NUM_FIELDS_2D_H_R          &
@@ -7603,6 +7708,8 @@
                                       ,NUM_FIELDS_3D_H                  &  !<-- # of 3-D H variables to update
                                       ,NUM_FIELDS_2D_V                  &  !<-- # of 2-D V variables to update
                                       ,NUM_FIELDS_3D_V                     !<-- # of 3-D V variables to update
+!
+      INTEGER(kind=KINT),INTENT(IN) :: SFC_FILE_RATIO                      !<-- Ratio of upper parent grid increment to this domain's
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: GLAT_H   &  !<-- This domain's geographic latitude (radians) on H pts
                                                               ,GLON_H      !<-- This domain's geographic longitude (radians) on H pts
@@ -9262,13 +9369,6 @@
 !***  largest distance.
 !-----------------------------------------------------------------------
 !
-      TYPE :: DIST
-        REAL(kind=KFPT) :: VALUE
-        INTEGER(kind=KINT) :: I_INC
-        INTEGER(kind=KINT) :: J_INC
-        TYPE(DIST),POINTER :: NEXT_VALUE
-      END TYPE
-!
 !---------------------
 !***  Local Variables
 !---------------------
@@ -9292,6 +9392,9 @@
       N_WIDTH=2*N_PTS_SEARCH_WIDTH+1                                       !<-- Width of the search region
       I_CENTER=N_PTS_SEARCH_WIDTH+1                                        !<-- Relative I at the center of the search region
       J_CENTER=N_PTS_SEARCH_WIDTH+1                                        !<-- Relative J at the center of the search region
+!
+      SMALL=>SMALLX(MY_DOMAIN_ID)
+      LARGE=>LARGEX(MY_DOMAIN_ID)
 !
 !-----------------------------------------------------------------------
 !
@@ -9325,7 +9428,7 @@
 !***  computed going from smallest to largest.
 !-----------------------------------------------------------------------
 !
-        new_val: IF(.NOT.ASSOCIATED(SMALL))THEN                            !<-- 1st value is both smallest/largest
+        new_val: IF(I==1.AND.J==1)THEN                                     !<-- 1st value is both smallest/largest
           SMALL=>PTR
           LARGE=>SMALL
           NULLIFY(PTR%NEXT_VALUE)
@@ -9376,6 +9479,7 @@
 !-----------------------------------------------------------------------
 !
       PTR=>SMALL                                                           !<-- Begin with the nearest gridpoint
+      KOUNT=0
 !
       DO 
         KOUNT=KOUNT+1
@@ -9396,7 +9500,8 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE RESET_SFC_VARS(MOVE_BUNDLE)
+      SUBROUTINE RESET_SFC_VARS(SFC_FILE_RATIO                          &
+                               ,MOVE_BUNDLE)
 !
 !-----------------------------------------------------------------------
 !***  If the parent initialized this moving nest from the parent's
@@ -9409,6 +9514,8 @@
 !------------------------
 !***  Argument variables   
 !------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: SFC_FILE_RATIO                      !<-- Ratio of upper parent grid increment to this domain's
 !
       TYPE(ESMF_FieldBundle),INTENT(INOUT) :: MOVE_BUNDLE
 !

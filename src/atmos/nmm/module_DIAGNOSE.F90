@@ -365,7 +365,7 @@
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !----------------------------------------------------------------------
       SUBROUTINE EXIT(NAME,PINT,T,Q,U,V,Q2,W                           &
-                     ,NTSD,MYPE,MPI_COMM_COMP                          &
+                     ,NTSD,MYPE,ID_DOM,MPI_COMM_COMP                   &
                      ,IDS,IDE,JDS,JDE,LM                               &
                      ,IMS,IME,JMS,JME                                  &
                      ,ITS,ITE,JTS,JTE)
@@ -379,6 +379,7 @@
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                         &
                            ,IMS,IME,JMS,JME                            &
                            ,ITS,ITE,JTS,JTE                            &
+                           ,ID_DOM                                     &
                            ,MYPE,MPI_COMM_COMP,NTSD
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,LM),INTENT(IN) :: T,Q,U,V,Q2,W
@@ -403,9 +404,9 @@
       DO I=ITS,IEND
         IF(T(I,J,K)>330..OR.T(I,J,K)<180..OR.T(I,J,K)/=T(I,J,K))THEN
           WRITE(0,100)NAME,NTSD
-          WRITE(0,200)I,J,K,T(I,J,K),MYPE,NTSD
+          WRITE(0,200)I,J,K,T(I,J,K),MYPE,ID_DOM,NTSD
   200     FORMAT(' BAD VALUE I=',I3,' J=',I3,' K=',I2,' T=',E12.5      &
-                ,' MYPE=',I3,' NTSD=',I5)
+                ,' MYPE=',I3,' ID_DOM=',I2,' NTSD=',I5)
           IRET=666
           return
 !         WRITE(ERRMESS,205)NAME,T(I,J,K),I,J,K,MYPE
@@ -415,9 +416,9 @@
         ELSEIF(Q(I,J,K)<-1.5E-4.OR.Q(I,J,K)>30.E-3                     &
                .OR.Q(I,J,K)/=Q(I,J,K))THEN
           WRITE(0,100)NAME,NTSD
-          WRITE(0,300)I,J,K,Q(I,J,K),MYPE,NTSD
+          WRITE(0,300)I,J,K,Q(I,J,K),MYPE,ID_DOM,NTSD
   300     FORMAT(' BAD VALUE I=',I3,' J=',I3,' K=',I2,' Q=',E12.5      &
-                ,' MYPE=',I3,' NTSD=',I5)
+                ,' MYPE=',I3,' ID_DOM=',I2,' NTSD=',I5)
           IRET=666
           return
 !         WRITE(ERRMESS,305)NAME,Q(I,J,K),I,J,K,MYPE
@@ -426,17 +427,17 @@
 !         CALL MPI_ABORT(MPI_COMM_WORLD,1,IERR)
         ELSEIF(PINT(I,J,K)<0..OR.PINT(I,J,K)/=PINT(I,J,K))THEN
           WRITE(0,100)NAME,NTSD
-          WRITE(0,315)I,J,K,PINT(I,J,K),MYPE,NTSD
+          WRITE(0,315)I,J,K,PINT(I,J,K),MYPE,ID_DOM,NTSD
   315     FORMAT(' BAD VALUE I=',I3,' J=',I3,' K=',I2,' PINT=',E12.5      &
-                ,' MYPE=',I3,' NTSD=',I5)
+                ,' MYPE=',I3,' ID_DOM=',I2,' NTSD=',I5)
           IRET=666
           return
 !         CALL MPI_ABORT(MPI_COMM_WORLD,1,IERR)
         ELSEIF(W(I,J,K)/=W(I,J,K))THEN
           WRITE(0,100)NAME,NTSD
-          WRITE(0,325)I,J,K,W(I,J,K),MYPE,NTSD
+          WRITE(0,325)I,J,K,W(I,J,K),MYPE,ID_DOM,NTSD
   325     FORMAT(' BAD VALUE I=',I3,' J=',I3,' K=',I2,' W=',E12.5      &
-                ,' MYPE=',I3,' NTSD=',I5)
+                ,' MYPE=',I3,' ID_DOM=',I2,' NTSD=',I5)
           IRET=666
           return
 !         CALL MPI_ABORT(MPI_COMM_WORLD,1,IERR)
@@ -964,6 +965,10 @@
             ENDIF
             FSMALL=(1.-FLARGE)/FLARGE
             XSIMASS=RRHO*MASSI(MDImin)*FSMALL
+      if(tc<-150..or.tc>100.)then
+        write(0,67311)i,j,tc
+67311   format(' CALMICT i=',i3,' j=',i3,' tc=',e13.6)
+      endif
             DUM=XMImax*EXP(.0536*TC)
             INDEXS=MIN(MDImax, MAX(MDImin, INT(DUM) ) )
             RimeF=AMAX1(1., FS1D )
@@ -1128,7 +1133,7 @@
       Ilook=99
       Jlook=275
 
-      IF (FIRST_NMM) THEN
+!     IF (FIRST_NMM) THEN
         DTPHS=DT*NPHS
         RDTPHS=3.6e6/DTPHS
         EPSILON=R_D/R_V
@@ -1138,7 +1143,7 @@
 ! Make sure saturation vapor pressure lookup table is initialized
         CALL GPVS
         FIRST_NMM=.false.
-      ENDIF
+!     ENDIF
 
       DO L=1,LM
        DO J=JTS,JTE
@@ -1549,6 +1554,10 @@
             ENDIF
             FSMALL=(1.-FLARGE)/FLARGE
             XSIMASS=RRHO*MASSI(MDImin)*FSMALL
+      if(tc<-150..or.tc>100.)then
+        write(0,68311)i,j,tc
+68311   format(' CALMICT_HR i=',i3,' j=',i3,' tc=',e13.6)
+      endif
             DUM=XMImax*EXP(.0536*TC)
             INDEXS=MIN(MDImax, MAX(MDImin, INT(DUM) ) )
             RimeF=AMAX1(1., FS1D )

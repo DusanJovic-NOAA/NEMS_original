@@ -58,13 +58,15 @@ EXTLIBS_POST = $(NEMSIO_LIB) \
                $(SYS_LIB)
 
 ##FC          = mpiifort -g -traceback
-FC          = mpiifort -g -traceback -openmp  -mkl=sequential
+FC          = mpiifort -g -openmp  -mkl=sequential
 FREE        = -free
 FIXED       = -fixed
 R8          = -r8
 
 FINCS       = $(ESMF_INC) $(NEMSIO_INC)
 TRAPS       =
+#TRAPS       = -ftrapuv -check all -fp-stack-check
+#TRAPS       = -ftrapuv  -check bounds -check format -check output_conversion -check pointers -check uninit -fp-stack-check
 
 FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise -xAVX
 

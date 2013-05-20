@@ -180,10 +180,10 @@
       END TYPE DOMAIN_DATA_2
 !
       TYPE :: DOM_LIMITS
-        INTEGER(kind=KINT),DIMENSION(:),POINTER :: ITS
-        INTEGER(kind=KINT),DIMENSION(:),POINTER :: ITE
-        INTEGER(kind=KINT),DIMENSION(:),POINTER :: JTS
-        INTEGER(kind=KINT),DIMENSION(:),POINTER :: JTE
+        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: ITS
+        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: ITE
+        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JTS
+        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JTE
       END TYPE DOM_LIMITS
 !
       TYPE :: BC_INFO
@@ -226,18 +226,18 @@
                                                     ,HANDLE_CHILD_TOPO_S &  !<-- Request handles for parents' IRecvs of child bndry topo
                                                     ,HANDLE_CHILD_TOPO_N &  !
                                                     ,HANDLE_CHILD_TOPO_W &  !
-                                                    ,HANDLE_CHILD_TOPO_E &  !<--
+                                                    ,HANDLE_CHILD_TOPO_E    !<--
 !
-                                                    ,HANDLE_PACKET_S_H   &  !<-- Request handles for parents' ISends of bndry info packets
-                                                    ,HANDLE_PACKET_S_V   &  !
-                                                    ,HANDLE_PACKET_N_H   &  !
-                                                    ,HANDLE_PACKET_N_V   &  !
-                                                    ,HANDLE_PACKET_W_H   &  !
-                                                    ,HANDLE_PACKET_W_V   &  !
-                                                    ,HANDLE_PACKET_E_H   &  !
-                                                    ,HANDLE_PACKET_E_V      !<-- 
+      TYPE(DOMAIN_DATA),DIMENSION(:,:),POINTER,SAVE :: HANDLE_PACKET_S_H   &  !<-- Request handles for parents' ISends of bndry info packets
+                                                      ,HANDLE_PACKET_S_V   &  !
+                                                      ,HANDLE_PACKET_N_H   &  !
+                                                      ,HANDLE_PACKET_N_V   &  !
+                                                      ,HANDLE_PACKET_W_H   &  !
+                                                      ,HANDLE_PACKET_W_V   &  !
+                                                      ,HANDLE_PACKET_E_H   &  !
+                                                      ,HANDLE_PACKET_E_V      !<--
 !
-      TYPE(DOM_LIMITS),DIMENSION(:),POINTER,SAVE :: PTASK_LIMITS           !<-- I,J limits on parent task subdomains
+      TYPE(DOM_LIMITS),DIMENSION(:),ALLOCATABLE,SAVE :: PTASK_LIMITS       !<-- I,J limits on parent task subdomains
 !
       TYPE(DOMAIN_DATA_2),DIMENSION(:),POINTER,SAVE :: CTASK_LIMITS        !<-- For limits of parents' children's tasks' subdomains
 !
@@ -597,8 +597,8 @@
         ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Assign all the run's forecast tasks across the generation that 
-!***  uses all of them.
+!***  Assign all the run's forecast tasks across the first generation
+!***  that uses all of them.
 !-----------------------------------------------------------------------
 !
         ALLOCATE(LEAD_FCST_TASK(1:NUM_DOMAINS_TOTAL))
@@ -675,6 +675,9 @@
               LEAD_FCST_TASK(ID_DOM)=0                                     !<-- Task 0 is first in line
             ELSE
               LEAD_FCST_TASK(ID_DOM)=LAST_FCST_TASK_X+1                    !<-- Lead fcst task on domain follows last on previous domain
+              IF(LEAD_FCST_TASK(ID_DOM)>NUM_FCST_TASKS-1)THEN
+                LEAD_FCST_TASK(ID_DOM)=0                                   !<-- Wrap around if necessary
+              ENDIF
             ENDIF
 !
             LEAD_WRITE_TASK(ID_DOM)=LAST_WRITE_TASK_X+1                    !<-- Lead write task on domain follows last on previous domain
@@ -7040,11 +7043,11 @@
       INTEGER(kind=KINT),DIMENSION(1:4) :: I_UPDATE                     &
                                           ,J_UPDATE
 !
-      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE,SAVE ::                  &
-                                                   ITS_PARENT_ON_CHILD  &
-                                                  ,ITE_PARENT_ON_CHILD  &
-                                                  ,JTS_PARENT_ON_CHILD  &
-                                                  ,JTE_PARENT_ON_CHILD 
+!xxx  REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE,SAVE ::                  &
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ITS_PARENT_ON_CHILD   &
+                                                 ,ITE_PARENT_ON_CHILD   &
+                                                 ,JTS_PARENT_ON_CHILD   &
+                                                 ,JTE_PARENT_ON_CHILD 
 !
       CHARACTER(2) :: CORNER
 !
@@ -7087,7 +7090,7 @@
 !***  integration thus their values are not valid.  Although the H-pt
 !***  variables are valid at those points, we cannot use them for
 !***  intra- or inter-task updates or else the nest tasks being updated
-!***  for H pounts would sometimes differ from the nest tasks being
+!***  for H points would sometimes differ from the nest tasks being
 !***  updated for V points.  We do not allow that to happen or else
 !***  the bookkeeping would be even more complex.  Therefore the
 !***  parent updates nest points that would otherwise have been updated
@@ -7298,6 +7301,7 @@
 !
           ELSEIF(J_SHIFT==0)THEN  
             IF(JTE==JDE)THEN
+!-> general IF(JME>=JDE-NROWS_P_UPD_N+1)THEN
               IF(I_END_X<IDE-NROWS_P_UPD_E+1-I_SHIFT)THEN                  !<-- Nest task on N bndry of footprint; no part east of it
                 I_UPDATE(1)=I_START_X
                 I_UPDATE(2)=I_END_X  
@@ -7316,16 +7320,19 @@
               ENDIF
 !
             ELSEIF(JTS>JDS)THEN                                            !<-- Nest task only on east edge of footprint
+!-> general ELSEIF(JMS>JDS+NROWS_P_UPD_S-1)THEN                            !<-- Nest task only on east edge of footprint
               I_UPDATE(1)=IDE-NROWS_P_UPD_E+1-I_SHIFT                      !<-- Begin on east edge of footprint
               I_UPDATE(2)=I_END_X
               J_UPDATE(1)=J_START_X
               J_UPDATE(2)=J_END_X
 !
             ELSEIF(JTS==JDS)THEN
+!-> general ELSEIF(JMS<=JDS+NROWS_P_UPD_S-1)THEN
               IF(I_END_X<IDE-NROWS_P_UPD_E+1-I_SHIFT)THEN                  !<-- Nest task on S bndry of footprint; no part east of it
                 I_UPDATE(1)=I_START_X
                 I_UPDATE(2)=I_END_X  
                 J_UPDATE(1)=JDS
+!-> general     J_UPDATE(1)=J_START_X
                 J_UPDATE(2)=JDS+NROWS_P_UPD_S-1
               ELSE                                                         !<-- Nest task on S bndry of footprint; extends east of it
                 CORNER='SE'
@@ -7413,6 +7420,7 @@
 !
           ELSEIF(J_SHIFT==0)THEN
             IF(JTE==JDE)THEN
+!-> general IF(JME>=JDE-NROWS_P_UPD_N+1)THEN
               IF(I_START_X>=IDS+NROWS_P_UPD_W-I_SHIFT)THEN                 !<-- Nest task on N bndry of footprint; no part west of it
                 I_UPDATE(1)=I_START_X
                 I_UPDATE(2)=I_END_X  
@@ -7432,16 +7440,19 @@
               ENDIF
 !
             ELSEIF(JTS>JDS)THEN                                            !<-- Nest task only on west edge of footprint
+!-> general ELSEIF(JMS>JDS+NROWS_P_UPD_S-1)THEN                            !<-- Nest task only on west edge of footprint
               I_UPDATE(1)=I_START_X
               I_UPDATE(2)=IDS+NROWS_P_UPD_W-1-I_SHIFT                      !<-- End on the west edge of footprint
               J_UPDATE(1)=J_START_X
               J_UPDATE(2)=J_END_X
 !
             ELSEIF(JTS==JDS)THEN
+!-> general ELSEIF(JMS<=JDS+NROWS_P_UPD_S-1)THEN
               IF(I_START_X>=IDS+NROWS_P_UPD_W-I_SHIFT)THEN                 !<-- Nest task on S bndry of footprint; no part west of it
                 I_UPDATE(1)=I_START_X
                 I_UPDATE(2)=I_END_X  
                 J_UPDATE(1)=JDS
+!-> general     J_UPDATE(1)=J_START_X
                 J_UPDATE(2)=JDS+NROWS_P_UPD_S-1
               ELSE                                                         !<-- Nest task on S bndry of footprint; extends west of it
                 CORNER='SW'
@@ -7450,6 +7461,7 @@
                 I_UPDATE(3)=I_UPDATE(2)+1
                 I_UPDATE(4)=I_END_X
                 J_UPDATE(1)=JDS
+!-> general     J_UPDATE(1)=J_START_X
                 J_UPDATE(2)=JDS+NROWS_P_UPD_S-1
                 J_UPDATE(3)=J_UPDATE(2)+1
                 J_UPDATE(4)=J_END_X
@@ -7469,6 +7481,7 @@
 !
           IF(J_SHIFT>0)THEN 
             IF(ITE==IDE)THEN   
+!-> general IF(IME>=IDE-NROWS_P_UPD_E+1)THEN   
               IF(J_END_X<JDE-NROWS_P_UPD_N+1-J_SHIFT)THEN                  !<-- Nest task on E bndry of footprint; no part north of it
                 I_UPDATE(1)=IDE-NROWS_P_UPD_E+1
                 I_UPDATE(2)=I_END_X
@@ -7487,20 +7500,24 @@
               ENDIF
 !
             ELSEIF(ITS>IDS)THEN                                            !<-- Nest task only on north edge of footprint
+!-> general ELSEIF(IMS>IDS+NROWS_P_UPD_W-1)THEN                            !<-- Nest task only on north edge of footprint
               I_UPDATE(1)=I_START_X
               I_UPDATE(2)=I_END_X
               J_UPDATE(1)=JDE-NROWS_P_UPD_N+1-J_SHIFT                      !<-- Begin on north edge of footprint
               J_UPDATE(2)=J_END_X
 !
             ELSEIF(ITS==IDS)THEN   
+!-> general ELSEIF(IMS<=IDS+NROWS_P_UPD_W-1)THEN   
               IF(J_END_X<JDE-NROWS_P_UPD_N+1-J_SHIFT)THEN                  !<-- Nest task on W bndry of footprint; no part north of it
                 I_UPDATE(1)=IDS     
+!-> general     I_UPDATE(1)=I_START_X
                 I_UPDATE(2)=IDS+NROWS_P_UPD_W-1
                 J_UPDATE(1)=J_START_X
                 J_UPDATE(2)=J_END_X
               ELSE                                                         !<-- Nest task on W bndry of footprint; extends north of it
                 CORNER='NW'
                 I_UPDATE(1)=IDS
+!-> general     I_UPDATE(1)=I_START_X
                 I_UPDATE(2)=IDS+NROWS_P_UPD_W-1
                 I_UPDATE(3)=I_UPDATE(2)+1
                 I_UPDATE(4)=I_END_X
@@ -7518,6 +7535,7 @@
 !
           ELSEIF(J_SHIFT<0)THEN 
             IF(ITE==IDE)THEN   
+!-> general IF(IME>=IDE-NROWS_P_UPD_E+1)THEN   
               IF(J_START_X>=JDS+NROWS_P_UPD_S-J_SHIFT)THEN                 !<-- Nest task on E bndry of footprint; no part south of it
                 I_UPDATE(1)=IDE-NROWS_P_UPD_E+1
                 I_UPDATE(2)=I_END_X
@@ -7537,14 +7555,17 @@
               ENDIF
 !
             ELSEIF(ITS>IDS)THEN                                            !<-- Nest task only on south edge of footprint
+!-> general ELSEIF(IMS>IDS+NROWS_P_UPD_W-1)THEN                            !<-- Nest task only on south edge of footprint
               I_UPDATE(1)=I_START_X
               I_UPDATE(2)=I_END_X   
               J_UPDATE(1)=J_START_X
               J_UPDATE(2)=JDS+NROWS_P_UPD_S-1-J_SHIFT                      !<-- End on south edge of footprint
 !
             ELSEIF(ITS==IDS)THEN   
+!-> general ELSEIF(IMS<=IDS+NROWS_P_UPD_W-1)THEN   
               IF(J_START_X>=JDS+NROWS_P_UPD_S-J_SHIFT)THEN                 !<-- Nest task on W bndry of footprint; no part south of it
                 I_UPDATE(1)=IDS    
+!-> general     I_UPDATE(1)=I_START_X
                 I_UPDATE(2)=IDS+NROWS_P_UPD_W-1
                 J_UPDATE(1)=J_START_X
                 J_UPDATE(2)=J_END_X
@@ -7606,12 +7627,12 @@
 !***  be the same for both H and V points.
 !-----------------------------------------------------------------------
 !
-      IF(.NOT.ALLOCATED(ITS_PARENT_ON_CHILD))THEN
-        ALLOCATE(ITS_PARENT_ON_CHILD(0:NUM_TASKS_PARENT-1))
-        ALLOCATE(ITE_PARENT_ON_CHILD(0:NUM_TASKS_PARENT-1))
-        ALLOCATE(JTS_PARENT_ON_CHILD(0:NUM_TASKS_PARENT-1))
-        ALLOCATE(JTE_PARENT_ON_CHILD(0:NUM_TASKS_PARENT-1))
-      ENDIF
+!xxx  IF(.NOT.ALLOCATED(ITS_PARENT_ON_CHILD))THEN
+      ALLOCATE(ITS_PARENT_ON_CHILD(0:NUM_TASKS_PARENT-1))
+      ALLOCATE(ITE_PARENT_ON_CHILD(0:NUM_TASKS_PARENT-1))
+      ALLOCATE(JTS_PARENT_ON_CHILD(0:NUM_TASKS_PARENT-1))
+      ALLOCATE(JTE_PARENT_ON_CHILD(0:NUM_TASKS_PARENT-1))
+!xxx  ENDIF
 !
       DO N=0,NUM_TASKS_PARENT-1
 !
@@ -8623,10 +8644,16 @@
                             -SEND_TASK(KP)%ISTART(2)+1)*                &
                             (SEND_TASK(KP)%JEND(2)                      &
                             -SEND_TASK(KP)%JSTART(2)+1)
-
         ENDIF
 !
       ENDDO
+!
+!-----------------------------------------------------------------------
+!
+      DEALLOCATE(ITS_PARENT_ON_CHILD)
+      DEALLOCATE(ITE_PARENT_ON_CHILD)
+      DEALLOCATE(JTS_PARENT_ON_CHILD)
+      DEALLOCATE(JTE_PARENT_ON_CHILD)
 !
 !-----------------------------------------------------------------------
 !
@@ -8706,7 +8733,8 @@
 !-----------------------------------------------------------------------
 !***  First load into the Parent-Child coupler export state the
 !***  number of parent tasks that send update data to this nest task.
-!***  We insist that the same parent tasks will update H and V points.
+!***  We insist that parent tasks will update the same H and V points
+!***  with respect to their I,J indices.
 !-----------------------------------------------------------------------
 !
       NUM_PTASK_UPDATE=0
@@ -8756,8 +8784,8 @@
         ITAG=NUM_WORDS+NTIMESTEP                                           !<-- Tag that changes for both data size and time
 !
 !-----------------------------------------------------------------------
-!***  Receive the interior update data sent by parent task N.
-!***  We insist that the same parent tasks update both H and V points.
+!***  Receive the interior H and V real update data sent by
+!***  parent task N.
 !-----------------------------------------------------------------------
 !
         CALL MPI_RECV(UPDATE_REAL_DATA                                  &  !<-- Real update data from Nth parent task
@@ -8850,8 +8878,8 @@
           ITAG=NUM_WORDS+NTIMESTEP                                         !<-- Tag that changes for both data size and time
 !
 !-----------------------------------------------------------------------
-!***  Receive the interior update data sent by parent task N.
-!***  We insist that the same parent tasks update both H and V points.
+!***  Receive the interior integer update data for H and V points
+!***  sent by parent task N.
 !-----------------------------------------------------------------------
 !
           CALL MPI_RECV(UPDATE_INTEGER_DATA                             &  !<-- Integer update data from Nth parent task
@@ -10041,7 +10069,7 @@
 !***  a second time for V points.  To save time on communication
 !***  all H and V point data will be sent together at the end of
 !***  the 2nd (V-point) call.  First do some prep work that only 
-!***  once to be done once for both H and V at this move.
+!***  needs to be done once for both H and V at this move.
 !-----------------------------------------------------------------------
 !
       prep_block: IF(FLAG_H_OR_V=='H')THEN  
@@ -11894,16 +11922,16 @@
           ENDDO
         ENDIF
 !
-        do j=jstart,jend
-        do i=istart,iend
-          if(abs(NEST_FIS_ON_PARENT(N)%DATA(i,j))<1.e-2)then
+        DO J=JSTART,JEND
+        DO I=ISTART,IEND
+          IF(ABS(NEST_FIS_ON_PARENT(N)%DATA(i,j))<1.e-2)THEN
             NEST_FIS_ON_PARENT(N)%DATA(i,j)=0
-          endif
-          if(abs(NEST_FIS_V_ON_PARENT(N)%DATA(i,j))<1.e-2)then
+          ENDIF
+          IF(ABS(NEST_FIS_V_ON_PARENT(N)%DATA(i,j))<1.e-2)THEN
             NEST_FIS_V_ON_PARENT(N)%DATA(i,j)=0
-          endif
-        enddo
-        enddo
+          ENDIF
+        ENDDO
+        ENDDO
 !
         DEALLOCATE(ROW1,ROW2)
         CLOSE(IUNIT_FIS_NEST)

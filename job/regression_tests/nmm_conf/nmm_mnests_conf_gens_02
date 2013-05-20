@@ -24,8 +24,8 @@ sbd: -39.76                 # Grid's southern boundary (rotated degrees); NOT NE
 ##### Grid Decomposition #####
 ##############################
 
-inpes:  02                  # Number of compute tasks in the I direction
-jnpes:  03                  # Number of compute tasks in the J direction
+inpes:  05                  # Number of compute tasks in the I direction
+jnpes:  09                  # Number of compute tasks in the J direction
 
 
 ###############################
@@ -89,8 +89,8 @@ freerun:        true        # True--> Original
 ##### General modes #####
 #########################
 
-global:  false              # True--> Global ; False--> Regional
-hydro:   false              # True--> Hydrostatic ;  False--> Nonhydrostatic
+global:    false            # True--> Global ; False--> Regional
+hydro:     false            # True--> Hydrostatic ;  False--> Nonhydrostatic
 adiabatic: false            # True--> Adiabatic ;  False--> Diabatic
 oper:      false
 
@@ -122,7 +122,7 @@ PE_MEMBER01:    0
  
 secadv:  true               # True--> 2nd order advection ; False--> 4th order advection
                                                   
-smag2:   0.4                # Smagorinsky constant for 2nd order diffusion
+smag2:   0.2                # Smagorinsky constant for 2nd order diffusion
                                         
 codamp:  9.0                # Divergence damping constant
 wcor:    0.18               # Divergence correction factor
@@ -135,8 +135,8 @@ idtadt:  2                  # Number of adjustment timesteps between tracer adve
 num_tracers_met:   4        # Number of specified meterological "tracer" scalars (e.g., water)
 num_tracers_chem:  0        # Number of specified chem/aerosol "tracer" scalars
                  
-lnsh:  1                    # Number of boundary blending rows for H points
-lnsv:  1                    # Number of boundary blending rows for V points
+lnsh:  5                    # Number of boundary blending rows for H points
+lnsv:  5                    # Number of boundary blending rows for V points
 
 
 ###################################
@@ -156,8 +156,8 @@ nsecs_fwdtdfi: 3600         # HALF forward filter window (s)         (TDFI)
 ##### Global Summations #####
 #############################
 
-use_allreduce:  false       # False--> use mpi send/recv for global sums
-                            # True--> use mpi_allreduce for global sums
+use_allreduce:  false       # False--> use mpi send/recv for global sums (reproducible results)
+                            # True--> use mpi_allreduce for global sums (much faster)
 
 read_global_sums:  false    # Read in global summations or not
 write_global_sums: false    # Write out global summations or not
@@ -241,7 +241,7 @@ land_surface:  noah         # Land surface schemes
                                 # noah--> NOAH scheme
 
 ucmcall: 0                  # Use (1) or do not use (0) the Urban Canopy Model
-ivegsrc: 0                  # Vegetation map identifier, 0--> USGS, 1--> IGBP
+ivegsrc: 1                  # Vegetation map identifier, 0--> USGS, 1--> IGBP
 
 #---------------------------------
                                                                                                                                               
@@ -288,12 +288,12 @@ nprecip:    6               # Number of dynamics timesteps between calls to conv
 nhrs_udef:  true            # User defined when fluxes are emptied.
                             # False--> Auto ; True--> User defined:
 
-nhrs_prec:  6               # Frequency in hours between times when precip arrays are emptied
-nhrs_heat:  6               # Frequency in hours between times when heating arrays are emptied
-nhrs_clod:  6               # Frequency in hours between times when cloud arrays are emptied
-nhrs_rdlw:  6               # Frequency in hours between times when LW radiation arrays are emptied
-nhrs_rdsw:  6               # Frequency in hours between times when SW radiation arrays are emptied
-nhrs_srfc:  6               # Frequency in hours between times when sfc evap/flux arrays are emptied
+nhrs_prec:  3               # Frequency in hours between times when precip arrays are emptied
+nhrs_heat:  3               # Frequency in hours between times when heating arrays are emptied
+nhrs_clod:  3               # Frequency in hours between times when cloud arrays are emptied
+nhrs_rdlw:  3               # Frequency in hours between times when LW radiation arrays are emptied
+nhrs_rdsw:  3               # Frequency in hours between times when SW radiation arrays are emptied
+nhrs_srfc:  3               # Frequency in hours between times when sfc evap/flux arrays are emptied
 
 
 #################################################
@@ -307,7 +307,7 @@ write_hst_nemsio:    true   # True--> Write history files in NEMSIO format
 write_rst_bin:       true   # True--> Write restart files in binary format
 write_rst_nemsio:    true   # True--> Write restart files in NEMSIO format
 
-write_nemsioctl:     false  # True--> Yes write ctl for nemsio run history files
+write_nemsioctl:     true   # True--> Yes write ctl for nemsio run history files
 write_donefileflag:  false
 write_fsyncflag:     false  # True--> Yes write fsync
 write_dopost:        false  # True--> Yes run post on quilt
@@ -353,8 +353,8 @@ generation:  2                # For 2-way only, in which generation is this doma
 ### If this domain is not a nest then the reamining variables
 ### in 'Nesting Specifications' are ignored.
 
-i_parent_start:  158
-j_parent_start:  153
+i_parent_start:  122
+j_parent_start:  133
 
 parent_child_space_ratio:  3  # Ratio of this nest's parent's grid increment to its own
 ratio_sfc_files: 3            # Ratio of uppermost parent grid increment to this moving nest's 
