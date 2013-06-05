@@ -31,6 +31,7 @@ if [ $MACHINE_ID = ccs ]; then
   export STMP=/stmp
   export PTMP=/ptmp
   export SCHEDULER=loadleveler
+  export RTPWD=/climate/noscrub/wx20wa/esmf/nems/regression/REGRESSION_TEST
 elif [ $MACHINE_ID = wcoss ]; then
   export CLASS=dev
   export ACCNR=dev
@@ -38,6 +39,7 @@ elif [ $MACHINE_ID = wcoss ]; then
   export STMP=/stmp
   export PTMP=/ptmp
   export SCHEDULER=lsf
+  export RTPWD=/nems/noscrub/Jun.Wang/REGRESSION_TEST
 elif [ $MACHINE_ID = gaea ]; then 
   export DISKNM=/lustre/ltfs/scratch/Ratko.Vasic
   export STMP=/lustre/fs/scratch
@@ -52,6 +54,7 @@ elif [ $MACHINE_ID = zeus ]; then
   export PTMP=$dprefix2/ptmp
   export SCHEDULER=pbs
   export SIGHDR=$dprefix2/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
+  export RTPWD=/scratch1/portfolios/NCEPDEV/nems/noscrub/Jun.Wang/REGRESSION_TEST
 else
   echo "Unknown machine ID, please edit detect_machine.sh file"
   exit
@@ -64,7 +67,7 @@ mkdir -p $PTMP/$USER
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 
-  export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+#  export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
 #  export RTPWD=${STMP}/${USER}/REGRESSION_TEST
 
 #########################################################################
@@ -1962,7 +1965,7 @@ else
         flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
    export_gfs
-   export CDATE=2011092300 ; export WLCLK=20
+   export CDATE=2011092300 ; export WLCLK=25
    export TASKS=32 ; export PE1=32 ; export THRD=1 ; export QUILT=.false.
    export FDFI=3 ; export CP2=.false. ; export IDEA=.true.
    export IDVC=3 ; export THERMODYN_ID=3  ; export SFCPRESS_ID=2 ; export SPECTRALLOOP=2

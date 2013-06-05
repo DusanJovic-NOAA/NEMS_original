@@ -100,6 +100,7 @@
 !      apr  2012  - henry juang add idea                                !
 !      sep  2012  - s. moorthi  merge with operational version          !
 !      Mar  2013  - Jun Wang    set idea heating rate to tmp tendency   !
+!      May  2013  - Jun Wang    tmp updated after idea phys             !
 !                                                                       !
 !                                                                       !
 !  ====================  defination of variables  ====================  !
@@ -418,6 +419,7 @@
       use machine ,   only : kind_phys
       use physcons,   only : con_cp, con_fvirt, con_g, con_rd, con_rv,  &
      &                       con_hvap, con_hfus, con_rerth, con_pi
+!      use tracer_const, only : cpi, ri
 !
       implicit none
 !
@@ -858,7 +860,8 @@
 !idea jw
         do k = 1, levs
         do i = 1, im
-          dtdt(i,k) = hlwd(i,k,2)
+!          dtdt(i,k) = hlwd(i,k,2)
+          dtdt(i,k) = 0.
         enddo
         enddo
       endif
@@ -1550,11 +1553,6 @@
 
 ! idea convective adjustment
       if( lsidea ) then
-!        do  k = 1, levs
-!          do i = 1, im
-!            gt0(i,k)   = tgrs(i,k)
-!          enddo
-!        enddo
         call ideaca_up(prsi,gt0,ix,im,levs+1)
       endif
 
