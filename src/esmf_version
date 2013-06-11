@@ -56,6 +56,13 @@ elif [[ $1 = 5.2.0rAPI_zeus ]]; then
      cp ESMFVersionDefine_ESMF_520rAPI.h ESMFVersionDefine.h
      set +x
      echo "Use an ESMF 5.2.0r API compatible ESMF library (i.e. ESMF >= 5.2.0r)"
+elif [[ $1 = nuopc_zeus ]]; then
+     set -x
+     cp conf/configure.nems.Zeus.intel conf/configure.nems
+     cp conf/modules.nems.Zeus_ESMF_NUOPC conf/modules.nems.Zeus
+     cp ESMFVersionDefine_ESMF_NUOPC.h ESMFVersionDefine.h
+     set +x
+     echo "Use an ESMF library with reference NUOPC Layer (currently ESMF 6.2.0)"
 else
      echo;echo "     Run ./esmf_version with one argument:"
      echo "When using the ESMF 3.1.0rp2 library on the CCS   machine, enter 'esmf_version 3'"
@@ -67,4 +74,5 @@ else
      echo "When using the ESMF 5.2.0rp1 library on the CCS   machine, enter 'esmf_version 5.2'"
      echo "When using the ESMF 5.2.0rp1 library on the WCOSS machine, enter 'esmf_version 5.2_wcoss'"
      echo "When using an ESMF 5.2.0r API compatible library (i.e. ESMF >= 5.2.0r) on the ZEUS machine, enter 'esmf_version 5.2.0rAPI_zeus'"
+     echo "When using an ESMF library with reference NUOPC Layer (currently ESMF 6.2.0) on the ZEUS machine, enter 'esmf_version nuopc_zeus'"
 fi     

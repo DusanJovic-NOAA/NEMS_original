@@ -382,7 +382,7 @@
 ####
 ################################################################################
 #  Set environment.
-export ESMF_RUNTIME_COMPLIANCECHECK=ON
+export ESMF_RUNTIME_COMPLIANCECHECK=OFF
 
 #
 export machine=${machine:-WCOSS}
@@ -1016,6 +1016,8 @@ EOF
 cat << EOF > atm_namelist.rc
 
 core: gfs
+
+print_esmf:		.false.
 
 #nam_atm +++++++++++++++++++++++++++
 nlunit:                  35

@@ -460,7 +460,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CLOCK_MAIN=ESMF_ClockCreate(name       ='CLOCK_MAIN'              &  !<-- The top-level ESMF Clock
-                                 ,timeStep   =TIMESTEP                  &  !<-- Timestep needed by the Clock (ESMF)
+!                                 ,timeStep   =TIMESTEP                  &  !<-- Timestep needed by the Clock (ESMF)
+                                 ,timeStep   =RUNDURATION                  &  !<-- Timestep needed by the Clock (ESMF)
                                  ,startTime  =STARTTIME                 &  !<-- The integration start time (ESMF)
                                  ,runDuration=RUNDURATION               &  !<-- The integration duration (ESMF)
                                  ,rc         =RC)

@@ -4,8 +4,6 @@
 # ratko, May 6th, 2013
 ##########################################
 
-argn=$#
-
 . ./detect_machine.sh
 export MACHINE_ID
 export ACCNR
@@ -22,14 +20,8 @@ else
  cp gfs_fcst_run.IN_Linux gfs_fcst_run.IN
 fi
 
-  if [ $argn = 0 ]; then
-    ./tmp.sh
-  elif [ $argn = 1 ]; then
-    ./tmp.sh $1
-  elif [ $argn = 2 ]; then
-    ./tmp.sh $1 $2
-  fi
+./tmp.sh $*
 
-  rm -f tmp.sh gfs_fcst_run.IN
+rm -f tmp.sh gfs_fcst_run.IN
 
 exit

@@ -17,8 +17,12 @@
  SKIP_GEFS_CONCUR=YES
 #SKIP_SINGLECORE=YES
 
-#COMPILE_SORC=NO                # uncomment not to recompile the basic test
-#COMPILE_SORC_520rAPI=NO        # uncomment not to recompile the basic test
+#COMPILE_SORC=NO                # uncomment not to recompile the basic test exec
+#COMPILE_SORC_520rAPI=NO        # uncomment not to recompile the 520rAPI exec
+#COMPILE_SORC_NUOPC=NO          # uncomment not to recompile the NUOPC exec
+
+#CLEAN_SORC=NO                  # uncomment not to clean source after succ. run
+#CLEAN_RUNDIR=NO                # uncomment not to clean rundir after succ. run
 
 export dprefix1=""
 export dprefix2=""
@@ -80,6 +84,7 @@ mkdir -p $PTMP/$USER
   CB_arg=null
   ST_test=false
   RT_FULL=false
+  RT_NUOPC=false
 
 argn=$#
 
@@ -154,7 +159,7 @@ if [ $argn -eq 1 ]; then
     cp ${RTPWD}/NMMB_gfsP_glob/*           ${RTPWD_U}/NMMB_gfsP_glob/.
     cp ${RTPWD}/NMMB_gfsP_reg/*            ${RTPWD_U}/NMMB_gfsP_reg/.
     cp ${RTPWD}/NMMB_glob/*                ${RTPWD_U}/NMMB_glob/.
-    cp ${RTPWD}/NMMB_glob_ESMF_5.2.0rp1/*  ${RTPWD_U}/NMMB_glob_ESMF_5.2.0rp1/.
+    cp ${RTPWD}/NMMB_glob_ESMF_5.2.0rAPI/* ${RTPWD_U}/NMMB_glob_ESMF_5.2.0rAPI/.
     cp ${RTPWD}/NMMB_mvg_nests/*           ${RTPWD_U}/NMMB_mvg_nests/.
     cp ${RTPWD}/NMMB_nests/*               ${RTPWD_U}/NMMB_nests/.
     cp ${RTPWD}/NMMB_reg/*                 ${RTPWD_U}/NMMB_reg/.
@@ -179,22 +184,28 @@ if [ $argn -eq 1 ]; then
 fi
 
 #########################################################################
+# Look at command line arguments to determine testing mode:
 # If two arguments are provided ("full test") this will run complete set
 # of regression tests, otherwise it will run only mandatory (standard) test.
+# If two arguments are provided ("nuopc test") then run NUOPC test suite.
 #########################################################################
 
 if [ $argn -eq 2 ]; then
   RT_arg1=$1
   RT_arg2=$2
-  if [ $RT_arg1 != full -o $RT_arg2 != test ]; then
+  if [ $RT_arg1 = full -a $RT_arg2 = test ]; then
+    RT_FULL=true
+  elif [ $RT_arg1 = nuopc -a $RT_arg2 = test ]; then
+    RT_NUOPC=true
+  else
     echo "Wrong RT_arg choice: " $RT_arg1 $RT_arg2
     echo "  Options are: "
-    echo "          RT.sh  full test  (run complete regression test)"
+    echo "          RT.sh  full test   (run complete regression test)"
+    echo "          RT.sh  nuopc test  (run NUOPC test suite)"
     exit
   fi
-  RT_FULL=true
 elif [ $argn -gt 2 ]; then
-  echo "Wrong argument choice"
+  echo "Too many arguments specified!"
   exit
 fi
 
@@ -407,6 +418,154 @@ export FIM_USE_NEMS=true
 
 export_nmm ; export_gfs
 
+
+############################################################################
+# Testing of NEMS with NUOPC
+############################################################################
+
+if [ $RT_NUOPC = true ] ; then
+  echo "Running the NEMS with NUOPC test suite"
+  export RTPWD=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/REGRESSION_TEST
+  
+  if [ ${COMPILE_SORC_NUOPC:-YES} = YES ] ; then
+  
+    echo "Building the NEMS executable with NUOPC"
+  
+    printf %s "Compiling model code (this will take some time)......."
+    cd ${PATHTR}/src
+
+    date                                     >> ${REGRESSIONTEST_LOG}
+    echo "Compilation ESMF with NUOPC Layer" >> ${REGRESSIONTEST_LOG}
+    mv ${PATHTR}/exe/NEMS.x ${PATHTR}/exe/NEMS.x.old
+    if [ $MACHINE_ID = ccs ]; then
+
+      echo "NEMS with NUOPC not yet available on this machine"
+      exit
+      
+    elif [ $MACHINE_ID = wcoss ]; then
+
+      echo "NEMS with NUOPC not yet available on this machine"
+      exit
+
+    elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
+
+      cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
+      ./esmf_version nuopc_zeus              >> ${COMPILE_LOG} 2>&1
+      source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
+      module list                            >> ${COMPILE_LOG} 2>&1
+      gmake clean                            >> ${COMPILE_LOG} 2>&1
+      gmake nmm_gfs                          >> ${COMPILE_LOG} 2>&1
+
+    fi
+    date                                     >> ${REGRESSIONTEST_LOG}
+
+    if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+      echo "   done";echo;echo
+    else
+      echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
+      echo "   failed";echo;echo
+      exit
+    fi
+
+  fi # endif compilation
+
+  cd $PATHRT
+  
+  ###############################################################################
+  #
+  # TEST   - Global NMM-B with pure binary input
+  #        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
+  #
+  ###############################################################################
+
+  if [ $MACHINE_ID = ccs -o $MACHINE_ID = wcoss -o $MACHINE_ID = zeus ] ; then
+
+    export TEST_DESCR="Compare NMMB-global results with previous trunk for NUOPC"
+
+    if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+      echo "   Model code available";echo;echo
+    else
+      echo "   Model code is NOT available" >> ${REGRESSIONTEST_LOG}
+      echo "   Model code is NOT available"
+      exit
+    fi
+
+    #---------------------
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_NUOPC
+    export CNTL_DIR=NMMB_glob_ESMF_5.2.0rAPI
+    export LIST_FILES=" \
+    nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
+    nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
+    nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
+    #---------------------
+    export_nmm
+    export GBRG=glob
+    #---------------------
+    ./rt_nmm.sh
+    if [ $? = 2 ]; then exit ; fi
+    #---------------------
+
+  fi # endif machine
+
+  ###############################################################################
+  # 
+  # TEST   - GFS 
+  #        - 30 compute tasks / 1 thread 
+  #
+  ###############################################################################
+
+  if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus ] ; then
+
+    export TEST_DESCR="Compare GFS results with previous trunk version for NUOPC"
+
+    if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+      echo "   Model code available";echo;echo
+    else
+      echo "   Model code is NOT available" >> ${REGRESSIONTEST_LOG}
+      echo "   Model code is NOT available"
+      exit
+    fi
+
+    #---------------------
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/GFS_32_NUOPC
+    export CNTL_DIR=GFS_NODFI
+    export LIST_FILES=" \
+	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
+	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
+    #---------------------
+    export_gfs
+    #---------------------
+    ./rt_gfs.sh
+    if [ $? = 2 ]; then exit ; fi
+    #---------------------
+
+  fi # endif machine
+  
+  #----------------------------------------------
+
+  echo "Finished the NEMS with NUOPC test suite"
+  
+  rm -f err out configure_file* nmm_ll nmm_msub nmm_run gfs_fcst_run gfs_ll gen_fcst_run gen_ll fim_fcst_run fim_ll
+  if [ ${CLEAN_RUNDIR:-YES} = YES ] ; then
+    rm -rf ${RUNDIR_ROOT}
+  fi
+
+  date >> ${REGRESSIONTEST_LOG}
+
+  if [ $MACHINE_ID = zeus -o $MACHINE_ID = wcoss ]; then
+    echo REGRESSION TEST WAS SUCCESSFUL
+    echo REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
+  else
+    banner REGRESSION TEST WAS SUCCESSFUL
+    banner REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
+  fi
+
+  exit
+fi # endif NUOPC
+
 ############################################################################
 # Clean and compile both NMMB & GFS cores, using ESMF 3.1.0r series library.
 ############################################################################
@@ -424,7 +583,7 @@ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB
 
   date                                     >> ${REGRESSIONTEST_LOG}
   echo "Compilation ALL"                   >> ${REGRESSIONTEST_LOG}
-  rm -f ../exe/NEMS.x
+  rm -f ${PATHTR}/exe/NEMS.x
 
   if [ $MACHINE_ID = ccs ]; then
 
@@ -456,14 +615,6 @@ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB
  fi
  date                                     >> ${REGRESSIONTEST_LOG}
 
- if [ -f ${PATHTR}/exe/NEMS.x ] ; then
-   echo "   Model code Compiled and executable available";echo;echo
- else
-   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
-   echo "   Model code is NOT compiled"
-   exit
- fi
-
 fi # endif compilation
 
 cd $PATHRT
@@ -481,6 +632,14 @@ else
  if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
   export TEST_DESCR="Compare NMMB-global results with previous trunk version"
+
+   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+    echo "   Model code Compiled and executable available";echo;echo
+   else
+    echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
 
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
@@ -521,6 +680,14 @@ else
 
   export TEST_DESCR="Test NMMB-global NEMSIO as input file"
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/NMM_NEMSIO
@@ -551,6 +718,14 @@ else
 
   export TEST_DESCR="Test NMMB-global restart run"
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/NMM_REST
@@ -578,6 +753,14 @@ else
 
   export TEST_DESCR="Test NMMB-global restart run from NEMSIO file"
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/NMM_REST_NIO
@@ -604,6 +787,14 @@ else
  if [ $ST_test = true -o $RT_FULL = true ]; then
 
   export TEST_DESCR="Test NMMB-global different decomposition"
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
@@ -633,6 +824,14 @@ else
  if [ $ST_test = true -o $RT_FULL = true ]; then
 
   export TEST_DESCR="Test NMMB-global threading "
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
@@ -665,6 +864,14 @@ else
  
   export TEST_DESCR="Test NMMB-global with GFS physics package "
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/NMM_gfsP
@@ -693,6 +900,14 @@ else
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
 
   export TEST_DESCR="Compare NMMB-regional results with previous trunk version"
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
@@ -763,6 +978,14 @@ else
 
   export TEST_DESCR="Test NMMB-regional restart run"
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/NMM_REG_RST
@@ -789,6 +1012,14 @@ else
  if [ $RT_FULL = true ]; then
 
   export TEST_DESCR="Test NMMB-regional restart run with NEMSIO file "
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
@@ -817,6 +1048,14 @@ else
 
   export TEST_DESCR="Test NMMB-regional different decomposition"
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/NMM_REG_DECOMP
@@ -844,6 +1083,14 @@ else
  if [ $RT_FULL = true ]; then
 
   export TEST_DESCR="Test NMMB-regional threading "
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
@@ -876,6 +1123,14 @@ else
 
   export TEST_DESCR="Test NMMB-regional with GFS physics package "
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/NMM_REG_gfsP
@@ -904,6 +1159,14 @@ else
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
   export TEST_DESCR="Test NMMB-regional with selected GFS physics schemes "
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
@@ -935,6 +1198,14 @@ else
 
   export TEST_DESCR="Test NMMB-regional with precipitation adjustment on"
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/NMM_REG_PCPADJ
@@ -965,6 +1236,14 @@ else
 
   export TEST_DESCR="Test NMMB-regional writing time series"
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/NMM_REG_TIMESR
@@ -992,6 +1271,14 @@ else
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
   export TEST_DESCR="Test NMMB-regional with static nests"
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
@@ -1035,6 +1322,14 @@ else
 
   export TEST_DESCR="Test NMMB-regional static nests with restart"
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/NMM_nest_rest
@@ -1070,6 +1365,14 @@ else
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
 
   export TEST_DESCR="Test NMMB-regional/RRTM with static nests"
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
@@ -1116,6 +1419,14 @@ else
 
   export TEST_DESCR="Test NMMB-regional/RRTM static nests with restart"
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/NMM_rrtm_nest_rest
@@ -1150,6 +1461,14 @@ else
 
   export TEST_DESCR="Test NMMB-regional/RRTM threading"
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/NMM_rrtm_THREAD
@@ -1183,6 +1502,14 @@ else
 
   export TEST_DESCR="Test NMMB-regional digital filter with static nests"
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/NMM_REG_FILT
@@ -1214,7 +1541,15 @@ else
 
 if [ ${RT_FULL} = true -o ${CB_arg} = nmm -o ${CB_arg} = all ]; then
 
-   export TEST_DESCR="Test NMMB-regional with moving nests"
+  export TEST_DESCR="Test NMMB-regional with moving nests"
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
@@ -1256,7 +1591,15 @@ fi # endif test
 
 if [ ${RT_FULL} = true ]; then
 
-export TEST_DESCR="Test NMMB-regional with moving nests - RESTART"
+  export TEST_DESCR="Test NMMB-regional with moving nests - RESTART"
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
 (( TEST_NR=TEST_NR+1 ))
@@ -1293,9 +1636,17 @@ fi # endif test
 #
 ####################################################################################################
 
-  if [ $RT_FULL = true ]; then
+ if [ $RT_FULL = true ]; then
 
-   export TEST_DESCR="Test NMMB-regional with moving nests and generational task assignments"
+  export TEST_DESCR="Test NMMB-regional with moving nests and generational task assignments"
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
    (( TEST_NR=TEST_NR+1 ))
@@ -1326,7 +1677,7 @@ fi # endif test
    if [ $? = 2 ]; then exit ; fi
 #---------------------
 
-  fi # endif test
+ fi # endif test
 
 fi # end of the loop SKIP_NMM
 
@@ -1350,6 +1701,14 @@ else
  if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ]; then
 
   export TEST_DESCR="Compare GFS results with previous trunk version"
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
@@ -1379,6 +1738,14 @@ else
 
   export TEST_DESCR="Compare GFS adiabatic results with previous trunk version"
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/GFS_32_ADIAB
@@ -1404,6 +1771,14 @@ else
  if [ $RT_FULL = true ]; then
 
   export TEST_DESCR="Test GFS with 2-copy option"
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
@@ -1434,6 +1809,14 @@ else
 
   export TEST_DESCR="Test GFS different decomposition and restart"
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/GFS_32_48
@@ -1462,6 +1845,14 @@ else
  if [ $ST_test = true -o $RT_FULL = true ]; then
 
   export TEST_DESCR="Test GFS threads"
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
@@ -1492,6 +1883,14 @@ else
  if [ $RT_FULL = true ]; then
 
   export TEST_DESCR="GFS, 32 proc, 1 thread, no quilt, output every 4 timestep"
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
@@ -1524,6 +1923,14 @@ else
 
    export TEST_DESCR="Test GFS single processor"
 
+   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+    echo "   Model code Compiled and executable available";echo;echo
+   else
+    echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
+
 #---------------------
    (( TEST_NR=TEST_NR+1 ))
    export RUNDIR=${RUNDIR_ROOT}/GFS_01_NSOUT
@@ -1553,6 +1960,14 @@ else
   if [ $RT_FULL = true ]; then
 
    export TEST_DESCR="Test GFS, 1 proc, 1 thread, no quilting,nsout=1"
+
+   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+    echo "   Model code Compiled and executable available";echo;echo
+   else
+    echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
 
 #---------------------
    (( TEST_NR=TEST_NR+1 ))
@@ -1586,6 +2001,14 @@ else
 
   export TEST_DESCR="Test GFS, 16 proc, 2 threads,no quilt, output every 2 time steps"
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/GFS_16_48_NOQUILT_NSOUT
@@ -1617,6 +2040,14 @@ else
 
   export TEST_DESCR="Test GFS, 48 proc, 1 thread, no quilt"
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/GFS_16_48_NOQUILT_NSOUT
@@ -1647,6 +2078,14 @@ else
 
   export TEST_DESCR="GFS,32 total proc (tasks), 1 thread, quilt, digital filter on reduced grid"
 
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/GFS_32_16_dfi
@@ -1675,6 +2114,14 @@ else
  if [ $ST_test = true -o $RT_FULL = true ]; then
 
   export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid"
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
@@ -1706,6 +2153,14 @@ else
   if [ $RT_FULL = true ]; then
 
    export TEST_DESCR="GFS,1 proc, no quilt, digital filter on reduced grid"
+
+   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+    echo "   Model code Compiled and executable available";echo;echo
+   else
+    echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
 
 #---------------------
    (( TEST_NR=TEST_NR+1 ))
@@ -1739,6 +2194,14 @@ else
 
    export TEST_DESCR="GFS, use the OPAC climo scheme for SW and LW"
 
+   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+    echo "   Model code Compiled and executable available";echo;echo
+   else
+    echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
+
 #---------------------
    (( TEST_NR=TEST_NR+1 ))
    export RUNDIR=${RUNDIR_ROOT}/GFS_OPAC
@@ -1769,6 +2232,14 @@ else
   if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
    export TEST_DESCR="GFS, 16tasks, 2threads, quilt, dfi3hr, reduced grid, NDSL"
+
+   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+    echo "   Model code Compiled and executable available";echo;echo
+   else
+    echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
 
 #---------------------
    (( TEST_NR=TEST_NR+1 ))
@@ -1809,6 +2280,14 @@ else
   if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ]; then
 
    export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid"
+
+   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+    echo "   Model code Compiled and executable available";echo;echo
+   else
+    echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
 
 #---------------------
    (( TEST_NR=TEST_NR+1 ))
@@ -1852,6 +2331,14 @@ else
  
    export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid, restart"
 
+   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+    echo "   Model code Compiled and executable available";echo;echo
+   else
+    echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
+
 #---------------------
    (( TEST_NR=TEST_NR+1 ))
    export RUNDIR=${RUNDIR_ROOT}/GFS_hyb_2loop
@@ -1888,6 +2375,14 @@ else
 
     export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid with nst"
 
+    if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+     echo "   Model code Compiled and executable available";echo;echo
+    else
+     echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+     echo "   Model code is NOT compiled"
+     exit
+    fi
+
 #---------------------
     (( TEST_NR=TEST_NR+1 ))
     export RUNDIR=${RUNDIR_ROOT}/GFS_hyb_2loop_nst
@@ -1923,6 +2418,14 @@ else
 
    export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 1loop digital filter on reduced grid"
 
+   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+    echo "   Model code Compiled and executable available";echo;echo
+   else
+    echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
+
 #---------------------
    (( TEST_NR=TEST_NR+1 ))
    export RUNDIR=${RUNDIR_ROOT}/GFS_16_dfi_hyb_1loop
@@ -1954,6 +2457,14 @@ else
  if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
    export TEST_DESCR="WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting"
+
+   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+    echo "   Model code Compiled and executable available";echo;echo
+   else
+    echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
 
 #---------------------
    (( TEST_NR=TEST_NR+1 ))
@@ -1991,6 +2502,14 @@ else
  if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
   export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members, T190L28."
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
 
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
@@ -2039,6 +2558,14 @@ else
 
    export TEST_DESCR="GEN, 1 members."
 
+   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+    echo "   Model code Compiled and executable available";echo;echo
+   else
+    echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
+
 #---------------------
    (( TEST_NR=TEST_NR+1 ))
    export RUNDIR=${RUNDIR_ROOT}/GEN_Run_m1
@@ -2064,6 +2591,14 @@ else
   if [ $RT_FULL = true ]; then
 
    export TEST_DESCR="Concurrency GEN, 4 members."
+
+   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+    echo "   Model code Compiled and executable available";echo;echo
+   else
+    echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
 
 #---------------------
    (( TEST_NR=TEST_NR+1 ))
@@ -2099,13 +2634,13 @@ else
 
    date                                     >> ${REGRESSIONTEST_LOG}
    echo "Compilation only FIM"              >> ${REGRESSIONTEST_LOG}
-   rm -f ../exe/NEMS.x
+   rm -f ${PATHTR}/exe/NEMS.x
    gmake clean                              >> ${COMPILE_LOG} 2>&1
    esmf_version 3                           >> ${COMPILE_LOG} 2>&1
    gmake fim                                >> ${COMPILE_LOG} 2>&1
    date                                     >> ${REGRESSIONTEST_LOG}
 
-   if [ -f ../exe/NEMS.x ] ; then
+   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
     echo "   Model code Compiled";echo;echo
    else
     echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
@@ -2181,14 +2716,14 @@ else
 
    date                                     >> ${REGRESSIONTEST_LOG}
    echo "Compilation with POST"             >> ${REGRESSIONTEST_LOG}
-   rm -f ../exe/NEMS.x
+   rm -f ${PATHTR}/exe/NEMS.x
    cp atmos/gsm/dyn/makefile_essl atmos/gsm/dyn/makefile
    gmake clean                              >> ${COMPILE_LOG} 2>&1
    esmf_version 3                           >> ${COMPILE_LOG} 2>&1
    gmake nmm_gfs_gen_post GOCART_MODE=full  >> ${COMPILE_LOG} 2>&1
    date                                     >> ${REGRESSIONTEST_LOG}
 
-   if [ -f ../exe/NEMS.x ] ; then
+   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
     echo "   Model code Compiled";echo;echo
    else
     echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
@@ -2323,14 +2858,12 @@ else
   echo "Using the ESMF 5.2.0r API"
   printf %s "Using the ESMF 5.2.0r API.   "
   
-  
-  
   printf %s "Compiling model code (this will take some time)......."
   cd ${PATHTR}/src
 
   date                                     >> ${REGRESSIONTEST_LOG}
   echo "Compilation ESMF 5.2.0r API"       >> ${REGRESSIONTEST_LOG}
-  rm -f ../exe/NEMS.x
+  rm -f ${PATHTR}/exe/NEMS.x
   if [ $MACHINE_ID = ccs ]; then
 
     cp atmos/gsm/dyn/makefile_essl atmos/gsm/dyn/makefile
@@ -2357,14 +2890,6 @@ else
    fi
    date                                     >> ${REGRESSIONTEST_LOG}
 
-   if [ -f ../exe/NEMS.x ] ; then
-    echo "   Model code Compiled";echo;echo
-   else
-    echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
-    echo "   Model code is NOT compiled"
-    exit
-   fi
-
   fi # endif compilation
   fi # endif skipping compilation
 
@@ -2377,11 +2902,19 @@ else
  #
  ###############################################################################
 
- if [ $MACHINE_ID = ccs -o $MACHINE_ID = wcoss ] ; then
+ if [ $MACHINE_ID = ccs -o $MACHINE_ID = wcoss -o $MACHINE_ID = zeus ] ; then
   if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
    export TEST_DESCR="Compare NMMB-global results with previous trunk
    version_ESMF_5.2.0r API"
+
+   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+    echo "   Model code Compiled";echo;echo
+   else
+    echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
 
 #---------------------
    (( TEST_NR=TEST_NR+1 ))
@@ -2414,6 +2947,14 @@ else
 
    export TEST_DESCR="Compare GFS results with previous trunk version
    ESMF5.2.0rAPI"
+
+   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+    echo "   Model code Compiled";echo;echo
+   else
+    echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
+    echo "   Model code is NOT compiled"
+    exit
+   fi
 
 #---------------------
    (( TEST_NR=TEST_NR+1 ))
@@ -2449,6 +2990,14 @@ else
 
     export TEST_DESCR="Concurrency GEFS, stochastic perturbations, 4 members,
     T190L28. ESMF5.2.0r API"
+
+    if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+     echo "   Model code Compiled";echo;echo
+    else
+     echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
+     echo "   Model code is NOT compiled"
+     exit
+    fi
 
 #---------------------
     (( TEST_NR=TEST_NR+1 ))
@@ -2501,7 +3050,7 @@ if [ $RT_FULL = true ] ; then
 
  date                                    >> ${REGRESSIONTEST_LOG}
  echo "Compilation only NMM"             >> ${REGRESSIONTEST_LOG}
- rm -f ../exe/NEMS.x
+ rm -f ${PATHTR}/exe/NEMS.x
 
  if [ $MACHINE_ID = ccs ]; then
 
@@ -2528,7 +3077,7 @@ if [ $RT_FULL = true ] ; then
 
  fi
 
- if [ -f ../exe/NEMS.x ] ; then
+ if [ -f ${PATHTR}/exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
  else
   echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
@@ -2584,13 +3133,13 @@ if [ $MACHINE_ID = ccs ] ; then
 
   date                                     >> ${REGRESSIONTEST_LOG}
   echo "Compilation NMM with TRAPS on"     >> ${REGRESSIONTEST_LOG}
-  rm -f ../exe/NEMS.x
+  rm -f ${PATHTR}/exe/NEMS.x
   gmake clean                              >> ${COMPILE_LOG} 2>&1
   esmf_version traps_on                    >> ${COMPILE_LOG} 2>&1
   gmake nmm                                >> ${COMPILE_LOG} 2>&1
   date                                     >> ${REGRESSIONTEST_LOG}
 
-  if [ -f ../exe/NEMS.x ] ; then
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
    echo "   Model code Compiled";echo;echo
   else
    echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
@@ -2645,7 +3194,7 @@ if [ $RT_FULL = true ] ; then
 
  date                                    >> ${REGRESSIONTEST_LOG}
  echo "Compilation only GFS"             >> ${REGRESSIONTEST_LOG}
- rm -f ../exe/NEMS.x
+ rm -f ${PATHTR}/exe/NEMS.x
  if [ $MACHINE_ID = ccs ]; then
 
   esmf_version 3                         >> ${COMPILE_LOG} 2>&1
@@ -2670,7 +3219,7 @@ if [ $RT_FULL = true ] ; then
 
  date                                    >> ${REGRESSIONTEST_LOG}
 
- if [ -f ../exe/NEMS.x ] ; then
+ if [ -f ${PATHTR}/exe/NEMS.x ] ; then
   echo "   Model code Compiled";echo;echo
  else
   echo "   Model code is NOT compiled" >> ${REGRESSIONTEST_LOG}
@@ -2719,11 +3268,15 @@ fi # SKIP_SINGLECORE tests
 
 rm -f err out configure_file* nmm_ll nmm_msub nmm_run gfs_fcst_run gfs_ll gen_fcst_run gen_ll fim_fcst_run fim_ll
 
-cd ${PATHTR}/src
-gmake clean            > /dev/null 2>&1
-./esmf_version 3       > /dev/null 2>&1
+if [ ${CLEAN_SORC:-YES} = YES ] ; then
+  cd ${PATHTR}/src
+  gmake clean            > /dev/null 2>&1
+  ./esmf_version 3       > /dev/null 2>&1
+fi
 
-rm -rf ${RUNDIR_ROOT}
+if [ ${CLEAN_RUNDIR:-YES} = YES ] ; then
+  rm -rf ${RUNDIR_ROOT}
+fi
 
 date >> ${REGRESSIONTEST_LOG}
 

@@ -1,5 +1,4 @@
 #include "./ESMFVersionDefine.h"
-#include "./NUOPC_Switch.h"
 
 !-----------------------------------------------------------------------
 !
@@ -242,8 +241,15 @@
           file=__FILE__, &
           rcToReturn=rc)) &
           return  ! bail out
+        call ESMF_AttributeSet(is%wrap%atm, &
+          name="Verbosity", value="high", &
+          convention="NUOPC", purpose="General", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
 
-
+#ifdef WITH_OCN
         ! SetServices for OCN
         call ESMF_GridCompSetServices(is%wrap%ocn, OCN_REGISTER, &
           userRc=localrc, rc=rc)
@@ -256,7 +262,7 @@
           file=__FILE__, &
           rcToReturn=rc)) &
           return  ! bail out
-
+#endif
 
         ! Get internal clock and set the timeStep equal to runDuration
         call ESMF_GridCompGet(gcomp, clock=internalClock, rc=rc)

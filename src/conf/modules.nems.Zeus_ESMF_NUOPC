@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# This script is responsible for loading modules that are compatible with
+# the NUOPC Layer version used in NEMS. ESMF 6.2.0 is currently the official
+# reference release of the NUOPC Layer.
+
+module purge
+#TODO: take following line out once ESMF 6.2.0 is available as standard module
+module use /home/Gerhard.Theurich/Modulefiles
+module load mpt intel esmf/6.2.0

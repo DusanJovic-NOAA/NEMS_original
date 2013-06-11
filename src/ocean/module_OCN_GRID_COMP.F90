@@ -1,5 +1,4 @@
 #include "../ESMFVersionDefine.h"
-#include "../NUOPC_Switch.h"
 
 !-----------------------------------------------------------------------
 !

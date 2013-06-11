@@ -10,6 +10,8 @@
 set -x
 export MPI_GROUP_MAX=96
 
+export ESMF_RUNTIME_COMPLIANCECHECK=OFF
+
 source _SRCD_/src/conf/modules.nems.Zeus
 module list
 
