@@ -27,6 +27,8 @@
 !
       TYPE NMM_INTERNAL_STATE
 !
+        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: NUM_2WAY_CHILDREN   !<-- # of 2-way children in each domain
+!
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: COMM_MY_DOMAIN       &  !<-- MPI intracommunicator for all tasks on each domain
                                                   ,NPE_PRINT            &  !<-- Clocktime diagnostics from this MPI task
                                                   ,NUM_CHILDREN         &  !<-- How many children on each domain
@@ -37,6 +39,8 @@
         LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: MY_DOMAIN_MOVES      &  !<-- Does my domain move?
                                                   ,RESTARTED_RUN        &  !<-- Flag indicating if this is a restarted run
                                                   ,RST_OUT_00              !<-- Shall we write 00h history in restarted run?
+!
+        CHARACTER(len=5),DIMENSION(:),POINTER :: NEST_MODE                 !<-- Is the nesting 1-way or 2-way with the parent?
 !
 #ifdef ESMF_3
         TYPE(ESMF_Logical),DIMENSION(:),POINTER :: I_AM_A_FCST_TASK     &  !<-- Is this task a fcst task on a given domain?

@@ -52,6 +52,7 @@
                               ,HANDLE_PACKET_W_V                        &
                               ,HANDLE_PACKET_E_H                        &
                               ,HANDLE_PACKET_E_V                        &
+                              ,HANDLE_PARENT_DOM_LIMITS                 &
                               ,HANDLE_PARENT_ITE                        &
                               ,HANDLE_PARENT_ITS                        &
                               ,HANDLE_PARENT_JTE                        &
@@ -148,10 +149,11 @@
                            ,NUM_DOMAINS_MINE                               !<-- The # of domains on which each task resides
 !
       INTEGER(kind=KINT),POINTER :: NUM_CHILDREN                        &  !<-- # of children on a domain
+                                   ,NUM_2WAY_CHILDREN                   &  !<-- # of 2-way children on a domain
                                    ,PARENT_CHILD_TIME_RATIO                !<-- Ratio of parent timestep to child's
 !
-      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: DOMAIN_GEN          &  !<-- The generation of each domain
-                                                    ,MY_DOMAIN_IDS       &  !<-- All domains on which each task resides
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: DOMAIN_GEN         &  !<-- The generation of each domain
+                                                    ,MY_DOMAIN_IDS      &  !<-- All domains on which each task resides
                                                     ,MY_DOMAINS_IN_GENS    !<-- List a task's domain on each generation
 !
       INTEGER(kind=KINT),DIMENSION(:),POINTER :: ID_DOMAINS             &  !<-- IDs of all domains
@@ -162,12 +164,14 @@
       INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: ID_CHILDREN          &  !<-- IDs of all children of all domains
                                                   ,PETLIST_DOMAIN          !<-- List of task IDs for each domain (DOMAIN Component)
 !
-      CHARACTER(len=5),SAVE :: NEST_MODE='1-way'                           !<-- '1-way' or '2-way' nesting; initialize to 1-way
+      CHARACTER(len=12),SAVE :: TASK_MODE                                  !<-- Task assignments are unique or generational 
+!
+      CHARACTER(len=5) :: NEST_MODE                                        !<-- Is the nesting 1-way or 2-way with the parent?
 !
       LOGICAL(kind=KLOG),SAVE :: ALL_FORECASTS_COMPLETE=.FALSE.         &  !<-- Are this task's domains' fcsts all finished?
                                 ,NESTING_NMM                               !<-- Does this run contain nests?
 !
-      LOGICAL(kind=KLOG),POINTER :: MY_DOMAIN_MOVES                        !<-- Does my domain move?
+      LOGICAL(kind=KLOG) :: MY_DOMAIN_MOVES                                !<-- Does my domain move?
 !
 #ifdef ESMF_3
       TYPE(ESMF_Logical),POINTER :: I_AM_A_FCST_TASK                    &  !<-- Am I a forecast task?
@@ -186,8 +190,6 @@
                                                                            !    and between each domains' forecast tasks
 !
       TYPE(ESMF_Config),DIMENSION(NUM_DOMAINS_MAX),SAVE :: CF              !<-- The config objects (one per domain)
-!
-      TYPE(ESMF_Alarm),SAVE :: ALARM_RECV_FROM_PARENT                      !<-- The ESMF Alarm for child to recv data from parent
 !
       TYPE(ESMF_State),POINTER :: IMP_STATE_CPL_NEST                    &
                                  ,EXP_STATE_CPL_NEST
@@ -408,14 +410,15 @@
       CHARACTER(2) :: INT_TO_CHAR
       CHARACTER(6) :: FMT='(I2.2)'
       CHARACTER(7) :: MODE
+      CHARACTER(10) :: LABEL
       CHARACTER(NUM_DOMAINS_MAX) :: CONFIG_FILE_NAME
 !
       CHARACTER(ESMF_MAXSTR) :: DOMAIN_COMP_BASE='DOMAIN Gridded Component ' &
                                ,DOMAIN_GRID_COMP_NAME,STATE_NAME
 !
       TYPE(ESMF_TimeInterval) :: TIMEINTERVAL_RECV_FROM_PARENT             !<-- ESMF time interval between Recv times from parent
-      TYPE(ESMF_TimeInterval) :: ZERO_INTERVAL                             !<-- Zero time interval used in comparison of time step and restart interval
-!
+      TYPE(ESMF_TimeInterval) :: ZERO_INTERVAL                             !<-- Zero time interval used in comparison of time step
+!                                                                          !    and restart interval.
 #ifdef ESMF_3
       TYPE(ESMF_LOGICAL) :: PHYSICS_ON                                     !<-- Does the integration include physics?
 #else
@@ -616,7 +619,8 @@
         WRITE(0,*)' # of configure files in working directory is wrong!'
         WRITE(0,*)' You have said there are ',NUM_DOMAINS_TOTAL         &
                  ,' domains in this run.'
-        WRITE(0,*)' There are ',NUM_DOMAINS_X,' configure files present.'
+        WRITE(0,*)' But there are ',NUM_DOMAINS_X,' configure files present.'
+        WRITE(0,*)' There must be one configure file per domain.'
         WRITE(0,*)' ABORTING!!'
         CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
       ENDIF
@@ -631,6 +635,12 @@
                      ,rc             =RC)
 !
 !-----------------------------------------------------------------------
+!***  Set the default for the mode of MPI task assignment.
+!-----------------------------------------------------------------------
+!
+      TASK_MODE='unique'
+!
+!-----------------------------------------------------------------------
 !***  IF NESTED DOMAINS ARE BEING USED THEN:
 !***    (1) Split the MPI Communicator between all domains;
 !***    (2) Create a DOMAIN subcomponent for all domains;
@@ -642,23 +652,69 @@
       nesting_block_1: IF(NESTING_NMM)THEN                                 !<-- Special communicators are needed for nesting
 !
 !-----------------------------------------------------------------------
-!***  Check the uppermost domain's configure file to see if the        
-!***  nesting is 1-way or 2-way.
+!***  Task 0 checks all the configure files to see if 2-way exchange
+!***  appears in any of them.  If it does then the mode for this run's
+!***  task assignments is generational and not unique to each domain.
 !-----------------------------------------------------------------------
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="NMM_INIT: Extract Nesting Mode from Config File"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        IF(MYPE==0)THEN
 !
-        CALL ESMF_ConfigGetAttribute(config=CF(1)                       &  !<-- The config object
-                                    ,value =NEST_MODE                   &  !<-- The mode of nesting ('1-way' or '2-way')
-                                    ,label ='nest_mode:'                &  !<-- Give this label's value to the previous variable
-                                    ,rc    =RC)
+          LABEL='nest_mode:'
+!
+          search: DO N=1,NUM_DOMAINS_TOTAL
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+            MESSAGE_CHECK="NMM_INIT: Is Nest_Mode in the Configure File?"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_ConfigFindLabel(config=CF(N)                      &  !<-- The config object of domain N
+                                     ,label =LABEL                      &  !<-- Domain N's nesting mode ('1-way' or '2-way')
+                                     ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            IF(RC==-2)THEN                                                 !<-- Return code is -2 if the label is not found
+!
+              CYCLE                                                        !<-- nest_mode not in config file (domain not a child)
+!
+            ELSE
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              MESSAGE_CHECK="NMM_INIT: Check Exchange Mode in Config Files"
+!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              CALL ESMF_ConfigGetAttribute(config=CF(N)                   &  !<-- The config object of domain N
+                                          ,value =NEST_MODE              &  !<-- Domain N's nesting mode ('1-way' or '2-way')
+                                          ,label ='nest_mode:'            &  !<-- Give this label's value to the previous variable
+                                          ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              IF(NEST_MODE=='2-way')THEN
+                TASK_MODE='generational'
+                EXIT search
+              ENDIF
+!
+            ENDIF
+!
+          ENDDO search
+!
+        ENDIF
+!
+        CALL MPI_BCAST(TASK_MODE                                        &  !<-- Broadcast the value of TASK_MODE
+                      ,12                                               &  !<-- It contains 12 characters
+                      ,MPI_CHARACTER                                    &  !<-- Type CHARACTER
+                      ,0                                                &  !<-- Global task 0 is sending
+                      ,COMM_GLOBAL                                      &  !<-- The global communicator
+                      ,IERR )
+!
+!-----------------------------------------------------------------------
 !
         ALLOCATE(DOMAIN_GEN(1:NUM_DOMAINS_TOTAL),stat=ISTAT)               !<-- For 2-way nesting, the generation of each domain
         IF(ISTAT/=0)THEN
@@ -672,12 +728,12 @@
         FULL_GEN=0           
 !
 !-----------------------------------------------------------------------
-!***  If the nesting is 2-way then we must check to be sure that 
-!***  at least one of the generations of nests uses all of the tasks
-!***  assigned to the run.
+!***  If the task assignment is generational then we must check to be
+!***  sure that at least one of the generations of nests uses all of
+!***  the tasks assigned to the run.
 !-----------------------------------------------------------------------
 !
-        two_way: IF(NEST_MODE=='2-way')THEN
+        two_way: IF(TASK_MODE=='generational')THEN
 !
 !-----------------------------------------------------------------------
 !***  Read all the configure files to find out how many generations
@@ -845,7 +901,7 @@
                                ,COMM_GLOBAL                             &  !<-- Intracommunicator for ALL tasks (in)
                                ,RANK_TO_DOMAIN_ID                       &  !<-- Domain IDs for each configure file
                                ,CF                                      &  !<-- Configure objects for all domains (in)
-                               ,NEST_MODE                               &  !<-- 1-way or 2-way nesting (in)
+                               ,TASK_MODE                               &  !<-- 1-way or 2-way nesting (in)
                                ,DOMAIN_GEN                              &  !<-- For 2-way nesting, the generation of each domain (in)
                                ,FULL_GEN                                &  !<-- For 2-way nesting, the generation using all tasks (in)
                                ,MY_DOMAIN_ID_N                          &  !<-- ID of domains on which this task resides (out)
@@ -867,7 +923,7 @@
 !***  task lie on?
 !-----------------------------------------------------------------------
 !
-        IF(NEST_MODE=='1-way')THEN
+        IF(TASK_MODE=='unique')THEN
 !
 !-----------------------------------------------------------------------
 !
@@ -887,7 +943,7 @@
 !
 !-----------------------------------------------------------------------
 !
-        ELSEIF(NEST_MODE=='2-way')THEN
+        ELSEIF(TASK_MODE=='generational')THEN
 !
 !-----------------------------------------------------------------------
 !
@@ -943,6 +999,7 @@
               WRITE(0,*)' Domain ID is ',ID_DOM
               WRITE(0,*)' Generation of that domain is ',GEN_X
               WRITE(0,*)' This task already has a domain ',MY_DOMAINS_IN_GENS(GEN_X),' in that generation!'
+              WRITE(0,*)' Aborting!!'
               CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
             ELSE
               MY_DOMAINS_IN_GENS(GEN_X)=ID_DOM                             !<-- Save the task's domain ID in this generation
@@ -978,6 +1035,45 @@
           ENDDO
 !
         ENDIF
+!
+!-----------------------------------------------------------------------
+!***  The user was required to specify the nest mode in each domain's
+!***  configure file indicating whether the parent-child interaction 
+!***  will be 1-way or 2-way.  The domains will now extract and save
+!***  that specification.
+!-----------------------------------------------------------------------
+!
+        ALLOCATE(nmm_int_state%NEST_MODE(1:NUM_DOMAINS_TOTAL))
+!
+        DO N=1,NUM_DOMAINS_TOTAL
+!
+          nmm_int_state%NEST_MODE(N)=' '
+!
+          IF(MY_DOMAIN_ID_N(N)/=0)THEN                                     !<-- Select tasks on domain #N
+            MY_DOMAIN_ID=MY_DOMAIN_ID_N(N)                                 !<-- The ID of domain #N
+            COMM_TO_MY_PARENT=>comms_domain(MY_DOMAIN_ID)%TO_PARENT        !<-- The domain's parent-child intracommunicator
+! 
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="NMM_INIT: Extract Nest_Mode From Config File"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)           &  !<-- The config object of this domain
+                                        ,value =nmm_int_state%NEST_MODE(N) &  !<-- The nest domain's nest_mode
+                                        ,label ='nest_mode:'               &  !<-- Give this label's value to the previous variable
+                                        ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+          ENDIF
+!
+        ENDDO
 !
 !-----------------------------------------------------------------------
 !
@@ -1085,6 +1181,8 @@
         ALLOCATE(GENERATION_FINISHED(1:1))                                 !<-- A single domain has only one generation to finish
         GENERATION_FINISHED(1)=.FALSE.
 !
+        ALLOCATE(nmm_int_state%NEST_MODE(1:1))
+        nmm_int_state%NEST_MODE(1)=' '
 !-----------------------------------------------------------------------
 !
       ENDIF nesting_block_1
@@ -1496,13 +1594,12 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Allocate other quantities that will be needed now.
+!***  Allocate other quantities associated with each domain.
 !-----------------------------------------------------------------------
 !
       ALLOCATE(nmm_int_state%COMM_MY_DOMAIN(1:NUM_DOMAINS_TOTAL))
       ALLOCATE(nmm_int_state%P_C_TIME_RATIO(1:NUM_DOMAINS_TOTAL))
       ALLOCATE(nmm_int_state%MY_DOMAIN_MOVES(1:NUM_DOMAINS_TOTAL))
-      ALLOCATE(MY_DOMAIN_MOVES)
 !
       ALLOCATE(I_AM_A_FCST_TASK)
       ALLOCATE(nmm_int_state%I_AM_A_FCST_TASK(1:NUM_DOMAINS_TOTAL))
@@ -2053,6 +2150,8 @@
       ALLOCATE(HANDLE_CHILD_TOPO_W(1:NUM_DOMAINS_TOTAL))                   !
       ALLOCATE(HANDLE_CHILD_TOPO_E(1:NUM_DOMAINS_TOTAL))                   !<--
 !
+      ALLOCATE(HANDLE_PARENT_DOM_LIMITS(1:NUM_DOMAINS_TOTAL))              !<-- Request handles for ISSends of parent domain limits to 
+!                                                                               children.
       ALLOCATE(HANDLE_PARENT_ITE(1:NUM_DOMAINS_TOTAL))                     !<-- Request handles for ISends of parent task limits to children
       ALLOCATE(HANDLE_PARENT_ITS(1:NUM_DOMAINS_TOTAL))                     !
       ALLOCATE(HANDLE_PARENT_JTE(1:NUM_DOMAINS_TOTAL))                     !
@@ -2067,6 +2166,11 @@
         WRITE(0,*)' Aborting!!'
         CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
       ENDIF
+!
+      ALLOCATE(nmm_int_state%NUM_2WAY_CHILDREN(1:NUM_DOMAINS_TOTAL))       !<-- Object holding # of 2-way nests on each domain.
+      DO N=1,NUM_DOMAINS_TOTAL
+        nmm_int_state%NUM_2WAY_CHILDREN(N)=0
+      ENDDO
 !
 !-----------------------------------------------------------------------
 !***  Everybody creates an array of Parent-Child couplers for all
@@ -2159,6 +2263,8 @@
           HANDLE_PACKET_E_H(N,NN)%CHILDREN=>NULL()
           HANDLE_PACKET_E_V(N,NN)%CHILDREN=>NULL()
         ENDDO
+!
+        HANDLE_PARENT_DOM_LIMITS(N)%DATA=>NULL()
 !
         HANDLE_PARENT_ITS(N)%DATA=>NULL()
         HANDLE_PARENT_ITE(N)%DATA=>NULL()
@@ -2495,7 +2601,7 @@
           ENDIF parent_waits_limits
 !
 !-----------------------------------------------------------------------
-!***  Now we can proceed in executing phase 1 of the Parent-Child
+!***  Now we can proceed in executing phase 2 of the Parent-Child
 !***  coupler initialization.
 !-----------------------------------------------------------------------
 !
@@ -2522,46 +2628,34 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  Create the Alarm for children to recv from their parents.
-!
-!***  The uppermost domain has no parent therefore it must never
-!***  try to recv from one.
-!
-!***  The data exchanged between parents and children consists
-!***  entirely of prognostic forecast values therefore the
-!***  Quilt/Write tasks must never try to recv from the parent.
+!***  The number of 2-way children is a required argument in the call
+!***  to NMM_INTEGRATE.  Extract its value from the export state of
+!***  the P-C coupler.
 !-----------------------------------------------------------------------
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Create Alarm for Child to Recv from Parent"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          NUM_2WAY_CHILDREN=>nmm_int_state%NUM_2WAY_CHILDREN(MY_DOMAIN_ID)
 !
 #ifdef ESMF_3
-          IF(MY_DOMAIN_ID==1.OR.I_AM_A_FCST_TASK==ESMF_FALSE)THEN       
+          IF(I_AM_A_FCST_TASK==ESMF_TRUE.AND.NUM_CHILDREN>0)THEN
 #else
-          IF(MY_DOMAIN_ID==1.OR..NOT.I_AM_A_FCST_TASK)THEN                  
+          IF(I_AM_A_FCST_TASK.AND.NUM_CHILDREN>0)THEN
 #endif
-            TIMEINTERVAL_RECV_FROM_PARENT=TIMESTEP*1000000                 !<-- Uppermost domain and quilt/write tasks do not
-                                                                           !     recv from parents
-          ELSE
-            TIMEINTERVAL_RECV_FROM_PARENT=TIMESTEP                           &  !<-- Children recv at the end of each parent timestep
-                                          *NINT(DT(ID_PARENTS(MY_DOMAIN_ID)) &
-                                                /DT(MY_DOMAIN_ID) )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="NMM_Init: Extract # of 2-Way Children from P-C Export State"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_AttributeGet(state=EXP_STATE_CPL_NEST             &  !<-- The Parent-Child coupler export state
+                                  ,name ='NUM_2WAY_CHILDREN'            &  !<-- Name of the attribute to extract
+                                  ,value=NUM_2WAY_CHILDREN              &  !<-- How many 2-way children in the current domain?
+                                  ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
           ENDIF
-!
-!         ALARM_RECV_FROM_PARENT=ESMF_AlarmCreate(                         &
-!                         name             ='ALARM Recv from Parent'       &  !<-- Name of Alarm
-!                        ,clock            =CLOCK_NMM(MY_DOMAIN_ID)        &  !<-- Each domain's ESMF Clock
-!                        ,ringTime         =STARTTIME                      &  !<-- First time the Alarm rings (ESMF)
-!                        ,ringInterval     =TIMEINTERVAL_RECV_FROM_PARENT  &  !<-- Recv from my parent at this frequency (ESMF)
-!                        ,ringTimeStepCount=1                              &  !<-- The Alarm rings for this many timesteps
-!                        ,sticky           =.false.                        &  !<-- Alarm does not ring until turned off
-!                        ,rc               =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !
@@ -2781,6 +2875,13 @@
 !
 !
           DO N=1,NUM_CHILDREN
+!
+            IF(ASSOCIATED(HANDLE_PARENT_DOM_LIMITS(ID)%DATA))THEN
+              CALL MPI_WAIT(HANDLE_PARENT_DOM_LIMITS(ID)%DATA(N)        &
+                           ,JSTAT                                       &
+                           ,IERR)
+            ENDIF
+!
             IF(ASSOCIATED(HANDLE_PARENT_ITS(ID)%DATA))THEN
               CALL MPI_WAIT(HANDLE_PARENT_ITS(ID)%DATA(N)               &
                            ,JSTAT                                       &
@@ -3279,7 +3380,9 @@
             EXP_STATE_CPL_NEST=>nmm_int_state%EXP_STATE_PC_CPL(MY_DOMAIN_ID)   !<-- The P-C coupler export state
 !
             PARENT_CHILD_TIME_RATIO=>nmm_int_state%P_C_TIME_RATIO(MY_DOMAIN_ID) !<-- Ratio of this domain's timestep to its parent's
-            MY_DOMAIN_MOVES=>nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)        !<-- Does this domain move?
+            MY_DOMAIN_MOVES=nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)         !<-- Does this domain move?
+            NEST_MODE=nmm_int_state%NEST_MODE(MY_DOMAIN_ID)                     !<-- Is this domain involved in any 2-way nesting?
+            NUM_2WAY_CHILDREN=>nmm_int_state%NUM_2WAY_CHILDREN(MY_DOMAIN_ID)    !<-- How many 2-way children on this domain?
 !
             gentimer1(my_domain_id)=gentimer1(my_domain_id)+(timef()-btim)
 !
@@ -3307,10 +3410,12 @@
                               ,i_am_lead_fcst_task=I_AM_LEAD_FCST_TASK       &
                               ,nesting            =NESTING_NMM               &
                               ,nest_mode          =NEST_MODE                 &
+                              ,task_mode          =TASK_MODE                 &
                               ,i_am_a_nest        =I_AM_A_NEST               &
                               ,my_domain_id       =MY_DOMAIN_ID              &
                               ,comm_to_my_parent  =COMM_TO_MY_PARENT         &
                               ,num_children       =NUM_CHILDREN              &
+                              ,num_2way_children  =NUM_2WAY_CHILDREN         &
                               ,parent_child_cpl   =PARENT_CHILD_COUPLER_COMP &
                               ,imp_state_cpl_nest =IMP_STATE_CPL_NEST        &
                               ,exp_state_cpl_nest =EXP_STATE_CPL_NEST        &
@@ -3697,7 +3802,9 @@
             EXP_STATE_CPL_NEST=>nmm_int_state%EXP_STATE_PC_CPL(MY_DOMAIN_ID)   !<-- The P-C coupler export state
 !
             PARENT_CHILD_TIME_RATIO=>nmm_int_state%P_C_TIME_RATIO(MY_DOMAIN_ID) !<-- Ratio of this domain's timestep to its parent's
-            MY_DOMAIN_MOVES=>nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)        !<-- Does this domain move?
+            MY_DOMAIN_MOVES=nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)         !<-- Does this domain move?
+            NEST_MODE=nmm_int_state%NEST_MODE(MY_DOMAIN_ID)                     !<-- Is this domain involved in any 2-way nesting?
+            NUM_2WAY_CHILDREN=>nmm_int_state%NUM_2WAY_CHILDREN(MY_DOMAIN_ID)    !<-- How many 2-way children on this domain?
 !
 !-----------------------------------------------------------------------
 !***  Obtain current information from the filter clock.
@@ -3742,10 +3849,12 @@
                               ,i_am_lead_fcst_task=I_AM_LEAD_FCST_TASK         &
                               ,nesting            =NESTING_NMM                 &
                               ,nest_mode          =NEST_MODE                   &
+                              ,task_mode          =TASK_MODE                   &
                               ,i_am_a_nest        =I_AM_A_NEST                 &
                               ,my_domain_id       =MY_DOMAIN_ID                &
                               ,comm_to_my_parent  =COMM_TO_MY_PARENT           &
                               ,num_children       =NUM_CHILDREN                &
+                              ,num_2way_children  =NUM_2WAY_CHILDREN           &
                               ,parent_child_cpl   =PARENT_CHILD_COUPLER_COMP   &
                               ,imp_state_cpl_nest =IMP_STATE_CPL_NEST          &
                               ,exp_state_cpl_nest =EXP_STATE_CPL_NEST          &
@@ -4121,7 +4230,9 @@
             EXP_STATE_CPL_NEST=>nmm_int_state%EXP_STATE_PC_CPL(MY_DOMAIN_ID)   !<-- The P-C coupler export state
 !
             PARENT_CHILD_TIME_RATIO=>nmm_int_state%P_C_TIME_RATIO(MY_DOMAIN_ID) !<-- Ratio of this domain's timestep to its parent's
-            MY_DOMAIN_MOVES=>nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)        !<-- Does this domain move?
+            MY_DOMAIN_MOVES=nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)         !<-- Does this domain move?
+            NEST_MODE=nmm_int_state%NEST_MODE(MY_DOMAIN_ID)                     !<-- Is this domain involved in any 2-way nesting?
+            NUM_2WAY_CHILDREN=>nmm_int_state%NUM_2WAY_CHILDREN(MY_DOMAIN_ID)    !<-- How many 2-way children on this domain?
 !
 !-----------------------------------------------------------------------
 !***  Obtain current information from the filter clock.
@@ -4165,10 +4276,12 @@
                               ,i_am_lead_fcst_task=I_AM_LEAD_FCST_TASK        &
                               ,nesting            =NESTING_NMM                &
                               ,nest_mode          =NEST_MODE                  &
+                              ,task_mode          =TASK_MODE                  &
                               ,i_am_a_nest        =I_AM_A_NEST                &
                               ,my_domain_id       =MY_DOMAIN_ID               &
                               ,comm_to_my_parent  =COMM_TO_MY_PARENT          &
                               ,num_children       =NUM_CHILDREN               &
+                              ,num_2way_children  =NUM_2WAY_CHILDREN          &
                               ,parent_child_cpl   =PARENT_CHILD_COUPLER_COMP  &
                               ,imp_state_cpl_nest =IMP_STATE_CPL_NEST         &
                               ,exp_state_cpl_nest =EXP_STATE_CPL_NEST         &
@@ -4431,7 +4544,9 @@
             EXP_STATE_CPL_NEST=>nmm_int_state%EXP_STATE_PC_CPL(MY_DOMAIN_ID)   !<-- The P-C coupler export state
 !
             PARENT_CHILD_TIME_RATIO=>nmm_int_state%P_C_TIME_RATIO(MY_DOMAIN_ID) !<-- Ratio of this domain's timestep to its parent's
-            MY_DOMAIN_MOVES=>nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)        !<-- Does this domain move?
+            MY_DOMAIN_MOVES=nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)         !<-- Does this domain move?
+            NEST_MODE=nmm_int_state%NEST_MODE(MY_DOMAIN_ID)                     !<-- Is this domain involved in any 2-way nesting?
+            NUM_2WAY_CHILDREN=>nmm_int_state%NUM_2WAY_CHILDREN(MY_DOMAIN_ID)    !<-- How many 2-way children on this domain?
 !
 !-----------------------------------------------------------------------
 !
@@ -4455,10 +4570,12 @@
                               ,i_am_lead_fcst_task=I_AM_LEAD_FCST_TASK         &
                               ,nesting            =NESTING_NMM                 &
                               ,nest_mode          =NEST_MODE                   &
+                              ,task_mode          =TASK_MODE                   &
                               ,i_am_a_nest        =I_AM_A_NEST                 &
                               ,my_domain_id       =MY_DOMAIN_ID                &
                               ,comm_to_my_parent  =COMM_TO_MY_PARENT           &
                               ,num_children       =NUM_CHILDREN                &
+                              ,num_2way_children  =NUM_2WAY_CHILDREN           &
                               ,parent_child_cpl   =PARENT_CHILD_COUPLER_COMP   &
                               ,imp_state_cpl_nest =IMP_STATE_CPL_NEST          &
                               ,exp_state_cpl_nest =EXP_STATE_CPL_NEST          &
@@ -4757,7 +4874,9 @@
             EXP_STATE_CPL_NEST=>nmm_int_state%EXP_STATE_PC_CPL(MY_DOMAIN_ID)   !<-- The P-C coupler export state
 !
             PARENT_CHILD_TIME_RATIO=>nmm_int_state%P_C_TIME_RATIO(MY_DOMAIN_ID) !<-- Ratio of this domain's timestep to its parent's
-            MY_DOMAIN_MOVES=>nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)        !<-- Does this domain move?
+            MY_DOMAIN_MOVES=nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)         !<-- Does this domain move?
+            NEST_MODE=nmm_int_state%NEST_MODE(MY_DOMAIN_ID)                     !<-- Is this domain involved in any 2-way nesting?
+            NUM_2WAY_CHILDREN=>nmm_int_state%NUM_2WAY_CHILDREN(MY_DOMAIN_ID)    !<-- How many 2-way children on this domain?
 !
 !-----------------------------------------------------------------------
 !***  Obtain current information from the filter clock.
@@ -4801,10 +4920,12 @@
                               ,i_am_lead_fcst_task=I_AM_LEAD_FCST_TASK         &
                               ,nesting            =NESTING_NMM                 &
                               ,nest_mode          =NEST_MODE                   &
+                              ,task_mode          =TASK_MODE                   &
                               ,i_am_a_nest        =I_AM_A_NEST                 &
                               ,my_domain_id       =MY_DOMAIN_ID                &
                               ,comm_to_my_parent  =COMM_TO_MY_PARENT           &
                               ,num_children       =NUM_CHILDREN                &
+                              ,num_2way_children  =NUM_2WAY_CHILDREN           &
                               ,parent_child_cpl   =PARENT_CHILD_COUPLER_COMP   &
                               ,imp_state_cpl_nest =IMP_STATE_CPL_NEST          &
                               ,exp_state_cpl_nest =EXP_STATE_CPL_NEST          &
@@ -5085,7 +5206,9 @@
             EXP_STATE_CPL_NEST=>nmm_int_state%EXP_STATE_PC_CPL(MY_DOMAIN_ID)   !<-- The P-C coupler export state
 !
             PARENT_CHILD_TIME_RATIO=>nmm_int_state%P_C_TIME_RATIO(MY_DOMAIN_ID) !<-- Ratio of this domain's timestep to its parent's
-            MY_DOMAIN_MOVES=>nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)        !<-- Does this domain move?
+            MY_DOMAIN_MOVES=nmm_int_state%MY_DOMAIN_MOVES(MY_DOMAIN_ID)         !<-- Does this domain move?
+            NEST_MODE=nmm_int_state%NEST_MODE(MY_DOMAIN_ID)                     !<-- Is this domain involved in any 2-way nesting?
+            NUM_2WAY_CHILDREN=>nmm_int_state%NUM_2WAY_CHILDREN(MY_DOMAIN_ID)    !<-- How many 2-way children on this domain?
 !
 !-----------------------------------------------------------------------
 !
@@ -5109,10 +5232,12 @@
                               ,i_am_lead_fcst_task=I_AM_LEAD_FCST_TASK         &
                               ,nesting            =NESTING_NMM                 &
                               ,nest_mode          =NEST_MODE                   &
+                              ,task_mode          =TASK_MODE                   &
                               ,i_am_a_nest        =I_AM_A_NEST                 &
                               ,my_domain_id       =MY_DOMAIN_ID                &
                               ,comm_to_my_parent  =COMM_TO_MY_PARENT           &
                               ,num_children       =NUM_CHILDREN                &
+                              ,num_2way_children  =NUM_2WAY_CHILDREN           &
                               ,parent_child_cpl   =PARENT_CHILD_COUPLER_COMP   &
                               ,imp_state_cpl_nest =IMP_STATE_CPL_NEST          &
                               ,exp_state_cpl_nest =EXP_STATE_CPL_NEST          &

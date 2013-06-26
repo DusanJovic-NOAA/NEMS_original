@@ -104,10 +104,12 @@
                               ,I_AM_LEAD_FCST_TASK                      &
                               ,NESTING                                  &
                               ,NEST_MODE                                &
+                              ,TASK_MODE                                &
                               ,I_AM_A_NEST                              &
                               ,MY_DOMAIN_ID                             &
                               ,COMM_TO_MY_PARENT                        &
                               ,NUM_CHILDREN                             &
+                              ,NUM_2WAY_CHILDREN                        &
                               ,PARENT_CHILD_CPL                         &
                               ,IMP_STATE_CPL_NEST                       &
                               ,EXP_STATE_CPL_NEST                       &
@@ -138,7 +140,8 @@
       INTEGER(kind=KINT),INTENT(IN) :: COMM_TO_MY_PARENT                &  !<-- MPI Communicator to parent of this domain
                                       ,FILTER_METHOD                    &  !<-- The type of digital filtering desired
                                       ,MYPE                             &  !<-- Local task rank on this domain
-                                      ,NPE_PRINT                           !<-- Task to print clocktimes
+                                      ,NPE_PRINT                        &  !<-- Task to print clocktimes
+                                      ,NUM_2WAY_CHILDREN                   !<-- How many 2-way children on this domain?
 
       INTEGER(kind=KINT),INTENT(INOUT) :: NUM_CHILDREN                     !<-- # of children on this domain
 !
@@ -149,8 +152,9 @@
                                       ,RESTARTED_RUN                    &  !<-- Is this a restarted run?
                                       ,RST_OUT_00                          !<-- Shall we write 00h history in restarted run?
 !
-      CHARACTER(5),INTENT(IN) :: NEST_MODE                                 !<-- 1-way or 2-way nesting
-      CHARACTER(8),INTENT(IN) :: CLOCK_DIRECTION                           !<-- The direction of time in the Clock
+      CHARACTER(5) ,INTENT(IN) :: NEST_MODE                                !<-- 1-way or 2-way nesting
+      CHARACTER(8) ,INTENT(IN) :: CLOCK_DIRECTION                          !<-- The direction of time in the Clock
+      CHARACTER(12),INTENT(IN) :: TASK_MODE                                !<-- Task assignments unique per domain or generational?
 
 #ifdef ESMF_3
       TYPE(ESMF_Logical),INTENT(IN) :: I_AM_A_FCST_TASK                 &  !<-- Am I in a forecast task?
@@ -398,17 +402,17 @@
 !***  What is the last timestep of the entire integration?
 !-----------------------------------------------------------------------
 !
-      IF(NEST_MODE=='1-way')THEN                                           !<-- Single domains and 1-way nests integrate to end of fcst
+      IF(TASK_MODE=='unique')THEN                                          !<-- Single domains and 1-way nests integrate to end of fcst
 !
         IF(FILTER_METHOD==0)THEN                                           !<-- Free forecast
 
 !***  Without this ClockGet the FIRST_PASS from above represents the filter
 !***  clock if a filter case.
 !
-          CALL ESMF_ClockGet(clock   =CLOCK_INTEGRATE &
+          CALL ESMF_ClockGet(clock           =CLOCK_INTEGRATE                 &
                             ,runTimeStepCount=domain_int_state%TIMESTEP_FINAL &
-                            ,stopTime=STOPTIME &
-                            ,rc      =RC)
+                            ,stopTime        =STOPTIME                        &
+                            ,rc              =RC)
 
           CALL RESET_ALARMS
 
@@ -457,7 +461,7 @@
  
         ENDIF
 !
-      ELSEIF(NEST_MODE=='2-way')THEN
+      ELSEIF(TASK_MODE=='generational')THEN
         IF(.NOT.PRESENT(LAST_GENERATION))THEN
           WRITE(0,*)' LAST_GENERATION must be supplied for 2-way nesting but was not.'
           WRITE(0,*)' Aborting!!!'
@@ -586,7 +590,7 @@
 !***  Are all of my children ready to send their 2-way data to me?
 !------------------------------------------------------------------
 !
-          IF(NUM_CHILDREN>0)THEN
+          IF(NUM_2WAY_CHILDREN>0)THEN
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Call Coupler: Extract RECV_ALL_CHILD_DATA from P-C Exp State"
@@ -607,7 +611,7 @@
 #ifdef ESMF_3
             IF(domain_int_state%RECV_ALL_CHILD_DATA==ESMF_False)THEN
 #else
-            IF(domain_int_state%RECV_ALL_CHILD_DATA)THEN
+            IF(.NOT.domain_int_state%RECV_ALL_CHILD_DATA)THEN
 #endif
 !
               RETURN                                                       !<-- All my children are not yet ready to send me
@@ -636,7 +640,7 @@
 !***       N is the number of child timesteps per parent timestep.
 !***       The handling of these new boundary values is the only
 !***       action in this phase of the Parent-Child coupler for
-!***       domains that are static nests.
+!***       domains that are static 1-way nests.
 !
 !***   (2) If a child is a moving nest that has decided it must move:
 !***       (a) It sends a message to its parent informing it of that
@@ -671,9 +675,12 @@
           IF(MOD(KOUNT_STEPS,PAR_CHI_TIME_RATIO)==0)THEN                   !<-- Child is at the start of a parent timestep.
 !
 !-----------------------------------------------------------------------
-!***  Call the Run step for phase 2 of the Parent-Child coupler in
-!***  which children receive BC data with their parents.  The
-!***  name of the subroutine is CHILDREN_RECV_PARENT_DATA.
+!***  Call Phase 2 of the Run step of the Parent-Child coupler in
+!***  which children receive BC data from their parents.  The
+!***  name of the subroutine is CHILDREN_RECV_PARENT_DATA.  If the
+!***  child is a moving nest then its shifts in position take place
+!***  in this phase as well since BC data from the parent depends 
+!***  on the location of the child domain.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -745,7 +752,7 @@
         IF(I_AM_A_FCST_TASK)THEN
 #endif
 !
-          IF(NUM_CHILDREN>0.AND.NEST_MODE=='2-way')THEN                    !<-- Parents call phase 3 of the P-C coupler
+          IF(NUM_2WAY_CHILDREN>0)THEN                                      !<-- Parents w/ 2way children call phase 3 of P-C coupler
 !
             IF(KOUNT_STEPS>0)THEN
 !
@@ -864,19 +871,19 @@
         btim0=timef()
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="NMM_INTEGRATE: Run DOMAIN Component "//INT_TO_CHAR
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+        MESSAGE_CHECK="NMM_INTEGRATE: Run DOMAIN Component "//INT_TO_CHAR
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_GridCompRun(gridcomp   =DOMAIN_GRID_COMP            &  !<-- The DOMAIN gridded component
-                               ,importState=IMP_STATE_DOMAIN            &  !<-- The DOMAIN import state
-                               ,exportState=EXP_STATE_DOMAIN            &  !<-- The DOMAIN export state
-                               ,clock      =CLOCK_INTEGRATE             &  !<-- The ESMF DOMAIN Clock
-                               ,phase      =1                           &  !<-- The phase (subroutine) of DOMAIN Run to execute
-                               ,rc         =RC)
+        CALL ESMF_GridCompRun(gridcomp   =DOMAIN_GRID_COMP              &  !<-- The DOMAIN gridded component
+                             ,importState=IMP_STATE_DOMAIN              &  !<-- The DOMAIN import state
+                             ,exportState=EXP_STATE_DOMAIN              &  !<-- The DOMAIN export state
+                             ,clock      =CLOCK_INTEGRATE               &  !<-- The ESMF DOMAIN Clock
+                             ,phase      =1                             &  !<-- The phase (subroutine) of DOMAIN Run to execute
+                             ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         phase1_tim = (timef()-btim0)
@@ -991,16 +998,17 @@
 !
         btim0=timef()
 !
-        IF(NEST_MODE=='2-way')THEN
 #ifdef ESMF_3
-          IF(I_AM_A_NEST==ESMF_TRUE.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
+        IF(I_AM_A_NEST==ESMF_TRUE.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
 #else
-          IF(I_AM_A_NEST.AND.I_AM_A_FCST_TASK)THEN
+        IF(I_AM_A_NEST.AND.I_AM_A_FCST_TASK)THEN
 #endif
 !
+          IF(NEST_MODE=='2-way')THEN
+!
             IF(MOD(KOUNT_STEPS+1,PAR_CHI_TIME_RATIO)==0                 &  !<-- If true then this child has
-                           .AND.                                        &  !    reached the end of one of
-               COMM_TO_MY_PARENT/=-999)THEN                                !    its parent's timesteps.
+                           .AND.                                        &  !    reached the end of a timestep
+               COMM_TO_MY_PARENT/=-999)THEN                                !    of its parent.
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
               MESSAGE_CHECK="Call Phase 5 Coupler Run: Children Send 2-Way Data to Parents"

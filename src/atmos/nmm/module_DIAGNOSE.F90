@@ -355,12 +355,360 @@
       ENDIF
 !
 !----------------------------------------------------------------------
+!
   500 CONTINUE
 !
       IF(MYPE==0)CLOSE(IUNIT)
+!
 !----------------------------------------------------------------------
 !
       END SUBROUTINE VWR
+!
+!----------------------------------------------------------------------
+!######################################################################
+!----------------------------------------------------------------------
+      SUBROUTINE HMAXMIN(ARRAY,KK,FIELD,NTSD,MYPE,NPES,MPI_COMM_COMP   &
+                        ,IDS,IDE,JDS,JDE                               &
+                        ,IMS,IME,JMS,JME                               &
+                        ,ITS,ITE,JTS,JTE                               &
+                        ,DOMAIN_ID )
+!----------------------------------------------------------------------
+!**********************************************************************
+!----------------------------------------------------------------------
+      USE MODULE_INCLUDE
+      IMPLICIT NONE
+!----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      INTEGER(KIND=KINT),INTENT(IN) :: IDS,IDE,JDS,JDE                 &
+                                      ,IMS,IME,JMS,JME                 &
+                                      ,ITS,ITE,JTS,JTE                 &
+                                      ,KK,MPI_COMM_COMP,MYPE,NPES,NTSD
+!
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME,KK),INTENT(IN) :: ARRAY
+!
+      CHARACTER(*),INTENT(IN) :: FIELD
+!
+      INTEGER(kind=KINT),INTENT(IN),OPTIONAL :: DOMAIN_ID
+!
+!--------------------
+!*** Local Variables
+!--------------------
+!
+      INTEGER :: IUNIT=23
+!
+      INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
+      INTEGER,DIMENSION(MPI_STATUS_SIZE,4) :: STATUS_ARRAY
+      INTEGER(KIND=KINT),DIMENSION(2) :: IM_REM,JM_REM,IT_REM,JT_REM
+!
+      INTEGER(KIND=KINT) :: I,IENDX,IER,IPE,IRECV,IRTN,ISEND           &
+                           ,J,K,N,NSIZE
+      INTEGER(kind=KINT) :: IMAX,IMIN,JMAX,JMIN
+      INTEGER(KIND=KINT) :: ITS_REM,ITE_REM,JTS_REM,JTE_REM
+!
+      REAL(KIND=KFPT),DIMENSION(IDS:IDE,JDS:JDE) :: ARRAY_FULL
+      REAL(KIND=KFPT),ALLOCATABLE,DIMENSION(:) :: VALUES
+      REAL(kind=KFPT) :: VALMAX,VALMIN
+!
+!----------------------------------------------------------------------
+!**********************************************************************
+!----------------------------------------------------------------------
+!
+      IF(MYPE==0)THEN
+        WRITE(0,*)' '
+        WRITE(0,11101)FIELD,NTSD,DOMAIN_ID
+11101   FORMAT(' For ',A,' at timestep ',I4,' on domain #',I2)
+      ENDIF
+!
+!----------------------------------------------------------------------
+      DO 500 K=1,KK
+!----------------------------------------------------------------------
+!
+      IF(MYPE==0)THEN
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          ARRAY_FULL(I,J)=ARRAY(I,J,K)
+        ENDDO
+        ENDDO
+!
+        DO IPE=1,NPES-1
+          CALL MPI_RECV(IT_REM,2,MPI_INTEGER,IPE,IPE                    &
+                       ,MPI_COMM_COMP,JSTAT,IRECV)
+          CALL MPI_RECV(JT_REM,2,MPI_INTEGER,IPE,IPE                    &
+                       ,MPI_COMM_COMP,JSTAT,IRECV)
+!
+          ITS_REM=IT_REM(1)
+          ITE_REM=IT_REM(2)
+          JTS_REM=JT_REM(1)
+          JTE_REM=JT_REM(2)
+!
+          NSIZE=(ITE_REM-ITS_REM+1)*(JTE_REM-JTS_REM+1)
+          ALLOCATE(VALUES(1:NSIZE))
+!
+          CALL MPI_RECV(VALUES,NSIZE,MPI_REAL,IPE,IPE                   &
+                       ,MPI_COMM_COMP,JSTAT,IRECV)
+          N=0
+          DO J=JTS_REM,JTE_REM
+            DO I=ITS_REM,ITE_REM
+              N=N+1
+              ARRAY_FULL(I,J)=VALUES(N)
+            ENDDO
+          ENDDO
+!
+          DEALLOCATE(VALUES)
+!
+        ENDDO
+!
+!----------------------------------------------------------------------
+      ELSE
+!
+        NSIZE=(ITE-ITS+1)*(JTE-JTS+1)
+        ALLOCATE(VALUES(1:NSIZE))
+!
+        N=0
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          N=N+1
+          VALUES(N)=ARRAY(I,J,K)
+        ENDDO
+        ENDDO
+!
+        IT_REM(1)=ITS
+        IT_REM(2)=ITE
+        JT_REM(1)=JTS
+        JT_REM(2)=JTE
+!
+        CALL MPI_SEND(IT_REM,2,MPI_INTEGER,0,MYPE                       &
+                     ,MPI_COMM_COMP,ISEND)
+        CALL MPI_SEND(JT_REM,2,MPI_INTEGER,0,MYPE                       &
+                     ,MPI_COMM_COMP,ISEND)
+!
+        CALL MPI_SEND(VALUES,NSIZE,MPI_REAL,0,MYPE                      &
+                     ,MPI_COMM_COMP,ISEND)
+!
+        DEALLOCATE(VALUES)
+!
+      ENDIF
+!----------------------------------------------------------------------
+!
+      CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
+!
+      IF(MYPE==0)THEN
+!
+        VALMAX=-1.E9
+        IMAX=0
+        JMAX=0
+        VALMIN= 1.E9
+        IMIN=0
+        JMIN=0
+!
+        DO J=JDS,JDE-1
+        DO I=IDS,IDE-1
+          IF(ARRAY_FULL(I,J)>VALMAX)THEN
+            VALMAX=ARRAY_FULL(I,J)
+            IMAX=I 
+            JMAX=J 
+          ENDIF
+          IF(ARRAY_FULL(I,J)<VALMIN)THEN
+            VALMIN=ARRAY_FULL(I,J)
+            IMIN=I 
+            JMIN=J 
+          ENDIF
+        ENDDO
+        ENDDO
+!
+        WRITE(0,*)' '
+        WRITE(0,11102)VALMAX,IMAX,JMAX,K
+        WRITE(0,11103)VALMIN,IMIN,JMIN,K
+11102   FORMAT(' Max value is ',E12.5,' at(',I4,',',I4,',',I2,')')
+11103   FORMAT(' Min value is ',E12.5,' at(',I4,',',I4,',',I2,')')
+!
+      ENDIF
+!
+!----------------------------------------------------------------------
+!
+  500 CONTINUE
+!
+!----------------------------------------------------------------------
+!
+      END SUBROUTINE HMAXMIN
+!
+!-----------------------------------------------------------------------
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!----------------------------------------------------------------------
+      SUBROUTINE VMAXMIN(ARRAY,KK,FIELD,NTSD,MYPE,NPES,MPI_COMM_COMP   &
+                        ,IDS,IDE,JDS,JDE                               &
+                        ,IMS,IME,JMS,JME                               &
+                        ,ITS,ITE,JTS,JTE                               &
+                        ,DOMAIN_ID )
+!----------------------------------------------------------------------
+!**********************************************************************
+!----------------------------------------------------------------------
+      USE MODULE_INCLUDE
+      IMPLICIT NONE
+!----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: IDS,IDE,JDS,JDE                 &
+                                      ,IMS,IME,JMS,JME                 &
+                                      ,ITS,ITE,JTS,JTE                 &
+                                      ,KK,MPI_COMM_COMP,MYPE,NPES,NTSD
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,KK),INTENT(IN) :: ARRAY
+!
+      CHARACTER(*),INTENT(IN) :: FIELD
+!
+      INTEGER(kind=KINT),INTENT(IN),OPTIONAL :: DOMAIN_ID
+!
+!--------------------
+!*** Local Variables
+!--------------------
+!
+      INTEGER :: IUNIT=23
+!
+      INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
+      INTEGER,DIMENSION(MPI_STATUS_SIZE,4) :: STATUS_ARRAY
+      INTEGER(kind=KINT),DIMENSION(2) :: IM_REM,JM_REM,IT_REM,JT_REM
+!
+      INTEGER(kind=KINT) :: I,IENDX,IER,IPE,IRECV,IRTN,ISEND           &
+                           ,J,K,N,NSIZE
+      INTEGER(kind=KINT) :: IMAX,IMIN,JMAX,JMIN
+      INTEGER(kind=KINT) :: ITS_REM,ITE_REM,JTS_REM,JTE_REM
+!
+      REAL(kind=KFPT),DIMENSION(IDS:IDE,JDS:JDE) :: ARRAY_FULL
+      REAL(kind=KFPT),ALLOCATABLE,DIMENSION(:) :: VALUES
+      REAL(kind=KFPT) :: VALMAX,VALMIN
+!
+!----------------------------------------------------------------------
+!**********************************************************************
+!----------------------------------------------------------------------
+!
+      IF(MYPE==0)THEN
+        WRITE(0,*)' '
+        WRITE(0,11101)FIELD,NTSD,DOMAIN_ID
+11101   FORMAT(' For ',A,' at timestep ',I4,' on domain #',I2)
+      ENDIF
+!
+!----------------------------------------------------------------------
+      DO 500 K=1,KK
+!----------------------------------------------------------------------
+!
+      IF(MYPE==0)THEN
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          ARRAY_FULL(I,J)=ARRAY(I,J,K)
+        ENDDO
+        ENDDO
+!
+        DO IPE=1,NPES-1
+          CALL MPI_RECV(IT_REM,2,MPI_INTEGER,IPE,IPE                    &
+                       ,MPI_COMM_COMP,JSTAT,IRECV)
+          CALL MPI_RECV(JT_REM,2,MPI_INTEGER,IPE,IPE                    &
+                       ,MPI_COMM_COMP,JSTAT,IRECV)
+!
+          ITS_REM=IT_REM(1)
+          ITE_REM=IT_REM(2)
+          JTS_REM=JT_REM(1)
+          JTE_REM=JT_REM(2)
+!
+          NSIZE=(ITE_REM-ITS_REM+1)*(JTE_REM-JTS_REM+1)
+          ALLOCATE(VALUES(1:NSIZE))
+!
+          CALL MPI_RECV(VALUES,NSIZE,MPI_REAL,IPE,IPE                   &
+                       ,MPI_COMM_COMP,JSTAT,IRECV)
+          N=0
+          DO J=JTS_REM,JTE_REM
+            DO I=ITS_REM,ITE_REM
+              N=N+1
+              ARRAY_FULL(I,J)=VALUES(N)
+            ENDDO
+          ENDDO
+!
+          DEALLOCATE(VALUES)
+!
+        ENDDO
+!
+!----------------------------------------------------------------------
+!
+      ELSE
+!
+        NSIZE=(ITE-ITS+1)*(JTE-JTS+1)
+        ALLOCATE(VALUES(1:NSIZE))
+!
+        N=0
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          N=N+1
+          VALUES(N)=ARRAY(I,J,K)
+        ENDDO
+        ENDDO
+!
+        IT_REM(1)=ITS
+        IT_REM(2)=ITE
+        JT_REM(1)=JTS
+        JT_REM(2)=JTE
+!
+        CALL MPI_SEND(IT_REM,2,MPI_INTEGER,0,MYPE                       &
+                     ,MPI_COMM_COMP,ISEND)
+        CALL MPI_SEND(JT_REM,2,MPI_INTEGER,0,MYPE                       &
+                     ,MPI_COMM_COMP,ISEND)
+!
+        CALL MPI_SEND(VALUES,NSIZE,MPI_REAL,0,MYPE                      &
+                     ,MPI_COMM_COMP,ISEND)
+!
+        DEALLOCATE(VALUES)
+!
+      ENDIF
+!----------------------------------------------------------------------
+!
+      CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
+!
+      IF(MYPE==0)THEN
+!
+        VALMAX=-1.E9
+        IMAX=0
+        JMAX=0
+        VALMIN= 1.E9
+        IMIN=0
+        JMIN=0
+!
+        DO J=JDS,JDE-1
+        DO I=IDS,IDE-1
+          IF(ARRAY_FULL(I,J)>VALMAX)THEN
+            VALMAX=ARRAY_FULL(I,J)
+            IMAX=I 
+            JMAX=J 
+          ENDIF
+          IF(ARRAY_FULL(I,J)<VALMIN)THEN
+            VALMIN=ARRAY_FULL(I,J)
+            IMIN=I 
+            JMIN=J 
+          ENDIF
+        ENDDO
+        ENDDO
+!
+        WRITE(0,*)' '
+        WRITE(0,11102)VALMAX,IMAX,JMAX,K
+        WRITE(0,11103)VALMIN,IMIN,JMIN,K
+11102   FORMAT(' Max value is ',E12.5,' at(',I4,',',I4,',',I2,')')
+11103   FORMAT(' Min value is ',E12.5,' at(',I4,',',I4,',',I2,')')
+!
+      ENDIF
+!
+!----------------------------------------------------------------------
+!
+  500 CONTINUE
+!
+!----------------------------------------------------------------------
+!
+      END SUBROUTINE VMAXMIN
+!
 !-----------------------------------------------------------------------
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !----------------------------------------------------------------------

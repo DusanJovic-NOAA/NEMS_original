@@ -35,7 +35,6 @@ if [ $MACHINE_ID = ccs ]; then
   export STMP=/stmp
   export PTMP=/ptmp
   export SCHEDULER=loadleveler
-  export RTPWD=/climate/noscrub/wx20wa/esmf/nems/regression/REGRESSION_TEST
 elif [ $MACHINE_ID = wcoss ]; then
   export CLASS=dev
   export ACCNR=dev
@@ -43,7 +42,6 @@ elif [ $MACHINE_ID = wcoss ]; then
   export STMP=/stmp
   export PTMP=/ptmp
   export SCHEDULER=lsf
-  export RTPWD=/nems/noscrub/Jun.Wang/REGRESSION_TEST
 elif [ $MACHINE_ID = gaea ]; then 
   export DISKNM=/lustre/ltfs/scratch/Ratko.Vasic
   export STMP=/lustre/fs/scratch
@@ -58,7 +56,6 @@ elif [ $MACHINE_ID = zeus ]; then
   export PTMP=$dprefix2/ptmp
   export SCHEDULER=pbs
   export SIGHDR=$dprefix2/global/save/Shrinivas.Moorthi/para/sorc/global_sighdr.fd/global_sighdr
-  export RTPWD=/scratch1/portfolios/NCEPDEV/nems/noscrub/Jun.Wang/REGRESSION_TEST
 else
   echo "Unknown machine ID, please edit detect_machine.sh file"
   exit
@@ -71,7 +68,7 @@ mkdir -p $PTMP/$USER
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 
-#  export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+   export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
 #  export RTPWD=${STMP}/${USER}/REGRESSION_TEST
 
 #########################################################################
@@ -160,6 +157,7 @@ if [ $argn -eq 1 ]; then
     cp ${RTPWD}/NMMB_gfsP_reg/*            ${RTPWD_U}/NMMB_gfsP_reg/.
     cp ${RTPWD}/NMMB_glob/*                ${RTPWD_U}/NMMB_glob/.
     cp ${RTPWD}/NMMB_glob_ESMF_5.2.0rAPI/* ${RTPWD_U}/NMMB_glob_ESMF_5.2.0rAPI/.
+    cp ${RTPWD}/NMMB_2way_nests/*          ${RTPWD_U}/NMMB_2way_nests/.
     cp ${RTPWD}/NMMB_mvg_nests/*           ${RTPWD_U}/NMMB_mvg_nests/.
     cp ${RTPWD}/NMMB_nests/*               ${RTPWD_U}/NMMB_nests/.
     cp ${RTPWD}/NMMB_reg/*                 ${RTPWD_U}/NMMB_reg/.
@@ -252,6 +250,7 @@ fi
 # QUILT       - quilting ON/OFF
 # NSOUT       - number of timesteps for output
 # MODE        - nesting mode (1-way or 2-way)
+# WGT         - 2-way exchange weight of child data to parent
 # CLASS       - job class (LoadLeveler)
 # GROUP       - job group (LoadLeveler)
 # ACCNR       - account number (LoadLeveler)
@@ -379,8 +378,8 @@ export_common
 export INPES=$INPES_dflt ; export JNPES=$JNPES_dflt ; export WTPG=$WTPG_dflt
 export TASKS=$TASKS_dflt ; export TPN=$TPN_dflt
 export GBRG=reg          ; export NEMSI=false       ; export RSTRT=false
-export AFFN=core
-export NCHILD=0          ; export MODE=1-way        ; export NODE=1
+export AFFN=core         ; export NODE=1
+export NCHILD=0          ; export MODE=1-way        ; export WGT=0.0
 export FCSTL=48
 export PCPFLG=false      ; export WPREC=false       ; export CPPCP=#
 export TS=#
@@ -1631,6 +1630,7 @@ fi # endif test
 ####################################################################################################
 #
 # TEST   - NMM-B moving nests: Same as above except with generational task assignments.
+#        - Check the execution when children do NOT provide data to parents.
 #        - Compute tasks - Upper parent 5x18 | Child #1 5x9 | Child #2 5x9 | Grandchild 10x9
 #        - 1 thread / opnl physics / free fcst / nemsio and pure binary input
 #
@@ -1638,7 +1638,7 @@ fi # endif test
 
  if [ $RT_FULL = true ]; then
 
-  export TEST_DESCR="Test NMMB-regional with moving nests and generational task assignments"
+  export TEST_DESCR="Test NMMB-regional with 1-way moving nests and generational task assignments"
 
   if [ -f ${PATHTR}/exe/NEMS.x ] ; then
    echo "   Model code Compiled and executable available";echo;echo
@@ -1672,6 +1672,58 @@ fi # endif test
    export AFFN=cpu    ; export MODE=2-way
    export TASKS=$TASKS_mvg2 ; export TPN=$TPN_mvg2
    export INPES=$INPES_mvg2 ; export JNPES=$JNPES_mvg2 ; export WTPG=$WTPG_mvg2
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
+####################################################################################################
+#
+# TEST   - NMM-B moving nests: Use generational task assignments and 2-way exchange.
+#        - Compute tasks - Upper parent 5x18 | Child #1 5x9 | Child #2 5x9 | Grandchild 10x9
+#        - 1 thread / opnl physics / free fcst / nemsio and pure binary input
+#
+####################################################################################################
+
+ if [ $RT_FULL = true ]; then
+
+  export TEST_DESCR="Test NMMB-regional with 2-way moving nests"
+
+  if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+   echo "   Model code Compiled and executable available";echo;echo
+  else
+   echo "   Model code is NOT compiled"   >> ${REGRESSIONTEST_LOG}
+   echo "   Model code is NOT compiled"
+   exit
+  fi
+
+#---------------------
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/NMM_2way_nests
+   export CNTL_DIR=NMMB_2way_nests
+   export LIST_FILES=" \
+   nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
+   nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+   nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s \
+   nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
+   nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
+   nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
+   nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
+   nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
+   nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s \
+   nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
+   nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
+   nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
+#---------------------
+   export_nmm
+   export GBRG=mnests ; export FCSTL=24 ; export NCHILD=02
+   export NEMSI=true  ; export WLCLK=20 ; export NODE=3
+   export AFFN=cpu    ; export MODE=2-way
+   export TASKS=$TASKS_mvg2 ; export TPN=$TPN_mvg2
+   export INPES=$INPES_mvg2 ; export JNPES=$JNPES_mvg2 ; export WTPG=$WTPG_mvg2
+   export WGT=1.0
 #---------------------
    ./rt_nmm.sh
    if [ $? = 2 ]; then exit ; fi

@@ -821,6 +821,7 @@ integer :: mpi_intra
       do npe=0,npes-1
         if(mype==npe)then
 !!!       write(0,*)' PE=',mype
+          write(0,*)' inpes=',inpes,' jnpes=',jnpes
           write(0,*)' its=',its,' ite=',ite,' jts=',jts,' jte=',jte
           write(0,*)' ims=',ims,' ime=',ime,' jms=',jms,' jme=',jme
           write(0,*)' ids=',ids,' ide=',ide,' jds=',jds,' jde=',jde

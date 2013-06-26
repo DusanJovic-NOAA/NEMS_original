@@ -10,7 +10,8 @@ gfs=gsm
 gfsdir=atmos/$(gfs)
 
 ##NETCDF_LIB  = /usrx/local/netcdf-4.2.1.1/lib/libnetcdf.a
-NETCDF_LIB  = /usrx/local/netcdf-3.6.3/lib/libnetcdff.a  /usrx/local/netcdf-3.6.3/lib/libnetcdf.a
+#NETCDF_LIB  = /usrx/local/netcdf-3.6.3/lib/libnetcdff.a  /usrx/local/netcdf-3.6.3/lib/libnetcdf.a
+NETCDF_LIB  = /usrx/local/NetCDF/3.6.3/lib/libnetcdf.a
 
 NEMSIO_INC  = -I/nwprod/lib/incmod/nemsio
 NEMSIO_LIB  = -L/nwprod/lib -lnemsio
@@ -66,7 +67,7 @@ R8          = -r8
 FINCS       = $(ESMF_INC) $(NEMSIO_INC)
 TRAPS       =
 #TRAPS       = -ftrapuv -check all -fp-stack-check
-#TRAPS       = -ftrapuv  -check bounds -check format -check output_conversion -check pointers -check uninit -fp-stack-check
+#TRAPS       = -ftrapuv -check bounds -check format -check output_conversion -check pointers -check uninit -fp-stack-check
 
 FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise -xAVX
 

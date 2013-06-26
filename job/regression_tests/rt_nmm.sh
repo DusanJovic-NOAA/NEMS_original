@@ -32,7 +32,8 @@ cat nmm_conf/nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g                  \
                                  | sed s:_PCPFLG_:${PCPFLG}:g                \
                                  | sed s:_WPREC_:${WPREC}:g                  \
                                  | sed s:_NCHILD_:${NCHILD}:g                \
-                                 | sed s:_MODE_:${MODE}:g >  configure_file_01
+                                 | sed s:_MODE_:${MODE}:g                    \
+                                 | sed s:_WGT_:${WGT}:g  >  configure_file_01
 
 if [ $SCHEDULER = 'loadleveler' ]; then
 
@@ -110,9 +111,9 @@ fi
 
 if [ ${MODE} = 2-way  ]; then
   rm -f configure_file_02 configure_file_03 configure_file_04
-  cp nmm_conf/nmm_mnests_conf_gens_02 configure_file_02
-  cp nmm_conf/nmm_mnests_conf_gens_03 configure_file_03
-  cp nmm_conf/nmm_mnests_conf_gens_04 configure_file_04
+  cat nmm_conf/nmm_mnests_conf_gens_02.IN | sed s:_WGT_:${WGT}:g > configure_file_02
+  cat nmm_conf/nmm_mnests_conf_gens_03.IN | sed s:_WGT_:${WGT}:g > configure_file_03
+  cat nmm_conf/nmm_mnests_conf_gens_04.IN | sed s:_WGT_:${WGT}:g > configure_file_04
 fi
 
 if [ ${GBRG} = fltr ]; then

@@ -66,10 +66,12 @@
                ,BOUNDARY_DATA_STATE_TO_STATE                            &
                ,BUNDLE_X                                                &
                ,CHECK_REAL                                              &
+               ,CHILD_2WAY_BOOKKEEPING                                  &
                ,CHILD_RANKS                                             &
                ,CHILD_UPDATE_LINK                                       &
                ,COMMS_FAMILY                                            &
                ,CTASK_LIMITS                                            &
+               ,GENERATE_2WAY_DATA                                      &
                ,HANDLE_CHILD_LIMITS                                     &
                ,HANDLE_CHILD_TOPO_S                                     &
                ,HANDLE_CHILD_TOPO_N                                     &
@@ -84,11 +86,13 @@
                ,HANDLE_PACKET_W_V                                       &
                ,HANDLE_PACKET_E_H                                       &
                ,HANDLE_PACKET_E_V                                       &
+               ,HANDLE_PARENT_DOM_LIMITS                                &
                ,HANDLE_PARENT_ITE                                       &
                ,HANDLE_PARENT_ITS                                       &
                ,HANDLE_PARENT_JTE                                       &
                ,HANDLE_PARENT_JTS                                       &
                ,INFO_SEND                                               &
+               ,INTEGER_DATA                                            &
                ,INTEGER_DATA_2D                                         &
                ,INTERIOR_DATA_FROM_PARENT                               &
                ,INTERIOR_DATA_STATE_TO_STATE                            &
@@ -98,6 +102,8 @@
                ,MIXED_DATA_TASKS                                        &
                ,MOVING_NEST_BOOKKEEPING                                 &
                ,MOVING_NEST_RECV_DATA                                   &
+               ,PARENT_2WAY_BOOKKEEPING                                 &
+               ,PARENT_2WAY_UPDATE                                      &
                ,PARENT_BOOKKEEPING_MOVING                               &
                ,PARENT_CHILD_COMMS                                      &
                ,PARENT_READS_MOVING_CHILD_TOPO                          &
@@ -179,12 +185,19 @@
         TYPE(INTEGER_DATA_2D),DIMENSION(:),POINTER :: CHILDREN
       END TYPE DOMAIN_DATA_2
 !
-      TYPE :: DOM_LIMITS
+      TYPE :: DOMAIN_LIMITS
         INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: ITS
         INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: ITE
         INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JTS
         INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JTE
-      END TYPE DOM_LIMITS
+      END TYPE DOMAIN_LIMITS
+!
+      TYPE :: TASK_LIMITS
+        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: ITS
+        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: ITE
+        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JTS
+        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JTE
+      END TYPE TASK_LIMITS
 !
       TYPE :: BC_INFO
         TYPE(CHILD_INFO),DIMENSION(:),POINTER :: CHILDREN
@@ -212,9 +225,11 @@
 !
       INTEGER(kind=KINT),DIMENSION(:),POINTER :: HANDLE_IJ_SW
 !
-      TYPE(INTEGER_DATA),DIMENSION(:),POINTER :: HANDLE_PARENT_ITE      &
-                                                ,HANDLE_PARENT_ITS      &
-                                                ,HANDLE_PARENT_JTE      &
+      TYPE(INTEGER_DATA),DIMENSION(:),ALLOCATABLE :: HANDLE_PARENT_DOM_LIMITS  !<-- Request handle for ISSend of parent domain limits
+!
+      TYPE(INTEGER_DATA),DIMENSION(:),POINTER :: HANDLE_PARENT_ITE      &   !<-- Request handles for ISSends
+                                                ,HANDLE_PARENT_ITS      &   !    of each parent task's
+                                                ,HANDLE_PARENT_JTE      &   !<-- integration limits to children.
                                                 ,HANDLE_PARENT_JTS
 !
       TYPE(CHILD_UPDATE_LINK),POINTER,SAVE :: TAIL
@@ -237,7 +252,7 @@
                                                       ,HANDLE_PACKET_E_H   &  !
                                                       ,HANDLE_PACKET_E_V      !<--
 !
-      TYPE(DOM_LIMITS),DIMENSION(:),ALLOCATABLE,SAVE :: PTASK_LIMITS       !<-- I,J limits on parent task subdomains
+      TYPE(TASK_LIMITS),DIMENSION(:),ALLOCATABLE,SAVE :: PTASK_LIMITS      !<-- I,J limits on parent task subdomains
 !
       TYPE(DOMAIN_DATA_2),DIMENSION(:),POINTER,SAVE :: CTASK_LIMITS        !<-- For limits of parents' children's tasks' subdomains
 !
@@ -258,7 +273,7 @@
                                    ,COMM_WORLD                          &
                                    ,RANK_TO_DOMAIN_ID                   &
                                    ,CF                                  &
-                                   ,NEST_MODE                           &
+                                   ,TASK_MODE                           &
                                    ,DOMAIN_GEN                          &
                                    ,FULL_GEN                            &
                                    ,MY_DOMAIN_ID_N                      &
@@ -291,7 +306,7 @@
       INTEGER(kind=KINT),DIMENSION(*),INTENT(IN) :: DOMAIN_GEN          &  !<-- For 2-way nesting, each domain's generation
                                                    ,RANK_TO_DOMAIN_ID      !<-- Domain ID for each configure file
 !
-      CHARACTER(len=5),INTENT(IN) :: NEST_MODE                             !<-- 1-way or 2-way nesting
+      CHARACTER(len=12),INTENT(IN) :: TASK_MODE                            !<-- Unique or generational task assignment
 !
       TYPE(ESMF_Config),DIMENSION(*),INTENT(INOUT) :: CF                   !<-- The config objects (one per domain)
 !
@@ -520,14 +535,21 @@
 !***  the forecast integration.
 !-----------------------------------------------------------------------
 !
-      task_assign: IF(NEST_MODE=='1-way')THEN
+      ALLOCATE(MY_DOMAIN_ID_N(1:NUM_DOMAINS_TOTAL),stat=ISTAT)
+!
+      DO N=1,NUM_DOMAINS_TOTAL
+        MY_DOMAIN_ID_N(N)=0
+      ENDDO
+!
+      IF(ISTAT/=0)THEN
+        WRITE(0,*)' Failed to allocate MY_DOMAIN_ID_N  rc=',ISTAT
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !
-        ALLOCATE(MY_DOMAIN_ID_N(1:1),stat=ISTAT)                          !<-- All tasks reside on only one domain
-        IF(ISTAT/=0)THEN
-          WRITE(0,*)' Failed to allocate MY_DOMAIN_ID_N  rc=',ISTAT
-        ENDIF
+      task_assign: IF(TASK_MODE=='unique')THEN
+!
+!-----------------------------------------------------------------------
 !
         DO N=1,NUM_DOMAINS_TOTAL
 !
@@ -563,7 +585,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      ELSEIF(NEST_MODE=='2-way')THEN
+      ELSEIF(TASK_MODE=='generational')THEN
 !
 !-----------------------------------------------------------------------
 !***  First determine how many domains in each generation.
@@ -585,16 +607,6 @@
           DOMS_PER_GEN(N_GEN)=DOMS_PER_GEN(N_GEN)+1                        !<-- Determining the # of domains per generation
           NUM_WRITE_TASKS=NUM_WRITE_TASKS+WTASKS_DOMAIN(ID_DOM)            !<-- Sum write tasks for all domains
         ENDDO
-!
-        ALLOCATE(MY_DOMAIN_ID_N(1:NUM_DOMAINS_TOTAL),stat=ISTAT)
-!
-        DO N=1,NUM_DOMAINS_TOTAL
-          MY_DOMAIN_ID_N(N)=0
-        ENDDO
-!
-        IF(ISTAT/=0)THEN
-          WRITE(0,*)' Failed to allocate MY_DOMAIN_ID_N  rc=',ISTAT
-        ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Assign all the run's forecast tasks across the first generation
@@ -2521,6 +2533,7 @@
 !***  domain's horizontal grid increments and then parcel out the
 !***  appropriate pieces to the corresponding tasks of the child.
 !-----------------------------------------------------------------------
+!
 !
 !-----------------------------------------------------------------------
 !***  First fill in the southern and western sides of the array.
@@ -4800,6 +4813,7 @@
 !
       INTEGER(kind=KINT) :: ITS,ITE,JTS,JTE                             &
                            ,IDS,IDE,JDS,JDE                             &
+                           ,I_PAR_STA,J_PAR_STA                         &
                            ,INDX_CW,INDX_Q                              &
                            ,LMP1,LNSH,LNSV                              &      
                            ,N,NHALO,NKOUNT,NUM_DIMS
@@ -5624,8 +5638,12 @@
 !
         NTIMESTEP=NTIMESTEP_ESMF
 !
-        IF(MOD(NTIMESTEP,RATIO)/=0)RETURN                                  !<-- There is new bndry data only at parent timesteps
+        IF(MOD(NTIMESTEP,RATIO)/=0)THEN
+          RETURN                                                           !<-- There is new bndry data only at parent timesteps
+        ENDIF
 !
+!     else
+!       write(0,*)' enter BOUNDARY_DATA_STATE_TO_STATE clock is NOT present'
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -7043,7 +7061,6 @@
       INTEGER(kind=KINT),DIMENSION(1:4) :: I_UPDATE                     &
                                           ,J_UPDATE
 !
-!xxx  REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE,SAVE ::                  &
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ITS_PARENT_ON_CHILD   &
                                                  ,ITE_PARENT_ON_CHILD   &
                                                  ,JTS_PARENT_ON_CHILD   &
@@ -7627,12 +7644,10 @@
 !***  be the same for both H and V points.
 !-----------------------------------------------------------------------
 !
-!xxx  IF(.NOT.ALLOCATED(ITS_PARENT_ON_CHILD))THEN
       ALLOCATE(ITS_PARENT_ON_CHILD(0:NUM_TASKS_PARENT-1))
       ALLOCATE(ITE_PARENT_ON_CHILD(0:NUM_TASKS_PARENT-1))
       ALLOCATE(JTS_PARENT_ON_CHILD(0:NUM_TASKS_PARENT-1))
       ALLOCATE(JTE_PARENT_ON_CHILD(0:NUM_TASKS_PARENT-1))
-!xxx  ENDIF
 !
       DO N=0,NUM_TASKS_PARENT-1
 !
@@ -11924,11 +11939,11 @@
 !
         DO J=JSTART,JEND
         DO I=ISTART,IEND
-          IF(ABS(NEST_FIS_ON_PARENT(N)%DATA(i,j))<1.e-2)THEN
-            NEST_FIS_ON_PARENT(N)%DATA(i,j)=0
+          IF(ABS(NEST_FIS_ON_PARENT(N)%DATA(I,J))<1.E-2)THEN
+            NEST_FIS_ON_PARENT(N)%DATA(i,j)=0.
           ENDIF
-          IF(ABS(NEST_FIS_V_ON_PARENT(N)%DATA(i,j))<1.e-2)THEN
-            NEST_FIS_V_ON_PARENT(N)%DATA(i,j)=0
+          IF(ABS(NEST_FIS_V_ON_PARENT(N)%DATA(I,J))<1.E-2)THEN
+            NEST_FIS_V_ON_PARENT(N)%DATA(I,J)=0.
           ENDIF
         ENDDO
         ENDDO
@@ -12001,6 +12016,1136 @@
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE LATLON_TO_IJ
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE PARENT_2WAY_BOOKKEEPING(PARENT_CHILD_SPACE_RATIO       &
+                                        ,NUM_CHILD_TASKS                &
+                                        ,CHILD_TASK_LIMITS              &
+                                        ,IM_CHILD                       &
+                                        ,JM_CHILD                       &
+                                        ,I_PARENT_SW                    &
+                                        ,J_PARENT_SW                    &
+                                        ,N_BLEND_H_CHILD                &
+                                        ,N_BLEND_V_CHILD                &
+                                        ,N_STENCIL_H_CHILD              & ! input
+                                        ,N_STENCIL_V_CHILD              & !   ^
+                                        ,N_STENCIL_SFC_H_CHILD          & !   |
+                                        ,N_STENCIL_SFC_V_CHILD          & !   |
+                                        ,ITS,ITE,JTS,JTE                & !   |
+!                                                                         ! -----
+                                        ,NTASKS_UPDATE_CHILD            & !   |
+                                        ,CHILD_TASKS_2WAY_UPDATE        & ! output
+                                                             )
+!
+!-----------------------------------------------------------------------
+!***  The parent domain determines which of its task subdomains and
+!***  which points on those subdomains are updated by its children.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: I_PARENT_SW                      &  !<-- Parent I of nest domain's SW corner
+                                      ,J_PARENT_SW                      &  !<-- Parent J of nest domain's SW corner
+                                      ,N_STENCIL_H_CHILD                &  !<-- Stencil width of child h to parent H averaging
+                                      ,N_STENCIL_V_CHILD                &  !<-- Stencil width of child v to parent V averaging
+                                      ,N_STENCIL_SFC_H_CHILD            &  !<-- Stencil width of child pd to parent H averaging
+                                      ,N_STENCIL_SFC_V_CHILD            &  !<-- Stencil width of child pd to parent V averaging
+                                      ,NUM_CHILD_TASKS                  &  !<-- # of forecast tasks on this child domain
+                                      ,PARENT_CHILD_SPACE_RATIO            !<-- Ratio of parent grid increment to child's
+!
+      INTEGER(kind=KINT),INTENT(IN) :: ITS,ITE,JTS,JTE                     !<-- Integration limits of this parent task's subdomain     
+!
+      INTEGER(kind=KINT),INTENT(IN) :: IM_CHILD                         &  !<-- I dimension of this child domain
+                                      ,JM_CHILD                         &  !<-- J dimension of this child domain
+                                      ,N_BLEND_H_CHILD                  &  !<-- Blending region width for this child's domain H pts
+                                      ,N_BLEND_V_CHILD                     !<-- Blending region width for this child's domain V pts
+!
+      INTEGER(kind=KINT),DIMENSION(1:4,NUM_CHILD_TASKS),INTENT(IN) ::   &
+                                                     CHILD_TASK_LIMITS     !<-- ITS,ITE,JTS,JTE for each child forecast task
+!
+      INTEGER(kind=KINT),INTENT(INOUT) :: NTASKS_UPDATE_CHILD              !<-- Parent task recvs 2-way update from this many child tasks
+!
+      TYPE(CHILD_UPDATE_LINK),TARGET,INTENT(INOUT) ::                   &
+                                             CHILD_TASKS_2WAY_UPDATE       !<-- Ranks of tasks on 2-way child that update this parent task
+!                                                                               and the parent points updated.
+!---------------------
+!***  Local variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: ISTAT,KOUNT,N,N_BLEND_CHILD,N_STENCIL_0     &
+                           ,NPTS_PARENT_UPDATE,NT
+!
+      INTEGER(kind=KINT) :: I1,I2,J1,J2
+!
+      INTEGER(kind=KINT),DIMENSION(1:4) :: N_STENCIL_X
+!
+      REAL(kind=KFPT) :: RECIP_RATIO
+!
+      REAL(kind=KFPT) :: CHILD_ISTART_ON_PARENT,CHILD_IEND_ON_PARENT    &
+                        ,CHILD_JSTART_ON_PARENT,CHILD_JEND_ON_PARENT    &
+!
+                        ,IDE_CHILD_ON_PARENT,IDS_CHILD_ON_PARENT        &
+                        ,JDE_CHILD_ON_PARENT,JDS_CHILD_ON_PARENT        &
+!
+                        ,ITE_CHILD_ON_PARENT,ITS_CHILD_ON_PARENT        &
+                        ,JTE_CHILD_ON_PARENT,JTS_CHILD_ON_PARENT        &
+!
+                        ,LIMIT_EAST_H,LIMIT_WEST_H                      &
+                        ,LIMIT_NORTH_H,LIMIT_SOUTH_H
+!
+      TYPE(CHILD_UPDATE_LINK),POINTER :: HEAD,TAIL
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      RECIP_RATIO=1./PARENT_CHILD_SPACE_RATIO
+!
+      N_BLEND_CHILD=N_BLEND_H_CHILD                                        !<-- Domain blending regions must be the same for H,V.
+!
+!-----------------------------------------------------------------------
+!***  What are this child's domain limits on the parent grid?
+!-----------------------------------------------------------------------
+!
+      IDS_CHILD_ON_PARENT=REAL(I_PARENT_SW)                                !<-- 2-way child's W boundary in parent's grid space       
+      IDE_CHILD_ON_PARENT=REAL(I_PARENT_SW)                             &  !<-- 2-way child's E boundary in parent's grid space
+                          +(IM_CHILD-1)*RECIP_RATIO
+      JDS_CHILD_ON_PARENT=REAL(J_PARENT_SW)                                !<-- 2-way child's S boundary in parent's grid space
+      JDE_CHILD_ON_PARENT=REAL(J_PARENT_SW)                             &  !<-- 2-way child's N boundary in parent's grid space
+                          +(JM_CHILD-1)*RECIP_RATIO
+!
+!-----------------------------------------------------------------------
+!***  We want to limit the child points that can be used for
+!***  computing the 2-way data.  For now do not use any child
+!***  points in the averaging stencil that lie in the child's
+!***  boundary blending rows.  Stencils can vary for h-->H,
+!***  v-->V, pd-->H, and pd-->V.  Determine the set of parent
+!***  target I's and J's common to all the stencils and use
+!***  that to ensure that the same parent I,J indices are used
+!***  for both H and V variables.
+!-----------------------------------------------------------------------
+!
+      N_STENCIL_X(1)=N_STENCIL_H_CHILD
+      N_STENCIL_X(2)=N_STENCIL_V_CHILD
+      N_STENCIL_X(3)=N_STENCIL_SFC_H_CHILD
+      N_STENCIL_X(4)=N_STENCIL_SFC_V_CHILD
+!
+!-----------------------------------------------------------------------
+!***  Deallocate the linked list of child update tasks if it already
+!***  exists.  This is relevant only for moving nests.  This routine
+!***  is called only once for static nests when the linked list does
+!***  not yet exist.
+!-----------------------------------------------------------------------
+!
+      KOUNT=0
+      HEAD=>CHILD_TASKS_2WAY_UPDATE                                        !<-- Point at the top of the linked list
+!
+      dealloc: DO
+!
+        KOUNT=KOUNT+1
+        TAIL=>NULL()
+        IF(ASSOCIATED(HEAD%NEXT_LINK))THEN
+          TAIL=>HEAD%NEXT_LINK                                             !<-- If another link exists, point at it.
+        ENDIF
+!
+        IF(KOUNT>1)THEN                                                    !<-- Do not deallocate the topmost object's memory
+          DEALLOCATE(HEAD%TASK_ID)
+          DEALLOCATE(HEAD%IL)     
+          DEALLOCATE(HEAD%JL)     
+          DEALLOCATE(HEAD%NUM_PTS_UPDATE_HZ)
+          DEALLOCATE(HEAD,stat=ISTAT)                                      !<-- Deallocate the current link.
+          IF(ISTAT/=0)THEN
+            WRITE(0,*)' Failed to deallocate link #',KOUNT,' in 2-way linked list!'
+            WRITE(0,*)' Aborting!!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          ENDIF
+        ENDIF
+!
+        IF(ASSOCIATED(TAIL))THEN                                           !<-- If true, another link exists.
+          HEAD=>TAIL                                                       !<-- Reset so that the head is at the new link.
+        ELSE
+          EXIT dealloc                                                     !<-- No further links exist.
+        ENDIF
+!
+      ENDDO dealloc
+!
+!-----------------------------------------------------------------------
+!***  Only the top of the list remains.  Point at it.
+!-----------------------------------------------------------------------
+!
+      HEAD=>CHILD_TASKS_2WAY_UPDATE
+      HEAD%NEXT_LINK=>NULL()                                               !<-- There is no 'next link' in the list yet.
+!
+!-----------------------------------------------------------------------
+!***  Which if any child tasks will be updating this parent task? 
+!***  Begin by finding the subdomain limits of each child task on
+!***  the parent domain.
+!-----------------------------------------------------------------------
+!
+      child_tasks: DO NT=1,NUM_CHILD_TASKS
+!
+!     write(0,*)' '
+!     write(0,46361)nt
+!-----------------------------------------------------------------------
+!
+        ITS_CHILD_ON_PARENT=(CHILD_TASK_LIMITS(1,NT)-CHILD_TASK_LIMITS(1,1))*RECIP_RATIO  &  !<-- Child task NT's starting I on parent grid
+                            +REAL(I_PARENT_SW)
+        ITE_CHILD_ON_PARENT=(CHILD_TASK_LIMITS(2,NT)-CHILD_TASK_LIMITS(1,1))*RECIP_RATIO  &  !<-- Child task NT's ending I on parent grid
+                            +REAL(I_PARENT_SW)
+!
+        JTS_CHILD_ON_PARENT=(CHILD_TASK_LIMITS(3,NT)-CHILD_TASK_LIMITS(3,1))*RECIP_RATIO  &  !<-- Child task NT's starting J on parent grid
+                            +REAL(J_PARENT_SW)
+        JTE_CHILD_ON_PARENT=(CHILD_TASK_LIMITS(4,NT)-CHILD_TASK_LIMITS(3,1))*RECIP_RATIO  &  !<-- Child task NT's ending J on parent grid
+                            +REAL(J_PARENT_SW)
+!
+        CHILD_ISTART_ON_PARENT=ITS_CHILD_ON_PARENT
+        CHILD_IEND_ON_PARENT  =ITE_CHILD_ON_PARENT
+        CHILD_JSTART_ON_PARENT=JTS_CHILD_ON_PARENT
+        CHILD_JEND_ON_PARENT  =JTE_CHILD_ON_PARENT
+!
+!-----------------------------------------------------------------------
+!***  Find the common parent target points for all averaging stencils.
+!-----------------------------------------------------------------------
+!
+        DO N=1,4                                                           !<-- There are 4 averaging stencils; see above.
+!                          
+          N_STENCIL_0=N_STENCIL_X(N)/2                                     !<-- Child's delta I,J from parent update pt to edge of
+!                                                                          !    stencil region that will update the parent point.
+          LIMIT_WEST_H=REAL(I_PARENT_SW)                                &
+                       +(N_BLEND_CHILD+N_STENCIL_0)*RECIP_RATIO
+!
+          CHILD_ISTART_ON_PARENT=MAX(CHILD_ISTART_ON_PARENT             &  !<--
+                                    ,ITS_CHILD_ON_PARENT                &
+                                    ,LIMIT_WEST_H )
+!
+          LIMIT_EAST_H=REAL(I_PARENT_SW)                                &
+                   +(IM_CHILD-1-N_BLEND_CHILD-N_STENCIL_0)*RECIP_RATIO
+!
+          CHILD_IEND_ON_PARENT=MIN(CHILD_IEND_ON_PARENT                 &  !<--
+                                  ,ITE_CHILD_ON_PARENT                  &
+                                  ,LIMIT_EAST_H ) 
+!
+          LIMIT_SOUTH_H=REAL(J_PARENT_SW)                               &
+                       +(N_BLEND_CHILD+N_STENCIL_0)*RECIP_RATIO
+!
+          CHILD_JSTART_ON_PARENT=MAX(CHILD_JSTART_ON_PARENT             &  !<--
+                                    ,JTS_CHILD_ON_PARENT                &
+                                    ,LIMIT_SOUTH_H )
+!
+          LIMIT_NORTH_H=REAL(J_PARENT_SW)                               &
+                   +(JM_CHILD-1-N_BLEND_CHILD-N_STENCIL_0)*RECIP_RATIO
+!
+          CHILD_JEND_ON_PARENT=MIN(CHILD_JEND_ON_PARENT                 &  !<--
+                                  ,JTE_CHILD_ON_PARENT                  &
+                                  ,LIMIT_NORTH_H ) 
+!
+        ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Which if any of this parent task's points are updated by
+!***  this child's task NT?
+!-----------------------------------------------------------------------
+!
+        IF(REAL(ITS)<CHILD_IEND_ON_PARENT+EPS                           &
+                          .AND.                                         &
+           REAL(ITE)>CHILD_ISTART_ON_PARENT-EPS                         &
+                          .AND.                                         &
+           REAL(JTS)<CHILD_JEND_ON_PARENT+EPS                           &
+                          .AND.                                         &
+           REAL(JTE)>CHILD_JSTART_ON_PARENT-EPS )THEN
+!
+!-----------------------------------------------------------------------
+!***  Which points on this parent task will be updated by this
+!***  child task?  See examples of the logic used here in 
+!***  subroutine CHILD_2WAY_BOOKKEEPING.
+!-----------------------------------------------------------------------
+!
+          I1=MAX(ITS,INT(CHILD_ISTART_ON_PARENT+1.-EPS))                   !<-- Lower I limit on parent update region by child task NT.
+          I2=MIN(ITE,INT(CHILD_IEND_ON_PARENT+EPS))                        !<-- Upper I limit on parent update region by child task NT.
+          J1=MAX(JTS,INT(CHILD_JSTART_ON_PARENT+1.-EPS))                   !<-- Lower J limit on parent update region by child task NT.
+          J2=MIN(JTE,INT(CHILD_JEND_ON_PARENT+EPS))                        !<-- Upper J limit on parent update region by child task NT. 
+!
+          NPTS_PARENT_UPDATE=(I2-I1+1)*(J2-J1+1)
+!
+          IF(NPTS_PARENT_UPDATE<=0)THEN
+            CYCLE child_tasks                                              !<-- No usable 2-way exchange region on this child task.
+          ENDIF
+!
+          NTASKS_UPDATE_CHILD=NTASKS_UPDATE_CHILD+1                        !<-- Save # of child tasks that send 2-way update
+!
+          IF(NTASKS_UPDATE_CHILD>1)THEN                                    !<-- We need another link in the list.
+            ALLOCATE(HEAD%NEXT_LINK)                                       !<-- Create the new link
+            HEAD=>HEAD%NEXT_LINK                                           !<-- Point at the new link.
+            HEAD%NEXT_LINK=>NULL()                                         !<-- Nullify the link that would follow the new link.
+!
+            ALLOCATE(HEAD%TASK_ID)                                         !<--
+            ALLOCATE(HEAD%IL(1:2))                                         !    Create the components
+            ALLOCATE(HEAD%JL(1:2))                                         !    of the new link.
+            ALLOCATE(HEAD%NUM_PTS_UPDATE_HZ)                               !<--
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!***  In this link of the list save the updating child task's local
+!***  rank on its domain as well as the index limits on this parent
+!***  task that this child task will update along with the total
+!***  number of updated parent task points.
+!-----------------------------------------------------------------------
+!
+          HEAD%TASK_ID=NT-1                                                !<-- Local rank of child task sending 2-way update
+!
+          HEAD%IL(1)=I1
+          HEAD%IL(2)=I2
+          HEAD%JL(1)=J1
+          HEAD%JL(2)=J2
+!
+          HEAD%NUM_PTS_UPDATE_HZ=NPTS_PARENT_UPDATE
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO child_tasks
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE PARENT_2WAY_BOOKKEEPING
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE PARENT_2WAY_UPDATE(I_2WAY_UPDATE_START                 &
+                                   ,I_2WAY_UPDATE_END                   &
+                                   ,J_2WAY_UPDATE_START                 &
+                                   ,J_2WAY_UPDATE_END                   &
+                                   ,LM                                  &
+                                   ,NPTS_UPDATE_HORIZ                   &
+                                   ,NPTS_UPDATE_TOTAL                   &
+                                   ,NVARS_2WAY_UPDATE                   &
+                                   ,VAR_2WAY                            &
+                                   ,CHILD_SFC_ON_PARENT_GRID            &
+                                   ,WGT_CHILD                           &
+                                   ,FIS                                 &
+                                   ,PD,PDTOP,PT                         & !   ^
+                                   ,SG1,SG2                             & !   |
+                                   ,IMS,IME,JMS,JME                     & !   |
+                                                                          ! input
+!                                                                           -----
+                                                                          ! output
+                                   ,T,Q,CW                              & !   |
+                                   ,U,V                                 & !   v
+                                                           )
+!
+!-----------------------------------------------------------------------
+!***  Parent tasks incorporate new 2-way exchange data sent from the
+!***  children.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: I_2WAY_UPDATE_START              &  !<-- Starting parent I of its 2-way update region
+                                      ,I_2WAY_UPDATE_END                &  !<-- Ending parent I of its 2-way update region
+                                      ,J_2WAY_UPDATE_START              &  !<-- Starting parent J of its 2-way update region
+                                      ,J_2WAY_UPDATE_END                &  !<-- Ending parent J of its 2-way update region
+                                      ,LM                                  !<-- # of model layers (all domains)
+!
+      INTEGER(kind=KINT),INTENT(IN) :: NPTS_UPDATE_HORIZ                &  !<-- # of parent sfc H,V points updated in the horizontal
+                                      ,NPTS_UPDATE_TOTAL                &  !<-- Total # of words in 2-way 3D update data from child
+                                      ,NVARS_2WAY_UPDATE                   !<-- # of variables updated in 2-way exchange
+!
+      INTEGER(kind=KINT) :: IMS,IME,JMS,JME                                !<-- Parent subdomain memory limits
+!
+      REAL(kind=KFPT),INTENT(IN) :: PDTOP                               &  !<-- Pressure at top of the sigma domain (Pa)
+                                   ,PT                                  &  !<-- Pressure at the top of the domain (Pa)
+                                   ,WGT_CHILD                              !<-- Weight (0-1) given to child 2-way data in the update
+!
+      REAL(kind=KFPT),DIMENSION(1:NPTS_UPDATE_TOTAL),TARGET             &
+                                             ,INTENT(INOUT):: VAR_2WAY     !<-- String of all 2-way update data from child
+!
+      REAL(kind=KFPT),DIMENSION(1:NPTS_UPDATE_HORIZ,1:2),INTENT(IN) ::  &
+                                               CHILD_SFC_ON_PARENT_GRID    !<-- Child's FIS(:,1),PD(:,2) interpolated to parent update pts
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: FIS      &  !<-- Parent's sfc geopotential (m2/s2)
+                                                              ,PD          !<-- Parent's PD (Pa)
+!
+      REAL(kind=KFPT),DIMENSION(1:LM+1),INTENT(IN) :: SG1,SG2              !<-- Interface 'sigma' values in pressure and hybrid regions
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),TARGET            &  
+                                                  ,INTENT(INOUT) :: T   &  !<-- Parent's temperature (K)
+                                                                   ,Q   &  !<-- Parent's specific humidity (kg/kg)
+                                                                   ,CW  &  !<-- Parent's cloud condensate (kg/kg)
+                                                                   ,U   &  !<-- Parent's U wind component (m/s)
+                                                                   ,V      !<-- Parent's V wind component (m/s)
+!
+!---------------------
+!***  Local variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: I,IPTS,J,JPTS,KNT,KNT_HZ                    &
+                           ,L,LOC1_2WAY,LOC2_2WAY                       &
+                           ,N_STRIDE,NPTS_HZ,NPTS_PER_VAR               &
+                           ,NUM_LEVS_SEC,NUM_LEVS_SPLINE,NV
+!
+      REAL(kind=KFPT) :: COEFF_1,DELP_EXTRAP,PDTOP_PT                   &
+                        ,PINT_HI_CHILD,PINT_HI_PARENT,PINT_LO           &
+                        ,R_DELP,WGT_PARENT
+!
+      REAL(kind=KFPT),DIMENSION(1:LM) :: PMID_PARENT                    &
+                                        ,VBL_OUT
+!
+      REAL(kind=KFPT),DIMENSION(1:LM+1) :: PMID_CHILD                   &
+                                          ,SEC_DERIV
+!
+      REAL(kind=KFPT),DIMENSION(:),POINTER :: VBL_COL,VBL_X
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: VAR_PARENT
+!
+      LOGICAL(kind=KLOG) :: EXTRAPOLATE
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  The update variables are currently temperature, specific humidity,
+!***  cloud condensate, uwind, and vwind.  
+!-----------------------------------------------------------------------
+!
+      KNT_HZ=0
+      NUM_LEVS_SEC=LM+1
+      WGT_PARENT=1.-WGT_CHILD
+!
+      DO L=1,NUM_LEVS_SEC
+        SEC_DERIV(L)=0.                                                    !<-- Needed in the SPLINE subroutine
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!
+      IPTS=I_2WAY_UPDATE_END-I_2WAY_UPDATE_START+1                         !<-- # of parent points updated in I
+      JPTS=J_2WAY_UPDATE_END-J_2WAY_UPDATE_START+1                         !<-- # of parent points updated in J
+      NPTS_HZ=IPTS*JPTS                                                    !<-- # of parent update points in the horizontal
+      NPTS_PER_VAR=NPTS_HZ*LM                                              !<-- # of parent points updated for each 3D variable
+!
+!-----------------------------------------------------------------------
+!
+      DO J=J_2WAY_UPDATE_START,J_2WAY_UPDATE_END
+      DO I=I_2WAY_UPDATE_START,I_2WAY_UPDATE_END
+!
+!-----------------------------------------------------------------------
+!
+        KNT_HZ=KNT_HZ+1
+        EXTRAPOLATE=.FALSE.
+!
+!-----------------------------------------------------------------------
+!***  If either the interpolated nest sfc or the parent sfc lies 
+!***  above sea level then the parent adjusts the child data in 
+!***  the vertical to account for different topographies.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+        adjust: IF(CHILD_SFC_ON_PARENT_GRID(KNT_HZ,1)>1.                &  !<-- Child's interpolated sfc is above sea level
+                      .OR.                                              &
+                   FIS(I,J)>1.)THEN                                        !<-- Parent's sfc is above sea level
+!-----------------------------------------------------------------------
+!
+          PDTOP_PT=SG1(1)*PDTOP+PT
+          PINT_HI_CHILD=SG2(1)*CHILD_SFC_ON_PARENT_GRID(KNT_HZ,2)+PDTOP_PT
+          PINT_HI_PARENT=SG2(1)*PD(I,J)+PDTOP_PT
+!
+          DO L=1,LM
+            PDTOP_PT=SG1(L+1)*PDTOP+PT
+            PINT_LO=SG2(L+1)*CHILD_SFC_ON_PARENT_GRID(KNT_HZ,2)+PDTOP_PT
+            PMID_CHILD(L)=0.5*(PINT_HI_CHILD+PINT_LO)                      !<-- Midlayer P of 2-way data from child at parent I,J
+            PINT_HI_CHILD=PINT_LO
+!
+            PINT_LO=SG2(L+1)*PD(I,J)+PDTOP_PT
+            PMID_PARENT(L)=0.5*(PINT_HI_PARENT+PINT_LO)                    !<-- Current midlayer pressure at parent I,J
+            PINT_HI_PARENT=PINT_LO
+          ENDDO
+!
+          NUM_LEVS_SPLINE=LM
+!
+!-----------------------------------------------------------------------
+!***  If the target parent midlayer pressure level lies below the 
+!***  lowest child input midlayer (interpolated) pressure then
+!***  extrapolate linearly downward in pressure to obtain an
+!***  artificial child input value at the lowest parent midlayer 
+!***  pressure then fill in the remaining 'underground' parent levels 
+!***  using SPLINE just as is done with all the higher levels.
+!-----------------------------------------------------------------------
+!
+          IF(PMID_PARENT(LM)>PMID_CHILD(LM))THEN
+            EXTRAPOLATE=.TRUE.
+            NUM_LEVS_SPLINE=LM+1                                           !<-- Insert 'underground' artificial input level from child
+            PMID_CHILD(LM+1)=PMID_PARENT(LM)                               !<-- 'Underground' child P is the  parent's bottom midlayer P
+            R_DELP=1./(PMID_CHILD(LM)-PMID_CHILD(LM-1))
+            DELP_EXTRAP=PMID_PARENT(LM)-PMID_CHILD(LM)
+            ALLOCATE(VBL_X(1:LM+1))                                        !<-- Allocate 2-way data input column with extra bottom layer
+          ENDIF
+!
+          vars1: DO NV=1,NVARS_2WAY_UPDATE                                 !<-- Loop through the update variables
+!
+            LOC1_2WAY=(NV-1)*NPTS_PER_VAR                               &  !<-- The 1st word of the column of 2-way data in 1-D data
+                      +(J-J_2WAY_UPDATE_START)*IPTS                     &  !    recvd from child for variable NV at parent I,J.
+                      +(I-I_2WAY_UPDATE_START+1)
+            LOC2_2WAY=LOC1_2WAY+(LM-1)*NPTS_HZ                             !<-- The last word of parent I,J column in 2-way exchange data.
+            N_STRIDE=NPTS_HZ                                               !<-- Stride between points in this I,J column.
+!
+            VBL_COL=>VAR_2WAY(LOC1_2WAY:LOC2_2WAY:N_STRIDE)                !<-- Pre-adjusted values in this column of the input 2-way data
+!
+            IF(.NOT.EXTRAPOLATE)THEN
+              VBL_X=>VBL_COL                                               !<-- No extrapolation so no need to copy values
+!
+            ELSEIF(EXTRAPOLATE)THEN
+              DO L=1,LM
+                VBL_X(L)=VBL_COL(L)                                        !<-- Copy the genuine values from the input column
+              ENDDO
+!
+              COEFF_1=(VBL_X(LM)-VBL_X(LM-1))*R_DELP
+              VBL_X(LM+1)=VBL_X(LM)+COEFF_1*DELP_EXTRAP                    !<-- Fill in the extra artificial underground value in 2-way input
+!
+            ENDIF
+!
+            CALL SPLINE(NUM_LEVS_SPLINE                                 &  !<-- # of midlayers in column of child input 2-way data
+                       ,PMID_CHILD                                      &  !<-- Interpolated input pressures at child's midlayers
+                       ,VBL_X                                           &  !<-- Input values of variable in column at parent I,J
+                       ,SEC_DERIV                                       &
+                       ,NUM_LEVS_SEC                                    &
+                       ,LM                                              &  !<-- Interpolate to this many parent midlayers
+                       ,PMID_PARENT                                     &  !<-- Target output pressures at parent's midlayers
+                       ,VBL_OUT )                                          !<-- Values in the column at I,J adjusted for topo differences
+!
+            DO L=1,LM
+              VBL_COL(L)=VBL_OUT(L)                                        !<-- Transfer adjusted column values back into 2-way data 
+            ENDDO
+!
+          ENDDO vars1
+!
+          IF(EXTRAPOLATE)THEN
+            DEALLOCATE(VBL_X)
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF adjust
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Now the parent simply updates its values of the update
+!***  variables at its update points using a weighted average
+!***  between its original values and those coming from the child.
+!-----------------------------------------------------------------------
+!
+      KNT=0
+!
+      vars2: DO NV=1,NVARS_2WAY_UPDATE                                     !<-- Loop over all parent variables updated by the child.
+!
+        IF(NV==1)THEN
+          VAR_PARENT=>T                                                    !<-- Parent temperature
+!
+        ELSEIF(NV==2)THEN 
+          VAR_PARENT=>Q                                                    !<-- Parent specific humidity
+!
+        ELSEIF(NV==3)THEN
+          VAR_PARENT=>CW                                                   !<-- Parent cloud condensate
+!
+        ELSEIF(NV==4)THEN
+          VAR_PARENT=>U                                                    !<-- Parent U wind component
+!
+        ELSEIF(NV==5)THEN
+          VAR_PARENT=>V                                                    !<-- Parent V wind component
+!
+        ENDIF
+!
+        DO L=1,LM
+          DO J=J_2WAY_UPDATE_START,J_2WAY_UPDATE_END
+          DO I=I_2WAY_UPDATE_START,I_2WAY_UPDATE_END
+!
+            KNT=KNT+1
+!
+            VAR_PARENT(I,J,L)=VAR_2WAY(KNT)*WGT_CHILD                   &  !<-- The 2-way data from the child provides the fraction
+                             +VAR_PARENT(I,J,L)*WGT_PARENT                 !    WGT_CHILD of the final updated parent value.
+!
+          ENDDO
+          ENDDO
+        ENDDO
+!
+      ENDDO vars2
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE PARENT_2WAY_UPDATE
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE CHILD_2WAY_BOOKKEEPING(I_SW_PARENT_CURRENT             &
+                                       ,J_SW_PARENT_CURRENT             &
+                                       ,SPACE_RATIO_MY_PARENT           &
+                                       ,NUM_FCST_TASKS_PARENT           &
+                                       ,ITS_PARENT_TASKS                &
+                                       ,ITE_PARENT_TASKS                &
+                                       ,JTS_PARENT_TASKS                &
+                                       ,JTE_PARENT_TASKS                &
+                                       ,N_BLEND_H                       &
+                                       ,N_BLEND_V                       &
+                                       ,N_STENCIL_H                     &
+                                       ,N_STENCIL_V                     &
+                                       ,N_STENCIL_SFC_H                 &
+                                       ,N_STENCIL_SFC_V                 &
+                                       ,ITS,ITE,JTS,JTE                 &
+                                       ,IDS,IDE,JDS,JDE                 &
+!
+                                       ,NTASKS_UPDATE_PARENT            &
+                                       ,ID_PARENT_UPDATE_TASKS          &
+                                       ,NPTS_UPDATE_PARENT              &
+                                       ,I_2WAY_UPDATE                   &
+                                       ,J_2WAY_UPDATE                   &
+                                                          )
+!
+!-----------------------------------------------------------------------
+!***  In 2-way mode each child domain must determine to which parent
+!***  tasks and to which points on those tasks update data must be
+!***  sent.  The method used here is taking the mean of the points
+!***  on a stencil of child points that surround a given parent
+!***  point.
+!***  This routine is called from CHILDREN_SEND_PARENTS_2WAY_DATA.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: I_SW_PARENT_CURRENT              &  !<-- Child domain SW corner on this parent I 
+                                      ,J_SW_PARENT_CURRENT              &  !<-- Child domain SW corner on this parent J
+                                      ,N_BLEND_H                        &  !<-- # of nest blending rows for H pts
+                                      ,N_BLEND_V                        &  !<-- # of nest blending rows for V pts
+                                      ,N_STENCIL_H                      &  !<-- Width of stencil for averaging h to parent H
+                                      ,N_STENCIL_V                      &  !<-- Width of stencil for averaging v to parent V
+                                      ,N_STENCIL_SFC_H                  &  !<-- Width of stencil for averaging fis,pd to parent H
+                                      ,N_STENCIL_SFC_V                  &  !<-- Width of stencil for averaging fis,pd to parent V
+                                      ,NUM_FCST_TASKS_PARENT            &  !<-- # of fcst tasks on this nest's parent
+                                      ,SPACE_RATIO_MY_PARENT               !<-- Parent-to-child gridspace ratio
+!
+      INTEGER(kind=KINT),DIMENSION(0:NUM_FCST_TASKS_PARENT-1),INTENT(IN) :: &
+                                                        ITS_PARENT_TASKS    &  !<-- Starting I on all parent tasks in parent space
+                                                       ,ITE_PARENT_TASKS    &  !<-- Ending I on all parent tasks in parent space
+                                                       ,JTS_PARENT_TASKS    &  !<-- Starting J on all parent tasks in parent space
+                                                       ,JTE_PARENT_TASKS       !<-- Ending J on all parent tasks in parent space
+!
+      INTEGER(kind=KINT),INTENT(IN) :: IDE,IDS,ITE,ITS                  &
+                                      ,JDE,JDS,JTE,JTS
+!
+      INTEGER(kind=KINT),INTENT(INOUT) :: NTASKS_UPDATE_PARENT             !<-- How many parent tasks does this child task update?
+!
+      INTEGER(kind=KINT),DIMENSION(1:4),INTENT(OUT) :: NPTS_UPDATE_PARENT  !<-- # of points to update on each parent task subdomain
+!
+      INTEGER(kind=KINT),DIMENSION(1:4),INTENT(OUT) :: &
+                                                  ID_PARENT_UPDATE_TASKS   !<-- Local ID in P-C intracom of parent tasks to update
+!
+      TYPE(INTEGER_DATA),DIMENSION(1:4),INTENT(OUT) :: I_2WAY_UPDATE    &  !<-- I indices of parent points to update 
+                                                      ,J_2WAY_UPDATE       !<-- J indices of parent points to update
+!
+!---------------------
+!***  Local variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: I,ISTAT,J,KOUNT,N,N_BLEND,N_STENCIL_0       &
+                           ,NPTS_PARENT_UPDATE
+!
+      INTEGER(kind=KINT) :: I1,I2,J1,J2
+!
+      INTEGER(kind=KINT),DIMENSION(1:4) :: N_STENCIL_X
+!
+      REAL(kind=KFPT) :: LIMIT_EAST,LIMIT_NORTH                         &
+                        ,LIMIT_SOUTH,LIMIT_WEST
+!
+      REAL(kind=KFPT) :: MY_IDE_ON_PARENT,MY_IDS_ON_PARENT              &
+                        ,MY_JDE_ON_PARENT,MY_JDS_ON_PARENT              &
+                        ,MY_ITE_ON_PARENT,MY_ITS_ON_PARENT              &
+                        ,MY_JTE_ON_PARENT,MY_JTS_ON_PARENT
+!
+      REAL(kind=KFPT) :: MY_ISTART_ON_PARENT,MY_IEND_ON_PARENT          &
+                        ,MY_JSTART_ON_PARENT,MY_JEND_ON_PARENT
+!
+      REAL(kind=KFPT) :: RECIP_RATIO
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      RECIP_RATIO=1./REAL(SPACE_RATIO_MY_PARENT)                           !<-- Reciprocal of parent-to-child gridspace ratio
+!
+      NTASKS_UPDATE_PARENT=0                                               !<-- Initialize the # of parent tasks this child task
+!                                                                          !    will update.
+!-----------------------------------------------------------------------
+!***  The domain blending region must be the same for H and V points
+!***  at the current time.
+!-----------------------------------------------------------------------
+!
+      N_BLEND=N_BLEND_H
+!
+!-----------------------------------------------------------------------
+!***  What are this child's domain limits in terms of its parent's
+!***  grid?
+!-----------------------------------------------------------------------
+!
+      MY_IDS_ON_PARENT=REAL(I_SW_PARENT_CURRENT)
+      MY_IDE_ON_PARENT=REAL(I_SW_PARENT_CURRENT)+(IDE-1)*RECIP_RATIO
+      MY_JDS_ON_PARENT=REAL(J_SW_PARENT_CURRENT)
+      MY_JDE_ON_PARENT=REAL(J_SW_PARENT_CURRENT)+(JDE-1)*RECIP_RATIO
+!
+!-----------------------------------------------------------------------
+!***  What are this child task's subdomain integration limits in 
+!***  terms of its parent's grid?
+!-----------------------------------------------------------------------
+!
+      MY_ITS_ON_PARENT=REAL(I_SW_PARENT_CURRENT)+(ITS-IDS)*RECIP_RATIO     !<-- Child task starting I in parent grid space
+      MY_ITE_ON_PARENT=REAL(I_SW_PARENT_CURRENT)+(ITE-IDS)*RECIP_RATIO     !<-- Child task ending I in parent grid space
+      MY_JTS_ON_PARENT=REAL(J_SW_PARENT_CURRENT)+(JTS-JDS)*RECIP_RATIO     !<-- Child task starting J in parent grid space
+      MY_JTE_ON_PARENT=REAL(J_SW_PARENT_CURRENT)+(JTE-JDS)*RECIP_RATIO     !<-- Child task ending J in parent grid space
+!
+!-----------------------------------------------------------------------
+!***  We want to limit the child points that can be used for 
+!***  computing the 2-way data.  For now do not use any child
+!***  points in the averaging stencil that lie in the child's
+!***  boundary blending region.  Stencils can vary for h-->H,
+!***  v-->V, fis,pd-->H, and fis,pd-->V.  Determine the set of
+!***  parent target I's and J's common to all the stencils and 
+!***  use that to ensure that the same parent I,J indices are 
+!***  used for both H and V variables.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Loop through the four stencils.  They will be considered in
+!***  this order:  h-->H, v-->V, fis,pd-->H, fis,pd-->V where small
+!***  letters refer to the child and capitals refer to the parent.
+!-----------------------------------------------------------------------
+!
+      N_STENCIL_X(1)=N_STENCIL_H
+      N_STENCIL_X(2)=N_STENCIL_V
+      N_STENCIL_X(3)=N_STENCIL_SFC_H
+      N_STENCIL_X(4)=N_STENCIL_SFC_V
+!
+      MY_ISTART_ON_PARENT=MY_IDS_ON_PARENT                                 !<--
+      MY_IEND_ON_PARENT  =MY_IDE_ON_PARENT                                 !   | Child domain limits in terms of
+      MY_JSTART_ON_PARENT=MY_JDS_ON_PARENT                                 !   | the parent I,J.
+      MY_JEND_ON_PARENT  =MY_JDE_ON_PARENT                                 !<--
+!
+!-----------------------------------------------------------------------
+!
+      DO N=1,4                                                             !<-- Loop through the four stencils.
+!
+!-----------------------------------------------------------------------
+!
+        N_STENCIL_0=N_STENCIL_X(N)/2                                       !<-- Child's delta I,J from parent update pt to 
+!                                                                               west/south edge of stencil.
+        LIMIT_WEST=REAL(MY_IDS_ON_PARENT)                               &
+                   +(N_BLEND+N_STENCIL_0)*RECIP_RATIO
+        MY_ISTART_ON_PARENT=MAX(MY_ISTART_ON_PARENT                     &  !<-- Westernmost parent I that this child task 
+                               ,MY_ITS_ON_PARENT                        &  !    will update on the parent domain.
+                               ,LIMIT_WEST)
+!
+        LIMIT_EAST=REAL(MY_IDE_ON_PARENT)                               &
+                   -(N_BLEND+N_STENCIL_0)*RECIP_RATIO
+        MY_IEND_ON_PARENT=MIN(MY_IEND_ON_PARENT                         &  !<-- Easternmost parent I that this child task
+                             ,MY_ITE_ON_PARENT                          &  !    will update on the parent domain.
+                             ,LIMIT_EAST)
+!
+        LIMIT_SOUTH=REAL(MY_JDS_ON_PARENT)                              &
+                   +(N_BLEND+N_STENCIL_0)*RECIP_RATIO
+        MY_JSTART_ON_PARENT=MAX(MY_JSTART_ON_PARENT                     &  !<-- Southernmost parent J that this child task
+                               ,MY_JTS_ON_PARENT                        &  !    will update on the parent domain.
+                               ,LIMIT_SOUTH)
+!
+        LIMIT_NORTH=REAL(MY_JDE_ON_PARENT)                              &
+                   -(N_BLEND+N_STENCIL_0)*RECIP_RATIO
+        MY_JEND_ON_PARENT=MIN(MY_JEND_ON_PARENT                         &  !<-- Northernmost parent J that this child task
+                             ,MY_JTE_ON_PARENT                          &  !    will update on the parent domain.
+                             ,LIMIT_NORTH)
+!
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Find how many parent tasks will be updated by this child task
+!***  and save their local IDs from the P-C intracommunicator.
+!-----------------------------------------------------------------------
+!
+      find: DO N=0,NUM_FCST_TASKS_PARENT-1
+!
+!-----------------------------------------------------------------------
+!
+        IF(REAL(ITS_PARENT_TASKS(N))<MY_IEND_ON_PARENT+EPS              &
+                          .AND.                                         &
+           REAL(ITE_PARENT_TASKS(N))>MY_ISTART_ON_PARENT-EPS            &
+                          .AND.                                         &
+           REAL(JTS_PARENT_TASKS(N))<MY_JEND_ON_PARENT+EPS              &
+                          .AND.                                         &
+           REAL(JTE_PARENT_TASKS(N))>MY_JSTART_ON_PARENT-EPS )THEN
+!
+!-----------------------------------------------------------------------
+!***  Now determine which points on each parent task will be updated.
+!
+!     Example 1: The child task's MY_ISTART_ON_PARENT is 10.666667 and
+!                the parent task's ITS is 10.  Then the first parent I
+!                to be updated by the child task is
+!                INT(10.66667+1.-EPS)=INT(11.66667-EPS)=11.
+!     Example 2: The child task's MY_ISTART_ON_PARENT is 10.999999 and
+!                the parent task's ITS is 10.  Then the first parent I
+!                to be updated by the child task is
+!                INT(10.999999+1.-EPS)=INT(11.999999-EPS)=11.
+!     Example 3: The child task's MY_ISTART_ON_PARENT is 11.000001 and
+!                the parent task's ITS is 10.  Then the first parent I
+!                to be updated by the child task is
+!                INT(11.000001+1.-EPS)=INT(12.000001-EPS)=11.
+!     Example 4: The child task's MY_IEND_ON_PARENT is 18.999999 and
+!                the parent task's ITE is 20.  Then the last parent I
+!                to be updated by the child task is
+!                INT(18.999999+EPS)=19.
+!-----------------------------------------------------------------------
+!
+          I1=MAX(ITS_PARENT_TASKS(N),INT(MY_ISTART_ON_PARENT+1.-EPS))      !<-- Starting parent I to update on parent task N
+          I2=MIN(ITE_PARENT_TASKS(N),INT(MY_IEND_ON_PARENT+EPS))           !<-- Ending parent I to update on parent task N
+          J1=MAX(JTS_PARENT_TASKS(N),INT(MY_JSTART_ON_PARENT+1.-EPS))      !<-- Starting parent J to update on parent task N
+          J2=MIN(JTE_PARENT_TASKS(N),INT(MY_JEND_ON_PARENT+EPS))           !<-- Ending parent J to update on parent task N
+!
+          NPTS_PARENT_UPDATE=(I2-I1+1)*(J2-J1+1)                           !<-- # of points to update on parent task N
+!
+          IF(NPTS_PARENT_UPDATE<=0)THEN
+            CYCLE find                                                     !<-- No usable 2-way exchange region on this child task.
+          ENDIF
+!
+          NTASKS_UPDATE_PARENT=NTASKS_UPDATE_PARENT+1                      !<-- Count the # of parent tasks to update.
+!
+          IF(NTASKS_UPDATE_PARENT>4)THEN
+            WRITE(0,11101)NTASKS_UPDATE_PARENT
+11101       FORMAT(' Child task is updating ',I3,' parent tasks which is > 4')
+            WRITE(0,*)' Aborting!!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          ENDIF
+!
+          ID_PARENT_UPDATE_TASKS(NTASKS_UPDATE_PARENT)=N                   !<-- Local rank of the parent task.
+!
+          NPTS_UPDATE_PARENT(NTASKS_UPDATE_PARENT)=NPTS_PARENT_UPDATE      !<-- # of points to update on parent task N
+!
+          IF(ASSOCIATED(I_2WAY_UPDATE(NTASKS_UPDATE_PARENT)%DATA))THEN
+            DEALLOCATE(I_2WAY_UPDATE(NTASKS_UPDATE_PARENT)%DATA,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,11102)NTASKS_UPDATE_PARENT
+11102         FORMAT(' Failed to deallocate I_2WAY_UPDATE(',I1,')%DATA')
+              WRITE(0,*)' Aborting!!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+          ENDIF
+!
+          ALLOCATE(I_2WAY_UPDATE(NTASKS_UPDATE_PARENT)%DATA(1:NPTS_UPDATE_PARENT(NTASKS_UPDATE_PARENT)) &
+                  ,stat=ISTAT)
+          IF(ISTAT/=0)THEN
+            WRITE(0,11103)NTASKS_UPDATE_PARENT
+11103       FORMAT(' Failed to allocate I_2WAY_UPDATE(',I1,')%DATA')
+            WRITE(0,*)' Aborting!!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          ENDIF
+!
+          IF(ASSOCIATED(J_2WAY_UPDATE(NTASKS_UPDATE_PARENT)%DATA))THEN
+            DEALLOCATE(J_2WAY_UPDATE(NTASKS_UPDATE_PARENT)%DATA,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,11104)NTASKS_UPDATE_PARENT
+11104         FORMAT(' Failed to deallocate J_2WAY_UPDATE(',I1,')%DATA')
+              WRITE(0,*)' Aborting!!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+          ENDIF
+!
+          ALLOCATE(J_2WAY_UPDATE(NTASKS_UPDATE_PARENT)%DATA(1:NPTS_UPDATE_PARENT(NTASKS_UPDATE_PARENT)) &
+                  ,stat=ISTAT)
+          IF(ISTAT/=0)THEN
+            WRITE(0,11105)NTASKS_UPDATE_PARENT
+11105       FORMAT(' Failed to allocate J_2WAY_UPDATE(',I1,')%DATA')
+            WRITE(0,*)' Aborting!!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!***  This child task saves the parent I's and J's it will update
+!***  on parent task N which is update task #NTASKS_UPDATE_PARENT).
+!***  Recall that NTASKS_UPDATE_PARENT ranges from 1 to 4.
+!-----------------------------------------------------------------------
+!
+          KOUNT=0
+          DO J=J1,J2
+          DO I=I1,I2
+            KOUNT=KOUNT+1
+            I_2WAY_UPDATE(NTASKS_UPDATE_PARENT)%DATA(KOUNT)=I
+            J_2WAY_UPDATE(NTASKS_UPDATE_PARENT)%DATA(KOUNT)=J
+          ENDDO
+          ENDDO
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO find
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE CHILD_2WAY_BOOKKEEPING
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE GENERATE_2WAY_DATA(VAR_CHILD                           &
+                                   ,PD_CHILD                            &
+                                   ,FIS_CHILD                           &
+                                   ,IMS,IME,JMS,JME,LM                  &
+                                   ,I_2WAY                              &
+                                   ,J_2WAY                              &
+                                   ,N_STENCIL                           &
+                                   ,N_STENCIL_SFC                       &
+!                                  ,BEGIN                               &
+                                   ,NPTS_UPDATE_PARENT                  &
+                                   ,VAR_2WAY                            &
+                                   ,INTERPOLATE_SFC                     &
+                                   ,CHILD_SFC_ON_PARENT                 &
+                                                         )
+!
+!-----------------------------------------------------------------------
+!***  When there is 2-way nesting the children interpolate data in
+!***  their domains to gridpoints in their parents' domains.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: IMS,IME,JMS,JME,LM                  !<-- Child task subdomain memory dimensions
+!
+      INTEGER(kind=KINT),INTENT(IN) :: N_STENCIL                        &  !<-- Use N_STENCILxN_STENCIL child pts for each parent point
+                                      ,N_STENCIL_SFC                    &  !<-- Stencil width for interpolating child FIS,PD to parent
+                                      ,NPTS_UPDATE_PARENT                  !<-- # of parent points (I,J) updated on given parent task
+!
+      INTEGER(kind=KINT),DIMENSION(1:NPTS_UPDATE_PARENT),INTENT(IN) ::  &
+                                                                I_2WAY  &  !<-- Child I on each parent update point (H or V)
+                                                               ,J_2WAY     !<-- Child J on each parent update point (H or V)
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: FIS_CHILD &  !<-- The child's sfc geopotential
+                                                              ,PD_CHILD     !<-- The child's PD array
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) ::     &
+                                                             VAR_CHILD     !<-- The child array of the 3-D update variable
+!
+!     LOGICAL(kind=KLOG),INTENT(INOUT) :: BEGIN                            !<-- 1st pass through routine this timestep?
+!
+      REAL(kind=KFPT),DIMENSION(1:NPTS_UPDATE_PARENT,1:2),INTENT(OUT) :: &
+                                                    CHILD_SFC_ON_PARENT    !<-- Child's FIS,PD interpolated to parent update points
+!
+      REAL(kind=KFPT),DIMENSION(1:NPTS_UPDATE_PARENT*LM),INTENT(OUT) :: & 
+                                                             VAR_2WAY      !<-- 3-D update variables interp'd from child grid to parent's
+!
+      LOGICAL(kind=KLOG),INTENT(IN) :: INTERPOLATE_SFC                     !<-- Should FIS,PD be interpolated this call?
+!
+!---------------------
+!***  Local variables
+!---------------------
+!
+      INTEGER(kind=KINT),SAVE :: KNT_PTS
+!
+      INTEGER(kind=KINT) :: I,IC,J,JC,KNT_PTS_HORZ,L                    &
+                           ,N_STENCIL_0,N_STENCIL_TOT,NP
+!
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: I_START,I_END      &
+                                                    ,J_START,J_END
+!
+      REAL(kind=KFPT) :: FIS_SUM,PD_SUM,RECIP_N_STENCIL_TOT,VSUM
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      N_STENCIL_0=N_STENCIL/2                                              !<-- 2->1; 3->1; 4->2; 5->2, etc.
+      N_STENCIL_TOT=N_STENCIL*N_STENCIL                                    !<-- # of points in the stencil
+      RECIP_N_STENCIL_TOT=1./REAL(N_STENCIL_TOT)                           !<-- Reciprocal of # of points in the stencil
+!
+!     IF(BEGIN)THEN                                                        !<-- Reset for each parent task
+!       KNT_PTS=0
+!       BEGIN=.FALSE.
+!     ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Parent-child gridspace ratios can be any positive integer (>1 of
+!***  course).  On the B-grid a child H point will lie on a parent H 
+!***  point no matter what the ratio is.  A child V point will lie on
+!***  a parent V point only for odd values of the parent-child gridspace
+!***  ratio.  If the ratio is even then child H points will lie on
+!***  parent V points.  The I,J of the child H point on the parent
+!***  V point in that case will be the same as the child V point's
+!***  immediately to the NE on the B grid.  This implies that the
+!***  stencil will always be even (2x2, 4x4, etc) for interpolating
+!***  to parent V points when the gridspace ratio is even while it 
+!***  will be odd (3x3, 5x5, etc.) for all other cases.  The previous 
+!***  statement is true for stencils that are oriented north-south.
+!***  New code will need to be added if stencils rotated 45 degrees 
+!***  are desired.
+!
+!***  The diagram below exemplifies odd and even ratios.  The capital
+!***  letters are parent gridpoints and the small letters are child
+!***  gridpoints.
+!-----------------------------------------------------------------------
+!
+!           Parent-child                          Parent-child
+!          gridspace ratio                       gridspace ratio
+!             is odd (3)                           is even (2)
+!
+!
+!     Hh      h       h        Hh            Hh          h         Hh
+!
+!          v      v       v
+!                                                  v          v
+!      h      h       h        h
+!
+!          v      Vv      v                   h          Vh        h
+!
+!      h      h       h        h
+!                                                  v          v
+!          v      v       v                       
+!
+!     Hh      h       h       Hh             Hh          h         Hh
+!
+!
+!
+!    Child H points lie on parent H         Child H points lie on parent H
+!    points and child V points lie          points but child H points also
+!    on parent V points.                    lie on parent V points. 
+!
+!
+!-----------------------------------------------------------------------
+!***  Recall that the I,J of a V point on the B grid is the same as
+!***  that of the neighboring H point to the southwest.  Therefore
+!***  from the diagrams above one can see that if a child point I,J
+!***  coincides with a parent point to be interpolated to then
+!***  the SW corner of the interpolation stencil will always be
+!***  at I-N_STENCIL_0, J-N_STENCIL_0 where N_STENCIL_0 is equal to
+!***  N_STENCIL/2 (integer division).
+!-----------------------------------------------------------------------
+!
+      ALLOCATE(I_START(1:NPTS_UPDATE_PARENT))
+      ALLOCATE(I_END  (1:NPTS_UPDATE_PARENT))
+      ALLOCATE(J_START(1:NPTS_UPDATE_PARENT))
+      ALLOCATE(J_END  (1:NPTS_UPDATE_PARENT))
+!
+      DO NP=1,NPTS_UPDATE_PARENT                                           !<-- Loop through this parent task subdomain's update points
+!
+        IC=I_2WAY(NP)                                                      !<-- Child I at parent's NP'th update point
+        I_START(NP)=IC-N_STENCIL_0                                         !<-- Child I on west side of averaging stencil
+        I_END(NP)  =I_START(NP)+N_STENCIL-1                                !<-- Child I on east side of averaging stencil
+!
+        JC=J_2WAY(NP)                                                      !<-- Child J at parent's NP'th update point
+        J_START(NP)=JC-N_STENCIL_0                                         !<-- Child J on south side of averaging stencil
+        J_END(NP)  =J_START(NP)+N_STENCIL-1                                !<-- Child J on north side of averaging stencil
+!
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!***  This child task loops through the parent points for which it is
+!***  responsible on the given parent task.
+!-----------------------------------------------------------------------
+!
+      KNT_PTS=0
+      DO L=1,LM
+!
+        DO NP=1,NPTS_UPDATE_PARENT                                         !<-- Loop over update points on the given parent task
+!
+          VSUM=0.
+!
+          DO J=J_START(NP),J_END(NP)
+          DO I=I_START(NP),I_END(NP)
+            VSUM=VSUM+VAR_CHILD(I,J,L)                                     !<-- Sum the variable over the averaging stencil for
+          ENDDO                                                            !    parent point NP.
+          ENDDO
+!
+          KNT_PTS=KNT_PTS+1
+          VAR_2WAY(KNT_PTS)=VSUM*RECIP_N_STENCIL_TOT                       !<-- Child's update value at parent point stored as 1-D
+!
+        ENDDO
+!
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!***  The child interpolates its sfc geopotential and sfc pressure
+!***  to the parent points to be updated as it did for the primary
+!***  prognostic variables.  If either the parent's sfc geopotential
+!***  or the child's interpolated sfc geopotential is above sea level
+!***  then the parent will interpolate vertically the update values
+!***  received from the child to account for differences in the 
+!***  domains' topographies.
+!***  Note that the value of N_STENCIL_0 (the distance in I or J
+!***  from the child I,J lying on the target parent H or V point to
+!***  the west/south edge of the stencil) is different than above
+!***  since now child H-pt values (FIS,PD) are always being averaged
+!***  onto both H and V parent points.
+!-----------------------------------------------------------------------
+!
+      IF(INTERPOLATE_SFC)THEN
+!
+        N_STENCIL_0=(N_STENCIL_SFC+1)/2-1                                  !<-- 2->0; 3->1; 4->1; 5->2, etc.
+        N_STENCIL_TOT=N_STENCIL_SFC*N_STENCIL_SFC                          !<-- # of points in the sfc stencil
+        RECIP_N_STENCIL_TOT=1./REAL(N_STENCIL_TOT)                         !<-- Reciprocal of # of points in the sfc stencil
+!
+        KNT_PTS_HORZ=0
+!
+        DO NP=1,NPTS_UPDATE_PARENT                                         !<-- Loop over update points on the given parent task
+!
+          PD_SUM=0.
+          FIS_SUM=0.
+!
+          IC=I_2WAY(NP)                                                    !<-- Child I at parent's NP'th update point
+          I_START(NP)=IC-N_STENCIL_0                                       !<-- Child I on west side of sfc averaging stencil
+          I_END(NP)  =I_START(NP)+N_STENCIL_0-1                            !<-- Child I on east side of sfc averaging stencil
+!
+          JC=J_2WAY(NP)                                                    !<-- Child J at parent's NP'th update point
+          J_START(NP)=JC-N_STENCIL_0                                       !<-- Child J on south side of sfc averaging stencil
+          J_END(NP)  =J_START(NP)+N_STENCIL_0-1                            !<-- Child J on north side of sfc averaging stencil
+!
+          DO J=J_START(NP),J_END(NP)
+          DO I=I_START(NP),I_END(NP)
+            PD_SUM=PD_SUM+PD_CHILD(I,J)
+            FIS_SUM=FIS_SUM+FIS_CHILD(I,J)
+          ENDDO
+          ENDDO
+!
+          KNT_PTS_HORZ=KNT_PTS_HORZ+1
+          CHILD_SFC_ON_PARENT(KNT_PTS_HORZ,1)=FIS_SUM*RECIP_N_STENCIL_TOT  !<-- Child's mean sfc geopotential within stencil
+          CHILD_SFC_ON_PARENT(KNT_PTS_HORZ,2)=PD_SUM*RECIP_N_STENCIL_TOT   !<-- Child's mean PD within stencil
+!
+        ENDDO
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      DEALLOCATE(I_START)
+      DEALLOCATE(I_END)
+      DEALLOCATE(J_START)
+      DEALLOCATE(J_END)
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE GENERATE_2WAY_DATA
 !
 !-----------------------------------------------------------------------
 !#######################################################################

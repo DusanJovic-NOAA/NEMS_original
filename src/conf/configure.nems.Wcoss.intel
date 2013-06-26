@@ -60,7 +60,7 @@ R8          = -r8
 
 FINCS       = $(ESMF_INC) $(NEMSIO_INC)
 TRAPS       =
-#TRAPS      = -check all -ftrapuv -fp-stack-check -fstack-protector
+#TRAPS       = -ftrapuv -check all -fp-stack-check
 #TRAPS       = -ftrapuv -check bounds -check format -check output_conversion -check pointers -check uninit -fp-stack-check
 
 FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise

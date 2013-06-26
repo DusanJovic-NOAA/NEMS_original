@@ -484,7 +484,8 @@
 !
       INTEGER(kind=KINT) :: IHI,ILO,JHI,JLO
 !
-      INTEGER(kind=KINT) :: I_PAR_STA, J_PAR_STA, LAST_STEP_MOVED, NEXT_MOVE_TIMESTEP
+      INTEGER(kind=KINT) :: I_PAR_STA, J_PAR_STA                        &
+                           ,LAST_STEP_MOVED,NEXT_MOVE_TIMESTEP
 !
       INTEGER(kind=KINT) :: IERR,IRTN,RC          
 !
@@ -1255,6 +1256,9 @@
 !***  if quilting is to be used.  See 'IF(QUILTING)THEN' below.
 !-----------------------------------------------------------------------
 !
+      WRITE(0,*)' '
+      WRITE(0,11110)MY_DOMAIN_ID
+11110 format(' DOMAIN_SETUP my_domain_id=',i2)
       CALL DOMAIN_SETUP(MYPE                                            &
                        ,COMM_MY_DOMAIN                                  &
                        ,CF(MY_DOMAIN_ID)                                &
@@ -2312,6 +2316,17 @@
           RECIP_DLM_1=1./DLM_1
 !
 !-----------------------------------------------------------------------
+!***  Create empty objects for sorting distances between points on
+!***  moving nests for patching mismatches between parent and child
+!***  water and land points in 2-way exchange.
+!-----------------------------------------------------------------------
+!
+          IF(.NOT.ASSOCIATED(SMALLX))THEN
+            ALLOCATE(SMALLX(1:NUM_DOMAINS))
+            ALLOCATE(LARGEX(1:NUM_DOMAINS))
+          ENDIF
+!
+!-----------------------------------------------------------------------
 !***  Generate the I,J increments needed to search for neighboring
 !***  points to fix values at moving nest points where land points
 !***  receive water point values from the parent and vice versa.
@@ -2802,8 +2817,6 @@
                                   ,rc    =RC)
 !
 !-----------------------------------------------------------------------
-!***  Create the empty Filter Bundles.
-!-----------------------------------------------------------------------
 !
 #ifdef ESMF_3
       IF(I_AM_A_FCST_TASK == ESMF_TRUE)THEN
@@ -2925,7 +2938,7 @@
 !
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF                         !<-- The current forecast timestep
 !
-      INTEGER(kind=KINT) :: I_INC,J_INC
+      INTEGER(kind=KINT) :: I_INC,ITS,J_INC,JTS
 !
       INTEGER(kind=KINT) :: I_SW_PARENT_NEW,J_SW_PARENT_NEW
 !
@@ -3174,7 +3187,7 @@
                                            ,w_bdy    =W_BDY                            &  !<-- This task lies on a west boundary?
                                            ,e_bdy    =E_BDY                            &  !<-- This task lies on an east boundary?
                                            ,clock    =CLOCK_DOMAIN                     &  !<-- The Domain Clock
-                                           ,nest     =domain_int_state%I_AM_A_NEST     &  !<-- The parent flag (yes or no)
+                                           ,nest     =domain_int_state%I_AM_A_NEST     &  !<-- The nest flag (yes or no)
                                            ,ratio    =PARENT_CHILD_TIME_RATIO          &  !<-- # of child timesteps per parent timestep
                                            ,state_in =IMP_STATE                        &  !<-- Domain component's import state
                                            ,state_out=domain_int_state%IMP_STATE_SOLVER)  !<-- The Solver import state
@@ -9484,7 +9497,8 @@
       DO 
         KOUNT=KOUNT+1
         IF(.NOT.ASSOCIATED(PTR))EXIT
-!       WRITE(0,*)' Value #',KOUNT,' is ',PTR%VALUE
+!       WRITE(0,23331)KOUNT,PTR%VALUE
+23331   FORMAT(' Value #',I6,' is ',F10.6)    
         I_SEARCH_INC(KOUNT)=PTR%I_INC                                      !<-- Store the increments of I and J to the next
         J_SEARCH_INC(KOUNT)=PTR%J_INC                                      !    gridpoint in the distance list.
         PTRX=>PTR

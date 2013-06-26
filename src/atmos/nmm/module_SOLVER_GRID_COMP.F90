@@ -65,7 +65,7 @@
 !
       USE MODULE_DIAGNOSE,ONLY : EXIT,FIELD_STATS                       &
                                 ,MAX_FIELDS,MAX_FIELDS_HR,MAX_FIELDS_W6 &
-                                ,TWR,VWR,WRT_PCP
+                                ,HMAXMIN,TWR,VMAXMIN,VWR,WRT_PCP
 !
       USE MODULE_OUTPUT,ONLY: POINT_OUTPUT
 !
@@ -3476,7 +3476,7 @@
           ,int_state%DIV                                                &
           ,int_state%PCNE,int_state%PCNW                                &
           ,int_state%PCX,int_state%PCY                                  &
-          ,int_state%TCU,int_state%TCV)
+          ,int_state%TCU,int_state%TCV )
 !
         td%pgforce_tim=td%pgforce_tim+(timef()-btim)
 !
@@ -4043,7 +4043,7 @@
           ,int_state%DIV                                                &
           ,int_state%PCNE,int_state%PCNW                                &
           ,int_state%PCX,int_state%PCY                                  &
-          ,int_state%TCU,int_state%TCV)
+          ,int_state%TCU,int_state%TCV )
 !
         td%pgforce_tim=td%pgforce_tim+(timef()-btim)
 !
@@ -4077,7 +4077,7 @@
         CALL UPDATEUV                                                   &
          (LM                                                            &
          ,int_state%U,int_state%V                                       &
-         ,int_state%TCU,int_state%TCV)
+         ,int_state%TCU,int_state%TCV )
 !
         td%updatet_tim=td%updatet_tim+(timef()-btim)
 !
