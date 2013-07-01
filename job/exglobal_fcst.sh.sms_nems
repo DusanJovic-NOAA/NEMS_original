@@ -1358,7 +1358,7 @@ EOF
 
 ln -sf atm_namelist.rc ./model_configure
 
-eval $PGM $REDOUT$PGMOUT $REDERR$PGMERR
+eval $FCSTENV $PGM $REDOUT$PGMOUT $REDERR$PGMERR
 
 
 export ERR=$?
