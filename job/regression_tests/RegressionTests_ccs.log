@@ -1,11 +1,11 @@
-Mon Jun 24 11:48:45 EDT 2013
+Thu Jun 27 10:13:56 EDT 2013
 Start Regression test
 
 
 
-Mon Jun 24 11:48:45 EDT 2013
+Thu Jun 27 10:13:57 EDT 2013
 Compilation ALL
-Mon Jun 24 11:48:46 EDT 2013
+Thu Jun 27 11:24:15 EDT 2013
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  157.55
+ Original timing:  151.20  , test_glob timing:  158.02
 
 
 Test 002
@@ -128,7 +128,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  281.06
+ Original timing:  240.82  , test_reg timing:  280.72
 
 
 Test 009
@@ -902,9 +902,9 @@ Checking test 045 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 045 passed 
-Mon Jun 24 18:37:29 EDT 2013
+Thu Jun 27 17:03:46 EDT 2013
 Compilation only FIM
-Mon Jun 24 19:23:06 EDT 2013
+Thu Jun 27 17:24:05 EDT 2013
 Test 046
 Compare FIM results with previous trunk version, only FIM compiled
 FIM, 40 proc, 1 thread
@@ -945,9 +945,9 @@ Checking test 046 results ....
  Comparing fim_out_vs3D000024hr.........OK
  Comparing fim_out_ws3D000024hr.........OK
  Test 046 passed 
-Mon Jun 24 19:26:22 EDT 2013
+Thu Jun 27 17:27:20 EDT 2013
 Compilation with POST
-Mon Jun 24 20:16:37 EDT 2013
+Thu Jun 27 18:20:58 EDT 2013
 Test 047
 NMMB-regional run with post on quilt
 
@@ -966,7 +966,7 @@ Checking test 047 results ....
 
 
 
-Mon Jun 24 20:26:17 EDT 2013
+Thu Jun 27 18:30:47 EDT 2013
 Compilation only NMM
 Test 048
 Compare NMMB-global results with previous trunk version, only NMM compiled
@@ -983,9 +983,9 @@ Checking test 048 results ....
 
 
 
-Mon Jun 24 20:52:57 EDT 2013
+Thu Jun 27 18:56:37 EDT 2013
 Compilation NMM with TRAPS on
-Mon Jun 24 21:27:25 EDT 2013
+Thu Jun 27 19:34:57 EDT 2013
 Test 049
 Compare NMMB-global results with previous trunk version, TRAPS on
 
@@ -996,9 +996,9 @@ Checking test 049 results ....
 
 
 
-Mon Jun 24 21:30:45 EDT 2013
+Thu Jun 27 19:44:21 EDT 2013
 Compilation only GFS
-Mon Jun 24 21:49:39 EDT 2013
+Thu Jun 27 20:06:49 EDT 2013
 Test 050
 Compare GFS results with previous trunk version, only GFS compiled
 GFS, 32 proc, 1 thread
@@ -1026,7 +1026,7 @@ Checking test 050 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 050 passed 
-Mon Jun 24 21:56:30 EDT 2013
+Thu Jun 27 20:10:39 EDT 2013
 ######  #######  #####  ######  #######  #####   #####    ###   ####### #     #
 #     # #       #     # #     # #       #     # #     #    #    #     # ##    #
 #     # #       #       #     # #       #       #          #    #     # # #   #

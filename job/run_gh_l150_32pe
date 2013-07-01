@@ -13,10 +13,10 @@
 # @ parallel_threads = 1
 # @ bulkxfer = yes
 # @ network.MPI=sn_all,not_shared,us
-### @ class = 1
-### @ group = class1onprod
-# @ class = dev
-# @ group = dev
+# @ class = 1
+# @ group = class1onprod
+### @ class = dev
+### @ group = dev
 # @ wall_clock_limit = 04:00:00
 # @ queue
 #
@@ -55,6 +55,8 @@ set -x
  fi
 
 #
+#export NEMSIO_IN=.true.
+#export NEMSIO_OUT=.true.
  export NEMSIO_IN=.false.
  export NEMSIO_OUT=.false.
  export SIGIO_OUT=.true.
@@ -108,6 +110,7 @@ fi
 #
 # ----- quadratic grid ----
 #wave=62   ; im=192  ; jm=94   ; lm=64  ; iop=144 ; jop=73  ; dt=900
+#wave=62   ; im=192  ; jm=94   ; lm=150  ; iop=144 ; jop=73  ; dt=900
  wave=62   ; im=192  ; jm=94   ; lm=150 ; iop=144 ; jop=73  ; dt=180
 #wave=126  ; im=384  ; jm=190  ; lm=64  ; iop=360 ; jop=181 ; dt=600
 #wave=170  ; im=512  ; jm=256  ; lm=64  ; iop=360 ; jop=181 ; dt=450
@@ -177,7 +180,18 @@ export MALLOCMULTIHEAP=true
  export ldiag3d=${ldiag3d:-.false.}
 #
  export NCP=${NCP:-/u/wx20mi/bin/ncp}
- export nemsioget=${nemsioget:-/climate/save/wx20wa/gfsio/nems/nemsio_get}
+#export nemsioget=${nemsioget:-/climate/save/wx20wa/gfsio/nems/nemsio_get}
+ if [ $NEMSIO_IN = .true. ]; then
+   if [ $SCHEDULER = 'loadleveler' ]; then
+     export nemsioget=${nemsioget:-/climate/save/wx20wa/gfsio/nems/nemsio_get}
+   elif [ $SCHEDULER = 'moab' ]; then
+     export nemsioget=${nemsioget}
+   elif [ $SCHEDULER = 'pbs' ]; then
+     export nemsioget=${nemsioget:-/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/n emsio_get}
+   fi
+ else
+   export nemsioget=${nemsioget:-${EXECGLOBAL}/global_sighdr$XC}
+ fi
 #
 #
 #
@@ -255,7 +269,11 @@ cd $RUNDIR
 #jw  cp /climate/save/wx20wa/wam/henry/data/ic/nems/*anl* $RUNDIR
 #jw  cp /climate/save/wx20wa/wam/Fei_Wu/data/*anl*${CDATE} $RUNDIR
  if [[ ${fcst_begin} = YES ]] ; then
-   cp /global/save/wx23rm/WAM/chgres_test/replay/*anl.${CDATE} $RUNDIR
+   if [[ $NEMSIO ]] ; then
+     cp /climate/noscrub/wx20wa/wam/ic/nemsio/withdp/*anl.${CDATE} $RUNDIR
+   else
+     cp /global/save/wx23rm/WAM/chgres_test/replay/*anl.${CDATE} $RUNDIR
+   fi
  fi
  export COMOUT=$RUNDIR
 #
