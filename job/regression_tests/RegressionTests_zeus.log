@@ -1,11 +1,11 @@
-Mon Jun 24 14:58:57 EDT 2013
+Fri Jun 28 12:07:31 UTC 2013
 Start Regression test
 
 
 
-Mon Jun 24 14:58:57 EDT 2013
+Fri Jun 28 12:07:31 UTC 2013
 Compilation ALL
-Mon Jun 24 15:16:08 EDT 2013
+Fri Jun 28 12:28:06 UTC 2013
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  82.381
+ Original timing:  151.20  , test_glob timing:  85.372
 
 
 Test 002
@@ -128,7 +128,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  149.86
+ Original timing:  240.82  , test_reg timing:  150.45
 
 
 Test 009
@@ -740,7 +740,7 @@ Checking test 038 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 038 passed 
-Mon Jun 24 22:11:27 EDT 2013
+Fri Jun 28 17:28:52 UTC 2013
 Compilation only NMM
 Test 039
 Compare NMMB-global results with previous trunk version, only NMM compiled
@@ -757,9 +757,9 @@ Checking test 039 results ....
 
 
 
-Mon Jun 24 22:27:13 EDT 2013
+Fri Jun 28 17:40:50 UTC 2013
 Compilation only GFS
-Mon Jun 24 22:35:20 EDT 2013
+Fri Jun 28 17:58:08 UTC 2013
 Test 040
 Compare GFS results with previous trunk version, only GFS compiled
 GFS, 32 proc, 1 thread
@@ -787,5 +787,5 @@ Checking test 040 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 040 passed 
-Mon Jun 24 22:41:28 EDT 2013
+Fri Jun 28 18:07:58 UTC 2013
 REGRESSION TEST WAS SUCCESSFUL
