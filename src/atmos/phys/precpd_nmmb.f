@@ -502,7 +502,7 @@
 !
       DO N=1,IHPR
         I = IPR(N)
-!old        RN(I) = (PRECRL1(N)  + PRECSL1(N)) * RROW  ! Precip at surface
+        RN(I) = (PRECRL1(N)  + PRECSL1(N)) * RROW  ! Precip at surface
 !old!
 !old!----SR=1 IF SFC PREC IS RAIN ; ----SR=-1 IF SFC PREC IS SNOW
 !old!----SR=0 FOR BOTH OF THEM OR NO SFC PREC

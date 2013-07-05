@@ -219,7 +219,7 @@
 'W'          H       R       O      -      -   T  'Vertical velocity at midlayers  (m s-1)'
 'W_TOT'      H       -       O      -      X   -  'Total Vertical velocity at midlayers  (m s-1)'
 'OMGALF'     H       R       O      -      -   -  'Omega-alpha  (K)'
-'O3'         H       R       O      -      -   T  'Ozone'
+'O3'         H       R       -      -      -   T  'Ozone'
 'DIV'        -       R       O      -      -   -  'Horizontal mass divergence'
 'RTOP'       -       R       O      -      -   -  'RT/P, specific volume  (m3 kg-1)'
 'TCU'        -       R       O      -      -   -  'Time change of T (K s-1)'

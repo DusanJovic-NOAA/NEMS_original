@@ -1816,6 +1816,7 @@
              SMCMAX = 0.45
              SMCREF = 0.42
              SMCWLT = 0.40
+             SMCDRY = 0.40   !urban swamp fix
 
              BEXP = 17.0
              SMHIGH = 3.02

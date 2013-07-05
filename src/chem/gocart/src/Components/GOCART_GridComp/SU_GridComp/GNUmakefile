@@ -76,7 +76,7 @@ DEBUG = $(D)DEBUG
 
 SRCS := $(THIS)Mod.F90
 OBJS := $(addsuffix .o, $(basename $(SRCS)))
-ACGS := $(NAME)_ExportSpec___.h $(NAME)_GetPointer___.h $(NAME)_History___.rc
+ACGS := $(NAME)_ExportSpec___.h $(NAME)_GetPointer___.h $(NAME)_History___.rc $(NAME)_DeclarePointer___.h
 DEPS := $(addsuffix .d, $(basename $(SRCS)))
 
 INC_DIRS = . $(INC_MAPL_BASE) $(ESMAINC)/MAPL_Base

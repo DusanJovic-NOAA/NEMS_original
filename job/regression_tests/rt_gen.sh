@@ -141,7 +141,7 @@ elif [ $status = 'C' ];  then echo $n "min. TEST ${TEST_NR} is finished,        
 else                          echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status
 fi
 
-elif [ $SCHEDULER = 'moab' -o $SCHEDULER = 'pbs' ]; then
+elif [ $SCHEDULER = 'moab' ]; then
 
   status=`showq -u ${USER} -n | grep ${JBNME} | awk '{print $3}'` ; status=${status:--}
   if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $6 }'` ; fi
@@ -151,6 +151,20 @@ elif [ $SCHEDULER = 'moab' -o $SCHEDULER = 'pbs' ]; then
   elif [ $status = 'Completed' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status
   else                                  echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status
   fi
+
+elif [ $SCHEDULER = 'pbs' ]; then
+
+  status=`qstat -u ${USER} -n | grep ${JBNME} | awk '{print $"10"}'` ; status=${status:--}
+  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $10 }'` ; fi
+  FnshHrs=${FnshHrs:-0}
+  if   [ $status = 'Q' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
+  elif [ $status = 'H' ];  then echo $n "min. TEST ${TEST_NR} is held in a queue,    Status: " $status
+  elif [ $status = 'R' ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
+  elif [ $status = 'E' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
+  elif [ $status = 'C' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status ; job_running=0
+  else                          echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
+  fi
+
 fi
 
 sleep 60

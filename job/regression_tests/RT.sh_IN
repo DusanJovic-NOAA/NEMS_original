@@ -1687,7 +1687,7 @@ fi # endif test
 #
 ####################################################################################################
 
- if [ $RT_FULL = true ]; then
+ if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
 
   export TEST_DESCR="Test NMMB-regional with 2-way moving nests"
 

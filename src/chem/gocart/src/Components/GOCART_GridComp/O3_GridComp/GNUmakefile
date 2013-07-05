@@ -36,7 +36,7 @@ esma_clean clean:
 	$(RM) *~ *.[aox] *.[Mm][Oo][Dd]
 
 esma_distclean distclean:
-	$(RM) *~ *.[aoxd] *.[Mm][Oo][Dd]
+	$(RM) $(ACGS) *~ *.[aoxd] *.[Mm][Oo][Dd]
 
 esma_doc doc:
 	@$(PROTEX) $(PROTEX_FLAGS) *GridComp*.[fF]* > $(ESMADOC)/$(THIS).tex
@@ -66,7 +66,7 @@ endif
 SRCS = O3_DataMod.F90 O3_GridCompMod.F90 
 OBJS := $(addsuffix .o, $(basename $(SRCS)))
 DEPS := $(addsuffix .d, $(basename $(SRCS)))
-ACGS := $(NAME)_ExportSpec___.h $(NAME)_GetPointer___.h $(NAME)_History___.rc
+ACGS := $(NAME)_ExportSpec___.h $(NAME)_GetPointer___.h $(NAME)_History___.rc $(NAME)_DeclarePointer___.h
 
 SPMD = $(D)SPMD
 DEBUG = $(D)DEBUG

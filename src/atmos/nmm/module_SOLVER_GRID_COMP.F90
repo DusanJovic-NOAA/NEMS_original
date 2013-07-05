@@ -3320,6 +3320,7 @@
              (int_state%PD,1                                            &
              ,2,2)
 !
+          if(.not.int_state%GLOBAL)                                     &
           CALL WRITE_BC(LM,LNSH,LNSV,NTIMESTEP,DT                       &
                        ,RUNBC                                           &
                        ,TBOCO+int_state%DFIHR_BOCO/2.                   &
