@@ -435,7 +435,11 @@ if [ $RT_NUOPC = true ] ; then
 
     date                                     >> ${REGRESSIONTEST_LOG}
     echo "Compilation ESMF with NUOPC Layer" >> ${REGRESSIONTEST_LOG}
-    mv ${PATHTR}/exe/NEMS.x ${PATHTR}/exe/NEMS.x.old
+    
+    if [ -f ${PATHTR}/exe/NEMS.x ] ; then
+      mv ${PATHTR}/exe/NEMS.x ${PATHTR}/exe/NEMS.x.old
+    fi
+    
     if [ $MACHINE_ID = ccs ]; then
 
       echo "NEMS with NUOPC not yet available on this machine"
@@ -453,7 +457,7 @@ if [ $RT_NUOPC = true ] ; then
       source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
       module list                            >> ${COMPILE_LOG} 2>&1
       gmake clean                            >> ${COMPILE_LOG} 2>&1
-      gmake nmm_gfs                          >> ${COMPILE_LOG} 2>&1
+      gmake nmm_gfs OCN=hycom                >> ${COMPILE_LOG} 2>&1
 
     fi
     date                                     >> ${REGRESSIONTEST_LOG}
@@ -472,7 +476,7 @@ if [ $RT_NUOPC = true ] ; then
   
   ###############################################################################
   #
-  # TEST   - Global NMM-B with pure binary input
+  # TEST   - Global NMM-B with pure binary input and HYCOM
   #        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
   #
   ###############################################################################
@@ -499,6 +503,8 @@ if [ $RT_NUOPC = true ] ; then
     nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
     #---------------------
     export_nmm
+    export TASKS=146
+    export WLCLK=60
     export GBRG=glob
     #---------------------
     ./rt_nmm.sh
@@ -514,7 +520,7 @@ if [ $RT_NUOPC = true ] ; then
   #
   ###############################################################################
 
-  if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus ] ; then
+  if [ $MACHINE_ID = ccsDISABLED -o $MACHINE_ID = zeusDISABLED ] ; then
 
     export TEST_DESCR="Compare GFS results with previous trunk version for NUOPC"
 
@@ -1342,7 +1348,7 @@ else
   export_nmm
   export RSTRT=true
   export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
-  export AFFN=cpu   ; export NODE=3   ; export WLCLK=12
+  export AFFN=cpu   ; export NODE=3   ; export WLCLK=40
   export TASKS=$TASKS_nest ; export TPN=$TPN_nest
   export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
 #---------------------

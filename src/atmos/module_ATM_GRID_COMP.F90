@@ -1,11 +1,5 @@
 #include "../ESMFVersionDefine.h"
 
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 !
       MODULE module_ATM_GRID_COMP
@@ -14,7 +8,7 @@
 !***  This module contains codes directly related to the ATM component.
 !-----------------------------------------------------------------------
 !
-!***  The ATM component lies in the heirarchy seen here:
+!***  The ATM component lies in the hierarchy seen here:
 !
 !          Main program
 !               |
@@ -23,16 +17,20 @@
 !               |     |________________________.
 !               |                              |
 !          EARTH component        Ensemble Coupler component
-!               |
-!               |
-!          ATM/OCEAN/ICE components
-!               |
-!               |
+!              /|\
+!             / | \
+!          ATM/OCN/ICE components
+!          |    |
+!          |    |
+!          |    |
+!          |    (MOM5, HYCOM, etc.)
+!          |
 !          CORE component (GFS, NMM, FIM, GEN, etc.)
 !
 !-----------------------------------------------------------------------
 !  2011-05-11  Theurich & Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !  2011-10/04  Yang  - Modified for using the ESMF 5.2.0r library.
+!  2013-07     Theurich - NUOPC option to be compliant with ESMF 6.2.0 reference.
 !-----------------------------------------------------------------------
 !
       USE esmf_mod
@@ -111,18 +109,21 @@
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
+        
+      ! The default InitP0 which will set InitializePhaseMap to IPDv00
 
-      ! NUOPC_Model requires InitP2, even if it is NOOP
+      ! NUOPC_Model IPDv00 requires InitP1, where Fields should be advertised
       CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP, ESMF_METHOD_INITIALIZE, &
-        NOOP, phase=2, rc=RC_REG)
+        ATM_INITIALIZE, phase=1, rc=RC_REG)
       if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
 
-      ! NUOPC_Model requires InitP4, even if it is NOOP
+      ! NUOPC_Model IPDv00 requires InitP2, where Fields should be realized,
+      ! even if it is NOOP for now
       CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP, ESMF_METHOD_INITIALIZE, &
-        NOOP, phase=4, rc=RC_REG)
+        NOOP, phase=2, rc=RC_REG)
       if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -135,7 +136,16 @@
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
-#endif
+        
+      ! Overwrite generic NUOPC_Model Finalize method
+      CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP, ESMF_METHOD_FINALIZE, &
+        ATM_FINALIZE, phase=1, rc=RC_REG)
+      if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+        
+#else
 
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -146,18 +156,8 @@
       CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP                     &  !<-- The ATM component
                                      ,ESMF_METHOD_INITIALIZE            &  !<-- Subroutine type (Initialize)
                                      ,ATM_INITIALIZE                    &  !<-- User's subroutine name
-#ifdef ESMF_3
-                                     ,ESMF_SINGLEPHASE                  &
-                                     ,RC)
-#else
-#ifdef ESMF_520r
                                      ,phase=1                           &
                                      ,rc=RC)
-#else
-                                     ,phase=ESMF_SINGLEPHASE            &
-                                     ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -170,24 +170,12 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifndef WITH_NUOPC
 
       CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP                     &  !<-- The ATM component
-                                     ,ESMF_METHOD_RUN                   &  !<-- Subroutine type (Initialize)
+                                     ,ESMF_METHOD_RUN                   &  !<-- Subroutine type (Run)
                                      ,ATM_RUN                           &  !<-- User's subroutine name
-#ifdef ESMF_3
-                                     ,ESMF_SINGLEPHASE                  &
-                                     ,RC)
-#else
-#ifdef ESMF_520r
                                      ,phase=1                           &
                                      ,rc=RC)
-#else
-                                     ,phase=ESMF_SINGLEPHASE            &
-                                     ,rc=RC)
-#endif
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -201,25 +189,16 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP                     &  !<-- The ATM component
-                                     ,ESMF_METHOD_FINALIZE              &  !<-- Subroutine type (Initialize)
+                                     ,ESMF_METHOD_FINALIZE              &  !<-- Subroutine type (Finalize)
                                      ,ATM_FINALIZE                      &  !<-- User's subroutine name
-#ifdef ESMF_3
-                                     ,ESMF_SINGLEPHASE                  &
-                                     ,RC)
-#else
-#ifdef ESMF_520r
                                      ,phase=1                           &
                                      ,rc=RC)
-#else
-                                     ,phase=ESMF_SINGLEPHASE            &
-                                     ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#endif
 !-----------------------------------------------------------------------
 !
       IF(RC_REG==ESMF_SUCCESS)THEN
@@ -441,28 +420,6 @@
 !
       SELECT CASE(atm_int_state%CORE)
 !
-#ifdef ESMF_3
-        CASE('nmm')
-          CALL ESMF_GridCompSetServices (atm_int_state%CORE_GRID_COMP   &
-                                        ,NMM_REGISTER                   &
-                                        ,RC)
-!
-        CASE('gfs')
-          CALL ESMF_GridCompSetServices (atm_int_state%CORE_GRID_COMP   &
-                                        ,GFS_REGISTER                   &
-                                        ,RC)
-!
-        CASE('fim')
-          CALL ESMF_GridCompSetServices (atm_int_state%CORE_GRID_COMP   &
-                                        ,FIM_REGISTER                   &
-                                        ,RC)
-
-        CASE('gen')
-          CALL ESMF_GridCompSetServices (atm_int_state%CORE_GRID_COMP   &
-                                        ,GEN_REGISTER                   &
-                                        ,RC)
-
-#else
         CASE('nmm')
           CALL ESMF_GridCompSetServices (atm_int_state%CORE_GRID_COMP   &
                                         ,NMM_REGISTER                   &
@@ -482,7 +439,6 @@
           CALL ESMF_GridCompSetServices (atm_int_state%CORE_GRID_COMP   &
                                         ,GEN_REGISTER                   &
                                         ,rc=RC)
-#endif
         CASE DEFAULT
           write(0,*)' ATM_INITIALIZE requires unknown core: ',TRIM(atm_int_state%CORE)                      
 !
@@ -533,6 +489,9 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifndef WITH_NUOPC
+! - Cannot bring these items out through the ATM Import and Export States 
+! - under NUOPC, because NUOPC requires a minumum of Field metadata for 
+! - anything that is going in/out of a component (e.g. to timestamp).
       CALL ESMF_StateAdd(IMP_STATE,LISTWRAPPER(atm_int_state%CORE_IMP_STATE),rc = RC)
       CALL ESMF_StateAdd(EXP_STATE,LISTWRAPPER(atm_int_state%CORE_EXP_STATE),rc = RC)
 #endif
@@ -550,20 +509,11 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
       CALL ESMF_GridCompInitialize(gridcomp   =atm_int_state%CORE_GRID_COMP &
                                   ,importState=atm_int_state%CORE_IMP_STATE &
                                   ,exportState=atm_int_state%CORE_EXP_STATE &
                                   ,clock      =atm_int_state%CLOCK_ATM      &
                                   ,rc         =RC)
-#else
-      CALL ESMF_GridCompInitialize(gridcomp   =atm_int_state%CORE_GRID_COMP &
-                                  ,importState=atm_int_state%CORE_IMP_STATE &
-                                  ,exportState=atm_int_state%CORE_EXP_STATE &
-                                  ,clock      =atm_int_state%CLOCK_ATM      &
-                                  ,phase      =ESMF_SINGLEPHASE             &
-                                  ,rc         =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -657,20 +607,11 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
       CALL ESMF_GridCompRun(gridcomp   =atm_int_state%CORE_GRID_COMP    &
                            ,importState=atm_int_state%CORE_IMP_STATE    &
                            ,exportState=atm_int_state%CORE_EXP_STATE    &
                            ,clock      =atm_int_state%CLOCK_ATM         &
                            ,rc         =RC)
-#else
-      CALL ESMF_GridCompRun(gridcomp   =atm_int_state%CORE_GRID_COMP    &
-                           ,importState=atm_int_state%CORE_IMP_STATE    &
-                           ,exportState=atm_int_state%CORE_EXP_STATE    &
-                           ,clock      =atm_int_state%CLOCK_ATM         &
-                           ,phase      =ESMF_SINGLEPHASE                & 
-                           ,rc         =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -845,20 +786,11 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
       CALL ESMF_GridCompFinalize(gridcomp   =atm_int_state%CORE_GRID_COMP &
                                 ,importState=atm_int_state%CORE_IMP_STATE &
                                 ,exportState=atm_int_state%CORE_EXP_STATE &
                                 ,clock      =atm_int_state%CLOCK_ATM      &
                                 ,rc         =RC)
-#else
-      CALL ESMF_GridCompFinalize(gridcomp   =atm_int_state%CORE_GRID_COMP &
-                                ,importState=atm_int_state%CORE_IMP_STATE &
-                                ,exportState=atm_int_state%CORE_EXP_STATE &
-                                ,clock      =atm_int_state%CLOCK_ATM      &
-                                ,phase      =ESMF_SINGLEPHASE             &
-                                ,rc         =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINALIZE)

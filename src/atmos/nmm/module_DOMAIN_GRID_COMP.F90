@@ -3236,18 +3236,18 @@
                                     ,name ='I_SHIFT'                    &  !<-- Get Attribute with this name
                                     ,value=I_SHIFT_CHILD                &  !<-- Motion of the nest in I on its grid
                                     ,rc   =RC )
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 !
               CALL ESMF_AttributeGet(state=IMP_STATE                    &  !<-- The Domain import state
                                     ,name ='J_SHIFT'                    &  !<-- Get Attribute with this name
                                     ,value=J_SHIFT_CHILD                &  !<-- Motion of the nest in J on its grid
                                     ,rc   =RC )
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 !
               CALL ESMF_AttributeGet(state=IMP_STATE                    &  !<-- The Domain import state
                                     ,name ='LAST_STEP_MOVED'            &  !<-- Get Attribute with this name
                                     ,value=LAST_STEP_MOVED              &  !<-- Motion of the nest in J on its grid
                                     ,rc   =RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
               CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
@@ -3264,14 +3264,14 @@
                                   ,name ='I_SW_PARENT_NEW'              &  !<-- Get Attribute with this name
                                   ,value=I_SW_PARENT_NEW                &  !<-- Motion of the nest in I on its grid
                                   ,rc   =RC   )
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 !
             CALL ESMF_AttributeGet(state=IMP_STATE                      &  !<-- The Domain import state
                                   ,name ='J_SW_PARENT_NEW'              &  !<-- Get Attribute with this name
                                   ,value=J_SW_PARENT_NEW                &  !<-- Motion of the nest in J on its grid
                                   ,rc   =RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             solver_int_state%I_PAR_STA=I_SW_PARENT_NEW
@@ -3330,14 +3330,14 @@
                                     ,name ='I_SHIFT'                    &  !<-- Get Attribute with this name
                                     ,value=I_SHIFT_CHILD                &  !<-- Motion of the nest in I on its grid
                                     ,rc   =RC )
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 !
               CALL ESMF_AttributeGet(state=IMP_STATE                    &  !<-- The Domain import state
                                     ,name ='J_SHIFT'                    &  !<-- Get Attribute with this name
                                     ,value=J_SHIFT_CHILD                &  !<-- Motion of the nest in J on its grid
                                     ,rc   =RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
               CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
@@ -3581,18 +3581,24 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
+#ifdef ESMF_520r
+! gjt: Found this to be an invalid attribute, which will cause an ESMF error if 
+!      no defaultvalue is provided. However, ESMF 3-series did not support the
+!      defaultvalue argument yet.
         CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The DOMAIN import state
                               ,name ='Use_Radar'                        &  !<-- Name of the attribute to extract
                               ,value=USE_RADAR                          &  !<-- The ID of this domain
+                              ,defaultvalue=0                           &  !<-- default value to quiet down ESMF if not set
                               ,rc   =RC)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+#endif
 !
 	CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER  &
                               ,name ='Use_Radar'                        &
                               ,value=USE_RADAR                          &
                               ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
 !-----------------------------------------------------------------------

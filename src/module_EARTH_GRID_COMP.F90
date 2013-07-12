@@ -14,9 +14,11 @@
 !  2011-05-11  Theurich & Yang - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
 !  2011-10-04  Yang - Modified for using the ESMF 5.2.0r library.
 !  2012-02     Tripp - Added ESMF superstructure to support an OCN model
+!  2013-06     Theurich - Reworked OCN dependency to be NUOPC based
+!  2013-07     Theurich - Macro based ESMF error handling
 !-----------------------------------------------------------------------
 !
-!***  The EARTH component lies in the heirarchy seen here:
+!***  The EARTH component lies in the hierarchy seen here:
 !
 !          Main program
 !               |
@@ -25,11 +27,14 @@
 !               |     |________________________.
 !               |                              |
 !          EARTH component        Ensemble Coupler component
-!               |
-!               |
-!          ATM/OCEAN/ICE components
-!               |
-!               |
+!              /|\
+!             / | \
+!          ATM/OCN/ICE components
+!          |    |
+!          |    |
+!          |    |
+!          |    (MOM5, HYCOM, etc.)
+!          |
 !          CORE component (GFS, NMM, FIM, GEN, etc.)
 !
 !-----------------------------------------------------------------------
@@ -42,15 +47,24 @@
         driver_routine_SS             => routine_SetServices, &
         driver_type_IS                => type_InternalState, &
         driver_label_IS               => label_InternalState, &
+        driver_label_SetModelPetLists => label_SetModelPetLists, &
         driver_label_SetModelServices => label_SetModelServices
+#ifdef FRONT_OCN_DUMMY
+      use FRONT_OCN_DUMMY,  only: OCN_SS => SetServices
+#define WITH_OCN
+#elif defined FRONT_HYCOM
+      use FRONT_HYCOM,      only: OCN_SS => SetServices
+#define WITH_OCN
+#elif defined FRONT_MOM5
+      use FRONT_MOM5,       only: OCN_SS => SetServices
+#define WITH_OCN
+#endif
 #endif
 
       USE module_EARTH_INTERNAL_STATE,ONLY: EARTH_INTERNAL_STATE        &
                                            ,WRAP_EARTH_INTERNAL_STATE
 !
       USE module_ATM_GRID_COMP
-!
-      USE module_OCN_GRID_COMP
 !
       USE module_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
@@ -99,22 +113,28 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
+      RC_REG = ESMF_SUCCESS
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
 #ifdef WITH_NUOPC
 
       ! NUOPC_DriverAtmOcn registers the generic methods
-      call driver_routine_SS(EARTH_GRID_COMP, rc=RC_REG)
-      if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
+
+      call driver_routine_SS(EARTH_GRID_COMP, rc=RC)
+      ESMF_ERR_RETURN(RC,RC_REG)
 
       ! attach specializing method(s)
-      call ESMF_MethodAdd(EARTH_GRID_COMP, label=driver_label_SetModelServices, &
-        userRoutine=SetModelServices, rc=RC_REG)
-      if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
+
+      call ESMF_MethodAdd(EARTH_GRID_COMP, label=driver_label_SetModelPetLists,&
+        userRoutine=SetModelPetLists, rc=RC)
+      ESMF_ERR_RETURN(RC,RC_REG)
+      
+      call ESMF_MethodAdd(EARTH_GRID_COMP, label=driver_label_SetModelServices,&
+        userRoutine=SetModelServices, rc=RC)
+      ESMF_ERR_RETURN(RC,RC_REG)
 
 #else
 
@@ -130,18 +150,9 @@
       CALL ESMF_GridCompSetEntryPoint(EARTH_GRID_COMP                   &  !<-- The EARTH component
                                      ,ESMF_METHOD_INITIALIZE            &  !<-- Subroutine type (Initialize)
                                      ,EARTH_INITIALIZE                  &  !<-- User's subroutine name
-#ifdef ESMF_3
-                                     ,ESMF_SINGLEPHASE                  &
-                                     ,RC)
-#else
-                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,phase=1                           &
                                      ,rc=RC)
-#endif
-
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      ESMF_ERR_RETURN(RC,RC_REG)
 !
 !-----------------------------------------------------------------------
 !
@@ -151,19 +162,11 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompSetEntryPoint(EARTH_GRID_COMP                   &  !<-- The EARTH component
-                                     ,ESMF_METHOD_RUN                   &  !<-- Subroutine type (Initialize)
+                                     ,ESMF_METHOD_RUN                   &  !<-- Subroutine type (Run)
                                      ,EARTH_RUN                         &  !<-- User's subroutine name
-#ifdef ESMF_3
-                                     ,ESMF_SINGLEPHASE                  &
-                                     ,RC)
-#else
-                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,phase=1                           &
                                      ,rc=RC)
-#endif
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      ESMF_ERR_RETURN(RC,RC_REG)
 !
 !-----------------------------------------------------------------------
 !
@@ -173,31 +176,16 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_GridCompSetEntryPoint(EARTH_GRID_COMP                   &  !<-- The EARTH component
-                                     ,ESMF_METHOD_FINALIZE              &  !<-- Subroutine type (Initialize)
+                                     ,ESMF_METHOD_FINALIZE              &  !<-- Subroutine type (Finalize)
                                      ,EARTH_FINALIZE                    &  !<-- User's subroutine name
-#ifdef ESMF_3
-                                     ,ESMF_SINGLEPHASE                  &
-                                     ,RC)
-#else
-                                     ,phase=ESMF_SINGLEPHASE            &
+                                     ,phase=1                           &
                                      ,rc=RC)
-#endif
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      ESMF_ERR_RETURN(RC,RC_REG)
 !
 !-----------------------------------------------------------------------
 
 #endif
 
-!
-      IF(RC_REG==ESMF_SUCCESS)THEN
-!       WRITE(0,*)' EARTH_REGISTER succeeded'
-      ELSE
-        WRITE(0,*)' EARTH_REGISTER failed  RC_REG=',RC_REG
-      ENDIF
-!
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE EARTH_REGISTER
@@ -208,6 +196,40 @@
 !
 
 #ifdef WITH_NUOPC
+
+      subroutine SetModelPetLists(gcomp, rc)
+        type(ESMF_GridComp)  :: gcomp
+        integer, intent(out) :: rc
+        
+        ! local variables
+        integer                       :: localrc
+        type(driver_type_IS)          :: is
+        integer                       :: petCount, i
+
+        rc = ESMF_SUCCESS
+
+        ! query Component for its internal State
+        nullify(is%wrap)
+        call ESMF_UserCompGetInternalState(gcomp, driver_label_IS, is, rc)
+        ESMF_ERR_RETURN(rc,rc)
+          
+        ! get the petCount
+        call ESMF_GridCompGet(gcomp, petCount=petCount, rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
+        
+        ! set petList for ATM -> first 48PETs
+        allocate(is%wrap%atmPetList(48))
+        do i=1, 48
+          is%wrap%atmPetList(i) = i-1 ! PET labeling goes from 0 to petCount-1
+        enddo
+          
+        ! set petList for OCN -> first 146Pets
+        allocate(is%wrap%ocnPetList(146))
+        do i=1, 146
+          is%wrap%ocnPetList(i) = i-1 ! PET labeling goes from 0 to petCount-1
+        enddo
+
+      end subroutine
 
       subroutine SetModelServices(gcomp, rc)
         type(ESMF_GridComp)  :: gcomp
@@ -224,62 +246,40 @@
         ! query Component for its internal State
         nullify(is%wrap)
         call ESMF_UserCompGetInternalState(gcomp, driver_label_IS, is, rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
+        ESMF_ERR_RETURN(rc,rc)
 
+#define WITH_ATM
+#ifdef WITH_ATM
         ! SetServices for ATM
         call ESMF_GridCompSetServices(is%wrap%atm, ATM_REGISTER, &
           userRc=localrc, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-        if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__, &
-          rcToReturn=rc)) &
-          return  ! bail out
+        ESMF_ERR_RETURN(rc,rc)
+        ESMF_ERR_RETURN(localrc,localrc)
         call ESMF_AttributeSet(is%wrap%atm, &
           name="Verbosity", value="high", &
           convention="NUOPC", purpose="General", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
+        ESMF_ERR_RETURN(rc,rc)
+#endif
 
 #ifdef WITH_OCN
         ! SetServices for OCN
-        call ESMF_GridCompSetServices(is%wrap%ocn, OCN_REGISTER, &
+        call ESMF_GridCompSetServices(is%wrap%ocn, OCN_SS, &
           userRc=localrc, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-        if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__, &
-          rcToReturn=rc)) &
-          return  ! bail out
+        ESMF_ERR_RETURN(rc,rc)
+        ESMF_ERR_RETURN(localrc,localrc)
+        call ESMF_AttributeSet(is%wrap%ocn, &
+          name="Verbosity", value="high", &
+          convention="NUOPC", purpose="General", rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
 #endif
 
         ! Get internal clock and set the timeStep equal to runDuration
         call ESMF_GridCompGet(gcomp, clock=internalClock, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
+        ESMF_ERR_RETURN(rc,rc)
         call ESMF_ClockGet(internalClock, runDuration=runDuration, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
+        ESMF_ERR_RETURN(rc,rc)
         call ESMF_ClockSet(internalClock, timeStep=runDuration, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
+        ESMF_ERR_RETURN(rc,rc)
 
       end subroutine
 
@@ -324,6 +324,8 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
+      RC_INIT = ESMF_SUCCESS
+!
 !-----------------------------------------------------------------------
 !***  Allocate the EARTH component's internal state, point at it,
 !***  and attach it to the EARTH component.
@@ -335,6 +337,7 @@
       CALL ESMF_GridCompSetInternalState(EARTH_GRID_COMP                &  !<--The EARTH component
                                         ,WRAP                           &  !<-- Pointer to the EARTH internal state
                                         ,RC)     
+      ESMF_ERR_RETURN(RC,RC_INIT)
 !
 !-----------------------------------------------------------------------
 !***  For the moment, use a direct copy of the NEMS Clock within
@@ -350,16 +353,6 @@
 !
       earth_int_state%ATM_GRID_COMP=ESMF_GridCompCreate(name        ="ATM component" &
                                                        ,rc          =RC)
-!
-!
-!-----------------------------------------------------------------------
-!***  The OCN (ocean) gridded component resides inside of
-!***  the EARTH internal state.
-!-----------------------------------------------------------------------
-!
-      earth_int_state%OCN_GRID_COMP=ESMF_GridCompCreate(name       ="OCN component" &
-                                                       ,rc          =RC)
-!
 !-----------------------------------------------------------------------
 !***  Register the Initialize, Run, and Finalize routines of
 !***  the ATM component.
@@ -372,41 +365,8 @@
 !
       CALL ESMF_GridCompSetServices(earth_int_state%ATM_GRID_COMP       &
                                    ,ATM_REGISTER                        &  !<-- The user's subroutine name
-#ifdef ESMF_3
-                                   ,RC)
-#else
                                    ,rc=RC)
-#endif
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!
-!-----------------------------------------------------------------------
-!***  Register the Initialize, Run, and Finalize routines of
-!***  the OCN component.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Register OCN Init, Run, Finalize"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-#ifdef ESMF_3
-      CALL ESMF_GridCompSetServices(earth_int_state%OCN_GRID_COMP       &
-                                   ,OCN_REGISTER                        &  !<-- The user's subroutine name
-                                   ,RC)
-#else
-      CALL ESMF_GridCompSetServices(earth_int_state%OCN_GRID_COMP       &
-                                   ,OCN_REGISTER                        &  !<-- The user's subroutine name
-                                   ,rc=RC)
-#endif
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+      ESMF_ERR_RETURN(RC,RC_INIT)
 !
 !-----------------------------------------------------------------------
 !***  Create the ATM import and export states.
@@ -420,10 +380,7 @@
       earth_int_state%ATM_IMP_STATE=ESMF_StateCreate(STATENAME="ATM Import"      &
                                                     ,stateintent = ESMF_STATEINTENT_IMPORT &
                                                     ,rc       =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      ESMF_ERR_RETURN(RC,RC_INIT)
 !
 !-----------------------------------------------------------------------
 !
@@ -435,46 +392,9 @@
       earth_int_state%ATM_EXP_STATE=ESMF_StateCreate(STATENAME   ="ATM Export"             &
                                                     ,stateintent = ESMF_STATEINTENT_EXPORT &
                                                     ,rc       =RC)
-
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      ESMF_ERR_RETURN(RC,RC_INIT)
 !
 !-----------------------------------------------------------------------
-!
-!
-!-----------------------------------------------------------------------
-!***  Create the OCN import and export states.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create the OCN import state"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      earth_int_state%OCN_IMP_STATE=ESMF_StateCreate(STATENAME="OCN Import"              &
-                                                    ,stateintent=ESMF_STATEINTENT_IMPORT &
-                                                    ,rc=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Create the OCN export state"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      earth_int_state%OCN_EXP_STATE=ESMF_StateCreate(STATENAME="OCN Export"              &
-                                                    ,stateintent=ESMF_STATEINTENT_EXPORT &
-                                                    ,rc=RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !
 !-----------------------------------------------------------------------
@@ -490,35 +410,11 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_StateAdd(IMP_STATE, LISTWRAPPER(earth_int_state%ATM_IMP_STATE), rc = RC)
+      ESMF_ERR_RETURN(RC,RC_INIT)
+!
       CALL ESMF_StateAdd(EXP_STATE, LISTWRAPPER(earth_int_state%ATM_EXP_STATE), rc = RC)
+      ESMF_ERR_RETURN(RC,RC_INIT)
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!
-!-----------------------------------------------------------------------
-!***  Insert the import/export states of the OCN component into the
-!***  import/export states of the EARTH component.  This simplifies
-!***  the passing of information between lower and higher component
-!***  levels seen in the diagram above.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK= "Add the OCN states into the EARTH states"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK, ESMF_LOG_INFO, rc = RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-#ifdef ESMF_520r
-      CALL ESMF_StateAdd(IMP_STATE, LISTWRAPPER(earth_int_state%OCN_IMP_STATE), rc = RC)
-      CALL ESMF_StateAdd(EXP_STATE, LISTWRAPPER(earth_int_state%OCN_EXP_STATE), rc = RC)
-#endif
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-
 !-----------------------------------------------------------------------
 !***  Execute the Initialize step of the ATM component.
 !-----------------------------------------------------------------------
@@ -532,43 +428,9 @@
                                   ,importState=earth_int_state%ATM_IMP_STATE &
                                   ,exportState=earth_int_state%ATM_EXP_STATE &
                                   ,clock      =earth_int_state%CLOCK_EARTH   &
-                                  ,phase      =ESMF_SINGLEPHASE              &
+                                  ,phase      =1                             &
                                   ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!
-!-----------------------------------------------------------------------
-!***  Execute the Initialize step of the OCN component.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Execute the Initialize step of the OCN component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_GridCompInitialize(gridcomp   =earth_int_state%OCN_GRID_COMP &
-                                  ,importState=earth_int_state%OCN_IMP_STATE &
-                                  ,exportState=earth_int_state%OCN_EXP_STATE &
-                                  ,clock      =earth_int_state%CLOCK_EARTH   &
-                                  ,phase      =ESMF_SINGLEPHASE              &
-                                  ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!
-!-----------------------------------------------------------------------
-!
-      IF(RC_INIT==ESMF_SUCCESS)THEN
-!       WRITE(0,*)' EARTH_INITIALIZE succeeded'
-      ELSE
-        WRITE(0,*)' EARTH_INITIALIZE failed  RC_INIT=',RC_INIT
-      ENDIF
-!
+      ESMF_ERR_RETURN(RC,RC_INIT)
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE EARTH_INITIALIZE
@@ -613,8 +475,7 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      RC    =ESMF_SUCCESS
-      RC_RUN=ESMF_SUCCESS
+      RC_RUN = ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
 !***  Execute the Run step of the ATM component.
@@ -629,33 +490,10 @@
                            ,importState=earth_int_state%ATM_IMP_STATE   &
                            ,exportState=earth_int_state%ATM_EXP_STATE   &
                            ,clock      =earth_int_state%CLOCK_EARTH     &
-                           ,phase      =ESMF_SINGLEPHASE                &
+                           ,phase      =1                               &
                            ,rc         =RC)
+      ESMF_ERR_RETURN(RC,RC_RUN)
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Execute the Run step of the OCN component.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Execute the Run step of the OCN component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_GridCompRun(gridcomp   =earth_int_state%OCN_GRID_COMP   &
-                           ,importState=earth_int_state%OCN_IMP_STATE   &
-                           ,exportState=earth_int_state%OCN_EXP_STATE   &
-                           ,clock      =earth_int_state%CLOCK_EARTH     &
-                           ,phase      =ESMF_SINGLEPHASE                &
-                           ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
 !-----------------------------------------------------------------------
 !***  Update the EARTH clock.
 !-----------------------------------------------------------------------
@@ -669,24 +507,14 @@
                         ,startTime   = startTime                        &
                         ,runDuration = runDuration                      &
                         ,rc          = RC)
+      ESMF_ERR_RETURN(RC,RC_RUN)
 !
       CURRTIME = STARTTIME + RUNDURATION
 !
       CALL ESMF_ClockSet(clock    = earth_int_state%CLOCK_EARTH         &
                         ,currTime = CURRTIME                            &
                         ,rc       = RC)
-
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-      IF(RC_RUN==ESMF_SUCCESS)THEN
-!       WRITE(0,*)' EARTH_RUN succeeded'
-      ELSE
-        WRITE(0,*)' EARTH_RUN failed  RC_RUN=',RC_RUN
-      ENDIF
+      ESMF_ERR_RETURN(RC,RC_RUN)
 !
 !-----------------------------------------------------------------------
 !
@@ -729,6 +557,8 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
+      RC_FINALIZE = ESMF_SUCCESS
+!
 !-----------------------------------------------------------------------
 !***  Execute the Finalize step of the ATM ccomponent.
 !-----------------------------------------------------------------------
@@ -742,41 +572,9 @@
                                 ,importState=earth_int_state%ATM_IMP_STATE &
                                 ,exportState=earth_int_state%ATM_EXP_STATE &
                                 ,clock      =earth_int_state%CLOCK_EARTH   &
-                                ,phase      =ESMF_SINGLEPHASE              &
+                                ,phase      =1                             &
                                 ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINALIZE)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!
-!-----------------------------------------------------------------------
-!***  Execute the Finalize step of the OCN component.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Execute the Finalize step of the  OCN component"
-!      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_GridCompFinalize(gridcomp   =earth_int_state%OCN_GRID_COMP &
-                                ,importState=earth_int_state%OCN_IMP_STATE &
-                                ,exportState=earth_int_state%OCN_EXP_STATE &
-                                ,clock      =earth_int_state%CLOCK_EARTH   &
-                                ,phase      =ESMF_SINGLEPHASE              &
-                                ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINALIZE)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-      IF(RC_FINALIZE==ESMF_SUCCESS)THEN
-!       WRITE(0,*)' EARTH_FINALIZE succeeded'
-      ELSE
-        WRITE(0,*)' EARTH_FINALIZE failed  RC_FINALIZE=',RC_FINALIZE
-      ENDIF
+      ESMF_ERR_RETURN(RC,RC_FINALIZE)
 !
 !-----------------------------------------------------------------------
 !

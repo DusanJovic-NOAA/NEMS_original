@@ -382,7 +382,7 @@
 ####
 ################################################################################
 #  Set environment.
-export ESMF_RUNTIME_COMPLIANCECHECK=OFF
+export ESMF_RUNTIME_COMPLIANCECHECK=ON:depth=4
 
 #
 export machine=${machine:-WCOSS}

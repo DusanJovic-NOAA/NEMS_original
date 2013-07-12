@@ -31,14 +31,6 @@
         TYPE(ESMF_State   ) :: ATM_IMP_STATE
         TYPE(ESMF_State   ) :: ATM_EXP_STATE
 !
-        TYPE(ESMF_GridComp) :: OCN_GRID_COMP
-        TYPE(ESMF_State   ) :: OCN_IMP_STATE
-        TYPE(ESMF_State   ) :: OCN_EXP_STATE
-!
-        TYPE(ESMF_GridComp) :: ICE_GRID_COMP
-        TYPE(ESMF_State   ) :: ICE_IMP_STATE
-        TYPE(ESMF_State   ) :: ICE_EXP_STATE
-!
       END TYPE EARTH_INTERNAL_STATE
 !
 !-----------------------------------------------------------------------

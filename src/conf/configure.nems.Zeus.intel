@@ -2,7 +2,10 @@
 ##
 ## Platform: Zeus
 ## Compiler: Intel with MPT
-## 
+
+SHELL           = /bin/sh
+
+################################################################################
 ## This configuration file leverages the ESMFMKFILE mechanism to switch
 ## between different ESMF versions and installations. The only environment
 ## variable used by this  mechanism is ESMFMKFILE, which appears below in 
@@ -10,14 +13,27 @@
 ## will set ESMFMKFILE as part of loading an "esmf" module. The user can
 ## also set ESMFMKFILE manually to target a different ESMF installation.
 
-SHELL           = /bin/sh
-
 include         $(ESMFMKFILE)
 ESMF_INC        = $(ESMF_F90COMPILEPATHS)
 ESMF_LIB        = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 
+################################################################################
+## ATM settings
+## Use GSM as GFS
+
 gfs=gsm
 gfsdir=atmos/$(gfs)
+
+################################################################################
+## OCN settings
+## NUOPC compliant OCN models supply a standard makefile fragment
+
+ocndummy_mk   = /home/Gerhard.Theurich/OCN-INSTALLS/DummyOCN/ocn.mk
+hycom_mk      = /home/Gerhard.Theurich/OCN-INSTALLS/HYCOM-rtofs0.25cfsr__branches__NUOPC.rev29798/hycom_nuopc.mk
+mom5_mk       =
+
+################################################################################
+## Other settings
 
 NETCDF_LIB   = /apps/netcdf/3.6.3/intel/lib/libnetcdf.a
 

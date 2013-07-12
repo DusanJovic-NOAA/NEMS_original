@@ -1,3 +1,16 @@
+#if 0
+// ----------- ERROR handling macros ------------------------------------------
+#endif
+
+#define ESMF_ERR_ABORT(rc) if (ESMF_LogFoundError(rc, msg="Aborting NEMS", line=__LINE__, file=__FILE__)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+#define ESMF_ERR_RETURN(rc,rcOut) if (ESMF_LogFoundError(rc, msg="Breaking out of subroutine", line=__LINE__, file=__FILE__, rcToReturn=rcOut)) return
+
+
+#if 0
+// ----------- Begin of version dependent token swapping ----------------------
+#endif
+
 #if ((ESMF_MAJOR_VERSION == 5 && ESMF_MINOR_VERSION >= 2) || ESMF_MAJOR_VERSION > 5)
 
 #if 0
@@ -80,6 +93,9 @@
 #define esmf_logfounderror esmf_logmsgfounderror
 #define ESMF_LogFoundError ESMF_LogMsgFoundError
 #define ESMF_LogFoundAllocError ESMF_LogMsgFoundAllocError
+
+#define endflag terminationflag
+#define ESMF_END_ABORT ESMF_ABORT
 
 #define STATENAME stateName
 #define FIELDNAME name

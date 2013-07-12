@@ -293,6 +293,8 @@ job_running=1
 n=1
 until [ $job_running -eq 0 ] ; do
 
+ sleep 60
+
  if [ $SCHEDULER = 'loadleveler' ]; then
 
   status=`llq -u ${USER} -f %st %jn | grep ${JBNME} | awk '{ print $1}'` ; status=${status:--}
@@ -341,13 +343,11 @@ until [ $job_running -eq 0 ] ; do
   else                             echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
   fi
 
-
  fi
 
- sleep 60
  if [ $SCHEDULER = 'loadleveler' ]; then
   job_running=`llq -u ${USER} -f %st %jn | grep ${JBNME} | wc -l`
- elif [ $SCHEDULER = 'moab' -o $SCHEDULER = 'pbs' ]; then
+ elif [ $SCHEDULER = 'moab' ]; then
   job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`
  elif [ $SCHEDULER = 'lsf' ] ; then
   job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep " dev " | wc -l`
@@ -358,6 +358,9 @@ done
 ################################################################################
 # Check results
 ################################################################################
+
+# Give one minute for data to show up on file system
+sleep 60
 
 (echo;echo;echo "Checking test ${TEST_NR} results ....")>> ${REGRESSIONTEST_LOG}
  echo;echo;echo "Checking test ${TEST_NR} results ...."
