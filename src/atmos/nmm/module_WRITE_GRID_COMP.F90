@@ -2976,7 +2976,7 @@
                                            ,NF_MINUTES                  &
                                            ,NF_SECONDS                  &
                                            ,DIM1,DIM2,NBDR,GLOBAL       &
-                                           ,LEAD_WRITE_TASK)
+                                           ,LEAD_WRITE_TASK,ID_DOMAIN)
 !
           FIELDSIZE=(DIM1+2*NBDR)*(DIM2+2*NBDR)
           ALLOCATE(TMP(FIELDSIZE))
@@ -3872,6 +3872,7 @@
                                            ,NF_MINUTES                  &
                                            ,NF_SECONDS                  &
                                            ,DIM1,DIM2,NBDR,GLOBAL       &
+                                           ,ID_DOMAIN                   &
                                            ,LEAD_WRITE_TASK)
 !
           FIELDSIZE=(DIM1+2*NBDR)*(DIM2+2*NBDR)

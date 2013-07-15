@@ -65,7 +65,8 @@
 !
       USE MODULE_DIAGNOSE,ONLY : EXIT,FIELD_STATS                       &
                                 ,MAX_FIELDS,MAX_FIELDS_HR,MAX_FIELDS_W6 &
-                                ,HMAXMIN,TWR,VMAXMIN,VWR,WRT_PCP
+                                ,HMAXMIN,TWR,VMAXMIN,VWR,WRT_PCP        &
+                                ,LAT_LON_BNDS
 !
       USE MODULE_OUTPUT,ONLY: POINT_OUTPUT
 !
@@ -1789,6 +1790,19 @@
         CALL HALO_EXCH                                                  &
              (int_state%F,1                                             &
              ,3,3)
+!
+!-----------------------------------------------------------------------
+!*** Search for lat/lon min/max values and store it in file for
+!*** later use in creating GrADS ctl file
+!-----------------------------------------------------------------------
+!
+       CALL LAT_LON_BNDS(int_state%GLAT,int_state%GLON                  &
+                       ,mype,num_pes,mpi_comm_comp                      &
+                       ,ids,ide,jds,jde                                 &
+                       ,ims,ime,jms,jme                                 &
+                       ,its,ite,jts,jte                                 &
+                       ,my_domain_id )
+!
 !
 !-----------------------------------------------------------------------
 !***  Initialize the FFT filters.

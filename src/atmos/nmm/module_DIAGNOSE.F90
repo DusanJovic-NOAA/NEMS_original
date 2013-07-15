@@ -365,6 +365,172 @@
       END SUBROUTINE VWR
 !
 !----------------------------------------------------------------------
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!----------------------------------------------------------------------
+      SUBROUTINE LAT_LON_BNDS(ARRAY1,ARRAY2,MYPE,NPES,MPI_COMM_COMP    &
+                    ,IDS,IDE,JDS,JDE                                   &
+                    ,IMS,IME,JMS,JME                                   &
+                    ,ITS,ITE,JTS,JTE                                   &
+                    ,DOMAIN_ID )
+!----------------------------------------------------------------------
+!**********************************************************************
+!----------------------------------------------------------------------
+      USE MODULE_INCLUDE
+      IMPLICIT NONE
+!----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      INTEGER(KIND=KINT),INTENT(IN) :: IDS,IDE,JDS,JDE                 &
+                                      ,IMS,IME,JMS,JME                 &
+                                      ,ITS,ITE,JTS,JTE                 &
+                                      ,MPI_COMM_COMP,MYPE,NPES
+!
+      REAL(KIND=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: ARRAY1,ARRAY2
+!
+      INTEGER(kind=KINT),INTENT(IN),OPTIONAL :: DOMAIN_ID
+!
+!--------------------
+!*** Local Variables
+!--------------------
+!
+      INTEGER :: IUNIT=176
+!
+      INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
+      INTEGER,DIMENSION(MPI_STATUS_SIZE,4) :: STATUS_ARRAY
+      INTEGER(KIND=KINT),DIMENSION(2) :: IM_REM,JM_REM,IT_REM,JT_REM
+!
+      INTEGER(KIND=KINT) :: I,IENDX,IER,IPE,IRECV,IRTN,ISEND           &
+                           ,J,K,N,NLEN,NSIZE
+      INTEGER(KIND=KINT) :: ITS_REM,ITE_REM,JTS_REM,JTE_REM
+!
+      REAL(KIND=KFPT):: MINLAT,MAXLAT,MINLON,MAXLON
+      REAL(KIND=KFPT),DIMENSION(IDS:IDE,JDS:JDE) :: TWRITE
+      REAL(KIND=KFPT),ALLOCATABLE,DIMENSION(:) :: VALUES
+      CHARACTER(2) :: DOM_ID
+      CHARACTER(6) :: FMT
+      CHARACTER(15) :: FILENAME
+!
+!----------------------------------------------------------------------
+!**********************************************************************
+!----------------------------------------------------------------------
+!
+        FMT='(I2.2)'
+        WRITE(DOM_ID,FMT)DOMAIN_ID
+        FILENAME='lat_lon_bnds_'//DOM_ID
+!
+      IF(MYPE==0)THEN
+        CLOSE(IUNIT)
+        OPEN(UNIT=IUNIT,FILE=FILENAME,FORM='UNFORMATTED')
+      ENDIF
+!
+!----------------------------------------------------------------------
+      DO K=1,2
+!----------------------------------------------------------------------
+!
+      IF(MYPE==0)THEN
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          IF(K==1) THEN
+            TWRITE(I,J)=ARRAY1(I,J)
+          ELSE
+            TWRITE(I,J)=ARRAY2(I,J)
+          ENDIF
+        ENDDO
+        ENDDO
+!
+        DO IPE=1,NPES-1
+          CALL MPI_RECV(IT_REM,2,MPI_INTEGER,IPE,IPE                    &
+                       ,MPI_COMM_COMP,JSTAT,IRECV)
+          CALL MPI_RECV(JT_REM,2,MPI_INTEGER,IPE,IPE                    &
+                       ,MPI_COMM_COMP,JSTAT,IRECV)
+!
+          ITS_REM=IT_REM(1)
+          ITE_REM=IT_REM(2)
+          JTS_REM=JT_REM(1)
+          JTE_REM=JT_REM(2)
+!
+          NSIZE=(ITE_REM-ITS_REM+1)*(JTE_REM-JTS_REM+1)
+          ALLOCATE(VALUES(1:NSIZE))
+!
+          CALL MPI_RECV(VALUES,NSIZE,MPI_REAL,IPE,IPE                   &
+                       ,MPI_COMM_COMP,JSTAT,IRECV)
+          N=0
+          DO J=JTS_REM,JTE_REM
+            DO I=ITS_REM,ITE_REM
+              N=N+1
+              TWRITE(I,J)=VALUES(N)
+            ENDDO
+          ENDDO
+!
+          DEALLOCATE(VALUES)
+!
+        ENDDO
+!
+!----------------------------------------------------------------------
+      ELSE
+!
+        NSIZE=(ITE-ITS+1)*(JTE-JTS+1)
+        ALLOCATE(VALUES(1:NSIZE))
+!
+        N=0
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          N=N+1
+          IF(K==1) THEN
+            VALUES(N)=ARRAY1(I,J)
+          ELSE
+            VALUES(N)=ARRAY2(I,J)
+          ENDIF
+        ENDDO
+        ENDDO
+!
+        IT_REM(1)=ITS
+        IT_REM(2)=ITE
+        JT_REM(1)=JTS
+        JT_REM(2)=JTE
+!
+        CALL MPI_SEND(IT_REM,2,MPI_INTEGER,0,MYPE                       &
+                     ,MPI_COMM_COMP,ISEND)
+        CALL MPI_SEND(JT_REM,2,MPI_INTEGER,0,MYPE                       &
+                     ,MPI_COMM_COMP,ISEND)
+!
+        CALL MPI_SEND(VALUES,NSIZE,MPI_REAL,0,MYPE                      &
+                     ,MPI_COMM_COMP,ISEND)
+!
+        DEALLOCATE(VALUES)
+!
+      ENDIF
+!----------------------------------------------------------------------
+!
+      CALL MPI_BARRIER(MPI_COMM_COMP,IRTN)
+!
+      IF(MYPE==0)THEN
+!
+          IF(K==1) THEN
+            minlat=minval(TWRITE)
+            maxlat=maxval(TWRITE)
+          ELSE
+            minlon=minval(TWRITE)
+            maxlon=maxval(TWRITE)
+          ENDIF
+!
+      ENDIF
+!
+!----------------------------------------------------------------------
+      ENDDO
+!
+      IF(MYPE==0)THEN
+          WRITE(IUNIT)minlat,maxlat,minlon,maxlon
+          CLOSE(IUNIT)
+      ENDIF
+!----------------------------------------------------------------------
+!
+      END SUBROUTINE LAT_LON_BNDS
+!
+!-----------------------------------------------------------------------
 !######################################################################
 !----------------------------------------------------------------------
       SUBROUTINE HMAXMIN(ARRAY,KK,FIELD,NTSD,MYPE,NPES,MPI_COMM_COMP   &

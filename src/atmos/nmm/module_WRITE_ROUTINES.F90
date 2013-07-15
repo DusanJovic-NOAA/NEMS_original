@@ -3765,7 +3765,8 @@
                                              ,NF_MINUTES                &
                                              ,NF_SECONDS                &
                                              ,DIM1,DIM2,NFRAME,GLOBAL   &
-                                             ,LEAD_WRITE_TASK)
+                                             ,LEAD_WRITE_TASK           &
+                                             ,ID_DOMAIN)
 !
 !-----------------------------------------------------------------------
 !***  Write out a NEMSIO binary run history file.
@@ -3784,6 +3785,7 @@
                             ,IDAY_FCST                                  &
                             ,IHOUR_FCST                                 &
                             ,IMINUTE_FCST                               &
+                            ,ID_DOMAIN                                  &
                             ,NF_HOURS                                   &
                             ,NF_MINUTES                                 &
                             ,LEAD_WRITE_TASK
@@ -4302,9 +4304,10 @@
 !***  Write out NEMSIO ctl file.
 !-----------------------------------------------------------------------
 !
-        CALL WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST,       &
+        CALL WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST,   &
           IYEAR_FCST,FILENAME,TLMETA,IM,JM,LM,NSOIL,TLM0D,TPH0D,DXCTL,  &
-          DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,CNT,FILE_ENDIAN)
+          DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,CNT,FILE_ENDIAN,        &
+          ID_DOMAIN)
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -4508,6 +4511,7 @@
                                         ,NF_MINUTES                     &
                                         ,NF_SECONDS                     &
                                         ,DIM1,DIM2,NFRAME,GLOBAL        &
+                                        ,ID_DOMAIN                      &
                                         ,LEAD_WRITE_TASK)
 !
 !-----------------------------------------------------------------------
@@ -4529,6 +4533,7 @@
                             ,IMINUTE_FCST                               &
                             ,NF_HOURS                                   &
                             ,NF_MINUTES                                 &
+                            ,ID_DOMAIN                                  &
                             ,LEAD_WRITE_TASK                            &
 			    ,NTIMESTEP
 
@@ -5073,9 +5078,10 @@
 !***  Write out NEMSIO ctl file.
 !-----------------------------------------------------------------------
 !
-        CALL WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST,       &
-          IYEAR_FCST,FILENAME,TLMETA,IM,JM,LM,NSOIL,TLM0D,TPH0D,DXCTL,  &
-          DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,CNT,FILE_ENDIAN)
+        CALL WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST,    &
+          IYEAR_FCST,FILENAME,TLMETA,IM,JM,LM,NSOIL,TLM0D,TPH0D,DXCTL,   &
+          DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,CNT,FILE_ENDIAN,         &
+          ID_DOMAIN)
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -5097,7 +5103,8 @@
 !
       SUBROUTINE WRITE_NEMSIOCTL(GLOBAL,IHOUR_FCST,IDAY_FCST,IMONTH_FCST, &
         IYEAR_FCST,FILENAME,TLMETA,DIM1,DIM2,LM,NSOIL,TLM0D,TPH0D,DXCTL,  &
-        DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,KOUNT_R2D,FILE_ENDIAN)
+        DYCTL,NF_HOURS,NREC,RECNAME,RECLEVTYP,KOUNT_R2D,FILE_ENDIAN,      &
+        ID_DOMAIN)
 !
 !-----------------------------------------------------------------------
 !***  Write out ctl file.
@@ -5124,10 +5131,15 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER N,IO_UNIT
+!
+      INTEGER(KIND=KINT) :: IERR,RC 
+      INTEGER ID_DOMAIN,N,NEWDIM1,NEWDIM2,IO_UNIT
+!
+      REAL CRSDXCTL,CRSDYCTL,RATIO,XBARLON,YBARLAT,MAXLAT,MAXLON,MINLAT,MINLON
 !
       CHARACTER(3)  CMON
       CHARACTER(32) DATE
+      CHARACTER(64) INFILE
 !
       LOGICAL OPENED
 !
@@ -5163,9 +5175,57 @@
         WRITE(IO_UNIT,122)DIM2,DYCTl
       ELSE
         WRITE(IO_UNIT,110)DIM1,DIM2,TLM0D,TPH0D,DXCTL,DYCTL
-        WRITE(IO_UNIT,111)
-        WRITE(IO_UNIT,112)
-      ENDIF
+!
+!** Read min and max lat and lon values for each grid from a file
+!
+        WRITE(INFILE,'(A,I2.2)')'lat_lon_bnds_',ID_DOMAIN
+        OPEN(UNIT=178,FILE=INFILE,STATUS='OLD',FORM='UNFORMATTED')
+          READ (178)MINLAT,MAXLAT,MINLON,MAXLON 
+        CLOSE(178)
+!
+!** Create proper nx(newdim1) and ny(newdim2) values for nests
+!
+        IF(ID_DOMAIN.GT.1)THEN
+          XBARLON=(MAXLON*(180./pi)-MINLON*(180./pi))/2.
+          YBARLAT=(MAXLAT*(180./pi)-MINLAT*(180./pi))/2.
+          NEWDIM1=(MAXLON*(180./pi)-MINLON*(180./pi))/DXCTL
+          NEWDIM2=(MAXLAT*(180./pi)-MINLAT*(180./pi))/DYCTL
+          WRITE(IO_UNIT,131)NEWDIM1,TLM0D-XBARLON,DXCTL
+          WRITE(IO_UNIT,132)NEWDIM2,TPH0D-YBARLAT,DYCTL
+        ELSE
+!
+!** Create proper nx(newdim1) and ny(newdim2) values for parent domain
+!
+          NEWDIM1=(MAXLON*(180./pi)-MINLON*(180./pi))/DXCTL
+          NEWDIM2=(MAXLAT*(180./pi)-MINLAT*(180./pi))/DYCTL
+!
+!** If parent domain nx and ny values are too big, reduce their values,
+!** and force either nx or ny to be 1500 depending on which dimension is
+!** the largest.  This also requires a coarser resolution.  Keep the aspect 
+!** ratio of the domain the same (nx/ny).
+!
+          IF(NEWDIM1.GT.1500.OR.NEWDIM2.GT.1500)THEN
+            IF(NEWDIM1.GT.NEWDIM2)THEN
+              RATIO=REAL(NEWDIM1)/REAL(NEWDIM2)
+              CRSDXCTL=(NEWDIM1*DXCTL)/1500.
+              CRSDYCTL=(NEWDIM2*DYCTL)/(1500./RATIO)
+              NEWDIM1=1500
+              NEWDIM2=REAL(NEWDIM1)/RATIO
+            ELSEIF(NEWDIM2.GE.NEWDIM1)THEN
+              RATIO=REAL(NEWDIM2)/REAL(NEWDIM1)
+              CRSDYCTL=(REAL(NEWDIM2)*DYCTL)/1500.
+              CRSDXCTL=(REAL(NEWDIM1)*DXCTL)/(1500./RATIO)
+              NEWDIM2=1500
+              NEWDIM1=REAL(NEWDIM2)/RATIO
+            ENDIF
+            WRITE(IO_UNIT,131)NEWDIM1,MINLON*(180./pi),CRSDXCTL
+            WRITE(IO_UNIT,132)NEWDIM2,MINLAT*(180./pi),CRSDYCTL
+          ELSE
+            WRITE(IO_UNIT,131)NEWDIM1,MINLON*(180./pi),DXCTL
+            WRITE(IO_UNIT,132)NEWDIM2,MINLAT*(180./pi),DYCTL
+          ENDIF
+        ENDIF
+      ENDIF ! global/regional
 !
       WRITE(IO_UNIT,113)LM
       WRITE(IO_UNIT,114)1,TRIM(DATE)
@@ -5177,11 +5237,10 @@
  109  FORMAT('title EXP1')
 
  110  FORMAT('pdef ',I6,I6,' eta.u ',f8.1,f8.1,f12.6,f12.6)
- 111  FORMAT('xdef  920 linear   140.000  0.25')
- 112  FORMAT('ydef  400 linear   -10.000  0.25')
- 121  FORMAT('xdef  ',I6,' linear  -180.000 ',f12.6)
- 122  FORMAT('ydef  ',I6,' linear   -90.000  ',f12.6)
-
+ 121  FORMAT('xdef ',I6,' linear  -180.000 ',f12.6)
+ 122  FORMAT('ydef ',I6,' linear   -90.000 ',f12.6)
+ 131  FORMAT('xdef ',I6,' linear  ',f8.3,' ',f12.6)
+ 132  FORMAT('ydef ',I6,' linear  ',f6.3,' ',f12.6)
  113  FORMAT('zdef ',I6,' linear 1 1 ')
  114  FORMAT('tdef ',I6,' linear ',A12,' 6hr')
 !
