@@ -7,7 +7,6 @@
 #PBS -l procs=_TASKS_
 #PBS -l walltime=00:_WLCLK_:00
 #PBS -W umask=027
-/bin/ksh --login -x _RUND_/gfs_fcst_run
 
 set -aeux
 export MPI_GROUP_MAX=96
