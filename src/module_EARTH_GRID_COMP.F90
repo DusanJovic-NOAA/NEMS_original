@@ -49,15 +49,15 @@
         driver_label_IS               => label_InternalState, &
         driver_label_SetModelPetLists => label_SetModelPetLists, &
         driver_label_SetModelServices => label_SetModelServices
+      use NUOPC_Connector, only: cplSS => routine_SetServices
 #ifdef FRONT_OCN_DUMMY
-      use FRONT_OCN_DUMMY,  only: OCN_SS => SetServices
-#define WITH_OCN
-#elif defined FRONT_HYCOM
-      use FRONT_HYCOM,      only: OCN_SS => SetServices
-#define WITH_OCN
-#elif defined FRONT_MOM5
-      use FRONT_MOM5,       only: OCN_SS => SetServices
-#define WITH_OCN
+      use FRONT_OCN_DUMMY,  only: OCN_DUMMY_SS  => SetServices
+#endif
+#ifdef FRONT_HYCOM
+      use FRONT_HYCOM,      only: OCN_HYCOM_SS  => SetServices
+#endif
+#ifdef FRONT_MOM5
+      use FRONT_MOM5,       only: OCN_MOM5_SS   => SetServices
 #endif
 #endif
 
@@ -108,6 +108,12 @@
 !---------------------
 !
       INTEGER :: RC
+
+      
+#ifdef WITH_NUOPC
+      type(ESMF_Config)             :: config
+#endif
+      
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -135,7 +141,16 @@
       call ESMF_MethodAdd(EARTH_GRID_COMP, label=driver_label_SetModelServices,&
         userRoutine=SetModelServices, rc=RC)
       ESMF_ERR_RETURN(RC,RC_REG)
-
+      
+      ! create, open, and set the config
+      
+      config = ESMF_ConfigCreate(rc=RC)
+      ESMF_ERR_RETURN(RC,RC_REG)
+      call ESMF_ConfigLoadFile(config, "nems.configure", rc=RC)
+      ESMF_ERR_RETURN(RC,RC_REG)
+      call ESMF_GridCompSet(EARTH_GRID_COMP, config=config, rc=RC)
+      ESMF_ERR_RETURN(RC,RC_REG)
+      
 #else
 
 !-----------------------------------------------------------------------
@@ -205,6 +220,8 @@
         integer                       :: localrc
         type(driver_type_IS)          :: is
         integer                       :: petCount, i
+        integer                       :: petListBounds(2)
+        type(ESMF_Config)             :: config
 
         rc = ESMF_SUCCESS
 
@@ -213,22 +230,42 @@
         call ESMF_UserCompGetInternalState(gcomp, driver_label_IS, is, rc)
         ESMF_ERR_RETURN(rc,rc)
           
-        ! get the petCount
-        call ESMF_GridCompGet(gcomp, petCount=petCount, rc=rc)
+        ! get petCount and config
+        call ESMF_GridCompGet(gcomp, petCount=petCount, config=config, rc=rc)
         ESMF_ERR_RETURN(rc,rc)
         
-        ! set petList for ATM -> first 48PETs
-        allocate(is%wrap%atmPetList(48))
-        do i=1, 48
-          is%wrap%atmPetList(i) = i-1 ! PET labeling goes from 0 to petCount-1
+        ! determine the ATM petList bounds
+        call ESMF_ConfigGetAttribute(config, petListBounds, &
+          label="atm_petlist_bounds:", default=-1, rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
+        if (petListBounds(1)==-1 .and. petListBounds(2)==-1) then
+          petListBounds(1) = 0
+          petListBounds(2) = petCount - 1
+        endif
+!print *, "atm_petlist_bounds:", petListBounds
+        
+        ! set petList for ATM
+        allocate(is%wrap%atmPetList(petListBounds(2)-petListBounds(1)+1))
+        do i=petListBounds(1), petListBounds(2)
+          is%wrap%atmPetList(i-petListBounds(1)+1) = i ! PET labeling is 0 based
         enddo
           
+        ! determine the OCN petList bounds
+        call ESMF_ConfigGetAttribute(config, petListBounds, &
+          label="ocn_petlist_bounds:", default=-1, rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
+        if (petListBounds(1)==-1 .and. petListBounds(2)==-1) then
+          petListBounds(1) = 0
+          petListBounds(2) = petCount - 1
+        endif
+!print *, "ocn_petlist_bounds:", petListBounds
+        
         ! set petList for OCN -> first 146Pets
-        allocate(is%wrap%ocnPetList(146))
-        do i=1, 146
-          is%wrap%ocnPetList(i) = i-1 ! PET labeling goes from 0 to petCount-1
+        allocate(is%wrap%ocnPetList(petListBounds(2)-petListBounds(1)+1))
+        do i=petListBounds(1), petListBounds(2)
+          is%wrap%ocnPetList(i-petListBounds(1)+1) = i ! PET labeling is 0 based
         enddo
-
+        
       end subroutine
 
       subroutine SetModelServices(gcomp, rc)
@@ -239,7 +276,12 @@
         integer                       :: localrc
         type(driver_type_IS)          :: is
         type(ESMF_Clock)              :: internalClock
-        type(ESMF_TimeInterval)       :: runDuration
+        type(ESMF_Config)             :: config
+        character(len=20)             :: model
+        character(len=160)            :: msg
+        real(ESMF_KIND_R8)            :: atmOcnCoulingHours
+        type(ESMF_TimeInterval)       :: couplingStep
+        logical                       :: atmFlag, ocnFlag
 
         rc = ESMF_SUCCESS
 
@@ -247,39 +289,132 @@
         nullify(is%wrap)
         call ESMF_UserCompGetInternalState(gcomp, driver_label_IS, is, rc)
         ESMF_ERR_RETURN(rc,rc)
+        
+        ! get config
+        call ESMF_GridCompGet(gcomp, config=config, rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
 
+        ! SetServices for ATM
+        call ESMF_ConfigGetAttribute(config, model, label="atm_model:", rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
+        atmFlag = .false.
+        !print *, "atm_model: ", trim(model)
+        if (trim(model) /= "none") then
+          atmFlag = .true.
 #define WITH_ATM
 #ifdef WITH_ATM
-        ! SetServices for ATM
-        call ESMF_GridCompSetServices(is%wrap%atm, ATM_REGISTER, &
-          userRc=localrc, rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
-        ESMF_ERR_RETURN(localrc,localrc)
-        call ESMF_AttributeSet(is%wrap%atm, &
-          name="Verbosity", value="high", &
-          convention="NUOPC", purpose="General", rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
+          call ESMF_GridCompSetServices(is%wrap%atm, ATM_REGISTER, &
+            userRc=localrc, rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          ESMF_ERR_RETURN(localrc,rc)
+          call ESMF_AttributeSet(is%wrap%atm, &
+            name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+#else
+          write (msg, *) "ATM model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
 #endif
-
-#ifdef WITH_OCN
+        endif
+        
         ! SetServices for OCN
-        call ESMF_GridCompSetServices(is%wrap%ocn, OCN_SS, &
-          userRc=localrc, rc=rc)
+        call ESMF_ConfigGetAttribute(config, model, label="ocn_model:", rc=rc)
         ESMF_ERR_RETURN(rc,rc)
-        ESMF_ERR_RETURN(localrc,localrc)
-        call ESMF_AttributeSet(is%wrap%ocn, &
-          name="Verbosity", value="high", &
-          convention="NUOPC", purpose="General", rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
+        ocnFlag = .false.
+        !print *, "ocn_model: ", trim(model)
+        if (trim(model) == "dummy") then
+          ocnFlag = .true.
+#ifdef FRONT_OCN_DUMMY
+          call ESMF_GridCompSetServices(is%wrap%ocn, OCN_DUMMY_SS, &
+            userRc=localrc, rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          ESMF_ERR_RETURN(localrc,rc)
+          call ESMF_AttributeSet(is%wrap%ocn, &
+            name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+#else
+          write (msg, *) "OCN model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
 #endif
+        elseif (trim(model) == "hycom") then
+          ocnFlag = .true.
+#ifdef FRONT_HYCOM
+          call ESMF_GridCompSetServices(is%wrap%ocn, OCN_HYCOM_SS, &
+            userRc=localrc, rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          ESMF_ERR_RETURN(localrc,rc)
+          call ESMF_AttributeSet(is%wrap%ocn, &
+            name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+#else
+          write (msg, *) "OCN model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        elseif (trim(model) == "mom5") then
+          ocnFlag = .true.
+#ifdef FRONT_MOM5
+          call ESMF_GridCompSetServices(is%wrap%ocn, OCN_MOM5_SS, &
+            userRc=localrc, rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          ESMF_ERR_RETURN(localrc,rc)
+          call ESMF_AttributeSet(is%wrap%ocn, &
+            name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+#else
+          write (msg, *) "OCN model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        endif
+        
+        if (atmFlag .and. ocnFlag) then
+          ! Both ATM and OCN present -> SetServices for Connectors
+          ! SetServices for atm2ocn
+          call ESMF_CplCompSetServices(is%wrap%atm2ocn, cplSS, userRc=localrc, &
+            rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          ESMF_ERR_RETURN(localrc,rc)
+          call ESMF_AttributeSet(is%wrap%atm2ocn, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          ! SetServices for ocn2atm
+          call ESMF_CplCompSetServices(is%wrap%ocn2atm, cplSS, userRc=localrc, &
+            rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          ESMF_ERR_RETURN(localrc,rc)
+          call ESMF_AttributeSet(is%wrap%ocn2atm, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+        endif
 
-        ! Get internal clock and set the timeStep equal to runDuration
-        call ESMF_GridCompGet(gcomp, clock=internalClock, rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
-        call ESMF_ClockGet(internalClock, runDuration=runDuration, rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
-        call ESMF_ClockSet(internalClock, timeStep=runDuration, rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
+        ! Get internal clock and set the coupling timeStep according to config
+        call ESMF_ConfigGetAttribute(config, atmOcnCoulingHours, &
+          label="atm_ocn_coupling_hours:", default=-1.0_ESMF_KIND_R8, rc=rc)
+        if (atmOcnCoulingHours>0._ESMF_KIND_R8) then
+          ! The coupling time step was provided
+          call ESMF_TimeIntervalSet(couplingStep, h_r8=atmOcnCoulingHours, rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          call ESMF_GridCompGet(gcomp, clock=internalClock, rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          call ESMF_ClockSet(internalClock, timeStep=couplingStep, rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+        else
+          ! Keep the default timeStep, i.e. that of parent
+        endif
 
       end subroutine
 

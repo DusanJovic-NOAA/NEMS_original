@@ -30,7 +30,6 @@ chmod 755 gen_fcst_run
 cp gen_fcst_run ${RUNDIR}
 
 cp atmos.configure_gen ${RUNDIR}/atmos.configure
-cp ocean.configure ${RUNDIR}/ocean.configure
 
 else
 
@@ -51,7 +50,6 @@ chmod 755 gen_fcst_run
 cp gen_fcst_run ${RUNDIR}
 
 cp atmos.configure_gen ${RUNDIR}/atmos.configure
-cp ocean.configure ${RUNDIR}/ocean.configure
 
 fi
 

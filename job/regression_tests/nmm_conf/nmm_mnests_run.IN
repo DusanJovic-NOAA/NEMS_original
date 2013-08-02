@@ -30,7 +30,6 @@ cp IGBP_LANDUSE.TBL LANDUSE.TBL
 cp ETAMPNEW_DATA.expanded_rain ETAMPNEW_DATA
 
 cp $SRCDIR/job/regression_tests/atmos.configure_nmm atmos.configure
-cp $SRCDIR/job/regression_tests/ocean.configure .
 cp $SRCDIR/job/regression_tests/configure_file_0* .
 cp configure_file_01 model_configure
 

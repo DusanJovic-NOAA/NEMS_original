@@ -471,7 +471,6 @@ cd $RUNDIR
 export COMOUT=$RUNDIR
 
 #
-cp -p ${NEMSDIR}/job/regression_tests/ocean.configure $RUNDIR
 cp -p ${NEMSDIR}/job/regression_tests/Chem_Registry.rc $RUNDIR
 cp -p ${NEMSDIR}/job/regression_tests/MAPL.rc $RUNDIR
 #

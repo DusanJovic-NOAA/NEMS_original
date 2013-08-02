@@ -81,9 +81,8 @@ cat ngac_bsub.IN    | sed s:_JBNME_:${JBNME}:g   \
 
 fi
 
-## copy J-job script and OCN rc file
+## copy J-job script
 cp ${NEMSDIR}/job/regression_tests/JNGAC_FORECAST.sms.para ${RUNDIR}
-cp ${NEMSDIR}/job/regression_tests/ocean.configure ${RUNDIR}/ocean.configure
 
 ## submit the job
 if [ $SCHEDULER = 'loadleveler' ]; then

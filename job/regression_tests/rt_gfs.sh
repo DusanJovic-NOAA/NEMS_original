@@ -101,12 +101,24 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
 
  cp gfs_fcst_run ${RUNDIR}
 
+ cat nems.configure.IN   | sed s:_atm_model_:${atm_model}:g                    \
+                         | sed s:_atm_petlist_bounds_:"${atm_petlist_bounds}":g\
+                         | sed s:_ocn_model_:${ocn_model}:g                    \
+                         | sed s:_ocn_petlist_bounds_:"${ocn_petlist_bounds}":g\
+                         | sed s:_atm_ocn_coupling_hours_:"${atm_ocn_coupling_hours}":g\
+                         >  nems.configure
+                         
+ cp nems.configure ${RUNDIR}
+                         
 ################################################################################
 # Copy init files
 ################################################################################
 
+ ### for now set symbolic links to HYCOM input files
+ ln -s ${RTPWD}/HYCOM_glob/* ${RUNDIR}/.
+ ###################################################
+
  cp atmos.configure_gfs ${RUNDIR}/atmos.configure
- cp ocean.configure ${RUNDIR}/ocean.configure
  cp MAPL.rc ${RUNDIR}/MAPL.rc
  cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
 
@@ -193,7 +205,6 @@ else
  chmod +x ${RUNDIR}/gfs_fcst_run
  cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
  cp atmos.configure_gfs ${RUNDIR}/atmos.configure
- cp ocean.configure ${RUNDIR}/ocean.configure
 
 fi
 

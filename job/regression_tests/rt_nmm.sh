@@ -35,6 +35,13 @@ cat nmm_conf/nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g                  \
                                  | sed s:_MODE_:${MODE}:g                    \
                                  | sed s:_WGT_:${WGT}:g  >  configure_file_01
 
+cat nems.configure.IN   | sed s:_atm_model_:${atm_model}:g                    \
+                        | sed s:_atm_petlist_bounds_:"${atm_petlist_bounds}":g\
+                        | sed s:_ocn_model_:${ocn_model}:g                    \
+                        | sed s:_ocn_petlist_bounds_:"${ocn_petlist_bounds}":g\
+                        | sed s:_atm_ocn_coupling_hours_:"${atm_ocn_coupling_hours}":g\
+                        >  nems.configure
+
 if [ $SCHEDULER = 'loadleveler' ]; then
 
 cat nmm_conf/nmm_ll.IN           | sed s:_JBNME_:${JBNME}:g   \

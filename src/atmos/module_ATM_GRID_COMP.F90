@@ -70,6 +70,10 @@
 !
       TYPE(ESMF_Clock),SAVE :: CLOCK_ATM                                   !<-- The Clock of the ATM component
 !
+#ifdef WITH_NUOPC
+      character(len=160) :: nuopcMsg
+#endif
+
 !-----------------------------------------------------------------------
 !
       CONTAINS
@@ -110,20 +114,25 @@
         file=__FILE__)) &
         return  ! bail out
         
-      ! The default InitP0 which will set InitializePhaseMap to IPDv00
+      ! Provide InitP0 to overwrite the default IPD00 with IPD01
+      call ESMF_GridCompSetEntryPoint(ATM_GRID_COMP, ESMF_METHOD_INITIALIZE, &
+        InitializeP0, phase=0, rc=RC_REG)
+      if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
 
       ! NUOPC_Model IPDv00 requires InitP1, where Fields should be advertised
       CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP, ESMF_METHOD_INITIALIZE, &
-        ATM_INITIALIZE, phase=1, rc=RC_REG)
+        InitializeP1, phase=1, rc=RC_REG)
       if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
 
       ! NUOPC_Model IPDv00 requires InitP2, where Fields should be realized,
-      ! even if it is NOOP for now
       CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP, ESMF_METHOD_INITIALIZE, &
-        NOOP, phase=2, rc=RC_REG)
+        InitializeP2, phase=2, rc=RC_REG)
       if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -145,6 +154,18 @@
         file=__FILE__)) &
         return  ! bail out
         
+      ! extend the NUOPC Field Dictionary to hold required entries
+      if (.not.NUOPC_FieldDictionaryHasEntry("air_temperature_at_sea_level")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="air_temperature_at_sea_level", &
+          canonicalUnits="K", defaultLongName="Air Temperature at Sea Level", &
+          defaultShortName="tmsl", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+
 #else
 
 !
@@ -216,15 +237,178 @@
 !-----------------------------------------------------------------------
 !
 #ifdef WITH_NUOPC
-  subroutine Noop(gcomp, importState, exportState, clock, rc)
+  subroutine InitializeP0(gcomp, importState, exportState, clock, rc)
+    type(ESMF_GridComp)   :: gcomp
+    type(ESMF_State)      :: importState, exportState
+    type(ESMF_Clock)      :: clock
+    integer, intent(out)  :: rc
+    
+    ! local variables    
+    character(len=NUOPC_PhaseMapStringLength) :: initPhases(4)
+    
+    rc = ESMF_SUCCESS
+
+    initPhases(1) = "IPDv01p1=1"
+    ! skip over IPDv01p2, which isn't needed here
+    initPhases(2) = "IPDv01p3=2"
+    initPhases(3) = "IPDv01p4=3"
+    initPhases(4) = "IPDv01p5=4"
+    
+    call ESMF_AttributeSet(gcomp, &
+      name="InitializePhaseMap", valueList=initPhases, &
+      convention="NUOPC", purpose="General", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+  end subroutine
+
+  !-----------------------------------------------------------------------
+
+  subroutine InitializeP1(gcomp, importState, exportState, clock, rc)
+    type(ESMF_GridComp)  :: gcomp
+    type(ESMF_State)     :: importState, exportState
+    type(ESMF_Clock)     :: clock
+    integer, intent(out) :: rc
+    
+    rc = ESMF_SUCCESS
+
+    ! advertise Fields
+
+    ! importable field: sea_surface_temperature
+    call NUOPC_StateAdvertiseField(importState, &
+      StandardName="sea_surface_temperature", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: air_pressure_at_sea_level
+    call NUOPC_StateAdvertiseField(exportState, &
+      StandardName="air_pressure_at_sea_level", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    ! exportable field: air_temperature_at_sea_level
+    call NUOPC_StateAdvertiseField(exportState, &
+      StandardName="air_temperature_at_sea_level", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+      
+  end subroutine
+  
+  !-----------------------------------------------------------------------
+
+  subroutine InitializeP2(gcomp, importState, exportState, clock, rc)
     type(ESMF_GridComp)  :: gcomp
     type(ESMF_State)     :: importState, exportState
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
 
+    type(ESMF_Grid)         :: gridIn, gridOut
+    type(ESMF_Field)        :: field
+
     rc = ESMF_SUCCESS
+    
+    ! call into the actual NEMS/ATM initialize rooutine
+    
+    call ATM_INITIALIZE(gcomp, importState, exportState, clock, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    ! create a DUMMY Grid object for import and export Fields
+    
+    gridIn = NUOPC_GridCreateSimpleXY( &
+      x_min=10._ESMF_KIND_R8,   x_max=20._ESMF_KIND_R8, &
+      y_min=100._ESMF_KIND_R8,  y_max=200._ESMF_KIND_R8, &
+      i_count=1000, j_count=100, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+      
+    gridOut = gridIn
+      
+    ! conditionally realize or remove Fields
+    
+    ! importable field: sea_surface_temperature
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="sst")) then
+      ! realize a connected Field
+      field = ESMF_FieldCreate(name="sst", grid=gridIn, &
+        typekind=ESMF_TYPEKIND_R8, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(importState, (/"sst"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+ 
+    ! exportable field: air_pressure_at_sea_level
+    if (NUOPC_StateIsFieldConnected(exportState, fieldName="pmsl")) then
+      ! realize a connected Field
+      field = ESMF_FieldCreate(name="pmsl", grid=gridOut, &
+        typekind=ESMF_TYPEKIND_R8, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(exportState, (/"pmsl"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+    
+    ! exportable field: air_temperature_at_sea_level
+    if (NUOPC_StateIsFieldConnected(exportState, fieldName="tmsl")) then
+      ! realize a connected Field
+      field = ESMF_FieldCreate(name="tmsl", grid=gridOut, &
+        typekind=ESMF_TYPEKIND_R8, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    else
+      ! remove a not connected Field from State
+      call ESMF_StateRemove(exportState, (/"tmsl"/), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
 
   end subroutine
+
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
@@ -268,11 +452,17 @@
 !-----------------------------------------------------------------------
 #ifdef WITH_NUOPC
       call NUOPC_ClockPrintCurrTime(CLOCK_EARTH, &
-        string="entering ATM_INITIALIZE with CLOCK_EARTH current: ")
+        string="entering ATM_INITIALIZE with CLOCK_EARTH current: ", &
+        unit=nuopcMsg)
+      call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
       call NUOPC_ClockPrintStartTime(CLOCK_EARTH, &
-        string="entering ATM_INITIALIZE with CLOCK_EARTH start:   ")
+        string="entering ATM_INITIALIZE with CLOCK_EARTH start:   ", &
+        unit=nuopcMsg)
+      call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
       call NUOPC_ClockPrintStopTime(CLOCK_EARTH, &
-        string="entering ATM_INITIALIZE with CLOCK_EARTH stop:    ")
+        string="entering ATM_INITIALIZE with CLOCK_EARTH stop:    ", &
+        unit=nuopcMsg)
+      call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
 #endif
 
 !
@@ -334,7 +524,11 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef WITH_NUOPC
+      CALL ESMF_ConfigLoadFile(config=CF ,filename='nems.configure' ,rc=RC)
+#else
       CALL ESMF_ConfigLoadFile(config=CF ,filename='atmos.configure' ,rc=RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -368,7 +562,11 @@
 !
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The ATM configure object
                                   ,value =atm_int_state%CORE            &  !<-- The dynamic core name
+#ifdef WITH_NUOPC
+                                  ,label ='atm_model:'                  &  !<-- The label in the configure file
+#else
                                   ,label ='core:'                       &  !<-- The label in the configure file
+#endif
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -531,18 +729,30 @@
 !
 #ifdef WITH_NUOPC
       call NUOPC_ClockPrintCurrTime(CLOCK_EARTH, &
-        string="leaving  ATM_INITIALIZE with CLOCK_EARTH current: ")
+        string="leaving  ATM_INITIALIZE with CLOCK_EARTH current: ", &
+        unit=nuopcMsg)
+      call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
       call NUOPC_ClockPrintStartTime(CLOCK_EARTH, &
-        string="leaving  ATM_INITIALIZE with CLOCK_EARTH start:   ")
+        string="leaving  ATM_INITIALIZE with CLOCK_EARTH start:   ", &
+        unit=nuopcMsg)
+      call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
       call NUOPC_ClockPrintStopTime(CLOCK_EARTH, &
-        string="leaving  ATM_INITIALIZE with CLOCK_EARTH stop:    ")
+        string="leaving  ATM_INITIALIZE with CLOCK_EARTH stop:    ", &
+        unit=nuopcMsg)
+      call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
 
       call NUOPC_ClockPrintCurrTime(atm_int_state%CLOCK_ATM, &
-        string="leaving  ATM_INITIALIZE with CLOCK_ATM current: ")
+        string="leaving  ATM_INITIALIZE with CLOCK_ATM current: ", &
+        unit=nuopcMsg)
+      call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
       call NUOPC_ClockPrintStartTime(atm_int_state%CLOCK_ATM, &
-        string="leaving  ATM_INITIALIZE with CLOCK_ATM start:   ")
+        string="leaving  ATM_INITIALIZE with CLOCK_ATM start:   ", &
+        unit=nuopcMsg)
+      call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
       call NUOPC_ClockPrintStopTime(atm_int_state%CLOCK_ATM, &
-        string="leaving  ATM_INITIALIZE with CLOCK_ATM stop:    ")
+        string="leaving  ATM_INITIALIZE with CLOCK_ATM stop:    ", &
+        unit=nuopcMsg)
+      call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
 #endif
 !
 !-----------------------------------------------------------------------
@@ -662,87 +872,89 @@
 
 #else
 
-      SUBROUTINE ATM_ADVANCE(ATM_GRID_COMP                                  &
-                        ,RC_RUN)
+      SUBROUTINE ATM_ADVANCE(ATM_GRID_COMP, rc)
 !
 !-----------------------------------------------------------------------
-!***  The Run step of the ATM component.
+!***  Advance the ATM component.
 !-----------------------------------------------------------------------
 !
 !------------------------
 !***  Argument Variables
 !------------------------
 !
-      TYPE(ESMF_GridComp)               :: ATM_GRID_COMP                   !<-- The ATM component
-      INTEGER            ,INTENT(OUT)   :: RC_RUN                          !<-- Error return code
+      type(ESMF_GridComp)   :: ATM_GRID_COMP
+      integer, intent(out)  :: rc
 !
 !---------------------
 !***  Local Variables
 !---------------------
 !
-      INTEGER :: RC
-!
-      TYPE(ESMF_Time) :: CURRTIME                                       &
-                        ,STARTTIME
-!
-      TYPE(ESMF_TimeInterval) :: RUNDURATION
-      type(ESMF_Pointer)      :: this
+      type(ESMF_Clock)      :: clock
+      type(ESMF_Time)       :: stopTime
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-!-----------------------------------------------------------------------
-!***  Use the internal Clock set by NUOPC layer for ATM
-!-----------------------------------------------------------------------
+      rc = ESMF_SUCCESS
 !
+!-----------------------------------------------------------------------
+!***  Use the internal Clock set by NUOPC layer for ATM but update stopTime
+!-----------------------------------------------------------------------
+
+      ! Component internal Clock gets updated per NUOPC rules
+      call ESMF_GridCompGet(ATM_GRID_COMP, clock=clock, rc=rc)
+      ESMF_ERR_RETURN(rc,rc)
+      
+      ! The stopTime will be updated to be the next ATM-OCN coupling time
+      call ESMF_ClockGet(clock, stopTime=stopTime, rc=rc)
+      ESMF_ERR_RETURN(rc,rc)
+      
+      ! Set the ATM-OCN coupling time to be stopTime in Clock that ATM core uses
+      call ESMF_ClockSet(atm_int_state%CLOCK_ATM, stopTime=stopTime, rc=rc)
+      ESMF_ERR_RETURN(rc,rc)
+
       call NUOPC_ClockPrintCurrTime(atm_int_state%CLOCK_ATM, &
-        string="entering ATM_ADVANCE with CLOCK_ATM current: ")
+        string="entering ATM_ADVANCE with CLOCK_ATM current: ", &
+        unit=nuopcMsg)
+      call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
       call NUOPC_ClockPrintStartTime(atm_int_state%CLOCK_ATM, &
-        string="entering ATM_ADVANCE with CLOCK_ATM start:   ")
+        string="entering ATM_ADVANCE with CLOCK_ATM start:   ", &
+        unit=nuopcMsg)
+      call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
       call NUOPC_ClockPrintStopTime(atm_int_state%CLOCK_ATM, &
-        string="entering ATM_ADVANCE with CLOCK_ATM stop:    ")
+        string="entering ATM_ADVANCE with CLOCK_ATM stop:    ", &
+        unit=nuopcMsg)
+      call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
 
 !-----------------------------------------------------------------------
 !***  Execute the Run step of the selected dynamic core.
 !-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Execute the Run step of the CORE component"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
+
       CALL ESMF_GridCompRun(gridcomp   =atm_int_state%CORE_GRID_COMP    &
                            ,importState=atm_int_state%CORE_IMP_STATE    &
                            ,exportState=atm_int_state%CORE_EXP_STATE    &
                            ,clock      =atm_int_state%CLOCK_ATM         &
-                           ,phase      =1                               &
-                           ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+                           ,rc         =rc)
+      ESMF_ERR_RETURN(rc,rc)
 
-!
 !-----------------------------------------------------------------------
-!
-      IF(RC_RUN==ESMF_SUCCESS)THEN
-!       WRITE(0,*)' ATM_RUN succeeded'
-      ELSE
-        WRITE(0,*)' ATM_RUN failed  RC_RUN=',RC_RUN
-      ENDIF
-!-----------------------------------------------------------------------
-!
+
       call NUOPC_ClockPrintCurrTime(atm_int_state%CLOCK_ATM, &
-        string="leaving  ATM_ADVANCE with CLOCK_ATM current: ")
+        string="leaving  ATM_ADVANCE with CLOCK_ATM current: ", &
+        unit=nuopcMsg)
+      call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
       call NUOPC_ClockPrintStartTime(atm_int_state%CLOCK_ATM, &
-        string="leaving  ATM_ADVANCE with CLOCK_ATM start:   ")
+        string="leaving  ATM_ADVANCE with CLOCK_ATM start:   ", &
+        unit=nuopcMsg)
+      call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
       call NUOPC_ClockPrintStopTime(atm_int_state%CLOCK_ATM, &
-        string="leaving  ATM_ADVANCE with CLOCK_ATM stop:    ")
+        string="leaving  ATM_ADVANCE with CLOCK_ATM stop:    ", &
+        unit=nuopcMsg)
+      call ESMF_LogWrite(nuopcMsg, ESMF_LOGMSG_INFO)
 
-!
 !-----------------------------------------------------------------------
-!
+
       END SUBROUTINE ATM_ADVANCE
 !
 !-----------------------------------------------------------------------
