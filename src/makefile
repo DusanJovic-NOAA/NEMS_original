@@ -166,22 +166,22 @@ endif
 ################################################################################
 all:
 	@echo
-	@echo " gmake nmm_gfs ----------------------------- NMM and GFS - without the GOCART"
+	@echo " gmake nmm_gsm ----------------------------- NMM and GSM - without the GOCART"
 	@echo " gmake gen --------------------------------- GEN "
-	@echo " gmake nmm_gfs_gen_post GOCART_MODE=full --- GEN, NMM and GFS - with the GOCART and post"
-	@echo " gmake nmm_gfs GOCART_MODE=full ------------ NMM and GFS - with the GOCART"
+	@echo " gmake nmm_gsm_gen_post GOCART_MODE=full --- GEN, NMM and GSM - with the GOCART and post"
+	@echo " gmake nmm_gsm GOCART_MODE=full ------------ NMM and GSM - with the GOCART"
 	@echo " gmake nmm --------------------------------- NMM "
 	@echo " gmake nmm_post ---------------------------- NMM - with post"
-	@echo " gmake gfs --------------------------------- GFS - without the GOCART"
-	@echo " gmake gfs_post ---------------------------- GFS - with post without the GOCART"
-	@echo " gmake gfs GOCART_MODE=full ---------------- GFS - with the GOCART"
+	@echo " gmake gsm --------------------------------- GSM - without the GOCART"
+	@echo " gmake gsm_post ---------------------------- GSM - with post without the GOCART"
+	@echo " gmake gsm GOCART_MODE=full ---------------- GSM - with the GOCART"
 	@echo " gmake fim --------------------------------- FIM "
-#	@echo " gmake fim_gfs ----------------------------- FIM and GFS - without the GOCART"
-#	@echo " gmake fim_gfs GOCART_MODE=full ------------ FIM and GFS - with the GOCART"
+#	@echo " gmake fim_gsm ----------------------------- FIM and GSM - without the GOCART"
+#	@echo " gmake fim_gsm GOCART_MODE=full ------------ FIM and GSM - with the GOCART"
 	@echo
 	@echo "In order to build NEMS with ocean components, all of the above targets support"
 	@echo "the optional OCN variable. Supported values are: \"dummy\", \"hycom\", and \"mom5\"."
-	@echo "Specifying multiple values, e.g. \"gmake nmm_gfs OCN=mom5,dummy\", is supported."
+	@echo "Specifying multiple values, e.g. \"gmake nmm_gsm OCN=mom5,dummy\", is supported."
 	@echo
 
 ################################################################################
@@ -228,15 +228,15 @@ nmm_post_libs:
 
 ################################################################################
 #
-# GFS
+# GSM
 #
 ################################################################################
 
-gfs: gfs_libs $(OBJS) $(MAIN)
+gsm: gsm_libs $(OBJS) $(MAIN)
 	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
-	@echo "nems.x is created for GFS core."
+	@echo "nems.x is created for GSM core."
 
-gfs_libs:
+gsm_libs:
 ifeq ($(GOCART_MODE),full)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
 endif
@@ -253,15 +253,15 @@ endif
 
 ################################################################################
 #
-# GFS with post
+# GSM with post
 #
 ################################################################################
 
-gfs_post: gfs_post_libs $(OBJS) $(MAIN)
+gsm_post: gsm_post_libs $(OBJS) $(MAIN)
 	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS_POST)
-	@echo "nems.x is created for GFS core."
+	@echo "nems.x is created for GSM core."
 
-gfs_post_libs:
+gsm_post_libs:
 ifeq ($(GOCART_MODE),full)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
 endif
@@ -300,15 +300,15 @@ gen_libs:
 
 ################################################################################
 #
-# GEN, NMM and GFS
+# GEN, NMM and GSM
 #
 ################################################################################
 
-nmm_gfs_gen: nmm_gfs_gen_libs $(OBJS) $(MAIN)
+nmm_gsm_gen: nmm_gsm_gen_libs $(OBJS) $(MAIN)
 	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
-	@echo "nems.x is created for GEN, NMM and GFS core."
+	@echo "nems.x is created for GEN, NMM and GSM core."
 
-nmm_gfs_gen_libs:
+nmm_gsm_gen_libs:
 ifeq ($(GOCART_MODE),full)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
 endif
@@ -325,15 +325,15 @@ endif
 
 ################################################################################
 #
-# GEN, NMM and GFS with post
+# GEN, NMM and GSM with post
 #
 ################################################################################
 
-nmm_gfs_gen_post: nmm_gfs_gen_post_libs $(OBJS) $(MAIN)
+nmm_gsm_gen_post: nmm_gsm_gen_post_libs $(OBJS) $(MAIN)
 	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS_POST)
-	@echo "nems.x is created for GEN, NMM and GFS core."
+	@echo "nems.x is created for GEN, NMM and GSM core."
 
-nmm_gfs_gen_post_libs:
+nmm_gsm_gen_post_libs:
 ifeq ($(GOCART_MODE),full)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
 endif
@@ -350,15 +350,15 @@ endif
 
 ################################################################################
 #
-# NMM and GFS
+# NMM and GSM
 #
 ################################################################################
 
-nmm_gfs: nmm_gfs_libs $(OBJS) $(MAIN)
+nmm_gsm: nmm_gsm_libs $(OBJS) $(MAIN)
 	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
-	@echo "nems.x is created for NMM and GFS core."
+	@echo "nems.x is created for NMM and GSM core."
 
-nmm_gfs_libs:
+nmm_gsm_libs:
 ifeq ($(GOCART_MODE),full)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
 endif
@@ -397,18 +397,18 @@ fim_libs:
 
 ################################################################################
 #
-# FIM and GFS
+# FIM and GSM
 #TBH:  not yet integrated with FIM build
 #
 ################################################################################
 
-fim_gfs: fim_gfs_libs $(OBJS) $(MAIN)
+fim_gsm: fim_gsm_libs $(OBJS) $(MAIN)
 #	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(EXTLIBS)
-#	@echo "nems.x is created for FIM and GFS core."
-	@echo "ERROR:  Cannot build FIM with other cores yet.  nems.x is NOT created for FIM and GFS core."
+#	@echo "nems.x is created for FIM and GSM core."
+	@echo "ERROR:  Cannot build FIM with other cores yet.  nems.x is NOT created for FIM and GSM core."
 	@exit -1
 
-fim_gfs_libs:
+fim_gsm_libs:
 	cd atmos/share         && gmake
 	cd atmos/nmm           && gmake stub
 	cd atmos/io            && gmake

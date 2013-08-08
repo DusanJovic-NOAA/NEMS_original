@@ -628,6 +628,11 @@
                                         ,GFS_REGISTER                   &
                                         ,rc=RC)
 !
+        CASE('gsm')
+          CALL ESMF_GridCompSetServices (atm_int_state%CORE_GRID_COMP   &
+                                        ,GFS_REGISTER                   &
+                                        ,rc=RC)
+!
         CASE('fim')
           CALL ESMF_GridCompSetServices (atm_int_state%CORE_GRID_COMP   &
                                         ,FIM_REGISTER                   &
