@@ -12,7 +12,7 @@
  SKIP_NST=YES
 #SKIP_FIM=YES
 #SKIP_POST=YES
- SKIP_GFS_POST=YES
+#SKIP_GFS_POST=YES
  SKIP_ESMF520rAPI=YES
  SKIP_GEFS_CONCUR=YES
 #SKIP_SINGLECORE=YES
@@ -400,8 +400,7 @@ export wave=62   ; export THRD=1
 export lm=64     ; export lsoil=4         ; export MEMBER_NAMES=c00
 export IDVC=2    ; export THERMODYN_ID=1  ; export SFCPRESS_ID=1 ; export SPECTRALLOOP=2
 export NEMSIOIN=.false.  ; export NEMSIOOUT=.false. ; export rungfstest=.true.
-export SIGIOIN=.true.    ; export SIGIOOUT=.true.   ; export SFCIOOUT=.false.
-#export NEMSIOOUT=.true. ;  export SIGIOOUT=.false. ; export SFCIOOUT=.false. 
+export SIGIOIN=.true.    ; export SIGIOOUT=.true.   ; export SFCIOOUT=.true.
 export FHSWR=1           ;  export FHLWR=1          ; LDFI_SPECT=.true.
 export CDATE=2012010100
 #export CDATE=2010010100
@@ -2443,7 +2442,7 @@ else
 # Clean and compile both NMMB & GFS cores, using ESMF 3.1.0r series and POST library.
 ###############################################################################
 
- if [ $MACHINE_ID = ccs ]; then
+ if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus -o $MACHINE_ID = wcoss ]; then
   if [ $RT_FULL = true -o $CB_arg = post -o $CB_arg = nmm -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
    echo "Preparing model code for regression tests"
@@ -2455,10 +2454,28 @@ else
    date                                     >> ${REGRESSIONTEST_LOG}
    echo "Compilation with POST"             >> ${REGRESSIONTEST_LOG}
    rm -f ${PATHTR}/exe/NEMS.x
-   cp atmos/gsm/dyn/makefile_essl atmos/gsm/dyn/makefile
-   gmake clean                              >> ${COMPILE_LOG} 2>&1
-   esmf_version 3                           >> ${COMPILE_LOG} 2>&1
-   gmake nmm_gsm_gen_post GOCART_MODE=full  >> ${COMPILE_LOG} 2>&1
+
+   if [ $MACHINE_ID = ccs ]; then
+    cp atmos/gsm/dyn/makefile_essl atmos/gsm/dyn/makefile
+    gmake clean                              >> ${COMPILE_LOG} 2>&1
+    esmf_version 3                           >> ${COMPILE_LOG} 2>&1
+    gmake nmm_gsm_gen_post GOCART_MODE=full  >> ${COMPILE_LOG} 2>&1
+
+   elif [ $MACHINE_ID = wcoss ]; then
+    cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
+    ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
+    gmake clean                            >> ${COMPILE_LOG} 2>&1
+    gmake nmm_gsm_gen_post GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
+
+   elif [ $MACHINE_ID = zeus ]; then
+    cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
+    ./esmf_version 3_zeus                  >> ${COMPILE_LOG} 2>&1
+    source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
+    module list                            >> ${COMPILE_LOG} 2>&1
+    gmake clean                            >> ${COMPILE_LOG} 2>&1
+    gmake nmm_gsm_gen_post GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
+   fi
+
    date                                     >> ${REGRESSIONTEST_LOG}
 
    if [ -f ${PATHTR}/exe/NEMS.x ] ; then
@@ -2469,7 +2486,7 @@ else
     exit
    fi
   fi # endif compilation
- fi # endif machine (only CCS)
+ fi # endif machine 
 
  cd $PATHRT
 
@@ -2480,7 +2497,7 @@ else
  #
  ###############################################################################
 
- if [ $MACHINE_ID = ccs ]; then
+ if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus -o $MACHINE_ID = wcoss ]; then
   if [ $RT_FULL = true -o $CB_arg = post -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
    export TEST_DESCR="NMMB-regional run with post on quilt"
@@ -2516,7 +2533,7 @@ else
  #
  ###############################################################################
 
-  if [ $MACHINE_ID = ccs ] ; then
+  if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus -o $MACHINE_ID = wcoss ] ; then
    if [ $RT_FULL = true -o $CB_arg = post -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
     export TEST_DESCR="GFS with POST"
@@ -2535,7 +2552,12 @@ else
     export_gsm
 #
     export FDFI=3
-    export WRITE_DOPOST=.true.
+    export QUILT=.true.; export WRITE_DOPOST=.true.
+    export NEMSIOIN=.true. ; export SIGIOIN=.false.
+    export NEMSIOOUT=.true.; export SIGIOOUT=.false.; export SFCIOOUT=.false.
+    export CDATE=2010010100
+    export SIGHDR=$NEMSIOGET
+    export WTPG=4
 #---------------------
     ./rt_gfs.sh
     if [ $? = 2 ]; then exit ; fi
@@ -2551,7 +2573,7 @@ else
  #
  ###############################################################################
 
-  if [ $MACHINE_ID = ccs ]; then
+  if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus -o $MACHINE_ID = wcoss ] ; then
    if [ $RT_FULL = true -o $CB_arg = post -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
     export TEST_DESCR="GFS_GOCART with POST"
@@ -2569,7 +2591,13 @@ else
          NGAC3d.GrbF03 NGAC3d.GrbF06 NGAC3d.GrbF12 NGAC3d.GrbF24"
 #---------------------
     export_gsm
-    export TASKS=64
+    export TASKS=64; export PE1=64
+    export QUILT=.true.; export WRITE_DOPOST=.true.
+    export NEMSIOIN=.true. ;  export SIGIOIN=.false.
+    export NEMSIOOUT=.true.; export SIGIOOUT=.false.; export SFCIOOUT=.false.
+    export CDATE=2012071700
+    export SIGHDR=$NEMSIOGET
+    export WTPG=4
 #---------------------
     ./rt_gocart.sh
     if [ $? = 2 ]; then exit ; fi

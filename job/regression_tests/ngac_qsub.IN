@@ -1,7 +1,7 @@
 #! /bin/sh -l
 
-#PBS -o out
-#PBS -e err
+#PBS -o _RUND_/out
+#PBS -e _RUND_/err
 #PBS -N _JBNME_
 #PBS -A _ACCNR_
 #PBS -l procs=_TASKS_
@@ -9,7 +9,7 @@
 
 set -aeux
 export MPI_GROUP_MAX=96
-
+export MACHINE_ID=_MACHINE_ID_
 export SCHEDULER=_SCHED_
 
 cd _RUND_
@@ -31,13 +31,12 @@ export NEMSDIR=_NEMSDIR_
 export WORKDIR=_WORKDIR_
 export REGSDIR=_REGSDIR_ 
 export FCST_SCRIPT_DIR=_NEMSDIR_/job
-export PDY=20100101
+export PDY=20120717
 
-export GRDI=_REGSDIR_/gfsanl.${PDY}00
-export SFCI=_REGSDIR_/sfcanl.${PDY}00
+export GRDI=_REGSDIR_/GFS_GOCART_POST/ngac.t00z.gfsanl
+export SFCI=_REGSDIR_/GFS_GOCART_POST/ngac.t00z.sfcanl
+
 export wgrib=/home/George.Vandenberghe/nwprod/util/exec/wgrib
-export WRITE_DOPOST=.false.
-
 
 _RUND_/JNGAC_FORECAST.sms.para
 

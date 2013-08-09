@@ -4,6 +4,9 @@
 !
     subroutine post_run_nmm(wrt_int_state,mype,mpicomp,lead_write,          &
                mygridtype,mymaptype,mynsoil,mynfhr,mynfmin) 
+
+!***  HISTORY
+!    28May2013     Lu: Specify iostatusD3D
 !
 !-----------------------------------------------------------------------
 !*** run post on quilt
@@ -40,6 +43,8 @@
       integer,save :: kpo,kth,kpv
       real,dimension(komax),save  :: po, th, pv 
       logical,save :: LOG_POSTALCT=.false.
+
+      integer,save :: iostatusD3D=-1
 !
       write(0,*)'in post_run start'
 !-----------------------------------------------------------------------
@@ -109,7 +114,8 @@
       do while( IEOF .eq. 0)
        CALL READCNTRL(kth,IEOF)
           print *,'after readcntrl,IEOF=',IEOF
-       if ( IEOF.eq.0) CALL PROCESS(KTH,KPV,TH(1:KTH),PV(1:KPV))
+!      if ( IEOF.eq.0) CALL PROCESS(KTH,KPV,TH(1:KTH),PV(1:KPV))
+       if ( IEOF.eq.0) CALL PROCESS(KTH,KPV,TH(1:KTH),PV(1:KPV),iostatusD3D)
           print *,'after readcntrl,IEOF=',IEOF
       enddo
 !

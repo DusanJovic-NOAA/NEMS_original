@@ -12,6 +12,7 @@ set -xa
 # 29Mar2012 Sarah Lu    Add ngac_para_config                             #
 # 15Jun2012 Sarah Lu    Streamline the code to comply the NCO guideline  #
 # 05Dec2012 Sarah Lu    Correct typo FCST_SCRIP                          #
+# 03Aug2013 Sarah Lu    Specify MACHINE_ID and SCHEDULER                 #
 ##########################################################################
 
 #
@@ -19,6 +20,11 @@ set -xa
 #
 export RUN_ENVIR=${RUN_ENVIR:-prod}
 #
+#
+# Specify the platform
+#
+export MACHINE_ID=${MACHINE_ID:-wcoss}
+export SCHEDULER=${SCHEDULER:-lsf}
 
 ################################################################
 # Specify NET and RUN Name and model
@@ -168,6 +174,9 @@ set -a; . $CONFIG_FILE; set +a
 
 env
 
+if [ $MACHINE_ID = wcoss -o $MACHINE_ID = ccs ] ; then
+  export MP_SHARED_MEMORY=yes
+fi
 export MP_SHARED_MEMORY=${MP_SHARED_MEMORY:-no}
 #
 ################################################################

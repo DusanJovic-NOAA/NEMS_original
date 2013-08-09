@@ -45,7 +45,14 @@ EOF
 cp ${SRCDIR}/job/regression_tests/nmmb_cntrl.parm ./nmmb_cntrl.parm
 ln -sf ./nmmb_cntrl.parm fort.14
 ln -sf griddef.out fort.110
-cp /nwprod/parm/nam_micro_lookup.dat ./eta_micro_lookup.dat
+if [ $SCHEDULER = 'loadleveler' ]; then
+  cp /nwprod/parm/nam_micro_lookup.dat ./eta_micro_lookup.dat
+elif [ $SCHEDULER = 'pbs' ]; then
+  cp _RTPWD_/data_POST/eta_micro_lookup.dat ./eta_micro_lookup.dat
+elif [ $SCHEDULER = 'lsf' ]; then
+  cp /nwprod/parm/nam_micro_lookup.dat ./eta_micro_lookup.dat
+fi
+
 fi
 
 

@@ -46,6 +46,7 @@
 # 2012-04-16  Jun Wang : set dp_import to 1 for NDSL
 # 2012-09-26  Jun Wang : set sigio option
 # 2013-02-12  Henry Juang : remove JCAPG
+# 2013-07-10  Sarah Lu: specify wgrib and nemsioget for multi-platform
 #
 # Usage:  global_forecast.sh SIGI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO NSTI NSTO G3DO FHOUT_HF FHMAX_HF
 #
@@ -480,7 +481,7 @@ if [ $NEMSIO_IN = .true. ]; then
     export SIGHDR=${SIGHDR:-/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get}
   elif [ $machine = WCOSS ]; then
    if [ $NEMSIO_IN = .true. ] ; then
-    export SIGHDR=${SIGHDR:-/global/save/Jun.Wang/nems/util/nemsio_get}
+    export SIGHDR=${SIGHDR:-/nwprod/ngac.v1.0.0/exec/nemsio_get}
    else
     export SIGHDR=${SIGHDR:-${EXECGLOBAL}/global_sighdr$XC}
    fi
@@ -729,7 +730,7 @@ fi
    else
      FNSUB=""
    fi
-   eval rm -f ${LOGO}${FNSUB}
+## eval rm -f ${LOGO}${FNSUB}
    if [ $FHOUT_HF -ne $FHOUT -a $FH -lt $FHMAX_HF ] ; then
      ((FH=10#$FH+10#$FHOUT_HF))
    else
@@ -968,7 +969,15 @@ while [ $c -le $ENS_NUM ] ; do
  c=$((c+1))
 done
 
-export wgrib=${wgrib:-$NWPROD/util/exec/wgrib}
+if [ $machine = IBMP6 ]; then
+   export wgrib=${wgrib:-/nwprod/util/exec/wgrib}
+elif [ $machine = GAEA ]; then
+   export wgrib=${wgrib:-/nwprod/util/exec/wgrib}
+elif [ $machine = ZEUS ]; then
+   export wgrib=${wgrib:-/home/George.Vandenberghe/nwprod/util/exec/wgrib}
+elif [  $machine = WCOSS ]; then
+   export wgrib=${wgrib:-/nwprod/util/exec/wgrib}
+fi
 
 if [ $FHINI -eq 0 ]; then
   if [[ $ENS_NUM -le 1 ]] ; then

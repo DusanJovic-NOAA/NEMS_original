@@ -48,11 +48,13 @@ set -x
 # sigio input/output
  export SIGIO_IN=_SIGIOIN_
  export SIGIO_OUT=_SIGIOOUT_
+ export SFCIO_OUT=_SFCIOOUT_
  export MACHINE_ID=_MACHINE_ID_
  export SCHEDULER=_SCHEDULER_
 
  export SIGIO_IN=${SIGIO_IN:-.true.}
  export SIGIO_OUT=${SIGIO_OUT:-.true.}
+ export SFCIO_OUT=${SFCIO_OUT:-.true.}
 # 
  export MACHINE_ID=${MACHINE_ID:-WCOSS}
  export SCHEDULER=${SCHEDULER:-lsf}
@@ -63,14 +65,14 @@ set -x
 # number of output files, default =3, for adiab num_file=1
  if [[ $ADIAB = .true. ]] ; then
      export NUM_FILE=1 ;
-    export FILENAME_BASE="'SIGF'"
+    export FILENAME_BASE="'SIG.F'"
     export FILE_IO_FORM="'grib'"
  else
-    export FILENAME_BASE="'SIGF' 'SFCF' 'FLXF'"
+    export FILENAME_BASE="'SIG.F' 'SFC.F' 'FLX.F'"
     export FILE_IO_FORM="'grib' 'bin4' 'grib'"
     export NUM_FILE=3
     if [ $NST_FCST -gt 0 ] ; then
-      export FILENAME_BASE=${FILENAME_BASE}" 'NSTF'"
+      export FILENAME_BASE=${FILENAME_BASE}" 'NST.F'"
       export FILE_IO_FORM=${FILE_IO_FORM}" 'bin4'"
       NUM_FILE=`expr $NUM_FILE + 1`
       export NUM_FILE
@@ -80,7 +82,7 @@ set -x
       fi
     fi
     if [ $GOCART == 1 ] ; then
-      export FILENAME_BASE=${FILENAME_BASE}" 'AERF'"
+      export FILENAME_BASE=${FILENAME_BASE}" 'AER.F'"
       export FILE_IO_FORM=${FILE_IO_FORM}" 'grib'"
       NUM_FILE=`expr $NUM_FILE + 1`
       export NUM_FILE
@@ -148,8 +150,6 @@ export FAISS=0.0
 #
 #  This script is NOT complete for running multiple ensemble members
 #
- export QUILTING=_QUILT_
-#
  export ENS_NUM=1
 #
 #tasks=_TASKS_  
@@ -216,7 +216,7 @@ if [ $NEMSIO_IN = .true. ]; then
   elif [ $SCHEDULER = 'pbs' ]; then
     export nemsioget=${nemsioget:-/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get}
   elif [ $SCHEDULER = 'lsf' ] ; then
-    export nemsioget=${nemsioget:-/climate/save/wx20wa/gfsio/nems/nemsio_get}
+    export nemsioget=${nemsioget:-/nwprod/ngac.v1.0.0/exec/nemsio_get}
   fi
 else
   export nemsioget=${nemsioget:-${EXECGLOBAL}/global_sighdr$XC}
@@ -287,7 +287,7 @@ export lsm=${lsm:-1}
 # export gfsio_out=.true.,
 #
 #export DYNVARS="liope=.F."
-export DYNVARS=liope=.false.,nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,sigio_out=$SIGIO_OUT,zflxtvd=.true.,shuff_lats_a=.true.,hdif_fac=1.0,hdif_fac2=1.0,ldfi_spect=$LDIF_SPECT
+export DYNVARS=liope=$liope,nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,sigio_out=$SIGIO_OUT,zflxtvd=.true.,shuff_lats_a=.true.,hdif_fac=1.0,hdif_fac2=1.0,ldfi_spect=$LDIF_SPECT
 #jw bkgd_vdif_s=1.0
 
 grid_aldata=_CP2_
@@ -305,7 +305,7 @@ grid_aldata=_CP2_
 #             bkgd_vdif_m=$bkgd_vdif_m,bkgd_vdif_h=$bkgd_vdif_h,\
 #             bkgd_vdif_s=$bkgd_vdif_s,hdif_fac=$hdif_fac,grid_aldata=$grid_aldata"
 #export PHYVARS="liope=.F.,grid_aldata=$grid_aldata,NST_FCST=$NST_FCST,NST_SPINUP=$NST_SPINUP"
-export PHYVARS=liope=.false.,grid_aldata=$grid_aldata,ras=.false.,zhao_mic=.true.,lsm=1,old_monin=.false.,sashal=.true.,newsas=.true.,shal_cnv=.true.,shuff_lats_r=.true.,ialb=0,pre_rad=.false.,random_clds=.false.,iovr_lw=1,iovr_sw=1,IEMS=$IEMS,ISOL=$ISOL,ICO2=$ICO2,IAER=$IAER,ictm=0,nsout=0,ldiag3d=.false.,sfcio_out=.true.,ncw=20,120,crtrh=0.85,0.85,0.85,flgmin=0.200,0.300,cnvgwd=.false.,ctei_rm=,mstrat=.false.,ccnorm=.false.,mom4ice=.false.,NST_FCST=0,NST_SPINUP=.false.,lgoc3d=.false.,trans_trac=.true.,cal_pre=.false.,bkgd_vdif_m=3.0,bkgd_vdif_h=1.0,bkgd_vdif_s=0.2,climate=.false.,psautco=4.0e-4,4.0e-4,prautco=1.0e-4,1.0e-4,evpco=2.0e-5,wminco=1.0e-5,1.0e-5,CCWF=1.0,1.0,dlqf=0.0,0.0,shal_cnv=.true.,nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT.,cdmbgwd=1.0,1.0,grid_aldata=.false.
+export PHYVARS=liope=$liope,grid_aldata=$grid_aldata,ras=.false.,zhao_mic=.true.,lsm=1,old_monin=.false.,sashal=.true.,newsas=.true.,shal_cnv=.true.,shuff_lats_r=.true.,ialb=0,pre_rad=.false.,random_clds=.false.,iovr_lw=1,iovr_sw=1,IEMS=$IEMS,ISOL=$ISOL,ICO2=$ICO2,IAER=$IAER,ictm=0,nsout=0,ldiag3d=.false.,sfcio_out=$SFCIO_OUT,ncw=20,120,crtrh=0.85,0.85,0.85,flgmin=0.200,0.300,cnvgwd=.false.,ctei_rm=,mstrat=.false.,ccnorm=.false.,mom4ice=.false.,NST_FCST=0,NST_SPINUP=.false.,lgoc3d=.false.,trans_trac=.true.,cal_pre=.false.,bkgd_vdif_m=3.0,bkgd_vdif_h=1.0,bkgd_vdif_s=0.2,climate=.false.,psautco=4.0e-4,4.0e-4,prautco=1.0e-4,1.0e-4,evpco=2.0e-5,wminco=1.0e-5,1.0e-5,CCWF=1.0,1.0,dlqf=0.0,0.0,shal_cnv=.true.,nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,cdmbgwd=1.0,1.0,grid_aldata=.false.
 
  export TRACERVARS="RI=$RIlist,CPI=$CPIlist,"
 #
@@ -441,14 +441,33 @@ fi
 #
 if [[ $WRITE_DOPOST = '.true.' ]] then
  if [[ $POST_GRIBVERSION = 'grib1' ]] ; then
-   export CTLFILE=/nwprod/parm/gfs_cntrl.parm
+   if [ $SCHEDULER = 'loadleveler' ]; then
+     export CTLFILE=/nwprod/parm/gfs_cntrl.parm
+   elif [ $SCHEDULER = 'pbs' ]; then
+     export CTLFILE=_RTPWD_/data_POST/gfs_cntrl.parm
+   elif [ $SCHEDULER = 'lsf' ]; then
+     export CTLFILE=_RTPWD_/data_POST/gfs_cntrl.parm
+   fi
    ln -sf $CTLFILE fort.14
  elif [[ $POST_GRIBVERSION = 'grib2' ]] ; then
-   export CTLFILE=/climate/noscrub/wx20wa/mygrib2/xml/post/postcntrl_gfs.xml
+   if [ $SCHEDULER = 'loadleveler' ]; then
+     export CTLFILE=/climate/noscrub/wx20wa/mygrib2/xml/post/postcntrl_gfs.xml
+   elif [ $SCHEDULER = 'pbs' ]; then
+     export CTLFILE=_RTPWD_/data_POST/postcntrl_gfs.xml
+   elif [ $SCHEDULER = 'lsf' ]; then
+     export CTLFILE=_RTPWD_/data_POST/postcntrl_gfs.xml
+   fi
    ln -sf $CTLFILE postcntrl.xml
  fi
  ln -sf griddef.out fort.110
- cp /nwprod/parm/nam_micro_lookup.dat ./eta_micro_lookup.dat
+ if [ $SCHEDULER = 'loadleveler' ]; then
+   cp /nwprod/parm/nam_micro_lookup.dat ./eta_micro_lookup.dat
+ elif [ $SCHEDULER = 'pbs' ]; then
+  cp _RTPWD_/data_POST/eta_micro_lookup.dat ./eta_micro_lookup.dat
+ elif [ $SCHEDULER = 'lsf' ]; then
+   cp /nwprod/parm/nam_micro_lookup.dat ./eta_micro_lookup.dat
+ fi
+
 fi
 
 #

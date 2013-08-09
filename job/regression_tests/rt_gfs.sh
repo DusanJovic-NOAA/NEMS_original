@@ -9,9 +9,9 @@ mkdir -p ${RUNDIR}
 export CDATE=${CDATE:-2012010100}
 export NEMSIOIN=${NEMSIOIN:-.false.}
 export SIGIOIN=${SIGIOIN:-.true.}
+export SFCIOOUT=${SFCIOOUT:-.true.}
 export NEMSIOOUT=${NEMSIOOUT:-.false.}
 export SIGIOOUT=${SIGIOOUT:-.true.}
-export MACHINE_ID=${MACHINE_ID:-ccs}
 export SIGHDR=${SIGHDR:-/nwprod/exec/global_sighdr}
 export MACHINE_ID=${MACHINE_ID:-WCOSS}
 export SCHEDULER=${SCHEDULER:-lsf}
@@ -123,15 +123,24 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
  cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
 
  if [ $GOCART = 1 ] ; then
-  export EXTDIR=/global/save/wx23lu/NEMS/fix
-  export RCSDIR=/global/save/wx23lu/NEMS/Chem_Registry
-  cp ${RCSDIR}/*.rc ${RUNDIR}/.
-  cp -r  ${EXTDIR}/ExtData ${RUNDIR}/.
+  if [ $SCHEDULER = 'loadleveler' ]; then
+    export EXTDIR=/global/save/wx23lu/NEMS/fix
+    export RCSDIR=/global/save/wx23lu/NEMS/Chem_Registry
+    cp -r ${EXTDIR}/ExtData ${RUNDIR}/.
+  elif [ $SCHEDULER = 'pbs' ]; then
+    export EXTDIR=_RTPWD_/data_GOCART
+    export RCSDIR=_RTPWD_/data_GOCART
+    cp -r ${EXTDIR}/ngac_fix ${RUNDIR}/.
+  elif [ $SCHEDULER = 'lsf' ]; then
+    export EXTDIR=/nwprod/ngac.v1.0.0/fix
+    export RCSDIR=_RTPWD_/data_GOCART
+    cp -r ${EXTDIR}/ngac_fix ${RUNDIR}/.
+  fi
  fi
 
  if [ "$NEMSIOIN" = ".true." ]; then
   if [ $IDVC = 2 ] ; then
-    export IC_DIR=${IC_DIR:-${RTPWD}/GFS_DFI_REDUCEDGRID_HYB}
+    export IC_DIR=${IC_DIR:-${RTPWD}/GFS_DFI_POST}
     cp $IC_DIR/gfsanl.$CDATE ${RUNDIR}/.
     cp $IC_DIR/sfcanl.$CDATE ${RUNDIR}/.
 

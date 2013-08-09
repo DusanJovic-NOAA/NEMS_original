@@ -10,13 +10,14 @@ export WORKDIR=${RUNDIR}
 
 if [ $SCHEDULER = 'loadleveler' ]; then
  export REGSDIR=${RTPWD}/GFS_GOCART_POST
+ export PARA_CONFIG=${NEMSDIR}/job/regression_tests/ngac_para_config
 elif [ $SCHEDULER = 'pbs' ]; then
- export REGSDIR=/scratch2/portfolios/NCEPDEV/global/save/Sarah.Lu/NEMS/GFS_GOCART_POST
+ export REGSDIR=${RTPWD}
+ export PARA_CONFIG=${REGSDIR}/data_GOCART/ngac_para_config
 elif [ $SCHEDULER = 'lsf' ]; then
- export REGSDIR=/global/save/Sarah.Lu/NEMS/GFS_GOCART_POST
+ export REGSDIR=${RTPWD}
+ export PARA_CONFIG=${REGSDIR}/data_GOCART/ngac_para_config
 fi
-export PARA_CONFIG=${NEMSDIR}/job/regression_tests/ngac_para_config
-
 
 ####################################################################################################
 # Submit test
@@ -50,6 +51,7 @@ cat ngac_msub.IN    | sed s:_JBNME_:${JBNME}:g   \
 
 elif [ $SCHEDULER = 'pbs' ]; then
 
+export TPN=$((12/THRD))
 cat ngac_qsub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_NEMSDIR_:${NEMSDIR}:g   \
                     | sed s:_WORKDIR_:${WORKDIR}:g   \
@@ -60,10 +62,12 @@ cat ngac_qsub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_TASKS_:${TASKS}:g   \
                     | sed s:_THRDS_:${THRD}:g    \
                     | sed s:_RUND_:${RUNDIR}:g   \
+                    | sed s:_MACHINE_ID_:${MACHINE_ID}:g          \
                     | sed s:_SCHED_:${SCHEDULER}:g   > ngac_qsub
 
 elif [ $SCHEDULER = 'lsf' ]; then
 
+export TPN=$((16/THRD))
 cat ngac_bsub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_NEMSDIR_:${NEMSDIR}:g   \
                     | sed s:_WORKDIR_:${WORKDIR}:g   \
@@ -75,10 +79,8 @@ cat ngac_bsub.IN    | sed s:_JBNME_:${JBNME}:g   \
                     | sed s:_THRDS_:${THRD}:g    \
                     | sed s:_RUND_:${RUNDIR}:g   \
                     | sed s:_TPN_:${TPN}:g       \
+                    | sed s:_MACHINE_ID_:${MACHINE_ID}:g          \
                     | sed s:_SCHED_:${SCHEDULER}:g   > ngac_bsub
-
-
-
 fi
 
 ## copy J-job script
@@ -248,7 +250,7 @@ for i in ${LIST_FILES}
 do
   printf %s " Moving " $i "....."
   if [ -f ${RUNDIR}/$i ] ; then
-    cp ${RUNDIR}/${i} /stmp/${LOGIN}/REGRESSION_TEST/${CNTL_DIR}/${i}
+    cp ${RUNDIR}/${i} /${STMP}/${USER}/REGRESSION_TEST/${CNTL_DIR}/${i}
   else
     echo "Missing " ${RUNDIR}/$i " output file"
     echo;echo " Set ${TEST_NR} failed "

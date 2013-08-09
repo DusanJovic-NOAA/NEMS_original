@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#BSUB -oo out
-#BSUB -eo err
+#BSUB -oo _RUND_/out
+#BSUB -eo _RUND_/err
 #BSUB -J _JBNME_
 #BSUB -n _TASKS_
 #BSUB -x
@@ -13,16 +13,17 @@
 . /usrx/local/Modules/3.2.9/init/bash
  module load ibmpe
  module load ics
- export OMP_NUM_THREADS=_THRD_
+ export OMP_NUM_THREADS=_THRDS_
  export MP_MPILIB=mpich2
  export MP_EUILIB=us
- export MP_TASK_AFFINITY=core:_THRD_
+ export MP_TASK_AFFINITY=core:_THRDS_
  export LD_PRELOAD=/u/James.A.Abeles/mpi_trace_linux_x86_64/shared/libmpitrace.so
 
 set -x
 
 echo "Model started:  " `date`
 
+export MACHINE_ID=_MACHINE_ID_
 export SCHEDULER=_SCHED_
 cd _RUND_
 
@@ -35,11 +36,10 @@ export NEMSDIR=_NEMSDIR_
 export WORKDIR=_WORKDIR_
 export REGSDIR=_REGSDIR_
 export FCST_SCRIPT_DIR=_NEMSDIR_/job
-export PDY=20100101
+export PDY=20120717
 
-export GRDI=_REGSDIR_/gfsanl.${PDY}00
-export SFCI=_REGSDIR_/sfcanl.${PDY}00
-export WRITE_DOPOST=.false.
+export GRDI=_REGSDIR_/GFS_GOCART_POST/ngac.t00z.gfsanl
+export SFCI=_REGSDIR_/GFS_GOCART_POST/ngac.t00z.sfcanl
 
 _RUND_/JNGAC_FORECAST.sms.para
 

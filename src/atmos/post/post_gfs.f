@@ -11,8 +11,7 @@
 !     Feb 2012    J. Wang      setvar_aerfile is reset after post
 !     Jan 2013    Sarah Lu     EL_MYJ changed to EL_PBL to be consistent
 !                              with nceppost upgrade
-!     Jan30 2013    Sarah Lu   Add mrshltr, snonc, u10h, v10h, epsr,
-!                              mdltaux, mdltauy
+!     28May2013   Sarah Lu     Specify iostatusD3D
 !
 !-----------------------------------------------------------------------
 !*** run post on quilt
@@ -56,6 +55,8 @@
       logical,save :: setvar_aerfile=.false.
       logical      :: Log_runpost
       character(80)  :: post_fname*80
+
+      integer,save :: iostatusD3D=-1
 !
 !      print *,'in post_run start'
 !-----------------------------------------------------------------------
@@ -153,7 +154,8 @@
             call get_postfilename(post_fname)
           endif
 !
-          if ( IEOF.eq.0) CALL PROCESS(KTH,KPV,TH(1:KTH),PV(1:KPV))
+!         if ( IEOF.eq.0) CALL PROCESS(KTH,KPV,TH(1:KTH),PV(1:KPV))
+          if ( IEOF.eq.0) CALL PROCESS(KTH,KPV,TH(1:KTH),PV(1:KPV),iostatusD3D)
 !
           if(grib=="grib2") then
             call mpi_barrier(mpicomp,ierr)
