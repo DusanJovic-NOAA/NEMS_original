@@ -2132,14 +2132,14 @@
       ALLOCATE(nmm_int_state%IMP_STATE_PC_CPL(1:NUM_DOMAINS_TOTAL))        !<-- The couplers' import states.
       ALLOCATE(nmm_int_state%EXP_STATE_PC_CPL(1:NUM_DOMAINS_TOTAL))        !<-- The couplers' export states.
 !
-      ALLOCATE(HANDLE_PACKET_S_H(1:NUM_DOMAINS_TOTAL,1:2))                 !<-- Request handles for parent ISends of bndry data packets
-      ALLOCATE(HANDLE_PACKET_S_V(1:NUM_DOMAINS_TOTAL,1:2))                 !    to children
-      ALLOCATE(HANDLE_PACKET_N_H(1:NUM_DOMAINS_TOTAL,1:2))                 !
-      ALLOCATE(HANDLE_PACKET_N_V(1:NUM_DOMAINS_TOTAL,1:2))                 !
-      ALLOCATE(HANDLE_PACKET_W_H(1:NUM_DOMAINS_TOTAL,1:2))                 !
-      ALLOCATE(HANDLE_PACKET_W_V(1:NUM_DOMAINS_TOTAL,1:2))                 !
-      ALLOCATE(HANDLE_PACKET_E_H(1:NUM_DOMAINS_TOTAL,1:2))                 !
-      ALLOCATE(HANDLE_PACKET_E_V(1:NUM_DOMAINS_TOTAL,1:2))                 !<--
+      ALLOCATE(HANDLE_PACKET_S_H(1:NUM_DOMAINS_TOTAL))                     !<-- Request handles for parent ISends of bndry data packets
+      ALLOCATE(HANDLE_PACKET_S_V(1:NUM_DOMAINS_TOTAL))                     !    to children
+      ALLOCATE(HANDLE_PACKET_N_H(1:NUM_DOMAINS_TOTAL))                     !
+      ALLOCATE(HANDLE_PACKET_N_V(1:NUM_DOMAINS_TOTAL))                     !
+      ALLOCATE(HANDLE_PACKET_W_H(1:NUM_DOMAINS_TOTAL))                     !
+      ALLOCATE(HANDLE_PACKET_W_V(1:NUM_DOMAINS_TOTAL))                     !
+      ALLOCATE(HANDLE_PACKET_E_H(1:NUM_DOMAINS_TOTAL))                     !
+      ALLOCATE(HANDLE_PACKET_E_V(1:NUM_DOMAINS_TOTAL))                     !<--
 !
       ALLOCATE(HANDLE_IJ_SW(1:NUM_DOMAINS_TOTAL))                          !<-- Request handle for child ISend of its SW corner to parent
 !
@@ -2253,16 +2253,14 @@
 !***  the gens_1 loop below as well as the object holding those limits.
 !-----------------------------------------------------------------------
 !
-        DO NN=1,2
-          HANDLE_PACKET_S_H(N,NN)%CHILDREN=>NULL()
-          HANDLE_PACKET_S_V(N,NN)%CHILDREN=>NULL()
-          HANDLE_PACKET_N_H(N,NN)%CHILDREN=>NULL()
-          HANDLE_PACKET_N_V(N,NN)%CHILDREN=>NULL()
-          HANDLE_PACKET_W_H(N,NN)%CHILDREN=>NULL()
-          HANDLE_PACKET_W_V(N,NN)%CHILDREN=>NULL()
-          HANDLE_PACKET_E_H(N,NN)%CHILDREN=>NULL()
-          HANDLE_PACKET_E_V(N,NN)%CHILDREN=>NULL()
-        ENDDO
+        HANDLE_PACKET_S_H(N)%CHILDREN=>NULL()
+        HANDLE_PACKET_S_V(N)%CHILDREN=>NULL()
+        HANDLE_PACKET_N_H(N)%CHILDREN=>NULL()
+        HANDLE_PACKET_N_V(N)%CHILDREN=>NULL()
+        HANDLE_PACKET_W_H(N)%CHILDREN=>NULL()
+        HANDLE_PACKET_W_V(N)%CHILDREN=>NULL()
+        HANDLE_PACKET_E_H(N)%CHILDREN=>NULL()
+        HANDLE_PACKET_E_V(N)%CHILDREN=>NULL()
 !
         HANDLE_PARENT_DOM_LIMITS(N)%DATA=>NULL()
 !
@@ -2921,14 +2919,14 @@
 !
           ID=MY_DOMAIN_ID
 !
-          IF(ASSOCIATED(HANDLE_PACKET_S_H(ID,1)%CHILDREN))THEN
+          IF(ASSOCIATED(HANDLE_PACKET_S_H(ID)%CHILDREN))THEN
 !
             DO N=1,NUM_CHILDREN
-              IF(ASSOCIATED(HANDLE_PACKET_S_H(ID,1)%CHILDREN(N)%DATA))THEN
-                INDX2=UBOUND(HANDLE_PACKET_S_H(ID,1)%CHILDREN(N)%DATA,1)
+              IF(ASSOCIATED(HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA))THEN
+                INDX2=UBOUND(HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA,1)
                 DO NT=1,INDX2
-                  CALL MPI_WAIT(HANDLE_PACKET_S_H(ID,1)%CHILDREN(N)%DATA(NT) &
-                               ,JSTAT                                        &
+                  CALL MPI_WAIT(HANDLE_PACKET_S_H(ID)%CHILDREN(N)%DATA(NT) &
+                               ,JSTAT                                      &
                                ,IERR)
                 ENDDO
 !
@@ -2936,14 +2934,14 @@
             ENDDO
           ENDIF
 !
-          IF(ASSOCIATED(HANDLE_PACKET_S_V(ID,1)%CHILDREN))THEN
+          IF(ASSOCIATED(HANDLE_PACKET_S_V(ID)%CHILDREN))THEN
 !
             DO N=1,NUM_CHILDREN
-              IF(ASSOCIATED(HANDLE_PACKET_S_V(ID,1)%CHILDREN(N)%DATA))THEN
-                INDX2=UBOUND(HANDLE_PACKET_S_V(ID,1)%CHILDREN(N)%DATA,1)
+              IF(ASSOCIATED(HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA))THEN
+                INDX2=UBOUND(HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA,1)
                 DO NT=1,INDX2
-                  CALL MPI_WAIT(HANDLE_PACKET_S_V(ID,1)%CHILDREN(N)%DATA(NT) &
-                               ,JSTAT                                        &
+                  CALL MPI_WAIT(HANDLE_PACKET_S_V(ID)%CHILDREN(N)%DATA(NT) &
+                               ,JSTAT                                      &
                                ,IERR)
                 ENDDO
 !
@@ -2951,14 +2949,14 @@
             ENDDO
           ENDIF
 !
-          IF(ASSOCIATED(HANDLE_PACKET_N_H(ID,1)%CHILDREN))THEN
+          IF(ASSOCIATED(HANDLE_PACKET_N_H(ID)%CHILDREN))THEN
 !
             DO N=1,NUM_CHILDREN
-              IF(ASSOCIATED(HANDLE_PACKET_N_H(ID,1)%CHILDREN(N)%DATA))THEN
-                INDX2=UBOUND(HANDLE_PACKET_N_H(ID,1)%CHILDREN(N)%DATA,1)
+              IF(ASSOCIATED(HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA))THEN
+                INDX2=UBOUND(HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA,1)
                 DO NT=1,INDX2
-                  CALL MPI_WAIT(HANDLE_PACKET_N_H(ID,1)%CHILDREN(N)%DATA(NT) &
-                               ,JSTAT                                        &
+                  CALL MPI_WAIT(HANDLE_PACKET_N_H(ID)%CHILDREN(N)%DATA(NT) &
+                               ,JSTAT                                      &
                                ,IERR)
                 ENDDO
 !
@@ -2966,14 +2964,14 @@
             ENDDO
           ENDIF
 !
-          IF(ASSOCIATED(HANDLE_PACKET_N_V(ID,1)%CHILDREN))THEN
+          IF(ASSOCIATED(HANDLE_PACKET_N_V(ID)%CHILDREN))THEN
 !
             DO N=1,NUM_CHILDREN
-              IF(ASSOCIATED(HANDLE_PACKET_N_V(ID,1)%CHILDREN(N)%DATA))THEN
-                INDX2=UBOUND(HANDLE_PACKET_N_V(ID,1)%CHILDREN(N)%DATA,1)
+              IF(ASSOCIATED(HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA))THEN
+                INDX2=UBOUND(HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA,1)
                 DO NT=1,INDX2
-                  CALL MPI_WAIT(HANDLE_PACKET_N_V(ID,1)%CHILDREN(N)%DATA(NT) &
-                               ,JSTAT                                        &
+                  CALL MPI_WAIT(HANDLE_PACKET_N_V(ID)%CHILDREN(N)%DATA(NT) &
+                               ,JSTAT                                      &
                                ,IERR)
                 ENDDO
 !
@@ -2981,14 +2979,14 @@
             ENDDO
           ENDIF
 !
-          IF(ASSOCIATED(HANDLE_PACKET_W_H(ID,1)%CHILDREN))THEN
+          IF(ASSOCIATED(HANDLE_PACKET_W_H(ID)%CHILDREN))THEN
 !
             DO N=1,NUM_CHILDREN
-              IF(ASSOCIATED(HANDLE_PACKET_W_H(ID,1)%CHILDREN(N)%DATA))THEN
-                INDX2=UBOUND(HANDLE_PACKET_W_H(ID,1)%CHILDREN(N)%DATA,1)
+              IF(ASSOCIATED(HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA))THEN
+                INDX2=UBOUND(HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA,1)
                 DO NT=1,INDX2
-                  CALL MPI_WAIT(HANDLE_PACKET_W_H(ID,1)%CHILDREN(N)%DATA(NT) &
-                               ,JSTAT                                        &
+                  CALL MPI_WAIT(HANDLE_PACKET_W_H(ID)%CHILDREN(N)%DATA(NT) &
+                               ,JSTAT                                      &
                                ,IERR)
                 ENDDO
 !
@@ -2996,14 +2994,14 @@
             ENDDO
           ENDIF
 !
-          IF(ASSOCIATED(HANDLE_PACKET_W_V(ID,1)%CHILDREN))THEN
+          IF(ASSOCIATED(HANDLE_PACKET_W_V(ID)%CHILDREN))THEN
 !
             DO N=1,NUM_CHILDREN
-              IF(ASSOCIATED(HANDLE_PACKET_W_V(ID,1)%CHILDREN(N)%DATA))THEN
-                INDX2=UBOUND(HANDLE_PACKET_W_V(ID,1)%CHILDREN(N)%DATA,1)
+              IF(ASSOCIATED(HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA))THEN
+                INDX2=UBOUND(HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA,1)
                 DO NT=1,INDX2
-                  CALL MPI_WAIT(HANDLE_PACKET_W_V(ID,1)%CHILDREN(N)%DATA(NT) &
-                               ,JSTAT                                        &
+                  CALL MPI_WAIT(HANDLE_PACKET_W_V(ID)%CHILDREN(N)%DATA(NT) &
+                               ,JSTAT                                      &
                                ,IERR)
                 ENDDO
 !
@@ -3011,14 +3009,14 @@
             ENDDO
           ENDIF
 !
-          IF(ASSOCIATED(HANDLE_PACKET_E_H(ID,1)%CHILDREN))THEN
+          IF(ASSOCIATED(HANDLE_PACKET_E_H(ID)%CHILDREN))THEN
 !
             DO N=1,NUM_CHILDREN
-              IF(ASSOCIATED(HANDLE_PACKET_E_H(ID,1)%CHILDREN(N)%DATA))THEN
-                INDX2=UBOUND(HANDLE_PACKET_E_H(ID,1)%CHILDREN(N)%DATA,1)
+              IF(ASSOCIATED(HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA))THEN
+                INDX2=UBOUND(HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA,1)
                 DO NT=1,INDX2
-                  CALL MPI_WAIT(HANDLE_PACKET_E_H(ID,1)%CHILDREN(N)%DATA(NT) &
-                               ,JSTAT                                        &
+                  CALL MPI_WAIT(HANDLE_PACKET_E_H(ID)%CHILDREN(N)%DATA(NT) &
+                               ,JSTAT                                      &
                                ,IERR)
                 ENDDO
 !
@@ -3026,14 +3024,14 @@
             ENDDO
           ENDIF
 !
-          IF(ASSOCIATED(HANDLE_PACKET_E_V(ID,1)%CHILDREN))THEN
+          IF(ASSOCIATED(HANDLE_PACKET_E_V(ID)%CHILDREN))THEN
 !
             DO N=1,NUM_CHILDREN
-              IF(ASSOCIATED(HANDLE_PACKET_E_V(ID,1)%CHILDREN(N)%DATA))THEN
-                INDX2=UBOUND(HANDLE_PACKET_E_V(ID,1)%CHILDREN(N)%DATA,1)
+              IF(ASSOCIATED(HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA))THEN
+                INDX2=UBOUND(HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA,1)
                 DO NT=1,INDX2
-                  CALL MPI_WAIT(HANDLE_PACKET_E_V(ID,1)%CHILDREN(N)%DATA(NT) &
-                               ,JSTAT                                        &
+                  CALL MPI_WAIT(HANDLE_PACKET_E_V(ID)%CHILDREN(N)%DATA(NT) &
+                               ,JSTAT                                      &
                                ,IERR)
                 ENDDO
 !
@@ -3413,7 +3411,6 @@
                               ,task_mode          =TASK_MODE                 &
                               ,i_am_a_nest        =I_AM_A_NEST               &
                               ,my_domain_id       =MY_DOMAIN_ID              &
-                              ,comm_to_my_parent  =COMM_TO_MY_PARENT         &
                               ,num_children       =NUM_CHILDREN              &
                               ,num_2way_children  =NUM_2WAY_CHILDREN         &
                               ,parent_child_cpl   =PARENT_CHILD_COUPLER_COMP &
@@ -3432,8 +3429,8 @@
 !-----------------------------------------------------------------------
 !
            IF(ESMF_ClockIsStopTime(CLOCK_NMM(MY_DOMAIN_ID),rc=RC))THEN
-              GENERATION_FINISHED(N)=.TRUE.                                !<-- Task's fcst in generation N has finished
-            ENDIF
+             GENERATION_FINISHED(N)=.TRUE.                                 !<-- Task's fcst in generation N has finished
+           ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -3852,7 +3849,6 @@
                               ,task_mode          =TASK_MODE                   &
                               ,i_am_a_nest        =I_AM_A_NEST                 &
                               ,my_domain_id       =MY_DOMAIN_ID                &
-                              ,comm_to_my_parent  =COMM_TO_MY_PARENT           &
                               ,num_children       =NUM_CHILDREN                &
                               ,num_2way_children  =NUM_2WAY_CHILDREN           &
                               ,parent_child_cpl   =PARENT_CHILD_COUPLER_COMP   &
@@ -4279,7 +4275,6 @@
                               ,task_mode          =TASK_MODE                  &
                               ,i_am_a_nest        =I_AM_A_NEST                &
                               ,my_domain_id       =MY_DOMAIN_ID               &
-                              ,comm_to_my_parent  =COMM_TO_MY_PARENT          &
                               ,num_children       =NUM_CHILDREN               &
                               ,num_2way_children  =NUM_2WAY_CHILDREN          &
                               ,parent_child_cpl   =PARENT_CHILD_COUPLER_COMP  &
@@ -4573,7 +4568,6 @@
                               ,task_mode          =TASK_MODE                   &
                               ,i_am_a_nest        =I_AM_A_NEST                 &
                               ,my_domain_id       =MY_DOMAIN_ID                &
-                              ,comm_to_my_parent  =COMM_TO_MY_PARENT           &
                               ,num_children       =NUM_CHILDREN                &
                               ,num_2way_children  =NUM_2WAY_CHILDREN           &
                               ,parent_child_cpl   =PARENT_CHILD_COUPLER_COMP   &
@@ -4923,7 +4917,6 @@
                               ,task_mode          =TASK_MODE                   &
                               ,i_am_a_nest        =I_AM_A_NEST                 &
                               ,my_domain_id       =MY_DOMAIN_ID                &
-                              ,comm_to_my_parent  =COMM_TO_MY_PARENT           &
                               ,num_children       =NUM_CHILDREN                &
                               ,num_2way_children  =NUM_2WAY_CHILDREN           &
                               ,parent_child_cpl   =PARENT_CHILD_COUPLER_COMP   &
@@ -5235,7 +5228,6 @@
                               ,task_mode          =TASK_MODE                   &
                               ,i_am_a_nest        =I_AM_A_NEST                 &
                               ,my_domain_id       =MY_DOMAIN_ID                &
-                              ,comm_to_my_parent  =COMM_TO_MY_PARENT           &
                               ,num_children       =NUM_CHILDREN                &
                               ,num_2way_children  =NUM_2WAY_CHILDREN           &
                               ,parent_child_cpl   =PARENT_CHILD_COUPLER_COMP   &

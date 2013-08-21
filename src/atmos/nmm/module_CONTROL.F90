@@ -472,6 +472,7 @@ real(kind=kfpt):: &
 ,alm &                       ! lambda
 ,anum &                      ! numerator
 ,aph &                       ! phi
+,arg &                       ! 
 ,ave &                       ! average
 ,cddamp &                    ! divergence damping factor
 ,coac &                      ! nonlinear diffusion coefficient
@@ -878,10 +879,16 @@ real(kind=kfpt),dimension(jds:jde):: &
 !***  Save the geographic lat/lon (radians) of this domain's SW corner.
 !-----------------------------------------------------------------------
 !
-        glat_sw=asin(sin(sb)*ctph0+cos(sb)*stph0*cos(wb))
-        glon_sw=tlm0d*dtr+sign(1.,wb)*acos(((cos(sb)*cos(wb))           &
-                                           /(cos(glat_sw)*ctph0)        &
-                                          -tan(glat_sw)*tan(tph0d*dtr)))
+        arg=sin(sb)*ctph0+cos(sb)*stph0*cos(wb)
+        arg=min(arg,1.)
+        arg=max(arg,-1.)
+        glat_sw=asin(arg)
+!
+        arg=(cos(sb)*cos(wb))/(cos(glat_sw)*ctph0)                      &
+            -tan(glat_sw)*tan(tph0d*dtr)
+        arg=min(arg,1.)
+        arg=max(arg,-1.)
+        glon_sw=tlm0d*dtr+sign(1.,wb)*acos(arg)
 !
 !-----------------------------------------------------------------------
       else !regional
@@ -1098,10 +1105,16 @@ real(kind=kfpt),dimension(jds:jde):: &
 !***  Save the geographic lat/lon (radians) of this domain's SW corner.
 !-----------------------------------------------------------------------
 !
-        glat_sw=asin(sin(sb)*ctph0+cos(sb)*stph0*cos(wb))
-        glon_sw=tlm0d*dtr+sign(1.,wb)*acos((cos(sb)*cos(wb))            &
-                                          /(cos(glat_sw)*ctph0)         &
-                                          -tan(glat_sw)*tan(tph0d*dtr))
+        arg=sin(sb)*ctph0+cos(sb)*stph0*cos(wb)
+        arg=min(arg,1.)
+        arg=max(arg,-1.)
+        glat_sw=asin(arg)
+!
+        arg=(cos(sb)*cos(wb))/(cos(glat_sw)*ctph0)                      &
+            -tan(glat_sw)*tan(tph0d*dtr)
+        arg=min(arg,1.)
+        arg=max(arg,-1.)
+        glon_sw=tlm0d*dtr+sign(1.,wb)*acos(arg)
 !
 !-----------------------------------------------------------------------
 !

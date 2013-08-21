@@ -13,6 +13,8 @@
 !
       USE module_INCLUDE
 !
+      USE MODULE_NESTING,ONLY: MIXED_DATA
+!
 !---------------------------------------------------------------------------
 !
       IMPLICIT NONE
@@ -36,7 +38,8 @@
         INTEGER(kind=KINT) :: LEAD_TASK_DOMAIN                              &  !<-- The first task on a given domain
                              ,NUM_PES_FCST                                     !<-- The number of forecast tasks
 !
-        INTEGER(kind=KINT),DIMENSION(1:9) :: HANDLE_SEND_INTER                 !<-- For ISSends of intertask data after domain shifts
+        INTEGER(kind=KINT),DIMENSION(1:9) :: HANDLE_SEND_INTER_INT          &  !<-- For ISSends of intertask integer data after domain shifts
+                                            ,HANDLE_SEND_INTER_REAL            !<-- For ISSends of intertask real data after domain shifts
 !
         TYPE(ESMF_GridComp),ALLOCATABLE,DIMENSION(:) :: DOMAIN_CHILD_COMP      !<-- DOMAIN components of child domains
 !
@@ -68,7 +71,10 @@
 !
         LOGICAL(kind=KLOG) :: FIRST_PASS                                    &  !<-- Note 1st time into NMM_INTEGRATE
                              ,RESTARTED_RUN                                 &  !<-- Is this a restarted forecast?
+                             ,RESTARTED_RUN_FIRST                           &  !<-- Is is time for the initial output in a restarted run?
                              ,TS_INITIALIZED 
+!
+        TYPE(MIXED_DATA),DIMENSION(1:9) :: SHIFT_DATA                          !<-- Intertask shift data on the pre-move footprint
 !
         TYPE(ESMF_FieldBundle) :: MOVE_BUNDLE_H                             &  !<-- ESMF Bundle of update H variables on moving nests
                                  ,MOVE_BUNDLE_V                                !<-- ESMF Bundle of update V variables on moving nests

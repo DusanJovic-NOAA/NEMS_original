@@ -2644,31 +2644,11 @@
                              ,DYH,DYV,EF4T,PDTOP,PT                     &
                              ,RDYH,RDYV,TBOCO
 !
-      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE,SAVE :: DSG2             &
-                                                      ,PDSG1,PSGML1     &
-                                                      ,SGML2
-!
-      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE,SAVE :: SG1,SG2
-!
-      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE,SAVE :: CURV             &
-                                                      ,DARE,DDMPU,DXV   &
-                                                      ,FAD,FAH          &
-                                                      ,FCP,FDIV         &
-                                                      ,RARE,RDXH,RDXV   &
-                                                      ,WPDAR
-!
-      REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE,SAVE :: F,FIS          &
-                                                        ,HDACX,HDACY    &
-                                                        ,HDACVX,HDACVY  &
-                                                        ,SICE,SM
-!
       LOGICAL(kind=KLOG),SAVE :: GLOBAL,HYDRO,RUNBC,SECADV
 !
       LOGICAL(kind=KLOG) :: COMPUTE_BC,FIRST_PASS
 !
       REAL(kind=KFPT) :: JULIAN,XTIME, FILT_DT, FUND_DT, DTRATIO
-!
-      REAL(kind=KFPT),DIMENSION(LM+1) :: PSG1
 !
       INTEGER :: KK
 !
@@ -2915,52 +2895,8 @@
 !
       PARENT_CHILD_TIME_RATIO=int_state%PARENT_CHILD_TIME_RATIO
 !
-      IF(.NOT.ALLOCATED(DSG2))THEN
-        ALLOCATE(DSG2(1:LM),stat=ISTAT)
-        ALLOCATE(PDSG1(1:LM),stat=ISTAT)
-        ALLOCATE(PSGML1(1:LM),stat=ISTAT)
-        ALLOCATE(SGML2(1:LM),stat=ISTAT)
-!
-        ALLOCATE(SG1(1:LM+1),stat=ISTAT)
-        ALLOCATE(SG2(1:LM+1),stat=ISTAT)
-!
-        ALLOCATE(CURV(JDS:JDE),stat=ISTAT)
-        ALLOCATE(DARE(JDS:JDE),stat=ISTAT)
-        ALLOCATE(DDMPU(JDS:JDE),stat=ISTAT)
-        ALLOCATE(DXV(JDS:JDE),stat=ISTAT)
-        ALLOCATE(FAD(JDS:JDE),stat=ISTAT)
-        ALLOCATE(FAH(JDS:JDE),stat=ISTAT)
-        ALLOCATE(FCP(JDS:JDE),stat=ISTAT)
-        ALLOCATE(FDIV(JDS:JDE),stat=ISTAT)
-        ALLOCATE(RARE(JDS:JDE),stat=ISTAT)
-        ALLOCATE(RDXH(JDS:JDE),stat=ISTAT)
-        ALLOCATE(RDXV(JDS:JDE),stat=ISTAT)
-        ALLOCATE(WPDAR(JDS:JDE),stat=ISTAT)
-!
-        ALLOCATE(F(IMS:IME,JMS:JME),stat=ISTAT)
-        ALLOCATE(FIS(IMS:IME,JMS:JME),stat=ISTAT)
-        ALLOCATE(HDACX(IMS:IME,JMS:JME),stat=ISTAT)
-        ALLOCATE(HDACY(IMS:IME,JMS:JME),stat=ISTAT)
-        ALLOCATE(HDACVX(IMS:IME,JMS:JME),stat=ISTAT)
-        ALLOCATE(HDACVY(IMS:IME,JMS:JME),stat=ISTAT)
-        ALLOCATE(SICE(IMS:IME,JMS:JME),stat=ISTAT)
-        ALLOCATE(SM(IMS:IME,JMS:JME),stat=ISTAT)
-      ENDIF
-!
       DO N=1,3
         IDATBC(N)=int_state%IDATBC(N)
-      ENDDO
-!
-      DO L=1,LM
-        DSG2(L)=int_state%DSG2(L)
-        PDSG1(L)=int_state%PDSG1(L)
-        PSGML1(L)=int_state%PSGML1(L)
-        SGML2(L)=int_state%SGML2(L)
-      ENDDO
-!
-      DO L=1,LM+1
-        SG1(L)=int_state%SG1(L)
-        SG2(L)=int_state%SG2(L)
       ENDDO
 !
       CALL SET_DOMAIN_SPECS(int_state%ITS,int_state%ITE                 &          
@@ -3200,39 +3136,6 @@
       NBOCO=int(NBOCO/DTRATIO)
 !     IF (MYPE == 0) WRITE(0,*) 'NBOCO reset to : ', NBOCO
 !
-      DO J=JDS,JDE
-        CURV(J)=int_state%CURV(J)
-        DARE(J)=int_state%DARE(J)
-        DDMPU(J)=int_state%DDMPU(J)
-        DXV(J)=int_state%DXV(J)
-        FAD(J)=int_state%FAD(J)
-        FAH(J)=int_state%FAH(J)
-        FCP(J)=int_state%FCP(J)
-        FDIV(J)=int_state%FDIV(J)
-        RARE(J)=int_state%RARE(J)
-        RDXV(J)=int_state%RDXV(J)
-        RDXH(J)=int_state%RDXH(J)
-        WPDAR(J)=int_state%WPDAR(J)
-      ENDDO
-!
-      DO J=JTS,JTE
-      DO I=ITS,ITE
-        HDACX(I,J)=int_state%HDACX(I,J)
-        HDACY(I,J)=int_state%HDACY(I,J)
-        HDACVX(I,J)=int_state%HDACVX(I,J)
-        HDACVY(I,J)=int_state%HDACVY(I,J)
-      ENDDO
-      ENDDO
-!
-      DO J=JMS,JME
-      DO I=IMS,IME
-        F(I,J)=int_state%F(I,J)
-        FIS(I,J)=int_state%FIS(I,J)
-        SICE(I,J)=int_state%SICE(I,J)
-        SM(I,J)=int_state%SM(I,J)
-      ENDDO
-      ENDDO
-!
 !-----------------------------------------------------------------------
 !***  Now we need to do some things related to digital filtering
 !***  that are only relevant after the first pass through the
@@ -3283,12 +3186,6 @@
             int_state%FAH(J)=IFACT*int_state%FAH(J)
             int_state%FCP(J)=IFACT*int_state%FCP(J)
             int_state%WPDAR(J)=IFACT*int_state%WPDAR(J)
-!
-            DDMPU(J)=int_state%DDMPU(J)
-            FAD(J)=int_state%FAD(J)
-            FAH(J)=int_state%FAH(J)
-            FCP(J)=int_state%FCP(J)
-            WPDAR(J)=int_state%WPDAR(J)
           ENDDO
 !
           DO J=JTS,JTE
@@ -3297,11 +3194,6 @@
             int_state%HDACY(I,J)=IFACT*int_state%HDACY(I,J)
             int_state%HDACVX(I,J)=IFACT*int_state%HDACVX(I,J)
             int_state%HDACVY(I,J)=IFACT*int_state%HDACVY(I,J)
-!
-            HDACX(I,J)=int_state%HDACX(I,J)
-            HDACY(I,J)=int_state%HDACY(I,J)
-            HDACVX(I,J)=int_state%HDACVX(I,J)
-            HDACVY(I,J)=int_state%HDACVY(I,J)
           ENDDO
           ENDDO
 !
@@ -3334,26 +3226,27 @@
              (int_state%PD,1                                            &
              ,2,2)
 !
-          if(.not.int_state%GLOBAL)                                     &
-          CALL WRITE_BC(LM,LNSH,LNSV,NTIMESTEP,DT                       &
-                       ,RUNBC                                           &
-                       ,TBOCO+int_state%DFIHR_BOCO/2.                   &
-                       ,int_state%PDBS,int_state%PDBN                   &
-                       ,int_state%PDBW,int_state%PDBE                   &
-                       ,int_state%TBS,int_state%TBN                     &
-                       ,int_state%TBW,int_state%TBE                     &
-                       ,int_state%QBS,int_state%QBN                     &
-                       ,int_state%QBW,int_state%QBE                     &
-                       ,int_state%WBS,int_state%WBN                     &
-                       ,int_state%WBW,int_state%WBE                     &
-                       ,int_state%UBS,int_state%UBN                     &
-                       ,int_state%UBW,int_state%UBE                     &
-                       ,int_state%VBS,int_state%VBN                     &
-                       ,int_state%VBW,int_state%VBE                     &
-                       ,int_state%PD,int_state%T                        &
-                       ,int_state%Q,int_state%CW                        &
-                       ,int_state%U,int_state%V                         &
-                       ,.TRUE.)                                            !<-- Recompute tendencies at this stage?
+          IF(.NOT.int_state%GLOBAL)THEN
+            CALL WRITE_BC(LM,LNSH,LNSV,NTIMESTEP,DT                     &
+                         ,RUNBC                                         &
+                         ,TBOCO+int_state%DFIHR_BOCO/2.                 &
+                         ,int_state%PDBS,int_state%PDBN                 &
+                         ,int_state%PDBW,int_state%PDBE                 &
+                         ,int_state%TBS,int_state%TBN                   &
+                         ,int_state%TBW,int_state%TBE                   &
+                         ,int_state%QBS,int_state%QBN                   &
+                         ,int_state%QBW,int_state%QBE                   &
+                         ,int_state%WBS,int_state%WBN                   &
+                         ,int_state%WBW,int_state%WBE                   &
+                         ,int_state%UBS,int_state%UBN                   &
+                         ,int_state%UBW,int_state%UBE                   &
+                         ,int_state%VBS,int_state%VBN                   &
+                         ,int_state%VBW,int_state%VBE                   &
+                         ,int_state%PD,int_state%T                      &
+                         ,int_state%Q,int_state%CW                      &
+                         ,int_state%U,int_state%V                       &
+                         ,.TRUE.)                                          !<-- Recompute tendencies at this stage?
+          ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -3394,12 +3287,6 @@
             int_state%FAH(J)=IFACT*DTRATIO*int_state%FAH(J)
             int_state%FCP(J)=IFACT*DTRATIO*int_state%FCP(J)
             int_state%WPDAR(J)=IFACT*int_state%WPDAR(J)
-!
-            DDMPU(J)=int_state%DDMPU(J)
-            FAD(J)=int_state%FAD(J)
-            FAH(J)=int_state%FAH(J)
-            FCP(J)=int_state%FCP(J)
-            WPDAR(J)=int_state%WPDAR(J)
           ENDDO
 !
           DO J=JTS,JTE
@@ -3408,11 +3295,6 @@
             int_state%HDACY(I,J)=IFACT*DTRATIO*int_state%HDACY(I,J)
             int_state%HDACVX(I,J)=IFACT*DTRATIO*int_state%HDACVX(I,J)
             int_state%HDACVY(I,J)=IFACT*DTRATIO*int_state%HDACVY(I,J)
-!
-            HDACX(I,J)=int_state%HDACX(I,J)
-            HDACY(I,J)=int_state%HDACY(I,J)
-            HDACVX(I,J)=int_state%HDACVX(I,J)
-            HDACVY(I,J)=int_state%HDACVY(I,J)
           ENDDO
           ENDDO
 !
@@ -3483,7 +3365,8 @@
         CALL PGFORCE                                                    &
           (int_state%FIRST_STEP,int_state%GLOBAL,int_state%RESTART      &
           ,LM,DT,NTIMESTEP                                              &
-          ,RDYV,DSG2,PDSG1,RDXV,WPDAR,FIS                               &
+          ,RDYV,int_state%DSG2,int_state%PDSG1,int_state%RDXV           &
+          ,int_state%WPDAR,int_state%FIS                                &
           ,int_state%PD                                                 &
           ,int_state%T,int_state%Q,int_state%CW                         &
           ,int_state%PINT                                               &
@@ -3512,8 +3395,8 @@
         btim=timef()
 !
         CALL DHT                                                        &
-          (GLOBAL,LM,DYV,DSG2,PDSG1,DXV                                 &
-          ,FCP,FDIV                                                     &
+          (GLOBAL,LM,DYV,int_state%DSG2,int_state%PDSG1,int_state%DXV   &
+          ,int_state%FCP,int_state%FDIV                                 &
           ,int_state%PD,int_state%PDO                                   &
           ,int_state%U,int_state%V                                      &
           ,int_state%OMGALF                                             &
@@ -3621,9 +3504,10 @@
             (GLOBAL,HYDRO                                               &
             ,INPES,JNPES,LM,LPT2                                        &
             ,DYH,RDYH                                                   &
-            ,DXV,RARE,RDXH                                              &
-            ,SICE,SM                                                    &
-            ,HDACX,HDACY,HDACVX,HDACVY                                  &
+            ,int_state%DXV,int_state%RARE,int_state%RDXH                &
+            ,int_state%SICE,int_state%SM                                &
+            ,int_state%HDACX,int_state%HDACY                            &
+            ,int_state%HDACVX,int_state%HDACVY                          &
             ,int_state%W,int_state%Z                                    &
             ,int_state%CW,int_state%Q,int_state%Q2                      &
             ,int_state%T,int_state%U,int_state%V,int_state%DEF)            
@@ -4024,7 +3908,7 @@
           btim=timef()
 !
           CALL BOCOH                                                    &
-            (LM,LNSH,DT,PT,DSG2,PDSG1                                   &
+            (LM,LNSH,DT,PT,int_state%DSG2,int_state%PDSG1               &
              ,int_state%PD                                              &
              ,int_state%PDBE,int_state%PDBN                             &
              ,int_state%PDBS,int_state%PDBW                             &
@@ -4050,7 +3934,8 @@
         CALL PGFORCE                                                    &
           (int_state%FIRST_STEP,int_state%GLOBAL,int_state%RESTART      &
           ,LM,DT,NTIMESTEP                                              &
-          ,RDYV,DSG2,PDSG1,RDXV,WPDAR,FIS                               &
+          ,RDYV,int_state%DSG2,int_state%PDSG1,int_state%RDXV           &
+          ,int_state%WPDAR,int_state%FIS                                &
           ,int_state%PD                                                 &
           ,int_state%T,int_state%Q,int_state%CW                         &
           ,int_state%PINT                                               &
@@ -4175,8 +4060,8 @@
         btim=timef()
 !
         CALL DHT                                                        &
-          (GLOBAL,LM,DYV,DSG2,PDSG1,DXV                                 &
-          ,FCP,FDIV                                                     &
+          (GLOBAL,LM,DYV,int_state%DSG2,int_state%PDSG1,int_state%DXV   &
+          ,int_state%FCP,int_state%FDIV                                 &
           ,int_state%PD,int_state%PDO                                   &
           ,int_state%U,int_state%V                                      &
           ,int_state%OMGALF                                             &
@@ -4251,9 +4136,9 @@
           CALL DDAMP                                                    &
             (LM                                                         &
             ,DDMPV,PDTOP                                                &
-            ,DSG2,PDSG1                                                 &
-            ,SG1,SG2                                                    &
-            ,DDMPU                                                      &
+            ,int_state%DSG2,int_state%PDSG1                             &
+            ,int_state%SG1,int_state%SG2                                &
+            ,int_state%DDMPU                                            &
             ,int_state%FREERUN                                          &
             ,int_state%PD,int_state%PDO                                 &
             ,int_state%U,int_state%V                                    &
@@ -4317,7 +4202,7 @@
       btim=timef()
 !
       CALL PDTSDT                                                       &
-        (LM,DT,SG2                                                      &
+        (LM,DT,int_state%SG2                                            &
         ,int_state%PD                                                   &
         ,int_state%PDO,int_state%PSDT                                   &
         ,int_state%PSGDT                                                &
@@ -4371,8 +4256,9 @@
         (GLOBAL,SECADV                                                  &
         ,LM,LNSAD,INPES,JNPES                                           &
         ,DT,DYV,RDYH,RDYV                                               &
-        ,DSG2,PDSG1                                                     &
-        ,CURV,DXV,FAD,FAH,RDXH,RDXV,F                                   &
+        ,int_state%DSG2,int_state%PDSG1                                 &
+        ,int_state%CURV,int_state%DXV,int_state%FAD,int_state%FAH       &
+        ,int_state%RDXH,int_state%RDXV,int_state%F                      &
         ,int_state%PD,int_state%PDO                                     &
         ,int_state%OMGALF,int_state%PSGDT                               &
         ,int_state%T,int_state%U,int_state%V                            &
@@ -4408,8 +4294,8 @@
           (GLOBAL                                                       &
           ,IDTADT,KSS,KSE1,LM,LNSAD                                     &
           ,DT,RDYH                                                      &
-          ,DSG2,PDSG1                                                   &
-          ,FAH,RDXH                                                     &
+          ,int_state%DSG2,int_state%PDSG1                               &
+          ,int_state%FAH,int_state%RDXH                                 &
           ,int_state%PD,int_state%PDO                                   &
           ,int_state%PSGDT                                              &
           ,int_state%UP,int_state%VP                                    &
@@ -4461,8 +4347,8 @@
 !
         CALL MONO                                                       &
           (IDTADT,KSS,KSE1,LM                                           &
-          ,DSG2,PDSG1                                                   &
-          ,DARE                                                         &
+          ,int_state%DSG2,int_state%PDSG1                               &
+          ,int_state%DARE                                               &
           ,int_state%PD                                                 &
           ,int_state%INDX_Q2                                            &
           ,int_state%TRACERS                                            &
@@ -4613,7 +4499,7 @@
       btim=timef()
 !
       CALL VTOA                                                         &
-        (LM,DT,EF4T,PT,SG2                                              &
+        (LM,DT,EF4T,PT,int_state%SG2                                    &
         ,int_state%PSDT                                                 &
         ,int_state%DWDT,int_state%RTOP                                  &
         ,int_state%OMGALF                                               &
@@ -4702,7 +4588,8 @@
 !
       CALL CDZDT                                                        &
         (GLOBAL,HYDRO                                                   &
-        ,LM,DT,DSG2,PDSG1,FAH,FIS                                       &
+        ,LM,DT,int_state%DSG2,int_state%PDSG1                           &
+        ,int_state%FAH,int_state%FIS                                    &
         ,int_state%PD,int_state%PDO                                     &
         ,int_state%PSGDT                                                &
         ,int_state%CW,int_state%Q,int_state%RTOP,int_state%T            & 
@@ -4763,7 +4650,8 @@
       CALL CDWDT                                                        &
         (GLOBAL,HYDRO,int_state%RESTART                                 &
         ,INPES,JNPES,LM,ABS(NTIMESTEP)                                  &
-        ,DT,G,DSG2,PDSG1,PSGML1,FAH                                     &
+        ,DT,G,int_state%DSG2,int_state%PDSG1,int_state%PSGML1           &
+        ,int_state%FAH                                                  &
         ,int_state%HDACX,int_state%HDACY                                &
         ,int_state%PD,int_state%PDO                                     &
         ,int_state%PSGDT                                                &
@@ -4824,7 +4712,7 @@
       CALL VSOUND                                                       &
         (GLOBAL,HYDRO,int_state%RESTART                                 &
         ,LM,ABS(NTIMESTEP)                                              &
-        ,CP,DT,PT,DSG2,PDSG1                                            &
+        ,CP,DT,PT,int_state%DSG2,int_state%PDSG1                        &
         ,int_state%PD                                                   &
         ,int_state%CW,int_state%Q,int_state%RTOP                        &
         ,int_state%DWDT,int_state%T,int_state%W,int_state%W_TOT         &
@@ -4907,14 +4795,16 @@
         vadv2_micro_check: IF(.NOT.int_state%SPEC_ADV)THEN
           CALL AVEQ2                                                    &
             (LM                                                         &
-            ,DSG2,PDSG1,PSGML1,SGML2                                    &
+            ,int_state%DSG2,int_state%PDSG1                             &
+            ,int_state%PSGML1,int_state%SGML2                           &
             ,int_state%PD                                               &
             ,int_state%Q2,int_state%E2                                  &
             ,1)
 !
           CALL VADV2_SCAL                                               &
             (LM,IDTAD                                                   &
-            ,DT,DSG2,PDSG1,PSGML1,SGML2                                 &
+            ,DT,int_state%DSG2,int_state%PDSG1                          &
+            ,int_state%PSGML1,int_state%SGML2                           &
             ,int_state%PD,int_state%PSGDT                               &
             ,int_state%TRACERS                                          &
             ,int_state%NUM_TRACERS_MET,1,int_state%INDX_Q2)
@@ -4922,14 +4812,16 @@
         ELSE vadv2_micro_check
           CALL VADV2_SCAL                                               &
             (LM,IDTAD                                                   &
-            ,DT,DSG2,PDSG1,PSGML1,SGML2                                 &
+            ,DT,int_state%DSG2,int_state%PDSG1                          &
+            ,int_state%PSGML1,int_state%SGML2                           &
             ,int_state%PD,int_state%PSGDT                               &
             ,int_state%Q2                                               &
             ,1,1,int_state%INDX_Q2)
 !
           CALL VADV2_SCAL                                               &
             (LM,IDTAD                                                   &
-            ,DT,DSG2,PDSG1,PSGML1,SGML2                                 &
+            ,DT,int_state%DSG2,int_state%PDSG1                          &
+            ,int_state%PSGML1,int_state%SGML2                           &
             ,int_state%PD,int_state%PSGDT                               &
             ,int_state%WATER                                            &
             ,int_state%NUM_WATER,2,int_state%INDX_Q2)
@@ -5095,8 +4987,9 @@
           CALL HADV2_SCAL                                               &
             (GLOBAL,INPES,JNPES                                         &
             ,LM,IDTAD,DT,RDYH                                           &
-            ,DSG2,PDSG1,PSGML1,SGML2                                    &
-            ,DARE,RDXH                                                  &
+            ,int_state%DSG2,int_state%PDSG1                             &
+            ,int_state%PSGML1,int_state%SGML2                           &
+            ,int_state%DARE,int_state%RDXH                              &
             ,int_state%PD                                               &
             ,int_state%U,int_state%V                                    &
             ,int_state%TRACERS                                          &
@@ -5106,7 +4999,8 @@
 !
           CALL AVEQ2                                                    &
             (LM                                                         &
-            ,DSG2,PDSG1,PSGML1,SGML2                                    &
+            ,int_state%DSG2,int_state%PDSG1                             &
+            ,int_state%PSGML1,int_state%SGML2                           &
             ,int_state%PD                                               &
             ,int_state%Q2,int_state%E2                                  &
             ,2)
@@ -5168,8 +5062,9 @@
           CALL HADV2_SCAL                                               &
             (GLOBAL,INPES,JNPES                                         &
             ,LM,IDTAD,DT,RDYH                                           &
-            ,DSG2,PDSG1,PSGML1,SGML2                                    &
-            ,DARE,RDXH                                                  &
+            ,int_state%DSG2,int_state%PDSG1                             &
+            ,int_state%PSGML1,int_state%SGML2                           &
+            ,int_state%DARE,int_state%RDXH                              &
             ,int_state%PD                                               &
             ,int_state%U,int_state%V                                    &
             ,int_state%Q2                                               &
@@ -5180,8 +5075,9 @@
           CALL HADV2_SCAL                                               &
             (GLOBAL,INPES,JNPES                                         &
             ,LM,IDTAD,DT,RDYH                                           &
-            ,DSG2,PDSG1,PSGML1,SGML2                                    &
-            ,DARE,RDXH                                                  &
+            ,int_state%DSG2,int_state%PDSG1                             &
+            ,int_state%PSGML1,int_state%SGML2                           &
+            ,int_state%DARE,int_state%RDXH                              &
             ,int_state%PD                                               &
             ,int_state%U,int_state%V                                    &
             ,int_state%WATER                                            &
@@ -5337,18 +5233,6 @@
       NPRECIP=int_state%NPRECIP
       PDTOP=int_state%PDTOP
       PT=int_state%PT
-!
-      DO L=1,LM
-        DSG2(L)=int_state%DSG2(L)
-        PDSG1(L)=int_state%PDSG1(L)
-        PSGML1(L)=int_state%PSGML1(L)
-        SGML2(L)=int_state%SGML2(L)
-      ENDDO
-!
-      DO L=1,LM+1
-        SG2(L)=INT_STATE%SG2(L)
-        PSG1(L)=INT_STATE%PSG1(L)
-      ENDDO
 !
 !-----------------------------------------------------------------------
 !
@@ -5647,7 +5531,8 @@
                         ,START_HOUR,int_state%NPHS                      &
                         ,int_state%GLAT,int_state%GLON                  &
                         ,int_state%NRADS,int_state%NRADL                &
-                        ,DSG2,SGML2,PDSG1,PSGML1                        &
+                        ,int_state%DSG2,int_state%SGML2                 &
+                        ,int_state%PDSG1,int_state%PSGML1               &
                         ,int_state%PT,int_state%PD                      &
                         ,int_state%T,int_state%Q                        &
                         ,int_state%THS,int_state%ALBEDO                 &
@@ -5814,7 +5699,8 @@
 !
           CALL TURBL(NTIMESTEP,int_state%DT,int_state%NPHS              &
                     ,int_state%NUM_WATER,NUM_SOIL_LAYERS,SLDPTH,DZSOIL  &
-                    ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1,PT                &
+                    ,int_state%DSG2,int_state%SGML2,int_state%SG2       &
+                    ,int_state%PDSG1,int_state%PSGML1,int_state%PSG1,PT &
                     ,int_state%SM,int_state%CZEN,int_state%CZMEAN       &
                     ,int_state%SIGT4,int_state%RLWIN,int_state%RSWIN    &
                     ,int_state%RADOT                                    &
@@ -6058,8 +5944,9 @@
                        ,int_state%P_QI,int_state%P_QS,int_state%P_QG      &
                        ,int_state%F_QV,int_state%F_QC,int_state%F_QR      &
                        ,int_state%F_QI,int_state%F_QS,int_state%F_QG      &
-                       ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1                  &
-                       ,int_state%dxh                                     &
+                       ,int_state%DSG2,int_state%SGML2,int_state%SG2      &
+                       ,int_state%PDSG1,int_state%PSGML1,int_state%PSG1   &
+                       ,int_state%DXH                                     &
                        ,int_state%PT,int_state%PD                         &
                        ,int_state%T,int_state%Q                           &
                        ,int_state%CW,int_state%TCUCN,int_state%WATER      &
@@ -6185,7 +6072,8 @@
                        ,NPRECIP,int_state%NUM_WATER                        &
                        ,int_state%DXH(JC),int_state%DYH                    &
                        ,int_state%SM,int_state%FIS                         &
-                       ,DSG2,SGML2,PDSG1,PSGML1                            &
+                       ,int_state%DSG2,int_state%SGML2                     &
+                       ,int_state%PDSG1,int_state%PSGML1                   &
                        ,int_state%PT,int_state%PD                          &
                        ,int_state%T,int_state%Q                            &
                        ,int_state%CW,int_state%OMGALF                      &
@@ -6833,7 +6721,7 @@
          DO L=1,LM
             KFLIP=LM+1-L
              PRSI (KFLIP)    = PRSI(KFLIP+1) + &
-                                (DSG2(L)*int_state%PD(I,J)+PDSG1(L))         ! (pressure on interface) [ Pa]
+                                (int_state%DSG2(L)*int_state%PD(I,J)+int_state%PDSG1(L))  ! (pressure on interface) [ Pa]
              PRSIK(KFLIP)    = (PRSI(KFLIP)*0.00001d0)**RoCP
 
              PRSL (KFLIP)    = (PRSI(KFLIP)+PRSI(KFLIP+1))*0.5d0             ! (pressure on mid-layer) [kPa]
@@ -7337,38 +7225,6 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  Deallocate temporary arrays.
-!-----------------------------------------------------------------------
-!
-      DEALLOCATE(DSG2)
-      DEALLOCATE(PDSG1)
-      DEALLOCATE(PSGML1)
-      DEALLOCATE(SGML2)
-!
-      DEALLOCATE(SG1)
-      DEALLOCATE(SG2)
-!
-      DEALLOCATE(CURV)
-      DEALLOCATE(DARE)
-      DEALLOCATE(DDMPU)
-      DEALLOCATE(DXV)
-      DEALLOCATE(FAD)
-      DEALLOCATE(FAH)
-      DEALLOCATE(FCP)
-      DEALLOCATE(FDIV)
-      DEALLOCATE(RARE)
-      DEALLOCATE(RDXH)
-      DEALLOCATE(RDXV)
-      DEALLOCATE(WPDAR)
-!
-      DEALLOCATE(F)
-      DEALLOCATE(FIS)
-      DEALLOCATE(HDACX)
-      DEALLOCATE(HDACY)
-      DEALLOCATE(HDACVX)
-      DEALLOCATE(HDACVY)
-      DEALLOCATE(SICE)
-      DEALLOCATE(SM)
 !
       RC=0
 !
@@ -8846,7 +8702,7 @@
              ,GMT,JULIAN,PDBOT,PDTOP,PDTOT,PT_CB,RELM,RPDTOT            &
              ,SB,THETA_HALF,TPV,XTIME
 !
-      REAL,DIMENSION(LM) :: DSG1,DSG2,PDSG1,PSGML1,SGML1,SGML2
+      REAL,DIMENSION(LM) :: DSG1,PDSG1,PSGML1,SGML1,SGML2
       REAL,DIMENSION(LM+1) :: PSG1,SG1,SG2,SGM                          &
                              ,SFULL,SFULL_FLIP,SMID,SMID_FLIP
 !

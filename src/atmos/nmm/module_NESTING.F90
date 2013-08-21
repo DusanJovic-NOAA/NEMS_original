@@ -91,6 +91,7 @@
                ,HANDLE_PARENT_ITS                                       &
                ,HANDLE_PARENT_JTE                                       &
                ,HANDLE_PARENT_JTS                                       &
+               ,HYPERBOLA                                               &
                ,INFO_SEND                                               &
                ,INTEGER_DATA                                            &
                ,INTEGER_DATA_2D                                         &
@@ -103,7 +104,6 @@
                ,MOVING_NEST_BOOKKEEPING                                 &
                ,MOVING_NEST_RECV_DATA                                   &
                ,PARENT_2WAY_BOOKKEEPING                                 &
-               ,PARENT_2WAY_UPDATE                                      &
                ,PARENT_BOOKKEEPING_MOVING                               &
                ,PARENT_CHILD_COMMS                                      &
                ,PARENT_READS_MOVING_CHILD_TOPO                          &
@@ -243,14 +243,14 @@
                                                     ,HANDLE_CHILD_TOPO_W &  !
                                                     ,HANDLE_CHILD_TOPO_E    !<--
 !
-      TYPE(DOMAIN_DATA),DIMENSION(:,:),POINTER,SAVE :: HANDLE_PACKET_S_H   &  !<-- Request handles for parents' ISends of bndry info packets
-                                                      ,HANDLE_PACKET_S_V   &  !
-                                                      ,HANDLE_PACKET_N_H   &  !
-                                                      ,HANDLE_PACKET_N_V   &  !
-                                                      ,HANDLE_PACKET_W_H   &  !
-                                                      ,HANDLE_PACKET_W_V   &  !
-                                                      ,HANDLE_PACKET_E_H   &  !
-                                                      ,HANDLE_PACKET_E_V      !<--
+      TYPE(DOMAIN_DATA),DIMENSION(:),POINTER,SAVE :: HANDLE_PACKET_S_H   &  !<-- Request handles for parents' ISends of bndry info packets
+                                                    ,HANDLE_PACKET_S_V   &  !
+                                                    ,HANDLE_PACKET_N_H   &  !
+                                                    ,HANDLE_PACKET_N_V   &  !
+                                                    ,HANDLE_PACKET_W_H   &  !
+                                                    ,HANDLE_PACKET_W_V   &  !
+                                                    ,HANDLE_PACKET_E_H   &  !
+                                                    ,HANDLE_PACKET_E_V      !<--
 !
       TYPE(TASK_LIMITS),DIMENSION(:),ALLOCATABLE,SAVE :: PTASK_LIMITS      !<-- I,J limits on parent task subdomains
 !
@@ -318,7 +318,7 @@
       INTEGER(kind=KINT),DIMENSION(:),POINTER,INTENT(OUT) :: ID_DOMAINS      &  !<-- Array of the domain IDs
                                                             ,ID_PARENTS      &  !<-- Array of the domains' parent IDs
                                                             ,FTASKS_DOMAIN   &  !<-- # of forecast tasks on each domain
-                                                            ,MY_DOMAIN_ID_N  &  !<-- IDs of the domains on which this task resides
+                                                            ,MY_DOMAIN_ID_N  &  !<-- IDs of the domains on which current task resides
                                                             ,NTASKS_DOMAIN   &  !<-- # of tasks on each domain excluding descendents
                                                             ,NUM_CHILDREN       !<-- # of children on each domain
 !
@@ -329,13 +329,15 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: I,ID_DOM,IERR,ISTAT                         &
+      INTEGER(kind=KINT) :: I,IERR,ISTAT                                &
                            ,N,N1,N2,N3,NN,RC
 !
       INTEGER(kind=KINT) :: COMM_INTRA                                  &
                            ,GROUP_UNION                                 &
                            ,GROUP_WORLD                                 &
                            ,ID_CHILD                                    &
+                           ,ID_DOM                                      &
+                           ,ID_FULL                                     &
                            ,ID_PARENT                                   &
                            ,INPES                                       &
                            ,JNPES                                       &
@@ -347,11 +349,14 @@
                            ,LEAD_REMOTE                                 &
                            ,N_CHILDREN                                  &
                            ,N_GEN                                       &
+                           ,NDOMS_FULL                                  &
                            ,NMAX                                        &
                            ,NSAVE                                       &
-                           ,NTASKS_X                                    &
+                           ,NTASKS_CONTRIB                              &
                            ,NTASKS_PARENT                               &
+                           ,NTASKS_X                                    &
                            ,NUM_FCST_TASKS                              &
+                           ,NUM_TASKS_FULL                              &
                            ,NUM_WRITE_TASKS                             &
                            ,RC_COMMS                                    &
                            ,TASK_X                                      &
@@ -359,8 +364,10 @@
                            ,WRITE_TASKS_PER_GROUP
 !
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: DOMS_PER_GEN       &  !<-- Domain count per generation
+                                                    ,DOMS_FULL          &  !<-- IDs of domains in the full generation
                                                     ,GLOBAL_UNION       &  !<-- Union of parent and child tasks in intracomms
                                                     ,GROUP              &  !<-- MPI group for each domain
+                                                    ,KOUNT_FULL         &  !<-- 1st task on each domain of the full generation
                                                     ,LAST_FCST_TASK     &  !<-- ID of last forecast task on each domain
                                                     ,LAST_WRITE_TASK    &  !<-- ID of last write task on each domain
                                                     ,LAST_TASK          &  !<-- ID of last task on each domain
@@ -368,6 +375,10 @@
                                                     ,LEAD_WRITE_TASK    &  !<-- ID of first write on each domain
                                                     ,LEAD_TASK          &  !<-- ID of first task on each domain
                                                     ,WTASKS_DOMAIN         !<-- # of write/quilt tasks on each domain
+!
+      REAL(kind=KFPT) :: RECIP_NUM_TASKS_FULL
+!
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: FRAC_FULL                !<-- Fraction of tasks on each domain in full generation
 !
       CHARACTER(2)      :: NUM_DOMAIN
       CHARACTER(6),SAVE :: FMT='(I2.2)'
@@ -588,7 +599,7 @@
       ELSEIF(TASK_MODE=='generational')THEN
 !
 !-----------------------------------------------------------------------
-!***  First determine how many domains in each generation.
+!***  First determine how many domains are in each generation.
 !-----------------------------------------------------------------------
 !
         NUM_GENS=0
@@ -610,7 +621,7 @@
 !
 !-----------------------------------------------------------------------
 !***  Assign all the run's forecast tasks across the first generation
-!***  that uses all of them.
+!***  that uses all of them.  This is the first 'full' generation.
 !-----------------------------------------------------------------------
 !
         ALLOCATE(LEAD_FCST_TASK(1:NUM_DOMAINS_TOTAL))
@@ -627,11 +638,11 @@
           ID_DOM=RANK_TO_DOMAIN_ID(N)
 !
           IF(DOMAIN_GEN(ID_DOM)/=FULL_GEN)CYCLE                            !<-- Only interested in the domains of the 'full' generation
-          KOUNT_DOMS=KOUNT_DOMS+1
+          KOUNT_DOMS=KOUNT_DOMS+1                                          !<-- Counting domains in the 'full' generation
 !
           IF(KOUNT_DOMS==1)THEN
             LEAD_FCST_TASK(ID_DOM)=0                                       !<-- Task 0 is first in line
-            LEAD_WRITE_TASK(ID_DOM)=NUM_FCST_TASKS                         !<-- 1st write task follows last forecast task
+            LEAD_WRITE_TASK(ID_DOM)=NUM_FCST_TASKS                         !<-- 1st write task follows the last forecast task
           ELSE
             LEAD_FCST_TASK(ID_DOM)=LAST_FCST_TASK_X+1                      !<-- Lead fcst task on domain follows last on previous domain
             LEAD_WRITE_TASK(ID_DOM)=LAST_WRITE_TASK_X+1                    !<-- Lead write task on domain follows last on previous domain
@@ -651,81 +662,163 @@
                        .AND.                                            &  !
              MYPE<=LAST_WRITE_TASK(ID_DOM))THEN                            !<---
 !
-            MY_DOMAIN_ID_N(ID_DOM)=ID_DOM                                  !<-- Collecting IDs of the domain(s) this task is on
+            MY_DOMAIN_ID_N(ID_DOM)=ID_DOM                                  !<-- This task collects its domain ID in this generation.
           ENDIF
 !
           KOUNT_TASKS=0
-          DO N2=LEAD_FCST_TASK(ID_DOM),LAST_FCST_TASK(ID_DOM)              !<-- Add fcst tasks to this domain's PETList
+          DO N2=LEAD_FCST_TASK(ID_DOM),LAST_FCST_TASK(ID_DOM)              !<-- Loop through this domain's fcst tasks.
             KOUNT_TASKS=KOUNT_TASKS+1
-            PETLIST_DOM(KOUNT_TASKS,ID_DOM)=N2                             !<-- Collecting task list for each domain
+            PETLIST_DOM(KOUNT_TASKS,ID_DOM)=N2                             !<-- Insert this fcst task into the domain's task list.
           ENDDO
 !
-          DO N2=LEAD_WRITE_TASK(ID_DOM),LAST_WRITE_TASK(ID_DOM)            !<-- Add write tasks to this domain's PETList
+          DO N2=LEAD_WRITE_TASK(ID_DOM),LAST_WRITE_TASK(ID_DOM)            !<-- Loop through this domain's quilt/write tasks.
             KOUNT_TASKS=KOUNT_TASKS+1
-            PETLIST_DOM(KOUNT_TASKS,ID_DOM)=N2                             !<-- Collecting task list for each domain
+            PETLIST_DOM(KOUNT_TASKS,ID_DOM)=N2                             !<-- Insert this write task into the domain's task list.
           ENDDO
 !
         ENDDO
 !
 !-----------------------------------------------------------------------
 !***  Now assign the tasks on all the domains in the remaining
-!***  generations.  When doing this, cycle through all the forecast
-!***  tasks from one generation to the next so as to spread the memory
-!***  load more evenly.
+!***  generations.  In order to balance the work load as evenly 
+!***  as possible the domains in each of these generations will
+!***  take their tasks equally from each of the domains in the
+!***  full generation.
 !-----------------------------------------------------------------------
 !
-        KOUNT_DOMS=0
+        NDOMS_FULL=DOMS_PER_GEN(FULL_GEN)                                  !<-- # of domains in 1st full generation
 !
-        DO N=1,NUM_GENS
+        ALLOCATE(DOMS_FULL(1:NDOMS_FULL))
+        ALLOCATE(FRAC_FULL(1:NDOMS_FULL))
+        ALLOCATE(KOUNT_FULL(1:NDOMS_FULL))
 !
-          DO N1=1,NUM_DOMAINS_TOTAL
-            ID_DOM=RANK_TO_DOMAIN_ID(N1)
-            IF(DOMAIN_GEN(ID_DOM)/=N.OR.DOMAIN_GEN(ID_DOM)==FULL_GEN)CYCLE !<-- Skip the 'full' generation which we did above.
-            KOUNT_DOMS=KOUNT_DOMS+1
+        DO N=1,NDOMS_FULL
+          FRAC_FULL(N)=0.
+          KOUNT_FULL(N)=-1
+        ENDDO
 !
-            IF(KOUNT_DOMS==1)THEN
-              LEAD_FCST_TASK(ID_DOM)=0                                     !<-- Task 0 is first in line
-            ELSE
-              LEAD_FCST_TASK(ID_DOM)=LAST_FCST_TASK_X+1                    !<-- Lead fcst task on domain follows last on previous domain
-              IF(LEAD_FCST_TASK(ID_DOM)>NUM_FCST_TASKS-1)THEN
-                LEAD_FCST_TASK(ID_DOM)=0                                   !<-- Wrap around if necessary
-              ENDIF
-            ENDIF
+!-----------------------------------------------------------------------
+!
+        NUM_TASKS_FULL=0
+        DO N=1,NUM_DOMAINS_TOTAL
+          ID_DOM=RANK_TO_DOMAIN_ID(N)                                      !<-- Domain #N's domain ID (selected by the user)
+          IF(DOMAIN_GEN(ID_DOM)/=FULL_GEN)CYCLE
+          NUM_TASKS_FULL=NUM_TASKS_FULL+FTASKS_DOMAIN(ID_DOM)              !<-- Add up the # of compute tasks in the full generation.
+        ENDDO
+!
+        RECIP_NUM_TASKS_FULL=1./REAL(NUM_TASKS_FULL)
+        KOUNT=0
+!
+        DO N=1,NUM_DOMAINS_TOTAL
+          ID_DOM=RANK_TO_DOMAIN_ID(N)
+          IF(DOMAIN_GEN(ID_DOM)/=FULL_GEN)CYCLE                            !<-- Consider only the first full generation
+!
+          KOUNT=KOUNT+1
+          DOMS_FULL(KOUNT)=ID_DOM                                          !<-- IDs of domains in the full generation
+          FRAC_FULL(KOUNT)=FTASKS_DOMAIN(ID_DOM)*RECIP_NUM_TASKS_FULL      !<-- Fraction of all tasks on each domain in full generation
+          KOUNT_FULL(KOUNT)=PETLIST_DOM(1,ID_DOM)                          !<-- 1st task on each domain of the full generation
+        ENDDO
+!
+!-----------------------------------------------------------------------
+!***  In each of the remaining generations fill the domain's compute
+!***  tasks proportionately with tasks from each domain in the full
+!***  generation in order to spread the work load evenly.
+!-----------------------------------------------------------------------
+!
+        gens_loop: DO N=1,NUM_GENS                                         !<-- Loop through the generations
+!
+          dom_loop: DO N1=1,NUM_DOMAINS_TOTAL
+!
+            ID_DOM=RANK_TO_DOMAIN_ID(N1)                                   !<-- Domain ID of domain #N1
+            IF(DOMAIN_GEN(ID_DOM)/=N.OR.DOMAIN_GEN(ID_DOM)==FULL_GEN)THEN  !<-- Consider domains in gen #N and not in the full generation
+              CYCLE dom_loop
+            ENDIF   
+!
+!-----------------------------------------------------------------------
+!***  First assign the write/quilt tasks since they are totally
+!***  separate from the fcst/compute tasks and are always assigned
+!***  monotonically.
+!-----------------------------------------------------------------------
 !
             LEAD_WRITE_TASK(ID_DOM)=LAST_WRITE_TASK_X+1                    !<-- Lead write task on domain follows last on previous domain
+            LAST_WRITE_TASK(ID_DOM)=LEAD_WRITE_TASK(ID_DOM)             &  !<-- Last write task on this domain
+                                   +WTASKS_DOMAIN(ID_DOM)-1
+            KOUNT_TASKS=FTASKS_DOMAIN(ID_DOM)                              !<-- Write/quilt tasks follow the compute tasks in the PETList
 !
-            TASK_X=LEAD_FCST_TASK(ID_DOM)-1
+            DO N2=LEAD_WRITE_TASK(ID_DOM),LAST_WRITE_TASK(ID_DOM)
+              KOUNT_TASKS=KOUNT_TASKS+1
+              PETLIST_DOM(KOUNT_TASKS,ID_DOM)=N2                           !<-- Insert write task into domain's task list
+              IF(MYPE==PETLIST_DOM(KOUNT_TASKS,ID_DOM))THEN
+                MY_DOMAIN_ID_N(ID_DOM)=ID_DOM                              !<-- This write task collects its domain ID in this generation.
+              ENDIF
+            ENDDO
+            LAST_WRITE_TASK_X=LAST_WRITE_TASK(ID_DOM)
+!
+!-----------------------------------------------------------------------
+!***  Now proceed with the assignment of forecast/compute tasks.
+!-----------------------------------------------------------------------
 !
             KOUNT_TASKS=0
-            DO N2=1,FTASKS_DOMAIN(ID_DOM)                                  !<-- Fill in the fcst tasks for this domain
-              TASK_X=TASK_X+1
-              IF(TASK_X>NUM_FCST_TASKS-1)TASK_X=0                          !<-- Continue cycling through all available fcst tasks
-              IF(MYPE==TASK_X)THEN                                         !<-- Appropriate tasks become fcst tasks on this domain
-                MY_DOMAIN_ID_N(ID_DOM)=ID_DOM                              !<-- Collecting IDs of all domains this fcst task is on
-              ENDIF
-              KOUNT_TASKS=KOUNT_TASKS+1
-              PETLIST_DOM(KOUNT_TASKS,ID_DOM)=TASK_X                       !<-- Collecting task list for each domain
+            DO N2=1,NDOMS_FULL                                             !<-- Loop through the domains in the full generation.
+              ID_FULL=DOMS_FULL(N2)                                        !<-- ID of domain #N2 in full generation
+              NTASKS_CONTRIB=NINT(FRAC_FULL(N2)*FTASKS_DOMAIN(ID_DOM))     !<-- # of tasks contributed by domain #N2 in full generation
+!
+              DO N3=1,NTASKS_CONTRIB                                       !<-- Apply the contributed tasks to domain ID_DOM.
+                KOUNT_TASKS=KOUNT_TASKS+1
+                PETLIST_DOM(KOUNT_TASKS,ID_DOM)=KOUNT_FULL(N2)             !<-- Add this fcst task to this domain's task list.
+                IF(MYPE==PETLIST_DOM(KOUNT_TASKS,ID_DOM))THEN
+                  MY_DOMAIN_ID_N(ID_DOM)=ID_DOM                            !<-- This fcst task collects its domain ID in this generation.
+                ENDIF
+!
+                KOUNT_FULL(N2)=KOUNT_FULL(N2)+1
+                IF(KOUNT_FULL(N2)>PETLIST_DOM(FTASKS_DOMAIN(ID_FULL),ID_FULL))THEN
+                  KOUNT_FULL(N2)=PETLIST_DOM(1,ID_FULL)                    !<-- Cycle around contributed tasks from domain ID_FULL.
+                ENDIF
+!
+                IF(KOUNT_TASKS==FTASKS_DOMAIN(ID_DOM))THEN                 !<-- If so, domain ID_DOM has filled its compute tasks.
+                  LEAD_FCST_TASK(ID_DOM)=PETLIST_DOM(1,ID_DOM)             !<-- Save identity of this domain's lead compute task.
+                  LAST_FCST_TASK(ID_DOM)=PETLIST_DOM(KOUNT_TASKS,ID_DOM)   !<-- Save identity of this domain's last compute task.
+                  CYCLE dom_loop
+                ENDIF
+!
+              ENDDO
             ENDDO
 !
-            LAST_FCST_TASK_X=TASK_X
-            LAST_FCST_TASK(ID_DOM)=LAST_FCST_TASK_X                        !<-- The last forecast task on this domain
+!-----------------------------------------------------------------------
+!***  If we reach this point then all of domain ID_DOM's compute tasks
+!***  still have not been assigned.  This is simply due to fractional
+!***  roundoff in computing the number of tasks contributed by each
+!***  of the domains in the full generation.  Finish assigning this
+!***  domain's tasks by taking them from the first domain in the full
+!***  generation.
+!-----------------------------------------------------------------------
 !
-            TASK_X=LEAD_WRITE_TASK(ID_DOM)-1
-            DO N2=1,WTASKS_DOMAIN(ID_DOM)                                  !<-- Fill in the write tasks for this domain
-              TASK_X=TASK_X+1
-              IF(MYPE==TASK_X)THEN                                         !<-- Appropriate tasks become write tasks on this domain
-                MY_DOMAIN_ID_N(ID_DOM)=ID_DOM                              !<-- Collect ID of the domain this write task is on
+            ID_FULL=DOMS_FULL(1)                                           !<-- Take the tasks from the 1st domain in the full generation.
+!
+            DO N2=KOUNT_TASKS+1,FTASKS_DOMAIN(ID_DOM)
+              PETLIST_DOM(N2,ID_DOM)=KOUNT_FULL(1)                         !<-- Add remaining fcst tasks to this domain's task list.
+              IF(MYPE==PETLIST_DOM(N2,ID_DOM))THEN
+                MY_DOMAIN_ID_N(ID_DOM)=ID_DOM                              !<-- This fcst task collects its domain ID in this generation.
               ENDIF
-              KOUNT_TASKS=KOUNT_TASKS+1
-              PETLIST_DOM(KOUNT_TASKS,ID_DOM)=TASK_X                       !<-- Collecting task list for each domain
+!
+              KOUNT_FULL(1)=KOUNT_FULL(1)+1
+              IF(KOUNT_FULL(1)>PETLIST_DOM(FTASKS_DOMAIN(ID_FULL),ID_FULL))THEN
+                KOUNT_FULL(1)=PETLIST_DOM(1,ID_FULL)                       !<-- Cycle around contributed tasks from domain ID_FULL.
+              ENDIF
             ENDDO
 !
-            LAST_WRITE_TASK_X=TASK_X
-            LAST_WRITE_TASK(ID_DOM)=LAST_WRITE_TASK_X                      !<-- The last write task on this domain
+            LEAD_FCST_TASK(ID_DOM)=PETLIST_DOM(1,ID_DOM)                     !<-- Save identity of this domain's lead compute task.
+            LAST_FCST_TASK(ID_DOM)=PETLIST_DOM(FTASKS_DOMAIN(ID_DOM),ID_DOM) !<-- Save identity of this domain's last compute task.
 !
-          ENDDO
+!-----------------------------------------------------------------------
 !
-        ENDDO
+          ENDDO dom_loop
+!
+        ENDDO gens_loop
+!
+        DEALLOCATE(DOMS_FULL)
+        DEALLOCATE(FRAC_FULL)
+        DEALLOCATE(KOUNT_FULL)
 !
 !-----------------------------------------------------------------------
 !
@@ -4701,10 +4794,6 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      DO L=1,LM+1
-        SEC_DERIV(L)=0.
-      ENDDO
-!
       NUM_LEVS_SPLINE=LM+1
       NUM_LEVS_SEC   =LM+1
 !
@@ -4722,6 +4811,10 @@
 !
           PTOP_IN=SG2(1)*PD_BILINEAR(I,J,1)+SG1(1)*PDTOP+PT
           PTOP_TARGET=SG2(1)*PD_NEAREST(I,J,1)+SG1(1)*PDTOP+PT
+!
+          DO L=1,LM+1
+            SEC_DERIV(L)=0.
+          ENDDO
 !
           DO L=1,LM
 !
@@ -11816,8 +11909,8 @@
                          ,REAL_I                                        &
                          ,REAL_J)
 !
-        IEND=NINT((REAL_I-1.)*LOR+1.)                                      !<-- I index in nest sfc data at E bndry of this parent task
-        JEND=NINT((REAL_J-1.)*LOR+1.)                                      !<-- J index in nest sfc data at N bndry of this parent task
+        IEND=NINT((REAL_I-1.)*LOR+1.)                                      !<-- I index in nest sfc data at E bndry (H) of this parent task
+        JEND=NINT((REAL_J-1.)*LOR+1.)                                      !<-- J index in nest sfc data at N bndry (H) of this parent task
 !
 !-----------------------------------------------------------------------
 !
@@ -11903,6 +11996,7 @@
         READ(IUNIT_FIS_NEST)ROW1
 !
         JSTOP=MIN(JEND+1,JDIM)
+!
         DO J=JSTART+1,JSTOP
           IF(JEND<JDIM)THEN
             READ(IUNIT_FIS_NEST)ROW2
@@ -11924,9 +12018,17 @@
                                                      +ROW2(IEND)        &
                                                      +ROW2(IEND+1))     &
                                                     *0.25
+              ROW1(IEND+1)=ROW2(IEND+1)
+!
+            ELSE
+!
+              NEST_FIS_V_ON_PARENT(N)%DATA(IEND,J-1)=                   &  !<-- At eastern edge of the parent domain copy the
+                NEST_FIS_V_ON_PARENT(N)%DATA(IEND-1,J-1)                   !    V-pt value immediately to the west.
+!
             ENDIF
 !
             ROW1(IEND)=ROW2(IEND)
+!
           ENDIF
 !
         ENDDO
@@ -12316,278 +12418,6 @@
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE PARENT_2WAY_BOOKKEEPING
-!
-!-----------------------------------------------------------------------
-!#######################################################################
-!-----------------------------------------------------------------------
-!
-      SUBROUTINE PARENT_2WAY_UPDATE(I_2WAY_UPDATE_START                 &
-                                   ,I_2WAY_UPDATE_END                   &
-                                   ,J_2WAY_UPDATE_START                 &
-                                   ,J_2WAY_UPDATE_END                   &
-                                   ,LM                                  &
-                                   ,NPTS_UPDATE_HORIZ                   &
-                                   ,NPTS_UPDATE_TOTAL                   &
-                                   ,NVARS_2WAY_UPDATE                   &
-                                   ,VAR_2WAY                            &
-                                   ,CHILD_SFC_ON_PARENT_GRID            &
-                                   ,WGT_CHILD                           &
-                                   ,FIS                                 &
-                                   ,PD,PDTOP,PT                         & !   ^
-                                   ,SG1,SG2                             & !   |
-                                   ,IMS,IME,JMS,JME                     & !   |
-                                                                          ! input
-!                                                                           -----
-                                                                          ! output
-                                   ,T,Q,CW                              & !   |
-                                   ,U,V                                 & !   v
-                                                           )
-!
-!-----------------------------------------------------------------------
-!***  Parent tasks incorporate new 2-way exchange data sent from the
-!***  children.
-!-----------------------------------------------------------------------
-!
-!------------------------
-!***  Argument variables
-!------------------------
-!
-      INTEGER(kind=KINT),INTENT(IN) :: I_2WAY_UPDATE_START              &  !<-- Starting parent I of its 2-way update region
-                                      ,I_2WAY_UPDATE_END                &  !<-- Ending parent I of its 2-way update region
-                                      ,J_2WAY_UPDATE_START              &  !<-- Starting parent J of its 2-way update region
-                                      ,J_2WAY_UPDATE_END                &  !<-- Ending parent J of its 2-way update region
-                                      ,LM                                  !<-- # of model layers (all domains)
-!
-      INTEGER(kind=KINT),INTENT(IN) :: NPTS_UPDATE_HORIZ                &  !<-- # of parent sfc H,V points updated in the horizontal
-                                      ,NPTS_UPDATE_TOTAL                &  !<-- Total # of words in 2-way 3D update data from child
-                                      ,NVARS_2WAY_UPDATE                   !<-- # of variables updated in 2-way exchange
-!
-      INTEGER(kind=KINT) :: IMS,IME,JMS,JME                                !<-- Parent subdomain memory limits
-!
-      REAL(kind=KFPT),INTENT(IN) :: PDTOP                               &  !<-- Pressure at top of the sigma domain (Pa)
-                                   ,PT                                  &  !<-- Pressure at the top of the domain (Pa)
-                                   ,WGT_CHILD                              !<-- Weight (0-1) given to child 2-way data in the update
-!
-      REAL(kind=KFPT),DIMENSION(1:NPTS_UPDATE_TOTAL),TARGET             &
-                                             ,INTENT(INOUT):: VAR_2WAY     !<-- String of all 2-way update data from child
-!
-      REAL(kind=KFPT),DIMENSION(1:NPTS_UPDATE_HORIZ,1:2),INTENT(IN) ::  &
-                                               CHILD_SFC_ON_PARENT_GRID    !<-- Child's FIS(:,1),PD(:,2) interpolated to parent update pts
-!
-      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: FIS      &  !<-- Parent's sfc geopotential (m2/s2)
-                                                              ,PD          !<-- Parent's PD (Pa)
-!
-      REAL(kind=KFPT),DIMENSION(1:LM+1),INTENT(IN) :: SG1,SG2              !<-- Interface 'sigma' values in pressure and hybrid regions
-!
-      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),TARGET            &  
-                                                  ,INTENT(INOUT) :: T   &  !<-- Parent's temperature (K)
-                                                                   ,Q   &  !<-- Parent's specific humidity (kg/kg)
-                                                                   ,CW  &  !<-- Parent's cloud condensate (kg/kg)
-                                                                   ,U   &  !<-- Parent's U wind component (m/s)
-                                                                   ,V      !<-- Parent's V wind component (m/s)
-!
-!---------------------
-!***  Local variables
-!---------------------
-!
-      INTEGER(kind=KINT) :: I,IPTS,J,JPTS,KNT,KNT_HZ                    &
-                           ,L,LOC1_2WAY,LOC2_2WAY                       &
-                           ,N_STRIDE,NPTS_HZ,NPTS_PER_VAR               &
-                           ,NUM_LEVS_SEC,NUM_LEVS_SPLINE,NV
-!
-      REAL(kind=KFPT) :: COEFF_1,DELP_EXTRAP,PDTOP_PT                   &
-                        ,PINT_HI_CHILD,PINT_HI_PARENT,PINT_LO           &
-                        ,R_DELP,WGT_PARENT
-!
-      REAL(kind=KFPT),DIMENSION(1:LM) :: PMID_PARENT                    &
-                                        ,VBL_OUT
-!
-      REAL(kind=KFPT),DIMENSION(1:LM+1) :: PMID_CHILD                   &
-                                          ,SEC_DERIV
-!
-      REAL(kind=KFPT),DIMENSION(:),POINTER :: VBL_COL,VBL_X
-!
-      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: VAR_PARENT
-!
-      LOGICAL(kind=KLOG) :: EXTRAPOLATE
-!
-!-----------------------------------------------------------------------
-!***********************************************************************
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  The update variables are currently temperature, specific humidity,
-!***  cloud condensate, uwind, and vwind.  
-!-----------------------------------------------------------------------
-!
-      KNT_HZ=0
-      NUM_LEVS_SEC=LM+1
-      WGT_PARENT=1.-WGT_CHILD
-!
-      DO L=1,NUM_LEVS_SEC
-        SEC_DERIV(L)=0.                                                    !<-- Needed in the SPLINE subroutine
-      ENDDO
-!
-!-----------------------------------------------------------------------
-!
-      IPTS=I_2WAY_UPDATE_END-I_2WAY_UPDATE_START+1                         !<-- # of parent points updated in I
-      JPTS=J_2WAY_UPDATE_END-J_2WAY_UPDATE_START+1                         !<-- # of parent points updated in J
-      NPTS_HZ=IPTS*JPTS                                                    !<-- # of parent update points in the horizontal
-      NPTS_PER_VAR=NPTS_HZ*LM                                              !<-- # of parent points updated for each 3D variable
-!
-!-----------------------------------------------------------------------
-!
-      DO J=J_2WAY_UPDATE_START,J_2WAY_UPDATE_END
-      DO I=I_2WAY_UPDATE_START,I_2WAY_UPDATE_END
-!
-!-----------------------------------------------------------------------
-!
-        KNT_HZ=KNT_HZ+1
-        EXTRAPOLATE=.FALSE.
-!
-!-----------------------------------------------------------------------
-!***  If either the interpolated nest sfc or the parent sfc lies 
-!***  above sea level then the parent adjusts the child data in 
-!***  the vertical to account for different topographies.
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-        adjust: IF(CHILD_SFC_ON_PARENT_GRID(KNT_HZ,1)>1.                &  !<-- Child's interpolated sfc is above sea level
-                      .OR.                                              &
-                   FIS(I,J)>1.)THEN                                        !<-- Parent's sfc is above sea level
-!-----------------------------------------------------------------------
-!
-          PDTOP_PT=SG1(1)*PDTOP+PT
-          PINT_HI_CHILD=SG2(1)*CHILD_SFC_ON_PARENT_GRID(KNT_HZ,2)+PDTOP_PT
-          PINT_HI_PARENT=SG2(1)*PD(I,J)+PDTOP_PT
-!
-          DO L=1,LM
-            PDTOP_PT=SG1(L+1)*PDTOP+PT
-            PINT_LO=SG2(L+1)*CHILD_SFC_ON_PARENT_GRID(KNT_HZ,2)+PDTOP_PT
-            PMID_CHILD(L)=0.5*(PINT_HI_CHILD+PINT_LO)                      !<-- Midlayer P of 2-way data from child at parent I,J
-            PINT_HI_CHILD=PINT_LO
-!
-            PINT_LO=SG2(L+1)*PD(I,J)+PDTOP_PT
-            PMID_PARENT(L)=0.5*(PINT_HI_PARENT+PINT_LO)                    !<-- Current midlayer pressure at parent I,J
-            PINT_HI_PARENT=PINT_LO
-          ENDDO
-!
-          NUM_LEVS_SPLINE=LM
-!
-!-----------------------------------------------------------------------
-!***  If the target parent midlayer pressure level lies below the 
-!***  lowest child input midlayer (interpolated) pressure then
-!***  extrapolate linearly downward in pressure to obtain an
-!***  artificial child input value at the lowest parent midlayer 
-!***  pressure then fill in the remaining 'underground' parent levels 
-!***  using SPLINE just as is done with all the higher levels.
-!-----------------------------------------------------------------------
-!
-          IF(PMID_PARENT(LM)>PMID_CHILD(LM))THEN
-            EXTRAPOLATE=.TRUE.
-            NUM_LEVS_SPLINE=LM+1                                           !<-- Insert 'underground' artificial input level from child
-            PMID_CHILD(LM+1)=PMID_PARENT(LM)                               !<-- 'Underground' child P is the  parent's bottom midlayer P
-            R_DELP=1./(PMID_CHILD(LM)-PMID_CHILD(LM-1))
-            DELP_EXTRAP=PMID_PARENT(LM)-PMID_CHILD(LM)
-            ALLOCATE(VBL_X(1:LM+1))                                        !<-- Allocate 2-way data input column with extra bottom layer
-          ENDIF
-!
-          vars1: DO NV=1,NVARS_2WAY_UPDATE                                 !<-- Loop through the update variables
-!
-            LOC1_2WAY=(NV-1)*NPTS_PER_VAR                               &  !<-- The 1st word of the column of 2-way data in 1-D data
-                      +(J-J_2WAY_UPDATE_START)*IPTS                     &  !    recvd from child for variable NV at parent I,J.
-                      +(I-I_2WAY_UPDATE_START+1)
-            LOC2_2WAY=LOC1_2WAY+(LM-1)*NPTS_HZ                             !<-- The last word of parent I,J column in 2-way exchange data.
-            N_STRIDE=NPTS_HZ                                               !<-- Stride between points in this I,J column.
-!
-            VBL_COL=>VAR_2WAY(LOC1_2WAY:LOC2_2WAY:N_STRIDE)                !<-- Pre-adjusted values in this column of the input 2-way data
-!
-            IF(.NOT.EXTRAPOLATE)THEN
-              VBL_X=>VBL_COL                                               !<-- No extrapolation so no need to copy values
-!
-            ELSEIF(EXTRAPOLATE)THEN
-              DO L=1,LM
-                VBL_X(L)=VBL_COL(L)                                        !<-- Copy the genuine values from the input column
-              ENDDO
-!
-              COEFF_1=(VBL_X(LM)-VBL_X(LM-1))*R_DELP
-              VBL_X(LM+1)=VBL_X(LM)+COEFF_1*DELP_EXTRAP                    !<-- Fill in the extra artificial underground value in 2-way input
-!
-            ENDIF
-!
-            CALL SPLINE(NUM_LEVS_SPLINE                                 &  !<-- # of midlayers in column of child input 2-way data
-                       ,PMID_CHILD                                      &  !<-- Interpolated input pressures at child's midlayers
-                       ,VBL_X                                           &  !<-- Input values of variable in column at parent I,J
-                       ,SEC_DERIV                                       &
-                       ,NUM_LEVS_SEC                                    &
-                       ,LM                                              &  !<-- Interpolate to this many parent midlayers
-                       ,PMID_PARENT                                     &  !<-- Target output pressures at parent's midlayers
-                       ,VBL_OUT )                                          !<-- Values in the column at I,J adjusted for topo differences
-!
-            DO L=1,LM
-              VBL_COL(L)=VBL_OUT(L)                                        !<-- Transfer adjusted column values back into 2-way data 
-            ENDDO
-!
-          ENDDO vars1
-!
-          IF(EXTRAPOLATE)THEN
-            DEALLOCATE(VBL_X)
-          ENDIF
-!
-!-----------------------------------------------------------------------
-!
-        ENDIF adjust
-!
-!-----------------------------------------------------------------------
-!
-      ENDDO
-      ENDDO
-!
-!-----------------------------------------------------------------------
-!***  Now the parent simply updates its values of the update
-!***  variables at its update points using a weighted average
-!***  between its original values and those coming from the child.
-!-----------------------------------------------------------------------
-!
-      KNT=0
-!
-      vars2: DO NV=1,NVARS_2WAY_UPDATE                                     !<-- Loop over all parent variables updated by the child.
-!
-        IF(NV==1)THEN
-          VAR_PARENT=>T                                                    !<-- Parent temperature
-!
-        ELSEIF(NV==2)THEN 
-          VAR_PARENT=>Q                                                    !<-- Parent specific humidity
-!
-        ELSEIF(NV==3)THEN
-          VAR_PARENT=>CW                                                   !<-- Parent cloud condensate
-!
-        ELSEIF(NV==4)THEN
-          VAR_PARENT=>U                                                    !<-- Parent U wind component
-!
-        ELSEIF(NV==5)THEN
-          VAR_PARENT=>V                                                    !<-- Parent V wind component
-!
-        ENDIF
-!
-        DO L=1,LM
-          DO J=J_2WAY_UPDATE_START,J_2WAY_UPDATE_END
-          DO I=I_2WAY_UPDATE_START,I_2WAY_UPDATE_END
-!
-            KNT=KNT+1
-!
-            VAR_PARENT(I,J,L)=VAR_2WAY(KNT)*WGT_CHILD                   &  !<-- The 2-way data from the child provides the fraction
-                             +VAR_PARENT(I,J,L)*WGT_PARENT                 !    WGT_CHILD of the final updated parent value.
-!
-          ENDDO
-          ENDDO
-        ENDDO
-!
-      ENDDO vars2
-!
-!-----------------------------------------------------------------------
-!
-      END SUBROUTINE PARENT_2WAY_UPDATE
 !
 !-----------------------------------------------------------------------
 !#######################################################################
@@ -13115,11 +12945,11 @@
 !
           IC=I_2WAY(NP)                                                    !<-- Child I at parent's NP'th update point
           I_START(NP)=IC-N_STENCIL_0                                       !<-- Child I on west side of sfc averaging stencil
-          I_END(NP)  =I_START(NP)+N_STENCIL_0-1                            !<-- Child I on east side of sfc averaging stencil
+          I_END(NP)  =I_START(NP)+N_STENCIL_SFC-1                          !<-- Child I on east side of sfc averaging stencil
 !
           JC=J_2WAY(NP)                                                    !<-- Child J at parent's NP'th update point
           J_START(NP)=JC-N_STENCIL_0                                       !<-- Child J on south side of sfc averaging stencil
-          J_END(NP)  =J_START(NP)+N_STENCIL_0-1                            !<-- Child J on north side of sfc averaging stencil
+          J_END(NP)  =J_START(NP)+N_STENCIL_SFC-1                          !<-- Child J on north side of sfc averaging stencil
 !
           DO J=J_START(NP),J_END(NP)
           DO I=I_START(NP),I_END(NP)
@@ -13291,6 +13121,75 @@
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE SPLINE
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE HYPERBOLA(A,B,C)
+!
+!-----------------------------------------------------------------------
+!***  Generate a hyperbola that will reduce the magnitude of the
+!***  source domain's underground extrapolation in those instances
+!***  when the target domain's ground surface lies below the source
+!***  domain's.  The hyperbola has the formula:
+!
+!     Y=A/(X+B)+C
+!
+!***  and thus there are 3 degrees of freedom.  The user must therefore
+!***  specify 3 points along the hyperbola.  The value of Y is the
+!***  fraction between 1 and 0 that provides the reduction in the
+!***  magnitude of the source domain's underground extrapolation.
+!***  The value of X is the difference in pressure (Pa) between the
+!***  source domain's lowest pressure level and the target pressure
+!***  of the extrapolation.  When the pressure difference is zero then
+!***  there is no reduction in the source domain's extrapolation and
+!***  so the value of Y is 1.0.  Assume the magnitude of the source
+!***  domain's extrapolation is reduced by 2% at an extrapolated
+!***  distance of 1000 Pa which means the value of Y would be 0.98.
+!***  If the magnitude of the source domain's extrapolation is
+!***  reduced by 25% at an extrapolated distance of 10000 Pa then
+!***  the value of Y would be 0.75.
+!***  NOTE:  Y3*X3 must be greater than X2!
+!-----------------------------------------------------------------------
+!
+      REAL(kind=KDBL),PARAMETER :: X1=    0.0, Y1=1.00                  &
+                                  ,X2= 1000.0, Y2=0.98                  &
+                                  ,X3=10000.0, Y3=0.75
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      REAL(kind=KDBL),INTENT(OUT) :: A,B,C                                 !<-- Constants in the hyperbola Y=A/(X+B)+C
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      REAL(kind=KDBL) :: F,G,H,DISCRIM,PROD1,PROD2
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      PROD1=(Y1-Y2)*(X3-X1)
+      PROD2=(Y1-Y3)*(X2-X1)
+!
+      F=PROD1-PROD2
+      G=PROD1*(X1+X2)-PROD2*(X1+X3)
+      H=PROD1*X1*X2-PROD2*X1*X3
+!
+      DISCRIM=G*G-4.*F*H
+      B=(-G+SQRT(DISCRIM))/(2.*F)                                          !<--
+!                                                                          !
+      A=(Y1-Y2)*(X1+B)*(X2+B)/(X2-X1)                                      !     The 3 constants in the hyperbola's formula above.
+!                                                                          !
+      C=Y1-A/(X1+B)                                                        !<--
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE HYPERBOLA
 !
 !-----------------------------------------------------------------------
 !#######################################################################

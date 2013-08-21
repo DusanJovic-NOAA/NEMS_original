@@ -1061,6 +1061,8 @@
 !
       domain_int_state%RESTARTED_RUN=RESTARTED_RUN
 !
+      domain_int_state%RESTARTED_RUN_FIRST=.TRUE.                          !<-- Prepare for the initial output for a restarted run.
+!
 !-----------------------------------------------------------------------
 !***  If this is a restarted run then read:
 !***    (1) The forecast time that the file was written.
@@ -1538,6 +1540,29 @@
                             ,rc       =RC)
 #else
       CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- The Solver component import state
+                            ,name     ='MY_NEB'                          &  !<-- Use this name inside the state
+                            ,itemCount=N8                                &  !<-- # of items in Attribute
+                            ,valueList=MY_NEB                            &  !<-- The scalar being inserted into the import state
+                            ,rc       =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Add Task Neighbors to the Domain Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+! 
+#ifdef ESMF_3
+      CALL ESMF_AttributeSet(state    =EXP_STATE                         &  !<-- The Domain component export state
+                            ,name     ='MY_NEB'                          &  !<-- Use this name inside the state
+                            ,count    =N8                                &  !<-- # of items in Attribute
+                            ,valueList=MY_NEB                            &  !<-- The scalar being inserted into the import state
+                            ,rc       =RC)
+#else
+      CALL ESMF_AttributeSet(state    =EXP_STATE                         &  !<-- The Domain component export state
                             ,name     ='MY_NEB'                          &  !<-- Use this name inside the state
                             ,itemCount=N8                                &  !<-- # of items in Attribute
                             ,valueList=MY_NEB                            &  !<-- The scalar being inserted into the import state
@@ -2550,7 +2575,8 @@
 !-----------------------------------------------------------------------
 !
           DO N=1,9
-            domain_int_state%HANDLE_SEND_INTER(N)=MPI_REQUEST_NULL
+            domain_int_state%HANDLE_SEND_INTER_INT(N) =MPI_REQUEST_NULL
+            domain_int_state%HANDLE_SEND_INTER_REAL(N)=MPI_REQUEST_NULL
           ENDDO
 !
 !-----------------------------------------------------------------------
@@ -3050,48 +3076,50 @@
       DOMAIN_INT_STATE=>wrap%DOMAIN_INT_STATE                              !<-- The domain's internal state
 !
 !-----------------------------------------------------------------------
-!
-      fcst_pes: IF(MYPE<domain_int_state%NUM_PES_FCST)THEN                 !<-- Only the forecast tasks integrate
-!
-!-----------------------------------------------------------------------
 !***  Extract the timestep from the Clock so that we know the direction
 !***  of the integration.  We skip all aspects of physics if the time
 !***  step is negative.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-        MESSAGE_CHECK="DOMAIN_Run: Extract the ESMF Timestep"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+      MESSAGE_CHECK="DOMAIN_Run: Extract the ESMF Timestep"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
-        CALL ESMF_ClockGet(clock       =CLOCK_DOMAIN                    &
-                          ,timeStep    =DT_ESMF                         &
-                          ,currTime    =CURRTIME                        &
-                          ,advanceCount=NTIMESTEP_ESMF                  &  !<-- # of times the clock has advanced
-                          ,rc          =RC)
+      CALL ESMF_ClockGet(clock       =CLOCK_DOMAIN                      &
+                        ,timeStep    =DT_ESMF                           &
+                        ,currTime    =CURRTIME                          &
+                        ,advanceCount=NTIMESTEP_ESMF                    &  !<-- # of times the clock has advanced
+                        ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
-        CALL ESMF_TimeGet(time=CURRTIME,mm=MM,dd=DD,h=H,m=M,s=S,rc=RC)
+      CALL ESMF_TimeGet(time=CURRTIME,mm=MM,dd=DD,h=H,m=M,s=S,rc=RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-        MESSAGE_CHECK="DOMAIN_Run: Extract Components of the Timestep" 
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+      MESSAGE_CHECK="DOMAIN_Run: Extract Components of the Timestep" 
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
-        CALL ESMF_TimeIntervalGet(timeinterval=DT_ESMF                  &  !<-- the ESMF timestep
-                                 ,s           =INTEGER_DT               &  !<-- the integer part of the timestep in seconds
-                                 ,sN          =NUMERATOR_DT             &  !<-- the numerator of the fractional second
-                                 ,sD          =IDENOMINATOR_DT          &  !<-- the denominator of the fractional second
-                                 ,rc          =RC)
+      CALL ESMF_TimeIntervalGet(timeinterval=DT_ESMF                    &  !<-- the ESMF timestep
+                               ,s           =INTEGER_DT                 &  !<-- the integer part of the timestep in seconds
+                               ,sN          =NUMERATOR_DT               &  !<-- the numerator of the fractional second
+                               ,sD          =IDENOMINATOR_DT            &  !<-- the denominator of the fractional second
+                               ,rc          =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
-        NTIMESTEP=NTIMESTEP_ESMF
+!-----------------------------------------------------------------------
+!
+      NTIMESTEP=NTIMESTEP_ESMF
+!
+!-----------------------------------------------------------------------
+!
+      fcst_pes: IF(MYPE<domain_int_state%NUM_PES_FCST)THEN                 !<-- Only the forecast tasks integrate
 !
 !-----------------------------------------------------------------------
 !***  We must transfer the horizontal diffusion flag from the
@@ -6742,8 +6770,6 @@
 !
       CHARACTER(len=99) :: FIELD_NAME
 !
-      TYPE(MIXED_DATA),DIMENSION(1:9),SAVE :: SHIFT_DATA
-!
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
       TYPE(ESMF_TypeKind) :: DATATYPE
@@ -6995,31 +7021,44 @@
                          (JSEND_END-JSEND_START+1)
 !
 !-----------------------------------------------------------------------
-!***  Make sure the buffer has been received from the previous move
-!***  so we can deallocate it then reallocate it for the current move.
+!***  Make sure the buffers have been received from the previous move
+!***  so we can deallocate then reallocate them for the current move.
 !-----------------------------------------------------------------------
 !
-            CALL MPI_WAIT(domain_int_state%HANDLE_SEND_INTER(N)         &  !<-- Handle for the ISend of inter-task data on nest
+!-------------------------------
+!***  Real intertask shift data
+!-------------------------------
+!
+            CALL MPI_WAIT(domain_int_state%HANDLE_SEND_INTER_REAL(N)    &  !<-- Handle for the ISend of inter-task real data on nest
                          ,JSTAT                                         &  !<-- MPI status
                          ,IERR )
 !
-            NUM_WORDS_REAL=NUM_WORDS_IJ*(NUM_FIELDS_2D_H_R         &  !<-- Total # of real words in receiving task N's overlap
-                                        +NUM_FIELDS_2D_V           &  !    region with sender task's pre-move footprint.
-                                        +NUM_LEVELS_3D_H           &  !
-                                        +NUM_LEVELS_3D_V)             !<--
-!
-            NUM_WORDS_INTEGER=NUM_WORDS_IJ*NUM_FIELDS_2D_H_I          !<-- Total # of integer words in receiving task N's overlap
-!
-            IF(ASSOCIATED(SHIFT_DATA(N)%DATA_REAL))THEN
-              DEALLOCATE(SHIFT_DATA(N)%DATA_REAL)
+            IF(ASSOCIATED(domain_int_state%SHIFT_DATA(N)%DATA_REAL))THEN
+              DEALLOCATE(domain_int_state%SHIFT_DATA(N)%DATA_REAL)
             ENDIF
 !
-            IF(ASSOCIATED(SHIFT_DATA(N)%DATA_INTEGER))THEN
-              DEALLOCATE(SHIFT_DATA(N)%DATA_INTEGER)
+            NUM_WORDS_REAL=NUM_WORDS_IJ*(NUM_FIELDS_2D_H_R              &  !<-- Total # of real words in receiving task N's overlap
+                                        +NUM_FIELDS_2D_V                &  !    region with sender task's pre-move footprint.
+                                        +NUM_LEVELS_3D_H                &  !
+                                        +NUM_LEVELS_3D_V)                  !<--
+!
+            ALLOCATE(domain_int_state%SHIFT_DATA(N)%DATA_REAL(1:NUM_WORDS_REAL))
+!
+!----------------------------------
+!***  Integer intertask shift data
+!----------------------------------
+!
+            CALL MPI_WAIT(domain_int_state%HANDLE_SEND_INTER_INT(N)     &  !<-- Handle for the ISend of inter-task integer data on nest
+                         ,JSTAT                                         &  !<-- MPI status
+                         ,IERR )
+!
+            IF(ASSOCIATED(domain_int_state%SHIFT_DATA(N)%DATA_INTEGER))THEN
+              DEALLOCATE(domain_int_state%SHIFT_DATA(N)%DATA_INTEGER)
             ENDIF
 !
-            ALLOCATE(SHIFT_DATA(N)%DATA_REAL(1:NUM_WORDS_REAL))
-            ALLOCATE(SHIFT_DATA(N)%DATA_INTEGER(1:NUM_WORDS_INTEGER))
+            NUM_WORDS_INTEGER=NUM_WORDS_IJ*NUM_FIELDS_2D_H_I               !<-- Total # of integer words in receiving task N's overlap
+!
+            ALLOCATE(domain_int_state%SHIFT_DATA(N)%DATA_INTEGER(1:NUM_WORDS_INTEGER))
 !
 !-----------------------------------------------------------------------
 !***  Loop through the internal state variables lifting out the 
@@ -7067,7 +7106,8 @@
                   DO J=JSEND_START,JSEND_END
                   DO I=ISEND_START,ISEND_END
                     KOUNT_REAL=KOUNT_REAL+1
-                    SHIFT_DATA(N)%DATA_REAL(KOUNT_REAL)=ARRAY_2D(I,J)      !<-- Sender collects its 2-D Real H data in overlap region
+                    domain_int_state%SHIFT_DATA(N)%DATA_REAL(KOUNT_REAL)=ARRAY_2D(I,J) !<-- Sender collects its 2-D Real H data
+                                                                                       !    in overlap region.
                   ENDDO
                   ENDDO
 !
@@ -7081,7 +7121,8 @@
                   DO J=JSEND_START,JSEND_END
                   DO I=ISEND_START,ISEND_END
                     KOUNT_INTEGER=KOUNT_INTEGER+1
-                    SHIFT_DATA(N)%DATA_INTEGER(KOUNT_INTEGER)=IARRAY_2D(I,J)  !<-- Sender collects its 2-D Integer H data in overlap region
+                    domain_int_state%SHIFT_DATA(N)%DATA_INTEGER(KOUNT_INTEGER)=IARRAY_2D(I,J)  !<-- Sender collects its 2-D Integer H data
+                                                                                               !    in overlap region.
                   ENDDO
                   ENDDO
 !
@@ -7100,7 +7141,8 @@
                   DO J=JSEND_START,JSEND_END
                   DO I=ISEND_START,ISEND_END
                     KOUNT_REAL=KOUNT_REAL+1
-                    SHIFT_DATA(N)%DATA_REAL(KOUNT_REAL)=ARRAY_3D(I,J,L)    !<-- Sender collects its 3-D (Real) H data in overlap region
+                    domain_int_state%SHIFT_DATA(N)%DATA_REAL(KOUNT_REAL)=ARRAY_3D(I,J,L)  !<-- Sender collects its 3-D (Real) H data
+                                                                                          !    in overlap region.
                   ENDDO
                   ENDDO
                 ENDDO
@@ -7141,7 +7183,9 @@
                 DO J=JSEND_START,JSEND_END
                 DO I=ISEND_START,ISEND_END
                   KOUNT_REAL=KOUNT_REAL+1
-                  SHIFT_DATA(N)%DATA_REAL(KOUNT_REAL)=ARRAY_2D(I,J)        !<-- Sender collects its 2-D (Real) V data in overlap region
+                  domain_int_state%SHIFT_DATA(N)%DATA_REAL(KOUNT_REAL)=ARRAY_2D(I,J)  !<-- Sender collects its 2-D (Real) V data
+                                                                                      !    in overlap region.
+                           
                 ENDDO
                 ENDDO
 !
@@ -7158,7 +7202,8 @@
                   DO J=JSEND_START,JSEND_END
                   DO I=ISEND_START,ISEND_END
                     KOUNT_REAL=KOUNT_REAL+1
-                    SHIFT_DATA(N)%DATA_REAL(KOUNT_REAL)=ARRAY_3D(I,J,L)    !<-- Sender collects its 3-D (Real) V data in overlap region
+                    domain_int_state%SHIFT_DATA(N)%DATA_REAL(KOUNT_REAL)=ARRAY_3D(I,J,L)  !<-- Sender collects its 3-D (Real) V data
+                                                                                          !    in overlap region.
                   ENDDO
                   ENDDO
                 ENDDO
@@ -7171,26 +7216,26 @@
 !***  Send all the real data.
 !-----------------------------------------------------------------------
 !
-            CALL MPI_ISSEND(SHIFT_DATA(N)%DATA_REAL                     &  !<-- All inter-task shift Real data for task N
+            CALL MPI_ISSEND(domain_int_state%SHIFT_DATA(N)%DATA_REAL    &  !<-- All inter-task shift Real data for task N
                            ,KOUNT_REAL                                  &  !<-- # of words in the Real data
                            ,MPI_REAL                                    &  !<-- The words are real
                            ,ID_RECV(N)                                  &  !<-- The nest task to which the sender is sending
                            ,KOUNT_REAL                                  &  !<-- Use the word count as the tag
                            ,COMM_FCST_TASKS(MY_DOMAIN_ID)               &  !<-- The MPI intracommunicator for this domain's fcst tasks
-                           ,domain_int_state%HANDLE_SEND_INTER(N)       &  !<-- Handle for this ISend
+                           ,domain_int_state%HANDLE_SEND_INTER_REAL(N)  &  !<-- Handle for this ISend
                            ,IERR )
 !
 !-----------------------------------------------------------------------
 !***  Send all the integer data.
 !-----------------------------------------------------------------------
 !
-            CALL MPI_ISSEND(SHIFT_DATA(N)%DATA_INTEGER                  &  !<-- All inter-task shift Integer data for task N
+            CALL MPI_ISSEND(domain_int_state%SHIFT_DATA(N)%DATA_INTEGER &  !<-- All inter-task shift Integer data for task N
                            ,KOUNT_INTEGER                               &  !<-- # of words in the Integer data
                            ,MPI_INTEGER                                 &  !<-- The words are integer
                            ,ID_RECV(N)                                  &  !<-- The nest task to which the sender is sending
                            ,KOUNT_INTEGER                               &  !<-- Use the word count as the tag
                            ,COMM_FCST_TASKS(MY_DOMAIN_ID)               &  !<-- The MPI intracommunicator for this domain's fcst tasks
-                           ,domain_int_state%HANDLE_SEND_INTER(N)       &  !<-- Handle for this ISend
+                           ,domain_int_state%HANDLE_SEND_INTER_INT(N)   &  !<-- Handle for this ISend
                            ,IERR )
 !
 !-----------------------------------------------------------------------
@@ -8919,6 +8964,10 @@
 !***  the H-pt variables specified for updates after a domain moves
 !***  are not listed in any particular order and thus all updates
 !***  from the parent must be complete before this clean up can begin.
+!
+!***  NOTE: The calls to SEARCH_NEAR are being excluded temporarily
+!           in order to ensure identical answers in moving nests
+!           in the simplest manner for different task layouts.
 !-----------------------------------------------------------------------
 !
       all_fields: DO N_FIELD=1,NUM_FIELDS                                  !<-- Loop through H-pt variables again
@@ -9044,12 +9093,16 @@
                 ARRAY_2D(I,J)=0.                                           !<-- Set dummy value at nest land point.
 !
               ELSEIF(SEA_MASK(I,J)>0.5.AND.ARRAY_2D(I,J)<1.)THEN           !<-- Parent sent land value to nest water point.
-                CALL SEARCH_NEAR(FNAME,SEA_MASK,I,J                     & 
-                                ,ILO,IHI,JLO,JHI                        &
-                                ,I_START,I_END,J_START,J_END            &
-                                ,LIMITS_LO(3),LIMITS_HI(3)              &
-                                ,FOUND                                  &
-                                ,array_2d=ARRAY_2D )
+!
+!*** Temporary exclusion of SEARCH_NEAR
+                FOUND=.FALSE.
+!
+!               CALL SEARCH_NEAR(FNAME,SEA_MASK,I,J                     & 
+!                               ,ILO,IHI,JLO,JHI                        &
+!                               ,I_START,I_END,J_START,J_END            &
+!                               ,LIMITS_LO(3),LIMITS_HI(3)              &
+!                               ,FOUND                                  &
+!                               ,array_2d=ARRAY_2D )
               ENDIF
 !
               IF(.NOT.FOUND)THEN                           
@@ -9076,12 +9129,16 @@
               ELSEIF(SEA_MASK(I,J)<0.5)THEN
                 CHECK=ABS(ARRAY_2D(I,J)-0.06)
                 IF(CHECK<1.E-5)THEN                                        !<-- Parent sent water value to nest land point.
-                  CALL SEARCH_NEAR(FNAME,SEA_MASK,I,J                   & 
-                                  ,ILO,IHI,JLO,JHI                      &
-                                  ,I_START,I_END,J_START,J_END          &
-                                  ,LIMITS_LO(3),LIMITS_HI(3)            &
-                                  ,FOUND                                &
-                                  ,array_2d=ARRAY_2D )
+!
+!*** Temporary exclusion of SEARCH_NEAR
+                  FOUND=.FALSE.
+!
+!                 CALL SEARCH_NEAR(FNAME,SEA_MASK,I,J                   & 
+!                                 ,ILO,IHI,JLO,JHI                      &
+!                                 ,I_START,I_END,J_START,J_END          &
+!                                 ,LIMITS_LO(3),LIMITS_HI(3)            &
+!                                 ,FOUND                                &
+!                                 ,array_2d=ARRAY_2D )
                 ENDIF
               ENDIF
 !
@@ -9139,12 +9196,15 @@
               ELSEIF(SEA_MASK(I,J)<0.5)THEN                     
                 CHECK=ABS(ARRAY_3D(I,J,1)-273.16)
                 IF(CHECK<1.E-2)THEN                                        !<-- Parent sent water value to nest land point.
-                  CALL SEARCH_NEAR(FNAME,SEA_MASK,I,J                   & 
-                                  ,ILO,IHI,JLO,JHI                      &
-                                  ,I_START,I_END,J_START,J_END          &
-                                  ,LIMITS_LO(3),LIMITS_HI(3)            &
-                                  ,FOUND                                &
-                                  ,array_3d=ARRAY_3D )
+!
+!*** Temporary exclusion of SEARCH_NEAR
+                  FOUND=.FALSE.
+!                 CALL SEARCH_NEAR(FNAME,SEA_MASK,I,J                   & 
+!                                 ,ILO,IHI,JLO,JHI                      &
+!                                 ,I_START,I_END,J_START,J_END          &
+!                                 ,LIMITS_LO(3),LIMITS_HI(3)            &
+!                                 ,FOUND                                &
+!                                 ,array_3d=ARRAY_3D )
                 ENDIF
               ENDIF
 !
@@ -9174,12 +9234,16 @@
                 ENDDO
 !
               ELSEIF(SEA_MASK(I,J)<0.5.AND.ARRAY_3D(I,J,1)>0.9)THEN        !<-- Parent sent water value to nest land point.
-                CALL SEARCH_NEAR(FNAME,SEA_MASK,I,J                     & 
-                                ,ILO,IHI,JLO,JHI                        &
-                                ,I_START,I_END,J_START,J_END            &
-                                ,LIMITS_LO(3),LIMITS_HI(3)              &
-                                ,FOUND                                  &
-                                ,array_3d=ARRAY_3D )
+!
+!*** Temporary exclusion of SEARCH_NEAR
+                FOUND=.FALSE.
+!
+!               CALL SEARCH_NEAR(FNAME,SEA_MASK,I,J                     & 
+!                               ,ILO,IHI,JLO,JHI                        &
+!                               ,I_START,I_END,J_START,J_END            &
+!                               ,LIMITS_LO(3),LIMITS_HI(3)              &
+!                               ,FOUND                                  &
+!                               ,array_3d=ARRAY_3D )
               ENDIF
 !
               IF(.NOT.FOUND)THEN                           
@@ -9250,6 +9314,8 @@
 !***  Local Variables
 !---------------------
 !
+      INTEGER(kind=KINT) :: I1,I2,J1,J2
+!
       INTEGER(kind=KINT) :: I_SEARCH,J_SEARCH,K,N_SEARCH
 !
       REAL(kind=KFPT) :: CHECK
@@ -9259,6 +9325,11 @@
 !-----------------------------------------------------------------------
 !
       FOUND=.FALSE.
+!
+      I1=ILO+solver_int_state%NHALO                                        !<--  Local integration
+      I2=IHI-solver_int_state%NHALO                                        !     limits of this
+      J1=JLO+solver_int_state%NHALO                                        !     task's subdomain.
+      J2=JHI-solver_int_state%NHALO                                        !<--
 !
 !-----------------------------------------------------------------------
 !***  If the given nest point following the move is a water point
@@ -9278,14 +9349,16 @@
           I_SEARCH=I_IN+I_SEARCH_INC(N_SEARCH)
           J_SEARCH=J_IN+J_SEARCH_INC(N_SEARCH)
 !
-          IF(I_SEARCH<ITS.OR.I_SEARCH>ITE                               &  !<-- Keep the search on the task subdomain
+          IF(I_SEARCH<I1.OR.I_SEARCH>I2                                 &  !<-- Keep the search on the task subdomain
                          .OR.                                           &  !
-             J_SEARCH<JTS.OR.J_SEARCH>JTE)CYCLE                            !<--
+             J_SEARCH<J1.OR.J_SEARCH>J2)CYCLE                              !<--
 !
           IF(ARRAY_2D(I_SEARCH,J_SEARCH)>1.)THEN                           !<-- If true, the nest found its own nearest water point
             ARRAY_2D(I_IN,J_IN)=ARRAY_2D(I_SEARCH,J_SEARCH)
             FOUND=.TRUE.
+            EXIT
           ENDIF
+!
         ENDDO
 !
       ENDIF
@@ -9309,17 +9382,20 @@
           I_SEARCH=I_IN+I_SEARCH_INC(N_SEARCH)
           J_SEARCH=J_IN+J_SEARCH_INC(N_SEARCH)
 !
-          IF(I_SEARCH<ITS.OR.I_SEARCH>ITE                               &  !<-- Keep the search on the task subdomain
+          IF(I_SEARCH<I1.OR.I_SEARCH>I2                                 &  !<-- Keep the search on the task subdomain
                          .OR.                                           &  !
-             J_SEARCH<JTS.OR.J_SEARCH>JTE)CYCLE                            !<--
+             J_SEARCH<J1.OR.J_SEARCH>J2)CYCLE                              !<--
 !
           CHECK=ABS(ARRAY_3D(I_SEARCH,J_SEARCH,1)-273.16) 
+!
           IF(CHECK>1.E-2)THEN                                              !<-- Make sure the search point has a valid land value
             DO K=KLO,KHI
               ARRAY_3D(I_IN,J_IN,K)=ARRAY_3D(I_SEARCH,J_SEARCH,K)
-              FOUND=.TRUE.
             ENDDO
+            FOUND=.TRUE.
+            EXIT
           ENDIF
+!
         ENDDO
 !
       ENDIF
@@ -9334,16 +9410,18 @@
           I_SEARCH=I_IN+I_SEARCH_INC(N_SEARCH)
           J_SEARCH=J_IN+J_SEARCH_INC(N_SEARCH)
 !
-          IF(I_SEARCH<ITS.OR.I_SEARCH>ITE                               &  !<-- Keep the search on the task subdomain
+          IF(I_SEARCH<I1.OR.I_SEARCH>I2                                 &  !<-- Keep the search on the task subdomain
                          .OR.                                           &  !
-             J_SEARCH<JTS.OR.J_SEARCH>JTE)CYCLE                            !<--
+             J_SEARCH<J1.OR.J_SEARCH>J2)CYCLE                              !<--
 !
           IF(ARRAY_3D(I_SEARCH,J_SEARCH,1)<0.9)THEN                        !<-- Make sure the search point has a valid land value
             DO K=KLO,KHI
               ARRAY_3D(I_IN,J_IN,K)=ARRAY_3D(I_SEARCH,J_SEARCH,K)
-              FOUND=.TRUE.
             ENDDO
+            FOUND=.TRUE.
+            EXIT
           ENDIF
+!
         ENDDO
 !
       ENDIF
@@ -9358,15 +9436,18 @@
           I_SEARCH=I_IN+I_SEARCH_INC(N_SEARCH)
           J_SEARCH=J_IN+J_SEARCH_INC(N_SEARCH)
 !
-          IF(I_SEARCH<ITS.OR.I_SEARCH>ITE                               &  !<-- Keep the search on the task subdomain
+          IF(I_SEARCH<I1.OR.I_SEARCH>I2                                 &  !<-- Keep the search on the task subdomain
                          .OR.                                           &  !
-             J_SEARCH<JTS.OR.J_SEARCH>JTE)CYCLE                            !<--
+             J_SEARCH<J1.OR.J_SEARCH>J2)CYCLE                              !<--
 !
           CHECK=ABS(ARRAY_2D(I_SEARCH,J_SEARCH)-0.06)
+!
           IF(CHECK>1.E-2)THEN                                              !<-- Make sure the search point has a valid land value
             ARRAY_2D(I_IN,J_IN)=ARRAY_2D(I_SEARCH,J_SEARCH)
             FOUND=.TRUE.
+            EXIT
           ENDIF
+!
         ENDDO
 !
       ENDIF

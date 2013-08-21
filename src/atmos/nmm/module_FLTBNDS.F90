@@ -5644,49 +5644,29 @@ integer(kind=kint):: &
 ,n3 &                        ! dimension 3 of working arrays
 ,n4                          ! dimension 4 of working arrays
 
-real(kind=kfpt),allocatable,dimension(:,:,:) :: pdbe_g,pdbn_g,pdbs_g,pdbw_g
+real(kind=kfpt),dimension(1:lnsh,jds:jde,1:2) :: pdbe_g,pdbw_g
+
+real(kind=kfpt),dimension(ids:ide,1:lnsh,1:2) :: pdbn_g,pdbs_g
  
-real(kind=kfpt),allocatable,dimension(:,:,:,:) :: qbe_g,qbn_g,qbs_g,qbw_g &
-                                                 ,tbe_g,tbn_g,tbs_g,tbw_g &
-                                                 ,ube_g,ubn_g,ubs_g,ubw_g &
-                                                 ,vbe_g,vbn_g,vbs_g,vbw_g & 
-                                                 ,wbe_g,wbn_g,wbs_g,wbw_g 
+real(kind=kfpt),dimension(1:lnsh,jds:jde,1:lm,1:2) :: tbe_g,tbw_g       &
+                                                     ,qbe_g,qbw_g       &
+                                                     ,wbe_g,wbw_g  
+
+real(kind=kfpt),dimension(ids:ide,1:lnsh,1:lm,1:2) :: tbn_g,tbs_g       &
+                                                     ,qbn_g,qbs_g       &
+                                                     ,wbn_g,wbs_g  
+
+real(kind=kfpt),dimension(1:lnsv,jds:jde,1:lm,1:2) :: ube_g,ubw_g       &
+                                                     ,vbe_g,vbw_g
+
+real(kind=kfpt),dimension(ids:ide,1:lnsv,1:lm,1:2) :: ubn_g,ubs_g       &
+                                                     ,vbn_g,vbs_g
+
 character(64) :: infile
 logical(kind=klog) :: opened
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  Allocate temporary working arrays.
-!-----------------------------------------------------------------------
-!
-      allocate(pdbe_g(1:lnsh,jds:jde,1:2),stat=i)
-      allocate(pdbw_g(1:lnsh,jds:jde,1:2),stat=i)
-      allocate(pdbn_g(ids:ide,1:lnsh,1:2),stat=i)
-      allocate(pdbs_g(ids:ide,1:lnsh,1:2),stat=i)
-!
-      allocate(tbe_g(1:lnsh,jds:jde,1:lm,1:2),stat=istat)
-      allocate(tbw_g(1:lnsh,jds:jde,1:lm,1:2),stat=istat)
-      allocate(tbn_g(ids:ide,1:lnsh,1:lm,1:2),stat=istat)
-      allocate(tbs_g(ids:ide,1:lnsh,1:lm,1:2),stat=istat)
-      allocate(qbe_g(1:lnsh,jds:jde,1:lm,1:2),stat=istat)
-      allocate(qbw_g(1:lnsh,jds:jde,1:lm,1:2),stat=istat)
-      allocate(qbn_g(ids:ide,1:lnsh,1:lm,1:2),stat=istat)
-      allocate(qbs_g(ids:ide,1:lnsh,1:lm,1:2),stat=istat)
-      allocate(wbe_g(1:lnsh,jds:jde,1:lm,1:2),stat=istat)
-      allocate(wbw_g(1:lnsh,jds:jde,1:lm,1:2),stat=istat)
-      allocate(wbn_g(ids:ide,1:lnsh,1:lm,1:2),stat=istat)
-      allocate(wbs_g(ids:ide,1:lnsh,1:lm,1:2),stat=istat)
-!
-      allocate(ube_g(1:lnsv,jds:jde,1:lm,1:2),stat=istat)
-      allocate(ubw_g(1:lnsv,jds:jde,1:lm,1:2),stat=istat)
-      allocate(ubn_g(ids:ide,1:lnsv,1:lm,1:2),stat=istat)
-      allocate(ubs_g(ids:ide,1:lnsv,1:lm,1:2),stat=istat)
-      allocate(vbe_g(1:lnsv,jds:jde,1:lm,1:2),stat=istat)
-      allocate(vbw_g(1:lnsv,jds:jde,1:lm,1:2),stat=istat)
-      allocate(vbn_g(ids:ide,1:lnsv,1:lm,1:2),stat=istat)
-      allocate(vbs_g(ids:ide,1:lnsv,1:lm,1:2),stat=istat)
 !
 !-----------------------------------------------------------------------
 !***  Because subdomains that lie along the global domain boundary
@@ -5744,8 +5724,6 @@ logical(kind=klog) :: opened
         enddo
       enddo
 !
-      deallocate(pdbe_g,pdbn_g,pdbs_g,pdbw_g)
-!
       read(iunit)tbs_g,tbn_g,tbw_g,tbe_g
       read(iunit)qbs_g,qbn_g,qbw_g,qbe_g
       read(iunit)wbs_g,wbn_g,wbw_g,wbe_g
@@ -5778,19 +5756,6 @@ logical(kind=klog) :: opened
       enddo
       enddo
 !
-      deallocate(qbe_g)
-      deallocate(qbn_g)
-      deallocate(qbs_g)
-      deallocate(qbw_g)
-      deallocate(tbe_g)
-      deallocate(tbn_g)
-      deallocate(tbs_g)
-      deallocate(tbw_g)
-      deallocate(wbe_g)
-      deallocate(wbn_g)
-      deallocate(wbs_g)
-      deallocate(wbw_g)
-!
       read(iunit)ubs_g,ubn_g,ubw_g,ube_g
       read(iunit)vbs_g,vbn_g,vbw_g,vbe_g
 !
@@ -5817,15 +5782,6 @@ logical(kind=klog) :: opened
         enddo
       enddo
       enddo
-!
-      deallocate(ube_g)
-      deallocate(ubn_g)
-      deallocate(ubs_g)
-      deallocate(ubw_g)
-      deallocate(vbe_g)
-      deallocate(vbn_g)
-      deallocate(vbs_g)
-      deallocate(vbw_g)
 !
       close(iunit)
 !

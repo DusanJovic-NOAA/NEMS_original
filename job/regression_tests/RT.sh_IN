@@ -1545,7 +1545,7 @@ fi # endif test
 #---------------------
    export_nmm
    export GBRG=mnests ; export FCSTL=24 ; export NCHILD=02
-   export NEMSI=true  ; export WLCLK=20 ; export NODE=3
+   export NEMSI=true  ; export WLCLK=15 ; export NODE=3
    export AFFN=cpu    ; export MODE=2-way
    export TASKS=$TASKS_mvg2 ; export TPN=$TPN_mvg2
    export INPES=$INPES_mvg2 ; export JNPES=$JNPES_mvg2 ; export WTPG=$WTPG_mvg2
@@ -1588,7 +1588,7 @@ fi # endif test
 #---------------------
    export_nmm
    export GBRG=mnests ; export FCSTL=24 ; export NCHILD=02
-   export NEMSI=true  ; export WLCLK=20 ; export NODE=3
+   export NEMSI=true  ; export WLCLK=15 ; export NODE=3
    export AFFN=cpu    ; export MODE=2-way
    export TASKS=$TASKS_mvg2 ; export TPN=$TPN_mvg2
    export INPES=$INPES_mvg2 ; export JNPES=$JNPES_mvg2 ; export WTPG=$WTPG_mvg2

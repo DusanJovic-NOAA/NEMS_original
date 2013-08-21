@@ -613,10 +613,6 @@
 !
       wrt_int_state%MPI_COMM_COMP=MPI_COMM_COMP
 !
-      IF(NCURRENT_GROUP(ID_DOMAIN)==wrt_int_state%WRITE_GROUPS)THEN  
-        NCURRENT_GROUP(ID_DOMAIN)=0                                        !<-- Reset this counter for the Run step
-      ENDIF
-!
 !-----------------------------------------------------------------------
 !
       NWTPG=wrt_int_state%WRITE_TASKS_PER_GROUP
@@ -627,6 +623,22 @@
       LAST_FCST_TASK=wrt_int_state%LAST_FCST_TASK
       LEAD_WRITE_TASK=wrt_int_state%LEAD_WRITE_TASK
       LAST_WRITE_TASK=wrt_int_state%LAST_WRITE_TASK
+!
+!-----------------------------------------------------------------------
+!***  The forecast tasks now reset the current group to zero since
+!***  that value will cycle through each group during the Run step.
+!***  The quilt tasks only know about their own Write group so
+!***  their value for the current group can be saved since it will
+!***  never change.
+!-----------------------------------------------------------------------
+!
+      IF(MYPE<=LAST_FCST_TASK)THEN
+!
+        IF(NCURRENT_GROUP(ID_DOMAIN)==wrt_int_state%WRITE_GROUPS)THEN  
+          NCURRENT_GROUP(ID_DOMAIN)=0                                      !<-- Reset this counter for the Run step
+        ENDIF
+!
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Allocate the pointers that hold the local limits 
@@ -812,7 +824,7 @@
         IF(JTS==1)THEN                                                     !<-- Fcst tasks on south boundary
           wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE)=(5*LM+1)*2*LNSV*(IEND-ITS+1)
           ALLOCATE(wrt_int_state%RST_BC_DATA_SOUTH(1:wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE)),stat=ISTAT)
-          if(istat/=0)write(0,*)' failed to allocate RST_BC_DATA_SOUTH'
+          IF(ISTAT/=0)WRITE(0,*)' Failed to allocate RST_BC_DATA_SOUTH'
 !
           IF(MYPE/=0)THEN
             CALL MPI_SEND(wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE)        &  !<-- Send this data
@@ -831,7 +843,7 @@
         IF(JTE==JDE)THEN                                                   !<-- Fcst tasks on north boundary
           wrt_int_state%NUM_WORDS_BC_NORTH(MYPE)=(5*LM+1)*2*LNSV*(IEND-ITS+1)
           ALLOCATE(wrt_int_state%RST_BC_DATA_NORTH(1:wrt_int_state%NUM_WORDS_BC_NORTH(MYPE)),stat=ISTAT)
-          if(istat/=0)write(0,*)' failed to allocate RST_BC_DATA_NORTH'
+          IF(ISTAT/=0)WRITE(0,*)' Failed to allocate RST_BC_DATA_NORTH'
 !
           IF(MYPE/=0)THEN
             CALL MPI_SEND(wrt_int_state%NUM_WORDS_BC_NORTH(MYPE)        &  !<-- Send this data
@@ -850,7 +862,7 @@
         IF(ITS==1)THEN                                                     !<-- Fcst tasks on west boundary
           wrt_int_state%NUM_WORDS_BC_WEST(MYPE)=(5*LM+1)*2*LNSV*(JEND-JTS+1)
           ALLOCATE(wrt_int_state%RST_BC_DATA_WEST(1:wrt_int_state%NUM_WORDS_BC_WEST(MYPE)),stat=ISTAT)
-          if(istat/=0)write(0,*)' failed to allocate RST_BC_DATA_WEST'
+          IF(ISTAT/=0)WRITE(0,*)' Failed to allocate RST_BC_DATA_WEST'
 !
           IF(MYPE/=0)THEN
             CALL MPI_SEND(wrt_int_state%NUM_WORDS_BC_WEST(MYPE)         &  !<-- Send this data
@@ -869,7 +881,7 @@
         IF(ITE==IDE)THEN                                                   !<-- Fcst tasks on east boundary
           wrt_int_state%NUM_WORDS_BC_EAST(MYPE)=(5*LM+1)*2*LNSV*(JEND-JTS+1)
           ALLOCATE(wrt_int_state%RST_BC_DATA_EAST(1:wrt_int_state%NUM_WORDS_BC_EAST(MYPE)),stat=ISTAT)
-          if(istat/=0)write(0,*)' failed to allocate RST_BC_DATA_EAST'
+          IF(ISTAT/=0)WRITE(0,*)' Failed to allocate RST_BC_DATA_EAST'
 !
           IF(MYPE/=0)THEN
             CALL MPI_SEND(wrt_int_state%NUM_WORDS_BC_EAST(MYPE)         &  !<-- Send this data
@@ -1229,9 +1241,6 @@
       RC    =ESMF_SUCCESS
       RC_RUN=ESMF_SUCCESS
 !
-!     call date_and_time(values=values)
-!     write(0,100)values(5),values(6),values(7),values(8)
-  100 format(' enter Write Run at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  It is important to note that while the tasks executing this
@@ -1289,12 +1298,19 @@
       ID_DOMAIN=wrt_int_state%ID_DOMAIN
 !
 !-----------------------------------------------------------------------
-!***  Increment the write group so we know which one is active.
-!***  Only the forecast tasks enter this Run step of the Write
-!***  component every output time therefore only they can properly
-!***  increment the number of the current write group. 
-!***  Let the lead forecast task broadcast the current group number
-!***  to all tasks in the group including the current write tasks.
+!
+      IM=wrt_int_state%IM(1)
+      JM=wrt_int_state%JM(1)
+!
+      KOUNT_I2D=wrt_int_state%KOUNT_I2D(1)
+      KOUNT_R2D=wrt_int_state%KOUNT_R2D(1)
+!
+      LAST_FCST_TASK=wrt_int_state%LAST_FCST_TASK
+      LEAD_WRITE_TASK=wrt_int_state%LEAD_WRITE_TASK
+      LAST_WRITE_TASK=wrt_int_state%LAST_WRITE_TASK
+!
+      NWTPG=wrt_int_state%WRITE_TASKS_PER_GROUP
+!
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1311,29 +1327,27 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      NCURRENT_GROUP(ID_DOMAIN)=NCURRENT_GROUP(ID_DOMAIN)+1
-      IF(NCURRENT_GROUP(ID_DOMAIN)>wrt_int_state%WRITE_GROUPS)THEN
-        NCURRENT_GROUP(ID_DOMAIN)=1
+!-----------------------------------------------------------------------
+!***  The forecast tasks increment the write group so they know 
+!***  which one is active.  Only the forecast tasks enter the 
+!***  Run step of the Write component every output time therefore 
+!***  only they need to increment the number of the current write group. 
+!***  group.  The quilt tasks belong to only a single write group so
+!***  if they present here then it must be their write group that is
+!***  active.
+!-----------------------------------------------------------------------
+!
+      IF(MYPE<=LAST_FCST_TASK)THEN
+!
+        NCURRENT_GROUP(ID_DOMAIN)=NCURRENT_GROUP(ID_DOMAIN)+1
+        IF(NCURRENT_GROUP(ID_DOMAIN)>wrt_int_state%WRITE_GROUPS)THEN
+          NCURRENT_GROUP(ID_DOMAIN)=1
+        ENDIF
+!
+        NCURRENT_GROUP_BCAST(1)=NCURRENT_GROUP(ID_DOMAIN)
+        NCURRENT_GROUP(ID_DOMAIN)=NCURRENT_GROUP_BCAST(1)
+!
       ENDIF
-!
-      NCURRENT_GROUP_BCAST(1)=NCURRENT_GROUP(ID_DOMAIN)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="Broadcast Current Write Group Number"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_VMBroadcast(VM                                          &  !<-- The local VM
-                           ,NCURRENT_GROUP_BCAST                        &  !<-- The active Write group for this domain
-                           ,1                                           &  !<-- Broadcasting 1 word
-                           ,0                                           &  !<-- Root sender is fcst task 0
-                           ,rc=RC) 
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      NCURRENT_GROUP(ID_DOMAIN)=NCURRENT_GROUP_BCAST(1)
 !
 !-----------------------------------------------------------------------
 !***  Take the relevant intercommunicator for this Write group.
@@ -1387,20 +1401,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-      IM=wrt_int_state%IM(1)
-      JM=wrt_int_state%JM(1)
-!
-      KOUNT_I2D=wrt_int_state%KOUNT_I2D(1)
-      KOUNT_R2D=wrt_int_state%KOUNT_R2D(1)
-!
-      LAST_FCST_TASK=wrt_int_state%LAST_FCST_TASK
-      LEAD_WRITE_TASK=wrt_int_state%LEAD_WRITE_TASK
-      LAST_WRITE_TASK=wrt_int_state%LAST_WRITE_TASK
-!
-      NWTPG=wrt_int_state%WRITE_TASKS_PER_GROUP
 !
 !-----------------------------------------------------------------------
 !***  Now pull the 2d history data from the import state.
@@ -2646,8 +2646,6 @@
 !***  Integers
 !--------------
 !
-!     write(0,*)' Write Run lead write task to recv int attrib length_sum_i1d=',wrt_int_state%length_sum_i1d(1) &
-!              ,' tag=',write_group
         IF(wrt_int_state%LENGTH_SUM_I1D(1)>0)THEN
 !
           CALL MPI_RECV(wrt_int_state%ALL_DATA_I1D                    &  !<-- Recv string of integer history Attributes
@@ -2658,8 +2656,6 @@
                        ,INTERCOMM_WRITE_GROUP                         &  !<-- MPI domain commumicator
                        ,JSTAT                                         &  !<-- MPI status object
                        ,IERR )
-!     write(0,*)' Write Run lead write task recvd int attrib length_sum_i1d=',wrt_int_state%length_sum_i1d(1) &
-!              ,' tag=',write_group,' ierr=',ierr
 !
         ENDIF
 !
@@ -2667,8 +2663,6 @@
 !***  Reals
 !-----------
 !
-!     write(0,*)' Write Run lead write task to recv real attrib length_sum_r1d=',wrt_int_state%length_sum_r1d(1) &
-!              ,' tag=',write_group
         IF(wrt_int_state%LENGTH_SUM_R1D(1)>0)THEN
 !
           CALL MPI_RECV(wrt_int_state%ALL_DATA_R1D                    &  !<-- Recv string of real history Attributes
@@ -2679,8 +2673,6 @@
                        ,INTERCOMM_WRITE_GROUP                         &  !<-- MPI domain commumicator
                        ,JSTAT                                         &  !<-- MPI status object
                        ,IERR )
-!     write(0,*)' Write Run lead write task recvd int attrib length_sum_r1d=',wrt_int_state%length_sum_r1d(1) &
-!              ,' tag=',write_group,' ierr=',ierr
 !
         ENDIF
 !
@@ -2688,8 +2680,6 @@
 !***    Logicals
 !--------------
 !
-!     write(0,*)' Write Run lead write task to recv log attrib length_sum_log=',wrt_int_state%length_sum_log(1) &
-!              ,' tag=',write_group
         IF(wrt_int_state%LENGTH_SUM_LOG(1)>0)THEN
 !
           CALL MPI_RECV(wrt_int_state%ALL_DATA_LOG                    &  !<-- Recv string of logical history Attributes
@@ -2700,8 +2690,6 @@
                        ,INTERCOMM_WRITE_GROUP                         &  !<-- MPI domain commumicator
                        ,JSTAT                                         &  !<-- MPI status object
                        ,IERR )
-!     write(0,*)' Write Run lead write task recvd log attrib length_sum_log=',wrt_int_state%length_sum_log(1) &
-!              ,' tag=',write_group,' ierr=',ierr
 !
         ENDIF
 !
@@ -3472,7 +3460,6 @@
                                     ,label ='my_domain_id:'             &  !<-- The quantity's label in the configure file
                                     ,rc    =RC)
 !
-!     write(0,*)' Write Run got id_domain=',id_domain
         INT_SEC=INT(NF_SECONDS)
         FRAC_SEC=NINT((NF_SECONDS-INT_SEC)*100.)
 !

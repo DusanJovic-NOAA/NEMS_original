@@ -62,8 +62,6 @@
 !
 !-----------------------------------------------------------------------
 !
-      LOGICAL(kind=KLOG),SAVE :: RESTARTED_RUN_FIRST=.TRUE.
-!
       CHARACTER(ESMF_MAXSTR) :: CWRT                                       !<-- Restart/History label
 !
 !-----------------------------------------------------------------------
@@ -107,7 +105,6 @@
                               ,TASK_MODE                                &
                               ,I_AM_A_NEST                              &
                               ,MY_DOMAIN_ID                             &
-                              ,COMM_TO_MY_PARENT                        &
                               ,NUM_CHILDREN                             &
                               ,NUM_2WAY_CHILDREN                        &
                               ,PARENT_CHILD_CPL                         &
@@ -137,8 +134,7 @@
 !*** Arguments IN
 !-----------------
 !
-      INTEGER(kind=KINT),INTENT(IN) :: COMM_TO_MY_PARENT                &  !<-- MPI Communicator to parent of this domain
-                                      ,FILTER_METHOD                    &  !<-- The type of digital filtering desired
+      INTEGER(kind=KINT),INTENT(IN) :: FILTER_METHOD                    &  !<-- The type of digital filtering desired
                                       ,MYPE                             &  !<-- Local task rank on this domain
                                       ,NPE_PRINT                        &  !<-- Task to print clocktimes
                                       ,NUM_2WAY_CHILDREN                   !<-- How many 2-way children on this domain?
@@ -262,6 +258,7 @@
 !
       TYPE(SOLVER_INTERNAL_STATE),POINTER :: SOLVER_INT_STATE
 !
+      integer(kind=kint),dimension(8) :: values
 !-----------------------------------------------------------------------
 !***  For timers.
 !-----------------------------------------------------------------------
@@ -722,6 +719,7 @@
 !
             IF(MY_DOMAIN_MOVES)THEN
 !
+!
               CALL INTERIOR_DATA_STATE_TO_STATE(EXP_STATE_CPL_NEST      &
                                                ,IMP_STATE_DOMAIN )
 !
@@ -810,7 +808,7 @@
 !
         history_output_0_b: IF(RESTARTED_RUN                            &
                                  .AND.                                  &
-                               RESTARTED_RUN_FIRST                      &
+                               domain_int_state%RESTARTED_RUN_FIRST     &
                                  .AND.                                  &
                                RST_OUT_00                               &
                                  .AND.                                  &
@@ -820,7 +818,7 @@
                                  .AND.                                  &
                                domain_int_state%QUILTING)THEN
 !
-          RESTARTED_RUN_FIRST=.FALSE.
+          domain_int_state%RESTARTED_RUN_FIRST=.FALSE.
           CWRT='History'
           domain_int_state%WROTE_1ST_HIST=.TRUE.
 !
@@ -985,6 +983,7 @@
           CALL BOUNDARY_DATA_STATE_TO_STATE(parent   =domain_int_state%I_AM_A_PARENT  &  !<-- Is this a parent domain?
                                            ,state_in =             EXP_STATE_CPL_NEST &  !<-- The P-C coupler export state
                                            ,state_out=             IMP_STATE_DOMAIN)     !<-- The Domain import state
+!
         ENDIF
 !
         td%pc_cpl_run_cpl3=td%pc_cpl_run_cpl3+(timef()-btim0)
@@ -1008,7 +1007,7 @@
 !
             IF(MOD(KOUNT_STEPS+1,PAR_CHI_TIME_RATIO)==0                 &  !<-- If true then this child has
                            .AND.                                        &  !    reached the end of a timestep
-               COMM_TO_MY_PARENT/=-999)THEN                                !    of its parent.
+               MY_DOMAIN_ID>1)THEN                                         !    of its parent.
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
               MESSAGE_CHECK="Call Phase 5 Coupler Run: Children Send 2-Way Data to Parents"
