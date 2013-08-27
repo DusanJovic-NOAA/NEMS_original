@@ -47,11 +47,7 @@ set -x
   export PDY=${PDY:-20120717}                        #### hardwired the sdate
 
 ### for NGAC_FCST
-  if [ $SCHEDULER = 'loadleveler' ]; then
-    export nemsioget=/nwprod/ngac.v1.0.0/exec/nemsio_get
-#  elif [ $SCHEDULER = 'moab' ]; then
-#    export nemsioget=/nwprod/ngac.v1.0.0/exec/nemsio_get
-   elif [ $SCHEDULER = 'pbs' ]; then
+  if [ $SCHEDULER = 'pbs' ]; then
      export nemsioget=/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get
    elif [ $SCHEDULER = 'lsf' ]; then
      export nemsioget=/nems/save/Jun.Wang/util/nemsio_get

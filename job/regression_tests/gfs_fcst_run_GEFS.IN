@@ -38,8 +38,8 @@ set -x
  export NEMSIO_IN=_NEMSIOIN_
  export NEMSIO_IN=${NEMSIO_IN:-.true.}
 #
- export MACHINE_ID=${MACHINE_ID:-ccs}
- export SCHEDULER=${SCHEDULER:-loadleveler}
+ export MACHINE_ID=${MACHINE_ID:-wcoss}
+ export SCHEDULER=${SCHEDULER:-lsf}
 #
 # SFCPRESS_ID=0 or 1 for ln(psfc), 2 for psfc
  export SFCPRESS_ID=2

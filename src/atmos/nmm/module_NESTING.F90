@@ -11379,17 +11379,6 @@
                     VBL_INPUT(NUM_LEVELS+1+1)=VBL_INPUT(NUM_LEVELS+1)   &  !<-- Create extrapolated value at parent's new lowest
                                              +COEFF_1*DELP_EXTRAP          !    level for input to the spline.
                   ENDIF
-#ifdef IBMP6
-                  CALL SCSINT(P_INPUT                                   &  !<-- Input variable is at these input pressure values
-                             ,VBL_INPUT                                 &  !<-- The column of input variable values
-                             ,C_TMP                                     &  !<-- Auxiliary matrix, C(1:NUM_LYRS+2,1:4)
-                             ,NUM_LEVS_IN                               &  !<-- # of input levels
-                             ,0                                         &  !<-- Natural boundary conditions;
-                                                                           !     nothing precomputed (zero or negative integer)
-                             ,P_OUTPUT                                  &  !<-- Child target pressures to interpolate to
-                             ,VBL_COL_X                                 &  !<-- Child values of variable returned on P_OUTPUT levels
-                             ,NUM_LEVELS+1)                                !<-- # of child target levels to interpolate to
-#else
 !
                   DO L=1,NUM_LEVS_SEC  
                     SEC_DERIV(L)=0.                                        !<-- Initialize 2nd derivatives of the spline to zero.
@@ -11403,7 +11392,6 @@
                              ,NUM_LEVELS+1                              &  !<-- # of child target levels to interpolate to
                              ,P_OUTPUT                                  &  !<-- Child target pressure values to interpolate to
                              ,VBL_COL_X)                                   !<-- Child values of variable returned on P_OUTPUT levels
-#endif
 !
                   DO L=KLO,KHI
                     VBL_COL_CHILD(L)=VBL_COL_X(L+1)                        !<-- Eliminate the artificial level on top of layer 1.
@@ -11543,17 +11531,6 @@
                                              +COEFF_1*DELP_EXTRAP          !    level for input to the spline.
                     ENDIF
 !
-#ifdef IBMP6
-                    CALL SCSINT(P_INPUT                                   &  !<-- Input variable is at these input pressure values
-                               ,VBL_INPUT                                 &  !<-- The column of input variable values
-                               ,C_TMP                                     &  !<-- Auxiliary matrix, C(1:NUM_LYRS+2,1:4)
-                               ,NUM_LEVS_IN                               &  !<-- # of input levels
-                               ,0                                         &  !<-- Natural boundary conditions;
-                                                                             !     nothing precomputed (zero or negative integer)
-                               ,P_OUTPUT                                  &  !<-- Child target pressures to interpolate to
-                               ,VBL_COL_CHILD                             &  !<-- Child values of variable returned on P_OUTPUT levels
-                               ,NUM_LEVELS)                                  !<-- # of child target levels to interpolate to
-#else
                     DO L=1,NUM_LEVS_SEC  
                       SEC_DERIV(L)=0.                                      !<-- Initialize 2nd derivatives of the spline to zero.
                     ENDDO
@@ -11566,7 +11543,6 @@
                                ,NUM_LEVELS                              &  !<-- # of child target levels to interpolate to
                                ,P_OUTPUT                                &  !<-- Child target pressure values to interpolate to
                                ,VBL_COL_CHILD)                             !<-- Child values of variable returned on P_OUTPUT levels
-#endif
 !
                   ENDDO
                   ENDDO

@@ -301,11 +301,7 @@
       USE MODULE_INIT_READ_BIN,ONLY : READ_BINARY
       USE MODULE_INIT_READ_NEMSIO,ONLY : READ_NEMSIO
 !
-#ifdef IBMP6
-      USE MODULE_FLTBNDS,ONLY : PREFFT
-#else
       USE MODULE_FLTBNDS,ONLY : PREFFT, PRESMUD
-#endif
 
 !------------------------
 !***  Argument variables
@@ -1814,31 +1810,11 @@
           CALL PREFFT(int_state%DLMD,int_state%DPHD,int_state%SBD,LM      &
                      ,int_state%KHFILT,int_state%KVFILT                   &
                      ,int_state%HFILT,int_state%VFILT                     &
-#ifdef IBMP6
-                     ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3  &
-                     ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3  &
-#else
                      ,int_state%WFFTRH,int_state%NFFTRH                   &
                      ,int_state%WFFTRW,int_state%NFFTRW                   &
-#endif
                      ,int_state%INPES,int_state%JNPES,int_state%MYPE)
 !
           td%prefft_tim=td%prefft_tim+(timef()-btim)
-!
-!-----------------------------------------------------------------------
-!
-#ifndef IBMP6
-          btim=timef()
-!
-!-----------------------------------------------------------------------
-!***  Initialize the polar filter for unfiltered variables.
-!-----------------------------------------------------------------------
-!
-          CALL PRESMUD(int_state%DLMD,int_state%DPHD,int_state%SBD      &
-                      ,int_state%NHSMUD)
-!
-          td%presmud_tim=td%presmud_tim+(timef()-btim)
-#endif
 !
         ENDIF
 !
@@ -3418,12 +3394,7 @@
            ,int_state%KHFILT                                            &
            ,int_state%HFILT                                             &
            ,int_state%DIV                                               &
-#ifdef IBMP6
-           ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3          &
-           ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3          &
-#else
            ,int_state%WFFTRH,int_state%NFFTRH                           &
-#endif
            ,NUM_PES,MYPE,MPI_COMM_COMP)
           td%fftfhn_tim=td%fftfhn_tim+(timef()-btim)
 !
@@ -3958,12 +3929,7 @@
             (LM                                                         &
             ,int_state%KVFILT,int_state%VFILT                           &
             ,int_state%TCU,int_state%TCV                                &
-#ifdef IBMP6
-            ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3         &
-            ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3         &
-#else
             ,int_state%WFFTRW,int_state%NFFTRW                          &
-#endif
             ,NUM_PES,MYPE,MPI_COMM_COMP)
           td%fftfwn_tim=td%fftfwn_tim+(timef()-btim)
 !
@@ -4083,12 +4049,7 @@
            ,int_state%KHFILT                                            &
            ,int_state%HFILT                                             &
            ,int_state%DIV                                               &
-#ifdef IBMP6
-           ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3          &
-           ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3          &
-#else
            ,int_state%WFFTRH,int_state%NFFTRH                           &
-#endif
            ,NUM_PES,MYPE,MPI_COMM_COMP)
           td%fftfhn_tim=td%fftfhn_tim+(timef()-btim)
 !
@@ -4326,12 +4287,7 @@
                   ,int_state%KHFILT                                     &
                   ,int_state%HFILT                                      &
                   ,int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,KS)      &
-#ifdef IBMP6
-                  ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3   &
-                  ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3   &
-#else
                   ,int_state%WFFTRH,int_state%NFFTRH                    &
-#endif
                   ,NUM_PES,MYPE,MPI_COMM_COMP)
               ENDDO
 ! 
@@ -4523,12 +4479,7 @@
           ,int_state%KHFILT                                             &
           ,int_state%HFILT                                              &
           ,int_state%TCT                                                &
-#ifdef IBMP6
-          ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3           &
-          ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3           &
-#else
           ,int_state%WFFTRH,int_state%NFFTRH                            &
-#endif
           ,NUM_PES,MYPE,MPI_COMM_COMP)
         td%fftfhn_tim=td%fftfhn_tim+(timef()-btim)
 !
@@ -4615,12 +4566,7 @@
           ,int_state%KHFILT                                             &
           ,int_state%HFILT                                              &
           ,int_state%W                                                  &
-#ifdef IBMP6
-          ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3           &
-          ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3           &
-#else
           ,int_state%WFFTRH,int_state%NFFTRH                            &
-#endif
           ,NUM_PES,MYPE,MPI_COMM_COMP)
         td%fftfhn_tim=td%fftfhn_tim+(timef()-btim)
 !
@@ -4677,12 +4623,7 @@
           ,int_state%KHFILT                                             &
           ,int_state%HFILT                                              &
           ,int_state%DWDT                                               &
-#ifdef IBMP6
-          ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3           &
-          ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3           &
-#else
           ,int_state%WFFTRH,int_state%NFFTRH                            &
-#endif
           ,NUM_PES,MYPE,MPI_COMM_COMP)
         td%fftfhn_tim=td%fftfhn_tim+(timef()-btim)
 !
@@ -4854,12 +4795,7 @@
             ,int_state%KHFILT                                           &
             ,int_state%HFILT                                            &
             ,int_state%CW                                               &
-#ifdef IBMP6
-            ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3         &
-            ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3         &
-#else
             ,int_state%WFFTRH,int_state%NFFTRH                          &
-#endif
             ,NUM_PES,MYPE,MPI_COMM_COMP)
 !
           CALL FFTFHN                                                   &
@@ -4867,12 +4803,7 @@
             ,int_state%KHFILT                                           &
             ,int_state%HFILT                                            &
             ,int_state%Q                                                &
-#ifdef IBMP6
-            ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3         &
-            ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3         &
-#else
             ,int_state%WFFTRH,int_state%NFFTRH                          &
-#endif
             ,NUM_PES,MYPE,MPI_COMM_COMP)
 !
           CALL FFTFHN                                                   &
@@ -4880,12 +4811,7 @@
             ,int_state%KHFILT                                           &
             ,int_state%HFILT                                            &
             ,int_state%E2                                               &
-#ifdef IBMP6
-            ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3         &
-            ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3         &
-#else
             ,int_state%WFFTRH,int_state%NFFTRH                          &
-#endif
             ,NUM_PES,MYPE,MPI_COMM_COMP)
 !
           CALL FFTFHN                                                   &
@@ -4893,12 +4819,7 @@
             ,int_state%KHFILT                                           &
             ,int_state%HFILT                                            &
             ,int_state%O3                                               &
-#ifdef IBMP6
-            ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3         &
-            ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3         &
-#else
             ,int_state%WFFTRH,int_state%NFFTRH                          &
-#endif
             ,NUM_PES,MYPE,MPI_COMM_COMP)
 !
           IF(int_state%SPEC_ADV)THEN
@@ -4909,12 +4830,7 @@
                 ,int_state%KHFILT                                       &
                 ,int_state%HFILT                                        &
                 ,int_state%WATER(:,:,:,N)                               &
-#ifdef IBMP6
-                ,int_state%CRAUX1,int_state%CRAUX2,int_state%CRAUX3     &
-                ,int_state%RCAUX1,int_state%RCAUX2,int_state%RCAUX3     &
-#else
                 ,int_state%WFFTRH,int_state%NFFTRH                      &
-#endif
                 ,NUM_PES,MYPE,MPI_COMM_COMP)
             ENDDO
 !
@@ -9580,7 +9496,6 @@
 !
 ! ATTRIBUTES:
 !   LANGUAGE: FORTRAN 90
-!   MACHINE : IBMP6
 !-----------------------------------------------------------------------
       USE MODULE_CONSTANTS,ONLY : EPSQ,TIW
 !-----------------------------------------------------------------------
@@ -9887,7 +9802,6 @@
 !  
 ! ATTRIBUTES:
 !   LANGUAGE: FORTRAN 90
-!   MACHINE : IBM SP
 !$$$  
 !----------------------------------------------------------------------
 !

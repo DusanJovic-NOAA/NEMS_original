@@ -2,12 +2,6 @@ HOSTNAME='hostname -f' ; if [ `uname` = AIX ]; then HOSTNAME='hostname' ; fi
 
 case `$HOSTNAME` in
 
-  c1n6.ncep.noaa.gov)                MACHINE_ID=ccs ;;     ### cirrus1
-  c2n6.ncep.noaa.gov)                MACHINE_ID=ccs ;;     ### cirrus2
-
-  s1n6.ncep.noaa.gov)                MACHINE_ID=ccs ;;     ### stratus1
-  s2n6.ncep.noaa.gov)                MACHINE_ID=ccs ;;     ### stratus2
-
   g10a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;;   ### gyre 1
   g10a2.ncep.noaa.gov)               MACHINE_ID=wcoss ;;   ### gyre 2
   g14a1.ncep.noaa.gov)               MACHINE_ID=wcoss ;;   ### gyre 3

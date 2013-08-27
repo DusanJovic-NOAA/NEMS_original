@@ -1,6 +1,6 @@
 #!/bin/ksh
 ##########################################
-# temporary fix for AIX
+# temporary fix for WCOSS
 # ratko, May 6th, 2013
 ##########################################
 
@@ -8,7 +8,7 @@
 export MACHINE_ID
 export ACCNR
 
-if [ $MACHINE_ID = ccs -o $MACHINE_ID = wcoss ]; then
+if [ $MACHINE_ID = wcoss ]; then
  echo "#!/bin/ksh" > tmp.sh
  cat RT.sh_IN >> tmp.sh
  chmod 755 tmp.sh

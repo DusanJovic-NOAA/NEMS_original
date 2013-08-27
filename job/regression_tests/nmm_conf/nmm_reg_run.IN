@@ -58,10 +58,7 @@ fi
 
 cp $SRCDIR/exe/NEMS.x .
 
-if [ $SCHEDULER = 'loadleveler' ]; then
-  cp $SRCDIR/job/regression_tests/nmm_ll .
-  llsubmit nmm_ll 2>&1 | grep submitted > /dev/null
-elif [ $SCHEDULER = 'moab' ]; then
+if [ $SCHEDULER = 'moab' ]; then
   cp $SRCDIR/job/regression_tests/nmm_msub .
   msub nmm_msub > /dev/null
 elif [ $SCHEDULER = 'pbs' ]; then
@@ -69,7 +66,7 @@ elif [ $SCHEDULER = 'pbs' ]; then
   qsub nmm_qsub > /dev/null
 elif [ $SCHEDULER = 'lsf' ]; then
   cp $SRCDIR/job/regression_tests/nmm_bsub .
-  bsub < nmm_bsub > /dev/null
+  bsub < nmm_bsub > /dev/null 2>&1
 fi
 
 exit

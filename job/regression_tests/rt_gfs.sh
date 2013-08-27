@@ -223,19 +223,7 @@ fi
 
 JBNME=RT_${TEST_NR}_$$
 
-if [ $SCHEDULER = 'loadleveler' ]; then
-
- export TPN=$((32/THRD))
- cat gfs_ll.IN       | sed s:_JBNME_:${JBNME}:g   \
-                     | sed s:_CLASS_:${CLASS}:g   \
-                     | sed s:_GROUP_:${GROUP}:g   \
-                     | sed s:_ACCNR_:${ACCNR}:g   \
-                     | sed s:_WLCLK_:${WLCLK}:g   \
-                     | sed s:_TASKS_:${TASKS}:g   \
-                     | sed s:_RUND_:${RUNDIR}:g   \
-                     | sed s:_THRDS_:${THRD}:g    >  gfs_ll
- 
-elif [ $SCHEDULER = 'moab' ]; then
+if [ $SCHEDULER = 'moab' ]; then
 
  export TPN=$((32/THRD))
  cat gfs_msub.IN     | sed s:_JBNME_:${JBNME}:g   \
@@ -274,15 +262,13 @@ export RUNDIR=${RUNDIR}
 
 cd $PATHRT
 
-if [ $SCHEDULER = 'loadleveler' ]; then
-  llsubmit gfs_ll 2>&1 | grep submitted > /dev/null
-elif [ $SCHEDULER = 'moab' ]; then
+if [ $SCHEDULER = 'moab' ]; then
   msub gfs_msub > /dev/null
 elif [ $SCHEDULER = 'pbs' ]; then
   rm -f $PATHRT/err $PATHRT/out
   qsub $PATHRT/gfs_qsub > /dev/null
 elif [ $SCHEDULER = 'lsf' ]; then
-  bsub <$PATHRT/gfs_bsub > /dev/null
+  bsub <$PATHRT/gfs_bsub > /dev/null 2>&1
 fi
 
 echo "Test ${TEST_NR}" >> ${REGRESSIONTEST_LOG}
@@ -296,9 +282,7 @@ echo ${TEST_DESCR}
 job_running=0
 until [ $job_running -eq 1 ] ; do
  echo "TEST is waiting to enter the queue"
- if [ $SCHEDULER = 'loadleveler' ]; then
-  job_running=`llq -u ${USER} -f %st %jn | grep ${JBNME} | wc -l`;sleep 5
- elif [ $SCHEDULER = 'moab' ]; then
+ if [ $SCHEDULER = 'moab' ]; then
   job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
  elif [ $SCHEDULER = 'pbs' ]; then
   job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
@@ -315,19 +299,7 @@ until [ $job_running -eq 0 ] ; do
 
  sleep 60
 
- if [ $SCHEDULER = 'loadleveler' ]; then
-
-  status=`llq -u ${USER} -f %st %jn | grep ${JBNME} | awk '{ print $1}'` ; status=${status:--}
-  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $7 }'` ; fi
-  FnshHrs=${FnshHrs:-0}
-  if   [ $status = 'I' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
-  elif [ $status = 'R' ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status  ", Finished " $FnshHrs "hours"
-  elif [ $status = 'ST' ]; then echo $n "min. TEST ${TEST_NR} is ready to run,       Status: " $status
-  elif [ $status = 'C' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status
-  else                          echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status  ", Finished " $FnshHrs "hours"
-  fi
-
- elif [ $SCHEDULER = 'moab' ]; then
+ if [ $SCHEDULER = 'moab' ]; then
 
   status=`showq -u ${USER} -n | grep ${JBNME} | awk '{print $3}'` ; status=${status:--}
   if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $6 }'` ; fi
@@ -365,9 +337,7 @@ until [ $job_running -eq 0 ] ; do
 
  fi
 
- if [ $SCHEDULER = 'loadleveler' ]; then
-  job_running=`llq -u ${USER} -f %st %jn | grep ${JBNME} | wc -l`
- elif [ $SCHEDULER = 'moab' ]; then
+ if [ $SCHEDULER = 'moab' ]; then
   job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`
  elif [ $SCHEDULER = 'lsf' ] ; then
   job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep " dev " | wc -l`

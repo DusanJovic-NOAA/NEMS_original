@@ -18,7 +18,8 @@ SP_LIB      = -L/nwprod/lib -lsp_d
 SYS_LIB     =
 
 ##POSTDIR     = /nwprod/lib
-POSTDIR     = /global/save/Hui-Ya.Chuang/nceppost/post_tag_2013_GFS_SummerSchool/lib
+#POSTDIR    = /global/save/Hui-Ya.Chuang/nceppost/post_tag_2013_GFS_SummerSchool/lib
+POSTDIR     = /gpfs/gd1/emc/global/save/Hui-Ya.Chuang/nceppost/post_tag_2013_GFS_SummerSchool/lib
 POSTMOD     = ${POSTDIR}/incmod/post_4
 POST_INC    = -I${POSTDIR}/incmod/post_4
 POST_LIB    = -L${POSTDIR} -lnceppost

@@ -18352,11 +18352,6 @@
           ALLOCATE(   LOG_PTOP(I_START:I_END,J_START:J_END))
           ALLOCATE(   LOG_PBOT(I_START:I_END,J_START:J_END))
 !
-#ifdef IBMP6
-          ALLOCATE(TMP(I_START:I_END,J_START:J_END))
-          LOG_LENGTH=(I_END-I_START+1)*(J_END-J_START+1)
-#endif
-!
 !-----------------------------------------------------------------------
 !***  Compute parent heights of layer interfaces at the four points
 !***  surrounding each child boundary point.
@@ -18444,7 +18439,6 @@
                       +WGHT_NW*Q(I_WEST,J_NORTH,L)                      &
                       +WGHT_NE*Q(I_EAST,J_NORTH,L)
 !
-#ifndef IBMP6
               LOG_PTOP(I,J)=LOG(PINT_INTERP(I,J,L))                        !<-- Log of parent (top) interface pressure at child bndry point
 !
               PHI_INTERP(I,J,L)=PHI_INTERP(I,J,L+1)                     &  !<-- Top interface geopotl of parent at child gridpoint (I,J)
@@ -18453,22 +18447,8 @@
 !
               LOG_PBOT(I,J)=LOG_PTOP(I,J)                                  !<--- Move Log(Ptop) to bottom of next model layer up
 !
-#else
-              TMP(I,J)=R_D*T_INTERP*(1.+P608*Q_INTERP)
-#endif
             ENDDO
             ENDDO
-!
-#ifdef IBMP6
-            CALL VSLOG(LOG_PTOP,PINT_INTERP(:,:,L),LOG_LENGTH)             !<-- Log of parent (top) interface pressure at child bndry point
-            DO J=J_START,J_END                                             !<-- J limits of child task bndry region on parent task
-            DO I=I_START,I_END                                             !<-- I limits of child task bndry region on parent task
-              PHI_INTERP(I,J,L)=PHI_INTERP(I,J,L+1)                     &  !<-- Top interface geopotl of parent at child gridpoint (I,J)
-                               +TMP(I,J)*(LOG_PBOT(I,J)-LOG_PTOP(I,J))
-              LOG_PBOT(I,J)=LOG_PTOP(I,J)                                  !<--- Move Log(Ptop) to bottom of next model layer up
-            ENDDO
-            ENDDO
-#endif
 !
           ENDDO
 !
@@ -18556,10 +18536,6 @@
           DEALLOCATE(PHI_INTERP)
           DEALLOCATE(LOG_PTOP)  
           DEALLOCATE(LOG_PBOT)  
-!
-#ifdef IBMP6
-          DEALLOCATE(TMP)
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -19164,23 +19140,6 @@
 !
             ENDIF
 !
-#ifdef IBMP6
-            CALL SCSINT(P_INPUT                                         &  !<-- Input mid-layer pressure
-                       ,VBL_INPUT                                       &  !<-- Input mid-layer mass variable value
-                       ,C_TMP                                           &  !<-- Auxiliary matrix, C(1:num_levs_spline,1:4)
-                       ,NUM_LEVS_SPLINE                                 &  !<-- # of input levels
-                       ,0                                               &  !<-- Natural boundary conditions, nothing precomputed (zero or negative integer)
-                       ,PMID_CHILD                                      &  !<-- Child mid-layer pressures to interpolate to
-                       ,VBL_COL_CHILD                                   &  !<-- Child mid-layer variable value returned
-                       ,LM)                                                !<-- # of child mid-layers to interpolate to
-!     if(n_side==2.and.i==36.trim(vbl_flag)=='V')THEN
-!       write(0,69471)ntx,loc_1,loc_2,n_stride,vbl_child_bnd(ntx)%data(105)
-!       write(0,69472)knt_pts,vbl_input(1),vbl_input(2),vbl_input(3)
-69471   format(' PARENT_UPDATE_CHILD_BNDRY after scsint ntx=',i2,' loc_1=',i5,' loc_2=',i5,' n_stride=',i5 &
-              ,' vbl_child_bnd(ntx)%data(105)=',z8)
-69472   format(' knt_pts=',i6,' vbl_input=',3(1x,z8))
-!     endif
-#else
             DO L=1,LM+1
               SEC_DERIV(L)=0.                                              !<-- Initialize 2nd derivatives of the spline to zero.
             ENDDO
@@ -19202,7 +19161,6 @@
 69476   format(' knt_pts=',i6,' vbl_input=',3(1x,f6.2))
 69477   format(' p_input=',3(1x,f9.2))
 !     endif
-#endif
 !
 !-----------------------------------------------------------------------
 !

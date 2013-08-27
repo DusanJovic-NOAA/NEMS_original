@@ -8,21 +8,20 @@ GOCARTINCS = -I../../chem/gocart/${ARCH}/include/Chem_Base
 
 LIBRARY  = libphys.a
 
-MODULES_NMM      = module_LS_LISS.o \
-                   module_LS_NOAHLSM.o \
-                   module_SF_URBAN.o
-
-MODULES_NMM_SMP  = module_BL_MYJPBL.o \
-                   module_BL_GFSPBL.o \
-                   module_CU_SAS.o \
+MODULES_NMM      = module_BL_GFSPBL.o \
+                   module_BL_MYJPBL.o \
                    module_CU_BMJ.o \
+                   module_CU_SAS.o \
+                   module_LS_LISS.o \
+                   module_LS_NOAHLSM.o \
                    module_MP_ETANEW.o \
                    module_MP_FER_HIRES.o \
-                   module_MP_WSM6.o \
                    module_MP_GFS.o \
+                   module_MP_WSM6.o \
                    module_RA_GFDL.o \
                    module_RA_RRTM.o \
-                   module_SF_JSFC.o
+                   module_SF_JSFC.o \
+                   module_SF_URBAN.o
 
 MODULES_NMM_RRTM = grrad_nmmb.o              \
                    radiation_astronomy_nmmb.o\
@@ -125,15 +124,15 @@ MODULES_TRAC=      gocart_tracer_config.o
 MODULES_TRAC_stub= gocart_tracer_config_stub.o
 
 MODULES_ALL =	$(MODULES_NMM) $(MODULES_GFS) $(MODULES_IDEA) \
-		$(MODULES_TRAC_stub) $(MODULES_GFSF) $(MODULES_NMM_SMP) $(MODULES_NMM_RRTM) $(MODULE_FGFS)
+		$(MODULES_TRAC_stub) $(MODULES_GFSF) $(MODULES_NMM_RRTM) $(MODULE_FGFS)
 MODULES_GOCART =	$(MODULES_NMM) $(MODULES_GFS) $(MODULES_IDEA) \
-			$(MODULES_TRAC) $(MODULES_GFSF) $(MODULES_NMM_SMP) $(MODULES_NMM_RRTM) $(MODULE_FGFS)
+			$(MODULES_TRAC) $(MODULES_GFSF) $(MODULES_NMM_RRTM) $(MODULE_FGFS)
 
 ifeq ($(GOCART_MODE),full)
-	DEPEND_FILES =	${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC:.o=.f} ${MODULES_NMM_SMP:.o=.F90} \
+	DEPEND_FILES =	${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC:.o=.f} \
 			${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_IDEA:.o=.f} ${MODULE_FGFS:.o=.F}
 else
-	DEPEND_FILES =	${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC_stub:.o=.f} ${MODULES_NMM_SMP:.o=.F90} \
+	DEPEND_FILES =	${MODULES_NMM:.o=.F90} ${MODULES_GFS:.o=.f} ${MODULES_TRAC_stub:.o=.f} \
 			${MODULES_NMM_RRTM:.o=.f} ${MODULES_GFSF:.o=.f} ${MODULES_IDEA:.o=.f} ${MODULE_FGFS:.o=.F}
 endif
 
@@ -151,9 +150,6 @@ gocart_full: $(MODULES_GOCART)
 
 $(MODULES_NMM): %.o: %.f90
 	$(FC) $(FFLAGS_NMM) $(UTILINCS) -c $*.f90
-
-$(MODULES_NMM_SMP): %.o: %.f90
-	$(FC) $(FFLAGS_NMM) $(SMP) $(UTILINCS) -c $*.f90
 
 $(MODULES_NMM_RRTM): %.o: %.f
 	$(FC) $(FREE) $(FFLAGS_NMM) $(UTILINCS) $(R8) -c $*.f

@@ -173,22 +173,10 @@ export liope=.false.
 if [[ $QUILTING = .true. ]] ; then export liope=.true. ; fi
 #
 export NTHREADS=_THRDS_
-if [ $machine = IBMP6 ] ; then
- export MP_STDOUTMODE=ordered
- export MP_LABELIO=yes
- export MP_SHARED_MEMORY=yes
- export MEMORY_AFFINITY=MCM
- export XLSMPOPTS="parthds=$NTHREADS:spins=0:yields=0:stack=512000000"
- export SPINLOOPTIME=500
- export YIELDLOOPTIME=500
- export AIXTHREAD_SCOPE=S
- export MALLOCMULTIHEAP=true
-elif [ $machine = WCOSS ] ; then
- export MP_STDOUTMODE=ordered
- export MP_LABELIO=yes
- export MP_SHARED_MEMORY=yes
- export MP_COREFILE_FORMAT=lite 
-fi
+export MP_STDOUTMODE=ordered
+export MP_LABELIO=yes
+export MP_SHARED_MEMORY=yes
+export MP_COREFILE_FORMAT=lite 
 #
 #    Set up experiment and directory names
 #
@@ -209,9 +197,7 @@ export hybrid=${hybrid:-NO}
 export NCP=${NCP:-/u/wx20mi/bin/ncp}
 #
 if [ $NEMSIO_IN = .true. ]; then
-  if [ $SCHEDULER = 'loadleveler' ]; then
-    export nemsioget=${nemsioget:-/climate/save/wx20wa/gfsio/nems/nemsio_get}
-  elif [ $SCHEDULER = 'moab' ]; then
+  if [ $SCHEDULER = 'moab' ]; then
     export nemsioget=${nemsioget}
   elif [ $SCHEDULER = 'pbs' ]; then
     export nemsioget=${nemsioget:-/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/nemsio_get}
@@ -330,10 +316,7 @@ cd $RUNDIR
 
  export COMOUT=$RUNDIR
 #
-if [ $SCHEDULER = 'loadleveler' ]; then
-   export FIXGLOBAL=${FIXGLOBAL:-/nwprod/fix}
-   export FCST_LAUNCHER=poe
-elif [ $SCHEDULER = 'moab' ]; then
+if [ $SCHEDULER = 'moab' ]; then
    export FIXGLOBAL=${FIXGLOBAL}
    export FCST_LAUNCHER=aprun
 elif [ $SCHEDULER = 'pbs' ]; then

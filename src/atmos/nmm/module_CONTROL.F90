@@ -1910,18 +1910,10 @@ real(kind=kfpt):: &
 !
 !-----------------------------------------------------------------------
 !
-#ifdef IBMP6
-      REAL*8 TIMEF,rtc
-!
-      TIMEF=rtc()
-#else
       REAL*8 TIMEF
       INTEGER(kind=KINT) :: IC,IR
-!
-!!!   CALL SYSTEM_CLOCK(count=IC,count_rate=IR)
-!!!   TIMEF=REAL(IC)/REAL(IR)*1000.
+
       TIMEF=MPI_Wtime()
-#endif
 !
 !-----------------------------------------------------------------------
 !

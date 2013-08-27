@@ -60,17 +60,7 @@ fi
 
 JBNME=RT_${TEST_NR}_$$
 
-if [ $SCHEDULER = 'loadleveler' ]; then
-
-cat gen_ll.IN       | sed s:_JBNME_:${JBNME}:g   \
-                    | sed s:_CLASS_:${CLASS}:g   \
-                    | sed s:_GROUP_:${GROUP}:g   \
-                    | sed s:_ACCNR_:${ACCNR}:g   \
-                    | sed s:_WLCLK_:${WLCLK}:g   \
-                    | sed s:_TASKS_:${TASKS}:g   \
-                    | sed s:_THRDS_:${THRD}:g    >  gen_ll
-
-elif [ $SCHEDULER = 'moab' ]; then
+if [ $SCHEDULER = 'moab' ]; then
 
 cat gen_msub.IN         | sed s:_JBNME_:${JBNME}:g   \
                         | sed s:_WLCLK_:${WLCLK}:g   \
@@ -89,9 +79,7 @@ cat gen_qsub.IN         | sed s:_JBNME_:${JBNME}:g   \
 
 fi
 
-if [ $SCHEDULER = 'loadleveler' ]; then
-  llsubmit gen_ll 2>&1 | grep submitted > /dev/null
-elif [ $SCHEDULER = 'moab' ]; then
+if [ $SCHEDULER = 'moab' ]; then
   msub gen_msub > /dev/null
 elif [ $SCHEDULER = 'pbs' ]; then
   rm -f $PATHRT/err $PATHRT/out
@@ -110,9 +98,7 @@ job_running=0
 until [ $job_running -eq 1 ]
 do
 echo "TEST is waiting to enter the queue"
-if [ $SCHEDULER = 'loadleveler' ]; then
-  job_running=`llq -u ${USER} -f %st %jn | grep ${JBNME} | wc -l`;sleep 5
-elif [ $SCHEDULER = 'moab' ]; then
+if [ $SCHEDULER = 'moab' ]; then
   job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
 elif [ $SCHEDULER = 'pbs' ]; then
   job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
@@ -128,18 +114,7 @@ n=1
 until [ $job_running -eq 0 ]
 do
 
-if [ $SCHEDULER = 'loadleveler' ]; then
-
-export status=`llq -u ${USER} -f %st %jn | grep ${JBNME} | awk '{ print $1}'` ; export status=${status:--}
-
-if   [ $status = 'I' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
-elif [ $status = 'R' ];  then echo $n "min. TEST ${TEST_NR} is running,            Status: " $status
-elif [ $status = 'ST' ]; then echo $n "min. TEST ${TEST_NR} is ready to run,       Status: " $status
-elif [ $status = 'C' ];  then echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status
-else                          echo $n "min. TEST ${TEST_NR} is finished,           Status: " $status
-fi
-
-elif [ $SCHEDULER = 'moab' ]; then
+if [ $SCHEDULER = 'moab' ]; then
 
   status=`showq -u ${USER} -n | grep ${JBNME} | awk '{print $3}'` ; status=${status:--}
   if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $6 }'` ; fi
@@ -166,9 +141,7 @@ elif [ $SCHEDULER = 'pbs' ]; then
 fi
 
 sleep 60
-if [ $SCHEDULER = 'loadleveler' ]; then
-  job_running=`llq -u ${USER} -f %st %jn | grep ${JBNME} | wc -l`
-elif [ $SCHEDULER = 'moab' -o $SCHEDULER = 'pbs' ]; then
+if [ $SCHEDULER = 'moab' -o $SCHEDULER = 'pbs' ]; then
   job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`
 fi
   (( n=n+1 ))
