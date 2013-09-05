@@ -219,7 +219,7 @@ microphysics:  _MICRO_      # Microphysics scheme
                                 # wsm3--> WSM3
                                 # gfs--> GFS microphy
 
-spec_adv:  .false.          # Individual cloud species advected
+spec_adv: _SPEC_ADV_        # Individual cloud species advected
 lmprate:  .false.           # .true.: 4D array called MPRATES containing
                             # 3D microphysics source/sink terms
                             # .false.: One 3D array called MPRATES

@@ -28,6 +28,7 @@ cat nmm_conf/nmm_${GBRG}_conf.IN | sed s:_INPES_:${INPES}:g                  \
                                  | sed s:_RADTN_:${RADTN}:g                  \
                                  | sed s:_CONVC_:${CONVC}:g                  \
                                  | sed s:_MICRO_:${MICRO}:g                  \
+                                 | sed s:_SPEC_ADV_:${SPEC_ADV}:g            \
                                  | sed s:_TURBL_:${TURBL}:g                  \
                                  | sed s:_PCPFLG_:${PCPFLG}:g                \
                                  | sed s:_WPREC_:${WPREC}:g                  \

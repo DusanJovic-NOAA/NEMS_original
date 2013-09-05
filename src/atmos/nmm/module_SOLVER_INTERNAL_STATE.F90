@@ -240,7 +240,15 @@
         INTEGER(kind=KINT) :: INDX_Q                                    &  !<-- Location of Q in tracer arrays
                              ,INDX_CW                                   &  !<-- Location of CW in tracer arrays
                              ,INDX_O3                                   &  !<-- Location of O3 in tracer arrays
-                             ,INDX_Q2                                      !<-- Location of Q2 in tracer arrays
+                             ,INDX_Q2=0                                 &  !<-- Location of Q2 in tracer arrays
+                             ,INDX_QV=0                                 &  !<-- Location of Qv in tracer arrays
+                             ,INDX_QC=0                                 &  !<-- Location of Qc in tracer arrays
+                             ,INDX_QI=0                                 &  !<-- Location of Qi in tracer arrays
+                             ,INDX_QR=0                                 &  !<-- Location of Qr in tracer arrays
+                             ,INDX_QS=0                                 &  !<-- Location of Qs in tracer arrays
+                             ,INDX_QG=0                                 &  !<-- Location of Qg in tracer arrays
+                             ,INDX_NI=0                                 &  !<-- Location of Ni in tracer arrays
+                             ,INDX_NR=0                                    !<-- Location of Nr in tracer arrays
 !
         REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS           &  !<-- Tracers variable
                                                      ,TRACERS_SQRT      &  !<-- Sqrt of the tracer variables (for advection)
@@ -316,7 +324,10 @@
                              ,P_QR                                      &  !<-- Index for rain in WATER array
                              ,P_QI                                      &  !<-- Index for cloud ice in WATER array
                              ,P_QS                                      &  !<-- Index for snow in WATER array
-                             ,P_QG                                         !<-- Index for graupel in WATER array
+                             ,P_QG                                      &  !<-- Index for graupel in WATER array
+                             ,P_NI                                      &  !<-- Index for ice number conc in WATER array
+                             ,P_NR                                         !<-- Index for rain number conc in WATER array
+        INTEGER(kind=KINT) :: has_reqc,has_reqi,has_reqs                   !<-- Flags for computed water/ice radii for radiation
 !
         INTEGER(kind=KINT) :: INDX_WATER_START                          &  !<-- Start index of the water in tracers array
                              ,INDX_WATER_END                               !<-- End index of the water in tracers array
@@ -328,7 +339,10 @@
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: F_ICE,F_RAIN        &  !<-- Fractions of ice, rain, and rime
                                                    ,F_RIMEF
 !
-        LOGICAL :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: QV, QC, QI,         &  !<-- Individual species for microphys.
+                                            QR, QS, QG, NI, NR             !<-- G. Thompson
+!
+        LOGICAL :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI,F_NR
 !
 !-----------------------------------------------------------------------
 !***  Nesting
@@ -409,6 +423,11 @@
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: CLDFRA              &
                                                    ,TRAIN,XLEN_MIX
 !
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: refl_10cm           &
+                                                   ,re_cloud            &
+                                                   ,re_ice              &
+                                                   ,re_snow
+!
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: SH2O,SMC,STC
 !
         REAL(kind=KFPT),DIMENSION(:,:),POINTER :: CROT,SROT             &
@@ -457,6 +476,7 @@
                                                  ,VEGFRC
 !
         REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACPREC,ACSNOM,ACSNOW  &
+                                                 ,acpcp_ra,acpcp_sn,acpcp_gr &
                                                  ,CUPREC,CLDEFI         &
                                                  ,PREC,PSHLTR,P10,Q02   &
                                                  ,Q10,QSHLTR,PSFC       &
@@ -621,7 +641,13 @@
 !***  For the excluded species (F_*=.FALSE.), set the P_ variable to 1.
 !-----------------------------------------------------------------------
 !
-        int_state%D_SS=1
+      int_state%D_SS=1
+      int_state%F_NI=.FALSE.
+      int_state%F_NR=.FALSE.
+      int_state%has_reqc=0
+      int_state%has_reqi=0
+      int_state%has_reqs=0
+
       IF(TRIM(int_state%MICROPHYSICS)=='fer'.OR. &
          TRIM(int_state%MICROPHYSICS)=='fer_hires')THEN
         int_state%NUM_WATER=1+4
@@ -667,6 +693,32 @@
         int_state%F_QI=.TRUE.
         int_state%F_QG=.TRUE.
         if(int_state%lmprate) int_state%D_SS=40
+      ELSEIF(TRIM(int_state%MICROPHYSICS)=='thompson')THEN
+        write(6,*) 'DEBUG-GT:  decided to use Thompson microphysics'
+        int_state%NUM_WATER=1+8
+        int_state%P_QV=2
+        int_state%P_QC=3
+        int_state%P_QI=4
+        int_state%P_QR=5
+        int_state%P_QS=6
+        int_state%P_QG=7
+        int_state%P_NI=8
+        int_state%P_NR=9
+        int_state%F_QV=.TRUE.
+        int_state%F_QC=.TRUE.
+        int_state%F_QR=.TRUE.
+        int_state%F_QS=.TRUE.
+        int_state%F_QI=.TRUE.
+        int_state%F_QG=.TRUE.
+        int_state%F_NI=.TRUE.
+        int_state%F_NR=.TRUE.
+        if(int_state%lmprate) int_state%D_SS=0
+        IF(TRIM(int_state%LONGWAVE)=='rrtm'.AND.TRIM(int_state%SHORTWAVE)=='rrtm') THEN
+           write(6,*) 'DEBUG-GT:  combined Thompson MP and RRTM radiation, therefore using coupled effective radii'
+           int_state%has_reqc=1
+           int_state%has_reqi=1
+           int_state%has_reqs=1
+        ENDIF
       ELSEIF(TRIM(int_state%MICROPHYSICS)=='gfs')THEN
         int_state%NUM_WATER=1+3
         int_state%P_QV=2
@@ -826,11 +878,25 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'Told'      ,int_state%Told    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'Tadj'      ,int_state%Tadj    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
 
+!..Added by G. Thompson for multiple water species. Truly not declared
+!.. new memory but rather pointers into TRACERS array.
+      CALL SET_VAR_PTR(int_state%VARS,NV,'QV'        ,int_state%QV      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'QC'        ,int_state%QC      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'QI'        ,int_state%QI      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'QR'        ,int_state%QR      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'QS'        ,int_state%QS      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'QG'        ,int_state%QG      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'NI'        ,int_state%NI      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'NR'        ,int_state%NR      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
+
       CALL SET_VAR_PTR(int_state%VARS,NV,'ACFRCV'     ,int_state%ACFRCV   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'ACFRST'     ,int_state%ACFRST   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'ACPREC'     ,int_state%ACPREC   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'ACSNOM'     ,int_state%ACSNOM   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'ACSNOW'     ,int_state%ACSNOW   ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'ACPCP_RA'   ,int_state%acpcp_ra ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'ACPCP_SN'   ,int_state%acpcp_sn ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'ACPCP_GR'   ,int_state%acpcp_gr ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'AKHS_OUT'   ,int_state%AKHS_OUT ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'AKHSAVG'    ,int_state%AKHSAVG  ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'AKMS_OUT'   ,int_state%AKMS_OUT ,(/ IMS,JMS /),(/ IME,JME /) )
@@ -956,6 +1022,10 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'F_ICE'      ,int_state%F_ICE    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,'F_RAIN'     ,int_state%F_RAIN   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,'F_RIMEF'    ,int_state%F_RIMEF  ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,'REFL_10CM'  ,int_state%refl_10cm,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,'RE_CLOUD'   ,int_state%re_cloud ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,'RE_ICE'     ,int_state%re_ice   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,'RE_SNOW'    ,int_state%re_snow  ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,'TRAIN'      ,int_state%TRAIN    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,'XLEN_MIX'   ,int_state%XLEN_MIX ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,'TCUCN'      ,int_state%TCUCN    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
@@ -999,6 +1069,7 @@
       CALL FIND_VAR_INDX('TRACERS',int_state%VARS,int_state%NUM_VARS,I)
       int_state%VARS(I)%R4D (IMS:IME,JMS:JME,1:LM,1:int_state%NUM_TRACERS_TOTAL) => int_state%TRACERS_ARR
       int_state%TRACERS=>int_state%VARS(I)%R4D
+      write(6,*) 'The TRACERS array has var-index,', I, ' size1, total_num', TRACER_SIZE_1, int_state%NUM_TRACERS_TOTAL
 !
 !-----------------------------------------------------------------------
 !***  Point TRACERS_PREV as 4D array at the TRACERS_PREV_ARR (one-dimensional storage array)
@@ -1016,6 +1087,7 @@
       CALL FIND_VAR_INDX('Q',int_state%VARS,int_state%NUM_VARS,I)
       int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_Q-1)*TRACER_SIZE_1+1 : int_state%INDX_Q*TRACER_SIZE_1)
       int_state%Q=>int_state%VARS(I)%R3D
+      write(6,*) int_state%INDX_Q, '(th) element of TRACER is Q and has var-index,', I, ' begin,end: ', (int_state%INDX_Q-1)*TRACER_SIZE_1+1, int_state%INDX_Q*TRACER_SIZE_1
 !
 !-----------------------------------------------------------------------
 !***  Point CW (Combined cloud water array) at level 2(INDX_CW) of the Tracers array.
@@ -1025,6 +1097,7 @@
       CALL FIND_VAR_INDX('CW',int_state%VARS,int_state%NUM_VARS,I)
       int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_CW-1)*TRACER_SIZE_1+1 : int_state%INDX_CW*TRACER_SIZE_1)
       int_state%CW=>int_state%VARS(I)%R3D
+      write(6,*) int_state%INDX_CW, '(th) element of TRACER is CW and has var-index,', I, ' begin,end: ', (int_state%INDX_CW-1)*TRACER_SIZE_1+1, int_state%INDX_CW*TRACER_SIZE_1
 !
 !-----------------------------------------------------------------------
 !***  Point E2 (Turbulence kinetic energy) at level 3(INDX_Q2) of the Tracers array.
@@ -1034,6 +1107,7 @@
       CALL FIND_VAR_INDX('E2',int_state%VARS,int_state%NUM_VARS,I)
       int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_Q2-1)*TRACER_SIZE_1+1 : int_state%INDX_Q2*TRACER_SIZE_1)
       int_state%E2=>int_state%VARS(I)%R3D
+      write(6,*) int_state%INDX_Q2, '(th) element of TRACER is Q2 and has var-index,', I, ' begin,end: ', (int_state%INDX_Q2-1)*TRACER_SIZE_1+1, int_state%INDX_Q2*TRACER_SIZE_1
 !
 !-----------------------------------------------------------------------
 !***  Point O3 (General tracer for testin) at level 4(INDX_O3) of the Tracers array.
@@ -1043,14 +1117,90 @@
       CALL FIND_VAR_INDX('O3',int_state%VARS,int_state%NUM_VARS,I)
       int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_O3-1)*TRACER_SIZE_1+1 : int_state%INDX_O3*TRACER_SIZE_1)
       int_state%O3=>int_state%VARS(I)%R3D
+      write(6,*) int_state%INDX_O3, '(th) element of TRACER is O3 and has var-index,', I, ' begin,end: ', (int_state%INDX_O3-1)*TRACER_SIZE_1+1, int_state%INDX_O3*TRACER_SIZE_1
 !
 !--------------------------------
 !***  Water tracers
 !--------------------------------
 !
       int_state%INDX_WATER_START = int_state%NUM_TRACERS_MET + int_state%NUM_TRACERS_CHEM + 1
+!.. Start of WATER array is after Chem, but NUM_TRACERS_MET is number of water elements so why add this before Chem?
+!d      int_state%INDX_WATER_START = int_state%INDX_O3 + int_state%NUM_TRACERS_CHEM + 1
       int_state%INDX_WATER_END = int_state%INDX_WATER_START + int_state%NUM_WATER - 1
       int_state%WATER(IMS:IME,JMS:JME,1:LM,1:int_state%NUM_WATER) => int_state%TRACERS_ARR( (int_state%INDX_WATER_START-1)*TRACER_SIZE_1+1 : int_state%INDX_WATER_END*TRACER_SIZE_1)
+      write(6,*) 'The WATER array begins at index,', int_state%INDX_WATER_START, ' begin,end: ', (int_state%INDX_WATER_START-1)*TRACER_SIZE_1+1, int_state%INDX_WATER_END*TRACER_SIZE_1
+
+!..Since there is definition of INDX_Q,CW,Q2,O3, we could also do same
+!.. for other water species. The 5th element of TRACERS is the blank
+!.. first element of WATER.  The next element is water vapor, then each
+!.. cloud and precip species.      G. Thompson
+      if (int_state%P_QV .gt. 1) then
+         int_state%INDX_QV = int_state%INDX_WATER_START-1 + int_state%P_QV
+!        int_state%QV(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QV-1)*TRACER_SIZE_1+1 : int_state%INDX_QV*TRACER_SIZE_1)
+         CALL FIND_VAR_INDX('QV',int_state%VARS,int_state%NUM_VARS,I)
+         int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QV-1)*TRACER_SIZE_1+1 : int_state%INDX_QV*TRACER_SIZE_1)
+         int_state%QV=>int_state%VARS(I)%R3D
+         write(6,*) int_state%INDX_QV, '(th) element of TRACER is Qv begin,end: ', (int_state%INDX_QV-1)*TRACER_SIZE_1+1, int_state%INDX_QV*TRACER_SIZE_1
+      endif
+      if (int_state%P_QC .gt. 1) then
+         int_state%INDX_QC = int_state%INDX_WATER_START-1 + int_state%P_QC
+!        int_state%QC(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QC-1)*TRACER_SIZE_1+1 : int_state%INDX_QC*TRACER_SIZE_1)
+         CALL FIND_VAR_INDX('QC',int_state%VARS,int_state%NUM_VARS,I)
+         int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QC-1)*TRACER_SIZE_1+1 : int_state%INDX_QC*TRACER_SIZE_1)
+         int_state%QC=>int_state%VARS(I)%R3D
+         write(6,*) int_state%INDX_QC, '(th) element of TRACER is Qc begin,end: ', (int_state%INDX_QC-1)*TRACER_SIZE_1+1, int_state%INDX_QC*TRACER_SIZE_1
+      endif
+      if (int_state%P_QI .gt. 1) then
+         int_state%INDX_QI = int_state%INDX_WATER_START-1 + int_state%P_QI
+!        int_state%QI(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QI-1)*TRACER_SIZE_1+1 : int_state%INDX_QI*TRACER_SIZE_1)
+         CALL FIND_VAR_INDX('QI',int_state%VARS,int_state%NUM_VARS,I)
+         int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QI-1)*TRACER_SIZE_1+1 : int_state%INDX_QI*TRACER_SIZE_1)
+         int_state%QI=>int_state%VARS(I)%R3D
+         write(6,*) int_state%INDX_QI, '(th) element of TRACER is Qi begin,end: ', (int_state%INDX_QI-1)*TRACER_SIZE_1+1, int_state%INDX_QI*TRACER_SIZE_1
+      endif
+      if (int_state%P_QR .gt. 1) then
+         int_state%INDX_QR = int_state%INDX_WATER_START-1 + int_state%P_QR
+!        int_state%QR(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QR-1)*TRACER_SIZE_1+1 : int_state%INDX_QR*TRACER_SIZE_1)
+         CALL FIND_VAR_INDX('QR',int_state%VARS,int_state%NUM_VARS,I)
+         int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QR-1)*TRACER_SIZE_1+1 : int_state%INDX_QR*TRACER_SIZE_1)
+         int_state%QR=>int_state%VARS(I)%R3D
+         write(6,*) int_state%INDX_QR, '(th) element of TRACER is Qr begin,end: ', (int_state%INDX_QR-1)*TRACER_SIZE_1+1, int_state%INDX_QR*TRACER_SIZE_1
+      endif
+      if (int_state%P_QS .gt. 1) then
+         int_state%INDX_QS = int_state%INDX_WATER_START-1 + int_state%P_QS
+!        int_state%QS(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QS-1)*TRACER_SIZE_1+1 : int_state%INDX_QS*TRACER_SIZE_1)
+         CALL FIND_VAR_INDX('QS',int_state%VARS,int_state%NUM_VARS,I)
+         int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QS-1)*TRACER_SIZE_1+1 : int_state%INDX_QS*TRACER_SIZE_1)
+         int_state%QS=>int_state%VARS(I)%R3D
+         write(6,*) int_state%INDX_QS, '(th) element of TRACER is Qs begin,end: ', (int_state%INDX_QS-1)*TRACER_SIZE_1+1, int_state%INDX_QS*TRACER_SIZE_1
+      endif
+      if (int_state%P_QG .gt. 1) then
+         int_state%INDX_QG = int_state%INDX_WATER_START-1 + int_state%P_QG
+!        int_state%QG(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QG-1)*TRACER_SIZE_1+1 : int_state%INDX_QG*TRACER_SIZE_1)
+         CALL FIND_VAR_INDX('QG',int_state%VARS,int_state%NUM_VARS,I)
+         int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QG-1)*TRACER_SIZE_1+1 : int_state%INDX_QG*TRACER_SIZE_1)
+         int_state%QG=>int_state%VARS(I)%R3D
+         write(6,*) int_state%INDX_QG, '(th) element of TRACER is Qg begin,end: ', (int_state%INDX_QG-1)*TRACER_SIZE_1+1, int_state%INDX_QG*TRACER_SIZE_1
+      endif
+      if (int_state%P_NI .gt. 1) then
+         int_state%INDX_NI = int_state%INDX_WATER_START-1 + int_state%P_NI
+!        int_state%NI(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_NI-1)*TRACER_SIZE_1+1 : int_state%INDX_NI*TRACER_SIZE_1)
+         CALL FIND_VAR_INDX('NI',int_state%VARS,int_state%NUM_VARS,I)
+         int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_NI-1)*TRACER_SIZE_1+1 : int_state%INDX_NI*TRACER_SIZE_1)
+         int_state%NI=>int_state%VARS(I)%R3D
+         write(6,*) int_state%INDX_NI, '(th) element of TRACER is Ni begin,end: ', (int_state%INDX_NI-1)*TRACER_SIZE_1+1, int_state%INDX_NI*TRACER_SIZE_1
+      endif
+      if (int_state%P_NR .gt. 1) then
+         int_state%INDX_NR = int_state%INDX_WATER_START-1 + int_state%P_NR
+!        int_state%NR(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_NR-1)*TRACER_SIZE_1+1 : int_state%INDX_NR*TRACER_SIZE_1)
+         CALL FIND_VAR_INDX('NR',int_state%VARS,int_state%NUM_VARS,I)
+         int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_NR-1)*TRACER_SIZE_1+1 : int_state%INDX_NR*TRACER_SIZE_1)
+         int_state%NR=>int_state%VARS(I)%R3D
+         write(6,*) int_state%INDX_NR, '(th) element of TRACER is Nr begin,end: ', (int_state%INDX_NR-1)*TRACER_SIZE_1+1, int_state%INDX_NR*TRACER_SIZE_1
+      endif
+
+      write(6,*) 'DEBUG-GT:  num_tracers_met, chem, water: ', int_state%NUM_TRACERS_MET, int_state%NUM_TRACERS_CHEM, int_state%NUM_WATER
+      write(6,*) 'DEBUG-GT:  water start, end: ', int_state%INDX_WATER_START, int_state%INDX_WATER_END
 !
 !-----------------------------------------------------------------------
 !***  We can retrieve LM from the internal state since it was
@@ -1314,6 +1464,7 @@
         ALLOCATE(int_state%PHY_F3DV (IMS:IME,JMS:JME,LM,4)) ;int_state%PHY_F3DV = R8_IN ! for Zhao =4, Ferr=3
 !
       ENDIF  gfs_physics
+
 !
 !-----------------------------------------------------------------------
 !

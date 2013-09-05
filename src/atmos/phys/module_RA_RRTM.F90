@@ -340,6 +340,7 @@
 !      F_RAINC(LM)     : FRACTION OF RAIN WATER (IN FERRIER SCHEME)     !
 !      RRIME  (LM)     : MASS RATIO OF TOTAL TO UNRIMED ICE ( >= 1 )    !
 !      FLGMIN_L(1)     : MINIMIM LARGE ICE FRACTION                     !
+!                        =8 THOMPSON MICROPHYSICS SCHEME                ! G. Thompson 23Feb2013
 !      NTCW            : =0 NO CLOUD CONDENSATE CALCULATED              !
 !                        >0 ARRAY INDEX LOCATION FOR CLOUD CONDENSATE   !
 !      NCLDX           : ONLY USED WHEN NTCW .GT. 0                     !

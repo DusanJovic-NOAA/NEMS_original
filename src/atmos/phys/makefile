@@ -16,6 +16,8 @@ MODULES_NMM      = module_BL_GFSPBL.o \
                    module_LS_NOAHLSM.o \
                    module_MP_ETANEW.o \
                    module_MP_FER_HIRES.o \
+                   module_mp_thompson.o \
+                   module_mp_radar.o \
                    module_MP_GFS.o \
                    module_MP_WSM6.o \
                    module_RA_GFDL.o \

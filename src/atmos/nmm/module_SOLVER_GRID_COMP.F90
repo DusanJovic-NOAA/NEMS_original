@@ -93,6 +93,7 @@
       USE MODULE_MP_ETANEW    ,ONLY : FERRIER_INIT
       USE MODULE_MP_FER_HIRES ,ONLY : FERRIER_INIT_HR
       USE MODULE_MP_WSM6      ,ONLY : WSM6INIT
+      USE MODULE_MP_THOMPSON, ONLY  : thompson_init
       USE MODULE_MP_GFS       ,ONLY : GFSMP_INIT
 
       USE MODULE_H_TO_V ,ONLY : H_TO_V,H_TO_V_TEND
@@ -1003,7 +1004,7 @@
         DO L=1,LM
         DO J=JMS,JME
         DO I=IMS,IME
-          int_state%Q2(I,J,L)=0.02
+          int_state%Q2(I,J,L)=0.02      ! REPEATED
           int_state%OMGALF(I,J,L)=0.
           int_state%T(I,J,L)=-1.E6
           int_state%U(I,J,L)=-1.E6
@@ -1156,6 +1157,9 @@
           int_state%ACSNOM(I,J)= 0.
           int_state%ACSNOW(I,J)= 0.
           int_state%ACPREC(I,J)= 0.
+          int_state%acpcp_ra(I,J)= 0.
+          int_state%acpcp_sn(I,J)= 0.
+          int_state%acpcp_gr(I,J)= 0.
           int_state%CUPREC(I,J)= 0.
           int_state%PREC(I,J)  = 0.
           int_state%CLDEFI(I,J)= 0.
@@ -1195,9 +1199,21 @@
           do KK=1,int_state%d_ss
             int_state%MPRATES(I,J,L,KK)=0.
           enddo
+          int_state%refl_10cm(I,J,L)=-35.0
         ENDDO
         ENDDO
         ENDDO
+!       IF (int_state%has_reqc.eq.1 .and. int_state%has_reqi.eq.1 .and. int_state%has_reqs.eq.1) THEN
+        DO L=1,LM
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%re_cloud(I,J,L)=2.51E-6
+          int_state%re_ice(I,J,L)=10.1E-6
+          int_state%re_snow(I,J,L)=20.1E-6
+        ENDDO
+        ENDDO
+        ENDDO
+!       ENDIF
 !
         DO N=1,NUM_DOMAINS_MAX
           int_state%NTSCM(N)=-999
@@ -1923,6 +1939,118 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert INDX_QV into Physics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Physics export state
+                              ,name ='INDX_QV'                          &  !<-- The inserted quantity will have this name
+                              ,value=int_state%INDX_QV                  &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert INDX_QC into Physics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Physics export state
+                              ,name ='INDX_QC'                          &  !<-- The inserted quantity will have this name
+                              ,value=int_state%INDX_QC                  &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert INDX_QI into Physics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Physics export state
+                              ,name ='INDX_QI'                          &  !<-- The inserted quantity will have this name
+                              ,value=int_state%INDX_QI                  &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert INDX_QR into Physics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Physics export state
+                              ,name ='INDX_QR'                          &  !<-- The inserted quantity will have this name
+                              ,value=int_state%INDX_QR                  &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert INDX_QS into Physics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Physics export state
+                              ,name ='INDX_QS'                          &  !<-- The inserted quantity will have this name
+                              ,value=int_state%INDX_QS                  &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert INDX_QG into Physics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Physics export state
+                              ,name ='INDX_QG'                          &  !<-- The inserted quantity will have this name
+                              ,value=int_state%INDX_QG                  &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert INDX_NI into Physics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Physics export state
+                              ,name ='INDX_NI'                          &  !<-- The inserted quantity will have this name
+                              ,value=int_state%INDX_NI                  &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert INDX_NR into Physics Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Physics export state
+                              ,name ='INDX_NR'                          &  !<-- The inserted quantity will have this name
+                              ,value=int_state%INDX_NR                  &  !<-- The value of this is associated with the preceding name
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 !-----------------------------------------------------------------------
 !***  Insert this task's integration index limits into the
 !***  export state along with the full domain limits.
@@ -2249,7 +2377,7 @@
 !
         CALL ESMF_AttributeSet(state=EXP_STATE                          &  !<-- The Solver export state
                               ,name ='TLM0D'                            &  !<-- Name of the Attribute
-                              ,value=int_state%TLM0D                    &  !<-- The central geo lat of the rotated system
+                              ,value=int_state%TLM0D                    &  !<-- The central geo lon of the rotated system
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2581,6 +2709,7 @@
 !
       INTEGER(kind=KINT),SAVE :: HDIFF_ON                               &
                                 ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG          &
+                                ,P_NI,P_NR                              & ! G. Thompson
                                 ,PARENT_CHILD_TIME_RATIO
 !
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF
@@ -2868,6 +2997,8 @@
       P_QI=int_state%P_QI
       P_QS=int_state%P_QS
       P_QG=int_state%P_QG
+      P_NI=int_state%P_NI           ! G. Thompson
+      P_NR=int_state%P_NR           ! G. Thompson
 !
       PARENT_CHILD_TIME_RATIO=int_state%PARENT_CHILD_TIME_RATIO
 !
@@ -3192,6 +3323,7 @@
              ,int_state%Q,LM                                            &
              ,int_state%CW,LM                                           &
              ,2,2)
+!..What about other items in the TRACER array?
 !
           CALL HALO_EXCH                                                &
              (int_state%U,LM                                            &
@@ -3344,7 +3476,7 @@
           ,RDYV,int_state%DSG2,int_state%PDSG1,int_state%RDXV           &
           ,int_state%WPDAR,int_state%FIS                                &
           ,int_state%PD                                                 &
-          ,int_state%T,int_state%Q,int_state%CW                         &
+          ,int_state%T,int_state%Q,int_state%CW                         & ! And how about other TRACER elements?
           ,int_state%PINT                                               &
           ,int_state%RTOP                                               &
           ,int_state%DIV                                                &
@@ -3480,7 +3612,7 @@
             ,int_state%HDACX,int_state%HDACY                            &
             ,int_state%HDACVX,int_state%HDACVY                          &
             ,int_state%W,int_state%Z                                    &
-            ,int_state%CW,int_state%Q,int_state%Q2                      &
+            ,int_state%CW,int_state%Q,int_state%Q2                      & ! And how about other TRACER elements?
             ,int_state%T,int_state%U,int_state%V,int_state%DEF)            
         ENDIF
 !
@@ -3560,7 +3692,7 @@
         CALL HALO_EXCH(int_state%T,LM                                   &
                       ,int_state%Q,LM                                   &
                       ,int_state%CW,LM                                  &
-                      ,int_state%Q2,LM                                  &
+                      ,int_state%Q2,LM                                  & ! And how about other TRACER elements?
                       ,2,2)
         CALL HALO_EXCH(int_state%U,LM                                   &
                       ,int_state%V,LM                                   &
@@ -3601,7 +3733,7 @@
               CALL HALO_EXCH                                            &
                (int_state%T,LM                                          &
                ,int_state%Q,LM                                          &
-               ,int_state%CW,LM                                         &
+               ,int_state%CW,LM                                         & ! And how about other TRACER elements?
                ,2,2)
 !
               CALL HALO_EXCH                                            &
@@ -3660,7 +3792,7 @@
               CALL HALO_EXCH                                            &
                (int_state%T,LM                                          &
                ,int_state%Q,LM                                          &
-               ,int_state%CW,LM                                         &
+               ,int_state%CW,LM                                         & ! And how about other TRACER elements?
                ,2,2)
 !
               CALL HALO_EXCH                                            &
@@ -3746,7 +3878,7 @@
                              ,int_state%VBS,int_state%VBN               &
                              ,int_state%VBW,int_state%VBE               &
                              ,int_state%PD,int_state%T                  &
-                             ,int_state%Q,int_state%CW                  &
+                             ,int_state%Q,int_state%CW                  & ! And how about other TRACER elements?
                              ,int_state%U,int_state%V                   &
                              ,.FALSE.)                                     !<-- Are tendencies recomputed?
 !
@@ -3859,7 +3991,7 @@
                             ,int_state%VBS,int_state%VBN                &
                             ,int_state%VBW,int_state%VBE                &
                             ,int_state%PD,int_state%T                   &
-                            ,int_state%Q,int_state%CW                   &
+                            ,int_state%Q,int_state%CW                   & ! And how about other TRACER elements?
                             ,int_state%U,int_state%V                    &
                             ,.TRUE.)                                       !<-- Are tendencies recomputed?
                  ENDIF
@@ -3889,7 +4021,7 @@
              ,int_state%QBS,int_state%QBW                               &
              ,int_state%WBE,int_state%WBN                               &
              ,int_state%WBS,int_state%WBW                               &
-             ,int_state%T,int_state%Q,int_state%CW                      &
+             ,int_state%T,int_state%Q,int_state%CW                      & ! And how about other TRACER elements?
              ,int_state%PINT)
 !
           td%bocoh_tim=td%bocoh_tim+(timef()-btim)
@@ -3908,7 +4040,7 @@
           ,RDYV,int_state%DSG2,int_state%PDSG1,int_state%RDXV           &
           ,int_state%WPDAR,int_state%FIS                                &
           ,int_state%PD                                                 &
-          ,int_state%T,int_state%Q,int_state%CW                         &
+          ,int_state%T,int_state%Q,int_state%CW                         & ! And how about other TRACER elements?
           ,int_state%PINT                                               &
           ,int_state%RTOP                                               &
           ,int_state%DIV                                                &
@@ -4250,6 +4382,8 @@
         ELSE
           KSE1=KSE
         ENDIF
+
+!       write(6,*) 'DEBUG-GT: calling ADV2, kss,kse=',kss,kse1
 !
         CALL ADV2                                                       &
           (GLOBAL                                                       &
@@ -4403,6 +4537,7 @@
           CALL SWAPHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES)
           CALL SWAPHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES)
+!..Need a similar set of lines for the TRACERS array at some point.
 !
           td%swaphn_tim=td%swaphn_tim+(timef()-btim)
 !
@@ -4411,6 +4546,7 @@
           CALL POLEHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES,JNPES)
           CALL POLEHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES,JNPES)
+!..Need a similar set of lines for the TRACERS array at some point.
 !
           td%polehn_tim=td%polehn_tim+(timef()-btim)
 !
@@ -4742,6 +4878,9 @@
             ,int_state%Q2,int_state%E2                                  &
             ,1)
 !
+!..Likewise to HADV2_SCAL, the NUM_TRACERS_MET in call here could be
+!.. hard-wired to 4 (or less) to prevent possible mis-match for
+!.. array count when SPEC_ADV=.false.
           CALL VADV2_SCAL                                               &
             (LM,IDTAD                                                   &
             ,DT,int_state%DSG2,int_state%PDSG1                          &
@@ -4765,16 +4904,17 @@
             ,int_state%PSGML1,int_state%SGML2                           &
             ,int_state%PD,int_state%PSGDT                               &
             ,int_state%WATER                                            &
-            ,int_state%NUM_WATER,2,int_state%INDX_Q2)
+            ,int_state%NUM_WATER,2, -999)                                 ! G. Thompson, final value -999 avoids Q2 epsilon value in sub.
 !
-          DO K=1,LM
-          DO J=JTS,JTE
-          DO I=ITS,ITE
+!..Someone decide if triple-nested DO-loop or F90 way of doin the loop.
+!-GT      DO K=1,LM
+!-GT      DO J=JTS,JTE
+!-GT      DO I=ITS,ITE
      !      int_state%Q(I,J,K)=int_state%WATER(I,J,K,P_QV)              &
      !                  /(1.+int_state%WATER(I,J,K,P_QV))
-          ENDDO
-          ENDDO
-          ENDDO
+!-GT      ENDDO
+!-GT      ENDDO
+!-GT      ENDDO
 !
           int_state%Q(:,:,:)=int_state%WATER(:,:,:,P_QV)                &
                       /(1.+int_state%WATER(:,:,:,P_QV))
@@ -4900,6 +5040,9 @@
 !
         hadv2_micro_check: IF(.NOT.int_state%SPEC_ADV)THEN
 !
+!..NUM_TRACERS_MET in call below should probably be hard-wired to 4
+!.. such that Q, CWM, Q2, and O3 are advected only, nothing more in
+!.. the event counter var is somehow larger when SPEC_ADV=.false.
           CALL HADV2_SCAL                                               &
             (GLOBAL,INPES,JNPES                                         &
             ,LM,IDTAD,DT,RDYH                                           &
@@ -4932,6 +5075,8 @@
 !
           IF(.NOT.int_state%OPERATIONAL_PHYSICS)THEN
 !
+            write(6,*) ' WE SHOULD NOT GET HERE since SPEC_ADV=.flase.'
+
             DO K=1,LM
             KFLIP=LM+1-K
             DO J=JTS,JTE
@@ -4997,7 +5142,7 @@
             ,int_state%PD                                               &
             ,int_state%U,int_state%V                                    &
             ,int_state%WATER                                            &
-            ,int_state%NUM_WATER,2,int_state%INDX_Q2                    &
+            ,int_state%NUM_WATER,2, -999                                & ! G. Thompson, final value -999 avoids Q2 epsilon value in sub.
             ,int_state%READ_GLOBAL_SUMS                                 &
             ,int_state%WRITE_GLOBAL_SUMS)
 !
@@ -5327,11 +5472,14 @@
                                    .OR.                                 &
                         int_state%MICROPHYSICS=='gfs'                   &
                                    .OR.                                 &
-                        int_state%MICROPHYSICS=='wsm6')                 &
+                        int_state%MICROPHYSICS=='wsm6'                  &
+                                   .OR.                                 &
+                        int_state%MICROPHYSICS=='thompson')             &
                                    .AND.                                &
                        (CALL_SHORTWAVE .OR. CALL_LONGWAVE .OR.          &
                         CALL_TURBULENCE .OR. CALL_PRECIP) ) THEN
 !
+!          write(*,*) 'DEBUG-GT, now calling UPDATE_WATER'
            CALL UPDATE_WATER(int_state%CW                               &
                             ,int_state%F_ICE                            &
                             ,int_state%F_RAIN                           &
@@ -5409,6 +5557,7 @@
 !-----------------------------------------------------------------------
 !
           btim=timef()
+!         write(*,*) 'DEBUG-GT, now calling RADIATION ', btim
 !
 !-----------------------------------------------------------------------
 !***  Temporary switch between radiation schemes placed in SOLVER_RUN
@@ -5602,6 +5751,7 @@
         turbulence: IF(CALL_TURBULENCE)THEN
 !
           btim=timef()
+!         write(*,*) 'DEBUG-GT, now calling TURBL ', btim
 !
           DO L=1,NUM_SOIL_LAYERS
             DZSOIL(L)=SLDPTH(L)
@@ -5840,6 +5990,7 @@
         convection: IF(CALL_PRECIP.AND.int_state%CONVECTION/='none')THEN
 !
           btim=timef()
+!         write(*,*) 'DEBUG-GT, now calling CUCNVC ', btim
 !
 !-----------------------------------------------------------------------
           IF(int_state%CONVECTION=='bmj' .OR. &
@@ -5983,6 +6134,7 @@
         microphysics: IF(CALL_PRECIP)THEN
 !
           btim=timef()
+!         write(*,*) 'DEBUG-GT, now calling GSMDRIVE ', btim
 !
           CALL GSMDRIVE(NTIMESTEP,int_state%DT                             &
                        ,NPRECIP,int_state%NUM_WATER                        &
@@ -5998,9 +6150,15 @@
                        ,int_state%F_ICE,int_state%F_RAIN,int_state%F_RIMEF &
                        ,int_state%P_QV,int_state%P_QC,int_state%P_QR       &
                        ,int_state%P_QI,int_state%P_QS,int_state%P_QG       &
+                       ,int_state%P_NI,int_state%P_NR                      & ! G. Thompson
                        ,int_state%F_QV,int_state%F_QC,int_state%F_QR       &
                        ,int_state%F_QI,int_state%F_QS,int_state%F_QG       &
+                       ,int_state%F_NI,int_state%F_NR                      & ! G. Thompson
                        ,int_state%PREC,int_state%ACPREC,int_state%AVRAIN   &
+                       ,int_state%acpcp_ra,int_state%acpcp_sn,int_state%acpcp_gr &  ! G. Thompson
+                       ,int_state%refl_10cm                                &  !  G. Thompson
+                       ,int_state%re_cloud,int_state%re_ice,int_state%re_snow  &  !  G. Thompson
+                       ,int_state%has_reqc,int_state%has_reqi,int_state%has_reqs  &  !  G. Thompson
                        ,int_state%MP_RESTART_STATE                         &
                        ,int_state%TBPVS_STATE,int_state%TBPVS0_STATE       &
                        ,int_state%SPECIFIED,int_state%NESTED               &
@@ -7153,6 +7311,8 @@
 !-----------------------------------------------------------------------
 !
       td%solver_phy_tim=td%solver_phy_tim+(timef()-btim0)
+
+!     write(*,*) 'DEBUG-GT,  ending SOLVER_RUN'
 !
 !-----------------------------------------------------------------------
 !
@@ -9426,10 +9586,12 @@
           CASE ('wsm6')
              CALL WSM6INIT(RHOAIR0,RHOWATER,RHOSNOW,CLIQ,CV             &
                           ,ALLOWED_TO_READ )
+
+          CASE ('thompson')
+             CALL thompson_init()
+
 !!!       CASE ('kes')
 !!!         CALL KESSLER_INIT
-!!!       CASE ('tho')
-!!!         CALL THOMPSON_INIT
           CASE DEFAULT
             WRITE(0,*)' BAD SELECTION OF MICROPHYSICS SCHEME: INIT'
         END SELECT
@@ -9532,6 +9694,7 @@
       INTEGER :: I,J,K
       REAL :: FRACTION, LIQW, OLDCWM
       LOGICAL :: CLD_INIT
+      LOGICAL :: deep_ice
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -9542,10 +9705,10 @@
         DO K=1,LM
          DO J=JMS,JME
           DO I=IMS,IME
-            IF (P_QC==1) WATER(I,J,K,P_QC)=0.0                          
-            IF (P_QR==1) WATER(I,J,K,P_QR)=0.0                          
-            IF (P_QI==1) WATER(I,J,K,P_QI)=0.0                          
-            IF (P_QS==1) WATER(I,J,K,P_QS)=0.0                          
+            IF(P_QC == 1) WATER(I,J,K,P_QC)=0.0  !  This is really silly
+            IF(P_QR == 1) WATER(I,J,K,P_QR)=0.0  !  If all these vars=1
+            IF(P_QI == 1) WATER(I,J,K,P_QI)=0.0  !  then we are doing 5 times.
+            IF (P_QS==1) WATER(I,J,K,P_QS)=0.0   !  G. Thompson
             IF (P_QG==1) WATER(I,J,K,P_QG)=0.0                          
           ENDDO
          ENDDO
@@ -9752,6 +9915,180 @@
             ENDDO
 !
           ENDIF init_adv_wsm6
+!
+!----------------------------------------------------------------------
+        CASE ('thompson')   !-- Update fields for Thompson microphysics
+!----------------------------------------------------------------------
+!
+!+---+-----------------------------------------------------------------+
+!..The CLD_INIT test provides a way to translate initial values of CWM
+!.. into coomponent species of cloud water, rain, and ice, but not snow
+!.. or graupel. Thompson MP will pretty rapidly make snow from the
+!.. cloud ice field.  Next IF-test is whether individual species
+!.. advection is enabled, which almost certainly should be the case when
+!.. picking this scheme.  In this case, the separate species are summed
+!.. into the CWM and ice, rain, and rime variables are computed only for
+!.. consistency with other schemes.  But, if single species advection is
+!.. not enabled, then each t-step the CWM array needs to be split into
+!.. component species to prepare MP routine to have some semblance of
+!.. proper individual species.  Again, this is strongly discouraged.
+!+---+-----------------------------------------------------------------+
+          spec_adv_thompson: IF (CLD_INIT) THEN
+             DO K=1,LM
+                DO J=JMS,JME
+                DO I=IMS,IME
+                   WATER(I,J,K,P_QS)=0.0
+                   WATER(I,J,K,P_QG)=0.0
+                   IF (CWM(I,J,K) .gt. EPSQ) THEN
+                      LIQW=(1.-F_ice(I,J,K))*CWM(I,J,K)
+                      WATER(I,J,K,P_QC)=(1.-F_rain(I,J,K))*LIQW
+                      WATER(I,J,K,P_QR)=F_rain(I,J,K)*LIQW
+                      WATER(I,J,K,P_QI)=F_ice(I,J,K)*CWM(I,J,K)
+                   ELSE
+                      WATER(I,J,K,P_QC)=0.
+                      WATER(I,J,K,P_QR)=0.
+                      WATER(I,J,K,P_QI)=0.
+                   ENDIF
+                ENDDO
+                ENDDO
+             ENDDO
+          ELSE IF(SPEC_ADV) THEN  spec_adv_thompson
+             DO K=1,LM
+                DO J=JMS,JME
+                DO I=IMS,IME
+                   CWM(I,J,K) = WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)     &
+                              + WATER(I,J,K,P_QI)                       &
+                              + WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
+                   IF (CWM(I,J,K) .gt. EPSQ) THEN
+                      LIQW = MAX(0., CWM(I,J,K) - WATER(I,J,K,P_QI)     &
+                                                - WATER(I,J,K,P_QS)     &
+                                                - WATER(I,J,K,P_QG))
+                      F_ICE(I,J,K) = MAX(0., 1.0 - LIQW/CWM(I,J,K))
+                      IF (WATER(I,J,K,P_QR) .gt. EPSQ) THEN
+                         F_RAIN(I,J,K) = WATER(I,J,K,P_QR)              &
+                                 / (WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR))
+                      ELSE
+                         F_RAIN(I,J,K)=0.
+                      ENDIF
+                      IF (WATER(I,J,K,P_QG) .gt. EPSQ) THEN
+                         F_RIMEF(I,J,K) = (5.*WATER(I,J,K,P_QG)         &
+                                        +     WATER(I,J,K,P_QS))        &
+                                        / (WATER(I,J,K,P_QS)            &
+                                        +  WATER(I,J,K,P_QG))
+                      ELSE
+                         F_RIMEF(I,J,K)=1.
+                      ENDIF
+                   ELSE
+                      F_ICE(I,J,K) = 0.
+                      F_RAIN(I,J,K)=0.
+                      F_RIMEF(I,J,K)=1.
+                      CWM(I,J,K) = 0.
+                   ENDIF
+                ENDDO
+                ENDDO
+             ENDDO
+          ELSE  spec_adv_thompson
+             write(0,*) 'WARNING: This option is STRONGLY DISCOURAGED'
+             write(0,*) '  please consider using full advection of all'
+             write(0,*) '  species when picking Thompson microphysics.'
+             DO J=JMS,JME
+             DO I=IMS,IME
+                DO K=LM,1,-1
+                   deep_ice = .false.
+                   IF (CWM(I,J,K) .gt. EPSQ) THEN
+                      OLDCWM  = WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)     &
+                              + WATER(I,J,K,P_QI)                       &
+                              + WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
+                      IF (OLDCWM .gt. EPSQ) THEN
+                         LIQW = MAX(0., OLDCWM - WATER(I,J,K,P_QI)      &
+                                               - WATER(I,J,K,P_QS)      &
+                                               - WATER(I,J,K,P_QG))
+                         F_ICE(I,J,K) = MAX(0., 1.0 - LIQW/OLDCWM)
+                         IF (WATER(I,J,K,P_QR) .gt. EPSQ) THEN
+                            F_RAIN(I,J,K) = WATER(I,J,K,P_QR)           &
+                                 / (WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR))
+                         ELSE
+                            F_RAIN(I,J,K)=0.
+                         ENDIF
+                         IF (WATER(I,J,K,P_QG) .gt. EPSQ) THEN
+                            F_RIMEF(I,J,K) = (5.*WATER(I,J,K,P_QG)      &
+                                           +     WATER(I,J,K,P_QS))     &
+                                           / (WATER(I,J,K,P_QS)         &
+                                           +  WATER(I,J,K,P_QG))
+                         ELSE
+                            F_RIMEF(I,J,K)=1.
+                         ENDIF
+                         LIQW = MAX(0., (1.-F_ICE(I,J,K))*CWM(I,J,K))
+                         WATER(I,J,K,P_QR) = LIQW*F_RAIN(I,J,K)*CWM(I,J,K)
+                         WATER(I,J,K,P_QC) = LIQW*(1.-F_RAIN(I,J,K))*CWM(I,J,K)
+                         FRACTION = MAX(0., MIN(WATER(I,J,K,P_QG) &
+                                  / (WATER(I,J,K,P_QG)+WATER(I,J,K,P_QS)), 1.) )
+                         WATER(I,J,K,P_QG) = FRACTION*F_ICE(I,J,K)*CWM(I,J,K)
+                         WATER(I,J,K,P_QI) = 0.1*(1.-FRACTION)*F_ICE(I,J,K)*CWM(I,J,K)
+                         WATER(I,J,K,P_QS) = 0.9*(1.-FRACTION)*F_ICE(I,J,K)*CWM(I,J,K)
+
+                      ELSE       ! Below, the condensate is all new here
+                         WATER(I,J,K,P_QC) = 0.0
+                         WATER(I,J,K,P_QI) = 0.0
+                         WATER(I,J,K,P_QR) = 0.0
+                         WATER(I,J,K,P_QS) = 0.0
+                         WATER(I,J,K,P_QG) = 0.0
+                         IF (T(I,J,K) .le. 235.15) THEN
+                            WATER(I,J,K,P_QI) = 0.5*CWM(I,J,K)
+                            WATER(I,J,K,P_QS) = 0.5*CWM(I,J,K)
+                         ELSEIF (T(I,J,K) .le. 258.15) THEN
+                            WATER(I,J,K,P_QI) = 0.1*CWM(I,J,K)
+                            WATER(I,J,K,P_QS) = 0.9*CWM(I,J,K)
+                            deep_ice = .true.
+                         ELSEIF (T(I,J,K) .le. 275.15) THEN
+                            if (deep_ice .and. T(I,J,K).lt.273.15) then
+                               WATER(I,J,K,P_QS) = CWM(I,J,K)
+                            elseif (deep_ice .and. T(I,J,K).lt.274.15) then
+                               WATER(I,J,K,P_QS) = 0.333*CWM(I,J,K)
+                               WATER(I,J,K,P_QR) = 0.667*CWM(I,J,K)
+                            elseif (deep_ice) then
+                               WATER(I,J,K,P_QS) = 0.1*CWM(I,J,K)
+                               WATER(I,J,K,P_QR) = 0.9*CWM(I,J,K)
+                            else
+                               WATER(I,J,K,P_QC) = CWM(I,J,K)
+                            endif
+                         ELSE
+                            WATER(I,J,K,P_QC) = CWM(I,J,K)
+                         ENDIF
+                         LIQW = MAX(0., CWM(I,J,K) - WATER(I,J,K,P_QI)  &
+                                                   - WATER(I,J,K,P_QS)  &
+                                                   - WATER(I,J,K,P_QG))
+                         F_ICE(I,J,K) = (1.0-LIQW)/CWM(I,J,K)
+                         IF (WATER(I,J,K,P_QR) .gt. EPSQ) THEN
+                            F_RAIN(I,J,K) = WATER(I,J,K,P_QR)           &
+                                    / (WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR))
+                         ELSE
+                            F_RAIN(I,J,K)=0.
+                         ENDIF
+                         IF (WATER(I,J,K,P_QG) .gt. EPSQ) THEN
+                            F_RIMEF(I,J,K) = (5.*WATER(I,J,K,P_QG)      &
+                                           +     WATER(I,J,K,P_QS))     &
+                                           / (WATER(I,J,K,P_QS)         &
+                                           +  WATER(I,J,K,P_QG))
+                         ELSE
+                            F_RIMEF(I,J,K)=1.
+                         ENDIF
+                      ENDIF
+                   ELSE
+                      WATER(I,J,K,P_QC) = 0.0
+                      WATER(I,J,K,P_QR) = 0.0
+                      WATER(I,J,K,P_QI) = 0.0
+                      WATER(I,J,K,P_QS) = 0.0
+                      WATER(I,J,K,P_QG) = 0.0
+                      F_ICE(I,J,K) = 0.0
+                      F_RAIN(I,J,K) = 0.0
+                      F_RIMEF(I,J,K) = 1.0
+                   ENDIF
+                ENDDO
+             ENDDO
+             ENDDO
+          ENDIF  spec_adv_thompson
+
 !
 !----------------------------------------------------------------------
         CASE DEFAULT

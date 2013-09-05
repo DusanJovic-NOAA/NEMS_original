@@ -385,7 +385,7 @@
         MP_PHYSICS=1
       ELSEIF(int_state%MICROPHYSICS=='lin')THEN
         MP_PHYSICS=2
-      ELSEIF(int_state%MICROPHYSICS=='tho')THEN
+      ELSEIF(int_state%MICROPHYSICS=='thompson')THEN
         MP_PHYSICS=8
       ELSEIF(int_state%MICROPHYSICS=='wsm3')THEN
         MP_PHYSICS=3

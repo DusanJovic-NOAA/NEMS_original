@@ -4069,9 +4069,19 @@ logical(kind=klog) :: opened
 
 !     if (mype_share == 0) write(0,*) 'reading from boco file: ', trim(infile)
 !
+!     write(6,*) 'DEBUG-GT, reading from boco file: ', trim(infile), 'unit number ', iunit
+!     write(6,*) 'DEBUG-GT, domain size is ide,jde,lm = ', ide, jde, lm
+!     write(6,*) 'DEBUG-GT, reading logical, 4 INTS, 1 FLOAT | 21 bytes'
+      rewind(iunit)
       read(iunit)runbc,idatbc,ihrstbc,tboco
+!     write(6,*) 'DEBUG-GT, found: runbc,idatbc,ihrstbc,tboco', runbc,idatbc,ihrstbc,tboco
+
+!     write(6,*) 'DEBUG-GT, assortment of dimensions in subsequent read statements;  i_lo, i_hi, j_lo, j_hi, lm, lnsh, lnsv:', i_lo, i_hi, j_lo, j_hi, lm, lnsh, lnsv
 !
+!     write(6,*) 'DEBUG-GT, reading PD.1, 2 arrays with N elements to read: ', (ide-ids+1)*lnsh*2, (ide-ids+1)*lnsh*2*4, ' bytes'
+!     write(6,*) 'DEBUG-GT, reading PD.2, 2 arrays with M elements to read: ', (jde-jds+1)*lnsh*2, (jde-jds+1)*lnsh*2*4, ' bytes'
       read(iunit)pdbs_g,pdbn_g,pdbw_g,pdbe_g
+!     write(6,*) 'DEBUG-GT, read arrays pdbs_g,pdbn_g,pdbw_g,pdbe_g'
 !
       do n3=1,2
         do n2=1,lnsh
@@ -4091,9 +4101,18 @@ logical(kind=klog) :: opened
         enddo
       enddo
 !
+!     write(6,*) 'DEBUG-GT, reading T.1, 2 arrays with N elements to read: ', (ide-ids+1)*lnsh*2*lm, (ide-ids+1)*lnsh*2*lm*4, ' bytes'
+!     write(6,*) 'DEBUG-GT, reading T.2, 2 arrays with M elements to read: ', (jde-jds+1)*lnsh*2*lm, (jde-jds+1)*lnsh*2*lm*4, ' bytes'
       read(iunit)tbs_g,tbn_g,tbw_g,tbe_g
+!     write(6,*) 'DEBUG-GT, read arrays tbs_g,tbn_g,tbw_g,tbe_g'
+!     write(6,*) 'DEBUG-GT, reading Q.1, 2 arrays with N elements to read: ', (ide-ids+1)*lnsh*2*lm, (ide-ids+1)*lnsh*2*lm*4, ' bytes'
+!     write(6,*) 'DEBUG-GT, reading Q.2, 2 arrays with M elements to read: ', (jde-jds+1)*lnsh*2*lm, (jde-jds+1)*lnsh*2*lm*4, ' bytes'
       read(iunit)qbs_g,qbn_g,qbw_g,qbe_g
+!     write(6,*) 'DEBUG-GT, read arrays qbs_g,qbn_g,qbw_g,qbe_g'
+!     write(6,*) 'DEBUG-GT, reading W.1, 2 arrays with N elements to read: ', (ide-ids+1)*lnsh*2*lm, (ide-ids+1)*lnsh*2*lm*4, ' bytes'
+!     write(6,*) 'DEBUG-GT, reading W.2, 2 arrays with M elements to read: ', (jde-jds+1)*lnsh*2*lm, (jde-jds+1)*lnsh*2*lm*4, ' bytes'
       read(iunit)wbs_g,wbn_g,wbw_g,wbe_g
+!     write(6,*) 'DEBUG-GT, read arrays wbs_g,wbn_g,wbw_g,wbe_g'
 !
       do n4=1,2
       do n3=1,lm
@@ -4123,7 +4142,11 @@ logical(kind=klog) :: opened
       enddo
       enddo
 !
+!     write(6,*) 'DEBUG-GT, reading U.1, 2 arrays with N elements to read: ', (ide-ids+1)*lnsv*2*lm, (ide-ids+1)*lnsv*2*lm*4, ' bytes'
+!     write(6,*) 'DEBUG-GT, reading U.2, 2 arrays with M elements to read: ', (jde-jds+1)*lnsv*2*lm, (jde-jds+1)*lnsv*2*lm*4, ' bytes'
       read(iunit)ubs_g,ubn_g,ubw_g,ube_g
+!     write(6,*) 'DEBUG-GT, reading V.1, 2 arrays with N elements to read: ', (ide-ids+1)*lnsv*2*lm, (ide-ids+1)*lnsv*2*lm*4, ' bytes'
+!     write(6,*) 'DEBUG-GT, reading V.2, 2 arrays with M elements to read: ', (jde-jds+1)*lnsv*2*lm, (jde-jds+1)*lnsv*2*lm*4, ' bytes'
       read(iunit)vbs_g,vbn_g,vbw_g,vbe_g
 !
       do n4=1,2

@@ -29,6 +29,7 @@
       USE MODULE_MP_ETANEW
       USE MODULE_MP_FER_HIRES
       USE MODULE_MP_WSM6
+      USE MODULE_MP_THOMPSON
       USE MODULE_MP_GFS
 !
 !-----------------------------------------------------------------------
@@ -62,9 +63,12 @@
                          ,T,Q,CWM,OMGALF,WATER                          &
                          ,TRAIN,SR                                      &
                          ,F_ICE,F_RAIN,F_RIMEF                          &
-                         ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG                 &
-                         ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG                 &
+                         ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG,P_NI,P_NR       &
+                         ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI,F_NR       &
                          ,PREC,ACPREC,AVRAIN                            &
+                         ,acpcp_ra,acpcp_sn,acpcp_gr, refl_10cm         &
+                         ,re_cloud,re_ice,re_snow                       &
+                         ,has_reqc,has_reqi,has_reqs                    &
                          ,MP_RESTART_STATE                              &
                          ,TBPVS_STATE,TBPVS0_STATE                      &
                          ,SPECIFIED,NESTED                              &
@@ -73,7 +77,7 @@
                          ,IDS,IDE,JDS,JDE,LM                            &
                          ,IMS,IME,JMS,JME                               &
                          ,ITS,ITE,JTS,JTE                               &
-                         ,ITS_B1,ITE_B1,JTS_B1,JTE_B1,MPRATES,D_SS)   
+                         ,ITS_B1,ITE_B1,JTS_B1,JTE_B1,MPRATES,D_SS)
 !***********************************************************************
 !$$$  SUBPROGRAM DOCUMENTATION BLOCK
 !                .      .    .
@@ -110,13 +114,13 @@
                            ,IDS,IDE,JDS,JDE,LM                          &
                            ,IMS,IME,JMS,JME                             &
                            ,ITS,ITE,JTS,JTE                             &
-                           ,ITS_B1,ITE_B1,JTS_B1,JTE_B1                 
+                           ,ITS_B1,ITE_B1,JTS_B1,JTE_B1
 !
-      INTEGER,INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
+      INTEGER,INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG,P_NI,P_NR
 !
       REAL,INTENT(IN) :: DT,DX,DY,PT
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,D_SS)  :: MPRATES 
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,D_SS)  :: MPRATES
 !
       REAL,DIMENSION(1:LM),INTENT(IN) :: DSG2,PDSG1,PSGML1,SGML2
 !
@@ -126,6 +130,11 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: ACPREC,PREC      &
                                                       ,AVRAIN              !<-- Was a scalar
+! G. Thompson added next 4 lines.
+      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: acpcp_ra,acpcp_sn,acpcp_gr
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: refl_10cm
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: re_cloud, re_ice, re_snow
+      INTEGER,INTENT(IN):: has_reqc, has_reqi, has_reqs
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CWM,Q,T     &
                                                            ,TRAIN
@@ -142,7 +151,7 @@
 !
       LOGICAL,INTENT(IN) :: NESTED,SPECIFIED
 !
-      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
+      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI,F_NR
 !
 !***  State Variables for ETAMPNEW Microphysics 
 !
@@ -215,10 +224,16 @@
 !***                          ACCUMULATED RAIN BUT NOT YET USED BY NMM)
 !***   COULD BE OBTAINED FROM ACPREC AND CUPREC (ACPREC-CUPREC)
 !-----------------------------------------------------------------------
+!..The NC variables were designed to hold simulation total accumulations
+!.. whereas the NCV variables hold timestep only values, so change below
+!.. to zero out only the timestep amount preparing to go into each
+!.. micro routine while allowing NC vars to accumulate continually.
+!.. But, the fact is, the total accum variables are local, never saved
+!.. nor written so they go nowhere at the moment.
 !
-        RAINNC(I,J)=0.
-        SNOWNC(I,J)=0.
-        graupelnc(i,j) = 0.0   ! ??
+        RAINNCv(I,J)=0.
+        SNOWNCv(I,J)=0.
+        graupelncv(i,j) = 0.0
 !
 !-----------------------------------------------------------------------
 !***  FILL THE SINGLE-COLUMN INPUT
@@ -352,7 +367,8 @@
                   ,ITS=itsloc,ITE=iteloc, JTS=jtsloc,JTE=jteloc, KTS=1,KTE=LM &
                   ,MP_RESTART_STATE=mp_restart_state                          &
                   ,TBPVS_STATE=tbpvs_state,TBPVS0_STATE=tbpvs0_state          &
-                  ,D_SS=d_ss,MPRATES=mprates)   
+                  ,D_SS=d_ss,MPRATES=mprates                                  &
+                                                                            )
           CASE ('gfs')
                !  write(0,*)'before call gfsmp,cwm=',cwm(10,10,:)
                !  write(0,*)'water(p_qi)=',water(10,10,:,p_qi)
@@ -392,7 +408,7 @@
                  ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=LM+1  &
                  ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=LM    &
                  ,ITS=itsloc,ITE=iteloc, JTS=jtsloc,JTE=jteloc, KTS=1,KTE=LM &
-                 ,D_SS=d_ss,MPRATES=mprates)    
+                 ,D_SS=d_ss,MPRATES=mprates)
                 DO K=1,LM
                 DO J=JMS,JME
                 DO I=IMS,IME
@@ -401,6 +417,56 @@
                 ENDDO
                 ENDDO
                 ENDDO
+
+!+---+-----------------------------------------------------------------+
+          CASE ('thompson')
+!            write(6,*)'DEBUG-GT, calling mp_gt_driver'
+             CALL mp_gt_driver(                                     &
+                  qv=water(ims,jms,1,p_qv)                          &
+                 ,qc=water(ims,jms,1,p_qc)                          &
+                 ,qr=water(ims,jms,1,p_qr)                          &
+                 ,qi=water(ims,jms,1,p_qi)                          &
+                 ,qs=water(ims,jms,1,p_qs)                          &
+                 ,qg=water(ims,jms,1,p_qg)                          &
+                 ,ni=water(ims,jms,1,p_ni)                          &
+                 ,nr=water(ims,jms,1,p_nr)                          &
+                 ,TH=th_phy,PII=pi_phy,P=p_phy,dz=dz,dt_in=dtphs    &
+                 ,itimestep=ntsd                                    &
+                 ,RAINNC=rainnc ,RAINNCV=rainncv                    &
+                 ,SNOWNC=snownc ,SNOWNCV=snowncv                    &
+                 ,GRAUPELNC=graupelnc ,GRAUPELNCV=graupelncv        &
+                 ,SR=sr                                             &
+                 ,refl_10cm=refl_10cm(ims,jms,1)                    &
+                 ,diagflag=.true.                                   &
+                 ,do_radar_ref=1                                    &
+                 ,re_cloud=re_cloud(ims,jms,1)                      &
+                 ,re_ice=re_ice(ims,jms,1)                          &
+                 ,re_snow=re_snow(ims,jms,1)                        &
+                 ,has_reqc=has_reqc                                 &
+                 ,has_reqi=has_reqi                                 &
+                 ,has_reqs=has_reqs                                 &
+                 ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=LM+1  &
+                 ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=LM    &
+                 ,ITS=itsloc,ITE=iteloc, JTS=jtsloc,JTE=jteloc, KTS=1,KTE=LM &
+                                                                    )
+                DO K=1,LM
+                DO J=JMS,JME
+                DO I=IMS,IME
+                 CWM(I,J,K)=water(i,j,k,p_qc)+water(i,j,k,p_qr)+water(i,j,k,p_qi) &
+                           +water(i,j,k,p_qs)+water(i,j,k,p_qg)
+                ENDDO
+                ENDDO
+                ENDDO
+!..rainncv is actually all precip, so need to subtract snow/graupel to isolate rain only
+                DO J=JMS,JME
+                DO I=IMS,IME
+                   acpcp_sn(I,J) = acpcp_sn(I,J) + snowncv(i,j)
+                   acpcp_gr(I,J) = acpcp_gr(I,J) + graupelncv(i,j)
+                   acpcp_ra(I,J) = acpcp_ra(I,J)                        &
+                    + MAX(0., rainncv(i,j)-snowncv(i,j)-graupelncv(i,j))
+                ENDDO
+                ENDDO
+!+---+-----------------------------------------------------------------+
 
           CASE DEFAULT
             WRITE(0,*)' The microphysics option does not exist: MICROPHYSICS = ',TRIM(MICROPHYSICS)
