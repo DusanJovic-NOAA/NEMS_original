@@ -1,33 +1,51 @@
-#!/bin/ksh
+#! /bin/sh -l
 #
-# @ job_name = run_l150
-# @ job_type = parallel
-# @ account_no = GFS-T2O
-# @ output = out2_l150
-# @ error =  err2_l150
-# @ node_usage = not_shared
-# @ tasks_per_node = 32
-# @ node = 1
-# @ node_resources = ConsumableMemory(110GB)
-# @ task_affinity = core(2)
-# @ parallel_threads = 1
-# @ bulkxfer = yes
-# @ network.MPI=sn_all,not_shared,us
-# @ class = 1
-# @ group = class1onprod
-### @ class = dev
-### @ group = dev
-# @ wall_clock_limit = 04:00:00
-# @ queue
-#
-set -x
-#
-#jw  export CDATE=2006033100
-#jw export CDATE=2006093000
- export CDATE=2011092300
+#BSUB -oo out_wam
+#BSUB -eo err_wam
+#BSUB -J wamtest
+####BSUB -n 1
+#BSUB -n 32
+#BSUB -x
+#BSUB -R span[ptile=16]
+#BSUB -W 03:00
+#BSUB -q "dev"
+#BSUB -a poe
 
+ulimit -s unlimited
+export OMP_NUM_THREADS=1
+export MP_EUIDEVICE=sn_all
+export MP_EUILIB=us
+export MP_TASK_AFFINITY=core:1
+export MP_EUIDEVELOP=min
+export KMP_STACKSIZE=4096m
+export F_UFMTENDIAN=big
+export MPICH_ALLTOALL_THROTTLE=0
+export MP_SINGLE_THREAD=yes
+export MP_EAGER_LIMIT=65536
+export MP_USE_BULK_XFER=yes
+export MP_COLLECTIVE_OFFLOAD=yes
+export MP_SHARED_MEMORY=no
+export MP_MPILIB=mpich2
+export MP_LABELIO=yes
+export MP_STDOUTMODE=unordered
+
+set -aeux
+
+export SCHEDULER=lsf
+export MACHINE_ID=wcoss
+
+#jw export CDATE=2011092300
+export CDATE=2013081000
+export expt=testwam_${CDATE}
+export RUNDIR=${RUNDIR:-/ptmp/$LOGNAME/$expt}
+mkdir -p $RUNDIR/restart
+cd $RUNDIR
+
+ export TASKSIZE=32
+#export TASKSIZE=1
+
+#
  export fcst_begin=YES
-#export EXPLICIT=.true.
  export ADIAB=.false.
  export IDEA=.true.
  export IAER=0
@@ -40,10 +58,12 @@ set -x
  if [[ $ADIAB = .true. ]] ; then
      export NUM_FILE=1 ;
     export FILENAME_BASE="'SIG.F'"
-    export FILE_IO_FORM="'bin4'"
+    export FILE_IO_FORM="'grib'"
+#   export FILE_IO_FORM="'bin4'"
  else
     export FILENAME_BASE="'SIG.F' 'SFC.F' 'FLX.F'"
-    export FILE_IO_FORM="'bin4' 'bin4' 'grib'"
+    export FILE_IO_FORM="'grib' 'bin4' 'grib'"
+#   export FILE_IO_FORM="'bin4' 'bin4' 'grib'"
     export NUM_FILE=3
     if [ $NST_FCST -gt 0 ] ; then
       export FILENAME_BASE=${FILENAME_BASE}" 'NST.F'"
@@ -55,14 +75,11 @@ set -x
  fi
 
 #
-#export NEMSIO_IN=.true.
-#export NEMSIO_OUT=.true.
  export NEMSIO_IN=.false.
  export NEMSIO_OUT=.false.
  export SIGIO_OUT=.true.
  export SFCIO_OUT=.true.
  export ldiag3d=.false.
-
 #
  export MACHINE_ID=${MACHINE_ID:-ccs}
  export SCHEDULER=${SCHEDULER:-loadleveler}
@@ -84,12 +101,6 @@ if [[ $GEN_COORD_HYBRID = YES ]] ; then
  export THERMODYN_ID=3
  export IDVM=32
  export NDSLFV=.false.
-#export NDSLFV=.true.
-#export DELTIM=900
-#export DELTIM=1200
-#export DELTIM=1800
-#export DELTIM=400
-#export DELTIM=600
 fi
 #
 # SPECTRAL_LOOP       2 for old option, 1 is for one loop.default is 2
@@ -108,27 +119,15 @@ fi
 #
 #    Set up horizontal and vertical resolution ; default will be T6264
 #
-# ----- quadratic grid ----
-#wave=62   ; im=192  ; jm=94   ; lm=64  ; iop=144 ; jop=73  ; dt=900
-#wave=62   ; im=192  ; jm=94   ; lm=150  ; iop=144 ; jop=73  ; dt=900
- wave=62   ; im=192  ; jm=94   ; lm=150 ; iop=144 ; jop=73  ; dt=180
-#wave=126  ; im=384  ; jm=190  ; lm=64  ; iop=360 ; jop=181 ; dt=600
-#wave=170  ; im=512  ; jm=256  ; lm=64  ; iop=360 ; jop=181 ; dt=450
-#wave=190  ; im=576  ; jm=288  ; lm=64  ; iop=360 ; jop=181 ; dt=300
-#wave=254  ; im=768  ; jm=384  ; lm=64  ; iop=360 ; jop=181 ; dt=300
-#wave=382  ; im=1152 ; jm=576  ; lm=64  ; iop=360 ; jop=181 ; dt=180
-#wave=574  ; im=1760 ; jm=880  ; lm=64  ; iop=360 ; jop=181 ; dt=120
-#wave=764  ; im=2304 ; jm=1152 ; lm=64  ; iop=360 ; jop=181 ; dt=90
-#
-# ----- linear grid -------
-#wave=92   ; im=192  ; jm=94   ; lm=64  ; iop=144 ; jop=73  ; dt=1200
-#wave=188  ; im=384  ; jm=190  ; lm=64  ; iop=360 ; jop=181 ; dt=900
-#wave=254  ; im=512  ; jm=256  ; lm=64  ; iop=360 ; jop=181 ; dt=600
-#wave=382  ; im=768  ; jm=384  ; lm=64  ; iop=360 ; jop=181 ; dt=600
-#wave=574  ; im=1152 ; jm=576  ; lm=64  ; iop=360 ; jop=181 ; dt=400
-#wave=878  ; im=1760 ; jm=880  ; lm=64  ; iop=360 ; jop=181 ; dt=300
-#wave=1148 ; im=2304 ; jm=1152 ; lm=64  ; iop=360 ; jop=181 ; dt=300
-#
+#export wave=1148 ; export waveg=764 ; export lm=64 ; export lsoil=4
+#export wave=878 ; export waveg=574 ; export lm=64 ; export lsoil=4
+#export wave=574 ; export waveg=382 ; export lm=64 ; export lsoil=4
+#export wave=382 ; export waveg=254 ; export lm=64 ; export lsoil=4
+#export wave=254 ; export waveg=170 ; export lm=64 ; export lsoil=4
+#export wave=188 ; export waveg=126 ; export lm=64 ; export lsoil=4
+#export wave=126 ; export waveg=126 ; export lm=64 ; export lsoil=4
+ export wave=62 ; export im=192 ; export jm=94 ; export lm=150 ; export lsoil=4 ; export levr=90 ; export dt=180
+#export wave=92  ; export waveg=62  ; export lm=64 ; export lsoil=2 ; export lsm=0
 #
 export NCP=cp
 export FTSFS=0.0
@@ -139,6 +138,7 @@ export FAISS=0.0
  export ENS_NUM=1
 #
  tasks=32  ; export PE1=32 
+#tasks=1   ; export PE1=1 
 #jw export tasks=1   ; export PE1=1
 export QUILTING=.false.   
 export WRT_GROUP=1
@@ -151,47 +151,21 @@ export WRT_GROUP=1
 export MP_STDOUTMODE=ordered
 export MP_LABELIO=yes
 export MP_SHARED_MEMORY=yes
-export MEMORY_AFFINITY=MCM
-##export BIND_TASKS=yes
-export NTHREADS=1
-export XLSMPOPTS="parthds=$NTHREADS:spins=0:yields=0:stack=512000000"
-export SPINLOOPTIME=500
-export YIELDLOOPTIME=500
-export AIXTHREAD_SCOPE=S
-export MALLOCMULTIHEAP=true
 #
  export FHROT=0
 #
 #    Set up experiment and directory names
 #
- export expt=testwam_clm
-
 #
- export NSCDIR=/global/noscrub
- export TOPDIR=/gpfs/t3/global/save
+ export TOPDIR=/global/save
  export DUMPDIR=/global/shared/dump
-#export MP_COREFILE_FORMAT=lite 
- export RUNDIR=${RUNDIR:-/ptmp/$LOGNAME/$expt}
- export SCRIPTS=${SCRIPTS:-$TOPDIR/wx23sm/gsm/scripts}
 
  export fcst_begin=${fcst_begin:-YES}
  export cold_sfc=${cold_sfc:-NO}
  export hybrid=${hybrid:-NO}
  export ldiag3d=${ldiag3d:-.false.}
 #
- export NCP=${NCP:-/u/wx20mi/bin/ncp}
-#export nemsioget=${nemsioget:-/climate/save/wx20wa/gfsio/nems/nemsio_get}
- if [ $NEMSIO_IN = .true. ]; then
-   if [ $SCHEDULER = 'loadleveler' ]; then
-     export nemsioget=${nemsioget:-/climate/save/wx20wa/gfsio/nems/nemsio_get}
-   elif [ $SCHEDULER = 'moab' ]; then
-     export nemsioget=${nemsioget}
-   elif [ $SCHEDULER = 'pbs' ]; then
-     export nemsioget=${nemsioget:-/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nems/util/n emsio_get}
-   fi
- else
-   export nemsioget=${nemsioget:-${EXECGLOBAL}/global_sighdr$XC}
- fi
+ export nemsioget=${nemsiOget:-/nems/save/Jun.Wang/util/nemsio_get}
 #
 #
 #
@@ -199,9 +173,10 @@ export MALLOCMULTIHEAP=true
 #    needs to be specified. ndays is the Length of #orecast in days
 #    begining from nhourb
 #
- export ndays=3
+ export ndays=30
 #
  export nhours=`expr $ndays \* 24`
+#export nhours=72
 
 #
 # For two tracers
@@ -210,7 +185,7 @@ export MALLOCMULTIHEAP=true
 #
 #
  export fmax=$nhours
- export fout=1  
+ export fout=6  
  export fzer=6  
  export fcyc=24 
  export fdfi=3 
@@ -249,52 +224,57 @@ export lsm=${lsm:-1}
 
 #
 export NGPTC=12
+#export NGPTC=${NGPTC:-$((waveg/10))}
 export LEVR=${levr:-0}
 #
 #     Forecaset script and executable name
 #
- export CRTDIR=`pwd`
- export NEMSDIR=$CRTDIR/..
- export FCSTSCRIPT=${NEMSDIR}/job/exglobal_fcst.sh.sms_nems
- export FCSTEXEC=${NEMSDIR}/exe/NEMS.x
+#export NEMSDIR=/nems/save/Jun.Wang/nems/wam/wam2zeus
+ export NEMSDIR=/global/save/Henry.Juang/2013/nems/ticket_next
+ cp -p ${NEMSDIR}/job/exglobal_fcst.sh.sms_nems .
+ cp -p ${NEMSDIR}/exe/NEMS.x .
+ export FCSTSCRIPT=${RUNDIR}/exglobal_fcst.sh.sms_nems
+ export FCSTEXEC=${RUNDIR}/NEMS.x
+ export FCST_LAUNCHER=mpirun.lsf
 #
 #
 # ***************************************************************
 #    Below here no change needed most of the time
 #    ____________________________________________
 #
-mkdir -p $RUNDIR/restart
-cd $RUNDIR
 #ic
-#jw  cp /climate/save/wx20wa/wam/henry/data/ic/nems/*anl* $RUNDIR
-#jw  cp /climate/save/wx20wa/wam/Fei_Wu/data/*anl*${CDATE} $RUNDIR
- if [[ ${fcst_begin} = YES ]] ; then
-   if [[ $NEMSIO ]] ; then
-     cp /climate/noscrub/wx20wa/wam/ic/nemsio/withdp/*anl.${CDATE} $RUNDIR
-   else
-     cp /global/save/wx23rm/WAM/chgres_test/replay/*anl.${CDATE} $RUNDIR
+ if [ $fcst_begin == YES ]; then
+   if [ $SCHEDULER = 'loadleveler' ]; then
+     cp /climate/save/wx20wa/wam/Fei_Wu/data/*anl*${CDATE} $RUNDIR
+   elif [ $SCHEDULER = 'pbs' ]; then
+     cp /scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/wam/data/ic/t62/*anl*${CDATE} $RUNDIR
+   elif [ $SCHEDULER = 'lsf' ]; then
+#jw      cp /gpfs/*d1/emc/nems/save/Jun.Wang/wam/data/IC/*anl*${CDATE} $RUNDIR
+     cp /gpfs/*d1/emc/nems/noscrub/Jun.Wang/wam/ic/ic_dump/*anl*${CDATE} $RUNDIR
    fi
- fi
+ fi 
  export COMOUT=$RUNDIR
 #
+ cp -p ${NEMSDIR}/job/regression_tests/ocean.configure $RUNDIR
  cp -p ${NEMSDIR}/job/regression_tests/Chem_Registry.rc $RUNDIR
  cp -p ${NEMSDIR}/job/regression_tests/MAPL.rc $RUNDIR
 
+ export FIXGLOBAL=/global/noscrub/Shrinivas.Moorthi/para/fix/fix_am
+ export FIX_RAD=/global/noscrub/Shrinivas.Moorthi/para/fix/fix_am
 #
- export FIXGLOBAL=/nwprod/fix
- export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
-#
- export POSTGPDIR=$TOPDIR/wx23hh/00wkgfs/src/global_postgp.fd
- export POSTGPEXEC=$POSTGPDIR/global_postgp
- export POSTGPSH=/nwprod/ush/global_postgp.sh
+# export POSTGPDIR=$TOPDIR/wx23hh/00wkgfs/src/global_postgp.fd
+# export POSTGPEXEC=$POSTGPDIR/global_postgp
+# export POSTGPSH=/nwprod/ush/global_postgp.sh
 #
  export LANDICE_OPT=1
 #export CLIMO_FIELDS_OPT=3
  export CLIMO_FIELDS_OPT=2
 #
+#
 # ------------------------ initial condition ----------------
 #
   export JCAP=$wave
+#  export JCAPG=$waveg
   export LEVS=$lm
   export LONB=$im
   export LATB=$jm
@@ -350,11 +330,12 @@ cd $RUNDIR
     fi
   fi
 #
-  export SIGO='sigf$(/nwprod/util/exec/ndate $FH $CDATE)'
-  export SFCO='sfcf$(/nwprod/util/exec/ndate $FH $CDATE)'
-  export FLXO='flxf$(/nwprod/util/exec/ndate $FH $CDATE)'
-  export LOGO='logf$(/nwprod/util/exec/ndate $FH $CDATE)'
-  export D3DO='d3df$(/nwprod/util/exec/ndate $FH $CDATE)'
+  export NDATE=/nwprod/util/exec/ndate
+  export SIGO='sigf$($NDATE $FH $CDATE)'
+  export SFCO='sfcf$($NDATE $FH $CDATE)'
+  export FLXO='flxf$($NDATE $FH $CDATE)'
+  export LOGO='logf$($NDATE $FH $CDATE)'
+  export D3DO='d3df$($NDATE $FH $CDATE)'
 #
 # ---------------------------------------- fcst ----------------------
 #

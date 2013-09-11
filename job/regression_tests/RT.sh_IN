@@ -2478,7 +2478,8 @@ else
  #
  ###############################################################################
 
- if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus -o $MACHINE_ID = wcoss ]; then
+# if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus -o $MACHINE_ID = wcoss ]; then
+ if [ $MACHINE_ID = wcoss ]; then
   if [ $RT_FULL = true -o $CB_arg = post -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
    export TEST_DESCR="NMMB-regional run with post on quilt"
@@ -2514,7 +2515,8 @@ else
  #
  ###############################################################################
 
-  if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus -o $MACHINE_ID = wcoss ] ; then
+#  if [ $MACHINE_ID = ccs -o $MACHINE_ID = zeus -o $MACHINE_ID = wcoss ] ; then
+  if [ $MACHINE_ID = wcoss ] ; then
    if [ $RT_FULL = true -o $CB_arg = post -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
     export TEST_DESCR="GFS with POST"
