@@ -29,7 +29,7 @@ gfsdir=atmos/$(gfs)
 ## NUOPC compliant OCN models supply a standard makefile fragment
 
 ocndummy_mk   = /home/Gerhard.Theurich/OCN-INSTALLS/DummyOCN-version-01/ocn.mk
-hycom_mk      = /home/Gerhard.Theurich/OCN-INSTALLS/HYCOM-rtofs0.25cfsr__branches__NUOPC.rev30015/hycom_nuopc.mk
+hycom_mk      = /home/Gerhard.Theurich/OCN-INSTALLS/HYCOM-rtofs0.25cfsr__branches__NUOPC.rev31671/hycom_nuopc.mk
 mom5_mk       = /home/Fei.Liu/OCN-INSTALLS/20130719/mom5.mk
 
 ################################################################################

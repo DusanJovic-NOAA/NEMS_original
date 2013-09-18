@@ -472,22 +472,19 @@ if [ $RT_NUOPC = true ] ; then
   
   ###############################################################################
   #
-  # TEST   - Global NMM-B with pure binary input
-  #        - HYCOM ocean running from data files
-  #        - Both NMM-B and HYCOM running for the same time period
-  #        - No interaction between NMM-B and HYCOM
+  # TEST   - Global NMM-B with pure binary input under NUOPC
   #        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
   #
   ###############################################################################
 
-  if [ $MACHINE_ID = wcossDISABLED -o $MACHINE_ID = zeusDISABLED ] ; then
+  if [ $MACHINE_ID = zeus ] ; then
 
-    export TEST_DESCR="Compare NMMB-global results with previous trunk for NUOPC"
+    export TEST_DESCR="NUOPC: NMM-B pure binary input"
 
     #---------------------
     (( TEST_NR=TEST_NR+1 ))
     export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_NUOPC
-    export CNTL_DIR=NMMB_glob_NUOPC_hycom
+    export CNTL_DIR=NMMB_glob_ESMF_5.2.0rAPI
     export LIST_FILES=" \
     nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0003h_00m_00.00s nmmb_hst_01_bin_0006h_00m_00.00s \
     nmmb_hst_01_bin_0009h_00m_00.00s nmmb_hst_01_bin_0012h_00m_00.00s nmmb_hst_01_bin_0015h_00m_00.00s \
@@ -504,17 +501,13 @@ if [ $RT_NUOPC = true ] ; then
     nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
     #---------------------
     export_nmm
-#    export TASKS=146
-    export TASKS=194
+    export TASKS=48
     export WLCLK=60
     export GBRG=glob
     # - nems.configure ---
     export_nems
     export atm_model=nmm
     export atm_petlist_bounds="0 47"
-    export ocn_model=hycom
-#    export ocn_petlist_bounds="0 145"
-    export ocn_petlist_bounds="48 193"
     #---------------------
     ./rt_nmm.sh
     if [ $? = 2 ]; then exit ; fi
@@ -524,15 +517,15 @@ if [ $RT_NUOPC = true ] ; then
 
   ###############################################################################
   # 
-  # TEST   - GFS with stepable Run() method
-  #        - Calling GFS Run() from EARTH component in 12 hour intervals
+  # TEST   - GSM with stepable Run() method
+  #        - Calling GSM Run() from EARTH component in 12 hour intervals
   #        - 30 compute tasks / 1 thread 
   #
   ###############################################################################
 
   if [ $MACHINE_ID = zeus ] ; then
 
-    export TEST_DESCR="Compare GFS results with previous trunk version for NUOPC"
+    export TEST_DESCR="NUOPC: GSM with stepable Run() driven in 12h intervals"
 
     #---------------------
     (( TEST_NR=TEST_NR+1 ))
@@ -545,8 +538,6 @@ if [ $RT_NUOPC = true ] ; then
     #---------------------
     export_gsm
     export WLCLK=60
-#    export CDATE=2009120100
-#    export NDAYS=3
     # - nems.configure ---
     export_nems
     export atm_model=gsm
@@ -563,7 +554,7 @@ if [ $RT_NUOPC = true ] ; then
 
   ###############################################################################
   # 
-  # TEST   - GFS + DummyOCN
+  # TEST   - GSM + DummyOCN
   #        - 12h coupling interval
   #        - exchanging dummy Fields
   #
@@ -571,11 +562,11 @@ if [ $RT_NUOPC = true ] ; then
 
   if [ $MACHINE_ID = zeus ] ; then
 
-    export TEST_DESCR="Compare GFS results with previous trunk version for NUOPC"
+    export TEST_DESCR="NUOPC: GSM + DummyOCN from data with 12h coupling interval"
 
     #---------------------
     (( TEST_NR=TEST_NR+1 ))
-    export RUNDIR=${RUNDIR_ROOT}/GFS_32_DummyOCN_NUOPC
+    export RUNDIR=${RUNDIR_ROOT}/GFS_32_DummyOCN
     export CNTL_DIR=GFS_NODFI
     export LIST_FILES=" \
 	sigf00 sigf03 sigf06 sigf12 sigf18 sigf24 sigf30 sigf36 sigf42 sigf48 \
@@ -590,6 +581,81 @@ if [ $RT_NUOPC = true ] ; then
     export atm_model=gsm
     export atm_petlist_bounds="0 31"
     export ocn_model=dummy
+    export ocn_petlist_bounds="32 63"
+    export atm_ocn_coupling_hours=12.0
+    #---------------------
+    ./rt_gfs.sh
+    if [ $? = 2 ]; then exit ; fi
+    #---------------------
+
+  fi # endif machine
+  
+  ###############################################################################
+  # 
+  # TEST   - GSM + HYCOM with stepable Run() method
+  #        - GSM turned off, only HYCOM running
+  #        - Calling HYCOM Run() from EARTH component in 12 hour intervals
+  #        - HYCOM ocean running from data files
+  #        - Simulation period for HYCOM is set by GSM parameters
+  #
+  ###############################################################################
+
+  if [ $MACHINE_ID = zeus ] ; then
+
+    export TEST_DESCR="NUOPC: HYCOM from data files with stepable Run() driven in 12h intervals"
+
+    #---------------------
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/HYCOM_NUOPC
+    export CNTL_DIR=HYCOM_2DAY
+    export LIST_FILES="ovrtn_out restart_out.a restart_out.b summary_out"
+    #---------------------
+    export_gsm
+    export TASKS=146
+    export WLCLK=60
+    export CDATE=2009120100
+    export NDAYS=2
+    # - nems.configure ---
+    export_nems
+    export ocn_model=hycom
+    export ocn_petlist_bounds="0 145"
+    export atm_ocn_coupling_hours=12.0
+    #---------------------
+    ./rt_gfs.sh
+    if [ $? = 2 ]; then exit ; fi
+    #---------------------
+
+  fi # endif machine
+  
+  ###############################################################################
+  # 
+  # TEST   - GSM + MOM5
+  #        - 12h coupling interval
+  #        - exchanging dummy Fields
+  #
+  ###############################################################################
+
+  if [ $MACHINE_ID = zeus ] ; then
+
+    export TEST_DESCR="NUOPC: GSM + MOM5 from data with 12h coupling interval"
+
+    #---------------------
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/GFS_32_MOM5
+    export CNTL_DIR=GFS_NODFI
+    export LIST_FILES=" \
+	sigf00 sigf03 sigf06 sigf12 sigf18 sigf24 sigf30 sigf36 sigf42 sigf48 \
+	sfcf00 sfcf03 sfcf06 sfcf12 sfcf18 sfcf24 sfcf30 sfcf36 sfcf42 sfcf48 \
+	flxf00 flxf03 flxf06 flxf12 flxf18 flxf24 flxf30 flxf36 flxf42 flxf48"
+    #---------------------
+    export_gsm
+    export TASKS=64
+    export WLCLK=60
+    # - nems.configure ---
+    export_nems
+    export atm_model=gsm
+    export atm_petlist_bounds="0 31"
+    export ocn_model=mom5
     export ocn_petlist_bounds="32 63"
     export atm_ocn_coupling_hours=12.0
     #---------------------

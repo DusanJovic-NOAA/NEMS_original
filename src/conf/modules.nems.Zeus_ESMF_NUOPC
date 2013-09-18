@@ -5,4 +5,7 @@
 # reference release of the NUOPC Layer.
 
 module purge
-module load mpt intel esmf/6.2.0
+#module load mpt intel esmf/6.2.0
+# -> MOM5 needs a NetCDF enabled ESMF -> for now use ESMF under my homedir
+module use /home/Gerhard.Theurich/Modulefiles
+module load mpt intel esmf/6.3.0bs04-netcdf3.6.3

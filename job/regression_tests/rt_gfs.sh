@@ -118,6 +118,16 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
  ln -s ${RTPWD}/HYCOM_glob/* ${RUNDIR}/.
  ###################################################
 
+ ### for now copy MOM5 input files
+ cp /scratch1/portfolios/NCEPDEV/ocean/noscrub/Fei.Liu/20130627/NEMS.trunk29084-working/src/ocean/mom_cap/input.nml ${RUNDIR}
+ cp /scratch1/portfolios/NCEPDEV/ocean/noscrub/Fei.Liu/20130627/NEMS.trunk29084-working/src/ocean/mom_cap/ocean_hgrid.nc ${RUNDIR}
+ cp -r ~Fei.Liu/MOM5/mom-5.0.2/work/box1/INPUT/diag_table ${RUNDIR}
+ cp -r ~Fei.Liu/MOM5/mom-5.0.2/work/box1/INPUT/field_table ${RUNDIR}
+ cp -r ~Fei.Liu/MOM5/mom-5.0.2/work/box1/INPUT/data_table ${RUNDIR}
+ cp -r ~Fei.Liu/MOM5/mom-5.0.2/work/box1/INPUT/ ${RUNDIR}
+ cp -r ~Fei.Liu/MOM5/mom-5.0.2/work/box1/RESTART/ ${RUNDIR}
+ ###################################################
+
  cp atmos.configure_gfs ${RUNDIR}/atmos.configure
  cp MAPL.rc ${RUNDIR}/MAPL.rc
  cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
