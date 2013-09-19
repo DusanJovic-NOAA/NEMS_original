@@ -115,6 +115,7 @@
                                 ud_mf,dd_mf,dt_mf, q0,t0,u0,v0
       REAL(kind=kind_phys), DIMENSION(IX) :: psp,cldwrk,rn,slimsk,hpbl,hflx,evap
       REAL(kind=kind_phys), DIMENSION(IX,lm,2) :: CLW, CLW0  !! 1-ice  2-liquid 
+      REAL(kind=kind_phys) :: triggerpert(im)
       REAL(kind=kind_phys) :: fract, tmp, delt, landmask, DTCNVC, mommix
       REAL, DIMENSION(lm+1)    :: ZF
       LOGICAL :: lpr
@@ -201,6 +202,7 @@
       !      DTDT(K)=0.
       !    ENDDO
 !
+          triggerpert(1) = 0.0
           RAINCV(I,J)=0.
 !
 !***  CONVERT TO BMJ LAND MASK (1.0 FOR SEA; 0.0 FOR LAND)
@@ -262,7 +264,7 @@
 
        CALL sascnvn(im,ix,km,jcap,delt,delp,prsl,psp,phil,clw,           &
           q1,t1,u1,v1,cldwrk,rn,kbot,ktop,kcnv,slimsk,                     &
-          VVEL,ncloud,ud_mf,dd_mf,dt_mf)
+          VVEL,ncloud,ud_mf,dd_mf,dt_mf,triggerpert)
 !***  CONVECTIVE CLOUD TOP AND BOTTOM FROM THIS CALL
 !
        !   CUTOP(I,J) = REAL( lm+1-KTOP(1) )   !BMJ

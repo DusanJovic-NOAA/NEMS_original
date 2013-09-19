@@ -44,7 +44,8 @@ POSTDIR=/scratch2/portfolios/NCEPDEV/global/save/Sarah.Lu/Summer_School_2013/lib
 NEMSIO_INC   = -I${LIBDIR}/incmod/nemsio
 NEMSIO_LIB   = -L${LIBDIR} -lnemsio
 BACIO_LIB    = -L${LIBDIR} -lbacio_4
-W3_LIB       = -L${LIBDIR}  -lw3nco_4 -lw3emc_4
+#W3_LIB      = -L${LIBDIR}  -lw3nco_4 -lw3emc_4
+W3_LIB       = -L${LIBDIR}  -lw3nco_d -lw3emc_d
 SP_LIB       = -L${LIBDIR} -lsp_d
 SYS_LIB      =
  

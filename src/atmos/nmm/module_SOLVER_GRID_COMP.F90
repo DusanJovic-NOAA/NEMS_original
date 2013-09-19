@@ -40,6 +40,7 @@
 !   2012-02-08  Yang   - Modified for using the ESMF 5.2.0rp1 library.
 !   2012-04-06  Juang  - add passing argument for gbphys for idea
 !   2012-07-20  Black  - Modified for generational usage.
+!   2013-09-09 Moorthi - Adding SR, DTDT, and TRIGGERPERTS for GBPHYS call
 !-----------------------------------------------------------------------
 !
       USE esmf_mod
@@ -2649,8 +2650,8 @@
                                             ,LATS_NODE_R
 !
       USE DATE_DEF,                   ONLY : FHOUR
-      USE MODULE_RADIATION_DRIVER,    ONLY : GRRAD,RADINIT
-      USE MODULE_RADIATION_ASTRONOMY, ONLY : ASTRONOMY
+      USE MODULE_RADIATION_DRIVER_gfs,    ONLY : GRRAD_gfs,RADINIT_gfs
+      USE MODULE_RADIATION_ASTRONOMY_gfs, ONLY : ASTRONOMY
       USE MERSENNE_TWISTER
       USE N_RESOL_DEF,                ONLY : LATR,LONR                  &
                                             ,NCLD,NFXR,NMTVR            &
@@ -2659,8 +2660,8 @@
                                             ,NUM_P2D,NUM_P3D
 
       USE OZNE_DEF,                   ONLY : LEVOZP,PL_COEFF,PL_PRES
-      USE MODULE_RADSW_PARAMETERS,    ONLY : TOPFSW_TYPE, SFCFSW_TYPE
-      USE MODULE_RADLW_PARAMETERS,    ONLY : TOPFLW_TYPE, SFCFLW_TYPE
+      USE MODULE_RADSW_PARAMETERS_nmmb,    ONLY : TOPFSW_TYPE, SFCFSW_TYPE
+      USE MODULE_RADLW_PARAMETERS_nmmb,    ONLY : TOPFLW_TYPE, SFCFLW_TYPE
 
 !-----------------------------------------------------------------------
 !
@@ -2848,10 +2849,12 @@
       REAL (kind=KDBL) ,DIMENSION(1)               :: XT, XS, XU, XV, XZ, ZM, XTTS
       REAL (kind=KDBL) ,DIMENSION(1)               :: XZTS, D_CONV, IFD, DT_COOL, QRAIN
       REAL (kind=KDBL) ,DIMENSION(1)               :: SMCWLT2, SMCREF2, GSOIL, GTMP2M, GUSTAR, GPBLH, WET1
-      REAL (kind=KDBL) ,DIMENSION(1)               :: GU10M, GV10M, GZORL, GORO
+      REAL (kind=KDBL) ,DIMENSION(1)               :: GU10M, GV10M, GZORL, GORO, SR
       REAL (kind=KDBL) ,DIMENSION(1)               :: XMU_CC, DLW_CC, DSW_CC, SNW_CC, LPREC_CC, TREF
       REAL (kind=KDBL) ,DIMENSION(1)               :: Z_C, C_0, C_D, W_0, W_D, RQTK
       REAL (kind=KDBL) ,DIMENSION(1)               :: HLWD
+      REAL (kind=KDBL) ,DIMENSION(LM)              :: DTDT
+      REAL (kind=KDBL) ,DIMENSION(1)               :: TRIGGERPERTS
       LOGICAL, PARAMETER                           :: LSIDEA  = .FALSE.
 !
 !-----------------------------------------------------------------------
@@ -6431,8 +6434,8 @@
 !
 ! ----
 !rv - find IOVR_SW,IOVR_LW,isubc_sw, isubc_lw
-          CALL RADINIT ( RSGM, LM, IFLIP, IDAT, JDAT, ICTM, ISOL, ICO2, &
-                         IAER, IALB, IEMS, ICWP, NUM_P3D, 0, 0,         &
+          CALL RADINIT_gfs ( RSGM, LM, IFLIP, IDAT, JDAT, ICTM, ISOL, ICO2, &
+                         IAER, IALB, IEMS, ICWP, NUM_P3D, 0, 0,             &
                          0, 0, MYPE, RADDT, FDAER )
 ! ----
 
@@ -6733,6 +6736,7 @@
               GV10M(1)        = 0.0D0
               GZORL(1)        = 0.0D0
               GORO(1)         = 0.0D0
+              SR(1)           = 0.0D0
               SPFHMIN(1)      = 0.0D0
               SPFHMAX(1)      = 0.0D0
               CLDWRK(1)       = 0.0D0
@@ -6882,7 +6886,7 @@
            ENDDO
 !
 !-----------------------------------------------------------------------
-          CALL GRRAD                                                 &
+          CALL GRRAD_gfs                                             &
 !-----------------------------------------------------------------------
 !  ---  inputs:
           (PRSI,PRSL,PRSLK,GT,GR,GR1,VVEL,SLMSK,                     &
@@ -6978,6 +6982,8 @@
       ELSE
               OZPLOUT_V      = 0.0d0
       ENDIF
+      DTDT = 0.0D0
+      TRIGGERPERTS(1) = 0.0d0
 !-----------------------------------------------------------------------
       CALL GBPHYS(1, 1, LM, NUM_SOIL_LAYERS, LSM, NTRAC, NCLD, NTOZ, NTCW,  &
            NMTVR, 1, LEVOZP, IDE_GR, LATR, 62, NUM_P3D, NUM_P2D,            &
@@ -7016,9 +7022,10 @@
            ZLVL, PSURF, HPBL, PWAT, T1, Q1, U1, V1,                         &
            CHH, CMM, DLWSFCI, ULWSFCI, DSWSFCI, USWSFCI,                    &
            DTSFCI, DQSFCI, GFLUXI, EPI, SMCWLT2, SMCREF2, WET1,             &
-           GSOIL, GTMP2M, GUSTAR, GPBLH, GU10M, GV10M, GZORL, GORO,         &
+           GSOIL, GTMP2M, GUSTAR, GPBLH, GU10M, GV10M, GZORL, GORO, SR,     &
            XMU_CC, DLW_CC, DSW_CC, SNW_CC, LPREC_CC,                        &
-           TREF, Z_C, C_0, C_D, W_0, W_D, RQTK, HLWD, LSIDEA)
+           TREF, Z_C, C_0, C_D, W_0, W_D, RQTK, HLWD, LSIDEA,               &
+           DTDT, TRIGGERPERTS)
 !-----------------------------------------------------------------------
 ! ***     UPDATE AFTER PHYSICS
 !-----------------------------------------------------------------------
@@ -9381,7 +9388,7 @@
 !  Similar to GFS "GFS_Initialize_ESMFMod.f" line #1103
 !==========================================================================
 
-            call rad_initialize                                        &
+            call rad_initialize_nmmb                                   &
 !        ---  inputs:
      &       ( SFULL,LM,ICTMx,ISOLx,ICO2x,IAERx,IAER_MDL,IALBx,IEMSx,  &
      &         NTCWx,NP3Dx,NTOZx,IOVR_SWx,IOVR_LWx,ISUBCSWx,ISUBCLWx,  &

@@ -1,11 +1,11 @@
-Wed Sep 11 02:48:08 UTC 2013
+Wed Sep 18 22:23:02 UTC 2013
 Start Regression test
 
 
 
-Wed Sep 11 02:48:08 UTC 2013
+Wed Sep 18 22:23:02 UTC 2013
 Compilation ALL
-Wed Sep 11 03:04:11 UTC 2013
+Wed Sep 18 22:40:36 UTC 2013
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  96.544
+ Original timing:  151.20  , test_glob timing:  97.131
 
 
 Test 002
@@ -128,7 +128,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  182.63
+ Original timing:  240.82  , test_reg timing:  183.05
 
 
 Test 009
@@ -776,29 +776,28 @@ Checking test 040 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 040 passed 
-Wed Sep 11 06:27:20 UTC 2013
-Compilation with POST
-Wed Sep 11 06:44:14 UTC 2013
+Thu Sep 19 02:19:59 UTC 2013
+Compilation only NMM
 Test 041
-NMMB-regional run with post on quilt
+Compare NMMB-global results with previous trunk version, only NMM compiled
 
 
 Checking test 041 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0048h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
  Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
  Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
- Comparing BGDAWP.GrbF48.........OK
- Comparing BGRD3D.GrbF48.........OK
- Comparing BGRDSF.GrbF48.........OK
  Test 041 passed 
 
 
 
+Thu Sep 19 02:31:03 UTC 2013
+Compilation only GFS
+Thu Sep 19 02:39:46 UTC 2013
 Test 042
-GFS with POST
+Compare GFS results with previous trunk version, only GFS compiled
 GFS, 32 proc, 1 thread
 
 
@@ -823,95 +822,6 @@ Checking test 042 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Comparing GFSPRS.GrbF03.........OK
- Comparing GFSPRS.GrbF06.........OK
- Comparing GFSPRS.GrbF12.........OK
- Comparing GFSPRS.GrbF24.........OK
- Comparing GFSPRS.GrbF48.........OK
  Test 042 passed 
-Test 043
-GFS_GOCART with POST
-GFS, 64 proc, 1 thread
-
-
-
-
-Checking test 043 results ....
- Comparing ngac.t00z.sigf00.........OK
- Comparing ngac.t00z.sigf03.........OK
- Comparing ngac.t00z.sigf06.........OK
- Comparing ngac.t00z.sigf12.........OK
- Comparing ngac.t00z.sigf24.........OK
- Comparing ngac.t00z.sfcf00.........OK
- Comparing ngac.t00z.sfcf03.........OK
- Comparing ngac.t00z.sfcf06.........OK
- Comparing ngac.t00z.sfcf12.........OK
- Comparing ngac.t00z.sfcf24.........OK
- Comparing ngac.t00z.flxf00.........OK
- Comparing ngac.t00z.flxf03.........OK
- Comparing ngac.t00z.flxf06.........OK
- Comparing ngac.t00z.flxf12.........OK
- Comparing ngac.t00z.flxf24.........OK
- Comparing ngac.t00z.aerf00.........OK
- Comparing ngac.t00z.aerf03.........OK
- Comparing ngac.t00z.aerf06.........OK
- Comparing ngac.t00z.aerf12.........OK
- Comparing ngac.t00z.aerf24.........OK
- Comparing NGAC2d.GrbF03.........OK
- Comparing NGAC2d.GrbF06.........OK
- Comparing NGAC2d.GrbF12.........OK
- Comparing NGAC2d.GrbF24.........OK
- Comparing NGAC3d.GrbF03.........OK
- Comparing NGAC3d.GrbF06.........OK
- Comparing NGAC3d.GrbF12.........OK
- Comparing NGAC3d.GrbF24.........OK
- Test 043 passed 
-Wed Sep 11 06:59:11 UTC 2013
-Compilation only NMM
-Test 044
-Compare NMMB-global results with previous trunk version, only NMM compiled
-
-
-Checking test 044 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
- Test 044 passed 
-
-
-
-Wed Sep 11 07:08:50 UTC 2013
-Compilation only GFS
-Wed Sep 11 07:17:02 UTC 2013
-Test 045
-Compare GFS results with previous trunk version, only GFS compiled
-GFS, 32 proc, 1 thread
-
-
-
-
-Checking test 045 results ....
- Comparing sigf00.........OK
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sigf48.........OK
- Comparing sfcf00.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing sfcf48.........OK
- Comparing flxf00.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
- Comparing flxf48.........OK
- Test 045 passed 
-Wed Sep 11 07:21:16 UTC 2013
+Thu Sep 19 02:44:40 UTC 2013
 REGRESSION TEST WAS SUCCESSFUL

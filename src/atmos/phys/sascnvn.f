@@ -1,6 +1,6 @@
       subroutine sascnvn(im,ix,km,jcap,delt,delp,prslp,psp,phil,ql,
      &     q1,t1,u1,v1,cldwrk,rn,kbot,ktop,kcnv,slimsk,
-     &     dot,ncloud,ud_mf,dd_mf,dt_mf)
+     &     dot,ncloud,ud_mf,dd_mf,dt_mf,triggerpert)
 !    &     q1,t1,u1,v1,rcs,cldwrk,rn,kbot,ktop,kcnv,slimsk,
 !    &     dot,ncloud,ud_mf,dd_mf,dt_mf,me)
 !
@@ -22,9 +22,9 @@
      &                     u1(ix,km),  v1(ix,km),
 !    &                     u1(ix,km),  v1(ix,km),   rcs(im),
      &                     cldwrk(im), rn(im),      slimsk(im), 
-     &                     dot(ix,km), phil(ix,km)
+     &                     dot(ix,km), phil(ix,km), triggerpert(im),
 ! hchuang code change mass flux output
-     &,                    ud_mf(im,km),dd_mf(im,km),dt_mf(im,km)
+     &                     ud_mf(im,km),dd_mf(im,km),dt_mf(im,km)
 !
       integer              i, j, indx, jmn, k, kk, latd, lond, km1
 !
@@ -443,6 +443,8 @@ c
           tem1= .5*(cincrmax-cincrmin)
           cincr = cincrmax - tem * tem1
           pbcdif(i) = pfld(i,kb(i)) - pfld(i,kbcon(i))
+! perturb convective trigger
+          cincr = cincr + triggerpert(i)
           if(pbcdif(i).gt.cincr) then
              cnvflg(i) = .false.
           endif

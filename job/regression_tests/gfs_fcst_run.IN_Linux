@@ -323,7 +323,9 @@ if [ $SCHEDULER = 'moab' ]; then
 elif [ $SCHEDULER = 'pbs' ]; then
    source _PATHTR_/src/conf/modules.nems.Zeus
    module list
-   export FIXGLOBAL=${FIXGLOBAL:-/scratch2/portfolios/NCEPDEV/rstprod/nwprod/fix}
+#  export FIXGLOBAL=${FIXGLOBAL:-/scratch2/portfolios/NCEPDEV/rstprod/nwprod/fix}
+   export FIXGLOBAL=${FIXGLOBAL:-/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_am}
+
    export OMP_NUM_THREADS=$NTHREADS
    mpiexec=`which mpiexec_mpt`
    if [ $NTHREADS -eq 1 ] ; then
@@ -332,7 +334,7 @@ elif [ $SCHEDULER = 'pbs' ]; then
     export FCST_LAUNCHER="env LD_LIBRARY_PATH=$LD_LIBRARY_PATH $mpiexec -np $PE1 omplace -nt $NTHREADS"
    fi
 elif [ $SCHEDULER = 'lsf' ]; then
-   export FIXGLOBAL=${FIXGLOBAL:-/global/noscrub/Shrinivas.Moorthi/para/fix/fix_am}
+   export FIXGLOBAL=${FIXGLOBAL:-/global/noscrub/Shrinivas.Moorthi/para_new/para/fix/fix_am}
    export FCST_LAUNCHER=mpirun.lsf
 fi
 #export FIX_RAD=/global/save/wx23hh/00wkgfs/fix/fix_rad
@@ -465,8 +467,8 @@ if [[ $nhourb -lt $nhours ]] ; then
   export FHZER=$fzer
   export FHCYC=$fcyc
   export FHDFI=$fdfi
-  export FHLWR=${FHLWR:-3}
-  export FHSWR=${FHSWR:-1}
+  export FHLWR=${FHLWR:-3600}
+  export FHSWR=${FHSWR:-3600}
   export FHMAX=$nhours
   export FHRES=${FHRES:-$FHMAX}
   export FHROT=${FHROT:-0}

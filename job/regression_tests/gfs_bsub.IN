@@ -3,21 +3,23 @@
 #BSUB -e _RUND_/fcst._CDATE_.out.%J
 #BSUB -o _RUND_/fcst._CDATE_.out.%J
 #BSUB -J _JBNME_
+#BSUB -network type=sn_all:mode=US
 #BSUB -q dev
 #BSUB -n _TASKS_
 #BSUB -R span[ptile=_TPN_]
+#BSUB -R affinity[core(_THRDS_)]
 #BSUB -x
 #BSUB -W 00:_WLCLK_
 set -x
 #ulimit -s unlimited
 export OMP_NUM_THREADS=_THRDS_
-export MP_EUIDEVICE=sn_all
-export MP_EUILIB=us
-if [ $OMP_NUM_THREADS -gt 1 ] ; then
-  export MP_TASK_AFFINITY=cpu:_THRDS_
-else
-  export MP_TASK_AFFINITY=core
-fi
+#export MP_EUIDEVICE=sn_all
+#export MP_EUILIB=us
+#if [ $OMP_NUM_THREADS -gt 1 ] ; then
+#  export MP_TASK_AFFINITY=cpu:_THRDS_
+#else
+#  export MP_TASK_AFFINITY=core
+#fi
 export MP_EUIDEVELOP=min
 export KMP_STACKSIZE=1024m
 #export F_UFMTENDIAN=big

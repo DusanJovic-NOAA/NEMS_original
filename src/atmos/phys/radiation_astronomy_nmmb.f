@@ -60,7 +60,7 @@
 
 
 !=============================================!
-      module module_nmmb_radiation_astronomy  !
+      module module_radiation_astronomy_nmmb  !
 !.............................................!
 !
       use physpara,                only : isolar, solar_file
@@ -974,5 +974,5 @@
 
 !
 !................................................!
-      end module module_nmmb_radiation_astronomy !
+      end module module_radiation_astronomy_nmmb !
 !================================================!

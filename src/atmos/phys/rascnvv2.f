@@ -28,7 +28,7 @@
      &           ONEBG   = ONE / GRAV,    GRAVCON = cmb2pa * ONEBG      &
      &,          GRAVFAC = GRAV / CMB2PA, ELOCP   = ALHL / CP           &
      &,          ELFOCP  = (ALHL+ALHF) / CP                             &
-     &,          RKAPI   = ONE / RKAP,    RKPP1I  = ONE / (ONE+RKAP)    &
+!    &,          RKAPI   = ONE / RKAP,    RKPP1I  = ONE / (ONE+RKAP)    &
      &,          CMPOR   = CMB2PA / RGAS                                &
      &,          zfac    = 0.28888889E-4 * ONEBG
 !

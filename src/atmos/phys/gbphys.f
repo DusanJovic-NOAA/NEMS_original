@@ -101,6 +101,10 @@
 !      sep  2012  - s. moorthi  merge with operational version          !
 !      Mar  2013  - Jun Wang    set idea heating rate to tmp tendency   !
 !      May  2013  - Jun Wang    tmp updated after idea phys             !
+!      Jun  2013  - s. moorthi  corrected a bug in 3d diagnostics for T !
+!      Aug  2013  - s. moorthi updating J. Whitekar's changes related   !
+!                              to stochastic physics perturnbation      !
+!
 !                                                                       !
 !                                                                       !
 !  ====================  defination of variables  ====================  !
@@ -367,6 +371,9 @@
 !     w_0      - real, coefficient3 to calculate d(Tz)/d(Ts)       im   !
 !     w_d      - real, coefficient4 to calculate d(Tz)/d(Ts)       im   !
 !     rqtk     - real, mass change due to moisture variation       im   !
+!     dtdtr    - real, temperature change due to radiative heating      !
+!                      per time step (K)                        ix,levs !
+!     triggerperts - real trigger perturbation for SAS             im   !
 !                                                                       !
 !                                                                       !
 !  ====================    end of description    =====================  !
@@ -406,13 +413,15 @@
      &      zlvl,psurf,hpbl,pwat,t1,q1,u1,v1,                           &
      &      chh,cmm,dlwsfci,ulwsfci,dswsfci,uswsfci,                    &
      &      dtsfci,dqsfci,gfluxi,epi,smcwlt2,smcref2,wet1,              &
-     &      gsoil,gtmp2m,gustar,gpblh,gu10m,gv10m,gzorl,goro,           &
+     &      gsoil,gtmp2m,gustar,gpblh,gu10m,gv10m,gzorl,goro,sr,        &
      &      xmu_cc,dlw_cc,dsw_cc,snw_cc,lprec_cc,                       &
      &      tref, z_c, c_0, c_d, w_0, w_d,                              &
-     &      rqtk                                                        &
+     &      rqtk,                                                       &
 !
 !                     idea addition - added by hjuang
-     &,     hlwd, lsidea                                                &
+     &      hlwd, lsidea                                                &
+!       Stochastic physics perturnbation
+     &,     dtdtr,triggerperts                                          &
      &      )
 
 !
@@ -537,7 +546,8 @@
      &      gsoil(im), gtmp2m(im), gustar(im), gpblh(im), gu10m(im),    &
      &      gv10m(im), gzorl(im), goro(im),                             &
      &      xmu_cc,  dlw_cc,  dsw_cc,  snw_cc,  lprec_cc,               &
-     &      tref,    z_c,     c_0,     c_d,     w_0,   w_d, rqtk
+     &      tref,    z_c,     c_0,     c_d,     w_0,   w_d, rqtk,       &
+     &      triggerperts,sr
 
       real(kind=kind_phys), dimension(ix,levs),       intent(out) ::    &
      &      gt0, gu0, gv0, dqdt_v
@@ -568,10 +578,10 @@
 
 !     real(kind=kind_phys), dimension(ix,levs)     :: ud_mf, dd_mf,     &
 !    &      dt_mf, del
-      real(kind=kind_phys), dimension(ix,levs)     :: del
+      real(kind=kind_phys), dimension(ix,levs)     :: del, dtdtr
       real(kind=kind_phys), dimension(im,levs-1)   :: dkt
 
-      real(kind=kind_phys), dimension(im,levs)     :: rhc, sr, dtdt,    &
+      real(kind=kind_phys), dimension(im,levs)     :: rhc, dtdt,        &
      &      dudt, dvdt, gwdcu, gwdcv, diagn1, diagn2, cuhr, cumchr,     &
      &      qr_col, fc_ice, rainp, ud_mf, dd_mf, dt_mf
 
@@ -853,6 +863,15 @@
 !old vars   ( dswsfc,    -radsl,  dlwsf1,   ulwsf1,  xmu,xcosz )
      &     )
 
+!
+! save temp change due to radiation - need for sttp stochastic physics
+!---------------------------------------------------------------------
+        DO k=1,levs
+          DO i=1,im
+             dtdtr(i,k) = dtdtr(i,k) + dtdt(i,k)*dtf
+          ENDDO
+        ENDDO
+
       endif
 !
       if (lsidea) then
@@ -860,7 +879,7 @@
 !idea jw
         do k = 1, levs
         do i = 1, im
-!          dtdt(i,k) = hlwd(i,k,2)
+!         dtdt(i,k) = hlwd(i,k,2)
           dtdt(i,k) = 0.
         enddo
         enddo
@@ -1398,13 +1417,23 @@
         enddo
 
         if (ldiag3d) then
+
+          if (lsidea) then
+            do k = 1, levs
+              do i = 1, im
+                dt3dt(i,k,3) = dt3dt(i,k,3) + dtdt(i,k)*dtf
+              enddo
+            enddo
+          else
+            do k = 1, levs
+              do i = 1, im
+                tem          = dtdt(i,k) - (hlw(i,k)+swh(i,k)*xmu(i))
+                dt3dt(i,k,3) = dt3dt(i,k,3) + tem*dtf
+              enddo
+            enddo
+          endif
           do k = 1, levs
             do i = 1, im
-              tem  = dtdt(i,k) - (hlw(i,k)+swh(i,k)*xmu(i))
-! idea diag
-              if( .not.lsidea ) dt3dt(i,k,3) = dt3dt(i,k,3) + tem*dtf
-              dt3dt(i,k,3) = dt3dt(i,k,3) + tem*dtf
-!             dq3dt(i,k,1) = dq3dt(i,k,1) + dqdt(i,k,1) * dtf
               du3dt(i,k,1) = du3dt(i,k,1) + dudt(i,k)   * dtf
               du3dt(i,k,2) = du3dt(i,k,2) - dudt(i,k)   * dtf
               dv3dt(i,k,1) = dv3dt(i,k,1) + dvdt(i,k)   * dtf
@@ -1820,7 +1849,7 @@
           call sascnvn(im,ix,levs,jcap,dtp,del,prsl,pgr,phil,           &
      &                clw,gq0,gt0,gu0,gv0,cld1d,                        &
      &                rain1,kbot,ktop,kcnv,slmsk,                       &
-     &                VVEL,ncld,ud_mf,dd_mf,dt_mf)
+     &                VVEL,ncld,ud_mf,dd_mf,dt_mf,triggerperts)
 !hchuang code change 03/03/08 [r1L] add SAS modification of mass flux
 !    &                vvel,rann,ncld)
 
@@ -2456,7 +2485,7 @@
      &                rhc,lprnt, ipr)
 
           call precpd(im, ix, levs, dtp, del, prsl, pgr,                &
-     &                gq0(1,1,1), gq0(1,1,ntcw), gt0, rain1,            &
+     &                gq0(1,1,1), gq0(1,1,ntcw), gt0, rain1,sr,         &
      &                rainp, rhc, psautco_l, prautco_l, evpco, wminco,  &
      &                lprnt, ipr)
 

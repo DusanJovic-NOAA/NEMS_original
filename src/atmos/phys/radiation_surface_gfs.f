@@ -8,9 +8,9 @@
 !                                                                      !
 !    in the module, the externally callabe subroutines are :           !
 !                                                                      !
-!      'sfc_init'   -- initialization radiation surface data           !
+!      'sfcinit'    -- initialization radiation surface data           !
 !         inputs:                                                      !
-!           ( me )                                                     !
+!           ( LMAX, iflip, IALB, IEMS, me )                            !
 !         outputs:                                                     !
 !           (none)                                                     !
 !                                                                      !
@@ -58,12 +58,12 @@
 !                               - fix bug in modis albedo over sea-ice !
 !      aug  2007   y. hou       - fix bug in emissivity over ocean in  !
 !                                 the modis scheme option              !
-!      dec  2008   f. yang      - modified zenith angle dependence on  !
-!                                 surface albedo over land. (2008 jamc)!
-!      aug  2012   y. hou       - minor modification in initialization !
-!                                 subr 'sfc_init'.                     !
-!      nov  2012   y. hou       - modified control parameters through  !
-!                    module 'physparam'.                               !
+!           2009   f. yang      - replaced orig zenith angle treatment !
+!                    for the direct beam part of surface albedo with a !
+!                    better fit to obs formula over land. yang et al.  !
+!                    (2008, jamc).                                     !
+!      jul  2010   y. hou       - added option (ialb=2) for sw surface !
+!                    albedo that uses input values directly.           !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -71,38 +71,36 @@
 
 
 !========================================!
-      module module_radiation_surface    !
+      module module_radiation_surface_gfs!
 !........................................!
 !
-      use physparam,         only : ialbflg, iemsflg, semis_file,       &
-     &                              kind_phys
-      use physcons,          only : con_t0c, con_ttp, con_pi, con_tice
-      use module_iounitdef,  only : NIRADSF
+      use machine,                 only : kind_phys
+      use physcons,                only : con_t0c, con_ttp, con_pi      &
+     &,                                   con_tice
+      use module_iounitdef,        only : NIRADSF
 !
       implicit   none
 !
       private
 
-!  ---  version tag and last revision date
-      character(40), parameter ::                                       &
-     &   VTAGSFC='NCEP-Radiation_surface   v5.1  Nov 2012 '
-!    &   VTAGSFC='NCEP-Radiation_surface   v5.0  Aug 2012 '
-
 !  ---  constant parameters
+
       integer, parameter, public :: NF_ALBD = 4  ! num of sfc albedo components
 
       integer, parameter, public :: IMXEMS = 360 ! num of lon-pts in glb emis-type map
       integer, parameter, public :: JMXEMS = 180 ! num of lat-pts in glb emis-type map
 
-      real (kind=kind_phys), parameter :: f_zero = 0.0
-      real (kind=kind_phys), parameter :: f_one  = 1.0
+      real (kind=kind_phys), parameter :: my_zero = 0.0
       real (kind=kind_phys), parameter :: rad2dg= 180.0 / con_pi
 
-!  ---  global surface emissivity index array and control flag  set up in 'sfc_init'
+!  ---  global surface emissivity index array set up in 'sfcinit'
+
       integer, allocatable  ::  idxems(:,:)
-      integer :: iemslw = 0
+
+      integer :: ialbflg = 0
+      integer :: iemsflg = 0
 !
-      public  sfc_init, setalb, setemis
+      public  sfcinit, setalb, setemis
 
 ! =================
       contains
@@ -110,11 +108,11 @@
 
 
 !-----------------------------------
-      subroutine sfc_init                                               &
+      subroutine sfcinit                                                &
 !...................................
 
 !  ---  inputs:
-     &     ( me )
+     &     ( LMAX, iflip, IALB, IEMS, me )
 !  ---  outputs: ( none )
 
 !  ===================================================================  !
@@ -122,75 +120,89 @@
 !  this program is the initialization program for surface radiation     !
 !  related quantities (albedo, emissivity, etc.)                        !
 !                                                                       !
-! usage:         call sfc_init                                          !
+! program history log:                                                  !
+!      feb.  2006   yu-tai hou     - created                            !
+!                                                                       !
+! usage:         call sfcinit                                           !
 !                                                                       !
 ! subprograms called:  none                                             !
 !                                                                       !
 !  ====================  defination of variables  ====================  !
 !                                                                       !
 !  inputs:                                                              !
+!     LMAX          - model vertical layer dimension                    !
+!     iflip         - control flag for direction of vertical index      !
+!                     =0: index from toa to surface                     !
+!                     =1: index from surface to toa                     !
+!     IALB          - control flag for surface albedo schemes           !
+!                     =0: climatology, based on surface veg types       !
+!                     =1: modis retrieval based scheme from boston univ.!
+!                     =2: use externally provided albedoes directly.    !
+!     IEMS          - control flag for surface emissivity schemes       !
+!                     =0: fixed value of 1.0                            !
+!                     =1: varying value based on surface veg types      !
 !      me           - print control flag                                !
 !                                                                       !
 !  outputs: (none) to module variables only                             !
-!                                                                       !
-!  external module variables:                                           !
-!     ialbflg       - control flag for surface albedo schemes           !
-!                     =0: climatology, based on surface veg types       !
-!                     =1:                                               !
-!     iemsflg       - control flag for sfc emissivity schemes (ab:2-dig)!
-!                     a:=0 set sfc air/ground t same for lw radiation   !
-!                       =1 set sfc air/ground t diff for lw radiation   !
-!                     b:=0 use fixed sfc emissivity=1.0 (black-body)    !
-!                       =1 use varying climtology sfc emiss (veg based) !
 !                                                                       !
 !  ====================    end of description    =====================  !
 !
       implicit none
 
 !  ---  inputs:
-      integer, intent(in) :: me
+      integer, intent(in) :: LMAX, iflip, IALB, IEMS, me
 
 !  ---  outputs: ( none )
 
 !  ---  locals:
-      integer    :: i, k
-!     integer    :: ia, ja
+      integer    :: i, k, ia, ja
       logical    :: file_exist
-      character  :: cline*80
+      character  :: cline*80, cfems*24
+
+      data  cfems / 'sfc_emissivity_idx.txt  ' /
+
 !
 !===> ...  begin here
 !
-      if ( me == 0 ) print *, VTAGSFC   ! print out version tag
 
 !  --- ...  initialization of surface albedo section
 
-      if ( ialbflg == 0 ) then
+      ialbflg = IALB
+
+      if ( IALB == 0 ) then
 
         if ( me == 0 ) then
           print *,' - Using climatology surface albedo scheme for sw'
         endif
 
-      else if ( ialbflg == 1 ) then
+      else if ( IALB == 1 ) then
 
         if ( me == 0 ) then
           print *,' - Using MODIS based land surface albedo for sw'
         endif
 
+      else if ( IALB == 2 ) then
+
+        if ( me == 0 ) then
+          print *,' - Using externally provided surface albedo for sw'
+        endif
+
       else
-        print *,' !! ERROR in Albedo Scheme Setting, IALB=',ialbflg
+        print *,' !! ERROR in Albedo Scheme Setting, IALB=',IALB
         stop
-      endif    ! end if_ialbflg_block
+      endif    ! end if_IALB_block
 
 !  --- ...  initialization of surface emissivity section
 
-      iemslw = mod(iemsflg, 10)          ! emissivity control
-      if ( iemslw == 0 ) then            ! fixed sfc emis at 1.0
+      iemsflg = IEMS
+
+      if ( IEMS == 0 ) then           ! fixed sfc emis at 1.0
 
         if ( me == 0 ) then
           print *,' - Using Fixed Surface Emissivity = 1.0 for lw'
         endif
 
-      elseif ( iemslw == 1 ) then        ! input sfc emiss type map
+      elseif ( IEMS == 1 ) then       ! input sfc emiss type map
 
 !  ---  allocate data space
         if ( .not. allocated(idxems) ) then
@@ -199,19 +211,18 @@
 
 !  ---  check to see if requested emissivity data file existed
 
-        inquire (file=semis_file, exist=file_exist)
+        inquire (file=cfems, exist=file_exist)
 
         if ( .not. file_exist ) then
           if ( me == 0 ) then
             print *,' - Using Varying Surface Emissivity for lw'
-            print *,'   Requested data file "',semis_file,'" not found!'
+            print *,'   Requested data file "',cfems,'" not found!'
             print *,'   Change to fixed surface emissivity = 1.0 !'
           endif
 
-          iemslw = 0
+          iemsflg = 0
         else
-          close(NIRADSF)
-          open (NIRADSF,file=semis_file,form='formatted',status='old')
+          open (NIRADSF,file=cfems,form='formatted',status='old')
           rewind NIRADSF
 
           read (NIRADSF,12) cline
@@ -222,26 +233,24 @@
 
           if ( me == 0 ) then
             print *,' - Using Varying Surface Emissivity for lw'
-            print *,'   Opened data file: ',semis_file
+            print *,'   Opened data file: ',cfems
             print *, cline
 !check      print *,' CHECK: Sample emissivity index data'
 !           ia = IMXEMS / 5
 !           ja = JMXEMS / 5
 !           print *, idxems(1:IMXEMS:ia,1:JMXEMS:ja)
           endif
-
-          close(NIRADSF)
         endif    ! end if_file_exist_block
 
       else
-        print *,' !! ERROR in Emissivity Scheme Setting, IEMS=',iemsflg
+        print *,' !! ERROR in Emissivity Scheme Setting, IEMS=',IEMS
         stop
-      endif   ! end if_iemslw_block
+      endif   ! end if_IEMS_block
 
 !
       return
 !...................................
-      end subroutine sfc_init
+      end subroutine sfcinit
 !-----------------------------------
 
 
@@ -293,6 +302,11 @@
 !     alnsf (IMAX)  - near-ir black sky albedo at zenith 60 degree      !
 !     alvwf (IMAX)  - visible white sky albedo                          !
 !     alnwf (IMAX)  - near-ir white sky albedo                          !
+!           ---  for ialbflg=2 externally provided surface albedo  ---  !
+!     alvsf (IMAX)  - visible direct beam albedo                        !
+!     alnsf (IMAX)  - near-ir direct beam albedo                        !
+!     alvwf (IMAX)  - visible diffused albedo                           !
+!     alnwf (IMAX)  - near-ir diffused albedo                           !
 !                                                                       !
 !     facsf (IMAX)  - fractional coverage with strong cosz dependency   !
 !     facwf (IMAX)  - fractional coverage with weak cosz dependency     !
@@ -350,12 +364,12 @@
 
          asnow = 0.02*snowf(i)
          argh  = min(0.50, max(.025, 0.01*zorlf(i)))
-         hrgh  = min(f_one, max(0.20, 1.0577-1.1538e-3*hprif(i) ) )
+         hrgh  = min(1.0, max(0.20, 1.0577-1.1538e-3*hprif(i) ) )
          fsno0 = asnow / (argh + asnow) * hrgh
-         if (nint(slmsk(i))==0 .and. tsknf(i)>con_tice) fsno0 = f_zero
-         fsno1 = f_one - fsno0
-         flnd0 = min(f_one, facsf(i)+facwf(i))
-         fsea0 = max(f_zero, f_one-flnd0)
+         if (nint(slmsk(i)) == 0 .and. tsknf(i) > con_tice) fsno0 = 0.0
+         fsno1 = 1.0 - fsno0
+         flnd0 = min(1.0, facsf(i)+facwf(i))
+         fsea0 = max(0.0, 1.0 - flnd0)
          fsno  = fsno0
          fsea  = fsea0 * fsno1
          flnd  = flnd0 * fsno1
@@ -377,12 +391,12 @@
 ! --- diffused snow albedo
 
          if (nint(slmsk(i)) == 2) then
-            ffw   = f_one - fice(i)
-            if (ffw < f_one) then
-               dtgd = max(f_zero, min(5.0, (con_ttp-tisfc(i)) ))
+            ffw   = 1.0 - fice(i)
+            if (ffw < 1.0) then
+               dtgd = max(0.0, min(5.0, (con_ttp-tisfc(i)) ))
                b1   = 0.03 * dtgd
             else
-               b1 = f_zero
+               b1 = 0.0
             endif
 
             b3   = 0.06 * ffw
@@ -398,7 +412,7 @@
 ! --- direct snow albedo
 
          if (coszf(i) < 0.5) then
-            csnow = 0.5 * (3.0 / (f_one+4.0*coszf(i)) - f_one)
+            csnow = 0.5 * (3.0 / (1.0+4.0*coszf(i)) - 1.0)
             asnvb = min( 0.98, asnvd+(1.0-asnvd)*csnow )
             asnnb = min( 0.98, asnnd+(1.0-asnnd)*csnow )
          else
@@ -409,23 +423,23 @@
 ! --- direct sea surface albedo
 
          if (coszf(i) > 0.0001) then
-!           rfcs = 1.4 / (f_one + 0.8*coszf(i))
-!           rfcw = 1.3 / (f_one + 0.6*coszf(i))
-            rfcs = 2.14 / (f_one + 1.48*coszf(i))
+!           rfcs = 1.4 / (1.0 + 0.8*coszf(i))     ! briegleb's zenith angle treatment
+!           rfcw = 1.3 / (1.0 + 0.6*coszf(i))
+            rfcs = 2.14 / (1.0 + 1.48*coszf(i))   ! f. yang's zenith angle treatment
             rfcw = rfcs
 
             if (tsknf(i) >= con_t0c) then
               asevb = max(asevd, 0.026/(coszf(i)**1.7+0.065)            &
      &              + 0.15 * (coszf(i)-0.1) * (coszf(i)-0.5)            &
-     &              * (coszf(i)-f_one))
+     &              * (coszf(i)-1.0))
               asenb = asevb
             else
               asevb = asevd
               asenb = asend
             endif
          else
-            rfcs  = f_one
-            rfcw  = f_one
+            rfcs  = 1.0
+            rfcw  = 1.0
             asevb = asevd
             asenb = asend
          endif
@@ -441,7 +455,7 @@
 
         enddo    ! end_do_i_loop
 
-      else                       ! use modis based albedo for land area
+      elseif ( ialbflg == 1 ) then ! use modis based albedo for land area
 
         do i = 1, IMAX
 
@@ -449,18 +463,18 @@
 
          fsno0 = sncovr(i)
 
-         if (nint(slmsk(i))==0 .and. tsknf(i)>con_tice) fsno0 = f_zero
+         if (nint(slmsk(i)) == 0 .and. tsknf(i) > con_tice) fsno0 = 0.0
 
          if (nint(slmsk(i)) == 2) then
            asnow = 0.02*snowf(i)
            argh  = min(0.50, max(.025, 0.01*zorlf(i)))
-           hrgh  = min(f_one, max(0.20, 1.0577-1.1538e-3*hprif(i) ) )
+           hrgh  = min(1.0, max(0.20, 1.0577-1.1538e-3*hprif(i) ) )
            fsno0 = asnow / (argh + asnow) * hrgh
          endif
 
-         fsno1 = f_one - fsno0
-         flnd0 = min(f_one, facsf(i)+facwf(i))
-         fsea0 = max(f_zero, f_one-flnd0)
+         fsno1 = 1.0 - fsno0
+         flnd0 = min(1.0, facsf(i)+facwf(i))
+         fsea0 = max(0.0, 1.0 - flnd0)
          fsno  = fsno0
          fsea  = fsea0 * fsno1
          flnd  = flnd0 * fsno1
@@ -482,12 +496,12 @@
 ! --- diffused snow albedo, land area use input max snow albedo
 
          if (nint(slmsk(i)) == 2) then
-            ffw   = f_one - fice(i)
-            if (ffw < f_one) then
-               dtgd = max(f_zero, min(5.0, (con_ttp-tisfc(i)) ))
+            ffw   = 1.0 - fice(i)
+            if (ffw < 1.0) then
+               dtgd = max(0.0, min(5.0, (con_ttp-tisfc(i)) ))
                b1   = 0.03 * dtgd
             else
-               b1 = f_zero
+               b1 = 0.0
             endif
 
             b3   = 0.06 * ffw
@@ -504,9 +518,9 @@
 
          if (nint(slmsk(i)) == 2) then
            if (coszf(i) < 0.5) then
-              csnow = 0.5 * (3.0 / (f_one+4.0*coszf(i)) - f_one)
-              asnvb = min( 0.98, asnvd+(f_one-asnvd)*csnow )
-              asnnb = min( 0.98, asnnd+(f_one-asnnd)*csnow )
+              csnow = 0.5 * (3.0 / (1.0+4.0*coszf(i)) - 1.0)
+              asnvb = min( 0.98, asnvd+(1.0-asnvd)*csnow )
+              asnnb = min( 0.98, asnnd+(1.0-asnnd)*csnow )
            else
              asnvb = asnvd
              asnnb = asnnd
@@ -516,25 +530,25 @@
            asnnb = snoalb(i)
          endif
 
-! --- direct sea surface albedo, use fanglin's zenith angle treatment
+! --- direct sea surface albedo
 
          if (coszf(i) > 0.0001) then
 
 !           rfcs = 1.89 - 3.34*coszf(i) + 4.13*coszf(i)*coszf(i)        &
 !    &           - 2.02*coszf(i)*coszf(i)*coszf(i)
-            rfcs = 1.775/(1.0+1.55*coszf(i))      
+            rfcs = 1.775/(1.0+1.55*coszf(i))           ! f. yang's zenith angle treatment
 
             if (tsknf(i) >= con_t0c) then
               asevb = max(asevd, 0.026/(coszf(i)**1.7+0.065)            &
      &              + 0.15 * (coszf(i)-0.1) * (coszf(i)-0.5)            &
-     &              * (coszf(i)-f_one))
+     &              * (coszf(i)-1.0))
               asenb = asevb
             else
               asevb = asevd
               asenb = asend
             endif
          else
-            rfcs  = f_one
+            rfcs  = 1.0
             asevb = asevd
             asenb = asend
          endif
@@ -545,6 +559,15 @@
          sfcalb(i,4) = alvwf(i)     *flnd + asevd*fsea + asnvd*fsno
 
         enddo    ! end_do_i_loop
+
+      else                         ! use externally provided albedoes
+
+        do i = 1, IMAX
+          sfcalb(i,1) = alnsf(i)
+          sfcalb(i,2) = alnwf(i)
+          sfcalb(i,3) = alvsf(i)
+          sfcalb(i,4) = alvwf(i)
+        enddo
 
       endif   ! end if_ialbflg
 !
@@ -576,10 +599,8 @@
 !  ====================  defination of variables  ====================  !
 !                                                                       !
 !  inputs:                                                              !
-!     xlon  (IMAX)  - longitude in radiance, ok for both 0->2pi or      !
-!                     -pi -> +pi ranges                                 !
-!     xlat  (IMAX)  - latitude  in radiance, default to pi/2 -> -pi/2   !
-!                     range, otherwise see in-line comment              !
+!     xlon  (IMAX)  - longitude in radiance                             !
+!     xlat  (IMAX)  - latitude  in radiance                             !
 !     slmsk (IMAX)  - sea(0),land(1),ice(2) mask on fcst model grid     !
 !     snowf (IMAX)  - snow depth water equivalent in mm                 !
 !     sncovr(IMAX)  - ialbflg=1: snow cover over land in fraction       !
@@ -632,9 +653,9 @@
 !===> ...  begin here
 !
 
-      if ( iemslw == 0 ) then        ! sfc emiss default to 1.0
+      if ( iemsflg == 0 ) then       ! sfc emiss default to 1.0
 
-        sfcemis(:) = f_one
+        sfcemis(:) = 1.0
         return
 
       else                           ! emiss set by sfc type and condition
@@ -663,7 +684,7 @@
             j2 = 1
 
             tmp1 = xlon(i) * rad2dg
-            if (tmp1 < f_zero) tmp1 = tmp1 + 360.0
+            if (tmp1 < my_zero) tmp1 = tmp1 + 360.0
 
             lab_do_IMXEMS : do i1 = 1, IMXEMS
               tmp2 = dltg * (i1 - 1) + hdlt
@@ -675,8 +696,7 @@
             enddo  lab_do_IMXEMS
 
 !  ---  map grid in latitude direction
-            tmp1 = xlat(i) * rad2dg           ! if xlat in pi/2 -> -pi/2 range
-!           tmp1 = 90.0 - xlat(i)*rad2dg      ! if xlat in 0 -> pi range
+            tmp1 = xlat(i) * rad2dg
 
             lab_do_JMXEMS : do j1 = 1, JMXEMS
               tmp2 = 90.0 - dltg * (j1 - 1)
@@ -699,18 +719,18 @@
           if ( ialbflg==1 .and. nint(slmsk(i))==1 ) then ! input land area snow cover
 
             fsno0 = sncovr(i)
-            fsno1 = f_one - fsno0
+            fsno1 = 1.0 - fsno0
             sfcemis(i) = sfcemis(i)*fsno1 + emsref(8)*fsno0
 
           else                                           ! compute snow cover from snow depth
-            if ( snowf(i) > f_zero ) then
+            if ( snowf(i) > my_zero ) then
               asnow = 0.02*snowf(i)
               argh  = min(0.50, max(.025, 0.01*zorlf(i)))
-              hrgh  = min(f_one, max(0.20, 1.0577-1.1538e-3*hprif(i) ) )
+              hrgh  = min(1.0, max(0.20, 1.0577-1.1538e-3*hprif(i) ) )
               fsno0 = asnow / (argh + asnow) * hrgh
               if (nint(slmsk(i)) == 0 .and. tsknf(i) > 271.2)           &
-     &                               fsno0=f_zero
-              fsno1 = f_one - fsno0
+     &                               fsno0=my_zero
+              fsno1 = 1.0 - fsno0
               sfcemis(i) = sfcemis(i)*fsno1 + emsref(8)*fsno0
             endif
 
@@ -718,7 +738,7 @@
 
         enddo  lab_do_IMAX
 
-      endif   ! end if_iemslw_block
+      endif   ! end if_iemsflg_block
 
 !chk  print *,' In setemis, iemsflg, sfcemis =',iemsflg,sfcemis
 
@@ -730,5 +750,5 @@
 
 !
 !.........................................!
-      end module module_radiation_surface !
+      end module module_radiation_surface_gfs !
 !=========================================!

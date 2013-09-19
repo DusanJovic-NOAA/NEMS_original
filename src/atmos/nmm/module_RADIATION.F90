@@ -22,7 +22,7 @@
 !
       USE MODULE_CONTROL,ONLY : NMMB_FINALIZE
 
-      use module_nmmb_radiation_driver,  only : radupdate
+      use module_radiation_driver_nmmb,  only : radupdate_nmmb
       use machine, only : kind_phys
 
 !
@@ -384,7 +384,7 @@
 
       IF (SW_PHYSICS .EQ. 3 .or. LW_PHYSICS .EQ. 3) THEN
          DTX =DT
-         call radupdate                                               &
+         call radupdate_nmmb                                          &
 !  ---   inputs:
      &      ( JDAT, JDAT, DTSW, DTX, LSSWR, MYPE,                     &
 !  ---   outputs:

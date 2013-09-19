@@ -25,14 +25,26 @@ MODULES_NMM      = module_BL_GFSPBL.o \
                    module_SF_JSFC.o \
                    module_SF_URBAN.o
 
-MODULES_NMM_RRTM = grrad_nmmb.o              \
-                   radiation_astronomy_nmmb.o\
-                   radiation_aerosols_nmmb.o \
-                   radiation_gases_nmmb.o    \
-                   radiation_clouds_nmmb.o   \
-                   radiation_surface_nmmb.o  \
-                   rad_initialize.o          \
-                   precpd_nmmb.o             \
+MODULES_NMM_RRTM = grrad_nmmb.o                   \
+                   radiation_astronomy_nmmb.o     \
+                   radiation_aerosols_nmmb.o      \
+                   radiation_gases_nmmb.o         \
+                   radiation_clouds_nmmb.o        \
+                   radiation_surface_nmmb.o       \
+                   rad_initialize_nmmb.o          \
+	           radlw_param_nmmb.o             \
+ 	           radlw_datatb_nmmb.o            \
+	           radlw_main_nmmb.o              \
+	           radsw_param_nmmb.o             \
+	           radsw_datatb_nmmb.o            \
+	           radsw_main_nmmb.o              \
+                   radiation_astronomy_gfs.o \
+                   radiation_aerosols_gfs.o  \
+                   radiation_gases_gfs.o     \
+                   radiation_clouds_gfs.o    \
+                   radiation_surface_gfs.o   \
+                   grrad_gfs.o               \
+                   precpd_nmmb.o                  \
                    physpara_nmmb.o
 
 MODULE_FGFS =                                \
@@ -40,6 +52,7 @@ MODULE_FGFS =                                \
 
 MODULES_GFS =                                \
 	           machine.o                 \
+		   physparam.o               \
 	           physcons.o                \
 	           funcphys.o                \
 	           module_nst_parameters.o   \
@@ -58,6 +71,7 @@ MODULES_GFSF=                                \
 	           mersenne_twister.o        \
 	           tracer_const_h.o          \
 	           gfs_phy_tracer_config.o   \
+                   rad_initialize.o          \
 	           radlw_param.o             \
  	           radlw_datatb.o            \
 	           radlw_main.o              \

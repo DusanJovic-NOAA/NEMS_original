@@ -7,33 +7,63 @@
 !   in module 'module_radiation_astronomy', externally accessable      !
 !   subroutines are listed below:                                      !
 !                                                                      !
-!      'solinit'    -- read in solar constant                          !
+!      'sol_init'   -- initialization                                  !
 !         input:                                                       !
-!           ( ISOL, iyear, iydat, me )                                 !
+!           ( me )                                                     !
 !         output:                                                      !
 !           ( none )                                                   !
 !                                                                      !
-!      'astronomy'  -- get astronomy related quantities                !
+!      'sol_update' -- update astronomy related quantities             !
 !         input:                                                       !
-!           ( sinlat,coslat,xlon,fhswr,jdate,                          !
-!             LON2,LATD,nlnsp,lsswr, me)                               !
+!           ( jdate,kyear,deltsw,deltim,lsol_chg, me )                 !
 !         output:                                                      !
-!           ( solcon,slag,sdec,cdec,coszen,coszdg)                     !
+!           ( slag,sdec,cdec,solcon )                                  !
+!                                                                      !
+!      'coszmn'     -- compute cosin of zenith angles                  !
+!         input:                                                       !
+!           ( xlon,sinlat,coslat,solhr,IM, me )                        !
+!         output:                                                      !
+!           ( coszen,coszdg )                                          !
 !                                                                      !
 !                                                                      !
 !   external modules referenced:                                       !
-!       'module machine'                    in 'machine.f'             !
-!       'module physcons'                   in 'physcons.f             !
+!       'module physparam'                  in 'physparam.f'           !
+!       'module physcons'                   in 'physcons.f'            !
 !                                                                      !
 !   program history log:                                               !
-!     may-06-1977  ---  ray orzol,      created at gfdl                !
-!     jul-07-1989  ---  kenneth campana                                !
-!     may-15-1998  ---  mark iredell    y2k compliance                 !
-!     dec-15-2003  ---  yu-tai hou      combined compjd and fcstim and !
-!                       rewrite in fortran 90 compatable form          !
-!     feb-15-2006  ---  yu-tai hou      add 11-yr solar constant cycle !
-!     mar-19-2009  ---  yu-tai hou      modified solinit for climate   !
-!                       hindcast situation.                            !
+!   - a collection of programs to track solar-earth position           !
+!     may  1977  ---  ray orzol    (gfdl) created program compjd to    !
+!          computes julian day and fraction from year,month,dayand,time!
+!     jun  1977  ---  robert white (gfdl) created program cdate to     !
+!          computes calendar month, day, year from julian day value.   !
+!     jul  1977  ---  robert white (gfdl) created program solar to     !
+!          computes radius vector, declination and right ascension of  !
+!          sun, equation of time, hour angle, fractional daylight, and !
+!          latitudinal mean zenith angle.                              !
+!     fall 1988  ---  hualu pan,  updated to limit the iterations in   !
+!          newton method and also ccr reduced to avoid non-convergence.!
+!     jul  1989  ---  kenneth campana  modified subr solar and created !
+!          subr zenith for computations of effective mean cosz and     !
+!          daylight fraction.                                          !
+!     oct  1990  ---  yu-tai hou      created subr coszmn to replace   !
+!          the latitudinal mean cosz by time mean cosz at grid points. !
+!     may  1998  ---  mark iredell    y2k compliance                   !
+!     dec  2003  ---  yu-tai hou      combined compjd and fcstim and   !
+!          rewritten programs in fortran 90 compatable modular form.   !
+!     feb  2006  ---  yu-tai hou      add 11-yr solar constant cycle   !
+!     mar  2009  ---  yu-tai hou      modified solinit for climate     !
+!          hindcast situation responding to ic time.                   !
+!     aug  2012  ---  yu-tai hou      modified coszmn to allows sw     !
+!          radiation calling interval less than 1 hr limit and linked  !
+!          model time step with numb of cosz evaluations. also changed !
+!          the initialization subroutine 'solinit' into two parts:     !
+!          'sol_init' is called at the start of run to set up module   !
+!          parameters; and 'sol_update' is called within the time      !
+!          loop to check and update data sets.                         !
+!     nov  2012  ---  yu-tai hou      modified control parameters thru !
+!          model 'physparam'.                                          !
+!     jan  2013  ---  yu-tai hou      modified to include new solar    !
+!          constant tables (noaa_a0, noaa_an, cmip_an, cmip_mn)        !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -45,23 +75,46 @@
       module module_radiation_astronomy  !
 !........................................!
 !
-      use machine,                 only : kind_phys
-      use physcons,                only : con_solr, con_pi
-      use module_iounitdef,        only : NIRADSF
+      use physparam,         only : isolar, solar_file, kind_phys
+      use physcons,          only : con_solr, con_solr_old, con_pi
+      use module_iounitdef,  only : NIRADSF
 !
       implicit   none
 !
       private
 
+!  ---  version tag and last revision date
+      character(40), parameter ::                                       &
+     &   VTAGAST='NCEP-Radiation_astronomy v5.2  Jan 2013 '
+!    &   VTAGAST='NCEP-Radiation_astronomy v5.1  Nov 2012 '
+
 !  ---  parameter constants
       real (kind=kind_phys), parameter :: degrad = 180.0/con_pi
       real (kind=kind_phys), parameter :: tpi    = 2.0 * con_pi
       real (kind=kind_phys), parameter :: hpi    = 0.5 * con_pi
+      real (kind=kind_phys), parameter :: f12    = 12.0
+      real (kind=kind_phys), parameter :: f3600  = 3600.0
+      real (kind=kind_phys), parameter :: czlimt = 0.0001      ! ~ cos(89.99427)
+!     real (kind=kind_phys), parameter :: pid12  = con_pi/f12  ! angle per hour
+      real (kind=kind_phys), parameter :: pid12  = (2.0*asin(1.0))/f12
 
-!  ---  module variables:
-      real (kind=kind_phys), public    :: solc0
+!  ---  module variables (to be set in subr sol_init):
+      real (kind=kind_phys), public    :: solc0 = con_solr
+      integer   :: isolflg = 10
+      character(26) :: solar_fname = ' '
 
-      public  solinit, astronomy
+!  ---  module variables (to be set in subr sol_update):
+      real (kind=kind_phys) :: sollag=0.0   ! equation of time
+      real (kind=kind_phys) :: sindec=0.0   ! sineof the solar declination angle
+      real (kind=kind_phys) :: cosdec=0.0   ! cosine of the solar declination angle
+      real (kind=kind_phys) :: anginc=0.0   ! solar angle incrmt per iteration for cosz calc
+      real (kind=kind_phys) :: smon_sav(12) ! saved monthly solar constants (isolflg=4 only)
+      data smon_sav(1:12) / 12*con_solr /
+
+      integer               :: iyr_sav =0   ! saved year  of data used
+      integer               :: nstp    =6   ! total number of zenith angle iterations
+
+      public  sol_init, sol_update, coszmn
 
 
 ! =================
@@ -69,33 +122,38 @@
 ! =================
 
 !-----------------------------------
-      subroutine solinit                                                &
+      subroutine sol_init                                               &
 !...................................
-
 !  ---  inputs:
-     &     ( ISOL, iyear, iydat, me )
+     &     ( me )
 !  ---  outputs: ( none )
 
 !  ===================================================================  !
 !                                                                       !
-!  read in solar constant value for a given year                        !
+!  initialize astronomy process, set up module constants.               !
 !                                                                       !
 !  inputs:                                                              !
-!     ISOL    - =0: use fixed solar constant in "physcon"               !
-!               =1: use 11-year cycle solar constant from table         !
-!     iyear   - year of the requested data (for ISOL=1 only)            !
-!     iydat   - usually =iyear. if not, it is for hindcast mode, and it !
-!               is usually the init cond time and serves as the upper   !
-!               limit of data can be used.                              !
 !     me      - print message control flag                              !
 !                                                                       !
 !  outputs:  (to module variable)                                       !
 !     ( none )                                                          !
 !                                                                       !
-!  module variable:                                                     !
-!     solc0   - solar constant  (w/m**2)              1                 !
+!  external module variable: (in physparam)                             !
+!   isolar    - = 0: use the old fixed solar constant in "physcon"      !
+!               =10: use the new fixed solar constant in "physcon"      !
+!               = 1: use noaa ann-mean tsi tbl abs-scale with cyc apprx !
+!               = 2: use noaa ann-mean tsi tbl tim-scale with cyc apprx !
+!               = 3: use cmip5 ann-mean tsi tbl tim-scale with cyc apprx!
+!               = 4: use cmip5 mon-mean tsi tbl tim-scale with cyc apprx!
+!   solar_file- external solar constant data table                      !
 !                                                                       !
-!  usage:    call solinit                                               !
+!  internal module variable:                                            !
+!   isolflg   - internal solar constant scheme control flag             !
+!   solc0     - solar constant  (w/m**2)                                !
+!   solar_fname-file name for solar constant table assigned based on    !
+!               the scheme control flag, isolflg.                       !
+!                                                                       !
+!  usage:    call sol_init                                              !
 !                                                                       !
 !  subprograms called:  none                                            !
 !                                                                       !
@@ -104,214 +162,361 @@
       implicit none
 
 !  ---  input:
-      integer,  intent(in) :: ISOL, iyear, iydat, me
+      integer,  intent(in) :: me
 
 !  ---  output: ( none )
 
 !  ---  local:
-      real (kind=kind_phys):: smean, solc1
-      integer       :: i, iyr, iyr1, iyr2, jyr
-      logical       :: file_exist
-      character     :: cline*60, cfile0*26
-
-      data  cfile0 / 'solarconstantdata.txt' /
-
+      logical :: file_exist
+!
 !===>  ...  begin here
+!
+      if ( me == 0 ) print *, VTAGAST    !print out version tag
 
-      if ( ISOL == 0 ) then
-        solc0 = con_solr
+!  ---  initialization
+      isolflg = isolar
+      solc0   = con_solr
+      solar_fname = solar_file
+      iyr_sav = 0
+      nstp    = 6
+
+      if ( isolar == 0 ) then
+        if ( me == 0 ) then
+          solc0   = con_solr_old
+          print *,' - Using old fixed solar constant =', solc0
+        endif
+      elseif ( isolar == 10 ) then
+        if ( me == 0 ) then
+          print *,' - Using new fixed solar constant =', solc0
+        endif
+      elseif ( isolar == 1 ) then        ! noaa ann-mean tsi in absolute scale
+        solar_fname(15:26) = 'noaa_a0.txt'
 
         if ( me == 0 ) then
-          print *,' - Using fixed solar constant =', solc0
+          print *,' - Using NOAA annual mean TSI table in ABS scale',   &
+     &            ' with cycle approximation (old values)!'
         endif
 
-        return
-      endif
+        inquire (file=solar_fname, exist=file_exist)
+        if ( .not. file_exist ) then
+          isolflg = 10
 
-!  --- ... check to see if the solar constant data file existed
-
-      inquire (file=cfile0, exist=file_exist)
-      if ( .not. file_exist ) then
-        solc0 = con_solr
+          if ( me == 0 ) then
+            print *,'   Requested solar data file "',solar_fname,       &
+     &              '" not found!'
+            print *,'   Using the default solar constant value =',solc0,&
+     &              ' reset control flag isolflg=',isolflg
+          endif
+        endif
+      elseif ( isolar == 2 ) then        ! noaa ann-mean tsi in tim scale
+        solar_fname(15:26) = 'noaa_an.txt'
 
         if ( me == 0 ) then
-          print *,' - Using varying solar constant with 11-year cycle'
-          print *,'   Requested solar data file "',cfile0,              &
-     &            '" not found!'
+          print *,' - Using NOAA annual mean TSI table in TIM scale',   &
+     &            ' with cycle approximation (new values)!'
+        endif
+
+        inquire (file=solar_fname, exist=file_exist)
+        if ( .not. file_exist ) then
+          isolflg = 10
+
+          if ( me == 0 ) then
+            print *,'   Requested solar data file "',solar_fname,       &
+     &              '" not found!'
+            print *,'   Using the default solar constant value =',solc0,&
+     &              ' reset control flag isolflg=',isolflg
+          endif
+        endif
+      elseif ( isolar == 3 ) then        ! cmip5 ann-mean tsi in tim scale
+        solar_fname(15:26) = 'cmip_an.txt'
+
+        if ( me == 0 ) then
+          print *,' - Using CMIP5 annual mean TSI table in TIM scale',  &
+     &            ' with cycle approximation'
+        endif
+
+        inquire (file=solar_fname, exist=file_exist)
+        if ( .not. file_exist ) then
+          isolflg = 10
+
+          if ( me == 0 ) then
+            print *,'   Requested solar data file "',solar_fname,       &
+     &              '" not found!'
+            print *,'   Using the default solar constant value =',solc0,&
+     &              ' reset control flag isolflg=',isolflg
+          endif
+        endif
+      elseif ( isolar == 4 ) then        ! cmip5 mon-mean tsi in tim scale
+        solar_fname(15:26) = 'cmip_mn.txt'
+
+        if ( me == 0 ) then
+          print *,' - Using CMIP5 monthly mean TSI table in TIM scale', &
+     &            ' with cycle approximation'
+        endif
+
+        inquire (file=solar_fname, exist=file_exist)
+        if ( .not. file_exist ) then
+          isolflg = 10
+
+          if ( me == 0 ) then
+            print *,'   Requested solar data file "',solar_fname,       &
+     &              '" not found!'
+            print *,'   Using the default solar constant value =',solc0,&
+     &              ' reset control flag isolflg=',isolflg
+          endif
+        endif
+      else                               ! selection error
+        isolflg = 10
+
+        if ( me == 0 ) then
+          print *,' - !!! ERROR in selection of solar constant data',   &
+     &            ' source, ISOL =',isolar
           print *,'   Using the default solar constant value =',solc0,  &
-     &            ' instead!!'
+     &              ' reset control flag isolflg=',isolflg
         endif
-      else
-        iyr = iyear
-
-        open (NIRADSF,file=cfile0,form='formatted',status='old')
-        rewind NIRADSF
-
-        read (NIRADSF, 24) iyr1, iyr2, smean, cline
-  24    format(i4,2x,i4,f8.2,a60)
-
-!  --- ...  check if there is a upper year limit put on the data table
-
-        if ( iyear /= iydat ) then
-          if ( iydat-iyr1 < 11 ) then    ! need data range at least 11 years
-                                         ! to perform 11-year cycle approx
-            if ( me == 0 ) then
-              print *,' - Using varying solar constant with 11-year',   &
-     &                ' cycle'
-              print *,'  *** the requested year',iyear,' and upper ',   &
-     &                'limit',iydat,' do not fit the range of data ',   &
-     &                'table of iyr1, iyr2 =',iyr1,iyr2
-              print *,'      USE FIXED SOLAR CONSTANT=',con_solr
-            endif
-
-            solc0 = con_solr
-            return
-
-          elseif ( iydat < iyr2 ) then
-
-!  --- ...  because the usage limit put on the historical data table,
-!           skip those unused data records at first
-
-            i = iyr2
-            Lab_dowhile0 : do while ( i > iydat )
-!             read (NIRADSF,26) jyr, solc1
-! 26          format(i4,f8.2)
-              read (NIRADSF,*) jyr, solc1
-              i = i - 1
-            enddo Lab_dowhile0
-
-            iyr2 = iydat   ! next record will serve the upper limit
-
-          endif   ! end if_iydat_block
-        endif   ! end if_iyear_block
-
-        if ( me == 0 ) then
-          print *,' - Using varying solar constant with 11-year cycle'
-          print *,'   Opened solar constant data file: ',cfile0
-!check    print *, iyr1, iyr2, smean, cline
-        endif
-
-        if ( iyr < iyr1 ) then
-          Lab_dowhile1 : do while ( iyr < iyr1 )
-            iyr = iyr + 11
-          enddo Lab_dowhile1
-
-          if ( me == 0 ) then
-            print *,'   *** Year',iyear,' out of table range!',         &
-     &              iyr1, iyr2
-            print *,'       Using the 11-cycle year (',iyr,' ) value.'
-          endif
-        elseif ( iyr > iyr2 ) then
-          Lab_dowhile2 : do while ( iyr > iyr2 )
-            iyr = iyr - 11
-          enddo Lab_dowhile2
-
-          if ( me == 0 ) then
-            print *,'   *** Year',iyear,' out of given table range!',   &
-     &              iyr1, iyr2
-            print *,'       Using the 11-cycle year (',iyr,' ) value.'
-          endif
-        endif
-
-!  --- ...  locate the right record year of data
-
-        i = iyr2
-        Lab_dowhile3 : do while ( i >= iyr1 )
-!         read (NIRADSF,26) jyr, solc1
-! 26      format(i4,f8.2)
-          read (NIRADSF,*) jyr, solc1
-
-          if ( i == iyr .and. iyr == jyr ) then
-            solc0  = smean + solc1
-            if (me == 0) then
-              print *,' CHECK: Solar constant data for year',iyr,       &
-     &                 solc1, solc0
-            endif
-            exit Lab_dowhile3
-          else
-!check      if (me == 0) print *,'   Skip solar const data for year',i
-            i = i - 1
-          endif
-        enddo   Lab_dowhile3
-
-        close ( NIRADSF )
-      endif      ! end if_file_exist_block
-
+      endif       ! end if_isolar_block
 !
       return
 !...................................
-      end subroutine solinit
+      end subroutine sol_init
 !-----------------------------------
 
 
 !-----------------------------------
-      subroutine astronomy                                              &
+      subroutine sol_update                                             &
 !...................................
-
 !  ---  inputs:
-     &     ( sinlat,coslat,xlon,fhswr,jdate,                            &
-     &       LON2,LATD,nlnsp,lsswr, me,                                 &
+     &     ( jdate,kyear,deltsw,deltim,lsol_chg, me,                    &
 !  ---  outputs:
-     &       solcon,slag,sdec,cdec,coszen,coszdg                        &
+     &       slag, sdec, cdec, solcon                                   &
      &      )
 
 !  ===================================================================  !
 !                                                                       !
-!  astronomy computes solar parameters at forecast time                 !
+!  sol_update computes solar parameters at forecast time                !
 !                                                                       !
-!  inputs:                                                   dimension  !
-!    sinlat,coslat - sin and cos of latitude                 (LON2*LATD)!
-!    xlon          - longitude in radians                    (LON2*LATD)!
-!    fhswr         - sw radiation calling interval in hour              !
-!    jdate         - current forecast date and time               (8)   !
-!                    (yr, mon, day, t-zone, hr, min, sec, mil-sec)      !
-!    LON2,LATD     - dimensions for longitude/latitude directions       !
-!    nlnsp         - num of grid pts on corresponding lat          LATD !
-!    lsswr         - logical control flag for sw radiation call         !
-!    me            - integer control flag for diagnostic print out      !
+!  inputs:                                                              !
+!     jdate(8)- ncep absolute date and time at fcst time                !
+!                (yr, mon, day, t-zone, hr, min, sec, mil-sec)          !
+!     kyear   - usually kyear=jdate(1). if not, it is for hindcast mode,!
+!               and it is usually the init cond time and serves as the  !
+!               upper limit of data can be used.                        !
+!     deltsw  - time duration in seconds per sw calculation             !
+!     deltim  - timestep in seconds                                     !
+!     lsol_chg- logical flags for change solar constant                 !
+!     me      - print message control flag                              !
 !                                                                       !
 !  outputs:                                                             !
-!    solcon        - sun-earth distance adjusted solar constant (w/m2)  !
 !    slag          - equation of time in radians                        !
 !    sdec, cdec    - sin and cos of the solar declination angle         !
-!    coszen        - avg of cosz for daytime only            (LON2,LATD)!
-!    coszdg        - avg of cosz over entire sw call interval(LON2,LATD)!
+!    solcon        - sun-earth distance adjusted solar constant (w/m2)  !
 !                                                                       !
+!                                                                       !
+!  module variable:                                                     !
+!   solc0   - solar constant  (w/m**2) not adjusted by earth-sun dist   !
+!   isolflg - solar constant control flag                               !
+!             = 0: use the old fixed solar constant                     !
+!             =10: use the new fixed solar constant                     !
+!             = 1: use noaa ann-mean tsi tbl abs-scale with cycle apprx !
+!             = 2: use noaa ann-mean tsi tbl tim-scale with cycle apprx !
+!             = 3: use cmip5 ann-mean tsi tbl tim-scale with cycle apprx!
+!             = 4: use cmip5 mon-mean tsi tbl tim-scale with cycle apprx!
+!   solar_fname-external solar constant data table                      !
+!   sindec  - sine of the solar declination angle                       !
+!   cosdec  - cosine of the solar declination angle                     !
+!   anginc  - solar angle increment per iteration for cosz calc         !
+!   nstp    - total number of zenith angle iterations                   !
+!   smon_sav- saved monthly solar constants (isolflg=4 only)            !
+!   iyr_sav - saved year  of data previously used                       !
+!                                                                       !
+!  usage:    call sol_update                                            !
+!                                                                       !
+!  subprograms called:  solar, prtime                                   !
 !                                                                       !
 !  external functions called: iw3jdn                                    !
 !                                                                       !
 !  ===================================================================  !
 !
       implicit none
-      
+
 !  ---  input:
-      integer,  intent(in) :: LON2, LATD, jdate(:), nlnsp(:), me
+      integer, intent(in) :: jdate(:), kyear, me
+      logical, intent(in) :: lsol_chg
 
-      logical, intent(in) :: lsswr
-
-      real (kind=kind_phys), intent(in) :: sinlat(:,:), coslat(:,:),    &
-     &       xlon(:,:), fhswr
+      real (kind=kind_phys), intent(in) :: deltsw, deltim
 
 !  ---  output:
-      real (kind=kind_phys), intent(out) :: solcon, slag, sdec, cdec,   &
-     &       coszen(:,:), coszdg(:,:)
+      real (kind=kind_phys), intent(out) :: slag, sdec, cdec, solcon
 
 !  ---  locals:
-      real (kind=kind_phys), parameter :: f24   = 24.0     ! hours/day
-      real (kind=kind_phys), parameter :: f1440 = 1440.0   ! minutes/day
+      real (kind=kind_phys), parameter :: hrday = 1.0/24.0    ! frc day/hour
+      real (kind=kind_phys), parameter :: minday= 1.0/1440.0  ! frc day/minute
+      real (kind=kind_phys), parameter :: secday= 1.0/86400.0 ! frc day/second
 
-      real (kind=kind_phys) :: solhr, fjd, fjd1, dlt, r1, alp, solc
+      real (kind=kind_phys) :: smean, solc1, dtswh, smon(12)
+      real (kind=kind_phys) :: fjd, fjd1, dlt, r1, alp
 
-      integer :: jd, jd1, iyear, imon, iday, ihr, imin
+      integer :: jd, jd1, iyear, imon, iday, ihr, imin, isec
       integer :: iw3jdn
+      integer :: i, iyr, iyr1, iyr2, jyr, nn, nswr, icy1, icy2, icy
 
+      logical :: file_exist
+      character :: cline*60
+!
 !===>  ...  begin here
-
+!
+!  --- ...  forecast time
       iyear = jdate(1)
       imon  = jdate(2)
       iday  = jdate(3)
       ihr   = jdate(5)
       imin  = jdate(6)
+      isec  = jdate(7)
+
+      if ( lsol_chg ) then   ! get solar constant from data table
+
+        if ( iyr_sav == iyear ) then   ! same year, no new reading necessary
+          if ( isolflg==4 ) then
+            solc0 = smon_sav(imon)
+          endif
+        else                           ! need to read in new data
+          iyr_sav = iyear
+
+!  --- ...  check to see if the solar constant data file existed
+
+          inquire (file=solar_fname, exist=file_exist)
+          if ( .not. file_exist ) then
+            print *,' !!! ERROR! Can not find solar constant file!!!'
+            stop
+          else
+            iyr = iyear
+
+            close(NIRADSF)
+            open (NIRADSF,file=solar_fname,form='formatted',            &
+     &                    status='old')
+            rewind NIRADSF
+
+            read (NIRADSF, * ) iyr1,iyr2,icy1,icy2,smean,cline(1:60)
+!           read (NIRADSF, 24) iyr1,iyr2,icy1,icy2,smean,cline
+! 24        format(4i5,f8.2,a60)
+
+            if ( me == 0 ) then
+              print *,'  Updating solar constant with cycle approx'
+              print *,'   Opened solar constant data file: ',solar_fname
+!check        print *, iyr1, iyr2, icy1, icy2, smean, cline
+            endif
+
+!  --- ...  check if there is a upper year limit put on the data table
+
+!           if ( iyear /= kyear ) then
+!             icy = icy1 - iyr1 + 1    ! range of the earlest cycle in data table
+!             if ( kyear-iyr1 < icy ) then ! need data range at least icy years
+                                           ! to perform cycle approximation
+!               if ( me == 0 ) then
+!                 print *,'  *** the requested year',iyear,' and upper',&
+!    &                  'limit',kyear,' do not fit the range of data ', &
+!    &                  'table of iyr1, iyr2 =',iyr1,iyr2
+!                 print *,'      USE FIXED SOLAR CONSTANT=',con_solr
+!               endif
+!               solc0 = con_solr
+!               isolflg = 10
+
+!             elseif ( kyear < iyr2 ) then
+
+!  --- ...  because the usage limit put on the historical data table,
+!           skip those unused data records at first
+
+!               i = iyr2
+!               Lab_dowhile0 : do while ( i > kyear )
+!                 read (NIRADSF,26) jyr, solc1
+! 26              format(i4,f10.4)
+!                 read (NIRADSF,*) jyr, solc1
+!                 i = i - 1
+!               enddo Lab_dowhile0
+
+!               iyr2 = kyear   ! next record will serve the upper limit
+
+!             endif   ! end if_kyear_block
+!           endif   ! end if_iyear_block
+
+!  --- ...  checking the cycle range
+
+            if ( iyr < iyr1 ) then
+              icy = icy1 - iyr1 + 1    ! range of the earlest cycle in data table
+              Lab_dowhile1 : do while ( iyr < iyr1 )
+                iyr = iyr + icy
+              enddo Lab_dowhile1
+
+              if ( me == 0 ) then
+                print *,'   *** Year',iyear,' out of table range!',     &
+     &                  iyr1, iyr2
+                print *,'       Using the closest-cycle year (',iyr,')'
+              endif
+            elseif ( iyr > iyr2 ) then
+              icy = iyr2 - icy2 + 1    ! range of the latest cycle in data table
+              Lab_dowhile2 : do while ( iyr > iyr2 )
+                iyr = iyr - icy
+              enddo Lab_dowhile2
+
+              if ( me == 0 ) then
+                print *,'   *** Year',iyear,' out of table range!',     &
+     &                  iyr1, iyr2
+                print *,'       Using the closest-cycle year (',iyr,')'
+              endif
+            endif
+
+!  --- ...  locate the right record for the year of data
+
+            if ( isolflg < 4 ) then        ! use annual mean data tables
+              i = iyr2
+              Lab_dowhile3 : do while ( i >= iyr1 )
+!               read (NIRADSF,26) jyr, solc1
+! 26            format(i4,f10.4)
+                read (NIRADSF,*) jyr, solc1
+
+                if ( i == iyr .and. iyr == jyr ) then
+                  solc0  = smean + solc1
+
+                  if (me == 0) then
+                    print *,' CHECK: Solar constant data used for year',&
+     &                       iyr, solc1, solc0
+                  endif
+                  exit Lab_dowhile3
+                else
+!check            if(me == 0) print *,'  Skip solar const data for yr',i
+                  i = i - 1
+                endif
+              enddo   Lab_dowhile3
+            elseif ( isolflg == 4 ) then   ! use monthly mean data tables
+              i = iyr2
+              Lab_dowhile4 : do while ( i >= iyr1 )
+!               read (NIRADSF,26) jyr, smon(:)
+! 26            format(i4,12f10.4)
+                read (NIRADSF,*) jyr, smon(1:12)
+
+                if ( i == iyr .and. iyr == jyr ) then
+                  do nn = 1, 12
+                    smon_sav(nn) = smean + smon(nn)
+                  enddo
+                  solc0  = smean + smon(imon)
+
+                  if (me == 0) then
+                    print *,' CHECK: Solar constant data used for year',&
+     &                      iyr,' and month',imon
+                  endif
+                  exit Lab_dowhile4
+                else
+!check            if(me == 0) print *,'  Skip solar const data for yr',i
+                  i = i - 1
+                endif
+              enddo   Lab_dowhile4
+            endif    ! end if_isolflg_block
+
+            close ( NIRADSF )
+          endif      ! end if_file_exist_block
+
+        endif    ! end if_iyr_sav_block
+      endif   ! end if_lsol_chg_block
 
 !  --- ...  calculate forecast julian day and fraction of julian day
 
@@ -322,11 +527,11 @@
 
       if (ihr < 12) then
         jd1 = jd1 - 1
-!       fjd1= 0.5 + float(ihr)/f24                     ! use next line if imin > 0
-        fjd1= 0.5 + float(ihr)/f24 + float(imin)/f1440
+        fjd1= 0.5 + float(ihr)*hrday + float(imin)*minday               &
+     &            + float(isec)*secday
       else
-!       fjd1= float(ihr - 12)/f24                      ! use next line if imin > 0
-        fjd1= float(ihr - 12)/f24 + float(imin)/f1440
+        fjd1= float(ihr - 12)*hrday + float(imin)*minday                &
+     &            + float(isec)*secday
       endif
 
       fjd1  = fjd1 + jd1
@@ -334,36 +539,19 @@
       jd  = int(fjd1)
       fjd = fjd1 - jd
 
-      if (lsswr) then
-
-!  --- ...  hour of forecast time
-
-        solhr = mod( float(ihr), f24 )
-
-        call solar                                                      &
+      call solar                                                        &
 !  ---  inputs:
-     &     ( jd,fjd,                                                    &
+     &     ( jd, fjd,                                                   &
 !  ---  outputs:
-     &       r1,dlt,alp,slag,sdec,cdec                                  &
+     &       r1, dlt, alp                                               &
      &     )
 
-!       if (me == 0) print*,'in astronomy completed sr solar'
+!  --- ...  calculate sun-earth distance adjustment factor appropriate to date
+      solcon = solc0 / (r1*r1)
 
-        call coszmn                                                     &
-!  ---  inputs:
-     &     ( xlon,sinlat,coslat,fhswr,solhr,sdec,cdec,slag,             &
-     &       LON2,LATD,nlnsp,                                           &
-!  ---  outputs:
-     &       coszen,coszdg                                              &
-     &     )
-
-!       if (me == 0) print*,'in astronomy completed sr coszmn'
-
-!  --- ...  calculate sun-earth distance adjustment factor appropriate for date
-
-        solcon = solc0 / (r1*r1)
-
-      endif
+      slag   = sollag
+      sdec   = sindec
+      cdec   = cosdec
 
 !  --- ...  diagnostic print out
 
@@ -371,27 +559,46 @@
 
         call prtime                                                     &
 !  ---  inputs:
-     &     ( jd, fjd, dlt, alp, r1, slag, solcon                        &
+     &     ( jd, fjd, dlt, alp, r1, solcon )
 !  ---  outputs: ( none )
-     &     )
 
       endif
 
+!  --- ...  setting up calculation parameters used by subr coszmn
+
+      nswr  = nint(deltsw / deltim)         ! number of mdl t-step per sw call
+      dtswh = deltsw / f3600                ! time length in hours
+
+      if ( deltsw >= f3600 ) then           ! for longer sw call interval
+        nn   = max(6, min(12, nint(f3600/deltim) ))   ! num of calc per hour
+        nstp = nint(dtswh) * nn + 1                   ! num of calc per sw call
+      else                                  ! for shorter sw sw call interval
+        nstp = max(2, min(20, nswr)) + 1
+!       nn   = nint( float(nstp-1)/dtswh )
+      endif
+
+      anginc = pid12 * dtswh / float(nstp-1)          ! solar angle inc during each calc step
+
+      if ( me == 0 ) then
+        print *,'   for cosz calculations: nswr,deltim,deltsw,dtswh =', &
+     &          nswr,deltim,deltsw,dtswh,'  anginc,nstp =',anginc,nstp
+      endif
+
+!     if (me == 0) print*,'in sol_update completed sr solar'
 !
       return
 !...................................
-      end subroutine astronomy
+      end subroutine sol_update
 !-----------------------------------
 
 
 !-----------------------------------
       subroutine solar                                                  &
 !...................................
-
 !  ---  inputs:
-     &     ( jd,fjd,                                                    &
+     &     ( jd, fjd,                                                   &
 !  ---  outputs:
-     &       r1,dlt,alp,slag,sdec,cdec                                  &
+     &       r1, dlt, alp                                               &
      &     )
 
 !  ===================================================================  !
@@ -407,22 +614,15 @@
 !    r1       - earth-sun radius vector                                 !
 !    dlt      - declination of sun in radians                           !
 !    alp      - right ascension of sun in radians                       !
-!    slag     - equation of time in radians                             !
-!    sdec     - sine of declination angle                               !
-!    cdec     - cosine of declination angle                             !
+!                                                                       !
+!  module variables:                                                    !
+!    sollag   - equation of time in radians                             !
+!    sindec   - sine of declination angle                               !
+!    cosdec   - cosine of declination angle                             !
 !                                                                       !
 !  usage:    call solar                                                 !
 !                                                                       !
 !  external subroutines called: none                                    !
-!                                                                       !
-!  program history log:                                                 !
-!    mar-xx-1989  ---  kenneth campana, patterner after original gfdl   !
-!                          code but no calculation of latitude mean cos !
-!                          solar zenith angle.                          !
-!    fall  -1988  ---  hualu pan,  updated to limit iterations in newton!
-!                          method and also ccr reduced to avoid non-    !
-!                          convergence.                                 !
-!    dec-15-2003  ---  yu-tai hou, updated to make fortran 90 compatable!
 !                                                                       !
 !  ===================================================================  !
 !
@@ -433,7 +633,7 @@
       integer,               intent(in) :: jd
 
 !  ---  outputs:
-      real (kind=kind_phys), intent(out) :: r1, dlt,alp,slag,sdec,cdec
+      real (kind=kind_phys), intent(out) :: r1, dlt, alp
 
 !  ---  locals:
       real (kind=kind_phys), parameter :: cyear = 365.25   ! days of year
@@ -532,10 +732,10 @@
 
       r1   = 1.0 - ec*cos(e1)
 
-      sdec = sni * sin(w1 - eq)
-      cdec = sqrt( 1.0 - sdec*sdec )
+      sindec = sni * sin(w1 - eq)
+      cosdec = sqrt( 1.0 - sindec*sindec )
 
-      dlt  = asin( sdec )
+      dlt  = asin( sindec )
       alp  = asin( tan(dlt)*tini )
 
       tst  = cos( w1 - eq )
@@ -544,8 +744,7 @@
 
       sun  = tpi * (date - deleqn) / year
       if (sun < 0.0) sun = sun + tpi
-      slag = sun - alp - 0.03255e0
-
+      sollag = sun - alp - 0.03255e0
 !
       return
 !...................................
@@ -556,95 +755,87 @@
 !-----------------------------------
       subroutine coszmn                                                 &
 !...................................
-
 !  ---  inputs:
-     &     ( xlon,sinlat,coslat,dtswav,solhr,sdec,cdec,slag,            &
-     &       NLON2,LATD,nlnsp,                                          &
+     &     ( xlon,sinlat,coslat,solhr, IM, me,                          &
 !  ---  outputs:
-     &       coszen,coszdg                                              &
+     &       coszen, coszdg                                             &
      &     )
 
 !  ===================================================================  !
 !                                                                       !
-!  coszmn computes mean cos solar zenith angle over 'dtswav' hours.     !
+!  coszmn computes mean cos solar zenith angle over sw calling interval !
 !                                                                       !
 !  inputs:                                                              !
-!    xlon          - longitude in radians                               !
-!    sinlat,coslat - sin and cos of latitude                            !
-!    dtswav        - sw radiation calling interval in hour              !
+!    xlon  (IM)    - grids' longitudes in radians, work both on zonal   !
+!                    0->2pi and -pi->+pi arrangements                   !
+!    sinlat(IM)    - sine of the corresponding latitudes                !
+!    coslat(IM)    - cosine of the corresponding latitudes              !
 !    solhr         - time after 00z in hours                            !
-!    sdec, cdec    - sin and cos of the solar declination angle         !
-!    slag          - equation of time                                   !
-!    NLON2,LATD    - dimensions for longitude/latitude directions       !
-!    nlnsp         - num of grid pts on the corresponding lat           !
+!    IM            - num of grids in horizontal dimension               !
+!    me            - print message control flag                         !
 !                                                                       !
 !  outputs:                                                             !
-!    coszen        - average of cosz for daytime only in sw call interval
-!    coszdg        - average of cosz over entire sw call interval       !
+!    coszen(IM)    - average of cosz for daytime only in sw call interval
+!    coszdg(IM)    - average of cosz over entire sw call interval       !
+!                                                                       !
+!  module variables:                                                    !
+!    sollag        - equation of time                                   !
+!    sindec        - sine of the solar declination angle                !
+!    cosdec        - cosine of the solar declination angle              !
+!    anginc        - solar angle increment per iteration for cosz calc  !
+!    nstp          - total number of zenith angle iterations            !
 !                                                                       !
 !  usage:    call comzmn                                                !
 !                                                                       !
 !  external subroutines called: none                                    !
-!                                                                       !
-!  program history log:                                                 !
-!     05-28-2004   yu-tai hou     - modified for gfs hybrid model       !
 !                                                                       !
 !  ===================================================================  !
 !
       implicit none
 
 !  ---  inputs:
-      integer, intent(in) :: NLON2, LATD, nlnsp(:)
+      integer, intent(in) :: IM, me
 
-      real (kind=kind_phys), intent(in) :: sinlat(:,:), coslat(:,:),    &
-     &       xlon(:,:), dtswav, solhr, sdec, cdec, slag
+      real (kind=kind_phys), intent(in) :: sinlat(:), coslat(:),        &
+     &       xlon(:), solhr
 
 !  ---  outputs:
-      real (kind=kind_phys), intent(out) :: coszen(:,:), coszdg(:,:)
+      real (kind=kind_phys), intent(out) :: coszen(:), coszdg(:)
 
 !  ---  locals:
-      real (kind=kind_phys) :: coszn, pid12, cns, ss, cc
+      real (kind=kind_phys) :: coszn, cns, ss, cc, solang, rstp
 
-      integer :: istsun(NLON2), nstp, istp, nn, i, it, j, lat
+      integer :: istsun(IM), i, it, j, lat
 
 !===>  ...  begin here
 
-      nstp = 6                               ! number of cosz calc per fcst hour
-!     nstp = max(6, min(10, nint(3600.0/deltim) ))  ! for better time step sync
-      istp = nint( dtswav*nstp )             ! total num of calc in dtswav interval
+      solang = pid12 * (solhr - f12)         ! solar angle at present time
+      rstp = 1.0 / float(nstp)
 
-!     pid12 = con_pi / 12.0                  ! angle per hour
-      pid12 = (2.0 * asin(1.0)) / 12.0
+      do i = 1, IM
+        coszen(i) = 0.0
+        istsun(i) = 0
+      enddo
 
-      do j = 1, LATD
-        nn = nlnsp(j)
+      do it = 1, nstp
+        cns = solang + float(it-1)*anginc + sollag
 
-        do i = 1, NLON2
-          coszen(i,j) = 0.0
-          coszdg(i,j) = 0.0
-          istsun(i) = 0
-        enddo
+        do i = 1, IM
+          ss  = sinlat(i) * sindec
+          cc  = coslat(i) * cosdec
 
-        do it = 1, istp
-          cns = pid12 * (solhr - 12.0 + float(it-1)/float(nstp)) + slag
-
-          do i = 1, nn
-            ss  = sinlat(i,j) * sdec
-            cc  = coslat(i,j) * cdec
-            coszn = ss + cc * cos(cns + xlon(i,j))
-            coszen(i,j) = coszen(i,j) + max(0.0, coszn)
-            if (coszn > 0.0001) istsun(i) = istsun(i) + 1
-          enddo
-        enddo
-
-!  --- ...  compute time averages
-
-        do i = 1, nn
-          coszdg(i,j) = coszen(i,j) / float(istp)
-          if (istsun(i) > 0) coszen(i,j) = coszen(i,j) / istsun(i)
+          coszn = ss + cc * cos(cns + xlon(i))
+          coszen(i) = coszen(i) + max(0.0, coszn)
+          if (coszn > czlimt) istsun(i) = istsun(i) + 1
         enddo
       enddo
 
+!  --- ...  compute time averages
+
+      do i = 1, IM
+        coszdg(i) = coszen(i) * rstp
+        if (istsun(i) > 0) coszen(i) = coszen(i) / istsun(i)
+      enddo
 !
       return
 !...................................
@@ -655,9 +846,8 @@
 !-----------------------------------
       subroutine prtime                                                 &
 !...................................
-
 !  ---  inputs:
-     &     ( jd, fjd, dlt, alp, r1, slag, solc                          &
+     &     ( jd, fjd, dlt, alp, r1, solc                                &
 !  ---  outputs: ( none )
      &     )
 
@@ -671,21 +861,16 @@
 !    dlt      - declination angle of sun in radians                     !
 !    alp      - right ascension of sun in radians                       !
 !    r1       - earth-sun radius vector in meter                        !
-!    slag     - equation of time in radians                             !
 !    solc     - solar constant in w/m^2                                 !
 !                                                                       !
 !  outputs:   ( none )                                                  !
 !                                                                       !
+!  module variables:                                                    !
+!    sollag   - equation of time in radians                             !
+!                                                                       !
 !  usage:    call prtime                                                !
 !                                                                       !
 !  external subroutines called: w3fs26                                  !
-!                                                                       !
-!  program history log:                                                 !
-!    jun-07-1977  ---  robert white (gfdl)                              !
-!    jul-07-1989  ---  kenneth campana                                  !
-!    may-15-1998  ---  mark iredell    y2k compliance                   !
-!    dec-18-2003  ---  yu-tai hou      combine cdate and prtime and     !
-!                           rewrite in fortran 90 compatable form       !
 !                                                                       !
 !  ===================================================================  !
 !
@@ -694,7 +879,7 @@
 !  ---  inputs:
       integer, intent(in) :: jd
 
-      real (kind=kind_phys), intent(in) :: fjd, dlt, alp, r1, slag, solc
+      real (kind=kind_phys), intent(in) :: fjd, dlt, alp, r1, solc
 
 !  ---  outputs: ( none )
 
@@ -755,7 +940,7 @@
       iyy  = ymin
       asec = (ymin - float(iyy)) * sixty
 
-      eqt  = 228.55735 * slag
+      eqt  = 228.55735 * sollag
       eqsec= sixty * eqt
 
       print 101, iday, month(imon), iyear, ihr, xmin, jd, fjd
@@ -766,7 +951,7 @@
  102  format('  RADIUS VECTOR',9x,f10.7/'  RIGHT ASCENSION OF SUN',     &
      &       f12.7,' HRS, OR',i4,' HRS',i4,' MINS',f6.1,' SECS')
 
-      print 103, dltd, dsig, ltd, ltm, dlts, eqt, eqsec, slag, solc
+      print 103, dltd, dsig, ltd, ltm, dlts, eqt, eqsec, sollag, solc
  103  format('  DECLINATION OF THE SUN',f12.7,' DEGS, OR ',a1,i3,       &
      &       ' DEGS',i4,' MINS',f6.1,' SECS'/'  EQUATION OF TIME',6x,   &
      &       f12.7,' MINS, OR',f10.2,' SECS, OR',f9.6,' RADIANS'/       &

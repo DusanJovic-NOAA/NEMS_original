@@ -167,6 +167,7 @@
 #     FNABSC        Input max snow albedo climatology GRIB file    
 #                   defaults to ${FIXGLOBAL}/global_snoalb.1x1.grb
 #     OROGRAPHY     Input orography GRIB file (horiz resolution dependent)
+#                   defaults to ${FIXGLOBAL}/global_orography.t$JCAP.grb
 #     OROGRAPHY_UF  Input unfiltered orography GRIB file (resolution dependent)
 #                   defaults to ${FIXGLOBAL}/global_orography_uf.t$JCAP.grb
 #     FNMSKH        Input high resolution land mask GRIB file
@@ -223,14 +224,15 @@
 #                   (only required if FHMAX is not specified)
 #                   defaults to 0
 #     DELTIM        Timestep in seconds
+#                   defaults to 3600/($JCAP/20)
 #     FHRES         Restart frequency in hours
 #                   defaults to 24
 #     FHZER         Zeroing frequency in hours
 #                   defaults to 6
-#     FHLWR         Longwave radiation frequency in hours
-#                   defaults to 3
-#     FHSWR         Shortwave radiation frequency in hours
-#                   defaults to 1
+#     FHLWR         Longwave radiation frequency in seconds
+#                   defaults to 3600
+#     FHSWR         Shortwave radiation frequency in seconds
+#                   defaults to 3600
 #     FHROT         Forecast hour to Read One Time level
 #                   defaults to 0
 #     FHDFI         Half number of hours of digital filter initialization
@@ -383,8 +385,7 @@
 ####
 ################################################################################
 #  Set environment.
-export ESMF_RUNTIME_COMPLIANCECHECK=ON:depth=3
-
+export ESMF_RUNTIME_COMPLIANCECHECK=ON
 #
 export machine=${machine:-WCOSS}
 export machine=$(echo $machine|tr '[a-z]' '[A-Z]')
@@ -464,7 +465,8 @@ export FIXSUBDA=${FIXSUBDA:-fix/fix_am}
 export FIXGLOBAL=${FIXGLOBAL:-$NWPROD/$FIXSUBDA}
 export FIX_RAD=${FIX_RAD:-$FIXGLOBAL}
 export EXECGLOBAL=${EXECGLOBAL:-$NWPROD/exec}
-export FIX_IDEA=${FIX_IDEA:-/meso/noscrub/wx20rv/REGRESSION_TEST/WAM_gh_l150}
+export FIX_IDEA=${FIX_IDEA:-$FIXGLOBAL}
+export EXECGLOBAL=${EXECGLOBAL:-$NWPROD/exec}
 export DATA=${DATA:-$(pwd)}
 export COMOUT=${COMOUT:-$(pwd)}
 
@@ -522,8 +524,7 @@ export NST_FCST=${NST_FCST:-0}
 export IAER=${IAER:-0}
 export GOCART=${GOCART:-0}
 export NDSLFV=${NDSLFV:-.false.}
-if [ $NDSLFV = .true. ]
-then
+if [ $NDSLFV = .true. ] ; then
  if [[ $wave -eq  62 ]] ; then export DELTIM=1200 ; fi
  if [[ $wave -eq 126 ]] ; then export DELTIM=1200 ; fi
  if [[ $wave -eq 254 ]] ; then export DELTIM=900  ; fi
@@ -622,8 +623,8 @@ export FHMAX=${FHMAX:-$((10#$FHINI+10#$FHSEG))}
 export DELTIM=${DELTIM:-$((3600/(JCAP/20)))}
 export FHRES=${FHRES:-24}
 export FHZER=${FHZER:-6}
-export FHLWR=${FHLWR:-3}
-export FHSWR=${FHSWR:-1}
+export FHLWR=${FHLWR:-3600}
+export FHSWR=${FHSWR:-3600}
 export FHROT=${FHROT:-0}
 export FHDFI=${FHDFI:-1}
 export FHCYC=${FHCYC:-0}
@@ -704,7 +705,7 @@ else
    mkdata=YES
 fi
 cd $DATA||exit 99
-if [ $IDEA = .true. ] ; then cp $FIX_IDEA/global* . ; fi
+if [ $IDEA = .true. ] ; then cp $FIX_IDEA/global_idea* . ; fi
 [[ -d $COMOUT ]]||mkdir -p $COMOUT
 ################################################################################
 #  Make forecast
@@ -764,7 +765,10 @@ if [ $IEMS -gt 0 ] ; then
  ln -fs $EMISDIR/$EMMISSIVITY_FILE sfc_emissivity_idx.txt
 fi
 if [ $ISOL -gt 0 ] ; then
- ${NCP:-cp} $SOLCDIR/*solarconstantdata.txt solarconstantdata.txt
+cd $SOLCDIR
+ for file in `ls | grep solarconstant` ; do
+  ${NCP:-cp} $file $DATA/$(echo $file |sed -e "s/global_//g")
+ done
 fi
 if [ $IAER -gt 0 ] ; then
  cd $VOLCDIR
@@ -1035,8 +1039,6 @@ EOF
 cat << EOF > atm_namelist.rc
 
 core: gfs
-
-print_esmf:		.false.
 
 #nam_atm +++++++++++++++++++++++++++
 nlunit:                  35

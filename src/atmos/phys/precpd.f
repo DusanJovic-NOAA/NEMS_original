@@ -1,4 +1,4 @@
-       SUBROUTINE PRECPD (IM,IX,KM,DT,DEL,PRSL,PS,Q,CWM,T,RN
+       SUBROUTINE PRECPD (IM,IX,KM,DT,DEL,PRSL,PS,Q,CWM,T,RN,SR
      &,                   rainp,u00k,psautco,prautco,evpco,wminco
      &,                   lprnt,jpr)
 !
@@ -21,7 +21,7 @@
 !     *                                                                *
 !     *  Zhao and Carr (1997), Monthly Weather Review (August)         *
 !     *  Sundqvist et al., (1989) Monthly Weather review. (August)     *
-!     *                                                                *
+!     *  Chuang 2013, modify sr to define frozen precipitation fraction*
 !     ******************************************************************
 !
 !     In this code vertical indexing runs from surface to top of the
@@ -40,19 +40,19 @@
 !       CWM(IX,KM) : Condensate mixing ratio (Updated in the code)
 !       T(IX,KM)   : Temperature       (Updated in the code)
 !       RN(IM)     : Precipitation over one time-step DT (m/DT)
-!       SR(IM)     : Index (=-1 Snow, =0 Rain/Snow, =1 Rain)
+!old    SR(IM)     : Index (=-1 Snow, =0 Rain/Snow, =1 Rain)
+!new    SR(IM)     : "Snow ratio", ratio of snow to total precipitation
 !       TCW(IM)    : Vertically integrated liquid water (Kg/m**2)
 !       CLL(IX,KM) : Cloud cover
 !hchuang RN(IM) unit in m per time step
 !        precipitation rate conversion 1 mm/s = 1 kg/m2/s
 !
-      USE MACHINE , ONLY : kind_phys
+      USE MACHINE ,  ONLY : kind_phys
       USE FUNCPHYS , ONLY : fpvs
       USE PHYSCONS, grav => con_g, HVAP => con_HVAP, HFUS => con_HFUS
      &,             TTP => con_TTP, CP => con_CP
      &,             EPS => con_eps, EPSM1 => con_epsm1
       implicit none
-!     include 'constant.h'
 !
       real (kind=kind_phys) G,      H1,    H2,   H1000
      &,                     H1000G, D00,   D125, D5
@@ -501,11 +501,21 @@
 !----SR=1 IF SFC PREC IS RAIN ; ----SR=-1 IF SFC PREC IS SNOW
 !----SR=0 FOR BOTH OF THEM OR NO SFC PREC
 !
-        RID = 0.
-        SID = 0.
-        IF (PRECRL1(N) .GE. 1.E-13) RID = 1.
-        IF (PRECSL1(N) .GE. 1.E-13) SID = -1.
-        SR(I) = RID + SID  ! SR=1 --> Rain, SR=-1 -->Snow, SR=0 -->Both
+!        RID = 0.
+!        SID = 0.
+!        IF (PRECRL1(N) .GE. 1.E-13) RID = 1.
+!        IF (PRECSL1(N) .GE. 1.E-13) SID = -1.
+!        SR(I) = RID + SID  ! SR=1 --> Rain, SR=-1 -->Snow, SR=0 -->Both
+! Chuang, June 2013: Change SR to define fraction of frozen precipitation instead
+! because WPC uses it in their winter experiment
+
+        RID = PRECRL1(N) + PRECSL1(N)
+        IF (RID < 1.E-13) THEN
+          SR(I) = 0.
+        ELSE
+          SR(I) = PRECSL1(N)/RID
+        ENDIF 
+
       ENDDO
 !
       RETURN

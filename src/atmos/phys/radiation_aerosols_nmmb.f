@@ -119,10 +119,10 @@
       use physcons, only : con_pi, con_rd, con_g, con_t0c, con_c,       &
      &                     con_boltz, con_plnk, con_fvirt
 
-      use module_iounitdef,        only : NIAERCM
-      use module_radsw_parameters, only : NBDSW,  wvnsw1=>wvnum1,       &
-     &                                    NSWSTR, wvnsw2=>wvnum2
-      use module_radlw_parameters, only : NBDLW,  wvnlw1, wvnlw2
+      use module_iounitdef,             only : NIAERCM
+      use module_radsw_parameters_nmmb, only : NBDSW,  wvnsw1=>wvnum1,  &
+     &                                         NSWSTR, wvnsw2=>wvnum2
+      use module_radlw_parameters_nmmb, only : NBDLW,  wvnlw1, wvnlw2
 !
       implicit   none
 !

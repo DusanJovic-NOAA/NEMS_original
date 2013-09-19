@@ -54,6 +54,7 @@ EXTLIBS_POST = $(POST_LIB) \
                $(SYS_LIB)
 
 FC          = mpiifort -g -openmp  -mkl=sequential
+#FC          = mpiifort -g -traceback -openmp  -mkl=sequential
 CC          = mpcc
 FREE        = -free
 FIXED       = -fixed
@@ -67,6 +68,7 @@ TRAPS       =
 FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise
 
 OPTS_NMM    = -O2
+#OPTS_GFS    = -O0
 OPTS_GFS    = -O3
 OPTS_GEN    = -O2
 OPTS_FIM    = -O2

@@ -3,9 +3,12 @@
 #BSUB -oo _RUND_/out
 #BSUB -eo _RUND_/err
 #BSUB -J _JBNME_
+#BSUB -network type=sn_all:mode=US
 #BSUB -n _TASKS_
 #BSUB -x
 #BSUB -R span[ptile=_TPN_]
+#BSUB -R affinity[core(_THRDS_)]
+
 #BSUB -W 00:_WLCLK_
 #BSUB -q "_ACCNR_"
 #BSUB -a poe
@@ -15,8 +18,8 @@
  module load ics
  export OMP_NUM_THREADS=_THRDS_
  export MP_MPILIB=mpich2
- export MP_EUILIB=us
- export MP_TASK_AFFINITY=core:_THRDS_
+#export MP_EUILIB=us
+#export MP_TASK_AFFINITY=core:_THRDS_
  export LD_PRELOAD=/u/James.A.Abeles/mpi_trace_linux_x86_64/shared/libmpitrace.so
 
 set -x

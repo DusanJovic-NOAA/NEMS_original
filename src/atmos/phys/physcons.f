@@ -46,7 +46,8 @@
   real(kind=kind_phys),parameter:: con_omega  =7.2921e-5      ! ang vel of earth  (1/s)
   real(kind=kind_phys),parameter:: con_p0     =1.01325e5      ! std atms pressure (pa)
 ! real(kind=kind_phys),parameter:: con_solr   =1.36822e+3     ! solar constant    (W/m2)-aer(2001)
-  real(kind=kind_phys),parameter:: con_solr   =1.3660e+3      ! solar constant    (W/m2)-liu(2002)
+  real(kind=kind_phys),parameter:: con_solr_old =1.3660e+3    ! solar constant    (W/m2)-liu(2002)
+  real(kind=kind_phys),parameter:: con_solr   =1.3608e+3      ! solar constant    (W/m2)-nasa-sorce tim (2008)
 ! real(kind=kind_phys),parameter:: con_solr   =1.36742732e+3  ! solar constant    (W/m2)-gfdl(1989) - OPR as of Jan 2006
 
 !  --- ...  Thermodynamics constants

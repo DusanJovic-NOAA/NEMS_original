@@ -11,7 +11,7 @@
  SKIP_GENS=YES
  SKIP_NST=YES
  SKIP_FIM=YES
-#SKIP_POST=YES
+ SKIP_POST=YES
 #SKIP_GFS_POST=YES
  SKIP_ESMF520rAPI=YES
  SKIP_GEFS_CONCUR=YES
@@ -60,8 +60,9 @@ mkdir -p $PTMP/$USER
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 
-   export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+#  export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
 #  export RTPWD=${STMP}/${USER}/REGRESSION_TEST
+   export RTPWD=/global/noscrub/Shrinivas.Moorthi/REGRESSION_TEST
 
 #########################################################################
 # Check if running regression test or creating baselines.
@@ -385,7 +386,7 @@ export lm=64     ; export lsoil=4         ; export MEMBER_NAMES=c00
 export IDVC=2    ; export THERMODYN_ID=1  ; export SFCPRESS_ID=1 ; export SPECTRALLOOP=2
 export NEMSIOIN=.false.  ; export NEMSIOOUT=.false. ; export rungfstest=.true.
 export SIGIOIN=.true.    ; export SIGIOOUT=.true.   ; export SFCIOOUT=.true.
-export FHSWR=1           ;  export FHLWR=1          ; LDFI_SPECT=.true.
+export FHSWR=3600        ;  export FHLWR=3600       ; LDFI_SPECT=.true.
 export CDATE=2012010100
 #export CDATE=2010010100
 export GOCART_AER2POST=.false.
