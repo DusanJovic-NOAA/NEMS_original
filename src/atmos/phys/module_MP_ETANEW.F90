@@ -812,6 +812,7 @@
           ESW=MIN(ESW,0.99*PP)
           QSW=EPS*ESW/(PP-ESW)             ! Saturation mixing ratio w/r/t water
           WS=QSW                           ! General saturation mixing ratio (water/ice)
+          QSI=QSW                          ! Saturation mixing ratio w/r/t ice
           IF (TC .LT. 0.) THEN
             ESI=1000.*FPVS(TK)             ! Saturation vapor pressure w/r/t ice
             ESI=MIN(ESI,0.99*PP)

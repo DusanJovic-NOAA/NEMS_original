@@ -298,6 +298,7 @@ data brftbl &
      &               NUM_SOIL_LAYERS,DT,DZS,ITIMESTEP,                  &
      &               SMOIS,TSLB,SNOW,CANWAT,CPM,ROVCP,SR,               &
      &               ALB,SNOALB,SMLIQ,SNOWH,                            &
+     &               LISS_RESTART,                                      &
      &               IDS,IDE, JDS,JDE, KDS,KDE,                         &
      &               IMS,IME, JMS,JME, KMS,KME,                         &
      &               ITS,ITE, JTS,JTE, KTS,KTE                     )
@@ -446,6 +447,8 @@ data brftbl &
 ! added for WRF-CHEM, 20041205, JM -- not used in this routine as yet
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) ::            RMOL
 
+      LOGICAL,INTENT(INOUT) :: LISS_RESTART
+
 ! LOCAL VARS
 
       REAL,DIMENSION(ITS:ITE) ::                                  QV1D, &
@@ -461,9 +464,10 @@ data brftbl &
       REAL :: RATIOMX
 !-----------------------------------------------------------------------
 !--first pass initialization--------------------------------------------
-      if(itimestep.eq.0) then
+      if(itimestep.eq.0 .or. liss_restart) then
 !-----------------------------------------------------------------------
         call setsfc
+        liss_restart=.false.
 !-----------------------------------------------------------------------
       endif
 !-----------------------------------------------------------------------

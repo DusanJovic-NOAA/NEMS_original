@@ -113,6 +113,7 @@
                       ,TURBULENCE,SFC_LAYER                             &
                       ,LAND_SURFACE                                     &
                       ,MICROPHYSICS                                     &
+                      ,LISS_RESTART                                     &
                       ,GLOBAL                                           &
                       ,IDS,IDE,JDS,JDE,LM                               &
                       ,IMS,IME,JMS,JME                                  &
@@ -255,7 +256,9 @@
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) ::  RSWTT, RLWTT
 !
-      LOGICAL(kind=KLOG),INTENT(IN) :: GLOBAL
+      LOGICAL(kind=KLOG),INTENT(IN)    :: GLOBAL
+!
+      LOGICAL(kind=KLOG),INTENT(INOUT) :: LISS_RESTART
 !
       CHARACTER(99),INTENT(IN) :: LAND_SURFACE,MICROPHYSICS             &
                                  ,SFC_LAYER,TURBULENCE
@@ -842,6 +845,7 @@
                         NSOIL,DTBL,DZSOIL,NTSD,                         &
                         SMC,STC,SNOW,CMC,CPM,CAPPA,SR,                  &
                         ALBEDO,MXSNAL,SH2O,SNOWH,                       &
+                        LISS_RESTART,                                   &
                         IDS,IDE, JDS,JDE, 1,LM+1,                       &
                         IMS,IME, JMS,JME, 1,LM+1,                       &
                         ITS_B1,ITE_B1,JTS_B1,JTE_B1, 1,LM )

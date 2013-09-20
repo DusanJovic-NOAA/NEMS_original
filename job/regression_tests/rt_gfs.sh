@@ -119,6 +119,7 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
  ###################################################
 
  ### for now copy MOM5 input files
+  if [ $SCHEDULER = 'pbs' ]; then
  cp /scratch1/portfolios/NCEPDEV/ocean/noscrub/Fei.Liu/20130627/NEMS.trunk29084-working/src/ocean/mom_cap/input.nml ${RUNDIR}
  cp /scratch1/portfolios/NCEPDEV/ocean/noscrub/Fei.Liu/20130627/NEMS.trunk29084-working/src/ocean/mom_cap/ocean_hgrid.nc ${RUNDIR}
  cp -r ~Fei.Liu/MOM5/mom-5.0.2/work/box1/INPUT/diag_table ${RUNDIR}
@@ -126,6 +127,7 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
  cp -r ~Fei.Liu/MOM5/mom-5.0.2/work/box1/INPUT/data_table ${RUNDIR}
  cp -r ~Fei.Liu/MOM5/mom-5.0.2/work/box1/INPUT/ ${RUNDIR}
  cp -r ~Fei.Liu/MOM5/mom-5.0.2/work/box1/RESTART/ ${RUNDIR}
+  fi
  ###################################################
 
  cp atmos.configure_gfs ${RUNDIR}/atmos.configure

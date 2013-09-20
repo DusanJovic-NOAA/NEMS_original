@@ -4385,8 +4385,6 @@
         ELSE
           KSE1=KSE
         ENDIF
-
-!       write(6,*) 'DEBUG-GT: calling ADV2, kss,kse=',kss,kse1
 !
         CALL ADV2                                                       &
           (GLOBAL                                                       &
@@ -4908,16 +4906,6 @@
             ,int_state%PD,int_state%PSGDT                               &
             ,int_state%WATER                                            &
             ,int_state%NUM_WATER,2, -999)                                 ! G. Thompson, final value -999 avoids Q2 epsilon value in sub.
-!
-!..Someone decide if triple-nested DO-loop or F90 way of doin the loop.
-!-GT      DO K=1,LM
-!-GT      DO J=JTS,JTE
-!-GT      DO I=ITS,ITE
-     !      int_state%Q(I,J,K)=int_state%WATER(I,J,K,P_QV)              &
-     !                  /(1.+int_state%WATER(I,J,K,P_QV))
-!-GT      ENDDO
-!-GT      ENDDO
-!-GT      ENDDO
 !
           int_state%Q(:,:,:)=int_state%WATER(:,:,:,P_QV)                &
                       /(1.+int_state%WATER(:,:,:,P_QV))
@@ -5482,7 +5470,6 @@
                        (CALL_SHORTWAVE .OR. CALL_LONGWAVE .OR.          &
                         CALL_TURBULENCE .OR. CALL_PRECIP) ) THEN
 !
-!          write(*,*) 'DEBUG-GT, now calling UPDATE_WATER'
            CALL UPDATE_WATER(int_state%CW                               &
                             ,int_state%F_ICE                            &
                             ,int_state%F_RAIN                           &
@@ -5560,7 +5547,6 @@
 !-----------------------------------------------------------------------
 !
           btim=timef()
-!         write(*,*) 'DEBUG-GT, now calling RADIATION ', btim
 !
 !-----------------------------------------------------------------------
 !***  Temporary switch between radiation schemes placed in SOLVER_RUN
@@ -5754,7 +5740,6 @@
         turbulence: IF(CALL_TURBULENCE)THEN
 !
           btim=timef()
-!         write(*,*) 'DEBUG-GT, now calling TURBL ', btim
 !
           DO L=1,NUM_SOIL_LAYERS
             DZSOIL(L)=SLDPTH(L)
@@ -5833,6 +5818,7 @@
                     ,int_state%TURBULENCE,int_state%SFC_LAYER           &
                     ,int_state%LAND_SURFACE                             &
                     ,int_state%MICROPHYSICS                             &
+                    ,int_state%LISS_RESTART                             &
                     ,int_state%GLOBAL                                   &
                     ,IDS,IDE,JDS,JDE,LM                                 &
                     ,IMS,IME,JMS,JME                                    &
@@ -5993,7 +5979,6 @@
         convection: IF(CALL_PRECIP.AND.int_state%CONVECTION/='none')THEN
 !
           btim=timef()
-!         write(*,*) 'DEBUG-GT, now calling CUCNVC ', btim
 !
 !-----------------------------------------------------------------------
           IF(int_state%CONVECTION=='bmj' .OR. &
@@ -6137,7 +6122,6 @@
         microphysics: IF(CALL_PRECIP)THEN
 !
           btim=timef()
-!         write(*,*) 'DEBUG-GT, now calling GSMDRIVE ', btim
 !
           CALL GSMDRIVE(NTIMESTEP,int_state%DT                             &
                        ,NPRECIP,int_state%NUM_WATER                        &
@@ -7318,8 +7302,6 @@
 !-----------------------------------------------------------------------
 !
       td%solver_phy_tim=td%solver_phy_tim+(timef()-btim0)
-
-!     write(*,*) 'DEBUG-GT,  ending SOLVER_RUN'
 !
 !-----------------------------------------------------------------------
 !

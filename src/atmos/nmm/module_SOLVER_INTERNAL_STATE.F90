@@ -95,6 +95,7 @@
                              ,FREERUN                                   &
                              ,GLOBAL                                    &
                              ,HYDRO                                     &
+                             ,LISS_RESTART                              &
                              ,NEMSIO_INPUT                              &
                              ,OPER                                      &
                              ,OPERATIONAL_PHYSICS                       &
@@ -694,7 +695,6 @@
         int_state%F_QG=.TRUE.
         if(int_state%lmprate) int_state%D_SS=40
       ELSEIF(TRIM(int_state%MICROPHYSICS)=='thompson')THEN
-        write(6,*) 'DEBUG-GT:  decided to use Thompson microphysics'
         int_state%NUM_WATER=1+8
         int_state%P_QV=2
         int_state%P_QC=3
@@ -1069,7 +1069,6 @@
       CALL FIND_VAR_INDX('TRACERS',int_state%VARS,int_state%NUM_VARS,I)
       int_state%VARS(I)%R4D (IMS:IME,JMS:JME,1:LM,1:int_state%NUM_TRACERS_TOTAL) => int_state%TRACERS_ARR
       int_state%TRACERS=>int_state%VARS(I)%R4D
-      write(6,*) 'The TRACERS array has var-index,', I, ' size1, total_num', TRACER_SIZE_1, int_state%NUM_TRACERS_TOTAL
 !
 !-----------------------------------------------------------------------
 !***  Point TRACERS_PREV as 4D array at the TRACERS_PREV_ARR (one-dimensional storage array)
@@ -1087,7 +1086,6 @@
       CALL FIND_VAR_INDX('Q',int_state%VARS,int_state%NUM_VARS,I)
       int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_Q-1)*TRACER_SIZE_1+1 : int_state%INDX_Q*TRACER_SIZE_1)
       int_state%Q=>int_state%VARS(I)%R3D
-      write(6,*) int_state%INDX_Q, '(th) element of TRACER is Q and has var-index,', I, ' begin,end: ', (int_state%INDX_Q-1)*TRACER_SIZE_1+1, int_state%INDX_Q*TRACER_SIZE_1
 !
 !-----------------------------------------------------------------------
 !***  Point CW (Combined cloud water array) at level 2(INDX_CW) of the Tracers array.
@@ -1097,7 +1095,6 @@
       CALL FIND_VAR_INDX('CW',int_state%VARS,int_state%NUM_VARS,I)
       int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_CW-1)*TRACER_SIZE_1+1 : int_state%INDX_CW*TRACER_SIZE_1)
       int_state%CW=>int_state%VARS(I)%R3D
-      write(6,*) int_state%INDX_CW, '(th) element of TRACER is CW and has var-index,', I, ' begin,end: ', (int_state%INDX_CW-1)*TRACER_SIZE_1+1, int_state%INDX_CW*TRACER_SIZE_1
 !
 !-----------------------------------------------------------------------
 !***  Point E2 (Turbulence kinetic energy) at level 3(INDX_Q2) of the Tracers array.
@@ -1107,7 +1104,6 @@
       CALL FIND_VAR_INDX('E2',int_state%VARS,int_state%NUM_VARS,I)
       int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_Q2-1)*TRACER_SIZE_1+1 : int_state%INDX_Q2*TRACER_SIZE_1)
       int_state%E2=>int_state%VARS(I)%R3D
-      write(6,*) int_state%INDX_Q2, '(th) element of TRACER is Q2 and has var-index,', I, ' begin,end: ', (int_state%INDX_Q2-1)*TRACER_SIZE_1+1, int_state%INDX_Q2*TRACER_SIZE_1
 !
 !-----------------------------------------------------------------------
 !***  Point O3 (General tracer for testin) at level 4(INDX_O3) of the Tracers array.
@@ -1117,90 +1113,63 @@
       CALL FIND_VAR_INDX('O3',int_state%VARS,int_state%NUM_VARS,I)
       int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_O3-1)*TRACER_SIZE_1+1 : int_state%INDX_O3*TRACER_SIZE_1)
       int_state%O3=>int_state%VARS(I)%R3D
-      write(6,*) int_state%INDX_O3, '(th) element of TRACER is O3 and has var-index,', I, ' begin,end: ', (int_state%INDX_O3-1)*TRACER_SIZE_1+1, int_state%INDX_O3*TRACER_SIZE_1
 !
 !--------------------------------
 !***  Water tracers
 !--------------------------------
 !
       int_state%INDX_WATER_START = int_state%NUM_TRACERS_MET + int_state%NUM_TRACERS_CHEM + 1
-!.. Start of WATER array is after Chem, but NUM_TRACERS_MET is number of water elements so why add this before Chem?
-!d      int_state%INDX_WATER_START = int_state%INDX_O3 + int_state%NUM_TRACERS_CHEM + 1
       int_state%INDX_WATER_END = int_state%INDX_WATER_START + int_state%NUM_WATER - 1
       int_state%WATER(IMS:IME,JMS:JME,1:LM,1:int_state%NUM_WATER) => int_state%TRACERS_ARR( (int_state%INDX_WATER_START-1)*TRACER_SIZE_1+1 : int_state%INDX_WATER_END*TRACER_SIZE_1)
-      write(6,*) 'The WATER array begins at index,', int_state%INDX_WATER_START, ' begin,end: ', (int_state%INDX_WATER_START-1)*TRACER_SIZE_1+1, int_state%INDX_WATER_END*TRACER_SIZE_1
 
-!..Since there is definition of INDX_Q,CW,Q2,O3, we could also do same
-!.. for other water species. The 5th element of TRACERS is the blank
-!.. first element of WATER.  The next element is water vapor, then each
-!.. cloud and precip species.      G. Thompson
       if (int_state%P_QV .gt. 1) then
          int_state%INDX_QV = int_state%INDX_WATER_START-1 + int_state%P_QV
-!        int_state%QV(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QV-1)*TRACER_SIZE_1+1 : int_state%INDX_QV*TRACER_SIZE_1)
          CALL FIND_VAR_INDX('QV',int_state%VARS,int_state%NUM_VARS,I)
          int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QV-1)*TRACER_SIZE_1+1 : int_state%INDX_QV*TRACER_SIZE_1)
          int_state%QV=>int_state%VARS(I)%R3D
-         write(6,*) int_state%INDX_QV, '(th) element of TRACER is Qv begin,end: ', (int_state%INDX_QV-1)*TRACER_SIZE_1+1, int_state%INDX_QV*TRACER_SIZE_1
       endif
       if (int_state%P_QC .gt. 1) then
          int_state%INDX_QC = int_state%INDX_WATER_START-1 + int_state%P_QC
-!        int_state%QC(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QC-1)*TRACER_SIZE_1+1 : int_state%INDX_QC*TRACER_SIZE_1)
          CALL FIND_VAR_INDX('QC',int_state%VARS,int_state%NUM_VARS,I)
          int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QC-1)*TRACER_SIZE_1+1 : int_state%INDX_QC*TRACER_SIZE_1)
          int_state%QC=>int_state%VARS(I)%R3D
-         write(6,*) int_state%INDX_QC, '(th) element of TRACER is Qc begin,end: ', (int_state%INDX_QC-1)*TRACER_SIZE_1+1, int_state%INDX_QC*TRACER_SIZE_1
       endif
       if (int_state%P_QI .gt. 1) then
          int_state%INDX_QI = int_state%INDX_WATER_START-1 + int_state%P_QI
-!        int_state%QI(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QI-1)*TRACER_SIZE_1+1 : int_state%INDX_QI*TRACER_SIZE_1)
          CALL FIND_VAR_INDX('QI',int_state%VARS,int_state%NUM_VARS,I)
          int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QI-1)*TRACER_SIZE_1+1 : int_state%INDX_QI*TRACER_SIZE_1)
          int_state%QI=>int_state%VARS(I)%R3D
-         write(6,*) int_state%INDX_QI, '(th) element of TRACER is Qi begin,end: ', (int_state%INDX_QI-1)*TRACER_SIZE_1+1, int_state%INDX_QI*TRACER_SIZE_1
       endif
       if (int_state%P_QR .gt. 1) then
          int_state%INDX_QR = int_state%INDX_WATER_START-1 + int_state%P_QR
-!        int_state%QR(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QR-1)*TRACER_SIZE_1+1 : int_state%INDX_QR*TRACER_SIZE_1)
          CALL FIND_VAR_INDX('QR',int_state%VARS,int_state%NUM_VARS,I)
          int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QR-1)*TRACER_SIZE_1+1 : int_state%INDX_QR*TRACER_SIZE_1)
          int_state%QR=>int_state%VARS(I)%R3D
-         write(6,*) int_state%INDX_QR, '(th) element of TRACER is Qr begin,end: ', (int_state%INDX_QR-1)*TRACER_SIZE_1+1, int_state%INDX_QR*TRACER_SIZE_1
       endif
       if (int_state%P_QS .gt. 1) then
          int_state%INDX_QS = int_state%INDX_WATER_START-1 + int_state%P_QS
-!        int_state%QS(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QS-1)*TRACER_SIZE_1+1 : int_state%INDX_QS*TRACER_SIZE_1)
          CALL FIND_VAR_INDX('QS',int_state%VARS,int_state%NUM_VARS,I)
          int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QS-1)*TRACER_SIZE_1+1 : int_state%INDX_QS*TRACER_SIZE_1)
          int_state%QS=>int_state%VARS(I)%R3D
-         write(6,*) int_state%INDX_QS, '(th) element of TRACER is Qs begin,end: ', (int_state%INDX_QS-1)*TRACER_SIZE_1+1, int_state%INDX_QS*TRACER_SIZE_1
       endif
       if (int_state%P_QG .gt. 1) then
          int_state%INDX_QG = int_state%INDX_WATER_START-1 + int_state%P_QG
-!        int_state%QG(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QG-1)*TRACER_SIZE_1+1 : int_state%INDX_QG*TRACER_SIZE_1)
          CALL FIND_VAR_INDX('QG',int_state%VARS,int_state%NUM_VARS,I)
          int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_QG-1)*TRACER_SIZE_1+1 : int_state%INDX_QG*TRACER_SIZE_1)
          int_state%QG=>int_state%VARS(I)%R3D
-         write(6,*) int_state%INDX_QG, '(th) element of TRACER is Qg begin,end: ', (int_state%INDX_QG-1)*TRACER_SIZE_1+1, int_state%INDX_QG*TRACER_SIZE_1
       endif
       if (int_state%P_NI .gt. 1) then
          int_state%INDX_NI = int_state%INDX_WATER_START-1 + int_state%P_NI
-!        int_state%NI(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_NI-1)*TRACER_SIZE_1+1 : int_state%INDX_NI*TRACER_SIZE_1)
          CALL FIND_VAR_INDX('NI',int_state%VARS,int_state%NUM_VARS,I)
          int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_NI-1)*TRACER_SIZE_1+1 : int_state%INDX_NI*TRACER_SIZE_1)
          int_state%NI=>int_state%VARS(I)%R3D
-         write(6,*) int_state%INDX_NI, '(th) element of TRACER is Ni begin,end: ', (int_state%INDX_NI-1)*TRACER_SIZE_1+1, int_state%INDX_NI*TRACER_SIZE_1
       endif
       if (int_state%P_NR .gt. 1) then
          int_state%INDX_NR = int_state%INDX_WATER_START-1 + int_state%P_NR
-!        int_state%NR(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_NR-1)*TRACER_SIZE_1+1 : int_state%INDX_NR*TRACER_SIZE_1)
          CALL FIND_VAR_INDX('NR',int_state%VARS,int_state%NUM_VARS,I)
          int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_NR-1)*TRACER_SIZE_1+1 : int_state%INDX_NR*TRACER_SIZE_1)
          int_state%NR=>int_state%VARS(I)%R3D
-         write(6,*) int_state%INDX_NR, '(th) element of TRACER is Nr begin,end: ', (int_state%INDX_NR-1)*TRACER_SIZE_1+1, int_state%INDX_NR*TRACER_SIZE_1
       endif
-
-      write(6,*) 'DEBUG-GT:  num_tracers_met, chem, water: ', int_state%NUM_TRACERS_MET, int_state%NUM_TRACERS_CHEM, int_state%NUM_WATER
-      write(6,*) 'DEBUG-GT:  water start, end: ', int_state%INDX_WATER_START, int_state%INDX_WATER_END
 !
 !-----------------------------------------------------------------------
 !***  We can retrieve LM from the internal state since it was

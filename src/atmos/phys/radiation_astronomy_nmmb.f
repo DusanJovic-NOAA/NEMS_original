@@ -529,15 +529,15 @@
 
 !  --- ...  diagnostic print out
 
-      if (me == 0) then
-
-        call prtime                                                     &
+!     if (me == 0) then
+!
+!       call prtime                                                     &
 !  ---  inputs:
-     &     ( jd, fjd, dlt, alp, r1, solcon                              &
+!    &     ( jd, fjd, dlt, alp, r1, solcon                              &
 !  ---  outputs: ( none )
-     &     )
-
-      endif
+!    &     )
+!
+!     endif
 
 !  --- ...  setting up calculation parameters used by subr coszmn_nmmb
 
@@ -554,10 +554,10 @@
 
       anginc = pid12 * dtswh / float(nstp-1)          ! solar angle inc during each calc step
 
-      if ( me == 0 ) then
-        print *,'   for cosz calculations: nswr,deltim,deltsw,dtswh =', &
-     &          nswr,deltim,deltsw,dtswh,'  anginc,nstp =',anginc,nstp
-      endif
+!     if ( me == 0 ) then
+!       print *,'   for cosz calculations: nswr,deltim,deltsw,dtswh =', &
+!    &          nswr,deltim,deltsw,dtswh,'  anginc,nstp =',anginc,nstp
+!     endif
 
 !     if (me == 0) print*,'in sol_update completed sr solar'
 !

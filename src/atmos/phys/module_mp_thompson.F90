@@ -1146,7 +1146,7 @@
 !+---+
 
       debug_flag = .false.
-      if (ii.eq.225 .and. jj.eq.125) debug_flag = .true.
+!     if (ii.eq.225 .and. jj.eq.125) debug_flag = .true.
 
       no_micro = .true.
       dtsave = dt
@@ -2845,7 +2845,7 @@
       implicit none
 
 !..Local variables
-      INTEGER:: i, j, k, m, n, n2
+      INTEGER:: i, j, k, m, n, n2, ierr
       INTEGER:: km, km_s, km_e
       DOUBLE PRECISION, DIMENSION(nbg):: vg, N_g
       DOUBLE PRECISION, DIMENSION(nbr):: vr, N_r
@@ -2853,6 +2853,18 @@
       DOUBLE PRECISION:: massg, massr, dvg, dvr, t1, t2, z1, z2, y1, y2
 
 !+---+
+!Ratko - 2013/09/12 - If existing lookup table read coefficients
+      open(10,file='qr_acr_qg',form='unformatted',status='old',iostat=ierr)
+      if(ierr == 0) then
+        read(10)tcg_racg
+        read(10)tmr_racg
+        read(10)tcr_gacr
+        read(10)tmg_gacr
+        read(10)tnr_racg
+        read(10)tnr_gacr
+        close(10)
+        return
+      endif
 
       do n2 = 1, nbr
 !        vr(n2) = av_r*Dr(n2)**bv_r * DEXP(-fv_r*Dr(n2))
@@ -2958,7 +2970,7 @@
       implicit none
 
 !..Local variables
-      INTEGER:: i, j, k, m, n, n2
+      INTEGER:: i, j, k, m, n, n2, ierr
       INTEGER:: km, km_s, km_e
       DOUBLE PRECISION, DIMENSION(nbr):: vr, D1, N_r
       DOUBLE PRECISION, DIMENSION(nbs):: vs, N_s
@@ -2969,6 +2981,24 @@
       DOUBLE PRECISION:: y1, y2, y3, y4
 
 !+---+
+!Ratko - 2013/09/12 - If existing lookup table read coefficients
+      open(11,file='qr_acr_qs',form='unformatted',status='old',iostat=ierr)
+      if(ierr == 0) then
+        read(11)tcs_racs1
+        read(11)tmr_racs1
+        read(11)tcs_racs2
+        read(11)tmr_racs2
+        read(11)tcr_sacr1
+        read(11)tms_sacr1
+        read(11)tcr_sacr2
+        read(11)tms_sacr2
+        read(11)tnr_racs1
+        read(11)tnr_racs2
+        read(11)tnr_sacr1
+        read(11)tnr_sacr2
+        close(11)
+        return
+      endif
 
       do n2 = 1, nbr
 !        vr(n2) = av_r*Dr(n2)**bv_r * DEXP(-fv_r*Dr(n2))

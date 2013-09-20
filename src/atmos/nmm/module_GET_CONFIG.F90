@@ -633,6 +633,7 @@
                                   ,value =int_state%RESTART             &  !<-- Put extracted quantity here
                                   ,label ='restart:'                    &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
+      int_state%LISS_RESTART=int_state%RESTART                             !<-- Switch for LISS initialization
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
