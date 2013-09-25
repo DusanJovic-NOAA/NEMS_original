@@ -592,6 +592,8 @@
 !
 !***  The following are for moving nests.
 !
+        CHARACTER(len=32) :: MOVE_TYPE
+!
         INTEGER(kind=KINT) :: I_EAST_M,I_WEST_M,J_NORTH_M,J_SOUTH_M
         INTEGER(kind=KINT) :: I_MAX,I_MIN,J_MAX,J_MIN
         INTEGER(kind=KINT) :: NPTS_NS,NPTS_WE
@@ -607,6 +609,13 @@
 !
         LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: IN_WINDOW
         LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: I_HOLD_PG_POINT
+!
+!***  The following are for prescribed moves
+!
+        INTEGER(kind=KINT) :: MOVE_INTERVAL_MINUTES
+        INTEGER(kind=KINT) :: N_MOVES
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: MOVE_MINUTE
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: MOVE_I_SW,MOVE_J_SW
 !
       END TYPE COMPOSITE
 !
@@ -970,6 +979,7 @@
 !***  The following are for moving nests.
 !-----------------------------------------
 !
+      CHARACTER(len=32),POINTER :: MOVE_TYPE
       INTEGER(kind=KINT),POINTER :: I_EAST_M,I_WEST_M                   &
                                    ,I_MAX,I_MIN                         &
                                    ,J_NORTH_M,J_SOUTH_M                 &
@@ -987,6 +997,11 @@
 !
       LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: IN_WINDOW
       LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: I_HOLD_PG_POINT
+!
+      INTEGER(kind=KINT),POINTER :: MOVE_INTERVAL_MINUTES
+      INTEGER(kind=KINT),POINTER :: N_MOVES
+      REAL(kind=KFPT),DIMENSION(:),POINTER :: MOVE_MINUTE
+      INTEGER(kind=KINT),DIMENSION(:),POINTER :: MOVE_I_SW,MOVE_J_SW
 !
 !-----------------------------------------------------------------------
 !***  Quantities not associated with the composite object.
@@ -1918,6 +1933,7 @@
       CHARACTER(len=2) :: INT_TO_CHAR
       CHARACTER(len=6) :: FMT='(I2.2)'
       CHARACTER(len=5),DIMENSION(:),ALLOCATABLE :: NEST_MODE_CHILD
+      CHARACTER(len=19) :: PRESCRIBED_FILENAME
 !
       LOGICAL(kind=KLOG) :: DOMAIN_MOVES,OPENED
 !
@@ -3462,6 +3478,76 @@
             WRITE(0,*)' WARNING: Moving nest parent time ratio does'    &
                      ,' not divide into its NPHS!!!'
           ENDIF
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Moving nests must know the move type
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+        IF(MY_DOMAIN_MOVES==ESMF_TRUE)THEN
+#else
+        IF(MY_DOMAIN_MOVES)THEN
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract Move Type Flag from Nest's Configure File"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_ConfigGetAttribute(config=CF_MINE                   &  !<-- The child's config object
+                                      ,value =MOVE_TYPE                 &  !<-- The variable filled (type of this child's move)
+                                      ,label ='move_type:'              &  !<-- Give this label's value to the previous variabl
+                                      ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          IF (TRIM(MOVE_TYPE) == 'prescribed') THEN
+
+            WRITE(PRESCRIBED_FILENAME,"(A,I2.2)") 'prescribed_moves_',MY_DOMAIN_ID
+
+            OPEN(99,FILE=PRESCRIBED_FILENAME,STATUS='OLD',ACTION='READ',IOSTAT=ISTAT)
+
+            IF(ISTAT/=0)THEN
+              WRITE(0,*)' Failed to open ',PRESCRIBED_FILENAME,' stat=',ISTAT
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+
+            READ(99,*)MOVE_INTERVAL_MINUTES
+
+            N_MOVES=0
+            DO WHILE(.TRUE.)
+              N_MOVES=N_MOVES+1
+              READ(99,*,END=101)
+            ENDDO
+       101  CONTINUE
+            N_MOVES=N_MOVES-1
+
+            REWIND(99)
+
+            ALLOCATE(MOVE_MINUTE(N_MOVES))
+            ALLOCATE(MOVE_I_SW(N_MOVES))
+            ALLOCATE(MOVE_J_SW(N_MOVES))
+      
+            READ(99,*)
+            DO N=1,N_MOVES
+              READ(99,*)MOVE_MINUTE(N),MOVE_I_SW(N),MOVE_J_SW(N)
+            END DO
+
+            CLOSE(99)
+
+!            write(0,*)'MOVE_INTERVAL_MINUTES=',MOVE_INTERVAL_MINUTES
+!            write(0,*)'N_MOVES=',N_MOVES
+!            DO N=1,N_MOVES
+!              write(0,*)'MOVE_MINUTE(N),MOVE_I_SW(N),MOVE_J_SW(N)',N,MOVE_MINUTE(N),MOVE_I_SW(N),MOVE_J_SW(N)
+!            END DO
+!
+            END IF
 !
 !-----------------------------------------------------------------------
 !
@@ -7099,41 +7185,59 @@
 !
         IF(.NOT.I_WANT_TO_MOVE.AND..NOT.FORCED_PARENT_SHIFT)THEN
 !
-#if 1
-          CALL COMPUTE_STORM_MOTION(NTIMESTEP                           &
-                                   ,LAST_STEP_MOVED                     &
-                                   ,DT_DOMAIN(MY_DOMAIN_ID)             &
-                                   ,NUM_PES_FCST                        &
-                                   ,COMM_FCST_TASKS                     &
-                                   ,FIS                                 &
-                                   ,PD                                  &
-                                   ,PINT                                &
-                                   ,T                                   &
-                                   ,Q                                   &
-                                   ,CW                                  &
-                                   ,U                                   &
-                                   ,V                                   &
-                                   ,DSG2                                &
-                                   ,PDSG1                               &
-                                   ,DXH                                 &
-                                   ,DYH                                 &
-                                   ,SM                                  &
-                                   ,I_SW_PARENT_CURRENT                 &
-                                   ,J_SW_PARENT_CURRENT                 &
-                                   ,I_WANT_TO_MOVE                      &
-                                   ,I_SW_PARENT_NEW                     &
-                                   ,J_SW_PARENT_NEW                     &
-                                   ,MY_DOMAIN_ID )
+          IF (TRIM(MOVE_TYPE) == 'storm') THEN
+
+            CALL COMPUTE_STORM_MOTION(NTIMESTEP                         &
+                                     ,LAST_STEP_MOVED                   &
+                                     ,DT_DOMAIN(MY_DOMAIN_ID)           &
+                                     ,NUM_PES_FCST                      &
+                                     ,COMM_FCST_TASKS                   &
+                                     ,FIS                               &
+                                     ,PD                                &
+                                     ,PINT                              &
+                                     ,T                                 &
+                                     ,Q                                 &
+                                     ,CW                                &
+                                     ,U                                 &
+                                     ,V                                 &
+                                     ,DSG2                              &
+                                     ,PDSG1                             &
+                                     ,DXH                               &
+                                     ,DYH                               &
+                                     ,SM                                &
+                                     ,I_SW_PARENT_CURRENT               &
+                                     ,J_SW_PARENT_CURRENT               &
+                                     ,I_WANT_TO_MOVE                    &
+                                     ,I_SW_PARENT_NEW                   &
+                                     ,J_SW_PARENT_NEW                   &
+                                     ,MY_DOMAIN_ID )
+
+          ELSE IF (TRIM(MOVE_TYPE) == 'prescribed') THEN
+
+            CALL PRESCRIBED_MOVE(NTIMESTEP,DT_DOMAIN(MY_DOMAIN_ID)      &
+                                 ,I_WANT_TO_MOVE                        &
+                                 ,I_SW_PARENT_CURRENT                   &
+                                 ,J_SW_PARENT_CURRENT                   &
+                                 ,I_SW_PARENT_NEW                       &
+                                 ,J_SW_PARENT_NEW )
+
+!          ELSE IF (TRIM(MOVE_TYPE) == 'artificial5') THEN
 !
-#else
-          CALL ARTIFICIAL_MOVE5(NTIMESTEP                               &
-                               ,KOUNT_MOVES                             &
-                               ,I_WANT_TO_MOVE                          &
-                               ,I_SW_PARENT_CURRENT                     &
-                               ,J_SW_PARENT_CURRENT                     &
-                               ,I_SW_PARENT_NEW                         &
-                               ,J_SW_PARENT_NEW )
-#endif
+!            CALL ARTIFICIAL_MOVE5(NTIMESTEP                             &
+!                                 ,KOUNT_MOVES                           &
+!                                 ,I_WANT_TO_MOVE                        &
+!                                 ,I_SW_PARENT_CURRENT                   &
+!                                 ,J_SW_PARENT_CURRENT                   &
+!                                 ,I_SW_PARENT_NEW                       &
+!                                 ,J_SW_PARENT_NEW )
+
+          ELSE
+ 
+            WRITE(0,*)' Unknown move type :', TRIM(MOVE_TYPE)
+            WRITE(0,*)' ABORTING!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+
+          ENDIF
 !
         ENDIF
 !
@@ -13078,6 +13182,14 @@
 !
       MOVING_CHILD_UPDATE=>cc%MOVING_CHILD_UPDATE
       TASK_UPDATE_SPECS=>cc%TASK_UPDATE_SPECS
+!
+      MOVE_TYPE=>CC%MOVE_TYPE
+!
+      MOVE_INTERVAL_MINUTES=>CC%MOVE_INTERVAL_MINUTES
+      N_MOVES=>CC%N_MOVES
+      MOVE_MINUTE=>CC%MOVE_MINUTE
+      MOVE_I_SW=>CC%MOVE_I_SW
+      MOVE_J_SW=>CC%MOVE_J_SW
 !
 !----------------------------------------
 !***  The following is for 2-way nesting
@@ -21944,6 +22056,56 @@
 !
 !-----------------------------------------------------------------------
       end subroutine artificial_move5
+!-----------------------------------------------------------------------
+!
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      subroutine prescribed_move(ntimestep,dt                           &
+                                ,i_want_to_move                         &
+                                ,i_sw_parent_current                    &
+                                ,j_sw_parent_current                    &
+                                ,i_sw_parent_new                        &
+                                ,j_sw_parent_new )
+!
+!-----------------------------------------------------------------------
+!
+      real(KIND=kfpt),intent(in) :: dt
+!
+      integer(kind=kint),intent(in) :: i_sw_parent_current              &
+                                      ,j_sw_parent_current              &
+                                      ,ntimestep
+!
+      integer(kind=kint),intent(out) :: i_sw_parent_new                 &
+                                       ,j_sw_parent_new
+!
+      logical(kind=klog),intent(out) :: i_want_to_move
+!
+      integer, save :: kount_moves = 1
+      integer :: nsteps_move
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      i_want_to_move=.false.
+      i_sw_parent_new = 0
+      j_sw_parent_new = 0
+
+      nsteps_move = MOVE_INTERVAL_MINUTES*60/DT
+      if ( ntimestep>0 .and. mod(ntimestep,nsteps_move)<3 ) then
+         kount_moves=kount_moves+1
+         if (kount_moves > size(MOVE_I_SW) ) return
+         write(0,"(A,4I6)")' WILL_MOVE_NOW ',ntimestep,kount_moves,     &
+                           MOVE_I_SW(kount_moves),MOVE_J_SW(kount_moves)
+         i_want_to_move=.true.
+         i_sw_parent_new = MOVE_I_SW(kount_moves)
+         j_sw_parent_new = MOVE_J_SW(kount_moves)
+      end if
+!
+!-----------------------------------------------------------------------
+      end subroutine prescribed_move
 !-----------------------------------------------------------------------
 !
       END MODULE MODULE_PARENT_CHILD_CPL_COMP

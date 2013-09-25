@@ -367,6 +367,8 @@ j_parent_start:  133          # Nest southwest corner at this parent J
 parent_child_space_ratio:  3  # Ratio of this nest's parent's grid increment to its own
 
 my_domain_moves: true         # Does this domain move?
+move_type: storm              # Type of this domain move (storm, prescribed)
+
 ratio_sfc_files: 3            # If domain moves, provide ratio of uppermost parent grid increment to this domain's
 
 nrows_p_upd_w: 2              # West bndry rows of moving nest footprint updated by parent
