@@ -360,6 +360,9 @@ parent_child_space_ratio: 3  # Ratio of parent grid increment to nests's
 
 ratio_sfc_files: 3           # Ratio of uppermost parent grid increment to this moving nest's 
 
+sfc_conflict: dummy          # 'nearest' -->  Parent-to-child conflict pts use nearest child pt with same sfc type
+                             # 'dummy'   -->  Child uses dummy values for all conflict pts (reproducible results)
+
 nrows_p_upd_w: 2             # West bndry rows of moving nest footprint updated by parent
 nrows_p_upd_e: 2             # East bndry rows of moving nest footprint updated by parent
 nrows_p_upd_s: 2             # South bndry rows of moving nest footprint updated by parent

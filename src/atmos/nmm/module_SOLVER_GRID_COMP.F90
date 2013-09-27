@@ -5250,6 +5250,12 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !rv - please do not remove this template call:
+!     call exit('dyn',int_state%pint,int_state%t,int_state%q            &
+!                    ,int_state%u,int_state%v,int_state%q2,int_state%w  &
+!                    ,ntimestep,mype,my_domain_id,mpi_comm_comp         &
+!                    ,ids,ide,jds,jde,lm                                &
+!                    ,ims,ime,jms,jme                                   &
+!                    ,its,ite,jts,jte)
 !     if(mod(nint(dt*ntimestep),60)==0.and.nint(dt*ntimestep)<=1800)then
 !       call twr(int_state%t,lm,'tphy',ntimestep,mype,num_pes,mpi_comm_comp &
 !               ,ids,ide,jds,jde &
@@ -5261,6 +5267,7 @@
 !               ,ims,ime,jms,jme &
 !               ,its,ite,jts,jte &
 !               ,my_domain_id )
+!     endif
 !rv
 !
       physics: IF(INTEGER_DT>0)THEN                                     !<-- Physics is active
@@ -5361,7 +5368,9 @@
                          ,IMS,IME,JMS,JME                                &
                          ,IDE,JDE                                        &
                          ,ITS_B1,ITE_B1,JTS_B1,JTE_B1                    &
-                         ,LM,int_state%NCOUNT,int_state%FIRST_NMM)
+                         ,LM,int_state%NCOUNT,int_state%FIRST_NMM        &
+                         ,MY_DOMAIN_ID                                   &
+                                        )
 !
         ELSEIF (TRIM(int_state%MICROPHYSICS) == 'fer_hires') THEN
 !
@@ -5396,7 +5405,9 @@
                             ,IMS,IME,JMS,JME                             &
                             ,IDE,JDE                                     &
                             ,ITS_B1,ITE_B1,JTS_B1,JTE_B1                 &
-                            ,LM,int_state%NCOUNT,int_state%FIRST_NMM)
+                            ,LM,int_state%NCOUNT,int_state%FIRST_NMM     &
+                            ,MY_DOMAIN_ID                                &
+                                           )
 !
        ELSEIF (TRIM(int_state%MICROPHYSICS) == 'wsm6') THEN
 !
@@ -5432,7 +5443,9 @@
                            ,IDE,JDE                                     &
                            ,ITS_B1,ITE_B1,JTS_B1,JTE_B1                 &
                            ,LM,int_state%NUM_WATER                      &
-                           ,int_state%NCOUNT,int_state%FIRST_NMM)
+                           ,int_state%NCOUNT,int_state%FIRST_NMM        &
+                           ,MY_DOMAIN_ID                                &
+                                           )
 !
         ENDIF
 !

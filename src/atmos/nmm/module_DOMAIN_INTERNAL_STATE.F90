@@ -74,10 +74,14 @@
                              ,RESTARTED_RUN_FIRST                           &  !<-- Is is time for the initial output in a restarted run?
                              ,TS_INITIALIZED 
 !
+        CHARACTER(len=7) :: SFC_CONFLICT                                       !<-- Do/not search for nearest point with same sfc type
+!
         TYPE(MIXED_DATA),DIMENSION(1:9) :: SHIFT_DATA                          !<-- Intertask shift data on the pre-move footprint
 !
         TYPE(ESMF_FieldBundle) :: MOVE_BUNDLE_H                             &  !<-- ESMF Bundle of update H variables on moving nests
                                  ,MOVE_BUNDLE_V                                !<-- ESMF Bundle of update V variables on moving nests
+!
+        TYPE(ESMF_FieldBundle) :: BUNDLE_2WAY                                  !<-- ESMF Bundle of 2-way exchange vbls (child to parent)
 !
 !---------------------------------------------------------------------------
 !***  The following are specific to asynchronous quilting/writing.

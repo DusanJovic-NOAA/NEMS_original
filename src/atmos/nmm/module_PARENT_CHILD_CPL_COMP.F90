@@ -49,7 +49,6 @@
       USE module_VARS,ONLY: VAR
 !
       USE module_NESTING,ONLY: BNDS_2D                                  &
-                              ,BUNDLE_X                                 &
                               ,CHECK_REAL                               &
                               ,CHILD_2WAY_BOOKKEEPING                   &
                               ,CHILD_RANKS                              &
@@ -248,7 +247,6 @@
 !-----------------------------------
 !
       TYPE COMPOSITE
-!
 !
         INTEGER(kind=KINT) :: NCYCLE_CHILD                              &
                              ,NCYCLE_PARENT
@@ -548,6 +546,7 @@
         TYPE(ESMF_Config) :: CF_PARENT
         TYPE(ESMF_Config),DIMENSION(:),POINTER :: CF
 !
+        TYPE(ESMF_FieldBundle) :: BUNDLE_2WAY
         TYPE(ESMF_FieldBundle) :: MOVE_BUNDLE_H
         TYPE(ESMF_FieldBundle) :: MOVE_BUNDLE_V
 !
@@ -933,7 +932,8 @@
       TYPE(ESMF_Config),POINTER :: CF_PARENT
       TYPE(ESMF_Config),DIMENSION(:),POINTER :: CF
 !
-      TYPE(ESMF_FieldBundle),POINTER :: MOVE_BUNDLE_H                   &
+      TYPE(ESMF_FieldBundle),POINTER :: BUNDLE_2WAY                     &
+                                       ,MOVE_BUNDLE_H                   &
                                        ,MOVE_BUNDLE_V
 !
 #ifdef ESMF_3
@@ -1010,9 +1010,7 @@
       INTEGER(kind=KINT),PARAMETER :: INDX_SW=1                         &
                                      ,INDX_SE=2                         &
                                      ,INDX_NW=3                         &
-                                     ,INDX_NE=4                         &
-!
-                                     ,NVARS_2WAY_UPDATE=5                  !<-- # of parent 3-D variables undergoing 2-way updates
+                                     ,INDX_NE=4
 !
       INTEGER(kind=KINT),SAVE :: MOVE_TAG=1111                          &  !<-- Arbitrary tag used for child's move
                                 ,MOVING_BC_TAG=1112                     &  !<-- Arbitrary tag used for moving nests' BC updates
@@ -1025,6 +1023,7 @@
                                 ,ID_MY_PARENT                           &
                                 ,INDX_CW,INDX_Q                         &
                                 ,NHOURS_FCST                            &
+                                ,NLEV_2WAY                              &
                                 ,NROWS_P_UPD_E                          &
                                 ,NROWS_P_UPD_N                          &
                                 ,NROWS_P_UPD_S                          &
@@ -1036,7 +1035,8 @@
                                 ,NUM_FIELDS_MOVE_2D_X_R                 &
                                 ,NUM_FIELDS_MOVE_3D_H                   &
                                 ,NUM_FIELDS_MOVE_2D_V                   &
-                                ,NUM_FIELDS_MOVE_3D_V
+                                ,NUM_FIELDS_MOVE_3D_V                   &
+                                ,NVARS_2WAY_UPDATE
 !
       INTEGER(kind=KINT) :: TWOWAY_SIGNAL_TAG                              !<-- Arbitrary tag used for 2way exchange
 !
@@ -3451,6 +3451,10 @@
             cc%FORCED_PARENT_SHIFT=.FALSE.
           ENDIF
 !
+          DO N=1,3
+            cc%PARENT_SHIFT(N)=-999
+          ENDDO
+!
 !-----------------------------------------------------------------------
 !***  Since the nests can only move on parent timesteps and
 !***  are allowed to move only on physics timesteps then 
@@ -4567,7 +4571,7 @@
 !
 !-----------------------------------------------------------------------
 !***  Allocate the Handle for use by moving parents in ISends of their
-!***  shift information to their children.
+!***  shift information to their children.  
 !-----------------------------------------------------------------------
 !
         IF(I_AM_LEAD_FCST_TASK)THEN
@@ -4586,6 +4590,10 @@
         cc%CHILD_FORCES_MY_SHIFT=.FALSE.
         cc%MY_FORCED_SHIFT(1)=-99999
         cc%MY_FORCED_SHIFT(2)=-99999
+!
+        DO N=1,3
+          cc%PARENT_SHIFT(N)=-999
+        ENDDO
 !
 !-----------------------------------------------------------------------
 !
@@ -5522,7 +5530,6 @@
 !
           cc%NTIMESTEP_CHECK=-99999
 !
-!
           cc%NCYCLE_CHILD=0
 !
         ENDIF
@@ -6279,13 +6286,76 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
+!***  Extract the 2-way Bundle holding pointers to Solver internal 
+!***  state variables needed for 2-way exchange of data between 
+!***  children and parents.  Since the generation and incorporation
+!***  of 2-way exchange data will be done via looping through Fields
+!***  we need to know how many Fields there are.
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+      IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
+#else
+      IF(I_AM_A_FCST_TASK)THEN
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract 2-way Bundle in P-C Init"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateGet(state      =IMP_STATE                        &  !<-- The Parent-Child coupler import state
+                          ,itemname   ='Bundle_2way'                    &  !<-- Name of 2-way Bundle of internal state arrays to use
+                          ,fieldbundle=BUNDLE_2WAY                      &  !<-- The ESMF 2-way Bundle 
+                          ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="How many Fields in the 2-way Bundle?"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE=BUNDLE_2WAY                &  !<-- The ESMF Bundle of 2-way exchange variables
+                                ,fieldcount =NVARS_2WAY_UPDATE          &  !<-- # of Fields in the Bundle
+                                ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract # of levels in all fields in 2-way Bundle"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(FIELDBUNDLE=BUNDLE_2WAY                  &  !<-- The ESMF Bundle of 2-way exchange variables
+                              ,name ='NLEV 2-way'                       &  !<-- Name of the attribute to extract
+                              ,value=NLEV_2WAY                          &  !<-- Total # of levels in all 2-way exchange variables
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
 !***  Compute the number of timesteps between restart outputs.
-!***  this will be used if the domain is a moving nest.  The nest
+!***  This will be used if the domain is a moving nest.  The nest
 !***  will not be allowed to decide to move LAG_STEPS parent
 !***  timesteps before a restart output time.  This will postpone
 !***  such decisions until after the restart output time and thus
 !***  ensure that the same decision will be made in the forecast
 !***  when it is restarted.
+!***  This variable is also used in a similar way in 2-way nesting.
+!***  Children send 2-way exchange data to their parents at the end
+!***  of parent timestep N and the parents receive it early in 
+!***  parent timestep N+1.  For bit-reproducible restarts we must
+!***  therefore not let parents incorporate 2-way data in parent
+!***  timesteps that immediately follow the writing of a restart file.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -6325,15 +6395,6 @@
       cpl1_east_v_tim=>cc%cpl1_east_v_tim
       cpl1_recv_tim=>cc%cpl1_recv_tim
 !
-      cpl1_south_h_recv_tim=>cc%cpl1_south_h_recv_tim
-      cpl1_south_h_tim=>cc%cpl1_south_h_tim
-      cpl1_south_v_tim=>cc%cpl1_south_v_tim
-      cpl1_north_h_tim=>cc%cpl1_north_h_tim
-      cpl1_north_v_tim=>cc%cpl1_north_v_tim
-      cpl1_west_h_tim=>cc%cpl1_west_h_tim
-      cpl1_west_v_tim=>cc%cpl1_west_v_tim
-      cpl1_east_h_tim=>cc%cpl1_east_h_tim
-      cpl1_east_v_tim=>cc%cpl1_east_v_tim
       cpl1_recv_tim=>cc%cpl1_recv_tim
 !
       cpl1_south_h_recv_tim=>cc%cpl1_south_h_recv_tim
@@ -6411,6 +6472,7 @@
 !***  been received and the current domain's parent has signaled that
 !***  the parent has received 2-way update data from all of its
 !***  children.  This routine checks for those conditions.
+!***  This is phase 1 of the Parent-Child coupler's Run step.
 !-----------------------------------------------------------------------
 !
 !------------------------
@@ -6450,6 +6512,7 @@
       LOGICAL(kind=KLOG) :: RECV_ALL_CHILD_DATA
 #endif
 !
+      integer(kind=kint) :: mype_local
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -6596,8 +6659,16 @@
 #ifdef ESMF_3
         IF(ALLCLEAR_SIGNAL_IS_PRESENT)THEN
           ALLCLEAR_SIGNAL_PRESENT=ESMF_True
+!         if(i_am_lead_fcst_task)then
+!           if(ncycle_child>3)then
+!           write(0,23331)ncycle_child,my_domain_id,ntimestep
+23331       format(' child cycled ',i5,' times  my_domain_id=',i2,' ntimestep=',i6)
+!           endif
+!           ncycle_child=0
+!         endif
         ELSE
           ALLCLEAR_SIGNAL_PRESENT=ESMF_False
+!         ncycle_child=ncycle_child+1
         ENDIF
 #else
         ALLCLEAR_SIGNAL_PRESENT=ALLCLEAR_SIGNAL_IS_PRESENT
@@ -6640,6 +6711,7 @@
 !
 !-----------------------------------------------------------------------
 !
+!       call mpi_comm_rank(comm_fcst_tasks,mype_local,ierr)    
         READY_TO_RECV=.FALSE.
 !
         task0_a: IF(I_AM_LEAD_FCST_TASK)THEN
@@ -6717,6 +6789,13 @@
 #else
           RECV_ALL_CHILD_DATA=.TRUE.
 #endif
+!         if(i_am_lead_fcst_task)then
+!           if(ncycle_parent>3)then
+!           write(0,24331)ncycle_parent,my_domain_id,ntimestep
+24331       format(' parent cycled ',i5,' times  my_domain_id=',i2,' ntimestep=',i6)
+!           endif
+!           ncycle_parent=0
+!         endif
 !
         ELSE
 !
@@ -6725,6 +6804,7 @@
 #else
           RECV_ALL_CHILD_DATA=.FALSE.
 #endif
+!         ncycle_parent=ncycle_parent+1
 !
         ENDIF
 !
@@ -6987,6 +7067,13 @@
 !***  only once.
 !-----------------------------------------------------------------------
 !
+          IF(I_AM_LEAD_FCST_TASK)THEN
+            WRITE(0,12341)MY_DOMAIN_ID,NTIMESTEP
+            WRITE(0,12342)I_SHIFT_CHILD,J_SHIFT_CHILD,I_SW_PARENT_NEW,J_SW_PARENT_NEW
+12341       FORMAT(' nest shifts now  my_domain_id=',I2,' ntimestep=',I5) 
+12342       FORMAT(' i_shift_child=',I4,' j_shift_child=',I4,' i_sw_parent_new=',I4,' j_sw_parent_new=',I4)
+          endif
+!
           btim=timef()
           CALL MOVING_NEST_BOOKKEEPING(I_SHIFT_CHILD                    &
                                       ,J_SHIFT_CHILD                    &
@@ -7058,10 +7145,23 @@
 !-----------------------------------------------------------------------
 !***  If this is a (moving) child of a moving parent then it needs
 !***  to watch for the appearance of a signal from the parent
-!***  indicating that it (the parent) has just moved in the same
-!***  parent timestep into which the child has just entered.
-!***  If it has then the nest receives the parent's shift and the
-!***  new specifics of the parent task and nest task associations.
+!***  indicating that it (the parent) intends to move.  The child 
+!***  needs to receive that message one parent timestep prior to
+!***  the actual shift.  The child will use that shift information
+!***  in two different ways at two different times.  If two-way
+!***  interaction is being used then the child must be able to
+!***  anticipate the parent's move and prepare/send the 2-way data
+!***  at the end of the parent timestep preceding the execution of
+!***  the parent motion.  Then for all nesting the child uses the
+!***  new parent location at the beginning of the parent timestep
+!***  in which the shift occurs to properly prepare working objects,
+!***  to receive, and to incorporate standard BC update data sent
+!***  from the parent at the end of the timestep of the parent's
+!***  shift.
+!***  So in order to be ready for both those situations the child
+!***  now receives the parent's shift and the new specifics of the
+!***  parent task and nest task associations if this is the start
+!***  of the parent timestep preceding the parent's shift.
 !-----------------------------------------------------------------------
 !
       moving_parent: IF(MY_PARENT_MOVES)THEN
@@ -7069,8 +7169,8 @@
 !-----------------------------------------------------------------------
 !
         IF(I_AM_LEAD_FCST_TASK)THEN
-          NTAG0=PARENT_SHIFT_TAG+NTIMESTEP/TIME_RATIO_MY_PARENT            !<-- Unique timestep-dependent MPI tag valid only for the
-                                                                           !    parent timestep in which the parent moved.
+          NTAG0=PARENT_SHIFT_TAG+NTIMESTEP/TIME_RATIO_MY_PARENT            !<-- Unique timestep-dependent MPI tag.  It is valid
+                                                                           !    one parent timestep before the parent moves.
 !
           CALL MPI_IPROBE(0                                             &  !<-- The message is sent by moving parent's fcst task 0.
                          ,NTAG0                                         &  !<-- Tag associated with parent's shift
@@ -7108,15 +7208,17 @@
                         ,COMM_FCST_TASKS                                &  !<-- MPI communicator for this nest's forecast tasks
                         ,IRTN)
 !
-!m1     ENDIF
+        ENDIF
 !
-!m1     IF(NTIMESTEP==PARENT_SHIFT(1)*TIME_RATIO_MY_PARENT)THEN            !<-- Did the parent shift at the start of this parent timestep?
+        IF(NTIMESTEP==PARENT_SHIFT(1)*TIME_RATIO_MY_PARENT              &  !<-- Did the parent shift at the start of this parent timestep?
+                    .AND.                                               &
+           PARENT_SHIFT(1)>0)THEN
 !
-          I_SW_PARENT_CURRENT=I_SW_PARENT_CURRENT-PARENT_SHIFT(2)          !<-- Parent I,J of SW corner of this child's domain
-          J_SW_PARENT_CURRENT=J_SW_PARENT_CURRENT-PARENT_SHIFT(3)          !<--
+          I_SW_PARENT_CURRENT=I_SW_PARENT_CURRENT-PARENT_SHIFT(2)          !<-- Current parent I,J of SW corner of this child's domain
+          J_SW_PARENT_CURRENT=J_SW_PARENT_CURRENT-PARENT_SHIFT(3)          !    after its parent shifts.
 !
-          I_SW_PARENT_NEW=I_SW_PARENT_NEW-PARENT_SHIFT(2)                  !<-- Shifted parent I,J of SW corner of this child's domain
-          J_SW_PARENT_NEW=J_SW_PARENT_NEW-PARENT_SHIFT(3)                  !<--
+          I_SW_PARENT_NEW=I_SW_PARENT_NEW-PARENT_SHIFT(2)                  !<-- New parent I,J of SW corner of this child's domain
+          J_SW_PARENT_NEW=J_SW_PARENT_NEW-PARENT_SHIFT(3)                  !    after the child and parent have shifted.
 !
           CALL ESMF_AttributeSet(state=EXP_STATE                        &  !<-- The Parent-Child coupler export state
                                 ,name ='I_SW_PARENT_NEW'                &  !<-- Insert Attribute with this name
@@ -7255,6 +7357,11 @@
                           +NINT(MY_FORCED_SHIFT(1)*RECIP_PARENT_SPACE_RATIO)
           J_SW_PARENT_NEW=J_SW_PARENT_CURRENT                           &
                           +NINT(MY_FORCED_SHIFT(2)*RECIP_PARENT_SPACE_RATIO)
+!
+          IF(I_AM_LEAD_FCST_TASK)THEN
+            WRITE(0,52053)I_WANT_TO_MOVE,MOVE_FLAG_SENT,MY_DOMAIN_ID,NTIMESTEP
+52053       FORMAT(' CHILDREN_RECV child_forces_my_shift i_want_to_move=',L1,' move_flag_sent=',L1,' my_domain_id=',I2,' ntimestep=',I5)
+          endif
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -7292,7 +7399,7 @@
 !
           check_shift: IF(DISTN_TO_PARENT_BNDRY<=MIN_DIST_PARENT)THEN
 !
-            I_WANT_TO_MOVE=.FALSE.                                         !<-- Do not allow this domain to move.
+            I_WANT_TO_MOVE=.FALSE.                                         !<-- Do not allow this domain (as a parent) to move.
 !
             IF(NTIMESTEP>NTIMESTEP_WAIT_FORCED_PARENT)THEN                 !<-- If true, previous forced move of parent is done.
               I_SW_PARENT_NEW=I_SW_PARENT_CURRENT 
@@ -7349,9 +7456,9 @@
 !***  nest shift very near the end of the forecast.
 !-----------------------------------------------------------------------
 !
-            IF(NTIMESTEPS_RESTART-MOD(NTIMESTEP,NTIMESTEPS_RESTART)>TIME_RATIO_MY_PARENT*LAG_STEPS &  !<-- Nest must not shift
-                                         .AND.                                                     &  !    too close to the
-               NTIMESTEP<NTIMESTEP_FINAL-TIME_RATIO_MY_PARENT*(LAG_STEPS+1))THEN                      !    end of the forecast.
+            IF(NTIMESTEPS_RESTART-MOD(NTIMESTEP,NTIMESTEPS_RESTART)>TIME_RATIO_MY_PARENT*LAG_STEPS &
+                                         .AND.                                                     &
+               NTIMESTEP<NTIMESTEP_FINAL-TIME_RATIO_MY_PARENT*(LAG_STEPS+1))THEN
 !
 !-----------------------------------------------------------------------
 !
@@ -8140,7 +8247,7 @@
 !
 !-----------------------------------------------------------------------
 !***  Parents send new boundary data to each of their children.
-!***  Only parents execute this routine that is called as phase 3
+!***  Only parents execute this routine that is called as phase 4
 !***  of the Run step of the Parent-Child coupler in subroutine
 !***  NMM_INTEGRATE.
 !-----------------------------------------------------------------------
@@ -8311,16 +8418,15 @@
               PARENT_SHIFT(2)=I_SHIFT_CHILD                                !<-- Parent's I shift in its space
               PARENT_SHIFT(3)=J_SHIFT_CHILD                                !<-- Parent's J shift in its space
 !
-              NTAG0=PARENT_SHIFT_TAG+NEXT_MOVE_TIMESTEP                    !<-- Unique timestep-dependent MPI tag
-!m1           NTAG0=PARENT_SHIFT_TAG+NEXT_MOVE_TIMESTEP-1                  !<-- Unique timestep-dependent MPI tag
+!             NTAG0=PARENT_SHIFT_TAG+NTIMESTEP                             !<-- Unique timestep-dependent MPI tag
+              NTAG0=PARENT_SHIFT_TAG+NEXT_MOVE_TIMESTEP-1                  !<-- Unique MPI tag valid 1 parent timestep before the shift
               CHILDTASK_0=child_ranks(MY_DOMAIN_ID)%CHILDREN(N)%DATA(0)    !<-- Local rank of child N's lead task in parent-child intracomm
 !
               CALL MPI_ISSEND(PARENT_SHIFT                              &  !<-- Send parent's shift to all its children
                              ,3                                         &  !<-- There are 2 words in the message
                              ,MPI_INTEGER                               &  !<-- The shift increments are integers
                              ,CHILDTASK_0                               &  !<-- Signal sent to all lead child tasks
-                             ,NTAG0                                     &  !<-- Tag valid for the parent timestep of its shift
-!m1                          ,NTAG0                                     &  !<-- Tag valid for parent timestep preceding its actual shift
+                             ,NTAG0                                     &  !<-- Tag valid for parent timestep preceding its actual shift
                              ,COMM_TO_MY_CHILDREN(N)                    &  !<-- MPI communicator between this parent and its children
                              ,HANDLE_PARENT_SHIFT(N)                    &  !<-- Communication request handle for this ISend to children
                              ,IERR )
@@ -8559,6 +8665,12 @@
                   CHILD_FORCES_MY_SHIFT=.TRUE.                             !<-- Child N too close to parent boundary
                   MY_FORCED_SHIFT(1)=SHIFT_INFO_CHILDREN(2,N)              !<-- Parent must shift this many gridspaces in I
                   MY_FORCED_SHIFT(2)=SHIFT_INFO_CHILDREN(3,N)              !<-- Parent must shift this many gridspaces in J
+!
+                  IF(I_AM_LEAD_FCST_TASK)THEN
+                    WRITE(0,74741)MY_FORCED_SHIFT,MY_DOMAIN_ID,NTIMESTEP
+74741               FORMAT(' PARENTS_SEND my_forced_shift=',2(1X,I6),' my_domain_id=',I2,' ntimestep=',I5)
+                  ENDIF
+!
                 ENDIF
 !
               ENDIF
@@ -9908,7 +10020,7 @@
 !***  When 2-way nesting is being used the parents will receive
 !***  internal update data from each of their children at the 
 !***  start of every parent timestep.
-!***  Only parents execute this routine that is called as phase 2
+!***  Only parents execute this routine that is called as phase 3
 !***  of the Run step of the Parent-Child coupler in subroutine
 !***  NMM_INTEGRATE.
 !
@@ -9939,14 +10051,16 @@
 !
       INTEGER(kind=KINT) :: ALLCLEAR_SIGNAL_TAG                         &
                            ,CHILDTASK,CHILDTASK_0,COMM_FCST_TASKS       &
-                           ,ID_CHILD,MY_DOMAIN_ID,MYPE_LOCAL            &
-                           ,N,N_ALL,NCHILD_TASKS,NM,NMX,NPTS2,NPTS_3D   &
+                           ,ID_CHILD,KNT_LEV,MY_DOMAIN_ID,MYPE_LOCAL    &
+                           ,N,N_ALL,NCHILD_TASKS,NM,NMX,NPTS2           &
                            ,NPTS_UPDATE_HORIZ,NPTS_UPDATE_TOTAL         &
-                           ,NT,NTIMESTEP,NTIMESTEP_CHILD                &
+                           ,NT,NTIMESTEP,NTIMESTEP_CHILD,NUM_DIMS,NV    &
                            ,PARENT_TAG,SFC_TAG,TASK_ID,UPDATE_TAG
 !
       INTEGER(kind=KINT) :: I_2WAY_UPDATE_START,I_2WAY_UPDATE_END       &
                            ,J_2WAY_UPDATE_START,J_2WAY_UPDATE_END
+!
+      INTEGER(kind=KINT) :: I_PARENT_SW_X,J_PARENT_SW_X
 !
       INTEGER(kind=KINT) :: IERR,RC
 !
@@ -9973,9 +10087,15 @@
       LOGICAL(kind=KLOG) :: ALLCLEAR_FROM_MY_PARENT
 #endif
 !
+      CHARACTER(len=99) :: FIELD_NAME
+!
       TYPE(CHILD_UPDATE_LINK),POINTER :: PTR
 !
       TYPE(COMPOSITE),POINTER :: CC
+!
+      TYPE(ESMF_Field) :: HOLD_FIELD
+!
+      TYPE(ESMF_TypeKind) :: DATATYPE
 !
       integer(kind=kint),dimension(8) :: values
 !
@@ -10036,11 +10156,60 @@
 !
       NTIMESTEP=NTIMESTEP_ESMF                                             !<-- The current parent timestep
 !
-!-----------------------------------------------------------------------
-!
-      NPTS_3D=NVARS_2WAY_UPDATE*LM                                         !<-- # of variables to be updated times # of model layers
+      KNT_LEV=0
 !
 !-----------------------------------------------------------------------
+!***  To know the total number of words being sent to this parent task
+!***  from the child tasks we need to know the number of 2D levels in
+!***  all the update variables.  This would be the number of 2-D
+!***  exchange variables plus LM times the number of 3-D exchange
+!***  variables.  So check each of the variables in the 2-way Bundle
+!***  that holds the pointers to all the exchange variables.
+!-----------------------------------------------------------------------
+!
+      vars: DO NV=1,NVARS_2WAY_UPDATE                                     !<-- Loop over all parent exchange variables updated by the child.
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Field from the Bundle of 2-way Vars"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE=BUNDLE_2WAY              &  !<-- Bundle holding pointers to the 2-way exchange variables
+                                ,fieldIndex =NV                       &  !<-- Index of the Field in the Bundle
+                                ,field      =HOLD_FIELD               &  !<-- Field NV in the Bundle
+                                ,rc         =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Info about this 2-way Variable"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_FieldGet(field   =HOLD_FIELD                        &  !<-- Field N_FIELD in the Bundle
+                          ,dimCount=NUM_DIMS                          &  !<-- Is this Field 2-D or 3-D?
+                          ,typeKind=DATATYPE                          &  !<-- Does the Field contain an integer or real array?
+                          ,name    =FIELD_NAME                        &  !<-- This Field's name
+                          ,rc      =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        IF(NUM_DIMS==2)THEN
+          KNT_LEV=KNT_LEV+1
+        ELSEIF(NUM_DIMS==3)THEN
+          KNT_LEV=KNT_LEV+LM
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO vars
+!
 !-----------------------------------------------------------------------
 !***  At this point all the children's 2-way data is ready to be 
 !***  received.  There is one more issue that must be considered.
@@ -10084,15 +10253,15 @@
 !     post-shift   |  post-shift                                      | 
 !   internal data  |  internal data                                   | 
 !      to child    |  from parent                                     |
-!              |   |   |                                              |
-!              |   |   |                                              |
-!              v   |   v                                              |
-!                  |     ^                                            |
-!                  |     |                                            |
-!                  |     |        child            child              |
-!                  |   CHILD     timestep         timestep            |
-!                  |   SHIFTS    boundary         boundary            |
-!                  |   HERE         |                |                |
+!          |       |   |                                              |
+!          |       |   |                                              |
+!          v       |   v                                              |
+!                  |   ^                                              |
+!                  |   |                                              |
+!                  |   |          child            child              |
+!                  | CHILD       timestep         timestep            |
+!                  | SHIFTS      boundary         boundary            |
+!                  | HERE           |                |                |
 !                  |                |                |                |
 !             23<--|-->24      24<--|-->25      25<--|-->26      26<--|-->27
 !                  |                |                |                |
@@ -10100,9 +10269,9 @@
 !                  |                                                  |
 !                  |                                                  |
 !                  |                                                  |
-!              ^   |   ^                                          ^   |   ^
-!              |   |   |                                          |   |   |
-!              |   |   |                                          |   |   |
+!              ^   |      ^                                       ^   |      ^
+!              |   |      |                                       |   |      |
+!              |   |      |                                       |   |      |
 !    child sends   |  parent recvs                      child sends   |  parent recvs
 !    pre-shift     |  pre-shift                         post-shift    |  post-shift
 !    2-way data    |  2-way data                        2-way data    |  2-way data
@@ -10129,13 +10298,13 @@
 !
 !                  |                                                  |
 !                  |                                                  |  
-!                  |    PARENT                                        | 
-!                  |    SHIFTS                                        |
-!                  |     HERE                                         |
-!                  |       |                                          |
-!                  |       |                                          |
-!                  |       |                                          |
-!                  |       v                                          |
+!                  | PARENT                                           | 
+!                  | SHIFTS                                           |
+!                  |  HERE                                            |
+!                  |   |                                              |
+!                  |   |                                              |
+!                  |   |                                              |
+!                  |   v                                              |
 !                  |             child            child               |
 !                  |            timestep         timestep             |
 !                  |            boundary         boundary             |
@@ -10147,13 +10316,13 @@
 !                  |                                                  |
 !                  |                                                  |
 !                  |                                                  |
-!              ^   |   ^                                          ^   |   ^
-!              |   |   |                                          |   |   |
-!              |   |   |                                          |   |   |
-!    child sends   |  parent recvs                      child sends   |  parent recvs
-!    pre-shift     |  pre-shift                         post-shift    |  post-shift
-!    2-way data    |  2-way data                        2-way data    |  2-way data
-!    to parent     |  from child                        to parent     |  from child
+!              ^   |      ^                                           |
+!              |   |      |                                           |
+!              |   |      |                                           |
+!     child sends  |  parent recvs                                    |
+!     post-shift   |  post-shift                                      |
+!     2-way data   |  2-way data                                      |
+!     to parent    |  from child                                      |
 !                  |                                                  |
 !
 !-----------------------------------------------------------------------
@@ -10180,7 +10349,33 @@
                          .OR.                                           &
            NTIMESTEP==NTIMESTEP_CHILD_MOVES(NM)+1                       &  !<-- 2-way child N moved one parent timestep ago
                          .OR.                                           &
-           NTIMESTEP==NEXT_MOVE_TIMESTEP+1)THEN                            !<-- This parent moved in the previous timestep
+           NTIMESTEP==NEXT_MOVE_TIMESTEP)THEN                              !<-- This parent moved earlier in this timestep
+!
+!-----------------------------------------------------------------------
+!***  If this parent moved earlier in this parent timestep then it
+!***  needs to modify the locations of its children accordingly.
+!***  This will be done as a local computation because 2-way nesting
+!***  is only optional.  The children's locations as changed by
+!***  the parent's shift will be permanently modified in 
+!***  PARENTS_SEND_CHILD_DATA where it is always required for
+!***  generation of BC update data to send to the children.
+!-----------------------------------------------------------------------
+!
+          I_PARENT_SW_X=I_PARENT_SW(N_ALL)
+          J_PARENT_SW_X=J_PARENT_SW(N_ALL)
+!
+#ifdef ESMF_3
+          IF(MY_DOMAIN_MOVES==ESMF_TRUE                                 &
+#else
+          IF(MY_DOMAIN_MOVES                                            &     !<-- Does this parent domain move?
+#endif
+                  .AND.                                                 &
+             NTIMESTEP==NEXT_MOVE_TIMESTEP)THEN                               !<-- Did this parent just shift in this timestep?
+!
+            I_PARENT_SW_X=I_PARENT_SW(N_ALL)-I_SHIFT_CHILD
+            J_PARENT_SW_X=J_PARENT_SW(N_ALL)-J_SHIFT_CHILD
+!
+          ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Parent tasks determine which if any of their points are updated
@@ -10196,8 +10391,8 @@
                                       ,CHILD_TASK_LIMITS                &  !<-- 2-way child N's subdomains' integration limits
                                       ,IM_CHILD(N_ALL)                  &  !<-- I extent of 2-way child N's domain
                                       ,JM_CHILD(N_ALL)                  &  !<-- J extent of 2-way child N's domain 
-                                      ,I_PARENT_SW(N_ALL)               &  !<-- Parent I of SW corner of child domain N_ALL
-                                      ,J_PARENT_SW(N_ALL)               &  !<-- Parent J of SW corner of child domain N_ALL
+                                      ,I_PARENT_SW_X                    &  !<-- Parent I of SW corner of child domain N_ALL
+                                      ,J_PARENT_SW_X                    &  !<-- Parent J of SW corner of child domain N_ALL
                                       ,N_BLEND_H_CHILD(N_ALL)           &  !<-- H-pt blending region width for 2-way child N
                                       ,N_BLEND_V_CHILD(N_ALL)           &  !<-- V-pt blending region width for 2-way child N
                                       ,N_STENCIL_H_CHILD(N)             &  !<-- Stencil width for averaging child h to parent H
@@ -10235,7 +10430,7 @@
 !
           IF(NT>1)PTR=>PTR%NEXT_LINK                                       !<-- Advance through this child's tasks that are sending data
 !
-          NPTS_UPDATE_TOTAL=NPTS_3D*PTR%NUM_PTS_UPDATE_HZ                  !<-- Total # of 3-D values updated by child N's task NT.
+          NPTS_UPDATE_TOTAL=KNT_LEV*PTR%NUM_PTS_UPDATE_HZ                  !<-- Total # of values updated by child N's task NT.
           ALLOCATE(VAR_2WAY(1:NPTS_UPDATE_TOTAL))                          !<-- The recv buffer
 !
           TASK_ID=PTR%TASK_ID                                               !<-- Local rank of task NT among child N's fcst tasks.
@@ -10267,33 +10462,54 @@
                        ,IERR )
 !
 !-----------------------------------------------------------------------
-!***  The parent incorporates the 2-way data sent from child N.
+!***  The parent does not incorporate data sent from the child if
+!***  this is a parent timestep that immediately follows the writing
+!***  of a restart file.  This ensures bit-reproducible restarts.
+!***  A child sends 2-way data to its parent at the end of parent
+!***  timestep N and the parent receives that data early in timestep
+!***  N+1.  Two-way data is not in the restart files so in a restart
+!***  the parent sees no 2-way data coming from its children in the
+!***  first timestep.  Therefore the parent must not use 2-way data
+!***  from the children in any parent timestep that follows the
+!***  writing of a restart file.
 !-----------------------------------------------------------------------
 !
-          I_2WAY_UPDATE_START=PTR%IL(1)                                    !<-- Starting parent I updated by child N's task NT
-          I_2WAY_UPDATE_END  =PTR%IL(2)                                    !<-- Ending parent I updated by child N's task NT
-          J_2WAY_UPDATE_START=PTR%JL(1)                                    !<-- Starting parent J updated by child N's task NT
-          J_2WAY_UPDATE_END  =PTR%JL(2)                                    !<-- Ending parent J updated by child N's task NT
+          no_restart: IF(MOD(NTIMESTEP,NTIMESTEPS_RESTART)/=0)THEN
 !
-          CALL PARENT_2WAY_UPDATE(I_2WAY_UPDATE_START                   &  !<-- # of tasks on 2-way child N that update this parent task
-                                 ,I_2WAY_UPDATE_END                     &  !<-- Info for 2-way child N's update on this parent task
-                                 ,J_2WAY_UPDATE_START                   &  !<-- Info for 2-way child N's update on this parent task
-                                 ,J_2WAY_UPDATE_END                     &  !<-- Info for 2-way child N's update on this parent task
-                                 ,LM                                    &  !<-- # of model layers (all domains)
-                                 ,NPTS_UPDATE_HORIZ                     &  !<-- # of update parent sfc H,V points
-                                 ,NPTS_UPDATE_TOTAL                     &  !<-- Total # of words in 2-way 3D update data from child
-                                 ,NVARS_2WAY_UPDATE                     &  !<-- # of variables updated in 2-way exchange
-                                 ,VAR_2WAY                              &  !<-- String of all 2-way 3D update data from child
-                                 ,CHILD_SFC_ON_PARENT_GRID              &  !<-- Child's FIS,PD interpolated to parent update points
-                                 ,CHILD_2WAY_WGT(N)                     &  !<-- Weight (0-1) given to child 2-way data in the update
-                                 ,FIS                                   &  !<-- Parent's sfc geopotential
-                                 ,PD,PDTOP,PT                           &  !<-- Parent's PD
-                                 ,SG1,SG2                               &  !<-- Interface 'sigma' values in pressure/hybrid regions
-                                 ,IMS,IME,JMS,JME                       &  !<-- Memory limits of parent subdomains
+!-----------------------------------------------------------------------
+!***  The parent incorporates the 2-way data sent from child N's
+!***  task NT.
+!-----------------------------------------------------------------------
 !
-                                 ,T,Q,CW                                &  !<-- Parent's updated 3-D H-pt variables.
-                                 ,U,V                                   &  !<-- Parent's updated 3-D V-pt variables.
+            I_2WAY_UPDATE_START=PTR%IL(1)                                  !<-- Starting parent I updated by child N's task NT
+            I_2WAY_UPDATE_END  =PTR%IL(2)                                  !<-- Ending parent I updated by child N's task NT
+            J_2WAY_UPDATE_START=PTR%JL(1)                                  !<-- Starting parent J updated by child N's task NT
+            J_2WAY_UPDATE_END  =PTR%JL(2)                                  !<-- Ending parent J updated by child N's task NT
+!
+            CALL PARENT_2WAY_UPDATE(I_2WAY_UPDATE_START                 &  !<-- # of tasks on 2-way child N that update this parent task
+                                   ,I_2WAY_UPDATE_END                   &  !<-- Info for 2-way child N's update on this parent task
+                                   ,J_2WAY_UPDATE_START                 &  !<-- Info for 2-way child N's update on this parent task
+                                   ,J_2WAY_UPDATE_END                   &  !<-- Info for 2-way child N's update on this parent task
+                                   ,LM                                  &  !<-- # of model layers (all domains)
+                                   ,NPTS_UPDATE_HORIZ                   &  !<-- # of update parent sfc H,V points
+                                   ,NPTS_UPDATE_TOTAL                   &  !<-- Total # of words in 2-way 3D update data from child
+                                   ,NVARS_2WAY_UPDATE                   &  !<-- # of variables updated in 2-way exchange
+                                   ,VAR_2WAY                            &  !<-- String of all 2-way update data from child
+                                   ,CHILD_SFC_ON_PARENT_GRID            &  !<-- Child's FIS,PD interpolated to parent update points
+                                   ,CHILD_2WAY_WGT(N)                   &  !<-- Weight (0-1) given to child 2-way data in the update
+                                   ,FIS                                 &  !<-- Parent's sfc geopotential
+                                   ,PD,PDTOP,PT                         &  !<-- Parent's PD
+                                   ,SG1,SG2                             &  !<-- Interface 'sigma' values in pressure/hybrid regions
+                                   ,IMS,IME,JMS,JME                     &  !<-- Memory limits of parent subdomains
+!
+                                   ,BUNDLE_2WAY                         &  !<-- Bundle holding pointers to the 2-way exchange variables
                                                  )
+!
+!-----------------------------------------------------------------------
+!
+          ENDIF no_restart
+!
+!-----------------------------------------------------------------------
 !
           DEALLOCATE(VAR_2WAY)
           DEALLOCATE(CHILD_SFC_ON_PARENT_GRID)
@@ -10392,7 +10608,7 @@
 !
 !-----------------------------------------------------------------------
 !***  Run the coupler step where children send their 2-way exchange
-!***  data to their parents.  This is phase 4 of the Parent-Child
+!***  data to their parents.  This is phase 5 of the Parent-Child
 !***  coupler Run step called in subroutine NMM_INTEGRATE and takes
 !***  place at the end of a parent timestep after the parents execute
 !***  their receiving and incorporation of 2-way exchanges from their
@@ -10423,10 +10639,16 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT),SAVE :: N2,NTOT,NTOT_H_V
+      INTEGER(kind=KINT),SAVE :: H_OR_V_INT,NTOT,NTOT_H_V
 !
       INTEGER(kind=KINT) :: MY_DOMAIN_ID,N,N_STENCIL,N_STENCIL_SFC      &
-                           ,N1,N1P,N2P,NT,NTAG,NTIMESTEP,NV
+                           ,N1,N1P,N2,N2P,NT,NTAG,NTIMESTEP,NUM_DIMS    &
+                           ,NV,NVERT,NX,NY
+!
+      INTEGER(kind=KINT) :: I_SW_PARENT_CURRENT_X                       &
+                           ,J_SW_PARENT_CURRENT_X
+!
+      INTEGER(kind=KINT) :: LB1,LB2,UB1,UB2
 !
       INTEGER(kind=KINT) :: IERR,RC
 !
@@ -10434,25 +10656,38 @@
 !
       INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
+      INTEGER(kind=KINT),DIMENSION(1:2) :: LBND,UBND
+!
       INTEGER(kind=KINT),DIMENSION(:),POINTER :: I_2WAY,I_2WAY_X        &
                                                 ,J_2WAY,J_2WAY_X
 !
       REAL(kind=KFPT),DIMENSION(:),POINTER :: VAR_PARENT
 !
+      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ARRAY_2WAY_R2D
+!
       REAL(kind=KFPT),DIMENSION(:,:),POINTER :: CHILD_SFC_INTERP
 !
-      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: VAR_CHILD
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: ARRAY_2WAY_R3D        &
+                                                 ,VAR_CHILD
 !
       LOGICAL(kind=KLOG) :: INTERPOLATE_SFC
 !
-      LOGICAL(kind=KLOG),SAVE :: BEGIN                                  &
+      LOGICAL(kind=KLOG),SAVE :: BEGIN_H,BEGIN_V                        &
                                 ,MY_2WAY_SIGNAL=.TRUE.
+!
+      CHARACTER(len=1) :: H_OR_V
+!
+      CHARACTER(len=99) :: FIELD_NAME
 !
 #ifdef ESMF_3
       TYPE(ESMF_Logical) :: MOVE_NOW
 #else
       LOGICAL(kind=KLOG) :: MOVE_NOW
 #endif
+!
+      TYPE(ESMF_Field) :: HOLD_FIELD
+!
+      TYPE(ESMF_TypeKind) :: DATATYPE
 !
       TYPE(COMPOSITE),POINTER :: CC
 !
@@ -10561,6 +10796,35 @@
 !***  is at the end of a parent timestep and that the parent will
 !***  receive 2-way update data from this child at the beginning
 !***  of the next parent timestep.
+!
+!***  Recall that the child's I,J of its southwest corner on its
+!***  parent's grid is part of the composite object and thus is
+!***  always retained.  However the change of that corner location
+!***  due to the parent's upcoming shift is computed locally here
+!***  because 2-way exchange is only optional.  The location of
+!***  the child's SW corner due the motion of its parent will be
+!***  permanently updated in CHILD_RECV_PARENT_DATA where the
+!***  computation is always needed for receiving BC updates.
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+      IF(MY_DOMAIN_MOVES==ESMF_True                                     &
+#else
+      IF(MY_DOMAIN_MOVES                                                &
+#endif
+               .AND.                                                    &
+         NTIMESTEP==PARENT_SHIFT(1)*TIME_RATIO_MY_PARENT-1)THEN            !<-- Parent will move at the start of the next parent timestep.
+!                            
+        I_SW_PARENT_CURRENT_X=I_SW_PARENT_CURRENT-PARENT_SHIFT(2)          !<-- Parent will have shifted in the upcoming parent timestep
+        J_SW_PARENT_CURRENT_X=J_SW_PARENT_CURRENT-PARENT_SHIFT(3)          !    before receiving this child's 2-way update data.
+!
+      ELSE
+!
+        I_SW_PARENT_CURRENT_X=I_SW_PARENT_CURRENT
+        J_SW_PARENT_CURRENT_X=J_SW_PARENT_CURRENT
+!
+      ENDIF
+!
 !-----------------------------------------------------------------------
 !
       IF(.NOT.CALLED_CHILD_2WAY_BOOKKEEPING                             &  !<-- All nests' first update of their parents.
@@ -10573,20 +10837,16 @@
                       .OR.                                              &
 #ifdef ESMF_3
          MY_DOMAIN_MOVES==ESMF_True                                     &
-               .AND.                                                    &
-         NTIMESTEP==PARENT_SHIFT(1)*TIME_RATIO_MY_PARENT+2)THEN            !<-- This domain's parent moved earlier in this parent timestep.
-!m1      NTIMESTEP==PARENT_SHIFT(1)*TIME_RATIO_MY_PARENT-1)THEN            !<-- Parent will move at the start of the next parent timestep.
 #else
          MY_DOMAIN_MOVES                                                &
-               .AND.                                                    &
-         NTIMESTEP==PARENT_SHIFT(1)*TIME_RATIO_MY_PARENT+2)THEN            !<-- This domain's parent moved earlier in this parent timestep.
-!m1      NTIMESTEP==PARENT_SHIFT(1)*TIME_RATIO_MY_PARENT-1)THEN            !<-- Parent will move at the start of the next parent timestep.
 #endif
+               .AND.                                                    &
+         NTIMESTEP==PARENT_SHIFT(1)*TIME_RATIO_MY_PARENT-1)THEN            !<-- Parent will move at the start of the next parent timestep.
 !                            
         ID_MY_PARENT=ID_PARENTS(MY_DOMAIN_ID)                              !<-- Domain ID of the current domain's parent
 !
-        CALL CHILD_2WAY_BOOKKEEPING(I_SW_PARENT_CURRENT                 &  !   ^
-                                   ,J_SW_PARENT_CURRENT                 &  !   |
+        CALL CHILD_2WAY_BOOKKEEPING(I_SW_PARENT_CURRENT_X               &  !   ^
+                                   ,J_SW_PARENT_CURRENT_X               &  !   |
                                    ,SPACE_RATIO_MY_PARENT               &  !   |
                                    ,NUM_FCST_TASKS_PARENT               &  !   |
                                    ,PTASK_LIMITS(MY_DOMAIN_ID)%ITS      &  !   |
@@ -10653,9 +10913,9 @@
 !
             DO N=1,NPTS_UPDATE_ON_PARENT_TASKS(NT)                         !<-- Loop through each parent I,J to be updated on subdomain NT
 !
-              I_2WAY_H(NT)%DATA(N)=(I_2WAY(N)-I_SW_PARENT_CURRENT)      &  !<-- Child I at parent update H point
+              I_2WAY_H(NT)%DATA(N)=(I_2WAY(N)-I_SW_PARENT_CURRENT_X)    &  !<-- Child I at parent update H point
                                    *SPACE_RATIO_MY_PARENT+1                !    on parent task NT.
-              J_2WAY_H(NT)%DATA(N)=(J_2WAY(N)-J_SW_PARENT_CURRENT)      &  !<-- Child J at parent update H point
+              J_2WAY_H(NT)%DATA(N)=(J_2WAY(N)-J_SW_PARENT_CURRENT_X)    &  !<-- Child J at parent update H point
                                    *SPACE_RATIO_MY_PARENT+1                !    on parent task NT.
 !
               I_2WAY_V(NT)%DATA(N)=I_2WAY_H(NT)%DATA(N)                 &  !<-- Child I at parent update V point
@@ -10672,12 +10932,12 @@
                          ,JSTAT                                         &  !<-- MPI status
                          ,IERR )
 !
-            NTOT=NVARS_2WAY_UPDATE*NPTS_UPDATE_ON_PARENT_TASKS(NT)*LM      !<-- # of points (3-D) updated for all vbls on parent task NT
+            NTOT=NPTS_UPDATE_ON_PARENT_TASKS(NT)*NLEV_2WAY                 !<-- # of points updated for all vbls on parent task NT
 !
             IF(ASSOCIATED(cc%UPDATE_PARENT_2WAY(NT)%DATA))THEN
               DEALLOCATE(cc%UPDATE_PARENT_2WAY(NT)%DATA)
             ENDIF
-            ALLOCATE(cc%UPDATE_PARENT_2WAY(NT)%DATA(1:NTOT))               !<-- Updated values for all 3-D variables on parent task NT
+            ALLOCATE(cc%UPDATE_PARENT_2WAY(NT)%DATA(1:NTOT),stat=RC)       !<-- Updated values for all 2-way variables on parent task NT
 !
 !-----------------------------------------------------------------------
 !
@@ -10724,54 +10984,164 @@
 !-----------------------------------------------------------------------
 !
         N2=0
-!       BEGIN=.TRUE.
+        BEGIN_H=.TRUE.
+        BEGIN_V=.TRUE.
 !
 !-----------------------------------------------------------------------
-!***  Loop through the 3-D update variables.
+!***  Loop through the variables in the 2-way exchange.
 !-----------------------------------------------------------------------
 !
-        vars: DO NV=1,NVARS_2WAY_UPDATE                                    !<-- Loop over all parent 3-D variables updated by the child.
+        vars: DO NV=1,NVARS_2WAY_UPDATE                                    !<-- Loop over all parent exchange variables updated by the child.
 !
 !-----------------------------------------------------------------------
 !
-          IF(NV==1)THEN                                                    !<-- Temperature
-            VAR_CHILD=>T
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract Field from the Bundle of 2-way Vars"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_FieldBundleGet(FIELDBUNDLE=BUNDLE_2WAY              &  !<-- Bundle holding the arrays for 2-way exchange
+                                  ,fieldIndex =NV                       &  !<-- Index of the Field in the Bundle
+                                  ,field      =HOLD_FIELD               &  !<-- Field NV in the Bundle
+                                  ,rc         =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract Info about this 2-way Variable"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_FieldGet(field   =HOLD_FIELD                        &  !<-- Field N_FIELD in the Bundle
+                            ,dimCount=NUM_DIMS                          &  !<-- Is this Field 2-D or 3-D?
+                            ,typeKind=DATATYPE                          &  !<-- Does the Field contain an integer or real array?
+                            ,name    =FIELD_NAME                        &  !<-- This Field's name
+                            ,rc      =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Character variables cannot be used as ESMF Attributes so
+!***  integers are used below to indicate whether the 2-way variable
+!***  is on H or V points.  After this integer Attribute is read in
+!***  translate it to a character.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract whether H or V Array from Field"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(field=HOLD_FIELD                       &  !<-- Get Attribute from this Field
+                                ,name ='H_OR_V_INT'                     &  !<-- Name of the attribute to extract
+                                ,value=H_OR_V_INT                       &  !<-- Value of the Attribute
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          IF(H_OR_V_INT==1)THEN
+            H_OR_V='H'
+          ELSEIF(H_OR_V_INT==2)THEN
+            H_OR_V='V'
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!
+          dtype: IF(DATATYPE==ESMF_TYPEKIND_R4)THEN                        !<-- Is this a Real 2-way variable?
+!
+            ndims: IF(NUM_DIMS==3)THEN                                     !<-- Is this a 3-D 2-way variable?
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              MESSAGE_CHECK="Extract 2-way Real 3-D Array from the Field"
+!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field that holds the data pointer
+                                ,localDe  =0                                &
+                                ,farrayPtr=ARRAY_2WAY_R3D                   &  !<-- Put the pointer here
+                                ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              NVERT=LM
+              VAR_CHILD=>ARRAY_2WAY_R3D
+!
+!-----------------------------------------------------------------------
+!
+            ELSEIF(NUM_DIMS==2)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              MESSAGE_CHECK="Extract 2-way Real 2-D Array from the Field"
+!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field that holds the 2-D data pointer
+                                ,localDe  =0                                &
+                                ,farrayPtr=ARRAY_2WAY_R2D                   &  !<-- Put the 2-D pointer here
+                                ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              NVERT=1
+!
+              LBND=LBOUND(ARRAY_2WAY_R2D)
+              LB1=LBND(1)
+              LB2=LBND(2)
+              UBND=UBOUND(ARRAY_2WAY_R2D)
+              UB1=UBND(1)
+              UB2=UBND(2)
+!
+              ALLOCATE(VAR_CHILD(LB1:UB1,LB2:UB2,1))
+              DO NY=LB2,UB2
+              DO NX=LB1,UB1
+                VAR_CHILD(NX,NY,1)=ARRAY_2WAY_R2D(NX,NY)
+              ENDDO
+              ENDDO
+!
+!-----------------------------------------------------------------------
+!
+            ENDIF ndims
+!
+!-----------------------------------------------------------------------
+!
+          ELSEIF(DATATYPE==ESMF_TYPEKIND_I4)THEN
+!
+            WRITE(0,10001)
+10001       FORMAT(' Add the use of Integer 2-way exchange variables')
+!
+!-----------------------------------------------------------------------
+!
+          ENDIF dtype
+!
+!-----------------------------------------------------------------------
+!
+          IF(H_OR_V=='H')THEN
             I_2WAY_X=>I_2WAY_H(NT)%DATA                                    !<-- Use child I's at parent H points
             J_2WAY_X=>J_2WAY_H(NT)%DATA                                    !<-- Use child J's at parent H points
             N_STENCIL=N_STENCIL_H                                          !<-- Width of stencil of child averaging for parent H pts
-          ENDIF
 !
-          IF(NV==2)THEN                                                    !<-- Specific humidity
-            VAR_CHILD=>Q
-            I_2WAY_X=>I_2WAY_H(NT)%DATA                                    !<-- Use child I's at parent H points
-            J_2WAY_X=>J_2WAY_H(NT)%DATA                                    !<-- Use child J's at parent H points
-            N_STENCIL=N_STENCIL_H                                          !<-- Width of stencil of child averaging for parent H pts
-          ENDIF
-!
-          IF(NV==3)THEN                                                    !<-- Cloud condensate
-            VAR_CHILD=>CW
-            I_2WAY_X=>I_2WAY_H(NT)%DATA                                    !<-- Use child I's at parent H points
-            J_2WAY_X=>J_2WAY_H(NT)%DATA                                    !<-- Use child J's at parent H points
-            N_STENCIL=N_STENCIL_H                                          !<-- Width of stencil of child averaging for parent H pts
-          ENDIF
-!
-          IF(NV==4)THEN                                                    !<-- U wind component
-            VAR_CHILD=>U  
+          ELSEIF(H_OR_V=='V')THEN
             I_2WAY_X=>I_2WAY_V(NT)%DATA                                    !<-- Use child I's at parent V points
             J_2WAY_X=>J_2WAY_V(NT)%DATA                                    !<-- Use child J's at parent V points
             N_STENCIL=N_STENCIL_V                                          !<-- Width of stencil of child averaging for parent V pts
+!
           ENDIF
 !
-          IF(NV==5)THEN                                                    !<-- V wind component
-            VAR_CHILD=>V  
-            I_2WAY_X=>I_2WAY_V(NT)%DATA                                    !<-- Use child I's at parent V points
-            J_2WAY_X=>J_2WAY_V(NT)%DATA                                    !<-- Use child J's at parent V points
-            N_STENCIL=N_STENCIL_V                                          !<-- Width of stencil of child averaging for parent V pts
-          ENDIF
+!-----------------------------------------------------------------------
 !
-          N1=N2+1                                                          !<-- Starting word location of 3-D vbl #NV to parent task NT
-          N2=N1+NPTS_UPDATE_ON_PARENT_TASKS(NT)*LM-1                       !<-- Ending word location of 3-D vbl #NV to parent task NT
-          VAR_PARENT=>cc%UPDATE_PARENT_2WAY(NT)%DATA(N1:N2)                !<-- Updated values for 3-D variable #NV on parent task NT
+          N1=N2+1                                                          !<-- Starting word location of Real vbl #NV to parent task NT
+          N2=N1+NPTS_UPDATE_ON_PARENT_TASKS(NT)*NVERT-1                    !<-- Ending word location of Real vbl #NV to parent task NT
+          VAR_PARENT=>cc%UPDATE_PARENT_2WAY(NT)%DATA(N1:N2)                !<-- Updated values for Real variable #NV on parent task NT
 !
 !-----------------------------------------------------------------------
 !***  The nest also interpolates its PD and sfc geopotential to parent
@@ -10781,14 +11151,14 @@
 !
           INTERPOLATE_SFC=.FALSE.
 !
-          IF(NV==1)THEN                                                    !<-- H point variables are updated first
+          IF(H_OR_V=='H'.AND.BEGIN_H)THEN                                  !<-- Child generates FIS,PD on H only once for parent task NT
             INTERPOLATE_SFC=.TRUE.
             N1P=1                                                          !<-- Starting word location for FIS,PD on H for parent task NT
             N2P=NPTS_UPDATE_ON_PARENT_TASKS(NT)                            !<-- Ending word location for FIS,PD on H for parent task NT
             CHILD_SFC_INTERP=>CHILD_SFC_ON_PARENT(NT)%DATA(N1P:N2P,1:2)    !<-- Child's FIS,PD on parent task NT's update H points
             N_STENCIL_SFC=N_STENCIL_SFC_H                                  !<-- Stencil width for interpolating child FIS,PD to parent H
 !
-          ELSEIF(NV==NVARS_2WAY_UPDATE)THEN                                !<-- Winds are updated last
+          ELSEIF(H_OR_V=='V'.AND.BEGIN_V)THEN                              !<-- Child generates FIS,PD on V only once for parent task NT
             INTERPOLATE_SFC=.TRUE.
             N1P=NPTS_UPDATE_ON_PARENT_TASKS(NT)+1                          !<-- Starting word location for FIS,PD on V for parent task NT
             N2P=N1P+NPTS_UPDATE_ON_PARENT_TASKS(NT)-1                      !<-- Ending word location for FIS,PD on V for parent task NT
@@ -10802,16 +11172,28 @@
           CALL GENERATE_2WAY_DATA(VAR_CHILD                             &  !<-- Child variable to be interpolated
                                  ,PD                                    &  !<-- The child's PD array
                                  ,FIS                                   &  !<-- The child's sfc geopotential array
-                                 ,IMS,IME,JMS,JME,LM                    &  !<-- This child task subdomain's memory dimensions
+                                 ,IMS,IME,JMS,JME,NVERT                 &  !<-- This child task subdomain's memory dimensions
                                  ,I_2WAY_X                              &  !<-- Child I at each parent update point (H or V)
                                  ,J_2WAY_X                              &  !<-- Child J at each parent update point (H or V)
                                  ,N_STENCIL                             &  !<-- Stencil width of child averaging for parent variable
                                  ,N_STENCIL_SFC                         &  !<-- Stencil width of child averaging its FIS,PD to parent grid
-!                                ,BEGIN                                 &  !<-- 1st pass through routine this timestep?
                                  ,NPTS_UPDATE_ON_PARENT_TASKS(NT)       &  !<-- # of update points (I,J) on parent task NT
                                  ,VAR_PARENT                            &  !<-- Child values interpolated onto parent points for this vbl
                                  ,INTERPOLATE_SFC                       &  !<-- Should PD and FIS be interpolated in this call?
-                                 ,CHILD_SFC_INTERP )                           !<-- Child PD,FIS interpolated onto parent H then V points
+                                 ,CHILD_SFC_INTERP )                       !<-- Child PD,FIS interpolated onto parent H then V points
+!
+          IF(BEGIN_H)THEN
+            BEGIN_H=.FALSE.
+          ENDIF
+          IF(BEGIN_V)THEN
+            BEGIN_V=.FALSE.
+          ENDIF
+!
+          IF(NUM_DIMS==2)THEN                                              !<-- VAR_CHILD explicitly allocated only for 2-D variables
+            DEALLOCATE(VAR_CHILD)
+          ENDIF
+!
+!-----------------------------------------------------------------------
 !
         ENDDO vars
 !
@@ -12755,6 +13137,46 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
+!***  If 2-way nesting is being used then an ESMF Bundle is used
+!***  to hold pointers to the Solver component's internal state
+!***  variables which are interpolated by the child to its parent's
+!***  grid then sent to the parent.  Unload the 2-way Bundle from
+!***  the Domain component's export state and load it into the
+!***  parent-Child coupler's import state.  If 2-way nesting has
+!***  not been selected by the user then the 2-way Bundle is
+!***  still present but is empty.
+!-----------------------------------------------------------------------
+!
+      BUNDLE_2WAY=>cc%BUNDLE_2WAY
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract 2-way Bundle from Domain Export State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateGet(state      =EXP_STATE_DOMAIN                   &  !<-- The Parent's DOMAIN export state
+                        ,itemName   ='Bundle_2way'                      &  !<-- Bundle of Solver internal state pointers for 2-way exch
+                        ,fieldbundle=BUNDLE_2WAY                        &  !<-- Put the extracted Bundle here
+                        ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert 2-way Bundle into P-C Coupler Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_StateAdd(IMP_STATE_CPL_NEST                 &  !<-- The Parent-Child Coupler's import state
+                        ,LISTWRAPPER(BUNDLE_2WAY)           &  !<-- The Bundle of Solver internal state pointers for 2-way exch
+                        ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
 !
       END SUBROUTINE PARENT_CHILD_COUPLER_SETUP
 !
@@ -13122,6 +13544,7 @@
       CF_MINE  =>cc%CF_MINE
       CF       =>cc%CF
 !
+      BUNDLE_2WAY  =>cc%BUNDLE_2WAY
       MOVE_BUNDLE_H=>cc%MOVE_BUNDLE_H
       MOVE_BUNDLE_V=>cc%MOVE_BUNDLE_V
 !
@@ -15464,6 +15887,8 @@
           WRITE(0,*)' Failed to allocate HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(1:',NUM_TASKS_SEND_H_S(N) &
                    ,')  stat=',ISTAT
           WRITE(0,*)' N=',N,' INDX2=',INDX2
+!       else
+!         write(0,*)' allocated HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(1:',NUM_TASKS_SEND_H_S(N),')'
         ENDIF
         DO NN=1,NUM_TASKS_SEND_H_S(N)
           HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(NN)=MPI_REQUEST_NULL
@@ -15473,6 +15898,8 @@
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate dummy HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(1:1)  stat=',ISTAT
           WRITE(0,*)' N=',N,' INDX2=',INDX2
+!       else 
+!         write(0,*)' allocated dummy HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(1:1)'
         ENDIF
         HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(1)=MPI_REQUEST_NULL
       ENDIF
@@ -19668,9 +20095,7 @@
                                    ,IMS,IME,JMS,JME                     & !   |
                                                                           ! input
 !                                                                           -----
-                                                                          ! output
-                                   ,T,Q,CW                              & !   |
-                                   ,U,V                                 & !   v
+                                   ,BUNDLE_2WAY                         & ! output
                                            )
 !
 !-----------------------------------------------------------------------
@@ -19692,14 +20117,11 @@
                                       ,NPTS_UPDATE_TOTAL                &  !<-- Total # of words in 2-way 3D update data from child
                                       ,NVARS_2WAY_UPDATE                   !<-- # of variables updated in 2-way exchange
 !
-      INTEGER(kind=KINT) :: IMS,IME,JMS,JME                                !<-- Parent subdomain memory limits
+      INTEGER(kind=KINT),INTENT(IN) :: IMS,IME,JMS,JME                     !<-- Parent subdomain memory limits
 !
       REAL(kind=KFPT),INTENT(IN) :: PDTOP                               &  !<-- Pressure at top of the sigma domain (Pa)
                                    ,PT                                  &  !<-- Pressure at the top of the domain (Pa)
                                    ,WGT_CHILD                              !<-- Weight (0-1) given to child 2-way data in the update
-!
-      REAL(kind=KFPT),DIMENSION(1:NPTS_UPDATE_TOTAL),TARGET             &
-                                             ,INTENT(INOUT):: VAR_2WAY     !<-- String of all 2-way update data from child
 !
       REAL(kind=KFPT),DIMENSION(1:NPTS_UPDATE_HORIZ,1:2),INTENT(IN) ::  &
                                                CHILD_SFC_ON_PARENT_GRID    !<-- Child's FIS(:,1),PD(:,2) interpolated to parent update pts
@@ -19709,12 +20131,12 @@
 !
       REAL(kind=KFPT),DIMENSION(1:LM+1),INTENT(IN) :: SG1,SG2              !<-- Interface 'sigma' values in pressure and hybrid regions
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),TARGET            &
-                                                  ,INTENT(INOUT) :: T   &  !<-- Parent's temperature (K)
-                                                                   ,Q   &  !<-- Parent's specific humidity (kg/kg)
-                                                                   ,CW  &  !<-- Parent's cloud condensate (kg/kg)
-                                                                   ,U   &  !<-- Parent's U wind component (m/s)
-                                                                   ,V      !<-- Parent's V wind component (m/s)
+!--------------------
+!
+      REAL(kind=KFPT),DIMENSION(1:NPTS_UPDATE_TOTAL),TARGET             &
+                                             ,INTENT(INOUT):: VAR_2WAY     !<-- String of all 2-way update data from child
+!
+      TYPE(ESMF_FieldBundle),INTENT(INOUT) :: BUNDLE_2WAY                  !<-- Object holding pointes to the 2-way exchange variables
 !
 !---------------------
 !***  Local variables
@@ -19722,8 +20144,10 @@
 !
       INTEGER(kind=KINT) :: I,IPTS,J,JPTS,KNT,KNT_HZ                    &
                            ,L,LOC1_2WAY,LOC2_2WAY                       &
-                           ,N_STRIDE,NPTS_HZ,NPTS_PER_VAR               &
-                           ,NUM_LEVS_SEC,NUM_LEVS_SPLINE,NV
+                           ,N_STRIDE,NPTS_3D,NPTS_HZ                    &
+                           ,NUM_DIMS,NUM_LEVS_SEC,NUM_LEVS_SPLINE,NV
+!
+      INTEGER(kind=KINT) :: RC,RC_UPD
 !
       REAL(kind=KFPT) :: COEFF_1,DELP_EXTRAP,FACTOR,PDTOP_PT            &
                         ,PINT_HI_CHILD,PINT_HI_PARENT,PINT_LO           &
@@ -19737,20 +20161,35 @@
 !
       REAL(kind=KFPT),DIMENSION(:),POINTER :: VBL_COL,VBL_X
 !
-      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: VAR_PARENT
+      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: VAR_PARENT_2D
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: VAR_PARENT_3D
 !
       LOGICAL(kind=KLOG) :: EXTRAPOLATE
+!
+      CHARACTER(len=99) :: FIELD_NAME
+!
+      TYPE(ESMF_Field) :: HOLD_FIELD
+!
+      TYPE(ESMF_TypeKind) :: DATATYPE
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  The update variables are currently temperature, specific humidity,
-!***  cloud condensate, uwind, and vwind.
+!***  The parent does not incorporate data sent from the child if
+!***  this is a parent timestep that immediately follows the writing
+!***  of a restart file.  This ensures bit-reproducible restarts.
+!***  A child sends 2-way data to its parent at the end of parent
+!***  timestep N and the parent receives that data early in timestep
+!***  N+1.  Two-way data is not in the restart files so in a restart
+!***  the parent sees no 2-way data coming from its children in the
+!***  first timestep.  Therefore the parent must not use 2-way data
+!***  from the children in any parent timestep that follows the
+!***  writing of a restart file.
 !-----------------------------------------------------------------------
 !
-      KNT_HZ=0
       NUM_LEVS_SEC=LM+1
       WGT_PARENT=1.-WGT_CHILD
 !
@@ -19759,17 +20198,78 @@
       IPTS=I_2WAY_UPDATE_END-I_2WAY_UPDATE_START+1                         !<-- # of parent points updated in I
       JPTS=J_2WAY_UPDATE_END-J_2WAY_UPDATE_START+1                         !<-- # of parent points updated in J
       NPTS_HZ=IPTS*JPTS                                                    !<-- # of parent update points in the horizontal
-      NPTS_PER_VAR=NPTS_HZ*LM                                              !<-- # of parent points updated for each 3D variable
+      NPTS_3D=NPTS_HZ*LM                                                   !<-- # of parent points updated for each 3D variable
+!
+      KNT=0                                                                !<-- Count words in 2-D string of 2-way exchange variables
+!
+!-----------------------------------------------------------------------
+!***  Loop through all the 2-way exchange variables.
+!-----------------------------------------------------------------------
+!
+      vars: DO NV=1,NVARS_2WAY_UPDATE
 !
 !-----------------------------------------------------------------------
 !
-      DO J=J_2WAY_UPDATE_START,J_2WAY_UPDATE_END
-      DO I=I_2WAY_UPDATE_START,I_2WAY_UPDATE_END
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Field from the Bundle of 2-way Vbls"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE=BUNDLE_2WAY                &  !<-- Bundle holding the arrays for move updates
+                                ,fieldIndex =NV                         &  !<-- Index of the Field in the Bundle
+                                ,field      =HOLD_FIELD                 &  !<-- Field NV in the Bundle
+                                ,rc         =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Info about this 2-way Variable"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_FieldGet(field   =HOLD_FIELD                          &  !<-- Field N_FIELD in the Bundle
+                          ,dimCount=NUM_DIMS                            &  !<-- Is this Field 2-D or 3-D?
+                          ,typeKind=DATATYPE                            &  !<-- Does the Field contain an integer or real array?
+                          ,name    =FIELD_NAME                          &  !<-- This variable's name.
+                          ,rc      =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !
-        KNT_HZ=KNT_HZ+1
-        EXTRAPOLATE=.FALSE.
+        ndim: IF(NUM_DIMS==3)THEN
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract Real 2-way 3-D Array from the Field"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field that holds the exchange variable pointer
+                            ,localDe  =0                                &
+                            ,farrayPtr=VAR_PARENT_3D                    &  !<-- Put the pointer here
+                            ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+          KNT_HZ=0
+!
+          DO J=J_2WAY_UPDATE_START,J_2WAY_UPDATE_END
+          DO I=I_2WAY_UPDATE_START,I_2WAY_UPDATE_END
+!
+!-----------------------------------------------------------------------
+!
+            KNT_HZ=KNT_HZ+1
+            EXTRAPOLATE=.FALSE.
 !
 !-----------------------------------------------------------------------
 !***  If either the interpolated nest sfc or the parent sfc lies
@@ -19778,31 +20278,31 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-        adjust: IF(CHILD_SFC_ON_PARENT_GRID(KNT_HZ,1)>1.                &  !<-- Child's interpolated sfc is above sea level
-                      .OR.                                              &
-                   FIS(I,J)>1.)THEN                                        !<-- Parent's sfc is above sea level
+            adjust: IF(CHILD_SFC_ON_PARENT_GRID(KNT_HZ,1)>1.            &  !<-- Child's interpolated sfc is above sea level
+                          .OR.                                          &
+                       FIS(I,J)>1.)THEN                                    !<-- Parent's sfc is above sea level
 !-----------------------------------------------------------------------
 !
-          PDTOP_PT=SG1(1)*PDTOP+PT
-          PINT_HI_CHILD=SG2(1)*CHILD_SFC_ON_PARENT_GRID(KNT_HZ,2)+PDTOP_PT
-          PINT_HI_PARENT=SG2(1)*PD(I,J)+PDTOP_PT
+              PDTOP_PT=SG1(1)*PDTOP+PT
+              PINT_HI_CHILD=SG2(1)*CHILD_SFC_ON_PARENT_GRID(KNT_HZ,2)+PDTOP_PT
+              PINT_HI_PARENT=SG2(1)*PD(I,J)+PDTOP_PT
 !
-          DO L=1,LM
-            PDTOP_PT=SG1(L+1)*PDTOP+PT
-            PINT_LO=SG2(L+1)*CHILD_SFC_ON_PARENT_GRID(KNT_HZ,2)+PDTOP_PT
-            PMID_CHILD(L)=0.5*(PINT_HI_CHILD+PINT_LO)                      !<-- Midlayer P of 2-way data from child at parent I,J
-            PINT_HI_CHILD=PINT_LO
+              DO L=1,LM
+                PDTOP_PT=SG1(L+1)*PDTOP+PT
+                PINT_LO=SG2(L+1)*CHILD_SFC_ON_PARENT_GRID(KNT_HZ,2)+PDTOP_PT
+                PMID_CHILD(L)=0.5*(PINT_HI_CHILD+PINT_LO)                  !<-- Midlayer P of 2-way data from child at parent I,J
+                PINT_HI_CHILD=PINT_LO
 !
-            PINT_LO=SG2(L+1)*PD(I,J)+PDTOP_PT
-            PMID_PARENT(L)=0.5*(PINT_HI_PARENT+PINT_LO)                    !<-- Current midlayer pressure at parent I,J
-            PINT_HI_PARENT=PINT_LO
-          ENDDO
+                PINT_LO=SG2(L+1)*PD(I,J)+PDTOP_PT
+                PMID_PARENT(L)=0.5*(PINT_HI_PARENT+PINT_LO)                !<-- Current midlayer pressure at parent I,J
+                PINT_HI_PARENT=PINT_LO
+              ENDDO
 !
-          NUM_LEVS_SPLINE=LM
+              NUM_LEVS_SPLINE=LM
 !
-          DO L=1,NUM_LEVS_SEC
-            SEC_DERIV(L)=0.                                                    !<-- Needed in the SPLINE subroutine
-          ENDDO
+              DO L=1,NUM_LEVS_SEC
+                SEC_DERIV(L)=0.                                            !<-- Needed in the SPLINE subroutine
+              ENDDO
 !
 !-----------------------------------------------------------------------
 !***  If the target parent midlayer pressure level lies below the
@@ -19813,109 +20313,120 @@
 !***  using SPLINE just as is done with all the higher levels.
 !-----------------------------------------------------------------------
 !
-          IF(PMID_PARENT(LM)>PMID_CHILD(LM))THEN
-            EXTRAPOLATE=.TRUE.
-            NUM_LEVS_SPLINE=LM+1                                           !<-- Insert 'underground' artificial input level from child
-            PMID_CHILD(LM+1)=PMID_PARENT(LM)                               !<-- 'Underground' child P is the  parent's bottom midlayer P
-            R_DELP=1./(PMID_CHILD(LM)-PMID_CHILD(LM-1))
-            DELP_EXTRAP=PMID_PARENT(LM)-PMID_CHILD(LM)
-            ALLOCATE(VBL_X(1:LM+1))                                        !<-- Allocate 2-way data input column with extra bottom layer
-          ENDIF
+              IF(PMID_PARENT(LM)>PMID_CHILD(LM))THEN
+                EXTRAPOLATE=.TRUE.
+                NUM_LEVS_SPLINE=LM+1                                       !<-- Insert 'underground' artificial input level from child
+                PMID_CHILD(LM+1)=PMID_PARENT(LM)                           !<-- 'Underground' child P is the  parent's bottom midlayer P
+                R_DELP=1./(PMID_CHILD(LM)-PMID_CHILD(LM-1))
+                DELP_EXTRAP=PMID_PARENT(LM)-PMID_CHILD(LM)
+                ALLOCATE(VBL_X(1:LM+1))                                    !<-- Allocate 2-way data input column with extra bottom layer
+              ENDIF
 !
-          vars1: DO NV=1,NVARS_2WAY_UPDATE                                 !<-- Loop through the update variables
+              LOC1_2WAY=(NV-1)*NPTS_3D                                  &  !<-- The 1st word of the column of 2-way data in 1-D data
+                        +(J-J_2WAY_UPDATE_START)*IPTS                   &  !    recvd from child for variable NV at parent I,J.
+                        +(I-I_2WAY_UPDATE_START+1)
+              LOC2_2WAY=LOC1_2WAY+(LM-1)*NPTS_HZ                           !<-- The last word of parent I,J column in 2-way exchange data.
+              N_STRIDE=NPTS_HZ                                             !<-- Stride between points in this I,J column.
 !
-            LOC1_2WAY=(NV-1)*NPTS_PER_VAR                               &  !<-- The 1st word of the column of 2-way data in 1-D data
-                      +(J-J_2WAY_UPDATE_START)*IPTS                     &  !    recvd from child for variable NV at parent I,J.
-                      +(I-I_2WAY_UPDATE_START+1)
-            LOC2_2WAY=LOC1_2WAY+(LM-1)*NPTS_HZ                             !<-- The last word of parent I,J column in 2-way exchange data.
-            N_STRIDE=NPTS_HZ                                               !<-- Stride between points in this I,J column.
+              VBL_COL=>VAR_2WAY(LOC1_2WAY:LOC2_2WAY:N_STRIDE)              !<-- Pre-adjusted values in this column of the input 2-way data
 !
-            VBL_COL=>VAR_2WAY(LOC1_2WAY:LOC2_2WAY:N_STRIDE)                !<-- Pre-adjusted values in this column of the input 2-way data
+              IF(.NOT.EXTRAPOLATE)THEN
+                VBL_X=>VBL_COL                                             !<-- No extrapolation so no need to copy values
 !
-            IF(.NOT.EXTRAPOLATE)THEN
-              VBL_X=>VBL_COL                                               !<-- No extrapolation so no need to copy values
+              ELSEIF(EXTRAPOLATE)THEN
+                DO L=1,LM
+                  VBL_X(L)=VBL_COL(L)                                      !<-- Copy the genuine values from the input column
+                ENDDO
 !
-            ELSEIF(EXTRAPOLATE)THEN
+                COEFF_1=(VBL_X(LM)-VBL_X(LM-1))*R_DELP
+                FACTOR=HYPER_A/(DELP_EXTRAP+HYPER_B)+HYPER_C
+                VBL_X(LM+1)=VBL_X(LM)                                   &  !<-- Fill in the extra artificial underground value
+                           +COEFF_1*DELP_EXTRAP*FACTOR                     !    in 2-way input.
+!
+              ENDIF
+!
+              CALL SPLINE(NUM_LEVS_SPLINE                               &  !<-- # of midlayers in column of child input 2-way data
+                         ,PMID_CHILD                                    &  !<-- Interpolated input pressures at child's midlayers
+                         ,VBL_X                                         &  !<-- Input values of variable in column at parent I,J
+                         ,SEC_DERIV                                     &
+                         ,NUM_LEVS_SEC                                  &
+                         ,LM                                            &  !<-- Interpolate to this many parent midlayers
+                         ,PMID_PARENT                                   &  !<-- Target output pressures at parent's midlayers
+                         ,VBL_OUT )                                        !<-- Values in the column at I,J adjusted for topo differences
+!
               DO L=1,LM
-                VBL_X(L)=VBL_COL(L)                                        !<-- Copy the genuine values from the input column
+                VBL_COL(L)=VBL_OUT(L)                                      !<-- Transfer adjusted column values back into 2-way data
               ENDDO
 !
-              COEFF_1=(VBL_X(LM)-VBL_X(LM-1))*R_DELP
-              FACTOR=HYPER_A/(DELP_EXTRAP+HYPER_B)+HYPER_C
-              VBL_X(LM+1)=VBL_X(LM)                                     &  !<-- Fill in the extra artificial underground value
-                         +COEFF_1*DELP_EXTRAP*FACTOR                       !    in 2-way input.
-!
-            ENDIF
-!
-            CALL SPLINE(NUM_LEVS_SPLINE                                 &  !<-- # of midlayers in column of child input 2-way data
-                       ,PMID_CHILD                                      &  !<-- Interpolated input pressures at child's midlayers
-                       ,VBL_X                                           &  !<-- Input values of variable in column at parent I,J
-                       ,SEC_DERIV                                       &
-                       ,NUM_LEVS_SEC                                    &
-                       ,LM                                              &  !<-- Interpolate to this many parent midlayers
-                       ,PMID_PARENT                                     &  !<-- Target output pressures at parent's midlayers
-                       ,VBL_OUT )                                          !<-- Values in the column at I,J adjusted for topo differences
-!
-            DO L=1,LM
-              VBL_COL(L)=VBL_OUT(L)                                        !<-- Transfer adjusted column values back into 2-way data
-            ENDDO
-!
-          ENDDO vars1
-!
-          IF(EXTRAPOLATE)THEN
-            DEALLOCATE(VBL_X)
-          ENDIF
+              IF(EXTRAPOLATE)THEN                                          !<-- VBL_X is explicitly allocated only if EXTRAPOLATE is true.
+                DEALLOCATE(VBL_X)
+              ENDIF
 !
 !-----------------------------------------------------------------------
 !
-        ENDIF adjust
+            ENDIF adjust
 !
 !-----------------------------------------------------------------------
 !
-      ENDDO
-      ENDDO
+          ENDDO
+          ENDDO
 !
 !-----------------------------------------------------------------------
-!***  Now the parent simply updates its values of the update
+!***  Now the parent simply updates its values of the exchange
 !***  variables at its update points using a weighted average
 !***  between its original values and those coming from the child.
 !-----------------------------------------------------------------------
 !
-      KNT=0
 !
-      vars2: DO NV=1,NVARS_2WAY_UPDATE                                     !<-- Loop over all parent variables updated by the child.
+          DO L=1,LM
+            DO J=J_2WAY_UPDATE_START,J_2WAY_UPDATE_END
+            DO I=I_2WAY_UPDATE_START,I_2WAY_UPDATE_END
 !
-        IF(NV==1)THEN
-          VAR_PARENT=>T                                                    !<-- Parent temperature
+              KNT=KNT+1
 !
-        ELSEIF(NV==2)THEN
-          VAR_PARENT=>Q                                                    !<-- Parent specific humidity
+              VAR_PARENT_3D(I,J,L)=VAR_2WAY(KNT)*WGT_CHILD              &  !<-- The 2-way data from the child provides the fraction
+                                  +VAR_PARENT_3D(I,J,L)*WGT_PARENT         !    WGT_CHILD of the final updated parent value.
 !
-        ELSEIF(NV==3)THEN
-          VAR_PARENT=>CW                                                   !<-- Parent cloud condensate
+            ENDDO
+            ENDDO
+          ENDDO
 !
-        ELSEIF(NV==4)THEN
-          VAR_PARENT=>U                                                    !<-- Parent U wind component
+!-----------------------------------------------------------------------
 !
-        ELSEIF(NV==5)THEN
-          VAR_PARENT=>V                                                    !<-- Parent V wind component
+        ELSEIF(NUM_DIMS==2)THEN
 !
-        ENDIF
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract Real 2-way 2-D Array from the Field"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        DO L=1,LM
+          CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field that holds the exchange variable pointer
+                            ,localDe  =0                                &
+                            ,farrayPtr=VAR_PARENT_2D                    &  !<-- Put the pointer here
+                            ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
           DO J=J_2WAY_UPDATE_START,J_2WAY_UPDATE_END
           DO I=I_2WAY_UPDATE_START,I_2WAY_UPDATE_END
 !
             KNT=KNT+1
 !
-            VAR_PARENT(I,J,L)=VAR_2WAY(KNT)*WGT_CHILD                   &  !<-- The 2-way data from the child provides the fraction
-                             +VAR_PARENT(I,J,L)*WGT_PARENT                 !    WGT_CHILD of the final updated parent value.
+            VAR_PARENT_2D(I,J)=VAR_2WAY(KNT)*WGT_CHILD                  &  !<-- The 2-way data from the child provides the fraction
+                              +VAR_PARENT_2D(I,J)*WGT_PARENT               !    WGT_CHILD of the final updated parent value.
 !
           ENDDO
           ENDDO
-        ENDDO
 !
-      ENDDO vars2
+!-----------------------------------------------------------------------
+!
+        ENDIF ndim
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO vars
 !
 !-----------------------------------------------------------------------
 !

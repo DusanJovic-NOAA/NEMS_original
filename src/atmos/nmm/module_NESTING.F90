@@ -64,7 +64,6 @@
 !
       PUBLIC :: BNDS_2D                                                 &
                ,BOUNDARY_DATA_STATE_TO_STATE                            &
-               ,BUNDLE_X                                                &
                ,CHECK_REAL                                              &
                ,CHILD_2WAY_BOOKKEEPING                                  &
                ,CHILD_RANKS                                             &
@@ -101,6 +100,7 @@
                ,LATLON_TO_IJ                                            &
                ,MIXED_DATA                                              &
                ,MIXED_DATA_TASKS                                        &
+               ,MOVE_SUFFIX                                             &
                ,MOVING_NEST_BOOKKEEPING                                 &
                ,MOVING_NEST_RECV_DATA                                   &
                ,PARENT_2WAY_BOOKKEEPING                                 &
@@ -114,7 +114,8 @@
                ,REAL_DATA                                               &
                ,REAL_DATA_2D                                            &
                ,REAL_DATA_TASKS                                         &
-               ,SET_NEST_GRIDS
+               ,SET_NEST_GRIDS                                          &
+               ,TWOWAY_SUFFIX
 !
 !-----------------------------------------------------------------------
 !
@@ -217,7 +218,8 @@
       REAL(kind=KFPT),SAVE :: CHILD_PARENT_SPACE_RATIO                  &
                              ,EPS=1.E-4 
 !
-      CHARACTER(len=5) :: BUNDLE_X='-move'
+      CHARACTER(len=5) :: MOVE_SUFFIX='-move'
+      CHARACTER(len=5) :: TWOWAY_SUFFIX='-2way'
 !
 !-----------------------------------------------------------------------
 !
@@ -3210,7 +3212,6 @@
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!     write(0,*)' enter PARENT_TO_CHILD_FILL_GENERAL'
 !
       R_DPHD=1./DPHD_PARENT
       R_DLMD=1./DLMD_PARENT
@@ -9186,7 +9187,7 @@
                           ,name    =FIELD_NAME                          &  !<-- This Field's name
                           ,rc      =RC )
 !
-        N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
+        N_REMOVE=INDEX(FIELD_NAME,MOVE_SUFFIX)
         FIELD_NAME=FIELD_NAME(1:N_REMOVE-1)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -10321,7 +10322,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
-                                ,FIELDNAME  ='PDO'//BUNDLE_X            &  !<-- Get the Field with this name
+                                ,FIELDNAME  ='PDO'//MOVE_SUFFIX         &  !<-- Get the Field with this name
                                 ,field      =HOLD_FIELD                 &  !<-- Put the Field here
                                 ,rc         =RC)
 !
@@ -10355,7 +10356,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
-                                ,FIELDNAME  ='SM'//BUNDLE_X             &  !<-- The parent's sea mask
+                                ,FIELDNAME  ='SM'//MOVE_SUFFIX          &  !<-- The parent's sea mask
                                 ,field      =HOLD_FIELD                 &  !<-- Put the Field here
                                 ,rc         =RC)
 !
@@ -10916,7 +10917,7 @@
                               ,name    =FIELD_NAME                      &  !<-- This Field's name
                               ,rc      =RC )
 !
-            N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
+            N_REMOVE=INDEX(FIELD_NAME,MOVE_SUFFIX)
             FIELD_NAME=FIELD_NAME(1:N_REMOVE-1)                            !<-- Remove Move Bundle Fieldname's suffix '-move'
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -12718,12 +12719,11 @@
       SUBROUTINE GENERATE_2WAY_DATA(VAR_CHILD                           &
                                    ,PD_CHILD                            &
                                    ,FIS_CHILD                           &
-                                   ,IMS,IME,JMS,JME,LM                  &
+                                   ,IMS,IME,JMS,JME,NVERT               &
                                    ,I_2WAY                              &
                                    ,J_2WAY                              &
                                    ,N_STENCIL                           &
                                    ,N_STENCIL_SFC                       &
-!                                  ,BEGIN                               &
                                    ,NPTS_UPDATE_PARENT                  &
                                    ,VAR_2WAY                            &
                                    ,INTERPOLATE_SFC                     &
@@ -12739,11 +12739,12 @@
 !***  Argument variables
 !------------------------
 !
-      INTEGER(kind=KINT),INTENT(IN) :: IMS,IME,JMS,JME,LM                  !<-- Child task subdomain memory dimensions
+      INTEGER(kind=KINT),INTENT(IN) :: IMS,IME,JMS,JME                     !<-- Child task subdomain horizontal memory dimensions
 !
       INTEGER(kind=KINT),INTENT(IN) :: N_STENCIL                        &  !<-- Use N_STENCILxN_STENCIL child pts for each parent point
                                       ,N_STENCIL_SFC                    &  !<-- Stencil width for interpolating child FIS,PD to parent
-                                      ,NPTS_UPDATE_PARENT                  !<-- # of parent points (I,J) updated on given parent task
+                                      ,NPTS_UPDATE_PARENT               &  !<-- # of parent points (I,J) updated on given parent task
+                                      ,NVERT                               !<-- Vertical dimension of VAR_CHILD
 !
       INTEGER(kind=KINT),DIMENSION(1:NPTS_UPDATE_PARENT),INTENT(IN) ::  &
                                                                 I_2WAY  &  !<-- Child I on each parent update point (H or V)
@@ -12752,16 +12753,14 @@
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: FIS_CHILD &  !<-- The child's sfc geopotential
                                                               ,PD_CHILD     !<-- The child's PD array
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) ::     &
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:NVERT),INTENT(IN) ::   &
                                                              VAR_CHILD     !<-- The child array of the 3-D update variable
-!
-!     LOGICAL(kind=KLOG),INTENT(INOUT) :: BEGIN                            !<-- 1st pass through routine this timestep?
 !
       REAL(kind=KFPT),DIMENSION(1:NPTS_UPDATE_PARENT,1:2),INTENT(OUT) :: &
                                                     CHILD_SFC_ON_PARENT    !<-- Child's FIS,PD interpolated to parent update points
 !
-      REAL(kind=KFPT),DIMENSION(1:NPTS_UPDATE_PARENT*LM),INTENT(OUT) :: & 
-                                                             VAR_2WAY      !<-- 3-D update variables interp'd from child grid to parent's
+      REAL(kind=KFPT),DIMENSION(1:NPTS_UPDATE_PARENT*NVERT),INTENT(OUT) :: & 
+                                                                VAR_2WAY   !<-- 2-way variable interp'd from child grid to parent's
 !
       LOGICAL(kind=KLOG),INTENT(IN) :: INTERPOLATE_SFC                     !<-- Should FIS,PD be interpolated this call?
 !
@@ -12786,11 +12785,6 @@
       N_STENCIL_0=N_STENCIL/2                                              !<-- 2->1; 3->1; 4->2; 5->2, etc.
       N_STENCIL_TOT=N_STENCIL*N_STENCIL                                    !<-- # of points in the stencil
       RECIP_N_STENCIL_TOT=1./REAL(N_STENCIL_TOT)                           !<-- Reciprocal of # of points in the stencil
-!
-!     IF(BEGIN)THEN                                                        !<-- Reset for each parent task
-!       KNT_PTS=0
-!       BEGIN=.FALSE.
-!     ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Parent-child gridspace ratios can be any positive integer (>1 of
@@ -12834,8 +12828,8 @@
 !
 !
 !
-!    Child H points lie on parent H         Child H points lie on parent H
-!    points and child V points lie          points but child H points also
+!    Child h points lie on parent H         Child h points lie on parent H
+!    points and child v points lie          points but child h points also
 !    on parent V points.                    lie on parent V points. 
 !
 !
@@ -12872,7 +12866,7 @@
 !-----------------------------------------------------------------------
 !
       KNT_PTS=0
-      DO L=1,LM
+      DO L=1,NVERT
 !
         DO NP=1,NPTS_UPDATE_PARENT                                         !<-- Loop over update points on the given parent task
 !
@@ -12908,7 +12902,7 @@
 !
       IF(INTERPOLATE_SFC)THEN
 !
-        N_STENCIL_0=(N_STENCIL_SFC+1)/2-1                                  !<-- 2->0; 3->1; 4->1; 5->2, etc.
+        N_STENCIL_0=(N_STENCIL_SFC+1)/2-1                                  !<-- 2-->0; 3-->1; 4-->1; 5-->2, etc.
         N_STENCIL_TOT=N_STENCIL_SFC*N_STENCIL_SFC                          !<-- # of points in the sfc stencil
         RECIP_N_STENCIL_TOT=1./REAL(N_STENCIL_TOT)                         !<-- Reciprocal of # of points in the sfc stencil
 !

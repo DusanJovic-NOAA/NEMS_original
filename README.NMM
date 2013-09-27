@@ -58,9 +58,8 @@ Nesting
 =======
 
 The NMM-B has telescoping static and moving nest capability.  All domains, whether the uppermost parent or any nest,
-are functionally equivalent and thus each needs its own configure file.  Currently all nesting is 1-way which means
-there is no internal exchange of data between a parent and its children, i.e., the only inter-generational exchange 
-of data is the parents' sending new boundary data to each child at the end of every parent timestep.
+are functionally equivalent and thus each needs its own configure file.  Both 1-way and 2-way interaction between 
+parent and child domains are available.
 
 -------------------
 For 1-way nesting:
@@ -78,25 +77,19 @@ For 1-way nesting:
        nests inside the first generation of child nests because all interactions with nesting involve only a parent and 
        its first generation of children.
    (e) Set 'my_domain_moves' to false.
-   (f) If one-way nesting is to be used then specify '1-way' for the variable called nest_mode.  If two-way nesting is to be
-       used then specify '2-way' for nest_mode and also specify which generation the given domain is part of (the uppermost
-       domain is generation 1, all of its children are in generation 2, all of the children of nests in generation 2 are in
-       generation 3, etc.).  
 
 (3) Static nest configure files:
    (a) In each nest's configure file set 'my_domain_id' to a unique integer greater than 1.  The user is free to choose
        these integer identifiers in any way desired except that all domain IDs must ultimately form a monotonic sequence.
        In other words if the run contains 2 first generation nests and one of those nests contains a nest then the three
        nests may use any integer value between 2 and 4 as their domain ID so that the final IDs are 1,2,3, and 4 but
-       never something like 1,2,4,5.
+       never something like 1,2,4,5 which is not a monotonic sequence.
    (b) Set the value for 'my_parent_id' to the integer ID that was given to this nest's parent domain.
    (c) Set 'n_children' to the number of child nests inside of this nest but not counting any deeper nests inside of those
        children.
-   (d) Set 'i_parent_start' and 'j_parent_start' to the I and J indices on the nest's parent grid H point that coincide with
-       the nest's SW corner H point.  This implies that any nest's SW corner must lie directly on a parent grid H point.
-   (e) Set 'parent_child_space_ratio' to the ratio of the parent's grid increment to the child's.  Make this an integer.
-       Although the code was originally written to allow this ratio to be any real number, tests with real values have 
-       not been done yet.
+   (d) Set 'i_parent_start' and 'j_parent_start' to the I and J indices of the H point on the nest's parent's grid that coincide
+       with the nest's SW corner H point.  This implies that any nest's SW corner must lie directly on a parent grid H point.
+   (e) Set 'parent_child_space_ratio' to the ratio of the size of the parent's grid increment to the child's.  Make this an integer.
    (f) Set 'input_ready' to true if input data has already been produced for this nest.  Set it to false if input data has
        not been produced and the user wants the parent to generate the nest's input data.  NPS-generated input data is
        naturally preferable.
@@ -122,8 +115,7 @@ For 1-way nesting:
    (e) For now any child of a moving nest must be a moving nest and not a static nest.  A static child would be tied to the parent
        and so when the parent moves then its child would move with it.  A moving child is not tied to its parent and so when the
        parent moves then its child does not move with it and the child continues to determine its own motion independently.
-
-   (f) The file called moving_nest_shift.txt must be present in the working directory.  It holds critical specifications 
+   (f) The file called nest.txt must be present in the working directory.  The file's first column holds critical specifications
        regarding variables in the Solver internal state when nests move.  An explanation is given at the beginning of that file.
 
 (5) Task assignment:
@@ -147,13 +139,17 @@ For 1-way nesting:
 For 2-way nesting:
 -------------------
 
-    THE ACTUAL 2-WAY DATA EXCHANGE IS CURRENTLY BEING BUILT INTO THE CODE SO THERE IS NO REASON TO SELECT THE 2-WAY MODE YET SINCE
-    EVEN WITHOUT THE DATA EXCHANGE THE 2-WAY MODE CANNOT BE AS FAST AS THE 1-WAY MODE.
-
 (1) Set 'nest_mode' to '2-way' in all configure files.  The integer value of each domain's generation must be given to the variable
     called 'generation'.  The generation variable is ignored in 1-way mode.
+
+(2) The nests.txt file must be present in the working directory.  The file's 2nd column specifies which of the Solver's internal state
+    variables will be used in the 2-way exchange from child to parent.  Currently 2-D and 3-D real variables may be selected.  As
+    stated in that file's instructions, an H is used to specify that the given H-pt variable is to be part of the 2-way exchange 
+    while a V indicates that the given V-pt variable is to be part of the 2-way exchange.
+
+(3) The same rules apply for running static or moving nests in 2-way nesting as in 1-way nesting described above.
  
-(2) Task assignments for 2-way interaction cannot be done in the same way as they are for 1-way because that would leave too many
+(4) Task assignments for 2-way interaction cannot be done in the same way as they are for 1-way because that would leave too many
     processors idle at any given time as children and parents wait on each other to send internal update values and vice versa. 
     Therefore the integration in 2-way nesting will continually cycle through the generations sequentially but within each generation
     all domains will execute their forecasts concurrently.  To maximize overall efficiency the user first decides which generation

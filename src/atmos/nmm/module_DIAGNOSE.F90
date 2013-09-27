@@ -968,9 +968,9 @@
         IF(ABS(U(I,J,K))>125..OR.ABS(V(I,J,K))>125.                    &
                .OR.U(I,J,K)/=U(I,J,K).OR.V(I,J,K)/=V(I,J,K))THEN
           WRITE(0,100)NAME,NTSD
-          WRITE(0,400)I,J,K,U(I,J,K),V(I,J,K),MYPE,NTSD
+          WRITE(0,400)I,J,K,U(I,J,K),V(I,J,K),MYPE,ID_DOM,NTSD
   400     FORMAT(' BAD VALUE I=',I3,' J=',I3,' K=',I2,' U=',E12.5      &
-                ,' V=',E12.5,' MYPE=',I3,' NTSD=',I5)
+                ,' V=',E12.5,' MYPE=',I3,' ID_DOM=',I2,' NTSD=',I5)
           IRET=666
           return
 !         WRITE(ERRMESS,405)NAME,U(I,J,K),V(I,J,K),I,J,K,MYPE
@@ -1317,7 +1317,7 @@
 !
 !----------------------------------------------------------------------
       SUBROUTINE CALMICT(P1D,T1D,Q1D,C1D,FI1D,FR1D,FS1D,CUREFL, &
-                       DBZ1,I,J, Ilook,Jlook) 
+                       DBZ1,I,J, Ilook,Jlook, MY_DOMAIN_ID)
 
       USE MODULE_MP_ETANEW, ONLY : FERRIER_INIT, GPVS,FPVS,FPVS0,NX,RQR_DRmin, &
                                    RQR_DRmax,MASSI,CN0R0,CN0r_DMRmin,CN0r_DMRmax
@@ -1346,7 +1346,7 @@
          XMRmin=1.E6*DMRmin, XMRmax=1.E6*DMRmax
       INTEGER, PARAMETER :: MDRmin=XMRmin, MDRmax=XMRmax
 
-      INTEGER INDEXS, INDEXR, I, J, Ilook, Jlook
+      INTEGER INDEXS, INDEXR, I, J, Ilook, Jlook, MY_DOMAIN_ID
       REAL, PARAMETER :: Cice=1.634e13
 
       REAL ::  NLICE, N0r,Ztot,Zrain,Zice,Zconv
@@ -1480,8 +1480,8 @@
             FSMALL=(1.-FLARGE)/FLARGE
             XSIMASS=RRHO*MASSI(MDImin)*FSMALL
       if(tc<-150..or.tc>100.)then
-        write(0,67311)i,j,tc
-67311   format(' CALMICT i=',i3,' j=',i3,' tc=',e13.6)
+        write(0,67311)i,j,tc,my_domain_id
+67311   format(' CALMICT i=',i3,' j=',i3,' tc=',e13.6,' domain id=',i2)
       endif
             DUM=XMImax*EXP(.0536*TC)
             INDEXS=MIN(MDImax, MAX(MDImin, INT(DUM) ) )
@@ -1573,7 +1573,8 @@
                            ,IDE,JDE                   & 
                            ,ITS_B1,ITE_B1             &
                            ,JTS_B1,JTE_B1             &
-                           ,LM,NCOUNT,FIRST_NMM)
+                           ,LM,NCOUNT,FIRST_NMM       &
+                           ,MY_DOMAIN_ID )
 
       USE MODULE_MP_ETANEW, ONLY : FERRIER_INIT, GPVS,FPVS,FPVS0,NX
       USE MODULE_CONSTANTS, ONLY : R_D,R_V,CPV,CP,G
@@ -1585,6 +1586,7 @@
       INTEGER,INTENT(IN) :: ITS,ITE,JTS,JTE,IMS,IME,JMS,JME,LM,NTSD
       INTEGER,INTENT(IN) :: ITS_B1,ITE_B1,JTS_B1,JTE_B1
       INTEGER,INTENT(IN) :: IDE,JDE,NPHS
+      INTEGER,INTENT(IN) :: MY_DOMAIN_ID
 
       REAL, DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: T, Q, U, V, CW   & 
                                               ,F_RAIN,F_ICE,F_RIMEF        &
@@ -1755,7 +1757,7 @@
           IF (C1D(LL) .GE. 1.e-12 .OR. CUREFL .GT. 0.) then
            CALL CALMICT(P1D(LL),T1D(LL),Q1D(LL),C1D(LL), &
                         FI1D(LL),FR1D(LL),FS1D(LL),CUREFL, &
-                        DBZ1(LL), I, J, Ilook, Jlook) 
+                        DBZ1(LL), I, J, Ilook, Jlook, MY_DOMAIN_ID)
           ELSE
            DBZ1(LL)=-20.
           ENDIF 
@@ -1906,7 +1908,7 @@
 !----------------------------------------------------------------------
 !
       SUBROUTINE CALMICT_HR(P1D,T1D,Q1D,C1D,FI1D,FR1D,FS1D,CUREFL, &
-                       DBZ1,I,J, Ilook,Jlook) 
+                       DBZ1,I,J, Ilook,Jlook, MY_DOMAIN_ID)
 
       USE MODULE_MP_FER_HIRES, ONLY : FERRIER_INIT_HR, GPVS_HR,FPVS,FPVS0,NX,RQR_DRmin, &
                                    RQR_DRmax,MASSI,CN0R0,CN0r_DMRmin,CN0r_DMRmax
@@ -1935,7 +1937,7 @@
          XMRmin=1.E6*DMRmin, XMRmax=1.E6*DMRmax
       INTEGER, PARAMETER :: MDRmin=XMRmin, MDRmax=XMRmax
 
-      INTEGER INDEXS, INDEXR, I, J, Ilook, Jlook
+      INTEGER INDEXS, INDEXR, I, J, Ilook, Jlook, MY_DOMAIN_ID
       REAL, PARAMETER :: Cice=1.634e13
 
       REAL ::  NLICE, N0r,Ztot,Zrain,Zice,Zconv
@@ -2069,8 +2071,8 @@
             FSMALL=(1.-FLARGE)/FLARGE
             XSIMASS=RRHO*MASSI(MDImin)*FSMALL
       if(tc<-150..or.tc>100.)then
-        write(0,68311)i,j,tc
-68311   format(' CALMICT_HR i=',i3,' j=',i3,' tc=',e13.6)
+        write(0,68311)i,j,tc,my_domain_id
+68311   format(' CALMICT_HR i=',i3,' j=',i3,' tc=',e13.6,' domain id=',i2)
       endif
             DUM=XMImax*EXP(.0536*TC)
             INDEXS=MIN(MDImax, MAX(MDImin, INT(DUM) ) )
@@ -2162,7 +2164,8 @@
                            ,IDE,JDE                   & 
                            ,ITS_B1,ITE_B1             &
                            ,JTS_B1,JTE_B1             &
-                           ,LM,NCOUNT,FIRST_NMM)
+                           ,LM,NCOUNT,FIRST_NMM       &
+                           ,MY_DOMAIN_ID  )
 
       USE MODULE_MP_FER_HIRES, ONLY : FERRIER_INIT_HR, GPVS_HR,FPVS,FPVS0,NX
       USE MODULE_CONSTANTS,    ONLY : R_D,R_V,CPV,CP,G
@@ -2174,6 +2177,7 @@
       INTEGER,INTENT(IN) :: ITS,ITE,JTS,JTE,IMS,IME,JMS,JME,LM,NTSD
       INTEGER,INTENT(IN) :: ITS_B1,ITE_B1,JTS_B1,JTE_B1
       INTEGER,INTENT(IN) :: IDE,JDE,NPHS
+      INTEGER,INTENT(IN) :: MY_DOMAIN_ID
 
       REAL, DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: T, Q, U, V, CW   & 
                                               ,F_RAIN,F_ICE,F_RIMEF        &
@@ -2347,7 +2351,7 @@
           IF (C1D(LL) .GE. 1.e-12 .OR. CUREFL .GT. 0.) then
            CALL CALMICT_HR(P1D(LL),T1D(LL),Q1D(LL),C1D(LL), &
                            FI1D(LL),FR1D(LL),FS1D(LL),CUREFL, &
-                           DBZ1(LL), I, J, Ilook, Jlook) 
+                           DBZ1(LL), I, J, Ilook, Jlook, MY_DOMAIN_ID)
           ELSE
            DBZ1(LL)=-20.
           ENDIF 
@@ -2460,7 +2464,8 @@
                            ,ITS_B1,ITE_B1             &
                            ,JTS_B1,JTE_B1             &
                            ,LM,NUM_WATER              &
-                           ,NCOUNT,FIRST_NMM)
+                           ,NCOUNT,FIRST_NMM          &
+                           ,MY_DOMAIN_ID )
 
       USE MODULE_CONSTANTS, ONLY : R_D,R_V,CPV,CP,G,CLIQ,PSAT,P608,XLV,TIW
 
@@ -2471,6 +2476,7 @@
       INTEGER,INTENT(IN) :: ITS,ITE,JTS,JTE,IMS,IME,JMS,JME,LM,NTSD
       INTEGER,INTENT(IN) :: ITS_B1,ITE_B1,JTS_B1,JTE_B1
       INTEGER,INTENT(IN) :: IDE,JDE,NPHS,NUM_WATER
+      INTEGER,INTENT(IN) :: MY_DOMAIN_ID
       INTEGER,INTENT(IN) :: P_QR,P_QS,P_QG
 
       REAL, DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: T,Q,U,V,Z,W

@@ -371,6 +371,9 @@ move_type: storm              # Type of this domain move (storm, prescribed)
 
 ratio_sfc_files: 3            # If domain moves, provide ratio of uppermost parent grid increment to this domain's
 
+sfc_conflict: dummy           # 'nearest' -->  Parent-to-child conflict pts use nearest child pt with same sfc type
+                              # 'dummy'   -->  Child uses dummy values for all conflict pts (reproducible results)
+
 nrows_p_upd_w: 2              # West bndry rows of moving nest footprint updated by parent
 nrows_p_upd_e: 2              # East bndry rows of moving nest footprint updated by parent
 nrows_p_upd_s: 2              # South bndry rows of moving nest footprint updated by parent

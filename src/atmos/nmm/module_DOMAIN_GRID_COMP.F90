@@ -82,11 +82,12 @@
       USE module_SOLVER_INTERNAL_STATE,ONLY: SOLVER_INTERNAL_STATE      &
                                             ,WRAP_SOLVER_INT_STATE
 !
-      USE MODULE_NESTING,ONLY: BUNDLE_X                                 &
-                              ,LATLON_TO_IJ                             &
+      USE MODULE_NESTING,ONLY: LATLON_TO_IJ                             &
                               ,MIXED_DATA                               &
+                              ,MOVE_SUFFIX                              &
                               ,INTERNAL_DATA_TO_DOMAIN                  &
-                              ,PARENT_TO_CHILD_INIT_NMM
+                              ,PARENT_TO_CHILD_INIT_NMM                 &
+                              ,TWOWAY_SUFFIX
 !
       USE MODULE_CLOCKTIMES,ONLY : TIMERS
 !
@@ -192,8 +193,8 @@
                                        (2*N_PTS_SEARCH_WIDTH+1)         &  !    conflicts in sfc-type
                                       *(2*N_PTS_SEARCH_WIDTH+1) 
 !
-      INTEGER(kind=KINT),DIMENSION(1:N_PTS_SEARCH) :: I_SEARCH_INC      &  !<-- I increment to search pt when fixing moving nest conflicts
-                                                     ,J_SEARCH_INC         !<-- J increment to search pt when fixing moving nest conflicts
+      INTEGER(kind=KINT),DIMENSION(1:N_PTS_SEARCH),SAVE :: I_SEARCH_INC &  !<-- I increment to search pt when fixing moving nest conflicts
+                                                          ,J_SEARCH_INC    !<-- J increment to search pt when fixing moving nest conflicts
 !
       INTEGER(kind=KINT),DIMENSION(:),POINTER,SAVE :: MY_CHILDREN_ID       !<-- A parent's children's domain IDs
 !
@@ -226,6 +227,8 @@
                            ,MY_DOMAIN_MOVES                                !<-- Does this domain move?
 #endif
 !
+      CHARACTER(len=7) :: SFC_CONFLICT
+!
       TYPE :: DIST
         REAL(kind=KFPT) :: VALUE
         INTEGER(kind=KINT) :: I_INC
@@ -233,7 +236,7 @@
         TYPE(DIST),POINTER :: NEXT_VALUE
       END TYPE
 !
-      TYPE(DIST),DIMENSION(:),POINTER :: LARGEX,SMALLX
+      TYPE(DIST),DIMENSION(:),POINTER,SAVE :: LARGEX,SMALLX
 !
 !---------------------------------
 !***  For determining clocktimes.
@@ -523,6 +526,7 @@
 #endif
 !
       CHARACTER(2)  :: INT_TO_CHAR
+      CHARACTER(5)  :: NEST_MODE    
       CHARACTER(6)  :: FMT='(I2.2)'
       CHARACTER(64) :: RESTART_FILENAME
       CHARACTER(99) :: CONFIG_FILE_NAME                                 &
@@ -1002,6 +1006,26 @@
 !-----------------------------------------------------------------------
 !
       ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Does this forecast use 2-way exchange?
+!-----------------------------------------------------------------------
+!
+      NEST_MODE=' '
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract 2-way Flag From Nest Configure Files"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)              &  !<-- This domain's configure object
+                                  ,value =NEST_MODE                     &  !<-- Is there 2-way exchange from child to parent?
+                                  ,label ='nest_mode:'                  &  !<-- The label in the configure file
+                                  ,rc    =rc)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Extract the start time from the clock.
@@ -2154,8 +2178,6 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!-----------------------------------------------------------------------
-!
         LM=solver_int_state%LM
 !
         NUM_FIELDS_MOVE_2D_H_I=0
@@ -2341,15 +2363,45 @@
           RECIP_DLM_1=1./DLM_1
 !
 !-----------------------------------------------------------------------
-!***  Create empty objects for sorting distances between points on
-!***  moving nests for patching mismatches between parent and child
-!***  water and land points in 2-way exchange.
+!***  When a parent sends interior update data to a moving child then
+!***  at coastlines a parent may send data valid for water/land to a
+!***  point on the child that is land/water on the child's sea mask.
+!***  The user sets a configure flag to select one of two options to
+!***  handle this situation.  In the general case the value 'nearest'
+!***  is selected.  Then when a conflict point is encountered the 
+!***  given child task searches on its subdomain for the nearest point
+!***  to the conflict point that has the same sfc type (water or land)
+!***  and uses that point's sfc values for the conflict point.  If no
+!***  other point with the same sfc type can be found on the subdomain
+!***  then a dummy value is assigned.  Note that this can lead to 
+!***  different answers when different task layouts are used.  The
+!***  other choice is 'dummy'.  When the user chooses that option then
+!***  children automatically always set values at conflict points to
+!***  dummy values.  Points on the earth will thus always have dummy
+!***  values with 'dummy' whereas with 'nearest' the values at conflict
+!***  points will likely have appropriate values during most of the
+!***  time those locations lie within the moving child domain.  If
+!***  identical answers are required for different task layouts then
+!***  'dummy' must be used.
 !-----------------------------------------------------------------------
 !
-          IF(.NOT.ASSOCIATED(SMALLX))THEN
-            ALLOCATE(SMALLX(1:NUM_DOMAINS))
-            ALLOCATE(LARGEX(1:NUM_DOMAINS))
-          ENDIF
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract SFC_CONFLICT from Config File"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)          &  !<-- This domain's configure object
+                                      ,value =SFC_CONFLICT              &  !<-- Flag for handling parent-child sfc-type conflicts
+                                      ,label ='sfc_conflict:'           &  !<-- The variable read from the configure file
+                                      ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          domain_int_state%SFC_CONFLICT=SFC_CONFLICT
+!
+          IF(SFC_CONFLICT=='nearest')THEN
 !
 !-----------------------------------------------------------------------
 !***  Generate the I,J increments needed to search for neighboring
@@ -2360,12 +2412,14 @@
 !***  water and land points in 2-way exchange.
 !-----------------------------------------------------------------------
 !
-          IF(.NOT.ASSOCIATED(SMALLX))THEN
-            ALLOCATE(SMALLX(1:NUM_DOMAINS))
-            ALLOCATE(LARGEX(1:NUM_DOMAINS))
-          ENDIF
+            IF(.NOT.ASSOCIATED(SMALLX))THEN
+              ALLOCATE(SMALLX(1:NUM_DOMAINS))
+              ALLOCATE(LARGEX(1:NUM_DOMAINS))
+            ENDIF
 !
-          CALL SEARCH_INIT
+            CALL SEARCH_INIT
+!
+          ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Extract the nest grid increments for later use.
@@ -2584,6 +2638,89 @@
         ENDIF i_move
 !
 !-----------------------------------------------------------------------
+!***  If there is 2-way exchange from the children to the parents
+!***  then the Parent-Child coupler will need pointers to all the
+!***  required Solver arrays that are updated on the parents by the
+!***  children each parent timestep.  Create an ESMF Bundle to hold
+!***  those pointers then insert the desgnated pointers from the
+!***  Solver component's internal state into the Bundle.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Does this forecast use 2-way exchange?
+!-----------------------------------------------------------------------
+!
+        NEST_MODE=' '
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract 2-way Flag From Nest Configure Files"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)            &  !<-- This domain's configure object
+                                    ,value =NEST_MODE                   &  !<-- Is there 2-way exchange from child to parent?
+                                    ,label ='nest_mode:'                &  !<-- The label in the configure file
+                                    ,rc    =rc)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Create the 2-way exchange Bundle.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Create the 2-way Exchange Bundle"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        domain_int_state%BUNDLE_2WAY=ESMF_FieldBundleCreate(name='Bundle_2way'  &  !<-- The 2-way Bundle's name
+                                                           ,rc  =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Now build the 2-way Bundle if 2-way exchange has been specified
+!***  in the configure files.
+!-----------------------------------------------------------------------
+!
+        IF(NEST_MODE=='2-way')THEN
+!
+          UBOUND_VARS=SIZE(solver_int_state%VARS)
+!
+          CALL BUILD_2WAY_BUNDLE(GRID_DOMAIN                            &  !<-- Adding Solver int state variables to H 2-way Bundle
+                                ,LM                                     &
+                                ,UBOUND_VARS                            &
+                                ,solver_int_state%VARS                  &
+                                ,domain_int_state%BUNDLE_2WAY           &
+                                  ) 
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  The 2-way exchange itself takes place in the Parent-Child coupler 
+!***  so insert the 2-way Bundle into the Domain componet's export
+!***  state in order to transfer it to the P-C coupler import state
+!***  in subroutine PARENT_CHILD_COUPLER_SETUP.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert 2-way Bundle into Domain Export State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateAdd(            EXP_STATE                        &  !<-- The Domain export state
+                          ,LISTWRAPPER(domain_int_state%BUNDLE_2WAY)    &  !<-- Insert H-point MOVE_BUNDLE into the state
+                          ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
 !
       ENDIF fcst_tasks_init
 !
@@ -2719,8 +2856,13 @@
 #endif
 !
         CALL RESET_SFC_VARS(domain_int_state%SFC_FILE_RATIO             &
+                           ,solver_int_state%GLAT                       &
+                           ,solver_int_state%GLON                       &
                            ,domain_int_state%MOVE_BUNDLE_H)
+!
         CALL RESET_SFC_VARS(domain_int_state%SFC_FILE_RATIO             &
+                           ,solver_int_state%GLAT                       &
+                           ,solver_int_state%GLON                       &
                            ,domain_int_state%MOVE_BUNDLE_V)
 !
 !-----------------------------------------------------------------------
@@ -2743,7 +2885,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 #ifdef ESMF_520r
-        CALL ESMF_FieldBundleGet(fieldbundle=domain_int_state%MOVE_BUNDLE_H  &  !<-- Bundle holding the H arrays for move updates
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE=domain_int_state%MOVE_BUNDLE_H  &  !<-- Bundle holding the H arrays for move updates
                                 ,fieldname  =FIELD_NAME                      &  !<-- Name of the seamask Field in the Bundle
                                 ,field      =HOLD_FIELD                      &  !<-- Field containing the seamask
                                 ,rc         =RC )
@@ -5479,12 +5621,284 @@
 
 
       END SUBROUTINE BUILD_FILT_BUNDLE
-
+!
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-
-
+!
+      SUBROUTINE BUILD_2WAY_BUNDLE(GRID_DOMAIN                          &
+                                  ,LM                                   &
+                                  ,UBOUND_VARS                          &
+                                  ,VARS                                 &
+                                  ,BUNDLE_2WAY                          &
+                                    )
+!
+!-----------------------------------------------------------------------
+!***  When 2-way exchange is invoked in the configure file then
+!***  a child domain will interpolate specified variables from
+!***  the Solver component's internal state on its grid to its
+!***  parent's grid and send that data to its parent.  Parents
+!***  receive that data and incorporate it.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: LM                               &  !<-- # of model layers
+                                      ,UBOUND_VARS                         !<-- Upper dimension of the VARS array
+!
+      TYPE(ESMF_Grid),INTENT(IN) :: GRID_DOMAIN                            !<-- The ESMF Grid for this domain
+!
+      TYPE(VAR),DIMENSION(1:UBOUND_VARS),INTENT(INOUT) :: VARS             !<-- Variables in the Solver internal state
+!
+      TYPE(ESMF_FieldBundle),INTENT(INOUT) :: BUNDLE_2WAY                  !<-- The Bundle of Solver internal state vbls for 2-way exchange
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: H_OR_V_INT,IOS,N,NLEV,RC,RC_CMB
+!
+      CHARACTER(len=1) :: CH_2,CHECK_EXCH,H_OR_V
+!           
+      CHARACTER(len=2) :: CH_M
+!           
+      CHARACTER(len=9),SAVE :: FNAME='nests.txt'
+!
+      CHARACTER(len=99) :: FIELD_NAME,VBL_NAME
+!
+      CHARACTER(len=256) :: STRING
+!
+      TYPE(ESMF_Field) :: FIELD_X
+!
+      integer(kind=kint) :: lbnd1,lbnd2,lbnd3,ubnd1,ubnd2,ubnd3,nx,ny,nz
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Loop through all Solver internal state variables.
+!-----------------------------------------------------------------------
+!
+      OPEN(unit=10,file=FNAME,status='OLD',action='READ'                &  !<-- Open the text file with user specifications
+            ,iostat=IOS)
+!
+      IF(IOS/=0)THEN
+        WRITE(0,*)' Failed to open ',FNAME,' so ABORT!'
+        CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                          ,rc             =RC)
+      ENDIF
+!
+      NLEV=0                                                               !<-- Counter for total # of levels in all 2-way vbls
+!
+!-----------------------------------------------------------------------
+      bundle_loop: DO
+!-----------------------------------------------------------------------
+!
+        READ(UNIT=10,FMT='(A)',iostat=IOS)STRING                           !<-- Read in the next specification line
+        IF(IOS/=0)EXIT                                                     !<-- Finished reading the specification lines
+!
+        IF(STRING(1:1)=='#'.OR.TRIM(STRING)=='')THEN
+          CYCLE                                                            !<-- Read past comments and blanks.
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Read the text line containing the shift specifications for 
+!***  variable N then find that variables' place within the VARS 
+!***  object.
+!-----------------------------------------------------------------------
+!
+        READ(UNIT=STRING,FMT=*,iostat=IOS)VBL_NAME                      &  !<-- The variable's name in the text file.
+                                         ,CH_M                          &
+                                         ,CH_2                             !<-- The 2-way flag in the text file.
+!
+        CALL FIND_VAR_INDX(VBL_NAME,VARS,UBOUND_VARS,N)
+!
+        FIELD_NAME=TRIM(VARS(N)%VBL_NAME)//TWOWAY_SUFFIX
+!
+!-----------------------------------------------------------------------
+!***  Find the variables in the Solver internal state that will be
+!***  used for 2-way exchange and add them to the 2-way Bundle.
+!***  We will also specify whether the Field's variable lies on
+!***  H points or V points.
+!                                NOTE
+!***  Currently ESMF will not allow the use of Attributes that are
+!***  characters therefore we must translate the character codes from
+!***  the txt files into something that ESMF can use.  In this case
+!***  we will use integers:  H-->1 and V-->2 .
+!-----------------------------------------------------------------------
+!
+        H_OR_V=CH_2                                                        !<-- H-V flag for this Field
+!
+        IF(H_OR_V=='H')THEN
+          H_OR_V_INT=1                                                     !<-- H-pt variable
+        ELSEIF(H_OR_V=='V')THEN
+          H_OR_V_INT=2                                                     !<-- V-pt variable
+        ELSE
+          H_OR_V_INT=-999                                                  !<-- Variable not specified for 2-way exchange.
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+        build_bundle: IF(H_OR_V=='H'                                    &
+                            .OR.                                        &
+                         H_OR_V=='V'                                    &
+                                     )THEN
+!
+!-----------------------------------------------------------------------
+!
+!-------------------
+!***  2-D Variables
+!-------------------
+!
+!-------------
+!***  Integer
+!-------------
+!
+          IF(ASSOCIATED(VARS(N)%I2D))THEN                                  !<-- 2-D integer array on mass points
+!
+            FIELD_X=ESMF_FieldCreate(grid       =GRID_DOMAIN            &  !<-- The ESMF Grid for this domain
+                                    ,farray     =VARS(N)%I2D            &  !<-- Nth variable in the VARS array
+                                    ,totalUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
+                                    ,totalLWidth=(/IHALO,JHALO/)        &  !<-- Lower bound of halo region
+                                    ,name       =FIELD_NAME             &  !<-- The name of this variable
+                                    ,indexFlag  =ESMF_INDEX_GLOBAL      &  !<-- The variable uses global indexing
+                                    ,rc         =RC)
+!
+!----------
+!***  Real
+!----------
+!
+          ELSEIF(ASSOCIATED(VARS(N)%R2D))THEN                              !<-- 2-D real array on mass points
+!
+            FIELD_X=ESMF_FieldCreate(grid       =GRID_DOMAIN            &  !<-- The ESMF Grid for this domain
+                                    ,farray     =VARS(N)%R2D            &  !<-- Nth variable in the VARS array
+                                    ,totalUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
+                                    ,totalLWidth=(/IHALO,JHALO/)        &  !<-- Lower bound of halo region
+                                    ,name       =FIELD_NAME             &  !<-- The name of this variable
+                                    ,indexFlag  =ESMF_INDEX_GLOBAL      &  !<-- The variable uses global indexing
+                                    ,rc         =RC)
+!
+            NLEV=NLEV+1                                                    !<-- Sum the levels for all 2-way variables.
+!
+!---------------------
+!***  3-D H Variables
+!---------------------
+!
+!----------
+!***  Real
+!----------
+!
+          ELSEIF(ASSOCIATED(VARS(N)%R3D))THEN                              !<-- 3-D real array on mass points
+!
+            FIELD_X=ESMF_FieldCreate(grid           =GRID_DOMAIN                    &  !<-- The ESMF Grid for this domain
+                                    ,farray         =VARS(N)%R3D                    &  !<-- Nth variable in the VARS array
+                                    ,totalUWidth    =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
+                                    ,totalLWidth    =(/IHALO,JHALO/)                &  !<-- Lower bound of halo region
+                                    ,ungriddedLBound=(/lbound(VARS(N)%R3D,dim=3)/)  &
+                                    ,ungriddedUBound=(/ubound(VARS(N)%R3D,dim=3)/)  &
+                                    ,name           =FIELD_NAME                     &  !<-- The name of this variable
+                                    ,indexFlag      =ESMF_INDEX_GLOBAL              &  !<-- The variable uses global indexing
+                                    ,rc             =RC)
+!
+            NLEV=NLEV+LM                                                   !<-- Sum the levels for all 2-way variables.
+!
+!---------------------
+!***  4-D H Variables
+!---------------------
+!
+!!!       ELSEIF(ASSOCIATED(VARS(N)%R4D))THEN                              !<-- 4-D real array on mass points
+!
+!----------------
+!***  All Others
+!----------------
+!
+          ELSE
+            WRITE(0,*)' SELECTED UPDATE H VARIABLE IS NOT 2-D OR 3-D.'
+            WRITE(0,*)' Variable name is ',VARS(N)%VBL_NAME,' for variable #',N
+            WRITE(0,*)' H_OR_V_INT=',H_OR_V_INT
+            WRITE(0,*)' ABORT!!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+!
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Attach the specification flag to this Field that indicates
+!***  how it must be handled in the parent-child update region.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Add Specification Flag to Move Bundle H Field"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(field=FIELD_X                          &  !<-- The Field to be added to H-pt Move Bundle
+                                ,name ='H_OR_V_INT'                     &  !<-- The name of the Attribute to set
+                                ,value=H_OR_V_INT                       &  !<-- The Attribute to be set
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Add this Field to the 2-way Bundle that holds pointers to all
+!***  variables in the Solver internal state that are used in 2-way
+!***  exchange.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Add Field to the H-pt Move Bundle"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_FieldBundleAdd(            BUNDLE_2WAY              &  !<-- The Move Bundle for H point variables
+                                  ,            LISTWRAPPER(FIELD_X)     &  !<-- Add this Field to the Bundle
+                                  ,rc         =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF build_bundle
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO bundle_loop
+!
+!-----------------------------------------------------------------------
+!***  Attach the total number of levels in the 2-way variables,
+!***  i.e., one level for each 2-D variable and LM levels for 
+!***  each 3-D variable.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Add total # of levels for all 2-way variables"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(FIELDBUNDLE=BUNDLE_2WAY                    &  !<-- The Bundle of 2-way variable pointers
+                            ,name       ='NLEV 2-way'                   &  !<-- The name of the Attribute to set
+                            ,value      =NLEV                           &  !<-- The Attribute to be set
+                            ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CLOSE(10)
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE BUILD_2WAY_BUNDLE
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
       SUBROUTINE BUILD_MOVE_BUNDLE(GRID_DOMAIN                          &
                                   ,UBOUND_VARS                          &
                                   ,VARS                                 &
@@ -5538,8 +5952,9 @@
 !           
       CHARACTER(len=2) :: CH_M
 !           
-      CHARACTER(len=25),SAVE :: FNAME='moving_nest_shift.txt'           &
-                               ,FIELD_NAME,VBL_NAME
+      CHARACTER(len=9),SAVE :: FNAME='nests.txt'
+!
+      CHARACTER(len=99) :: FIELD_NAME,VBL_NAME
 !
       CHARACTER(len=256) :: STRING
 !
@@ -5590,7 +6005,7 @@
 !
         CALL FIND_VAR_INDX(VBL_NAME,VARS,UBOUND_VARS,N)
 !
-        FIELD_NAME=TRIM(VARS(N)%VBL_NAME)//BUNDLE_X
+        FIELD_NAME=TRIM(VARS(N)%VBL_NAME)//MOVE_SUFFIX
 !
 !-----------------------------------------------------------------------
 !***  Find the 2-D and 3-D arrays in the internal state that need
@@ -5922,6 +6337,10 @@
 !-----------------------------------------------------------------------
 !
       ENDDO bundle_loop
+!
+!-----------------------------------------------------------------------
+!
+      CLOSE(10)
 !
 !-----------------------------------------------------------------------
 !
@@ -6549,7 +6968,7 @@
                           ,name    =FIELD_NAME                          &  !<-- The name of the Field
                           ,rc       =RC )
 !
-        N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
+        N_REMOVE=INDEX(FIELD_NAME,MOVE_SUFFIX)
         FIELD_NAME=FIELD_NAME(1:N_REMOVE-1)
 !
 !-----------------------------------------------------------------------
@@ -6626,7 +7045,7 @@
                           ,name    =FIELD_NAME                          &  !<-- The name of the Field
                           ,rc      =RC )
 !
-        N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
+        N_REMOVE=INDEX(FIELD_NAME,MOVE_SUFFIX)
         FIELD_NAME=FIELD_NAME(1:N_REMOVE-1)
 !
 !-----------------------------------------------------------------------
@@ -7091,7 +7510,7 @@
                                  ,name    =FIELD_NAME                   &  !<-- This Field's name
                                  ,rc      =RC )
 !
-              N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
+              N_REMOVE=INDEX(FIELD_NAME,MOVE_SUFFIX)
               FIELD_NAME=FIELD_NAME(1:N_REMOVE-1)
 !
               IF(NUM_DIMS==2)THEN
@@ -7170,7 +7589,7 @@
                                  ,name      =FIELD_NAME                 &  !<-- This Field's name
                                  ,rc      =RC )
 !
-              N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
+              N_REMOVE=INDEX(FIELD_NAME,MOVE_SUFFIX)
               FIELD_NAME=FIELD_NAME(1:N_REMOVE-1)
 !
               IF(NUM_DIMS==2)THEN
@@ -7606,7 +8025,7 @@
                                 ,name    =FIELD_NAME                    &  !<-- This Field's name
                                 ,rc      =RC )
 !
-              N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
+              N_REMOVE=INDEX(FIELD_NAME,MOVE_SUFFIX)
               FIELD_NAME=FIELD_NAME(1:N_REMOVE-1)
 !
               IF(NUM_DIMS==2)THEN
@@ -7681,7 +8100,7 @@
                                 ,name      =FIELD_NAME                  &  !<-- This Field's name
                                 ,rc      =RC )
 ! 
-              N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
+              N_REMOVE=INDEX(FIELD_NAME,MOVE_SUFFIX)
               FIELD_NAME=FIELD_NAME(1:N_REMOVE-1)
 !
               IF(NUM_DIMS==2)THEN
@@ -7731,6 +8150,11 @@
 !-----------------------------------------------------------------------
 !
       ENDDO recv_loop
+!
+!-----------------------------------------------------------------------
+!
+      IF(ALLOCATED(RECV_REAL_DATA))DEALLOCATE(RECV_REAL_DATA)
+      IF(ALLOCATED(RECV_INTEGER_DATA))DEALLOCATE(RECV_INTEGER_DATA)
 !
 !-----------------------------------------------------------------------
 !
@@ -8048,10 +8472,10 @@
             CALL ESMF_FieldGet(field   =HOLD_FIELD                      &  !<-- Field N_FIELD in the Bundle
                               ,dimCount=NUM_DIMS                        &  !<-- Is this Field 2-D or 3-D?
                               ,typekind=DATATYPE                        &  !<-- Is the data integer or real?
-                              ,name      =FIELD_NAME                    &  !<-- Name of the Field
+                              ,name    =FIELD_NAME                      &  !<-- Name of the Field
                               ,rc      =RC )
 !
-            N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
+            N_REMOVE=INDEX(FIELD_NAME,MOVE_SUFFIX)
             FIELD_NAME=FIELD_NAME(1:N_REMOVE-1)
 !
 !-----------------------------------------------------------------------
@@ -8486,7 +8910,7 @@
                               ,name      =FIELD_NAME                    &  !<-- Name of the Field
                               ,rc      =RC )
 !
-            N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
+            N_REMOVE=INDEX(FIELD_NAME,MOVE_SUFFIX)
             FIELD_NAME=FIELD_NAME(1:N_REMOVE-1)
 !
 !-----------------------------------------------------------------------
@@ -9094,15 +9518,17 @@
 !
               ELSEIF(SEA_MASK(I,J)>0.5.AND.ARRAY_2D(I,J)<1.)THEN           !<-- Parent sent land value to nest water point.
 !
-!*** Temporary exclusion of SEARCH_NEAR
                 FOUND=.FALSE.
 !
-!               CALL SEARCH_NEAR(FNAME,SEA_MASK,I,J                     & 
-!                               ,ILO,IHI,JLO,JHI                        &
-!                               ,I_START,I_END,J_START,J_END            &
-!                               ,LIMITS_LO(3),LIMITS_HI(3)              &
-!                               ,FOUND                                  &
-!                               ,array_2d=ARRAY_2D )
+                IF(domain_int_state%SFC_CONFLICT=='nearest')THEN
+                  CALL SEARCH_NEAR(FNAME,SEA_MASK,I,J                   & 
+                                  ,ILO,IHI,JLO,JHI                      &
+                                  ,I_START,I_END,J_START,J_END          &
+                                  ,LIMITS_LO(3),LIMITS_HI(3)            &
+                                  ,FOUND                                &
+                                  ,array_2d=ARRAY_2D )
+                ENDIF
+!
               ENDIF
 !
               IF(.NOT.FOUND)THEN                           
@@ -9130,20 +9556,23 @@
                 CHECK=ABS(ARRAY_2D(I,J)-0.06)
                 IF(CHECK<1.E-5)THEN                                        !<-- Parent sent water value to nest land point.
 !
-!*** Temporary exclusion of SEARCH_NEAR
                   FOUND=.FALSE.
 !
-!                 CALL SEARCH_NEAR(FNAME,SEA_MASK,I,J                   & 
-!                                 ,ILO,IHI,JLO,JHI                      &
-!                                 ,I_START,I_END,J_START,J_END          &
-!                                 ,LIMITS_LO(3),LIMITS_HI(3)            &
-!                                 ,FOUND                                &
-!                                 ,array_2d=ARRAY_2D )
+                  IF(domain_int_state%SFC_CONFLICT=='nearest')THEN
+                    CALL SEARCH_NEAR(FNAME,SEA_MASK,I,J                 & 
+                                    ,ILO,IHI,JLO,JHI                    &
+                                    ,I_START,I_END,J_START,J_END        &
+                                    ,LIMITS_LO(3),LIMITS_HI(3)          &
+                                    ,FOUND                              &
+                                    ,array_2d=ARRAY_2D )
+                  ENDIF
+!
                 ENDIF
+!
               ENDIF
 !
               IF(.NOT.FOUND)THEN                           
-                ARRAY_2D(I,J)=0.25                                        !<-- Made-up albedo over land
+                ARRAY_2D(I,J)=0.25                                         !<-- Made-up albedo over land
               ENDIF                               
 !
             ENDDO
@@ -9197,15 +9626,19 @@
                 CHECK=ABS(ARRAY_3D(I,J,1)-273.16)
                 IF(CHECK<1.E-2)THEN                                        !<-- Parent sent water value to nest land point.
 !
-!*** Temporary exclusion of SEARCH_NEAR
                   FOUND=.FALSE.
-!                 CALL SEARCH_NEAR(FNAME,SEA_MASK,I,J                   & 
-!                                 ,ILO,IHI,JLO,JHI                      &
-!                                 ,I_START,I_END,J_START,J_END          &
-!                                 ,LIMITS_LO(3),LIMITS_HI(3)            &
-!                                 ,FOUND                                &
-!                                 ,array_3d=ARRAY_3D )
+!
+                  IF(domain_int_state%SFC_CONFLICT=='nearest')THEN
+                    CALL SEARCH_NEAR(FNAME,SEA_MASK,I,J                 & 
+                                    ,ILO,IHI,JLO,JHI                    &
+                                    ,I_START,I_END,J_START,J_END        &
+                                    ,LIMITS_LO(3),LIMITS_HI(3)          &
+                                    ,FOUND                              &
+                                    ,array_3d=ARRAY_3D )
+                  ENDIF
+!
                 ENDIF
+!
               ENDIF
 !
               IF(.NOT.FOUND)THEN                           
@@ -9238,12 +9671,15 @@
 !*** Temporary exclusion of SEARCH_NEAR
                 FOUND=.FALSE.
 !
-!               CALL SEARCH_NEAR(FNAME,SEA_MASK,I,J                     & 
-!                               ,ILO,IHI,JLO,JHI                        &
-!                               ,I_START,I_END,J_START,J_END            &
-!                               ,LIMITS_LO(3),LIMITS_HI(3)              &
-!                               ,FOUND                                  &
-!                               ,array_3d=ARRAY_3D )
+                IF(domain_int_state%SFC_CONFLICT=='nearest')THEN
+                  CALL SEARCH_NEAR(FNAME,SEA_MASK,I,J                   & 
+                                  ,ILO,IHI,JLO,JHI                      &
+                                  ,I_START,I_END,J_START,J_END          &
+                                  ,LIMITS_LO(3),LIMITS_HI(3)            &
+                                  ,FOUND                                &
+                                  ,array_3d=ARRAY_3D )
+                ENDIF
+!
               ENDIF
 !
               IF(.NOT.FOUND)THEN                           
@@ -9602,6 +10038,8 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE RESET_SFC_VARS(SFC_FILE_RATIO                          &
+                               ,GLAT_H                                  &
+                               ,GLON_H                                  &
                                ,MOVE_BUNDLE)
 !
 !-----------------------------------------------------------------------
@@ -9617,6 +10055,9 @@
 !------------------------
 !
       INTEGER(kind=KINT),INTENT(IN) :: SFC_FILE_RATIO                      !<-- Ratio of upper parent grid increment to this domain's
+!
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: GLAT_H   &  !<-- Geographic latitude (radians) at H pts on nest domain.
+                                                              ,GLON_H      !<-- Geographic longitude (radians) at H pts on nest domain.
 !
       TYPE(ESMF_FieldBundle),INTENT(INOUT) :: MOVE_BUNDLE
 !
@@ -9641,7 +10082,6 @@
 !
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ROW
 !
-      REAL(kind=KFPT),DIMENSION(:,:),POINTER,SAVE :: GLAT_H,GLON_H
       REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ARRAY_2D=>NULL()
 !
       CHARACTER(len=2)  :: ID_SFC_FILE
@@ -9658,63 +10098,26 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  The nest needs its GLAT and GLON to determine exactly where it
+!***  The nest uses its GLAT and GLON to determine exactly where it
 !***  lies on the uppermost parent grid and thus where its grid lies
 !***  within the nest-resolution sfc data in the external file.
-!***  The Move_Bundle for H points is sent into this routine first
-!***  so extract the lat/lon in the first pass.
-!-----------------------------------------------------------------------
-!
-      first_pass: IF(FIRST)THEN
-!
-!-----------------------------------------------------------------------
-!
-        FIRST=.FALSE.
-!
-        CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
-!!!                             ,FIELDNAME  ='GLAT'                     &  !<-- Name of the latitude Field
-                                ,FIELDNAME  ='GLAT'//BUNDLE_X           &  !<-- Name of the latitude Field
-                                ,field      =HOLD_FIELD                 &  !<-- Field holding GLAT
-                                ,rc         =RC )
-!
-        CALL ESMF_FieldGet(field    =HOLD_FIELD                         &  !<-- Field containing GLAT
-                          ,localDe  =0                                  &
-                          ,farrayPtr=GLAT_H                             &  !<-- Dummy 2-D array with Field's data
-                          ,rc       =RC )
-!
-        CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
-!!!                             ,FIELDNAME  ='GLON'                     &  !<-- Name of the longitude Field
-                                ,FIELDNAME  ='GLON'//BUNDLE_X           &  !<-- Name of the longitude Field
-                                ,field      =HOLD_FIELD                 &  !<-- Field holding GLON
-                                ,rc         =RC )
-!
-        CALL ESMF_FieldGet(field    =HOLD_FIELD                         &  !<-- Field containing GLON
-                          ,localDe  =0                                  &
-                          ,farrayPtr=GLON_H                             &  !<-- Dummy 2-D array with Field's data
-                          ,rc       =RC )
-!
-!-----------------------------------------------------------------------
 !***  Find the I,J on the uppermost parent grid on which the SW corner
 !***  of this nest task lies.
 !-----------------------------------------------------------------------
 !
-        I_CORNER=MAX(IMS,IDS)                                            !<-- Nest task halos are covered with data
-        J_CORNER=MAX(JMS,JDS)                                            !
+      I_CORNER=MAX(IMS,IDS)                                              !<-- Nest task halos are covered with data
+      J_CORNER=MAX(JMS,JDS)                                              !
 !
-        CALL LATLON_TO_IJ(GLAT_H(I_CORNER,J_CORNER)                   &  !<-- Geographic latitude of nest task subdomain SW corner
-                         ,GLON_H(I_CORNER,J_CORNER)                   &  !<-- Geographic longitude of nest task subdomain SW corner
-                         ,TPH0_1,TLM0_1                               &  !<-- Central lat/lon (radians, N/E) of uppermost parent
-                         ,SB_1,WB_1                                   &  !<-- Rotated lat/lon of upper parent's S/W bndry (radians, N/E)
-                         ,RECIP_DPH_1,RECIP_DLM_1                     &  !<-- Reciprocal of I/J grid increments (radians) on upper parent
-                         ,REAL_I                                      &  !<-- Corresponding I index on uppermost parent grid
-                         ,REAL_J)
+      CALL LATLON_TO_IJ(GLAT_H(I_CORNER,J_CORNER)                     &  !<-- Geographic latitude of nest task subdomain SW corner
+                       ,GLON_H(I_CORNER,J_CORNER)                     &  !<-- Geographic longitude of nest task subdomain SW corner
+                       ,TPH0_1,TLM0_1                                 &  !<-- Central lat/lon (radians, N/E) of uppermost parent
+                       ,SB_1,WB_1                                     &  !<-- Rotated lat/lon of upper parent's S/W bndry (radians, N/E)
+                       ,RECIP_DPH_1,RECIP_DLM_1                       &  !<-- Reciprocal of I/J grid increments (radians) on upper parent
+                       ,REAL_I                                        &  !<-- Corresponding I index on uppermost parent grid
+                       ,REAL_J)
 !
-        I_OFFSET=NINT((REAL_I-1.)*SFC_FILE_RATIO)                        !<-- Offset in I between sfc file index and nest index
-        J_OFFSET=NINT((REAL_J-1.)*SFC_FILE_RATIO)                        !<-- Offset in J between sfc file index and nest index
-!
-!-----------------------------------------------------------------------
-!
-      ENDIF  first_pass
+      I_OFFSET=NINT((REAL_I-1.)*SFC_FILE_RATIO)                          !<-- Offset in I between sfc file index and nest index
+      J_OFFSET=NINT((REAL_J-1.)*SFC_FILE_RATIO)                          !<-- Offset in J between sfc file index and nest index
 !
 !-----------------------------------------------------------------------
 !
@@ -9752,10 +10155,10 @@
 !
         CALL ESMF_FieldGet(field   =HOLD_FIELD                          &  !<-- Field N_FIELD in the Bundle
                           ,typeKind=DATATYPE                            &  !<-- Does this Field contain an integer or real array?
-                          ,name      =FIELD_NAME                        &  !<-- The name of the Field
+                          ,name    =FIELD_NAME                          &  !<-- The name of the Field
                           ,rc      =RC )
 !
-        N_REMOVE=INDEX(FIELD_NAME,BUNDLE_X)
+        N_REMOVE=INDEX(FIELD_NAME,MOVE_SUFFIX)
         FIELD_NAME=FIELD_NAME(1:N_REMOVE-1)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
