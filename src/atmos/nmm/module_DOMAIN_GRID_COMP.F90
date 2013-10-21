@@ -3125,6 +3125,7 @@
       TYPE(ESMF_Logical) :: MOVE_NOW
 #else
       LOGICAL(kind=KLOG) :: MOVE_NOW
+      INTEGER(kind=KINT) :: use_radar_default ! 520r-series work-around Attribute intent() issues
 #endif
 !
       TYPE(ESMF_TimeInterval) :: DT_ESMF
@@ -3755,10 +3756,11 @@
 ! gjt: Found this to be an invalid attribute, which will cause an ESMF error if 
 !      no defaultvalue is provided. However, ESMF 3-series did not support the
 !      defaultvalue argument yet.
-        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The DOMAIN import state
-                              ,name ='Use_Radar'                        &  !<-- Name of the attribute to extract
-                              ,value=USE_RADAR                          &  !<-- The ID of this domain
-                              ,defaultvalue=0                           &  !<-- default value to quiet down ESMF if not set
+        use_radar_default=0         ! must use a temporary variable for ESMF 520r-series
+        CALL ESMF_AttributeGet(state=IMP_STATE  &                 !<-- The DOMAIN import state
+                              ,name ='Use_Radar'  &               !<-- Name of the attribute to extract
+                              ,value=USE_RADAR  &                 !<-- The ID of this domain
+                              ,defaultvalue=use_radar_default  &  !<-- default value to quiet down ESMF if not set
                               ,rc   =RC)
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 #endif
