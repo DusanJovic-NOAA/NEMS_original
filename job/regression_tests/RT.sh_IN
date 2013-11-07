@@ -405,7 +405,9 @@ export atm_model=none
 export atm_petlist_bounds="-1 -1"
 export ocn_model=none
 export ocn_petlist_bounds="-1 -1"
-export atm_ocn_coupling_hours=-1
+export med_petlist_bounds="-1 -1"
+export med_atm_coupling_interval_sec=-1
+export med_ocn_coupling_interval_sec=-1
 }
 
 check_executable ()
@@ -542,7 +544,7 @@ if [ $RT_NUOPC = true ] ; then
     export_nems
     export atm_model=gsm
     export atm_petlist_bounds="0 31"
-    export atm_ocn_coupling_hours=12.0
+    export med_atm_coupling_interval_sec=43200.0
     #---------------------
     ./rt_gfs.sh
     if [ $? = 2 ]; then exit ; fi
@@ -554,15 +556,15 @@ if [ $RT_NUOPC = true ] ; then
 
   ###############################################################################
   # 
-  # TEST   - GSM + DummyOCN
-  #        - 12h coupling interval
+  # TEST   - GSM <-> Mediator <-> DummyOCN
+  #        -      2h           6h    coupling interval
   #        - exchanging dummy Fields
   #
   ###############################################################################
 
   if [ $MACHINE_ID = zeus ] ; then
 
-    export TEST_DESCR="NUOPC: GSM + DummyOCN from data with 12h coupling interval"
+    export TEST_DESCR="NUOPC: GSM <-2h-> Mediator <-6h-> DummyOCN"
 
     #---------------------
     (( TEST_NR=TEST_NR+1 ))
@@ -581,8 +583,10 @@ if [ $RT_NUOPC = true ] ; then
     export atm_model=gsm
     export atm_petlist_bounds="0 31"
     export ocn_model=dummy
-    export ocn_petlist_bounds="32 63"
-    export atm_ocn_coupling_hours=12.0
+    export ocn_petlist_bounds="32 49"
+    export med_petlist_bounds="50 63"
+    export med_atm_coupling_interval_sec=7200.0
+    export med_ocn_coupling_interval_sec=21600.0
     #---------------------
     ./rt_gfs.sh
     if [ $? = 2 ]; then exit ; fi
@@ -611,7 +615,7 @@ if [ $RT_NUOPC = true ] ; then
     export LIST_FILES="ovrtn_out restart_out.a restart_out.b summary_out"
     #---------------------
     export_gsm
-    export TASKS=146
+    export TASKS=160
     export WLCLK=60
     export CDATE=2009120100
     export NDAYS=2
@@ -619,7 +623,8 @@ if [ $RT_NUOPC = true ] ; then
     export_nems
     export ocn_model=hycom
     export ocn_petlist_bounds="0 145"
-    export atm_ocn_coupling_hours=12.0
+    export med_petlist_bounds="32 159"
+    export med_ocn_coupling_interval_sec=43200.0
     #---------------------
     ./rt_gfs.sh
     if [ $? = 2 ]; then exit ; fi
@@ -657,7 +662,7 @@ if [ $RT_NUOPC = true ] ; then
     export atm_petlist_bounds="0 31"
     export ocn_model=mom5
     export ocn_petlist_bounds="32 63"
-    export atm_ocn_coupling_hours=12.0
+    export med_ocn_coupling_interval_sec=43200.0
     #---------------------
     ./rt_gfs.sh
     if [ $? = 2 ]; then exit ; fi

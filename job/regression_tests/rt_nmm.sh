@@ -40,7 +40,9 @@ cat nems.configure.IN   | sed s:_atm_model_:${atm_model}:g                    \
                         | sed s:_atm_petlist_bounds_:"${atm_petlist_bounds}":g\
                         | sed s:_ocn_model_:${ocn_model}:g                    \
                         | sed s:_ocn_petlist_bounds_:"${ocn_petlist_bounds}":g\
-                        | sed s:_atm_ocn_coupling_hours_:"${atm_ocn_coupling_hours}":g\
+                        | sed s:_med_petlist_bounds_:"${med_petlist_bounds}":g\
+                        | sed s:_med_atm_coupling_interval_sec_:"${med_atm_coupling_interval_sec}":g\
+                        | sed s:_med_ocn_coupling_interval_sec_:"${med_ocn_coupling_interval_sec}":g\
                         >  nems.configure
 
 if [ $SCHEDULER = 'moab' ]; then

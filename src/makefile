@@ -59,7 +59,9 @@ INCS = -Iatmos \
 
 MAIN = MAIN_NEMS.o
 
-OBJS = module_EARTH_INTERNAL_STATE.o \
+OBJS = module_MEDIATOR.o \
+       module_EARTH_GENERIC_COMP.o \
+       module_EARTH_INTERNAL_STATE.o \
        module_EARTH_GRID_COMP.o \
        module_NEMS_INTERNAL_STATE.o \
        module_NEMS_GRID_COMP.o

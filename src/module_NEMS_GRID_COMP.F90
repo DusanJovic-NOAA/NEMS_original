@@ -25,7 +25,7 @@
 !          |    |
 !          |    (MOM5, HYCOM, etc.)
 !          |
-!          CORE component (GFS, NMM, FIM, GEN, etc.)
+!          CORE component (GSM, NMM, FIM, GEN, etc.)
 !
 !-----------------------------------------------------------------------
 !  2011-05-11  Theurich & Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.

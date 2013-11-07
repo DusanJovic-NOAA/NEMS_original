@@ -1,11 +1,11 @@
-Fri Oct 18 17:17:32 UTC 2013
+Wed Nov  6 22:57:58 UTC 2013
 Start Regression test
 
 
 
-Fri Oct 18 17:17:32 UTC 2013
+Wed Nov  6 22:57:58 UTC 2013
 Compilation ALL
-Fri Oct 18 17:33:41 UTC 2013
+Wed Nov  6 23:13:25 UTC 2013
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  85.226
+ Original timing:  151.20  , test_glob timing:  86.200
 
 
 Test 002
@@ -232,5 +232,5 @@ Checking test 013 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 013 passed 
-Fri Oct 18 19:08:18 UTC 2013
+Thu Nov  7 01:53:43 UTC 2013
 REGRESSION TEST WAS SUCCESSFUL

@@ -25,7 +25,7 @@
 !          |    |
 !          |    (MOM5, HYCOM, etc.)
 !          |
-!          CORE component (GFS, NMM, FIM, GEN, etc.)
+!          CORE component (GSM, NMM, FIM, GEN, etc.)
 !
 !-----------------------------------------------------------------------
 !  2011-05-11  Theurich & Yang  - Modified for using the ESMF 5.2.0r_beta_snapshot_07.
@@ -38,8 +38,9 @@
 #ifdef WITH_NUOPC
       use NUOPC
       use NUOPC_Model, only: &
-        model_routine_SS    => routine_SetServices, &
-        model_label_Advance => label_Advance
+        model_routine_SS            => routine_SetServices, &
+        model_label_DataInitialize  => label_DataInitialize, &
+        model_label_Advance         => label_Advance
 #endif
 
 !
@@ -114,7 +115,7 @@
         file=__FILE__)) &
         return  ! bail out
         
-      ! Provide InitP0 to overwrite the default IPD00 with IPD01
+      ! Provide InitP0 to overwrite the default IPD00 with IPD02
       call ESMF_GridCompSetEntryPoint(ATM_GRID_COMP, ESMF_METHOD_INITIALIZE, &
         InitializeP0, phase=0, rc=RC_REG)
       if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
@@ -122,7 +123,7 @@
         file=__FILE__)) &
         return  ! bail out
 
-      ! NUOPC_Model IPDv00 requires InitP1, where Fields should be advertised
+      ! IPDv02 requires InitP1, where Fields should be advertised
       CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP, ESMF_METHOD_INITIALIZE, &
         InitializeP1, phase=1, rc=RC_REG)
       if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
@@ -130,7 +131,7 @@
         file=__FILE__)) &
         return  ! bail out
 
-      ! NUOPC_Model IPDv00 requires InitP2, where Fields should be realized,
+      ! IPDv02 requires InitP2, where Fields should be realized,
       CALL ESMF_GridCompSetEntryPoint(ATM_GRID_COMP, ESMF_METHOD_INITIALIZE, &
         InitializeP2, phase=2, rc=RC_REG)
       if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
@@ -139,6 +140,12 @@
         return  ! bail out
 
       ! attach specializing method(s)
+      call ESMF_MethodAdd(ATM_GRID_COMP, label=model_label_DataInitialize, &
+        userRoutine=ATM_DATAINIT, rc=RC_REG)
+      if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
       call ESMF_MethodAdd(ATM_GRID_COMP, label=model_label_Advance, &
         userRoutine=ATM_ADVANCE, rc=RC_REG)
       if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
@@ -155,11 +162,13 @@
         return  ! bail out
         
       ! extend the NUOPC Field Dictionary to hold required entries
-      if (.not.NUOPC_FieldDictionaryHasEntry("air_temperature_at_sea_level")) then
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "air_temperature_at_lowest_level")) then
         call NUOPC_FieldDictionaryAddEntry( &
-          standardName="air_temperature_at_sea_level", &
-          canonicalUnits="K", defaultLongName="Air Temperature at Sea Level", &
-          defaultShortName="tmsl", rc=rc);
+          standardName="air_temperature_at_lowest_level", &
+          canonicalUnits="K", &
+          defaultLongName="Air Temperature at Lowest Level", &
+          defaultShortName="atll", rc=rc);
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
@@ -248,11 +257,10 @@
     
     rc = ESMF_SUCCESS
 
-    initPhases(1) = "IPDv01p1=1"
-    ! skip over IPDv01p2, which isn't needed here
-    initPhases(2) = "IPDv01p3=2"
-    initPhases(3) = "IPDv01p4=3"
-    initPhases(4) = "IPDv01p5=4"
+    initPhases(1) = "IPDv02p1=1"
+    initPhases(2) = "IPDv02p3=2"
+    initPhases(3) = "IPDv02p4=3"
+    initPhases(4) = "IPDv02p5=5"
     
     call ESMF_AttributeSet(gcomp, &
       name="InitializePhaseMap", valueList=initPhases, &
@@ -284,17 +292,11 @@
       file=__FILE__)) &
       return  ! bail out
 
-    ! exportable field: air_pressure_at_sea_level
-    call NUOPC_StateAdvertiseField(exportState, &
-      StandardName="air_pressure_at_sea_level", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    
-    ! exportable field: air_temperature_at_sea_level
-    call NUOPC_StateAdvertiseField(exportState, &
-      StandardName="air_temperature_at_sea_level", rc=rc)
+    ! exportable fields:
+    call NUOPC_StateAdvertiseFields(exportState, StandardNames=(/ &
+      "surface_net_downward_shortwave_flux", &
+      "air_temperature_at_lowest_level" &
+       /), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -310,8 +312,10 @@
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
 
-    type(ESMF_Grid)         :: gridIn, gridOut
-    type(ESMF_Field)        :: field
+    type(ESMF_Grid)                 :: gridIn, gridOut
+    type(ESMF_Field)                :: field
+    integer                         :: i, j
+    real(kind=ESMF_KIND_R8),pointer :: lonPtr(:,:), latPtr(:,:)
 
     rc = ESMF_SUCCESS
     
@@ -324,17 +328,35 @@
       return  ! bail out
     
     ! create a DUMMY Grid object for import and export Fields
-    
-    gridIn = NUOPC_GridCreateSimpleXY( &
-      x_min=10._ESMF_KIND_R8,   x_max=20._ESMF_KIND_R8, &
-      y_min=100._ESMF_KIND_R8,  y_max=200._ESMF_KIND_R8, &
-      i_count=1000, j_count=100, rc=rc)
+    gridIn = ESMF_GridCreate1PeriDim(minIndex=(/1,1/), maxIndex=(/600,200/),&
+      indexflag=ESMF_INDEX_GLOBAL, coordSys=ESMF_COORDSYS_SPH_DEG, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
+    call ESMF_GridAddCoord(gridIn, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call ESMF_GridGetCoord(gridIn, coordDim=1, farrayPtr=lonPtr, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call ESMF_GridGetCoord(gridIn, coordDim=2, farrayPtr=latPtr, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    do j=lbound(lonPtr,2),ubound(lonPtr,2)
+    do i=lbound(latPtr,1),ubound(latPtr,1)
+      lonPtr(i,j) = 360./real(600) * (i-1)
+      latPtr(i,j) = 100./real(200) * (j-1) - 50.
+    enddo
+    enddo
       
-    gridOut = gridIn
+    gridOut = gridIn ! for now out same as in
       
     ! conditionally realize or remove Fields
     
@@ -361,10 +383,10 @@
         return  ! bail out
     endif
  
-    ! exportable field: air_pressure_at_sea_level
-    if (NUOPC_StateIsFieldConnected(exportState, fieldName="pmsl")) then
+    ! exportable field: surface_net_downward_shortwave_flux
+    if (NUOPC_StateIsFieldConnected(exportState, fieldName="rsns")) then
       ! realize a connected Field
-      field = ESMF_FieldCreate(name="pmsl", grid=gridOut, &
+      field = ESMF_FieldCreate(name="rsns", grid=gridOut, &
         typekind=ESMF_TYPEKIND_R8, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
@@ -377,17 +399,17 @@
         return  ! bail out
     else
       ! remove a not connected Field from State
-      call ESMF_StateRemove(exportState, (/"pmsl"/), rc=rc)
+      call ESMF_StateRemove(exportState, (/"rsns"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
     endif
-    
-    ! exportable field: air_temperature_at_sea_level
-    if (NUOPC_StateIsFieldConnected(exportState, fieldName="tmsl")) then
+
+    ! exportable field: air_temperature_at_lowest_level
+    if (NUOPC_StateIsFieldConnected(exportState, fieldName="atll")) then
       ! realize a connected Field
-      field = ESMF_FieldCreate(name="tmsl", grid=gridOut, &
+      field = ESMF_FieldCreate(name="atll", grid=gridOut, &
         typekind=ESMF_TYPEKIND_R8, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
@@ -400,7 +422,7 @@
         return  ! bail out
     else
       ! remove a not connected Field from State
-      call ESMF_StateRemove(exportState, (/"tmsl"/), rc=rc)
+      call ESMF_StateRemove(exportState, (/"atll"/), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -441,7 +463,12 @@
 !
       INTEGER :: RC
 !
-      TYPE(ESMF_Config) :: CF
+      TYPE(ESMF_Config)       :: CF
+#ifdef WITH_NUOPC
+      real(ESMF_KIND_R8)      :: medAtmCouplingIntervalSec
+      type(ESMF_Clock)        :: atmClock
+      type(ESMF_TimeInterval) :: atmStep
+#endif
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -486,30 +513,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  For the moment, use a direct copy of the EARTH Clock within
-!***  the ATM component.
-!-----------------------------------------------------------------------
-!
-#ifdef WITH_NUOPC
-      call NUOPC_GridCompSetClock(ATM_GRID_COMP, CLOCK_EARTH, rc=RC_INIT)
-      if (ESMF_LogFoundError(rcToCheck=RC_INIT, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-
-      atm_int_state%CLOCK_ATM = ESMF_ClockCreate(CLOCK_EARTH, rc=RC_INIT)
-      if (ESMF_LogFoundError(rcToCheck=RC_INIT, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-
-#else
-
-      atm_int_state%CLOCK_ATM=CLOCK_EARTH
-
-#endif
 
 !
 !-----------------------------------------------------------------------
@@ -551,6 +554,45 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+!
+!-----------------------------------------------------------------------
+!***  For the moment, use a direct copy of the EARTH Clock within
+!***  the ATM component.
+!-----------------------------------------------------------------------
+!
+#ifdef WITH_NUOPC
+      
+      ! Set ATM component clock as copy of EARTH clock.
+      call NUOPC_GridCompSetClock(ATM_GRID_COMP, CLOCK_EARTH, rc=RC_INIT)
+      ESMF_ERR_RETURN(RC_INIT,RC_INIT)
+
+      ! Read in the ATM coupling interval
+      call ESMF_ConfigGetAttribute(CF, medAtmCouplingIntervalSec, &
+        label="med_atm_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, &
+        rc=RC_INIT)
+      ESMF_ERR_RETURN(RC_INIT,RC_INIT)
+      
+      if (medAtmCouplingIntervalSec>0._ESMF_KIND_R8) then
+        ! The coupling time step was provided
+        call ESMF_TimeIntervalSet(atmStep, s_r8=medAtmCouplingIntervalSec, &
+          rc=RC_INIT)
+        ESMF_ERR_RETURN(RC_INIT,RC_INIT)
+        call ESMF_GridCompGet(ATM_GRID_COMP, clock=atmClock, rc=RC_INIT)
+        ESMF_ERR_RETURN(RC_INIT,RC_INIT)
+        call ESMF_ClockSet(atmClock, timestep=atmStep, rc=RC_INIT)
+        ESMF_ERR_RETURN(RC_INIT,RC_INIT)
+      endif
+
+      !TODO: not sure the following is really needed for NUOPC mode
+      atm_int_state%CLOCK_ATM = ESMF_ClockCreate(CLOCK_EARTH, rc=RC_INIT)
+      ESMF_ERR_RETURN(RC_INIT,RC_INIT)
+
+#else
+
+      atm_int_state%CLOCK_ATM=CLOCK_EARTH
+
+#endif
+
 !-----------------------------------------------------------------------
 !***  Extract the dynamic core name from the configure file.
 !-----------------------------------------------------------------------
@@ -769,6 +811,105 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
+
+#ifdef WITH_NUOPC
+
+  subroutine ATM_DATAINIT(gcomp, rc)
+    type(ESMF_GridComp)  :: gcomp
+    integer, intent(out) :: rc
+    
+    ! local variables
+    type(ESMF_State)              :: exportState
+    type(ESMF_Field)              :: field
+    type(ESMF_StateItem_Flag)     :: itemType
+    real(ESMF_KIND_R8), pointer   :: dataPtr(:,:)
+    integer                       :: i,j
+
+    rc = ESMF_SUCCESS
+    
+    ! the ATM initializes export Fields that the MED initialize depends on
+
+    ! query the Component for its exportState
+    call ESMF_GridCompGet(gcomp, exportState=exportState, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    ! -> set Updated Field Attribute to "true", indicating to the IPDv02p5
+    ! generic code to set the timestamp for this Field
+    
+    call ESMF_StateGet(exportState, itemName="rsns", itemType=itemType, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    if (itemType /= ESMF_STATEITEM_NOTFOUND) then
+      ! "rsns" item exists -> initialize and set "Updated"
+      call ESMF_StateGet(exportState, itemName="rsns", field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_FieldGet(field, farrayPtr=dataPtr, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      do j=lbound(dataPtr,2),ubound(dataPtr,2)
+      do i=lbound(dataPtr,1),ubound(dataPtr,1)
+        dataPtr(i,j) = 1._ESMF_KIND_R8
+      enddo
+      enddo
+      call ESMF_AttributeSet(field, &
+        name="Updated", value="true", &
+        convention="NUOPC", purpose="General", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+
+    call ESMF_StateGet(exportState, itemName="atll", itemType=itemType, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    if (itemType /= ESMF_STATEITEM_NOTFOUND) then
+      ! "atll" item exists -> set "Updated"
+      call ESMF_StateGet(exportState, itemName="atll", field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_AttributeSet(field, &
+        name="Updated", value="true", &
+        convention="NUOPC", purpose="General", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    endif
+      
+    ! -> set InitializeDataComplete Component Attribute to "true", indicating
+    ! to the driver that this Component has fully initialized its data
+    call ESMF_AttributeSet(gcomp, &
+      name="InitializeDataComplete", value="true", &
+      convention="NUOPC", purpose="General", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+        
+  end subroutine
+
+#endif
+
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
 #ifndef WITH_NUOPC
 
       SUBROUTINE ATM_RUN(ATM_GRID_COMP                                  &
@@ -894,8 +1035,15 @@
 !***  Local Variables
 !---------------------
 !
-      type(ESMF_Clock)      :: clock
-      type(ESMF_Time)       :: stopTime
+      type(ESMF_Clock)              :: clock
+      type(ESMF_Time)               :: stopTime
+      type(ESMF_State)              :: exportState
+      type(ESMF_Field)              :: field
+      type(ESMF_StateItem_Flag)     :: itemType
+      real(ESMF_KIND_R8), pointer   :: dataPtr(:,:)
+      integer                       :: i,j
+      
+      integer, save                 :: slice=1
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -944,6 +1092,54 @@
       ESMF_ERR_RETURN(rc,rc)
 
 !-----------------------------------------------------------------------
+
+
+! -> just for testing update the "rsns" Field
+
+    ! query the Component for its exportState
+    call ESMF_GridCompGet(ATM_GRID_COMP, exportState=exportState, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call ESMF_StateGet(exportState, itemName="rsns", itemType=itemType, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    if (itemType /= ESMF_STATEITEM_NOTFOUND) then
+      ! "rsns" item exists -> advance it
+      call ESMF_StateGet(exportState, itemName="rsns", field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_FieldGet(field, farrayPtr=dataPtr, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      do j=lbound(dataPtr,2),ubound(dataPtr,2)
+      do i=lbound(dataPtr,1),ubound(dataPtr,1)
+        dataPtr(i,j) = dataPtr(i,j) + 1._ESMF_KIND_R8
+      enddo
+      enddo
+#if 1
+    ! for analysis also write "rsns" to file
+      if (ESMF_IO_PIO_PRESENT .and. ESMF_IO_NETCDF_PRESENT) then
+        call ESMF_FieldWrite(field, file="field_atm_rsns.nc", &
+          timeslice=slice, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          call ESMF_Finalize(endflag=ESMF_END_ABORT)
+      endif
+      slice = slice + 1
+#endif
+    endif
+    
+    
+! -> end just for testing update the "rsns" Field
 
       call NUOPC_ClockPrintCurrTime(atm_int_state%CLOCK_ATM, &
         string="leaving  ATM_ADVANCE with CLOCK_ATM current: ", &

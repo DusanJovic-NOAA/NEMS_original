@@ -35,7 +35,7 @@
 !          |    |
 !          |    (MOM5, HYCOM, etc.)
 !          |
-!          CORE component (GFS, NMM, FIM, GEN, etc.)
+!          CORE component (GSM, NMM, FIM, GEN, etc.)
 !
 !-----------------------------------------------------------------------
 !
@@ -43,13 +43,14 @@
 
 #ifdef WITH_NUOPC
       use NUOPC
-      use NUOPC_DriverAtmOcn, only: &
+      use module_EARTH_GENERIC_COMP, only: &
         driver_routine_SS             => routine_SetServices, &
         driver_type_IS                => type_InternalState, &
         driver_label_IS               => label_InternalState, &
         driver_label_SetModelPetLists => label_SetModelPetLists, &
         driver_label_SetModelServices => label_SetModelServices
-      use NUOPC_Connector, only: cplSS => routine_SetServices
+      use NUOPC_Connector, only: conSS => routine_SetServices
+  ! - Handle build time OCN options:
 #ifdef FRONT_OCN_DUMMY
       use FRONT_OCN_DUMMY,  only: OCN_DUMMY_SS  => SetServices
 #endif
@@ -59,6 +60,8 @@
 #ifdef FRONT_MOM5
       use FRONT_MOM5,       only: OCN_MOM5_SS   => SetServices
 #endif
+  ! - Mediator
+      use module_MEDIATOR,  only: MED_SS        => SetServices
 #endif
 
       USE module_EARTH_INTERNAL_STATE,ONLY: EARTH_INTERNAL_STATE        &
@@ -242,7 +245,6 @@
           petListBounds(1) = 0
           petListBounds(2) = petCount - 1
         endif
-!print *, "atm_petlist_bounds:", petListBounds
         
         ! set petList for ATM
         allocate(is%wrap%atmPetList(petListBounds(2)-petListBounds(1)+1))
@@ -258,14 +260,28 @@
           petListBounds(1) = 0
           petListBounds(2) = petCount - 1
         endif
-!print *, "ocn_petlist_bounds:", petListBounds
         
-        ! set petList for OCN -> first 146Pets
+        ! set petList for OCN
         allocate(is%wrap%ocnPetList(petListBounds(2)-petListBounds(1)+1))
         do i=petListBounds(1), petListBounds(2)
           is%wrap%ocnPetList(i-petListBounds(1)+1) = i ! PET labeling is 0 based
         enddo
         
+        ! determine the MED petList bounds
+        call ESMF_ConfigGetAttribute(config, petListBounds, &
+          label="med_petlist_bounds:", default=-1, rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
+        if (petListBounds(1)==-1 .and. petListBounds(2)==-1) then
+          petListBounds(1) = 0
+          petListBounds(2) = petCount - 1
+        endif
+        
+        ! set petList for MED
+        allocate(is%wrap%medPetList(petListBounds(2)-petListBounds(1)+1))
+        do i=petListBounds(1), petListBounds(2)
+          is%wrap%medPetList(i-petListBounds(1)+1) = i ! PET labeling is 0 based
+        enddo
+
       end subroutine
 
       subroutine SetModelServices(gcomp, rc)
@@ -275,12 +291,9 @@
         ! local variables
         integer                       :: localrc
         type(driver_type_IS)          :: is
-        type(ESMF_Clock)              :: internalClock
         type(ESMF_Config)             :: config
         character(len=20)             :: model
         character(len=160)            :: msg
-        real(ESMF_KIND_R8)            :: atmOcnCoulingHours
-        type(ESMF_TimeInterval)       :: couplingStep
         logical                       :: atmFlag, ocnFlag
 
         rc = ESMF_SUCCESS
@@ -381,40 +394,63 @@
 #endif
         endif
         
-        if (atmFlag .and. ocnFlag) then
-          ! Both ATM and OCN present -> SetServices for Connectors
-          ! SetServices for atm2ocn
-          call ESMF_CplCompSetServices(is%wrap%atm2ocn, cplSS, userRc=localrc, &
+        ! SetServices for Mediator
+        call ESMF_GridCompSetServices(is%wrap%med, MED_SS, &
+          userRc=localrc, rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
+        ESMF_ERR_RETURN(localrc,rc)
+        call ESMF_AttributeSet(is%wrap%med, &
+          name="Verbosity", value="high", &
+          convention="NUOPC", purpose="General", rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
+
+        ! SetServices for Connectors
+        if (atmFlag) then
+          ! SetServices for atm2med
+          call ESMF_CplCompSetServices(is%wrap%atm2med, conSS, userRc=localrc, &
             rc=rc)
           ESMF_ERR_RETURN(rc,rc)
           ESMF_ERR_RETURN(localrc,rc)
-          call ESMF_AttributeSet(is%wrap%atm2ocn, name="Verbosity", value="high", &
+          call ESMF_AttributeSet(is%wrap%atm2med, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
           ESMF_ERR_RETURN(rc,rc)
-          ! SetServices for ocn2atm
-          call ESMF_CplCompSetServices(is%wrap%ocn2atm, cplSS, userRc=localrc, &
+          ! SetServices for med2atm
+          call ESMF_CplCompSetServices(is%wrap%med2atm, conSS, userRc=localrc, &
             rc=rc)
           ESMF_ERR_RETURN(rc,rc)
           ESMF_ERR_RETURN(localrc,rc)
-          call ESMF_AttributeSet(is%wrap%ocn2atm, name="Verbosity", value="high", &
+          call ESMF_AttributeSet(is%wrap%med2atm, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+        endif
+        if (ocnFlag) then
+          ! SetServices for ocn2med
+          call ESMF_CplCompSetServices(is%wrap%ocn2med, conSS, userRc=localrc, &
+            rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          ESMF_ERR_RETURN(localrc,rc)
+          call ESMF_AttributeSet(is%wrap%ocn2med, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          ! SetServices for med2ocn
+          call ESMF_CplCompSetServices(is%wrap%med2ocn, conSS, userRc=localrc, &
+            rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          ESMF_ERR_RETURN(localrc,rc)
+          call ESMF_AttributeSet(is%wrap%med2ocn, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
           ESMF_ERR_RETURN(rc,rc)
         endif
 
-        ! Get internal clock and set the coupling timeStep according to config
-        call ESMF_ConfigGetAttribute(config, atmOcnCoulingHours, &
-          label="atm_ocn_coupling_hours:", default=-1.0_ESMF_KIND_R8, rc=rc)
-        if (atmOcnCoulingHours>0._ESMF_KIND_R8) then
-          ! The coupling time step was provided
-          call ESMF_TimeIntervalSet(couplingStep, h_r8=atmOcnCoulingHours, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
-          call ESMF_GridCompGet(gcomp, clock=internalClock, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
-          call ESMF_ClockSet(internalClock, timeStep=couplingStep, rc=rc)
-          ESMF_ERR_RETURN(rc,rc)
-        else
-          ! Keep the default timeStep, i.e. that of parent
-        endif
+        ! Read in the coupling intervals and set in the internal state
+        call ESMF_ConfigGetAttribute(config, is%wrap%medAtmCouplingIntervalSec,&
+          label="med_atm_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
+        call ESMF_ConfigGetAttribute(config, is%wrap%medOcnCouplingIntervalSec,&
+          label="med_ocn_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
+          
+        ! Internal Clock and RunSequence will be set by EARTH_GENERIC_COMP
 
       end subroutine
 

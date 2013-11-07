@@ -385,7 +385,7 @@
 ####
 ################################################################################
 #  Set environment.
-export ESMF_RUNTIME_COMPLIANCECHECK=ON
+export ESMF_RUNTIME_COMPLIANCECHECK=ON:depth=4
 #
 export machine=${machine:-WCOSS}
 export machine=$(echo $machine|tr '[a-z]' '[A-Z]')
@@ -1039,6 +1039,8 @@ EOF
 cat << EOF > atm_namelist.rc
 
 core: gfs
+
+print_esmf:		.false.
 
 #nam_atm +++++++++++++++++++++++++++
 nlunit:                  35
