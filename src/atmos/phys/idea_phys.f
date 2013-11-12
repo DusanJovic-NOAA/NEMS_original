@@ -14,6 +14,7 @@
 ! Dec    2012   Jun Wang, change to new rad_merge (from Rashid and Fei)
 ! May    2013   Jun Wang, tmp updated after rad_merge
 ! Jun    2013   S. Moorthi Some optimization and cosmetic changes
+! Oct    2013   Henry Juang, correct the sequence to get prsi from model top
 !-----------------------------------------------------------------------
       use physcons,  amo2=>con_amo2,avgd => con_avgd
       use idea_composition
@@ -573,11 +574,15 @@
             xr(k)    = (1.-sumq(k))*ri(0)  + xr(k)
           enddo
 !
-          prsi(1) = ps*pa2cb
-          do k=1,levs
-            prsi(k+1) = prsi(k)-dp(k)*pa2cb
-          enddo
+!hmhj     prsi(1) = ps*pa2cb
+!hmhj     do k=1,levs
+!hmhj       prsi(k+1) = prsi(k)-dp(k)*pa2cb
+!hmhj     enddo
+!hmhj if compute prsi, we from ptop=0 with dp down to psfc
           prsi(levs+1) = 0.
+          do k=levs,1,-1
+            prsi(k) = prsi(k+1) + dp(k)*pa2cb
+          enddo
 !          print *,'in getphilvl,prsi=',prsi(1:100:10)
 !
           do k = 1,levs
