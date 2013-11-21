@@ -47,6 +47,7 @@
 # 2012-09-26  Jun Wang : set sigio option
 # 2013-02-12  Henry Juang : remove JCAPG
 # 2013-07-10  Sarah Lu: specify wgrib and nemsioget for multi-platform
+# 2013-11-13  Xingren Wu : add A2OI for Atm/Ocn/Ice coupling
 #
 # Usage:  global_forecast.sh SIGI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO NSTI NSTO G3DO FHOUT_HF FHMAX_HF
 #
@@ -523,6 +524,8 @@ export PASSIVE_TRACER=${PASSIVE_TRACER:-.false.}
 export NST_FCST=${NST_FCST:-0}
 export IAER=${IAER:-0}
 export GOCART=${GOCART:-0}
+export NGRID_A2OI=${NGRID_A2OI:-20}
+export A2OI_OUT=${A2OI_OUT:-.false.}
 export NDSLFV=${NDSLFV:-.false.}
 if [ $NDSLFV = .true. ] ; then
  if [[ $wave -eq  62 ]] ; then export DELTIM=1200 ; fi

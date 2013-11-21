@@ -36,11 +36,11 @@
 !           slc,smc,stc,upd_mf,dwn_mf,det_mf,dkh,rnp,phy_f3d,phy_f2d,   !
 !           dlwsfc_cc,ulwsfc_cc,dtsfc_cc,swsfc_cc,                      !
 !           dusfc_cc, dvsfc_cc, dqsfc_cc,precr_cc,                      !
-!           xt,xs,xu,xv,xz,zm,xtts,xzts,d_conv,ifd,dt_cool,Qrain,      !
+!           xt,xs,xu,xv,xz,zm,xtts,xzts,d_conv,ifd,dt_cool,Qrain,       !
 !       outputs:                                                        !
 !           gt0,gq0,gu0,gv0,t2m,q2m,u10m,v10m,                          !
 !           zlvl,psurf,hpbl,pwat,t1,q1,u1,v1,                           !
-!           chh,cmm,dlwsfci,ulwsfci,dswsfci,uswsfci,                    !
+!           chh,cmm,dlwsfci,ulwsfci,dswsfci,uswsfci,dusfci,dvsfci,      !
 !           dtsfci,dqsfci,gfluxi,epi,smcwlt2,smcref2,wet1,              !
 !hchuang code change
 !           gsoil,gtmp2m,gustar,gpblh,gu10m,gv10m,gzorl,goro,           !
@@ -104,6 +104,7 @@
 !      Jun  2013  - s. moorthi  corrected a bug in 3d diagnostics for T !
 !      Aug  2013  - s. moorthi updating J. Whitekar's changes related   !
 !                              to stochastic physics perturnbation      !
+!      Oct  2013  - Xingren Wu  add dusfci/dvsfci                       !
 !
 !                                                                       !
 !                                                                       !
@@ -342,6 +343,8 @@
 !     ulwsfci  - real, instantaneous sfc upwd lw flux ( w/m**2 )   im   !
 !     dswsfci  - real, instantaneous sfc dnwd sw flux ( w/m**2 )   im   !
 !     uswsfci  - real, instantaneous sfc upwd sw flux ( w/m**2 )   im   !
+!     dusfci   - real, instantaneous u component of surface stress im   !
+!     dvsfci   - real, instantaneous v component of surface stress im   !
 !     dtsfci   - real, instantaneous sfc sensible heat flux        im   !
 !     dqsfci   - real, instantaneous sfc latent heat flux          im   !
 !     gfluxi   - real, instantaneous sfc ground heat flux          im   !
@@ -411,7 +414,7 @@
 !  ---  outputs:
      &      gt0,gq0,gu0,gv0,t2m,q2m,u10m,v10m,                          &
      &      zlvl,psurf,hpbl,pwat,t1,q1,u1,v1,                           &
-     &      chh,cmm,dlwsfci,ulwsfci,dswsfci,uswsfci,                    &
+     &      chh,cmm,dlwsfci,ulwsfci,dswsfci,uswsfci,dusfci,dvsfci,      &
      &      dtsfci,dqsfci,gfluxi,epi,smcwlt2,smcref2,wet1,              &
      &      gsoil,gtmp2m,gustar,gpblh,gu10m,gv10m,gzorl,goro,sr,        &
      &      xmu_cc,dlw_cc,dsw_cc,snw_cc,lprec_cc,                       &
@@ -540,7 +543,8 @@
       real(kind=kind_phys), dimension(im),            intent(out) ::    &
      &      t2m,     q2m,     u10m,    v10m,    zlvl,   psurf, hpbl,    &
      &      pwat,    t1,      q1,      u1,      v1,     chh,   cmm,     &
-     &      dlwsfci, ulwsfci, dswsfci, uswsfci, dtsfci, dqsfci,         &
+     &      dlwsfci, ulwsfci, dswsfci, uswsfci,                         &
+     &      dusfci,  dvsfci,  dtsfci,  dqsfci,                          &
      &      gfluxi,  epi,     smcwlt2, smcref2, wet1,                   &
 !hchuang code change 11/12/2007 [+2L]
      &      gsoil(im), gtmp2m(im), gustar(im), gpblh(im), gu10m(im),    &
@@ -1410,6 +1414,8 @@
           dvsfc(i)  = dvsfc(i) + dvsfc1(i)*dtf
           dtsfc(i)  = dtsfc(i) + dtsfc1(i)*dtf
           dqsfc(i)  = dqsfc(i) + dqsfc1(i)*dtf
+          dusfci(i) = dusfc1(i)
+          dvsfci(i) = dvsfc1(i)
           dtsfci(i) = dtsfc1(i)
           dqsfci(i) = dqsfc1(i)
 !hchuang code change 11/12/2007 [+1L]

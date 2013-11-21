@@ -41,6 +41,7 @@
 !   2012-04-06  Juang  - add passing argument for gbphys for idea
 !   2012-07-20  Black  - Modified for generational usage.
 !   2013-09-09 Moorthi - Adding SR, DTDT, and TRIGGERPERTS for GBPHYS call
+!   2013-11-09 Xingren Wu - Adding DUSFCI/DVSFCI for GBPHYS call
 !-----------------------------------------------------------------------
 !
       USE esmf_mod
@@ -2840,6 +2841,7 @@
       REAL (kind=KDBL) ,DIMENSION(1)               :: EVBSA, EVCWA, TRANSA, SBSNOA, SNOWCA, CLDWRK, PSMEAN
       REAL (kind=KDBL) ,DIMENSION(1)               :: CHH, CMM, EP, EPI, DLWSFCI, ULWSFCI, USWSFCI, DSWSFCI
       REAL (kind=KDBL) ,DIMENSION(1)               :: DLWSFC, ULWSFC, DTSFC, DQSFC, DUSFC, DVSFC, GFLUX
+      REAL (kind=KDBL) ,DIMENSION(1)               :: DUSFCI, DVSFCI
       REAL (kind=KDBL) ,DIMENSION(1)               :: DTSFCI, DQSFCI, GFLUXI, T1, Q1, U1, V1
       REAL (kind=KDBL) ,DIMENSION(1)               :: ZLVL, SOILM, RUNOFF, SRUNOFF, SUNTIM
       REAL (kind=KDBL) ,DIMENSION(1)               :: F10M, UUSTAR, FFMM, FFHH, SPFHMIN, SPFHMAX
@@ -7017,7 +7019,7 @@
            XT, XS, XU, XV, XZ, ZM, XTTS, XZTS, D_CONV, IFD, DT_COOL, QRAIN, &
            ADT, ADR, ADU, ADV, T2M, Q2M, U10M, V10M,                        &
            ZLVL, PSURF, HPBL, PWAT, T1, Q1, U1, V1,                         &
-           CHH, CMM, DLWSFCI, ULWSFCI, DSWSFCI, USWSFCI,                    &
+           CHH, CMM, DLWSFCI, ULWSFCI, DSWSFCI, USWSFCI, DUSFCI, DVSFCI,    &
            DTSFCI, DQSFCI, GFLUXI, EPI, SMCWLT2, SMCREF2, WET1,             &
            GSOIL, GTMP2M, GUSTAR, GPBLH, GU10M, GV10M, GZORL, GORO, SR,     &
            XMU_CC, DLW_CC, DSW_CC, SNW_CC, LPREC_CC,                        &

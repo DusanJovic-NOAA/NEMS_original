@@ -29,6 +29,11 @@ set -x
  export ICO2=_ICO2_
  export ISOL=_ISOL_
 
+#export NGRID_A2OI=20
+ export NGRID_A2OI=${NGRID_A2OI:-20}
+#export A2OI_OUT=.true.
+ export A2OI_OUT=${A2OI_OUT:-.false.}
+
  export GOCART=_GOCART_
  export GOCART=${GOCART:-0}
 # reduced_grid default is true
@@ -292,7 +297,7 @@ grid_aldata=_CP2_
 #             bkgd_vdif_m=$bkgd_vdif_m,bkgd_vdif_h=$bkgd_vdif_h,\
 #             bkgd_vdif_s=$bkgd_vdif_s,hdif_fac=$hdif_fac,grid_aldata=$grid_aldata"
 #export PHYVARS="liope=.F.,grid_aldata=$grid_aldata,NST_FCST=$NST_FCST,NST_SPINUP=$NST_SPINUP"
-export PHYVARS=liope=$liope,grid_aldata=$grid_aldata,ras=.false.,zhao_mic=.true.,lsm=1,old_monin=.false.,sashal=.true.,newsas=.true.,shal_cnv=.true.,shuff_lats_r=.true.,ialb=0,pre_rad=.false.,random_clds=.false.,iovr_lw=1,iovr_sw=1,IEMS=$IEMS,ISOL=$ISOL,ICO2=$ICO2,IAER=$IAER,ictm=0,nsout=0,ldiag3d=.false.,sfcio_out=$SFCIO_OUT,ncw=20,120,crtrh=0.85,0.85,0.85,flgmin=0.200,0.300,cnvgwd=.false.,ctei_rm=,mstrat=.false.,ccnorm=.false.,mom4ice=.false.,NST_FCST=0,NST_SPINUP=.false.,lgoc3d=.false.,trans_trac=.true.,cal_pre=.false.,bkgd_vdif_m=3.0,bkgd_vdif_h=1.0,bkgd_vdif_s=0.2,climate=.false.,psautco=4.0e-4,4.0e-4,prautco=1.0e-4,1.0e-4,evpco=2.0e-5,wminco=1.0e-5,1.0e-5,CCWF=1.0,1.0,dlqf=0.0,0.0,shal_cnv=.true.,nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,cdmbgwd=1.0,1.0,grid_aldata=.false.
+export PHYVARS=liope=$liope,grid_aldata=$grid_aldata,ras=.false.,zhao_mic=.true.,lsm=1,old_monin=.false.,sashal=.true.,newsas=.true.,shal_cnv=.true.,shuff_lats_r=.true.,ialb=0,pre_rad=.false.,random_clds=.false.,iovr_lw=1,iovr_sw=1,IEMS=$IEMS,ISOL=$ISOL,ICO2=$ICO2,IAER=$IAER,ictm=0,nsout=0,ldiag3d=.false.,sfcio_out=$SFCIO_OUT,ncw=20,120,crtrh=0.85,0.85,0.85,flgmin=0.200,0.300,cnvgwd=.false.,ctei_rm=,mstrat=.false.,ccnorm=.false.,mom4ice=.false.,A2OI_OUT=$A2OI_OUT,NGRID_A2OI=$NGRID_A2OI,NST_FCST=0,NST_SPINUP=.false.,lgoc3d=.false.,trans_trac=.true.,cal_pre=.false.,bkgd_vdif_m=3.0,bkgd_vdif_h=1.0,bkgd_vdif_s=0.2,climate=.false.,psautco=4.0e-4,4.0e-4,prautco=1.0e-4,1.0e-4,evpco=2.0e-5,wminco=1.0e-5,1.0e-5,CCWF=1.0,1.0,dlqf=0.0,0.0,shal_cnv=.true.,nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,cdmbgwd=1.0,1.0,grid_aldata=.false.
 
  export TRACERVARS="RI=$RIlist,CPI=$CPIlist,"
 #
