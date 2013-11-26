@@ -11,7 +11,7 @@
  SKIP_GENS=YES
  SKIP_NST=YES
  SKIP_FIM=YES
- SKIP_POST=YES
+#SKIP_POST=YES
 #SKIP_GFS_POST=YES
  SKIP_ESMF520rAPI=YES
  SKIP_GEFS_CONCUR=YES
@@ -139,6 +139,8 @@ if [ $argn -eq 1 ]; then
 #   cp ${RTPWD}/GFS_NODFI_6.1.1/*          ${RTPWD_U}/GFS_NODFI_6.1.1/.
 #   cp ${RTPWD}/GFS_OPAC/*                 ${RTPWD_U}/GFS_OPAC/.
     cp ${RTPWD}/WAM_gh_l150/*              ${RTPWD_U}/WAM_gh_l150/.
+    cp ${RTPWD}/GFS_DFI_NEMSIO/*           ${RTPWD_U}/GFS_DFI_NEMSIO/.
+    cp ${RTPWD}/GFS_GOCART_NEMSIO/*        ${RTPWD_U}/GFS_GOCART_NEMSIO/.
   fi
   if [ $CP_nmm = true ]; then
     echo "copy nmm"
@@ -2411,6 +2413,80 @@ else
 
  fi # endif test
 
+ ###############################################################################
+ #
+ # TEST   - GFS_nemsio
+ #
+ ###############################################################################
+
+ if [ $MACHINE_ID = wcoss ] ; then
+   if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+    export TEST_DESCR="GFS with NEMSIO"
+
+#---------------------
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/GFS_DFI_NEMSIO
+    export CNTL_DIR=GFS_DFI_NEMSIO
+    export LIST_FILES=" \
+         sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
+         sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+         flxf00 flxf03 flxf06 flxf12 flxf24 flxf48 "
+#---------------------
+    export_gsm
+#
+    export FDFI=3
+    export QUILT=.true.
+    export NEMSIOIN=.true. ; export SIGIOIN=.false.
+    export NEMSIOOUT=.true.; export SIGIOOUT=.false.; export SFCIOOUT=.false.
+    export CDATE=2010010100
+    export SIGHDR=$NEMSIOGET
+    export WTPG=4
+#---------------------
+    ./rt_gfs.sh
+#    if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+   fi # endif test
+ fi  # endif machine
+
+ ###############################################################################
+ #
+ # TEST   - GFS_GOCART_NEMSIO
+ #
+ ###############################################################################
+
+ if [ $MACHINE_ID = wcoss ] ; then
+   if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+    export TEST_DESCR="GFS_GOCART with NEMSIO"
+
+#---------------------
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/GFS_GOCART_NEMSIO
+    export CNTL_DIR=GFS_GOCART_NEMSIO
+    export LIST_FILES=" \
+         ngac.t00z.sigf00 ngac.t00z.sigf03 ngac.t00z.sigf06 ngac.t00z.sigf12 ngac.t00z.sigf24 \
+         ngac.t00z.sfcf00 ngac.t00z.sfcf03 ngac.t00z.sfcf06 ngac.t00z.sfcf12 ngac.t00z.sfcf24 \
+         ngac.t00z.flxf00 ngac.t00z.flxf03 ngac.t00z.flxf06 ngac.t00z.flxf12 ngac.t00z.flxf24 \
+         ngac.t00z.aerf00 ngac.t00z.aerf03 ngac.t00z.aerf06 ngac.t00z.aerf12 ngac.t00z.aerf24 "
+#---------------------
+    export_gsm
+    export TASKS=64; export PE1=64
+    export QUILT=.true.
+    export NEMSIOIN=.true. ;  export SIGIOIN=.false.
+    export NEMSIOOUT=.true.; export SIGIOOUT=.false.; export SFCIOOUT=.false.
+    export CDATE=2012071700
+    export SIGHDR=$NEMSIOGET
+    export WTPG=4
+#---------------------
+    ./rt_gocart.sh
+    if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+   fi # endif test
+ fi  # endif machine
+
 fi   # end of SKIP_GFS test
 
 
@@ -2669,7 +2745,7 @@ else
  #
  ###############################################################################
 
-  if [ $MACHINE_ID = failed_wcoss ] ; then
+  if [ $MACHINE_ID = wcoss ] ; then
    if [ $RT_FULL = true -o $CB_arg = post -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
     export TEST_DESCR="GFS with POST"
@@ -2681,9 +2757,7 @@ else
     export LIST_FILES=" \
          sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
          sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-         flxf00 flxf03 flxf06 flxf12 flxf24 flxf48 \
-         GFSPRS.GrbF03 GFSPRS.GrbF06 GFSPRS.GrbF12 \
-         GFSPRS.GrbF24 GFSPRS.GrbF48"
+         flxf00 flxf03 flxf06 flxf12 flxf24 flxf48 "
 #---------------------
     export_gsm
 #
@@ -2696,7 +2770,7 @@ else
     export WTPG=4
 #---------------------
     ./rt_gfs.sh
-    if [ $? = 2 ]; then exit ; fi
+#    if [ $? = 2 ]; then exit ; fi
 #---------------------
 
    fi # endif test
@@ -2709,7 +2783,7 @@ else
  #
  ###############################################################################
 
-  if [ $MACHINE_ID = failed_zeus -o $MACHINE_ID = failed_wcoss ] ; then
+  if [ $MACHINE_ID = failed_zeus -o $MACHINE_ID = wcoss ] ; then
    if [ $RT_FULL = true -o $CB_arg = post -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
     export TEST_DESCR="GFS_GOCART with POST"
@@ -2721,7 +2795,7 @@ else
     export LIST_FILES=" \
          ngac.t00z.sigf00 ngac.t00z.sigf03 ngac.t00z.sigf06 ngac.t00z.sigf12 ngac.t00z.sigf24 \
          ngac.t00z.sfcf00 ngac.t00z.sfcf03 ngac.t00z.sfcf06 ngac.t00z.sfcf12 ngac.t00z.sfcf24 \
-        ngac.t00z.flxf00 ngac.t00z.flxf03 ngac.t00z.flxf06 ngac.t00z.flxf12 ngac.t00z.flxf24 \
+         ngac.t00z.flxf00 ngac.t00z.flxf03 ngac.t00z.flxf06 ngac.t00z.flxf12 ngac.t00z.flxf24 \
          ngac.t00z.aerf00 ngac.t00z.aerf03 ngac.t00z.aerf06 ngac.t00z.aerf12 ngac.t00z.aerf24 \
          NGAC2d.GrbF03 NGAC2d.GrbF06 NGAC2d.GrbF12  NGAC2d.GrbF24 \
          NGAC3d.GrbF03 NGAC3d.GrbF06 NGAC3d.GrbF12 NGAC3d.GrbF24"

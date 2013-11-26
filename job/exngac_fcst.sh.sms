@@ -53,7 +53,8 @@
 # 2012-09-24  Sarah Lu: add SCHEDULER dependence
 # 2012-12-05  Sarah Lu: add lsf SCHEDULER as the place holder
 # 2013-02-12  Henry Juang:  remove JCAPG
-# 013-08-08  Sarah Lu: modified for zeus and wcoss
+# 2013-08-08  Sarah Lu: modified for zeus and wcoss
+# 2013-10-07  Sarah Lu: modified FHLWR and FHSWR
 #
 # Usage:  global_forecast.sh GRDI SFCI SIGO FLXO FHOUT FHMAX IGEN D3DO NSTI NSTO G3DO FHOUT_HF FHMAX_HF
 #
@@ -176,6 +177,8 @@
 #                   defaults to ${FIXGLOBAL}/global_snoalb.1x1.grb
 #     OROGRAPHY     Input orography GRIB file (horiz resolution dependent)
 #                   defaults to ${FIXGLOBAL}/global_orography.t$JCAP.grb
+#     OROGRAPHY_UF  Input unfiltered orography GRIB file (resolution dependent)
+#                   defaults to ${FIXGLOBAL}/global_orography_uf.t$JCAP.grb
 #     FNMSKH        Input high resolution land mask GRIB file
 #                   defaults to ${FIXGLOBAL}/seaice_newland.grb
 #     FNTSFA        Input SST analysis GRIB file
@@ -235,10 +238,10 @@
 #                   defaults to 24
 #     FHZER         Zeroing frequency in hours
 #                   defaults to 6
-#     FHLWR         Longwave radiation frequency in hours
-#                   defaults to 3
-#     FHSWR         Shortwave radiation frequency in hours
-#                   defaults to 1
+#     FHLWR         Longwave radiation frequency in seconds
+#                   defaults to 3600
+#     FHSWR         Shortwave radiation frequency in seconds
+#                   defaults to 3600
 #     FHROT         Forecast hour to Read One Time level
 #                   defaults to 0
 #     FHDFI         Half number of hours of digital filter initialization
@@ -390,6 +393,8 @@
 ####
 ################################################################################
 #  Set environment.
+export ESMF_RUNTIME_COMPLIANCECHECK=ON
+
 if [ $SCHEDULER = 'loadleveler' ]; then
   export MP_BINDPROC=${MP_BINDPROC:-yes}
   export MEMORY_AFFINIY=${MEMORY_AFFINIY:-MCM}
@@ -411,9 +416,10 @@ elif [ $SCHEDULER = 'lsf' ]; then
   export MP_MPILIB=${MP_MPILIB:-mpich2}
   export MP_EUIDEVICE=${MP_EUIDEVICE:-min}
   export MP_EUILIB=${MP_EUILIB:-us}
-  export MP_TASK_AFFINITY=${MP_TASK_AFFINITY:-"core:"}
+# export MP_TASK_AFFINITY=${MP_TASK_AFFINITY:-"core:"}
   export MPICH_ALLTOALL_THROTTLE=${MPICH_ALLTOALL_THROTTLE:-0}
   export MP_SINGLE_THREAD=${MP_SINGLE_THREAD:-yes}
+  export MP_COREFILE_FORMAT=${MP_COREFILE_FORMAT:-"lite"}
 fi
 
 
@@ -473,9 +479,12 @@ elif [ $SCHEDULER = 'moab' ]; then
 elif [ $SCHEDULER = 'pbs' ]; then
    export FIXGLOBAL=${FIXGLOBAL:-/scratch2/portfolios/NCEPDEV/rstprod/nwprod/fix}
 elif [ $SCHEDULER = 'lsf' ]; then
-   export FIXGLOBAL=${FIXGLOBAL:-/nwprod/fix}
+##   export FIXGLOBAL=${FIXGLOBAL:-/nwprod/fix}
+   export FIXGLOBAL=${FIXGLOBAL:-/global/noscrub/Shrinivas.Moorthi/para_new/para/fix/fix_am}
 fi
 export FIX_RAD=${FIX_RAD:-$FIXGLOBAL}
+export FIX_IDEA=${FIX_IDEA:-$FIXGLOBAL}
+
 export EXECGLOBAL=${EXECGLOBAL:-$NWPROD/exec}
 export DATA=${DATA:-$(pwd)}
 export COMOUT=${COMOUT:-$(pwd)}
@@ -640,8 +649,8 @@ export FHMAX=${FHMAX:-$((10#$FHINI+10#$FHSEG))}
 export DELTIM=${DELTIM:-$((3600/(JCAP/20)))}
 export FHRES=${FHRES:-24}
 export FHZER=${FHZER:-6}
-export FHLWR=${FHLWR:-3}
-export FHSWR=${FHSWR:-1}
+export FHLWR=${FHLWR:-3600}
+export FHSWR=${FHSWR:-3600}
 export FHROT=${FHROT:-0}
 export FHDFI=${FHDFI:-1}
 export FHCYC=${FHCYC:-0}
@@ -651,6 +660,9 @@ export gfsio_out=${gfsio_out:-.false.}
 if [ $gfsio_in = .true. ] ; then
  export GB=1
 fi
+export IDEA=${IDEA:-.false.}
+export CLIMATE=${CLIMATE:-.false.}
+
 
 #
 # Total pe = WRT_GROUP*WRTPE_PER_GROUP + fcst pes
@@ -738,6 +750,7 @@ else
    mkdata=YES
 fi
 cd $DATA||exit 99
+if [ $IDEA = .true. ] ; then cp $FIX_IDEA/global_idea* . ; fi
 [[ -d $COMOUT ]]||mkdir -p $COMOUT
 ################################################################################
 #  Make forecast
@@ -796,7 +809,11 @@ if [ $IEMS -gt 0 ] ; then
  ln -fs $EMISDIR/$EMMISSIVITY_FILE sfc_emissivity_idx.txt
 fi
 if [ $ISOL -gt 0 ] ; then
- ${NCP:-cp} $SOLCDIR/*solarconstantdata.txt solarconstantdata.txt
+cd $SOLCDIR
+ for file in `ls | grep solarconstant` ; do
+  ${NCP:-cp} $file $DATA/$(echo $file |sed -e "s/global_//g")
+ done
+##${NCP:-cp} $SOLCDIR/*solarconstantdata.txt solarconstantdata.txt
 fi
 if [ $IAER -gt 0 ] ; then
  cd $VOLCDIR
@@ -814,7 +831,7 @@ if [ $ICO2 -gt 0 ] ; then
  done
 fi
 cd $DATA
-export PHYVARS="IEMS=$IEMS,ISOL=$ISOL,IAER=$IAER,ICO2=$ICO2,$PHYVARS"
+export PHYVARS="IEMS=$IEMS,ISOL=$ISOL,IAER=$IAER,ICO2=$ICO2,climate=$CLIMATE,$PHYVARS"
 #
 #     For one member case i.e. control
 #     --------------------------------
