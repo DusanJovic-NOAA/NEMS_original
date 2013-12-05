@@ -1040,7 +1040,7 @@
 !
       INTEGER(kind=KINT) :: TWOWAY_SIGNAL_TAG                              !<-- Arbitrary tag used for 2way exchange
 !
-      REAL(kind=KDBL),SAVE :: HYPER_A,HYPER_B,HYPER_C
+      REAL(kind=KDBL),SAVE :: HYPER_A
 !
       REAL(kind=KFPT),SAVE :: EPS=1.E-4                                 &
                              ,MIN_DIST_PARENT=8.                           !<-- # of parent gridpoints a child can be from parent
@@ -4307,14 +4307,14 @@
 !***  locations where the parent generates BC data for the child then
 !***  those values can be unrealistic due to the very large distance
 !***  the parent must extrapolate under its own ground surface.  To 
-!***  control this effect use the hyperbola Y=A/(X+B)+C to reduce the
+!***  control this effect use the hyperbola Y=A/(X+A) to reduce the
 !***  magnitude of the parent's underground extrapolation as the
-!***  target depth increases.  The following call returns the values
-!***  of the three constants in the formula.  Three points must be
+!***  target depth increases.  The following call returns the value
+!***  of the constant in the formula.  One point on the curve must be
 !***  set by the user in subroutine HYPERBOLA in module_NESTING.
 !-----------------------------------------------------------------------
 !
-        CALL HYPERBOLA(HYPER_A,HYPER_B,HYPER_C)
+        CALL HYPERBOLA(HYPER_A)
 !
 !-----------------------------------------------------------------------
 !
@@ -7360,7 +7360,9 @@
 !
           IF(I_AM_LEAD_FCST_TASK)THEN
             WRITE(0,52053)I_WANT_TO_MOVE,MOVE_FLAG_SENT,MY_DOMAIN_ID,NTIMESTEP
+            WRITE(0,52054)MY_FORCED_SHIFT(1),MY_FORCED_SHIFT(2)
 52053       FORMAT(' CHILDREN_RECV child_forces_my_shift i_want_to_move=',L1,' move_flag_sent=',L1,' my_domain_id=',I2,' ntimestep=',I5)
+52054       FORMAT(' my forced I shift=',i4,' my forced J shift=',I4)
           endif
         ENDIF
 !
@@ -7408,10 +7410,12 @@
 !
             IF(I_AM_LEAD_FCST_TASK)THEN
               WRITE(0,77771)MY_DOMAIN_ID,NTIMESTEP,DISTN_TO_PARENT_BNDRY
-              WRITE(0,77772)DISTN_SOUTH,DISTN_NORTH,DISTN_WEST,DISTN_EAST
+              WRITE(0,77772)I_SHIFT,J_SHIFT
+              WRITE(0,77773)DISTN_SOUTH,DISTN_NORTH,DISTN_WEST,DISTN_EAST
 77771         FORMAT(' DO NOT allow this parent to move my_domain_id=',i2 &
                     ,' ntimestep=',i5,' distn_to_parent_bndry=',e12.5)
-77772         FORMAT(' distn_south=',e12.5,' distn_north=',e12.5          &
+77772         FORMAT(' Parent wanted to shift ',I3,3X,I3,' on its grid')
+77773         FORMAT(' distn_south=',e12.5,' distn_north=',e12.5          &
                     ,' distn_west=',e12.5,' distn_east=',e12.5)
             ENDIF
 !
@@ -8838,6 +8842,7 @@
                                         ,NUM_CHILD_TASKS                     &  !<-- # of child forecast tasks
                                 ,child_ranks(MY_DOMAIN_ID)%CHILDREN(N)%DATA  &  !<-- Child task local ranks in p-c intracomm
                                         ,CHILD_TASK_LIMITS                   &  !<-- ITS,ITE,JTS,JTE for each child forecast task
+                                        ,HYPER_A                             &  !<-- Underground extrapolation quantity 
                                         ,IMS,IME,JMS,JME                     &  !<-- Subdomain memory limits for parent tasks
                                         ,IDS,IDE,JDS,JDE                     &  !<-- Full parent domain limits
                                         ,LM                                  &
@@ -8886,6 +8891,7 @@
                                         ,NUM_CHILD_TASKS                     &  !<-- # of child forecast tasks
                                 ,child_ranks(MY_DOMAIN_ID)%CHILDREN(N)%DATA  &  !<-- Child task local ranks in p-c intracomm
                                         ,CHILD_TASK_LIMITS                   &  !<-- ITS,ITE,JTS,JTE for each child forecast task
+                                        ,HYPER_A                             &  !<-- Underground extrapolation quantity 
                                         ,IMS,IME,JMS,JME                     &  !<-- Subdomain memory limits for parent tasks
                                         ,IDS,IDE,JDS,JDE                     &  !<-- Full parent domain limits
                                         ,LM                                  &
@@ -10256,22 +10262,22 @@
 !          |       |   |                                              |
 !          |       |   |                                              |
 !          v       |   v                                              |
-!                  |   ^                                              |
-!                  |   |                                              |
-!                  |   |          child            child              |
-!                  | CHILD       timestep         timestep            |
-!                  | SHIFTS      boundary         boundary            |
-!                  | HERE           |                |                |
-!                  |                |                |                |
-!             23<--|-->24      24<--|-->25      25<--|-->26      26<--|-->27
-!                  |                |                |                |
+!                  |       ^                                          |
+!                  |       |                                          |
+!                  |       |      child            child              |
+!                  |     CHILD   timestep         timestep            |
+!                  |     SHIFTS  boundary         boundary            |
+!                  |     HERE       |                |                |
+!                  |       |        |                |                |
+!             23<--|-->24  |   24<--|-->25      25<--|-->26      26<--|-->27
+!                  |       v        |                |                |
 !                  |                |                |                |
 !                  |                                                  |
 !                  |                                                  |
 !                  |                                                  |
-!              ^   |      ^                                       ^   |      ^
-!              |   |      |                                       |   |      |
-!              |   |      |                                       |   |      |
+!              ^   |     ^                                        ^   |      ^
+!              |   |     |                                        |   |      |
+!              |   |     |                                        |   |      |
 !    child sends   |  parent recvs                      child sends   |  parent recvs
 !    pre-shift     |  pre-shift                         post-shift    |  post-shift
 !    2-way data    |  2-way data                        2-way data    |  2-way data
@@ -10281,9 +10287,10 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  Below is an example of the parent domain shifting at the start
-!***  of its timestep 8.  The child must be aware of that fact when
-!***  it generates and sends 2-way update data to the parent from
-!***  the end of parent timestep 7.
+!***  of its timestep 8.  However the parent receives and incorporates
+!***  the 2-way data from its child in that timestep BEFORE the shift
+!***  in position occurs therefore the child generates that data for
+!***  the parent's pre-shift position.
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
@@ -10298,13 +10305,13 @@
 !
 !                  |                                                  |
 !                  |                                                  |  
-!                  | PARENT                                           | 
-!                  | SHIFTS                                           |
-!                  |  HERE                                            |
-!                  |   |                                              |
-!                  |   |                                              |
-!                  |   |                                              |
-!                  |   v                                              |
+!                  |     PARENT                                       | 
+!                  |     SHIFTS                                       |
+!                  |      HERE                                        |
+!                  |       |                                          |
+!                  |       |                                          |
+!                  |       |                                          |
+!                  |       v                                          |
 !                  |             child            child               |
 !                  |            timestep         timestep             |
 !                  |            boundary         boundary             |
@@ -10316,14 +10323,14 @@
 !                  |                                                  |
 !                  |                                                  |
 !                  |                                                  |
-!              ^   |      ^                                           |
-!              |   |      |                                           |
-!              |   |      |                                           |
-!     child sends  |  parent recvs                                    |
-!     post-shift   |  post-shift                                      |
-!     2-way data   |  2-way data                                      |
-!     to parent    |  from child                                      |
-!                  |                                                  |
+!              ^   |    ^                                             |
+!              |   |    |                                             |
+!              |   |    |                                             |
+!     child sends  |  parent recvs/                                   |
+!     pre-shift    |  incorporates                                    |
+!     2-way data   |  pre-shift                                       |
+!     to parent    |  2-way data                                      |
+!                  |  from child                                      |
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -10349,10 +10356,10 @@
                          .OR.                                           &
            NTIMESTEP==NTIMESTEP_CHILD_MOVES(NM)+1                       &  !<-- 2-way child N moved one parent timestep ago
                          .OR.                                           &
-           NTIMESTEP==NEXT_MOVE_TIMESTEP)THEN                              !<-- This parent moved earlier in this timestep
+           NTIMESTEP==NEXT_MOVE_TIMESTEP+1)THEN                            !<-- This parent moved in its preceding timestep
 !
 !-----------------------------------------------------------------------
-!***  If this parent moved earlier in this parent timestep then it
+!***  If this parent moved in its preceding timestep then it
 !***  needs to modify the locations of its children accordingly.
 !***  This will be done as a local computation because 2-way nesting
 !***  is only optional.  The children's locations as changed by
@@ -10363,19 +10370,6 @@
 !
           I_PARENT_SW_X=I_PARENT_SW(N_ALL)
           J_PARENT_SW_X=J_PARENT_SW(N_ALL)
-!
-#ifdef ESMF_3
-          IF(MY_DOMAIN_MOVES==ESMF_TRUE                                 &
-#else
-          IF(MY_DOMAIN_MOVES                                            &     !<-- Does this parent domain move?
-#endif
-                  .AND.                                                 &
-             NTIMESTEP==NEXT_MOVE_TIMESTEP)THEN                               !<-- Did this parent just shift in this timestep?
-!
-            I_PARENT_SW_X=I_PARENT_SW(N_ALL)-I_SHIFT_CHILD
-            J_PARENT_SW_X=J_PARENT_SW(N_ALL)-J_SHIFT_CHILD
-!
-          ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Parent tasks determine which if any of their points are updated
@@ -10790,12 +10784,16 @@
 !***  provide update data and to which points on those parent tasks.
 !***  This needs to be done only once for static nests.  For moving
 !***  nests it must be done initially and then again each time the
-!***  child has moved at the beginning of this parent timestep or
-!***  when the parent is about to move at the beginning of the next
-!***  parent timestep.  Recall that at this point in time the child
+!***  child or parent has moved at the beginning of this parent 
+!***  timestep.  Recall that at this point in time the child
 !***  is at the end of a parent timestep and that the parent will
 !***  receive 2-way update data from this child at the beginning
-!***  of the next parent timestep.
+!***  of the next parent timestep.  In timesteps that the parent
+!***  shifts the parent will incorporate the 2-way data BEFORE the 
+!***  the shift of data actually occurs in DOMAIN_RUN.  Therefore
+!***  the child always generates 2-way data for the parent's
+!***  position valid for the same time at which the child is 
+!***  doing the 2-way data generation.
 !
 !***  Recall that the child's I,J of its southwest corner on its
 !***  parent's grid is part of the composite object and thus is
@@ -10807,23 +10805,8 @@
 !***  computation is always needed for receiving BC updates.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      IF(MY_DOMAIN_MOVES==ESMF_True                                     &
-#else
-      IF(MY_DOMAIN_MOVES                                                &
-#endif
-               .AND.                                                    &
-         NTIMESTEP==PARENT_SHIFT(1)*TIME_RATIO_MY_PARENT-1)THEN            !<-- Parent will move at the start of the next parent timestep.
-!                            
-        I_SW_PARENT_CURRENT_X=I_SW_PARENT_CURRENT-PARENT_SHIFT(2)          !<-- Parent will have shifted in the upcoming parent timestep
-        J_SW_PARENT_CURRENT_X=J_SW_PARENT_CURRENT-PARENT_SHIFT(3)          !    before receiving this child's 2-way update data.
-!
-      ELSE
-!
-        I_SW_PARENT_CURRENT_X=I_SW_PARENT_CURRENT
-        J_SW_PARENT_CURRENT_X=J_SW_PARENT_CURRENT
-!
-      ENDIF
+      I_SW_PARENT_CURRENT_X=I_SW_PARENT_CURRENT
+      J_SW_PARENT_CURRENT_X=J_SW_PARENT_CURRENT
 !
 !-----------------------------------------------------------------------
 !
@@ -10841,7 +10824,8 @@
          MY_DOMAIN_MOVES                                                &
 #endif
                .AND.                                                    &
-         NTIMESTEP==PARENT_SHIFT(1)*TIME_RATIO_MY_PARENT-1)THEN            !<-- Parent will move at the start of the next parent timestep.
+         NTIMESTEP==PARENT_SHIFT(1)*TIME_RATIO_MY_PARENT                &  !<-- Parent moved at the start of 
+                    +TIME_RATIO_MY_PARENT-1)THEN                           !<-- the current parent timestep.
 !                            
         ID_MY_PARENT=ID_PARENTS(MY_DOMAIN_ID)                              !<-- Domain ID of the current domain's parent
 !
@@ -11180,7 +11164,8 @@
                                  ,NPTS_UPDATE_ON_PARENT_TASKS(NT)       &  !<-- # of update points (I,J) on parent task NT
                                  ,VAR_PARENT                            &  !<-- Child values interpolated onto parent points for this vbl
                                  ,INTERPOLATE_SFC                       &  !<-- Should PD and FIS be interpolated in this call?
-                                 ,CHILD_SFC_INTERP )                       !<-- Child PD,FIS interpolated onto parent H then V points
+                                 ,CHILD_SFC_INTERP                      &  !<-- Child PD,FIS interpolated onto parent H then V points
+                                                    )
 !
           IF(BEGIN_H)THEN
             BEGIN_H=.FALSE.
@@ -19469,15 +19454,6 @@
                                       +WGHT_SE*PX_SE                    &  !    gridpoint (I,J) along child's boundary for
                                       +WGHT_NW*PX_NW                    &  !    child task NTX.
                                       +WGHT_NE*PX_NE
-!     if(i==ixx.and.j==jxx)then 
-!     if(n_side==2.and.i==36.and.trim(vbl_flag)=='V')then 
-!       write(0,34371)pint_interp_lo(i,j,nlev+1)
-!       write(0,34372)wght_sw,wght_se,wght_nw,wght_ne
-!       write(0,34373)px_sw,px_se,px_nw,px_ne
-34371   format(' PARENT_UPDATE_CHILD_BNDRY parent pint_interp_lo=',f9.2)
-34372   format(' wgts=',4(1x,f6.3))
-34373   format(' parent pvalues=',4(1x,f9.2))
-!     endif
 !
           ENDDO
           ENDDO
@@ -19672,7 +19648,7 @@
                 DELP_EXTRAP=PMID_CHILD(LM)-P_INPUT(LM)
 !
                 COEFF_1=(VBL_INPUT(LM)-VBL_INPUT(LM-1))*R_DELP
-                FACTOR=HYPER_A/(DELP_EXTRAP+HYPER_B)+HYPER_C
+                FACTOR=HYPER_A/(DELP_EXTRAP+HYPER_A)
                 VBL_INPUT(LM+1)=VBL_INPUT(LM)                           &  !<-- Extrapolated value at nest's new bottom
                                +COEFF_1*DELP_EXTRAP*FACTOR                 !    midlayer.
 !             ENDIF
@@ -20159,6 +20135,10 @@
       REAL(kind=KFPT),DIMENSION(1:LM+1) :: PMID_CHILD                   &
                                           ,SEC_DERIV
 !
+      REAL(kind=KFPT) :: PMID_CHILD_LM,PMID_CHILD_LM1                   &
+                        ,PROD_LM,PROD_LM1,PROD_LM2                      &
+                        ,VBL_LM,VBL_LM1
+!
       REAL(kind=KFPT),DIMENSION(:),POINTER :: VBL_COL,VBL_X
 !
       REAL(kind=KFPT),DIMENSION(:,:),POINTER :: VAR_PARENT_2D
@@ -20311,14 +20291,19 @@
 !***  artificial child input value at the lowest parent midlayer
 !***  pressure then fill in the remaining 'underground' parent levels
 !***  using SPLINE just as is done with all the higher levels.
+!
+!***  In order to reduce the effects of the ground surface, the lowest
+!***  input layer is changed to be the mass-weighted average of the
+!***  original two lowest layers while the 2nd lowest input layer is
+!***  changed to be the mass-weighted average of the three original
+!***  lowest layers.
 !-----------------------------------------------------------------------
 !
               IF(PMID_PARENT(LM)>PMID_CHILD(LM))THEN
                 EXTRAPOLATE=.TRUE.
                 NUM_LEVS_SPLINE=LM+1                                       !<-- Insert 'underground' artificial input level from child
+!
                 PMID_CHILD(LM+1)=PMID_PARENT(LM)                           !<-- 'Underground' child P is the  parent's bottom midlayer P
-                R_DELP=1./(PMID_CHILD(LM)-PMID_CHILD(LM-1))
-                DELP_EXTRAP=PMID_PARENT(LM)-PMID_CHILD(LM)
                 ALLOCATE(VBL_X(1:LM+1))                                    !<-- Allocate 2-way data input column with extra bottom layer
               ENDIF
 !
@@ -20334,12 +20319,30 @@
                 VBL_X=>VBL_COL                                             !<-- No extrapolation so no need to copy values
 !
               ELSEIF(EXTRAPOLATE)THEN
-                DO L=1,LM
+                DO L=1,LM-2
                   VBL_X(L)=VBL_COL(L)                                      !<-- Copy the genuine values from the input column
                 ENDDO
 !
+                PROD_LM=VBL_COL(LM)*PMID_CHILD(LM)
+                PROD_LM1=VBL_COL(LM-1)*PMID_CHILD(LM-1)
+                PROD_LM2=VBL_COL(LM-2)*PMID_CHILD(LM-2)
+                VBL_LM=(PROD_LM+PROD_LM1)                               &
+                      /(PMID_CHILD(LM)+PMID_CHILD(LM-1))
+                VBL_LM1=(PROD_LM+PROD_LM1+PROD_LM2)                     &
+                      /(PMID_CHILD(LM)+PMID_CHILD(LM-1)                 &
+                       +PMID_CHILD(LM-2))
+                VBL_X(LM)=VBL_LM
+                VBL_X(LM-1)=VBL_LM1
+                PMID_CHILD_LM=0.5*(PMID_CHILD(LM-1)+PMID_CHILD(LM))
+                PMID_CHILD_LM1=(PMID_CHILD(LM-2)+PMID_CHILD(LM-1)+      &
+                               +PMID_CHILD(LM))/3.
+                PMID_CHILD(LM)=PMID_CHILD_LM
+                PMID_CHILD(LM-1)=PMID_CHILD_LM1
+                R_DELP=1./(PMID_CHILD(LM)-PMID_CHILD(LM-1))
+                DELP_EXTRAP=PMID_PARENT(LM)-PMID_CHILD(LM)
+!
                 COEFF_1=(VBL_X(LM)-VBL_X(LM-1))*R_DELP
-                FACTOR=HYPER_A/(DELP_EXTRAP+HYPER_B)+HYPER_C
+                FACTOR=HYPER_A/(DELP_EXTRAP+HYPER_A)
                 VBL_X(LM+1)=VBL_X(LM)                                   &  !<-- Fill in the extra artificial underground value
                            +COEFF_1*DELP_EXTRAP*FACTOR                     !    in 2-way input.
 !
@@ -20507,9 +20510,6 @@
         DO I=I_START,I_END
           N=N+1
           PDB(I,J)=DATASTRING(N)
-!     if(i==36.and.j_start>5)then
-!       write(0,*)' CHILD_DATA_FROM_STRING j=',j,' pdb=',pdb(i,j)
-!     endif
         ENDDO
         ENDDO
 !

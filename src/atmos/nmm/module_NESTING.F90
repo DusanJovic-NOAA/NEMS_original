@@ -9926,6 +9926,7 @@
                                       ,NUM_CHILD_TASKS                  &
                                       ,CHILD_TASK_RANKS                 &
                                       ,CHILD_TASK_LIMITS                &
+                                      ,HYPER_A                          &
                                       ,IMS,IME,JMS,JME                  &
                                       ,IDS,IDE,JDS,JDE                  &
                                       ,NUM_LYRS                         &
@@ -9993,6 +9994,8 @@
 !
       REAL(kind=KFPT),INTENT(IN) :: PDTOP                               &  !<-- Pressure at top of sigma domain (Pa)
                                    ,PT                                     !<-- Top pressure of model domain (Pa)
+!
+      REAL(kind=KDBL),INTENT(IN) :: HYPER_A                                !<-- Unerground extrapolation quantity
 !
       REAL(kind=KFPT),DIMENSION(1:NUM_LYRS),INTENT(IN) :: DSG2          &  !<-- Vertical structure coefficients for midlayers
                                                          ,PDSG1         &  !
@@ -10072,7 +10075,7 @@
 !
       REAL(kind=KFPT) :: CHILD_PARENT_SPACE_RATIO                       &
                         ,COEFF_1,COEFF_2,CW_INTERP                      &
-                        ,D_LNP_DFI,DELP_EXTRAP,DP                       &
+                        ,D_LNP_DFI,DELP_EXTRAP,DP,FACTOR                &
                         ,IDIFF_EAST,IDIFF_WEST                          &
                         ,JDIFF_NORTH,JDIFF_SOUTH                        &
                         ,LOG_P1_PARENT                                  &
@@ -11377,8 +11380,9 @@
 !
                     COEFF_1=(VBL_INPUT(NUM_LEVELS+1)                    &
                             -VBL_INPUT(NUM_LEVELS))*R_DELP
+                    FACTOR=HYPER_A/(DELP_EXTRAP+HYPER_A)
                     VBL_INPUT(NUM_LEVELS+1+1)=VBL_INPUT(NUM_LEVELS+1)   &  !<-- Create extrapolated value at parent's new lowest
-                                             +COEFF_1*DELP_EXTRAP          !    level for input to the spline.
+                                             +COEFF_1*DELP_EXTRAP*FACTOR   !    level for input to the spline.
                   ENDIF
 !
                   DO L=1,NUM_LEVS_SEC  
@@ -11528,8 +11532,9 @@
 !
                       COEFF_1=(VBL_INPUT(NUM_LEVELS)                    &
                               -VBL_INPUT(NUM_LEVELS-1))*R_DELP
+                      FACTOR=HYPER_A/(DELP_EXTRAP+HYPER_A)
                       VBL_INPUT(NUM_LEVELS+1)=VBL_INPUT(NUM_LEVELS)     &  !<-- Create extrapolated value at parent's new lowest
-                                             +COEFF_1*DELP_EXTRAP          !    level for input to the spline.
+                                             +COEFF_1*DELP_EXTRAP*FACTOR   !    level for input to the spline.
                     ENDIF
 !
                     DO L=1,NUM_LEVS_SEC  
@@ -13096,7 +13101,7 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE HYPERBOLA(A,B,C)
+      SUBROUTINE HYPERBOLA(A)
 !
 !-----------------------------------------------------------------------
 !***  Generate a hyperbola that will reduce the magnitude of the
@@ -13104,34 +13109,37 @@
 !***  when the target domain's ground surface lies below the source
 !***  domain's.  The hyperbola has the formula:
 !
-!     Y=A/(X+B)+C
+!     Y=A/(X+A)
 !
-!***  and thus there are 3 degrees of freedom.  The user must therefore
-!***  specify 3 points along the hyperbola.  The value of Y is the
-!***  fraction between 1 and 0 that provides the reduction in the
-!***  magnitude of the source domain's underground extrapolation.
+!***  The value of Y is the fraction between 1 and 0 that provides
+!***  the reduction in the amount added to the source domain's lowest
+!***  layer value to account for the extrapolation underground.
 !***  The value of X is the difference in pressure (Pa) between the
 !***  source domain's lowest pressure level and the target pressure
 !***  of the extrapolation.  When the pressure difference is zero then
 !***  there is no reduction in the source domain's extrapolation and
-!***  so the value of Y is 1.0.  Assume the magnitude of the source
-!***  domain's extrapolation is reduced by 2% at an extrapolated
-!***  distance of 1000 Pa which means the value of Y would be 0.98.
-!***  If the magnitude of the source domain's extrapolation is
-!***  reduced by 25% at an extrapolated distance of 10000 Pa then
-!***  the value of Y would be 0.75.
-!***  NOTE:  Y3*X3 must be greater than X2!
+!***  so the value of Y is 1.0.  For very large extrapolations then
+!***  the amount added to the source domain's lowest layer value to
+!***  account for the extrapolation is reduced by a factor approaching
+!***  zero.
+!***  The formula gives the user 1 degree of freedom.  Specify one
+!***  extrapolated underground pressure depth and the amount desired
+!***  for the reduction in the linear extrapolation of the source
+!***  domain's lowest layer value through that depth.
+!***  For example, if X1=10000.0 and Y1=0.05 then when the lowest
+!***  layer value in the source domain is linearly extrapolated
+!***  through an underground depth of 10000 Pa then the amount added
+!***  to that lowest layer value to account for the extrapolation is
+!***  first multiplied by 0.05.
 !-----------------------------------------------------------------------
 !
-      REAL(kind=KDBL),PARAMETER :: X1=    0.0, Y1=1.00                  &
-                                  ,X2= 1000.0, Y2=0.98                  &
-                                  ,X3=10000.0, Y3=0.75
+      REAL(kind=KDBL),PARAMETER :: X1=10000.0, Y1=0.05
 !
 !------------------------
 !***  Argument Variables
 !------------------------
 !
-      REAL(kind=KDBL),INTENT(OUT) :: A,B,C                                 !<-- Constants in the hyperbola Y=A/(X+B)+C
+      REAL(kind=KDBL),INTENT(OUT) :: A                                     !<-- Constant in the hyperbola Y=A/(X+A)
 !
 !---------------------
 !***  Local Variables
@@ -13143,19 +13151,7 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      PROD1=(Y1-Y2)*(X3-X1)
-      PROD2=(Y1-Y3)*(X2-X1)
-!
-      F=PROD1-PROD2
-      G=PROD1*(X1+X2)-PROD2*(X1+X3)
-      H=PROD1*X1*X2-PROD2*X1*X3
-!
-      DISCRIM=G*G-4.*F*H
-      B=(-G+SQRT(DISCRIM))/(2.*F)                                          !<--
-!                                                                          !
-      A=(Y1-Y2)*(X1+B)*(X2+B)/(X2-X1)                                      !     The 3 constants in the hyperbola's formula above.
-!                                                                          !
-      C=Y1-A/(X1+B)                                                        !<--
+      A=(X1*Y1)/(1.-Y1)
 !
 !-----------------------------------------------------------------------
 !

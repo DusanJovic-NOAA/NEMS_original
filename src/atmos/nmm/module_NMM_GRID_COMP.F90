@@ -1907,7 +1907,7 @@
           nmm_int_state%I_AM_A_NEST(ID_DOM)=ESMF_TRUE
         ENDIF
 #else
-        IF(COMM_TO_MY_PARENT<0)THEN
+        IF(COMM_TO_MY_PARENT==-999)THEN
           nmm_int_state%I_AM_A_NEST(ID_DOM)=.FALSE.
         ELSE
           nmm_int_state%I_AM_A_NEST(ID_DOM)=.TRUE.

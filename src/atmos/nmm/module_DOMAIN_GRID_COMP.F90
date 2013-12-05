@@ -9352,6 +9352,8 @@
 !
       INTEGER(kind=KINT),DIMENSION(1:3) :: LIMITS_HI,LIMITS_LO
 !
+      INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: IARRAY_2D
+!
       REAL(kind=KFPT) :: CHECK
 !
       REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ARRAY_2D
@@ -9458,14 +9460,21 @@
         ENDIF
 !
 !-----------------------------------------------------------------------
-!***  We are only interested in water/land sfc variables and albedo.
+!***  We are only interested in water/land sfc variables, albedo,
+!***  and the deep ground temperature.
 !-----------------------------------------------------------------------
 !
         IF(UPDATE_TYPE_CHAR/='W'                                        &
                   .AND.                                                 &
            UPDATE_TYPE_CHAR/='L'                                        &
                   .AND.                                                 &
-           FNAME/='ALBEDO-move' )THEN
+           INDEX(FNAME,'ALB')==0                                        &
+                  .AND.                                                 &
+           INDEX(FNAME,'TYP')==0                                        &
+                  .AND.                                                 &
+           FNAME/='MXSNAL-move'                                         &
+                  .AND.                                                 &
+           FNAME/='TG-move' )THEN
 !
           CYCLE all_fields
 !
@@ -9479,6 +9488,64 @@
 !***  differ and we do not want to fill a single DO loop with many
 !***  IF tests.
 !-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Consider the 2-D Integer surface variables.
+!-----------------------------------------------------------------------
+!
+        IF(NUM_DIMS==2                                                  &
+             .AND.                                                      &
+           DATATYPE==ESMF_TYPEKIND_I4)THEN
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract 2-D Integer Sfc Array"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field N_FIELD in the Bundle
+                            ,localDe  =0                                &
+                            ,farrayPtr=IARRAY_2D                        &  !<-- Dummy 2-D array with Field's Integer data
+                            ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FIX)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+!---------------------
+!***  Vegetation type
+!---------------------
+!
+          IF(FNAME=='IVGTYP-move')THEN
+            DO J=J_START,J_END
+            DO I=I_START,I_END
+              IF(SEA_MASK(I,J)>0.5)THEN 
+                IARRAY_2D(I,J)=17                                          !<-- Set value at nest water point.
+              ENDIF
+            ENDDO
+            ENDDO
+!
+          ENDIF
+!
+!---------------
+!***  Soil type
+!---------------
+!
+          IF(FNAME=='ISLTYP-move')THEN
+            DO J=J_START,J_END
+            DO I=I_START,I_END
+              IF(SEA_MASK(I,J)>0.5)THEN 
+                IARRAY_2D(I,J)=14                                          !<-- Set value at nest water point.
+              ENDIF
+            ENDDO
+            ENDDO
+!
+          ENDIF
+!
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Consider the 2-D Real surface variables.
@@ -9542,9 +9609,27 @@
 !
           ENDIF
 !
-!------------
-!***  Albedo
-!------------
+!-----------------
+!***  Base Albedo
+!-----------------
+!
+          IF(FNAME=='ALBASE-move')THEN
+            DO J=J_START,J_END
+            DO I=I_START,I_END
+!
+              FOUND=.TRUE.
+              IF(SEA_MASK(I,J)>0.5)THEN 
+                ARRAY_2D(I,J)=0.06                                         !<-- Set value at nest water point.
+              ENDIF
+!
+            ENDDO
+            ENDDO
+!
+          ENDIF
+!
+!--------------------
+!***  Dynamic Albedo
+!--------------------
 !
           IF(FNAME=='ALBEDO-move')THEN
             DO J=J_START,J_END
@@ -9576,6 +9661,40 @@
               IF(.NOT.FOUND)THEN                           
                 ARRAY_2D(I,J)=0.25                                         !<-- Made-up albedo over land
               ENDIF                               
+!
+            ENDDO
+            ENDDO
+!
+          ENDIF
+!
+!-----------------------------
+!***  Deep ground temperature
+!-----------------------------
+!
+          IF(FNAME=='TG-move')THEN
+            DO J=J_START,J_END
+            DO I=I_START,I_END
+!
+              IF(SEA_MASK(I,J)>0.5)THEN 
+                ARRAY_2D(I,J)=273.16                                       !<-- Set water value at nest water point.
+              ENDIF
+!
+            ENDDO
+            ENDDO
+!
+          ENDIF
+!
+!------------
+!***  MXSNAL
+!------------
+!
+          IF(FNAME=='MXSNAL-move')THEN
+            DO J=J_START,J_END
+            DO I=I_START,I_END
+!
+              IF(SEA_MASK(I,J)>0.5)THEN 
+                ARRAY_2D(I,J)=0.08                                         !<-- Set water value at nest water point.
+              ENDIF
 !
             ENDDO
             ENDDO
