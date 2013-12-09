@@ -2419,7 +2419,7 @@ else
  #
  ###############################################################################
 
- if [ $MACHINE_ID = wcoss ] ; then
+ if [ $MACHINE_ID = wcoss -o $MACHINE_ID = zeus ] ; then
    if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
     export TEST_DESCR="GFS with NEMSIO"
@@ -2456,7 +2456,7 @@ else
  #
  ###############################################################################
 
- if [ $MACHINE_ID = wcoss ] ; then
+ if [ $MACHINE_ID = wcoss -o $MACHINE_ID = zeus ] ; then
    if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
     export TEST_DESCR="GFS_GOCART with NEMSIO"
@@ -2660,7 +2660,7 @@ else
 # Clean and compile both NMMB & GFS cores, using ESMF 3.1.0r series and POST library.
 ###############################################################################
 
- if [ $MACHINE_ID = wcoss ]; then
+ if [ $MACHINE_ID = wcoss -o $MACHINE_ID = zeus ]; then
   if [ $RT_FULL = true -o $CB_arg = post -o $CB_arg = nmm -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
    echo "Preparing model code for regression tests"
@@ -2745,7 +2745,7 @@ else
  #
  ###############################################################################
 
-  if [ $MACHINE_ID = wcoss ] ; then
+  if [ $MACHINE_ID = wcoss -o $MACHINE_ID = zeus ]; then
    if [ $RT_FULL = true -o $CB_arg = post -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
     export TEST_DESCR="GFS with POST"
@@ -2783,7 +2783,7 @@ else
  #
  ###############################################################################
 
-  if [ $MACHINE_ID = failed_zeus -o $MACHINE_ID = wcoss ] ; then
+  if [ $MACHINE_ID = wcoss -o $MACHINE_ID = zeus ]; then
    if [ $RT_FULL = true -o $CB_arg = post -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
     export TEST_DESCR="GFS_GOCART with POST"

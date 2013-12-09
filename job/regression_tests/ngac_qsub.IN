@@ -33,10 +33,14 @@ export REGSDIR=_REGSDIR_
 export FCST_SCRIPT_DIR=_NEMSDIR_/job
 export PDY=20120717
 
+export FHSWR=3600.
+export FHLWR=3600.
+
 export GRDI=_REGSDIR_/GFS_GOCART_POST/ngac.t00z.gfsanl
 export SFCI=_REGSDIR_/GFS_GOCART_POST/ngac.t00z.sfcanl
 
 export wgrib=/home/George.Vandenberghe/nwprod/util/exec/wgrib
+export FIXGLOBAL=/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_am
 
 _RUND_/JNGAC_FORECAST.sms.para
 

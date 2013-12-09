@@ -1,11 +1,11 @@
-Tue Dec  3 11:51:53 EST 2013
+Fri Dec  6 22:11:59 EST 2013
 Start Regression test
 
 
 
-Tue Dec  3 11:51:53 EST 2013
+Fri Dec  6 22:11:59 EST 2013
 Compilation ALL
-Tue Dec  3 12:07:47 EST 2013
+Fri Dec  6 22:27:41 EST 2013
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  83.315
+ Original timing:  151.20  , test_glob timing:  85.164
 
 
 Test 002
@@ -128,7 +128,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  151.54
+ Original timing:  240.82  , test_reg timing:  150.73
 
 
 Test 009
@@ -800,34 +800,14 @@ Checking test 042 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 042 passed 
-Tue Dec  3 18:09:27 EST 2013
-Compilation only NMM
 Test 043
-Compare NMMB-global results with previous trunk version, only NMM compiled
-
-
-Checking test 043 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
- Test 043 passed 
-
-
-
-Tue Dec  3 18:20:24 EST 2013
-Compilation only GFS
-Tue Dec  3 18:28:39 EST 2013
-Test 044
-Compare GFS results with previous trunk version, only GFS compiled
+GFS with NEMSIO
 GFS, 32 proc, 1 thread
 
 
 
 
-Checking test 044 results ....
+Checking test 043 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -846,6 +826,149 @@ Checking test 044 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
+ Test 043 passed 
+Test 044
+GFS_GOCART with NEMSIO
+GFS, 64 proc, 1 thread
+
+
+
+
+Checking test 044 results ....
+ Comparing ngac.t00z.sigf00.........OK
+ Comparing ngac.t00z.sigf03.........OK
+ Comparing ngac.t00z.sigf06.........OK
+ Comparing ngac.t00z.sigf12.........OK
+ Comparing ngac.t00z.sigf24.........OK
+ Comparing ngac.t00z.sfcf00.........OK
+ Comparing ngac.t00z.sfcf03.........OK
+ Comparing ngac.t00z.sfcf06.........OK
+ Comparing ngac.t00z.sfcf12.........OK
+ Comparing ngac.t00z.sfcf24.........OK
+ Comparing ngac.t00z.flxf00.........OK
+ Comparing ngac.t00z.flxf03.........OK
+ Comparing ngac.t00z.flxf06.........OK
+ Comparing ngac.t00z.flxf12.........OK
+ Comparing ngac.t00z.flxf24.........OK
+ Comparing ngac.t00z.aerf00.........OK
+ Comparing ngac.t00z.aerf03.........OK
+ Comparing ngac.t00z.aerf06.........OK
+ Comparing ngac.t00z.aerf12.........OK
+ Comparing ngac.t00z.aerf24.........OK
  Test 044 passed 
-Tue Dec  3 18:33:48 EST 2013
+Sat Dec  7 06:54:50 EST 2013
+Compilation with POST
+Sat Dec  7 07:09:23 EST 2013
+Test 045
+GFS with POST
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 045 results ....
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 045 passed 
+Test 046
+GFS_GOCART with POST
+GFS, 64 proc, 1 thread
+
+
+
+
+Checking test 046 results ....
+ Comparing ngac.t00z.sigf00.........OK
+ Comparing ngac.t00z.sigf03.........OK
+ Comparing ngac.t00z.sigf06.........OK
+ Comparing ngac.t00z.sigf12.........OK
+ Comparing ngac.t00z.sigf24.........OK
+ Comparing ngac.t00z.sfcf00.........OK
+ Comparing ngac.t00z.sfcf03.........OK
+ Comparing ngac.t00z.sfcf06.........OK
+ Comparing ngac.t00z.sfcf12.........OK
+ Comparing ngac.t00z.sfcf24.........OK
+ Comparing ngac.t00z.flxf00.........OK
+ Comparing ngac.t00z.flxf03.........OK
+ Comparing ngac.t00z.flxf06.........OK
+ Comparing ngac.t00z.flxf12.........OK
+ Comparing ngac.t00z.flxf24.........OK
+ Comparing ngac.t00z.aerf00.........OK
+ Comparing ngac.t00z.aerf03.........OK
+ Comparing ngac.t00z.aerf06.........OK
+ Comparing ngac.t00z.aerf12.........OK
+ Comparing ngac.t00z.aerf24.........OK
+ Comparing NGAC2d.GrbF03.........OK
+ Comparing NGAC2d.GrbF06.........OK
+ Comparing NGAC2d.GrbF12.........OK
+ Comparing NGAC2d.GrbF24.........OK
+ Comparing NGAC3d.GrbF03.........OK
+ Comparing NGAC3d.GrbF06.........OK
+ Comparing NGAC3d.GrbF12.........OK
+ Comparing NGAC3d.GrbF24.........OK
+ Test 046 passed 
+Sat Dec  7 07:31:55 EST 2013
+Compilation only NMM
+Test 047
+Compare NMMB-global results with previous trunk version, only NMM compiled
+
+
+Checking test 047 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
+ Test 047 passed 
+
+
+
+Sat Dec  7 07:44:08 EST 2013
+Compilation only GFS
+Sat Dec  7 07:50:51 EST 2013
+Test 048
+Compare GFS results with previous trunk version, only GFS compiled
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 048 results ....
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 048 passed 
+Sat Dec  7 07:59:16 EST 2013
 REGRESSION TEST WAS SUCCESSFUL

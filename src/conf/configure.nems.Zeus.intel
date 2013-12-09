@@ -42,8 +42,10 @@ LIBDIR=/contrib/nceplibs/nwprod/lib
 PARADIR=/contrib/nceplibs_ext/lib
 POSTDIR=/scratch2/portfolios/NCEPDEV/global/save/Sarah.Lu/Summer_School_2013/lib
 
-NEMSIO_INC   = -I${LIBDIR}/incmod/nemsio
-NEMSIO_LIB   = -L${LIBDIR} -lnemsio
+##NEMSIO_INC   = -I${LIBDIR}/incmod/nemsio
+NEMSIO_INC   = -I/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/nemsio/nemsgfs_newrad/incmod
+##NEMSIO_LIB   = -L${LIBDIR} -lnemsio
+NEMSIO_LIB   = -L/scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/nceplibs/src/nemsio/nemsgfs_newrad -lnemsio
 BACIO_LIB    = -L${LIBDIR} -lbacio_4
 #W3_LIB      = -L${LIBDIR}  -lw3nco_4 -lw3emc_4
 W3_LIB       = -L${LIBDIR}  -lw3nco_d -lw3emc_d
@@ -69,8 +71,8 @@ XML_LIB     = -L${PARADIR} -lxmlparse
 SIGIO_LIB   = -L${LIBDIR} -lsigio_4
 SFCIO_LIB   = -L${LIBDIR} -lsfcio
 
-EXTLIBS_POST = $(POST_LIB) \
-               $(NEMSIO_LIB) \
+EXTLIBS_POST = $(NEMSIO_LIB) \
+               $(POST_LIB) \
                $(W3_POST_LIB) \
                $(XML_LIB) \
                $(G2_LIB) \
