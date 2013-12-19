@@ -185,7 +185,7 @@ export MP_SHARED_MEMORY=yes
 #
 #
  export fmax=$nhours
- export fout=6  
+ export fout=1  
  export fzer=6  
  export fcyc=24 
  export fdfi=3 
@@ -261,6 +261,7 @@ export LEVR=${levr:-0}
 
  export FIXGLOBAL=/global/noscrub/Shrinivas.Moorthi/para/fix/fix_am
  export FIX_RAD=/global/noscrub/Shrinivas.Moorthi/para/fix/fix_am
+ export FIX_IDEA=/meso/noscrub/wx20rv/REGRESSION_TEST/WAM_gh_l150
 #
 # export POSTGPDIR=$TOPDIR/wx23hh/00wkgfs/src/global_postgp.fd
 # export POSTGPEXEC=$POSTGPDIR/global_postgp
@@ -348,8 +349,8 @@ if [[ $nhourb -lt $nhours ]] ; then
   export FHZER=$fzer
   export FHCYC=$fcyc
   export FHDFI=$fdfi
-  export FHLWR=${FHLWR:-3}
-  export FHSWR=${FHSWR:-1}
+  export FHLWR=${FHLWR:-10800}
+  export FHSWR=${FHSWR:-3600}
   export FHMAX=$nhours
   export FHRES=${FHRES:-$FHMAX}
   export FHROT=${FHROT:-0}

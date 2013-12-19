@@ -3,6 +3,7 @@
 !-----------------------------------------------------------------------
 ! add temp, wind changes due to viscosity and thermal conductivity
 ! Apr 06 2012  Henry Juang, initial implement for nems
+! Dec 17 2013  Jun   Wang,  using updated dc_i(not up) in tridiagonal solver
 !-----------------------------------------------------------------------
       implicit none
 ! Argument
@@ -169,9 +170,10 @@
             dc_i(k)=(cc(k)*dc_i(k+1)+up(i,k,kk))*hold1 
           enddo
           dudt(i,1,kk)=(dc_i(1)-up(i,1,kk))*dtp1
+! recompute dc_i
           do k=2,levs
-            dudt(i,k,kk)=(ec_i(k)*up(i,k-1,kk)+dc_i(k)-up(i,k,kk))      &
-     &      *dtp1
+            dc_i(k)=dc_i(k)+ec_i(k)*dc_i(k-1)
+            dudt(i,k,kk)=(dc_i(k)-up(i,k,kk))*dtp1
           enddo
         enddo  !kk
         do k=1,levs
