@@ -78,7 +78,7 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
       SUBROUTINE JSFC(NTSD,HT,DZ                                       &
-     &               ,PMID,PINT,TH,T,QV,QC,U,V,Q2                      &
+     &               ,PHMID,PHINT,TH,T,QV,QC,U,V,Q2                    &
      &               ,TSK,QSFC,THZ0,QZ0,UZ0,VZ0                        &
      &               ,XLAND                                            &
      &               ,USTAR,Z0,Z0BASE,PBLH,MAVAIL,RMOL                 &
@@ -104,9 +104,9 @@
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: HT,MAVAIL,TSK      &
      &                                             ,XLAND,Z0BASE
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: DZ,PMID
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: DZ,PHMID
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(IN) :: PINT
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(IN) :: PHINT
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: QV,QC,U,V,Q2,T,TH
 !
@@ -223,8 +223,8 @@
 !
           LMH=LM
 !
-          PTOP=PINT(I,J,1)
-          PSFC=PINT(I,J,LMH+1)
+          PTOP=PHINT(I,J,1)
+          PSFC=PHINT(I,J,LMH+1)
 ! Define THSK here (for first timestep mostly)
           THSK(I,J)=TSK(I,J)/(PSFC*1.E-5)**CAPPA
 !
@@ -239,10 +239,10 @@
             TK(K)=T(I,J,K)
             RATIOMX=QV(I,J,K)
             QK(K)=RATIOMX/(1.+RATIOMX)
-            PK(K)=PMID(I,J,K)
+            PK(K)=PHMID(I,J,K)
             CWMK(K)=QC(I,J,K)
             THEK(K)=(CWMK(K)*(-ELOCP/TK(K))+1.)*THK(K)
-            Q2K(K)=2.*Q2(I,J,K)
+            Q2K(K)=Q2(I,J,K)
 !
 !
 !***  COMPUTE THE HEIGHTS OF THE LAYER INTERFACES

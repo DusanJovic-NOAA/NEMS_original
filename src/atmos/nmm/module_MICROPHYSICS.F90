@@ -165,12 +165,12 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER :: I,IJ,J,K,KFLIP,MP_PHYSICS,N,NTSD
+      INTEGER :: I,IJ,J,K,MP_PHYSICS,N,NTSD
       INTEGER :: ITSLOC,ITELOC,JTSLOC,JTELOC 
 !
       INTEGER,DIMENSION(IMS:IME,JMS:JME) :: LOWLYR
 !
-      REAL :: DPL,DTPHS,PCPCOL,PDSL,PLYR,QI,QR,QW,RDTPHS,TNEW
+      REAL :: DPL,DTPHS,PCPCOL,PDSL,PHMID,QI,QR,QW,RDTPHS,TNEW
 !
       REAL,DIMENSION(1:LM) :: QL,TL
 !
@@ -210,7 +210,7 @@
 !!!   DO I=ITS_B1,ITE_B1
 !.......................................................................
 !$omp parallel do                                                       &
-!$omp& private(j,i,k,pdsl,kflip,dpl,plyr,ql,tl)
+!$omp& private(j,i,k,pdsl,dpl,phmid,ql,tl)
 !.......................................................................
       DO J=JTS,JTE
       DO I=ITS,ITE
@@ -241,25 +241,19 @@
 !
         DO K=LM,1,-1   ! We are moving down from the top in the flipped arrays
 !
-          KFLIP=K  ! do not flip for the NMMB arrays
+          DPL=DSG2(K)*PDSL+PDSG1(K)
+          PHMID=SGML2(K)*PDSL+PSGML1(K)
+          TL(K)=T(I,J,K)
+          QL(K)=AMAX1(Q(I,J,K),EPSQ)
 !
-          DPL=PDSG1(KFLIP)+DSG2(KFLIP)*PDSL
-          PLYR=SGML2(KFLIP)*PDSL+PSGML1(KFLIP)
-          TL(K)=T(I,J,KFLIP)
-          QL(K)=AMAX1(Q(I,J,KFLIP),EPSQ)
-!
-          RR(I,J,K)=PLYR/(R_D*TL(K)*(P608*QL(K)+1.))
-          PI_PHY(I,J,K)=(PLYR*1.E-5)**CAPPA
+          RR(I,J,K)=PHMID/(R_D*TL(K)*(P608*QL(K)+1.))
+          PI_PHY(I,J,K)=(PHMID*1.E-5)**CAPPA
           TH_PHY(I,J,K)=TL(K)/PI_PHY(I,J,K)
-          P_PHY(I,J,K)=PLYR
+          P_PHY(I,J,K)=PHMID
           DZ(I,J,K)=DPL*R_G/RR(I,J,K)
 !
-!-- Arrays that may be needed by other schemes?
-!wang         T_PHY(I,J,K)=TL(K)
-!wang         P8W(I,K,J)=P8W(I,K+1,J)+PDSG1(KFLIP)+DSG2(KFLIP)*PDSL
-!wang         WMID(I,J,K)=-OMGALF(I,J,KFLIP)*CP/(G*DT)
         ENDDO    !- DO K=LM,1,-1
-!wang        WMID(I,J,1)=0.   !<---  W in the top model layer must equal zero for WSM3.
+!
       ENDDO    !- DO I=ITS,ITE
       ENDDO    !- DO J=JTS,JTE
 !.......................................................................
@@ -496,12 +490,10 @@
 !
 !.......................................................................
 !$omp parallel do                                                       &
-!$omp& private(i,j,k,kflip,tnew)
+!$omp& private(i,j,k,tnew)
 !.......................................................................
-      DO J=JTS_B1,JTE_B1
-        DO K=1,LM
-!wang    KFLIP=LM+1-K
-        KFLIP=K  ! no flip
+      DO K=1,LM
+        DO J=JTS_B1,JTE_B1
         DO I=ITS_B1,ITE_B1
 !
 !-----------------------------------------------------------------------
@@ -509,9 +501,9 @@
 !-----------------------------------------------------------------------
 !
           TNEW=TH_PHY(I,J,K)*PI_PHY(I,J,K)
-          TRAIN(I,J,KFLIP)=TRAIN(I,J,KFLIP)+(TNEW-T(I,J,KFLIP))*RDTPHS
-          T(I,J,KFLIP)=TNEW
-          Q(I,J,KFLIP)=WATER(I,J,K,P_QV)/(1.+WATER(I,J,K,P_QV)) !To s.h.
+          TRAIN(I,J,K)=TRAIN(I,J,K)+(TNEW-T(I,J,K))*RDTPHS
+          T(I,J,K)=TNEW
+          Q(I,J,K)=WATER(I,J,K,P_QV)/(1.+WATER(I,J,K,P_QV)) !To s.h.
         ENDDO
         ENDDO
       ENDDO

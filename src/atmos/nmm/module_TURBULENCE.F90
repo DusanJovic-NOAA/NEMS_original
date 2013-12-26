@@ -305,17 +305,17 @@
                                                    ,VGFRCK,XLAND
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM) :: DELP                    &
-                                                        ,DZ,EXNER,PMID,RR,U_PHY,V_PHY,TH,TKE
+                                                        ,DZ,EXNER,PHMID,RR,U_PHY,V_PHY,TH
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: PINT,Z
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: PHINT,Z
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM) :: DUDT_PHY,DVDT_PHY,RTHBLTEN,RQVBLTEN       &
                                                         ,RQCBLTEN,RQIBLTEN, RQRBLTEN, RQSBLTEN,RQGBLTEN
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,1:LM+1,JMS:JME) :: PINT_GWD,Z_GWD
+      REAL(kind=KFPT),DIMENSION(IMS:IME,1:LM+1,JMS:JME) :: PHINT_GWD,Z_GWD
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,1:LM,JMS:JME) :: DP_GWD,EXNR_GWD         &
-                                                          ,PMID_GWD,Q_GWD &
+                                                          ,PHMID_GWD,Q_GWD &
                                                           ,T_GWD,U_GWD,V_GWD
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,1:LM,JMS:JME) :: DUDT_GWD,DVDT_GWD
@@ -537,8 +537,8 @@
 !
         PDSL=PD(I,J)
         PSFC=SG2(LM+1)*PDSL+PSG1(LM+1)
-        PINT(I,J,LM+1)=PSFC
-        PINT_GWD(I,1,J)=PINT(I,J,LM+1)
+        PHINT(I,J,LM+1)=PSFC
+        PHINT_GWD(I,1,J)=PHINT(I,J,LM+1)
         EXNSFC(I,J)=(1.E5/PSFC)**CAPPA
         THS(I,J)=(SST(I,J)*EXNSFC(I,J))*SM(I,J)+THS(I,J)*(1.-SM(I,J))
         TSFC(I,J)=THS(I,J)/EXNSFC(I,J)
@@ -617,11 +617,10 @@
           EXNER(I,J,K)=1./RXNER
           EXNR_GWD(I,KFLIP,J)=EXNER(I,J,K)
           TH(I,J,K)=TL*RXNER
-          PINT(I,J,K)=PINT(I,J,K+1)-PDSG1(K)-DSG2(K)*PDSL
-          PINT_GWD(I,KFLIP+1,J)=PINT(I,J,K)
-          PMID(I,J,K)=PLYR
-          PMID_GWD(I,KFLIP,J)=PMID(I,J,K)
-          TKE(I,J,K)=0.5*Q2(I,J,K)
+          PHINT(I,J,K)=SG2(K)*PD(I,J)+PSG1(K)
+          PHINT_GWD(I,KFLIP+1,J)=PHINT(I,J,K)
+          PHMID(I,J,K)=PLYR
+          PHMID_GWD(I,KFLIP,J)=PHMID(I,J,K)
 !
           RQCBLTEN(I,J,K)=0.
           RQIBLTEN(I,J,K)=0.
@@ -634,12 +633,12 @@
 ! end
 !
           DZ(I,J,K)=T(I,J,K)*(P608*QL+1.)*R_D                           &
-                    *(PINT(I,J,K+1)-PINT(I,J,K))                        &
+                    *(PHINT(I,J,K+1)-PHINT(I,J,K))                      &
                     /(PLYR*G)
           Z(I,J,K)=Z(I,J,K+1)+DZ(I,J,K)
           Z_GWD(I,KFLIP+1,J)=Z(I,J,K)
 !
-          DELP(I,J,K)=PINT(I,J,K+1)-PINT(I,J,K)
+          DELP(I,J,K)=PHINT(I,J,K+1)-PHINT(I,J,K)
           DP_GWD(I,KFLIP,J)=DELP(I,J,K)
 !
           DUDT_PHY(I,J,K)=0.
@@ -787,7 +786,7 @@
 !
         DO J=JTS_B1,JTE_B1
         DO I=ITS_B1,ITE_B1
-          PSFC_OUT(I,J)=PINT(I,J,LM+1)
+          PSFC_OUT(I,J)=PHINT(I,J,LM+1)
         ENDDO
         ENDDO
 !
@@ -803,9 +802,9 @@
  
               MYJ =.TRUE.
               CALL JSFC(NTSD,SFCZ,DZ,                                   &
-                        PMID,PINT,TH,T,                                 &
+                        PHMID,PHINT,TH,T,                               &
                         WATER(IMS,JMS,1,P_QV),WATER(IMS,JMS,1,P_QC),    &
-                        U_PHY,V_PHY,TKE,                                &
+                        U_PHY,V_PHY,Q2,                                 &
                         TSFC,QS,THZ0,QZ0,UZ0,VZ0,                       &
                         XLAND,                                          &
                         USTAR,Z0,Z0BASE,PBLH,ONE,RMOL,                  &
@@ -834,7 +833,7 @@
 
             CASE (LISSSCHEME)
 
-              CALL LISS(DZ,WATER(IMS,JMS,1,P_QV),PINT,RR,               &
+              CALL LISS(DZ,WATER(IMS,JMS,1,P_QV),PHINT,RR,              &
                         T,TH,TSFC,CHS,                                  &
                         TWBS,QWBS,QGH,RSW_DN_SFC,RLW_DN_SFC,ELFLX,RMOL, &
                         SMSTAV,SMSTOT,SSROFF,                           &
@@ -857,7 +856,7 @@
               NWL=1
               NRDL=1
 
-              CALL NOAHLSM(DZ,WATER(IMS,JMS,1,P_QV),PINT,T,TSFC,        &
+              CALL NOAHLSM(DZ,WATER(IMS,JMS,1,P_QV),PHINT,T,TSFC,       &
                            TWBS,QWBS,ELFLX,GRNFLX,QGH,                  &
                            RSW_NET_SFC,RSW_DN_SFC,RLW_DN_SFC,           &
                            SMSTAV,SMSTOT,                               &
@@ -988,14 +987,14 @@
           IF (NTSD == 1 .OR. MOD(NTSD,NPHS) == 0) THEN
 
               CALL MYJPBL(DT=DT,NPHS=NPHS,HT=SFCZ,DZ=DZ                 &
-                         ,PMID=PMID,PINT=PINT,TH=TH,T=T,EXNER=EXNER     &
+                         ,PHMID=PHMID,PHINT=PHINT,TH=TH,T=T,EXNER=EXNER &
                          ,QV=WATER(IMS,JMS,1,P_QV)                      &
                          ,CWM=WATER(IMS,JMS,1,P_QC)                     &
                          ,U=U_PHY,V=V_PHY                               &
                          ,TSK=TSFC,QSFC=QS,CHKLOWQ=CHKLOWQ,THZ0=THZ0    &
                          ,QZ0=QZ0,UZ0=UZ0,VZ0=VZ0                       &
                          ,XLAND=XLAND,SICE=SICE,SNOW=SNOW               &
-                         ,TKE=TKE,EXCH_H=EXCH_H,USTAR=USTAR,Z0=Z0       &
+                         ,Q2=Q2,EXCH_H=EXCH_H,USTAR=USTAR,Z0=Z0         &
                          ,EL_MYJ=XLEN_MIX,PBLH=PBLH,KPBL=KPBL,CT=CT     &
                          ,AKHS=AKHS,AKMS=AKMS,ELFLX=ELFLX,MIXHT=MIXHT   &
                          ,RUBLTEN=DUDT_PHY                              &
@@ -1016,8 +1015,8 @@
           IF (NTSD == 1 .OR. MOD(NTSD,NPHS) == 0) THEN
 
               CALL GFSPBL(DT=DT,NPHS=NPHS,DP=DELP,AIRDEN=RR              &
-                         ,RIB=RIB                            &
-                         ,PMID=PMID,PINT=PINT,T=T, ZINT=Z                &
+                         ,RIB=RIB                                        &
+                         ,PHMID=PHMID,PHINT=PHINT,T=T,ZINT=Z             &
                          ,NUM_WATER=NUM_WATER,WATER=WATER                &
                          ,P_QV=P_QV,P_QC=P_QC,P_QR=P_QR                  &
                          ,P_QI=P_QI,P_QS=P_QS,P_QG=P_QG                  &
@@ -1239,7 +1238,7 @@
 
         CALL GWD_DRIVER(DTPHS,U_GWD,V_GWD,T_GWD,Q_GWD                   &
                        ,Z_GWD,DP_GWD                                    &
-                       ,PINT_GWD,PMID_GWD,EXNR_GWD                      &
+                       ,PHINT_GWD,PHMID_GWD,EXNR_GWD                    &
                        ,KPBL                                            &
                        ,HSTDV,HCNVX,HASYW,HASYS                         &
                        ,HASYSW,HASYNW,HLENW                             &
@@ -1260,7 +1259,7 @@
 !=======================================================================
 !
 !-----------------------------------------------------------------------
-!***  Update temperature, specific humidity, cloud, and tke.
+!***  Update temperature, specific humidity, cloud, and q2.
 !-----------------------------------------------------------------------
 !
 
@@ -1329,7 +1328,6 @@
               WATER(I,J,K,P_QI)=QI
             ENDIF
 
-            Q2(I,J,K)=2.*TKE(I,J,K)
           ENDDO
         ENDDO
 

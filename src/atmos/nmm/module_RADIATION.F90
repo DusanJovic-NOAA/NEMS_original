@@ -64,7 +64,7 @@
       SUBROUTINE RADIATION(ITIMESTEP,DT,JULDAY,JULYR,XTIME,JULIAN       &
      &                    ,IHRST,NPHS,GLAT,GLON                         &
      &                    ,NRADS,NRADL                                  &
-     &                    ,DSG2,SGML2,PDSG1,PSGML1,PT,PD                &
+     &                    ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1,PT,PD       &
      &                    ,T,Q                                          &
      &                    ,THS,ALBEDO                                   &
      &                    ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG                &
@@ -144,6 +144,8 @@
 !
       REAL,DIMENSION(1:LM),INTENT(IN) :: DSG2,PDSG1,PSGML1,SGML2
 !
+      REAL,DIMENSION(1:LM+1),INTENT(IN) :: PSG1,SG2
+!
       REAL,DIMENSION(LM+1),INTENT(IN) :: SGM
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: ALBEDO,CUPPT        &
@@ -207,7 +209,7 @@
      &                                  ,GLW,SWDOWN,SWDOWNC,CZEN        &
      &                                  ,CUPPTR
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: P8W
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: PHINT
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM) :: PI3D                      &
                                              ,THRATEN,THRATENLW         &
@@ -242,7 +244,6 @@
 !
         PDSL=PD(I,J)
         XLAND(I,J)=SM(I,J)+1.
-        P8W(I,J,1)=PT
 !
 !-----------------------------------------------------------------------
 !***  FILL THE SINGLE-COLUMN INPUT
@@ -254,7 +255,7 @@
 !
           QL(K)=AMAX1(Q(I,J,K),EPSQ)
 !
-          P8W(I,J,K+1)=P8W(I,J,K)+PDSG1(K)+DSG2(K)*PDSL
+          PHINT(I,J,K)=SG2(K)*PD(I,J)+PSG1(K)
           PI3D(I,J,K)=(PLYR*1.E-5)**CAPPA
 !
           THRATEN(I,J,K)=0.
@@ -262,9 +263,11 @@
           THRATENSW(I,J,K)=0.
         ENDDO
 !
+        PHINT(I,J,LM+1)=SG2(LM+1)*PD(I,J)+PSG1(LM+1)
+!
 !-----------------------------------------------------------------------
 !
-        TSFC(I,J)=THS(I,J)*(P8W(I,J,LM+1)*1.E-5)**CAPPA
+        TSFC(I,J)=THS(I,J)*(PHINT(I,J,LM+1)*1.E-5)**CAPPA
 !
       ENDDO
       ENDDO
@@ -511,7 +514,7 @@
                  gfdl_lw  = .true.
                  CALL GFDL(                                         &
                   DT=dt,XLAND=xland                                 &
-                 ,P8W=p8w,T=t                                       &
+                 ,PHINT=phint,T=t                                   &
                  ,QV=WATER(IMS:IME,JMS:JME,1:LM,P_QV)               &
                  ,QW=WATER(IMS:IME,JMS:JME,1:LM,P_QC)               &
                  ,QI=WATER(IMS:IME,JMS:JME,1:LM,P_QI)               &
@@ -569,7 +572,7 @@
                  gfdl_sw = .true.
                  CALL GFDL(                                         &
                   DT=dt,XLAND=xland                                 &
-                 ,P8W=p8w,T=t                                       &
+                 ,PHINT=phint,T=t                                   &
                  ,QV=WATER(IMS:IME,JMS:JME,1:LM,P_QV)               &
                  ,QW=WATER(IMS:IME,JMS:JME,1:LM,P_QC)               &
                  ,QI=WATER(IMS:IME,JMS:JME,1:LM,P_QI)               &

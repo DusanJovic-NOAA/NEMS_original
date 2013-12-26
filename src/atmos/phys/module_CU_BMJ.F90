@@ -126,7 +126,7 @@
                        ,dt,dyh,ntsd,ncnvc &
                        ,raincv,cutop,cubot,dxh,kpbl &
                        ,th,t,qv,u_phy,v_phy,dudt_phy,dvdt_phy &
-                       ,pint,pmid,exner &
+                       ,phint,phmid,exner &
                        ,cldefi,xland,cu_act_flag &
                      ! optional
                        ,rthcuten,rqvcuten &
@@ -163,10 +163,10 @@
 !
       real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in):: &
        qv &
-      ,exner,pmid,t,th,u_phy,v_phy
+      ,exner,phmid,t,th,u_phy,v_phy
 !
       real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm+1),intent(in):: &
-       pint
+       phint
 !
       real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm) &
                      ,optional &
@@ -278,8 +278,8 @@
 !
           raincv(i,j)=0.
           pcpcol=0.
-          psfc=pint(i,j,lm+1)
-          ptop=pint(i,j,1)
+          psfc=phint(i,j,lm+1)
+          ptop=phint(i,j,1)
 !
 !***  convert to bmj land mask (1.0 for sea; 0.0 for land)
 !
@@ -295,9 +295,9 @@
 !
             qcol    (k)=max(epsq,qv(i,j,k)/(1.+qv(i,j,k)))
             tcol    (k)=t(i,j,k)
-            pcol    (k)=pmid(i,j,k)
+            pcol    (k)=phmid(i,j,k)
             exnercol(k)=exner(i,j,k)
-            dpcol   (k)=pint(i,j,k+1)-pint(i,j,k)
+            dpcol   (k)=phint(i,j,k+1)-phint(i,j,k)
           enddo
 !
 !***  lowest layer above ground must also be flipped

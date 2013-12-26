@@ -128,10 +128,10 @@
 !
 !-----------------------------------------------------------------------
       SUBROUTINE MYJPBL(DT,NPHS,HT,DZ                                  &
-     &                 ,PMID,PINT,TH,T,EXNER,QV,CWM,U,V                &
+     &                 ,PHMID,PHINT,TH,T,EXNER,QV,CWM,U,V              &
      &                 ,TSK,QSFC,CHKLOWQ,THZ0,QZ0,UZ0,VZ0              &
      &                 ,XLAND,SICE,SNOW                                &
-     &                 ,TKE,EXCH_H,USTAR,Z0,EL_MYJ,PBLH,KPBL,CT        &
+     &                 ,Q2,EXCH_H,USTAR,Z0,EL_MYJ,PBLH,KPBL,CT         &
      &                 ,AKHS,AKMS,ELFLX,MIXHT                          &
      &                 ,RUBLTEN,RVBLTEN,RTHBLTEN,RQVBLTEN,RQCBLTEN     &
      &                 ,IDS,IDE,JDS,JDE                                &
@@ -158,9 +158,9 @@
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: HT,SICE,SNOW       &
      &                                             ,TSK,XLAND
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: DZ,EXNER,PMID
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: DZ,EXNER,PHMID
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(IN) :: PINT
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(IN) :: PHINT
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: QV,CWM,U,V,T,TH
 !
@@ -180,7 +180,7 @@
      &                                                ,THZ0,USTAR      &
      &                                                ,UZ0,VZ0,Z0
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: EXCH_H,TKE
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: EXCH_H,Q2
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: CHKLOWQ,ELFLX
 !
@@ -292,8 +292,8 @@
 !
           LMH=LM
 !
-          PTOP=PINT(I,J,1)
-          PSFC=PINT(I,J,LMH+1)
+          PTOP=PHINT(I,J,1)
+          PSFC=PHINT(I,J,LMH+1)
 !
 !***  CONVERT LAND MASK (1 FOR SEA; 0 FOR LAND)
 !
@@ -307,16 +307,10 @@
             RATIOMX=QV(I,J,K)
             QK(K)=RATIOMX/(1.+RATIOMX)
             CWMK(K)=CWM(I,J,K)
-            PK(K)=PMID(I,J,K)
+            PK(K)=PHMID(I,J,K)
             UK(K)=U(I,J,K)
             VK(K)=V(I,J,K)
-!
-!***  TKE=0.5*(q**2) ==> q**2=2.*TKE
-!
-            Q2K(K)=2.*TKE(I,J,K)
-!
-!***  COMPUTE THE HEIGHTS OF THE LAYER INTERFACES
-!
+            Q2K(K)=Q2(I,J,K)
             ZHK(K)=ZINT(I,J,K)
 !
           ENDDO
@@ -383,11 +377,11 @@
           CALL VDIFQ(LMH,DTDIF,Q2K,EL,ZHK                              &
      &              ,LM)
 !
-!***  SAVE THE NEW TKE AND MIXING LENGTH.
+!***  SAVE THE NEW Q2 AND MIXING LENGTH.
 !
           DO K=1,LM
             Q2K(K)=AMAX1(Q2K(K),EPSQ2)
-            TKE(I,J,K)=0.5*Q2K(K)
+            Q2(I,J,K)=Q2K(K)
             IF(K<LM)EL_MYJ(I,J,K)=EL(K)   ! EL IS NOT DEFINED AT LM
           ENDDO
 !
@@ -406,7 +400,7 @@
 !
       DO J=JTS,JTE
       DO I=ITS,ITE
-        PSFC=PINT(I,J,LM+1)
+        PSFC=PHINT(I,J,LM+1)
         THSK(I,J)=TSK(I,J)*(1.E5/PSFC)**CAPPA
       ENDDO
       ENDDO
@@ -435,7 +429,7 @@
             QK(K)=RATIOMX/(1.+RATIOMX)
             CWMK(K)=CWM(I,J,K)
             ZHK(K)=ZINT(I,J,K)
-            RHOK(K)=PMID(I,J,K)/(R_D*T(I,J,K)*(1.+P608*QK(K)-CWMK(K)))
+            RHOK(K)=PHMID(I,J,K)/(R_D*T(I,J,K)*(1.+P608*QK(K)-CWMK(K)))
           ENDDO
 !
 !***  COUNTING DOWNWARD FROM THE TOP, THE EXCHANGE COEFFICIENTS AKH
@@ -470,7 +464,7 @@
             ENDIF
 !
           ELSE
-            PSFC=PINT(I,J,LM+1)
+            PSFC=PHINT(I,J,LM+1)
             EXNSFC=(1.E5/PSFC)**CAPPA
 
             QSFC(I,J)=PQ0SEA/PSFC                                      &
@@ -518,7 +512,7 @@
 !         IF(I==227.AND.J==363)PRINT_DIAG=0
 !*** End debugging
 !
-        PSFC=.01*PINT(I,J,LM+1)
+        PSFC=.01*PHINT(I,J,LM+1)
         ZSL_DIAG=0.5*DZ(I,J,LM)
 !
 !*** Begin debugging
@@ -531,15 +525,15 @@
 !           write(6,"(a, 2f7.2, f7.3, 3e11.4)") &
 !           '{turb4 tsk, thsk, qz0, q**2_0, akhs, exch_0 = ' &
 !           , tsk(i,j)-273.15, thsk(i,j), 1000.*qz0(i,j) &
-!           , 2.*TKE(i,1,j), akhs(i,j), akhs(i,j)*ZSL_diag
+!           , q2(i,1,j), akhs(i,j), akhs(i,j)*ZSL_diag
 !           write(6,"(a)") &
-!           '{turb5 k, Pmid, Pint_1, Tc, TH, DTH, GH, GM, EL, Q**2, Akh, EXCH_h, Dz, Dp'
+!           '{turb5 k, PHmid, PHint_1, Tc, TH, DTH, GH, GM, EL, Q**2, Akh, EXCH_h, Dz, Dp'
 !           do k=1,LM/2
 !             write(6,"(a,i3, 2f8.2, 2f8.3, 3e12.4, 4e11.4, f7.2, f6.2)") &
-!            '{turb5 ', k, .01*pmid(i,k,j),.01*pint(i,k,j), T(i,k,j)-273.15 &
+!            '{turb5 ', k, .01*phmid(i,k,j),.01*phint(i,k,j), T(i,k,j)-273.15 &
 !            , th(i,k,j), DTTURBL*rthblten(i,k,j), GH(K), GM(K) &
-!            , el_myj(i,K,j), 2.*TKE(i,k+1,j), akh(i,K,j) &
-!            , exch_h(i,k,j), dz(i,k,j), .01*(pint(i,k,j)-pint(i,k+1,j))
+!            , el_myj(i,K,j), q2(i,k+1,j), akh(i,K,j) &
+!            , exch_h(i,k,j), dz(i,k,j), .01*(phint(i,k,j)-phint(i,k+1,j))
 !           enddo
 !
 !         ELSEIF(PRINT_DIAG==2)THEN
@@ -551,15 +545,15 @@
 !           write(6,"(a, 2f7.2, f7.3, 3e11.4)") &
 !           '}turb4 tsk, thsk, qz0, q**2_0, akhs, exch_0 = ' &
 !           , tsk(i,j)-273.15, thsk(i,j), 1000.*qz0(i,j) &
-!           , 2.*TKE(i,1,j), akhs(i,j), akhs(i,j)*ZSL_diag
+!           , q2(i,1,j), akhs(i,j), akhs(i,j)*ZSL_diag
 !           write(6,"(a)") &
-!           '}turb5 k, Pmid, Pint_1, Tc, TH, DTH, GH, GM, EL, Q**2, Akh, EXCH_h, Dz, Dp'
+!           '}turb5 k, PHmid, PHint_1, Tc, TH, DTH, GH, GM, EL, Q**2, Akh, EXCH_h, Dz, Dp'
 !           do k=1,LM/2
 !             write(6,"(a,i3, 2f8.2, 2f8.3, 3e12.4, 4e11.4, f7.2, f6.2)") &
-!            '}turb5 ', k, .01*pmid(i,k,j),.01*pint(i,k,j), T(i,k,j)-273.15 &
+!            '}turb5 ', k, .01*phmid(i,k,j),.01*phint(i,k,j), T(i,k,j)-273.15 &
 !            , th(i,k,j), DTTURBL*rthblten(i,k,j), GH(K), GM(K) &
-!            , el_myj(i,K,j), 2.*TKE(i,k+1,j), akh(i,K,j) &
-!            , exch_h(i,k,j), dz(i,k,j), .01*(pint(i,k,j)-pint(i,k+1,j))
+!            , el_myj(i,K,j), q2(i,k+1,j), akh(i,K,j) &
+!            , exch_h(i,k,j), dz(i,k,j), .01*(phint(i,k,j)-phint(i,k+1,j))
 !           enddo
 !         ENDIF
 !*** End debugging
@@ -1433,7 +1427,6 @@
         DO K=1,KTF
         DO J=JTS,JTF
         DO I=ITS,ITF
-!         TKE(I,J,K)=EPSQ2
 !         RUBLTEN(I,J,K)=0.
 !         RVBLTEN(I,J,K)=0.
 !         RTHBLTEN(I,J,K)=0.

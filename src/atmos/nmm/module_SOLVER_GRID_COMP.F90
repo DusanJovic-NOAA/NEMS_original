@@ -5600,8 +5600,9 @@
                         ,START_HOUR,int_state%NPHS                      &
                         ,int_state%GLAT,int_state%GLON                  &
                         ,int_state%NRADS,int_state%NRADL                &
-                        ,int_state%DSG2,int_state%SGML2                 &
+                        ,int_state%DSG2,int_state%SGML2,int_state%SG2   &
                         ,int_state%PDSG1,int_state%PSGML1               &
+                        ,int_state%PSG1                                 &
                         ,int_state%PT,int_state%PD                      &
                         ,int_state%T,int_state%Q                        &
                         ,int_state%THS,int_state%ALBEDO                 &

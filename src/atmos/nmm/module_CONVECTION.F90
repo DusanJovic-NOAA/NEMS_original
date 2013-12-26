@@ -191,7 +191,7 @@
 !
       real(kind=kfpt):: &
        cf_hi,dqdt,dtcnvc,dtdt,fice,frain,g_inv &
-      ,pcpcol,pdsl,plyr,qi,ql,ql_k,qr,qw,rdtcnvc &
+      ,pcpcol,pdsl,qi,ql,ql_k,qr,qw,rdtcnvc &
       ,tl
 !
       REAL(kind=kfpt),DIMENSION(IMS:IME,JMS:JME):: &
@@ -199,7 +199,7 @@
       ,RAINC,RAINCV,SFCZ,XLAND
 !
       REAL(kind=kfpt),DIMENSION(IMS:IME,JMS:JME,1:LM):: &
-       DZ,pmid,exner &
+       DZ,PHMID,exner &
       ,qv,th,rr &
       ,RQCCUTEN,RQRCUTEN &
       ,RQICUTEN,RQSCUTEN &
@@ -208,7 +208,7 @@
       ,u_phy,v_phy
 
       REAL(kind=kfpt),DIMENSION(IMS:IME,JMS:JME,1:LM+1):: &
-       PINT
+       PHINT
 !-----------------------------------------------------------------------
 !***  For temperature change check only.
 !-----------------------------------------------------------------------
@@ -302,7 +302,7 @@
 !
 !.......................................................................
 !zj$omp parallel do &
-!zj$omp& private(j,i,k,pdsl,plyr,ql,tl)
+!zj$omp& private(j,i,k,pdsl,ql,tl)
 !.......................................................................
       DO J=JTS,JTE
       DO I=ITS,ITE
@@ -310,7 +310,7 @@
         PDSL=PD(I,J)
         RAINCV(I,J)=0.
         RAINC(I,J)=0.
-        PINT(I,J,LM+1)=SG2(LM+1)*PDSL+PSG1(LM+1)
+        PHINT(I,J,LM+1)=SG2(LM+1)*PDSL+PSG1(LM+1)
         XLAND(I,J)=SM(I,J)+1.
         NCA(I,J)=0.
         SFCZ(I,J)=FIS(I,J)*G_INV
@@ -329,19 +329,18 @@
 !***  FILL VERTICAL WORKING ARRAYS.
 !-----------------------------------------------------------------------
 !
-        DO K=1,lm
+        DO K=1,LM
 !
-          PLYR=SGML2(K)*PDSL+PSGML1(K)
+          PHINT(I,J,K)=SG2(K)*PDSL+PSG1(K) !zj
+          PHMID(I,J,K)=SGML2(K)*PDSL+PSGML1(K)
 
           QL=MAX(Q(I,J,K),EPSQ)
           TL=T(I,J,K)
-          RR(I,J,K)=PLYR/(R_D*TL*(.608*ql+1.))
-          t(i,j,k)=TL
+          RR(I,J,K)=PHMID(I,J,K)/(R_D*TL*(.608*ql+1.))
+          T(I,J,K)=TL
 !
-          exner(I,J,K)=(PLYR*1.E-5)**cappa
-          th(I,J,K)=TL/exner(i,j,k)
-          pint(i,j,k)=sg2(k)*pdsl+psg1(k) !zj
-          pmid(I,J,K)=PLYR
+          EXNER(I,J,K)=(PHMID(I,J,K)*1.E-5)**CAPPA
+          TH(I,J,K)=TL/EXNER(I,J,K)
 !
         ENDDO
       ENDDO
@@ -391,23 +390,21 @@
 !-----------------------------------------------------------------------
 !.......................................................................
 !zj$omp parallel do                                                       &
-!zj$omp private(i,j,k,pdsl,plyr,ql_k)
+!zj$omp private(i,j,k,ql_k)
 !.......................................................................
       DO J=JTS,JTE
         DO I=ITS,ITE
-          PDSL=PD(I,J)
-          PLYR=PSGML1(LM)+SGML2(LM)*PDSL+PT
           DZ(I,J,LM)=T(I,J,LM)*(.608*Q(I,J,LM)+1.)*R_D &
-                    *(PINT(I,J,LM+1)-PINT(I,J,LM)) &
-                    /(PLYR*G)
+                    *(PHINT(I,J,LM+1)-PHINT(I,J,LM)) &
+                    /(PHMID(I,J,LM)*G)
         ENDDO
 !
         DO K=LM-1,1,-1
         DO I=ITS,ITE
           QL_K=MAX(Q(I,J,K),EPSQ)
           DZ(I,J,K)=T(I,J,K)*(.608*QL_K+1.)*R_D &
-                    *(PINT(I,J,K+1)-PINT(I,J,K)) &
-                    /(PMID(I,J,K)*G)
+                    *(PHINT(I,J,K+1)-PHINT(I,J,K)) &
+                    /(PHMID(I,J,K)*G)
         ENDDO
         ENDDO
 !
@@ -462,7 +459,7 @@
                         ,dt,dyh,ntsd,ncnvc &
                         ,raincv,cutop,cubot,dxh,kpbl &
                         ,th,t,qv,u_phy,v_phy,dudt_phy,dvdt_phy &
-                        ,pint,pmid,exner &
+                        ,phint,phmid,exner &
                         ,cldefi,xland,cu_act_flag &
                       ! optional
                         ,rthcuten,rqvcuten &
@@ -475,7 +472,7 @@
                       ,dt,ntsd,ncnvc &
                       ,th,t,sice,omgalf,twbs,qwbs,pblh,u_phy,v_phy & !zj orig u&v 
                       ,water,p_qv,p_qc,p_qr,p_qs,p_qi,p_qg,num_water &
-                      ,pint,pmid,exner,rr,dz &
+                      ,phint,phmid,exner,rr,dz &
                       ,xland,cu_act_flag &
                       ,raincv,cutop,cubot &
                       ,dudt_phy,dvdt_phy &

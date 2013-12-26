@@ -41,7 +41,7 @@
                        ,DT,NTSD,NCNVC &
                        ,TH,T,SICE,OMGALF,SHEAT,LHEAT,PBLH,U,V &
                        ,WATER,P_QV,P_QC,P_QR,P_QS,P_QI,P_QG,NUM_WATER &
-                       ,PINT,PMID,exner,RR,DZ &
+                       ,PHINT,PHMID,exner,RR,DZ &
                        ,XLAND,CU_ACT_FLAG &
                        ,RAINCV,CUTOP,CUBOT &   !! out below
                        ,DUDT,DVDT &
@@ -68,10 +68,10 @@
        XLAND,SICE,PBLH,SHEAT,LHEAT
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:lm),INTENT(IN):: &
-       dz,exner,OMGALF,pmid,rr,t,th,U,V 
+       dz,exner,OMGALF,phmid,rr,t,th,U,V 
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:lm+1),INTENT(IN):: &
-       pint
+       phint
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:lm,NUM_WATER),INTENT(IN):: &
        WATER 
@@ -219,10 +219,10 @@
            ZF(K) = ZF(K-1) + DZ(I,J,KFLIP)
           ENDDO
            delt = 2.0 * DTCNVC
-           PSP(1) = PINT(I,J,lm+1)        ! Surface pressure, Pa
+           PSP(1) = PHINT(I,J,lm+1)        ! Surface pressure, Pa
           DO K=1,lm
            kflip = LM + 1 -K
-           prsl(1,K)  = pmid(I,J,KFLIP)
+           prsl(1,K)  = phmid(I,J,KFLIP)
            delp(1,K)  = RR(I,J,KFLIP)*g99*DZ(I,J,KFLIP) 
            phil(1,K)  = 0.5*(ZF(K) + ZF(K+1) )*g99              
            u1(1,K)    = (U(I,J  ,KFLIP)+U(I-1,J  ,KFLIP)                       & 

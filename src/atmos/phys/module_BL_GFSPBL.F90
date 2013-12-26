@@ -47,7 +47,7 @@
 !-----------------------------------------------------------------------
         SUBROUTINE GFSPBL(DT,NPHS,DP,AIRDEN                              &
      &                    ,RIB                                            &
-     &                    ,PMID,PINT,T, ZINT                              &
+     &                    ,PHMID,PHINT,T,ZINT                             &
      &                    ,NUM_WATER,WATER                                &
      &                    ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG                  &
      &                    ,U,V                                            &
@@ -98,8 +98,8 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE),INTENT(IN)::  RSWTT, RLWTT
 
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE),INTENT(IN) :: DP,PMID,AIRDEN
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) :: PINT,ZINT
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE),INTENT(IN) :: DP,PHMID,AIRDEN
+      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) :: PHINT,ZINT
       REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE),INTENT(IN) :: U,V,T
 
       REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE,NUM_WATER),INTENT(IN)::   &
@@ -213,8 +213,8 @@
            QKLOW=WATER(I,J,K,P_QV)/(1.0+ WATER(I,J,K,P_QV))
            CWMKLOW=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)+WATER(I,J,K,P_QI)+ &
                    WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
-           RHOKLOW=PMID(I,J,K)/(RD99*T(I,J,K)*(1.+P608*QKLOW-CWMKLOW))
-           THSK=TSK(I,J)*(1.E5/PINT(I,J,LM+1))**CAPPA
+           RHOKLOW=PHMID(I,J,K)/(RD99*T(I,J,K)*(1.+P608*QKLOW-CWMKLOW))
+           THSK=TSK(I,J)*(1.E5/PHINT(I,J,LM+1))**CAPPA
 
   !
   !***  COUNTING DOWNWARD FROM THE TOP, THE EXCHANGE COEFFICIENTS AKH
@@ -238,7 +238,7 @@
                   ENDIF
   !
                 ELSE
-                  PSFC=PINT(I,J,KTE+1)
+                  PSFC=PHINT(I,J,KTE+1)
                   EXNSFC=(1.E5/PSFC)**CAPPA
   
                  QSFC(I,J)=PQ0SEA/PSFC                                      &
@@ -276,7 +276,7 @@
          
            DO K=1,LM+1
               KFLIP = LM+1+1-K
-              prsi(1,K)  = PINT(I,J,KFLIP)   !! pa
+              prsi(1,K)  = PHINT(I,J,KFLIP)   !! pa
               prsik(1,K) = (prsi(1,K)*1.e-5)**CAPPA
               phii(1,K)  = ZINT(I,J,KFLIP)*G99
            ENDDO
@@ -297,14 +297,14 @@
         !       endif
 
               del(1,K)  = DP(I,J,KFLIP)     !! pa
-              prsl(1,K) = PMID(I,J,KFLIP)  !! pa
+              prsl(1,K) = PHMID(I,J,KFLIP)  !! pa
               prslk(1,K)= (prsl(1,K)*1.0e-5)**CAPPA
              !! phil(1,K) = G99*0.5*(ZINT(I,J,KFLIP)+ZINT(I,J,KFLIP+1))
              !! phil(1,K) = 0.5*(phii(1,K)+phii(1,K+1)) 
               swh(1,K) = RSWTT(I,J,KFLIP)    !!0.0  
               hlw(1,K) = RLWTT(I,J,KFLIP)    !!0.0 
-                 zmid1=zint(i,j,kflip+1)+pmid(i,j,kflip)/airden(i,j,kflip)/g99 &
-                          *alog(pint(i,j,kflip+1)/pmid(i,j,kflip))
+                 zmid1=zint(i,j,kflip+1)+phmid(i,j,kflip)/airden(i,j,kflip)/g99 &
+                          *alog(phint(i,j,kflip+1)/phmid(i,j,kflip))
               !!write(0,*)'K=',phil(1,k)/g99
                  phil(1,K)=zmid1*G99 
               !!write(0,*)'K=,new',phil(1,k)/g99
@@ -317,7 +317,7 @@
               phii(1,:)=phii(1,:)-surface  !!phii(1,1)
 
            seamask = xland(i,j) - 1.0
-           plow    = pint(i,j,LM+1)
+           plow    = phint(i,j,LM+1)
            tz0     = thz0(i,j)*(plow*1.0e-05)**CAPPA
            hflx(1) = SHEAT(I,J)/AIRDEN(I,J,LM)/CP99            ! W/m2 to K m/s
            evap(1) = LHEAT(I,J)/AIRDEN(I,J,LM)/XLV

@@ -397,7 +397,7 @@
 !
 !-----------------------------------------------------------------------
       SUBROUTINE GFDL(DT,THRATEN,THRATENLW,THRATENSW,CLDFRA,PI3D        &
-     &                ,XLAND,P8W,T                                      &
+     &                ,XLAND,PHINT,T                                    &
      &                ,QV,QW,QI,QS                                      & 
      &                ,F_QV,F_QC,F_QR,F_QI ,F_QS,F_QG                   &
      &                ,TSK2D,GLW,RSWIN,GSW,RSWINC                       &
@@ -429,7 +429,7 @@
       REAL,INTENT(INOUT),DIMENSION(ims:ime, jms:jme, kts:kte):: CLDFRA
       REAL,INTENT(INOUT),DIMENSION(ims:ime, jms:jme, kts:kte):: THRATEN &
                                                    ,THRATENLW,THRATENSW
-      REAL,INTENT(IN),DIMENSION(ims:ime, jms:jme, kms:kme)::   p8w
+      REAL,INTENT(IN),DIMENSION(ims:ime, jms:jme, kms:kme)::   phint
       REAL,INTENT(IN),DIMENSION(ims:ime, jms:jme, kts:kte)::     t,     &
      &                                                          qs,     &
      &                                                          qv,     &
@@ -490,7 +490,7 @@
 !
 !***  USE MONOTONIC HYDROSTATIC PRESSURE INTERPOLATED TO MID-LEVEL
 !
-          PFLIP(I,J,K)=0.5*(P8W(I,J,K)+P8W(I,J,K+1))
+          PFLIP(I,J,K)=0.5*(PHINT(I,J,K)+PHINT(I,J,K+1))
         ENDDO
         ENDDO
       ENDDO
@@ -514,7 +514,7 @@
 
 !-----------------------------------------------------------------------
       CALL RADTN (DT,T,QFLIP,QWFLIP,QIFLIP,                             &
-     &            PFLIP,P8W,XLAND,TSK2D,                                &
+     &            PFLIP,PHINT,XLAND,TSK2D,                              &
      &            GLAT,GLON,CUTOP,CUBOT,ALBEDO,CUPPT,                   &
      &            ACFRCV,NCFRCV,ACFRST,NCFRST,                          &
      &            SNOW,GLW,GSW,RSWIN,RSWINC,                            &
@@ -597,7 +597,7 @@
 !
 !-----------------------------------------------------------------------
       SUBROUTINE RADTN(DT,T,Q,QCW,QICE,                                 &
-     &                 PFLIP,P8W,XLAND,TSK2D,                           &
+     &                 PFLIP,PHINT,XLAND,TSK2D,                         &
      &                 GLAT,GLON,CUTOP,CUBOT,ALB,CUPPT,                 &
      &                 ACFRCV,NCFRCV,ACFRST,NCFRST,                     &
      &                 SNO,GLW,GSW,RSWIN,RSWINC,                        &
@@ -744,7 +744,7 @@
       LOGICAL :: NEW_CLOUD
 !-----------------------------------------------------------------------
       REAL, INTENT(IN), DIMENSION(ims:ime,jms:jme) :: XLAND,TSK2D
-      REAL, INTENT(IN), DIMENSION(ims:ime, jms:jme, kms:kme):: P8W      &
+      REAL, INTENT(IN), DIMENSION(ims:ime, jms:jme, kms:kme):: PHINT    &
      &                                                        ,PFLIP    &
      &                                                        ,Q,QCW    &
      &                                                        ,QICE     &
@@ -976,7 +976,7 @@
 !
       DO L=1,LML
         PMID(I,L+LVLIJ)=PFLIP(I,J,L)
-        PINT(I,L+LVLIJ+1)=P8W(I,J,L+1)
+        PINT(I,L+LVLIJ+1)=PHINT(I,J,L+1)
         EXNER=(1.E5/PMID(I,L+LVLIJ))**CAPPA
         TMID(I,L+LVLIJ)=T(I,J,L)
         THMID(I,L+LVLIJ)=T(I,J,L)*EXNER
@@ -996,7 +996,7 @@
 !
         DO L=LVLIJ,1,-1
           KNTLYR=KNTLYR+1
-          PMID(I,L)=P8W(I,J,1)-REAL(2*KNTLYR-1)*HPINC
+          PMID(I,L)=PHINT(I,J,1)-REAL(2*KNTLYR-1)*HPINC
           PINT(I,L+1)=PMID(I,L)+HPINC
           EXNER=(1.E5/PMID(I,L))**CAPPA
           THMID(I,L)=TMID(I,L)*EXNER
@@ -1004,7 +1004,7 @@
       ENDIF
 !
       IF(LVLIJ.EQ.0) THEN
-         PINT(I,1)=P8W(I,J,1)
+         PINT(I,1)=PHINT(I,J,1)
       ELSE
          PINT(I,1)=PMID(I,1)-HPINC
       ENDIF
@@ -1015,7 +1015,7 @@
 !***  NEGATIVE OVER WATER.
 !***
       DO 250 I=MYIS,MYIE
-      PSFC(I)=P8W(I,J,KME)
+      PSFC(I)=PHINT(I,J,KME)
       APES=(PSFC(I)*1.E-5)**CAPPA
       IF((XLAND(I,J)-1.5).GT.0.)THEN
         TSKN(I)=-TSK2D(I,J)
