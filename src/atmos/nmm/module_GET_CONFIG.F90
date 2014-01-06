@@ -880,40 +880,6 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="GET_CONFIG: Extract IDTAD from Config File"
-      IF(int_state%PRINT_ESMF .OR. int_state%PRINT_ALL) &
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =int_state%IDTAD               &  !<-- Put extracted quantity here
-                                  ,label ='idtad:'                      &  !<-- The quantity's label in the configure file
-                                  ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="GET_CONFIG: Extract ADVECT_TRACERS from Config File"
-      IF(int_state%PRINT_ESMF .OR. int_state%PRINT_ALL) &
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =int_state%ADVECT_TRACERS      &  !<-- Put extracted quantity here
-                                  ,label ='advect_tracers:'             &  !<-- The quantity's label in the configure file
-                                  ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="GET_CONFIG: Extract IDTADT from Config File"
       IF(int_state%PRINT_ESMF .OR. int_state%PRINT_ALL) &
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)

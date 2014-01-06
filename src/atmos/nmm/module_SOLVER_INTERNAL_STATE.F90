@@ -90,7 +90,6 @@
                           ,WCOR
 !
         LOGICAL(kind=KLOG) :: ADIABATIC                                 &
-                             ,ADVECT_TRACERS                            &
                              ,FIRST_NMM                                 &
                              ,FREERUN                                   &
                              ,GLOBAL                                    &
@@ -197,7 +196,7 @@
         INTEGER(kind=KINT), POINTER :: IHRST,MDRMINout,MDRMAXout        &
                                       ,MDIMINout,MDIMAXout
 !
-        INTEGER(kind=KINT) :: NTSD,IDTAD,IDTADT,IHR,IHREND              &
+        INTEGER(kind=KINT) :: NTSD,IDTADT,IHR,IHREND                    &
                              ,LNSAD,NBOCO,NTSTI,NTSTM,NTSTM_MAX
 !
         INTEGER(kind=KINT),DIMENSION(:), POINTER :: IDAT
@@ -299,13 +298,6 @@
                                                  ,RST_BC_DATA_NORTH     &  !    for each side of the domain.
                                                  ,RST_BC_DATA_WEST      &  !
                                                  ,RST_BC_DATA_EAST         !<--
-!
-!-----------------------------------------------------------------------
-!***  FFT arrays.
-!-----------------------------------------------------------------------
-!
-        REAL(kind=KDBL),DIMENSION(:),POINTER :: CRAUX1,CRAUX2,CRAUX3    &
-                                               ,RCAUX1,RCAUX2,RCAUX3
 !
 !-----------------------------------------------------------------------
 !***  Some physics variables are needed.
@@ -1312,17 +1304,6 @@
       ALLOCATE(int_state%PFX (IMS:IME,JMS:JME,1:LM))      ;int_state%PFX    = R4_IN  !<-- Mass flux, X direction
       ALLOCATE(int_state%PFY (IMS:IME,JMS:JME,1:LM))      ;int_state%PFY    = R4_IN  !<-- Mass flux, Y direction
       ALLOCATE(int_state%TDIV(IMS:IME,JMS:JME,1:LM))      ;int_state%TDIV   = R4_IN  !<-- Integrated horizontal mass divergence
-!
-!-----------------------------------------------------------------------
-!***  FFT arrays
-!-----------------------------------------------------------------------
-!
-      ALLOCATE(INT_STATE%CRAUX1(1:25000))                 ;int_state%CRAUX1 = R8_IN  !<-- FFT working field
-      ALLOCATE(INT_STATE%CRAUX2(1:20000))                 ;int_state%CRAUX2 = R8_IN  !<-- FFT working field
-      ALLOCATE(INT_STATE%CRAUX3(1:1    ))                 ;int_state%CRAUX3 = R8_IN  !<-- FFT working field
-      ALLOCATE(INT_STATE%RCAUX1(1:25000))                 ;int_state%RCAUX1 = R8_IN  !<-- FFT working field
-      ALLOCATE(INT_STATE%RCAUX2(1:20000))                 ;int_state%RCAUX2 = R8_IN  !<-- FFT working field
-      ALLOCATE(INT_STATE%RCAUX3(1:1    ))                 ;int_state%RCAUX3 = R8_IN  !<-- FFT working field
 !
 !-----------------------------------------------------------------------
 !***  Prognostic arrays

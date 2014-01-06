@@ -174,9 +174,9 @@
 !-- INPUT variables:
 !
       REAL, INTENT(IN):: DTPHS,CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN
-      REAL, INTENT(IN), DIMENSION (ims:ime, 1:lm+1, jms:jme) ::        &
-     &                                   Z,PINT
-      REAL, INTENT(IN), DIMENSION (ims:ime, 1:lm, jms:jme) ::        &
+      REAL, INTENT(IN), DIMENSION (ims:ime, jms:jme, 1:lm+1) ::        &
+     &                                   Z, PINT
+      REAL, INTENT(IN), DIMENSION (ims:ime, jms:jme, 1:lm) ::        &
      &                                   U,V,T,Q,DP,PMID,EXNR
       REAL, INTENT(IN), DIMENSION (ims:ime, jms:jme) :: HSTDV,HCNVX     &
      &      ,HASYW,HASYS,HASYSW,HASYNW,HLENW,HLENS,HLENSW,HLENNW,HANGL  &
@@ -190,7 +190,7 @@
 !
 !-- OUTPUT variables:
 !
-      REAL, INTENT(OUT), DIMENSION (ims:ime, 1:lm, jms:jme) ::       &
+      REAL, INTENT(OUT), DIMENSION (ims:ime, jms:jme, 1:lm) ::       &
      &                                                        DUDT,DVDT
 !--- when NPS is done with GWD, add wind stresses in output
       REAL,              DIMENSION (ims:ime, jms:jme) :: UGWDsfc,VGWDsfc
@@ -208,7 +208,7 @@
       REAL(KIND=KIND_PHYS), DIMENSION (IM,1:LM) :: DUDTcol,DVDTcol   &
      &,                    Ucol,Vcol,Tcol,Qcol,DPcol,Pcol,EXNcol,PHIcol
       REAL(KIND=KIND_PHYS), DIMENSION (IM,1:LM+1) :: PINTcol,PHILIcol
-      INTEGER :: I,J,IJ,K,IMX,Imid,Jmid
+      INTEGER :: I,J,IJ,K,KFLIP,IMX,Imid,Jmid
       REAL :: Ugeo,Vgeo,Umod,Vmod, TERRtest,TERRmin
       REAL(KIND=KIND_PHYS) :: TEST
 !
@@ -219,11 +219,11 @@
       DELTIM=DTPHS
       RDELTIM=1./DTPHS
 !
-      DO J=JMS,JME
       DO K=1,LM
+      DO J=JMS,JME
       DO I=IMS,IME
-        DUDT(I,K,J)=0.
-        DVDT(I,K,J)=0.
+        DUDT(I,J,K)=0.
+        DVDT(I,J,K)=0.
       ENDDO
       ENDDO
       ENDDO
@@ -250,7 +250,7 @@
 !-- Initial test to see if GWD calculations should be made, otherwise skip
 !
           TERRtest=HZMAX(I,J)+SIGFAC*HSTDV(I,J)
-          TERRmin=Z(I,2,J)-Z(I,1,J)
+          TERRmin=Z(I,J,LM)-Z(I,J,LM+1)
           IF (TERRtest < TERRmin) then
             GO TO 100
           endif
@@ -258,33 +258,34 @@
 !-- For debugging:
 !
           DO K=1,LM
+            KFLIP = LM-K+1
             DUDTcol(IM,K)=0.
             DVDTcol(IM,K)=0.
 !
 !-- Transform/rotate winds from model to geodetic (Earth) coordinates
 !
-            Ucol(IM,K)=U(I,K,J)*CROT(I,J)+V(I,K,J)*SROT(I,J)
-            Vcol(IM,K)=V(I,K,J)*CROT(I,J)-U(I,K,J)*SROT(I,J)
+            Ucol(IM,K)=U(I,J,KFLIP)*CROT(I,J)+V(I,J,KFLIP)*SROT(I,J)
+            Vcol(IM,K)=V(I,J,KFLIP)*CROT(I,J)-U(I,J,KFLIP)*SROT(I,J)
 !
-            Tcol(IM,K)=T(I,K,J)
-            Qcol(IM,K)=Q(I,K,J)
+            Tcol(IM,K)=T(I,J,KFLIP)
+            Qcol(IM,K)=Q(I,J,KFLIP)
 !
 !-- Convert from Pa to centibars, which is what's used in subroutine GWD_col
 !
-            DPcol(IM,K)=.001*DP(I,K,J)
-            PINTcol(IM,K)=.001*PINT(I,K,J)
-            Pcol(IM,K)=.001*PMID(I,K,J)
-            EXNcol(IM,K)=EXNR(I,K,J)
+            DPcol(IM,K)=.001*DP(I,J,KFLIP)
+            PINTcol(IM,K)=.001*PINT(I,J,KFLIP+1)
+            Pcol(IM,K)=.001*PMID(I,J,KFLIP)
+            EXNcol(IM,K)=EXNR(I,J,KFLIP)
 !
 !-- Next 2 fields are geopotential above the surface at the lower interface 
 !   and at midlayer
 !
-            PHILIcol(IM,K)=G*(Z(I,K,J)-Z(I,1,J))
-            PHIcol(IM,K)=GHALF*(Z(I,K,J)+Z(I,K+1,J))-G*Z(I,1,J)
+            PHILIcol(IM,K)=G*(Z(I,J,KFLIP+1)-Z(I,J,LM+1))
+            PHIcol(IM,K)=GHALF*(Z(I,J,KFLIP+1)+Z(I,J,KFLIP))-G*Z(I,J,LM+1)
           ENDDO   !- K
 !
-          PINTcol(IM,LM+1)=.001*PINT(I,LM+1,J)
-          PHILIcol(IM,LM+1)=G*(Z(I,LM+1,J)-Z(I,1,J))
+          PINTcol(IM,LM+1)=.001*PINT(I,J,1)
+          PHILIcol(IM,LM+1)=G*(Z(I,J,1)-Z(I,J,LM+1))
 !
 !-- Terrain-specific inputs:
 !
@@ -302,7 +303,7 @@
           SIGMA(IM)=HSLOP(I,J)       !
           GAMMA(IM)=HANIS(I,J)       !
           ELVMAX(IM)=HZMAX(I,J)      !
-          LPBL(IM)=KPBL(I,J)      !
+          LPBL(IM)=LM+1-KPBL(I,J)      !
 !
 !-- Output (diagnostics)
 !
@@ -321,6 +322,7 @@
 !=======================================================================
 !
           DO K=1,LM
+            KFLIP=LM-K+1
             TEST=ABS(DUDTcol(IM,K))+ABS(DVDTcol(IM,K))
             IF (TEST > THRESH) THEN
 !
@@ -336,10 +338,10 @@
 !
 !-- Calculate wind tendencies from the updated model winds
 !
-              DUDT(I,K,J)=RDELTIM*(Umod-U(I,K,J))
-              DVDT(I,K,J)=RDELTIM*(Vmod-V(I,K,J))
+              DUDT(I,J,KFLIP)=RDELTIM*(Umod-U(I,J,KFLIP))
+              DVDT(I,J,KFLIP)=RDELTIM*(Vmod-V(I,J,KFLIP))
 !
-test=abs(dudt(i,k,j))+abs(dvdt(i,k,j))
+!dtest=abs(dudt(i,k,j))+abs(dvdt(i,k,j))
             ENDIF     !- IF (TEST > THRESH) THEN
 !
           ENDDO   !- K

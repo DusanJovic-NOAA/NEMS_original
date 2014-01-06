@@ -25,7 +25,7 @@
       USE MODULE_LS_LISS
       USE MODULE_GWD
 !
-      USE MODULE_CONSTANTS,ONLY : A2,A3,A4,CP,ELIV,ELWV,EP_1,EPSQ,EPSQ2 &
+      USE MODULE_CONSTANTS,ONLY : CP,ELIV,ELWV,EPSQ,EPSQ2               &
                                  ,G,P608,PI,PQ0,R_D,R_V,RHOWATER        &
                                  ,STBOLT,CAPPA
 !
@@ -275,7 +275,7 @@
 !
       REAL(kind=KFPT),PARAMETER :: XLV=ELWV
 !
-      INTEGER(kind=KINT) :: I,I_M,IEND,IJ,ISTR,IW,J,K,KFLIP,KOUNT_ALL   &
+      INTEGER(kind=KINT) :: I,I_M,IEND,IJ,ISTR,IW,J,K,KOUNT_ALL   &
                            ,LENGTH_ROW,N,NRDL,NRL,NWL,SST_UPDATE
 !
       INTEGER(kind=KINT) :: PBL_PHYSICS,SFCLAY_PHYSICS,SURFACE_PHYSICS
@@ -284,8 +284,7 @@
                            ,NUM_ROOF_LAYERS                             &
                            ,NUM_WALL_LAYERS
 !
-      INTEGER(kind=KINT),DIMENSION(IMS:IME,JMS:JME) :: KPBL             &
-                                                      ,UTYPE_URB2D
+      INTEGER(kind=KINT),DIMENSION(IMS:IME,JMS:JME) :: UTYPE_URB2D
 !
       REAL(kind=KFPT) :: ALTITUDE,DECLIN_URB,DQDT,DTBL,DTDT,DTMIN,DTPHS,DZHALF &
                         ,FACTOR,FACTRL,G_INV,PDSL,PLM,PLYR,PSFC                &
@@ -309,16 +308,10 @@
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: PHINT,Z
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM) :: DUDT_PHY,DVDT_PHY,RTHBLTEN,RQVBLTEN       &
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM) :: RTHBLTEN,RQVBLTEN       &
                                                         ,RQCBLTEN,RQIBLTEN, RQRBLTEN, RQSBLTEN,RQGBLTEN
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,1:LM+1,JMS:JME) :: PHINT_GWD,Z_GWD
-!
-      REAL(kind=KFPT),DIMENSION(IMS:IME,1:LM,JMS:JME) :: DP_GWD,EXNR_GWD         &
-                                                          ,PHMID_GWD,Q_GWD &
-                                                          ,T_GWD,U_GWD,V_GWD
-!
-      REAL(kind=KFPT),DIMENSION(IMS:IME,1:LM,JMS:JME) :: DUDT_GWD,DVDT_GWD
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM) :: DUDT_GWD,DVDT_GWD
 
       REAL(kind=KFPT),DIMENSION(1:NSOIL) :: DZB,DZR,DZG
 !
@@ -410,15 +403,13 @@
 !.......................................................................
 !$omp parallel do private(j,k,i)
 !.......................................................................
-      DO J=JMS,JME
       DO K=1,LM
+      DO J=JMS,JME
       DO I=IMS,IME
         U_PHY(I,J,K)=0.
         V_PHY(I,J,K)=0.
-        U_GWD(I,K,J)=0.
-        V_GWD(I,K,J)=0.
-        DUDT_PHY(I,J,K)=0.
-        DVDT_PHY(I,J,K)=0.
+        DUDT(I,J,K)=0.
+        DVDT(I,J,K)=0.
       ENDDO
       ENDDO
       ENDDO
@@ -437,7 +428,6 @@
       DO J=JMS,JME
       DO I=IMS,IME
         ONE(I,J)=1.
-        KPBL(I,J)=0
         RMOL(I,J)=0.     !Reciprocal of Monin-Obukhov length
         SFCEVPX(I,J)=0.  !Dummy for accumulated latent energy, not flux
       ENDDO
@@ -499,7 +489,6 @@
       DO J=JTS,JTE
       DO I=ITS,ITE
         Z(I,J,K)=0.
-        Z_GWD(I,K,J)=0.
       ENDDO
       ENDDO
       ENDDO
@@ -529,7 +518,7 @@
 !
 !.......................................................................
 !$omp parallel do                                                     &
-!$omp private(j,i,pdsl,psfc,plm,tlmh,factrl,k,kflip,plyr,ql,tl        &
+!$omp private(j,i,pdsl,psfc,plm,tlmh,factrl,k,plyr,ql,tl        &
 !$omp        ,rxner),SCHEDULE(dynamic)
 !.......................................................................
       DO J=JTS,JTE
@@ -538,7 +527,6 @@
         PDSL=PD(I,J)
         PSFC=SG2(LM+1)*PDSL+PSG1(LM+1)
         PHINT(I,J,LM+1)=PSFC
-        PHINT_GWD(I,1,J)=PHINT(I,J,LM+1)
         EXNSFC(I,J)=(1.E5/PSFC)**CAPPA
         THS(I,J)=(SST(I,J)*EXNSFC(I,J))*SM(I,J)+THS(I,J)*(1.-SM(I,J))
         TSFC(I,J)=THS(I,J)/EXNSFC(I,J)
@@ -598,29 +586,23 @@
 !-----------------------------------------------------------------------
 !
         Z(I,J,LM+1)=SFCZ(I,J)
-        Z_GWD(I,1,J)=Z(I,J,LM+1)
 !
 !-----------------------------------------------------------------------
 !***  Fill vertical working arrays.
 !-----------------------------------------------------------------------
 !
         DO K=LM,1,-1
-          KFLIP=LM+1-K
 !
           PLYR=SGML2(K)*PDSL+PSGML1(K)
           QL=MAX(Q(I,J,K),EPSQ)
           TL=T(I,J,K)
 !
           RR(I,J,K)=PLYR/(R_D*TL)
-          T_GWD(I,KFLIP,J)=T(I,J,K)
           RXNER=(1.E5/PLYR)**CAPPA
           EXNER(I,J,K)=1./RXNER
-          EXNR_GWD(I,KFLIP,J)=EXNER(I,J,K)
           TH(I,J,K)=TL*RXNER
           PHINT(I,J,K)=SG2(K)*PD(I,J)+PSG1(K)
-          PHINT_GWD(I,KFLIP+1,J)=PHINT(I,J,K)
           PHMID(I,J,K)=PLYR
-          PHMID_GWD(I,KFLIP,J)=PHMID(I,J,K)
 !
           RQCBLTEN(I,J,K)=0.
           RQIBLTEN(I,J,K)=0.
@@ -636,13 +618,8 @@
                     *(PHINT(I,J,K+1)-PHINT(I,J,K))                      &
                     /(PLYR*G)
           Z(I,J,K)=Z(I,J,K+1)+DZ(I,J,K)
-          Z_GWD(I,KFLIP+1,J)=Z(I,J,K)
 !
           DELP(I,J,K)=PHINT(I,J,K+1)-PHINT(I,J,K)
-          DP_GWD(I,KFLIP,J)=DELP(I,J,K)
-!
-          DUDT_PHY(I,J,K)=0.
-          DVDT_PHY(I,J,K)=0.
 !
         ENDDO
       ENDDO
@@ -680,18 +657,15 @@
 !
 !.......................................................................
 !$omp parallel do                                                       &
-!$omp& private(j,i,k,kflip)
+!$omp& private(k,j,i)
 !.......................................................................
-      DO J=JTS_B1,JTE_B1
-        DO K=1,LM
-          KFLIP=LM+1-K
+      DO K=1,LM
+         DO J=JTS_B1,JTE_B1
           DO I=ITS_B1,ITE_B1
             U_PHY(I,J,K)=(U(I,J  ,K)+U(I-1,J  ,K)                       &
                          +U(I,J-1,K)+U(I-1,J-1,K))*0.25
             V_PHY(I,J,K)=(V(I,J  ,K)+V(I-1,J  ,K)                       &
                          +V(I,J-1,K)+V(I-1,J-1,K))*0.25
-            U_GWD(I,KFLIP,J)=U_PHY(I,J,K)
-            V_GWD(I,KFLIP,J)=V_PHY(I,J,K)
           ENDDO
         ENDDO
       ENDDO
@@ -995,10 +969,10 @@
                          ,QZ0=QZ0,UZ0=UZ0,VZ0=VZ0                       &
                          ,XLAND=XLAND,SICE=SICE,SNOW=SNOW               &
                          ,Q2=Q2,EXCH_H=EXCH_H,USTAR=USTAR,Z0=Z0         &
-                         ,EL_MYJ=XLEN_MIX,PBLH=PBLH,KPBL=KPBL,CT=CT     &
+                         ,EL_MYJ=XLEN_MIX,PBLH=PBLH,KPBL=LPBL,CT=CT     &
                          ,AKHS=AKHS,AKMS=AKMS,ELFLX=ELFLX,MIXHT=MIXHT   &
-                         ,RUBLTEN=DUDT_PHY                              &
-                         ,RVBLTEN=DVDT_PHY                              &
+                         ,RUBLTEN=DUDT                                  &
+                         ,RVBLTEN=DVDT                                  &
                          ,RTHBLTEN=RTHBLTEN                             &
                          ,RQVBLTEN=RQVBLTEN                             &
                          ,RQCBLTEN=RQCBLTEN                             &
@@ -1031,10 +1005,10 @@
                          ,QSFC=QS                                        &
                          ,TSK=TSFC,SNOW=SNOW,SICE=SICE,CHKLOWQ=CHKLOWQ   &
                          ,FACTRS=FACTRS,RSWTT=RSWTT,RLWTT=RLWTT          &    !! radiative heating
-                         ,PBLH=PBLH,PBLK=KPBL                            &
+                         ,PBLH=PBLH,PBLK=LPBL                            &
                          ,MIXHT=MIXHT                                    &
-                         ,RUBLTEN=DUDT_PHY                               &
-                         ,RVBLTEN=DVDT_PHY                               &
+                         ,RUBLTEN=DUDT                                   &
+                         ,RVBLTEN=DVDT                                   &
                          ,RTHBLTEN=RTHBLTEN                              &
                          ,RQVBLTEN=RQVBLTEN                              &
                          ,RQCBLTEN=RQCBLTEN                              &
@@ -1147,7 +1121,7 @@
         LENGTH_ROW=ITE_B1-ITS_B1+1
         DO J=JTS_B1,JTE_B1
         DO I=ITS_B1,ITE_B1
-          KPBL(I,J)=-1000
+          LPBL(I,J)=-1000
         ENDDO
         ENDDO
 !
@@ -1157,16 +1131,16 @@
 !.......................................................................
         DO J=JTS_B1,JTE_B1
           KOUNT_ALL=0
-          find_kpbl : DO K=LM,1,-1
+          find_Lpbl : DO K=LM,1,-1
           DO I=ITS_B1,ITE_B1
             ALTITUDE=Z(I,J,K)-SFCZ(I,J)
-            IF(PBLH(I,J)<=ALTITUDE.AND.KPBL(I,J)<0)THEN
-              KPBL(I,J)=K
+            IF(PBLH(I,J)<=ALTITUDE.AND.LPBL(I,J)<0)THEN
+              LPBL(I,J)=K
               KOUNT_ALL=KOUNT_ALL+1
             ENDIF
-            IF(KOUNT_ALL==LENGTH_ROW)EXIT find_kpbl
+            IF(KOUNT_ALL==LENGTH_ROW)EXIT find_Lpbl
           ENDDO
-          ENDDO find_kpbl
+          ENDDO find_Lpbl
         ENDDO
 !.......................................................................
 !$omp end parallel do
@@ -1183,7 +1157,6 @@
       DO I=ITS_B1,ITE_B1
         SNO(I,J)=SNOW(I,J)
         SI(I,J)=SNOWH(I,J)*SNO_FACTR
-        LPBL(I,J)=KPBL(I,J)      !<--- Layer top of PBL counting downward
       ENDDO
       ENDDO
 !
@@ -1221,25 +1194,11 @@
 !=======================================================================
 !
       IF(GWDFLG) THEN
-        DO K=1,LM
-        KFLIP=LM+1-K
-        DO J=JMS,JME
-        DO I=IMS,IME
-          Q_GWD(I,KFLIP,J)=WATER(I,J,K,P_QV)
-        ENDDO
-        ENDDO
-        ENDDO
 
-        DO J=JMS,JME
-        DO I=IMS,IME
-          KPBL(I,J)=LM+1-KPBL(I,J)
-        ENDDO
-        ENDDO
-
-        CALL GWD_DRIVER(DTPHS,U_GWD,V_GWD,T_GWD,Q_GWD                   &
-                       ,Z_GWD,DP_GWD                                    &
-                       ,PHINT_GWD,PHMID_GWD,EXNR_GWD                    &
-                       ,KPBL                                            &
+        CALL GWD_DRIVER(DTPHS,U_PHY,V_PHY,T,WATER(IMS,JMS,1,P_QV)       &
+                       ,Z,DELP                                          &
+                       ,PHINT,PHMID,EXNER                               &
+                       ,LPBL                                            &
                        ,HSTDV,HCNVX,HASYW,HASYS                         &
                        ,HASYSW,HASYNW,HLENW                             &
                        ,HLENS,HLENSW,HLENNW                             &
@@ -1251,7 +1210,18 @@
                        ,IDS,IDE,JDS,JDE                                 &
                        ,IMS,IME,JMS,JME                                 &
                        ,ITS,ITE,JTS,JTE,LM )
-!
+
+!$omp parallel do private(k,j,i)
+        DO K=1,LM
+        DO J=JMS,JME
+        DO I=IMS,IME
+          DUDT(I,J,K)=DUDT(I,J,K)+DUDT_GWD(I,J,K)
+          DVDT(I,J,K)=DVDT(I,J,K)+DVDT_GWD(I,J,K)
+        ENDDO
+        ENDDO
+        ENDDO
+!$omp end parallel do
+
       ENDIF
 !
 !=======================================================================
@@ -1335,45 +1305,6 @@
 
 !.......................................................................
 !$omp end parallel do
-!.......................................................................
-!
-!-----------------------------------------------------------------------
-!***  Transfer the wind tendencies.
-!-----------------------------------------------------------------------
-!
-      gwd_update: IF(GWDFLG) THEN
-!.......................................................................
-!$omp parallel do private(j,k,i,kflip)
-!.......................................................................
-        DO J=JMS,JME
-          DO K=1,LM
-            KFLIP=LM+1-K
-            DO I=IMS,IME
-              DUDT(I,J,K)=DUDT_PHY(I,J,K)+DUDT_GWD(I,KFLIP,J)
-              DVDT(I,J,K)=DVDT_PHY(I,J,K)+DVDT_GWD(I,KFLIP,J)
-            ENDDO
-          ENDDO
-        ENDDO
-!.......................................................................
-!$omp end parallel do
-!.......................................................................
-!
-      ELSE
-!.......................................................................
-!$omp parallel do private(k,j,i)
-!.......................................................................
-        DO K=1,LM
-        DO J=JMS,JME
-        DO I=IMS,IME
-          DUDT(I,J,K)=DUDT_PHY(I,J,K)
-          DVDT(I,J,K)=DVDT_PHY(I,J,K)
-        ENDDO
-        ENDDO
-        ENDDO
-!.......................................................................
-!$omp end parallel do
-!
-      ENDIF gwd_update
 !.......................................................................
 !
 !-----------------------------------------------------------------------

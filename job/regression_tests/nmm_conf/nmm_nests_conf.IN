@@ -130,9 +130,6 @@ smag2:   0.2                # Smagorinsky constant for 2nd order diffusion
 codamp:  9.0                # Divergence damping constant
 wcor:    0.18               # Divergence correction factor
  
-idtad:   2                  # Number of adjustment timesteps between passive advection calls
-
-advect_tracers:  true       # Will tracers be advected?
 idtadt:  2                  # Number of adjustment timesteps between tracer advection calls (normally 1)
 
 num_tracers_met:   4        # Number of specified meterological "tracer" scalars (e.g., water)

@@ -2052,7 +2052,6 @@
         timers(n)%exch_tim=0.
         timers(n)%fftfhn_tim=0.
         timers(n)%fftfwn_tim=0.
-        timers(n)%hadv2_tim=0.
         timers(n)%hdiff_tim=0.
         timers(n)%mono_tim=0.
         timers(n)%pdtsdt_tim=0.
@@ -2068,7 +2067,6 @@
         timers(n)%swaphn_tim=0.
         timers(n)%swapwn_tim=0.
         timers(n)%updatet_tim=0.
-        timers(n)%vadv2_tim=0.
         timers(n)%vsound_tim=0.
         timers(n)%vtoa_tim=0.
         timers(n)%adjppt_tim=0.

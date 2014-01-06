@@ -32,7 +32,7 @@
                           ,cdwdt_tim,cdzdt_tim,consts_tim               &
                           ,ddamp_tim,dht_tim                            &
                           ,exch_tim                                     &
-                          ,fftfhn_tim,fftfwn_tim,hadv2_tim              &
+                          ,fftfhn_tim,fftfwn_tim                        &
                           ,hdiff_tim,mono_tim                           &
                           ,pdtsdt_tim,pgforce_tim,poavhn_tim            &
                           ,polehn_tim,polewn_tim                        &
@@ -40,7 +40,7 @@
                           ,solver_init_tim                              &
                           ,swaphn_tim,swapwn_tim                        &
                           ,updatet_tim                                  &
-                          ,vadv2_tim,vsound_tim,vtoa_tim
+                          ,vsound_tim,vtoa_tim
 !
         REAL(kind=KDBL) :: adjppt_tim,cucnvc_tim                        &
                           ,gsmdrive_tim,h_to_v_tim,gfs_phy_tim          &
@@ -133,7 +133,6 @@
                   +td%exch_tim                                          &
                   +td%fftfhn_tim                                        &
                   +td%fftfwn_tim                                        &
-                  +td%hadv2_tim                                         &
                   +td%hdiff_tim                                         &
                   +td%pdtsdt_tim                                        &
                   +td%pgforce_tim                                       &
@@ -143,7 +142,6 @@
                   +td%swaphn_tim                                        &
                   +td%swapwn_tim                                        &
                   +td%updatet_tim                                       &
-                  +td%vadv2_tim                                         &
                   +td%vsound_tim                                        &
                   +td%vtoa_tim
 !
@@ -168,120 +166,110 @@
         write(0,*)' '
         write(0,FMT='(" Clocktimes for domain #",I2.2)') my_domain_id
 !
-        write(0,FMT='(" ntsd= ",I6," total_integration_tim=  ",g10.5)') ntimestep,td%total_integ_tim
+        write(0,FMT='(" ntsd= ",I6," total_integration_tim=  ",g12.5)') ntimestep,td%total_integ_tim
 !
         write(0,*)' DYNAMICS'
 !
-        write(0,FMT='("   solver_dyn=           ",g10.5," pct= ",f7.2)') td%solver_dyn_tim &
+        write(0,FMT='("   solver_dyn=           ",g12.5," pct= ",f7.2)') td%solver_dyn_tim &
                  ,td%solver_dyn_tim/td%total_integ_tim*100.
-        write(0,FMT='("   solver_init=          ",g10.5," pct= ",f7.2)') td%solver_init_tim &
+        write(0,FMT='("   solver_init=          ",g12.5," pct= ",f7.2)') td%solver_init_tim &
                  ,td%solver_init_tim/td%total_integ_tim*100.
-        write(0,FMT='("   consts=               ",g10.5," pct= ",f7.2)') td%consts_tim &
+        write(0,FMT='("   consts=               ",g12.5," pct= ",f7.2)') td%consts_tim &
                  ,td%consts_tim/td%total_integ_tim*100.
-        write(0,FMT='("   pgforce=              ",g10.5," pct= ",f7.2)') td%pgforce_tim &
+        write(0,FMT='("   pgforce=              ",g12.5," pct= ",f7.2)') td%pgforce_tim &
                  ,td%pgforce_tim/td%total_integ_tim*100.
-        write(0,FMT='("   dht=                  ",g10.5," pct= ",f7.2)') td%dht_tim &
+        write(0,FMT='("   dht=                  ",g12.5," pct= ",f7.2)') td%dht_tim &
                  ,td%dht_tim/td%total_integ_tim*100.
-        write(0,FMT='("   ddamp=                ",g10.5," pct= ",f7.2)') td%ddamp_tim &
+        write(0,FMT='("   ddamp=                ",g12.5," pct= ",f7.2)') td%ddamp_tim &
                 ,td%ddamp_tim/td%total_integ_tim*100.
-        write(0,FMT='("   pdtsdt=               ",g10.5," pct= ",f7.2)') td%pdtsdt_tim &
+        write(0,FMT='("   pdtsdt=               ",g12.5," pct= ",f7.2)') td%pdtsdt_tim &
                 ,td%pdtsdt_tim/td%total_integ_tim*100.
-        write(0,FMT='("   vtoa=                 ",g10.5," pct= ",f7.2)') td%vtoa_tim &
+        write(0,FMT='("   vtoa=                 ",g12.5," pct= ",f7.2)') td%vtoa_tim &
                 ,td%vtoa_tim/td%total_integ_tim*100.
-        write(0,FMT='("   adv1=                 ",g10.5," pct= ",f7.2)') td%adv1_tim &
+        write(0,FMT='("   adv1=                 ",g12.5," pct= ",f7.2)') td%adv1_tim &
                 ,td%adv1_tim/td%total_integ_tim*100.
 !
-        if(td%vadv2_tim/=0.)then
-          write(0,FMT='("   vadv2=                ",g10.5," pct= ",f7.2)') td%vadv2_tim &
-                  ,td%vadv2_tim/td%total_integ_tim*100.
-        endif
-!
-        if(td%hadv2_tim/=0.)then
-          write(0,FMT='("   hadv2=                ",g10.5," pct= ",f7.2)') td%hadv2_tim &
-                ,td%hadv2_tim/td%total_integ_tim*100.
-        endif
-!
         if(td%adv2_tim/=0.)then
-          write(0,FMT='("   adv2=                 ",g10.5," pct= ",f7.2)') td%adv2_tim &
+          write(0,FMT='("   adv2=                 ",g12.5," pct= ",f7.2)') td%adv2_tim &
                ,td%adv2_tim/td%total_integ_tim*100.
         endif
 !
         if(td%mono_tim/=0.)then
-          write(0,FMT='("   mono=                 ",g10.5," pct= ",f7.2)') td%mono_tim &
+          write(0,FMT='("   mono=                 ",g12.5," pct= ",f7.2)') td%mono_tim &
                ,td%mono_tim/td%total_integ_tim*100.
         endif
 !
-        write(0,FMT='("   cdzdt=                ",g10.5," pct= ",f7.2)') td%cdzdt_tim &
+        write(0,FMT='("   cdzdt=                ",g12.5," pct= ",f7.2)') td%cdzdt_tim &
                 ,td%cdzdt_tim/td%total_integ_tim*100.
-        write(0,FMT='("   cdwdt=                ",g10.5," pct= ",f7.2)') td%cdwdt_tim &
+        write(0,FMT='("   cdwdt=                ",g12.5," pct= ",f7.2)') td%cdwdt_tim &
                 ,td%cdwdt_tim/td%total_integ_tim*100.
-        write(0,FMT='("   vsound=               ",g10.5," pct= ",f7.2)') td%vsound_tim &
+        write(0,FMT='("   vsound=               ",g12.5," pct= ",f7.2)') td%vsound_tim &
                 ,td%vsound_tim/td%total_integ_tim*100. 
-        write(0,FMT='("   hdiff=                ",g10.5," pct= ",f7.2)') td%hdiff_tim &
+        write(0,FMT='("   hdiff=                ",g12.5," pct= ",f7.2)') td%hdiff_tim &
                 ,td%hdiff_tim/td%total_integ_tim*100.
-        write(0,FMT='("   bocoh=                ",g10.5," pct= ",f7.2)') td%bocoh_tim &
+        write(0,FMT='("   bocoh=                ",g12.5," pct= ",f7.2)') td%bocoh_tim &
                 ,td%bocoh_tim/td%total_integ_tim*100.
-        write(0,FMT='("   bocov=                ",g10.5," pct= ",f7.2)') td%bocov_tim &
+        write(0,FMT='("   bocov=                ",g12.5," pct= ",f7.2)') td%bocov_tim &
                 ,td%bocov_tim/td%total_integ_tim*100.
-        write(0,FMT='("   updatet=              ",g10.5," pct= ",f7.2)') td%updatet_tim &
+        write(0,FMT='("   updatet=              ",g12.5," pct= ",f7.2)') td%updatet_tim &
                 ,td%updatet_tim/td%total_integ_tim*100.
 
         if(td%prefft_tim/=0.)then
-          write(0,FMT='("   prefft=               ",g10.5," pct= ",f7.2)') td%prefft_tim &
+          write(0,FMT='("   prefft=               ",g12.5," pct= ",f7.2)') td%prefft_tim &
                 ,td%prefft_tim/td%total_integ_tim*100.
-          write(0,FMT='("   fftfhn=               ",g10.5," pct= ",f7.2)') td%fftfhn_tim &
+          write(0,FMT='("   fftfhn=               ",g12.5," pct= ",f7.2)') td%fftfhn_tim &
                 ,td%fftfhn_tim/td%total_integ_tim*100.
-          write(0,FMT='("   fftfwn=               ",g10.5," pct= ",f7.2)') td%fftfwn_tim &
+          write(0,FMT='("   fftfwn=               ",g12.5," pct= ",f7.2)') td%fftfwn_tim &
                 ,td%fftfwn_tim/td%total_integ_tim*100.
-          write(0,FMT='("   polewn=               ",g10.5," pct= ",f7.2)') td%polewn_tim &
+          write(0,FMT='("   polewn=               ",g12.5," pct= ",f7.2)') td%polewn_tim &
                 ,td%polewn_tim/td%total_integ_tim*100.
-          write(0,FMT='("   poavhn=               ",g10.5," pct= ",f7.2)') td%poavhn_tim &
+          write(0,FMT='("   poavhn=               ",g12.5," pct= ",f7.2)') td%poavhn_tim &
                 ,td%poavhn_tim/td%total_integ_tim*100.
         endif
 !
         if(td%presmud_tim/=0.)then
-          write(0,FMT='("   presmud=              ",g10.5," pct= ",f7.2)') td%presmud_tim &
+          write(0,FMT='("   presmud=              ",g12.5," pct= ",f7.2)') td%presmud_tim &
                 ,td%presmud_tim/td%total_integ_tim*100.
         endif
         write(0,*)' PHYSICS '
 !
-        write(0,FMT='("   solver_phy=           ",g10.5," pct= ",f7.2)') td%solver_phy_tim &
+        write(0,FMT='("   solver_phy=           ",g12.5," pct= ",f7.2)') td%solver_phy_tim &
                  ,td%solver_phy_tim/td%total_integ_tim*100.
-        write(0,FMT='("   cucnvc=               ",g10.5," pct= ",f7.2)') td%cucnvc_tim &
+        write(0,FMT='("   cucnvc=               ",g12.5," pct= ",f7.2)') td%cucnvc_tim &
                 ,td%cucnvc_tim/td%total_integ_tim*100.
-        write(0,FMT='("   gsmdrive=             ",g10.5," pct= ",f7.2)') td%gsmdrive_tim &
+        write(0,FMT='("   gsmdrive=             ",g12.5," pct= ",f7.2)') td%gsmdrive_tim &
                 ,td%gsmdrive_tim/td%total_integ_tim*100.
-        write(0,FMT='("   radiation=            ",g10.5," pct= ",f7.2)') td%radiation_tim &
+        write(0,FMT='("   radiation=            ",g12.5," pct= ",f7.2)') td%radiation_tim &
                 ,td%radiation_tim/td%total_integ_tim*100.
-        write(0,FMT='("   rdtemp=               ",g10.5," pct= ",f7.2)') td%rdtemp_tim &
+        write(0,FMT='("   rdtemp=               ",g12.5," pct= ",f7.2)') td%rdtemp_tim &
                 ,td%rdtemp_tim/td%total_integ_tim*100.
-        write(0,FMT='("   turbl=                ",g10.5," pct= ",f7.2)') td%turbl_tim &
+        write(0,FMT='("   turbl=                ",g12.5," pct= ",f7.2)') td%turbl_tim &
                 ,td%turbl_tim/td%total_integ_tim*100.
-        write(0,FMT='("   h_to_v=               ",g10.5," pct= ",f7.2)') td%h_to_v_tim &
+        write(0,FMT='("   h_to_v=               ",g12.5," pct= ",f7.2)') td%h_to_v_tim &
                 ,td%h_to_v_tim/td%total_integ_tim*100.
 !
         if(td%pole_swap_tim/=0.)then
-          write(0,FMT='("   pole_swap=            ",g10.5," pct= ",f7.2)') td%pole_swap_tim &
+          write(0,FMT='("   pole_swap=            ",g12.5," pct= ",f7.2)') td%pole_swap_tim &
                 ,td%pole_swap_tim/td%total_integ_tim*100.
         endif
 !
         write(0,*)' EXCHANGE TIMES '
 !
-        write(0,FMT='("   exch_dyn=             ",g10.5," pct= ",f7.2)') td%exch_tim &
+        write(0,FMT='("   exch_dyn=             ",g12.5," pct= ",f7.2)') td%exch_tim &
                 ,td%exch_tim/td%total_integ_tim*100.
 !
         if(td%swaphn_tim/=0.)then
-          write(0,FMT='("   swaphn=               ",g10.5," pct= ",f7.2)') td%swaphn_tim &
+          write(0,FMT='("   swaphn=               ",g12.5," pct= ",f7.2)') td%swaphn_tim &
                 ,td%swaphn_tim/td%total_integ_tim*100.
         endif
 !
         if(td%swapwn_tim/=0.)then
-          write(0,FMT='("   swapwn=               ",g10.5," pct= ",f7.2)') td%swapwn_tim &
+          write(0,FMT='("   swapwn=               ",g12.5," pct= ",f7.2)') td%swapwn_tim &
                 ,td%swapwn_tim/td%total_integ_tim*100.
         endif
 !
         if(td%polehn_tim/=0.)then
-          write(0,FMT='("   polehn=               ",g10.5," pct= ",f7.2)') td%polehn_tim &
+          write(0,FMT='("   polehn=               ",g12.5," pct= ",f7.2)') td%polehn_tim &
                 ,td%polehn_tim/td%total_integ_tim*100.
         endif
 !

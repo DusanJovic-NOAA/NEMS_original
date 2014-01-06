@@ -1239,7 +1239,6 @@
         td%exch_tim=0.
         td%fftfhn_tim=0.
         td%fftfwn_tim=0.
-        td%hadv2_tim=0.
         td%hdiff_tim=0.
         td%mono_tim=0.
         td%pdtsdt_tim=0.
@@ -1256,7 +1255,6 @@
         td%swaphn_tim=0.
         td%swapwn_tim=0.
         td%updatet_tim=0.
-        td%vadv2_tim=0.
         td%vsound_tim=0.
         td%vtoa_tim=0.
 !
@@ -2614,13 +2612,13 @@
 !
       USE MODULE_CONSTANTS,ONLY : CP,G,R,RHOWATER,STBOLT,XLV
 !
-      USE MODULE_DYNAMICS_ROUTINES,ONLY: ADV1,ADV2,AVEQ2                &
+      USE MODULE_DYNAMICS_ROUTINES,ONLY: ADV1,ADV2                      &
                                         ,CDWDT,CDZDT,DDAMP,DHT          &
-                                        ,HADV2,HADV2_SCAL,HDIFF         &
+                                        ,HDIFF                          &
                                         ,IUNIT_ADVEC_SUMS               &
                                         ,MONO,PDTSDT,PGFORCE            &
                                         ,UPDATES,UPDATET,UPDATEUV       &
-                                        ,VADV2,VADV2_SCAL,VSOUND,VTOA
+                                        ,VSOUND,VTOA
 !
       USE MODULE_FLTBNDS,ONLY: BOCOH,BOCOV,FFTFHN,FFTFUVN               &
                               ,IUNIT_POLE_SUMS                          &
@@ -2717,8 +2715,7 @@
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF
 !
       LOGICAL(kind=KLOG) :: READBC                                      &
-                           ,E_BDY,N_BDY,S_BDY,W_BDY                     &
-                           ,OLD_PASSIVE                                    !<-- Flag for old passive advection scheme
+                           ,E_BDY,N_BDY,S_BDY,W_BDY
 !
       TYPE(ESMF_TimeInterval) :: DT_ESMF                                   !<-- The ESMF fundamental timestep (s)
 !
@@ -2730,7 +2727,7 @@
 !***  SAVEs are for dereferenced constant variables.
 !-----------------------------------------------------------------------
 !
-      INTEGER(kind=KINT),SAVE :: IDTAD,IDTADT,IFACT,IHRSTBC             &
+      INTEGER(kind=KINT),SAVE :: IDTADT,IFACT,IHRSTBC                   &
                                 ,INTEGER_DT                             &
                                 ,KSE,KSS                                &
                                 ,LNSAD,LNSH,LNSV,LPT2,NBOCO             &
@@ -2973,7 +2970,6 @@
       EF4T=int_state%EF4T
       GLOBAL=int_state%GLOBAL
       HYDRO=int_state%HYDRO
-      IDTAD=int_state%IDTAD
       IDTADT=int_state%IDTADT
       IHRSTBC=int_state%IHRSTBC
       KSE=int_state%NUM_TRACERS_MET
@@ -4374,9 +4370,7 @@
 !***  Advection of tracers
 !-----------------------------------------------------------------------
 ! 
-      tracers: IF(int_state%ADVECT_TRACERS                              &
-                           .AND.                                        &
-                  MOD(ABS(NTIMESTEP),IDTADT)==0)THEN
+      tracers: IF(MOD(ABS(NTIMESTEP),IDTADT)==0)THEN
 !
 !-----------------------------------------------------------------------
 !
@@ -4857,349 +4851,6 @@
                     ,int_state%PINT,LM+1                                &
                     ,2,2)
       td%exch_tim=td%exch_tim+(timef()-btim)
-!
-!-----------------------------------------------------------------------
-!
-      OLD_PASSIVE=.NOT.int_state%ADVECT_TRACERS                            !<-- The old scheme and new scheme are mutually exclusive
-!
-      passive_advec: IF(MOD(ABS(NTIMESTEP),IDTAD)==0.AND.OLD_PASSIVE)THEN
-!
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  Vertical advection of passive quantities 
-!-----------------------------------------------------------------------
-!
-        btim=timef()
-!
-        vadv2_micro_check: IF(.NOT.int_state%SPEC_ADV)THEN
-          CALL AVEQ2                                                    &
-            (LM                                                         &
-            ,int_state%DSG2,int_state%PDSG1                             &
-            ,int_state%PSGML1,int_state%SGML2                           &
-            ,int_state%PD                                               &
-            ,int_state%Q2,int_state%E2                                  &
-            ,1)
-!
-!..Likewise to HADV2_SCAL, the NUM_TRACERS_MET in call here could be
-!.. hard-wired to 4 (or less) to prevent possible mis-match for
-!.. array count when SPEC_ADV=.false.
-          CALL VADV2_SCAL                                               &
-            (LM,IDTAD                                                   &
-            ,DT,int_state%DSG2,int_state%PDSG1                          &
-            ,int_state%PSGML1,int_state%SGML2                           &
-            ,int_state%PD,int_state%PSGDT                               &
-            ,int_state%TRACERS                                          &
-            ,int_state%NUM_TRACERS_MET,1,int_state%INDX_Q2)
-!
-        ELSE vadv2_micro_check
-          CALL VADV2_SCAL                                               &
-            (LM,IDTAD                                                   &
-            ,DT,int_state%DSG2,int_state%PDSG1                          &
-            ,int_state%PSGML1,int_state%SGML2                           &
-            ,int_state%PD,int_state%PSGDT                               &
-            ,int_state%Q2                                               &
-            ,1,1,int_state%INDX_Q2)
-!
-          CALL VADV2_SCAL                                               &
-            (LM,IDTAD                                                   &
-            ,DT,int_state%DSG2,int_state%PDSG1                          &
-            ,int_state%PSGML1,int_state%SGML2                           &
-            ,int_state%PD,int_state%PSGDT                               &
-            ,int_state%WATER                                            &
-            ,int_state%NUM_WATER,2, -999)                                 ! G. Thompson, final value -999 avoids Q2 epsilon value in sub.
-!
-          int_state%Q(:,:,:)=int_state%WATER(:,:,:,P_QV)                &
-                      /(1.+int_state%WATER(:,:,:,P_QV))
-!
-        ENDIF vadv2_micro_check
-!
-        td%vadv2_tim=td%vadv2_tim+(timef()-btim)
-!
-!-----------------------------------------------------------------------
-!***  Filtering and boundary conditions for global forecasts
-!-----------------------------------------------------------------------
-!
-        IF(GLOBAL)THEN
-!
-          btim=timef()
-          CALL FFTFHN                                                   &
-            (LM                                                         &
-            ,int_state%KHFILT                                           &
-            ,int_state%HFILT                                            &
-            ,int_state%CW                                               &
-            ,int_state%WFFTRH,int_state%NFFTRH                          &
-            ,NUM_PES,MYPE,MPI_COMM_COMP)
-!
-          CALL FFTFHN                                                   &
-            (LM                                                         &
-            ,int_state%KHFILT                                           &
-            ,int_state%HFILT                                            &
-            ,int_state%Q                                                &
-            ,int_state%WFFTRH,int_state%NFFTRH                          &
-            ,NUM_PES,MYPE,MPI_COMM_COMP)
-!
-          CALL FFTFHN                                                   &
-            (LM                                                         &
-            ,int_state%KHFILT                                           &
-            ,int_state%HFILT                                            &
-            ,int_state%E2                                               &
-            ,int_state%WFFTRH,int_state%NFFTRH                          &
-            ,NUM_PES,MYPE,MPI_COMM_COMP)
-!
-          CALL FFTFHN                                                   &
-            (LM                                                         &
-            ,int_state%KHFILT                                           &
-            ,int_state%HFILT                                            &
-            ,int_state%O3                                               &
-            ,int_state%WFFTRH,int_state%NFFTRH                          &
-            ,NUM_PES,MYPE,MPI_COMM_COMP)
-!
-          IF(int_state%SPEC_ADV)THEN
-!
-            DO N=2,int_state%NUM_WATER
-              CALL FFTFHN                                               &
-                (LM                                                     &
-                ,int_state%KHFILT                                       &
-                ,int_state%HFILT                                        &
-                ,int_state%WATER(:,:,:,N)                               &
-                ,int_state%WFFTRH,int_state%NFFTRH                      &
-                ,NUM_PES,MYPE,MPI_COMM_COMP)
-            ENDDO
-!
-          ENDIF
-!
-          td%fftfhn_tim=td%fftfhn_tim+(timef()-btim)
-!
-!-----------------------------------------------------------------------
-!
-          btim=timef()
-          CALL SWAPHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES)
-          CALL SWAPHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES)
-          CALL SWAPHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES)
-          CALL SWAPHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES)
-!
-          IF(int_state%SPEC_ADV)THEN
-            DO N=2,int_state%NUM_WATER
-              CALL SWAPHN(int_state%WATER(:,:,:,N)                      &
-                         ,IMS,IME,JMS,JME,LM,INPES)
-            ENDDO
-          ENDIF
-!
-          td%swaphn_tim=td%swaphn_tim+(timef()-btim)
-!
-          btim=timef()
-          CALL POLEHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES,JNPES)
-          CALL POLEHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES,JNPES)
-          CALL POLEHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES,JNPES)
-          CALL POLEHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES,JNPES)
-!
-          IF(int_state%SPEC_ADV)THEN
-            DO N=2,int_state%NUM_WATER
-              CALL POLEHN(int_state%WATER(:,:,:,N)                      &
-                         ,IMS,IME,JMS,JME,LM,INPES,JNPES)
-            ENDDO
-          ENDIF
-!
-          td%polehn_tim=td%polehn_tim+(timef()-btim)
-!
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!
-        btim=timef()
-        CALL HALO_EXCH(int_state%Q,LM                                   &
-                      ,int_state%CW,LM                                  &
-                      ,int_state%O3,LM                                  &
-                      ,int_state%Q2,LM                                  &
-                      ,2,2)
-!
-        CALL HALO_EXCH(int_state%E2,LM                                  &
-                      ,1,1)
-!
-        IF(int_state%SPEC_ADV)THEN
-          CALL HALO_EXCH(int_state%WATER,LM,int_state%NUM_WATER,2       &
-                        ,2,2)
-        ENDIF
-!
-        td%exch_tim=td%exch_tim+(timef()-btim)
-!
-!-----------------------------------------------------------------------
-!***  Horizontal advection of passive quantities
-!***  (internal halo exchange)
-!-----------------------------------------------------------------------
-!
-        btim=timef()
-!
-        hadv2_micro_check: IF(.NOT.int_state%SPEC_ADV)THEN
-!
-!..NUM_TRACERS_MET in call below should probably be hard-wired to 4
-!.. such that Q, CWM, Q2, and O3 are advected only, nothing more in
-!.. the event counter var is somehow larger when SPEC_ADV=.false.
-          CALL HADV2_SCAL                                               &
-            (GLOBAL,INPES,JNPES                                         &
-            ,LM,IDTAD,DT,RDYH                                           &
-            ,int_state%DSG2,int_state%PDSG1                             &
-            ,int_state%PSGML1,int_state%SGML2                           &
-            ,int_state%DARE,int_state%RDXH                              &
-            ,int_state%PD                                               &
-            ,int_state%U,int_state%V                                    &
-            ,int_state%TRACERS                                          &
-            ,int_state%NUM_TRACERS_MET,1,int_state%INDX_Q2              &
-            ,int_state%READ_GLOBAL_SUMS                                 &
-            ,int_state%WRITE_GLOBAL_SUMS)
-!
-          CALL AVEQ2                                                    &
-            (LM                                                         &
-            ,int_state%DSG2,int_state%PDSG1                             &
-            ,int_state%PSGML1,int_state%SGML2                           &
-            ,int_state%PD                                               &
-            ,int_state%Q2,int_state%E2                                  &
-            ,2)
-!
-!-----------------------------------------------------------------------
-!***  Update the WATER array.
-!***  Remember that WATER is used with the WRF physics and thus
-!***  the P_QV slot (=2) is mixing ratio, not specific humidity.
-!***  Although WATER is only used for physics in operations, it is
-!***  updated here from Q every advection timestep for non-operational
-!***  configurations where it may be used outside of the physics.
-!-----------------------------------------------------------------------
-!
-          IF(.NOT.int_state%OPERATIONAL_PHYSICS)THEN
-!
-            write(6,*) ' WE SHOULD NOT GET HERE since SPEC_ADV=.flase.'
-
-            DO K=1,LM
-            KFLIP=LM+1-K
-            DO J=JTS,JTE
-            DO I=ITS,ITE
-              int_state%WATER(I,J,K,P_QV)=int_state%Q(I,J,K)/(1.-int_state%Q(I,J,K))
-              WC = int_state%CW(I,J,K)
-              QI = 0.
-              QR = 0.
-              QW = 0.
-              FICE=int_state%F_ICE(I,J,KFLIP)
-              FRAIN=int_state%F_RAIN(I,J,KFLIP)
-!
-              IF(FICE>=1.)THEN
-                QI=WC
-              ELSEIF(FICE<=0.)THEN
-                QW=WC
-              ELSE
-                QI=FICE*WC
-                QW=WC-QI
-              ENDIF
-!
-              IF(QW>0..AND.FRAIN>0.)THEN
-                IF(FRAIN>=1.)THEN
-                  QR=QW
-                  QW=0.
-                ELSE
-                  QR=FRAIN*QW
-                  QW=QW-QR
-                ENDIF
-              ENDIF
-!
-              int_state%WATER(I-ITS+1,J-JTS+1,K,P_QC)=QW
-              int_state%WATER(I-ITS+1,J-JTS+1,K,P_QR)=QR
-              int_state%WATER(I-ITS+1,J-JTS+1,K,P_QI)=0.
-              int_state%WATER(I-ITS+1,J-JTS+1,K,P_QS)=QI
-              int_state%WATER(I-ITS+1,J-JTS+1,K,P_QG)=0.
-            ENDDO
-            ENDDO
-            ENDDO
-          ENDIF
-!
-        ELSE hadv2_micro_check
-!
-          CALL HADV2_SCAL                                               &
-            (GLOBAL,INPES,JNPES                                         &
-            ,LM,IDTAD,DT,RDYH                                           &
-            ,int_state%DSG2,int_state%PDSG1                             &
-            ,int_state%PSGML1,int_state%SGML2                           &
-            ,int_state%DARE,int_state%RDXH                              &
-            ,int_state%PD                                               &
-            ,int_state%U,int_state%V                                    &
-            ,int_state%Q2                                               &
-            ,1,1,int_state%INDX_Q2                                      &
-            ,int_state%READ_GLOBAL_SUMS                                 &
-            ,int_state%WRITE_GLOBAL_SUMS)
-!
-          CALL HADV2_SCAL                                               &
-            (GLOBAL,INPES,JNPES                                         &
-            ,LM,IDTAD,DT,RDYH                                           &
-            ,int_state%DSG2,int_state%PDSG1                             &
-            ,int_state%PSGML1,int_state%SGML2                           &
-            ,int_state%DARE,int_state%RDXH                              &
-            ,int_state%PD                                               &
-            ,int_state%U,int_state%V                                    &
-            ,int_state%WATER                                            &
-            ,int_state%NUM_WATER,2, -999                                & ! G. Thompson, final value -999 avoids Q2 epsilon value in sub.
-            ,int_state%READ_GLOBAL_SUMS                                 &
-            ,int_state%WRITE_GLOBAL_SUMS)
-!
-        ENDIF hadv2_micro_check
-!
-        td%hadv2_tim=td%hadv2_tim+(timef()-btim)
-!
-!-----------------------------------------------------------------------
-!***  Filtering and boundary conditions for global forecasts
-!-----------------------------------------------------------------------
-!
-        IF(GLOBAL)THEN
-!
-          btim=timef()
-          CALL SWAPHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES)
-          CALL SWAPHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES)
-          CALL SWAPHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES)
-          CALL SWAPHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES)
-!
-          IF(int_state%SPEC_ADV)THEN
-            DO N=2,int_state%NUM_WATER
-              CALL SWAPHN(int_state%WATER(:,:,:,N)                      &
-                         ,IMS,IME,JMS,JME,LM,INPES)
-            ENDDO
-          ENDIF
-!
-          td%swaphn_tim=td%swaphn_tim+(timef()-btim)
-!
-          btim=timef()
-          CALL POLEHN(int_state%Q,IMS,IME,JMS,JME,LM,INPES,JNPES)
-          CALL POLEHN(int_state%CW,IMS,IME,JMS,JME,LM,INPES,JNPES)
-          CALL POLEHN(int_state%O3,IMS,IME,JMS,JME,LM,INPES,JNPES)
-          CALL POLEHN(int_state%Q2,IMS,IME,JMS,JME,LM,INPES,JNPES)
-!
-          IF(int_state%SPEC_ADV)THEN
-            DO N=2,int_state%NUM_WATER
-              CALL POLEHN(int_state%WATER(:,:,:,N)                      &
-                         ,IMS,IME,JMS,JME,LM,INPES,JNPES)
-            ENDDO
-          ENDIF
-!
-          td%polehn_tim=td%polehn_tim+(timef()-btim)
-!
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!
-        btim=timef()
-        CALL HALO_EXCH(int_state%Q,LM                                   &
-                      ,int_state%CW,LM                                  &
-                      ,int_state%O3,LM                                  &
-                      ,int_state%Q2,LM                                  &
-                      ,2,2)
-!
-        IF(int_state%SPEC_ADV)THEN
-          CALL HALO_EXCH(int_state%WATER,LM,int_state%NUM_WATER,2       &
-                        ,2,2)
-        ENDIF
-!
-        td%exch_tim=td%exch_tim+(timef()-btim)
-!
-!-----------------------------------------------------------------------
-!
-      ENDIF passive_advec
 !
 !-----------------------------------------------------------------------
 !***  Close the file units used for Reads/Writes of global sums

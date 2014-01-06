@@ -1490,37 +1490,37 @@
                ' cpl wait - time parent task spends waiting for nest tasks to receive boundary data ',/&
                ' cpl 2-way send  - time child task computing/sending exchange data to parent ')
 
- 898    FORMAT(' Task 0 time to process move flag = ',g9.3)
- 899    FORMAT(' I/O task Phase 3= ',g9.3)
- 900    FORMAT(' Integrate = ',g9.3,' Filter = ',g9.3,                  &
-               ' Phase 3 = ',g9.3,' update parent move = ',g9.3)
- 901    FORMAT(' Integrate = ',g9.3,' Phase 3 = ',g9.3,                 &
-               ' update parent move = ',g9.3)
- 902    FORMAT(' Integrate = ',g9.3,' Filter = ',g9.3,                  &
-               ' Phase 3 = ',g9.3,' cpl compute = ',g9.3,               &
-               ' cpl recv = ',g9.3,                                     &
-               ' upd interior nest = ',g9.3,                            &
-               ' upd interior parent = ',g9.3)
+ 898    FORMAT(' Task 0 time to process move flag = ',g10.3)
+ 899    FORMAT(' I/O task Phase 3= ',g10.3)
+ 900    FORMAT(' Integrate = ',g10.3,' Filter = ',g10.3,                 &
+               ' Phase 3 = ',g10.3,' update parent move = ',g10.3)
+ 901    FORMAT(' Integrate = ',g10.3,' Phase 3 = ',g10.3,                &
+               ' update parent move = ',g10.3)
+ 902    FORMAT(' Integrate = ',g10.3,' Filter = ',g10.3,                 &
+               ' Phase 3 = ',g10.3,' cpl compute = ',g10.3,              &
+               ' cpl recv = ',g10.3,                                     &
+               ' upd interior nest = ',g10.3,                            &
+               ' upd interior parent = ',g10.3)
 
- 903    FORMAT(' Integrate = ',g9.3,' Phase 3 = ',g9.3,                 &
-               ' cpl compute = ',g9.3,' cpl recv = ',g9.3,              &
-               ' upd interior nest = ',g9.3,                            &
-               ' upd interior parent = ',g9.3)
- 904    FORMAT(' Integrate = ',g9.3,' Filter = ',g9.3,                  &
-               ' Phase 3 = ',g9.3)
- 905    FORMAT(' Integrate = ',g9.3,' Phase 3 = ',g9.3)
- 906    FORMAT(' Integrate = ',g9.3,' Filter = ',g9.3,                  &
-               ' Phase 3 = ',g9.3,                                      &
-               ' cpl compute = ',g9.3,' cpl wait = ',g9.3,              &
-               ' update parent move = ',g9.3)
- 907    FORMAT(' Integrate = ',g9.3,                                    &
-               ' Phase 3 = ',g9.3,                                      &
-               ' cpl compute = ',g9.3,' cpl wait = ',g9.3,              &
-               ' update parent move = ',g9.3)
- 908    FORMAT(' Integrate = ',g9.3,' Filter = ',g9.3,                  &
-               ' Phase 3 = ',g9.3)
- 909    FORMAT(' Integrate = ',g9.3,' Phase 3 = ',g9.3)
- 910    FORMAT(' Child send 2-way data = ',g9.3)
+ 903    FORMAT(' Integrate = ',g10.3,' Phase 3 = ',g10.3,                &
+               ' cpl compute = ',g10.3,' cpl recv = ',g10.3,             &
+               ' upd interior nest = ',g10.3,                            &
+               ' upd interior parent = ',g10.3)
+ 904    FORMAT(' Integrate = ',g10.3,' Filter = ',g10.3,                 &
+               ' Phase 3 = ',g10.3)
+ 905    FORMAT(' Integrate = ',g10.3,' Phase 3 = ',g10.3)
+ 906    FORMAT(' Integrate = ',g10.3,' Filter = ',g10.3,                 &
+               ' Phase 3 = ',g10.3,                                      &
+               ' cpl compute = ',g10.3,' cpl wait = ',g10.3,             &
+               ' update parent move = ',g10.3)
+ 907    FORMAT(' Integrate = ',g10.3,                                    &
+               ' Phase 3 = ',g10.3,                                      &
+               ' cpl compute = ',g10.3,' cpl wait = ',g10.3,             &
+               ' update parent move = ',g10.3)
+ 908    FORMAT(' Integrate = ',g10.3,' Filter = ',g10.3,                 &
+               ' Phase 3 = ',g10.3)
+ 909    FORMAT(' Integrate = ',g10.3,' Phase 3 = ',g10.3)
+ 910    FORMAT(' Child send 2-way data = ',g10.3)
 !
 !-----------------------------------------------------------------------
 !
