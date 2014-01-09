@@ -2354,8 +2354,9 @@ real(kind=kfpt),dimension(its:ite,jts:jte):: &
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
+!
                         subroutine updates &
-(lm,s &
+(lm,ntracers,kss,kse,s &
 !---temporary arguments-------------------------------------------------
 ,tcs)
 !-----------------------------------------------------------------------
@@ -2364,14 +2365,17 @@ real(kind=kfpt),dimension(its:ite,jts:jte):: &
 implicit none
 !-----------------------------------------------------------------------
 integer(kind=kint),intent(in):: &
- lm                          ! total # of levels
+ lm &                        ! total # of levels
+,ntracers &                  ! total # of tracers
+,kss &                       ! starting index of tracers to be updated
+,kse                         ! ending index of tracers to be updated
 
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,1:ntracers),intent(inout):: &
  s                           ! tracer
 !-----------------------------------------------------------------------
 !---temporary arguments-------------------------------------------------
 !-----------------------------------------------------------------------
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
+real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,1:ntracers):: &
  tcs                         ! tracer time change
 !-----------------------------------------------------------------------
 !--local variables------------------------------------------------------
@@ -2379,21 +2383,24 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
 integer(kind=kint):: &
  i &                         ! index in x direction
 ,j &                         ! index in y direction
-,l                           ! index in p direction
+,l &                         ! index in p direction
+,k                           ! tracers index
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !.......................................................................
-!$omp parallel do private(i,j,l)
+!$omp parallel do private(i,j,l,k)
 !.......................................................................
+      do k=kss,kse
       do l=1,lm
         do j=jts_b1,jte_b1
           do i=its_b1,ite_b1
-            s(i,j,l)=s(i,j,l)+tcs(i,j,l)
+            s(i,j,l,k)=s(i,j,l,k)+tcs(i,j,l,k)
 !
-            tcs(i,j,l)=0.
+            tcs(i,j,l,k)=0.
           enddo
         enddo
+      enddo
       enddo
 !.......................................................................
 !$omp end parallel do
@@ -4237,7 +4244,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1,1:lm+1):: &
 ,pd,pdo &
 ,psgdt &
 ,up,vp &
-,q2,indx_q2 &
+,indx_q2 &
 ,s,sp &
 !---temporary arguments-------------------------------------------------
 ,pfne,pfnw,pfx,pfy,s1,tcs)
@@ -4291,9 +4298,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm-1),intent(in):: &
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in):: &
  up &                        !
 ,vp                          !
-
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in):: &
-  q2                          ! 2.*TKE
 
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse),intent(inout):: &
  s &                         ! tracers
@@ -4384,16 +4388,18 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse):: &
         enddo
       enddo
 !
-      do j=jstart,jstop
-        do i=its_h1,ite_h1
-          s(i,j,1,indx_q2)=max((q2 (i,j,1)+epsq2)*0.5,epsq2)
-        enddo
-      enddo
-      do l=2,lm
+!***  Interpolate q2 (2*TKE) from interfaces to midlayers
+!
+      do l=lm,2,-1
         do j=jstart,jstop
           do i=its_h1,ite_h1
-            s(i,j,l,indx_q2)=max((q2 (i,j,l)+q2 (i,j,l-1))*0.5,epsq2)
+            s(i,j,l,indx_q2)=max((s(i,j,l,indx_q2)+s(i,j,l-1,indx_q2))*0.5,epsq2)
           enddo
+        enddo
+      enddo
+      do j=jstart,jstop
+        do i=its_h1,ite_h1
+          s(i,j,1,indx_q2)=max((s(i,j,1,indx_q2)+epsq2)*0.5,epsq2)
         enddo
       enddo
 !-----------------------------------------------------------------------
@@ -5221,6 +5227,10 @@ real(kind=kdbl),save :: sumdo3=0.
 !.......................................................................
 !
 !-----------------------------------------------------------------------
+!
+!***  Interpolate q2 tendencies and q2 itself from midlayers back to 
+!     interfaces
+!
       do l=1,lm
         do j=jts_b1,jte_b1
           do i=its_b1,ite_b1
@@ -5234,12 +5244,14 @@ real(kind=kdbl),save :: sumdo3=0.
             tcs(i,j,l,indx_q2)=(tcs(i,j,l,indx_q2)+tcs(i,j,l+1,indx_q2)) &
                         /((dsg2(l  )*pd(i,j)+pdsg1(l  )) &
                          +(dsg2(l+1)*pd(i,j)+pdsg1(l+1)))
+            s(i,j,l,indx_q2)=max(0.5*(s(i,j,l,indx_q2)+s(i,j,l+1,indx_q2)),epsq2)
           enddo
         enddo
       enddo
       do j=jts_b1,jte_b1
         do i=its_b1,ite_b1
           tcs(i,j,lm,indx_q2)=0.
+          s(i,j,lm,indx_q2)=epsq2
         enddo
       enddo
 !

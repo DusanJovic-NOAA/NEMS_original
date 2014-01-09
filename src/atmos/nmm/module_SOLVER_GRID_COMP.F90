@@ -1006,7 +1006,6 @@
         DO L=1,LM
         DO J=JMS,JME
         DO I=IMS,IME
-          int_state%Q2(I,J,L)=0.02      ! REPEATED
           int_state%OMGALF(I,J,L)=0.
           int_state%T(I,J,L)=-1.E6
           int_state%U(I,J,L)=-1.E6
@@ -1255,6 +1254,8 @@
         td%swaphn_tim=0.
         td%swapwn_tim=0.
         td%updatet_tim=0.
+        td%updateuv_tim=0.
+        td%updates_tim=0.
         td%vsound_tim=0.
         td%vtoa_tim=0.
 !
@@ -1457,7 +1458,6 @@
           write(0,*)'up=',minval(int_state%up),maxval(int_state%up)
           write(0,*)'v=',minval(int_state%v),maxval(int_state%v)
           write(0,*)'vp=',minval(int_state%vp),maxval(int_state%vp)
-          write(0,*)'e2=',minval(int_state%e2),maxval(int_state%e2)
           write(0,*)'w=',minval(int_state%w),maxval(int_state%w)
           write(0,*)'w_tot=',minval(int_state%w_tot),maxval(int_state%w_tot)
           write(0,*)'pint=',minval(int_state%pint),maxval(int_state%pint)
@@ -4078,7 +4078,7 @@
          ,int_state%U,int_state%V                                       &
          ,int_state%TCU,int_state%TCV )
 !
-        td%updatet_tim=td%updatet_tim+(timef()-btim)
+        td%updateuv_tim=td%updateuv_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !***  Filtering and boundary conditions for the global forecast.
@@ -4391,7 +4391,7 @@
           ,int_state%PD,int_state%PDO                                   &
           ,int_state%PSGDT                                              &
           ,int_state%UP,int_state%VP                                    &
-          ,int_state%Q2,int_state%INDX_Q2                               &
+          ,int_state%INDX_Q2                                            &
           ,int_state%TRACERS                                            &
           ,int_state%TRACERS_PREV                                       &
 !
@@ -4457,73 +4457,11 @@
 !
         btim=timef()
 !
-!---------
-!***  Q
-!---------
+        CALL UPDATES                                                     &
+          (LM,int_state%NUM_TRACERS_TOTAL,KSS,KSE1                       &
+          ,int_state%TRACERS,int_state%TRACERS_TEND)
 !
-        CALL UPDATES                                                    &
-          (LM                                                           &
-          ,int_state%Q                                                  &
-!
-!***  Temporary argument
-!
-          ,int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,int_state%INDX_Q))
-!
-!---------
-!***  CW
-!---------
-!
-        CALL UPDATES                                                    &
-          (LM                                                           &
-          ,int_state%CW                                                 &
-!
-!***  Temporary argument
-!
-          ,int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,int_state%INDX_CW))
-!
-!---------
-!***  O3
-!---------
-!
-        CALL UPDATES                                                    &
-          (LM                                                           &
-          ,int_state%O3                                                 &
-!
-!***  Temporary argument
-!
-          ,int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,int_state%INDX_O3))
-!
-!---------
-!***  Q2
-!---------
-!
-        CALL UPDATES                                                    &
-          (LM                                                           &
-          ,int_state%Q2                                                 &
-!
-!***  Temporary argument
-!
-          ,int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,int_state%INDX_Q2))
-!
-        IF(int_state%SPEC_ADV)THEN
-          DO KS=KSS,KSE1
-!
-           IF(KS/=int_state%INDX_Q  .AND.                               &
-              KS/=int_state%INDX_CW .AND.                               &
-              KS/=int_state%INDX_O3 .AND.                               &
-              KS/=int_state%INDX_Q2) THEN
-!
-             CALL UPDATES                                               &
-              (LM                                                       &
-              ,int_state%TRACERS(IMS:IME,JMS:JME,1:LM,KS)               &
-              ,int_state%TRACERS_TEND(IMS:IME,JMS:JME,1:LM,KS))
-!
-            ENDIF
-!
-          ENDDO
-        ENDIF
-!
-        td%updatet_tim=td%updatet_tim+(timef()-btim)
+        td%updates_tim=td%updates_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !

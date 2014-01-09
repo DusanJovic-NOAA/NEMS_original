@@ -2067,6 +2067,8 @@
         timers(n)%swaphn_tim=0.
         timers(n)%swapwn_tim=0.
         timers(n)%updatet_tim=0.
+        timers(n)%updateuv_tim=0.
+        timers(n)%updates_tim=0.
         timers(n)%vsound_tim=0.
         timers(n)%vtoa_tim=0.
         timers(n)%adjppt_tim=0.

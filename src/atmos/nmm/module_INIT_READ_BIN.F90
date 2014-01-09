@@ -1925,19 +1925,6 @@ integer(kind=kint):: &
           call dstrb(temp1,int_state%vp,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%vp,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%e2(i,j,l)=0.
-!d          enddo
-!d          enddo
-          call dstrb(temp1,int_state%e2,1,1,1,lm,l,mype,mpi_comm_comp)
-        enddo
-        call halo_exch(int_state%e2,lm,2,2)
 !----------- psgdt -----------------------------------------------------
         do l=1,lm-1
           if(mype==0)then

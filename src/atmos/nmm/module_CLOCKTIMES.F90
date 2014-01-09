@@ -40,6 +40,8 @@
                           ,solver_init_tim                              &
                           ,swaphn_tim,swapwn_tim                        &
                           ,updatet_tim                                  &
+                          ,updateuv_tim                                 &
+                          ,updates_tim                                  &
                           ,vsound_tim,vtoa_tim
 !
         REAL(kind=KDBL) :: adjppt_tim,cucnvc_tim                        &
@@ -142,6 +144,8 @@
                   +td%swaphn_tim                                        &
                   +td%swapwn_tim                                        &
                   +td%updatet_tim                                       &
+                  +td%updateuv_tim                                      &
+                  +td%updates_tim                                       &
                   +td%vsound_tim                                        &
                   +td%vtoa_tim
 !
@@ -213,6 +217,10 @@
                 ,td%bocov_tim/td%total_integ_tim*100.
         write(0,FMT='("   updatet=              ",g12.5," pct= ",f7.2)') td%updatet_tim &
                 ,td%updatet_tim/td%total_integ_tim*100.
+        write(0,FMT='("   updateuv=             ",g12.5," pct= ",f7.2)') td%updateuv_tim &
+                ,td%updateuv_tim/td%total_integ_tim*100.
+        write(0,FMT='("   updates=              ",g12.5," pct= ",f7.2)') td%updates_tim &
+                ,td%updates_tim/td%total_integ_tim*100.
 
         if(td%prefft_tim/=0.)then
           write(0,FMT='("   prefft=               ",g12.5," pct= ",f7.2)') td%prefft_tim &

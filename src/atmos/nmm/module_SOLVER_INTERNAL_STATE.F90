@@ -207,7 +207,7 @@
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: PINT,RTOP           &
                                                    ,T,U,V               &
                                                    ,Q,CW,O3             &
-                                                   ,Q2,E2               &
+                                                   ,Q2                  &
                                                    ,DIV                 &
                                                    ,DEF                 &
                                                    ,TDIV                &
@@ -864,7 +864,6 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'TP'        ,int_state%TP      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'UP'        ,int_state%UP      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'VP'        ,int_state%VP      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,NV,'E2'        ,int_state%E2      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'PSGDT'     ,int_state%PSGDT   ,(/ IMS,JMS,1 /),(/ IME,JME,LM-1 /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'Z'         ,int_state%Z       ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'Told'      ,int_state%Told    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
@@ -1089,13 +1088,13 @@
       int_state%CW=>int_state%VARS(I)%R3D
 !
 !-----------------------------------------------------------------------
-!***  Point E2 (Turbulence kinetic energy) at level 3(INDX_Q2) of the Tracers array.
+!***  Point Q2 (Turbulence kinetic energy) at level 3(INDX_Q2) of the Tracers array.
 !-----------------------------------------------------------------------
 !
       int_state%INDX_Q2=3
-      CALL FIND_VAR_INDX('E2',int_state%VARS,int_state%NUM_VARS,I)
+      CALL FIND_VAR_INDX('Q2',int_state%VARS,int_state%NUM_VARS,I)
       int_state%VARS(I)%R3D(IMS:IME,JMS:JME,1:LM) => int_state%TRACERS_ARR( (int_state%INDX_Q2-1)*TRACER_SIZE_1+1 : int_state%INDX_Q2*TRACER_SIZE_1)
-      int_state%E2=>int_state%VARS(I)%R3D
+      int_state%Q2=>int_state%VARS(I)%R3D
 !
 !-----------------------------------------------------------------------
 !***  Point O3 (General tracer for testin) at level 4(INDX_O3) of the Tracers array.
