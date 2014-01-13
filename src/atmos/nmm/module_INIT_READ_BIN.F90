@@ -2,14 +2,6 @@
                         module module_INIT_READ_BIN
 !-----------------------------------------------------------------------
 use module_include
-!xxxuse module_dm_parallel,only : ids,ide,jds,jde &
-!xxx                             ,ims,ime,jms,jme &
-!xxx                             ,its,ite,jts,jte &
-!xxx                             ,its_h2,ite_h2,jts_h2,jte_h2 &
-!xxx                             ,lm &
-!xxx                             ,mype_share,npes,num_pts_max &
-!xxx                             ,mpi_comm_comp &
-!xxx                             ,dstrb,idstrb
 use module_dm_parallel,only : dstrb,idstrb
 use module_exchange
 use module_constants
@@ -2236,23 +2228,22 @@ integer(kind=kint):: &
       ENDDO
 !
 !-----------------------------------------------------------------------
-        do n=1,int_state%indx_o3
+! TRACERS_PREV:
+!-----------------------------------------------------------------------
+        do n=1,int_state%NUM_TRACERS_TOTAL
           do l=1,lm
             if(mype==0)then
               read(nfcst)temp1
             endif
-!d            do j=jms,jme
-!d            do i=ims,ime
-!d              int_state%TRACERS_PREV(i,j,l,n)=0.
-!d            enddo
-!d            enddo
             call dstrb(temp1,int_state%TRACERS_PREV(:,:,:,n),1,1,1,lm,l &
                       ,mype,mpi_comm_comp)
           enddo
         enddo
-        call halo_exch(int_state%TRACERS_PREV,lm,int_state%indx_o3,1,2,2)
+        call halo_exch(int_state%TRACERS_PREV,lm,int_state%NUM_TRACERS_TOTAL,1,2,2)
 !
-
+!-----------------------------------------------------------------------
+! TRACERS:
+!-----------------------------------------------------------------------
         do n=int_state%INDX_O3+1,int_state%NUM_TRACERS_TOTAL                     !<-- The first 'indx_o3' arrays are unallocated pointers
           do l=1,lm
             if(mype==0)then

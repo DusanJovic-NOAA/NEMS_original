@@ -13,7 +13,13 @@ cp _RTPWD_/NMMB_reg/nmmb_rst_01_bin_0024h_00m_00.00s  restart_file_01
 cp _RTPWD_/NMMB_reg/nmmb_rst_01_nio_0024h_00m_00.00s  restart_file_01_nemsio
 cp _RTPWD_/NMMB_reg/GWD_bin_01 .
 cp _RTPWD_/NMMB_reg/boco.* .
-_CPPCP_cp ../NMM_REG_CTL/pcp.hr* .
+if [ $PCPFLG = true ]; then
+  cp ../NMM_REG_CTL/pcp.hr* .
+fi
+if [ $SPEC_ADV = true -a $RSTRT = true ]; then
+  cp _RTPWD_/NMMB_reg_spec_adv/nmmb_rst_01_bin_0012h_00m_00.00s  restart_file_01
+  cp _RTPWD_/NMMB_reg_spec_adv/nmmb_rst_01_nio_0012h_00m_00.00s  restart_file_01_nemsio
+fi
 
 cp $SRCDIR/job/regression_tests/atmos.configure_nmm atmos.configure
 cp $SRCDIR/job/regression_tests/configure_file_01 .
@@ -27,7 +33,9 @@ ln -sf global_o3clim.txt fort.48
 
 cp $SRCDIR/job/regression_tests/solver_state.txt .
 cp $SRCDIR/job/regression_tests/nests.txt .
-_TS_cp $SRCDIR/job/regression_tests/ts_locations.nml .
+if [ $TS = true ]; then
+  cp $SRCDIR/job/regression_tests/ts_locations.nml .
+fi
 
 #for post
 export WRITE_DOPOST=_wrtdopost_

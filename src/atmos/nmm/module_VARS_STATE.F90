@@ -889,13 +889,8 @@
           LDIM4=LBOUND(VARS(N)%R4D,4)
           UDIM4=UBOUND(VARS(N)%R4D,4)
 !
-          IF(TRIM(VARS(N)%VBL_NAME)=='TRACERS_PREV' .OR. &
-             TRIM(VARS(N)%VBL_NAME)=='TRACERS') THEN
-          IF(TRIM(VARS(N)%VBL_NAME)=='TRACERS_PREV') THEN
-            UDIM4=INDX_O3                                                  !<-- TRACERS_PREV bounds: LDIM4     - INDX_O3
-          ELSE
+          IF( TRIM(VARS(N)%VBL_NAME)=='TRACERS') THEN
             LDIM4=INDX_O3+1                                                !<-- TRACERS bounds:      INDX_O3+1 - UDIM4
-          ENDIF
           ENDIF
 !
           DO M=LDIM4,UDIM4                                                 !<-- Loop through the tracers (skip unallocated pointers)

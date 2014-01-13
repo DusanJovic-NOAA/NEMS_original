@@ -153,6 +153,7 @@ if [ $argn -eq 1 ]; then
     cp ${RTPWD}/NMMB_reg/*                 ${RTPWD_U}/NMMB_reg/.
     cp ${RTPWD}/NMMB_reg_filt/*            ${RTPWD_U}/NMMB_reg_filt/.
     cp ${RTPWD}/NMMB_reg_pcpadj/*          ${RTPWD_U}/NMMB_reg_pcpadj/.
+    cp ${RTPWD}/NMMB_reg_spec_adv/*        ${RTPWD_U}/NMMB_reg_spec_adv/.
     cp ${RTPWD}/NMMB_reg_sas_zhao_rrtm/*   ${RTPWD_U}/NMMB_reg_sas_zhao_rrtm/.
     cp ${RTPWD}/NMMB_reg_sel_phy/*         ${RTPWD_U}/NMMB_reg_sel_phy/.
     cp ${RTPWD}/NMMB_reg_thomp/*           ${RTPWD_U}/NMMB_reg_thomp/.
@@ -224,7 +225,7 @@ fi
 # WTPG        - number of write tasks per group
 # THRD        - number of threads
 # WLCLK       - wall clock limit
-# TS          - write time series
+# TS          - true: write time series
 # INPES       - number od PE's on x direction
 # JNPES       - number od PE's on y direction
 # FCSTL       - forecast length in hours
@@ -234,12 +235,11 @@ fi
 # gfsP        - GFS physics suite
 # PCPFLG      - precipitation adjustment (true/false)
 # WPREC       - write output for precipitation adjustment (true/false)
-# CPPCP       - read precipitation adjustment files
 # NCHILD      - number of direct nested domains
 # RADTN       - radiation scheme (gfdl, rrtm)
 # CONVC       - convective scheme (bmj, sas)
 # MICRO       - microphysics scheme (fer, gfs, fer_hires)
-# SPEC_ADV    - species advection (true/false)
+# SPEC_ADV    - separate species advection (true/false)
 # TURBL       - PBL scheme (myj,gfs)
 # GBRG        - NMMB global/regional/nest/filter option
 # QUILT       - quilting ON/OFF
@@ -368,8 +368,8 @@ export GBRG=reg          ; export NEMSI=false       ; export RSTRT=false
 export AFFN=core         ; export NODE=1
 export NCHILD=0          ; export MODE=1-way        ; export WGT=0.0
 export FCSTL=48
-export PCPFLG=false      ; export WPREC=false       ; export CPPCP=#
-export TS=#
+export PCPFLG=false      ; export WPREC=false
+export TS=false
 export RADTN=gfdl        ; export CONVC=bmj         ; export TURBL=myj
 export MICRO=fer_hires   ; export gfsP=false        ; export SPEC_ADV=false
 }
@@ -1198,6 +1198,62 @@ else
 
  ###############################################################################
  #
+ # TEST   - Regional NMM-B with NEMSIO input
+ #        - 6x5 compute tasks / 1 thread / separate species advection / NEMSIO input
+ #
+ ###############################################################################
+
+ if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
+
+  export TEST_DESCR="Test NMMB-regional with separate species advection ON"
+
+#---------------------
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_SPEC_ADV
+  export CNTL_DIR=NMMB_reg_spec_adv
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
+  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+  nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
+#---------------------
+  export_nmm
+  export GBRG=reg ; export SPEC_ADV=true ; export FCSTL=24 ; export NEMSI=true
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
+ ###############################################################################
+ #
+ # TEST   - Regional NMM-B restart with binary input
+ #        - 6x5 compute tasks / 1 thread / separate species advection / pure binary input
+ #
+ ###############################################################################
+
+ if [ $RT_FULL = true ]; then
+
+  export TEST_DESCR="Test NMMB-regional restarted run with separate species advection ON"
+
+#---------------------
+  (( TEST_NR=TEST_NR+1 ))
+  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_SPEC_ADV_RST
+  export CNTL_DIR=NMMB_reg_spec_adv
+  export LIST_FILES=" \
+  nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s"
+#---------------------
+  export_nmm
+  export GBRG=reg ; export SPEC_ADV=true ; export FCSTL=24 ; export RSTRT=true
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
+ ###############################################################################
+ #
  # TEST   - Regional NMM-B with selected physics schemes (WSM6, GFDL)
  #        - 6x5 compute tasks / 1 thread / selected GFS physics / free fcst / pure binary input
  #
@@ -1337,8 +1393,7 @@ else
   nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
 #---------------------
   export_nmm
-  export GBRG=reg    ; export FCSTL=12
-  export PCPFLG=true ; export CPPCP=''
+  export GBRG=reg    ; export FCSTL=12 ; export PCPFLG=true
 #---------------------
    ./rt_nmm.sh
    if [ $? = 2 ]; then exit ; fi
@@ -1365,7 +1420,7 @@ else
   nmmb_hst_01_bin_0006h_00m_00.00s ts_p01_d01.bin ts_p02_d01.bin"
 #---------------------
   export_nmm
-  export GBRG=reg ; export TS='' ; export FCSTL=06
+  export GBRG=reg ; export TS=true ; export FCSTL=06
 #---------------------
    ./rt_nmm.sh
    if [ $? = 2 ]; then exit ; fi

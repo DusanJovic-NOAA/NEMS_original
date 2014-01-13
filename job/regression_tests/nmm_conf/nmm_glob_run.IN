@@ -7,10 +7,6 @@ mkdir -p $RUNDIR
 cd $RUNDIR
 rm -rf $RUNDIR/*
 
-### for now set symbolic links to HYCOM input files
-ln -s _RTPWD_/HYCOM_glob/* .
-###################################################
-
 cp _RTPWD_/NMMB_glob/test_input_nmmb_global            input_domain_01
 cp _RTPWD_/NMMB_glob/test_input_nmmb_global.nemsio     input_domain_01_nemsio
 cp _RTPWD_/NMMB_glob/nmmb_rst_01_bin_0024h_00m_00.00s  restart_file_01
@@ -30,7 +26,9 @@ ln -sf global_o3clim.txt fort.48
 
 cp $SRCDIR/job/regression_tests/solver_state.txt .
 cp $SRCDIR/job/regression_tests/nests.txt .
-_TS_cp $SRCDIR/job/regression_tests/ts_locations.nml .
+if [ $TS = true ]; then
+  cp $SRCDIR/job/regression_tests/ts_locations.nml .
+fi
 
 cp $SRCDIR/exe/NEMS.x .
 

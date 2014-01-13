@@ -8849,6 +8849,13 @@
         SIHFCS(NIJ) = int_state%SICE(I,J) * 1.0d0  ! initialize like this
         SICFCS(NIJ) = int_state%SICE(I,J) * 0.9d0  ! initialize like this
 
+        if(int_state%SICE(I,J) > 0.5 ) then
+          SLPFCS(NIJ)=9.0d0
+          VEGFCS(NIJ)=0.01d0
+          SOTFCS(NIJ)=9.0d0
+          VETFCS(NIJ)=13.0d0
+        endif
+
         int_state%ZORFCS(I,J)   = ZORFCS(NIJ)
         int_state%SIHFCS(I,J)   = SIHFCS(NIJ)
         int_state%SICFCS(I,J)   = SICFCS(NIJ)
@@ -8857,6 +8864,10 @@
         int_state%VEGFCS(I,J)   = VEGFCS(NIJ)
         int_state%VETFCS(I,J)   = VETFCS(NIJ)
         int_state%SOTFCS(I,J)   = SOTFCS(NIJ)
+!!!
+        int_state%isltyp(I,J)   = nint(SOTFCS(NIJ))
+        int_state%ivgtyp(I,J)   = nint(VETFCS(NIJ))
+!!!
 
         int_state%ALBFC1(I,J,1) = ALBFC1(NIJ,1)
         int_state%ALBFC1(I,J,2) = ALBFC1(NIJ,2)

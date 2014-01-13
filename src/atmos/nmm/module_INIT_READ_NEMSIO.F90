@@ -3171,8 +3171,8 @@ integer,allocatable       :: reclev(:)
       ENDDO
 
 
-!-- tracers
-      do n=1,int_state%indx_o3
+!-- tracers_prev
+      do n=1,int_state%num_tracers_total
         int_state%tracers_prev(:,:,:,n)=0.
         write(tn,'(I2.2)')n
         do l=1,lm
@@ -3189,7 +3189,7 @@ integer,allocatable       :: reclev(:)
           endif
         enddo
       enddo
-      call halo_exch(int_state%tracers_prev,lm,int_state%indx_o3,1,2,2)
+      call halo_exch(int_state%tracers_prev,lm,int_state%num_tracers_total,1,2,2)
 !
 !-----------------------------------------------------------------------
 !
