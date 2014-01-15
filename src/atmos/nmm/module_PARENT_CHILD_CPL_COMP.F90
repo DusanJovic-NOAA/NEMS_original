@@ -78,6 +78,7 @@
                               ,INTEGER_DATA                             &
                               ,INTEGER_DATA_2D                          &
                               ,INTERIOR_DATA_FROM_PARENT                &
+                              ,LAG_STEPS                                &
                               ,MIXED_DATA                               &
                               ,REAL_DATA                                &
                               ,MIXED_DATA_TASKS                         &
@@ -278,6 +279,7 @@
         INTEGER(kind=KINT) :: NTASKS_UPDATE_PARENT
         INTEGER(kind=KINT) :: NTIMESTEP_CHECK  
         INTEGER(kind=KINT) :: NTIMESTEP_FINAL
+        INTEGER(kind=KINT) :: NTIMESTEP_WAIT_PARENT
         INTEGER(kind=KINT) :: NTIMESTEP_WAIT_FORCED_PARENT
         INTEGER(kind=KINT) :: NTOT_SFC
         INTEGER(kind=KINT) :: NTIMESTEPS_RESTART
@@ -428,6 +430,7 @@
         LOGICAL(kind=KLOG) :: I_WANT_TO_MOVE
         LOGICAL(kind=KLOG) :: MOVE_FLAG_SENT
         LOGICAL(kind=KLOG) :: MY_PARENT_MOVES
+        LOGICAL(kind=KLOG) :: PARENT_WANTS_TO_MOVE
 !
         LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: MOVE_FLAG
         LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: SEND_CHILD_DATA
@@ -662,6 +665,7 @@
                                    ,NTASKS_UPDATE_PARENT                &
                                    ,NTIMESTEP_CHECK                     &
                                    ,NTIMESTEP_FINAL                     &
+                                   ,NTIMESTEP_WAIT_PARENT               &
                                    ,NTIMESTEP_WAIT_FORCED_PARENT        &
                                    ,NTIMESTEPS_RESTART                  &
                                    ,NTOT_SFC                            &
@@ -814,6 +818,7 @@
       LOGICAL(kind=KLOG),POINTER :: I_WANT_TO_MOVE
       LOGICAL(kind=KLOG),POINTER :: MOVE_FLAG_SENT
       LOGICAL(kind=KLOG),POINTER :: MY_PARENT_MOVES
+      LOGICAL(kind=KLOG),POINTER :: PARENT_WANTS_TO_MOVE
 !
       LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: CALLED_PARENT_2WAY_BOOKKEEPING
       LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: MOVE_FLAG
@@ -3610,7 +3615,10 @@
 !
           ENDDO
 !
+          cc%NTIMESTEP_WAIT_PARENT=0
           cc%NTIMESTEP_WAIT_FORCED_PARENT=0
+!
+          cc%PARENT_WANTS_TO_MOVE=.FALSE.
 !
 !-----------------------------------------------------------------------
 !***  The averaging stencil used by the child to interpolate its
@@ -6294,9 +6302,9 @@
 !-----------------------------------------------------------------------
 !
 #ifdef ESMF_3
-      IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
+      IF(I_AM_A_FCST_TASK==ESMF_TRUE.AND.NEST_MODE=='2-way')THEN
 #else
-      IF(I_AM_A_FCST_TASK)THEN
+      IF(I_AM_A_FCST_TASK.AND.NEST_MODE=='2-way')THEN
 #endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -6865,8 +6873,6 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT),SAVE :: LAG_STEPS=4                               !<-- Nest moves this many parent timesteps after deciding
-!                                                                               to move.
       INTEGER(kind=KINT) :: NEXT_MOVE_TIMESTEP_PARENT
 !
       INTEGER(kind=KINT) :: ALLCLEAR_SIGNAL_TAG                         &
@@ -7010,14 +7016,105 @@
 !-----------------------------------------------------------------------
 !***  If this is now the point in time at which the parent prepared
 !***  internal and boundary data for the child's new position, then
-!***  the child moves now.  It will receive the data prepared for it
-!***  by its parent for the child's new position and will also shift
-!***  all of its internal data that remains within the lateral extent
-!***  (i.e., the footprint) of the child's grid position  prior to
-!***  the move.
+!***  the child initiates its shift now by receiving the data prepared
+!***  for it by its parent for the child's new position.  Note that
+!***  the actual updating of the prognostic variables due to the
+!***  shift takes place in DOMAIN_RUN which is called in NMM_INTEGRATE
+!***  following phases 2 and 3 of the Parent-Child coupler (where the
+!***  children receive update data from their parents and the parents
+!***  receive update data from their children, respectively).  
 !-----------------------------------------------------------------------
 !
         the_child_moves: IF(NTIMESTEP==NEXT_MOVE_TIMESTEP)THEN
+!
+!-----------------------------------------------------------------------
+!***  Later in this subroutine moving nests begin their decision of 
+!***  whether they want to shift with the call to COMPUTE_STORM_MOTION.
+!***  If they do want to shift then they check to see if the shift
+!***  would lead to a collision with their parent's boundary.  If the
+!***  nest is also a parent it checks to see if its desired shift
+!***  would lead to a collision with its children.  However after
+!***  the decision to shift is made then the nest must wait LAG_STEPS
+!***  timesteps of its parent before executing that shift.  This is
+!***  because in 1-way nesting the parent can run several timesteps
+!***  ahead of its children and thus the parent will lie out in the
+!***  child's future when the parent learns what the new location of
+!***  the child will be.  Only then can the parent generate new data
+!***  to update the child's boundaries at that location.  The existence
+!***  of this time lag can permit a fatal situation.  A child/parent
+!***  may determine it is safe to shift given the current location
+!***  of the domains involved but then before it executes the shift
+!***  the related parent/child may decide it also wants to shift and 
+!***  determines it is safe to shift given the present location of the
+!***  of the domains.  After the first of the domains shifts that may
+!***  then make the shift of the second domain fatal by leading to
+!***  a collision IF either or both shifts are relatively large.
+!
+!***  Here are the three basic scenarios that must be avoided.
+!
+!-----------------------------------------------------------------------
+!                         Scenario 1
+!-----------------------------------------------------------------------
+!
+!                   <------  Child decides it wants to shift
+!
+!              <-------  Parent decides it wants to shift
+!  TIME
+!   |               <------  Child executes its shift
+!   |
+!   |
+!   v
+!
+!
+!     
+!
+!              <-------  Parent executes its shift
+!              
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!                         Scenario 2
+!-----------------------------------------------------------------------
+!
+!              <-------  Parent decides it wants to shift
+! 
+!
+!  TIME
+!   |               <------  Child decides it wants to shift
+!   |
+!   |
+!   v
+!                   <------  Child executes its shift
+!
+!
+!     
+!
+!              <-------  Parent executes its shift
+!              
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!                         Scenario 3  (~equivalent to Scenario 2)
+!-----------------------------------------------------------------------
+!
+!              <-------  Parent decides it wants to shift
+! 
+!
+!  TIME
+!   |
+!   |
+!   |
+!   v
+!                   <------  Child decides it wants to shift
+!
+!              <-------  Parent executes its shift
+!     
+!                   <------  Child executes its shift
+!              
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !
 #ifdef ESMF_3
           MOVE_NOW=ESMF_TRUE                                               !<-- Yes, the child moves at beginning of this timestep
@@ -7069,10 +7166,12 @@
 !
           IF(I_AM_LEAD_FCST_TASK)THEN
             WRITE(0,12341)MY_DOMAIN_ID,NTIMESTEP
-            WRITE(0,12342)I_SHIFT_CHILD,J_SHIFT_CHILD,I_SW_PARENT_NEW,J_SW_PARENT_NEW
-12341       FORMAT(' nest shifts now  my_domain_id=',I2,' ntimestep=',I5) 
-12342       FORMAT(' i_shift_child=',I4,' j_shift_child=',I4,' i_sw_parent_new=',I4,' j_sw_parent_new=',I4)
-          endif
+            WRITE(0,12342)I_SHIFT_CHILD,J_SHIFT_CHILD                   &
+                         ,I_SW_PARENT_NEW,J_SW_PARENT_NEW
+12341       FORMAT(' Nest shifts now  my_domain_id=',I2,' ntimestep=',I5) 
+12342       FORMAT(' i_shift_child=',I4,' j_shift_child=',I4            &
+                  ,' i_sw_parent_new=',I4,' j_sw_parent_new=',I4)
+          ENDIF
 !
           btim=timef()
           CALL MOVING_NEST_BOOKKEEPING(I_SHIFT_CHILD                    &
@@ -7146,18 +7245,16 @@
 !***  If this is a (moving) child of a moving parent then it needs
 !***  to watch for the appearance of a signal from the parent
 !***  indicating that it (the parent) intends to move.  The child 
-!***  needs to receive that message one parent timestep prior to
-!***  the actual shift.  The child will use that shift information
-!***  in two different ways at two different times.  If two-way
-!***  interaction is being used then the child must be able to
-!***  anticipate the parent's move and prepare/send the 2-way data
-!***  at the end of the parent timestep preceding the execution of
-!***  the parent motion.  Then for all nesting the child uses the
+!***  will use that shift information in two different ways. 
+!***  If two-way interaction is being used then the child must know
+!***  the direction of the parent's move and prepare/send the 2-way 
+!***  data at the end of the parent timestep in which the parent
+!***  shift took place.  Then for all nesting the child uses the
 !***  new parent location at the beginning of the parent timestep
 !***  in which the shift occurs to properly prepare working objects,
-!***  to receive, and to incorporate standard BC update data sent
-!***  from the parent at the end of the timestep of the parent's
-!***  shift.
+!***  to receive, and to incorporate standard BC update data that
+!***  was sent from the parent at the end of the timestep of the 
+!***  parent's shift.
 !***  So in order to be ready for both those situations the child
 !***  now receives the parent's shift and the new specifics of the
 !***  parent task and nest task associations if this is the start
@@ -7168,10 +7265,11 @@
 !
 !-----------------------------------------------------------------------
 !
-        IF(I_AM_LEAD_FCST_TASK)THEN
-          NTAG0=PARENT_SHIFT_TAG+NTIMESTEP/TIME_RATIO_MY_PARENT            !<-- Unique timestep-dependent MPI tag.  It is valid
-                                                                           !    one parent timestep before the parent moves.
+        PARENT_SHIFT_IS_PRESENT=.FALSE.
 !
+        IF(I_AM_LEAD_FCST_TASK)THEN
+          NTAG0=PARENT_SHIFT_TAG+NTIMESTEP/TIME_RATIO_MY_PARENT            !<-- Unique timestep-dependent MPI tag.  It is valid one
+                                                                           !    parent timestep after the parent decides to move.
           CALL MPI_IPROBE(0                                             &  !<-- The message is sent by moving parent's fcst task 0.
                          ,NTAG0                                         &  !<-- Tag associated with parent's shift
                          ,COMM_TO_MY_PARENT                             &  !<-- Communicator between this nest and its parent
@@ -7207,6 +7305,10 @@
                         ,0                                              &  !<-- Broadcast from nest forecast task 0
                         ,COMM_FCST_TASKS                                &  !<-- MPI communicator for this nest's forecast tasks
                         ,IRTN)
+!
+          PARENT_WANTS_TO_MOVE=.TRUE.
+          NTIMESTEP_WAIT_PARENT=PARENT_SHIFT(1)*TIME_RATIO_MY_PARENT       !<-- This child domain's timestep in which
+!                                                                          !    its parent will shift.
 !
         ENDIF
 !
@@ -7285,7 +7387,7 @@
 !
 !-----------------------------------------------------------------------
 !
-        IF(.NOT.I_WANT_TO_MOVE.AND..NOT.FORCED_PARENT_SHIFT)THEN
+        motion: IF(.NOT.I_WANT_TO_MOVE.AND..NOT.FORCED_PARENT_SHIFT)THEN
 !
           IF (TRIM(MOVE_TYPE) == 'storm') THEN
 
@@ -7341,7 +7443,42 @@
 
           ENDIF
 !
-        ENDIF
+!-----------------------------------------------------------------------
+!***  If this domain is a parent and it has just now decided it wants
+!***  to shift then first check if any of the children have already
+!***  decided to shift but have not yet executed the shift.  If this
+!***  is the case then the parent ignores its desire to shift.
+!-----------------------------------------------------------------------
+!
+          IF(I_WANT_TO_MOVE.AND.NUM_CHILDREN>0)THEN
+!
+            DO N=1,NUM_CHILDREN
+!
+              IF(NTIMESTEP<=SHIFT_INFO_CHILDREN(1,N)                    &
+                              .AND.                                     &
+                 SHIFT_INFO_CHILDREN(1,N)                               &
+                   <=NTIMESTEP+TIME_RATIO_MY_PARENT*LAG_STEPS)THEN
+!
+                I_WANT_TO_MOVE=.FALSE.
+                I_SW_PARENT_NEW=I_SW_PARENT_CURRENT
+                J_SW_PARENT_NEW=J_SW_PARENT_CURRENT
+                IF(I_AM_LEAD_FCST_TASK)THEN
+                  WRITE(0,51511)MY_DOMAIN_ID,NTIMESTEP                  &
+                               ,N,SHIFT_INFO_CHILDREN(1,N)
+51511             FORMAT(' CHILDREN_RECV MY_DOMAIN_ID=',I2,' NTIMESTEP=',I6 &
+                        ,' I wanted to move but child #',I2,' will shift at ',i6)
+                  WRITE(0,51512)
+51512             FORMAT(' So I will not shift.')
+                ENDIF
+              ENDIF
+!
+            ENDDO
+!
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF motion
 !
 !-----------------------------------------------------------------------
 !***  If necessary account for the very special situation in which
@@ -7364,6 +7501,27 @@
 52053       FORMAT(' CHILDREN_RECV child_forces_my_shift i_want_to_move=',L1,' move_flag_sent=',L1,' my_domain_id=',I2,' ntimestep=',I5)
 52054       FORMAT(' my forced I shift=',i4,' my forced J shift=',I4)
           endif
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  If this child wants to shift and it knows that its parent
+!***  had already initiated its own shift but has not yet moved
+!***  then this child simply ignores its own desire to shift and
+!***  sets NTIMESTEP_WAIT_PARENT telling it when its parent will
+!***  have executed its shift at which time this child will then
+!***  be free to initiate a shift.
+!-----------------------------------------------------------------------
+!
+        IF(I_WANT_TO_MOVE.AND.PARENT_WANTS_TO_MOVE)THEN
+!
+          I_WANT_TO_MOVE=.FALSE.
+!                                                                          !    child timestep NTIMESTEP_WAIT_PARENT.
+        ENDIF
+!
+        IF(NTIMESTEP_WAIT_PARENT>0                                      &  !<-- Parent has wanted to shift at least once
+                   .AND.                                                &
+           NTIMESTEP>NTIMESTEP_WAIT_PARENT-TIME_RATIO_MY_PARENT)THEN       !<-- Reset this brake 1 parent timestep before parent shifts.
+          PARENT_WANTS_TO_MOVE=.FALSE.
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -7615,8 +7773,8 @@
 !***  the following parent timestep and then must wait for LAG_STEPS
 !***  timesteps of its own parent before executing its shift.  This
 !***  child must not initiate another forced shift of its parent 
-!***  unti after that amount of time which is this LAG_STEPS+1
-!***  of this child's grandparent's timesteps from now.
+!***  until after that amount of time which is LAG_STEPS+1 of this
+!***  child's grandparent's timesteps from now.
 !-----------------------------------------------------------------------
 !
               ID_GRANDPARENT=ID_PARENTS(ID_PARENTS(MY_DOMAIN_ID))          !<-- My parent's parent's domain ID
@@ -8408,8 +8566,8 @@
 !***  be filled after the call to MPI_WAIT.
 !-----------------------------------------------------------------------
 !
-        IF(NTIMESTEP==NEXT_MOVE_TIMESTEP-TIME_RATIO_MY_PARENT)THEN
-!
+        IF(NTIMESTEP==NEXT_MOVE_TIMESTEP-TIME_RATIO_MY_PARENT*LAG_STEPS)THEN  !<-- Parent sends its shift information at the end of the
+!                                                                             !    timestep in which the decision to shift was made.
           IF(NUM_CHILDREN>0.AND.I_AM_LEAD_FCST_TASK)THEN
 !
             DO N=1,NUM_CHILDREN
@@ -8422,8 +8580,7 @@
               PARENT_SHIFT(2)=I_SHIFT_CHILD                                !<-- Parent's I shift in its space
               PARENT_SHIFT(3)=J_SHIFT_CHILD                                !<-- Parent's J shift in its space
 !
-!             NTAG0=PARENT_SHIFT_TAG+NTIMESTEP                             !<-- Unique timestep-dependent MPI tag
-              NTAG0=PARENT_SHIFT_TAG+NEXT_MOVE_TIMESTEP-1                  !<-- Unique MPI tag valid 1 parent timestep before the shift
+              NTAG0=PARENT_SHIFT_TAG+NTIMESTEP+1                           !<-- Unique MPI tag valid 1 parent timestep after decision to shift
               CHILDTASK_0=child_ranks(MY_DOMAIN_ID)%CHILDREN(N)%DATA(0)    !<-- Local rank of child N's lead task in parent-child intracomm
 !
               CALL MPI_ISSEND(PARENT_SHIFT                              &  !<-- Send parent's shift to all its children
@@ -13254,7 +13411,9 @@
       SPACE_RATIO_MY_PARENT=>cc%SPACE_RATIO_MY_PARENT
       TIME_RATIO_MY_PARENT =>cc%TIME_RATIO_MY_PARENT
 !
+      NTIMESTEP_WAIT_PARENT       =>cc%NTIMESTEP_WAIT_PARENT
       NTIMESTEP_WAIT_FORCED_PARENT=>cc%NTIMESTEP_WAIT_FORCED_PARENT
+      PARENT_WANTS_TO_MOVE        =>cc%PARENT_WANTS_TO_MOVE
 !
       LOCAL_ISTART=>cc%LOCAL_ISTART
       LOCAL_IEND  =>cc%LOCAL_IEND
@@ -14625,6 +14784,51 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
+!***  Check to see if the child domain is too near to the parent
+!***  domain's boundary.
+!-----------------------------------------------------------------------
+!
+      IF(PARENT_J_CHILD_SBND<=JDS+2)THEN
+        WRITE(0,20221)N_CHILD,MY_DOMAIN_ID
+        WRITE(0,20222)PARENT_J_CHILD_SBND,JDS,FLAG_H_OR_V
+20221   FORMAT(' Child #',I2,' is within 2 points of the south'         &
+              ,' boundary of domain #',I2)
+20222   FORMAT(' Parent J of child Sbndry=',e12.5,' parent jds=',i3,' flag_h_or_v=',a)
+        WRITE(0,*)' ABORTING!!'
+        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+      ENDIF
+!
+      IF(PARENT_J_CHILD_NBND>=JDE-2)THEN
+        WRITE(0,20223)N_CHILD,MY_DOMAIN_ID
+        WRITE(0,20224)PARENT_J_CHILD_NBND,JDE,FLAG_H_OR_V
+20223   FORMAT(' Child #',I2,' is within 2 points of the north'         &
+              ,' boundary of domain #',I2)
+20224   FORMAT(' Parent J of child Nbndry=',e12.5,' parent jde=',i3,' flag_h_or_v=',a)
+        WRITE(0,*)' ABORTING!!'
+        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+      ENDIF
+!
+      IF(PARENT_I_CHILD_WBND<=IDS+2)THEN
+        WRITE(0,20225)N_CHILD,MY_DOMAIN_ID
+        WRITE(0,20226)PARENT_I_CHILD_WBND,IDS,FLAG_H_OR_V
+20225   FORMAT(' Child #',I2,' is within 2 points of the west'          &
+              ,' boundary of domain #',I2)
+20226   FORMAT(' Parent I of child Wbndry=',e12.5,' parent ids=',i3,' flag_h_or_v=',a)
+        WRITE(0,*)' ABORTING!!'
+        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+      ENDIF
+!
+      IF(PARENT_I_CHILD_EBND>=IDE+2)THEN
+        WRITE(0,20227)N_CHILD,MY_DOMAIN_ID
+        WRITE(0,20228)PARENT_I_CHILD_EBND,IDE,FLAG_H_OR_V
+20227   FORMAT(' Child #',I2,' is within 2 points of the east'          &
+              ,' boundary of domain #',I2)
+20228   FORMAT(' Parent I of child Ebndry=',e12.5,' parent ide=',i3,' flag_h_or_v=',a)
+        WRITE(0,*)' ABORTING!!'
+        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+      ENDIF
+!
+!-----------------------------------------------------------------------
 !
       DO N=1,NUM_CHILD_TASKS                                               !<-- Loop through forecast tasks on the child domain
         ITS_CHILD(N)=LIMITS(1,N)                                           !<-- ITS on this child task
@@ -14694,25 +14898,6 @@
 !-----------------------------------------------------------------------
 !
         REAL_I_PARENT=REAL_I_START+(I_CHILD-1)*RATIO_C_P                   !<-- Parent I index coinciding with child domain point
-!
-!-----------------------------------------------------------------------
-!***  For now the run will stop if a nest comes too close to
-!***  the parent boundary.
-!-----------------------------------------------------------------------
-!
-        IF(REAL_I_PARENT<=REAL(IDS+2))THEN
-          WRITE(0,*)' Child #',N_CHILD,' is within 2 points of'  &
-                   ,' the parent west boundary!'
-          WRITE(0,*)' ABORTING!!'
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-        ENDIF
-!
-        IF(REAL_I_PARENT>=REAL(IDE-2))THEN
-          WRITE(0,*)' Child #',N_CHILD,' is within 2 points of'  &
-                   ,' the parent east boundary!'
-          WRITE(0,*)' ABORTING!!'
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-        ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -14963,23 +15148,6 @@
         REAL_J_PARENT=REAL_J_START+(J_CHILD-1)*RATIO_C_P                   !<-- Parent J index coinciding with child domain point
 !
 !-----------------------------------------------------------------------
-!***  For now the run will stop if a nest comes too close to
-!***  the parent boundary.
-!-----------------------------------------------------------------------
-!
-        IF(REAL_J_PARENT<=REAL(JDS+2))THEN
-          WRITE(0,*)' Child #',N_CHILD,' is within 2 points of'  &
-                   ,' the parent south boundary!'
-          WRITE(0,*)' ABORTING!!'
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-        ENDIF
-!
-        IF(REAL_J_PARENT>=REAL(JDE-2))THEN
-          WRITE(0,*)' Child #',N_CHILD,' is within 2 points of'  &
-                   ,' the parent north boundary!'
-          WRITE(0,*)' ABORTING!!'
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-        ENDIF
 !
 !       j_block: IF(REAL_J_PARENT>=R_JTS.AND.REAL_J_PARENT<=R_JEND)THEN    !<-- Row (J) of child's W/E bndry point lies on parent task?
         j_block: IF(REAL_J_PARENT>=R_JTS.AND.REAL_J_PARENT< R_JEND)THEN    !<-- Row (J) of child's W/E bndry point lies on parent task?

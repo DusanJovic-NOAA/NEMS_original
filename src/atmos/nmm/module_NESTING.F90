@@ -97,6 +97,7 @@
                ,INTERIOR_DATA_FROM_PARENT                               &
                ,INTERIOR_DATA_STATE_TO_STATE                            &
                ,INTERNAL_DATA_TO_DOMAIN                                 &
+               ,LAG_STEPS                                               &
                ,LATLON_TO_IJ                                            &
                ,MIXED_DATA                                              &
                ,MIXED_DATA_TASKS                                        &
@@ -214,6 +215,8 @@
                                      ,BILINEAR=1                           !<-- Flag for bilinear interpolation (parent to child)
 !
       INTEGER(kind=KINT),SAVE :: LM,N8=8
+!
+      INTEGER(kind=KINT),SAVE :: LAG_STEPS=4                               !<-- Nest moves this many parent timesteps after deciding
 !
       REAL(kind=KFPT),SAVE :: CHILD_PARENT_SPACE_RATIO                  &
                              ,EPS=1.E-4 
