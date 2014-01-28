@@ -1,11 +1,11 @@
-Tue Jan 14 11:13:35 EST 2014
+Thu Jan 23 15:19:25 EST 2014
 Start Regression test
 
 
 
-Tue Jan 14 11:13:35 EST 2014
+Thu Jan 23 15:19:25 EST 2014
 Compilation ALL
-Tue Jan 14 11:31:19 EST 2014
+Thu Jan 23 16:15:54 EST 2014
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  94.398
+ Original timing:  151.20  , test_glob timing:  94.275
 
 
 Test 002
@@ -128,7 +128,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  181.77
+ Original timing:  240.82  , test_reg timing:  177.38
 
 
 Test 009
@@ -903,9 +903,9 @@ Checking test 047 results ....
  Comparing ngac.t00z.aerf12.........OK
  Comparing ngac.t00z.aerf24.........OK
  Test 047 passed 
-Tue Jan 14 19:48:31 EST 2014
+Thu Jan 23 23:27:25 EST 2014
 Compilation with POST
-Tue Jan 14 20:06:07 EST 2014
+Fri Jan 24 00:25:14 EST 2014
 Test 048
 NMMB-regional run with post on quilt
 
@@ -988,7 +988,7 @@ Checking test 050 results ....
  Comparing NGAC3d.GrbF12.........OK
  Comparing NGAC3d.GrbF24.........OK
  Test 050 passed 
-Tue Jan 14 20:21:33 EST 2014
+Fri Jan 24 00:49:56 EST 2014
 Compilation only NMM
 Test 051
 Compare NMMB-global results with previous trunk version, only NMM compiled
@@ -1005,9 +1005,9 @@ Checking test 051 results ....
 
 
 
-Tue Jan 14 20:31:40 EST 2014
+Fri Jan 24 01:13:41 EST 2014
 Compilation only GFS
-Tue Jan 14 20:40:23 EST 2014
+Fri Jan 24 01:46:25 EST 2014
 Test 052
 Compare GFS results with previous trunk version, only GFS compiled
 GFS, 32 proc, 1 thread
@@ -1035,5 +1035,5 @@ Checking test 052 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 052 passed 
-Tue Jan 14 20:45:43 EST 2014
+Fri Jan 24 01:51:19 EST 2014
 REGRESSION TEST WAS SUCCESSFUL

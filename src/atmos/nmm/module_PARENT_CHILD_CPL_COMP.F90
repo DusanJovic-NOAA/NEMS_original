@@ -10917,22 +10917,29 @@
 !***  order to receive that signal.
 !-----------------------------------------------------------------------
 !
-      IF(I_AM_LEAD_FCST_TASK.AND.NTIMESTEP<NTIMESTEP_FINAL)THEN            !<-- Local task 0 on this child domain ISends
+      IF(NTIMESTEP<NTIMESTEP_FINAL)THEN
 !
-        TWOWAY_SIGNAL_TAG=1115+1000*MY_DOMAIN_ID+10*NTIMESTEP              !<-- Use child's domain ID,timestep to create a unique tag
+        IF(I_AM_LEAD_FCST_TASK)THEN                                        !<-- Local task 0 on this child domain ISends
 !
-        CALL MPI_WAIT(HANDLE_SEND_2WAY_SIGNAL                           &  !<-- Handle for this ISend
-                     ,JSTAT                                             &  !<-- MPI status object 
-                     ,IERR)
+          TWOWAY_SIGNAL_TAG=1115+1000*MY_DOMAIN_ID+10*NTIMESTEP              !<-- Use child's domain ID,timestep to create a unique tag
 !
-        CALL MPI_ISSEND(MY_2WAY_SIGNAL                                  &  !<-- The child's affirmative 2-way signal
-                       ,1                                               &  !<-- The signal is 1 word
-                       ,MPI_LOGICAL                                     &  !<-- The signal is type Logical
-                       ,0                                               &  !<-- Target the parent lead task in the p-c intracomm
-                       ,TWOWAY_SIGNAL_TAG                               &  !<-- Tag associated with 2way signal from children
-                       ,COMM_TO_MY_PARENT                               &  !<-- The intracommunicator between this child and its parent
-                       ,HANDLE_SEND_2WAY_SIGNAL                         &  !<-- Handle for this ISend
-                       ,IERR )
+          CALL MPI_WAIT(HANDLE_SEND_2WAY_SIGNAL                         &  !<-- Handle for this ISend
+                       ,JSTAT                                           &  !<-- MPI status object
+                       ,IERR)
+!
+          CALL MPI_ISSEND(MY_2WAY_SIGNAL                                &  !<-- The child's affirmative 2-way signal
+                         ,1                                             &  !<-- The signal is 1 word
+                         ,MPI_LOGICAL                                   &  !<-- The signal is type Logical
+                         ,0                                             &  !<-- Target the parent lead task in the p-c intracomm
+                         ,TWOWAY_SIGNAL_TAG                             &  !<-- Tag associated with 2way signal from children
+                         ,COMM_TO_MY_PARENT                             &  !<-- The intracommunicator between this child and its parent
+                         ,HANDLE_SEND_2WAY_SIGNAL                       &  !<-- Handle for this ISend
+                         ,IERR )
+        ENDIF
+!
+      ELSE
+!
+        RETURN                                                             !<-- Send nothing to parent if it is the final timestep.
 !
       ENDIF
 !
@@ -20502,7 +20509,7 @@
                 VBL_X(LM)=VBL_LM
                 VBL_X(LM-1)=VBL_LM1
                 PMID_CHILD_LM=0.5*(PMID_CHILD(LM-1)+PMID_CHILD(LM))
-                PMID_CHILD_LM1=(PMID_CHILD(LM-2)+PMID_CHILD(LM-1)+      &
+                PMID_CHILD_LM1=(PMID_CHILD(LM-2)+PMID_CHILD(LM-1)       &
                                +PMID_CHILD(LM))/3.
                 PMID_CHILD(LM)=PMID_CHILD_LM
                 PMID_CHILD(LM-1)=PMID_CHILD_LM1
