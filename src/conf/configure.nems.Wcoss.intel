@@ -55,8 +55,11 @@ EXTLIBS_POST = $(POST_LIB) \
                $(NETCDF_LIB) \
                $(SYS_LIB)
 
-FC          = mpiifort -g -openmp  -mkl=sequential
-#FC          = mpiifort -g -traceback -openmp  -mkl=sequential
+# For debug.  WY.
+#----------------
+#FC          = mpiifort -g -traceback -openmp  -mkl=sequential -check bounds -check uninit
+# FC          = mpiifort -g -traceback -openmp  -mkl=sequential
+ FC          = mpiifort -g -openmp  -mkl=sequential
 CC          = mpcc
 FREE        = -free
 FIXED       = -fixed
@@ -67,10 +70,10 @@ TRAPS       =
 #TRAPS       = -ftrapuv -check all -fp-stack-check
 #TRAPS       = -ftrapuv -check bounds -check format -check output_conversion -check pointers -check uninit -fp-stack-check
 
-FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise
+FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise -xAVX
+#FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise
 
 OPTS_NMM    = -O2
-#OPTS_GFS    = -O0
 OPTS_GFS    = -O3
 OPTS_GEN    = -O2
 OPTS_FIM    = -O2

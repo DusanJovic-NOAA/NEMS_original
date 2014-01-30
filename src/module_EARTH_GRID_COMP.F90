@@ -266,7 +266,7 @@
         do i=petListBounds(1), petListBounds(2)
           is%wrap%ocnPetList(i-petListBounds(1)+1) = i ! PET labeling is 0 based
         enddo
-        
+
         ! determine the MED petList bounds
         call ESMF_ConfigGetAttribute(config, petListBounds, &
           label="med_petlist_bounds:", default=-1, rc=rc)
@@ -275,7 +275,7 @@
           petListBounds(1) = 0
           petListBounds(2) = petCount - 1
         endif
-        
+
         ! set petList for MED
         allocate(is%wrap%medPetList(petListBounds(2)-petListBounds(1)+1))
         do i=petListBounds(1), petListBounds(2)
@@ -423,6 +423,7 @@
             convention="NUOPC", purpose="General", rc=rc)
           ESMF_ERR_RETURN(rc,rc)
         endif
+
         if (ocnFlag) then
           ! SetServices for ocn2med
           call ESMF_CplCompSetServices(is%wrap%ocn2med, conSS, userRc=localrc, &
@@ -432,12 +433,13 @@
           call ESMF_AttributeSet(is%wrap%ocn2med, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
           ESMF_ERR_RETURN(rc,rc)
+
           ! SetServices for med2ocn
           call ESMF_CplCompSetServices(is%wrap%med2ocn, conSS, userRc=localrc, &
             rc=rc)
           ESMF_ERR_RETURN(rc,rc)
           ESMF_ERR_RETURN(localrc,rc)
-          call ESMF_AttributeSet(is%wrap%med2ocn, name="Verbosity", value="high", &
+          call ESMF_AttributeSet(is%wrap%ocn2med, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
           ESMF_ERR_RETURN(rc,rc)
         endif
@@ -449,7 +451,7 @@
         call ESMF_ConfigGetAttribute(config, is%wrap%medOcnCouplingIntervalSec,&
           label="med_ocn_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, rc=rc)
         ESMF_ERR_RETURN(rc,rc)
-          
+
         ! Internal Clock and RunSequence will be set by EARTH_GENERIC_COMP
 
       end subroutine

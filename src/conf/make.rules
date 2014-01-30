@@ -7,8 +7,6 @@
 .f.f90:
 	$(CPP) $(CPPFLAGS) $< > $*.f90
 
-	
-
 depend: $(DEPEND_FILES)
 	ls -1 $(DEPEND_FILES) > Srcfiles
 	echo "." > Filepath

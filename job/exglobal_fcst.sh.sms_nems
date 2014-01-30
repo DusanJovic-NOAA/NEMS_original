@@ -464,6 +464,10 @@ export HOMEDIR=${HOMEDIR:-/nwprod}
 export NWPROD=${NWPROD:-$HOMEDIR}
 export FIXSUBDA=${FIXSUBDA:-fix/fix_am}
 export FIXGLOBAL=${FIXGLOBAL:-$NWPROD/$FIXSUBDA}
+if [ $SLG = .true. ] ; then
+   export FIXGLOBAL=/gpfs/gd1/emc/nems/save/Weiyu.Yang/gfs.trunk.21242/data.for.eddy/fix_am
+   export FIX_IDEA=${FIX_IDEA:-/meso/noscrub/wx20rv/REGRESSION_TEST/WAM_gh_l150}
+fi
 export FIX_RAD=${FIX_RAD:-$FIXGLOBAL}
 export EXECGLOBAL=${EXECGLOBAL:-$NWPROD/exec}
 export FIX_IDEA=${FIX_IDEA:-$FIXGLOBAL}
@@ -558,6 +562,10 @@ export CO2CON=${CO2CON:-${FIXGLOBAL}/global_co2con.l${LEVS}.f77}
 export MTNRSL=${MTNRSL:-$JCAP}
 export MTNRSLUF=${MTNRSLUF:-$MTNRSL}
 export MTNVAR=${MTNVAR:-${FIXGLOBAL}/global_mtnvar.t$MTNRSL.f77}
+if [ $SLG = .true. ] ; then
+  export MTNVAR=${FIXGLOBAL}/global_mtnvar.t574.1152.576.f77
+  export OROGRAPHY=${FIXGLOBAL}/global_orography.t574.1152.576.grb
+fi
 export CLTUNE=${CLTUNE:-${FIXGLOBAL}/global_cldtune.f77}
 export DTBTHE=${DTBTHE:-${FIXGLOBAL}/global_tbthe.f77}
 export O3FORC=${O3FORC:-${FIXGLOBAL}/global_o3prdlos.f77}
@@ -679,6 +687,9 @@ export CYCLVARS=${CYCLVARS}
 export NTHREADS=${NTHREADS:-1}
 export NTHSTACK=${NTHSTACK:-128000000}
 export SPECTRAL_LOOP=${SPECTRAL_LOOP:-1}
+if [ $SLG = .true. ] ; then
+    export FHOUT=6
+fi
 export XLSMPOPTS=${XLSMPOPTS:-"parthds=$NTHREADS:stack=$NTHSTACK"}
 export FILESTYLE=${FILESTYLE:-'L'}
 export PGMOUT=${PGMOUT:-${pgmout:-'&1'}}
@@ -708,7 +719,13 @@ else
    mkdata=YES
 fi
 cd $DATA||exit 99
-if [ $IDEA = .true. ] ; then cp $FIX_IDEA/global_idea* . ; fi
+if [ $IDEA = .true. ] ; then
+  if [ $SLG = .true. ] ; then
+      cp $FIX_IDEA/global* .
+  else
+      cp $FIX_IDEA/global_idea* .
+  fi
+fi
 [[ -d $COMOUT ]]||mkdir -p $COMOUT
 ################################################################################
 #  Make forecast
@@ -768,10 +785,14 @@ if [ $IEMS -gt 0 ] ; then
  ln -fs $EMISDIR/$EMMISSIVITY_FILE sfc_emissivity_idx.txt
 fi
 if [ $ISOL -gt 0 ] ; then
-cd $SOLCDIR
- for file in `ls | grep solarconstant` ; do
-  ${NCP:-cp} $file $DATA/$(echo $file |sed -e "s/global_//g")
- done
+  if [ $SLG = .true. ] ; then
+    ${NCP:-cp} $SOLCDIR/*solarconstantdata.txt solarconstantdata.txt
+  else
+    cd $SOLCDIR
+     for file in `ls | grep solarconstant` ; do
+      ${NCP:-cp} $file $DATA/$(echo $file |sed -e "s/global_//g")
+     done
+  fi
 fi
 if [ $IAER -gt 0 ] ; then
  cd $VOLCDIR
@@ -1157,6 +1178,8 @@ EOF
 cat atm_namelist.rc > dyn_namelist.rc
 cat << EOF >> dyn_namelist.rc
 
+SLG_FLAG:                        $SLG
+
 #ESMF_State_Namelist +++++++++++++++
 idate1_import:                    1
 z_import:                         1
@@ -1300,10 +1323,11 @@ EOF
 #
 cat  > atm_namelist <<EOF
  &nam_dyn
+  settls_dep3ds=.true.,settls_dep3dg=.true.,
   FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, DELTIM=$DELTIM,
   FHRES=$FHRES, FHROT=$FHROT, FHDFI=$FHDFI, nsout=$nsout,
   nxpt=1, nypt=2, jintmx=2, lonf=$LONF, latg=$LATG,
-  jcap=$JCAP, levs=$LEVS,  levr=$LEVR, 
+  jcap=$JCAP, levs=$LEVS,  levr=$LEVR, gg_tracers=.false.,
   ntrac=$NTRAC, ntoz=$NTOZ, ntcw=$NTCW, ncld=$NCLD,
   ngptc=$NGPTC, hybrid=$HYBRID, tfiltc=$TFILTC,
   gen_coord_hybrid=$GEN_COORD_HYBRID, zflxtvd=$ZFLXTVD,
@@ -1312,6 +1336,7 @@ cat  > atm_namelist <<EOF
   reduced_grid=$REDUCED_GRID,lsidea=$IDEA,
   semi_implicit_temp_profile=$SEMI_IMPLICIT_TEMP_PROFILE,
   thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,
+  lingg_a=.true.,redgg_a=.true.,
   $DYNVARS /
 &nam_phy
   FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, DELTIM=$DELTIM,
@@ -1324,6 +1349,7 @@ cat  > atm_namelist <<EOF
   ngptc=$NGPTC, hybrid=$HYBRID, tfiltc=$TFILTC,
   gen_coord_hybrid=$GEN_COORD_HYBRID,
   thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,
+  ctei_rm=$ctei_rm,ictm=$ictm,cal_pre=$cal_pre,
   $PHYVARS /
 &TRACER_CONSTANT
   $TRACERVARS /
@@ -1375,7 +1401,6 @@ EOF
 ln -sf atm_namelist.rc ./model_configure
 
 eval $FCSTENV $PGM $REDOUT$PGMOUT $REDERR$PGMERR
-
 
 export ERR=$?
 export err=$ERR

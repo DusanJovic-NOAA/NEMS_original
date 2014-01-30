@@ -3,14 +3,12 @@
 ####################################
 
 # ATM #
-atm_model:                      _atm_model_
-atm_petlist_bounds:             _atm_petlist_bounds_
+atm_model:              _atm_model_
+atm_petlist_bounds:     _atm_petlist_bounds_
 
 # OCN #
-ocn_model:                      _ocn_model_
-ocn_petlist_bounds:             _ocn_petlist_bounds_
+ocn_model:              _ocn_model_
+ocn_petlist_bounds:     _ocn_petlist_bounds_
 
-# MED #
-med_petlist_bounds:             _med_petlist_bounds_
-med_atm_coupling_interval_sec:  _med_atm_coupling_interval_sec_
-med_ocn_coupling_interval_sec:  _med_ocn_coupling_interval_sec_
+# ATM-OCN Coupling #
+atm_ocn_coupling_hours: _atm_ocn_coupling_hours_

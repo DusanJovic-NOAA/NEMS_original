@@ -450,8 +450,8 @@ clean:
 
 $(OBJS): %.o: %.f90
 	$(FC) $(FFLAGS) $(INCS) -c $*.f90
-	$(RM) $*.f90
+#	$(RM) $*.f90
 
 MAIN_NEMS.o: %.o: %.f90
 	$(FC) $(FFLAGS) $(INCS) -c $*.f90
-	$(RM) $*.f90
+#	$(RM) $*.f90

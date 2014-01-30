@@ -128,6 +128,9 @@ if [ $argn -eq 1 ]; then
   RTPWD_U=${STMP}/${USER}/REGRESSION_TEST
   if [ $CP_gfs = true ]; then
     echo "copy gfs"
+    cp ${RTPWD}/GEFS_m4/*                  ${RTPWD_U}/GEFS_m4/.
+    cp ${RTPWD}/GEFS_m4_5.2.0rp1/*         ${RTPWD_U}/GEFS_m4_5.2.0rp1/.
+    cp ${RTPWD}/GEFS_m4_6.1.1/*            ${RTPWD_U}/GEFS_m4_6.1.1/.
     cp ${RTPWD}/GFS_ADIAB/*                ${RTPWD_U}/GFS_ADIAB/.
     cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*      ${RTPWD_U}/GFS_DFI_REDUCEDGRID/.
 #   cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/*  ${RTPWD_U}/GFS_DFI_REDUCEDGRID_HYB/.
@@ -423,6 +426,8 @@ else
 fi
 }
 
+ export SLG=.false.
+
 ############################################################################
 # Testing of NEMS with NUOPC
 ############################################################################
@@ -452,7 +457,6 @@ if [ $RT_NUOPC = true ] ; then
 
     elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
 
-      cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
       ./esmf_version nuopc_zeus              >> ${COMPILE_LOG} 2>&1
       source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
       module list                            >> ${COMPILE_LOG} 2>&1
@@ -595,9 +599,9 @@ if [ $RT_NUOPC = true ] ; then
     #---------------------
 
   fi # endif machine
-  
+
   ###############################################################################
-  # 
+  #
   # TEST   - GSM + HYCOM with stepable Run() method
   #        - GSM turned off, only HYCOM running
   #        - Calling HYCOM Run() from EARTH component in 12 hour intervals
@@ -633,9 +637,9 @@ if [ $RT_NUOPC = true ] ; then
     #---------------------
 
   fi # endif machine
-  
+
   ###############################################################################
-  # 
+  #
   # TEST   - GSM + MOM5
   #        - 12h coupling interval
   #        - exchanging dummy Fields
@@ -671,11 +675,11 @@ if [ $RT_NUOPC = true ] ; then
     #---------------------
 
   fi # endif machine
-  
+
   #----------------------------------------------
 
   echo "Finished the NEMS with NUOPC test suite"
-  
+
   rm -f err out configure_file* nmm_ll nmm_msub nmm_run gfs_fcst_run gfs_ll gen_fcst_run gen_ll fim_fcst_run fim_ll
   if [ ${CLEAN_RUNDIR:-YES} = YES ] ; then
     rm -rf ${RUNDIR_ROOT}
@@ -715,14 +719,12 @@ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB
 
   if [ $MACHINE_ID = wcoss ]; then
 
-    cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
     ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
     gmake clean                            >> ${COMPILE_LOG} 2>&1
     gmake nmm_gsm_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
 
-  elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then 
+  elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
 
-    cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
     ./esmf_version 3_zeus                  >> ${COMPILE_LOG} 2>&1
     source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
     module list                            >> ${COMPILE_LOG} 2>&1
@@ -934,7 +936,7 @@ else
  ###############################################################################
 
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
- 
+
   export TEST_DESCR="Test NMMB-global with GFS physics package "
 
 #---------------------
@@ -997,10 +999,10 @@ else
  fi # endif test
 
  ###############################################################################
- # 
+ #
  # TEST   - Regional NMM-B with NEMSIO input
  #        - 6x5 compute tasks / 1 thread / opnl physics / free fcst / nemsio input
- # 
+ #
  ###############################################################################
 
  if [ $ST_test = true -o $RT_FULL = true ]; then
@@ -1163,7 +1165,7 @@ else
    ./rt_nmm.sh
    if [ $? = 2 ]; then exit ; fi
 #---------------------
- 
+
  fi # endif test
 
  ###############################################################################
@@ -1408,6 +1410,7 @@ else
  #
  ###############################################################################
 
+
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
   export TEST_DESCR="Test NMMB-regional writing time series"
@@ -1469,6 +1472,7 @@ else
 #---------------------
 
  fi # endif test
+
 
  ###############################################################################
  #
@@ -1965,11 +1969,12 @@ else
        flxf03 flxf06 flxf12 flxf24"
 #---------------------
   export_gsm
-  export TASKS=16 ; export PE1=12 ; export THRD=2
+  export TASKS=16 ; export PE1=12 ; export THRD=2 ; export TPN=$TPN_thrd
   export WRTGP=1  ; export NDAYS=1 ; export WTPG=1
 #---------------------
    ./rt_gfs.sh
    if [ $? = 2 ]; then exit ; fi
+   unset TPN
 #---------------------
 
  fi # endif test
@@ -2511,7 +2516,10 @@ else
  #
  ###############################################################################
 
- if [ $MACHINE_ID = wcoss -o $MACHINE_ID = zeus ] ; then
+# Temporarily skip the wcoss run. WY.
+# #----------------------------------
+ if [ $MACHINE_ID = zeus ]; then
+# if [ $MACHINE_ID = wcoss -o $MACHINE_ID = zeus ] ; then
    if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
     export TEST_DESCR="GFS_GOCART with NEMSIO"
@@ -2541,6 +2549,75 @@ else
 
    fi # endif test
  fi  # endif machine
+
+###############################################################################
+#
+# TEST   - GFS Semi-Lagrangian model
+#        - 96 tasks, T574L64, 24 hours forecast. Adiabatic version.
+#
+###############################################################################
+
+if [ $MACHINE_ID = wcoss ]; then
+ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+ export TEST_DESCR="Run Semi-lagrangian test"
+  (( TEST_NR=TEST_NR+1 ))
+
+#---------------------
+ export_gsm
+#---------------------
+ export CDATE=2013010100
+ export LDFI_SPECT=.false.
+ export NDAYS=1
+ export wave=574
+ export TASKS=96
+ export TPN=8
+ export THRD=1
+ export ADIAB=.true.
+ export IAER=111
+ export LD_PRELOAD=/nems/save/Weiyu.Yang/libmpitrace.so
+ export RUNDIR=${RUNDIR_ROOT}/GFS_slg
+ export WLCLK=55
+ export SLG=.true.
+ export PE1=96
+ export NEMSIOIN=.false.
+ export NEMSIOOUT=.false.
+ export SIGIOIN=.true.
+ export SIGIOOUT=.true.
+ export SFCIOOUT=.true.
+ export WTPG=1
+ export WRTGP=1
+ export WRITE_DOPOST=.false.
+ export POST_GRIBVERSION='"grib1"'
+ export GOCART_AER2POST=.false.
+ export NSOUT=36
+ export QUILT=.true.
+ export MEMBER_NAMES=c00
+ export CP2=1 # one copy in the dynamics and physics, and another one popints the copy.
+ export FDFI=0 # no digital filter.
+ export FHRES=264
+ export REDUCEDGRID=.true.
+ export NST_FCST=0
+ export GOCART=0
+ export TRACER=.false.
+ export SFCPRESS_ID=1
+ export THERMODYN_ID=1
+ export IDVC=2  # the vertical coord - 2 means hybrid
+ export NDSLFV=.false.
+ export SPECTRALLOOP=3
+ export IEMS=0
+ export ISOL=1
+ export ICO2=1
+ export CNTL_DIR=GFS_SLG_adiab
+ export LIST_FILES=" \
+        sigf00 sigf06 sigf12 sigf18 sigf24 "
+  ./rt_gfs.sh_slg
+ export SLG=.false.
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi # endif test
+fi #for only wcoss.
 
 fi   # end of SKIP_GFS test
 
@@ -2729,13 +2806,11 @@ else
    rm -f ${PATHTR}/exe/NEMS.x
 
    if [ $MACHINE_ID = wcoss ]; then
-    cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
     ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
     gmake clean                            >> ${COMPILE_LOG} 2>&1
     gmake nmm_gsm_gen_post GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
 
    elif [ $MACHINE_ID = zeus ]; then
-    cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
     ./esmf_version 3_zeus                  >> ${COMPILE_LOG} 2>&1
     source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
     module list                            >> ${COMPILE_LOG} 2>&1
@@ -2838,7 +2913,10 @@ else
  #
  ###############################################################################
 
-  if [ $MACHINE_ID = wcoss -o $MACHINE_ID = zeus ]; then
+# Temporarily skip the wcoss run. WY.
+# #----------------------------------
+  if [ $MACHINE_ID = zeus ]; then
+#  if [ $MACHINE_ID = wcoss -o $MACHINE_ID = zeus ]; then
    if [ $RT_FULL = true -o $CB_arg = post -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
     export TEST_DESCR="GFS_GOCART with POST"
@@ -2897,14 +2975,12 @@ else
   rm -f ${PATHTR}/exe/NEMS.x
   if [ $MACHINE_ID = wcoss ]; then
 
-    cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
     ./esmf_version 5.2_wcoss               >> ${COMPILE_LOG} 2>&1
     gmake clean                            >> ${COMPILE_LOG} 2>&1
     gmake nmm_gsm                          >> ${COMPILE_LOG} 2>&1
 
   elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
 
-    cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
     ./esmf_version 5.2.0rAPI_zeus          >> ${COMPILE_LOG} 2>&1
     source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
     module list                            >> ${COMPILE_LOG} 2>&1
@@ -3043,14 +3119,12 @@ if [ $RT_FULL = true ] ; then
 
  if [ $MACHINE_ID = wcoss ]; then
 
-  cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
   ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
   gmake clean                            >> ${COMPILE_LOG} 2>&1
   gmake nmm                              >> ${COMPILE_LOG} 2>&1
 
  elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
 
-  cp atmos/gsm/dyn/makefile_fftpack atmos/gsm/dyn/makefile
   ./esmf_version 3_zeus                  >> ${COMPILE_LOG} 2>&1
   source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
   module list                            >> ${COMPILE_LOG} 2>&1
