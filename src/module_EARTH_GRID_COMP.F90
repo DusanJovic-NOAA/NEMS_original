@@ -714,7 +714,7 @@
       TYPE(ESMF_State) :: IMP_STATE                                     &  !<-- The EARTH import state
                          ,EXP_STATE                                        !<-- The EARTH export state
 !
-      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_NEMS                      !<-- The NEMS component ESMF Clock
+      TYPE(ESMF_Clock) :: CLOCK_NEMS                                       !<-- The NEMS component ESMF Clock
 !
       INTEGER,INTENT(OUT) :: RC_FINALIZE                                   !<-- Error return code
 !

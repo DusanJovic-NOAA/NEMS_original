@@ -2,7 +2,7 @@ include ../../conf/configure.nems
 
 MAKEFILE = makefile
 
-UTILINCS = -I../share -Ilibutil -Iio
+UTILINCS = -I../share
 
 LIBRARY = libgen.a
 

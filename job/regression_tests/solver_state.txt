@@ -11,7 +11,7 @@
 'IHRST'      H       R       O      -      -   -  'Starting forecast hour'
 'I_PAR_STA'  H       R       O      -      -   -  'I grid point of parent containing the SW corner of a nest'
 'J_PAR_STA'  H       R       O      -      -   -  'J grid point of parent containing the SW corner of a nest'
-'LAST_STEP_MOVED'  -       R       O      -      -   -  'Last timestep when a movable nest's position was moved'
+'LAST_STEP_MOVED'  -       R       O      -      -   -  'Last timestep when a movable nest position was moved'
 'LPT2'       -       R       O      -      -   -  'Number of pressure layers'
 'NSOIL'      -       R       O      -      -   -  'Number of soil layers'
 'NPHS'       H       R       O      -      -   -  'Number of time steps between physics calls'

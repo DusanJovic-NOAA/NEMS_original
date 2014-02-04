@@ -163,7 +163,7 @@
      & XMR1=1.e6*DMR1, XMR2=1.e6*DMR2, XMR3=1.e6*DMR3
       INTEGER, PARAMETER :: MDR1=XMR1, MDR2=XMR2, MDR3=XMR3
 !
-      real dtph, etime1, etime2, timef, bbfr
+      real dtph, bbfr
       integer i
 !
 !--- Added on 5/16/01 for Moorthi
@@ -230,15 +230,8 @@
 !       read(1) my_growth    ! Applicable only for DTPH=180 s for offline testing
         CLOSE (1)
       else
-        etime1=timef()
         CALL ICE_LOOKUP                   ! Lookup tables for ice
-        etime2=timef()
-        if (mype == 0)                                                  &
-     &  print *,'CPU time (sec) in ICE_LOOKUP = ',(etime2-etime1)*0.001
         CALL RAIN_LOOKUP                  ! Lookup tables for rain
-        etime1=timef()
-        if (mype == 0)                                                  &
-     &  print *,'CPU time (sec) in RAIN_LOOKUP = ',(etime1-etime2)*0.001
         if (write_lookup) then
           open(unit=1,file='micro_lookup.dat',form='unformatted')
           write(1) ventr1

@@ -13,6 +13,12 @@ elif [[ $1 = 3_wcoss ]]; then
      cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
      set +x
      echo "Use the ESMF 3.1.0rp2 library"
+elif [[ $1 = 3_yellowstone ]]; then
+     set -x
+     cp conf/configure.nems.Yellowstone.intel conf/configure.nems
+     cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
+     set +x
+     echo "Use the ESMF 3.1.0rp2 library"
 elif [[ $1 = 5.2_wcoss ]]; then
      set -x
      cp conf/configure.nems.Wcoss.intel_ESMF_520rp1 conf/configure.nems
@@ -35,9 +41,13 @@ elif [[ $1 = nuopc_zeus ]]; then
      echo "Use an ESMF library with reference NUOPC Layer (currently ESMF 6.2.0)"
 else
      echo;echo "     Run ./esmf_version with one argument:"
-     echo "When using an ESMF 3.1.0r series library (i.e. ESMF 3.1.0rp2, 3.1.0rp5) on the ZEUS machine, enter 'esmf_version 3_zeus'"
-     echo "When using an ESMF 3.1.0rp2 library on the WCOSS machine, enter 'esmf_version 3_wcoss'"
-     echo "When using an ESMF 5.2.0rp1 library on the WCOSS machine, enter 'esmf_version 5.2_wcoss'"
-     echo "When using an ESMF 5.2.0r API compatible library (i.e. ESMF >= 5.2.0r) on the ZEUS machine, enter 'esmf_version 5.2.0rAPI_zeus'"
-     echo "When using an ESMF library with reference NUOPC Layer (currently ESMF 6.2.0) on the ZEUS machine, enter 'esmf_version nuopc_zeus'"
+     echo;
+     echo " 'esmf_version 3_wcoss'            : ESMF 3.1.0rp2 library on wcoss"
+     echo " 'esmf_version 3_zeus'             : ESMF 3.1.0r series library (i.e. ESMF 3.1.0rp2, 3.1.0rp5) on zeus"
+     echo " 'esmf_version 3_yellowstone'      : ESMF 3.1.0rp2 library on yellowstone"
+     echo;
+     echo " 'esmf_version 5.2_wcoss'          : ESMF 5.2.0rp1 library on wcoss"
+     echo " 'esmf_version 5.2.0rAPI_zeus'     : ESMF 5.2.0r API compatible library (i.e. ESMF >= 5.2.0r) on zeus"
+     echo " 'esmf_version nuopc_zeus'         : ESMF library with reference NUOPC Layer (currently ESMF 6.2.0) on zeus"
+     echo;
 fi     

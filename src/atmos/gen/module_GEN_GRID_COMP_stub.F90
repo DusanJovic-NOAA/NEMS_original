@@ -62,7 +62,7 @@
 !***  routines.
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GEN_GRID_COMP                   !<-- GEN gridded component
+      TYPE(ESMF_GridComp)               :: GEN_GRID_COMP                   !<-- GEN gridded component
 !
       INTEGER,INTENT(OUT) :: RC_REG                                        !<-- Return code for register
 !     
@@ -216,10 +216,10 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GEN_GRID_COMP                   !<-- The GEN gridded component
-      TYPE(ESMF_State)   ,INTENT(INOUT) :: IMP_STATE                    &  !<-- The GEN component's import state
+      TYPE(ESMF_GridComp)               :: GEN_GRID_COMP                   !<-- The GEN gridded component
+      TYPE(ESMF_State)                  :: IMP_STATE                    &  !<-- The GEN component's import state
                                           ,EXP_STATE                       !<-- The GEN component's export state
-      TYPE(ESMF_Clock)   ,INTENT(INOUT) :: CLOCK_ATM                       !<-- The ESMF Clock from the ATM component.
+      TYPE(ESMF_Clock)                  :: CLOCK_ATM                       !<-- The ESMF Clock from the ATM component.
       INTEGER            ,INTENT(OUT)   :: RC_INIT                         !<-- Return code for Initialize step
 
 !-----------------------------------------------------------------------
@@ -252,10 +252,10 @@
 !***  Argument variables
 !------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GEN_GRID_COMP                   !<-- The GEN gridded component
-      TYPE(ESMF_State),   INTENT(INOUT) :: IMP_STATE                       !<-- The GEN Run step's import
-      TYPE(ESMF_State),   INTENT(INOUT) :: EXP_STATE                       !<-- The GEN Run step's export
-      TYPE(ESMF_Clock),   INTENT(INOUT) :: CLOCK_ATM                       !<-- The ATM ESMF Clock
+      TYPE(ESMF_GridComp)               :: GEN_GRID_COMP                   !<-- The GEN gridded component
+      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The GEN Run step's import
+      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The GEN Run step's export
+      TYPE(ESMF_Clock)                  :: CLOCK_ATM                       !<-- The ATM ESMF Clock
       INTEGER,            INTENT(OUT)   :: RC_RUN                          !<-- Return code for the Run step
 
 !
@@ -284,11 +284,10 @@
 !***  THIS ROUTINE FINALIZES THE ATM GRIDDED COMPONENT.
 !-----------------------------------------------------------------------
 !
-      TYPE(ESMF_GridComp),INTENT(INOUT) :: GEN_GRID_COMP                   !<-- The ATM gridded component
-      TYPE(ESMF_State),   INTENT(INOUT) :: IMP_STATE                       !<-- The ATM finalize step's import state
-      TYPE(ESMF_State),   INTENT(INOUT) :: EXP_STATE                       !<-- The ATM finalize step's export state
-      TYPE(ESMF_Clock),   INTENT(INOUT) :: CLOCK_ATM                       !<-- The main ESMF Clock
-      TYPE(ESMF_Config)                 :: CF                              !<-- The config object
+      TYPE(ESMF_GridComp)               :: GEN_GRID_COMP                   !<-- The ATM gridded component
+      TYPE(ESMF_State)                  :: IMP_STATE                       !<-- The ATM finalize step's import state
+      TYPE(ESMF_State)                  :: EXP_STATE                       !<-- The ATM finalize step's export state
+      TYPE(ESMF_Clock)                  :: CLOCK_ATM                       !<-- The main ESMF Clock
       INTEGER,            INTENT(OUT)   :: RC_FINAL                        !<-- Return code for the Finalize step
 !
 !-----------------------------------------------------------------------

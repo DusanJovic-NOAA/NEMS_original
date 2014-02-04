@@ -1,36 +1,34 @@
 SHELL       = /bin/ksh
 
-include /usrx/local/esmf-3.1.0rp5/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
+include $(ESMFMKFILE)
 ESMF_INC    = $(ESMF_F90COMPILEPATHS)
 ESMF_LIB    = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 
 gfs=gsm
 gfsdir=atmos/$(gfs)
 
-NETCDF_LIB  = /usrx/local/NetCDF/3.6.3/lib/libnetcdf.a
+NETCDF_LIB  = $(NETCDF)/lib/libnetcdf.a
 
-#NEMSIO_INC  = -I/nwprod/lib/incmod/nemsio
-#NEMSIO_LIB  = -L/nwprod/lib -lnemsio
-NEMSIO_INC  = -I/nems/save/Jun.Wang/nceplibs/nemsio/nemsgfs_newrad/incmod
-NEMSIO_LIB  = -L/nems/save/Jun.Wang/nceplibs/nemsio/nemsgfs_newrad -lnemsio
+NEMSIO_INC  = -I$(NEMS_DIR)/nwprod/lib/incmod/nemsio
+NEMSIO_LIB  = -L$(NEMS_DIR)/nwprod/lib -lnemsio
 
-W3_LIB      = -L/nwprod/lib -lw3nco_d -lw3emc_d
-BACIO_LIB   = -L/nwprod/lib -lbacio_4
-SP_LIB      = -L/nwprod/lib -lsp_d
+W3_LIB      = -L$(NEMS_DIR)/nwprod/lib -lw3nco_d -lw3emc_d
+BACIO_LIB   = -L$(NEMS_DIR)/nwprod/lib -lbacio_4
+SP_LIB      = -L$(NEMS_DIR)/nwprod/lib -lsp_d
 SYS_LIB     =
 
 ##POSTDIR     = /nwprod/lib
 #POSTDIR    = /global/save/Hui-Ya.Chuang/nceppost/post_tag_2013_GFS_SummerSchool/lib
-POSTDIR     = /gpfs/gd1/emc/global/save/Hui-Ya.Chuang/nceppost/post_tag_2013_GFS_SummerSchool/lib
+POSTDIR     = $(NEMS_DIR)/nwprod/lib
 POSTMOD     = ${POSTDIR}/incmod/post_4
 POST_INC    = -I${POSTDIR}/incmod/post_4
 POST_LIB    = -L${POSTDIR} -lnceppost
-W3_POST_LIB = -L/nwprod/lib -lw3nco_4 -lw3emc_4
-CRTM_LIB    = -L/nwprod/lib -lcrtm_v2.0.6
-G2_LIB      = -L/nwprod/lib -lg2tmpl -lg2_4 -ljasper -lpng -lz
-XML_LIB     = -L/nwprod/lib -lxmlparse
-SIGIO_LIB   = -L/nwprod/lib -lsigio_4
-SFCIO_LIB   = -L/nwprod/lib -lsfcio_4
+W3_POST_LIB = -L$(NEMS_DIR)/nwprod/lib -lw3nco_4 -lw3emc_4
+CRTM_LIB    = -L$(NEMS_DIR)/nwprod/lib -lcrtm_v2.0.6
+G2_LIB      = -L$(NEMS_DIR)/nwprod/lib -lg2tmpl -lg2_4 -ljasper -lpng -lz
+XML_LIB     = -L$(NEMS_DIR)/nwprod/lib -lxmlparse
+SIGIO_LIB   = -L$(NEMS_DIR)/nwprod/lib -lsigio_4
+SFCIO_LIB   = -L$(NEMS_DIR)/nwprod/lib -lsfcio_4
 
 EXTLIBS     = $(NEMSIO_LIB) \
               $(W3_LIB) \
@@ -55,11 +53,7 @@ EXTLIBS_POST = $(POST_LIB) \
                $(NETCDF_LIB) \
                $(SYS_LIB)
 
-# For debug.  WY.
-#----------------
-#FC          = mpiifort -g -traceback -openmp  -mkl=sequential -check bounds -check uninit
-# FC          = mpiifort -g -traceback -openmp  -mkl=sequential
- FC          = mpiifort -g -openmp  -mkl=sequential
+FC          = mpif90 -g -openmp 
 CC          = mpcc
 FREE        = -free
 FIXED       = -fixed
@@ -70,13 +64,12 @@ TRAPS       =
 #TRAPS       = -ftrapuv -check all -fp-stack-check
 #TRAPS       = -ftrapuv -check bounds -check format -check output_conversion -check pointers -check uninit -fp-stack-check
 
-FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise -xAVX
-#FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise
+FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise
 
-OPTS_NMM    = -O2
-OPTS_GFS    = -O3
-OPTS_GEN    = -O2
-OPTS_FIM    = -O2
+OPTS_NMM    = -O0
+OPTS_GFS    = -O0
+OPTS_GEN    = -O0
+OPTS_FIM    = -O0
 
 FFLAGS_NMM  = $(OPTS_NMM) $(FFLAGS)
 FFLAGS_GFS  = $(OPTS_GFS) $(FFLAGS) $(FREE)
