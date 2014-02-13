@@ -1,9 +1,3 @@
-###############################
-######## Model Core ###########
-###############################
-
-core: nmm                   # Introduce ourselves to the NEMS
-
 
 ###############################
 ##### Grid Specifications #####
@@ -33,8 +27,6 @@ jnpes:  09                  # Number of compute tasks in the J direction
 ###############################
                                                                                                                                              
 quilting:              true    # Do you want asynchronous quilting/history writes?
-read_groups:           0
-read_tasks_per_group:  0
 write_groups:          1
 write_tasks_per_group: 2
 
@@ -62,8 +54,6 @@ start_day:    17
 start_hour:   12
 start_minute: 0
 start_second: 0
-
-tstart:       0.            # The starting forecast hour
 
 
 #############################################################
@@ -155,10 +145,6 @@ nsecs_fwdtdfi: 3600         # HALF forward filter window (s)         (TDFI)
 
 use_allreduce:  false       # False--> use mpi send/recv for global sums (reproducible results)
                             # True--> use mpi_allreduce for global sums (much faster)
-
-read_global_sums:  false    # Read in global summations or not
-write_global_sums: false    # Write out global summations or not
-
 
 ##################################
 ### Precipitation Assimilation####
@@ -310,28 +296,8 @@ write_fsyncflag:     false  # True--> Yes write fsync
 write_dopost:        false  # True--> Yes run post on quilt
 post_gribversion:   'grib1' # grib version for post output
 
-io_hst_unit:             -999
-io_rst_unit:             -999
-                                                                                                                                              
-#-------------------------------------------------
-# If IO_FILE == 'DEFERRED', use hst/rst_name_base
-# as the first part of the history/restart
-# file names.
-#-------------------------------------------------
-
-io_hst_file:             'DEFERRED'
-io_rst_file:             'DEFERRED'
 hst_name_base:           'nmmb_hst'
 rst_name_base:           'nmmb_rst'
-
-io_status:               'REPLACE'
-io_access:               'SEQUENTIAL'
-io_form:                 'UNFORMATTED'
-io_recl:                 100
-io_position:             ' '
-io_action:               'WRITE'
-io_delim:                ' '
-io_pad:                  ' '
 
 
 ##################################
@@ -376,14 +342,6 @@ nrows_p_upd_e: 2              # East bndry rows of moving nest footprint updated
 nrows_p_upd_s: 2              # South bndry rows of moving nest footprint updated by parent
 nrows_p_upd_n: 2              # North bndry rows of moving nest footprint updated by parent
 
-###  DO NOT CHANGE THE FOLLOWING VALUES.
-
-n_stencil_h: 3           # Stencil averaging width for child H to parent H (an odd integer)
-n_stencil_v: 3           # Stencil averaging width for child V to parent V (an odd integer for odd parent_child_space_ratio;
-                                                                            an even integer for even parent_child_space_ratio)
-n_stencil_sfc_h: 3       # Stencil averaging width for child FIS,PD to parent H (an odd integer)
-n_stencil_sfc_v: 2       # Stencil averaging width for child FIS,PD to parent V (an even integer for odd parent_child_space_ratio;
-                                                                                 an odd integer for even parent_child_space_ratio)
 
 #######################
 ####  Timing Info  ####

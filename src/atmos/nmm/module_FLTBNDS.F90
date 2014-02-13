@@ -26,7 +26,6 @@ integer(kind=kint) :: &
 ,ipe_start_south &
 ,ipe_end_north &
 ,ipe_end_south &
-,iunit_pole_sums &
 ,jh_start_fft_north &
 ,jh_end_fft_north &
 ,jh_start_fft_south &
@@ -2760,7 +2759,7 @@ real(kind=kfpt) :: &
 !
                         subroutine poavhn &
 (i_start,i_end,j_start,j_end,km,hn,inpes,jnpes &
-,use_allreduce,read_global_sums,write_global_sums)
+,use_allreduce)
 !-----------------------------------------------------------------------
 !
       implicit none
@@ -2780,9 +2779,7 @@ real(kind=kfpt),dimension(i_start:i_end,j_start:j_end,km),intent(inout):: &
  hn
 !
 logical(kind=klog),intent(in) :: &
- use_allreduce &
-,read_global_sums &
-,write_global_sums
+ use_allreduce
 !
 !-----------------------------------------------------------------------
 !***  Local Variables
@@ -2855,46 +2852,8 @@ character(10) :: fstatus
           enddo
         endif
 !
-        if(.not.read_global_sums)then
-!
-          call mpi_allreduce(as,as_g,km,mpi_real,mpi_sum,mpi_comm_comp &
+        call mpi_allreduce(as,as_g,km,mpi_real,mpi_sum,mpi_comm_comp &
                           ,irecv)
-        endif
-!-----------------------------------------------------------------------
-!***  For bit reproducibility, read/write global sums.
-!-----------------------------------------------------------------------
-!
-        bits_1: if(read_global_sums.or.write_global_sums)then
-          if(.not.sum_file_is_open.and.mype==0)then
-            open_unit: do l=51,59
-              inquire(l,opened=opened)
-              if(.not.opened)then
-                iunit_pole_sums=l
-                if(read_global_sums)fstatus='OLD'
-                if(write_global_sums)fstatus='REPLACE'
-                open(unit=iunit_pole_sums,file='global_pole_sums',status=fstatus &
-                    ,form='UNFORMATTED',iostat=istat)
-                sum_file_is_open=.true.
-                exit open_unit
-              endif
-            enddo open_unit
-          endif
-!
-!***  Read in south/north global sums.
-!
-          if(read_global_sums)then
-            if(mype==0)then
-              do l=1,km
-                read(iunit_pole_sums)as_g(l),an_g(l)
-              enddo
-            endif
-!
-            call mpi_bcast(as_g,km,mpi_real,0,mpi_comm_comp,ierr)
-            call mpi_bcast(an_g,km,mpi_real,0,mpi_comm_comp,ierr)
-!
-          endif
-!
-        endif bits_1
 !
       else
 !
@@ -2984,25 +2943,8 @@ character(10) :: fstatus
           enddo
         endif
 !
-!
-        if(.not.read_global_sums)then
-!
-          call mpi_allreduce(an,an_g,km,mpi_real,mpi_sum,mpi_comm_comp &
-                            ,irecv)
-        endif
-!-----------------------------------------------------------------------
-!***  For bit reproducibility, write global sums.
-!-----------------------------------------------------------------------
-!
-        bits_2: if(write_global_sums)then
-!
-          if(mype==0)then
-            do l=1,km
-              write(iunit_pole_sums)as_g(l),an_g(l)
-            enddo
-          endif
-!
-        endif bits_2
+        call mpi_allreduce(an,an_g,km,mpi_real,mpi_sum,mpi_comm_comp &
+                          ,irecv)
 !
       else
 !

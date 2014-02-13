@@ -567,23 +567,6 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="GET_CONFIG: Extract START_TSTART from Config File"
-      IF(int_state%PRINT_ESMF .OR. int_state%PRINT_ALL) &
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =int_state%TSTART              &  !<-- Put extracted quantity here
-                                  ,label ='tstart:'                     &  !<-- The quantity's label in the configure file
-                                  ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="GET_CONFIG: Extract FILTER METHOD from Config File"
       IF(int_state%PRINT_ESMF .OR. int_state%PRINT_ALL) &
       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
@@ -1007,40 +990,6 @@
       CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
                                   ,value =int_state%USE_ALLREDUCE       &  !<-- Put extracted quantity here
                                   ,label ='use_allreduce:'              &  !<-- The quantity's label in the configure file
-                                  ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="GET_CONFIG: Extract READ_GLOBAL_SUMS from Config File"
-      IF(int_state%PRINT_ESMF .OR. int_state%PRINT_ALL) &
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =int_state%READ_GLOBAL_SUMS    &  !<-- Put extracted quantity here
-                                  ,label ='read_global_sums:'           &  !<-- The quantity's label in the configure file
-                                  ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="GET_CONFIG: Extract WRITE_GLOBAL_SUMS from Config File"
-      IF(int_state%PRINT_ESMF .OR. int_state%PRINT_ALL) &
-      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
-                                  ,value =int_state%WRITE_GLOBAL_SUMS   &  !<-- Put extracted quantity here
-                                  ,label ='write_global_sums:'          &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

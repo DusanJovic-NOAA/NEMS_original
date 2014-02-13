@@ -19,14 +19,10 @@ private
 public :: adv1,adv2 &
 ,cdwdt,cdzdt,ddamp,dht &
 ,hdiff &
-,iunit_advec_sums &
 ,mono,pdtsdt,pgforce &
 ,updates,updatet,updateuv &
 ,vsound,vtoa
 
-integer(kind=kint),save :: &
- iunit_advec_sums 
- 
 integer(kind=kint),save :: &
  jstart &
 ,jstop 
@@ -236,7 +232,7 @@ real(kind=kfpt),dimension(its:ite_h2,jts_b1:jte_h2):: &
 !.......................................................................
 !$omp parallel do &
 !$omp private (apd,apel,dfi,fim,i,j,jch,jcl,l,pgne,pgnw,pgx,pgy, &
-!$omp          ppne,ppnw,ppx,ppy,rdu,rdv,rpdp,wprp)
+!$omp          ppne,ppnw,ppx,ppy,rdu,rdv,rpdp,wprp,icl,ich,ip,jp)
 !.......................................................................
 !-----------------------------------------------------------------------
 !---vertical grand loop-------------------------------------------------
@@ -2261,7 +2257,7 @@ real(kind=kfpt),dimension(its:ite,jts:jte):: &
 #ifdef ENABLE_SMP
 !-----------------
 !.......................................................................
-!$omp parallel private(dwdtp,i,j,jstart,jstop,l,nth,tid,toa)
+!$omp parallel private(dwdtp,i,j,jstart,jstop,l,nth,tid,toa,tpmp)
 !.......................................................................
       nth = omp_get_num_threads()
       tid = omp_get_thread_num()
@@ -4753,8 +4749,6 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse):: &
 ,s &
 ,inpes,jnpes &
 ,use_allreduce &
-,read_global_sums &
-,write_global_sums &
 !---temporary arguments-------------------------------------------------
 ,s1,tcs)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4789,9 +4783,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse),intent(inout):: &
  s                           ! s at previous time level
 
 logical(kind=klog) :: &
- use_allreduce &
-,read_global_sums &
-,write_global_sums
+ use_allreduce
 
 !---temporary arguments-------------------------------------------------
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,kss:kse),intent(inout):: &
@@ -5064,55 +5056,10 @@ real(kind=kdbl),save :: sumdo3=0.
 !***  Skip computing the global reduction if they are to be read in
 !***  from another run to check bit reproducibility.
 !-----------------------------------------------------------------------
-        if(.not.read_global_sums)then
-          lngth=2*kse-2*kss+2
-          call mpi_allreduce(xsums,gsums,lngth &
-                            ,mpi_double_precision &
-                            ,mpi_sum,mpi_comm_comp,irecv)
-        endif
-!-----------------------------------------------------------------------
-!***  For bit reproducibility, read/write global sums.
-!-----------------------------------------------------------------------
-        bitsaf: if(read_global_sums.or.write_global_sums)then  !<--- NEVER SET BOTH READ
-                                                               !<--- AND WRITE TO .TRUE.
-!
-          if(.not.sum_file_is_open.and.mype==0)then
-            open_unit_ad: do l=51,59
-              inquire(l,opened=opened)
-              if(.not.opened)then
-                iunit_advec_sums=l
-                if(read_global_sums)fstatus='OLD'
-                if(write_global_sums)fstatus='REPLACE'
-                open(unit=iunit_advec_sums,file='global_sums',status=fstatus &
-                    ,form='UNFORMATTED',iostat=istat)
-                sum_file_is_open=.true.
-                exit open_unit_ad
-              endif
-            enddo open_unit_ad
-            write(0,*)' mono opened iunit_advec_sums=',iunit_advec_sums
-          endif
-!
-          if(write_global_sums.and.mype==0)then
-            do ks=kss,kse
-              write(iunit_advec_sums) gsums(2*ks-1) &
-                                     ,gsums(2*ks  )
-            enddo
-          endif
-!
-          if(read_global_sums)then
-            if(mype==0)then
-              do ks=kss,kse
-                read (iunit_advec_sums) gsums(2*ks-1) &
-                                       ,gsums(2*ks  ) 
-              enddo
-            endif
-!
-            call mpi_bcast(gsums,(kse-kss+1)*2 &
-                          ,mpi_double_precision,0,mpi_comm_comp,ierr)
-!
-          endif
-!
-        endif bitsaf
+        lngth=2*kse-2*kss+2
+        call mpi_allreduce(xsums,gsums,lngth &
+                          ,mpi_double_precision &
+                          ,mpi_sum,mpi_comm_comp,irecv)
 !-----------------------------------------------------------------------
 !
       else  global_reduce

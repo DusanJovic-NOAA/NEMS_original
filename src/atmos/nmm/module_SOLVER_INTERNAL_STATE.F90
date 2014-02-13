@@ -105,9 +105,7 @@
                              ,RESTART                                   &
                              ,SECADV                                    &
                              ,SPEC_ADV                                  &
-                             ,USE_ALLREDUCE                             &
-                             ,READ_GLOBAL_SUMS                          &
-                             ,WRITE_GLOBAL_SUMS
+                             ,USE_ALLREDUCE
 !
 #ifdef ESMF_3
         TYPE(ESMF_Logical) :: MY_DOMAIN_MOVES
@@ -288,16 +286,15 @@
 !***  For 1-D restart output
 !----------------------------
 !
+        INTEGER(kind=KINT) :: NUM_WORDS_BC_SOUTH                        &  !<-- Word counts of 1-D boundary data strings
+                             ,NUM_WORDS_BC_NORTH                        &  !    for each side of the domain.
+                             ,NUM_WORDS_BC_WEST                         &  !
+                             ,NUM_WORDS_BC_EAST                            !<--
 !
-      INTEGER(kind=KINT) :: NUM_WORDS_BC_SOUTH                          &  !<-- Word counts of 1-D boundary data strings
-                           ,NUM_WORDS_BC_NORTH                          &  !    for each side of the domain.
-                           ,NUM_WORDS_BC_WEST                           &  !
-                           ,NUM_WORDS_BC_EAST                              !<--
-!
-      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: RST_BC_DATA_SOUTH     &  !<-- 1-D strings of boundary data
-                                                 ,RST_BC_DATA_NORTH     &  !    for each side of the domain.
-                                                 ,RST_BC_DATA_WEST      &  !
-                                                 ,RST_BC_DATA_EAST         !<--
+        REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: RST_BC_DATA_SOUTH   &  !<-- 1-D strings of boundary data
+                                                   ,RST_BC_DATA_NORTH   &  !    for each side of the domain.
+                                                   ,RST_BC_DATA_WEST    &  !
+                                                   ,RST_BC_DATA_EAST       !<--
 !
 !-----------------------------------------------------------------------
 !***  Some physics variables are needed.
@@ -335,7 +332,7 @@
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: QV, QC, QI,         &  !<-- Individual species for microphys.
                                             QR, QS, QG, NI, NR             !<-- G. Thompson
 !
-        LOGICAL :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI,F_NR
+        LOGICAL(kind=KLOG) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI,F_NR
 !
 !-----------------------------------------------------------------------
 !***  Nesting
@@ -357,10 +354,6 @@
 #endif
 !
 !-----------------------------------------------------------------------
-! FROM PHY start
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
 !***  Begin with the namelist variables.
 !-----------------------------------------------------------------------
 !
@@ -370,9 +363,10 @@
         INTEGER(kind=KINT) :: DT_INT,NPRECIP,NRADL,NRADS                &
                              ,PCPHR,UCMCALL
 !
-        LOGICAL ::        GWDFLG,                   NESTED,NHRS_UDEF    &
-                  ,PCPFLG,        SPECIFIED,WRITE_PREC_ADJ              &
-                  ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP,RST_OUT_00
+        LOGICAL(kind=KLOG) :: GWDFLG,NESTED,NHRS_UDEF,PCPFLG            &
+                             ,SPECIFIED,WRITE_PREC_ADJ                  &
+                             ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP     &
+                             ,RST_OUT_00
 !
 !-----------------------------------------------------------------------
 !***  Horizontal/Vertical grid
@@ -469,7 +463,9 @@
                                                  ,VEGFRC
 !
         REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACPREC,ACSNOM,ACSNOW  &
-                                                 ,acpcp_ra,acpcp_sn,acpcp_gr &
+                                                 ,ACPCP_RA              &
+                                                 ,ACPCP_SN              &
+                                                 ,ACPCP_GR              &
                                                  ,CUPREC,CLDEFI         &
                                                  ,PREC,PSHLTR,P10,Q02   &
                                                  ,Q10,QSHLTR,PSFC       &
@@ -478,7 +474,8 @@
                                                  ,T02MAX,T02MIN         &
                                                  ,RH02MAX,RH02MIN       &
                                                  ,U10,V10,T10,T10AVG    &
-                                                 ,U10MAX,V10MAX,SPD10MAX &
+                                                 ,U10MAX,V10MAX         &
+                                                 ,SPD10MAX              &
                                                  ,TLMIN,TLMAX           &
                                                  ,UPVVELMAX,DNVVELMAX   &
                                                  ,UPHLMAX,REFDMAX       &
@@ -508,7 +505,7 @@
 !
         REAL(kind=KDBL)                              :: CDEC,SDEC       &
                                                        ,SLAG,SOLCON
-        INTEGER        ,DIMENSION(:)      ,POINTER   :: JINDX1,JINDX2
+        INTEGER(kind=KINT),DIMENSION(:)   ,POINTER   :: JINDX1,JINDX2
         REAL(kind=KDBL),DIMENSION(:)      ,POINTER   :: DDY
         REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: TMPMIN,TMPMAX
         REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: DUGWD,DVGWD
@@ -533,16 +530,15 @@
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TP1,QP1
         REAL(kind=KFPT),DIMENSION(:,:),  POINTER :: PSP1
 !
-        LOGICAL :: GFS
+        LOGICAL(kind=KLOG) :: GFS
 !
-        INTEGER :: CO2TF
+        INTEGER(kind=KINT) :: CO2TF
 !
-! FROM PHY end
 !-----------------------------------------------------------------------
 !***  Output
 !-----------------------------------------------------------------------
 !
-        INTEGER :: NUM_VARS = 0
+        INTEGER(kind=KINT) :: NUM_VARS = 0
 !
         TYPE(VAR),DIMENSION(MAX_VARS) :: VARS
 !
@@ -1172,6 +1168,8 @@
       LNSH=int_state%LNSH
       LNSV=int_state%LNSV
 !
+      int_state%TSTART=0.0
+!
 !-----------------------------------------------------------------------
 !***  Explicitly allocate standard arrays in the Solver internal state.
 !-----------------------------------------------------------------------
@@ -1413,7 +1411,6 @@
         ALLOCATE(int_state%PHY_F3DV (IMS:IME,JMS:JME,LM,4)) ;int_state%PHY_F3DV = R8_IN ! for Zhao =4, Ferr=3
 !
       ENDIF  gfs_physics
-
 !
 !-----------------------------------------------------------------------
 !

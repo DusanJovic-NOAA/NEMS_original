@@ -1,9 +1,3 @@
-#######################
-####  Model Core  #####
-#######################
-
-core: nmm                   # Introduce ourselves to the NEMS
-
 
 #################################
 #####  Grid Specifications  #####
@@ -33,8 +27,6 @@ jnpes:  02                  # Number of compute tasks in the J direction
 #################################
 
 quilting:              true    # Do you want asynchronous quilting/history writes?
-read_groups:           0
-read_tasks_per_group:  0
 write_groups:          1
 write_tasks_per_group: 1
 
@@ -63,8 +55,6 @@ start_day:    20
 start_hour:   00
 start_minute: 0
 start_second: 0
-
-tstart:       0.            # The starting forecast hour
 
 
 #############################################################
@@ -158,10 +148,6 @@ nsecs_fwdtdfi: 3600         # HALF forward filter window (s)         (TDFI)
 
 use_allreduce:  false       # False--> use mpi send/recv for global sums (reproducible results)
                             # True--> use mpi_allreduce for global sums (much faster)
-
-read_global_sums:  false    # Read in global summations or not
-write_global_sums: false    # Write out global summations or not
-
 
 #####################################
 ###  Precipitation Assimilation  ####
@@ -312,29 +298,8 @@ write_fsyncflag:     false  # True--> Yes write fsync
 write_dopost:        false  # True--> Yes run post on quilt
 post_gribversion:   'grib1' # grib version for post output
 
-io_hst_unit:         -999
-io_rst_unit:         -999
-
-
-#-------------------------------------------------
-# If IO_FILE == 'DEFERRED', use hst/rst_name_base
-# as the first part of the history/restart
-# file names.
-#-------------------------------------------------
-
-io_hst_file:     'DEFERRED'
-io_rst_file:     'DEFERRED'
 hst_name_base:   'nmmb_hst'
 rst_name_base:   'nmmb_rst'
-
-io_status:       'REPLACE'
-io_access:       'SEQUENTIAL'
-io_form:         'UNFORMATTED'
-io_recl:         100
-io_position:     ' '
-io_action:       'WRITE'
-io_delim:        ' '
-io_pad:          ' '
 
 
 ##################################

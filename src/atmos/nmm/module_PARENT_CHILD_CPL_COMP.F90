@@ -3622,8 +3622,8 @@
 !
 !-----------------------------------------------------------------------
 !***  The averaging stencil used by the child to interpolate its
-!***  gridpoint values to the parent's ponts must have permissible
-!***  values.  The range of possible values are:
+!***  gridpoint values to the parent's points must have permissible
+!***  values.  The range of theoretical values are:
 
 !                          Parent-Child Space Ratio
 !              Odd                                       Even
@@ -3646,6 +3646,11 @@
 !***  value is even then the child and parent point types are
 !***  different.  That is not the case with an even parent-to-child
 !***  space ratio as seen in the above table.
+!
+!***  HOWEVER, due to the MPI subdomain haloes we must select values
+!***  that are less than or equal to 3 (halo width is set in module
+!***  VARS_STATE with IHALO,JHALO).  If the halo width increases then
+!***  so can the stencil values.
 !-----------------------------------------------------------------------
 !
           N_STENCIL_H    =>cc%N_STENCIL_H
@@ -3653,34 +3658,17 @@
           N_STENCIL_SFC_H=>cc%N_STENCIL_SFC_H
           N_STENCIL_SFC_V=>cc%N_STENCIL_SFC_V
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Parent-Child Init: Child Gets 2-Way Stencils"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_ConfigGetAttribute(config=CF_MINE                   &  !<-- The nest's config object
-                                      ,value =N_STENCIL_H               &  !<-- Stencil width of nest interp to parent H points
-                                      ,label ='n_stencil_h:'            &  !<-- Give this label's value to the previous variable
-                                      ,rc    =RC)
-!
-          CALL ESMF_ConfigGetAttribute(config=CF_MINE                   &  !<-- The nest's config object
-                                      ,value =N_STENCIL_V               &  !<-- Stencil width of nest interp to parent V points
-                                      ,label ='n_stencil_v:'            &  !<-- Give this label's value to the previous variable
-                                      ,rc    =RC)
-!
-          CALL ESMF_ConfigGetAttribute(config=CF_MINE                   &  !<-- The nest's config object
-                                      ,value =N_STENCIL_SFC_H           &  !<-- Stencil width of nest interp of FIS,PD to parent H points
-                                      ,label ='n_stencil_sfc_h:'        &  !<-- Give this label's value to the previous variable
-                                      ,rc    =RC)
-!
-          CALL ESMF_ConfigGetAttribute(config=CF_MINE                   &  !<-- The nest's config object
-                                      ,value =N_STENCIL_SFC_V           &  !<-- Stencil width of nest interp of FIS,PD to parent V points
-                                      ,label ='n_stencil_sfc_v:'        &  !<-- Give this label's value to the previous variable
-                                      ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          IF(MOD(SPACE_RATIO_MY_PARENT,2)==1)THEN 
+            N_STENCIL_H=3                                                  !<-- 
+            N_STENCIL_V=3                                                  !  Parent-Child space ratio
+            N_STENCIL_SFC_H=3                                              !  is odd
+            N_STENCIL_SFC_V=2                                              !<--
+          ELSE
+            N_STENCIL_H=3                                                  !<--
+            N_STENCIL_V=2                                                  !  Parent-Child space ratio
+            N_STENCIL_SFC_H=3                                              !  is even
+            N_STENCIL_SFC_V=3                                              !<--
+          ENDIF
 !
           IF(MOD(N_STENCIL_H,2)/=1)THEN
             WRITE(0,*)' N_STENCIL_H must be odd for any Parent-Child space ratio!!!'

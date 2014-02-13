@@ -2596,7 +2596,7 @@
 !***  Local variables
 !---------------------
 !
-      INTEGER :: FRAC_SEC,INT_SEC,IO_HST_UNIT,N,RC
+      INTEGER :: FRAC_SEC,INT_SEC,N,RC
 !
       LOGICAL :: OPENED
 !
@@ -2613,61 +2613,45 @@
 !***  forecast hour.
 !-----------------------------------------------------------------------
 !
-!     write(0,*)' OPEN_HST_FILE wrt_int_state%IO_HST_FILE=',trim(wrt_int_state%IO_HST_FILE)
-!
-      IF(wrt_int_state%IO_HST_FILE=='DEFERRED')THEN
-        INT_SEC=INT(wrt_int_state%NFSECONDS)
-        FRAC_SEC=NINT((wrt_int_state%NFSECONDS-INT_SEC)*100.)
-        WRITE(FILENAME,100)TRIM(wrt_int_state%HST_NAME_BASE)//'_bin_'   &
-                          ,wrt_int_state%NFHOURS,'h_'                   &
-                          ,wrt_int_state%NFMINUTES,'m_'                 &
-                          ,INT_SEC,'.',FRAC_SEC,'s'
-  100   FORMAT(A,I4.4,A,I2.2,A,I2.2,A,I2.2,A)
-!!!     WRITE(0,*)' Created filename=',filename,' HST_NAME_BASE=',wrt_int_state%HST_NAME_BASE
-      ELSE
-        FILENAME=wrt_int_state%IO_HST_FILE
-      ENDIF
+      INT_SEC=INT(wrt_int_state%NFSECONDS)
+      FRAC_SEC=NINT((wrt_int_state%NFSECONDS-INT_SEC)*100.)
+      WRITE(FILENAME,100)TRIM(wrt_int_state%HST_NAME_BASE)//'_bin_'     &
+                        ,wrt_int_state%NFHOURS,'h_'                     &
+                        ,wrt_int_state%NFMINUTES,'m_'                   &
+                        ,INT_SEC,'.',FRAC_SEC,'s'
+  100 FORMAT(A,I4.4,A,I2.2,A,I2.2,A,I2.2,A)
 !
 !-----------------------------------------------------------------------
 !***  Find an unopened unit number if one was not designated in
 !***  the configure file.
 !-----------------------------------------------------------------------
 !
-      IF(wrt_int_state%IO_HST_UNIT==-999)THEN
-        DO N=51,99
-          INQUIRE(N,opened=OPENED)
-          IF(.NOT.OPENED)THEN
-            IO_HST_UNIT=N
-            EXIT
-          ENDIF
-        ENDDO
-        wrt_int_state%IO_HST_UNIT=IO_HST_UNIT
-!
-      ELSE
-        IO_HST_UNIT=wrt_int_state%IO_HST_UNIT
-      ENDIF
+      DO N=51,99
+        INQUIRE(N,opened=OPENED)
+        IF(.NOT.OPENED)THEN
+          wrt_int_state%IO_HST_UNIT=N
+          EXIT
+        ENDIF
+      ENDDO
 !
 !-----------------------------------------------------------------------
 !***  Open the file now.
 !-----------------------------------------------------------------------
 !
-      OPEN(unit  =IO_HST_UNIT                                           &
+      OPEN(unit  =wrt_int_state%IO_HST_UNIT                             &
           ,file  =FILENAME                                              &
-          ,status=wrt_int_state%IO_STATUS                               &
-          ,access=wrt_int_state%IO_ACCESS                               &
-          ,form  =wrt_int_state%IO_FORM                                 &
+          ,status='REPLACE'                                             &
+          ,access='SEQUENTIAL'                                          &
+          ,form  ='UNFORMATTED'                                         &
           ,iostat=RC)
 !
       IF(RC==0)THEN
         IF(wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) THEN
-          WRITE(0,*)' Opened IO_HST_UNIT=',IO_HST_UNIT,' for history'
+          WRITE(0,*)' Opened IO_HST_UNIT=',wrt_int_state%IO_HST_UNIT,' for history'
           write(0,*)' iostat=',rc,' file=',trim(filename)
-          write(0,*)' status=',trim(wrt_int_state%IO_STATUS), &
-                    ' access=',trim(wrt_int_state%IO_ACCESS), &
-                    ' form='  ,trim(wrt_int_state%IO_FORM)
         ENDIF
       ELSE
-        WRITE(0,*)' Failed to OPEN IO_HST_UNIT=',IO_HST_UNIT,' for history'
+        WRITE(0,*)' Failed to OPEN IO_HST_UNIT=',wrt_int_state%IO_HST_UNIT,' for history'
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -2695,7 +2679,7 @@
 !***  Local variables
 !---------------------
 !
-      INTEGER :: FRAC_SEC,INT_SEC,IO_RST_UNIT,N,RC
+      INTEGER :: FRAC_SEC,INT_SEC,N,RC
 !
       LOGICAL :: OPENED
 !
@@ -2712,60 +2696,45 @@
 !***  forecast hour.
 !-----------------------------------------------------------------------
 !
-!     write(0,*)' OPEN_RST_FILE wrt_int_state%IO_RST_FILE=',trim(wrt_int_state%IO_RST_FILE)
-!
-      IF(wrt_int_state%IO_RST_FILE=='DEFERRED')THEN
-        INT_SEC=INT(wrt_int_state%NFSECONDS)
-        FRAC_SEC=NINT((wrt_int_state%NFSECONDS-INT_SEC)*100.)
-        WRITE(FILENAME,100)TRIM(wrt_int_state%RST_NAME_BASE)//'_bin_'   &
-                          ,wrt_int_state%NFHOURS,'h_'                   &
-                          ,wrt_int_state%NFMINUTES,'m_'                 &
-                          ,INT_SEC,'.',FRAC_SEC,'s'
-  100   FORMAT(A,I4.4,A,I2.2,A,I2.2,A,I2.2,A)
-      ELSE
-        FILENAME=wrt_int_state%IO_RST_FILE
-      ENDIF
+      INT_SEC=INT(wrt_int_state%NFSECONDS)
+      FRAC_SEC=NINT((wrt_int_state%NFSECONDS-INT_SEC)*100.)
+      WRITE(FILENAME,100)TRIM(wrt_int_state%RST_NAME_BASE)//'_bin_'     &
+                        ,wrt_int_state%NFHOURS,'h_'                     &
+                        ,wrt_int_state%NFMINUTES,'m_'                   &
+                        ,INT_SEC,'.',FRAC_SEC,'s'
+  100 FORMAT(A,I4.4,A,I2.2,A,I2.2,A,I2.2,A)
 !
 !-----------------------------------------------------------------------
 !***  Find an unopened unit number if one was not designated in
 !***  the configure file.
 !-----------------------------------------------------------------------
 !
-      IF(wrt_int_state%IO_RST_UNIT==-999)THEN
-        DO N=51,99
-          INQUIRE(N,opened=OPENED)
-          IF(.NOT.OPENED)THEN
-            IO_RST_UNIT=N
-            EXIT
-          ENDIF
-        ENDDO
-        wrt_int_state%IO_RST_UNIT=IO_RST_UNIT
-!
-      ELSE
-        IO_RST_UNIT=wrt_int_state%IO_RST_UNIT
-      ENDIF
+      DO N=51,99
+        INQUIRE(N,opened=OPENED)
+        IF(.NOT.OPENED)THEN
+          wrt_int_state%IO_RST_UNIT=N
+          EXIT
+        ENDIF
+      ENDDO
 !
 !-----------------------------------------------------------------------
 !***  Open the file now.
 !-----------------------------------------------------------------------
 !
-      OPEN(unit  =IO_RST_UNIT                                           &
+      OPEN(unit  =wrt_int_state%IO_RST_UNIT                             &
           ,file  =FILENAME                                              &
-          ,status=wrt_int_state%IO_STATUS                               &
-          ,access=wrt_int_state%IO_ACCESS                               &
-          ,form  =wrt_int_state%IO_FORM                                 &
+          ,status='REPLACE'                                             &
+          ,access='SEQUENTIAL'                                          &
+          ,form  ='UNFORMATTED'                                         &
           ,iostat=RC)
 !
       IF(RC==0) THEN
         IF(wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL) THEN
-          WRITE(0,*)' Opened IO_RST_UNIT=',IO_RST_UNIT,' for restart'
+          WRITE(0,*)' Opened IO_RST_UNIT=',wrt_int_state%IO_RST_UNIT,' for restart'
           write(0,*)' iostat=',rc,' file=',trim(filename)
-          write(0,*)' status=',trim(wrt_int_state%IO_STATUS), &
-                    ' access=',trim(wrt_int_state%IO_ACCESS), &
-                    ' form='  ,trim(wrt_int_state%IO_FORM)
         ENDIF
       ELSE
-        WRITE(0,*)' Failed to OPEN IO_RST_UNIT=',IO_RST_UNIT,' for restart'
+        WRITE(0,*)' Failed to OPEN IO_RST_UNIT=',wrt_int_state%IO_RST_UNIT,' for restart'
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -3637,8 +3606,6 @@
 !-----------------------------------------------------------------------
 !
       CALL OPEN_HST_FILE(WRT_INT_STATE)
-      IF( wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL ) &
-      WRITE(0,*)' Opened unit=',wrt_int_state%IO_HST_UNIT,' for history output'
 !
       WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)IYEAR_FCST
       WRITE(wrt_int_state%IO_HST_UNIT,iostat=RC)IMONTH_FCST
@@ -4059,24 +4026,16 @@
 !***  Now open NEMSIO file.
 !-----------------------------------------------------------------------
 !
+      N=LEN_TRIM(wrt_int_state%HST_NAME_BASE)
+      INT_SEC=INT(wrt_int_state%NFSECONDS)
+      FRAC_SEC=NINT((wrt_int_state%NFSECONDS-INT_SEC)*100.)
+      WRITE(FILENAME,100)wrt_int_state%HST_NAME_BASE(1:N)//'_nio_'      &
+                        ,wrt_int_state%NFHOURS,'h_'                     &
+                        ,wrt_int_state%NFMINUTES,'m_'                   &
+                        ,INT_SEC,'.',FRAC_SEC,'s'
       IF(wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL)       &
-      write(0,*)' OPEN_NEMSIO_FILE wrt_int_state%IO_NEMSIOFILE=',       &
-          trim(wrt_int_state%IO_HST_FILE)
-!
-      IF(wrt_int_state%IO_HST_FILE=='DEFERRED')THEN
-        N=LEN_TRIM(wrt_int_state%HST_NAME_BASE)
-        INT_SEC=INT(wrt_int_state%NFSECONDS)
-        FRAC_SEC=NINT((wrt_int_state%NFSECONDS-INT_SEC)*100.)
-        WRITE(FILENAME,100)wrt_int_state%HST_NAME_BASE(1:N)//'_nio_'    &
-                          ,wrt_int_state%NFHOURS,'h_'                   &
-                          ,wrt_int_state%NFMINUTES,'m_'                 &
-                          ,INT_SEC,'.',FRAC_SEC,'s'
-        IF(wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL)     &
-        write(0,*)'FILENAME=',trim(FILENAME),'n=',n
-  100   FORMAT(A,I4.4,A,I2.2,A,I2.2,A,I2.2,A)
-      ELSE
-        FILENAME=wrt_int_state%IO_HST_FILE//'_nemsio'
-      ENDIF
+      write(0,*)'FILENAME=',trim(FILENAME),'n=',n
+  100 FORMAT(A,I4.4,A,I2.2,A,I2.2,A,I2.2,A)
 !
 !----------------------------------------------------
 !***  Prepare variables needed by the nemsip header:
@@ -4387,8 +4346,6 @@
 !-----------------------------------------------------------------------
 !
       CALL OPEN_RST_FILE(WRT_INT_STATE)
-      IF( wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL ) &
-      WRITE(0,*)' Opened unit=',wrt_int_state%IO_RST_UNIT,' for restart output'
 !
       WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)IYEAR_FCST
       WRITE(wrt_int_state%IO_RST_UNIT,iostat=RC)IMONTH_FCST
@@ -4821,24 +4778,16 @@
 !***  Now open NEMSIO file.
 !-----------------------------------------------------------------------
 !
-      IF(wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL)       &
-      write(0,*)' OPEN_NEMSIO_FILE wrt_int_state%IO_NEMSIOFILE=',       &
-          trim(wrt_int_state%IO_RST_FILE)
-!
-      IF(wrt_int_state%IO_RST_FILE=='DEFERRED')THEN
-        N=LEN_TRIM(wrt_int_state%RST_NAME_BASE)
-        INT_SEC=INT(wrt_int_state%NFSECONDS)
-        FRAC_SEC=NINT((wrt_int_state%NFSECONDS-INT_SEC)*100.)
-        WRITE(FILENAME,100)wrt_int_state%RST_NAME_BASE(1:N)//'_nio_'    &
-                          ,wrt_int_state%NFHOURS,'h_'                   &
-                          ,wrt_int_state%NFMINUTES,'m_'                 &
-                          ,INT_SEC,'.',FRAC_SEC,'s'
-        IF(wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL)     &
-        write(0,*)'FILENAME=',trim(FILENAME),'n=',n
-  100   FORMAT(A,I4.4,A,I2.2,A,I2.2,A,I2.2,A)
-      ELSE
-        FILENAME=wrt_int_state%IO_RST_FILE//'_nemsio'
-      ENDIF
+      N=LEN_TRIM(wrt_int_state%RST_NAME_BASE)
+      INT_SEC=INT(wrt_int_state%NFSECONDS)
+      FRAC_SEC=NINT((wrt_int_state%NFSECONDS-INT_SEC)*100.)
+      WRITE(FILENAME,100)wrt_int_state%RST_NAME_BASE(1:N)//'_nio_'    &
+                        ,wrt_int_state%NFHOURS,'h_'                   &
+                        ,wrt_int_state%NFMINUTES,'m_'                 &
+                        ,INT_SEC,'.',FRAC_SEC,'s'
+      IF(wrt_int_state%PRINT_OUTPUT .OR. wrt_int_state%PRINT_ALL)     &
+      write(0,*)'FILENAME=',trim(FILENAME),'n=',n
+  100 FORMAT(A,I4.4,A,I2.2,A,I2.2,A,I2.2,A)
 !
 !----------------------------------------------------
 !***  Prepare variables needed by the nemsip header:

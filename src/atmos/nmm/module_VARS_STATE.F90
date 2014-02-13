@@ -388,9 +388,6 @@
 
       INTEGER :: LDIM1,LDIM2,LDIM3,LDIM4,UDIM1,UDIM2,UDIM3,UDIM4
 
-      INTEGER(ESMF_KIND_I4),DIMENSION(:,:),POINTER :: TEMP_I2D
-      REAL(ESMF_KIND_R4)   ,DIMENSION(:,:),POINTER :: TEMP_R2D
-
       CHARACTER(2)           :: MODEL_LEVEL,TRACERS_KIND
       CHARACTER(6)           :: FMT='(I2.2)'
       CHARACTER(ESMF_MAXSTR) :: VBL_NAME,VBL_NAME_X
@@ -549,8 +546,6 @@
 !
       IHALO=3
       JHALO=3
-!
-      NULLIFY(TEMP_I2D)
 !
       DO N=1,NUM_VARS
         IF (VARS(N)%TKR == TKR_I2D) THEN
@@ -721,7 +716,6 @@
           DO K=1,NDIM3
             WRITE(MODEL_LEVEL,FMT)K
             VBL_NAME=TRIM(VARS(N)%VBL_NAME)//'_'//MODEL_LEVEL//'_2D'
-            TEMP_R2D=>VARS(N)%R3D(LDIM1:UDIM1,LDIM2:UDIM2,K)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of 3-D Data"
@@ -729,7 +723,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =TEMP_R2D               &  !<-- Level K of 3D real array being inserted into history Bundle
+                                  ,farray       =VARS(N)%R3D(:,:,K)     &  !<-- Level K of 3D real array being inserted into history Bundle
                                   ,datacopyflag =COPYFLAG               &
                                   ,totalUWidth  =(/IHALO,JHALO/)        &
                                   ,totalLWidth  =(/IHALO,JHALO/)        &
@@ -767,7 +761,6 @@
           DO K=1,NDIM3
             WRITE(MODEL_LEVEL,FMT)K
             VBL_NAME=TRIM(VARS(N)%VBL_NAME)//'_'//MODEL_LEVEL//'_2D'
-            TEMP_R2D=>VARS(N)%R3D(LDIM1:UDIM1,LDIM2:UDIM2,K)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of 3-D Data"
@@ -775,7 +768,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =TEMP_R2D               &  !<-- Level K of 3D real array being inserted into restart Bundle
+                                  ,farray       =VARS(N)%R3D(:,:,K)               &  !<-- Level K of 3D real array being inserted into restart Bundle
                                   ,datacopyflag =COPYFLAG               &
                                   ,totalUWidth  =(/IHALO,JHALO/)        &
                                   ,totalLWidth  =(/IHALO,JHALO/)        &
@@ -841,8 +834,6 @@
             WRITE(MODEL_LEVEL,FMT)K
 !
             VBL_NAME=TRIM(VARS(N)%VBL_NAME)//'_'//TRACERS_KIND//'_'//MODEL_LEVEL//'_2D'
-            NULLIFY(TEMP_R2D)
-            TEMP_R2D=>VARS(N)%R4D(LDIM1:UDIM1,LDIM2:UDIM2,K,M)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of 4-D Data"
@@ -850,7 +841,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =TEMP_R2D               &  !<-- Level K of 4D real array being inserted into history Bundle
+                                  ,farray       =VARS(N)%R4D(:,:,K,M)               &  !<-- Level K of 4D real array being inserted into history Bundle
                                   ,datacopyflag =COPYFLAG               &
                                   ,totalUWidth  =(/IHALO,JHALO/)        &
                                   ,totalLWidth  =(/IHALO,JHALO/)        &
@@ -899,8 +890,6 @@
             WRITE(MODEL_LEVEL,FMT)K
 !
             VBL_NAME=TRIM(VARS(N)%VBL_NAME)//'_'//TRACERS_KIND//'_'//MODEL_LEVEL//'_2D'
-            NULLIFY(TEMP_R2D)
-            TEMP_R2D=>VARS(N)%R4D(LDIM1:UDIM1,LDIM2:UDIM2,K,M)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="Fill 2-D Fields with Each Level of 4-D Data"
@@ -908,7 +897,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =TEMP_R2D               &  !<-- Level K of 4D real array being inserted into restart Bundle
+                                  ,farray       =VARS(N)%R4D(:,:,K,M)               &  !<-- Level K of 4D real array being inserted into restart Bundle
                                   ,datacopyflag =COPYFLAG               &
                                   ,totalUWidth  =(/IHALO,JHALO/)        &
                                   ,totalLWidth  =(/IHALO,JHALO/)        &

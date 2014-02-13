@@ -1,5 +1,7 @@
 SHELL = /bin/sh
 
+export TOP := $(shell pwd)
+
 # check if configure.nems file exists
 
 exist := $(wildcard ./conf/configure.nems)

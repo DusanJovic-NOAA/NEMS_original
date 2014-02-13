@@ -6,6 +6,8 @@ ESMF_LIB    = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 gfs=gsm
 gfsdir=atmos/$(gfs)
 
+NWPROD_LIB ?= $(TOP)/../../lib
+
 NETCDF_LIB  =   $(NWPROD_LIB)/netcdf/lib/libnetcdf.a
 
 NEMSIO_INC  = -I$(NWPROD_LIB)/incmod/nemsio
@@ -24,7 +26,7 @@ EXTLIBS     = $(NEMSIO_LIB) \
               $(NETCDF_LIB) \
               $(SYS_LIB)
 
-FC          = mpif90 -fc=gfortran
+FC          = mpif90
 FREE        = -ffree-form
 FIXED       = -ffixed-form
 R8          = -fdefault-real-8
@@ -34,10 +36,10 @@ TRAPS       =
 
 FFLAGS      = $(TRAPS) $(FINCS) -fconvert=big-endian -fno-range-check -ffree-line-length-256
 
-OPTS_NMM    = -O2
-OPTS_GFS    = -O2
-OPTS_GEN    = -O2
-OPTS_FIM    = -O2
+OPTS_NMM    = -O3
+OPTS_GFS    = -O3
+OPTS_GEN    = -O3
+OPTS_FIM    = -O3
 
 FFLAGS_NMM  = $(OPTS_NMM) $(FFLAGS)
 FFLAGS_GFS  = $(OPTS_GFS) $(FFLAGS) $(FREE)

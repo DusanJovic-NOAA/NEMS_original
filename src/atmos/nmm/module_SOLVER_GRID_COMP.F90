@@ -2615,13 +2615,11 @@
       USE MODULE_DYNAMICS_ROUTINES,ONLY: ADV1,ADV2                      &
                                         ,CDWDT,CDZDT,DDAMP,DHT          &
                                         ,HDIFF                          &
-                                        ,IUNIT_ADVEC_SUMS               &
                                         ,MONO,PDTSDT,PGFORCE            &
                                         ,UPDATES,UPDATET,UPDATEUV       &
                                         ,VSOUND,VTOA
 !
       USE MODULE_FLTBNDS,ONLY: BOCOH,BOCOV,FFTFHN,FFTFUVN               &
-                              ,IUNIT_POLE_SUMS                          &
                               ,POAVHN,READ_BC                           &
                               ,WRITE_BC
 !
@@ -3631,33 +3629,25 @@
             (IMS,IME,JMS,JME,LM                                         &
             ,int_state%T                                                &
             ,INPES,JNPES                                                &
-            ,int_state%USE_ALLREDUCE                                    &
-            ,int_state%READ_GLOBAL_SUMS                                 &
-            ,int_state%WRITE_GLOBAL_SUMS)
+            ,int_state%USE_ALLREDUCE)
 !
           CALL POAVHN                                                   &
             (IMS,IME,JMS,JME,LM                                         &
             ,int_state%Q                                                &
             ,INPES,JNPES                                                &
-            ,int_state%USE_ALLREDUCE                                    &
-            ,int_state%READ_GLOBAL_SUMS                                 &
-            ,int_state%WRITE_GLOBAL_SUMS)
+            ,int_state%USE_ALLREDUCE)
 !
           CALL POAVHN                                                   &
             (IMS,IME,JMS,JME,LM                                         &
             ,int_state%CW                                               &
             ,INPES,JNPES                                                &
-            ,int_state%USE_ALLREDUCE                                    &
-            ,int_state%READ_GLOBAL_SUMS                                 &
-            ,int_state%WRITE_GLOBAL_SUMS)
+            ,int_state%USE_ALLREDUCE)
 !
           CALL POAVHN                                                   &
             (IMS,IME,JMS,JME,LM                                         &
             ,int_state%Q2                                               &
             ,INPES,JNPES                                                &
-            ,int_state%USE_ALLREDUCE                                    &
-            ,int_state%READ_GLOBAL_SUMS                                 &
-            ,int_state%WRITE_GLOBAL_SUMS)
+            ,int_state%USE_ALLREDUCE)
 !
           td%poavhn_tim=td%poavhn_tim+(timef()-btim)
 !
@@ -4441,8 +4431,6 @@
           ,int_state%TRACERS                                            &
           ,INPES,JNPES                                                  &
           ,int_state%USE_ALLREDUCE                                      &
-          ,int_state%READ_GLOBAL_SUMS                                   &
-          ,int_state%WRITE_GLOBAL_SUMS                                  &
 !
 !***  Temporary arguments
 !
@@ -4744,23 +4732,17 @@
           (IMS,IME,JMS,JME,LM                                           &
           ,int_state%DWDT                                               &
           ,INPES,JNPES                                                  &
-          ,int_state%USE_ALLREDUCE                                      &
-          ,int_state%READ_GLOBAL_SUMS                                   &
-          ,int_state%WRITE_GLOBAL_SUMS)
+          ,int_state%USE_ALLREDUCE)
         CALL POAVHN                                                     &
           (IMS,IME,JMS,JME,LM                                           &
           ,int_state%W                                                  &
           ,INPES,JNPES                                                  &
-          ,int_state%USE_ALLREDUCE                                      &
-          ,int_state%READ_GLOBAL_SUMS                                   &
-          ,int_state%WRITE_GLOBAL_SUMS)
+          ,int_state%USE_ALLREDUCE)
         CALL POAVHN                                                     &
           (IMS,IME,JMS,JME,LM                                           &
           ,int_state%PINT                                               &
           ,INPES,JNPES                                                  &
-          ,int_state%USE_ALLREDUCE                                      &
-          ,int_state%READ_GLOBAL_SUMS                                   &
-          ,int_state%WRITE_GLOBAL_SUMS)
+          ,int_state%USE_ALLREDUCE)
         td%poavhn_tim=td%poavhn_tim+(timef()-btim)
 !
         btim=timef()
@@ -4789,18 +4771,6 @@
                     ,int_state%PINT,LM+1                                &
                     ,2,2)
       td%exch_tim=td%exch_tim+(timef()-btim)
-!
-!-----------------------------------------------------------------------
-!***  Close the file units used for Reads/Writes of global sums
-!***  if the forecast is finished.
-!-----------------------------------------------------------------------
-!
-      IF(ESMF_ClockIsStopTime(clock=CLOCK_ATM,rc=RC))THEN
-        IF(int_state%WRITE_GLOBAL_SUMS.AND.MYPE==0)THEN
-          CLOSE(IUNIT_ADVEC_SUMS)
-          CLOSE(IUNIT_POLE_SUMS)
-        ENDIF
-      ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Save DT to compare and see if sign has changed for filtering.
