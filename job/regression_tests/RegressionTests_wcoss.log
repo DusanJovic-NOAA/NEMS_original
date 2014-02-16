@@ -1,11 +1,11 @@
-Wed Feb 12 12:54:12 UTC 2014
+Fri Feb 14 21:20:09 UTC 2014
 Start Regression test
 
 
 
-Wed Feb 12 12:54:12 UTC 2014
+Fri Feb 14 21:20:09 UTC 2014
 Compilation ALL
-Wed Feb 12 13:13:52 UTC 2014
+Fri Feb 14 22:11:03 UTC 2014
 Test 001
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 001 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  92.848
+ Original timing:  151.20  , test_glob timing:  91.920
 
 
 Test 002
@@ -128,7 +128,7 @@ Checking test 008 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  172.74
+ Original timing:  240.82  , test_reg timing:  173.43
 
 
 Test 009
@@ -888,14 +888,28 @@ Checking test 047 results ....
  Comparing sigf18.........OK
  Comparing sigf24.........OK
  Test 047 passed 
-Wed Feb 12 18:58:35 UTC 2014
-Compilation with POST
-Wed Feb 12 19:21:17 UTC 2014
 Test 048
-NMMB-regional run with post on quilt
+Run Semi-lagrangian test with digital filter
+GFS, 96 proc, 1 thread
+
+
 
 
 Checking test 048 results ....
+ Comparing sigf00.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf18.........OK
+ Comparing sigf24.........OK
+ Test 048 passed 
+Sat Feb 15 03:37:47 UTC 2014
+Compilation with POST
+Sat Feb 15 04:25:05 UTC 2014
+Test 049
+NMMB-regional run with post on quilt
+
+
+Checking test 049 results ....
  Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
  Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
  Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
@@ -905,51 +919,18 @@ Checking test 048 results ....
  Comparing BGDAWP.GrbF48.........OK
  Comparing BGRD3D.GrbF48.........OK
  Comparing BGRDSF.GrbF48.........OK
- Test 048 passed 
+ Test 049 passed 
 
 
 
-Test 049
+Test 050
 GFS with POST
 GFS, 32 proc, 1 thread
 
 
 
 
-Checking test 049 results ....
- Comparing sigf00.........OK
- Comparing sigf03.........OK
- Comparing sigf06..... ......NOT OK
-
-   sigf06 differ!   
-Wed Feb 12 19:30:02 UTC 2014
-Compilation only NMM
-Test 050
-Compare NMMB-global results with previous trunk version, only NMM compiled
-
-
 Checking test 050 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
- Test 050 passed 
-
-
-
-Wed Feb 12 19:41:42 UTC 2014
-Compilation only GFS
-Wed Feb 12 19:55:06 UTC 2014
-Test 051
-Compare GFS results with previous trunk version, only GFS compiled
-GFS, 32 proc, 1 thread
-
-
-
-
-Checking test 051 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -968,6 +949,53 @@ Checking test 051 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
+ Test 050 passed 
+Sat Feb 15 04:39:22 UTC 2014
+Compilation only NMM
+Test 051
+Compare NMMB-global results with previous trunk version, only NMM compiled
+
+
+Checking test 051 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
  Test 051 passed 
-Wed Feb 12 19:59:12 UTC 2014
+
+
+
+Sat Feb 15 05:21:26 UTC 2014
+Compilation only GFS
+Sat Feb 15 05:49:20 UTC 2014
+Test 052
+Compare GFS results with previous trunk version, only GFS compiled
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 052 results ....
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 052 passed 
+Sat Feb 15 05:54:05 UTC 2014
 REGRESSION TEST WAS SUCCESSFUL

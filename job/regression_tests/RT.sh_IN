@@ -31,8 +31,8 @@ if [ $MACHINE_ID = wcoss ]; then
   export CLASS=dev
   export ACCNR=dev
   export DISKNM=/meso
-  export STMP=/stmp
-  export PTMP=/ptmp
+  export STMP=/stmpp1
+  export PTMP=/ptmpp1
   export SCHEDULER=lsf
 elif [ $MACHINE_ID = gaea ]; then 
   export DISKNM=/lustre/ltfs/scratch/Ratko.Vasic
@@ -2554,11 +2554,12 @@ else
 #
 # TEST   - GFS Semi-Lagrangian model
 #        - 96 tasks, T574L64, 24 hours forecast. Adiabatic version.
+#        - No digital filter.
 #
 ###############################################################################
 
 if [ $MACHINE_ID = wcoss ]; then
- if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
+ if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
  export TEST_DESCR="Run Semi-lagrangian test"
   (( TEST_NR=TEST_NR+1 ))
@@ -2609,6 +2610,76 @@ if [ $MACHINE_ID = wcoss ]; then
  export ISOL=1
  export ICO2=1
  export CNTL_DIR=GFS_SLG_adiab
+ export LIST_FILES=" \
+        sigf00 sigf06 sigf12 sigf18 sigf24 "
+  ./rt_gfs.sh_slg
+ export SLG=.false.
+  if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+fi # endif test
+fi #for only wcoss.
+
+###############################################################################
+#
+# TEST   - GFS Semi-Lagrangian model
+#        - 96 tasks, T574L64, 24 hours forecast. Adiabatic version.
+#        - With digital filter.
+#
+###############################################################################
+
+if [ $MACHINE_ID = wcoss ]; then
+ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+ export TEST_DESCR="Run Semi-lagrangian test with digital filter"
+  (( TEST_NR=TEST_NR+1 ))
+
+#---------------------
+ export_gsm
+#---------------------
+ export CDATE=2013010100
+ export LDFI_SPECT=.true.
+ export NDAYS=1
+ export wave=574
+ export TASKS=96
+ export TPN=8
+ export THRD=1
+ export ADIAB=.true.
+ export IAER=111
+ export LD_PRELOAD=/nems/save/Weiyu.Yang/libmpitrace.so
+ export RUNDIR=${RUNDIR_ROOT}/GFS_slg_DFI
+ export WLCLK=55
+ export SLG=.true.
+ export PE1=96
+ export NEMSIOIN=.false.
+ export NEMSIOOUT=.false.
+ export SIGIOIN=.true.
+ export SIGIOOUT=.true.
+ export SFCIOOUT=.true.
+ export WTPG=1
+ export WRTGP=1
+ export WRITE_DOPOST=.false.
+ export POST_GRIBVERSION='"grib1"'
+ export GOCART_AER2POST=.false.
+ export NSOUT=36
+ export QUILT=.true.
+ export MEMBER_NAMES=c00
+ export CP2=1 # one copy in the dynamics and physics, and another one popints the copy.
+ export FDFI=3
+ export FHRES=264
+ export REDUCEDGRID=.true.
+ export NST_FCST=0
+ export GOCART=0
+ export TRACER=.false.
+ export SFCPRESS_ID=1
+ export THERMODYN_ID=1
+ export IDVC=2  # the vertical coord - 2 means hybrid
+ export NDSLFV=.false.
+ export SPECTRALLOOP=3
+ export IEMS=0
+ export ISOL=1
+ export ICO2=1
+ export CNTL_DIR=GFS_SLG_adiab_DFI
  export LIST_FILES=" \
         sigf00 sigf06 sigf12 sigf18 sigf24 "
   ./rt_gfs.sh_slg
@@ -2891,6 +2962,7 @@ else
 #---------------------
     export_gsm
 #
+    export LDFI_SPECT=.false.
     export FDFI=3
     export QUILT=.true.; export WRITE_DOPOST=.true.
     export NEMSIOIN=.true. ; export SIGIOIN=.false.

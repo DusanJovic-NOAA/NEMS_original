@@ -4,12 +4,13 @@
 #BSUB -o _RUND_/fcst._CDATE_.out.%J
 #BSUB -J _JBNME_
 #BSUB -network type=sn_all:mode=US
-####BSUB -q debug
+#####BSUB -q debug
 #BSUB -q dev
 #BSUB -n _TASKS_
 #BSUB -R span[ptile=_TPN_]
 #BSUB -R affinity[core(_THRDS_)]
 #BSUB -x
+#####BSUB -W 00:25
 #BSUB -W 00:_WLCLK_
 set -x
 #ulimit -s unlimited
