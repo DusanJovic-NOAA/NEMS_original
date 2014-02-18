@@ -146,7 +146,6 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
 ################################################################################
 
  cp atmos.configure_gfs ${RUNDIR}/atmos.configure
- cp ocean.configure ${RUNDIR}/ocean.configure
  cp MAPL.rc ${RUNDIR}/MAPL.rc
  cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
 
@@ -225,7 +224,6 @@ else
  chmod +x ${RUNDIR}/gfs_fcst_run
  cp Chem_Registry.rc ${RUNDIR}/Chem_Registry.rc
  cp atmos.configure_gfs ${RUNDIR}/atmos.configure
- cp ocean.configure ${RUNDIR}/ocean.configure
 
 fi
 
