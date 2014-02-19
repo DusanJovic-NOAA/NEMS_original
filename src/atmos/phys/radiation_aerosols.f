@@ -91,7 +91,8 @@
 !        program best utilize common components. added aerosol model   !
 !        scheme selection control variable iaer_mdl to the namelist.   !
 !      Aug     2013  --- s. moorthi - merge sarah's gocart changes with!
-!                                     yutai's changes
+!                                     yutai's changes                  !
+!      13Feb2014  --- Sarah lu - compute aod at 550nm                  !
 !                                                                      !
 !   references for opac climatological aerosols:                       !
 !     hou et al. 2002  (ncep office note 441)                          !
@@ -494,9 +495,6 @@
       integer, save                  :: num_gridcomp = 0  ! number of aerosol grid components
       character, allocatable , save  :: gridcomp(:)*2     ! aerosol grid components
 
-!   - spectral band for 550nm (for diag)
-      integer, public, save       :: nv_aod = 1
-
 !  --- default full-package setting
       integer, parameter          :: max_num_gridcomp = 5
       character*2                 :: max_gridcomp(max_num_gridcomp)
@@ -514,15 +512,14 @@
 !      idxspc (NCM)         - index conversion array
 !      lspcaod              - logical flag for aod from individual species
 !
-!     integer, dimension(NCM) :: idxspc
-!     data  idxspc / 1, 2, 1, 1, 1, 1, 3, 5, 5, 4 /
-!     logical, save :: lspcaod = .false.
+      integer, dimension(NCM) :: idxspc
+      data  idxspc / 1, 2, 1, 1, 1, 1, 3, 5, 5, 4 /
 !
 !   - wvn550 is the wavenumber (1/cm) of wavelenth 550nm for diagnostic aod output
 !     nv_aod is the sw spectral band covering wvn550 (comp in aer_init)
 !
-!     real (kind=kind_phys), parameter :: wvn550 = 1.0e4/0.55
-!     integer, save      :: nv_aod = 1
+      real (kind=kind_phys), parameter :: wvn550 = 1.0e4/0.55
+      integer, save      :: nv_aod = 1
 
 !  ---  public interfaces
 
@@ -1193,9 +1190,9 @@
           iw1 = nint(wvnsw1(mb))
           iw2 = nint(wvnsw2(mb))
 
-!         if ( wvnsw2(mb)>=wvn550 .and. wvn550>=wvnsw1(mb) ) then
-!           nv_aod = ib                  ! sw band number covering 550nm wavelenth
-!         endif
+          if ( wvnsw2(mb)>=wvn550 .and. wvn550>=wvnsw1(mb) ) then
+            nv_aod = ib                  ! sw band number covering 550nm wavelenth
+          endif
 
           Lab_swdowhile : do while ( iw1 > iendwv(ii) )
             if ( ii == NAERBND ) exit Lab_swdowhile
@@ -1945,8 +1942,7 @@
      &       IMAX,NLAY,NLP1, lsswr,lslwr,                               &
 !  ---  outputs:
      &       aerosw,aerolw                                              &
-     &,      tau_gocart                                                 &
-!    &       aerosw,aerolw,aerodp                                       &
+     &,      aerodp                                                     &
      &     )
 
 !  ==================================================================  !
@@ -2019,10 +2015,7 @@
       real (kind=kind_phys), dimension(:,:,:,:), intent(out) ::         &
      &       aerosw, aerolw
 
-!     Added for aerosol diag (Sarah Lu)
-      real (kind=kind_phys), dimension(:,:,:), intent(out) :: tau_gocart
-
-!     real (kind=kind_phys), dimension(:,:)    , intent(out) :: aerodp
+      real (kind=kind_phys), dimension(:,:)    , intent(out) :: aerodp
 
 !  ---  locals:
       real (kind=kind_phys), parameter :: psrfh = 5.0    ! ref press (mb) for upper bound
@@ -2064,8 +2057,13 @@
         enddo
       enddo
 
-!     aerodp = f_zero
 !     sumodp = f_zero
+      do i = 1, IMAX
+       do k = 1, NSPC1
+         aerodp(i,k) = f_zero
+       enddo
+      enddo
+
 
       if ( .not. (lsswr .or. lslwr) ) then
         return
@@ -2135,9 +2133,9 @@
 !  ---  ...  calculate sw aerosol optical properties for the corresponding
 !            frequency bands
 
-        tau_gocart(:,:,:) = f_zero
-
-        if ( iaerflg == 1 ) then      ! use opac aerosol climatology
+!SARAH
+!         if ( iaerflg == 1 ) then      ! use opac aerosol climatology
+          if ( iaermdl == 0 ) then      ! use opac aerosol climatology
 
           call aer_property                                               &
 !  ---  inputs:
@@ -2146,8 +2144,7 @@
      &         IMAX,NLAY,NLP1,                                            &
 !    &         IMAX,NLAY,NLP1,NSPC1,                                      &
 !  ---  outputs:
-     &         aerosw,aerolw                                              &
-!    &         aerosw,aerolw,aerodp                                       &
+     &         aerosw,aerolw,aerodp                                       &
      &       )
 
 !  ---  check print
@@ -2170,6 +2167,7 @@
 !           print *, aerodp(:,m)
 !           sumodp(:) = sumodp(:) + aerodp(:,m)
 !         enddo
+
 !
 !         print *,'  ***  CHECK AEROSOLS OPTICAL DEPTH FOR ALL SPECIES:'
 !         print *, sumodp(:)
@@ -2184,7 +2182,9 @@
 !           print *,'  ASYAER:',aerolw(:,k,m,3)
 !         enddo
 !       enddo
-        elseif ( iaerflg == 2 )   then    ! use gocart aerosol scheme
+! SARAH
+!        elseif ( iaerflg == 2 )   then    ! use gocart aerosol scheme
+         elseif ( iaermdl == 1 )   then    ! use gocart aerosol scheme
 
           call setgocartaer                                               &
 
@@ -2194,7 +2194,6 @@
      &         IMAX,NLAY,NLP1, ivflip, lsswr,lslwr,                       &
 !  ---  outputs:
      &         aerosw,aerolw                                              &
-     &,        tau_gocart                                                 &
      &     )
 
         endif     ! end if_iaerflg_block
@@ -2494,8 +2493,7 @@
      &       IMAX,NLAY,NLP1,                                            &
 !    &       IMAX,NLAY,NLP1,NSPC,                                       &
 !  ---  outputs:
-     &       aerosw,aerolw                                              &
-!    &       aerosw,aerolw,aerodp                                       &
+     &       aerosw,aerolw,aerodp                                       &
      &     )
 
 !  ==================================================================  !
@@ -2573,12 +2571,12 @@
 !  ---  outputs:
       real (kind=kind_phys), dimension(:,:,:,:), intent(out) ::         &
      &       aerosw, aerolw
-!     real (kind=kind_phys), dimension(:,:)    , intent(out) :: aerodp
+      real (kind=kind_phys), dimension(:,:)    , intent(out) :: aerodp
 
 !  ---  locals:
       real (kind=kind_phys), dimension(NCM) :: cmix
       real (kind=kind_phys), dimension(  2) :: denn
-!     real (kind=kind_phys), dimension(NSPC) :: spcodp
+      real (kind=kind_phys), dimension(NSPC) :: spcodp
 
       real (kind=kind_phys), dimension(NLAY) :: delz, rh1, dz1
       integer,               dimension(NLAY) :: idmaer
@@ -2870,15 +2868,15 @@
           enddo
 
 !  ---  total aod (optional)
-!         do k = 1, NLAY
-!           aerodp(i,1) = aerodp(i,1) + tauae(k,nv_aod)
-!         enddo
+         do k = 1, NLAY
+           aerodp(i,1) = aerodp(i,1) + tauae(k,nv_aod)
+         enddo
 
 !  ---  for diagnostic output (optional)
 !         if ( lspcaod ) then
-!           do m = 1, NSPC
-!             aerodp(i,m+1) = spcodp(m)
-!           enddo
+           do m = 1, NSPC
+             aerodp(i,m+1) = spcodp(m)
+           enddo
 !         endif
 
         endif     ! end if_larsw_block
@@ -2959,10 +2957,11 @@
      &      ext1, sca1, ssa1, asy1, drh0, drh1, rdrh
 
       integer :: ih1, ih2, kk, idom, icmp, ib, ii, ic, ic1
+      integer :: idx
 
 !===> ...  begin here
 
-!     spcodp = f_zero
+       spcodp = f_zero
 
 !===> ... loop over vertical layers from top to surface
 
@@ -3019,10 +3018,8 @@
           enddo
 
 ! --- compute aod from individual species' contribution (optional)
-!         idx = idxspc(10)             ! for sulfate
-!         if ( lspcaod ) then
-!           spcodp(idx) = spcodp(idx) + tauae(kk,nv_aod)
-!         endif
+          idx = idxspc(10)             ! for sulfate
+          spcodp(idx) = spcodp(idx) + tauae(kk,nv_aod)
 
         elseif (idom == 3) then    lab_if_idom
 ! --- 3rd domain - free tropospheric layers
@@ -3058,11 +3055,11 @@
             asyae(kk,ib) = min(f_one, asy1/sca1)
 
 ! --- compute aod from individual species' contribution (optional)
-!           if ( lspcaod .and. ib==nv_aod ) then
-!             spcodp(1) = spcodp(1) + 0.17e-3*ex01*730.0*delz(kk)   ! dust (inso)   #1
-!             spcodp(2) = spcodp(2) + 0.4    *ex02*730.0*delz(kk)   ! black carbon  #2
-!             spcodp(3) = spcodp(3) + 0.59983*ex03*730.0*delz(kk)   ! water soluble #7
-!           endif
+            if ( ib==nv_aod ) then
+             spcodp(1) = spcodp(1) + 0.17e-3*ex01*730.0*delz(kk)   ! dust (inso)   #1
+             spcodp(2) = spcodp(2) + 0.4    *ex02*730.0*delz(kk)   ! black carbon  #2
+             spcodp(3) = spcodp(3) + 0.59983*ex03*730.0*delz(kk)   ! water soluble #7
+            endif
 
           enddo
 
@@ -3077,7 +3074,7 @@
 
             lab_do_icmp : do icmp = 1, NCM
               ic = icmp
-!             idx = idxspc(icmp)
+              idx = idxspc(icmp)
 
               cm = cmix(icmp)
               lab_if_cm : if ( cm > f_zero ) then
@@ -3108,9 +3105,9 @@
                 endif  lab_if_ic
 
 ! --- compute aod from individual species' contribution (optional)
-!               if ( lspcaod .and. ib==nv_aod ) then
-!                 spcodp(idx) = spcodp(idx) + tt0*denn(1)*delz(kk)   ! idx for dif species
-!               endif
+                if ( ib==nv_aod ) then
+                 spcodp(idx) = spcodp(idx) + tt0*denn(1)*delz(kk)   ! idx for dif species
+                endif
 
               endif  lab_if_cm
             enddo  lab_do_icmp
@@ -3130,9 +3127,7 @@
           enddo
 
 ! --- compute aod from individual species' contribution (optional)
-!         if ( laersw ) then
-!            spcodp(1) = spcodp(1) + tauae(kk,nv_aod)            ! dust
-!         endif
+          spcodp(1) = spcodp(1) + tauae(kk,nv_aod)            ! dust
 
         else  lab_if_idom
 ! --- domain index out off range, assume no aerosol
@@ -3151,6 +3146,7 @@
         endif  lab_if_idom
 
       enddo  lab_do_layer
+
 !
 !===> ... smooth profile at domain boundaries
 !
@@ -4557,7 +4553,6 @@
      &       IMAX,NLAY,NLP1, ivflip, lsswr,lslwr,                       &
 !  ---  outputs:
      &       aerosw,aerolw                                              &
-     &,      tau_gocart                                                 &
      &     )
 
 
@@ -4624,7 +4619,6 @@
 !  ---  outputs:
       real (kind=kind_phys), dimension(:,:,:,:), intent(out) ::         &
      &       aerosw, aerolw
-      real (kind=kind_phys), dimension(:,:,:), intent(out) :: tau_gocart
 
 !  ---  locals:
       real (kind=kind_phys), dimension(NLAY) :: rh1, dz1
@@ -4782,12 +4776,6 @@
                 aerosw(i,k,m,1) = tauae(k,m)
                 aerosw(i,k,m,2) = ssaae(k,m)
                 aerosw(i,k,m,3) = asyae(k,m)
-              enddo
-            enddo
-!
-            do k = 1, NLAY
-              do m = 1, max_num_gridcomp
-               tau_gocart(i,k,m) = tauae_gocart(k,m)
               enddo
             enddo
 

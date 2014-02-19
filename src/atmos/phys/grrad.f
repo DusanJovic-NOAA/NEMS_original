@@ -159,6 +159,7 @@
 !                    when using ferrier microphysics.                  !
 !     may 2013    s. mooorthi - removed fpkapx                         !
 !     aug 2013    s. moorthi  - port from gfs to nems                  !
+!     13Feb2014   sarah lu - add aerodp to fluxr                       !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -182,9 +183,7 @@
      &                                     gas_init, gas_update
       use module_radiation_aerosols,only : NF_AESW, NF_AELW, setaer,    &
      &                                     aer_init, aer_update,        &
-!    &,                                    NSPC1                        ! optn for aod output
-! --- add nv_aod for aerosol diag (Sarah Lu)
-     &                                     nv_aod
+     &                                     NSPC1                       
       use module_radiation_surface, only : NF_ALBD, sfc_init, setalb,   &
      &                                     setemis
       use module_radiation_clouds,  only : NF_CLDS, cld_init,           &
@@ -965,17 +964,14 @@
       real (kind=kind_phys), dimension(IM) :: tsfa, cvt1, cvb1, tem1d,  &
      &       sfcemis, tsfg, tskn
 
-      real (kind=kind_phys), dimension(IM,NSPC)           :: aod
-
       real (kind=kind_phys), dimension(IM,LM+LTP,NF_CLDS) :: clouds
       real (kind=kind_phys), dimension(IM,LM+LTP,NF_VGAS) :: gasvmr
       real (kind=kind_phys), dimension(IM,       NF_ALBD) :: sfcalb
-!     real (kind=kind_phys), dimension(IM,       NSPC1)   :: aerodp      ! optn for aod output
+      real (kind=kind_phys), dimension(IM,       NSPC1)   :: aerodp     
       real (kind=kind_phys), dimension(IM,LM+LTP,NTRAC)   :: tracer1
 
       real (kind=kind_phys), dimension(IM,LM+LTP,NBDSW,NF_AESW)::faersw
       real (kind=kind_phys), dimension(IM,LM+LTP,NBDLW,NF_AELW)::faerlw
-      real (kind=kind_phys), dimension(IM,LM,NSPC-1) :: tau_gocart
 
       real (kind=kind_phys), dimension(IM,LM+LTP) :: htswc
       real (kind=kind_phys), dimension(IM,LM+LTP) :: htlwc
@@ -1310,33 +1306,8 @@
      &     ( plvl,plyr,prslk1,tvly,rhly,slmsk,tracer1,xlon,xlat,        &
      &       IM,LMK,LMP, lsswr,lslwr,                                   &
 !  ---  outputs:
-     &       faersw,faerlw,tau_gocart                                   &
-!    &       faersw,faerlw,aerodp                                       &
+     &       faersw,faerlw,aerodp                                       &
      &     )
-
-      if ( iaerflg == 2 .and. laswflg ) then
-
-!  --- ...  update aod (column integrated aerosol optical depth)
-
-        do j = 1, NSPC
-          do k = 1, LM
-            do i=1,im
-              aod(i,j) = aod(i,j) + tau_gocart(i,k,j)
-            enddo
-          enddo
-        enddo
-        j = NSPC + 1
-        do k = 1, LM
-          do i=1,im
-            aod(i,j) = aod(i,j) + faersw(i,k,nv_aod,1)
-          enddo
-        enddo
-
-      else
-
-        aod(:,:) = 0.0
-
-      endif           ! end_if_laswflg
 
 !  --- ...  obtain cloud information for radiation calculations
 
@@ -1602,15 +1573,14 @@
 
       if (lssav) then
 
-!       if ( iaersw == 1 ) then
-        if ( iaerflg == 2 .and. laswflg ) then
+         if ( lsswr ) then
           do i = 1, IM
-            fluxr(i,34) = fluxr(i,34) + dtsw*aod(i,6)  ! total aod at 550nm
-            fluxr(i,35) = fluxr(i,35) + dtsw*aod(i,1)  ! DU aod at 550nm
-            fluxr(i,36) = fluxr(i,36) + dtsw*aod(i,2)  ! BC aod at 550nm
-            fluxr(i,37) = fluxr(i,37) + dtsw*aod(i,3)  ! OC aod at 550nm
-            fluxr(i,38) = fluxr(i,38) + dtsw*aod(i,4)  ! SU aod at 550nm
-            fluxr(i,39) = fluxr(i,39) + dtsw*aod(i,5)  ! SS aod at 550nm
+             fluxr(i,34) = fluxr(i,34) + dtsw*aerodp(i,1)  ! total aod at 550nm
+             fluxr(i,35) = fluxr(i,35) + dtsw*aerodp(i,2)  ! DU aod at 550nm
+             fluxr(i,36) = fluxr(i,36) + dtsw*aerodp(i,3)  ! BC aod at 550nm
+             fluxr(i,37) = fluxr(i,37) + dtsw*aerodp(i,4)  ! OC aod at 550nm
+             fluxr(i,38) = fluxr(i,38) + dtsw*aerodp(i,5)  ! SU aod at 550nm
+             fluxr(i,39) = fluxr(i,39) + dtsw*aerodp(i,6)  ! SS aod at 550nm
           enddo
         endif
 !  ---  save lw toa and sfc fluxes
