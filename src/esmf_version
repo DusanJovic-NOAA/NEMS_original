@@ -25,6 +25,12 @@ elif [[ $1 = 5.2_wcoss ]]; then
      cp ESMFVersionDefine_ESMF_520rAPI.h ESMFVersionDefine.h
      set +x
      echo "Use the ESMF 5.2.0rp1 library"
+elif [[ $1 = 6.3r_wcoss ]]; then
+     set -x
+     cp conf/configure.nems.Wcoss.intel_ESMF_630r conf/configure.nems
+     cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
+     set +x
+     echo "Use the ESMF 6.3.0r library"
 elif [[ $1 = 5.2.0rAPI_zeus ]]; then
      set -x
      cp conf/configure.nems.Zeus.intel conf/configure.nems
@@ -47,6 +53,7 @@ else
      echo " 'esmf_version 3_yellowstone'      : ESMF 3.1.0rp2 library on yellowstone"
      echo;
      echo " 'esmf_version 5.2_wcoss'          : ESMF 5.2.0rp1 library on wcoss"
+     echo " 'esmf_version 6.3r_wcoss'         : ESMF 6,3.0r library on wcoss"
      echo " 'esmf_version 5.2.0rAPI_zeus'     : ESMF 5.2.0r API compatible library (i.e. ESMF >= 5.2.0r) on zeus"
      echo " 'esmf_version nuopc_zeus'         : ESMF library with reference NUOPC Layer (currently ESMF 6.2.0) on zeus"
      echo;

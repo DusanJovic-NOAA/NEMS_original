@@ -14,11 +14,13 @@
 #SKIP_POST=YES
 #SKIP_GFS_POST=YES
  SKIP_ESMF520rAPI=YES
+ SKIP_ESMF630rAPI=NO
  SKIP_GEFS_CONCUR=YES
 #SKIP_SINGLECORE=YES
 
 #COMPILE_SORC=NO                # uncomment not to recompile the basic test exec
 #COMPILE_SORC_520rAPI=NO        # uncomment not to recompile the 520rAPI exec
+ COMPILE_SORC_630rAPI=YES       # uncomment not to recompile the 520rAPI exec
 #COMPILE_SORC_NUOPC=NO          # uncomment not to recompile the NUOPC exec
 
 #CLEAN_SORC=NO                  # uncomment not to clean source after succ. run
@@ -3130,6 +3132,7 @@ else
   fi # endif test
  fi # endif machine (only zeus)
 
+
  if [ ${SKIP_GEFS_CONCUR:-NO} = YES ] ; then
    echo "Skipping GEFS Concurrency test for ESMF520r API"
  else
@@ -3169,6 +3172,116 @@ else
  fi   # SKIP_GENS_CONCUR test
 fi   # SKIP_ESMF520rAPI test
 
+
+if [ ${SKIP_ESMF630rAPI:-NO} = YES ] ; then
+ echo "Skipping NMMB and GFS tests using ESMF 6.3.0r API"
+else
+ #########################################################################
+ # Clean and compile both NMMB & GFS cores, using ESMF 6.3.0r API.
+ #########################################################################
+
+ if [ $MACHINE_ID = wcoss ] ; then
+
+ if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+  if [ ${COMPILE_SORC_630rAPI:-YES} = YES ] ; then
+
+  echo "Preparing model code for regression tests"
+  echo "Using the ESMF 6.3.0r API"
+  printf %s "Using the ESMF 6.3.0r API.   "
+
+  printf %s "Compiling model code (this will take some time)......."
+  cd ${PATHTR}/src
+
+  date                                     >> ${REGRESSIONTEST_LOG}
+  echo "Compilation ESMF 6.3.0r API"       >> ${REGRESSIONTEST_LOG}
+  rm -f ${PATHTR}/exe/NEMS.x
+  if [ $MACHINE_ID = wcoss ]; then
+
+    ./esmf_version 6.3r_wcoss               >> ${COMPILE_LOG} 2>&1
+    gmake clean                            >> ${COMPILE_LOG} 2>&1
+    gmake nmm_gsm                          >> ${COMPILE_LOG} 2>&1
+
+  elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
+
+    ./esmf_version 6.3.0rAPI_zeus          >> ${COMPILE_LOG} 2>&1
+    source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
+    module list                            >> ${COMPILE_LOG} 2>&1
+    gmake clean                            >> ${COMPILE_LOG} 2>&1
+    gmake nmm_gsm                          >> ${COMPILE_LOG} 2>&1
+
+   fi
+   date                                     >> ${REGRESSIONTEST_LOG}
+
+  fi # endif compilation
+  fi # endif skipping compilation
+ fi # endif machine (only WCOSS)
+
+  cd $PATHRT
+
+ ###############################################################################
+ #
+ # TEST   - Global NMM-B with pure binary input
+ #        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
+ #
+ ###############################################################################
+
+ if [ $MACHINE_ID = wcoss ] ; then
+  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
+
+   export TEST_DESCR="Compare NMMB-global results with previous trunk version_ESMF_6.3.0r API"
+
+#---------------------
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF_6.3.0rAPI
+   export CNTL_DIR=NMMB_glob_ESMF_6.3.0rAPI
+   export LIST_FILES=" \
+   nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
+   nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
+   nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
+#---------------------
+   export_nmm
+   export GBRG=glob
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+  fi # endif test
+ fi # endif machine (only WCOSS)
+
+ ###############################################################################
+ #
+ # TEST   - GFS
+ #        - 30 compute tasks / 1 thread
+ #
+ ###############################################################################
+
+ if [ $MACHINE_ID = wcoss ] ; then
+  if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
+
+   export TEST_DESCR="Compare GFS results with previous trunk version ESMF6.3.0rAPI"
+
+#---------------------
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF_6.3.0rAPI
+   export CNTL_DIR=GFS_NODFI_ESMF_6.3.0rAPI
+   export LIST_FILES=" \
+        sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
+        sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+        flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
+#---------------------
+   export_gsm
+#---------------------
+   ./rt_gfs.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+  fi # endif test
+
+ fi # endif machine (only wcoss)
+
+ fi # SKIP_ESMF630rAPI
 
 if [ ${SKIP_SINGLECORE:-NO} = YES ] ; then
  echo "Skipping single core NMMB and GFS tests"
@@ -3324,6 +3437,7 @@ fi # SKIP_SINGLECORE tests
 ################################################################################
 # Finalize
 ################################################################################
+
 
 rm -f err out configure_file* nmm_ll nmm_msub nmm_run gfs_fcst_run gfs_ll gen_fcst_run gen_ll fim_fcst_run fim_ll
 
