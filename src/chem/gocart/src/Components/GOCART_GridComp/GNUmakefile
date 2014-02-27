@@ -68,7 +68,7 @@ endif
 export ESMADIR BASEDIR ARCH SITE FREAL DEBUG
 
 $(TARGETS): 
-	@ t=$@; argv="$(SUBDIRS)" ;\
+	 t=$@; argv="$(SUBDIRS)" ;\
 	  for d in $$argv; do			 \
 	    ( cd $$d				;\
 	      echo ""; echo Making $$t in `pwd`          ;\

@@ -11,8 +11,9 @@ MODULES  = module_ATM_INTERNAL_STATE.o module_ATM_GRID_COMP.o
 DEPEND_FILES = ${MODULES:.o=.F90}
 
 
-all default: depend
-	@gmake -f $(MAKEFILE) $(LIBRARY)
+#all default: depend
+#	@gmake $(J) -f $(MAKEFILE) $(LIBRARY)
+all default: depend $(LIBRARY)
 
 $(LIBRARY): $(MODULES)
 	$(AR) $(ARFLAGS) $@ $?

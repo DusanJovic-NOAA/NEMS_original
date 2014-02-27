@@ -17,8 +17,10 @@ MODULES_ALL = $(MODULES_F90) $(MODULES_IDEA)
 DEPEND_FILES = ${MODULES_F90:.o=.F90} ${MODULES_IDEA:.o=.f}
 
 
-all default: depend
-	@gmake -f $(MAKEFILE) $(LIBRARY)
+#all default: depend
+#	@gmake -f $(MAKEFILE) $(LIBRARY)
+
+all default: depend $(LIBRARY)
 
 $(LIBRARY): $(MODULES_ALL)
 	$(AR) $(ARFLAGS) $@ $(MODULES_ALL)

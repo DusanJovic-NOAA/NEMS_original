@@ -153,12 +153,12 @@ else
 endif
 
 all default: depend
-	@gmake -f $(MAKEFILE) $(LIBRARY)
+	gmake -f $(MAKEFILE) $(LIBRARY)
 
 $(LIBRARY): $(MODULES_ALL)
 	$(AR) $(ARFLAGS) $@ $(MODULES_ALL)
 
-gocart_stub: $(MODULES_ALL)
+gocart_stub: depend $(MODULES_ALL)
 	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_ALL)
 
 gocart_full: $(MODULES_GOCART)

@@ -270,9 +270,12 @@ INTEGER, PARAMETER :: MAX_ITERATIONS=10
 !.......................................................................
 !$omp parallel do                                                       &
 !$omp private (j,i,k,lsfc,dpcol,l,p_col,thick_col,t_col,tc,qv_col,      &
-!$omp          wc_col,wc,qi,QRdum,qw,fice,frain,rimef_col,qi_col,qr_col,   &
+!$omp          wc_col,wc,qi,QRdum,qw,fice,frain,rimef_col,qi_col,qr_col,&
 !$omp          qw_col,i_index,j_index,arain,asnow,dum,prectot,precmax,  &
-!$omp          qmax,qtot,nstats),SCHEDULE(dynamic)  
+!$omp          pcond1d,pidep1d,                                         &
+!$omp          piacw1d,piacwi1d,piacwr1d,piacr1d,picnd1d,pievp1d,pimlt1d, &
+!$omp          praut1d,pracw1d,prevp1d,pisub1d,pevap1d,                 &
+!$omp          qmax,qtot,nstats),SCHEDULE(dynamic)
 !.......................................................................
        DO J=JTS,JTE    
         DO I=ITS,ITE  

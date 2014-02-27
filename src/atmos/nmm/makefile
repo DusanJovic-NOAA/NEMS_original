@@ -58,8 +58,10 @@ MODULES_STUB  = module_NMM_GRID_COMP_stub.o
 
 DEPEND_FILES = ${MODULES:.o=.F90} ${MODULE_GFSP:.o=.f}
 
-all default: depend
-	@gmake -f $(MAKEFILE) $(LIBRARY)
+#all default: depend
+#	@gmake -f $(MAKEFILE) $(LIBRARY)
+
+all default: depend $(LIBRARY)
 
 $(LIBRARY): $(MODULES) ${MODULE_GFSP}
 	$(AR) $(ARFLAGS) $@ $(MODULES) ${MODULE_GFSP}

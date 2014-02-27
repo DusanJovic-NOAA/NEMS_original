@@ -67,7 +67,6 @@ OBJS = module_MEDIATOR.o \
        module_EARTH_GRID_COMP.o \
        module_NEMS_INTERNAL_STATE.o \
        module_NEMS_GRID_COMP.o
-       
 
 LIBS = atmos/libatmos.a                 \
        atmos/nmm/libnmm.a               \
@@ -208,14 +207,14 @@ nmm: nmm_libs $(OBJS) $(MAIN)
 	@echo "$(TARGET) is created for NMM core."
 
 nmm_libs:
-	cd atmos/share         && gmake
-	cd atmos/phys          && gmake gocart_stub
-	cd atmos/nmm           && gmake
+	cd atmos/share         && gmake $(J)
+	cd atmos/phys          && gmake $(J) gocart_stub
+	cd atmos/nmm           && gmake $(J)
 	cd $(gfsdir)           && gmake stub
 	cd atmos/gen           && gmake stub
 	cd atmos/fim           && gmake stub
 	cd atmos/post          && gmake stub
-	cd atmos               && gmake
+	cd atmos               && gmake $(J)
 	cd ENS_Cpl             && gmake stub
 
 ################################################################################
@@ -456,4 +455,11 @@ $(OBJS): %.o: %.f90
 
 MAIN_NEMS.o: %.o: %.f90
 	$(FC) $(FFLAGS) $(INCS) -c $*.f90
-#	$(RM) $*.f90
+	$(RM) $*.f90
+
+MAIN_NEMS.o : nmm_libs MAIN_NEMS.F90 ./ESMFVersionLogic.h ./ESMFVersionDefine.h module_NEMS_GRID_COMP.o
+module_EARTH_GRID_COMP.o : nmm_libs module_EARTH_GRID_COMP.F90 ./ESMFVersionLogic.h ./ESMFVersionDefine.h module_EARTH_INTERNAL_STATE.o
+module_EARTH_INTERNAL_STATE.o : nmm_libs module_EARTH_INTERNAL_STATE.F90 ./ESMFVersionLogic.h ./ESMFVersionDefine.h
+module_NEMS_GRID_COMP.o : nmm_libs module_NEMS_GRID_COMP.F90 ./ESMFVersionLogic.h ./ESMFVersionDefine.h module_EARTH_GRID_COMP.o module_NEMS_INTERNAL_STATE.o
+module_NEMS_INTERNAL_STATE.o : nmm_libs module_NEMS_INTERNAL_STATE.F90 ./ESMFVersionLogic.h ./ESMFVersionDefine.h
+
