@@ -457,9 +457,3 @@ MAIN_NEMS.o: %.o: %.f90
 	$(FC) $(FFLAGS) $(INCS) -c $*.f90
 	$(RM) $*.f90
 
-MAIN_NEMS.o : nmm_libs MAIN_NEMS.F90 ./ESMFVersionLogic.h ./ESMFVersionDefine.h module_NEMS_GRID_COMP.o
-module_EARTH_GRID_COMP.o : nmm_libs module_EARTH_GRID_COMP.F90 ./ESMFVersionLogic.h ./ESMFVersionDefine.h module_EARTH_INTERNAL_STATE.o
-module_EARTH_INTERNAL_STATE.o : nmm_libs module_EARTH_INTERNAL_STATE.F90 ./ESMFVersionLogic.h ./ESMFVersionDefine.h
-module_NEMS_GRID_COMP.o : nmm_libs module_NEMS_GRID_COMP.F90 ./ESMFVersionLogic.h ./ESMFVersionDefine.h module_EARTH_GRID_COMP.o module_NEMS_INTERNAL_STATE.o
-module_NEMS_INTERNAL_STATE.o : nmm_libs module_NEMS_INTERNAL_STATE.F90 ./ESMFVersionLogic.h ./ESMFVersionDefine.h
-
