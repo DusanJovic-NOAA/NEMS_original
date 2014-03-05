@@ -347,42 +347,52 @@ module module_EARTH_GENERIC_COMP
     call NUOPC_RunSequenceDeallocate(superIS%wrap%runSeq, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
     ! add two run sequence slots: runSeq(1) and runSeq(2)
     call NUOPC_RunSequenceAdd(superIS%wrap%runSeq, 2, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out    
+
     ! ocn2med into slot runSeq(1)
     call NUOPC_RunElementAddComp(superIS%wrap%runSeq(1), i=ocn, j=med, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
     ! med (phase=2) into slot runSeq(1)
     call NUOPC_RunElementAddComp(superIS%wrap%runSeq(1), i=med, phase=2, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
     ! med2ocn into slot runSeq(1)
     call NUOPC_RunElementAddComp(superIS%wrap%runSeq(1), i=med, j=ocn, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
     ! ocn into slot runSeq(1)
     call NUOPC_RunElementAddComp(superIS%wrap%runSeq(1), i=ocn, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
     ! LINK slot runSeq(2) into slot runSeq(1)
     call NUOPC_RunElementAddLink(superIS%wrap%runSeq(1), slot=2, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
     ! med2atm into slot runSeq(2)
     call NUOPC_RunElementAddComp(superIS%wrap%runSeq(2), i=med, j=atm, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
     ! atm into slot runSeq(2)
     call NUOPC_RunElementAddComp(superIS%wrap%runSeq(2), i=atm, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
     ! atm2med into slot runSeq(2)
     call NUOPC_RunElementAddComp(superIS%wrap%runSeq(2), i=atm, j=med, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
     ! med (phase=1) into slot runSeq(2)
     call NUOPC_RunElementAddComp(superIS%wrap%runSeq(2), i=med, phase=1, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -402,6 +412,11 @@ module module_EARTH_GENERIC_COMP
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
     call NUOPC_RunSequenceSet(superIS%wrap%runSeq(2), fastClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+
+    ! Document run sequence
+    call NUOPC_RunSequencePrint(superIS%wrap%runSeq, rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
     

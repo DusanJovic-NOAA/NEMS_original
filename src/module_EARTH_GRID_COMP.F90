@@ -130,7 +130,7 @@
 !
 #ifdef WITH_NUOPC
 
-      ! NUOPC_DriverAtmOcn registers the generic methods
+      ! EARTH_GENERIC registers the generic methods
 
       call driver_routine_SS(EARTH_GRID_COMP, rc=RC)
       ESMF_ERR_RETURN(RC,RC_REG)
@@ -154,6 +154,457 @@
       call ESMF_GridCompSet(EARTH_GRID_COMP, config=config, rc=RC)
       ESMF_ERR_RETURN(RC,RC_REG)
       
+      ! Added the following Field Dictionary block to the EARTH component level
+      ! in order to prevent different dictionary definitions in the lower
+      ! components. Doing this here isn't without problems because it
+      ! potentially makes the components (ATM & OCN) depend on this environment,
+      ! which lowers their transferability to other coupled systems. However,
+      ! extending the Field Dictionary is a temporary solution anyway (see the
+      ! TODO: below), so this isn't going to stay for ever this way.
+      
+      ! Extend the NUOPC Field Dictionary to hold required entries.
+      !TODO: In the long run this section will not be needed when we have
+      !TODO: absorbed the needed standard names into the default dictionary.
+      ! -> 20 fields identified as exports by the GSM component
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "mean_zonal_moment_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_zonal_moment_flx", &
+          canonicalUnits="N m-2", &
+          defaultLongName="Mean Zonal Component of Momentum Flux", &
+          defaultShortName="mzmfx", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "mean_merid_moment_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_merid_moment_flx", &
+          canonicalUnits="N m-2", &
+          defaultLongName="Mean Merid Component of Momentum Flux", &
+          defaultShortName="mmmfx", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "mean_sensi_heat_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_sensi_heat_flx", &
+          canonicalUnits="W m-2", &
+          defaultLongName="Mean Sensible Heat Flux", &
+          defaultShortName="mshfx", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "mean_laten_heat_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_laten_heat_flx", &
+          canonicalUnits="W m-2", &
+          defaultLongName="Mean Latent Heat Flux", &
+          defaultShortName="mlhfx", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "mean_down_lw_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_down_lw_flx", &
+          canonicalUnits="W m-2", &
+          defaultLongName="Mean Downward Long Wave Radiation Flux", &
+          defaultShortName="mdlwfx", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "mean_down_sw_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_down_sw_flx", &
+          canonicalUnits="W m-2", &
+          defaultLongName="Mean Downward Short Wave Radiation Flux", &
+          defaultShortName="mdswfx", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "mean_prec_rate")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_prec_rate", &
+          canonicalUnits="kg s m-2", &
+          defaultLongName="Mean Precipitation Rate", &
+          defaultShortName="mprt", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "inst_zonal_moment_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_zonal_moment_flx", &
+          canonicalUnits="N m-2", &
+          defaultLongName="Instantaneous Zonal Component of Momentum Flux", &
+          defaultShortName="izmfx", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "inst_merid_moment_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_merid_moment_flx", &
+          canonicalUnits="N m-2", &
+          defaultLongName="Instantaneous Merid Component of Momentum Flux", &
+          defaultShortName="immfx", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "inst_sensi_heat_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_sensi_heat_flx", &
+          canonicalUnits="W m-2", &
+          defaultLongName="Instantaneous Sensible Heat Flux", &
+          defaultShortName="ishfx", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "inst_laten_heat_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_laten_heat_flx", &
+          canonicalUnits="W m-2", &
+          defaultLongName="Instantaneous Latent Heat Flux", &
+          defaultShortName="ilhfx", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "inst_down_lw_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_down_lw_flx", &
+          canonicalUnits="W m-2", &
+          defaultLongName="Instantaneous Downward Long Wave Radiation Flux", &
+          defaultShortName="idlwfx", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "inst_down_sw_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_down_sw_flx", &
+          canonicalUnits="W m-2", &
+          defaultLongName="Instantaneous Downward Short Wave Radiation Flux", &
+          defaultShortName="idswfx", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "inst_temp_height2m")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_temp_height2m", &
+          canonicalUnits="K", &
+          defaultLongName="Instantaneous Temperature 2m Above Ground", &
+          defaultShortName="ith2m", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "inst_spec_humid_height2m")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_spec_humid_height2m", &
+          canonicalUnits="kg kg-1", &
+          defaultLongName="Instantaneous Specific Humidity 2m Above Ground", &
+          defaultShortName="ishh2m", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "inst_u_wind_height10m")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_u_wind_height10m", &
+          canonicalUnits="m s-1", &
+          defaultLongName="Instantaneous u Wind 10m Above Ground", &
+          defaultShortName="iuwh10m", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "inst_v_wind_height10m")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_v_wind_height10m", &
+          canonicalUnits="m s-1", &
+          defaultLongName="Instantaneous v Wind 10m Above Ground", &
+          defaultShortName="ivwh10m", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "inst_temp_height_surface")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_temp_height_surface", &
+          canonicalUnits="K", &
+          defaultLongName="Instantaneous Temperature Surface", &
+          defaultShortName="its", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "inst_pres_height_surface")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_pres_height_surface", &
+          canonicalUnits="Pa", &
+          defaultLongName="Instantaneous Pressure Surface", &
+          defaultShortName="ips", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not.NUOPC_FieldDictionaryHasEntry( &
+        "inst_surface_height")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="inst_surface_height", &
+          canonicalUnits="m", &
+          defaultLongName="Instantaneous Surface Height", &
+          defaultShortName="ish", rc=rc);
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      ! -> Additional fields identified as needed by MOM5
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "mean_down_sw_vis_dir_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_down_sw_vis_dir_flx", &
+          canonicalUnits="W m-2", &
+          defaultLongName="Mean Downward Direct Visible Short Wave Radiation Flux", &
+          defaultShortName="sw_flux_vis_dir", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "mean_down_sw_vis_dif_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+        standardName="mean_down_sw_vis_dif_flx", &
+        canonicalUnits="W m-2", &
+        defaultLongName="Mean Downward Diffuse Visible Short Wave Radiation Flux", &
+        defaultShortName="sw_flux_vis_dif", &
+        rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "mean_down_sw_ir_dir_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_down_sw_ir_dir_flx", &
+          canonicalUnits="W m-2", &
+          defaultLongName="Mean Downward Direct Short Wave IR Radiation Flux", &
+          defaultShortName="sw_flux_nir_dir", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "mean_down_sw_ir_dif_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_down_sw_ir_dif_flx", &
+          canonicalUnits="W m-2", &
+          defaultLongName="Mean Downward Short Wave IR Radiation Flux", &
+          defaultShortName="sw_flux_nir_dif", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+      return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "mean_fprec_rate")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_fprec_rate", &
+          canonicalUnits="kg m-2 s", &
+          defaultLongName="Mean Mass Frozen Precip Rate", &
+          defaultShortName="fprec", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+        return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "mean_salt_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_salt_flx", &
+          canonicalUnits="kg m-2 s", &
+          defaultLongName="Mean Salt Into Ocean Flux", &
+          defaultShortName="salt_flux", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "mean_runoff_rate")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_runoff_rate", &
+          canonicalUnits="kg m-2 s", &
+          defaultLongName="Mean Liquid Runoff Mass Flux", &
+          defaultShortName="runoff", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+      return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "mean_calving_rate")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_calving_rate", &
+          canonicalUnits="kg m-2 s", &
+          defaultLongName="Mean Frozen Runoff Mass Flux", &
+          defaultShortName="calving", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+      return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "mean_runoff_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_runoff_flx", &
+          canonicalUnits="W m-2", &
+          defaultLongName="Mean Liquid Land Water Heat Flux Into Ocean, "// &
+            "Relative To 0C", &
+          defaultShortName="runoff_hflx", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+      return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry(  &
+        "mean_calving_flx")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mean_calving_flx", &
+          canonicalUnits="W m-2", &
+          defaultLongName="Mean Frozen Land Water Heat Flux Into Ocean, "// &
+            "Relative to 0C", &
+          defaultShortName="calving_hflx", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+        return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "mass_of_overlying_sea_ice")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="mass_of_overlying_sea_ice", &
+          canonicalUnits="kg", &
+          defaultLongName="Mass Of Overlying Sea Ice", &
+          defaultShortName="mi", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+        return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "s_surf")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="s_surf", &
+          canonicalUnits="psu", &
+          defaultLongName="sea surface salinity on t-cell", &
+          defaultShortName="s_surf", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+        return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "u_surf")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="u_surf", &
+          canonicalUnits="m s-1", &
+          defaultLongName="i-directed surface ocean velocity on u-cell", &
+          defaultShortName="u_surf", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+        return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "v_surf")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="v_surf", &
+          canonicalUnits="m s-1", &
+          defaultLongName="j-directed surface ocean velocity on u-cell", &
+          defaultShortName="v_surf", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "sea_lev")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="sea_lev", &
+          canonicalUnits="m", &
+          defaultLongName="sea level", &
+          defaultShortName="sea_lev", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif 
+       
 #else
 
 !-----------------------------------------------------------------------
@@ -241,7 +692,7 @@
         call ESMF_ConfigGetAttribute(config, petListBounds, &
           label="atm_petlist_bounds:", default=-1, rc=rc)
         ESMF_ERR_RETURN(rc,rc)
-        if (petListBounds(1)==-1 .and. petListBounds(2)==-1) then
+        if (petListBounds(1)==-1 .or. petListBounds(2)==-1) then
           petListBounds(1) = 0
           petListBounds(2) = petCount - 1
         endif
@@ -256,7 +707,7 @@
         call ESMF_ConfigGetAttribute(config, petListBounds, &
           label="ocn_petlist_bounds:", default=-1, rc=rc)
         ESMF_ERR_RETURN(rc,rc)
-        if (petListBounds(1)==-1 .and. petListBounds(2)==-1) then
+        if (petListBounds(1)==-1 .or. petListBounds(2)==-1) then
           petListBounds(1) = 0
           petListBounds(2) = petCount - 1
         endif
@@ -266,16 +717,16 @@
         do i=petListBounds(1), petListBounds(2)
           is%wrap%ocnPetList(i-petListBounds(1)+1) = i ! PET labeling is 0 based
         enddo
-
+        
         ! determine the MED petList bounds
         call ESMF_ConfigGetAttribute(config, petListBounds, &
           label="med_petlist_bounds:", default=-1, rc=rc)
         ESMF_ERR_RETURN(rc,rc)
-        if (petListBounds(1)==-1 .and. petListBounds(2)==-1) then
+        if (petListBounds(1)==-1 .or. petListBounds(2)==-1) then
           petListBounds(1) = 0
           petListBounds(2) = petCount - 1
         endif
-
+        
         ! set petList for MED
         allocate(is%wrap%medPetList(petListBounds(2)-petListBounds(1)+1))
         do i=petListBounds(1), petListBounds(2)
@@ -283,6 +734,8 @@
         enddo
 
       end subroutine
+      
+      ! ------------------------------------------------------------------------
 
       subroutine SetModelServices(gcomp, rc)
         type(ESMF_GridComp)  :: gcomp
@@ -423,7 +876,6 @@
             convention="NUOPC", purpose="General", rc=rc)
           ESMF_ERR_RETURN(rc,rc)
         endif
-
         if (ocnFlag) then
           ! SetServices for ocn2med
           call ESMF_CplCompSetServices(is%wrap%ocn2med, conSS, userRc=localrc, &
@@ -433,7 +885,6 @@
           call ESMF_AttributeSet(is%wrap%ocn2med, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
           ESMF_ERR_RETURN(rc,rc)
-
           ! SetServices for med2ocn
           call ESMF_CplCompSetServices(is%wrap%med2ocn, conSS, userRc=localrc, &
             rc=rc)
@@ -451,7 +902,7 @@
         call ESMF_ConfigGetAttribute(config, is%wrap%medOcnCouplingIntervalSec,&
           label="med_ocn_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, rc=rc)
         ESMF_ERR_RETURN(rc,rc)
-
+        
         ! Internal Clock and RunSequence will be set by EARTH_GENERIC_COMP
 
       end subroutine

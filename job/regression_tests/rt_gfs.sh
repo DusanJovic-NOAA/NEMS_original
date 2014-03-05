@@ -74,6 +74,8 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_RUNDIR_:${RUNDIR}:g                 \
                      | sed s:_PATHTR_:${PATHTR}:g                 \
                      | sed s:_FDFI_:${FDFI}:g                     \
+                     | sed s:_FHOUT_:${FHOUT}:g                   \
+                     | sed s:_FHZER_:${FHZER}:g                   \
                      | sed s:_FHRES_:${FHRES}:g                   \
                      | sed s:_REDUCEDGRID_:${REDUCEDGRID}:g       \
                      | sed s:_ADIAB_:${ADIAB}:g                   \
@@ -89,12 +91,15 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
                      | sed s:_CDATE_:${CDATE}:g                   \
                      | sed s:_IEMS_:${IEMS}:g                     \
                      | sed s:_ISOL_:${ISOL}:g                     \
+                     | sed s:_NGRID_A2OI_:${NGRID_A2OI}:g         \
+                     | sed s:_A2OI_OUT_:${A2OI_OUT}:g             \
                      | sed s:_ICO2_:${ICO2}:g                     \
                      | sed s:_IAER_:${IAER}:g                     \
                      | sed s:_SIGHDR_:${SIGHDR}:g                 \
-                     | sed s:_MACHINE_ID_:${MACHINE_ID}:g          \
-                     | sed s:_RTPWD_:${RTPWD}:g                     \
-                     | sed s:_SCHEDULER_:${SCHEDULER}:g            \
+                     | sed s:_MACHINE_ID_:${MACHINE_ID}:g         \
+                     | sed s:_RTPWD_:${RTPWD}:g                   \
+                     | sed s:_SCHEDULER_:${SCHEDULER}:g           \
+                     | sed s:_SLG_:${SLG}:g                        \
                      | sed s:_SLG_:${SLG}:g                        \
                      | sed s:_NDAYS_:${NDAYS}:g   >  gfs_fcst_run
 
@@ -122,15 +127,9 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
  ###################################################
 
  ### for now copy MOM5 input files
-  if [ $SCHEDULER = 'pbs' ]; then
- cp /scratch1/portfolios/NCEPDEV/ocean/noscrub/Fei.Liu/20130627/NEMS.trunk29084-working/src/ocean/mom_cap/input.nml ${RUNDIR}
- cp /scratch1/portfolios/NCEPDEV/ocean/noscrub/Fei.Liu/20130627/NEMS.trunk29084-working/src/ocean/mom_cap/ocean_hgrid.nc ${RUNDIR}
- cp -r ~Fei.Liu/MOM5/mom-5.0.2/work/box1/INPUT/diag_table ${RUNDIR}
- cp -r ~Fei.Liu/MOM5/mom-5.0.2/work/box1/INPUT/field_table ${RUNDIR}
- cp -r ~Fei.Liu/MOM5/mom-5.0.2/work/box1/INPUT/data_table ${RUNDIR}
- cp -r ~Fei.Liu/MOM5/mom-5.0.2/work/box1/INPUT/ ${RUNDIR}
- cp -r ~Fei.Liu/MOM5/mom-5.0.2/work/box1/RESTART/ ${RUNDIR}
-  fi
+ if [ $SCHEDULER = 'pbs' ]; then
+  /home/Fei.Liu/bin/setup_mom_input.sh ${RUNDIR}
+ fi
  ###################################################
 
  cp atmos.configure_gfs ${RUNDIR}/atmos.configure

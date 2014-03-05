@@ -46,15 +46,61 @@ module module_MEDIATOR
   
   ! private internal state to keep instance data
   type InternalStateStruct
-    type(ESMF_Clock)      :: fastClock
-    type(ESMF_Clock)      :: slowClock
-    integer   :: slice  ! slice counter for writing to NetCDF file
-    type(ESMF_Field)      :: rsns_accumulator
+    type(ESMF_Clock)      :: clockAtm    ! clock for atm
+    type(ESMF_Clock)      :: clockOcn    ! clock for ocn
+    integer               :: sliceAtm    ! slice counter for writing to NetCDF file
+    integer               :: sliceOcn    ! slice counter for writing to NetCDF file
+    integer               :: accumcntAtm ! accumulator counter
+    integer               :: accumcntOcn ! accumulator counter
+    type(ESMF_FieldBundle):: FBaccumAtm  ! accumulator of atm export data
+    type(ESMF_FieldBundle):: FBaccumOcn  ! accumulator of ocn export data
+    type(ESMF_FieldBundle):: FBforOcn    ! data storage for ocn import
+    type(ESMF_FieldBundle):: FBforAtm    ! data storage for atm import
+    type(ESMF_RouteHandle):: rh !gjt: temporary solution
+! tcx Xgrid
+!    type(ESMF_RouteHandle):: RHa2x       ! atm to xgrid RH
+!    type(ESMF_RouteHandle):: RHo2x       ! ocn to xgrid RH
+!    type(ESMF_RouteHandle):: RHx2a       ! xgrid to atm RH
+!    type(ESMF_RouteHandle):: RHx2o       ! xgrid to ocn RH
   end type
 
   type InternalState
     type(InternalStateStruct), pointer :: wrap
   end type
+
+  interface fieldBundle_accum ; module procedure &
+    fieldBundle_accumFB2FB, &
+    fieldBundle_accumFB2ST, &
+    fieldBundle_accumST2FB
+  end interface
+
+  interface fieldBundle_copy ; module procedure &
+    fieldBundle_copyFB2FB, &
+    fieldBundle_copyFB2ST, &
+    fieldBundle_copyST2FB
+  end interface
+
+  ! tcraig some temporary debug variables
+  integer, parameter :: nx_atm=400, ny_atm=200
+  integer, parameter :: nx_ocn=400, ny_ocn=200
+  integer, parameter :: dbug_flag = 5
+  integer            :: dbrc
+  character(len=256) :: tmpstr
+  real(ESMF_KIND_R8), parameter :: const_lhvap = 2.501e6_ESMF_KIND_R8  ! latent heat of evaporation ~ J/kg
+
+  type fld_list_type
+    integer :: num = -1
+    character(len=64), pointer :: stdname(:)
+    character(len=64), pointer :: shortname(:)
+    character(len=64), pointer :: longname(:)
+    character(len=64), pointer :: units(:)
+    character(len=64), pointer :: transferOffer(:)
+  end type fld_list_type
+  type (fld_list_type) :: fldsToAtm
+  type (fld_list_type) :: fldsFrAtm
+  type (fld_list_type) :: fldsToOcn
+  type (fld_list_type) :: fldsFrOcn
+
 
   public SetServices
   
@@ -65,7 +111,13 @@ module module_MEDIATOR
   subroutine SetServices(gcomp, rc)
     type(ESMF_GridComp)  :: gcomp
     integer, intent(out) :: rc
+
+    ! local variables
+    character(len=*),parameter :: subname='(module_MEDIATOR:SetServices)'
     
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
     rc = ESMF_SUCCESS
     
     ! the NUOPC mediator component will register the generic methods
@@ -75,7 +127,7 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
     
-    ! Provide InitP0 to overwrite the default IPD00 with IPD02
+    ! Provide InitP0 to overwrite the default IPD00
     call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, &
       InitializeP0, phase=0, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -83,7 +135,7 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
 
-    ! IPDv02 requires InitP1, where Fields should be advertised
+    ! InitP1, where Fields should be advertised
     call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, &
       userRoutine=InitializeP1, phase=1, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -91,9 +143,25 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
     
-    ! IPDv02 requires InitP2, where Fields should be realized,
+    ! InitP2, where Fields should be realized,
     call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, &
       userRoutine=InitializeP2, phase=2, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+      
+    ! InitP6, where ...
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, &
+      userRoutine=InitializeP6, phase=6, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+      
+    ! InitP7, where ...
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, &
+      userRoutine=InitializeP7, phase=7, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -123,61 +191,151 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
 
-    ! attach specializing methods for Run(phase=1) "fast"
+    ! attach specializing methods for Run(phase=1) "atm"
     call ESMF_MethodAdd(gcomp, label=mediator_label_SetRunClock, &
-      index=1, userRoutine=SetRunClock_fast, rc=rc)
+      index=1, userRoutine=SetRunClock_atm, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
     call ESMF_MethodAdd(gcomp, label=mediator_label_CheckImport, &
-      index=1, userRoutine=CheckImport_fast, rc=rc)
+      index=1, userRoutine=CheckImport_atm, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
     call ESMF_MethodAdd(gcomp, label=mediator_label_TimestampExport, &
-      index=1, userRoutine=TimestampExport_fast, rc=rc)
+      index=1, userRoutine=TimestampExport_atm, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
     call ESMF_MethodAdd(gcomp, label=mediator_label_Advance, &
-      index=1, userRoutine=Advance_fast, rc=rc)
+      index=1, userRoutine=Advance_afterAtm, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
     
-    ! attach specializing methods for Run(phase=2) "slow"
+    ! attach specializing methods for Run(phase=2) "ocn"
     call ESMF_MethodAdd(gcomp, label=mediator_label_SetRunClock, &
-      index=2, userRoutine=SetRunClock_slow, rc=rc)
+      index=2, userRoutine=SetRunClock_ocn, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
     call ESMF_MethodAdd(gcomp, label=mediator_label_Advance, &
-      index=2, userRoutine=Advance_slow, rc=rc)
+      index=2, userRoutine=Advance_beforeOcn, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
     
-    ! extend the NUOPC Field Dictionary to hold required entries
-    if (.not.NUOPC_FieldDictionaryHasEntry("air_temperature_at_lowest_level")) &
-      then
-      call NUOPC_FieldDictionaryAddEntry( &
-        standardName="air_temperature_at_lowest_level", &
-        canonicalUnits="K", &
-        defaultLongName="Air Temperature at Lowest Level", &
-        defaultShortName="atll", rc=rc);
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
+    ! Fields from ATM
+    call fld_list_add(fldsFrAtm,"mean_zonal_moment_flx", "mzmfx", &
+      "Mean Zonal Component of Momentum Flux",           "Pa", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_merid_moment_flx", "mmmfx", &
+      "Mean Merid Component of Momentum Flux",           "Pa", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_sensi_heat_flx"        , "mshfx", &
+      "Mean Sensible Heat Flux",                      "W/m^2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_laten_heat_flx"        , "mlhfx" , &
+      "Mean Latent Heat Flux",                     "kg/m^2/s", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_down_lw_flx"       , "mdlwfx" , &
+      "Mean Downward Long Wave Radiation Flux",       "W/m^2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_down_sw_flx"      , "mdswfx", &
+      "Mean Downward Shortwave Radiation Flux",       "W/m^2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_prec_rate"             , "lprec", &
+      "Mean Liquid Precipitation Rate",            "kg/m^2/s", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_fprec_rate"            , "fprec", &
+      "Mean Frozen Precipitation Rate",            "kg/m^2/s", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_zonal_moment_flx", "izmfx", &
+      "Instantaneous Zonal Component of Momentum Flux",  "Pa", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_merid_moment_flx", "immfx", &
+      "Instantaneous Merid Component of Momentum Flux",  "Pa", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_sensi_heat_flx"        , "ishfx", &
+      "Instantaneous Sensible Heat Flux",             "W/m^2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_laten_heat_flx"        , "ilhfx", &
+      "Instantaneous Latent Heat Flux",            "kg/m^2/s", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_down_lw_flx"       , "idlwfx", &
+      "Instantaneous Downward Long Wave Radiation Flux","W/m^2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_down_sw_flx"      , "idswfx", &
+      "Instantaneous Downward Shortwave Radiation Flux","W/m^2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_temp_height2m"         , "ith2m", &
+      "Instantaneous Temperature 2m Above Ground"        ,"K", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_spec_humid_height2m"   , "ishh2m", &
+      "Instantaneous Specific Humidity 2m Above Ground","kg kg-1", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_u_wind_height10m"      , "iuwh10m", &
+      "Instantaneous u Wind 10m Above Ground",        "m s-1", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_v_wind_height10m"      , "ivwh10m", &
+      "Instantaneous v Wind 10m Above Ground",       "m s-1" , "will provide")
+    call fld_list_add(fldsFrAtm,"inst_temp_height_surface"   , "its", &
+      "Instantaneous Temperature Surface",               "K" , "will provide")
+    call fld_list_add(fldsFrAtm,"inst_pres_height_surface"   , "ips", &
+      "Instantaneous Pressure Surface",                  "Pa", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_surface_height"        , "ish", &
+      "Instantaneous Surface Height",                     "m", "will provide")
+
+    ! Fields to OCN
+    call fld_list_add(fldsToOcn,"mean_zonal_moment_flx" , "mzmfx", &
+      "Mean Zonal Component of Momentum Flux","Pa", "will provide")
+    call fld_list_add(fldsToOcn,"mean_merid_moment_flx" , "mmmfx", &
+      "Mean Merid Component of Momentum Flux","Pa", "will provide")
+    call fld_list_add(fldsToOcn,"mean_sensi_heat_flx"         , "mshfx", &
+      "Mean Sensible Heat Flux","W/m^2", "will provide")
+    call fld_list_add(fldsToOcn,"mean_laten_heat_flx"         , "mlhfx", &
+      "Mean Latent Heat Flux","kg/m^2/s", "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_lw_flx"        , "mdlwfx" , &
+      "Mean Downward Long Wave Radiation Flux" ,"W/m^2", "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_sw_vis_dir_flx", "mdvrsfx" , &
+      "Mean Downward visible direct Shortwave Radiation Flux","W/m^2", &
+      "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_sw_vis_dif_flx", "mdvfsfx" , &
+      "Mean Downward visible diffuse Shortwave Radiation Flux" ,"W/m^2", &
+      "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_sw_ir_dir_flx" , "mdirsfx" , &
+      "Mean Downward nearinfrared direct Shortwave Radiation Flux" ,"W/m^2", &
+      "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_sw_ir_dif_flx" , "mdifsfx" , &
+      "Mean Downward nearinfrared diffuse Shortwave Radiation Flux","W/m^2", &
+      "will provide")
+!    call fld_list_add(fldsToOcn,"mean_salt_flx"               , "saltflx", &
+!      "salt flux into ocean","kg/m^2/s", "will provide")
+    call fld_list_add(fldsToOcn,"mean_prec_rate"              , "lprec" , &
+      "Mean Liquid Precipitation Rate" ,"kg/m^2/s", "will provide")
+!    call fld_list_add(fldsToOcn,"mean_fprec_rate"             , "fprec" , &
+!      "Mean Frozen Precipitation Rate" ,"kg/m^2/s" )
+!    call fld_list_add(fldsToOcn,"mean_runoff_rate"            , "runoff", &
+!      "mass flux of liquid runoff" ,"kg/m^2/s", "will provide")
+!    call fld_list_add(fldsToOcn,"mean_calving_rate"           , "calving" , &
+!      "mass flux of frozen runoff" ,"kg/m^2/s", "will provide")
+!    call fld_list_add(fldsToOcn,"mean_runoff_flx"             , "rofhfx", &
+!      "heat flux, relative to 0C, of liquid land water into ocean" ,"W/m^2", &
+!      "will provide")
+!    call fld_list_add(fldsToOcn,"mean_calving_flx"            , "cahflx", &
+!      "heat flux, relative to 0C, of frozen land water into ocean" ,"W/m^2", &
+!      "will provide")
+    call fld_list_add(fldsToOcn,"inst_pres_height_surface"    , "ips" , &
+      "pressure of overlying sea ice and atmosphere" ,"Pa", "will provide")
+!    call fld_list_add(fldsToOcn,"mass_of_overlying_sea_ice"   , "massice", &
+!      "mass of overlying sea ice" ,"kg")
+
+    ! Fields from OCN
+    call fld_list_add(fldsFrOcn,"sea_surface_temperature"     , "sst" , &
+      "sea surface temperature on t-cell" ,"K", "will provide")
+!    call fld_list_add(fldsFrOcn,"s_surf"                      , "sss" , &
+!      "sea surface salinity on t-cell","psu")
+!    call fld_list_add(fldsFrOcn,"u_surf"                      , "uocn", &
+!      "i-directed surface ocean velocity on u-cell" ,"m/s")
+!    call fld_list_add(fldsFrOcn,"v_surf"                      , "vocn", &
+!      "j-directed surface ocean velocity on u-cell" ,"m/s")
+!    call fld_list_add(fldsFrOcn,"sea_lev"                     , "ssh",  &
+!      "Sea Level Height", "m")
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
     endif
-      
-  end subroutine
+
+  end subroutine SetServices
   
   !-----------------------------------------------------------------------------
 
@@ -186,16 +344,27 @@ module module_MEDIATOR
     type(ESMF_State)      :: importState, exportState
     type(ESMF_Clock)      :: clock
     integer, intent(out)  :: rc
-    
+
     ! local variables    
-    character(len=NUOPC_PhaseMapStringLength) :: initPhases(4)
+    character(len=NUOPC_PhaseMapStringLength) :: initPhases(6)
+    character(len=*),parameter :: subname='(module_MEDIATOR:InitializeP0)'
     
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
     rc = ESMF_SUCCESS
 
-    initPhases(1) = "IPDv02p1=1"
-    initPhases(2) = "IPDv02p3=2"
-    initPhases(3) = "IPDv02p4=3"
-    initPhases(4) = "IPDv02p5=5"
+!gjt    initPhases(1) = "IPDv02p1=1"
+!gjt    initPhases(2) = "IPDv02p3=2"
+!gjt    initPhases(3) = "IPDv02p4=3"
+!gjt    initPhases(4) = "IPDv02p5=5"
+
+    initPhases(1) = "IPDv03p1=1"
+    initPhases(2) = "IPDv03p3=2"
+    initPhases(3) = "IPDv03p4=6"
+    initPhases(4) = "IPDv03p5=7"
+    initPhases(5) = "IPDv03p6=3"
+    initPhases(6) = "IPDv03p7=5"
     
     call ESMF_AttributeSet(gcomp, &
       name="InitializePhaseMap", valueList=initPhases, &
@@ -205,7 +374,11 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
     
-  end subroutine
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine InitializeP0
 
   !-----------------------------------------------------------------------
 
@@ -214,32 +387,85 @@ module module_MEDIATOR
     type(ESMF_State)     :: importState, exportState
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
+
+    ! local variables    
+    integer :: n
+    character(len=*),parameter :: subname='(module_MEDIATOR:InitializeP1)'
     
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
     rc = ESMF_SUCCESS
     
     ! importable fields:
-    call NUOPC_StateAdvertiseFields(importState, StandardNames=(/ &
-      "sea_surface_temperature", &
-      "surface_net_downward_shortwave_flux", &
-      "air_temperature_at_lowest_level" &
-       /), rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+
+    do n = 1,fldsFrAtm%num
+      if (dbug_flag > 1) then
+        call ESMF_LogWrite(trim(subname)//": Advertise "//trim(fldsFrAtm%stdname(n))//":"// &
+          trim(fldsFrAtm%shortname(n)), ESMF_LOGMSG_INFO, rc=dbrc)
+      endif
+      call NUOPC_StateAdvertiseField(importState, &
+        StandardName = trim(fldsFrAtm%stdname(n)), &
+        name=fldsFrAtm%shortname(n), &
+        TransferOfferGeomObject=fldsFrAtm%transferOffer(n), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    enddo
+
+    do n = 1,fldsFrOcn%num
+      if (dbug_flag > 1) then
+        call ESMF_LogWrite(trim(subname)//": Advertise "//trim(fldsFrOcn%stdname(n))//":"// &
+          trim(fldsFrOcn%shortname(n)), ESMF_LOGMSG_INFO, rc=dbrc)
+      endif
+      call NUOPC_StateAdvertiseField(importState, &
+        StandardName = fldsFrOcn%stdname(n), &
+        name = fldsFrOcn%shortname(n), &
+        TransferOfferGeomObject=fldsFrOcn%transferOffer(n), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    enddo
       
     ! exportable fields:
-    call NUOPC_StateAdvertiseFields(exportState, StandardNames=(/ &
-      "sea_surface_temperature", &
-      "surface_net_downward_shortwave_flux", &
-      "air_temperature_at_lowest_level" &
-       /), rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
 
-  end subroutine
+    do n = 1,fldsToAtm%num
+      if (dbug_flag > 1) then
+        call ESMF_LogWrite(trim(subname)//": Advertise "//trim(fldsToAtm%stdname(n))//":"// &
+          trim(fldsToAtm%shortname(n)), ESMF_LOGMSG_INFO, rc=dbrc)
+      endif
+      call NUOPC_StateAdvertiseField(exportState, &
+        StandardName = fldsToAtm%stdname(n), &
+        name = fldsToAtm%shortname(n), &
+        TransferOfferGeomObject=fldsToAtm%transferOffer(n), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    enddo
+
+    do n = 1,fldsToOcn%num
+      if (dbug_flag > 1) then
+        call ESMF_LogWrite(trim(subname)//": Advertise "//trim(fldsToOcn%stdname(n))//":"// &
+          trim(fldsToOcn%shortname(n)), ESMF_LOGMSG_INFO, rc=dbrc)
+      endif
+      call NUOPC_StateAdvertiseField(exportState, &
+        StandardName = fldsToOcn%stdname(n), &
+        name = fldsToOcn%shortname(n), &
+        TransferOfferGeomObject=fldsToOcn%transferOffer(n), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    enddo
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine InitializeP1
   
   !-----------------------------------------------------------------------------
 
@@ -250,8 +476,7 @@ module module_MEDIATOR
     integer, intent(out) :: rc
     
     ! local variables    
-    type(ESMF_Field)            :: field_sst, field
-    type(ESMF_Grid)             :: gridIn, gridOut
+    type(ESMF_Grid)             :: gridAtm, gridOcn
     integer                     :: i, j
     real(kind=ESMF_KIND_R8),pointer :: lonPtr(:,:), latPtr(:,:)
     type(InternalState)         :: is
@@ -259,7 +484,14 @@ module module_MEDIATOR
     type(ESMF_Config)           :: config
     real(ESMF_KIND_R8)          :: intervalSec
     type(ESMF_TimeInterval)     :: timeStep
+! tcx XGrid
+!    type(ESMF_Field)            :: fieldX, fieldA, fieldO
+!    type(ESMF_XGrid)            :: xgrid
+    character(len=*),parameter :: subname='(module_MEDIATOR:InitializeP2)'
     
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
     rc = ESMF_SUCCESS
     
     ! Allocate memory for the internal state and set it in the Component.
@@ -276,182 +508,111 @@ module module_MEDIATOR
       return  ! bail out
       
     ! Initialize the internal state members
-    is%wrap%slice = 1
+    is%wrap%sliceAtm = 1
+    is%wrap%sliceOcn = 1
 
-    ! create a DUMMY Grid object for import and export Fields
-    gridIn = ESMF_GridCreate1PeriDim(minIndex=(/1,1/), maxIndex=(/500,200/),&
-      indexflag=ESMF_INDEX_GLOBAL, coordSys=ESMF_COORDSYS_SPH_DEG, rc=rc)
+    gridAtm = NUOPC_GridCreateSimpleSph(0._ESMF_KIND_R8, -85._ESMF_KIND_R8, &
+      360._ESMF_KIND_R8, 85._ESMF_KIND_R8, nx_atm, ny_atm, &
+      scheme=ESMF_REGRID_SCHEME_FULL3D, rc=rc)    
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    call ESMF_GridAddCoord(gridIn, rc=rc)
+    gridOcn = NUOPC_GridCreateSimpleSph(0._ESMF_KIND_R8, -85._ESMF_KIND_R8, &
+      360._ESMF_KIND_R8, 85._ESMF_KIND_R8, nx_ocn, ny_ocn, &
+      scheme=ESMF_REGRID_SCHEME_FULL3D, rc=rc)    
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    call ESMF_GridGetCoord(gridIn, coordDim=1, farrayPtr=lonPtr, rc=rc)
+
+    !--- Generate RouteHandles
+! tcx Xgrid
+! what needs to be in the grids to create an XGrid (corners?)
+! add error checking code
+
+!    xgrid = ESMF_XGridCreate(sideAGrid=(/gridatm/), sideBGrid=(/gridocn/), rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, &
+!      file=__FILE__)) &
+!      return  ! bail out
+!    fieldX = ESMF_FieldCreate(xgrid  , typekind=ESMF_TYPEKIND_R8, rc=rc)
+!    fieldA = ESMF_FieldCreate(gridAtm, typekind=ESMF_TYPEKIND_R8, rc=rc)
+!    fieldO = ESMF_FieldCreate(gridAtm, typekind=ESMF_TYPEKIND_R8, rc=rc)
+!    call ESMF_FieldRegridStore(xgrid, fieldA, fieldX, routehandle=is%wrap%RHa2x, rc=rc)
+!    call ESMF_FieldRegridStore(xgrid, fieldO, fieldX, routehandle=is%wrap%RHo2x, rc=rc)
+!    call ESMF_FieldRegridStore(xgrid, fieldX, fieldA, routehandle=is%wrap%RHx2a, rc=rc)
+!    call ESMF_FieldRegridStore(xgrid, fieldX, fieldO, routehandle=is%wrap%RHx2o, rc=rc)
+!    call ESMF_FieldDestroy(fieldX, rc=rc)
+!    call ESMF_FieldDestroy(fieldA, rc=rc)
+!    call ESMF_FieldDestroy(fieldO, rc=rc)
+!    call ESMF_XGridDestroy(xgrid, rc=rc)
+
+    !--- Importable fields from atm:
+
+!gjt: import fields from ATM are now marked as "cannot provide" thus accept Grid
+!gjt: -> eventually comment out the following lines...
+    call realizeConnectedFields(importState, fieldNameList=fldsFrAtm%shortname(1:fldsFrAtm%num), &
+      grid=gridAtm, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    call ESMF_GridGetCoord(gridIn, coordDim=2, farrayPtr=latPtr, rc=rc)
+
+    !--- Exportable fields to atm:
+
+    call realizeConnectedFields(exportState, fieldNameList=fldsToAtm%shortname(1:fldsToAtm%num), &
+      grid=gridAtm, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    do j=lbound(lonPtr,2),ubound(lonPtr,2)
-    do i=lbound(latPtr,1),ubound(latPtr,1)
-      lonPtr(i,j) = 360./real(500) * (i-1)
-      latPtr(i,j) = 100./real(200) * (j-1) - 50.
-    enddo
-    enddo
-      
-    gridOut = gridIn ! for now out same as in
 
-    ! conditionally realize or remove Fields
-    
-    ! importable/exportable field: sea_surface_temperature
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="sst") .or. &
-      NUOPC_StateIsFieldConnected(exportState, fieldName="sst")) then
-      ! create a common Field
-      field_sst = ESMF_FieldCreate(name="sst", grid=gridIn, &
-        typekind=ESMF_TYPEKIND_R8, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
+    !--- Importable fields from ocn:
 
-    ! importable field: sea_surface_temperature
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="sst")) then
-      ! realize a connected Field
-      call NUOPC_StateRealizeField(importState, field=field_sst, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    else
-      ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"sst"/), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
+    call realizeConnectedFields(importState, fieldNameList=fldsFrOcn%shortname(1:fldsFrOcn%num), &
+      grid=gridOcn, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
 
-    ! exportable field: sea_surface_temperature
-    if (NUOPC_StateIsFieldConnected(exportState, fieldName="sst")) then
-      ! realize a connected Field
-      call NUOPC_StateRealizeField(exportState, field=field_sst, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    else
-      ! remove a not connected Field from State
-      call ESMF_StateRemove(exportState, (/"sst"/), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
+    !--- Exportable fields to ocn:
 
-    ! importable field: air_temperature_at_lowest_level
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="atll")) then
-      ! realize a connected Field
-      field = ESMF_FieldCreate(name="atll", grid=gridIn, &
-        typekind=ESMF_TYPEKIND_R8, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    else
-      ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"atll"/), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
+    call realizeConnectedFields(exportState, fieldNameList=fldsToOcn%shortname(1:fldsToOcn%num), &
+      grid=gridOcn, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
 
-    ! exportable field: air_temperature_at_lowest_level
-    if (NUOPC_StateIsFieldConnected(exportState, fieldName="atll")) then
-      ! realize a connected Field
-      field = ESMF_FieldCreate(name="atll", grid=gridOut, &
-        typekind=ESMF_TYPEKIND_R8, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    else
-      ! remove a not connected Field from State
-      call ESMF_StateRemove(exportState, (/"atll"/), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
+    ! Accumulators
 
-    ! importable field: surface_net_downward_shortwave_flux
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="rsns")) then
-      ! realize a connected Field
-      field = ESMF_FieldCreate(name="rsns", grid=gridIn, &
-        typekind=ESMF_TYPEKIND_R8, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    else
-      ! remove a not connected Field from State
-      call ESMF_StateRemove(importState, (/"rsns"/), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
+    call fieldBundle_init(is%wrap%FBaccumAtm, fieldNameList=fldsFrAtm%shortname(1:fldsFrAtm%num), &
+      grid=gridAtm, state=importState, name='FBaccumAtm', rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
 
-    ! exportable field: surface_net_downward_shortwave_flux
-    if (NUOPC_StateIsFieldConnected(exportState, fieldName="rsns")) then
-      ! realize a connected Field
-      field = ESMF_FieldCreate(name="rsns", grid=gridOut, &
-        typekind=ESMF_TYPEKIND_R8, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    else
-      ! remove a not connected Field from State
-      call ESMF_StateRemove(exportState, (/"rsns"/), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
+    call fieldBundle_init(is%wrap%FBaccumOcn, fieldNameList=fldsFrOcn%shortname(1:fldsFrOcn%num), &
+      grid=gridOcn, state=importState, name='FBaccumOcn', rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
 
-    ! need an internal accumulator Field -> could be made dependent imp/exp 
-    is%wrap%rsns_accumulator = ESMF_FieldCreate(name="rsns", &
-      grid=gridOut, typekind=ESMF_TYPEKIND_R8, rc=rc)
+    ! Data ready for export to models
+
+    call fieldBundle_init(is%wrap%FBforAtm, fieldNameList=fldsToAtm%shortname(1:fldsToAtm%num), &
+      grid=gridAtm, state=exportState, name='FBforAtm', rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    call fieldBundle_init(is%wrap%FBforOcn, fieldNameList=fldsToOcn%shortname(1:fldsToOcn%num), &
+      grid=gridOcn, state=exportState, name='FBforAtm', rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -459,10 +620,13 @@ module module_MEDIATOR
 
     ! Initialize the internal clocks
     
-    ! both fast and slow clocks start out as copies of the incoming clock
-    is%wrap%fastClock = ESMF_ClockCreate(clock, rc=rc)
+    ! both atm and ocn clocks start out as copies of the incoming clock
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": clockcreate", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    is%wrap%clockAtm = ESMF_ClockCreate(clock, rc=rc)
     ESMF_ERR_RETURN(rc,rc)
-    is%wrap%slowClock = ESMF_ClockCreate(clock, rc=rc)
+    is%wrap%clockOcn = ESMF_ClockCreate(clock, rc=rc)
     ESMF_ERR_RETURN(rc,rc)
 
     config = ESMF_ConfigCreate(rc=rc)
@@ -470,38 +634,335 @@ module module_MEDIATOR
     call ESMF_ConfigLoadFile(config, "nems.configure", rc=rc)
     ESMF_ERR_RETURN(rc,rc)
     
-    ! ATM coupling interval -> fast time step
+    ! ATM coupling interval -> atm time step
     call ESMF_ConfigGetAttribute(config, intervalSec, &
       label="med_atm_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, &
       rc=rc)
     ESMF_ERR_RETURN(rc,rc)
+    if (dbug_flag > 1) then
+      write(tmpstr,'(A,f12.3)') trim(subname)//': atm intervalSec = ',intervalSec
+      call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
     
     if (intervalSec>0._ESMF_KIND_R8) then
       ! The coupling time step was provided
       call ESMF_TimeIntervalSet(timeStep, s_r8=intervalSec, rc=rc)
       ESMF_ERR_RETURN(rc,rc)
-      call ESMF_ClockSet(is%wrap%fastClock, timestep=timeStep, rc=rc)
+      call ESMF_ClockSet(is%wrap%clockAtm, timestep=timeStep, rc=rc)
       ESMF_ERR_RETURN(rc,rc)
     endif
     
-    ! OCN coupling interval -> slow time step
+    ! OCN coupling interval -> ocn time step
     call ESMF_ConfigGetAttribute(config, intervalSec, &
       label="med_ocn_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, &
       rc=rc)
     ESMF_ERR_RETURN(rc,rc)
+    if (dbug_flag > 1) then
+      write(tmpstr,'(A,f12.3)') trim(subname)//': ocn intervalSec = ',intervalSec
+      call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
     
     if (intervalSec>0._ESMF_KIND_R8) then
       ! The coupling time step was provided
       call ESMF_TimeIntervalSet(timeStep, s_r8=intervalSec, rc=rc)
       ESMF_ERR_RETURN(rc,rc)
-      call ESMF_ClockSet(is%wrap%slowClock, timestep=timeStep, rc=rc)
+      call ESMF_ClockSet(is%wrap%clockOcn, timestep=timeStep, rc=rc)
       ESMF_ERR_RETURN(rc,rc)
     endif
+
+    ! Clean Up
+
+!    call ESMF_GridDestroy(gridAtm, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, &
+!      file=__FILE__)) &
+!      return  ! bail out
+!    call ESMF_GridDestroy(gridOcn, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, &
+!      file=__FILE__)) &
+!      return  ! bail out
     
     call ESMF_ConfigDestroy(config, rc=rc)
     ESMF_ERR_RETURN(rc,rc)
     
-  end subroutine
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  contains  !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  
+    subroutine realizeConnectedFields(state, fieldNameList, grid, rc)
+      type(ESMF_State)                :: state
+      character(len=*)                :: fieldNameList(:)
+      type(ESMF_Grid)                 :: grid
+      integer, intent(out), optional  :: rc
+
+      integer                         :: n
+      type(ESMF_Field)                :: field
+      character(len=*),parameter :: subname='(module_MEDIATOR:realizeConnectedFields)'
+
+      if (dbug_flag > 1) then
+        call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+      endif
+      if (present(rc)) rc = ESMF_SUCCESS
+      
+      do n=1, size(fieldNameList)
+        if (NUOPC_StateIsFieldConnected(state, fieldName=fieldNameList(n))) then
+          ! realize the connected Field using the internal coupling Field
+          field = ESMF_FieldCreate(grid, ESMF_TYPEKIND_R8, name=fieldNameList(n),rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+          call NUOPC_StateRealizeField(state, field=field, rc=rc)
+          if (dbug_flag > 1) then
+            call ESMF_LogWrite(trim(subname)//": create  "//trim(fieldNameList(n)), ESMF_LOGMSG_INFO, rc=dbrc)
+          endif
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+        else
+          ! remove a not connected Field from State
+          call ESMF_StateRemove(state, (/fieldNameList(n)/), rc=rc)
+          if (dbug_flag > 1) then
+            call ESMF_LogWrite(trim(subname)//": exclude "//trim(fieldNameList(n)), ESMF_LOGMSG_INFO, rc=dbrc)
+          endif
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+        endif
+      enddo
+      if (dbug_flag > 1) then
+        call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+      endif
+    end subroutine realizeConnectedFields
+
+  end subroutine InitializeP2
+  
+  !-----------------------------------------------------------------------------
+
+  !-----------------------------------------------------------------------------
+
+  subroutine InitializeP6(gcomp, importState, exportState, clock, rc)
+    type(ESMF_GridComp)  :: gcomp
+    type(ESMF_State)     :: importState, exportState
+    type(ESMF_Clock)     :: clock
+    integer, intent(out) :: rc
+    
+    ! local variables
+    type(ESMF_Field)              :: field
+    type(ESMF_Grid)               :: grid
+    integer                       :: localDeCount
+    character(160)                :: msgString
+
+    type(ESMF_DistGrid)           :: distgrid
+    integer                       :: dimCount, tileCount, petCount
+    integer                       :: deCountPTile, extraDEs
+    integer, allocatable          :: minIndexPTile(:,:), maxIndexPTile(:,:)
+    integer, allocatable          :: regDecompPTile(:,:)
+    integer                       :: i, j, n
+    
+    character(len=*),parameter :: subname='(module_MEDIATOR:InitializeP6)'
+    
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    
+    rc = ESMF_SUCCESS
+    
+#if 0
+
+    !NOTE: All fo the Fields that set their TransferOfferGeomObject Attribute
+    !NOTE: to "cannot provide" should now have the accepted Grid available.
+    !NOTE: Go and pull out this Grid for one of a representative Field and 
+    !NOTE: modify the decomposition and distribution of the Grid to match the
+    !NOTE: Mediator PETs.
+
+    !gjt: for now I am only doing this on the ATM side, but it should eventually
+    !gjt: be done on OCN side, too.
+    
+    !TODO: quick implementation, assume that there is at least one field
+    !TODO: and assume that all fields in fldsFrAtm are going to accept Grids
+    
+    ! access the first Field that is in fldsFrAtm and access in importState
+    call ESMF_StateGet(exportState, field=field, &
+      itemName=fldsFrAtm%shortname(1), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    ! while this is still an empty field, it does now hold a Grid with DistGrid
+    call ESMF_FieldGet(field, grid=grid, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+      
+    ! access localDeCount to show this is a real Grid
+    call ESMF_GridGet(grid, localDeCount=localDeCount, distgrid=distgrid, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    write (msgString,*) "MED - InitializeP6: localDeCount = ", localDeCount
+    call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    ! Create a custom DistGrid, based on the minIndex, maxIndex of the 
+    ! accepted DistGrid, but with a default regDecomp for the current VM
+    ! that leads to 1DE/PET.
+    
+    ! get dimCount and tileCount
+    call ESMF_DistGridGet(distgrid, dimCount=dimCount, tileCount=tileCount, &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    ! allocate minIndexPTile and maxIndexPTile accord. to dimCount and tileCount
+    allocate(minIndexPTile(dimCount, tileCount), &
+      maxIndexPTile(dimCount, tileCount))
+    
+    ! get minIndex and maxIndex arrays
+    call ESMF_DistGridGet(distgrid, minIndexPTile=minIndexPTile, &
+      maxIndexPTile=maxIndexPTile, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+      
+    ! construct a default regDecompPTile -> TODO: move this into ESMF as default
+    call ESMF_GridCompGet(gcomp, petCount=petCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    allocate(regDecompPTile(dimCount, tileCount))
+    deCountPTile = petCount/tileCount
+    extraDEs = max(0, petCount-deCountPTile)
+    do i=1, tileCount
+      if (i<=extraDEs) then
+        regDecompPTile(1, i) = deCountPTile + 1
+      else
+        regDecompPTile(1, i) = deCountPTile
+      endif
+      do j=2, dimCount
+        regDecompPTile(j, i) = 1
+      enddo
+    enddo
+    
+    ! create the new DistGrid with the same minIndexPTile and maxIndexPTile,
+    ! but with a default regDecompPTile
+    distgrid = ESMF_DistGridCreate(minIndexPTile=minIndexPTile, &
+      maxIndexPTile=maxIndexPTile, regDecompPTile=regDecompPTile, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! Create a new Grid on the new DistGrid and swap it in the Field
+    grid = ESMF_GridCreate(distgrid, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call ESMF_FieldEmptySet(field, grid=grid, rc=rc)    
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+      
+    ! local clean-up
+    deallocate(minIndexPTile, maxIndexPTile, regDecompPTile)
+
+    ! access localDeCount of the final Grid
+    call ESMF_GridGet(grid, localDeCount=localDeCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    write (msgString,*) "MED - InitializeP6: final Grid localDeCount = ", &
+      localDeCount
+    call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+        
+    ! Also must swap the Grid for all the other fldsFrAtm Fields in the 
+    ! importState
+    
+    do n=2, fldsFrAtm%num
+      ! access a field in the importState and set the Grid
+      call ESMF_StateGet(importState, field=field, &
+        itemName=fldsFrAtm%shortname(n), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_FieldEmptySet(field, grid=grid, rc=rc)    
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    enddo
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+#endif
+
+  end subroutine InitializeP6
+  
+  !-----------------------------------------------------------------------------
+
+  subroutine InitializeP7(gcomp, importState, exportState, clock, rc)
+    type(ESMF_GridComp)  :: gcomp
+    type(ESMF_State)     :: importState, exportState
+    type(ESMF_Clock)     :: clock
+    integer, intent(out) :: rc
+    
+    ! local variables
+    type(ESMF_Field)              :: field
+    integer                       :: n
+    character(len=*),parameter :: subname='(module_MEDIATOR:InitializeP6)'
+    
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    
+    rc = ESMF_SUCCESS
+
+#if 0
+    
+    do n=1, fldsFrAtm%num
+      ! access a field in the importState and complete it with data allocation
+      call ESMF_StateGet(importState, field=field, &
+        itemName=fldsFrAtm%shortname(n), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      ! the transferred Grid is already set, allocate field data memory
+      call ESMF_FieldEmptyComplete(field, typekind=ESMF_TYPEKIND_R8, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    enddo
+#endif
+
+  end subroutine InitializeP7
   
   !-----------------------------------------------------------------------------
 
@@ -519,9 +980,13 @@ module module_MEDIATOR
     logical                     :: allDone
     type(InternalState)         :: is
     real(ESMF_KIND_R8), pointer :: dataPtr(:,:)
+    character(len=*),parameter :: subname='(module_MEDIATOR:DataInitialize)'
 
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
     rc = ESMF_SUCCESS
-    
+
     ! the MED needs valid ATM export Fields to initialize its internal state
 
     ! query the Component for its clock, importState and exportState
@@ -550,15 +1015,16 @@ module module_MEDIATOR
     allDone = .true.  ! flag that can be reset if anything is not found done
     
     ! check that required Fields in the importState show correct timestamp
+    ! -> really should check _all_ of the fields from the ATM
     
-    ! -> check for "atll"
-    call ESMF_StateGet(importState, itemName="atll", itemType=itemType, rc=rc)
+    ! -> check for "mzmfx"
+    call ESMF_StateGet(importState, itemName="mzmfx", itemType=itemType, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
     if (itemType /= ESMF_STATEITEM_NOTFOUND) then
-      call ESMF_StateGet(importState, field=field, itemName="atll", rc=rc)
+      call ESMF_StateGet(importState, field=field, itemName="mzmfx", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -584,59 +1050,41 @@ module module_MEDIATOR
           line=__LINE__, &
           file=__FILE__)) &
           return  ! bail out
+
       endif
     endif
-      
-    ! -> check for "rsns"
-    call ESMF_StateGet(importState, itemName="rsns", itemType=itemType, rc=rc)
+
+    ! TODO - tcraig ?? what's above here?
+    ! For the real case this should probably use the "mzmfx" field from the
+    ! importState and do something with it as a sensible starting point
+    ! for the accumulation field so that the OCN receives a meaningful
+    ! "mzmfx" field during its first time step. However, here for testing
+    ! I simply initialize to zero.
+          
+    call fieldBundle_reset(is%wrap%FBaccumAtm, value=0._ESMF_KIND_R8, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    if (itemType /= ESMF_STATEITEM_NOTFOUND) then
-      call ESMF_StateGet(importState, field=field, itemName="rsns", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      neededCurrent = NUOPC_FieldIsAtTime(field, time, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      
-      if (.not.neededCurrent) then
-        call ESMF_LogWrite("MED - Initialize-Data-Dependency NOT YET SATISFIED!!!", &
-          ESMF_LOGMSG_INFO, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-        allDone = .false.
-      else
-        call ESMF_LogWrite("MED - Initialize-Data-Dependency SATISFIED!!!", &
-          ESMF_LOGMSG_INFO, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-          
-        ! initialize the "rsns" accumulator
-        call ESMF_FieldGet(is%wrap%rsns_accumulator, farrayPtr=dataPtr, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-          
-        ! For the real case this should probably use the "rsns" field from the
-        ! importState and do something with it as a sensible starting point
-        ! for the accumulation field so that the OCN receives a sensible
-        ! "rsns" field during its first time step. However, here for testing
-        ! I simply initialize to zero.
-        dataPtr(:,:) = 0._ESMF_KIND_R8  
-          
-      endif
-    endif
+    is%wrap%accumcntAtm = 0
+    call fieldBundle_reset(is%wrap%FBaccumOcn, value=0._ESMF_KIND_R8, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    is%wrap%accumcntOcn = 0
+    
+#if 0
+!gjt: with different Grids on each side, need to precompute a Regrid
+    call ESMF_FieldBundleRegridStore(srcFieldBundle=is%wrap%FBaccumAtm, &
+      dstFieldBundle=is%wrap%FBforOcn, &
+      unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, &
+      routehandle=is%wrap%rh, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+#endif
 
     if (allDone) then
       ! -> set InitializeDataComplete Component Attribute to "true", indicating
@@ -650,18 +1098,26 @@ module module_MEDIATOR
         return  ! bail out
     endif
     
-  end subroutine
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine DataInitialize
 
   !-----------------------------------------------------------------------------
 
-  subroutine SetRunClock_fast(gcomp, rc)
+  subroutine SetRunClock_atm(gcomp, rc)
     type(ESMF_GridComp)   :: gcomp
     integer, intent(out)  :: rc
     
     ! local variables
     type(InternalState)     :: is_local
     type(mediator_type_IS)  :: is
+    character(len=*),parameter :: subname='(module_MEDIATOR:SetRunClock_atm)'
 
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
     rc = ESMF_SUCCESS
     
     ! query component for its internal state
@@ -672,14 +1128,14 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
 
-    ! set fastClock to be the component clock
-    call ESMF_GridCompSet(gcomp, clock=is_local%wrap%fastClock, rc=rc)
+    ! set clockAtm to be the component clock
+    call ESMF_GridCompSet(gcomp, clock=is_local%wrap%clockAtm, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
     
-    ! query component for its internal state
+    ! query component for its inherited internal state
     nullify(is%wrap)
     call ESMF_UserCompGetInternalState(gcomp, mediator_label_IS, is, rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -687,7 +1143,7 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
     
-    ! check and set the model clock against the driver clock
+    ! check and set the component clock against the driver clock
     call NUOPC_GridCompCheckSetClock(gcomp, is%wrap%driverClock, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, &
       msg="NUOPC INCOMPATIBILITY DETECTED: between model and driver clocks", &
@@ -695,18 +1151,26 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
     
-  end subroutine
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine SetRunClock_atm
 
   !-----------------------------------------------------------------------------
 
-  subroutine SetRunClock_slow(gcomp, rc)
+  subroutine SetRunClock_ocn(gcomp, rc)
     type(ESMF_GridComp)   :: gcomp
     integer, intent(out)  :: rc
     
     ! local variables
     type(InternalState)     :: is_local
     type(mediator_type_IS)  :: is
+    character(len=*),parameter :: subname='(module_MEDIATOR:SetRunClock_ocn)'
 
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
     rc = ESMF_SUCCESS
     
     ! query component for its internal state
@@ -717,14 +1181,14 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
 
-    ! set fastClock to be the component clock
-    call ESMF_GridCompSet(gcomp, clock=is_local%wrap%slowClock, rc=rc)
+    ! set clockOcn to be the component clock
+    call ESMF_GridCompSet(gcomp, clock=is_local%wrap%clockOcn, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
     
-    ! query component for its internal state
+    ! query component for its inherited internal state
     nullify(is%wrap)
     call ESMF_UserCompGetInternalState(gcomp, mediator_label_IS, is, rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -732,7 +1196,7 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
     
-    ! check and set the model clock against the driver clock
+    ! check and set the component clock against the driver clock
     call NUOPC_GridCompCheckSetClock(gcomp, is%wrap%driverClock, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, &
       msg="NUOPC INCOMPATIBILITY DETECTED: between model and driver clocks", &
@@ -740,18 +1204,24 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
     
-  end subroutine
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine SetRunClock_ocn
 
   !-----------------------------------------------------------------------------
 
-  subroutine CheckImport_fast(gcomp, rc)
+  subroutine CheckImport_atm(gcomp, rc)
     type(ESMF_GridComp)   :: gcomp
     integer, intent(out)  :: rc
     
     ! This is the routine that ensures that the import Fields come in with
-    ! the correct time stamps during the "fast" cycle: 
-    ! -> Fields from the ATM must be at stopTime.
-    ! -> Fields from the OCN must not be checked.
+    ! the correct time stamps during the "atm" cycle: 
+    ! -> Fields from the ATM must be at stopTime. This is because the ATM model
+    !    has already advanced, and timestamped its export Fields.
+    ! -> Fields from the OCN must not be checked. They are currently not used
+    !    during the "atm" cycle of the MED.
     
     ! local variables
     type(ESMF_Clock)        :: clock
@@ -759,7 +1229,11 @@ module module_MEDIATOR
     type(ESMF_State)        :: importState
     type(ESMF_Field)        :: field
     logical                 :: atCorrectTime
+    character(len=*),parameter :: subname='(module_MEDIATOR:CheckImport_atm)'
 
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
     rc = ESMF_SUCCESS
     
     ! query the Component for its Clock and importState
@@ -777,8 +1251,8 @@ module module_MEDIATOR
       return  ! bail out
 
     ! check fields from ATM to be at stopTime
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="atll")) then
-      call ESMF_StateGet(importState, itemName="atll", field=field, rc=rc)
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="mzmfx")) then
+      call ESMF_StateGet(importState, itemName="mzmfx", field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -799,22 +1273,33 @@ module module_MEDIATOR
       endif
     endif
 
-  end subroutine
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine CheckImport_atm
 
   !-----------------------------------------------------------------------------
   
-  subroutine TimestampExport_fast(gcomp, rc)
+  subroutine TimestampExport_atm(gcomp, rc)
     type(ESMF_GridComp)   :: gcomp
     integer, intent(out)  :: rc
     
     ! This is the routine that applies the time stamp on the export Fields
-    ! during the "fast" cycle: 
-    ! -> Fields receive the currTime stamp of the clock.
+    ! during the "atm" cycle: 
+    ! -> By default the MED Run method time stamps the export Fields with the
+    !    current time at the beginning of the advance step, however here,
+    !    because the "atm" cycle runs after the ATM model, the correct time
+    !    stamp is the currTime _after_ the MED advance step.
 
     ! local variables
     type(ESMF_Clock)      :: clock
     type(ESMF_State)      :: exportState
+    character(len=*),parameter :: subname='(module_MEDIATOR:TimestampExport_atm)'
 
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
     rc = ESMF_SUCCESS
 
     ! query the Component for info
@@ -831,23 +1316,30 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
     
-  end subroutine
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine TimestampExport_atm
 
   !-----------------------------------------------------------------------------
 
-  subroutine Advance_fast(gcomp, rc)
+  subroutine Advance_afterAtm(gcomp, rc)
     type(ESMF_GridComp)  :: gcomp
     integer, intent(out) :: rc
     
     ! local variables
     type(ESMF_Clock)            :: clock
+    type(ESMF_Time)             :: time
+    character(len=64)           :: timestr
     type(ESMF_State)            :: importState, exportState
     type(InternalState)         :: is
-    type(ESMF_Field)            :: field
-    type(ESMF_StateItem_Flag)   :: itemType
-    real(ESMF_KIND_R8), pointer :: dataPtr(:,:), accDataPtr(:,:)
     integer                     :: i,j
+    character(len=*),parameter :: subname='(module_MEDIATOR:Advance_afterAtm)'
     
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
     rc = ESMF_SUCCESS
     
     ! query the Component for its clock, importState and exportState
@@ -881,60 +1373,77 @@ module module_MEDIATOR
     !
     ! Where the timeStep is equal to the parent timeStep.
     
+    call ESMF_ClockGet(clock,currtime=time,rc=rc)
+    call ESMF_TimeGet(time,timestring=timestr)
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": time = "//trim(timestr), ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
     call NUOPC_ClockPrintCurrTime(clock, &
       "-------->MED Advance() mediating for: ", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    
-    ! accumulation of the "rsns" Field
-    call ESMF_StateGet(importState, itemName="rsns", itemType=itemType, rc=rc)
+
+    ! write the fields imported from atm to file
+    call NUOPC_StateWrite(importState, fieldNameList=fldsFrAtm%shortname, &
+      filePrefix="field_med_from_atm_", timeslice=is%wrap%sliceAtm, &
+      relaxedFlag=.true., rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    if (itemType /= ESMF_STATEITEM_NOTFOUND) then
-      ! "rsns" is available on the import side -> do accumulation
-      call ESMF_StateGet(importState, itemName="rsns", field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      call ESMF_FieldGet(field, farrayPtr=dataPtr, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      call ESMF_FieldGet(is%wrap%rsns_accumulator, farrayPtr=accDataPtr, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      do j=lbound(dataPtr,2),ubound(dataPtr,2)
-      do i=lbound(dataPtr,1),ubound(dataPtr,1)
-        accDataPtr(i,j) = accDataPtr(i,j) + dataPtr(i,j)
-      enddo
-      enddo
+    is%wrap%sliceAtm = is%wrap%sliceAtm + 1
+
+    !--- atm accumulator
+
+    if (dbug_flag > 1) then
+      call State_diagnose(importState, trim(subname)//' state b4accum ', rc=rc)
+      call FieldBundle_diagnose(is%wrap%FBaccumAtm, trim(subname)//' FBaccB4accum ', rc=rc)
     endif
+
+    call fieldBundle_accum(is%wrap%FBaccumAtm, importState, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    is%wrap%accumcntAtm = is%wrap%accumcntAtm + 1
          
-  end subroutine
+    if (dbug_flag > 1) then
+      call FieldBundle_diagnose(is%wrap%FBaccumAtm, trim(subname)//' FBaccAFaccum ', rc=rc)
+    endif
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine Advance_afterAtm
 
   !-----------------------------------------------------------------------------
 
-  subroutine Advance_slow(gcomp, rc)
+  subroutine Advance_beforeOcn(gcomp, rc)
     type(ESMF_GridComp)  :: gcomp
     integer, intent(out) :: rc
     
     ! local variables
     type(ESMF_Clock)            :: clock
+    type(ESMF_Time)             :: time
+    character(len=64)           :: timestr
     type(ESMF_State)            :: importState, exportState
-    type(InternalState)         :: is
-    type(ESMF_Field)            :: field
     type(ESMF_StateItem_Flag)   :: itemType
-    real(ESMF_KIND_R8), pointer :: dataPtr(:,:), accDataPtr(:,:)
-    integer                     :: i,j
+    type(ESMF_Field)            :: field
+    type(InternalState)         :: is
+    integer                     :: i,j,n
+    character(len=64)           :: fieldname(10)
+    type(ESMF_Field)            :: field1,field2
+    real(ESMF_KIND_R8), pointer :: dataPtr1(:,:),dataPtr2(:,:)
+    logical                     :: isPresent, checkOK
+    character(len=*),parameter  :: subname='(module_MEDIATOR:Advance_beforeOcn)'
 
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
     rc = ESMF_SUCCESS
     
     ! query the Component for its clock, importState and exportState
@@ -968,6 +1477,12 @@ module module_MEDIATOR
     !
     ! Where the timeStep is equal to the parent timeStep.
     
+    call ESMF_ClockGet(clock,currtime=time,rc=rc)
+    call ESMF_TimeGet(time,timestring=timestr)
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": time = "//trim(timestr), ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
     call NUOPC_ClockPrintCurrTime(clock, &
       "-------->MED Advance() mediating for: ", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -975,63 +1490,215 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
     
-    ! output the imported "sst" fields
-    call ESMF_StateGet(importState, itemName="sst", itemType=itemType, rc=rc)
+    ! write the fields imported from ocn to file
+    call NUOPC_StateWrite(importState, fieldNameList=fldsFrOcn%shortname, &
+      filePrefix="field_med_from_ocn_", timeslice=is%wrap%sliceOcn, &
+      relaxedFlag=.true., rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    if (itemType /= ESMF_STATEITEM_NOTFOUND) then
-      ! Write the imported SST Field into a NetCDF file as timeslice.
-      call ESMF_StateGet(importState, itemName="sst", field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        call ESMF_Finalize(endflag=ESMF_END_ABORT)
-#if 1
-      if (ESMF_IO_PIO_PRESENT .and. ESMF_IO_NETCDF_PRESENT) then
-        call ESMF_FieldWrite(field, file="field_sst.nc", &
-          timeslice=is%wrap%slice, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          call ESMF_Finalize(endflag=ESMF_END_ABORT)
-      endif
+    is%wrap%sliceOcn = is%wrap%sliceOcn + 1
+    
+    !---------------------------------------
+    !--- average atm accumulator
+    !---------------------------------------
+
+    if (dbug_flag > 1) then
+      call FieldBundle_diagnose(is%wrap%FBaccumAtm, trim(subname)//' FBaccB4avg ', rc=rc)
+    endif
+
+    call FieldBundle_average(is%wrap%FBaccumAtm, is%wrap%accumcntAtm, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    !---------------------------------------
+    !--- regrid average atm fields to ocean grid
+    !---------------------------------------
+
+    if (dbug_flag > 1) then
+      call FieldBundle_diagnose(is%wrap%FBaccumAtm, trim(subname)//' FBaccB4regrid ', rc=rc)
+    endif
+
+! tcx Xgrid
+    ! XGrid intermediary required? instantiate FBXgrid FieldBundle?
+    ! call ESMF_FieldBundleRegrid(is%wrap%FBaccumAtm, FBXgrid, is%wrap%RHa2x, rc=rc)
+    ! call ESMF_FieldBundleRegrid(FBXgrid, is%wrap%FBforOcn  , is%wrap%RHx2o, rc=rc)
+    ! tcraig temporarily copy
+    
+#if 0    
+!gjt: with different grids on each side we need at least a regrid here    
+!gjt    call fieldBundle_copy(is%wrap%FBforOcn, is%wrap%FBaccumAtm, rc=rc)
+    call ESMF_FieldBundleRegrid(srcFieldBundle=is%wrap%FBaccumAtm, &
+      dstFieldBundle=is%wrap%FBforOcn, routehandle=is%wrap%rh, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+#else
+    call fieldBundle_copy(is%wrap%FBforOcn, is%wrap%FBaccumAtm, rc=rc)
 #endif
-      is%wrap%slice = is%wrap%slice + 1
+
+    if (dbug_flag > 1) then
+      call FieldBundle_diagnose(is%wrap%FBforOcn, trim(subname)//' FB4ocnAFregrid ', rc=rc)
     endif
-    
-    ! copy the "rsns" accumulator to the export and zero out the accumulator
-    call ESMF_StateGet(exportState, itemName="rsns", itemType=itemType, rc=rc)
+
+    !---------------------------------------
+    !--- custom calculations from atm to ocn
+    !---------------------------------------
+
+    !--- split total solar into 4 terms
+
+    fieldname(1) = 'mdswfx'
+    fieldname(2) = 'mdvrsfx'
+    fieldname(3) = 'mdvfsfx'
+    fieldname(4) = 'mdirsfx'
+    fieldname(5) = 'mdifsfx'
+    checkOK = .true.
+    do n = 1,5
+      if (n == 1) then
+        call ESMF_FieldBundleGet(is%wrap%FBaccumAtm, fieldName=trim(fieldname(n)), isPresent=isPresent, rc=rc)
+      else
+        call ESMF_FieldBundleGet(is%wrap%FBforOcn  , fieldName=trim(fieldname(n)), isPresent=isPresent, rc=rc)
+      endif
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      if (.not. isPresent) checkOK = .false.
+    enddo
+
+    if (checkOK) then
+      call ESMF_FieldBundleGet(is%wrap%FBaccumAtm, fieldName=trim(fieldname(1)), field=field1, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      call ESMF_FieldGet(field1, farrayPtr=dataPtr1, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      do n = 2,5
+        call ESMF_FieldBundleGet(is%wrap%FBforOcn, fieldName=trim(fieldname(n)), field=field2, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        call ESMF_FieldGet(field2, farrayPtr=dataPtr2, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+        if (lbound(dataPtr2,2) /= lbound(dataPtr1,2) .or. &
+            lbound(dataPtr2,1) /= lbound(dataPtr1,1) .or. &
+            ubound(dataPtr2,2) /= ubound(dataPtr1,2) .or. &
+            ubound(dataPtr2,1) /= ubound(dataPtr1,1)) then
+          call ESMF_LogWrite(trim(subname)//": ERROR in data size "//trim(fieldname(n)), ESMF_LOGMSG_ERROR, rc=rc)
+          write(tmpstr,*) trim(subname)//': dataPtr2 ',lbound(dataPtr2),ubound(dataPtr2)
+          call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+          write(tmpstr,*) trim(subname)//': dataPtr1 ',lbound(dataPtr1),ubound(dataPtr1)
+          call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        endif
+
+        do j=lbound(dataPtr2,2),ubound(dataPtr2,2)
+        do i=lbound(dataPtr2,1),ubound(dataPtr2,1)
+          dataPtr2(i,j) = dataPtr1(i,j) * 0.25_ESMF_KIND_R8
+        enddo
+        enddo
+      enddo
+    endif
+
+    !--- compute specific humidity from latent heat
+
+    fieldname(1) = 'ishh2m'
+    fieldname(2) = 'mlhfx'
+    checkOK = .true.
+    do n = 1,2
+      if (n == 1) then
+        call ESMF_FieldBundleGet(is%wrap%FBaccumAtm, fieldName=trim(fieldname(n)), isPresent=isPresent, rc=rc)
+      else
+        call ESMF_FieldBundleGet(is%wrap%FBforOcn  , fieldName=trim(fieldname(n)), isPresent=isPresent, rc=rc)
+      endif
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      write(tmpstr,*) subname,'tcx check ',trim(fieldname(n)),isPresent,checkOK
+      if (.not. isPresent) checkOK = .false.
+    enddo
+
+    if (checkOK) then
+      call ESMF_FieldBundleGet(is%wrap%FBaccumAtm, fieldName=trim(fieldname(1)), field=field1, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      call ESMF_FieldGet(field1, farrayPtr=dataPtr1, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      call ESMF_FieldBundleGet(is%wrap%FBforOcn, fieldName=trim(fieldname(2)), field=field2, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      call ESMF_FieldGet(field2, farrayPtr=dataPtr2, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      if (lbound(dataPtr2,2) /= lbound(dataPtr1,2) .or. &
+          lbound(dataPtr2,1) /= lbound(dataPtr1,1) .or. &
+          ubound(dataPtr2,2) /= ubound(dataPtr1,2) .or. &
+          ubound(dataPtr2,1) /= ubound(dataPtr1,1)) then
+        call ESMF_LogWrite(trim(subname)//": ERROR in data size "//trim(fieldname(2)), ESMF_LOGMSG_ERROR, rc=rc)
+        write(tmpstr,*) trim(subname)//': dataPtr2 ',lbound(dataPtr2),ubound(dataPtr2)
+        call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+        write(tmpstr,*) trim(subname)//': dataPtr1 ',lbound(dataPtr1),ubound(dataPtr1)
+        call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      endif
+
+      do j=lbound(dataPtr2,2),ubound(dataPtr2,2)
+      do i=lbound(dataPtr2,1),ubound(dataPtr2,1)
+        dataPtr2(i,j) = dataPtr1(i,j) / const_lhvap !Lw is temperature dependent so more accurate calc can be done here.
+      enddo
+      enddo
+    endif
+
+    if (dbug_flag > 1) then
+      call FieldBundle_diagnose(is%wrap%FBforOcn, trim(subname)//' FB4ocnAFcc ', rc=rc)
+    endif
+
+    !---------------------------------------
+    !--- zero accumulator
+    !---------------------------------------
+
+    is%wrap%accumcntAtm = 0
+    call fieldBundle_reset(is%wrap%FBaccumAtm, value=0._ESMF_KIND_R8, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    if (itemType /= ESMF_STATEITEM_NOTFOUND) then
-      call ESMF_StateGet(exportState, itemName="rsns", field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        call ESMF_Finalize(endflag=ESMF_END_ABORT)
-      call ESMF_FieldGet(field, farrayPtr=dataPtr, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      call ESMF_FieldGet(is%wrap%rsns_accumulator, farrayPtr=accDataPtr, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      do j=lbound(dataPtr,2),ubound(dataPtr,2)
-      do i=lbound(dataPtr,1),ubound(dataPtr,1)
-        dataPtr(i,j) = accDataPtr(i,j)
-        accDataPtr(i,j) = 0._ESMF_KIND_R8
-      enddo
-      enddo
+
+    if (dbug_flag > 1) then
+!tcx      call FieldBundle_diagnose(is%wrap%FBaccumAtm, trim(subname)//' FBaccAFzero ', rc=rc)
     endif
-    
-  end subroutine
+
+    !--- set export State to special value for testing
+
+    call state_reset(exportState, value=-99._ESMF_KIND_R8, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    if (dbug_flag > 1) then
+      call State_diagnose(exportState, trim(subname)//' esAF99 ', rc=rc)
+    endif
+
+    !---------------------------------------
+    !--- copy to export State
+    !---------------------------------------
+
+    call fieldBundle_copy(exportState, is%wrap%FBforOcn, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    if (dbug_flag > 1) then
+      call State_diagnose(exportState, trim(subname)//' esAFcp ', rc=rc)
+    endif
+
+    !---------------------------------------
+    !--- clean up
+    !---------------------------------------
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine Advance_beforeOcn
 
   !-----------------------------------------------------------------------------
 
@@ -1041,9 +1708,14 @@ module module_MEDIATOR
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
     
+    ! local variables
     type(InternalState)  :: is
     integer              :: stat
+    character(len=*),parameter :: subname='(module_MEDIATOR:Finalize)'
 
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
     rc = ESMF_SUCCESS
   
     ! Get the internal state from Component.
@@ -1055,7 +1727,27 @@ module module_MEDIATOR
       return  ! bail out
       
     ! Destroy objects inside of internal state.
-    call ESMF_FieldDestroy(is%wrap%rsns_accumulator, rc=rc)
+    ! TODO: destroy objects inside objects
+
+    call fieldBundle_clean(is%wrap%FBaccumAtm, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    call fieldBundle_clean(is%wrap%FBaccumOcn, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    call fieldBundle_clean(is%wrap%FBforOcn, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    call fieldBundle_clean(is%wrap%FBforAtm, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -1069,7 +1761,859 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
       
-  end subroutine
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine Finalize
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+
+  subroutine fieldBundle_initFromFB(FBout, FBin, grid, name, rc)
+    ! ----------------------------------------------
+    ! Create FieldBundle from another FieldBundle.
+    ! Zero out new FieldBundle
+    ! If grid is not passed, use grid from FBin
+    ! ----------------------------------------------
+    type(ESMF_FieldBundle), intent(inout) :: FBout
+    type(ESMF_FieldBundle), intent(in)    :: FBin
+    type(ESMF_Grid)       , intent(in), optional :: grid
+    character(len=*)      , intent(in), optional :: name
+    integer               , intent(out),optional :: rc
+
+    ! local variables
+    integer                    :: i,j,n
+    integer                    :: fieldCount
+    character(len=64) ,pointer :: fieldNameList(:)
+    type(ESMF_Field)           :: field
+    type(ESMF_Grid)            :: lgrid
+    character(len=64)          :: lname
+    character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_initFromFB)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+      
+    lname = 'undefined'
+    if (present(name)) then
+       lname = trim(name)
+    endif
+
+    call ESMF_FieldBundleGet(FBin, fieldCount=fieldCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    allocate(fieldNameList(fieldCount))
+    call ESMF_FieldBundleGet(FBin, fieldNameList=fieldNameList, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    if (present(grid)) then
+      call fieldBundle_init(FBout, fieldNameList=fieldNameList, grid=grid, name=trim(lname), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    else
+      call ESMF_FieldBundleGet(FBin, grid=lgrid, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      call fieldBundle_init(FBout, fieldNameList=fieldNameList, grid=lgrid, name=trim(lname), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    endif
+    deallocate(fieldNameList)
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine fieldbundle_initFromFB
+
+  !-----------------------------------------------------------------------------
+
+  subroutine fieldBundle_init(FieldBundle, fieldNameList, grid, State, name, rc)
+    ! ----------------------------------------------
+    ! Create FieldBundle from fieldNameList and grid
+    ! If State if present, only include fields that are 
+    !   in both fieldNameList and State
+    ! ----------------------------------------------
+    type(ESMF_FieldBundle), intent(inout) :: FieldBundle
+    character(len=*)      , intent(in)    :: fieldNameList(:)
+    type(ESMF_Grid)       , intent(in)    :: grid
+    type(ESMF_State)      , intent(in), optional  :: State  ! check if fieldnames are there
+    character(len=*)      , intent(in), optional  :: name
+    integer               , intent(out),optional  :: rc
+
+    ! local variables
+    integer                    :: i,j,n
+    logical                    :: doadd
+    character(len=64)          :: lname
+    type(ESMF_Field)           :: field
+    type(ESMF_StateItem_Flag)  :: itemType
+    character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_init)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    lname = 'undefined'
+    if (present(name)) then
+       lname = trim(name)
+    endif
+
+    FieldBundle = ESMF_FieldBundleCreate(name=trim(lname), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    do n=1, size(fieldNameList)
+      doadd = .true.
+      if (present(State)) then
+        call ESMF_StateGet(State, itemName=fieldNameList(n), itemType=itemType, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        doadd = (itemType /= ESMF_STATEITEM_NOTFOUND)
+      endif
+      if (doadd) then
+        field = ESMF_FieldCreate(grid, ESMF_TYPEKIND_R8, name=fieldNameList(n), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        call ESMF_FieldBundleAdd(FieldBundle, (/field/), rc=rc)
+        if (dbug_flag > 1) then
+          call ESMF_LogWrite(trim(subname)//":"//trim(lname)//":add  "//trim(fieldNameList(n)), ESMF_LOGMSG_INFO, rc=dbrc)
+        endif
+      else
+        if (dbug_flag > 1) then
+          call ESMF_LogWrite(trim(subname)//":"//trim(lname)//":skip "//trim(fieldNameList(n)), ESMF_LOGMSG_INFO, rc=dbrc)
+        endif
+      endif  ! doadd
+    enddo  ! fieldNameList
+
+    call fieldBundle_reset(FieldBundle, value=0._ESMF_KIND_R8, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+  end subroutine fieldBundle_init
+
+  !-----------------------------------------------------------------------------
+
+  subroutine fieldBundle_clean(FieldBundle, rc)
+    ! ----------------------------------------------
+    ! Destroy fields in FieldBundle and FieldBundle
+    ! ----------------------------------------------
+    type(ESMF_FieldBundle), intent(inout) :: FieldBundle
+    integer, intent(out), optional  :: rc
+
+    ! local variables
+    integer                     :: i,j,n
+    integer                     :: fieldCount
+    character(len=64) ,pointer  :: fieldNameList(:)
+    type(ESMF_Field)            :: field
+    character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_clean)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    call ESMF_FieldBundleGet(FieldBundle, fieldCount=fieldCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    allocate(fieldNameList(fieldCount))
+    call ESMF_FieldBundleGet(FieldBundle, fieldNameList=fieldNameList, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    do n = 1, fieldCount
+      call ESMF_FieldBundleGet(FieldBundle, fieldName=fieldNameList(n), field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      call ESMF_FieldDestroy(field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    enddo
+    call ESMF_FieldBundleDestroy(FieldBundle, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    deallocate(fieldNameList)
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine fieldBundle_clean
+
+  !-----------------------------------------------------------------------------
+
+  subroutine fieldBundle_reset(FieldBundle, value, rc)
+    ! ----------------------------------------------
+    ! Set all fields to value in FieldBundle
+    ! If value is not provided, reset to 0.0
+    ! ----------------------------------------------
+    type(ESMF_FieldBundle), intent(inout) :: FieldBundle
+    real(ESMF_KIND_R8), intent(in), optional :: value
+    integer, intent(out), optional :: rc
+
+    ! local variables
+    integer                     :: i,j,n
+    integer                     :: fieldCount
+    character(len=64) ,pointer  :: fieldNameList(:)
+    real(ESMF_KIND_R8)          :: lvalue
+    type(ESMF_Field)            :: field
+    real(ESMF_KIND_R8), pointer :: dataPtr(:,:)
+    character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_reset)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    lvalue = 0._ESMF_KIND_R8
+    if (present(value)) then
+      lvalue = value
+    endif
+
+    call ESMF_FieldBundleGet(FieldBundle, fieldCount=fieldCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    allocate(fieldNameList(fieldCount))
+    call ESMF_FieldBundleGet(FieldBundle, fieldNameList=fieldNameList, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    do n = 1, fieldCount
+      call ESMF_FieldBundleGet(FieldBundle, fieldName=fieldNameList(n), field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      call ESMF_FieldGet(field, farrayPtr=dataPtr, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      do j=lbound(dataPtr,2),ubound(dataPtr,2)
+      do i=lbound(dataPtr,1),ubound(dataPtr,1)
+        dataPtr(i,j) = lvalue
+      enddo
+      enddo
+
+    enddo
+    deallocate(fieldNameList)
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine fieldBundle_reset
+
+  !-----------------------------------------------------------------------------
+
+  subroutine state_reset(State, value, rc)
+    ! ----------------------------------------------
+    ! Set all fields to value in State
+    ! If value is not provided, reset to 0.0
+    ! ----------------------------------------------
+    type(ESMF_State), intent(inout) :: State
+    real(ESMF_KIND_R8), intent(in), optional :: value
+    integer, intent(out), optional  :: rc
+
+    ! local variables
+    integer                     :: i,j,n
+    integer                     :: fieldCount
+    character(len=64) ,pointer  :: fieldNameList(:)
+    real(ESMF_KIND_R8)          :: lvalue
+    type(ESMF_Field)            :: field
+    real(ESMF_KIND_R8), pointer :: dataPtr(:,:)
+    character(len=*),parameter :: subname='(module_MEDIATOR:state_reset)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    lvalue = 0._ESMF_KIND_R8
+    if (present(value)) then
+      lvalue = value
+    endif
+
+    call ESMF_StateGet(State, itemCount=fieldCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    allocate(fieldNameList(fieldCount))
+    call ESMF_StateGet(State, itemNameList=fieldNameList, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    do n = 1, fieldCount
+      call ESMF_StateGet(State, itemName=fieldNameList(n), field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      call ESMF_FieldGet(field, farrayPtr=dataPtr, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      do j=lbound(dataPtr,2),ubound(dataPtr,2)
+      do i=lbound(dataPtr,1),ubound(dataPtr,1)
+        dataPtr(i,j) = lvalue
+      enddo
+      enddo
+
+    enddo
+    deallocate(fieldNameList)
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine state_reset
+
+  !-----------------------------------------------------------------------------
+
+  subroutine fieldBundle_average(FieldBundle, count, rc)
+    ! ----------------------------------------------
+    ! Set all fields to zero in FieldBundle
+    ! ----------------------------------------------
+    type(ESMF_FieldBundle), intent(inout) :: FieldBundle
+    integer               , intent(in)    :: count
+    integer, intent(out), optional  :: rc
+
+    ! local variables
+    integer                     :: i,j,n
+    integer                     :: fieldCount
+    character(len=64) ,pointer  :: fieldNameList(:)
+    type(ESMF_Field)            :: field
+    real(ESMF_KIND_R8), pointer :: dataPtr(:,:)
+    character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_average)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    if (count == 0) then
+
+      call ESMF_LogWrite(trim(subname)//": WARNING count is 0", ESMF_LOGMSG_INFO, rc=dbrc)
+
+    else
+
+      call ESMF_FieldBundleGet(FieldBundle, fieldCount=fieldCount, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      allocate(fieldNameList(fieldCount))
+      call ESMF_FieldBundleGet(FieldBundle, fieldNameList=fieldNameList, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      do n = 1, fieldCount
+        call ESMF_FieldBundleGet(FieldBundle, fieldName=fieldNameList(n), field=field, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        call ESMF_FieldGet(field, farrayPtr=dataPtr, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        do j=lbound(dataPtr,2),ubound(dataPtr,2)
+        do i=lbound(dataPtr,1),ubound(dataPtr,1)
+          dataPtr(i,j) = dataPtr(i,j) / real(count, ESMF_KIND_R8)
+        enddo
+        enddo
+      enddo
+      deallocate(fieldNameList)
+
+    endif
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine fieldBundle_average
+
+  !-----------------------------------------------------------------------------
+
+  subroutine fieldBundle_diagnose(FieldBundle, string, rc)
+    ! ----------------------------------------------
+    ! Diagnose status of fieldBundle
+    ! ----------------------------------------------
+    type(ESMF_FieldBundle), intent(inout) :: FieldBundle
+    character(len=*), intent(in), optional :: string
+    integer, intent(out), optional  :: rc
+
+    ! local variables
+    integer                     :: i,j,n
+    integer                     :: fieldCount
+    character(len=64) ,pointer  :: fieldNameList(:)
+    character(len=64)           :: lstring
+    type(ESMF_Field)            :: field
+    real(ESMF_KIND_R8), pointer :: dataPtr(:,:)
+    character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_diagnose)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    lstring = ''
+    if (present(string)) then
+       lstring = trim(string)
+    endif
+
+    call ESMF_FieldBundleGet(FieldBundle, fieldCount=fieldCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    allocate(fieldNameList(fieldCount))
+    call ESMF_FieldBundleGet(FieldBundle, fieldNameList=fieldNameList, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    do n = 1, fieldCount
+      call ESMF_FieldBundleGet(FieldBundle, fieldName=fieldNameList(n), field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      call ESMF_FieldGet(field, farrayPtr=dataPtr, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      write(tmpstr,'(A,3g14.7)') trim(subname)//' '//trim(lstring)//':'//trim(fieldNameList(n)), &
+        minval(dataPtr),maxval(dataPtr),sum(dataPtr)
+      call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+    enddo
+    deallocate(fieldNameList)
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine fieldBundle_diagnose
+
+  !-----------------------------------------------------------------------------
+
+  subroutine state_diagnose(State, string, rc)
+    ! ----------------------------------------------
+    ! Diagnose status of fieldBundle
+    ! ----------------------------------------------
+    type(ESMF_State), intent(inout) :: State
+    character(len=*), intent(in), optional :: string
+    integer, intent(out), optional  :: rc
+
+    ! local variables
+    integer                     :: i,j,n
+    integer                     :: fieldCount
+    character(len=64) ,pointer  :: fieldNameList(:)
+    character(len=64)           :: lstring
+    type(ESMF_Field)            :: field
+    real(ESMF_KIND_R8), pointer :: dataPtr(:,:)
+    character(len=*),parameter :: subname='(module_MEDIATOR:state_diagnose)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    lstring = ''
+    if (present(string)) then
+       lstring = trim(string)
+    endif
+
+    call ESMF_StateGet(State, itemCount=fieldCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    allocate(fieldNameList(fieldCount))
+    call ESMF_StateGet(State, itemNameList=fieldNameList, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    do n = 1, fieldCount
+      call ESMF_StateGet(State, itemName=fieldNameList(n), field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      call ESMF_FieldGet(field, farrayPtr=dataPtr, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      write(tmpstr,'(A,3g14.7)') trim(subname)//' '//trim(lstring)//':'//trim(fieldNameList(n)), &
+        minval(dataPtr),maxval(dataPtr),sum(dataPtr)
+      call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+    enddo
+    deallocate(fieldNameList)
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine state_diagnose
+
+  !-----------------------------------------------------------------------------
+
+  subroutine fieldBundle_copyFB2FB(FBout, FBin, rc)
+    ! ----------------------------------------------
+    ! Copy common field names from FBin to FBout
+    ! ----------------------------------------------
+    type(ESMF_FieldBundle), intent(inout) :: FBout
+    type(ESMF_FieldBundle), intent(in)    :: FBin
+    integer, intent(out), optional  :: rc
+
+    character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_copyFB2FB)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    call fieldBundle_accum(FBout, FBin, copy=.true., rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine fieldBundle_copyFB2FB
+
+  !-----------------------------------------------------------------------------
+
+  subroutine fieldBundle_copyFB2ST(STout, FBin, rc)
+    ! ----------------------------------------------
+    ! Copy common field names from FBin to STout
+    ! ----------------------------------------------
+    type(ESMF_State)      , intent(inout) :: STout
+    type(ESMF_FieldBundle), intent(in)    :: FBin
+    integer, intent(out), optional  :: rc
+
+    character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_copyFB2ST)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    call fieldBundle_accum(STout, FBin, copy=.true., rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine fieldBundle_copyFB2ST
+
+  !-----------------------------------------------------------------------------
+
+  subroutine fieldBundle_copyST2FB(FBout, STin, rc)
+    ! ----------------------------------------------
+    ! Copy common field names from STin to FBout
+    ! ----------------------------------------------
+    type(ESMF_FieldBundle), intent(inout) :: FBout
+    type(ESMF_State)      , intent(in)    :: STin
+    integer, intent(out), optional  :: rc
+
+    character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_copyST2FB)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    call fieldBundle_accum(FBout, STin, copy=.true., rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine fieldBundle_copyST2FB
+
+  !-----------------------------------------------------------------------------
+
+  subroutine fieldBundle_accumFB2FB(FBout, FBin, copy, rc)
+    ! ----------------------------------------------
+    ! Accumulate common field names from FBin to FBout
+    ! If copy is passed in and true, the this is a copy
+    ! ----------------------------------------------
+    type(ESMF_FieldBundle), intent(inout) :: FBout
+    type(ESMF_FieldBundle), intent(in)    :: FBin
+    logical, intent(in) , optional  :: copy
+    integer, intent(out), optional  :: rc
+
+    ! local variables
+    integer                     :: i,j,n
+    integer                     :: fieldCount
+    character(len=64) ,pointer  :: fieldNameList(:)
+    logical                     :: exists
+    logical                     :: lcopy
+    type(ESMF_Field)            :: fieldi, fieldo
+    type(ESMF_StateItem_Flag)   :: itemType
+    real(ESMF_KIND_R8), pointer :: dataPtri(:,:), dataPtro(:,:)
+    character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_accumFB2FB)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    lcopy = .false.  ! accumulate by default
+    if (present(copy)) then
+      lcopy = copy
+    endif
+
+    call ESMF_FieldBundleGet(FBout, fieldCount=fieldCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    allocate(fieldNameList(fieldCount))
+    call ESMF_FieldBundleGet(FBout, fieldNameList=fieldNameList, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+    do n = 1, fieldCount
+      call ESMF_FieldBundleGet(FBin, fieldName=fieldNameList(n), isPresent=exists, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      if (exists) then
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        call ESMF_FieldBundleGet(FBin , fieldName=fieldNameList(n), field=fieldi, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        call ESMF_FieldBundleGet(FBout, fieldName=fieldNameList(n), field=fieldo, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        call ESMF_FieldGet(fieldi, farrayPtr=dataPtri, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        call ESMF_FieldGet(fieldo, farrayPtr=dataPtro, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+        if (lbound(dataPtri,2) /= lbound(dataPtro,2) .or. &
+            lbound(dataPtri,1) /= lbound(dataPtro,1) .or. &
+            ubound(dataPtri,2) /= ubound(dataPtro,2) .or. &
+            ubound(dataPtri,1) /= ubound(dataPtro,1)) then
+          call ESMF_LogWrite(trim(subname)//": ERROR in data size "//trim(fieldNameList(n)), ESMF_LOGMSG_ERROR, rc=rc)
+          write(tmpstr,*) trim(subname)//': dataPtri ',lbound(dataPtri),ubound(dataPtri)
+          call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+          write(tmpstr,*) trim(subname)//': dataPtro ',lbound(dataPtro),ubound(dataPtro)
+          call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        endif
+
+        if (lcopy) then
+          do j=lbound(dataPtri,2),ubound(dataPtri,2)
+          do i=lbound(dataPtri,1),ubound(dataPtri,1)
+            dataPtro(i,j) = dataPtri(i,j)
+          enddo
+          enddo
+        else
+          do j=lbound(dataPtri,2),ubound(dataPtri,2)
+          do i=lbound(dataPtri,1),ubound(dataPtri,1)
+            dataPtro(i,j) = dataPtro(i,j) + dataPtri(i,j)
+          enddo
+          enddo
+        endif
+
+      endif
+    enddo
+
+    deallocate(fieldNameList)
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine fieldBundle_accumFB2FB
+  !-----------------------------------------------------------------------------
+
+  subroutine fieldBundle_accumST2FB(FBout, STin, copy, rc)
+    ! ----------------------------------------------
+    ! Accumulate common field names from State to FieldBundle
+    ! If copy is passed in and true, the this is a copy
+    ! ----------------------------------------------
+    type(ESMF_FieldBundle), intent(inout) :: FBout
+    type(ESMF_State)      , intent(in)    :: STin
+    logical, intent(in) , optional :: copy
+    integer, intent(out), optional :: rc
+
+    ! local variables
+    integer                     :: i,j,n
+    integer                     :: fieldCount
+    logical                     :: lcopy
+    character(len=64) ,pointer  :: fieldNameList(:)
+    type(ESMF_Field)            :: fieldS, fieldB
+    type(ESMF_StateItem_Flag)   :: itemType
+    real(ESMF_KIND_R8), pointer :: dataPtrS(:,:), dataPtrB(:,:)
+    character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_accumST2FB)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    lcopy = .false.
+    if (present(copy)) then
+      lcopy = copy
+    endif
+
+    call ESMF_FieldBundleGet(FBout, fieldCount=fieldCount, rc=rc)
+    allocate(fieldNameList(fieldCount))
+    call ESMF_FieldBundleGet(FBout, fieldNameList=fieldNameList, rc=rc)
+    do n = 1, fieldCount
+      call ESMF_StateGet(STin, itemName=fieldNameList(n), itemType=itemType, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      if (itemType /= ESMF_STATEITEM_NOTFOUND) then
+        call ESMF_FieldBundleGet(FBout, fieldName=fieldNameList(n), field=fieldB, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        call ESMF_FieldGet(fieldB, farrayPtr=dataPtrB, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        call ESMF_StateGet(STin, itemName=fieldNameList(n), field=fieldS, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        call ESMF_FieldGet(fieldS, farrayPtr=dataPtrS, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+        if (lbound(dataPtrB,2) /= lbound(dataPtrS,2) .or. &
+            lbound(dataPtrB,1) /= lbound(dataPtrS,1) .or. &
+            ubound(dataPtrB,2) /= ubound(dataPtrS,2) .or. &
+            ubound(dataPtrB,1) /= ubound(dataPtrS,1)) then
+          call ESMF_LogWrite(trim(subname)//": ERROR in data size "//trim(fieldNameList(n)), ESMF_LOGMSG_ERROR, rc=rc)
+          write(tmpstr,*) trim(subname)//': dataPtrB ',lbound(dataPtrB),ubound(dataPtrB)
+          call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+          write(tmpstr,*) trim(subname)//': dataPtrS ',lbound(dataPtrS),ubound(dataPtrS)
+          call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        endif
+
+        if (lcopy) then
+          do j=lbound(dataPtrB,2),ubound(dataPtrB,2)
+          do i=lbound(dataPtrB,1),ubound(dataPtrB,1)
+            dataPtrB(i,j) = dataPtrS(i,j)
+          enddo
+          enddo
+        else
+          do j=lbound(dataPtrB,2),ubound(dataPtrB,2)
+          do i=lbound(dataPtrB,1),ubound(dataPtrB,1)
+            dataPtrB(i,j) = dataPtrB(i,j) + dataPtrS(i,j)
+          enddo
+          enddo
+        endif
+
+      endif  ! statefound
+    enddo  ! fieldCount
+
+    deallocate(fieldNameList)
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine fieldBundle_accumST2FB
+
+  !-----------------------------------------------------------------------------
+
+  subroutine fieldBundle_accumFB2ST(STout, FBin, copy, rc)
+    ! ----------------------------------------------
+    ! Accumulate common field names from FieldBundle to State
+    ! If copy is passed in and true, the this is a copy
+    ! ----------------------------------------------
+    type(ESMF_State)      , intent(inout) :: STout
+    type(ESMF_FieldBundle), intent(in)    :: FBin
+    logical, intent(in) , optional :: copy
+    integer, intent(out), optional :: rc
+
+    ! local variables
+    integer                     :: i,j,n
+    integer                     :: fieldCount
+    logical                     :: lcopy
+    character(len=64) ,pointer  :: fieldNameList(:)
+    type(ESMF_Field)            :: fieldS, fieldB
+    type(ESMF_StateItem_Flag)   :: itemType
+    real(ESMF_KIND_R8), pointer :: dataPtrS(:,:), dataPtrB(:,:)
+    character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_accumFB2ST)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    lcopy = .false.
+    if (present(copy)) then
+      lcopy = copy
+    endif
+
+    call ESMF_FieldBundleGet(FBin, fieldCount=fieldCount, rc=rc)
+    allocate(fieldNameList(fieldCount))
+    call ESMF_FieldBundleGet(FBin, fieldNameList=fieldNameList, rc=rc)
+    do n = 1, fieldCount
+      call ESMF_StateGet(STout, itemName=fieldNameList(n), itemType=itemType, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      if (itemType /= ESMF_STATEITEM_NOTFOUND) then
+        call ESMF_FieldBundleGet(FBin, fieldName=fieldNameList(n), field=fieldB, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        call ESMF_FieldGet(fieldB, farrayPtr=dataPtrB, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        call ESMF_StateGet(STout, itemName=fieldNameList(n), field=fieldS, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        call ESMF_FieldGet(fieldS, farrayPtr=dataPtrS, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+        if (lbound(dataPtrB,2) /= lbound(dataPtrS,2) .or. &
+            lbound(dataPtrB,1) /= lbound(dataPtrS,1) .or. &
+            ubound(dataPtrB,2) /= ubound(dataPtrS,2) .or. &
+            ubound(dataPtrB,1) /= ubound(dataPtrS,1)) then
+          call ESMF_LogWrite(trim(subname)//": ERROR in data size "//trim(fieldNameList(n)), ESMF_LOGMSG_ERROR, rc=rc)
+          write(tmpstr,*) trim(subname)//': dataPtrB ',lbound(dataPtrB),ubound(dataPtrB)
+          call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+          write(tmpstr,*) trim(subname)//': dataPtrS ',lbound(dataPtrS),ubound(dataPtrS)
+          call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        endif
+
+        if (lcopy) then
+          do j=lbound(dataPtrB,2),ubound(dataPtrB,2)
+          do i=lbound(dataPtrB,1),ubound(dataPtrB,1)
+            dataPtrS(i,j) = dataPtrB(i,j)
+          enddo
+          enddo
+        else
+          do j=lbound(dataPtrB,2),ubound(dataPtrB,2)
+          do i=lbound(dataPtrB,1),ubound(dataPtrB,1)
+            dataPtrS(i,j) = dataPtrS(i,j) + dataPtrB(i,j)
+          enddo
+          enddo
+        endif
+
+      endif  ! statefound
+    enddo  ! fieldCount
+
+    deallocate(fieldNameList)
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine fieldBundle_accumFB2ST
+
+  !-----------------------------------------------------------------------------
+
+  subroutine fld_list_add(fldlist, stdname, shortname, longname, units, &
+    transferOffer)
+    ! ----------------------------------------------
+    ! Accumulate common field names from FieldBundle to State
+    ! If copy is passed in and true, the this is a copy
+    ! ----------------------------------------------
+    type(fld_list_type),intent(inout) :: fldlist
+    character(len=*), intent(in) :: stdname
+    character(len=*), intent(in) :: shortname
+    character(len=*), intent(in) :: longname
+    character(len=*), intent(in) :: units
+    character(len=*), intent(in) :: transferOffer
+
+    ! local variables
+    integer :: cnum    ! current size of array
+    integer :: nnum    ! new size of array
+    integer :: rc
+    character(len=256), pointer :: tmpstr(:)
+    character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_accumFB2ST)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+    if (fldlist%num < 0) then
+       nnum = 10
+       fldlist%num = 0
+       allocate(fldlist%stdname(nnum))
+       allocate(fldlist%shortname(nnum))
+       allocate(fldlist%longname(nnum))
+       allocate(fldlist%units(nnum))
+       allocate(fldlist%transferOffer(nnum))
+    endif
+
+    cnum = size(fldlist%stdname)
+    if (fldlist%num > cnum) then
+      call ESMF_LogWrite(trim(subname)//": ERROR in num for fld "//trim(stdname), ESMF_LOGMSG_ERROR, rc=rc)
+      return
+    endif
+    if (fldlist%num == cnum) then
+      nnum = cnum + 10
+      allocate(tmpstr(cnum))
+      tmpstr(1:cnum) = fldlist%stdname(1:cnum)
+      deallocate(fldlist%stdname)
+      allocate(fldlist%stdname(nnum))
+      fldlist%stdname(1:cnum) = tmpstr(1:cnum)
+      tmpstr(1:cnum) = fldlist%shortname(1:cnum)
+      deallocate(fldlist%shortname)
+      allocate(fldlist%shortname(nnum))
+      fldlist%shortname(1:cnum) = tmpstr(1:cnum)
+      tmpstr(1:cnum) = fldlist%longname(1:cnum)
+      deallocate(fldlist%longname)
+      allocate(fldlist%longname(nnum))
+      fldlist%longname(1:cnum) = tmpstr(1:cnum)
+      tmpstr(1:cnum) = fldlist%units(1:cnum)
+      deallocate(fldlist%units)
+      allocate(fldlist%units(nnum))
+      fldlist%units(1:cnum) = tmpstr(1:cnum)
+      tmpstr(1:cnum) = fldlist%transferOffer(1:cnum)
+      deallocate(fldlist%transferOffer)
+      allocate(fldlist%transferOffer(nnum))
+      fldlist%transferOffer(1:cnum) = tmpstr(1:cnum)
+      deallocate(tmpstr)
+    endif
+
+    fldlist%num = fldlist%num + 1
+    fldlist%stdname       (fldlist%num) = trim(stdname)
+    fldlist%shortname     (fldlist%num) = trim(shortname)
+    fldlist%longname      (fldlist%num) = trim(longname)
+    fldlist%units         (fldlist%num) = trim(units)
+    fldlist%transferOffer (fldlist%num) = trim(transferOffer)
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine fld_list_add
 
   !-----------------------------------------------------------------------------
 

@@ -41,6 +41,7 @@
         model_routine_SS            => routine_SetServices, &
         model_label_DataInitialize  => label_DataInitialize, &
         model_label_Advance         => label_Advance
+      use module_CPLFIELDS
 #endif
 
 !
@@ -160,21 +161,7 @@
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
-        
-      ! extend the NUOPC Field Dictionary to hold required entries
-      if (.not.NUOPC_FieldDictionaryHasEntry( &
-        "air_temperature_at_lowest_level")) then
-        call NUOPC_FieldDictionaryAddEntry( &
-          standardName="air_temperature_at_lowest_level", &
-          canonicalUnits="K", &
-          defaultLongName="Air Temperature at Lowest Level", &
-          defaultShortName="atll", rc=rc);
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          return  ! bail out
-      endif
-
+      
 #else
 
 !
@@ -294,14 +281,32 @@
 
     ! exportable fields:
     call NUOPC_StateAdvertiseFields(exportState, StandardNames=(/ &
-      "surface_net_downward_shortwave_flux", &
-      "air_temperature_at_lowest_level" &
+      "mean_zonal_moment_flx", &
+      "mean_merid_moment_flx", &
+      "mean_sensi_heat_flx", &
+      "mean_laten_heat_flx", &
+      "mean_down_lw_flx", &
+      "mean_down_sw_flx", &
+      "mean_prec_rate", &
+      "inst_zonal_moment_flx", &
+      "inst_merid_moment_flx", &
+      "inst_sensi_heat_flx", &
+      "inst_laten_heat_flx", &
+      "inst_down_lw_flx", &
+      "inst_down_sw_flx", &
+      "inst_temp_height2m", &
+      "inst_spec_humid_height2m", &
+      "inst_u_wind_height10m", &
+      "inst_v_wind_height10m", &
+      "inst_temp_height_surface", &
+      "inst_pres_height_surface", &
+      "inst_surface_height" &
        /), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-      
+    
   end subroutine
   
   !-----------------------------------------------------------------------
@@ -314,12 +319,14 @@
 
     type(ESMF_Grid)                 :: gridIn, gridOut
     type(ESMF_Field)                :: field
+    character(160)                  :: itemNameList(1)
     integer                         :: i, j
     real(kind=ESMF_KIND_R8),pointer :: lonPtr(:,:), latPtr(:,:)
+    type(ESMF_array)                :: array
 
     rc = ESMF_SUCCESS
     
-    ! call into the actual NEMS/ATM initialize rooutine
+    ! call into the actual NEMS/ATM initialize routine
     
     call ATM_INITIALIZE(gcomp, importState, exportState, clock, rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -327,38 +334,35 @@
       file=__FILE__)) &
       return  ! bail out
     
-    ! create a DUMMY Grid object for import and export Fields
-    gridIn = ESMF_GridCreate1PeriDim(minIndex=(/1,1/), maxIndex=(/600,200/),&
-      indexflag=ESMF_INDEX_GLOBAL, coordSys=ESMF_COORDSYS_SPH_DEG, rc=rc)
+    ! use the regular Gaussian Grid that was setup during the NEMS/ATM init
+    gridIn  = gauss2d ! for imported Fields
+    gridOut = gauss2d ! for exported Fields
+
+#if 1
+    ! dump the Grid coordinate arrays for reference      
+    call ESMF_GridGetCoord(gridIn, coordDim=1, array=array, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    call ESMF_GridAddCoord(gridIn, rc=rc)
+    call ESMF_ArrayWrite(array, file="array_coord1.nc", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    call ESMF_GridGetCoord(gridIn, coordDim=2, array=array, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    call ESMF_GridGetCoord(gridIn, coordDim=1, farrayPtr=lonPtr, rc=rc)
+    call ESMF_ArrayWrite(array, file="array_coord2.nc", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
-      return  ! bail out
-    call ESMF_GridGetCoord(gridIn, coordDim=2, farrayPtr=latPtr, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    do j=lbound(lonPtr,2),ubound(lonPtr,2)
-    do i=lbound(latPtr,1),ubound(latPtr,1)
-      lonPtr(i,j) = 360./real(600) * (i-1)
-      latPtr(i,j) = 100./real(200) * (j-1) - 50.
-    enddo
-    enddo
+      call ESMF_Finalize(endflag=ESMF_END_ABORT)
+#endif
       
-    gridOut = gridIn ! for now out same as in
-      
-    ! conditionally realize or remove Fields
+    ! conditionally realize or remove Fields from States ...
     
     ! importable field: sea_surface_temperature
     if (NUOPC_StateIsFieldConnected(importState, fieldName="sst")) then
@@ -383,54 +387,202 @@
         return  ! bail out
     endif
  
-    ! exportable field: surface_net_downward_shortwave_flux
-    if (NUOPC_StateIsFieldConnected(exportState, fieldName="rsns")) then
-      ! realize a connected Field
-      field = ESMF_FieldCreate(name="rsns", grid=gridOut, &
-        typekind=ESMF_TYPEKIND_R8, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    else
-      ! remove a not connected Field from State
-      call ESMF_StateRemove(exportState, (/"rsns"/), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
+    ! exportable field: mean_zonal_moment_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_zonal_moment_flx, fieldName="mzmfx", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
 
-    ! exportable field: air_temperature_at_lowest_level
-    if (NUOPC_StateIsFieldConnected(exportState, fieldName="atll")) then
-      ! realize a connected Field
-      field = ESMF_FieldCreate(name="atll", grid=gridOut, &
-        typekind=ESMF_TYPEKIND_R8, rc=rc)
+    ! exportable field: mean_merid_moment_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_merid_moment_flx, fieldName="mmmfx", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    ! exportable field: mean_sensi_heat_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_sensi_heat_flx, fieldName="mshfx", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    ! exportable field: mean_laten_heat_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_laten_heat_flx, fieldName="mlhfx", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    ! exportable field: mean_down_lw_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_down_lw_flx, fieldName="mdlwfx", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: mean_down_sw_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_down_sw_flx, fieldName="mdswfx", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: mean_prec_rate
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_prec_rate, fieldName="mprt", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_zonal_moment_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_zonal_moment_flx, fieldName="izmfx", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_merid_moment_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_merid_moment_flx, fieldName="immfx", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_sensi_heat_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_sensi_heat_flx, fieldName="ishfx", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_laten_heat_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_laten_heat_flx, fieldName="ilhfx", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_down_lw_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_down_lw_flx, fieldName="idlwfx", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_down_sw_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_down_sw_flx, fieldName="idswfx", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_temp_height2m
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_temp_height2m, fieldName="ith2m", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_spec_humid_height2m
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_spec_humid_height2m, fieldName="ishh2m", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_u_wind_height10m
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_u_wind_height10m, fieldName="iuwh10m", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_v_wind_height10m
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_v_wind_height10m, fieldName="ivwh10m", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_temp_height_surface
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_temp_height_surface, fieldName="its", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_pres_height_surface
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_pres_height_surface, fieldName="ips", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_surface_height
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_surface_height, fieldName="ish", grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+  contains  !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  
+    subroutine realizeConnectedInternCplField(state, field, fieldName, grid, rc)
+      type(ESMF_State)                :: state
+      type(ESMF_Field)                :: field
+      character(len=*)                :: fieldName
+      type(ESMF_Grid)                 :: grid
+      integer, intent(out), optional  :: rc
+      
+      if (present(rc)) rc = ESMF_SUCCESS
+      
+      field = ESMF_FieldCreate(grid, ESMF_TYPEKIND_R8, name=fieldName, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
-      call NUOPC_StateRealizeField(exportState, field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    else
-      ! remove a not connected Field from State
-      call ESMF_StateRemove(exportState, (/"atll"/), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
+      
+      if (NUOPC_StateIsFieldConnected(state, fieldName=fieldName)) then
+        ! realize the connected Field using the internal coupling Field
+        call NUOPC_StateRealizeField(state, field=field, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      else
+        ! remove a not connected Field from State
+        call ESMF_StateRemove(state, (/fieldName/), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif
+    end subroutine
 
   end subroutine
-
+  
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
@@ -468,6 +620,8 @@
       real(ESMF_KIND_R8)      :: medAtmCouplingIntervalSec
       type(ESMF_Clock)        :: atmClock
       type(ESMF_TimeInterval) :: atmStep
+      type(ESMF_Field)        :: field
+      character(160)          :: itemNameList(10)
 #endif
 !
 !-----------------------------------------------------------------------
@@ -820,10 +974,6 @@
     
     ! local variables
     type(ESMF_State)              :: exportState
-    type(ESMF_Field)              :: field
-    type(ESMF_StateItem_Flag)     :: itemType
-    real(ESMF_KIND_R8), pointer   :: dataPtr(:,:)
-    integer                       :: i,j
 
     rc = ESMF_SUCCESS
     
@@ -839,57 +989,32 @@
     ! -> set Updated Field Attribute to "true", indicating to the IPDv02p5
     ! generic code to set the timestamp for this Field
     
-    call ESMF_StateGet(exportState, itemName="rsns", itemType=itemType, rc=rc)
+    call setFieldsUpdated(exportState, fieldNameList=(/ &
+      "mzmfx",    & ! mean_zonal_moment_flx
+      "mmmfx",    & ! mean_merid_moment_flx
+      "mshfx",    & ! mean_sensi_heat_flx
+      "mlhfx",    & ! mean_laten_heat_flx
+      "mdlwfx",   & ! mean_down_lw_flx
+      "mdswfx",   & ! mean_down_sw_flx
+      "mprt",     & ! mean_prec_rate
+      "izmfx",    & ! inst_zonal_moment_flx
+      "immfx",    & ! inst_merid_moment_flx
+      "ishfx",    & ! inst_sensi_heat_flx
+      "ilhfx",    & ! inst_laten_heat_flx
+      "idlwfx",   & ! inst_down_lw_flx
+      "idswfx",   & ! inst_down_sw_flx
+      "ith2m",    & ! inst_temp_height2m
+      "ishh2m",   & ! inst_spec_humid_height2m
+      "iuwh10m",  & ! inst_u_wind_height10m
+      "ivwh10m",  & ! inst_v_wind_height10m
+      "its",      & ! inst_temp_height_surface
+      "ips",      & ! inst_pres_height_surface
+      "ish"       & ! inst_surface_height
+      /), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    if (itemType /= ESMF_STATEITEM_NOTFOUND) then
-      ! "rsns" item exists -> initialize and set "Updated"
-      call ESMF_StateGet(exportState, itemName="rsns", field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      call ESMF_FieldGet(field, farrayPtr=dataPtr, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      do j=lbound(dataPtr,2),ubound(dataPtr,2)
-      do i=lbound(dataPtr,1),ubound(dataPtr,1)
-        dataPtr(i,j) = 1._ESMF_KIND_R8
-      enddo
-      enddo
-      call ESMF_AttributeSet(field, &
-        name="Updated", value="true", &
-        convention="NUOPC", purpose="General", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
-
-    call ESMF_StateGet(exportState, itemName="atll", itemType=itemType, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    if (itemType /= ESMF_STATEITEM_NOTFOUND) then
-      ! "atll" item exists -> set "Updated"
-      call ESMF_StateGet(exportState, itemName="atll", field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      call ESMF_AttributeSet(field, &
-        name="Updated", value="true", &
-        convention="NUOPC", purpose="General", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-    endif
       
     ! -> set InitializeDataComplete Component Attribute to "true", indicating
     ! to the driver that this Component has fully initialized its data
@@ -901,6 +1026,44 @@
       file=__FILE__)) &
       return  ! bail out
         
+  contains  !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  
+    subroutine setFieldsUpdated(state, fieldNameList, rc)
+      type(ESMF_State)                :: state
+      character(len=*)                :: fieldNameList(:)
+      integer, intent(out), optional  :: rc
+      
+      integer                         :: i
+      type(ESMF_Field)                :: field
+      type(ESMF_StateItem_Flag)       :: itemType
+
+      if (present(rc)) rc = ESMF_SUCCESS
+      
+      do i=1, size(fieldNameList)
+        call ESMF_StateGet(state, itemName=fieldNameList(i), &
+          itemType=itemType, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+        if (itemType /= ESMF_STATEITEM_NOTFOUND) then
+          ! item exists -> set "Updated"
+          call ESMF_StateGet(state, itemName=fieldNameList(i), field=field, &
+            rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+          call ESMF_AttributeSet(field, name="Updated", value="true", &
+            convention="NUOPC", purpose="General", rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, &
+            file=__FILE__)) &
+            return  ! bail out
+        endif
+      enddo
+    end subroutine
+    
   end subroutine
 
 #endif
@@ -1043,6 +1206,7 @@
       real(ESMF_KIND_R8), pointer   :: dataPtr(:,:)
       integer                       :: i,j
       
+      !TODO: move the slice counter into an internal state to be instance safe
       integer, save                 :: slice=1
 !
 !-----------------------------------------------------------------------
@@ -1093,53 +1257,23 @@
 
 !-----------------------------------------------------------------------
 
-
-! -> just for testing update the "rsns" Field
-
-    ! query the Component for its exportState
-    call ESMF_GridCompGet(ATM_GRID_COMP, exportState=exportState, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    call ESMF_StateGet(exportState, itemName="rsns", itemType=itemType, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    if (itemType /= ESMF_STATEITEM_NOTFOUND) then
-      ! "rsns" item exists -> advance it
-      call ESMF_StateGet(exportState, itemName="rsns", field=field, rc=rc)
+      ! query the Component for its exportState
+      call ESMF_GridCompGet(ATM_GRID_COMP, exportState=exportState, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
-      call ESMF_FieldGet(field, farrayPtr=dataPtr, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      do j=lbound(dataPtr,2),ubound(dataPtr,2)
-      do i=lbound(dataPtr,1),ubound(dataPtr,1)
-        dataPtr(i,j) = dataPtr(i,j) + 1._ESMF_KIND_R8
-      enddo
-      enddo
+      
 #if 1
-    ! for analysis also write "rsns" to file
-      if (ESMF_IO_PIO_PRESENT .and. ESMF_IO_NETCDF_PRESENT) then
-        call ESMF_FieldWrite(field, file="field_atm_rsns.nc", &
-          timeslice=slice, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, &
-          file=__FILE__)) &
-          call ESMF_Finalize(endflag=ESMF_END_ABORT)
-      endif
+      ! for testing write all of the Fields in the exportState to file
+      call NUOPC_StateWrite(exportState, filePrefix="field_atm_export_", &
+        timeslice=slice, relaxedFlag=.true., rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
       slice = slice + 1
 #endif
-    endif
-    
-    
-! -> end just for testing update the "rsns" Field
 
       call NUOPC_ClockPrintCurrTime(atm_int_state%CLOCK_ATM, &
         string="leaving  ATM_ADVANCE with CLOCK_ATM current: ", &
