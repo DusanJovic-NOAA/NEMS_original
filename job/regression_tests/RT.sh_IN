@@ -808,46 +808,6 @@ fi # endif compilation
 
 cd $PATHRT
 
- ###############################################################################
- #
- # TEST   - GFS_GOCART_NEMSIO
- #
- ###############################################################################
-
-# Temporarily skip the wcoss run. WY.
-# #----------------------------------
- if [ $MACHINE_ID = zeus ]; then
-# if [ $MACHINE_ID = wcoss -o $MACHINE_ID = zeus ] ; then
-   if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
-
-    export TEST_DESCR="GFS_GOCART with NEMSIO"
-
-#---------------------
-    (( TEST_NR=TEST_NR+1 ))
-    export RUNDIR=${RUNDIR_ROOT}/GFS_GOCART_NEMSIO
-    export CNTL_DIR=GFS_GOCART_NEMSIO
-    export LIST_FILES=" \
-         ngac.t00z.sigf00 ngac.t00z.sigf03 ngac.t00z.sigf06 ngac.t00z.sigf12 ngac.t00z.sigf24 \
-         ngac.t00z.sfcf00 ngac.t00z.sfcf03 ngac.t00z.sfcf06 ngac.t00z.sfcf12 ngac.t00z.sfcf24 \
-         ngac.t00z.flxf00 ngac.t00z.flxf03 ngac.t00z.flxf06 ngac.t00z.flxf12 ngac.t00z.flxf24 \
-         ngac.t00z.aerf00 ngac.t00z.aerf03 ngac.t00z.aerf06 ngac.t00z.aerf12 ngac.t00z.aerf24 "
-#---------------------
-    export_gsm
-    export TASKS=64; export PE1=64
-    export QUILT=.true.
-    export NEMSIOIN=.true. ;  export SIGIOIN=.false.
-    export NEMSIOOUT=.true.; export SIGIOOUT=.false.; export SFCIOOUT=.false.
-    export CDATE=2012071700
-    export SIGHDR=$NEMSIOGET
-    export WTPG=4
-#---------------------
-    ./rt_gocart.sh
-    if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-   fi # endif test
- fi  # endif machine
-
 ###############################################################################
 #
 # TEST   - Global NMM-B with pure binary input
