@@ -116,6 +116,10 @@
                ,REAL_DATA_2D                                            &
                ,REAL_DATA_TASKS                                         &
                ,SET_NEST_GRIDS                                          &
+               ,STENCIL_H_EVEN,STENCIL_SFC_H_EVEN                       &
+               ,STENCIL_V_EVEN,STENCIL_SFC_V_EVEN                       &
+               ,STENCIL_H_ODD,STENCIL_SFC_H_ODD                         &
+               ,STENCIL_V_ODD,STENCIL_SFC_V_ODD                         &
                ,TWOWAY_SUFFIX
 !
 !-----------------------------------------------------------------------
@@ -217,6 +221,15 @@
       INTEGER(kind=KINT),SAVE :: LM,N8=8
 !
       INTEGER(kind=KINT),SAVE :: LAG_STEPS=4                               !<-- Nest moves this many parent timesteps after deciding
+!
+      INTEGER(kind=KINT),SAVE :: STENCIL_H_EVEN=3                       &
+                                ,STENCIL_V_EVEN=2                       &
+                                ,STENCIL_SFC_H_EVEN=3                   &
+                                ,STENCIL_SFC_V_EVEN=3                   &
+                                ,STENCIL_H_ODD=3                        &
+                                ,STENCIL_V_ODD=3                        &
+                                ,STENCIL_SFC_H_ODD=3                    &
+                                ,STENCIL_SFC_V_ODD=2
 !
       REAL(kind=KFPT),SAVE :: CHILD_PARENT_SPACE_RATIO                  &
                              ,EPS=1.E-4 
@@ -11267,20 +11280,19 @@
               NUM_LEVELS=KHI-KLO+1                                         !<-- # of levels in this 3-D Real variable
 !
 !-----------------------------------------------------------------------
-!***  The nature of the unique Q2 and E2 arrays complicates how the
-!***  parent must interpolate its values to the nest gridpoints.
-!***  Q2 and E2 are 3-D arrays that lie on the layer interfaces
-!***  BUT their level K=1 is the BOTTOM of the uppermost model layer
-!***  and not the top of the uppermost layer.  Thus while there are
-!***  NUM_LYRS+1 layer interfaces there are only NUM_LYRS levels
-!***  in Q2 and E2 that correspond with interfaces 2->NUM_LYRS+1.
-!***  Rather than insert an assortment of confusing IF tests to
-!***  make a single set of code be generic, separate Q2 and E2
-!***  from the rest of the variables and deal with them inside
-!***  their own block.
+!***  The nature of the unique Q2 array complicates how the parent
+!***  must interpolate its values to the nest gridpoints.  Q2 is a
+!***  3-D array that lie on the layer interfaces BUT its level K=1
+!***  is the BOTTOM of the uppermost model layer and not the top of
+!***  the uppermost layer.  Thus while there are NUM_LYRS+1 layer
+!***  interfaces there are only NUM_LYRS levels in Q2 that correspond
+!***  with interfaces 2->NUM_LYRS+1.  Rather than insert an assortment
+!***  of confusing IF tests to make a single set of code be generic,
+!***  separate Q2 from the rest of the variables and deal with it
+!***  inside its own block.
 !-----------------------------------------------------------------------
 !
-              q2_e2: IF(FIELD_NAME=='Q2'.OR.FIELD_NAME=='E2')THEN
+              q2: IF(FIELD_NAME=='Q2')THEN
 !
 !-----------------------------------------------------------------------
 !***  We must add a new level to the top of the Q2 or E2 data in case
@@ -11415,7 +11427,7 @@
 !
 !-----------------------------------------------------------------------
 !
-              ELSE q2_e2                                                   !<-- All 3-D variables that are not Q2 or E2
+              ELSE q2                                                      !<-- All 3-D variables that are not Q2
 !
 !-----------------------------------------------------------------------
 !
@@ -11615,7 +11627,7 @@
 !
 !-----------------------------------------------------------------------
 !
-              ENDIF q2_e2
+              ENDIF q2
 !
 !-----------------------------------------------------------------------
 !
@@ -12062,8 +12074,6 @@
 !***  is specifically that of the uppermost parent.
 !-----------------------------------------------------------------------
 !
-      INTEGER, PARAMETER :: DOUBLE=SELECTED_REAL_KIND(P=13,R=200)
-!
 !------------------------
 !***  Argument Variables
 !------------------------
@@ -12084,6 +12094,9 @@
 !***  Local Variables
 !---------------------
 !
+      REAL(kind=KDBL),SAVE :: PI= 3.14159265359                         &
+                             ,PI2=6.28318530718
+!
       REAL(kind=KFPT) :: TLAT,TLON                                      &
                         ,X,Y,Z
 !
@@ -12096,6 +12109,12 @@
       Z=COS(TPH0_1)*SIN(GLAT)-SIN(TPH0_1)*COS(GLAT)*COS(GLON-TLM0_1)
       TLAT=ATAN(Z/SQRT(X*X+Y*Y))
       TLON=ATAN(Y/X)
+      IF(X<0.)THEN
+        TLON=TLON+PI
+        IF(Y<0.)THEN
+          TLON=TLON-PI2
+        ENDIF
+      ENDIF
 !
       REAL_I=(TLON-WB_1)*RECIP_DLM_1+1
       REAL_J=(TLAT-SB_1)*RECIP_DPH_1+1
@@ -12276,8 +12295,6 @@
 !
       child_tasks: DO NT=1,NUM_CHILD_TASKS
 !
-!     write(0,*)' '
-!     write(0,46361)nt
 !-----------------------------------------------------------------------
 !
         ITS_CHILD_ON_PARENT=(CHILD_TASK_LIMITS(1,NT)-CHILD_TASK_LIMITS(1,1))*RECIP_RATIO  &  !<-- Child task NT's starting I on parent grid

@@ -39,9 +39,9 @@ dt_int: 20                  # Integer seconds
 dt_num:  0                  # Numerator of fractional second
 dt_den:  1                  # Denominator of fractional second
 
-filt_dt_int:  6                  # Integer seconds
-filt_dt_num:  2                  # Numerator of fractional second
-filt_dt_den:  3                  # Denominator of fractional second
+filt_dt_int: 20                  # Integer seconds
+filt_dt_num:  0                  # Numerator of fractional second
+filt_dt_den:  1                  # Denominator of fractional second
 
 
 ###############################
@@ -64,7 +64,7 @@ nhours_fcst:      24        # Length of the forecast (hours)
 minutes_history: 180        # Frequency of history output (minutes)
 nhours_dfini:      0
 
-restart:         false      # True--> A restarted run
+restart:         _RSTRT_    # True--> A restarted run
 minutes_restart: 720        # Frequency of restart output (minutes)
 
 avg_max_length: 3600        # Time in seconds when averaged fields are reset
@@ -304,14 +304,14 @@ rst_name_base:           'nmmb_rst'
 ####  Nesting Specifications  ####
 ##################################
 
-my_domain_id:      4
+my_domain_id:      2
 my_parent_id:      1
-n_children:        0
+n_children:        1
 num_domains_total: 4          # The total number of domains in this run (only needed in domain #1's configure file)
 
-input_ready:     true         # Is the initial condition file already prepared?
+input_ready:  true            # Is the initial condition file already prepared?
 
-nest_mode:  2-way             # Select '1-way' or '2-way' interaction between parents/children.
+nest_mode:  2-way             # Select '1-way' or '2-way' interaction between parents/children
 
 ### If any 2-way domains are part of this run then provide the following value.
 
@@ -324,8 +324,8 @@ generation: 2                 # In which generation is this domain?
 ### If this domain is not a nest then the remaining variables
 ### in 'Nesting Specifications' are ignored.
 
-i_parent_start:  172 
-j_parent_start:  139
+i_parent_start:  122          # Nest southwest corner at this parent I
+j_parent_start:  133          # Nest southwest corner at this parent J
 
 parent_child_space_ratio:  3  # Ratio of this nest's parent's grid increment to its own
 

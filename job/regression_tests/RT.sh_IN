@@ -1723,7 +1723,7 @@ else
 
 ####################################################################################################
 #
-# TEST   - NMM-B moving nests: Regional parent with two children and one grandchild
+# TEST   - NMM-B 1-way moving nests: Regional parent with two children and one grandchild
 #        - Compute tasks - Upper parent 8x8 | Child #1 2x6 | Child #2 2x6 | Grandchild 5x6
 #        - 1 thread / opnl physics / free fcst / nemsio binary input
 #
@@ -1765,7 +1765,7 @@ fi # endif test
 
 ####################################################################################################
 #
-# TEST   - NMM-B moving nests: (RESTART) Regional parent with two children and one grandchild
+# TEST   - NMM-B 1-way moving nests: (RESTART) Regional parent with two children and one grandchild
 #        - Compute tasks - Upper parent 8x8 | Child #1 2x6 | Child #2 2x6 | Grandchild 5x6
 #        - 1 thread / opnl physics / free fcst / nemsio input
 #
@@ -1804,7 +1804,7 @@ fi # endif test
 
 ####################################################################################################
 #
-# TEST   - NMM-B moving nests: Same as above except with generational task assignments.
+# TEST   - NMM-B 1-way moving nests: Same as above except with generational task assignments.
 #        - Check the execution when children do NOT provide data to parents.
 #        - Compute tasks - Upper parent 5x18 | Child #1 5x9 | Child #2 5x9 | Grandchild 10x9
 #        - 1 thread / opnl physics / free fcst / nemsio and pure binary input
@@ -1877,12 +1877,51 @@ fi # endif test
    nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
 #---------------------
    export_nmm
-   export GBRG=mnests ; export FCSTL=24 ; export NCHILD=02
+   export GBRG=mnests_2way ; export FCSTL=24 ; export NCHILD=02
    export NEMSI=true  ; export WLCLK=15 ; export NODE=3
    export AFFN=cpu    ; export MODE=2-way
    export TASKS=$TASKS_mvg2 ; export TPN=$TPN_mvg2
    export INPES=$INPES_mvg2 ; export JNPES=$JNPES_mvg2 ; export WTPG=$WTPG_mvg2
    export WGT=1.0
+#---------------------
+   ./rt_nmm.sh
+   if [ $? = 2 ]; then exit ; fi
+#---------------------
+
+ fi # endif test
+
+####################################################################################################
+#
+# TEST   - NMM-B moving nests: (RESTART) Use generational task assignments and 2-way exchange.
+#        - Compute tasks - Upper parent 5x18 | Child #1 5x9 | Child #2 5x9 | Grandchild 10x9
+#        - 1 thread / opnl physics / free fcst / nemsio and pure binary input
+#
+####################################################################################################
+
+ if [ $RT_FULL = true ]; then
+
+  export TEST_DESCR="Test NMMB-regional with 2-way moving nests - RESTART"
+
+#---------------------
+   (( TEST_NR=TEST_NR+1 ))
+   export RUNDIR=${RUNDIR_ROOT}/NMM_2way_nests_restart
+   export CNTL_DIR=NMMB_2way_nests
+   export LIST_FILES=" \
+   nmmb_hst_01_bin_0024h_00m_00.00s \
+   nmmb_hst_01_nio_0024h_00m_00.00s \
+   nmmb_hst_02_bin_0024h_00m_00.00s \
+   nmmb_hst_02_nio_0024h_00m_00.00s \
+   nmmb_hst_03_bin_0024h_00m_00.00s \
+   nmmb_hst_03_nio_0024h_00m_00.00s \
+   nmmb_hst_04_nio_0024h_00m_00.00s"
+#---------------------
+   export_nmm
+   export GBRG=mnests_2way ; export FCSTL=24 ; export NCHILD=02
+   export NEMSI=true  ; export WLCLK=15 ; export NODE=3
+   export AFFN=cpu    ; export MODE=2-way
+   export TASKS=$TASKS_mvg2 ; export TPN=$TPN_mvg2
+   export INPES=$INPES_mvg2 ; export JNPES=$JNPES_mvg2 ; export WTPG=$WTPG_mvg2
+   export WGT=1.0 ; export RSTRT=true
 #---------------------
    ./rt_nmm.sh
    if [ $? = 2 ]; then exit ; fi

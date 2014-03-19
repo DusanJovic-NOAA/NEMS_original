@@ -18,7 +18,7 @@ sbd: -39.76                 # Grid's southern boundary (rotated degrees); NOT NE
 ##### Grid Decomposition #####
 ##############################
 
-inpes:  10                  # Number of compute tasks in the I direction
+inpes:  05                  # Number of compute tasks in the I direction
 jnpes:  09                  # Number of compute tasks in the J direction
 
 
@@ -28,20 +28,20 @@ jnpes:  09                  # Number of compute tasks in the J direction
                                                                                                                                              
 quilting:              true    # Do you want asynchronous quilting/history writes?
 write_groups:          1
-write_tasks_per_group: 2
+write_tasks_per_group: 1
 
 
 ##########################################
 ##### Fundamental Timestep (seconds) #####
 ##########################################
 
-dt_int:  6                  # Integer seconds
-dt_num:  2                  # Numerator of fractional second
-dt_den:  3                  # Denominator of fractional second
+dt_int: 20                  # Integer seconds
+dt_num:  0                  # Numerator of fractional second
+dt_den:  1                  # Denominator of fractional second
 
-filt_dt_int: 20                  # Integer seconds
-filt_dt_num:  0                  # Numerator of fractional second
-filt_dt_den:  1                  # Denominator of fractional second
+filt_dt_int:  6                  # Integer seconds
+filt_dt_num:  2                  # Numerator of fractional second
+filt_dt_den:  3                  # Denominator of fractional second
 
 
 ###############################
@@ -64,7 +64,7 @@ nhours_fcst:      24        # Length of the forecast (hours)
 minutes_history: 180        # Frequency of history output (minutes)
 nhours_dfini:      0
 
-restart:         false      # True--> A restarted run
+restart:         _RSTRT_    # True--> A restarted run
 minutes_restart: 720        # Frequency of restart output (minutes)
 
 avg_max_length: 3600        # Time in seconds when averaged fields are reset
@@ -256,12 +256,12 @@ nodeep:     .false.         # all deep convection diverted to shallow swap algor
 ##### Physics Timesteps #####
 #############################
 
-nrads:    540               # Number of dynamics timesteps between calls to shortwave
-nradl:    540               # Number of dynamics timesteps  between calls to longwave
+nrads:    180               # Number of dynamics timesteps between calls to shortwave
+nradl:    180               # Number of dynamics timesteps  between calls to longwave
 
-nphs:      18               # Number of dynamics timesteps between calls to landsurface and turbulence
+nphs:       6               # Number of dynamics timesteps between calls to landsurface and turbulence
 
-nprecip:   18               # Number of dynamics timesteps between calls to convection and microphysics
+nprecip:    6               # Number of dynamics timesteps between calls to convection and microphysics
 
 ####
 #### NOTE:  User must set nhrs_udef to .TRUE. and set the emptying frequencies (nhrs_*) to the desired values
@@ -304,35 +304,35 @@ rst_name_base:           'nmmb_rst'
 ####  Nesting Specifications  ####
 ##################################
 
-my_domain_id:      3
-my_parent_id:      2
+my_domain_id:      4
+my_parent_id:      1
 n_children:        0
 num_domains_total: 4          # The total number of domains in this run (only needed in domain #1's configure file)
 
-input_ready:  true            # Is the initial condition file already prepared?
+input_ready:     true         # Is the initial condition file already prepared?
 
 nest_mode:  2-way             # Select '1-way' or '2-way' interaction between parents/children.
 
 ### If any 2-way domains are part of this run then provide the following value.
 
-generation: 3                 # In which generation is this domain?
+generation: 2                 # In which generation is this domain?
 
 ### If this domain is a 2-way child then provide the following value.
 
 2way_wgt:  _WGT_              # Fraction of this child's 2-way data values used by the parent (0.-> all parent; 1.-> all child)
 
-### If this domain is not a nest then the reamining variables
+### If this domain is not a nest then the remaining variables
 ### in 'Nesting Specifications' are ignored.
 
-i_parent_start:   28
-j_parent_start:   24
+i_parent_start:  172 
+j_parent_start:  139
 
 parent_child_space_ratio:  3  # Ratio of this nest's parent's grid increment to its own
 
 my_domain_moves: true         # Does this domain move?
 move_type: storm              # Type of this domain move (storm, prescribed)
 
-ratio_sfc_files: 9            # If domain moves, provide ratio of uppermost parent grid increment to this domain's 
+ratio_sfc_files: 3            # If domain moves, provide ratio of uppermost parent grid increment to this domain's
 
 sfc_conflict: dummy           # 'nearest' -->  Parent-to-child conflict pts use nearest child pt with same sfc type
                               # 'dummy'   -->  Child uses dummy values for all conflict pts (reproducible results)

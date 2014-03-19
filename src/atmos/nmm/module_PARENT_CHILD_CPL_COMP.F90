@@ -92,7 +92,15 @@
                               ,PARENT_UPDATES_HALOS                     &
                               ,PARENT_UPDATES_MOVING                    &
                               ,PTASK_LIMITS                             &
-                              ,REAL_DATA_2D
+                              ,REAL_DATA_2D                             &
+                              ,STENCIL_H_EVEN                           &
+                              ,STENCIL_V_EVEN                           &
+                              ,STENCIL_SFC_H_EVEN                       &
+                              ,STENCIL_SFC_V_EVEN                       &
+                              ,STENCIL_H_ODD                            &
+                              ,STENCIL_V_ODD                            &
+                              ,STENCIL_SFC_H_ODD                        &
+                              ,STENCIL_SFC_V_ODD  
 !
       USE module_CONSTANTS,ONLY: G,P608,R_D
 !
@@ -3659,15 +3667,15 @@
           N_STENCIL_SFC_V=>cc%N_STENCIL_SFC_V
 !
           IF(MOD(SPACE_RATIO_MY_PARENT,2)==1)THEN 
-            N_STENCIL_H=3                                                  !<-- 
-            N_STENCIL_V=3                                                  !  Parent-Child space ratio
-            N_STENCIL_SFC_H=3                                              !  is odd
-            N_STENCIL_SFC_V=2                                              !<--
+            N_STENCIL_H=STENCIL_H_ODD                                      !<-- 
+            N_STENCIL_V=STENCIL_V_ODD                                      !  Parent-Child space ratio
+            N_STENCIL_SFC_H=STENCIL_SFC_H_ODD                              !  is odd
+            N_STENCIL_SFC_V=STENCIL_SFC_V_ODD                              !<--
           ELSE
-            N_STENCIL_H=3                                                  !<--
-            N_STENCIL_V=2                                                  !  Parent-Child space ratio
-            N_STENCIL_SFC_H=3                                              !  is even
-            N_STENCIL_SFC_V=3                                              !<--
+            N_STENCIL_H=STENCIL_H_EVEN                                     !<--
+            N_STENCIL_V=STENCIL_V_EVEN                                     !  Parent-Child space ratio
+            N_STENCIL_SFC_H=STENCIL_SFC_H_EVEN                             !  is even
+            N_STENCIL_SFC_V=STENCIL_SFC_V_EVEN                             !<--
           ENDIF
 !
           IF(MOD(N_STENCIL_H,2)/=1)THEN
@@ -4477,7 +4485,7 @@
           ENDDO
 !
 !-----------------------------------------------------------------------
-!***  Extract the 2-way children's averaging weights.  When a child
+!***  Set the 2-way children's averaging weights.  When a child
 !***  updates its parent's points the final value is a blend of the
 !***  child's interpolated value and the parent's own incoming value.
 !-----------------------------------------------------------------------
@@ -4508,50 +4516,20 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !  
 !-----------------------------------------------------------------------
-!***  Extract the children's 2-way averaging widths for H and V points.
+!***  Set the children's 2-way averaging widths for H and V points.
 !-----------------------------------------------------------------------
 !
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-              MESSAGE_CHECK="Parent-Child Init: Extract Child 2-Way Stencil Width"
-!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-              CALL ESMF_ConfigGetAttribute(config=CF(N)                 &  !<-- The child's config object
-                                          ,value =N_STENCIL_H_CHILD(N)  &  !<-- Width of the child's 2-way averaging stencil for H pts
-                                          ,label ='n_stencil_h:'        &  !<-- Give this label's value to the previous variable
-                                          ,rc    =RC)
-!
-              CALL ESMF_ConfigGetAttribute(config=CF(N)                 &  !<-- The child's config object
-                                          ,value =N_STENCIL_V_CHILD(N)  &  !<-- Width of the child's 2-way averaging stencil for V pts
-                                          ,label ='n_stencil_v:'        &  !<-- Give this label's value to the previous variable
-                                          ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Extract the children's 2-way averaging widths for FIS,PD points.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Parent-Child Init: Extract Child 2-Way Sfc Stencil Width"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-              CALL ESMF_ConfigGetAttribute(config=CF(N)                     &  !<-- The child's config object
-                                          ,value =N_STENCIL_SFC_H_CHILD(N)  &  !<-- Width of child's 2-way averaging stencil for FIS,PD on H
-                                          ,label ='n_stencil_sfc_h:'        &  !<-- Give this label's value to the previous variable
-                                          ,rc    =RC)
-!
-              CALL ESMF_ConfigGetAttribute(config=CF(N)                     &  !<-- The child's config object
-                                          ,value =N_STENCIL_SFC_V_CHILD(N)  &  !<-- Width of child's 2-way averaging stencil for FIS,PD on V
-                                          ,label ='n_stencil_sfc_v:'        &  !<-- Give this label's value to the previous variable
-                                          ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              IF(MOD(PARENT_CHILD_SPACE_RATIO(N),2)==1)THEN
+                N_STENCIL_H_CHILD(N)=STENCIL_H_ODD
+                N_STENCIL_V_CHILD(N)=STENCIL_V_ODD
+                N_STENCIL_SFC_H_CHILD(N)=STENCIL_SFC_H_ODD
+                N_STENCIL_SFC_V_CHILD(N)=STENCIL_SFC_V_ODD
+              ELSE
+                N_STENCIL_H_CHILD(N)=STENCIL_H_EVEN
+                N_STENCIL_V_CHILD(N)=STENCIL_V_EVEN
+                N_STENCIL_SFC_H_CHILD(N)=STENCIL_SFC_H_EVEN
+                N_STENCIL_SFC_V_CHILD(N)=STENCIL_SFC_V_EVEN
+              ENDIF
 !
             ENDIF
 !
@@ -5610,6 +5588,8 @@
 !-----------------------------------------------------------------------
 !***  Count the number of 2-D and 3-D Fields.  Those numbers will be
 !***  needed to know how many points are updated on moving nest tasks.
+!***  Also initialize the flag telling parent domains they must
+!***  update halos of motion-related variables after they shift.
 !-----------------------------------------------------------------------
 !
         NUM_FIELDS_MOVE_2D_H_I=0
@@ -10932,6 +10912,22 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
+!***  Clear the buffers from this child task's previous sends.
+!-----------------------------------------------------------------------
+!
+      DO NT=1,NTASKS_UPDATE_PARENT                                         !<-- Loop through parent task subdomains updated last time.
+!
+        CALL MPI_WAIT(HANDLE_SEND_2WAY_DATA(NT)                         &  !<-- Request handle for ISend of update to parent task NT
+                     ,JSTAT                                             &  !<-- MPI status
+                     ,IERR )
+!
+        CALL MPI_WAIT(HANDLE_SEND_2WAY_SFC(NT)                          &  !<-- Request handle for ISend of FIS,PD to parent task NT
+                     ,JSTAT                                             &  !<-- MPI status
+                     ,IERR )
+!
+      ENDDO
+!
+!-----------------------------------------------------------------------
 !***  Each child task determines the parent tasks to which it must
 !***  provide update data and to which points on those parent tasks.
 !***  This needs to be done only once for static nests.  For moving
@@ -11064,10 +11060,6 @@
 !
 !-----------------------------------------------------------------------
 !
-            CALL MPI_WAIT(HANDLE_SEND_2WAY_DATA(NT)                     &  !<-- Request handle for ISend of update to parent task NT
-                         ,JSTAT                                         &  !<-- MPI status
-                         ,IERR )
-!
             NTOT=NPTS_UPDATE_ON_PARENT_TASKS(NT)*NLEV_2WAY                 !<-- # of points updated for all vbls on parent task NT
 !
             IF(ASSOCIATED(cc%UPDATE_PARENT_2WAY(NT)%DATA))THEN
@@ -11076,10 +11068,6 @@
             ALLOCATE(cc%UPDATE_PARENT_2WAY(NT)%DATA(1:NTOT),stat=RC)       !<-- Updated values for all 2-way variables on parent task NT
 !
 !-----------------------------------------------------------------------
-!
-            CALL MPI_WAIT(HANDLE_SEND_2WAY_SFC(NT)                      &  !<-- Request handle for ISend of FIS,PD to parent task NT
-                         ,JSTAT                                         &  !<-- MPI status
-                         ,IERR )
 !
             NTOT_H_V=NPTS_UPDATE_ON_PARENT_TASKS(NT)*2                     !<-- # of updated H points then V points (thus *2)
             IF(ASSOCIATED(cc%CHILD_SFC_ON_PARENT(NT)%DATA))THEN
