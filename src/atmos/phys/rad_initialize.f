@@ -2,7 +2,7 @@
       subroutine rad_initialize                                         &
 !...................................
 !  ---  inputs:
-     &     ( si,levr,ictm,isol,ico2,iaer,iaer_mdl,ialb,iems,ntcw,       &
+     &     ( si,levr,ictm,isol,ico2,iaer,ialb,iems,ntcw,                &
      &       num_p3d,ntoz,iovr_sw,iovr_lw,isubc_sw,isubc_lw,            &
      &       sashal,crick_proof,ccnorm,norad_precip,idate,iflip,me )
 !  ---  outputs: ( none )
@@ -22,6 +22,7 @@
 !                 subroutine is called at the start of model run.       !
 !   nov 2012  - yu-tai hou   modified control parameter through         !
 !                 module 'physparam'.                                   !
+!   mar 2014  - sarah lu  iaermdl is determined from iaer               !        
 !                                                                       !
 !  ====================  defination of variables  ====================  !
 !                                                                       !
@@ -50,17 +51,16 @@
 !   ico2             :=0: use prescribed global mean co2 (old  oper)    !
 !                     =1: use observed co2 annual mean value only       !
 !                     =2: use obs co2 monthly data with 2-d variation   !
-!   iaer             : 3-digit aerosol flag (abc for volc, lw, sw)      !
+!   iaer             : 4-digit aerosol flag (dabc for aermdl,volc,lw,sw)!
+!                     d: =0 or none, opac-climatology aerosol scheme    !                
+!                        =1 use gocart climatology aerosol scheme       !  
+!                        =2 use gocart progostic aerosol scheme         !  
 !                     a: =0 use background stratospheric aerosol        !
 !                        =1 incl stratospheric vocanic aeros            !
 !                     b: =0 no topospheric aerosol in lw radiation      !
 !                        =1 include tropspheric aerosols for lw         !
 !                     c: =0 no topospheric aerosol in sw radiation      !
 !                        =1 include tropspheric aerosols for sw         !
-!   iaer_mdl         : control flag for topospheric aerosol models      !
-!                     =0: opac-climatology aerosol model                !
-!                     =1: gocart-climatology aerosol model              !
-!                     =2: gocart-prognostic aerosol model               !
 !   ialb             : control flag for surface albedo schemes          !
 !                     =0: climatology, based on surface veg types       !
 !                     =1: modis retrieval based surface albedo scheme   !
@@ -110,7 +110,7 @@
       implicit   none
 
 !  ---  input:
-      integer,  intent(in) :: levr, ictm, isol, ico2, iaer, iaer_mdl,   &
+      integer,  intent(in) :: levr, ictm, isol, ico2, iaer,             &
      &       ntcw, ialb, iems, num_p3d, ntoz, iovr_sw, iovr_lw,         &
      &       isubc_sw, isubc_lw, iflip, me, idate(4)
 
@@ -136,12 +136,16 @@
       if ( ictm==0 .or. ictm==-2 ) then
         iaerflg = mod(iaer, 100)        ! no volcanic aerosols for clim hindcast
       else
-        iaerflg = iaer
+        iaerflg = mod(iaer, 1000)   
       endif
       laswflg= (mod(iaerflg,10) > 0)    ! control flag for sw tropospheric aerosol
       lalwflg= (mod(iaerflg/10,10) > 0) ! control flag for lw tropospheric aerosol
       lavoflg= (iaerflg >= 100)         ! control flag for stratospheric volcanic aeros
-      iaermdl= iaer_mdl                 ! control flag for aerosol scheme selections
+      iaermdl = iaer/1000               ! control flag for aerosol scheme selection                              
+      if ( iaermdl < 0 .or.  iaermdl > 2) then
+         print *, ' Error -- IAER flag is incorrect, Abort'
+         stop 7777
+      endif
 
       if ( ntcw > 0 ) then
         icldflg = 1                     ! prognostic cloud optical prop scheme
