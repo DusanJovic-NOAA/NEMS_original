@@ -9072,18 +9072,6 @@
 !
 !-----------------------------------------------------------------------
 !
-      CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE_H                &  !<-- Bundle holding the H arrays for move updates
-                              ,FIELDNAME  ='SST'                        &  !<-- Name of the latitude Field
-                              ,field      =HOLD_FIELD                   &  !<-- Field holding GLAT
-                              ,rc         =RC )
-!
-      CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field containing GLAT
-                        ,localDe  =0                                    &
-                        ,farrayPtr=ARRAY_2D                             &  !<-- Dummy 2-D array with Field's data
-                        ,rc       =RC )
-!
-!-----------------------------------------------------------------------
-!
       END SUBROUTINE UPDATE_INTERIOR_FROM_PARENT
 !
 !-----------------------------------------------------------------------

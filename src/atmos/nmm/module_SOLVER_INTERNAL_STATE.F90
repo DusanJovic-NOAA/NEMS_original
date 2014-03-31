@@ -51,11 +51,280 @@
 !
       TYPE SOLVER_INTERNAL_STATE
 !
+        INTEGER(kind=KINT) :: NUM_VARS = 0
+        TYPE(VAR),DIMENSION(MAX_VARS) :: VARS
+!
 !-----------------------------------------------------------------------
-!***  Begin with the Configure File variables.
+!***  Begin with the 'generic' variables. Variables which are pointers
+!     associated with a memory allocated in VARS
 !-----------------------------------------------------------------------
 !
-        INTEGER(kind=KINT), POINTER :: IM,JM,LM
+        ! 0D integer
+        INTEGER(kind=KINT), POINTER :: IM                          => NULL()
+        INTEGER(kind=KINT), POINTER :: JM                          => NULL()
+        INTEGER(kind=KINT), POINTER :: LM                          => NULL()
+        INTEGER(kind=KINT), POINTER :: IHRST                       => NULL()
+        INTEGER(kind=KINT), POINTER :: I_PAR_STA                   => NULL()
+        INTEGER(kind=KINT), POINTER :: J_PAR_STA                   => NULL()
+        INTEGER(kind=KINT), POINTER :: LAST_STEP_MOVED             => NULL()
+        INTEGER(kind=KINT), POINTER :: LPT2                        => NULL()
+        INTEGER(kind=KINT), POINTER :: NSOIL                       => NULL()
+        INTEGER(kind=KINT), POINTER :: NPHS                        => NULL()
+        INTEGER(kind=KINT), POINTER :: NCLOD                       => NULL()
+        INTEGER(kind=KINT), POINTER :: NHEAT                       => NULL()
+        INTEGER(kind=KINT), POINTER :: NMTS                        => NULL()
+        INTEGER(kind=KINT), POINTER :: NPREC                       => NULL()
+        INTEGER(kind=KINT), POINTER :: NRDLW                       => NULL()
+        INTEGER(kind=KINT), POINTER :: NRDSW                       => NULL()
+        INTEGER(kind=KINT), POINTER :: NSRFC                       => NULL()
+        INTEGER(kind=KINT), POINTER :: AVGMAXLEN                   => NULL()
+        INTEGER(kind=KINT), POINTER :: MDRMINout                   => NULL()
+        INTEGER(kind=KINT), POINTER :: MDRMAXout                   => NULL()
+        INTEGER(kind=KINT), POINTER :: MDIMINout                   => NULL()
+        INTEGER(kind=KINT), POINTER :: MDIMAXout                   => NULL()
+        INTEGER(kind=KINT), POINTER :: IVEGSRC                     => NULL()
+        INTEGER(kind=KINT), POINTER :: CU_PHYSICS                  => NULL()
+
+        ! 0D real
+        REAL(kind=KFPT), POINTER :: DT                             => NULL()
+        REAL(kind=KFPT), POINTER :: DYH                            => NULL()
+        REAL(kind=KFPT), POINTER :: PDTOP                          => NULL()
+        REAL(kind=KFPT), POINTER :: PT                             => NULL()
+        REAL(kind=KFPT), POINTER :: TLM0D                          => NULL()
+        REAL(kind=KFPT), POINTER :: TPH0D                          => NULL()
+        REAL(kind=KFPT), POINTER :: TSTART                         => NULL()
+        REAL(kind=KFPT), POINTER :: DLMD                           => NULL()
+        REAL(kind=KFPT), POINTER :: DPHD                           => NULL()
+        REAL(kind=KFPT), POINTER :: SBD                            => NULL()
+        REAL(kind=KFPT), POINTER :: WBD                            => NULL()
+
+        ! 1D integer
+        INTEGER(kind=KINT),DIMENSION(:), POINTER :: IDAT           => NULL()
+        INTEGER(kind=KINT),DIMENSION(:), POINTER :: NTSCM          => NULL()
+
+        ! 1D real
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: DXH                => NULL()
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: SG1                => NULL()
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: SG2                => NULL()
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: DSG1               => NULL()
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: DSG2               => NULL()
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: SGML1              => NULL()
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: SGML2              => NULL()
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: SGM                => NULL()
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: SLDPTH             => NULL()
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: MP_RESTART_STATE   => NULL()
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: TBPVS_STATE        => NULL()
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: TBPVS0_STATE       => NULL()
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: MASSRout           => NULL()
+        REAL(kind=KFPT),DIMENSION(:),POINTER :: MASSIout           => NULL()
+
+        ! 2D integer
+        INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: ISLTYP        => NULL()
+        INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: IVGTYP        => NULL()
+        INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: NCFRCV        => NULL()
+        INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: NCFRST        => NULL()
+
+        ! 2D real
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: BARO             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: FIS              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: GLAT             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: GLON             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: HDACX            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: HDACY            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: PD               => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: F                => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: VLAT             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: VLON             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: HDACVX           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: HDACVY           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: PDO              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACFRCV           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACFRST           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACPREC           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACSNOM           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACSNOW           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACPCP_RA         => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACPCP_SN         => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACPCP_GR         => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: AKHS_OUT         => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: AKHSAVG          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: AKMS_OUT         => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: AKMSAVG          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ALBASE           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ALBEDO           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ALWIN            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ALWOUT           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ALWTOA           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ASWIN            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ASWOUT           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ASWTOA           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: BGROFF           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: CFRACH           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: CFRACL           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: CFRACM           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: CLDEFI           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: CMC              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: CNVBOT           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: CNVTOP           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: CPRATE           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: CUPPT            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: CUPREC           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: CZEN             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: CZMEAN           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: DNVVELMAX        => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: EPSR             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: GRNFLX           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: HBOTD            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: HBOTS            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: HTOPD            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: HTOPS            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: MIXHT            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: MXSNAL           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: PBLH             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: POTEVP           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: PREC             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: PSFCAVG          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: PSHLTR           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: P10              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: RH02MAX          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: RH02MIN          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: T02MAX           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: T02MIN           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: T10              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: T10AVG           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: Q10              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: QSH              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: QSHLTR           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: QWBS             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: QZ0              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: RADOT            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: REFDMAX          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: RLWIN            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: RLWTOA           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: RSWIN            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: RSWINC           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: RSWOUT           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SFCEVP           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SFCEXC           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SFCLHX           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SFCSHX           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SI               => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SICE             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SIGT4            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SM               => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SMSTAV           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SMSTOT           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SNO              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SNOAVG           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SNOPCX           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SOILTB           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SPD10MAX         => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SR               => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SSROFF           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SST              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SUBSHX           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: TG               => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: TH10             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: THS              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: THZ0             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: TSHLTR           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: TWBS             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: UPHLMAX          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: UPVVELMAX        => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: U10              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: U10MAX           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: USTAR            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: UZ0              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: V10              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: V10MAX           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: VEGFRC           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: VZ0              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: Z0               => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: TSKIN            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: AKHS             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: AKMS             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: HBOT             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: HTOP             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: RSWTOA           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: POTFLX           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: RMOL             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: T2               => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: Z0BASE           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: PSFC             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: TLMIN            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: TLMAX            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: LSPA             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACUTIM           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: APHTIM           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ARDLW            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ARDSW            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ASRFC            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: AVRAIN           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: AVCNVC           => NULL()
+
+        ! 3D real
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: W              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: W_TOT          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: OMGALF         => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: O3             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: DIV            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RTOP           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TCU            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TCV            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TCT            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TP             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: UP             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: VP             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: PSGDT          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: Z              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: Told           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: Tadj           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: CLDFRA         => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: CW             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: EXCH_H         => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: Q              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: Q2             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RLWTT          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RSWTT          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: PINT           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: DWDT           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: T              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TCUCN          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TRAIN          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: U              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: V              => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: XLEN_MIX       => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: F_ICE          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: F_RIMEF        => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: F_RAIN         => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: QV             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: QC             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: QI             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: QR             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: QS             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: QG             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: NI             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: NR             => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: REFL_10CM      => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RE_CLOUD       => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RE_ICE         => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RE_SNOW        => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: SH2O           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: SMC            => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: STC            => NULL()
+        
+        ! 4D real
+        REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS_PREV => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS      => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: MPRATES      => NULL()
+!
+!-----------------------------------------------------------------------
+!***  End of 'generic' variables declaration. The remaining internal 
+!     state variables do not have to be declared as pointers. They can
+!     be allocatble arrays.
+!-----------------------------------------------------------------------
+!
+
         INTEGER(kind=KINT) :: INPES,JNPES                               &
                              ,DFIHR_BOCO                                &
                              ,FILTER_METHOD                             &
@@ -78,15 +347,14 @@
                              ,START_MINUTE                              &
                              ,START_SECOND
 !
-        REAL(kind=KFPT), POINTER :: DT,SBD,TSTART,TPH0D,TLM0D,WBD
         REAL(kind=KFPT) :: CLEFFAMP                                     &
                           ,CODAMP                                       &
                           ,DPMIN                                        &
                           ,FACTOP                                       &
                           ,RLOLEV                                       &
                           ,RUN_DURATION                                 &
-                          ,SIGFAC                                       &       
-                          ,SMAG2                                        &       
+                          ,SIGFAC                                       &
+                          ,SMAG2                                        &
                           ,WCOR
 !
         LOGICAL(kind=KLOG) :: ADIABATIC                                 &
@@ -126,11 +394,11 @@
                              ,IDS,IDE,JDS,JDE
 !
         INTEGER(kind=KINT) :: ITE_B1,ITE_B2,ITE_B1_H1,ITE_B1_H2         &
-                             ,ITE_H1,ITE_H2                             &                    
+                             ,ITE_H1,ITE_H2                             &
                              ,ITS_B1,ITS_B2,ITS_B1_H1,ITS_B1_H2         &
-                             ,ITS_H1,ITS_H2                             &                    
+                             ,ITS_H1,ITS_H2                             &
                              ,JTE_B1,JTE_B2,JTE_B1_H1,JTE_B1_H2         &
-                             ,JTE_H1,JTE_H2                             &                    
+                             ,JTE_H1,JTE_H2                             &
                              ,JTS_B1,JTS_B2,JTS_B1_H1,JTS_B1_H2         &
                              ,JTS_H1,JTS_H2
 !
@@ -138,10 +406,10 @@
 !
         INTEGER(kind=KINT),DIMENSION(1:8) :: MY_NEB
 !
-        INTEGER(kind=KINT),DIMENSION(:),POINTER :: LOCAL_ISTART         &
-                                                  ,LOCAL_IEND           &
-                                                  ,LOCAL_JSTART         &
-                                                  ,LOCAL_JEND
+        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: LOCAL_ISTART     &
+                                                      ,LOCAL_IEND       &
+                                                      ,LOCAL_JSTART     &
+                                                      ,LOCAL_JEND
 !
         LOGICAL(kind=KLOG) :: E_BDY,N_BDY,S_BDY,W_BDY
 !
@@ -149,40 +417,31 @@
 !***  Horizontal and vertical grid-related variables.
 !-----------------------------------------------------------------------
 !
-        INTEGER(kind=KINT), POINTER :: LPT2
 !
-        INTEGER(kind=KINT),DIMENSION(:),POINTER :: KHFILT,KVFILT        &
-                                                  ,NFFTRH,NFFTRW        &
-                                                  ,NHSMUD
+        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: KHFILT,KVFILT    &
+                                                      ,NFFTRH,NFFTRW    &
+                                                      ,NHSMUD
 !
-        REAL(kind=KFPT), POINTER :: DPHD,DLMD,DYH,PDTOP,PT
         REAL(kind=KFPT) :: DDMPV,DYV,EF4T                               &
                           ,GLAT_SW,GLON_SW                              &
                           ,RDYH,RDYV 
 !
-        REAL(kind=KFPT),DIMENSION(:),POINTER :: SG1,PSG1                &
-                                               ,DSG1,PDSG1              &
-                                               ,SG2,DSG2                &
-                                               ,SGML1,PSGML1            &
-                                               ,SGML2,SGM               &
-                                               ,DDMPU,WPDAR             &
-                                               ,FCP,FDIV                &
-                                               ,CURV,DDV                &
-                                               ,DARE,RARE               &
-                                               ,FAD,FAH                 &
-                                               ,DXH,RDXH                &
-                                               ,DXV,RDXV                &
-                                               ,RDDV                    &
-                                               ,WFFTRH,WFFTRW
+        REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: PSG1                &
+                                                   ,PDSG1               &
+                                                   ,PSGML1              &
+                                                   ,DDMPU,WPDAR         &
+                                                   ,FCP,FDIV            &
+                                                   ,CURV,DDV            &
+                                                   ,DARE,RARE           &
+                                                   ,FAD,FAH             &
+                                                   ,RDXH                &
+                                                   ,DXV,RDXV            &
+                                                   ,RDDV                &
+                                                   ,WFFTRH,WFFTRW
 !
-        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: BARO,F,FIS            &
-                                                 ,GLAT,GLON             &
-                                                 ,HDACX,HDACY           &
-                                                 ,HDACVX,HDACVY         &
-                                                 ,HFILT,VFILT           &
-                                                 ,VLAT,VLON
+        REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE :: HFILT,VFILT
 !
-        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: PD,PDO,PSDT,SICE,SM
+        REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE :: PSDT
 !
 !-----------------------------------------------------------------------
 !***  Integration quantities.
@@ -191,35 +450,21 @@
         LOGICAL(kind=KLOG) :: FIRST_STEP,READBC                         &
                              ,ADV_STANDARD,ADV_UPSTREAM
 !
-        INTEGER(kind=KINT), POINTER :: IHRST,MDRMINout,MDRMAXout        &
-                                      ,MDIMINout,MDIMAXout
 !
         INTEGER(kind=KINT) :: NTSD,IDTADT,IHR,IHREND                    &
                              ,LNSAD,NBOCO,NTSTI,NTSTM,NTSTM_MAX
 !
-        INTEGER(kind=KINT),DIMENSION(:), POINTER :: IDAT
 !
         REAL(kind=KFPT) :: DT_TEST_RATIO                                &
                           ,DT_LAST
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: PINT,RTOP           &
-                                                   ,T,U,V               &
-                                                   ,Q,CW,O3             &
-                                                   ,Q2                  &
-                                                   ,DIV                 &
-                                                   ,DEF                 &
-                                                   ,TDIV                &
-                                                   ,W,W_TOT,Z           &
-                                                   ,DWDT,PDWDT          &
-                                                   ,OMGALF              &
-                                                   ,PSGDT               &
-                                                   ,TP,UP,VP            &
-                                                   ,PCNE,PCNW           &
-                                                   ,PFNE,PFNW           &
-                                                   ,PCX,PCY             &
-                                                   ,PFX,PFY             &
-                                                   ,TCT,TCU,TCV         &
-                                                   ,Told,Tadj
+        REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE :: DEF             &
+                                                       ,TDIV            &
+                                                       ,PDWDT           &
+                                                       ,PCNE,PCNW       &
+                                                       ,PFNE,PFNW       &
+                                                       ,PCX,PCY         &
+                                                       ,PFX,PFY
 !
         LOGICAL(kind=KLOG) :: FIRST_PASS                                &
                              ,LMPRATE,RUN
@@ -248,10 +493,8 @@
                              ,INDX_NI=0                                 &  !<-- Location of Ni in tracer arrays
                              ,INDX_NR=0                                    !<-- Location of Nr in tracer arrays
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS           &  !<-- Tracers variable
-                                                     ,TRACERS_SQRT      &  !<-- Sqrt of the tracer variables (for advection)
-                                                     ,TRACERS_PREV      &  !<-- Values of tracer variables in prev timestep (for advection)
-                                                     ,TRACERS_TEND         !<-- Tendencies of tracer variables (for advection)
+        REAL(kind=KFPT),DIMENSION(:,:,:,:),ALLOCATABLE :: TRACERS_SQRT  &  !<-- Sqrt of the tracer variables (for advection)
+                                                         ,TRACERS_TEND     !<-- Tendencies of tracer variables (for advection)
 !
         REAL(kind=KFPT),DIMENSION(:),POINTER :: TRACERS_ARR             &  !<-- Storage array for "tracer" variables.
                                                ,TRACERS_PREV_ARR           !<-- Storage array for "Values of tracer variables in prev timestep"
@@ -266,19 +509,19 @@
 !
         REAL(kind=KFPT) :: TBOCO
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: PDBS,PDBN           &
-                                                   ,PDBW,PDBE
+        REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE :: PDBS,PDBN       &
+                                                       ,PDBW,PDBE
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: TBS,TBN           & 
-                                                     ,TBW,TBE           &
-                                                     ,QBS,QBN           &
-                                                     ,QBW,QBE           &
-                                                     ,UBS,UBN           &
-                                                     ,UBW,UBE           &
-                                                     ,VBS,VBN           &
-                                                     ,VBW,VBE           &
-                                                     ,WBS,WBN           &
-                                                     ,WBW,WBE
+        REAL(kind=KFPT),DIMENSION(:,:,:,:),ALLOCATABLE :: TBS,TBN       &
+                                                         ,TBW,TBE       &
+                                                         ,QBS,QBN       &
+                                                         ,QBW,QBE       &
+                                                         ,UBS,UBN       &
+                                                         ,UBW,UBE       &
+                                                         ,VBS,VBN       &
+                                                         ,VBW,VBE       &
+                                                         ,WBS,WBN       &
+                                                         ,WBW,WBE
 !
         LOGICAL(kind=KLOG) :: RUNBC
 !
@@ -322,15 +565,7 @@
         INTEGER(kind=KINT) :: INDX_WATER_START                          &  !<-- Start index of the water in tracers array
                              ,INDX_WATER_END                               !<-- End index of the water in tracers array
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: MPRATES,WATER         !<-- Storage array for MP source/sink terms and water substance
-!
-        REAL(kind=KFPT),DIMENSION(:),POINTER :: MASSRout,MASSIout           !<-- Mass of rain and ice for different particle sizes-Fer/Ferhires
-!
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: F_ICE,F_RAIN        &  !<-- Fractions of ice, rain, and rime
-                                                   ,F_RIMEF
-!
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: QV, QC, QI,         &  !<-- Individual species for microphys.
-                                            QR, QS, QG, NI, NR             !<-- G. Thompson
+        REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: WATER                !<-- Storage array for MP source/sink terms and water substance
 !
         LOGICAL(kind=KLOG) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI,F_NR
 !
@@ -338,14 +573,8 @@
 !***  Nesting
 !-----------------------------------------------------------------------
 !
-        INTEGER(kind=KINT),POINTER :: I_PAR_STA                         &  !<-- SW corner of nest domain on this parent I
-                                     ,J_PAR_STA                         &  !<-- SW corner of nest domain on this parent J
-                                     ,LAST_STEP_MOVED                   &  !<-- Last time step this domain moved
-                                     ,NMTS                                 !<-- Next Move TimeStep for a nest
-!
         INTEGER(kind=KINT) :: PARENT_CHILD_TIME_RATIO                      !<-- # of child timesteps per parent timestep
 !
-        INTEGER(kind=KINT),DIMENSION(:),POINTER :: NTSCM                   !<-- Next TimeStep a Child nest Moves
 !
 #ifdef ESMF_3
         TYPE(ESMF_Logical) :: I_AM_A_NEST                                  !<-- Am I in a nested domain?
@@ -357,9 +586,6 @@
 !***  Begin with the namelist variables.
 !-----------------------------------------------------------------------
 !
-        INTEGER(kind=KINT), POINTER :: NSOIL
-!
-        INTEGER(kind=KINT), POINTER :: NPHS
         INTEGER(kind=KINT) :: DT_INT,NPRECIP,NRADL,NRADS                &
                              ,PCPHR,UCMCALL
 !
@@ -385,150 +611,63 @@
                              ,NHRS_RDSW                                 &  !<-- Fcst hours SW radiation is accumulated
                              ,NHRS_SRFC                                    !<-- Fcst hours sfc evap/flux is accumulated
 !
-        INTEGER(kind=KINT), POINTER :: NCLOD                            &  !<-- # of fundamental timesteps cloud is accumulated
-                                      ,NHEAT                            &  !<-- # of fundamental timesteps latent heating is accumulated
-                                      ,NPREC                            &  !<-- # of fundamental timesteps precip is accumulated
-                                      ,NRDLW                            &  !<-- # of fundamental timesteps LW radiation is accumulated
-                                      ,NRDSW                            &  !<-- # of fundamental timesteps SW radiation is accumulated
-                                      ,NSRFC                            &  !<-- # of fundamental timesteps sfc evap/flux is accumulated
-                                      ,IVEGSRC                          &  !<-- Vegetation map identifier, 0--> USGS, 1--> IGBP
-                                      ,CU_PHYSICS                       &  !<-- Convection physics, 1--> KF, 2--> BMJ, 3--> GD, 4--> SAS, 5--> RAS
-                                      ,AVGMAXLEN                           !<-- Fcst sec over which avg/max diags are accumulated
+        INTEGER(kind=KINT),DIMENSION(:,:),ALLOCATABLE :: LPBL
 !
-        INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: ISLTYP,IVGTYP      &
-                                                    ,LPBL               &
-                                                    ,NCFRCV,NCFRST
+        REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE :: DUDT,DVDT
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: DUDT,DVDT
+        REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE :: PPTDAT
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RLWTT,RSWTT
+        REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE :: W0AVG
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: EXCH_H,PPTDAT
+        REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE :: CROT,SROT         &
+                                                     ,HANGL,HANIS,HASYS &
+                                                     ,HASYSW,HASYNW     &
+                                                     ,HASYW,HCNVX       &
+                                                     ,HLENNW,HLENSW     &
+                                                     ,HLENW,HLENS       &
+                                                     ,HSLOP,HSTDV,HZMAX
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TCUCN,W0AVG
+        REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE :: DDATA
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: CLDFRA              &
-                                                   ,TRAIN,XLEN_MIX
+        REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE :: MAVAIL            &
+                                                     ,QCG,QSG,QVG       &
+                                                     ,SHDMAX,SHDMIN     &
+                                                     ,SOILT1,STDH       &
+                                                     ,TSNAV
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: refl_10cm           &
-                                                   ,re_cloud            &
-                                                   ,re_ice              &
-                                                   ,re_snow
+        REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE :: Q02,TH02
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: SH2O,SMC,STC
-!
-        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: CROT,SROT             &
-                                                 ,HANGL,HANIS,HASYS     &
-                                                 ,HASYSW,HASYNW,HASYW   &
-                                                 ,HCNVX                 &
-                                                 ,HLENNW,HLENSW         &
-                                                 ,HLENW,HLENS           &
-                                                 ,HSLOP,HSTDV,HZMAX
-!
-        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACFRCV,ACFRST         &
-                                                 ,AKHS,AKHS_OUT         &
-                                                 ,AKMS,AKMS_OUT         &
-                                                 ,CFRACH,CFRACL,CFRACM  &
-                                                 ,CMC,CNVBOT,CNVTOP     &
-                                                 ,CPRATE,CUPPT          &
-                                                 ,CZMEAN,CZEN,LSPA      &
-                                                 ,DDATA,EPSR            &
-                                                 ,HBOT,HBOTD,HBOTS      &
-                                                 ,HTOP,HTOPD,HTOPS      &
-                                                 ,MIXHT,PBLH,QSH,QZ0    &
-                                                 ,RLWIN,RSWIN,RSWINC    &
-                                                 ,RSWOUT,RLWTOA,RSWTOA  &
-                                                 ,SIGT4                 &
-                                                 ,SST,STDH              & !zj
-                                                 ,THS,THZ0,USTAR        & !zj
-                                                 ,UZ0,VZ0               &
-                                                 ,Z0,Z0BASE
-!
-        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ALBASE,ALBEDO         &
-                                                 ,ALWIN,ALWOUT,ALWTOA   &
-                                                 ,ASWIN,ASWOUT,ASWTOA   &
-                                                 ,BGROFF,GRNFLX         &
-                                                 ,MAVAIL,MXSNAL         &
-                                                 ,POTEVP,POTFLX         &
-                                                 ,QCG,QSG,QVG,QWBS      &
-                                                 ,RADOT,RMOL            &
-                                                 ,SFCEVP,SFCEXC         &
-                                                 ,SFCLHX,SFCSHX         &
-                                                 ,SHDMAX,SHDMIN         &
-                                                 ,SI,SMSTAV,SMSTOT      &
-                                                 ,SNO,SNOAVG,SNOPCX     &
-                                                 ,SOILT1,SOILTB         &
-                                                 ,SR,SSROFF,SUBSHX      &
-                                                 ,TG,TSKIN,TSNAV,TWBS   &
-                                                 ,VEGFRC
-!
-        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACPREC,ACSNOM,ACSNOW  &
-                                                 ,ACPCP_RA              &
-                                                 ,ACPCP_SN              &
-                                                 ,ACPCP_GR              &
-                                                 ,CUPREC,CLDEFI         &
-                                                 ,PREC,PSHLTR,P10,Q02   &
-                                                 ,Q10,QSHLTR,PSFC       &
-                                                 ,PSFCAVG               &
-                                                 ,T2,TH02,TH10,TSHLTR   &
-                                                 ,T02MAX,T02MIN         &
-                                                 ,RH02MAX,RH02MIN       &
-                                                 ,U10,V10,T10,T10AVG    &
-                                                 ,U10MAX,V10MAX         &
-                                                 ,SPD10MAX              &
-                                                 ,TLMIN,TLMAX           &
-                                                 ,UPVVELMAX,DNVVELMAX   &
-                                                 ,UPHLMAX,REFDMAX       &
-                                                 ,AKHSAVG,AKMSAVG
-!
-!-----------------------------------------------------------------------
-!***  The following are 2-D arrays needed only to hold scalars.
-!***  This is done since ESMF does not permit scalar Attributes
-!***  to evolve.
-!-----------------------------------------------------------------------
-!
-        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ACUTIM                &  !<-- Counter for cloud processes, used by post0 code
-                                                 ,APHTIM                &  !<-- Counter for other processes, used by post0 code
-                                                 ,ARDLW                 &  !<-- Counter in summing LW radiation flux
-                                                 ,ARDSW                 &  !<-- Counter in summing SW radiation flux
-                                                 ,ASRFC                 &  !<-- Counter in summing sfc flux
-                                                 ,AVRAIN                &  !<-- Counter in summing latent heating from grid microphysics
-                                                 ,AVCNVC                   !<-- Counter in summing latent heating from convection
-!
-        REAL(kind=KFPT),DIMENSION(:),POINTER :: MP_RESTART_STATE        &
-                                               ,SLDPTH                  &
-                                               ,TBPVS_STATE,TBPVS0_STATE
 !
 !-----------------------------------------------------------------------
 !***  GFS physics additional arrays
 !-----------------------------------------------------------------------
 !
-        REAL(kind=KDBL)                              :: CDEC,SDEC       &
-                                                       ,SLAG,SOLCON
-        INTEGER(kind=KINT),DIMENSION(:)   ,POINTER   :: JINDX1,JINDX2
-        REAL(kind=KDBL),DIMENSION(:)      ,POINTER   :: DDY
-        REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: TMPMIN,TMPMAX
-        REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: DUGWD,DVGWD
-        REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: SEMIS,SFALB     &
-                                                       ,SFCDLW,SFCDSW   &
-                                                       ,SFCNSW,TSFLW 
-        REAL(kind=KDBL),DIMENSION(:,:)    ,POINTER   :: SICFCS,SIHFCS   &
-                                                       ,SLPFCS,SOTFCS   &
-                                                       ,TG3FCS          &
-                                                       ,VEGFCS,VETFCS   &
-                                                       ,ZORFCS
-        REAL(kind=KDBL),DIMENSION(:,:,:)  ,POINTER   :: ALBFC1,ALFFC1
-        REAL(kind=KDBL),DIMENSION(:,:,:)  ,POINTER   :: PHY_F2DV   ! save last time step 2Ds
-        REAL(kind=KDBL),DIMENSION(:,:,:,:),POINTER   :: PHY_F3DV   ! save last time step 3Ds
-        REAL(kind=KDBL),DIMENSION(:,:,:,:),POINTER   :: OZPLIN
+        REAL(kind=KDBL)                                :: CDEC,SDEC     &
+                                                         ,SLAG,SOLCON
+        INTEGER(kind=KINT),DIMENSION(:)   ,ALLOCATABLE :: JINDX1,JINDX2
+        REAL(kind=KDBL),DIMENSION(:)      ,ALLOCATABLE :: DDY
+        REAL(kind=KDBL),DIMENSION(:,:)    ,ALLOCATABLE :: TMPMIN,TMPMAX
+        REAL(kind=KDBL),DIMENSION(:,:)    ,ALLOCATABLE :: DUGWD,DVGWD
+        REAL(kind=KDBL),DIMENSION(:,:)    ,ALLOCATABLE :: SEMIS,SFALB   &
+                                                         ,SFCDLW,SFCDSW &
+                                                         ,SFCNSW,TSFLW 
+        REAL(kind=KDBL),DIMENSION(:,:)    ,ALLOCATABLE :: SICFCS,SIHFCS &
+                                                         ,SLPFCS,SOTFCS &
+                                                         ,TG3FCS        &
+                                                         ,VEGFCS,VETFCS &
+                                                         ,ZORFCS
+        REAL(kind=KDBL),DIMENSION(:,:,:)  ,ALLOCATABLE :: ALBFC1,ALFFC1
+        REAL(kind=KDBL),DIMENSION(:,:,:)  ,ALLOCATABLE :: PHY_F2DV   ! save last time step 2Ds
+        REAL(kind=KDBL),DIMENSION(:,:,:,:),ALLOCATABLE :: PHY_F3DV   ! save last time step 3Ds
+        REAL(kind=KDBL),DIMENSION(:,:,:,:),ALLOCATABLE :: OZPLIN
 !
 !-----------------------------------------------------------------------
 !***  GFS microphysics additional arrays saving surface pressure,
 !     Temperature,water vapor at previous time steps, Weiguo Wang 11-22-2010
 !-----------------------------------------------------------------------
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TP1,QP1
-        REAL(kind=KFPT),DIMENSION(:,:),  POINTER :: PSP1
+        REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE :: TP1,QP1
+        REAL(kind=KFPT),DIMENSION(:,:),  ALLOCATABLE :: PSP1
 !
         LOGICAL(kind=KLOG) :: GFS
 !
@@ -537,10 +676,6 @@
 !-----------------------------------------------------------------------
 !***  Output
 !-----------------------------------------------------------------------
-!
-        INTEGER(kind=KINT) :: NUM_VARS = 0
-!
-        TYPE(VAR),DIMENSION(MAX_VARS) :: VARS
 !
         TYPE(ESMF_FieldBundle),DIMENSION(1:2) :: BUNDLE_ARRAY
 !

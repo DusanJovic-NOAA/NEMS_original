@@ -177,7 +177,7 @@
         CALL ESMF_LogSet(verbose    =ESMF_TRUE                          &
                         ,flush      =ESMF_TRUE                          &
                         ,rootOnly   =ESMF_FALSE                         &
-                        ,halt       =ESMF_LOG_HALTNEVER                 &  !<-- The job will not stop automatically
+                        ,halt       =ESMF_LOG_HALTERROR                 &  !<-- The job will stop automatically
                                                                            !    when an ESMF error occurs.
                         ,maxElements=1                                  &  !<-- Maximum number of elements in the log
                                                                            !    before printing them to the log file.
@@ -185,6 +185,7 @@
 #else
         CALL ESMF_LogSet(flush      =.true.                             &
                         ,trace      =.false.                            &
+                        ,logmsgAbort=(/ ESMF_LOGMSG_ERROR /)            &
                         ,rc         =RC)
 #endif
         ESMF_ERR_ABORT(RC)
