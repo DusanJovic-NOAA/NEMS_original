@@ -616,6 +616,7 @@
                                   ,value =int_state%RESTART             &  !<-- Put extracted quantity here
                                   ,label ='restart:'                    &  !<-- The quantity's label in the configure file
                                   ,rc    =RC)
+
       int_state%LISS_RESTART=int_state%RESTART                             !<-- Switch for LISS initialization
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1254,7 +1255,24 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !***  Gravity Wave Drag tunable coefficients:
-!***                 (CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN)
+!***              (CDMB,CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN)
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="GET_CONFIG: Extract CDMB from Config File"
+      IF(int_state%PRINT_ESMF .OR. int_state%PRINT_ALL) &
+      CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF                            &  !<-- The configure file object
+                                  ,value =int_state%CDMB                &  !<-- Put extracted quantity here
+                                  ,label ='cdmb:'                       &  !<-- The quantity's label in the configure file
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CONF)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

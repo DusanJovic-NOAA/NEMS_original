@@ -134,6 +134,8 @@
 !     LOGICAL(kind=KLOG) :: MOVE_NOW                                    &  !<-- Flag indicating if nested moves this timestep
 !                          ,MY_DOMAIN_MOVES                                !<-- Flag indicating if nested domain moves
 #endif
+ 
+      LOGICAL, SAVE :: BDY_WAS_READ
 !
       REAL(kind=KFPT),SAVE :: PT
 !
@@ -967,7 +969,7 @@
         ENDDO
         ENDDO
 !
-        DO N=1,int_state%NUM_TRACERS_MET
+        DO N=1,int_state%NUM_TRACERS_TOTAL
         DO L=1,LM
         DO J=JMS,JME
         DO I=IMS,IME
@@ -1117,6 +1119,7 @@
           int_state%SMSTAV(I,J)  = 0.
           int_state%SMSTOT(I,J)  = 0.
           int_state%SNO(I,J)     = 0.
+          int_state%SNOWC(I,J)   = 0.
           int_state%SNOPCX(I,J)  =-1.E6
           int_state%SOILTB(I,J)  = 273.
           int_state%SR(I,J)      =-1.E6
@@ -1219,6 +1222,8 @@
         DO N=1,NUM_DOMAINS_MAX
           int_state%NTSCM(N)=-999
         ENDDO
+!
+        BDY_WAS_READ=.FALSE.
 !
 !-----------------------------------------------------------------------
 !***  Initialize the timer variables now.
@@ -2610,7 +2615,7 @@
 !***  through this routine.
 !-----------------------------------------------------------------------
 !
-      USE MODULE_CONSTANTS,ONLY : CP,G,R,RHOWATER,STBOLT,XLV
+      USE MODULE_CONSTANTS,ONLY : CP,G,R,RHOWATER,STBOLT,XLV,R_D,R_V
 !
       USE MODULE_DYNAMICS_ROUTINES,ONLY: ADV1,ADV2                      &
                                         ,CDWDT,CDZDT,DDAMP,DHT          &
@@ -2703,7 +2708,7 @@
       INTEGER(kind=KINT) :: FILTER_METHOD,FILTER_METHOD_LAST            &
                            ,JULDAY,JULYR                                &
                            ,NPRECIP,NSTEPS_PER_CHECK,NSTEPS_PER_HOUR    &
-                           ,NSTEPS_PER_RESET
+                           ,NSTEPS_PER_RESET,USE_RADAR,USE_RADAR_FIRST
 !
       INTEGER(kind=KINT),SAVE :: HDIFF_ON                               &
                                 ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG          &
@@ -2731,7 +2736,7 @@
                                 ,LNSAD,LNSH,LNSV,LPT2,NBOCO             &
                                 ,N_PRINT_STATS                          &  !<--- Timesteps between statistics prints
                                 ,NUMERATOR_DT                           &
-                                ,IDENOMINATOR_DT
+                                ,IDENOMINATOR_DT,IFLAG
 !
       INTEGER(kind=KINT),DIMENSION(3),SAVE :: IDATBC
 !
@@ -2746,8 +2751,21 @@
                              ,DYH,DYV,EF4T,PDTOP,PT                     &
                              ,RDYH,RDYV,TBOCO
 !
+      REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE,SAVE :: RH_HOLD
+!
       LOGICAL(kind=KLOG),SAVE :: GLOBAL,HYDRO,RUNBC,SECADV
 !
+      REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE,SAVE :: HDACX_SV       &
+                                                       , HDACY_SV       &                       
+                                                       , HDACVX_SV      &
+                                                       , HDACVY_SV
+!
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE,SAVE :: DDMPU_SV,FAD_SV, &
+                                                       FAH_SV,FCP_SV
+!
+      REAL(kind=KFPT),SAVE :: DDMPV_SV,EF4T_SV
+!
+
       LOGICAL(kind=KLOG) :: COMPUTE_BC,FIRST_PASS
 !
       REAL(kind=KFPT) :: JULIAN,XTIME, FILT_DT, FUND_DT, DTRATIO
@@ -2759,6 +2777,10 @@
                            ,CALL_TURBULENCE                             &
                            ,CALL_PRECIP                                 &
                            ,CALL_GFS_PHY                                &
+!aligo
+                           ,RIME_FACTOR_ADVECT                          &
+                           ,RIME_FACTOR_INPUT                           &
+!aligo                           
                            ,LOC_PCPFLG
 !
       TYPE(ESMF_Time) :: STARTTIME,CURRTIME,SIMULATION_START_TIME
@@ -2989,6 +3011,8 @@
       TBOCO=int_state%TBOCO
       FILTER_METHOD=int_state%FILTER_METHOD      
       FILTER_METHOD_LAST=int_state%FILTER_METHOD_LAST
+      USE_RADAR=int_state%USE_RADAR
+      USE_RADAR_FIRST=int_state%USE_RADAR
 !
       P_QV=int_state%P_QV
       P_QC=int_state%P_QC
@@ -2998,6 +3022,14 @@
       P_QG=int_state%P_QG
       P_NI=int_state%P_NI           ! G. Thompson
       P_NR=int_state%P_NR           ! G. Thompson
+!aligo
+      RIME_FACTOR_ADVECT=.FALSE.
+      RIME_FACTOR_INPUT=.FALSE.
+      IF (TRIM(int_state%MICROPHYSICS) == 'fer_hires' .AND.         &
+          int_state%F_QG .AND. int_state%SPEC_ADV) THEN
+         RIME_FACTOR_ADVECT=.TRUE.
+      ENDIF
+!aligo
 !
       PARENT_CHILD_TIME_RATIO=int_state%PARENT_CHILD_TIME_RATIO
 !
@@ -3118,6 +3150,18 @@
 !     FILTER_METHOD_LAST=int_state%FILTER_METHOD_LAST
 !
 !-----------------------------------------------------------------------
+        if (USE_RADAR_FIRST == 1 .and. FIRST_PASS ) then
+           ALLOCATE(RH_HOLD(IMS:IME,JMS:JME,1:LM))
+           IFLAG=1 ! <----   IFLAG=1 takes T,Q,P and returns RH_HOLD
+           CALL CALC_RH_RADAR_DFI(int_state%T,int_state%Q,int_state%PD  &
+                                  ,int_state%PSGML1,int_state%SGML2     &
+                                  ,R_D,R_V,RH_HOLD                      & 
+                                  ,IMS,IME,JMS,JME,LM                   & 
+                                  ,IFLAG)
+
+
+        endif
+
 !
 !     ENDIF firstpass
 !
@@ -3195,6 +3239,8 @@
           DTPHY=int_state%DT*int_state%NPHS
 !
           CALL GWD_init(DTPHY,int_state%RESTART                         &
+                       ,int_state%CLEFFAMP,int_state%DPHD               &
+                       ,int_state%CLEFF                                 &
                        ,int_state%TPH0D,int_state%TLM0D                 &
                        ,int_state%GLAT,int_state%GLON                   &
                        ,int_state%CROT,int_state%SROT,int_state%HANGL   &
@@ -3214,10 +3260,33 @@
 !
       IF(FIRST_PASS)THEN
 !
+        IF (FILTER_METHOD /= 0) THEN
+!
+!*** Save copies of the internal state variables scaled by
+!*** DTRATIO below so we can restore them precisely after the filter 
+!*** (*_SV variables).  Needed for bit-wise identical restarts
+!
+          ALLOCATE(HDACX_SV(ITS:ITE,JTS:JTE),HDACY_SV(ITS:ITE,JTS:JTE),   &
+                   HDACVX_SV(ITS:ITE,JTS:JTE),HDACVY_SV(ITS:ITE,JTS:JTE))
+          ALLOCATE(DDMPU_SV(JDS:JDE),FAD_SV(JDS:JDE),FAH_SV(JDS:JDE),     &
+                   FCP_SV(JDS:JDE))
+ 
+          DDMPV_SV=int_state%DDMPV
+          EF4T_SV=int_state%EF4T
+        END IF
+
         int_state%DDMPV=IFACT*DTRATIO*int_state%DDMPV
         int_state%EF4T=IFACT*DTRATIO*int_state%EF4T
 !
         DO J=JDS,JDE
+
+          IF (FILTER_METHOD /= 0) THEN
+             DDMPU_SV(J) = int_state%DDMPU(J)
+             FAD_SV(J)   = int_state%FAD(J)
+             FAH_SV(J)   = int_state%FAH(J)
+             FCP_SV(J)   = int_state%FCP(J)
+          END IF
+
           int_state%DDMPU(J)=IFACT*int_state%DDMPU(J)
           int_state%FAD(J)=IFACT*DTRATIO*int_state%FAD(J)
           int_state%FAH(J)=IFACT*DTRATIO*int_state%FAH(J)
@@ -3227,19 +3296,26 @@
 !
         DO J=JTS,JTE
         DO I=ITS,ITE
+
+         IF (FILTER_METHOD /= 0) THEN
+            HDACX_SV(I,J)=int_state%HDACX(I,J)
+            HDACY_SV(I,J)=int_state%HDACY(I,J)
+            HDACVX_SV(I,J)=int_state%HDACVX(I,J)
+            HDACVY_SV(I,J)=int_state%HDACVY(I,J)
+         END IF
+
           int_state%HDACX(I,J)=IFACT*DTRATIO*int_state%HDACX(I,J)
           int_state%HDACY(I,J)=IFACT*DTRATIO*int_state%HDACY(I,J)
           int_state%HDACVX(I,J)=IFACT*DTRATIO*int_state%HDACVX(I,J)
           int_state%HDACVY(I,J)=IFACT*DTRATIO*int_state%HDACVY(I,J)
         ENDDO
         ENDDO
-!
       ENDIF
 !
       DDMPV=int_state%DDMPV
       EF4T=int_state%EF4T
 !
-      NBOCO=int(NBOCO/DTRATIO)
+      NBOCO=int(0.5+NBOCO/DTRATIO)
 !     IF (MYPE == 0) WRITE(0,*) 'NBOCO reset to : ', NBOCO
 !
 !-----------------------------------------------------------------------
@@ -3366,7 +3442,7 @@
 !-----------------------------------------------------------------------
 !
           DTRATIO=ABS(FUND_DT/DT_TEST_RATIO)
-          IF(MYPE == 0) WRITE(0,*) ' 2nd applying DTRATIO: ', DTRATIO
+          IF(MYPE == 0) WRITE(0,*) ' RESTORING PRE-FILTER CONSTANTS with DTRATIO: ', DTRATIO
 !
 !-----------------------------------------------------------------------
 !***  Setting previous time level variables (Adams-Bashforth scheme)
@@ -3380,8 +3456,12 @@
 !
           IFACT=1
 !
-          int_state%DDMPV=IFACT*DTRATIO*int_state%DDMPV
-          int_state%EF4T=IFACT*DTRATIO*int_state%EF4T
+          int_state%DDMPV=DDMPV_SV
+          int_state%EF4T=EF4T_SV
+
+          DDMPV=int_state%DDMPV
+          EF4T=int_state%EF4T
+
           DDMPV=int_state%DDMPV
           EF4T=int_state%EF4T
           NBOCO=int(0.5+NBOCO/DTRATIO)
@@ -3389,23 +3469,26 @@
 !         IF (MYPE == 0) WRITE(0,*) 'NBOCO reset to : ', NBOCO
 !
           DO J=JDS,JDE
-            int_state%DDMPU(J)=IFACT*int_state%DDMPU(J)
-            int_state%FAD(J)=IFACT*DTRATIO*int_state%FAD(J)
-            int_state%FAH(J)=IFACT*DTRATIO*int_state%FAH(J)
-            int_state%FCP(J)=IFACT*DTRATIO*int_state%FCP(J)
+            int_state%DDMPU(J)=DDMPU_SV(J)
+            int_state%FAD(J)=FAD_SV(J)
+            int_state%FAH(J)=FAH_SV(J)
+            int_state%FCP(J)=FCP_SV(J)
             int_state%WPDAR(J)=IFACT*int_state%WPDAR(J)
           ENDDO
 !
           DO J=JTS,JTE
           DO I=ITS,ITE
-            int_state%HDACX(I,J)=IFACT*DTRATIO*int_state%HDACX(I,J)
-            int_state%HDACY(I,J)=IFACT*DTRATIO*int_state%HDACY(I,J)
-            int_state%HDACVX(I,J)=IFACT*DTRATIO*int_state%HDACVX(I,J)
-            int_state%HDACVY(I,J)=IFACT*DTRATIO*int_state%HDACVY(I,J)
+            int_state%HDACX(I,J)=HDACX_SV(I,J)
+            int_state%HDACY(I,J)=HDACY_SV(I,J)
+            int_state%HDACVX(I,J)=HDACVX_SV(I,J)
+            int_state%HDACVY(I,J)=HDACVY_SV(I,J)
           ENDDO
           ENDDO
 !
 !-----------------------------------------------------------------------
+!
+          DEALLOCATE(HDACX_SV,HDACY_SV,HDACVX_SV,HDACVY_SV)
+          DEALLOCATE(DDMPU_SV,FAD_SV,FAH_SV,FCP_SV)
 !
           int_state%FIRST_STEP=.TRUE.
 !
@@ -3593,6 +3676,26 @@
       not_firststep: IF(.NOT.int_state%FIRST_STEP                       &  !<-- The following block is for all timesteps after
                         .OR.int_state%RESTART)THEN                         !    the first or all steps in restart case
 !
+
+        IF(FILTER_METHOD==0.and.USE_RADAR_FIRST==1.and.USE_RADAR==0)THEN
+            IFLAG=-1  !  <----   IFLAG=-1 takes RH_HOLD, and filtered
+                      !          T,P, to restore Q to be consistent with
+                      !          prefiltered humidity level
+
+!!! NOTE:  restoring down here means they are restored AFTER the 00 h
+!!!        output is written.  Any way to restore them before the output
+!!!        is written?
+
+            CALL CALC_RH_RADAR_DFI(int_state%T,int_state%Q,int_state%PD &
+                                  ,int_state%PSGML1,int_state%SGML2     &
+                                  ,R_D,R_V,RH_HOLD                      &
+                                  ,IMS,IME,JMS,JME,LM                   &
+                                  ,IFLAG)
+
+        USE_RADAR_FIRST=0
+
+        ENDIF
+
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
@@ -3704,6 +3807,8 @@
             IF(MYPE==0)THEN
               WRITE_BC_FLAG=0
 !
+!rv           IF(NTIMESTEP<=1 .AND. BDY_WAS_READ) THEN
+!
               IF(NTIMESTEP<=1                                           &
                      .AND.                                              &
                  int_state%PDBS(1,1,1)/=0                               &
@@ -3712,7 +3817,6 @@
 !
                 WRITE_BC_FLAG=1
               ELSE
-!
                 WRITE_BC_FLAG=0
               ENDIF
             ENDIF
@@ -3948,6 +4052,7 @@
 !
                 bc_flag: IF(WRITE_BC_FLAG==0)THEN
 !
+             if (MYPE .eq. 0) write(0,*) 'call READ_BC'
                   CALL READ_BC(LM,LNSH,LNSV,NTIMESTEP_BC,DT             &
                               ,RUNBC,IDATBC,IHRSTBC,TBOCO               &
                               ,int_state%PDBS,int_state%PDBN            &
@@ -4000,6 +4105,10 @@
 !-----------------------------------------------------------------------
 !
           btim=timef()
+!
+        if ( .not. BDY_WAS_READ )  then  
+             BDY_WAS_READ=.TRUE.
+        endif
 !
           CALL BOCOH                                                    &
             (LM,LNSH,DT,PT,int_state%DSG2,int_state%PDSG1               &
@@ -4368,6 +4477,20 @@
 !
         IF(int_state%SPEC_ADV)THEN
           KSE1=int_state%NUM_TRACERS_TOTAL
+!aligo
+          IF (RIME_FACTOR_ADVECT) THEN
+!-- WATER(:,:,:,P_QG)=F_RIMEF(:,:,:)*WATER(:,:,:,P_QS) for advection
+             RIME_FACTOR_INPUT=.TRUE.
+             CALL RIME_FACTOR_UPDATE (RIME_FACTOR_INPUT                 &
+                                     ,int_state%WATER                   &
+                                     ,int_state%NUM_WATER               &
+                                     ,int_state%P_QS,int_state%P_QG     &
+                                     ,int_state%F_RIMEF                 &
+                                     ,IDS,IDE,JDS,JDE,LM                &
+                                     ,IMS,IME,JMS,JME                   &
+                                     ,ITS,ITE,JTS,JTE)
+          ENDIF
+!aligo
         ELSE
           KSE1=KSE
         ENDIF
@@ -4496,6 +4619,20 @@
                 int_state%TRACERS(IMS:IME,JMS:JME,1:LM,KS),LM           &
                ,2,2)
 !
+!aligo
+              IF (RIME_FACTOR_ADVECT) THEN
+!-- F_RIMEF(:,:,:)=WATER(:,:,:,P_QG)/WATER(:,:,:,P_QS) for physics
+                 RIME_FACTOR_INPUT=.FALSE.
+                 CALL RIME_FACTOR_UPDATE (RIME_FACTOR_INPUT                 &
+                                         ,int_state%WATER                   &
+                                         ,int_state%NUM_WATER               &
+                                         ,int_state%P_QS,int_state%P_QG     &
+                                         ,int_state%F_RIMEF                 &
+                                         ,IDS,IDE,JDS,JDE,LM                &
+                                         ,IMS,IME,JMS,JME                   &
+                                         ,ITS,ITE,JTS,JTE)
+              ENDIF
+!aligo
             ENDIF
 !
           ENDDO
@@ -5192,6 +5329,7 @@
                         ,int_state%Z0,int_state%SICE                    &
                         ,int_state%MXSNAL,int_state%SGM                 &
                         ,int_state%STDH,int_state%OMGALF                &
+                        ,int_state%SNOWC                                &
 !------------------------------------------------------------------------
                         ,LM)
 !
@@ -5336,12 +5474,12 @@
                     ,int_state%RLWTT,int_state%RSWTT                    &   !! added by wang 2010-10-6
                     ,int_state%PD,int_state%T                           &
                     ,int_state%Q,int_state%CW                           &
-                    ,int_state%F_ICE,int_state%F_RAIN,int_state%SR      &
-                    ,int_state%Q2,int_state%U,int_state%V               &
+                    ,int_state%F_ICE,int_state%F_RAIN,int_state%F_RIMEF &
+                    ,int_state%SR,int_state%Q2,int_state%U,int_state%V  &
                     ,int_state%DUDT,int_state%DVDT                      &
                     ,int_state%THS,int_state%TSKIN,int_state%SST        &
                     ,int_state%PREC,int_state%SNO                       &
-                    ,int_state%WATER                                    &
+                    ,int_state%SNOWC,int_state%WATER                    &
                     ,int_state%P_QV,int_state%P_QC,int_state%P_QR       &
                     ,int_state%P_QI,int_state%P_QS,int_state%P_QG       &
                     ,int_state%F_QV,int_state%F_QC,int_state%F_QR       &
@@ -5382,7 +5520,7 @@
                     ,int_state%HLENW,int_state%HLENS,int_state%HLENSW   &
                     ,int_state%HLENNW,int_state%HANGL,int_state%HANIS   &
                     ,int_state%HSLOP,int_state%HZMAX                    &
-                    ,int_state%CLEFFAMP,int_state%SIGFAC                &
+                    ,int_state%CDMB,int_state%CLEFF,int_state%SIGFAC    &
                     ,int_state%FACTOP,int_state%RLOLEV                  &
                     ,int_state%DPMIN                                    &
                     ,int_state%RSWOUT,int_state%RSWTOA,int_state%RLWTOA &
@@ -5728,6 +5866,8 @@
                        ,int_state%TP1                                      &  !gfs mod-brad
                        ,int_state%QP1                                      &  !gfs mod-brad
                        ,int_state%PSP1                                     &  !gfs mod-brad
+                       ,int_state%USE_RADAR                                &
+                       ,int_state%DFI_TTEN                                 &
                        ,IDS,IDE,JDS,JDE,LM                                 &
                        ,IMS,IME,JMS,JME                                    &
                        ,ITS,ITE,JTS,JTE                                    &
@@ -8345,6 +8485,7 @@
       REAL,DIMENSION(LM) :: DSG1,PDSG1,PSGML1,SGML1,SGML2
       REAL,DIMENSION(LM+1) :: PSG1,SG1,SG2,SGM                          &
                              ,SFULL,SFULL_FLIP,SMID,SMID_FLIP
+      REAL(KIND=KDBL),DIMENSION(LM+1) :: SFULLD
 !
       REAL,DIMENSION(IMS:IME,JMS:JME) :: EMISS
       REAL,DIMENSION(:,:),ALLOCATABLE :: TEMP1,TEMP_GWD
@@ -8952,13 +9093,17 @@
 !***  End initialization  of ozone
 !-----------------------------------------------------------------------
 
+            DO L=1,LM+1
+              SFULLD(L)=SFULL(L)    !-- double precision
+            ENDDO
+
 !==========================================================================
 !  Similar to GFS "GFS_Initialize_ESMFMod.f" line #1103
 !==========================================================================
 
             call rad_initialize_nmmb                                   &
 !        ---  inputs:
-     &       ( SFULL,LM,ICTMx,ISOLx,ICO2x,IAERx,IAER_MDL,IALBx,IEMSx,  &
+     &       ( SFULLD,LM,ICTMx,ISOLx,ICO2x,IAERx,IAER_MDL,IALBx,IEMSx, &
      &         NTCWx,NP3Dx,NTOZx,IOVR_SWx,IOVR_LWx,ISUBCSWx,ISUBCLWx,  &
      &         SASHALx,CRICK_PROOFx,CCNORMx,NORAD_PRECIPx,IFLIPx,MYPE )
 !  ---        outputs:
@@ -9178,6 +9323,8 @@
         DTPHS=int_state%DT*int_state%NPHS
 !
         CALL GWD_init(DTPHS,int_state%RESTART                           &
+                      ,int_state%CLEFFAMP,int_state%DPHD                &
+                       ,int_state%CLEFF                                 &
                       ,int_state%TPH0D,int_state%TLM0D                  &
                       ,int_state%GLAT,int_state%GLON                    &
                       ,int_state%CROT,int_state%SROT,int_state%HANGL    &
@@ -9678,6 +9825,67 @@
 !----------------------------------------------------------------------
 !
       END SUBROUTINE UPDATE_WATER
+
+!----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+
+!
+      SUBROUTINE CALC_RH_RADAR_DFI(T,Q,PD,PSGML1,SGML2      &
+                                  ,R_D,R_V,RH_HOLD          &
+                                  ,IMS,IME,JMS,JME,LM       &
+                                  ,IFLAG)
+
+       USE MODULE_MP_ETANEW, ONLY : FERRIER_INIT,GPVS,FPVS  &
+                                   ,FPVS0,NX,RQR_DRmin      &
+                                   ,RQR_DRmax,MASSI,CN0R0   &
+                                   ,CN0r_DMRmin,CN0r_DMRmax
+
+       IMPLICIT NONE
+
+!tst
+       INTEGER, INTENT(IN):: IMS,IME,JMS,JME, LM
+
+       REAL :: T(IMS:IME,JMS:JME,1:LM)
+       REAL :: Q(IMS:IME,JMS:JME,1:LM)
+       REAL :: RH_HOLD(IMS:IME,JMS:JME,1:LM)
+       REAL :: PD(IMS:IME,JMS:JME)
+       REAL :: PSGML1(LM),SGML2(LM)
+       REAL :: R_D,R_V,PMID,VPRES,SATVPRES, EPS, DEN
+       INTEGER :: IFLAG,I,J,L
+
+        EPS=R_D/R_V
+
+        IF (IFLAG == 1) THEN
+        DO L=1,LM
+          DO J=JMS,JME
+            DO I=IMS,IME
+            PMID=SGML2(L)*PD(I,J)+PSGML1(L)
+            DEN=EPS+Q(I,J,L)*(1.-EPS)
+            VPRES=PMID*Q(I,J,L)/DEN
+            SATVPRES=1.E3*FPVS0(T(I,J,L))
+            RH_HOLD(I,J,L)=VPRES/SATVPRES
+            ENDDO
+          ENDDO
+        ENDDO
+        ENDIF
+
+        IF (IFLAG == -1) THEN
+        DO L=1,LM
+          DO J=JMS,JME
+            DO I=IMS,IME
+            SATVPRES=1.E3*FPVS0(T(I,J,L))
+            VPRES=SATVPRES*RH_HOLD(I,J,L)
+            PMID=SGML2(L)*PD(I,J)+PSGML1(L)
+            DEN=PMID-VPRES*(1.-EPS)
+            Q(I,J,L)=VPRES*EPS/DEN
+            ENDDO
+          ENDDO
+        ENDDO
+        ENDIF
+
+      END SUBROUTINE CALC_RH_RADAR_DFI
+
  
 !----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
@@ -9770,6 +9978,98 @@
       END SUBROUTINE CLTEND
 !
 !-----------------------------------------------------------------------
+!----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+
+      SUBROUTINE RIME_FACTOR_UPDATE (RIME_FACTOR_INPUT                  &
+                                    ,WATER,NUM_WATER                    &
+                                    ,P_QS,P_QG,F_RIMEF                  &
+                                    ,IDS,IDE,JDS,JDE,LM                 &
+                                    ,IMS,IME,JMS,JME                    &
+                                    ,ITS,ITE,JTS,JTE)
+!----------------------------------------------------------------------
+!$$$  SUBPROGRAM DOCUMENTATION BLOCK
+!                .      .    .
+! SUBPROGRAM:  RIME_FACTOR_UPDATE
+!   PRGRMMR: FERRIER         ORG: W/NP22     DATE: 2013-06-14
+!
+! ABSTRACT:
+!
+!     UPDATES THE RIME FACTOR ARRAY AFTER 3D ADVECTION
+!
+! USAGE: CALL CLTEND FROM SOLVER_RUN
+!   INPUT ARGUMENT LIST:
+!     RIME_FACTOR_INPUT= TRUE BEFORE ADVECTION, RIME_FACTOR IS INPUT
+!     RIME_FACTOR_INPUT=FALSE BEFORE ADVECTION, RIME FACTOR IS OUTPUT
+!
+!   OUTPUT ARGUMENT LIST:  NONE
+!
+!   OUTPUT FILES:  NONE
+!
+!   SUBPROGRAMS CALLED:  NONE
+!
+!   UNIQUE: NONE
+!
+!   LIBRARY: NONE
+!
+! ATTRIBUTES:
+!   LANGUAGE: FORTRAN 90
+!   MACHINE : IBM SP
+!$$$
+!----------------------------------------------------------------------
+!
+      IMPLICIT NONE
+!
+!----------------------------------------------------------------------
+!
+      LOGICAL,INTENT(IN) :: RIME_FACTOR_INPUT
+!
+      INTEGER,INTENT(IN) :: NUM_WATER,P_QS,P_QG                        &
+                           ,IDS,IDE,JDS,JDE,LM                         &
+                           ,IMS,IME,JMS,JME                            &
+                           ,ITS,ITE,JTS,JTE
+!
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: F_RIMEF
+!
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,NUM_WATER),INTENT(INOUT) :: WATER
+!
+!***  LOCAL VARIABLES
+!
+      INTEGER :: I,J,K
+      REAL :: RIMEF
+!
+!----------------------------------------------------------------------
+      IF (RIME_FACTOR_INPUT) THEN     !-- Before advection
+         DO K=1,LM
+           DO J=JTS,JTE
+             DO I=ITS,ITE
+                WATER(I,J,K,P_QG)=WATER(I,J,K,P_QS)*F_RIMEF(I,J,K)
+             ENDDO
+           ENDDO
+         ENDDO
+!
+         CALL HALO_EXCH(WATER(:,:,:,P_QG),LM,2,2)
+!
+
+      ELSE                            !-- After advection
+         DO K=1,LM
+           DO J=JMS,JME
+             DO I=IMS,IME
+                IF (WATER(I,J,K,P_QG)>EPSQ .AND.                        &
+                    WATER(I,J,K,P_QS)>EPSQ) THEN
+                   RIMEF=WATER(I,J,K,P_QG)/WATER(I,J,K,P_QS)
+                   F_RIMEF(I,J,K)=MIN(50., MAX(1.,RIMEF) )
+                ELSE
+                   F_RIMEF(I,J,K)=1.
+                ENDIF
+             ENDDO
+           ENDDO
+         ENDDO
+      ENDIF
+      END SUBROUTINE RIME_FACTOR_UPDATE
+!
+!----------------------------------------------------------------------
  
 !----------------------------------------------------------------------
 !######################################################################

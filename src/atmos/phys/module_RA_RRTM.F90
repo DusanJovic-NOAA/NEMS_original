@@ -10,14 +10,14 @@
 !
       USE MODULE_INCLUDE
 !
-      use machine,       only : kind_phys
       use physpara,      only : icldflg, ioznflg, NTCWx,               &
-                                NCLDX, NTRAC, LSSAV, LPRNT
+                                NCLDX, NTRAC, LSSAV, LPRNT, kind_phys
       use physcons,      only : con_pi
 
       USE MODULE_CONSTANTS, ONLY : R,CP,PI,EPSQ,STBOLT,EP_2
 
-      USE MODULE_MP_ETANEW, ONLY : RHgrd,T_ICE,FPVS
+!      USE MODULE_MP_ETANEW, ONLY : RHgrd,T_ICE,FPVS
+      USE MODULE_MP_FER_HIRES, ONLY : RHgrd,T_ICE,FPVS
 
       use module_radiation_driver_nmmb,  only : grrad_nmmb
 
@@ -50,7 +50,8 @@
 !--------------------------------
 !
       REAL, PARAMETER ::  &
-     &   TRAD_ice=0.5*T_ice      & !--- Very tunable parameter
+!     &   TRAD_ice=0.5*T_ice      & !--- Very tunable parameter
+     &   TRAD_ice=-30.           & !--- Very tunable parameter
      &,  ABSCOEF_W=800.            & !--- Very tunable parameter
      &,  ABSCOEF_I=500.            & !--- Very tunable parameter
      &,  Qconv=0.1e-3            & !--- Very tunable parameter
@@ -67,7 +68,7 @@
 !         CU_DEEP_MIN (50 hPa) and CU_DEEP_MAX (200 hPa).
 !     (4) Convective precipitation rate must be <0.01 mm/h.  
 !
-      LOGICAL, SAVE :: CUCLD=.TRUE.
+      LOGICAL, SAVE :: CUCLD=.FALSE.  ! was .TRUE.
 !
 !-- After several tuning experiments, a value for QW_CU=0.003 g/kg should 
 !   produce a cloud fraction of O(25%) and a SW reduction of O(100 W/m**2) 
@@ -90,7 +91,7 @@
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
-      SUBROUTINE RRTM (NTIMESTEP,DT_INT,JDAT                            &
+      SUBROUTINE RRTM (NTIMESTEP,DT,JDAT                                &
      &                    ,NPHS,GLAT,GLON                               &
      &                    ,NRADS,NRADL                                  &
      &                    ,DSG2,SGML2,PDSG1,PSGML1                      &
@@ -109,7 +110,7 @@
      &                    ,CFRACL,CFRACM,CFRACH                         &
      &                    ,ACFRST,NCFRST                                &
      &                    ,ACFRCV,NCFRCV                                &
-     &                    ,CUPPT,SNOW,SI                                &
+     &                    ,CUPPT,SNOWC,SI                               & !was SNOW
      &                    ,HTOP,HBOT                                    &
      &                    ,TSKIN,Z0,SICE,F_RIMEF,MXSNAL,SGM,STDH,OMGALF &
      &                    ,IMS,IME,JMS,JME                              &
@@ -127,7 +128,7 @@
       INTEGER,INTENT(IN) :: IME,IMS,ITE,ITS                             &
      &                     ,JME,JMS,JTE,JTS                             &
      &                     ,LM,MYPE                                     &
-     &                     ,NTIMESTEP,DT_INT                            &
+     &                     ,NTIMESTEP                                   &
      &                     ,NPHS,NRADL,NRADS                            &
      &                     ,NUM_WATER
 !
@@ -137,7 +138,7 @@
 !
       INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: NCFRCV,NCFRST
 !
-      REAL,INTENT(IN) :: PT
+      REAL,INTENT(IN) :: PT,DT
 
       real (kind=kind_phys), INTENT(IN) :: SOLCON
 !
@@ -145,7 +146,7 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: CUPPT               &
                                                    ,GLAT,GLON           &
-                                                   ,PD,SM,SNOW,SI        
+                                                   ,PD,SM,SNOWC,SI        !was SNOW
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: ALBEDO
 
@@ -190,7 +191,7 @@
 
       INTEGER :: ICWP, NTOZ, NTCW
 !
-      REAL*8 :: FHSWR, FHLWR, DTSW, DTLW, RTvR
+      REAL*8 :: FHSWR, FHLWR, DTSW, DTLW, RTvR, ARG_CW
 !
       REAL*8,DIMENSION(1) :: FLGMIN_L, CV, CVB, CVT, HPRIME_V, TSEA,      &
                              TISFC, FICE, ZORL, SLMSK, SNWDPH, SNCOVR,    &
@@ -228,7 +229,7 @@
 !
       REAL*8,DIMENSION(NFLUXR) :: FLUXR_V
 !
-      REAL*8,DIMENSION(1,LM,3) :: GR1   
+      REAL*8,DIMENSION(1,LM,NTRAC) :: GR1   
 !
       REAL*8,DIMENSION(LM) :: SWH, HLW
 !
@@ -248,7 +249,7 @@
       INTEGER :: IXSD,NTSPH,NRADPP,NC,NMOD,LCNVT,LCNVB,NLVL,MALVL, &
                  LLTOP,LLBOT,KBT2,KTH1,KBT1,KTH2,KTOP1,LM1,LL
 !
-      REAL, PARAMETER :: EPSQ1=1.E-5,EPSQ=1.E-12,EPSO3=1.E-10,H0=0., &
+      REAL, PARAMETER :: EPSQ1=1.E-5,EPSQ2=1.E-8,EPSO3=1.E-10,H0=0., &
                          H1=1.,HALF=.5,T0C=273.15,CUPRATE=24.*1000., &
                          HPINC=HALF*1.E1, CLFRmin=0.01, TAUCmax=4.161, &
                          XSDmin=-XSDmax, DXSD1=-DXSD, STSDM=0.01, & 
@@ -411,7 +412,7 @@
 !         THEY ARE INTEGER MULTIPLES OF EACH OTHER
 !  CLSTP IS THE NUMBER OF HOURS OF THE ACCUMULATION PERIOD
 !
-      NTSPH=NINT(3600./FLOAT(DT_INT))
+      NTSPH=NINT(3600./DT)
       NRADPP=MIN(NRADS,NRADL)
       CLSTP=1.0*NRADPP/NTSPH
       CONVPRATE=CUPRATE/CLSTP
@@ -776,10 +777,10 @@
       CVB(1)=0.d0         ! not in use
       CVT(1)=0.d0         ! not in use
 
-      FHSWR=FLOAT(NRADS*DT_INT)/3600.   ! [h]
-      FHLWR=FLOAT(NRADL*DT_INT)/3600.   ! [h]
-      DTLW =FLOAT(NRADL*DT_INT)         ! [s]
-      DTSW =FLOAT(NRADS*DT_INT)         ! [s]
+      FHSWR=(NRADS*DT)/3600.        ! [h]
+      FHLWR=(NRADL*DT)/3600.        ! [h]
+      DTLW =(NRADL*DT)              ! [s]
+      DTSW =(NRADS*DT)              ! [s]
       LSSWR=MOD(NTIMESTEP,NRADS)==0
       LSLWR=MOD(NTIMESTEP,NRADL)==0
 
@@ -822,7 +823,7 @@
        TISFC(1)=TSKIN(I,J)                  ! change later if necessary
        ZORL(1)=Z0(I,J)*100.d0
        SNWDPH(1)=SI(I,J)                    ! snwdph[mm]
-       SNCOVR(1)=SNOW(I,J)/(SNOW(I,J)+70.)  ! FORMULATION OF MARSHALL ET AL. 1994
+       SNCOVR(1)=SNOWC(I,J)                 ! fractional snow cover from LSM
        SNOALB(1)=MXSNAL(I,J)
        HPRIME_V(1)=STDH(I,J)
 
@@ -858,6 +859,27 @@
         F_ICEC(L)=F_ICE(I,J,L)
         F_RAINC(L)=F_RAIN(I,J,L)
         R_RIME(L)=F_RIMEF(I,J,L)
+
+ !-- Build in tiny amounts of subgrid-scale cloud when no cloud is
+ !   present and RH > 95%
+
+        WV=GQ(L)/(1.-GQ(L))                   !-- Water vapor mixing ratio
+        ESAT=FPVS(T(I,J,L))                   !-- Saturation vapor pressure (kPa)
+        QSAT=EP_2*ESAT/(PRSL(L)-ESAT)         !-- Saturation mixing ratio
+        RHUM=WV/QSAT                          !-- Relative humidity
+        IF (GR1(1,L,3)<EPSQ .AND. RHUM>0.95) THEN
+           ARG=MIN(0.01, RHUM-0.95)*QSAT
+           GR1(1,L,3)=MIN(0.01E-3, ARG)
+           TCLD=T(I,J,L)-T0C
+           IF (TCLD>TRAD_ICE) THEN
+              F_ICEC(L)=0.
+           ELSE
+              F_ICEC(L)=1.
+           ENDIF
+           F_RAINC(L)=0.
+           R_RIME(L)=1.
+        ENDIF
+
         TAUCLOUDS(L)=TAUTOTAL(I,J,L)    !CLOUD OPTICAL DEPTH (ICWP==-1)
         CLDF(L)=CLDFRA(I,J,L)           !CLOUD FRACTION (ICWP==-1)
       ENDDO
@@ -965,6 +987,22 @@
 
       IF (ICWP /= -1) THEN
          IF ( LSSAV ) THEN
+         !===========================================================
+         ! Eliminate cloud fraction form GR1 & RH<95% (20140334, Lin)
+         ! EPSQ2=1.e-8 (and not EPSQ=1.e-12) based on multiple tests
+         !===========================================================
+            ARG_CW = MAXVAL( CW(I,J,1:LM) )
+            IF (ARG_CW<EPSQ2) THEN  
+               DO L=1,LM
+                  CLDCOV_V(L) = 0.d0
+               ENDDO
+               DO NC=1,5
+                  CLDSA_V(NC) = 0.d0
+               ENDDO
+            ENDIF
+         !===== end of eliminating extra cloud fraction =====
+         !=========================================================
+
             DO L=1,LM
                CLDFRA(I,J,L)=CLDCOV_V(L)
                CSMID(I,J,L)=CLDCOV_V(L)

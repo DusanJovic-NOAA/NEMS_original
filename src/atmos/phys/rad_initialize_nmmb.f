@@ -108,8 +108,8 @@
      &       ntcw, ialb, iems, num_p3d, ntoz, iovr_sw, iovr_lw,         &
      &       isubc_sw, isubc_lw, iflip, me
 
-      ! real (kind=kind_phys), intent(in) :: si(levr+1)
-      real , intent(in) :: si(levr+1)
+      real (kind=kind_phys), intent(in) :: si(levr+1)
+      ! real , intent(in) :: si(levr+1)
 
       logical, intent(in) :: sashal, crick_proof, ccnorm, norad_precip
 

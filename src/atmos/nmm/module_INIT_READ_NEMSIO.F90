@@ -544,7 +544,7 @@ integer,allocatable       :: reclev(:)
       endif
 !
 !-----------------------------------------------------------------------
-!***  SNO
+!***  SNO and SNOWC
 !-----------------------------------------------------------------------
 !
       call getrecn(recname,reclevtyp,reclev,nrec,'sno','sfc',1,recn)
@@ -554,6 +554,11 @@ integer,allocatable       :: reclev(:)
           js=(j-jts)*(ite-its+1)
           do i=its,ite
             int_state%SNO(i,j)=tmp(i-its+1+js+fldst)
+            if(int_state%SNO(i,j).gt.0.) then          !2013
+               int_state%SNOWC(i,j) = 0.98
+            else
+               int_state%SNOWC(i,j) = 0.0
+            endif
           enddo
         enddo
       endif
@@ -2085,6 +2090,22 @@ integer,allocatable       :: reclev(:)
           enddo
         enddo
       endif
+!
+!-----------------------------------------------------------------------
+!***  SNOWC
+!-----------------------------------------------------------------------
+!
+      call getrecn(recname,reclevtyp,reclev,nrec,'snowc','sfc',1,recn)
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%SNOWC(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+!
 !-----------------------------------------------------------------------
 !***  SNOPCX
 !-----------------------------------------------------------------------

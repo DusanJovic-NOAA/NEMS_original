@@ -3032,7 +3032,9 @@
                                 ,domain_int_state%NUM_FIELDS_FILTER_4D  &
                                 ,domain_int_state%FILT_BUNDLE_RESTORE   &
                                 ,domain_int_state%NUM_FIELDS_RESTORE_2D &
-                                ,domain_int_state%NUM_FIELDS_RESTORE_3D)
+                                ,domain_int_state%NUM_FIELDS_RESTORE_3D & 
+                                ,RESTARTED_RUN)
+
 !
           domain_int_state%FIRST_FILTER=.TRUE.
 !
@@ -3764,6 +3766,16 @@
                               ,rc   =RC)
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 #endif
+
+#ifdef ESMF_3
+        CALL ESMF_AttributeGet(state=IMP_STATE       &  !<-- The DOMAIN import state                 
+                              ,name ='Use_Radar'     &  !<-- Name of the attribute to extract                   
+                              ,value=USE_RADAR       &  
+                              ,rc   =RC)
+#endif
+
+        solver_int_state%USE_RADAR=USE_RADAR
+
 !
 	CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER  &
                               ,name ='Use_Radar'                        &
@@ -5372,7 +5384,8 @@
                                   ,NUM_VARS_4D_FILTER                   &
                                   ,FILT_BUNDLE_RESTORE                  &
                                   ,NUM_VARS_2D_RESTORE                  &
-                                  ,NUM_VARS_3D_RESTORE)
+                                  ,NUM_VARS_3D_RESTORE                  & 
+                                  ,RESTART)
 
 !-----------------------------------------------------------------------
 !***  For digital filtering purposes, the model needs to know both which
@@ -5387,6 +5400,8 @@
 !------------------------
 !
       INTEGER(kind=KINT),INTENT(IN) :: UBOUND_VARS                         !<-- Upper dimension of the VARS array
+!
+      LOGICAL(kind=KLOG),INTENT(IN):: RESTART
 !
       TYPE(ESMF_Grid),INTENT(IN) :: GRID_DOMAIN                            !<-- The ESMF Grid for this domain
 !
@@ -5464,6 +5479,12 @@
           FILT_TYP_INT=1
         ELSEIF (CH_FILTREST(1:1)=='R') THEN
           FILT_TYP_INT=2
+        ELSEIF (CH_FILTREST(1:1)=='B') THEN
+          IF (RESTART) THEN
+            FILT_TYP_INT=2
+          ELSE
+            FILT_TYP_INT=1
+          ENDIF
         ELSE 
           FILT_TYP_INT=-999
         ENDIF

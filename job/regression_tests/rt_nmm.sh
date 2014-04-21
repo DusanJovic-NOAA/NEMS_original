@@ -56,11 +56,10 @@ elif [ $SCHEDULER = 'pbs' ]; then
 
 cat nmm_conf/nmm_qsub.IN         | sed s:_JBNME_:${JBNME}:g   \
                                  | sed s:_ACCNR_:${ACCNR}:g   \
-                                 | sed s:_SRCD_:${PATHTR}:g                  \
+                                 | sed s:_SRCD_:${PATHTR}:g   \
                                  | sed s:_WLCLK_:${WLCLK}:g   \
                                  | sed s:_TASKS_:${TASKS}:g   \
-                                 | sed s:_THRD_:${THRD}:g     \
-                                 | sed s:_RUND_:${RUNDIR}:g   >  nmm_qsub
+                                 | sed s:_THRD_:${THRD}:g     >  nmm_qsub
 
 elif [ $SCHEDULER = 'lsf' ]; then
 

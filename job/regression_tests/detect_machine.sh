@@ -1,3 +1,4 @@
+
 HOSTNAME='hostname -f' ; if [ `uname` = AIX ]; then HOSTNAME='hostname' ; fi
 
 case `$HOSTNAME` in
@@ -33,24 +34,32 @@ case `$HOSTNAME` in
   fe8.zeus.fairmont.rdhpcs.noaa.gov) MACHINE_ID=zeus ;;    ### zeus8
 
 esac
-echo $MACHINE_ID
-
+echo "Machine: " $MACHINE_ID "    Account: " $ACCNR
 
 # --- for Zeus, find available account ID
-if [ ${MACHINE_ID} = zeus ]; then
-  clear
-  ACCNR=null
-  for i in cmp gefs omd nems rm gm ada
-  do
-    printf %s "Looking for account ID: " $i " ..."
-    nr=`account_params 2>&1 | grep -v Initial | grep " "$i" " | wc -l`
+  AP=account_params          # Account info
+if [ ${MACHINE_ID} = zeus -a ${ACCNR:-null} = null ]; then
 
-    if [ $nr -eq 2 ]; then
-      ACCNR=$i ; echo OK
+  ac=`$AP 2>&1 | grep '^\s*Allocation: [0-9]' | awk '$4>100{print $3}'| head -1`
+  nr=`echo $ac|wc -w`
+
+  if [ $nr -eq 1 ]; then
+    ACCNR=$ac
+    echo "Found a valid account: using $ac"
+  else
+    ac=`$AP 2>&1 | grep '^\s*Allocation: [0-9]' | awk '{print $3}'| head -1`
+    nr=`echo $ac|wc -w`
+    if [ $nr -eq 1 ]; then
+      ACCNR=$ac
+      echo "Could not an find account with positive balance: using $ac"
+      echo "NOTE: Will run in windfall; longer wait times, be patient!"
     else
-      echo
+      echo "Check your account ID; No compute allocations found"
     fi
-  done
-  if [ $ACCNR = null ]; then echo "Check your account ID"; exit ; fi
-  clear
+  fi
+else
+  cphr=`$AP 2>&1 | grep '^\s*Allocation: [0-9]' | grep $ACCNR | awk '{print $4}'`
+  nr=`echo $cphr|wc -w`
+  if [ $nr -eq 0 ]; then echo 'Wrong account choice: ' $ACCNR ; exit ; fi
+  echo "Account: " $ACCNR", available: " $cphr " CPU hrs"
 fi

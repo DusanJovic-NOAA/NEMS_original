@@ -193,7 +193,8 @@
                   SNOWC,QSFC,RAINBL,                            &
                   num_soil_layers,DT,DZS,ITIMESTEP,             &
                   SMOIS,TSLB,SNOW,CANWAT,                       &
-                  CHS,CHS2,CQS2,CPM,ROVCP,SR,chklowq,qz0,       & !H   
+                  CHS,CHS2,CQS2,CPM,ROVCP,                      & !H   
+                  SR,RIMEF,chklowq,qz0,                         & !H   
                   myj,frpcpn,                                   & 
                   SH2O,SNOWH,                                   & !H 
                   U_PHY,V_PHY,                                  & !I
@@ -345,6 +346,7 @@
 !-- kte         end index for k in tile
 !
 !-- SR          fraction of frozen precip (0.0 to 1.0)
+!-- RIMEF       rime factor for density of frozen precip (>=1)
 !----------------------------------------------------------------
 
 ! IN only
@@ -368,7 +370,8 @@
                                                         ALBBCK, &
                                                         RAINBL, &
                                                         EMISS,  &
-                                                        SR
+                                                        SR,     &
+                                                        RIMEF     ! 2013
 
    REAL,    DIMENSION( ims:ime, jms:jme, 1:kte )              , &
             INTENT(IN   )    ::                           DZ8W
@@ -437,7 +440,7 @@
       REAL  ::  BETA, ETP, SSOIL,EC, EDIR, ESNOW, ETT,        &
                 FLX1,FLX2,FLX3, DRIP,DEW,FDOWN,RC,PC,RSMIN,XLAI,  &
 !                RCS,RCT,RCQ,RCSOIL
-                RCS,RCT,RCQ,RCSOIL,FFROZP
+                RCS,RCT,RCQ,RCSOIL,FFROZP,RIMEf1
                                                                            
     LOGICAL,    INTENT(IN   )    ::     myj,frpcpn
 
@@ -478,6 +481,7 @@
       REAL  :: SNCOVR,SNEQV,SNOWHK,CMC, CHK,TH2
 
       REAL  :: SMCDRY,SMCMAX,SMCREF,SMCWLT,SNOMLT,SOILM,SOILW,Q1,T1 
+!      REAL  :: RIMEF1             ! 2013
 
       REAL  :: DUMMY,Z0BRD
 !
@@ -630,6 +634,10 @@
      SLDPTH(NS)=DZS(NS)
      ENDDO
 
+!     write(75,*) 'Before snow cover update'
+!     write(75,125) SNOWC
+ 125 FORMAT(10F6.2)
+
    DO J=jts,jte
 
 !!!   IF(ITIMESTEP.EQ.0)THEN
@@ -665,6 +673,8 @@
 
 !-----------------------------------------------------------------------
       DO 100 I=its,ite                                                    
+! Rime factor  2013
+         RIMEF1=RIMEF(I,J)
 ! surface pressure
         PSFC=P8w3D(i,j,KTE+1)
 ! pressure in middle of lowest layer
@@ -877,7 +887,7 @@
                  EC,EDIR,ET,ETT,ESNOW,DRIP,DEW,                   &    !O
                  BETA,ETP,SSOIL,                                  &    !O
                  FLX1,FLX2,FLX3,                                  &    !O
-                 SNOMLT,SNCOVR,                                   &    !O
+                 SNOMLT,SNCOVR,RIMEF1,                            &    !O
                  RUNOFF1,RUNOFF2,RUNOFF3,                         &    !O
                  RC,PC,RSMIN,XLAI,RCS,RCT,RCQ,RCSOIL,             &    !O
                  SOILW,SOILM,Q1,                                  &    !D
@@ -1130,8 +1140,10 @@
           SFCRUNOFF(I,J)=SFCRUNOFF(I,J)+RUNOFF1*DT*1000.0
           UDRUNOFF(I,J)=UDRUNOFF(I,J)+(RUNOFF2+RUNOFF3)*DT*1000.0
 ! snow defined when fraction of frozen precip (FFROZP) > 0.5,
-          IF(FFROZP.GT.0.5)THEN
-            ACSNOW(I,J)=ACSNOW(I,J)+PRCP*DT
+! 2/14: snow defined when fraction of frozen precip (FFROZP) > 0.0,
+          IF(FFROZP.GT.0.0)THEN
+!           ACSNOW(I,J)=ACSNOW(I,J)+PRCP*DT
+            ACSNOW(I,J)=ACSNOW(I,J)+FFROZP*PRCP*DT
           ENDIF
           IF(SNOW(I,J).GT.0.)THEN
             ACSNOM(I,J)=ACSNOM(I,J)+SNOMLT*1000.
@@ -1144,6 +1156,9 @@
   100 CONTINUE                                                          ! of I loop
 
    ENDDO                                                                ! of J loop
+!     write(75,*) 'After snow cover update'
+!     write(75,125) SNOWC
+
 !------------------------------------------------------
    END SUBROUTINE noahlsm
 !------------------------------------------------------
@@ -1527,7 +1542,7 @@
                        EC,EDIR,ET,ETT,ESNOW,DRIP,DEW,                   &    !O  
                        BETA,ETP,SSOIL,                                  &    !O  
                        FLX1,FLX2,FLX3,                                  &    !O  
-                       SNOMLT,SNCOVR,                                   &    !O  
+                       SNOMLT,SNCOVR,RIMEF1,                            &    !O  
                        RUNOFF1,RUNOFF2,RUNOFF3,                         &    !O  
                        RC,PC,RSMIN,XLAI,RCS,RCT,RCQ,RCSOIL,             &    !O  
                        SOILW,SOILM,Q1,                                  &    !D  
@@ -1589,6 +1604,7 @@
 !   Q2         MIXING RATIO AT HEIGHT ZLVL ABOVE GROUND (KG KG-1)                
 !   COSZ       Solar zenith angle (not used for now)                             
 !   PRCPRAIN   Liquid-precipitation rate (KG M-2 S-1) (not used)                 
+!   RIMEF1     Rime factor for frozen precipitation
 ! SOLARDIRECT  Direct component of downward solar radiation (W M-2) (not used)   
 ! ----------------------------------------------------------------------         
 ! 4. OTHER FORCING (INPUT) DATA (I):                                             
@@ -1736,7 +1752,7 @@
       REAL, INTENT(IN)   :: DT,DQSDT2,LWDN,PRCP,PRCPRAIN,                   & 
                             Q2,Q2SAT,SFCPRS,SFCSPD,SFCTMP, SNOALB,          & 
                             SOLDN,SOLNET,TBOT,TH2,ZLVL,                     &
-                            EMISSI, FFROZP                                         
+                            EMISSI, FFROZP, RIMEF1               
       REAL, INTENT(INOUT):: COSZ, SOLARDIRECT,ALBEDO,CH,CM,RIBB,            &  
                             CMC,SNEQV,SNCOVR,SNOWH,T1,XLAI,SHDFAC,Z0BRD,ALB
       REAL, DIMENSION(1:NSOIL), INTENT(IN) :: SLDPTH      
@@ -1816,7 +1832,7 @@
              SMCMAX = 0.45
              SMCREF = 0.42
              SMCWLT = 0.40
-             SMCDRY = 0.40   !urban swamp fix
+             SMCDRY = 0.40
 
              BEXP = 17.0
              SMHIGH = 3.02
@@ -1846,7 +1862,7 @@
 !   SUBROUTINE)                                                                  
 ! ----------------------------------------------------------------------         
          END IF                                                                  
-         IF (SNEQV == 0.0) THEN                                                
+         IF (SNEQV == 0.0) THEN                  
             SNDENS = 0.0                                                         
             SNOWH = 0.0                                                          
             SNCOND = 1.0                                                         
@@ -1866,11 +1882,18 @@
          IF (PRCP > 0.0) THEN                                                 
 ! snow defined when fraction of frozen precip (FFROZP) > 0.5,
 ! passed in from model microphysics.
-            IF (FFROZP .GT. 0.5) THEN
-               SNOWNG = .TRUE.                                                   
-            ELSE                                                                 
-               IF (T1 <= TFREEZ) FRZGRA = .TRUE.                               
-            END IF                                                               
+!            IF (FFROZP .GT. 0.5) THEN
+!               SNOWNG = .TRUE.                                                   
+!            ELSE                                                                 
+!               IF (T1 <= TFREEZ) FRZGRA = .TRUE.                               
+!            END IF                                                               
+! 2013
+            IF (FFROZP .GT. 0.0) THEN
+              SNOWNG = .TRUE.
+            ENDIF
+            IF ((T1 <= TFREEZ).and.(FFROZP<1)) THEN
+               FRZGRA = .TRUE.
+            ENDIF
          END IF                                                                  
 ! ----------------------------------------------------------------------         
 ! IF EITHER PRCP FLAG IS SET, DETERMINE NEW SNOWFALL (CONVERTING PRCP            
@@ -1879,16 +1902,30 @@
 ! NOTE THAT SINCE ALL PRECIP IS ADDED TO SNOWPACK, NO PRECIP INFILTRATES         
 ! INTO THE SOIL SO THAT PRCP1 IS SET TO ZERO.                                    
 ! ----------------------------------------------------------------------         
-         IF ( (SNOWNG) .OR. (FRZGRA) ) THEN                                      
-            SN_NEW = PRCP * DT * 0.001                                           
-            SNEQV = SNEQV + SN_NEW                                               
-            PRCPF = 0.0                                                          
+!         IF ( (SNOWNG) .OR. (FRZGRA) ) THEN
+!            SN_NEW = PRCP * DT * 0.001
+!            SNEQV = SNEQV + SN_NEW
+!            PRCPF = 0.0
+! 2013
+         IF ( (SNOWNG) .OR. (FRZGRA) ) THEN
+            IF ( (FRZGRA) ) THEN                                      
+               SN_NEW = PRCP * DT * 0.001                                           
+               SNEQV = SNEQV + SN_NEW                                               
+               PRCPF = 0.0                                                          
+               
+            elseif ((SNOWNG)) then                  !???
+               SN_NEW = PRCP*FFROZP*DT * 0.001
+               SNEQV = SNEQV + SN_NEW
+               PRCPF = PRCP*(1-FFROZP)
+            endif    
                                                                                  
 ! ----------------------------------------------------------------------         
 ! UPDATE SNOW DENSITY BASED ON NEW SNOWFALL, USING OLD AND NEW SNOW.             
 ! UPDATE SNOW THERMAL CONDUCTIVITY                                               
 ! ----------------------------------------------------------------------         
-            CALL SNOW_NEW (SFCTMP,SN_NEW,SNOWH,SNDENS)                           
+!            CALL SNOW_NEW (SFCTMP,SN_NEW,SNOWH,SNDENS)                           
+! 2013
+            CALL SNOW_NEW (SFCTMP,T1,FFROZP,PRCP,RIMEF1,SN_NEW,SNOWH,SNDENS)                           
             CALL CSNOW (SNCOND,SNDENS)                                           
                                                                                  
 ! ----------------------------------------------------------------------         
@@ -4140,7 +4177,6 @@
       T12A = ( (FDOWN - FLX1 - FLX2 -                                   &
      &       ((SNCOVR*EMISSI_S)+EMISSI*(1.0-SNCOVR))*SIGMA *T24)/RCH    &
      &       + TH2 - SFCTMP - ETANRG/RCH ) / RR
-
       T12B = DF1 * STC (1) / (DTOT * RR * RCH)                                   
                                                                                  
 ! ----------------------------------------------------------------------         
@@ -4403,7 +4439,8 @@
 ! SET UPPER/LOWER LIMIT ON SNOW DENSITY                                          
 ! ----------------------------------------------------------------------         
       DSX = SNDENS * (PEXP)                                                      
-      IF (DSX > 0.40) DSX = 0.40                                              
+!      IF (DSX > 0.4) DSX = 0.40                                              
+      IF (DSX > 0.9) DSX = 0.9                  !2013
       IF (DSX < 0.05) DSX = 0.05                                              
 ! ----------------------------------------------------------------------         
 ! UPDATE OF SNOW DEPTH AND DENSITY DEPENDING ON LIQUID WATER DURING              
@@ -4414,7 +4451,8 @@
       IF (TSNOWC >=  0.) THEN                                                   
          DW = 0.13* DTHR /24.                                                    
          SNDENS = SNDENS * (1. - DW) + DW                                        
-         IF (SNDENS >=  0.40) SNDENS = 0.40                                     
+!         IF (SNDENS >=  0.40) SNDENS = 0.4
+         IF (SNDENS >=  0.90) SNDENS = 0.9      !2013
 ! ----------------------------------------------------------------------         
 ! CALCULATE SNOW DEPTH (CM) FROM SNOW WATER EQUIVALENT AND SNOW DENSITY.         
 ! CHANGE SNOW DEPTH UNITS TO METERS                                              
@@ -4449,7 +4487,7 @@
 ! ----------------------------------------------------------------------         
                                                                                  
                                                                                  
-      SUBROUTINE SNOW_NEW (TEMP,NEWSN,SNOWH,SNDENS)                              
+      SUBROUTINE SNOW_NEW (TEMP,T1,FFROZP,PRCP,RIMEF1,NEWSN,SNOWH,SNDENS)                              
                                                                                  
 ! ----------------------------------------------------------------------         
 ! SUBROUTINE SNOW_NEW                                                            
@@ -4463,7 +4501,7 @@
 ! SNDENS  SNOW DENSITY (G/CM3=DIMENSIONLESS FRACTION OF H2O DENSITY)             
 ! ----------------------------------------------------------------------         
       IMPLICIT NONE                                                              
-      REAL, INTENT(IN)        :: NEWSN, TEMP 
+      REAL, INTENT(IN)        :: NEWSN,TEMP,T1,FFROZP,PRCP,RIMEF1    !2013
       REAL, INTENT(INOUT)     :: SNDENS, SNOWH
       REAL                    :: DSNEW, HNEWC, SNOWHC,NEWSNC,TEMPC
                                                                                 
@@ -4485,6 +4523,28 @@
       ELSE                                                                       
          DSNEW = 0.05+0.0017* (TEMPC +15.)**1.5                                  
       END IF                                                                     
+!----------------------------------------------------------------------
+! Promeroy et al., 1998: An Evaluation of snow accumulation and ablation
+! processes for land surface modelling
+! Hydro. Processes, Vol. 12, P 2339-2367
+!  DSNEW = 67.9+51.3*exp(TEMPC/2.6)
+!---------------------------------------------------------------------
+
+! 2013
+
+      if(RIMEF1<2.0) then
+         DSNEW = DSNEW
+      elseif(RIMEF1<5.0) then
+         DSNEW = min(0.9,2*DSNEW)
+      elseif (RIMEF1<20.0) then
+         DSNEW = min(0.9,4*DSNEW)
+      else
+         DSNEW = min(0.9,10*DSNEW)
+      endif
+
+!      write(76,126) RIMEF1,DSNEW
+!  126 FORMAT(2(F10.6,1x))
+
 ! ----------------------------------------------------------------------         
 ! ADJUSTMENT OF SNOW DENSITY DEPENDING ON NEW SNOWFALL                           
 ! ----------------------------------------------------------------------         
@@ -4496,7 +4556,6 @@
       ENDIF
       SNOWHC = SNOWHC + HNEWC                                                    
       SNOWH = SNOWHC *0.01                                                       
-                                                                                 
 ! ----------------------------------------------------------------------         
   END SUBROUTINE SNOW_NEW                                                        
 ! ----------------------------------------------------------------------         

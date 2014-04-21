@@ -180,8 +180,9 @@
                                ! 4: zhao/carr/sundqvist microphysics cloud (now available in the NMMB)
                                ! 5: NAM stratiform + convective cloud optical depth and fraction
                                !    (set iflagliq=0 in radsw_param.f and radlw_param.f)
-      integer,parameter :: ISOLx=0    
-                               ! 0: use a fixed solar constant value (default)
+      integer,parameter :: ISOLx=0
+                               ! 0: use a fixed solar constant value 1.3660e+3 (default)
+                               !10: use a fixed solar constant value 1.3608e+3
                                ! 1: use 11-year cycle solar constant table
       integer,parameter :: ICO2x=1 
                                ! 0: use prescribed global mean co2   (default)

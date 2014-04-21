@@ -96,6 +96,7 @@
                            ,TIMESTEP_SEC_DENOMINATOR
 !
       INTEGER(kind=KINT),SAVE :: FILTER_METHOD                             !<-- Digital filter flag (0->no filter; >0->filter type)
+      INTEGER(kind=KINT),SAVE :: USE_RADAR                                 !<-- Radar GSI heating rate flag (0 -> don't apply; >0 -> apply)          
 !
       INTEGER(kind=KINT),POINTER :: COMM_TO_MY_PARENT                   &  !<-- Intercommunicator between a domain and its parent
                                    ,NPE_PRINT                              !<-- Clocktime diagnostics from this MPI task
@@ -1963,6 +1964,17 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+        CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)            &
+                                    ,value =USE_RADAR                   &
+                                    ,label ='radar_init:'               &
+                                    ,rc    =RC)
+
+        CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN                   &
+                              ,name ='Use_Radar'                        &
+                              ,value=USE_RADAR                          &
+                              ,rc   =RC)
+
 !
 !-----------------------------------------------------------------------
         nesting_block_2: IF(NESTING_NMM)THEN
@@ -3197,6 +3209,7 @@
 !-----------------------------------------------------------------------
 !
       FILTER_METHOD=0                                                      !<-- Filter is done or was not run so set method to 0
+      USE_RADAR=0                                                          !<-- Radar filter is done or was not run         
 !
       DO N=1,NUM_GENS
 !
@@ -3219,6 +3232,19 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+          MESSAGE_CHECK="NMM_Run: Set USE_RADAR to 0 in DOMAIN import state"      
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(state=IMP_STATE_DOMAIN             & !<-- This DOMAIN component's import state      
+                                ,name ='Use_Radar'                  & !<-- Flag for radar filter     
+                                ,value=USE_RADAR                    & !<-- Value of radar filter flag    
+                                ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
+
 !
         ENDIF
 !

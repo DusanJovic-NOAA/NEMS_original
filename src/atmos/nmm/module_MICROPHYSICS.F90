@@ -74,6 +74,8 @@
                          ,SPECIFIED,NESTED                              &
                          ,MICROPHYSICS                                  &
                          ,TP1,QP1,PSP1                                  &
+                         ,USE_RADAR                                     &
+                         ,DFI_TTEN                                      & 
                          ,IDS,IDE,JDS,JDE,LM                            &
                          ,IMS,IME,JMS,JME                               &
                          ,ITS,ITE,JTS,JTE                               &
@@ -118,6 +120,8 @@
 !
       INTEGER,INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG,P_NI,P_NR
 !
+      INTEGER,INTENT(IN) :: USE_RADAR
+!
       REAL,INTENT(IN) :: DT,DX,DY,PT
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,D_SS)  :: MPRATES
@@ -126,7 +130,8 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: FIS,PD,SM
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: OMGALF
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: OMGALF         &
+                                                        ,DFI_TTEN
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: ACPREC,PREC      &
                                                       ,AVRAIN              !<-- Was a scalar
@@ -171,6 +176,7 @@
       INTEGER,DIMENSION(IMS:IME,JMS:JME) :: LOWLYR
 !
       REAL :: DPL,DTPHS,PCPCOL,PDSL,PHMID,QI,QR,QW,RDTPHS,TNEW
+      REAL :: MP_TTEN,mytten
 !
       REAL,DIMENSION(1:LM) :: QL,TL
 !
@@ -502,7 +508,18 @@
 !
           TNEW=TH_PHY(I,J,K)*PI_PHY(I,J,K)
           TRAIN(I,J,K)=TRAIN(I,J,K)+(TNEW-T(I,J,K))*RDTPHS
-          T(I,J,K)=TNEW
+!*  sliu added
+          MP_TTEN=(TNEW-T(I,J,K))*RDTPHS
+          mytten=MP_TTEN
+          if(DFI_TTEN(I,J,K)>MP_TTEN.and.DFI_TTEN(I,J,K)<0.1)then
+          mytten=DFI_TTEN(I,J,K)
+          end if
+!*  end sliu added
+          IF (USE_RADAR .eq. 1) THEN
+            T(I,J,K)=T(I,J,K)+mytten/RDTPHS
+          ELSE
+            T(I,J,K)=TNEW
+          ENDIF
           Q(I,J,K)=WATER(I,J,K,P_QV)/(1.+WATER(I,J,K,P_QV)) !To s.h.
         ENDDO
         ENDDO

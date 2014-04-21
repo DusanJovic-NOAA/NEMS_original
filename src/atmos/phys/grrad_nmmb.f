@@ -152,7 +152,6 @@
       module module_radiation_driver_nmmb     !
 !.............................................!
 !
-      use machine ,                 only : kind_phys
       use physpara
       use physcons,                 only : con_eps, con_epsm1,          &
      &                                     con_fvirt, PI=>con_pi
@@ -542,7 +541,9 @@
 
       if (lsswr) then
 
-        if ( isolar>=1 .and. iyear0/=iyear ) then
+        if  ( isolar == 0 .or. isolar == 10 ) then
+          lsol_chg = .false.
+        elseif ( iyear0/=iyear ) then
           lsol_chg = .true.
         else
           lsol_chg = ( isolar==4 .and. lmon_chg )

@@ -63,9 +63,8 @@
       module module_radiation_astronomy_nmmb  !
 !.............................................!
 !
-      use physpara,                only : isolar, solar_file
-      use machine,                 only : kind_phys
-      use physcons,                only : con_solr, con_pi
+      use physpara,                only : isolar, solar_file, kind_phys
+      use physcons,                only : con_solr, con_solr_old, con_pi
       use module_iounitdef,        only : NIRADSF
 !
       implicit   none
@@ -160,8 +159,13 @@
       solar_fname = solar_file
 
       if ( isolar == 0 ) then
+        solc0   = con_solr_old
         if ( me == 0 ) then
-          print *,' - Using fixed solar constant =', solc0
+          print *,' - Using old fixed solar constant =', solc0
+        endif
+      elseif ( isolar == 10 ) then
+        if ( me == 0 ) then
+          print *,' - Using new fixed solar constant =', solc0
         endif
       elseif ( isolar == 1 ) then        ! noaa ann-mean tsi in absolute scale
         solar_fname(15:26) = 'noaa_a0.txt'

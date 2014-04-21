@@ -1,6 +1,27 @@
-!   (1) NLImax=20.e3 rather than 50.e3
-!   (2) Improve algorithm for defining NLICE, INDEXS, and RimeF1
-!   (3) Added code blocks for enhanced warning diagnostics at "!-- Debug 20120111"
+!
+!-- "Modified" fer_hires microphysics - 19 Jan 2014
+!
+! (1) Ice nucleation: Fletcher (1962) replaces Meyers et al. (1992)
+! (2) Cloud ice is a simple function of the number concentration from (1), and it
+!     is no longer a fractional function of the large ice.  Thus, the FLARGE &
+!     FSMALL parameters are no longer used.
+! (3) T_ICE_init=-12 deg C provides a slight delay in the initial onset of ice.
+! (4) NLImax is a function of rime factor (RF) and temperature.  
+!    a) For RF>10, NLImax=1.e3.  Mean ice diameters can exceed the 1 mm maximum
+!       size in the tables so that NLICE=NLImax=1.e3.
+!    b) Otherwise, NLImax is 10 L-1 at 0C and decreasing to 5 L-1 at <=-40C.  
+!       NLICE>NLImax at the maximum ice diameter of 1 mm.
+! (5) Can turn off ice processes by setting T_ICE & T_ICE_init to be < -100 deg C
+! (6) Modified the homogeneous freezing of cloud water when T<T_ICE.
+! (7) Reduce the fall speeds of rimed ice by making VEL_INC a function of 
+!     VrimeF**1.5 and not VrimeF**2.
+! (8) RHgrd=0.98 (98% RH) for the onset of condensation, to match what's been
+!     tested for many months in the NAMX.
+! (9) Rime factor is *never* adjusted when NLICE>NLImax.  
+! (10) Ice deposition does not change the rime factor (RF) when RF>=10 & T>T_ICE.
+! (11) Limit GAMMAS to <=1.5 (air resistance impact on ice fall speeds)
+! (12) NSImax is maximum # conc of ice crsytals.  At cold temperature NSImax is
+!      calculated based on assuming 10% of total ice content is due to cloud ice.
 !-----------------------------------------------------------------------------
 !
      MODULE MODULE_MP_FER_HIRES
@@ -11,11 +32,11 @@
       PUBLIC :: FERRIER_INIT_HR, GPVS_HR,FPVS,FPVS0,NX
 !-----------------------------------------------------------------------------
       REAL,PRIVATE,SAVE ::  ABFR, CBFR, CIACW, CIACR, C_N0r0,            &
-     &  CRACW, ARAUT, BRAUT, ESW0, RFmax,                                &
+     &  CRACW, ARAUT, BRAUT, ESW0,                                       &
      &  RR_DRmin, RR_DR1, RR_DR2, RR_DR3, RR_DR4, RR_DR5, RR_DRmax
 !
       REAL,PUBLIC,SAVE ::  CN0r0, CN0r_DMRmin, CN0r_DMRmax,             &
-                           RQR_DRmax, RQR_DRmin
+                           RFmax, RQR_DRmax, RQR_DRmin
 !
       INTEGER, PRIVATE,PARAMETER :: MY_T1=1, MY_T2=35
       REAL,PRIVATE,DIMENSION(MY_T1:MY_T2),SAVE :: MY_GROWTH_NMM
@@ -29,8 +50,9 @@
       REAL, PUBLIC,DIMENSION(MDImin:MDImax) :: SDENS    !-- For RRTM
 !
       REAL, PRIVATE,PARAMETER :: DMRmin=.05e-3, DMRmax=1.0e-3,           &
-     &      DelDMR=1.e-6,XMRmin=1.e6*DMRmin, XMRmax=1.e6*DMRmax
-      INTEGER, PRIVATE,PARAMETER :: MDRmin=XMRmin, MDRmax=XMRmax
+     &      DelDMR=1.e-6, XMRmin=1.e6*DMRmin, XMRmax=1.e6*DMRmax
+      INTEGER, PUBLIC,PARAMETER :: MDRmin=XMRmin, MDRmax=XMRmax
+!
       REAL, PRIVATE,DIMENSION(MDRmin:MDRmax)::                           &
      &      ACCRR,MASSR,RRATE,VRAIN,VENTR1,VENTR2
 !
@@ -73,27 +95,26 @@ INTEGER, PARAMETER :: MAX_ITERATIONS=10
 !  * T_ICE - temperature (C) threshold at which all remaining liquid water
 !            is glaciated to ice
 !  * T_ICE_init - maximum temperature (C) at which ice nucleation occurs
+!
+!-- To turn off ice processes, set T_ICE & T_ICE_init to <= -100. (i.e., -100 C)
+!
 !  * NLImax - maximum number concentrations (m**-3) of large ice (snow/graupel/sleet)
+!  * NSImax - maximum number concentrations (m**-3) of small ice crystals
 !  * NLImin - minimum number concentrations (m**-3) of large ice (snow/graupel/sleet)
 !  * N0r0 - assumed intercept (m**-4) of rain drops if drop diameters are between 0.2 and 1.0 mm
 !  * N0rmin - minimum intercept (m**-4) for rain drops
 !  * NCW - number concentrations of cloud droplets (m**-3)
-!  * FLARGE1, FLARGE2 - number fraction of large ice to total (large+snow) ice
-!          at T>0C and in presence of sublimation (FLARGE1), otherwise in
-!          presence of ice saturated/supersaturated conditions
 ! ======================================================================
       REAL, PUBLIC,PARAMETER ::                                         &
-     &  RHgrd=1.00                                                      &
+     &  RHgrd=0.98                                                      &
      & ,T_ICE=-40.                                                      &
      & ,T_ICEK=T0C+T_ICE                                                &
-     & ,T_ICE_init=0.                                                   &
-     & ,NLImax=10.E3                                                    &
-     & ,NLImin=1.E3                                                     &
+     & ,T_ICE_init=-12.                                                 &
+     & ,NSI_max=250.E3                                                  &
+     & ,NLImin=1.0E3                                                    &
      & ,N0r0=8.E6                                                       &
      & ,N0rmin=1.E4                                                     &
-     & ,NCW=200.E6                           & !- previously 500.e6, originally 100.e6
-     & ,FLARGE1=1.                                                      &
-     & ,FLARGE2=0.07  ! from Dr. Nakagawa's sensitivity tests
+     & ,NCW=200.E6           !- 100.e6 (maritime), 500.e6 (continental)
 !--- Other public variables passed to other routines:
       REAL,PUBLIC,SAVE ::  QAUT0
       REAL, PUBLIC,DIMENSION(MDImin:MDImax) :: MASSI
@@ -172,7 +193,7 @@ INTEGER, PARAMETER :: MAX_ITERATIONS=10
 !------------------------------------------------------------------------
 ! For ECGP01
 !-----------------------------------------------------------------------
-      LOGICAL, PARAMETER :: PRINT_diag=.FALSE.
+      LOGICAL, PARAMETER :: PRINT_diag=.TRUE.  ! .FALSE.
       INTEGER :: LSFC,I_index,J_index,L
       INTEGER,DIMENSION(its:ite,jts:jte) :: LMH
       REAL :: TC,QI,QRdum,QW,Fice,Frain,DUM,ASNOW,ARAIN
@@ -331,6 +352,7 @@ IF (WARN5 .AND. TC/=TC) THEN
 ENDIF
 
             ENDIF
+            IF (T_ICE<=-100.) F_ice_phy(I,J,L)=0.
 !     !
 !     !--- Determine composition of condensate in terms of 
 !     !      cloud water, ice, & rain
@@ -754,16 +776,17 @@ ENDIF
 !--- Local variables
 !-----------------------------------------------------------------------
 !
-      REAL EMAIRI, N0r, NLICE, NSmICE
-      LOGICAL CLEAR, ICE_logical, DBG_logical, RAIN_logical
+      REAL EMAIRI, N0r, NLICE, NSmICE, NInuclei
+      LOGICAL :: CLEAR, ICE_logical, DBG_logical, RAIN_logical,         &
+     &   LARGE_RF, HAIL
       INTEGER :: IDR,INDEX_MY,INDEXR,INDEXR1,INDEXS,IPASS,ITDX,IXRF,    &
      &           IXS,LBEF,L
 !
       REAL :: ABI,ABW,AIEVP,ARAINnew,ASNOWnew,BLDTRH,BUDGET,            &
      &        CREVP,DELI,DELR,DELT,DELV,DELW,DENOMF,                    &
      &        DENOMI,DENOMW,DENOMWI,DIDEP,                              &
-     &        DIEVP,DIFFUS,DLI,DTPH,DTRHO,DUM,DUM1,                     &
-     &        DUM2,DWV0,DWVI,DWVR,DYNVIS,ESI,ESW,FIR,FLARGE,FLIMASS,    &
+     &        DIEVP,DIFFUS,DLI,DTPH,DTRHO,DUM,DUM1,DUM2,DUM3,           &
+     &        DWV0,DWVI,DWVR,DYNVIS,ESI,ESW,FIR,FLARGE,FLIMASS,         &
      &        FSMALL,FWR,FWS,GAMMAR,GAMMAS,                             &
      &        PCOND,PIACR,PIACW,PIACWI,PIACWR,PICND,PIDEP,PIDEP_max,    &
      &        PIEVP,PILOSS,PIMLT,PINT,PP,PRACW,PRAUT,PREVP,PRLOSS,      &
@@ -773,9 +796,10 @@ ENDIF
      &        TC,TCC,TFACTOR,THERM_COND,THICK,TK,TK2,TNEW,              &
      &        TOT_ICE,TOT_ICEnew,TOT_RAIN,TOT_RAINnew,                  &
      &        VEL_INC,VENTR,VENTIL,VENTIS,VRAIN1,VRAIN2,VRIMEF,VSNOW,   &
-     &        WC,WCnew,WSgrd,WS,WSnew,WV,WVnew,WVQW,                    &
-     &        XLF,XLF1,XLI,XLV,XLV1,XLV2,XLIMASS,XRF,XSIMASS,           &
-     &        QRdum,VCI                                     !-- new variables
+     &        WC,WCnew,WSgrd,WS,WSnew,WV,WVnew,                         &
+     &        XLF,XLF1,XLI,XLV,XLV1,XLV2,XLIMASS,XRF,                   &
+     &        NLImax,NSImax,QRdum,QSmICE,QLgIce,RQLICE,VCI        !-- new variables
+      REAL, SAVE :: Revised_LICE=1.e-3    !-- kg/m**3
 !
 !#######################################################################
 !########################## Begin Execution ############################
@@ -952,7 +976,7 @@ ENDIF
 !--- Air resistance term for the fall speed of ice following the
 !      basic research by Heymsfield, Kajikawa, others 
 !
-          GAMMAS=(1.E5/PP)**C1
+          GAMMAS=MIN(1.5, (1.E5/PP)**C1)    !-- limited to 1.5x
 !
 !--- Air resistance for rain fall speed (Beard, 1985, JAS, p.470)
 !
@@ -971,13 +995,18 @@ ENDIF
             QLICE=0.
             QTICE=0.
           ENDIF
+          IF (T_ICE <= -100.) THEN
+            ICE_logical=.FALSE.
+            QLICE=0.
+            QTICE=0.
+          ENDIF
 !
 !--- Determine if rain is present
 !
           RAIN_logical=.FALSE.
           IF (ARAIN.GT.CLIMIT .OR. QR.GT.EPSQ) RAIN_logical=.TRUE.
 !
-          IF (ICE_logical) THEN
+ice_test: IF (ICE_logical) THEN
 !
 !--- IMPORTANT:  Estimate time-averaged properties.
 !
@@ -985,7 +1014,7 @@ ENDIF
 !  * FLARGE  - ratio of number of large ice to total (large & small) ice
 !  * FSMALL  - ratio of number of small ice crystals to large ice particles
 !  ->  Small ice particles are assumed to have a mean diameter of 50 microns.
-!  * XSIMASS - used for calculating small ice mixing ratio
+!  * QSmICE  - estimated mixing ratio for small cloud ice
 !---
 !  * TOT_ICE - total mass (small & large) ice before microphysics,
 !              which is the sum of the total mass of large ice in the 
@@ -999,40 +1028,37 @@ ENDIF
 !  * VSNOW   - Fall speed of rimed snow w/ air resistance correction
 !  * VCI     - Fall speed of 50-micron ice crystals w/ air resistance correction
 !  * EMAIRI  - equivalent mass of air associated layer and with fall of snow into layer
-!  * XLIMASS - used for calculating large ice mixing ratio
+!  * XLIMASS - used for debugging, associated with calculating large ice mixing ratio
 !  * FLIMASS - mass fraction of large ice
 !  * QTICE   - time-averaged mixing ratio of total ice
 !  * QLICE   - time-averaged mixing ratio of large ice
 !  * NLICE   - time-averaged number concentration of large ice
 !  * NSmICE  - number concentration of small ice crystals at current level
+!  * QSmICE  - mixing ratio of small ice crystals at current level
 !---
 !--- Assumed number fraction of large ice particles to total (large & small) 
 !    ice particles, which is based on a general impression of the literature.
 !
-            WVQW=WV+QW                ! Water vapor & cloud water
+            NInuclei=0.
+            NSmICE=0.
+            QSmICE=0. 
+            IF (TC<0.) THEN
 !
-
-
-            IF (TC>=0.) THEN
-   !
-   !--- Eliminate small ice particle contributions for melting & sublimation
-   !
-              FLARGE=FLARGE1
-            ELSE
-   !
-   !--- Enhanced number of small ice particles during depositional growth
-   !    (effective only when 0C > T >= T_ice [-40C] )
-   !
-              FLARGE=FLARGE2
-   !
-   !--- Larger number of small ice particles due to rime splintering
-   !
-              IF (TC.GE.-8. .AND. TC.LE.-3.) FLARGE=.5*FLARGE
+!--- Max # conc of small ice crystals based on 10% of total ice content
+!    or the parameter NSI_max
 !
-            ENDIF            ! End IF (TC.GE.0. .OR. WVQW.LT.QSIgrd)
-            FSMALL=(1.-FLARGE)/FLARGE
-            XSIMASS=RRHO*MASSI(MDImin)*FSMALL
-            IF (QI.LE.EPSQ .AND. ASNOW.LE.CLIMIT) THEN
+               NSImax=MAX(NSI_max, 0.1*RHO*QI/MASSI(MDImin) )
+!
+!-- Specify Fletcher, Cooper, Meyers, etc. here for ice nuclei concentrations
+!
+               NInuclei=MIN(0.01*EXP(-0.6*TC), NSImax)       !- Fletcher (1962)
+               IF (QI>EPSQ) THEN
+                  DUM=RRHO*MASSI(MDImin)
+                  NSmICE=MIN(NInuclei, QI/DUM)
+                  QSmICE=NSmICE*DUM
+               ENDIF         ! End IF (QI>EPSQ)
+            ENDIF            ! End IF (TC<0.)
+  init_ice: IF (QI<=EPSQ .AND. ASNOW<=CLIMIT) THEN
               INDEXS=MDImin
               TOT_ICE=0.
               PILOSS=0.
@@ -1042,94 +1068,110 @@ ENDIF
               VSNOW=0.
               VCI=0.
               EMAIRI=THICK
-              XLIMASS=RRHO*RimeF1*MASSI(INDEXS)
-              FLIMASS=XLIMASS/(XLIMASS+XSIMASS)
+              XLIMASS=RimeF1*MASSI(INDEXS)
+              FLIMASS=1.
               QLICE=0.
+              RQLICE=0.
               QTICE=0.
               NLICE=0.
-              NSmICE=0.
-            ELSE
+            ELSE  init_ice
    !
    !--- For T<0C mean particle size follows Houze et al. (JAS, 1979, p. 160), 
    !    converted from Fig. 5 plot of LAMDAs.  Similar set of relationships 
    !    also shown in Fig. 8 of Ryan (BAMS, 1996, p. 66).
    !
-              DUM=XMImax*EXP(.0536*TC)
+              DUM=XMImax*EXP(XMIexp*TC)
               INDEXS=MIN(MDImax, MAX(MDImin, INT(DUM) ) )
               TOT_ICE=THICK*QI+BLEND*ASNOW
               PILOSS=-TOT_ICE/THICK
               LBEF=MAX(1,L-1)
               DUM1=RimeF_col(LBEF)
               DUM2=RimeF_col(L)
-              RimeF1=(DUM2*THICK*QI+DUM1*BLEND*ASNOW)/TOT_ICE
-              RimeF1=MIN(RimeF1, RFmax)
+              QLgICE=MAX(0., QI-QSmICE)         !-- 1st-guess estimate of large ice
+              RimeF1=(DUM2*THICK*QLgICE+DUM1*BLEND*ASNOW)/TOT_ICE
               VCI=GAMMAS*VSNOWI(MDImin)
-              DO IPASS=0,1
-                IF (RimeF1 .LE. 1.) THEN
-                  RimeF1=1.
-                  VrimeF=1.
+  vel_rime:   IF (RimeF1<=1.) THEN
+                RimeF1=1.
+                VrimeF=1.
+              ELSE   vel_rime
+!--- Prevent rime factor (RimeF1) from exceeding a maximum value (RFmax)
+                RimeF1=MIN(RimeF1, RFmax)
+                IXS=MAX(2, MIN(INDEXS/100, 9))
+                XRF=10.492*ALOG(RimeF1)
+                IXRF=MAX(0, MIN(INT(XRF), Nrime))
+                IF (IXRF .GE. Nrime) THEN
+                  VrimeF=VEL_RF(IXS,Nrime)
                 ELSE
-                  IXS=MAX(2, MIN(INDEXS/100, 9))
-                  XRF=10.492*ALOG(RimeF1)
-                  IXRF=MAX(0, MIN(INT(XRF), Nrime))
-                  IF (IXRF .GE. Nrime) THEN
-                    VrimeF=VEL_RF(IXS,Nrime)
-                  ELSE
-                    VrimeF=VEL_RF(IXS,IXRF)+(XRF-FLOAT(IXRF))*          &
-     &                    (VEL_RF(IXS,IXRF+1)-VEL_RF(IXS,IXRF))
-                  ENDIF
-                ENDIF            ! End IF (RimeF1 .LE. 1.)
-                VEL_INC=GAMMAS*VrimeF*VrimeF   !-- Faster rimed ice fall speeds
+                  VrimeF=VEL_RF(IXS,IXRF)+(XRF-FLOAT(IXRF))*            &
+     &                   (VEL_RF(IXS,IXRF+1)-VEL_RF(IXS,IXRF))
+                ENDIF
+              ENDIF   vel_rime
+!
+!-- Specify NLImax depending on presence of high density ice (rime factors >10)
+!
+              IF (RimeF1>10.) THEN
+                LARGE_RF=.TRUE.        !-- Convective precipitation (and sleet)
+                NLImax=1.E3
+              ELSE
+                LARGE_RF=.FALSE.       !-- Non-convective precipitation
+!-- NLImax slowly increases from 10 L-1 at 0C to 20 L-1 at -40C and colder.
+                DUM=MAX(TC, T_ICE)
+                NLImax=10.E3*EXP(-0.017*DUM)
+              ENDIF
+              VEL_INC=GAMMAS*VrimeF*SQRT(VrimeF)   !-- Faster rimed ice fall speeds
+              HAIL=.FALSE.
+    two_pass: DO IPASS=1,2
                 VSNOW=VEL_INC*VSNOWI(INDEXS)
                 EMAIRI=THICK+BLDTRH*VSNOW
-                XLIMASS=RRHO*RimeF1*MASSI(INDEXS)
-                FLIMASS=XLIMASS/(XLIMASS+XSIMASS)
-                QTICE=TOT_ICE/EMAIRI
-                QLICE=FLIMASS*QTICE
-                NLICE=QLICE/XLIMASS
-                NSmICE=Fsmall*NLICE
-   !
-                IF ( (NLICE.GE.NLImin .AND. NLICE.LE.NLImax)            &
-     &                .OR. IPASS.EQ.1) THEN
-                  EXIT
-                ELSE
-!-- Enforce NLImin at all temperatures                  IF (TC < 0) THEN
-                    DUM=MAX(NLImin, MIN(NLImax, NLICE) )
-                    XLI=RHO*QLICE/(DUM*RimeF1)
-                    IF (XLI .LE. MASSI(MDImin) ) THEN
-                      INDEXS=MDImin
-                    ELSE IF (XLI .LE. MASSI(450) ) THEN
-                      DLI=9.5885E5*XLI**.42066         ! DLI in microns
-                      INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
-                    ELSE IF (XLI .LE. MASSI(MDImax) ) THEN
-                      DLI=3.9751E6*XLI**.49870         ! DLI in microns
-                      INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
-                    ELSE
-                      INDEXS=MDImax
-!-- Enforce NLImin at all temperatures                  ENDIF               ! End IF (TC < 0)
-        !
-        !--- Reduce excessive accumulation of ice at upper levels
-        !    associated with strong grid-resolved ascent
-        !
-        !--- Force NLICE to be between NLImin and NLImax
-        !
-        !
-        !--- 8/22/01: Increase density of large ice if maximum limits 
-        !    are reached for number concentration (NLImax) and mean size 
-        !    (MDImax).  Done to increase fall out of ice.
-        !
-                      IF (DUM>=NLImax)                                  &
-     &                   RimeF1=RHO*QLICE/(NLImax*MASSI(INDEXS))
-                    ENDIF             ! End IF (XLI .LE. MASSI(MDImin) )
-
-!            WRITE(6,"(4(a12,g11.4,1x))") 
-!     & '{$ TC=',TC,'P=',.01*PP,'NLICE=',NLICE,'DUM=',DUM,
-!     & '{$ XLI=',XLI,'INDEXS=',FLOAT(INDEXS),'RHO=',RHO,'QTICE=',QTICE,
-!     & '{$ XSIMASS=',XSIMASS,'RimeF1=',RimeF1
-                ENDIF                  ! End IF ( (NLICE.GE.NLImin .AND. NLICE.LE.NLImax) ...
-              ENDDO                    ! End DO IPASS=0,1
-            ENDIF                      ! End IF (QI.LE.EPSQ .AND. ASNOW.LE.CLIMIT)
-          ENDIF                        ! End IF (ICE_logical)
+                QLICE=(THICK*QLgICE+BLEND*ASNOW)/EMAIRI   !-- Final estimate of large ice
+                QTICE=QLICE+QSmICE
+                FLIMASS=QLICE/QTICE
+                RQLICE=RHO*QLICE
+hail_mode:      IF (.NOT. HAIL) THEN
+                  XLIMASS=RimeF1*MASSI(INDEXS)
+                  NLICE=RQLICE/XLIMASS              !-- NLICE > NLImax
+                ELSE   hail_mode
+!-- Executed only when IPASS=2, RF>10, INDEX=1000, & NLICE=NLImax
+                  XLIMASS=RQLICE/NLICE              !-- for debugging only
+                ENDIF  hail_mode
+                IF (IPASS>=2) THEN
+                  EXIT  two_pass
+                ENDIF
+                DUM=RRHO*NLImin*MASSI(MDImin)    !-- Minimum large ice mixing ratio
+                IF (QLICE<=DUM) THEN
+                  INDEXS=MDImin
+                  RimeF1=1.
+                  CYCLE  two_pass    !-- Go to top of DO IPASS with IPASS=2
+                ENDIF
+                IF (NLICE>=NLImin .AND. NLICE<=NLImax) THEN
+                  EXIT  two_pass
+                ENDIF
+!
+!--- Force NLICE to be between NLImin and NLImax when IPASS=1
+!
+                NLICE=MAX(NLImin, MIN(NLImax, NLICE) )
+                XLI=RQLICE/(NLICE*RimeF1)
+new_size:       IF (XLI<=MASSI(MDImin) ) THEN
+                  INDEXS=MDImin
+                ELSE IF (XLI<=MASSI(450) ) THEN   new_size
+                  DLI=9.5885E5*XLI**.42066         ! DLI in microns
+                  INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
+                ELSE IF (XLI<MASSI(MDImax) ) THEN   new_size
+                  DLI=3.9751E6*XLI**.49870         ! DLI in microns
+                  INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
+                ELSE  new_size
+                  INDEXS=MDImax
+                  IF (LARGE_RF) HAIL=.TRUE.
+                  IF (PRINT_diag .AND. RQLICE>Revised_LICE) THEN
+                    WRITE(6,"(5(a12,g11.4,1x))") '{$ RimeF1=',RimeF1,   &
+     &                ' RHO*QLICE=',RQLICE,' TC=',TC,' NLICE=',NLICE,   &
+     &                ' NLICEold=',DUM2
+                    Revised_LICE=1.2*RQLICE
+                  ENDIF
+                ENDIF    new_size
+              ENDDO      two_pass
+            ENDIF        init_ice
+          ENDIF          ice_test
 !
 !----------------------------------------------------------------------
 !--------------- Calculate individual processes -----------------------
@@ -1169,9 +1211,10 @@ ENDIF
    !--- Adjust to ice saturation at T<T_ICE (-40C) if saturated w/r/t water
    !    or if cloud water is present (homogeneous glaciation).
    !    
-            PCOND=-QW
-            DUM1=TK+XLV1*PCOND                 ! Updated (dummy) temperature (deg K)
-            DUM2=WV+QW                         ! Updated (dummy) water vapor mixing ratio
+            PIACW=QW
+            PIACWI=PIACW
+            DUM1=TK+XLF1*PIACW                 ! Updated (dummy) temperature (deg K)
+            DUM2=WV                            ! Updated (dummy) water vapor mixing ratio
             DUM=MIN(1000.*FPVS(DUM1),0.99*PP)  ! Updated (dummy) saturation vapor pressure w/r/t ice
             DUM=RHgrd*EPS*DUM/(PP-DUM)         ! Updated (dummy) saturation mixing ratio w/r/t ice
 
@@ -1191,7 +1234,7 @@ ENDIF
    !    PIDEP_max - max deposition or minimum sublimation to ice saturation
    !
             DENOMI=1.+XLS2*QSI*TK2
-            DWVi=MIN(WVQW,QSW)-QSI
+            DWVi=MIN(WV,QSW)-QSIgrd
             PIDEP_max=MAX(PILOSS, DWVi/DENOMI)
             DIDEP=0.     !-- Vapor deposition/sublimation onto existing ice
             PINT=0.      !-- Ice initiation (part of PIDEP calculation, kg/kg)
@@ -1219,6 +1262,7 @@ ENDIF
               IF (DIDEP>=Xratio) DIDEP=(1.-EXP(-DIDEP*DENOMI))/DENOMI
             ENDIF   !-- IF (QTICE .GT. 0.) THEN
       !
+      !--- WARNING: the Meyers et al. stuff is not used!
       !--- Two modes of ice nucleation from Meyers et al. (JAM, 1992):
       !      (1) Deposition & condensation freezing nucleation - eq. (2.4),
       !          requires ice supersaturation
@@ -1231,13 +1275,16 @@ ENDIF
       !    The original Miller & Young (MY) calculations only went down to -30C,
       !    so a fixed value is assumed at temperatures colder than -30C.
       !
-            IF (DWVi>0. .AND. TC<=T_ICE_init) THEN
-              DUM1=DWVi/QSI                                     !- Ice supersaturation ratio
-              DUM2=1.E3*EXP(12.96*DUM1-.639)                    !- (2.4) from Meyers
-              IF (QW > EPSQ) DUM2=DUM2+1.E3*EXP(-0.262*TC-2.8)  !- (2.6) from Meyers
+      !--- Sensitivity test using:
+      !    - Fletcher (1962) for ice initiation
+      !    - Can occur only when there is water supersaturation and T<-12C.
+      !    - Maximum cloud ice number concentration of 100 per liter
+      !
+            IF (WV>QSWgrd .AND. TC<T_ICE_init .AND. NSmICE<NInuclei) THEN
               INDEX_MY=MAX(MY_T1, MIN( INT(.5-TC), MY_T2 ) )
-      !-- Only initiate ice in excess of what is present (QTICE)
-              PINT=MAX(0., DUM2*MY_GROWTH_NMM(INDEX_MY)*RRHO-QTICE)
+      !-- Only initiate small ice to get to NInuclei number concentrations
+              DUM=MAX(0., NInuclei-NSmICE)
+              PINT=MAX(0., DUM*MY_GROWTH_NMM(INDEX_MY)*RRHO)
             ENDIF
       !
       !--- Calculate PIDEP, but also account for limited water vapor supply
@@ -1253,8 +1300,6 @@ ENDIF
 !------------------------------------------------------------------------
 !
 20      CONTINUE     ! Jump here if conditions for ice are not present
-
-
 !
 !------------------------------------------------------------------------
 !
@@ -1294,6 +1339,7 @@ ENDIF
             PIACWI=0.
             TCC=TC+XLV1*PCOND+XLS1*PIDEP
           ENDIF
+          QSW0=0.
           IF (TC.GT.0. .AND. TCC.GT.0. .AND. ICE_logical) THEN
    !
    !--- Calculate melting and evaporation/condensation
@@ -1430,7 +1476,7 @@ ENDIF
                 PRACW=MIN(1.,FWR)*QW
               ENDIF           ! End IF (DWVr.LT.0. .AND. DUM.LE.EPSQ)
       !
-              IF (TC.LT.0. .AND. TCC.LT.0.) THEN
+              IF (ICE_logical .AND. TC<0. .AND. TCC<0.) THEN
          !
          !--- Biggs (1953) heteorogeneous freezing (e.g., Lin et al., 1983)
          !   - Rescaled mean drop diameter from microns (INDEXR) to mm (DUM) to prevent underflow
@@ -1454,7 +1500,7 @@ ENDIF
      &                 +.5E-12*INDEXS*INDEXS
                   FIR=MIN(1., CIACR*NLICE*DUM1*DUM2)
             !
-            !--- Future?  Should COLLECTION BY SMALL ICE SHOULD BE INCLUDED???
+            !--- Future?  Should COLLECTION BY SMALL ICE BE INCLUDED???
             !
                   PIACR=MIN(PIACR+FIR*QTRAIN, QTRAIN)
                 ENDIF        ! End IF (QLICE .GT. EPSQ)
@@ -1557,23 +1603,29 @@ ENDIF
          !--- Rime Factor, RimeF = (Total ice mass)/(Total unrimed ice mass)
          !      DUM1 - Total ice mass, rimed & unrimed
          !      DUM2 - Estimated mass of *unrimed* ice
+         !      DUM3 - Ice deposition (>0), except =0 if RF>10 & TC>=T_ICE_init
          !
-                DUM1=TOT_ICE+THICK*(PIDEP+DUM)
-                DUM2=TOT_ICE/RimeF1+THICK*PIDEP
+                IF (RimeF1>10. .AND. TC>=T_ICE) THEN
+                  DUM3=0.
+                ELSE
+                  DUM3=MAX(0., PIDEP)
+                ENDIF
+                DUM1=TOT_ICE+THICK*(DUM3+DUM)
+                DUM2=TOT_ICE/RimeF1+THICK*DUM3
                 IF (DUM2 .LE. 0.) THEN
                   RimeF=RFmax
                 ELSE
                   RimeF=MIN(RFmax, MAX(1., DUM1/DUM2) )
                 ENDIF
               ENDIF       ! End IF (DUM.LE.EPSQ .AND. PIDEP.LE.EPSQ)
-              QInew=TOT_ICEnew/(THICK+BLDTRH*(FLIMASS*VSNOW             &
-     &                          +(1.-FLIMASS)*VCI) )
+              DUM1=BLDTRH*(FLIMASS*VSNOW+(1.-FLIMASS)*VCI)
+              QInew=TOT_ICEnew/(THICK+DUM1)
               IF (QInew .LE. EPSQ) QInew=0.
               IF (QI.GT.0. .AND. QInew.NE.0.) THEN
                 DUM=QInew/QI
                 IF (DUM .LT. TOLER) QInew=0.
               ENDIF
-              ASNOWnew=QInew*BLDTRH*(FLIMASS*VSNOW+(1.-FLIMASS)*VCI)
+              ASNOWnew=QInew*DUM1
               IF (ASNOW.GT.0. .AND. ASNOWnew.NE.0.) THEN
                 DUM=ASNOWnew/ASNOW
                 IF (DUM .LT. TOLER) ASNOWnew=0.
@@ -1660,18 +1712,18 @@ ENDIF
 !--- Additional check on budget preservation, accounting for truncation effects
 !
           DBG_logical=.FALSE.
-!          DUM=ABS(BUDGET)
-!          IF (DUM .GT. TOLER) THEN
-!            DUM=DUM/MIN(QT, QTnew)
-!            IF (DUM .GT. TOLER) DBG_logical=.TRUE.
-!          ENDIF
-!!
+          DUM=ABS(BUDGET)
+          IF (DUM .GT. TOLER) THEN
+            DUM=DUM/MIN(QT, QTnew)
+            IF (DUM .GT. TOLER) DBG_logical=.TRUE.
+          ENDIF
+!
 !          DUM=(RHgrd+.001)*QSInew
 !          IF ( (QWnew.GT.EPSQ) .OR. QRnew.GT.EPSQ .OR. WVnew.GT.DUM)
 !     &        .AND. TC.LT.T_ICE )  DBG_logical=.TRUE.
 !
 !          IF (TC.GT.5. .AND. QInew.GT.EPSQ) DBG_logical=.TRUE.
-!
+ 
           IF ((WVnew.LT.EPSQ .OR. DBG_logical) .AND. PRINT_diag) THEN
    !
             WRITE(6,"(/2(a,i4),2(a,i2))") '{} i=',I_index,' j=',J_index,&
@@ -1716,7 +1768,7 @@ ENDIF
      &   'VSNOW=',VSNOW,                                                   &
      & '{} INDEXS=',FLOAT(INDEXS),'FLARGE=',FLARGE,'FSMALL=',FSMALL,       &
      &   'FLIMASS=',FLIMASS,                                               &
-     & '{} XSIMASS=',XSIMASS,'XLIMASS=',XLIMASS,'QLICE=',QLICE,            &
+     & '{} QSmICE=',QSmICE,'XLIMASS=',XLIMASS,'RQLICE=',RQLICE,            &
      &   'QTICE=',QTICE,                                                   &
      & '{} NLICE=',NLICE,'NSmICE=',NSmICE,'PILOSS=',PILOSS,                &
      &   'EMAIRI=',EMAIRI,                                                 &

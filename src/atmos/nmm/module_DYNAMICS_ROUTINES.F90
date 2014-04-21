@@ -2708,7 +2708,7 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
           endif
         else ! regional
           if (l.le.3) then
-            defc=0.005*(3-l+1.)/3.
+            defc=0.015*(3-l+1.)/3.
           else
             defc=0.
           endif
@@ -3018,7 +3018,7 @@ real(kind=kfpt),dimension(its_b1:ite_b1,jts_b1:jte_b1):: &
  tta &                       ! advection through upper interface
 ,ttb                         ! advection through lower interface
            
-real(kind=kfpt),dimension(its_h1:ite_h2,jts_h1:jte_h2):: &
+real(kind=kfpt),dimension(its_h1:ite_h1,jts_h1:jte_h1):: &
  wlo &                       ! w wind component at lower interface
 ,zlo                         ! height at lower interface
 !
@@ -3038,18 +3038,18 @@ real(kind=kfpt),dimension(its_h1:ite_h2,jts_h1:jte_h2):: &
 !$omp parallel private(dw,dz,i,j,l,jstart,jstop,nth,tid,wup,zup)
         nth = omp_get_num_threads()
         tid = omp_get_thread_num()
-        call looplimits(tid, nth, jts_h1,jte_h2,jstart,jstop)
+        call looplimits(tid, nth, jts_h1,jte_h1,jstart,jstop)
 !.......................................................................
 !-----------------
 #else
 !-----------------
       jstart = jts_h1
-      jstop  = jte_h2
+      jstop  = jte_h1
 !-----------------
 #endif 
 !-----------------
       do j=jstart,jstop
-        do i=its_h1,ite_h2
+        do i=its_h1,ite_h1
           wlo(i,j)=0.
           zlo(i,j)=fis(i,j)*rg
         enddo
@@ -3059,7 +3059,7 @@ real(kind=kfpt),dimension(its_h1:ite_h2,jts_h1:jte_h2):: &
 !-----------------------------------------------------------------------
       do l=lm,1,-1
         do j=jstart,jstop
-          do i=its_h1,ite_h2
+          do i=its_h1,ite_h1
             pdwdt(i,j,l)=dwdt(i,j,l)
             dwdt(i,j,l)=w(i,j,l)
 !

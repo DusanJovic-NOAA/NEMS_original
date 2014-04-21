@@ -1,3 +1,14 @@
+!-- Modifications:
+!   1) recwat_def=15 microns
+!   2) Corrected comments concerning cloud fractions
+!   3) Assumed TNW varies from 200 cm^-3 at 20C to 50 cm^-3 at 0C
+!   4) Assumed recwmin varies from 15 microns at 20C to 10 microns at 0C
+!   5) Effectively treat all ice as cloud ice, eliminate snow in rsipath_tmp
+!   6) Parameterize effective radius of (cloud) ice following eq. (5) from
+!      McFarquhar & Heymsfield (1996), discussion concerning area cross
+!      section of ice particles (Ac) on p. 2437, and eqs. (3.10) and (3.12)
+!      in Fu (1996).
+!   
 !!!!!              module_radiation_clouds description             !!!!!
 !!!!!  ==========================================================  !!!!!
 !                                                                      !
@@ -157,11 +168,11 @@
 
 !--- set default quantities for new version of progcld2
 
-      real (kind=kind_phys), parameter :: cclimit = 0.01, cclimit2=0.05
-      real (kind=kind_phys), parameter :: recwat_def = 5.0    ! default liq radius to 5 microns
-      real (kind=kind_phys), parameter :: recice_def = 50.0   ! default ice radius to 10 microns
+      real (kind=kind_phys), parameter :: cclimit = 0.001, cclimit2=0.05
+      real (kind=kind_phys), parameter :: recwat_def = 15.0   ! default liq radius to 15 microns at <0C
+      real (kind=kind_phys), parameter :: recice_def = 10.0   ! default ice radius to 10 microns
       real (kind=kind_phys), parameter :: rerain_def = 100.0  ! default rain radius to 100 microns
-      real (kind=kind_phys), parameter :: resnow_def = 100.0  ! default snow radius to 100 microns
+      real (kind=kind_phys), parameter :: resnow_def = 50.0   ! default snow radius to 50 microns
 
 !  ---  set look-up table dimensions and other parameters (for diagnostic cloud)
 
@@ -856,7 +867,10 @@
       implicit none
 
 !  ---  constants
-      real (kind=kind_phys), parameter :: EPSQ = 1.0e-12
+      real (kind=kind_phys), parameter :: EPSQ = 1.0e-12,               &
+!-- From eq. (5) on p. 2434 in McFarquhar & Heymsfield (1996)
+     &                 re_50C=1250.0/9.917, re_40C=1250.0/9.337,        &
+     &                 re_30C=1250.0/9.208, re_20C=1250.0/9.387
 
 !  ---  inputs
       integer,  intent(in) :: IX, NLAY, NLP1
@@ -1008,7 +1022,7 @@
         do k = NLAY, 1, -1
           do i = 1, IX
 !           clwt = 1.0e-7 * (plyr(i,k)*0.001)
-            clwt = 1.0e-6 * (plyr(i,k)*0.001)
+            clwt = 1.0e-8 * (plyr(i,k)*0.001)
 !            clwt = 2.0e-6 * (plyr(i,k)*0.001)
 !           clwt = 5.0e-6 * (plyr(i,k)*0.001)
 !           clwt = 5.0e-6
@@ -1036,9 +1050,9 @@
 !              cldtot(i,k) = max( tem2*(1.0-exp(-value)), 0.0 )
 !
 !-- The following are valid at 1000 hPa, actual values are normalized by pressure
-!-- 100% cloud fractions at 0.1 g/kg cloud mixing ratios
-!-- 10% cloud fractions at 0.01 g/kg cloud mixing ratios
-!-- 1% cloud fractions at 0.001 g/kg cloud mixing ratios
+!-- 100% cloud fractions at 0.01 g/kg cloud mixing ratios
+!-- 10% cloud fractions at 0.001 g/kg cloud mixing ratios
+!-- 1% cloud fractions at 0.0001 g/kg cloud mixing ratios
 !
               tem1 = 1.0e5*clw2(i,k)*plyr(i,k)*0.001
               cldtot(i,k) = min(1.0, tem1)
@@ -1202,32 +1216,40 @@
 
       do k = 1, NLAY
         do i = 1, IX
-          tem1 = tlyr(i,k) - con_ttp
           tem2 = cip(i,k)
 
           if (tem2 > 0.0) then
+
+!-- tem3 is ice water content (IWC) in g m^-3
+
             tem3 = tem2d(i,k) * tem2 / tvly(i,k)
 
-!-- Heymsfield & McFarquhar (1996) estimates
+!-- From eq. (5) on p. 2434 in McFarquhar & Heymsfield (1996).
+!  1) Based on ice clouds from tropical convective outflows
+!  2) Formulation follows Fu (1996) with calculations consistent
+!     with the generalized effective size for hexagonal ice
+!     crystals, Dge.  See comment below regarding 0.6495 factor.
 
+            tem1 = tlyr(i,k) - con_ttp
             if (tem1 < -50.0) then
-              rei(i,k) = (1250.0/9.917) * tem3 ** 0.109
+              tem2 = re_50C*tem3**0.109
             elseif (tem1 < -40.0) then
-              rei(i,k) = (1250.0/9.337) * tem3 ** 0.08
+              tem2 = re_40C*tem3**0.08
             elseif (tem1 < -30.0) then
-              rei(i,k) = (1250.0/9.208) * tem3 ** 0.055
+              tem2 = re_30C*tem3**0.055
             else
-              rei(i,k) = (1250.0/9.387) * tem3 ** 0.031
+              tem2 = re_20C*tem3**0.031
             endif
+
+!-- 0.6495 is used to convert from Dge to re following eq. (3.12) in Fu (1996)
+!   since Re values are multiplied by 1.5396 in subroutine cldprop in 
+!   radsw_main.f
+
+            rei(i,k)   = max(recice_def, tem2*0.6495)
 
 !           if (lprnt .and. k == l) print *,' reiL=',rei(i,k),' icec=', &
 !    &        icec,' cip=',cip(i,k),' tem=',tem,' delt=',delt
 
-!            rei(i,k)   = max(10.0, min(rei(i,k), 300.0))
-!           rei(i,k)   = max(20.0, min(rei(i,k), 300.0))
-!!!!        rei(i,k)   = max(30.0, min(rei(i,k), 300.0))
-            rei(i,k)   = max(50.0, min(rei(i,k), 300.0))
-!           rei(i,k)   = max(100.0, min(rei(i,k), 300.0))
           endif
         enddo
       enddo
@@ -1238,37 +1260,13 @@
           clouds(i,k,2) = cwp(i,k)
           clouds(i,k,3) = rew(i,k)
 !
-!  --- combine the radiation impact of snow and ice to be only ice.
-!      The layer cloud ice path is summation of ice & snow.
-!      The mean effective radius for cloud ice is weighted from ice & snow
-!      (H.M. Lin, May 2012)
+!--- Combine the radiative impacts of snow and ice to be treated as 
+!    cloud ice, but with corrections made to rei above (Oct 2013).
 !
-         ! clouds(i,k,4) = cip(i,k)
-          clouds(i,k,4) = cip(i,k)+csp(i,k)
-
-          if (clouds(i,k,4) > 0.) then
-             clouds(i,k,5) = ( rei(i,k)*cip(i,k) + res(i,k)*csp(i,k) )  &
-     &                      / clouds(i,k,4)
-          else
-             clouds(i,k,5) = rei(i,k)
-          endif
-
+          clouds(i,k,4) = cip(i,k)
+          clouds(i,k,5) = rei(i,k)
           clouds(i,k,6) = crp(i,k)
           clouds(i,k,7) = rer(i,k)
-
-          ! clouds(i,k,8) = csp(i,k)       !ncar scheme
-          ! clouds(i,k,9) = res(i,k)
-
-         !====================================================
-         !==== The following 2 lines are in the newer version
-         !     GFS branch 5.1, 2013
-         !====================================================
-
-          ! clouds(i,k,8) = csp(i,k) * rsden(i,k)  !fu's scheme
-          ! clouds(i,k,9) = rei(i,k)
-
-          clouds(i,k,8) = 0. !csp(i,k)
-          clouds(i,k,9) = 0. !res(i,k)
         enddo
       enddo
 
@@ -2597,22 +2595,6 @@
 ! CN0r0=2511.54=1.E6/(3.1415*1000.*8.e6)**.25
       real, parameter :: CN0r0=2511.54    !-- N0r=8.e6 m^-4, RHOL=1000 kg m^-3
 !
-!-- Snow is complicated.  From eq. (3.10) of Fu (1996, J. Clim, p. 2068):
-!     Dge=2*sqrt(3)*IWC/(3*RHOice*AC), where IWC is the ice water content,
-!     RHOice is the density of pure ice (see 4th line after eq. 3.9d on p. 2067), 
-!     and AC is the total cross sectional area per unit volume of the particles.  
-!
-!     After some derivation in which the snow is assumed to be spherical ice of 
-!     constant density (RHOs, 100 kg m^-3), exponential distribution (N0s=5e6 m^-4), 
-!     then (Dge)snow=0.25184*DSmean=DGES*DSmean, DGES=0.25184=4*RHOs/(sqrt(3)*RHOice),
-!     DSmean (microns)=1.e6/DSmean(m) (mean size of exponential snow)
-!                     =1.E6*(rho*Qsnow/(pi*RHOs*N0s))**.25
-!                     =1.E6*(rho*Qsnow/(3.1415*100.*5.e6))**.25
-!                     =CN0s0*(rho*Qsnow)**0.25, 
-!     CN0s0=5023.08=1.E6/(3.1415*100.*5.e6)**.25
-!
-      real, parameter :: CN0s0=5023.08, DGES=0.25184
-!
 !-- Cloud droplet distribution:
 !     Reff=0.5*Deff, (1)
 !       Deff=0.75*Dmean (monodisperse) or 3*Dmean (exponential), (2)
@@ -2624,8 +2606,8 @@
 !     RHOL=1000 kg m^-3, Ncw=1.e6*TNW, TNW in cm^-3 (6)
 !     Substitute (6) into (5),
 !       Reff=465.26*(Qcw/TNW)**(1/3) for rho*Qcw in kg/m**3, TNW in cm^-3 (monodisperse) (7)
-      real, parameter :: TNW=200.                    !--  Droplet # cm^-3
-      real, parameter :: recwmin=recwat_def
+!      real, parameter :: TNW=200.                    !--  Droplet # cm^-3
+!      real, parameter :: recwmin=recwat_def
 !  ---  inputs:
       real, dimension(:,:), intent(in) ::                               &
      &       plyr, plvl, tlyr, qlyr, qcwat, qcice, qrain, rrime
@@ -2643,14 +2625,11 @@
 
       real    :: dsnow, qsnow, qclice, fsmall, xsimass, pfac,           &
      &           nlice, xli, nlimax, dum, tem,                          &
-     &           rho, cpath, rc, totcnd, tc, recw1
+     &           rho, cpath, rc, totcnd, tc, recw1, TNW, recwmin
 
       integer :: i, k, indexs, ksfc, k1
 !
 !===>  ...  begin here
-!
-      recw1=465.26/TNW**CEXP    !-- Monodisperse
-!      recw1=1861.052/TNW**CEXP   !-- Exponential
 !
       do k = 1, LEVS
         do i = 1, IM
@@ -2699,6 +2678,14 @@
 !       assume monodisperse distribution of droplets (no factor of 1.5)
 
             if (qcwat(i,k) > 0.0) then
+!-- TNW varies from 50 to 200 cm^-3 from 0C to 20C, respectively
+               TEM=MIN(20., MAX(0.,TC) )
+               TNW=50.+7.5*TEM
+               recw1=465.26/TNW**CEXP    !-- Monodisperse
+!              recw1=1861.052/TNW**CEXP   !-- Exponential
+!-- recwmin varies from 15 to 10 microns from 0C to 20C, respectively
+               recwmin=recwat_def-0.25*TEM
+!
               tem         = recw1*(rho*qcwat(i,k))**CEXP
               recwat(i,k) = MAX(recwmin, tem)
               cwatp (i,k) = cpath * qcwat(i,k)           ! cloud water path
@@ -2717,61 +2704,10 @@
               rainp (i,k) = cpath * qrain(i,k)           ! rain water path
             endif
 
-!! snow (large ice) & cloud ice
-!
-!  ---  effective radius (resnow) & total ice path (snowp) for snow, and
-!       total ice path (cicep) for cloud ice:
-!       factor of 1.5 accounts for r**3/r**2 moments for exponentially
-!       distributed ice particles in effective radius calculations
-!       separation of cloud ice & "snow" uses algorithm from subroutine gsmcolumn
+!-- Treat all ice as "cloud ice" and no snow (Oct 2013)
 
-!-- BSF 20120224:
-!-- Use a simple algorithm to obtain a 'ball park estimate' that's a function only 
-!   of temperature to separate cloud ice & snow 
-!-- qcice - input: total ice = cloud ice + snow
-!-- fsmall - new definition here, different from microphysics code;
-!            here is w/r/t the mass/mixing ratio fraction of small cloud ice
-!
-            if (qcice(i,k) > 0.0) then
-              if (tc>=-15.) then
-                 fsmall=0.01
-              else if (tc>=-20.) then
-                 fsmall=0.02
-              else if (tc>=-25.) then
-                 fsmall=0.05
-              else if (tc>=-30.) then
-                 fsmall=0.075
-              else if (tc>=-35.) then
-                 fsmall=0.1
-              else
-                 fsmall=0.15
-              endif
+            cicep (i,k) = cpath * qcice(i,k)      ! cloud ice path
 
-              qclice=fsmall*qcice(i,k)
-              qsnow=max(0.0, qcice(i,k)-qclice)
-
-!-- BSF 20120507:
-!-- Snow effective radius is approximated based on assuming: (1) an exponential
-!   size distribution, (2) a fixed density of 100 kg m^-3, (3) a fixed intercept 
-!   of 5.e6 m^-4, and (4) approximately spherical snow particles.
-!
-!   Dge (effective size of snow, microns)=DGES*DSmean (see comments above)
-!
-              tem=CN0s0*sqrt(sqrt(rho*qsnow))
-              resnow(i,k)=DGES*max(50.,min(1000.,tem))
-              cicep (i,k) = cpath * qclice          ! cloud ice path
-              snden (i,k) = 1.                      ! turn this off
-              snowp (i,k) = cpath*qsnow             ! snow path
-
-!             if (lprnt .and. i .eq. ipr) then
-!             if (i .eq. 2) then
-!               print *,' L=',k,' snowp=',snowp(i,k),' cpath=',cpath,   &
-!    &         ' qsnow=',qsnow,' sden=',snden(i,k),' rrime=',rrime(i,k),&
-!    &         ' indexs=',indexs,' sdens=',sdens(indexs),' resnow=',    &
-!    &           resnow(i,k),' qcice=',qclice,' cicep=',cicep(i,k)
-!           endif
-
-            endif                                 ! end if_qcice block
           endif                                   ! end if_totcnd block
 
         enddo

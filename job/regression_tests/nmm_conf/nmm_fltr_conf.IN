@@ -140,6 +140,7 @@ nsecs_fwdddfi: 1800         # HALF foward filter window (s)          (DDFI)
 nsecs_bcktdfi: 1800         # HALF backward filter window (s)        (TDFI)
 nsecs_fwdtdfi: 1800         # HALF forward filter window (s)         (TDFI)
 
+radar_init: 0
 
 #############################
 #####  Global Summations ####
@@ -163,6 +164,7 @@ write_prec_adj: _WPREC_     # True--> create baseline prec. files ; False--> reg
 
 gwdflg:  true               # True--> GWD on ; False--> GWD off
 
+cdmb:       0.1             # tunable parameter for adjusting mountain blocking
 cleffamp:   1.00            # tunable parameter, depends on resolution
 sigfac:     0.00            # tunable parameter
 factop:     0.50            # de-acceleration limiter

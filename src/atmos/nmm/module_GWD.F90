@@ -17,7 +17,8 @@
       INTEGER, PARAMETER :: KIND_PHYS=SELECTED_REAL_KIND(13,60) ! the '60' maps to 64-bit real
       INTEGER,PRIVATE,SAVE :: NMTVR, IDBG, JDBG
       REAL (KIND=KIND_PHYS),PRIVATE :: DELTIM,RDELTIM
-!rv   REAL(kind=kind_phys),PRIVATE,PARAMETER :: SIGFAC=0.0   !-- Key tunable parameter
+      REAL,PRIVATE,SAVE :: DBneg=-5.e-9, DBng=-5.e-9, DBprnt=.001, Rtot=0.     !-- 20140210 dbg
+
 !
 !-----------------------------------------------------------------------
 !
@@ -30,6 +31,8 @@
 !-- Initialize variables used in GWD + MB
 !
       SUBROUTINE GWD_init (DTPHS,RESTRT                                 &
+                           ,CLEFFAMP,DPHD                               &
+                           ,CLEFF                                       &
                            ,CEN_LAT,CEN_LON                             &
                            ,GLAT,GLON                                   &
                            ,CROT,SROT,HANGL                             &
@@ -42,6 +45,8 @@
 !
 !== INPUT:
 !-- CEN_LAT, CEN_LON - central latitude, longitude (degrees)
+!-- DPHD - DY in degrees latitude
+!-- CLEFFAMP - amplification factor for variable CLEFF
 !-- RESTRT - logical flag for restart file (true) or WRF input file (false)
 !-- GLAT, GLON - central latitude, longitude at mass points (radians)
 !-- CROT, SROT - cosine and sine of the angle between Earth and model coordinates
@@ -54,7 +59,8 @@
 !-- RDELTIM - reciprocal of physics time step (s)
 !
 !
-      REAL, INTENT(IN) :: DTPHS,CEN_LAT,CEN_LON
+      REAL, INTENT(IN) :: DTPHS,CEN_LAT,CEN_LON,DPHD,CLEFFAMP
+      REAL, INTENT(OUT) :: CLEFF
       LOGICAL, INTENT(IN) :: RESTRT
       REAL, INTENT(IN), DIMENSION (ims:ime,jms:jme) :: GLON,GLAT
       REAL, INTENT(OUT), DIMENSION (ims:ime,jms:jme) :: CROT,SROT
@@ -65,13 +71,12 @@
 !
 !-- Local variables:
 !
-      REAL, PARAMETER :: POS1=1.,NEG1=-1.
-      REAL :: DTR,LAT0,LoN0,CLAT0,SLAT0,CLAT,DLON,X,Y,TLON,ROT
+      REAL, PARAMETER :: POS1=1.,NEG1=-1.                               &
+                       , DPHD0=0.108      !-- Nominal 12-km grid resolution
+      REAL :: DTR,LAT0,LoN0,CLAT0,SLAT0,CLAT,DLON,X,Y,TLON,ROT,DGRID
       INTEGER :: I,J
-
-
 !
-!-----------------------------------------------------------------------
+!---------------------------------------------------------------------
 !
       NMTVR=14            !-- 14 input fields for orography
       DELTIM=DTPHS
@@ -107,6 +112,13 @@
           ENDDO    !-- I
         ENDDO      !-- J
 !
+!-- Scale cleff to be w/r/t a nominal value of 1e-5 for 12-km grid Launcher runs
+!     * Launcher 12-km runs used cleff=0.5e-5*SQRT(IMX/192), where IMX=IDE-1=705
+!       for the 12-km air quality (na12aq) domain
+!
+      CLEFF=CLEFFAMP*1.E-5*SQRT(DPHD/DPHD0)
+      write(0,*) 'dphd,cleff=',dphd,cleff
+!
       END SUBROUTINE GWD_init
 !
 !-----------------------------------------------------------------------
@@ -117,7 +129,7 @@
                            ,HSTDV,HCNVX,HASYW,HASYS,HASYSW,HASYNW       &
                            ,HLENW,HLENS,HLENSW,HLENNW                   &
                            ,HANGL,HANIS,HSLOP,HZMAX,CROT,SROT           &
-                           ,CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN         &
+                           ,CDMB,CLEFF,SIGFAC,FACTOP,RLOLEV,DPMIN       &
                            ,DUDT,DVDT                                   &
                            ,GLOBAL                                      &
                            ,IDS,IDE,JDS,JDE                             &
@@ -173,7 +185,7 @@
 !
 !-- INPUT variables:
 !
-      REAL, INTENT(IN):: DTPHS,CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN
+      REAL, INTENT(IN):: DTPHS,CDMB,CLEFF,SIGFAC,FACTOP,RLOLEV,DPMIN
       REAL, INTENT(IN), DIMENSION (ims:ime, jms:jme, 1:lm+1) ::        &
      &                                   Z, PINT
       REAL, INTENT(IN), DIMENSION (ims:ime, jms:jme, 1:lm) ::        &
@@ -208,8 +220,8 @@
       REAL(KIND=KIND_PHYS), DIMENSION (IM,1:LM) :: DUDTcol,DVDTcol   &
      &,                    Ucol,Vcol,Tcol,Qcol,DPcol,Pcol,EXNcol,PHIcol
       REAL(KIND=KIND_PHYS), DIMENSION (IM,1:LM+1) :: PINTcol,PHILIcol
-      INTEGER :: I,J,IJ,K,KFLIP,IMX,Imid,Jmid
-      REAL :: Ugeo,Vgeo,Umod,Vmod, TERRtest,TERRmin
+      INTEGER :: I,J,IJ,K,KFLIP,IMX,Imid,Jmid, KDBmin,NDBneg        !-- 20140210 dbg
+      REAL :: Ugeo,Vgeo,Umod,Vmod, TERRtest,TERRmin, DBmin,DBprint  !-- 20140210 dbg
       REAL(KIND=KIND_PHYS) :: TEST
 !
 !--------------------------  Executable below  -------------------------
@@ -240,9 +252,9 @@
       ELSE
         IMX=IDE-1
       ENDIF
-!
-!-- For debugging, find approximate center point within each tile
-!
+
+NDBneg=0   !-- 20140210 dbg
+
       DO J=JTS,JTE
         DO I=ITS,ITE
           if (kpbl(i,j)<1 .or. kpbl(i,j)>LM) go to 100
@@ -316,11 +328,21 @@
      &,              Ucol,Vcol,Tcol,Qcol,PINTcol,DPcol,Pcol,EXNcol      & ! Met input
      &,              PHILIcol,PHIcol                                    & ! Met input
      &,              HPRIME,OC,OA4,CLX4,THETA,SIGMA,GAMMA,ELVMAX        & ! Topo input
-     &,              CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN                & ! tunable coefficients
-     &,              LPBL,IMX,IM,LM)                                      ! Indices + debugging
+     &,              CDMB,CLEFF,SIGFAC,FACTOP,RLOLEV,DPMIN              & ! tunable coefficients
+     &,              DBmin,KDBmin,LPBL,IMX,IM,LM)         ! Indices + debugging  !-- 20140210 dbg
 !
 !=======================================================================
 !
+
+!-- 20140210 dbg
+IF (DBmin<DBng) THEN
+   NDBneg=NDBneg+1
+   IF (DBmin<DBneg) THEN
+      WRITE(0,*) 'Mtn Block Warn: I,J,K (k=1 sfc),DBIM=',I,J,KDBmin,DBmin
+      DBneg=5.*DBneg
+   ENDIF
+ENDIF
+
           DO K=1,LM
             KFLIP=LM-K+1
             TEST=ABS(DUDTcol(IM,K))+ABS(DVDTcol(IM,K))
@@ -354,6 +376,20 @@
 100       CONTINUE
         ENDDO     !- I
       ENDDO       !- J
+
+!-- 20140210 dbg
+IF (Rtot<=0.) THEN
+   Rtot=1./REAL((ITE-ITS+1)*(JTE-JTS+1))
+ELSE
+!-- Activate the prints only when the scheme is called after the first time
+   DBprint=real(NDBneg)*Rtot
+   IF (DBprint>0) THEN
+      WRITE(0,*) 'Mtn Block Stats:  NDBneg=',NDBneg,' or ',  &
+         100.*DBprint,' % grid points with DBIM<0'
+      DBprnt=5.*DBprint
+   ENDIF
+ENDIF
+
 !
       END SUBROUTINE GWD_driver
 !
@@ -364,8 +400,8 @@
       SUBROUTINE GWD_col (A,B, DUsfc,DVsfc                              &  !-- Output
      &, U1,V1,T1,Q1, PRSI,DEL,PRSL,PRSLK, PHII,PHIL                     &  !-- Met inputs
      &, HPRIME,OC,OA4,CLX4,THETA,SIGMA,GAMMA,ELVMAX                     &  !-- Topo inputs
-     &, CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN                             &  !-- tunable coefficients
-     &, KPBL,IMX,IM,LM)                                                    !-- Input indices, debugging
+     &, CDMB,CLEFF,SIGFAC,FACTOP,RLOLEV,DPMIN                           &  !-- tunable coefficients
+     &, DBmin,KDBmin,KPBL,IMX,IM,LM)                                       !-- Input indices, debugging
 !
 !-- "A", "B" (from GFS) in GWD_col are DVDTcol, DUDTcol, respectively in GWD_driver
 !
@@ -397,6 +433,8 @@
 !-- GAMMA - anisotropy/aspect ratio
 !-- ELVMAX - max height above mean orography
 !-- KPBL(IM) - vertical index at the top of the PBL
+!-- DBmin - diagnostic looking for where DBIM<0
+!-- KDBmin - vertical level where minimum DBmin<0 occurs
 !-- IMX - points in a grid row
 !-- KM - number of vertical levels
 !
@@ -464,7 +502,8 @@
 !-- INPUT:
 !
       INTEGER, INTENT(IN) :: IM,IMX,LM
-      REAL,    INTENT(IN) :: CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN
+      REAL,    INTENT(IN) :: CDMB,CLEFF,SIGFAC,FACTOP,RLOLEV,DPMIN
+
       REAL(kind=kind_phys), INTENT(IN), DIMENSION(IM,1:LM) ::        &
      &                                 U1,V1,T1,Q1,DEL,PRSL,PRSLK,PHIL
       REAL(kind=kind_phys), INTENT(IN), DIMENSION(IM,1:LM+1) ::      &
@@ -478,6 +517,11 @@
 !
       REAL(kind=kind_phys), INTENT(INOUT), DIMENSION(IM,1:LM) :: A,B
       REAL(kind=kind_phys), INTENT(INOUT), DIMENSION(IM) :: DUsfc,DVsfc
+
+!-- 20140210 dbg
+      INTEGER, INTENT(OUT) :: KDBmin
+      REAL,    INTENT(OUT) :: DBmin
+
 !
 !-----------------------------------------------------------------------
 !-- LOCAL variables:
@@ -489,22 +533,20 @@
       REAL(kind=kind_phys), PARAMETER :: PI=3.1415926535897931        &
      &,        G=9.806, CP=1004.6, RD=287.04, RV=461.6                &
      &,        FV=RV/RD-1., RDI=1./RD, GOR=G/RD, GR2=G*GOR, GOCP=G/CP &
-     &,        ROG=1./G, ROG2=ROG*ROG                                 &
+     &,        ROG=1./G, ROG2=ROG*ROG, ROGN=-1000.*ROG                &
      &,        DW2MIN=1., RIMIN=-100., RIC=0.25, BNV2MIN=1.0E-5       &
-     &,        EFMIN=0.0, EFMAX=10.0, hpmax=200.0                     & ! or hpmax=2500.0
+     &,        EFMIN=0.0, EFMAX=10.0, hpmax=2400.0                    & !-- hpmax was 200.0
      &,        FRC=1.0, CE=0.8, CEOFRC=CE/FRC, frmax=100.             &
      &,        CG=0.5, GMAX=1.0, CRITAC=5.0E-4, VELEPS=1.0            &
-!rv  &,        FACTOP=0.5, RLOLEV=500.0, HZERO=0., HONE=1.            & ! or RLOLEV=0.5
-     &,                                  HZERO=0., HONE=1.            &
-     &,        HE_4=.0001, HE_2=.01                                   & 
+     &,        HZERO=0., HONE=1., HE_2=.01, HE_1=0.1                  & 
      &,        PHY180=180.,RAD_TO_DEG=PHY180/PI,DEG_TO_RAD=PI/PHY180  & 
 !
 !-- Lott & Miller mountain blocking => aka "lm mtn blocking"
 !
-     &,  cdmb = 1.0        &    ! non-dim sub grid mtn drag Amp (*j*)
 !  hncrit set to 8000m and sigfac added to enhance elvmax mtn hgt
      &,  hncrit=8000.      &    ! Max value in meters for ELVMAX (*j*)
      &,  hminmt=50.        &    ! min mtn height (*j*)
+     &,  hpmin=1.          &    ! minimum hprime (std dev of terrain)
      &,  hstdmin=25.       &    ! min orographic std dev in height
      &,  minwnd=0.1             ! min wind component (*j*)
 !rv  &,  dpmin=5.0              ! Minimum thickness of the reference layer (centibars)
@@ -543,19 +585,17 @@
 !
       real(kind=kind_phys) :: ZLEN, DBTMP, R, PHIANG,       DBIM        &
      &,                   xl,     rcsks, bnv,   fr                      &
-     &,                   brvf,   cleff, tem,   tem1,  tem2, temc, temv &
+     &,                   brvf,   tem,   tem1,  tem2, temc, temv        &
      &,                   wdir,   ti,    rdz,   dw2,   shr2, bvf2       &
      &,                   rdelks, wtkbj, efact, coefm, gfobnv           &
      &,                   scork,  rscor, hd,    fro,   rim,  sira       &
-     &,                   dtaux,  dtauy, pkp1log, pklog
+     &,                   dtaux,  dtauy, pkp1log, pklog, cosang, sinang
 !
       integer :: ncnt, kmm1, kmm2, lcap, lcapp1, kbps, kbpsp1,kbpsm1    &
      &, kmps, kmpsp1, idir, nwd, i, j, k, klcap, kp1, kmpbl, npt, npr   &
      &, idxm1, ktrial, klevm1, kmll,kmds, KM                            &
 !     &, ihit,jhit                                                       &
      &, ME              !-- processor element for debugging
-
-real :: rcl,rcs  !dbg
 
 !
 !-----------------------------------------------------------------------
@@ -577,14 +617,14 @@ real :: rcl,rcs  !dbg
       npt = 0
       IF (NMTVR >= 14) then 
         DO I = 1,IM
-          IF (elvmax(i) > HMINMT .AND. hprime(i) > HE_4) then
+          IF (elvmax(i) > HMINMT .AND. hprime(i) > hpmin) then
              npt = npt + 1
              ipt(npt) = i
           ENDIF
         ENDDO
       ELSE
         DO I = 1,IM
-          IF (hprime(i) > HE_4) then
+          IF (hprime(i) > hpmin) then
             npt = npt + 1
             ipt(npt) = i
           ENDIF
@@ -592,8 +632,6 @@ real :: rcl,rcs  !dbg
       ENDIF    !-- IF (NMTVR >= 14) then 
 !
 
-rcl=1.
-rcs=1.
 !
 !-- Note important criterion for immediately exiting routine!
 !
@@ -611,8 +649,6 @@ rcs=1.
       ENDDO
       ENDDO
 !
-!
-!     NCNT   = 0
       KMM1   = KM - 1
       KMM2   = KM - 2
       LCAP   = KM
@@ -722,11 +758,8 @@ rcs=1.
           DO K = 1, Kreflm(I)
             J        = ipt(i)
             RDELKS     = DEL(J,K) * DELKS(I)
-
-            RCSKS      = RCS      * RDELKS
-            UBAR(I)    = UBAR(I)  + RCSKS  * U1(J,K) ! trial Mean U below 
-            VBAR(I)    = VBAR(I)  + RCSKS  * V1(J,K) ! trial Mean V below 
-
+            UBAR(I)    = UBAR(I)  + RDELKS * U1(J,K) ! trial Mean U below 
+            VBAR(I)    = VBAR(I)  + RDELKS * V1(J,K) ! trial Mean V below 
             ROLL(I)    = ROLL(I)  + RDELKS * RO(I,K) ! trial Mean RO below 
             RDELKS     = (PRSL(J,K)-PRSL(J,K+1)) * DELKS1(I)
             BNV2bar(I) = BNV2bar(I) + BNV2lm(I,K) * RDELKS
@@ -744,34 +777,28 @@ rcs=1.
           J = ipt(i)
 
           DO K = iwklm(I), 1, -1
-!           PHIANG   =  atan2D(V1(J,K),U1(J,K))
             PHIANG   =  atan2(V1(J,K),U1(J,K))*RAD_TO_DEG
+! --- THETA ranges from -+90deg |_ to the mtn "largest topo variations"
             ANG(I,K) = ( THETA(J) - PHIANG )
             if ( ANG(I,K) .gt.  90. ) ANG(I,K) = ANG(I,K) - 180.
             if ( ANG(I,K) .lt. -90. ) ANG(I,K) = ANG(I,K) + 180.
-!
-            UDS(I,K) = rcs*                                             &
-      &          MAX(SQRT(U1(J,K)*U1(J,K) + V1(J,K)*V1(J,K)), minwnd)
+            ANG(I,K) = ANG(I,K)*DEG_TO_RAD
+            UDS(I,K) = MAX(SQRT(U1(J,K)*U1(J,K)+V1(J,K)*V1(J,K)), minwnd)
 ! --- Test to see if we found Zb previously
             IF (IDXZB(I) .eq. 0 ) then
               PE(I) = PE(I) + BNV2lm(I,K) *                             &
      &           ( G * ELEVMX(J) - phil(J,K) ) *                        &
      &           ( PHII(J,K+1) - PHII(J,K) ) * ROG2
 
-! --- KE
-! --- Wind projected on the line perpendicular to mtn range, U(Zb(K)).
-! --- kinetic energy is at the layer Zb
-! --- THETA ranges from -+90deg |_ to the mtn "largest topo variations"
-!             UP(I)  =  UDS(I,K) * cosD(ANG(I,K))
-              UP(I)  =  UDS(I,K) * cos(ANG(I,K)*DEG_TO_RAD)
-              EK(I)  = 0.5 *  UP(I) * UP(I) 
-
+! --- Kinetic energy (KE): Wind projected on the line perpendicular to 
+!     mtn range, U(Zb(K)).  KE is at the layer Zb
+              UP(I) = UDS(I,K)*cos(ANG(I,K))
+              EK(I) = 0.5*UP(I)*UP(I) 
 ! --- Dividing Stream lime  is found when PE =exceeds EK.
               IF ( PE(I) .ge.  EK(I) ) IDXZB(I) = K
 ! --- Then mtn blocked flow is between Zb=k(IDXZB(I)) and surface
 !
             ENDIF     !-- IF (IDXZB(I) .eq. 0 ) then
-
           ENDDO       !-- DO K = iwklm(I), 1, -1
         ENDDO         !-- DO I = 1, npt
 !
@@ -790,17 +817,16 @@ rcs=1.
             DO K = IDXZB(I), 1, -1
               IF (PHIL(J,IDXZB(I)) > PHIL(J,K)) THEN
                 ZLEN = SQRT( ( PHIL(J,IDXZB(I))-PHIL(J,K) ) /           &
-     &                       ( PHIL(J,K ) + G * hprime(J) ) )
+     &                       ( PHIL(J,K ) + G * HPRIME(J) ) )
 ! --- lm eq 14:
-!               R = (cosD(ANG(I,K))**2 + GAMMA(J) * sinD(ANG(I,K))**2) / &
-!    &              (gamma(J) * cosD(ANG(I,K))**2 + sinD(ANG(I,K))**2)
-                R = (cos(ANG(I,K)*DEG_TO_RAD)**2 + GAMMA(J) * sin(ANG(I,K)*DEG_TO_RAD)**2) / &
-     &              (gamma(J) * cos(ANG(I,K)*DEG_TO_RAD)**2 + sin(ANG(I,K)*DEG_TO_RAD)**2)
-! --- (negative of DB -- see sign at tendency)
-                DBTMP = 0.25 *  CDmb *                                  &
-     &                  MAX( 2. - 1. / R, HZERO ) * sigma(J) *          &
-!    &                  MAX(cosD(ANG(I,K)), gamma(J)*sinD(ANG(I,K))) *  &
-     &                  MAX(cos(ANG(I,K)*DEG_TO_RAD), gamma(J)*sin(ANG(I,K)*DEG_TO_RAD)) *  &
+                cosang=cos(ANG(I,K))
+                sinang=sin(ANG(I,K))
+                R = (cosang*cosang + GAMMA(J)*sinang*sinang) / &
+     &              (GAMMA(J)*cosang*cosang + sinang*sinang)
+! --- (negative of DB -- see sign at tendency); CDMB adjusts mountain blocking
+                DBTMP = 0.25 *  CDMB *                                  &
+     &                  MAX( 2. - 1. / R, HZERO ) * SIGMA(J) *          &
+     &                  MAX(cosang, GAMMA(J)*sinang) *    &
      &                  ZLEN / hprime(J) 
                 DB(I,K) =  DBTMP * UDS(I,K)    
 !
@@ -819,17 +845,6 @@ rcs=1.
 !.............................
 !
       KMPBL  = km / 2 ! maximum pbl height : # of vertical levels / 2
-!
-!  Scale cleff between IM=384*2 and 192*2 for T126/T170 and T62
-!
-      if (imx .gt. 0) then
-!       cleff = 1.0E-5 * SQRT(FLOAT(IMX)/384.0) !  this is inverse of CLEFF!
-!       cleff = 1.0E-5 * SQRT(FLOAT(IMX)/192.0) !  this is inverse of CLEFF!
-        cleff = 0.5E-5 * SQRT(FLOAT(IMX)/192.0) !  this is inverse of CLEFF!
-!       cleff = 2.0E-5 * SQRT(FLOAT(IMX)/192.0) !  this is inverse of CLEFF!
-!       cleff = 2.5E-5 * SQRT(FLOAT(IMX)/192.0) !  this is inverse of CLEFF!
-        cleff=cleff*CLEFFAMP
-      endif
 
       DO K = 1,KM
         DO I =1,npt
@@ -838,7 +853,6 @@ rcs=1.
           VTK(I,K)  = VTJ(I,K) / PRSLK(J,K)
           RO(I,K)   = RDI * PRSL(J,K) / VTJ(I,K)  ! DENSITY 
           TAUP(I,K) = 0.0
-
         ENDDO
       ENDDO
 
@@ -847,21 +861,17 @@ rcs=1.
           J         = ipt(i)
           TI        = 2.0 / (T1(J,K)+T1(J,K+1))
           TEM       = TI  / (PRSL(J,K)-PRSL(J,K+1))
-!         RDZ       = GOR * PRSI(J,K+1) * TEM
           RDZ       = g   / (phil(j,k+1) - phil(j,k))
           TEM1      = U1(J,K) - U1(J,K+1)
           TEM2      = V1(J,K) - V1(J,K+1)
-
-          DW2       = rcl*(TEM1*TEM1 + TEM2*TEM2)
-
+          DW2       = (TEM1*TEM1 + TEM2*TEM2)
           SHR2      = MAX(DW2,DW2MIN) * RDZ * RDZ
           BVF2      = G*(GOCP+RDZ*(VTJ(I,K+1)-VTJ(I,K))) * TI
+!-- ri_n is Richardson Number, BNV2 is Brunt-Vaisala Frequency
           ri_n(I,K) = MAX(BVF2/SHR2,RIMIN)   ! Richardson number
-!                                              Brunt-Vaisala Frequency
           BNV2(I,K) = (G+G) * RDZ * (VTK(I,K+1)-VTK(I,K))               &
      &                            / (VTK(I,K+1)+VTK(I,K))
           bnv2(i,k) = max( bnv2(i,k), bnv2min )
-!
         ENDDO     !-- DO K = 1,KMM1
       ENDDO       !-- DO I =1,npt
 !
@@ -889,10 +899,8 @@ rcs=1.
         ROLL (I)  = 0.0
         KBPS      = MAX(KBPS,  kref(I))
         KMPS      = MIN(KMPS,  kref(I))
-!
         BNV2bar(I) = (PRSL(J,1)-PRSL(J,2)) * DELKS1(I) * BNV2(I,1)
       ENDDO
-!
 !
       KBPSP1 = KBPS + 1
       KBPSM1 = KBPS - 1
@@ -901,12 +909,8 @@ rcs=1.
           IF (K .LT. kref(I)) THEN
             J          = ipt(i)
             RDELKS     = DEL(J,K) * DELKS(I)
-
-            RCSKS      = RCS      * RDELKS
-            UBAR(I)    = UBAR(I)  + RCSKS  * U1(J,K)   ! Mean U below kref
-            VBAR(I)    = VBAR(I)  + RCSKS  * V1(J,K)   ! Mean V below kref
-
-!
+            UBAR(I)    = UBAR(I)  + RDELKS * U1(J,K)   ! Mean U below kref
+            VBAR(I)    = VBAR(I)  + RDELKS * V1(J,K)   ! Mean V below kref
             ROLL(I)    = ROLL(I)  + RDELKS * RO(I,K)   ! Mean RO below kref
             RDELKS     = (PRSL(J,K)-PRSL(J,K+1)) * DELKS1(I)
             BNV2bar(I) = BNV2bar(I) + BNV2(I,K) * RDELKS
@@ -957,12 +961,8 @@ rcs=1.
       DO  K = 1,KMM1
         DO  I = 1,npt
           J            = ipt(i)
-
-          VELCO(I,K)   = 0.5*rcs*((U1(J,K)+U1(J,K+1))*UBAR(I)            &
-     &                       +  (V1(J,K)+V1(J,K+1))*VBAR(I))
-
-          VELCO(I,K)   = VELCO(I,K) * ULOI(I)
-
+          VELCO(I,K)   = 0.5*ULOI(I)*( (U1(J,K)+U1(J,K+1))*UBAR(I)       &
+     &                                +(V1(J,K)+V1(J,K+1))*VBAR(I) )
         ENDDO
       ENDDO
 !
@@ -1013,11 +1013,9 @@ rcs=1.
         TAUB(I)  = XLINV(I) * ROLL(I) * ULOW(I) * ULOW(I)               &
      &           * ULOW(I)  * GFOBNV  * EFACT         ! BASE FLUX Tau0
 !
-!         tem      = min(HPRIME(I),hpmax)
-!         TAUB(I)  = XLINV(I) * ROLL(I) * ULOW(I) * BNV * tem * tem
-!
         K        = MAX(1, kref(I)-1)
-        TEM      = MAX(VELCO(I,K)*VELCO(I,K), HE_4)
+!-- Change in the GFS version of gwdps.f
+        TEM      = MAX(VELCO(I,K)*VELCO(I,K), HE_1)
         SCOR(I)  = BNV2(I,K) / TEM  ! Scorer parameter below ref level
       ENDDO    !-- DO I = 1,npt
 !                                                                       
@@ -1061,7 +1059,6 @@ rcs=1.
               ENDIF
 !
               BRVF = SQRT(BNV2(I,K))        ! Brunt-Vaisala Frequency
-!             TEM1 = XLINV(I)*(RO(I,KP1)+RO(I,K))*BRVF*VELCO(I,K)*0.5
               TEM1 = XLINV(I)*(RO(I,KP1)+RO(I,K))*BRVF*0.5              &
      &                       * max(VELCO(I,K),HE_2)
               HD   = SQRT(TAUP(I,K) / TEM1)
@@ -1078,7 +1075,6 @@ rcs=1.
 !
 !                                       ----------------------
               IF (RIM .LE. RIC .AND.                                    &
-!    &           (OA(I) .LE. 0. .OR.  PRSI(ipt(I),KP1).LE.RLOLEV )) THEN
      &           (OA(I) .LE. 0. .OR.  kp1 .ge. kint(i) )) THEN
                  TEMC = 2.0 + 1.0 / TEM2
                  HD   = VELCO(I,K) * (2.*SQRT(TEMC)-TEMC) / BRVF
@@ -1105,13 +1101,9 @@ rcs=1.
 !
 !     Calculate - (g/p*)*d(tau)/d(sigma) and Decel terms DTAUX, DTAUY
 !
-      DO I=1,npt
-        SCOR(I) = 1.0/RCS
-      ENDDO
       DO K = 1,KM
         DO I = 1,npt
-          TAUD(I,K) = G * (TAUP(I,K+1) - TAUP(I,K)) * SCOR(I)           &
-     &                                              / DEL(ipt(I),K)
+          TAUD(I,K) = G*(TAUP(I,K+1)-TAUP(I,K))/DEL(ipt(I),K)
         ENDDO
       ENDDO
 
@@ -1133,16 +1125,16 @@ rcs=1.
         DO I = 1,npt
            IF (K .GT. kref(I) .and. PRSI(ipt(i),K) .GE. RLOLEV) THEN
              IF(TAUD(I,K).NE.0.) THEN
-
-               TEM = rcs*DELTIM * TAUD(I,K)
-
+               TEM = DELTIM * TAUD(I,K)
                DTFAC(I) = MIN(DTFAC(I),ABS(VELCO(I,K)/TEM))
 
              ENDIF
            ENDIF
         ENDDO
       ENDDO
-!
+
+DBmin=0.     !-- 20140210 dbg
+
       DO K = 1,KM
         DO I = 1,npt
           J          = ipt(i)
@@ -1152,30 +1144,30 @@ rcs=1.
 ! ---  lm mb (*j*)  changes overwrite GWD
           if ( K .lt. IDXZB(I) .AND. IDXZB(I) .ne. 0 ) then
             DBIM = DB(I,K) / (1.+DB(I,K)*DELTIM)
+
+IF (DBIM<DBmin) THEN      !-- 20140210 dbg
+   DBmin=DBIM
+   KDBmin=K
+ENDIF
+
+            DBIM = MAX(DBIM, HZERO)
             A(J,K)  = - DBIM * V1(J,K) + A(J,K)
             B(J,K)  = - DBIM * U1(J,K) + B(J,K)
             DUsfc(J)   = DUsfc(J) - DBIM * V1(J,K) * DEL(J,K)
             DVsfc(J)   = DVsfc(J) - DBIM * U1(J,K) * DEL(J,K)
-
-!
           else
-!
             A(J,K)     = DTAUY     + A(J,K)
             B(J,K)     = DTAUX     + B(J,K)
             DUsfc(J)   = DUsfc(J)  + DTAUX * DEL(J,K)
             DVsfc(J)   = DVsfc(J)  + DTAUY * DEL(J,K)
-
           endif
-
         ENDDO      !-- DO I = 1,npt
       ENDDO        !-- DO K = 1,KM
+!
       DO I = 1,npt
         J          = ipt(i)
-
-        TEM    =  -1.E3*ROG*rcs
-        DUsfc(J) = TEM * DUsfc(J)
-        DVsfc(J) = TEM * DVsfc(J)
-
+        DUsfc(J) = ROGN * DUsfc(J)
+        DVsfc(J) = ROGN * DVsfc(J)
       ENDDO
 !
 !-----------------------------------------------------------------------

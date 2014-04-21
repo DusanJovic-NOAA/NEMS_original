@@ -15,7 +15,7 @@ export ESMF_RUNTIME_COMPLIANCECHECK=ON:depth=4
 source _SRCD_/src/conf/modules.nems.Zeus
 module list
 
-cd _RUND_
+cd $PBS_O_WORKDIR
 
 echo "Model started:  " `date`
 

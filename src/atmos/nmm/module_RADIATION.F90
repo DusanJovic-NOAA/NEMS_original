@@ -91,7 +91,7 @@
      &                    ,Z0,SICE                                      &
      &                    ,MXSNAL,SGM                                   &
      &                    ,STDH,OMGALF                                  &
-!
+     &                    ,SNOWC                                        &
      &                    ,LM)
 !-----------------------------------------------------------------------
 !***  NOTE ***
@@ -151,7 +151,7 @@
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: ALBEDO,CUPPT        &
                                                    ,GLAT,GLON           &
                                                    ,PD,SM               &
-                                                   ,SNOW,THS,SI         &
+                                                   ,SNOW,SNOWC,THS,SI   &
                                                    ,TSKIN,Z0,SICE       &
                                                    ,MXSNAL,STDH
 !
@@ -378,11 +378,11 @@
 
 
 !==========================================================================
-! Put "call radupdate" here for threading safe
+! Put "call radupdate_nmmb" here for threading safe
 !==========================================================================
 !---- for forcast purpose IDAT=JDAT
 
-       DTSW =FLOAT(NRADS*DT_INT)         ! [s]
+       DTSW =NRADS*DT                  ! [s]
        LSSWR=MOD(ITIMESTEP,NRADS)==0
 
       IF (SW_PHYSICS .EQ. 3 .or. LW_PHYSICS .EQ. 3) THEN
@@ -480,7 +480,7 @@
 !-----------------------------------------------------------------------
         CASE (RRTMLWSCHEME)
 
-          CALL RRTM(ITIMESTEP,DT_INT,JDAT                           &
+          CALL RRTM(ITIMESTEP,DT,JDAT                               &
                    ,NPHS,GLAT,GLON                                  &
                    ,NRADS,NRADL                                     &
                    ,DSG2,SGML2,PDSG1,PSGML1                         &
@@ -499,7 +499,7 @@
                    ,CFRACL,CFRACM,CFRACH                            &
                    ,ACFRST,NCFRST                                   &
                    ,ACFRCV,NCFRCV                                   &
-                   ,CUPPT,SNOW,SI                                   &
+                   ,CUPPT,SNOWC,SI                                  & ! was SNOW
                    ,HTOP,HBOT                                       &
                    ,TSKIN,Z0,SICE,F_RIMEF,MXSNAL,SGM,STDH,OMGALF    &
                    ,IMS,IME,JMS,JME                                 &

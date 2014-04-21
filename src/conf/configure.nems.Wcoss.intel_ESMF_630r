@@ -21,7 +21,7 @@ BACIO_LIB   = -L/nwprod/lib -lbacio_4
 SP_LIB      = -L/nwprod/lib -lsp_4
 SYS_LIB     =
 
-POSTDIR     = /global/save/Hui-Ya.Chuang/lib
+POSTDIR     = /global/save/Hui-Ya.Chuang/nceppost/post_tag_2013_GFS_SummerSchool/lib
 POSTMOD     = ${POSTDIR}/incmod/post_4
 POST_INC    = -I${POSTDIR}/incmod/post_4
 POST_LIB    = -L${POSTDIR} -lnceppost

@@ -1712,7 +1712,7 @@
 
 !  --- ... cloudy sky optical depth and absorptivity.
 ! mji     odcld(j,k)  = secang * taucloud(j,k)
-          odcld(j,k)  = secdiff(j) * taucloud(j,k)
+          odcld(j,k)  = secdiff(j) * taucloud(j,k) * 1.5  ! LW cloud emiss =1.5x
           trncld(j,k) = exp( -odcld(j,k) )
           efcfr1(j,k) = 1.0 - cldfrac(k) + trncld(j,k)*cldfrac(k)
         enddo
@@ -2355,7 +2355,7 @@
 
 !  --- ... cloudy sky optical depth and absorptivity.
 ! mji     odcld(j,k)  = secang * taucloud(j,k)
-          odcld(j,k)  = secdiff(j) * taucloud(j,k)
+          odcld(j,k)  = secdiff(j) * taucloud(j,k) * 1.5  ! LW cloud emiss =1.5x
           trncld(j,k) = exp( -odcld(j,k) )
         enddo
 

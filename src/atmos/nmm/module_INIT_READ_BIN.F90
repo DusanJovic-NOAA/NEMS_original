@@ -497,9 +497,19 @@ integer(kind=kint):: &
       CALL DSTRB(TEMP1,int_state%SST,1,1,1,1,1,mype,mpi_comm_comp)
 !
         if(mype==0)then
-          read(nfcst)temp1  ! SNO
+          read(nfcst)temp1  ! SNO and SNOWC
         endif
       CALL DSTRB(TEMP1,int_state%SNO,1,1,1,1,1,mype,mpi_comm_comp)
+
+      DO J=JMS,JME
+      DO I=IMS,IME
+        if(int_state%SNO(I,J).gt.0.) then
+           int_state%SNOWC(I,J)=0.98
+        else
+           int_state%SNOWC(I,J)=0.0
+        endif
+      ENDDO
+      ENDDO
 !
         if(mype==0)then
           read(nfcst)temp1  ! SI
@@ -1496,6 +1506,13 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%SNO,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SNOWC
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SNOWC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  SNOPCX
 !-----------------------------------------------------------------------

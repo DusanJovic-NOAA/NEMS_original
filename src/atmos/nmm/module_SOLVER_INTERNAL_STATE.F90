@@ -238,6 +238,7 @@
         REAL(kind=KFPT),DIMENSION(:,:),POINTER :: V10              => NULL()
         REAL(kind=KFPT),DIMENSION(:,:),POINTER :: V10MAX           => NULL()
         REAL(kind=KFPT),DIMENSION(:,:),POINTER :: VEGFRC           => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: SNOWC            => NULL()
         REAL(kind=KFPT),DIMENSION(:,:),POINTER :: VZ0              => NULL()
         REAL(kind=KFPT),DIMENSION(:,:),POINTER :: Z0               => NULL()
         REAL(kind=KFPT),DIMENSION(:,:),POINTER :: TSKIN            => NULL()
@@ -265,6 +266,7 @@
         ! 3D real
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: W              => NULL()
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: W_TOT          => NULL()
+        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: DFI_TTEN       => NULL()
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: OMGALF         => NULL()
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: O3             => NULL()
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: DIV            => NULL()
@@ -338,6 +340,7 @@
                              ,NSTEPS_PER_CHECK                          &
                              ,NSTEPS_PER_HOUR                           &
                              ,NSTEPS_PER_RESET                          &
+                             ,USE_RADAR                                 &
                              ,NUM_TRACERS_MET                           &  !<-- Number of meteorological tracers (e.g. water)
                              ,NUM_TRACERS_CHEM                          &  !<-- Number of chem/aerosol tracers
                              ,START_YEAR                                &
@@ -348,6 +351,8 @@
                              ,START_SECOND
 !
         REAL(kind=KFPT) :: CLEFFAMP                                     &
+                          ,CLEFF                                        &
+                          ,CDMB                                         &
                           ,CODAMP                                       &
                           ,DPMIN                                        &
                           ,FACTOP                                       &
@@ -774,19 +779,19 @@
 
       IF(TRIM(int_state%MICROPHYSICS)=='fer'.OR. &
          TRIM(int_state%MICROPHYSICS)=='fer_hires')THEN
-        int_state%NUM_WATER=1+4
+        int_state%NUM_WATER=1+5 ! aligo
         int_state%P_QV=2
         int_state%P_QC=3
         int_state%P_QR=4
         int_state%P_QS=5
+        int_state%P_QG=6 ! aligo
         int_state%P_QI=1
-        int_state%P_QG=1
         int_state%F_QV=.TRUE.
         int_state%F_QC=.TRUE.
         int_state%F_QR=.TRUE.
         int_state%F_QS=.TRUE.
         int_state%F_QI=.FALSE.
-        int_state%F_QG=.FALSE.
+        int_state%F_QG=.TRUE. ! aligo
         if(int_state%lmprate) int_state%D_SS=14
 !      ELSEIF(TRIM(int_state%MICROPHYSICS)=='wsm3')THEN
 !        int_state%NUM_WATER=1+3
@@ -1086,6 +1091,7 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'SMSTAV'     ,int_state%SMSTAV   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'SMSTOT'     ,int_state%SMSTOT   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'SNO'        ,int_state%SNO      ,(/ IMS,JMS /),(/ IME,JME /) )
+      CALL SET_VAR_PTR(int_state%VARS,NV,'SNOWC'      ,int_state%SNOWC    ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'SNOAVG'     ,int_state%SNOAVG   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'SNOPCX'     ,int_state%SNOPCX   ,(/ IMS,JMS /),(/ IME,JME /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'SOILTB'     ,int_state%SOILTB   ,(/ IMS,JMS /),(/ IME,JME /) )
@@ -1141,6 +1147,7 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'RSWTT'      ,int_state%RSWTT    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,'EXCH_H'     ,int_state%EXCH_H   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,'CLDFRA'     ,int_state%CLDFRA   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
+      CALL SET_VAR_PTR(int_state%VARS,NV,'DFI_TTEN'   ,int_state%DFI_TTEN ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,'F_ICE'      ,int_state%F_ICE    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,'F_RAIN'     ,int_state%F_RAIN   ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))
       CALL SET_VAR_PTR(int_state%VARS,NV,'F_RIMEF'    ,int_state%F_RIMEF  ,(/ IMS,JMS,1 /),(/ IME,JME,LM /))

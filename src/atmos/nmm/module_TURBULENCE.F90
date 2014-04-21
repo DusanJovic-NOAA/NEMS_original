@@ -84,9 +84,9 @@
                       ,SM,CZEN,CZMEAN,SIGT4,RLWIN,RSWIN,RADOT           &
 !- RLWIN/RSWIN - downward longwave/shortwave at the surface (also TOTLWDN/TOTSWDN in RADIATION)
                       ,RLWTT,RSWTT                                      &   !! added by wang 2010-10-6
-                      ,PD,T,Q,CWM,F_ICE,F_RAIN,SR                       &
+                      ,PD,T,Q,CWM,F_ICE,F_RAIN,F_RIMEF,SR               &
                       ,Q2,U,V,DUDT,DVDT                                 &
-                      ,THS,TSFC,SST,PREC,SNO,WATER                      &
+                      ,THS,TSFC,SST,PREC,SNO,SNOWC,WATER                &
                       ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG                    &
                       ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG                    &
                       ,FIS,Z0,Z0BASE,USTAR,PBLH,LPBL,XLEN_MIX,RMOL      &
@@ -104,7 +104,7 @@
                       ,CROT,SROT,MIXHT                                  &
                       ,HSTDV,HCNVX,HASYW,HASYS,HASYSW,HASYNW,HLENW      &
                       ,HLENS,HLENSW,HLENNW,HANGL,HANIS,HSLOP,HZMAX      &
-                      ,CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN              &
+                      ,CDMB,CLEFF,SIGFAC,FACTOP,RLOLEV,DPMIN            &
                       ,RSWOUT,RSWTOA,RLWTOA                             &
                       ,ASWIN,ASWOUT,ASWTOA,ALWIN,ALWOUT,ALWTOA          &
                       ,GWDFLG                                           &
@@ -172,7 +172,7 @@
 !
       INTEGER(kind=KINT),DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: LPBL
 !
-      REAL(kind=KFPT),INTENT(IN) :: DT,PT,CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN
+      REAL(kind=KFPT),INTENT(IN) :: DT,PT,CDMB,CLEFF,SIGFAC,FACTOP,RLOLEV,DPMIN
 !
       REAL(kind=KFPT),DIMENSION(1:LM),INTENT(IN) :: DSG2,PDSG1,PSGML1   &
                                                    ,SGML2
@@ -219,6 +219,7 @@
                                                                  ,SFCLHX,SFCSHX    &
                                                                  ,SI,SMSTOT        &
                                                                  ,SNO,SNOPCX       &
+                                                                 ,SNOWC            &
                                                                  ,SOILT1           &
                                                                  ,SSROFF,SUBSHX    &
                                                                  ,T2,THS,THZ0      &
@@ -254,7 +255,8 @@
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,NSOIL),INTENT(INOUT) :: SH2O,SMC,STC
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) ::  RSWTT, RLWTT
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) ::  RSWTT, RLWTT &
+                                                                    ,F_RIMEF
 !
       LOGICAL(kind=KLOG),INTENT(IN)    :: GLOBAL
 !
@@ -288,7 +290,9 @@
 !
       REAL(kind=KFPT) :: ALTITUDE,DECLIN_URB,DQDT,DTBL,DTDT,DTMIN,DTPHS,DZHALF &
                         ,FACTOR,FACTRL,G_INV,PDSL,PLM,PLYR,PSFC                &
-                        ,QI,QL,QLOWX,QOLD,QR,QW                                &
+!aligo                        ,QI,QL,QLOWX,QOLD,QR,QW                                &
+                        ,QI,QL,QLOWX,QOLD,QR,QW,QSnow,QGraup                   &
+!aligo
                         ,RATIOMX,RDTPHS,ROG,RXNER,SNO_FACTR                    &
                         ,TL,TLMH,TSFC2,XLVRW
 !
@@ -298,8 +302,8 @@
                                                    ,GZ1OZ0,ONE,PSFC_OUT,PSIH,PSIM &
                                                    ,Q2X,QGH,QLOW,RAIN,RAINBL      &
                                                    ,RLW_DN_SFC,RSW_NET_SFC        &
-                                                   ,RSW_DN_SFC                    &
-                                                   ,SFCEVPX,SFCZ,SNOW,SNOWC,SNOWH &
+                                                   ,RSW_DN_SFC,RIMEF              &
+                                                   ,SFCEVPX,SFCZ,SNOW,SNOWH       &
                                                    ,TH2X,THLOW,TLOW               &
                                                    ,VGFRCK,XLAND
 !
@@ -440,6 +444,12 @@
 !
       IF(SURFACE_PHYSICS==99.OR.SURFACE_PHYSICS==LISSSCHEME)THEN
         SNO_FACTR=1.
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          SNOWC(I,J)=0.
+          IF(SNO(I,J)>0.) SNOWC(I,J)=1.
+        ENDDO
+        ENDDO
       ELSE
         SNO_FACTR=0.001
       ENDIF
@@ -540,10 +550,13 @@
         ENDIF
 !YL
         RAINBL(I,J)=0.
-        IF(SNO(I,J)>0.)SNOWC(I,J)=1.
+!+++++++++++++++++++++++++++++++++++++++++++++
+!        IF(SNO(I,J)>0.)SNOWC(I,J)=1.   !2013 comment out
+!+++++++++++++++++++++++++++++++++++++++++++++
         PLM=SGML2(LM)*PDSL+PSGML1(LM)
         TH2X(I,J)=T(I,J,LM)*(1.E5/PLM)**CAPPA
         Q2X(I,J)=Q(I,J,LM)
+        RIMEF(I,J)=MAX(1., F_RIMEF(I,J,LM))
 !
 !-----------------------------------------------------------------------
 !*** Modify z0 if snow on the ground
@@ -781,6 +794,7 @@
                         U_PHY,V_PHY,Q2,                                 &
                         TSFC,QS,THZ0,QZ0,UZ0,VZ0,                       &
                         XLAND,                                          &
+                        VEGFRC,SNOWC,                                   & !added 5/17/2013
                         USTAR,Z0,Z0BASE,PBLH,ONE,RMOL,                  &
                         AKHS,AKMS,                                      &
                         CHS,CHS2,CQS2,TWBS,QWBS,ELFLX,FLHC,FLQC,        &
@@ -839,7 +853,8 @@
                            SNOWC,QS,RAINBL,                             &
                            NSOIL,DTBL,DZSOIL,NTSD,                      &
                            SMC,STC,SNOW,CMC,                            &
-                           CHS, CHS2, CQS2, CPM,CAPPA,SR,CHKLOWQ,QZ0,   &
+                           CHS, CHS2, CQS2, CPM,CAPPA,                  &
+                           SR,RIMEF, CHKLOWQ,QZ0,                       &
                            MYJ,FRPCPN,                                  &
                            SH2O,SNOWH,                                  & !H
                            U_PHY,V_PHY,                                 & !I
@@ -911,7 +926,7 @@
 
             CASE DEFAULT
 
-              WRITE(0,*) 'The surface option does not exist: SURFACE_PHYSICS = ', SURFACE_PHYSICS
+         WRITE(0,*) 'The surface option not exist: SURFACE_PHYSICS = ', SURFACE_PHYSICS
 
           END SELECT sfc_select
 
@@ -1204,7 +1219,7 @@
                        ,HLENS,HLENSW,HLENNW                             &
                        ,HANGL,HANIS,HSLOP,HZMAX                         &
                        ,CROT,SROT                                       &
-                       ,CLEFFAMP,SIGFAC,FACTOP,RLOLEV,DPMIN             &
+                       ,CDMB,CLEFF,SIGFAC,FACTOP,RLOLEV,DPMIN           &
                        ,DUDT_GWD,DVDT_GWD                               &
                        ,GLOBAL                                          &
                        ,IDS,IDE,JDS,JDE                                 &
@@ -1235,7 +1250,7 @@
 
 !.......................................................................
 !$omp parallel do                                                       &
-!$omp& private(j,k,i,dtdt,dqdt,qold,ratiomx,qw,qi,qr,i_m)
+!$omp& private(j,k,i,dtdt,dqdt,qold,ratiomx,qw,qi,qr,QSnow,QGraup,i_m)
 !.......................................................................
 
       DO K=1,LM
@@ -1246,58 +1261,41 @@
             T(I,J,K)=T(I,J,K)+DTDT*DTPHS
             QOLD=Q(I,J,K)
             RATIOMX=QOLD/(1.-QOLD)+DQDT*DTPHS
+!aligo
+            WATER(I,J,K,P_QV)=RATIOMX
+!aligo
             Q(I,J,K)=RATIOMX/(1.+RATIOMX)
 !           Q(I,J,K)=MAX(Q(I,J,K),EPSQ)
             QW=MAX(0.,WATER(I,J,K,P_QC)+RQCBLTEN(I,J,K)*DTPHS )
-
-            IF(FER_MIC)THEN
-              QI=MAX(0.,WATER(I,J,K,P_QS)+RQIBLTEN(I,J,K)*DTPHS )
-            ELSE
-              QI=MAX(0.,WATER(I,J,K,P_QI)+RQIBLTEN(I,J,K)*DTPHS )
-            ENDIF
-
-            QR=MAX(0.,WATER(I,J,K,P_QR) )
-!           CWM(I,J,K)=QW+QI+QR
-            CWM(I,J,K)=0.    ! <---- BEWARE of the this line with GFS physics
-
-            DO I_M=2,NUM_WATER
-
-              IF(I_M/=P_QV)THEN
-                CWM(I,J,K)=CWM(I,J,K)+WATER(I,J,K,I_M)
-              ENDIF
-
-              IF(I_M==P_QV)THEN
-                WATER(I,J,K,P_QV)=MAX(EPSQ,(WATER(I,J,K,P_QV)+RQVBLTEN(I,J,K)*DTPHS))
-              ELSEIF(I_M==P_QC)THEN
-                CWM(I,J,K)=MAX(0.,(CWM(I,J,K)+RQCBLTEN(I,J,K)*DTPHS))
-!              ELSEIF(I_M==P_QI)THEN
-               ELSEIF( (I_M==P_QI .and. .NOT.FER_MIC) .or.        &
-                       (I_M==P_QS .and. FER_MIC) ) THEN
-                CWM(I,J,K)=MAX(0.,(CWM(I,J,K)+RQIBLTEN(I,J,K)*DTPHS))
-              ENDIF
-
-            ENDDO
-
+!aligo
             WATER(I,J,K,P_QC)=QW
-            WATER(I,J,K,P_QR)=QR
-
+            QR=WATER(I,J,K,P_QR)
+            QSnow=WATER(I,J,K,P_QS)
+            QI=0.
+            QGraup=0.
+            IF(.NOT.FER_MIC)THEN
+              IF(F_QI) THEN
+                QI=MAX(0.,WATER(I,J,K,P_QI)+RQIBLTEN(I,J,K)*DTPHS )
+                WATER(I,J,K,P_QI)=QI
+              ENDIF
+              IF(F_QG) THEN
+                QGraup=WATER(I,J,K,P_QG)
+              ENDIF
+            ENDIF
+            CWM(I,J,K)=QW+QR+QI+QSnow+QGraup
             IF(FER_MIC)THEN
-              WATER(I,J,K,P_QS)=QI
-              IF(QI<=EPSQ)THEN
+              IF(QSnow<=EPSQ)THEN
                 F_ICE(I,J,K)=0.
               ELSE
-                F_ICE(I,J,K)=MAX(0.,MIN(1.,QI/CWM(I,J,K)))
+                F_ICE(I,J,K)=QSnow/CWM(I,J,K)
               ENDIF
-
               IF(QR<=EPSQ)THEN
                 F_RAIN(I,J,K)=0.
               ELSE
                 F_RAIN(I,J,K)=QR/(QW+QR)
               ENDIF
-            ELSE
-              WATER(I,J,K,P_QI)=QI
             ENDIF
-
+!aligo
           ENDDO
         ENDDO
 

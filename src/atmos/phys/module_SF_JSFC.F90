@@ -81,6 +81,7 @@
      &               ,PHMID,PHINT,TH,T,QV,QC,U,V,Q2                    &
      &               ,TSK,QSFC,THZ0,QZ0,UZ0,VZ0                        &
      &               ,XLAND                                            &
+     &               ,VEGFRC,SNOWC                                     & !added 5/17/2013
      &               ,USTAR,Z0,Z0BASE,PBLH,MAVAIL,RMOL                 &
      &               ,AKHS,AKMS                                        &
      &               ,CHS,CHS2,CQS2,HFX,QFX,FLX_LH,FLHC,FLQC           &
@@ -102,7 +103,8 @@
       INTEGER,INTENT(IN) :: NTSD
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: HT,MAVAIL,TSK      &
-     &                                             ,XLAND,Z0BASE
+     &                                             ,XLAND,Z0BASE       &
+     &                                             ,VEGFRC,SNOWC
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: DZ,PHMID
 !
@@ -305,6 +307,7 @@
      &               ,FLHC(I,J),FLQC(I,J),QGH(I,J),CPM(I,J)            &
      &               ,ULOW,VLOW,TLOW,THLOW,THELOW,QLOW,CWMLOW          &
      &               ,ZSL,PLOW                                         &
+     &               ,VEGFRC(I,J),SNOWC(I,J)                           &   !added 5/17/2013
      &               ,U10(I,J),V10(I,J),TSHLTR(I,J),TH10(I,J)          &
      &               ,QSHLTR(I,J),Q10(I,J),PSHLTR(I,J)                 &
      &               ,IDS,IDE,JDS,JDE,KDS,KDE                          &
@@ -357,6 +360,7 @@
      &                 ,CHS,CHS2,CQS2,HFX,QFX,FLX_LH,FLHC,FLQC,QGH,CPM &
      &                 ,ULOW,VLOW,TLOW,THLOW,THELOW,QLOW,CWMLOW        &
      &                 ,ZSL,PLOW                                       &
+     &                 ,VEGF,SNOC                                      &  !added 5/17/2013
      &                 ,U10,V10,TH02,TH10,Q02,Q10,PSHLTR               &
      &                 ,IDS,IDE,JDS,JDE,KDS,KDE                        &
      &                 ,IMS,IME,JMS,JME,KMS,KME                        &
@@ -379,7 +383,7 @@
 !
       REAL,INTENT(IN) :: CWMLOW,PBLH,PLOW,QLOW,PSFC,SEAMASK,ZSFC       &
      &                  ,THELOW,THLOW,THS,TLOW,TZ0,ULOW,VLOW,WETM,ZSL  &
-     &                  ,Z0BASE
+     &                  ,Z0BASE,VEGF,SNOC
 !
       REAL,INTENT(OUT) :: CHS,CHS2,CPM,CQS2,CT,FLHC,FLQC,FLX_LH,HFX    &
      &              ,RIB,PSHLTR,Q02,Q10,QFX,QGH,RLMO,TH02,TH10,U10,V10
@@ -407,6 +411,7 @@
      &       ,TERM1,RLOW,U10E,V10E,WSTAR,XLT02,XLT024,XLT10            &
      &       ,XLT104,XLU10,XLU104,XU10,XU104,ZT02,ZT10,ZTAT02,ZTAT10   &
      &       ,ZTAU,ZTAU10,ZU10,ZUUZ
+!      REAL :: ZILFC1,SNOWZO, Zom_ztmax
 !----------------------------------------------------------------------
 !**********************************************************************
 !----------------------------------------------------------------------
@@ -671,21 +676,18 @@
 !  7/29/2009 V Wong recommends 5, change pending
 !
            CZETMAX = 10.
-!          CZETMAX = 5.
 ! stable
           IF(DTHV>0.)THEN
-!            ZZIL=ZILFC*TOPOTERM
             IF (RIB<RIC) THEN
               ZZIL=ZILFC*(1.0+(RIB/RIC)*(RIB/RIC)*CZETMAX)
             ELSE
-              ZZIL=ZILFC*(1.0+CZETMAX)
+              ZZIL=ZILFC*(CZETMAX+1.0)
             ENDIF
 ! unstable
           ELSE
             ZZIL=ZILFC
           ENDIF
 
-!
 !----------------------------------------------------------------------
 !
           land_point_iteration: DO ITR=1,ITRMX
@@ -696,7 +698,6 @@
 !
 ! oldform   ZT=MAX(EXP(ZZIL*SQRT(USTAR*ZU))*ZU,EPSZT)
             ZT=MAX(EXP(ZZIL*SQRT(USTAR*Z0BASE))*Z0BASE,EPSZT)
-!
             RZST=ZSLT/ZT
             RLOGT=LOG(RZST)
 !
@@ -1134,11 +1135,17 @@
 !      ZTMAX1=2.0
 !      ZTMIN2=-10.0
 !      ZTMAX2=2.0
+!org b
+!      ZTMIN1=-5.0
+!      ZTMAX1=1.0
+!      ZTMIN2=-5.0
+!      ZTMAX2=1.0
+!org e
       ZTMIN1=-5.0
-      ZTMAX1=1.0
+      ZTMAX1=9.0
       ZTMIN2=-5.0
-      ZTMAX2=1.0
-!
+      ZTMAX2=9.0
+
       ZRNG1=ZTMAX1-ZTMIN1
       ZRNG2=ZTMAX2-ZTMIN2
 !
