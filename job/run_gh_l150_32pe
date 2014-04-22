@@ -1,7 +1,7 @@
 #! /bin/sh -l
 #
-#BSUB -oo out_wam
-#BSUB -eo err_wam
+#BSUB -oo out_wam_dfiall
+#BSUB -eo err_wam_dfiall
 #BSUB -J wamtest
 ####BSUB -n 1
 #BSUB -n 32
@@ -36,7 +36,8 @@ export MACHINE_ID=wcoss
 
 #jw export CDATE=2011092300
 export CDATE=2013081000
-export expt=testwam_${CDATE}
+export CDATE=2007041700
+export expt=testwam_${CDATE}_dfiall
 export RUNDIR=${RUNDIR:-/ptmp/$LOGNAME/$expt}
 mkdir -p $RUNDIR/restart
 cd $RUNDIR
@@ -229,8 +230,7 @@ export LEVR=${levr:-0}
 #
 #     Forecaset script and executable name
 #
-#export NEMSDIR=/nems/save/Jun.Wang/nems/wam/wam2zeus
- export NEMSDIR=/global/save/Henry.Juang/2013/nems/ticket_next
+ export NEMSDIR=/nems/save/Jun.Wang/nems/20140401/nems_dfilev
  cp -p ${NEMSDIR}/job/exglobal_fcst.sh.sms_nems .
  cp -p ${NEMSDIR}/exe/NEMS.x .
  export FCSTSCRIPT=${RUNDIR}/exglobal_fcst.sh.sms_nems
@@ -250,7 +250,8 @@ export LEVR=${levr:-0}
      cp /scratch1/portfolios/NCEPDEV/nems/save/Jun.Wang/wam/data/ic/t62/*anl*${CDATE} $RUNDIR
    elif [ $SCHEDULER = 'lsf' ]; then
 #jw      cp /gpfs/*d1/emc/nems/save/Jun.Wang/wam/data/IC/*anl*${CDATE} $RUNDIR
-     cp /gpfs/*d1/emc/nems/noscrub/Jun.Wang/wam/ic/ic_dump/*anl*${CDATE} $RUNDIR
+#jw     cp /gpfs/*d1/emc/nems/noscrub/Jun.Wang/wam/ic/ic_dump/*anl*${CDATE} $RUNDIR
+     cp /nems/noscrub/Jun.Wang/wam/ic/FeiWu/*anl*${CDATE} $RUNDIR
    fi
  fi 
  export COMOUT=$RUNDIR

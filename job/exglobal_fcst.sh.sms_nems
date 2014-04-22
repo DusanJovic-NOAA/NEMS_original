@@ -520,6 +520,7 @@ export ADIAB=${ADIAB:-.false.}
 export nsout=${nsout:-0}
 echo 'nsout=' $nsout
 export LDFIFLTO=${LDFIFLTO:-.false.}
+export DFILEVS=${DFILEVS:-$LEVS}
 export NUM_FILE=${NUM_FILE:-3}
 export QUILTING=${QUILTING:-.true.}
 export REDUCED_GRID=${REDUCED_GRID:-.true.}
@@ -1136,6 +1137,7 @@ nhours_dfini:             $FHDFI
 adiabatic:                $ADIAB
 lsoil:                    $LSOIL
 passive_tracer:           $PASSIVE_TRACER
+dfilevs:                  $DFILEVS
 ldfiflto:                 $LDFIFLTO
 lwrtgrdcmp:               $LWRTGRDCMP
 nemsio_in:                $NEMSIO_IN
@@ -1337,6 +1339,7 @@ cat  > atm_namelist <<EOF
   semi_implicit_temp_profile=$SEMI_IMPLICIT_TEMP_PROFILE,
   thermodyn_id=$THERMODYN_ID, sfcpress_id=$SFCPRESS_ID,
   lingg_a=.true.,redgg_a=.true.,
+  dfilevs=$DFILEVS,
   $DYNVARS /
 &nam_phy
   FHOUT=$FHOUT, FHMAX=$FHMAX, IGEN=$IGEN, DELTIM=$DELTIM,
