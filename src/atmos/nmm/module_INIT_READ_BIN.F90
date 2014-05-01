@@ -1,3 +1,11 @@
+#include "../../ESMFVersionDefine.h"
+
+#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
+#undef ESMF_520r
+#else
+#define ESMF_520r
+#endif
+
 !-----------------------------------------------------------------------
                         module module_INIT_READ_BIN
 !-----------------------------------------------------------------------
@@ -879,6 +887,1348 @@ integer(kind=kint):: &
       DEALLOCATE(ITEMP)
 !
 !-----------------------------------------------------------------------
+#ifdef ESMF_520r
+!-----------------------------------------------------------------------
+!***  Read from restart file by alphabetical order (new in ESMF6)
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***  ACFRCV
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ACFRCV,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  ACFRST
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ACFRST,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  ACPREC
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ACPREC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  ACSNOM
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ACSNOM,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  ACSNOW
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ACSNOW,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  ACUTIM
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ACUTIM,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  AKHS
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%AKHS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  AKHS_OUT
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%AKHS_OUT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  AKMS
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%AKMS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  AKMS_OUT
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%AKMS_OUT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  ALBASE
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ALBASE,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  ALBEDO
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ALBEDO,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  ALWIN
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ALWIN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  ALWOUT
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ALWOUT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  ALWTOA
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ALWTOA,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  APHTIM
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%APHTIM,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  ARDLW
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ARDLW,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  ARDSW
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ARDSW,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  ASRFC
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ASRFC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  ASWIN
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ASWIN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  ASWOUT
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ASWOUT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  ASWTOA
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%ASWTOA,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  AVCNVC
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%AVCNVC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  AVRAIN
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%AVRAIN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  BGROFF
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%BGROFF,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  CFRACH
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%CFRACH,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  CFRACL
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%CFRACL,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  CFRACM
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%CFRACM,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  CLDEFI
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%CLDEFI,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  CLDFRA
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        CALL DSTRB(TEMP1,INT_STATE%CLDFRA,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+!-----------------------------------------------------------------------
+!***  CMC
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%CMC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  CNVBOT
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%CNVBOT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  CNVTOP
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%CNVTOP,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  CPRATE
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%CPRATE,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  CUPPT
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%CUPPT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  CUPREC
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%CUPREC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  CW
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%CW(I,J,L)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%CW,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%CW,LM,2,2)
+!-----------------------------------------------------------------------
+!***  CZEN
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%CZEN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  CZMEAN
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%CZMEAN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  DIV
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%DIV,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%DIV,LM,2,2)
+!-----------------------------------------------------------------------
+!***  DWDT
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%DWDT(I,J,L)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%DWDT,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%DWDT,LM,2,2)
+!-----------------------------------------------------------------------
+!***  EPSR
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%EPSR,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  F
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%F(I,J)=0.
+      ENDDO
+      ENDDO
+      CALL DSTRB(TEMP1,int_state%F,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+      CALL HALO_EXCH(int_state%F,1,2,2)
+!-----------------------------------------------------------------------
+!***  FIS
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%FIS(I,J)=0.
+      ENDDO
+      ENDDO
+      CALL DSTRB(TEMP1,int_state%FIS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+      CALL HALO_EXCH(int_state%FIS,1,2,2)
+!-----------------------------------------------------------------------
+!***  F_ICE
+!-----------------------------------------------------------------------
+      DO K=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%F_ICE(I,J,K)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%F_ICE,1,1,1,LM,K,MYPE,MPI_COMM_COMP)
+      ENDDO
+!-----------------------------------------------------------------------
+!***  F_RAIN
+!-----------------------------------------------------------------------
+      DO K=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%F_RAIN(I,J,K)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%F_RAIN,1,1,1,LM,K,MYPE,MPI_COMM_COMP)
+      ENDDO
+!-----------------------------------------------------------------------
+!***  F_RIMEF
+!-----------------------------------------------------------------------
+      DO K=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%F_RIMEF(I,J,K)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%F_RIMEF,1,1,1,LM,K,MYPE,MPI_COMM_COMP)
+      ENDDO
+!-----------------------------------------------------------------------
+!***  GLAT
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%GLAT(I,J)=0.
+      ENDDO
+      ENDDO
+      CALL DSTRB(TEMP1,int_state%GLAT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+      CALL HALO_EXCH(int_state%GLAT,1,2,2)
+!-----------------------------------------------------------------------
+!***  GLON
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%GLON(I,J)=0.
+      ENDDO
+      ENDDO
+      CALL DSTRB(TEMP1,int_state%GLON,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+      CALL HALO_EXCH(int_state%GLON,1,2,2)
+!-----------------------------------------------------------------------
+!***  GRNFLX
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%GRNFLX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  HBOT
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%HBOT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  HBOTD
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%HBOTD,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  HBOTS
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%HBOTS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  HDACVX
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%HDACVX(I,J)=0.
+      ENDDO
+      ENDDO
+      CALL DSTRB(TEMP1,int_state%HDACVX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+      CALL HALO_EXCH(int_state%HDACVX,1,2,2)
+!-----------------------------------------------------------------------
+!***  HDACVY
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%HDACVY(I,J)=0.
+      ENDDO
+      ENDDO
+      CALL DSTRB(TEMP1,int_state%HDACVY,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+      CALL HALO_EXCH(int_state%HDACVY,1,2,2)
+!-----------------------------------------------------------------------
+!***  HDACX
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%HDACX(I,J)=0.
+      ENDDO
+      ENDDO
+      CALL DSTRB(TEMP1,int_state%HDACX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+      CALL HALO_EXCH(int_state%HDACX,1,2,2)
+!-----------------------------------------------------------------------
+!***  HDACY
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%HDACY(I,J)=0.
+      ENDDO
+      ENDDO
+      CALL DSTRB(TEMP1,int_state%HDACY,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+      CALL HALO_EXCH(int_state%HDACY,1,2,2)
+!-----------------------------------------------------------------------
+!***  HTOP
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%HTOP,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  HTOPD
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%HTOPD,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  HTOPS
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%HTOPS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  MXSNAL (SNOW ALBEDO)
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%MXSNAL,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  O3
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%O3,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%O3,LM,2,2)
+!-----------------------------------------------------------------------
+!***  OMGALF
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%OMGALF,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%OMGALF,LM,2,2)
+!-----------------------------------------------------------------------
+!***  PBLH
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%PBLH,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  PD
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%PD(I,J)=0.
+      ENDDO
+      ENDDO
+      CALL DSTRB(TEMP1,int_state%PD,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+      CALL HALO_EXCH(int_state%PD,1,2,2)
+!-----------------------------------------------------------------------
+!***  PDO
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%PDO(I,J)=0.
+      ENDDO
+      ENDDO
+      CALL DSTRB(TEMP1,int_state%PDO,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+      CALL HALO_EXCH(int_state%PDO,1,2,2)
+!-----------------------------------------------------------------------
+!***  PINT
+!-----------------------------------------------------------------------
+      DO L=1,LM+1
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%PINT(I,J,L)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%PINT,1,1,1,LM+1,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%PINT,LM+1,2,2)
+!-----------------------------------------------------------------------
+!***  POTEVP
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%POTEVP,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  POTFLX
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%POTFLX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  PREC
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%PREC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  PSGDT
+!-----------------------------------------------------------------------
+      DO L=1,LM-1
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+      ENDDO
+!-----------------------------------------------------------------------
+!***  PSHLTR
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%PSHLTR,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  Q10
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%Q10,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  Q2
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%Q2(I,J,L)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%Q2,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%Q2,LM,2,2)
+!-----------------------------------------------------------------------
+!***  QSH
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%QSH,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  QSHLTR
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%QSHLTR,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  QWBS
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%QWBS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  QZ0
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%QZ0,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  Q
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%Q(I,J,L)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%Q,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%Q,LM,2,2)
+!-----------------------------------------------------------------------
+!***  RADOT
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%RADOT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  RLWIN
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%RLWIN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  RLWTOA
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%RLWTOA,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  RLWTT
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%RLWTT(I,J,L)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%RLWTT,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+!-----------------------------------------------------------------------
+!***  RMOL
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%RMOL,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  RSWIN
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%RSWIN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  RSWINC
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%RSWINC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  RSWOUT
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%RSWOUT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  RSWTOA
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%RSWTOA,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  RSWTT
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%RSWTT(I,J,L)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%RSWTT,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+!-----------------------------------------------------------------------
+!***  RTOP
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%RTOP,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%RTOP,LM,2,2)
+!-----------------------------------------------------------------------
+!***  SFCEVP
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SFCEVP,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SFCEXC
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SFCEXC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SFCLHX
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SFCLHX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SFCSHX
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SFCSHX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SH2O
+!-----------------------------------------------------------------------
+      DO K=1,int_state%NSOIL
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%SH2O,1,1,1,int_state%NSOIL,K        &
+                  ,MYPE,MPI_COMM_COMP)
+      ENDDO
+!-----------------------------------------------------------------------
+!***  SI
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SI,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SICE
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SICE,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SIGT4
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SIGT4,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SM (Seamask)
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%SM(I,J)=0.
+      ENDDO
+      ENDDO
+      CALL DSTRB(TEMP1,int_state%SM,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SMC
+!-----------------------------------------------------------------------
+      DO K=1,int_state%NSOIL
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%SMC,1,1,1,int_state%NSOIL,K        &
+                  ,MYPE,MPI_COMM_COMP)
+      ENDDO
+!-----------------------------------------------------------------------
+!***  SMSTAV
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SMSTAV,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SMSTOT
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SMSTOT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SNO
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SNO,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SNOPCX
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SNOPCX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SNOWC
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SNOWC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SOILTB
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SOILTB,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SR
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SR,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SSROFF
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SSROFF,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  SST
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SST,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  STC
+!-----------------------------------------------------------------------
+      DO K=1,int_state%NSOIL
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%STC,1,1,1,int_state%NSOIL,K          &
+                  ,MYPE,MPI_COMM_COMP)
+      ENDDO
+!-----------------------------------------------------------------------
+!***  SUBSHX
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%SUBSHX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  T2
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%T2,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  TCT
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%TCT,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%TCT,LM,2,2)
+!-----------------------------------------------------------------------
+!***  TCUCN
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%TCUCN(I,J,L)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%TCUCN,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+!-----------------------------------------------------------------------
+!***  TCU
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%TCU,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%TCU,LM,2,2)
+!-----------------------------------------------------------------------
+!***  TCV
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%tcv,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%TCV,LM,2,2)
+!-----------------------------------------------------------------------
+!***  TG
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%TG,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  TH10
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%TH10,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  THS
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%THS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  THZ0
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%THZ0,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  TLMAX
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%TLMAX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  TLMIN
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%TLMIN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  TP
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%TP,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%TP,LM,2,2)
+!-----------------------------------------------------------------------
+!***  TRACERS
+!-----------------------------------------------------------------------
+      DO N=int_state%INDX_O3+1,int_state%NUM_TRACERS_TOTAL  !<-- The first 'indx_o3' arrays are unallocated pointers
+        DO L=1,LM
+          IF(MYPE==0)THEN
+            READ(NFCST)TEMP1
+          ENDIF
+          DO J=JMS,JME
+          DO I=IMS,IME
+            int_state%TRACERS(I,J,L,N)=0.
+          ENDDO
+          ENDDO
+          CALL DSTRB(TEMP1,int_state%TRACERS(:,:,:,N),1,1,1,LM,L      &
+                    ,MYPE,MPI_COMM_COMP)
+        ENDDO
+      ENDDO
+      CALL HALO_EXCH(int_state%TRACERS,LM,int_state%NUM_TRACERS_TOTAL,1,2,2)
+!
+      DO N=1,int_state%NUM_WATER
+      DO L=1,LM
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%WATER(I,J,L,N)= &
+          int_state%TRACERS(I,J,L,N+int_state%NUM_TRACERS_TOTAL-int_state%NUM_WATER)
+        ENDDO
+        ENDDO
+      ENDDO
+      ENDDO
+!-----------------------------------------------------------------------
+!***  TRACERS_PREV
+!-----------------------------------------------------------------------
+      DO N=1,int_state%NUM_TRACERS_TOTAL
+        DO L=1,LM
+          IF(MYPE==0)THEN
+            READ(NFCST)TEMP1
+          ENDIF
+          CALL DSTRB(TEMP1,int_state%TRACERS_PREV(:,:,:,N),1,1,1,LM,L &
+                    ,MYPE,MPI_COMM_COMP)
+        ENDDO
+      ENDDO
+      CALL HALO_EXCH(int_state%TRACERS_PREV,LM,int_state%NUM_TRACERS_TOTAL,1,2,2)
+!-----------------------------------------------------------------------
+!***  TRAIN
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%TRAIN(I,J,L)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%TRAIN,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+!-----------------------------------------------------------------------
+!***  TSHLTR
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%TSHLTR,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  TSKIN
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%TSKIN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  TWBS
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%TWBS,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  T
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+          WRITE(0,*) 'L, T extremes: ', L, MINVAL(TEMP1),MAXVAL(TEMP1)
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%T(I,J,L)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%T,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%T,LM,2,2)
+!-----------------------------------------------------------------------
+!***  TADJ
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%TADJ(I,J,L)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%TADJ,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%TADJ,LM,2,2)
+!-----------------------------------------------------------------------
+!***  TOLD
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%TOLD(I,J,L)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%TOLD,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%TOLD,LM,2,2)
+!-----------------------------------------------------------------------
+!***  U10
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%U10,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  UP
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%UP,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%UP,LM,2,2)
+!-----------------------------------------------------------------------
+!***  USTAR
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%USTAR,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  UZ0
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%UZ0,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  U
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%U(I,J,L)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%U,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%U,LM,2,2)
+!-----------------------------------------------------------------------
+!***  V10
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%V10,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  VEGFRC
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST) TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%VEGFRC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  VLAT
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%VLAT(I,J)=0.
+      ENDDO
+      ENDDO
+      CALL DSTRB(TEMP1,int_state%VLAT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+      CALL HALO_EXCH(int_state%VLAT,1,2,2)
+!-----------------------------------------------------------------------
+!***  VLON
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      DO J=JMS,JME
+      DO I=IMS,IME
+        int_state%VLON(I,J)=0.
+      ENDDO
+      ENDDO
+      CALL DSTRB(TEMP1,int_state%VLON,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+      CALL HALO_EXCH(int_state%VLON,1,2,2)
+!-----------------------------------------------------------------------
+!***  VP
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%VP,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%VP,LM,2,2)
+!-----------------------------------------------------------------------
+!***  VZ0
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST) TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%VZ0,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  V
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%V(I,J,L)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%V,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%V,LM,2,2)
+!-----------------------------------------------------------------------
+!***  W
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%W,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%W,LM,2,2)
+!-----------------------------------------------------------------------
+!***  XLEN_MIX
+!-----------------------------------------------------------------------
+      DO K=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%XLEN_MIX(I,J,K)=0.
+        ENDDO
+        ENDDO
+        CALL DSTRB(TEMP1,int_state%XLEN_MIX,1,1,1,LM,K,MYPE,MPI_COMM_COMP)
+      ENDDO
+!-----------------------------------------------------------------------
+!***  Z0
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%Z0,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+      CALL HALO_EXCH(int_state%Z0,1,3,3)
+!-----------------------------------------------------------------------
+!***  Z0BASE
+!-----------------------------------------------------------------------
+      IF(MYPE==0)THEN
+        READ(NFCST)TEMP1
+      ENDIF
+      CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1,MYPE,MPI_COMM_COMP)
+!-----------------------------------------------------------------------
+!***  Z
+!-----------------------------------------------------------------------
+      DO L=1,LM
+        IF(MYPE==0)THEN
+          READ(NFCST)TEMP1
+        ENDIF
+        CALL DSTRB(TEMP1,int_state%Z,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
+      ENDDO
+      CALL HALO_EXCH(int_state%Z,LM,2,2)
+!-----------------------------------------------------------------------
+#else
+! For ESMF3 part:
+!-----------------------------------------------------------------------
 !***  Read from restart file: Real 2D arrays
 !-----------------------------------------------------------------------
 !-- fis
@@ -1031,12 +2381,6 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-!
-!d      DO J=JMS,JME
-!d      DO I=IMS,IME
-!d        int_state%ACFRCV(I,J)=0.
-!d      ENDDO
-!d      ENDDO
       CALL DSTRB(TEMP1,int_state%ACFRCV,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ACFRST
@@ -1044,12 +2388,6 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-!
-!d      DO J=JMS,JME
-!d      DO I=IMS,IME
-!d        int_state%ACFRST(I,J)=0.
-!d      ENDDO
-!d      ENDDO
       CALL DSTRB(TEMP1,int_state%ACFRST,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ACPREC
@@ -1057,12 +2395,6 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-!
-!d      DO J=JMS,JME
-!d      DO I=IMS,IME
-!d        int_state%ACPREC(I,J)=0.
-!d      ENDDO
-!d      ENDDO
       CALL DSTRB(TEMP1,int_state%ACPREC,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ACSNOM
@@ -1070,12 +2402,6 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-!
-!d      DO J=JMS,JME
-!d      DO I=IMS,IME
-!d        int_state%ACSNOM(I,J)=0.
-!!dd      ENDDO
-!d      ENDDO
       CALL DSTRB(TEMP1,int_state%ACSNOM,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ACSNOW
@@ -1083,12 +2409,6 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-!
-!d      DO J=JMS,JME
-!d      DO I=IMS,IME
-!d        int_state%ACSNOW(I,J)=0.
-!d      ENDDO
-!d      ENDDO
       CALL DSTRB(TEMP1,int_state%ACSNOW,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  AKHS_OUT
@@ -1096,12 +2416,6 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-!
-!d      DO J=JMS,JME
-!d      DO I=IMS,IME
-!d        int_state%AKHS_OUT(I,J)=0.
-!d      ENDDO
-!d      ENDDO
       CALL DSTRB(TEMP1,int_state%AKHS_OUT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  AKMS_OUT
@@ -1109,12 +2423,6 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-!
-!d      DO J=JMS,JME
-!d      DO I=IMS,IME
-!d        int_state%AKMS_OUT(I,J)=0.
-!d      ENDDO
-!d      ENDDO
       CALL DSTRB(TEMP1,int_state%AKMS_OUT,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ALBASE
@@ -1122,12 +2430,6 @@ integer(kind=kint):: &
       IF(MYPE==0)THEN
         READ(NFCST)TEMP1
       ENDIF
-!
-!d      DO J=JMS,JME
-!d      DO I=IMS,IME
-!d        int_state%ALBASE(I,J)=0.
-!d      ENDDO
-!d      ENDDO
       CALL DSTRB(TEMP1,int_state%ALBASE,1,1,1,1,1,MYPE,MPI_COMM_COMP)
 !-----------------------------------------------------------------------
 !***  ALBEDO
@@ -1689,7 +2991,6 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%RSWTOA,1,1,1,1,1,MYPE,MPI_COMM_COMP)
-!
 !-----------------------------------------------------------------------
 !***  POTFLX
 !-----------------------------------------------------------------------
@@ -1697,7 +2998,6 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%POTFLX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
-!
 !-----------------------------------------------------------------------
 !***  RMOL
 !-----------------------------------------------------------------------
@@ -1705,7 +3005,6 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%RMOL,1,1,1,1,1,MYPE,MPI_COMM_COMP)
-!
 !-----------------------------------------------------------------------
 !***  T2
 !-----------------------------------------------------------------------
@@ -1713,7 +3012,6 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%T2,1,1,1,1,1,MYPE,MPI_COMM_COMP)
-!
 !-----------------------------------------------------------------------
 !***  Z0BASE
 !-----------------------------------------------------------------------
@@ -1721,7 +3019,6 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%Z0BASE,1,1,1,1,1,MYPE,MPI_COMM_COMP)
-!
 !-----------------------------------------------------------------------
 !***  TLMIN
 !-----------------------------------------------------------------------
@@ -1729,7 +3026,6 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%TLMIN,1,1,1,1,1,MYPE,MPI_COMM_COMP)
-!
 !-----------------------------------------------------------------------
 !***  TLMAX
 !-----------------------------------------------------------------------
@@ -1737,7 +3033,6 @@ integer(kind=kint):: &
         READ(NFCST)TEMP1
       ENDIF
       CALL DSTRB(TEMP1,int_state%TLMAX,1,1,1,1,1,MYPE,MPI_COMM_COMP)
-!
 !-----------------------------------------------------------------------
 !***  ACUTIM
 !-----------------------------------------------------------------------
@@ -1791,16 +3086,10 @@ integer(kind=kint):: &
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 3D arrays (only DYN)
 !-----------------------------------------------------------------------
-!
         do l=1,lm
           if(mype==0)then
             read(nfcst)temp1
           endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%w(i,j,l)=0.
-!d          enddo
-!d          enddo
           call dstrb(temp1,int_state%w,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%w,lm,2,2)
@@ -1809,11 +3098,6 @@ integer(kind=kint):: &
           if(mype==0)then
             read(nfcst)temp1
           endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%omgalf(i,j,l)=0.
-!d          enddo
-!d          enddo
           call dstrb(temp1,int_state%omgalf,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%omgalf,lm,2,2)
@@ -1822,11 +3106,6 @@ integer(kind=kint):: &
           if(mype==0)then
             read(nfcst)temp1
           endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%o3(i,j,l)=0.
-!d          enddo
-!d          enddo
           call dstrb(temp1,int_state%o3,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%o3,lm,2,2)
@@ -1835,11 +3114,6 @@ integer(kind=kint):: &
           if(mype==0)then
             read(nfcst)temp1
           endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%div(i,j,l)=0.
-!d          enddo
-!d          enddo
           call dstrb(temp1,int_state%div,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%div,lm,2,2)
@@ -1848,11 +3122,6 @@ integer(kind=kint):: &
           if(mype==0)then
             read(nfcst)temp1
           endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%rtop(i,j,l)=0.
-!d          enddo
-!d          enddo
           call dstrb(temp1,int_state%rtop,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%rtop,lm,2,2)
@@ -1861,11 +3130,6 @@ integer(kind=kint):: &
           if(mype==0)then
             read(nfcst)temp1
           endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%tcu(i,j,l)=0.
-!d          enddo
-!d          enddo
           call dstrb(temp1,int_state%tcu,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%tcu,lm,2,2)
@@ -1874,11 +3138,6 @@ integer(kind=kint):: &
           if(mype==0)then
             read(nfcst)temp1
           endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%tcv(i,j,l)=0.
-!d          enddo
-!d          enddo
           call dstrb(temp1,int_state%tcv,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%tcv,lm,2,2)
@@ -1887,11 +3146,6 @@ integer(kind=kint):: &
           if(mype==0)then
             read(nfcst)temp1
           endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%tct(i,j,l)=0.
-!d          enddo
-!d          enddo
           call dstrb(temp1,int_state%tct,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%tct,lm,2,2)
@@ -1900,11 +3154,6 @@ integer(kind=kint):: &
           if(mype==0)then
             read(nfcst)temp1
           endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%tp(i,j,l)=0.
-!d          enddo
-!d          enddo
           call dstrb(temp1,int_state%tp,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%tp,lm,2,2)
@@ -1913,11 +3162,6 @@ integer(kind=kint):: &
           if(mype==0)then
             read(nfcst)temp1
           endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%up(i,j,l)=0.
-!d          enddo
-!d          enddo
           call dstrb(temp1,int_state%up,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%up,lm,2,2)
@@ -1926,11 +3170,6 @@ integer(kind=kint):: &
           if(mype==0)then
             read(nfcst)temp1
           endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%vp(i,j,l)=0.
-!d          enddo
-!d          enddo
           call dstrb(temp1,int_state%vp,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%vp,lm,2,2)
@@ -1945,11 +3184,6 @@ integer(kind=kint):: &
           if(mype==0)then
             read(nfcst)temp1
           endif
-!d          do j=jms,jme
-!d          do i=ims,ime
-!d            int_state%z(i,j,l)=0.
-!d          enddo
-!d          enddo
           call dstrb(temp1,int_state%z,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%z,lm,2,2)
@@ -1957,7 +3191,6 @@ integer(kind=kint):: &
 !-----------------------------------------------------------------------
 !***  Read from restart file: Real 3D arrays
 !-----------------------------------------------------------------------
-        call mpi_barrier(mpi_comm_comp,irtn)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then
@@ -2145,105 +3378,79 @@ integer(kind=kint):: &
         enddo
         call halo_exch(int_state%v,lm,2,2)
 !-----------------------------------------------------------------------
-!
       DO K=1,LM
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1   ! XLEN_MIX
         ENDIF
-!
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%XLEN_MIX(I,J,K)=0.
         ENDDO
         ENDDO
-!
         CALL DSTRB(TEMP1,int_state%XLEN_MIX,1,1,1,LM,K,MYPE,MPI_COMM_COMP)
       ENDDO
 !-----------------------------------------------------------------------
-!
       DO K=1,LM
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1   ! F_ICE
         ENDIF
-!
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%F_ICE(I,J,K)=0.
         ENDDO
         ENDDO
-!
         CALL DSTRB(TEMP1,int_state%F_ICE,1,1,1,LM,K,MYPE,MPI_COMM_COMP)
       ENDDO
 !-----------------------------------------------------------------------
-!
       DO K=1,LM
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1   ! F_RIMEF
         ENDIF
-!
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%F_RIMEF(I,J,K)=0.
         ENDDO
         ENDDO
-!
         CALL DSTRB(TEMP1,int_state%F_RIMEF,1,1,1,LM,K,MYPE,MPI_COMM_COMP)
       ENDDO
 !-----------------------------------------------------------------------
-!
       DO K=1,LM
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1   ! F_RAIN
         ENDIF
-!
         DO J=JMS,JME
         DO I=IMS,IME
           int_state%F_RAIN(I,J,K)=0.
         ENDDO
         ENDDO
-!
         CALL DSTRB(TEMP1,int_state%F_RAIN,1,1,1,LM,K,MYPE,MPI_COMM_COMP)
       ENDDO
 !-----------------------------------------------------------------------
 !***  SH2O, SMC, STC
 !-----------------------------------------------------------------------
-!
       DO K=1,int_state%NSOIL
-!
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1
-!          write(0,*) 'lev, min, max for SH2O: ', k,minval(TEMP1),maxval(TEMP1)
         ENDIF
-!
         CALL DSTRB(TEMP1,int_state%SH2O,1,1,1,int_state%NSOIL,K        &
                   ,MYPE,MPI_COMM_COMP)
-!
       ENDDO
 !
       DO K=1,int_state%NSOIL
-!
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1
-!          write(0,*) 'lev, min, max for SMC: ', k,minval(TEMP1),maxval(TEMP1)
         ENDIF
-!
         CALL DSTRB(TEMP1,int_state%SMC,1,1,1,int_state%NSOIL,K        &
                   ,MYPE,MPI_COMM_COMP)
-!
       ENDDO
 !
       DO K=1,int_state%NSOIL
-!
         IF(MYPE==0)THEN
           READ(NFCST)TEMP1
-!          write(0,*) 'lev, min, max for STC: ', k,minval(TEMP1),maxval(TEMP1)
         ENDIF
-!
         CALL DSTRB(TEMP1,int_state%STC,1,1,1,int_state%NSOIL,K          &
                   ,MYPE,MPI_COMM_COMP)
-!
       ENDDO
-!
 !-----------------------------------------------------------------------
 ! TRACERS_PREV:
 !-----------------------------------------------------------------------
@@ -2257,7 +3464,6 @@ integer(kind=kint):: &
           enddo
         enddo
         call halo_exch(int_state%TRACERS_PREV,lm,int_state%NUM_TRACERS_TOTAL,1,2,2)
-!
 !-----------------------------------------------------------------------
 ! TRACERS:
 !-----------------------------------------------------------------------
@@ -2282,12 +3488,14 @@ integer(kind=kint):: &
         do l=1,lm
           do j=jms,jme
           do i=ims,ime
-            int_state%WATER(i,j,l,n)=int_state%TRACERS(i,j,l,n+int_state%NUM_TRACERS_TOTAL-int_state%NUM_WATER)
+            int_state%WATER(i,j,l,n)= &
+            int_state%TRACERS (i,j,l,n+int_state%NUM_TRACERS_TOTAL-int_state%NUM_WATER)
           enddo
           enddo
         enddo
         enddo
-!
+!-----------------------------------------------------------------------
+#endif
 !-----------------------------------------------------------------------
 !
         close(nfcst)

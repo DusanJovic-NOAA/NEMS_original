@@ -62,7 +62,7 @@ mkdir -p $PTMP/$USER
 # RTPWD - Path to previously stored regression test answers
 ############################################################
 
-   export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
+  export RTPWD=${DISKNM}/noscrub/wx20rv/REGRESSION_TEST
 #  export RTPWD=${STMP}/${USER}/REGRESSION_TEST
 
 #########################################################################
@@ -146,6 +146,8 @@ if [ $argn -eq 1 ]; then
     cp ${RTPWD}/WAM_gh_l150/*              ${RTPWD_U}/WAM_gh_l150/.
     cp ${RTPWD}/GFS_DFI_NEMSIO/*           ${RTPWD_U}/GFS_DFI_NEMSIO/.
     cp ${RTPWD}/GFS_GOCART_NEMSIO/*        ${RTPWD_U}/GFS_GOCART_NEMSIO/.
+    cp ${RTPWD}/GFS_SLG_adiab/*            ${RTPWD_U}/GFS_SLG_adiab/.
+    cp ${RTPWD}/GFS_SLG_adiab_DFI/*        ${RTPWD_U}/GFS_SLG_adiab_DFI/.
   fi
   if [ $CP_nmm = true ]; then
     echo "copy nmm"
@@ -764,9 +766,15 @@ if [ $RT_NUOPC = true ] ; then
   exit
 fi # endif NUOPC
 
-############################################################################
-# Clean and compile both NMMB & GFS cores, using ESMF 3.1.0r series library.
-############################################################################
+#################################################################
+# On ZEUS machine:
+# Clean and compile both NMMB & GFS cores, using ESMF 3.1.0r API.
+# On WCOSS machine:
+# Clean and compile for both NMMB with GFS physics & GFS cores,
+# using ESMF 3.1.0r series library, as NEMS.x_310r
+# Clean and compile NMMB core, using ESMF 6.3.0r series library,
+# as the NEMS.x_630r.
+#################################################################
 
 if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
@@ -774,8 +782,17 @@ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB
 
  if [ ${COMPILE_SORC:-YES} = YES ] ; then
   echo "Preparing model code for regression tests"
+  if [ $MACHINE_ID = wcoss ]; then
+  echo "Using an ESMF 3.1.0r series library for GFS and NMM with GFS physics"
+  echo "    "
+  echo "Using an ESMF 6.3.0r series library for NMM which not related GFS physics"
+  printf %s "Using an ESMF 3.1.0r series library for GFS and NMM with GFS physics.  "
+  printf %s "Using an ESMF 6.3.0r series library for NMM which not related GFS physics.  "
+  else
   echo "Using an ESMF 3.1.0r series library"
   printf %s "Using an ESMF 3.1.0r series library.   "
+  fi
+
   printf %s "Compiling model code (this will take some time)......."
   cd ${PATHTR}/src
 
@@ -788,6 +805,12 @@ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB
     ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
     gmake clean                            >> ${COMPILE_LOG} 2>&1
     gmake nmm_gsm_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
+    mv ../exe/NEMS.x ../exe/NEMS.x_310r
+
+    ./esmf_version 6.3r_wcoss
+    gmake clean                            >> ${COMPILE_LOG} 2>&1
+    gmake nmm                              >> ${COMPILE_LOG} 2>&1
+    mv ../exe/NEMS.x ../exe/NEMS.x_630r
 
   elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
 
@@ -818,7 +841,12 @@ cd $PATHRT
 if [ ${SKIP_NMM:-NO} = YES ] ; then
  echo "Skipping NMMB tests"
 else
+
  if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
+
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_630r ../../exe/NEMS.x
+  fi
 
   export TEST_DESCR="Compare NMMB-global results with previous trunk version"
 
@@ -857,6 +885,7 @@ else
  #
  ###############################################################################
 
+
  if [ $RT_FULL = true ]; then
 
   export TEST_DESCR="Test NMMB-global NEMSIO as input file"
@@ -878,7 +907,6 @@ else
 #---------------------
 
  fi # endif test
-
 
  ###############################################################################
  #
@@ -1003,6 +1031,10 @@ else
 
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
 
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_310r ../../exe/NEMS.x
+  fi
+
   export TEST_DESCR="Test NMMB-global with GFS physics package "
 
 #---------------------
@@ -1031,6 +1063,10 @@ else
  ###############################################################################
 
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
+
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_630r ../../exe/NEMS.x
+  fi
 
   export TEST_DESCR="Compare NMMB-regional results with previous trunk version"
 
@@ -1072,6 +1108,10 @@ else
  ###############################################################################
 
  if [ $ST_test = true -o $RT_FULL = true ]; then
+
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_630r ../../exe/NEMS.x
+  fi
 
   export TEST_DESCR="Test NMMB-regional NEMSIO as input file"
 
@@ -1214,6 +1254,10 @@ else
 
  if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_310r ../../exe/NEMS.x
+  fi
+
   export TEST_DESCR="Test NMMB-regional with GFS physics package "
 
 #---------------------
@@ -1273,6 +1317,10 @@ else
 
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_630r ../../exe/NEMS.x
+  fi
+
   export TEST_DESCR="Test NMMB-regional with separate species advection ON"
 
 #---------------------
@@ -1329,6 +1377,10 @@ else
 
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_310r ../../exe/NEMS.x
+  fi
+
   export TEST_DESCR="Test NMMB-regional with physics schemes WSM6 and GFDL"
 
 #---------------------
@@ -1358,6 +1410,10 @@ else
  ###############################################################################
 
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
+
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_310r ../../exe/NEMS.x
+  fi
 
   export TEST_DESCR="Test NMMB-regional with physics schemes WSM6 and RRTM"
 
@@ -1418,6 +1474,10 @@ else
  ###############################################################################
 
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
+
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_630r ../../exe/NEMS.x
+  fi
 
   export TEST_DESCR="Test NMMB-regional with THOMPSON microphysics scheme "
 
@@ -1549,6 +1609,10 @@ else
  ###############################################################################
 
  if [ $ST_test = true -o $RT_FULL = true ] ; then
+
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_630r ../../exe/NEMS.x
+  fi
 
   export TEST_DESCR="Test NMMB-regional static nests with restart"
 
@@ -1941,6 +2005,11 @@ fi # end of the loop SKIP_NMM
 if [ ${SKIP_GFS:-NO} = YES ] ; then
  echo "Skipping GFS tests"
 else
+
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_310r ../../exe/NEMS.x
+  fi
+
  ###############################################################################
  #
  # TEST   - GFS 
@@ -3324,37 +3393,6 @@ else
 
  ###############################################################################
  #
- # TEST   - Global NMM-B with pure binary input
- #        - 6x5 compute  tasks / 1 thread / opnl physics / free fcst / pure binary input
- #
- ###############################################################################
-
- if [ $MACHINE_ID = wcoss ] ; then
-  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
-
-   export TEST_DESCR="Compare NMMB-global results with previous trunk version_ESMF_6.3.0r API"
-
-#---------------------
-   (( TEST_NR=TEST_NR+1 ))
-   export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_ESMF_6.3.0rAPI
-   export CNTL_DIR=NMMB_glob_ESMF_6.3.0rAPI
-   export LIST_FILES=" \
-   nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_bin_0048h_00m_00.00s \
-   nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s nmmb_hst_01_nio_0048h_00m_00.00s \
-   nmmb_rst_01_bin_0024h_00m_00.00s nmmb_rst_01_nio_0024h_00m_00.00s"
-#---------------------
-   export_nmm
-   export GBRG=glob
-#---------------------
-   ./rt_nmm.sh
-   if [ $? = 2 ]; then exit ; fi
-#---------------------
-
-  fi # endif test
- fi # endif machine (only WCOSS)
-
- ###############################################################################
- #
  # TEST   - GFS
  #        - 30 compute tasks / 1 thread
  #
@@ -3389,6 +3427,11 @@ else
 if [ ${SKIP_SINGLECORE:-NO} = YES ] ; then
  echo "Skipping single core NMMB and GFS tests"
 else
+
+# Since on wcoss, only NMMB already tested by using the ESMF 6.3.0r
+# library, skip this test on wcoss.
+
+if [ $MACHINE_ID = zeus ] ; then
 
 #########################################################################
 # Clean and compile only NMMB core
@@ -3461,6 +3504,8 @@ if [ $RT_FULL = true ] ; then
 #---------------------
 
 fi # endif test
+
+fi  # only on zeus machine.
 
 #########################################################################
 # Clean and compile only GFS core
@@ -3548,6 +3593,7 @@ if [ ${CLEAN_SORC:-YES} = YES ] ; then
   cd ${PATHTR}/src
   gmake clean            > /dev/null 2>&1
   ./esmf_version 3       > /dev/null 2>&1
+  rm -f ../exe/NEMS.x*   > /dev/null 2>&1
 fi
 
 if [ ${CLEAN_RUNDIR:-YES} = YES ] ; then

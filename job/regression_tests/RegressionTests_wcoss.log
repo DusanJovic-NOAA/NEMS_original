@@ -1,11 +1,11 @@
-Fri Apr 18 23:07:57 UTC 2014
+Wed Apr 30 23:04:03 UTC 2014
 Start Regression test
 
 
 
-Fri Apr 18 23:07:57 UTC 2014
+Wed Apr 30 23:04:03 UTC 2014
 Compilation ALL
-Fri Apr 18 23:27:20 UTC 2014
+Wed Apr 30 23:32:17 UTC 2014
 Test 1
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 1 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  94.013
+ Original timing:  151.20  , test_glob timing:  94.454
 
 
 Test 2
@@ -128,7 +128,7 @@ Checking test 8 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  173.15
+ Original timing:  240.82  , test_reg timing:  178.03
 
 
 Test 9
@@ -918,9 +918,9 @@ Checking test 49 results ....
  Comparing sigf18.........OK
  Comparing sigf24.........OK
  Test 49 passed 
-Sat Apr 19 04:52:58 UTC 2014
+Thu May  1 07:36:54 UTC 2014
 Compilation with POST
-Sat Apr 19 05:13:42 UTC 2014
+Thu May  1 07:55:46 UTC 2014
 Test 50
 NMMB-regional run with post on quilt
 
@@ -966,28 +966,41 @@ Checking test 51 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 51 passed 
-Sat Apr 19 05:23:21 UTC 2014
+Thu May  1 08:13:41 UTC 2014
 Compilation ESMF 6.3.0r API
-Sat Apr 19 05:39:47 UTC 2014
+Thu May  1 08:28:15 UTC 2014
 Test 52
-Compare NMMB-global results with previous trunk version_ESMF_6.3.0r API
+Compare GFS results with previous trunk version ESMF6.3.0rAPI
+GFS, 32 proc, 1 thread
+
+
 
 
 Checking test 52 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0048h_00m_00.00s.........OK
- Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
  Test 52 passed 
-
-
-
+Thu May  1 08:31:28 UTC 2014
+Compilation only GFS
+Thu May  1 08:43:50 UTC 2014
 Test 53
-Compare GFS results with previous trunk version ESMF6.3.0rAPI
+Compare GFS results with previous trunk version, only GFS compiled
 GFS, 32 proc, 1 thread
 
 
@@ -1012,53 +1025,6 @@ Checking test 53 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 53 passed 
-Sat Apr 19 05:47:19 UTC 2014
-Compilation only NMM
-Test 54
-Compare NMMB-global results with previous trunk version, only NMM compiled
-
-
-Checking test 54 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
- Test 54 passed 
-
-
-
-Sat Apr 19 06:01:18 UTC 2014
-Compilation only GFS
-Sat Apr 19 06:13:36 UTC 2014
-Test 55
-Compare GFS results with previous trunk version, only GFS compiled
-GFS, 32 proc, 1 thread
-
-
-
-
-Checking test 55 results ....
- Comparing sigf00.........OK
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sigf48.........OK
- Comparing sfcf00.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing sfcf48.........OK
- Comparing flxf00.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
- Comparing flxf48.........OK
- Test 55 passed 
-Sat Apr 19 06:18:14 UTC 2014
+ Test 53 passed
+Thu May  1 08:48:30 UTC 2014
 REGRESSION TEST WAS SUCCESSFUL
