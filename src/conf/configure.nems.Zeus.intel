@@ -28,11 +28,20 @@ gfsdir=atmos/$(gfs)
 ## OCN settings
 ## NUOPC compliant OCN models supply a standard makefile fragment
 
-ocndummy_mk   = /home/Gerhard.Theurich/OCN-INSTALLS/DummyOCN-version-05/ocn.mk
+#ocndummy_mk   = /home/Gerhard.Theurich/OCN-INSTALLS/DummyOCN-head/ocn.mk
+ocndummy_mk   = /home/Gerhard.Theurich/OCN-INSTALLS/DummyOCN-rev38154-ESMF700bs06/ocn.mk
 hycom_mk      = /home/Gerhard.Theurich/OCN-INSTALLS/HYCOM-rtofs0.25cfsr__branches__NUOPC.rev32555-ESMF630r/hycom_nuopc.mk
 #hycom_mk      = /scratch1/portfolios/NCEPDEV/ocean/noscrub/Gerhard.Theurich/HYCOM-NCEP/rtofs0.25cfsr__branches__NUOPC.working/sorc/hycom_nuopc.mk
-mom5_mk       = /home/Fei.Liu/OCN-INSTALLS/2014-02-21-17-51-10/mom5.mk
+mom5_mk       = /home/Fei.Liu/OCN-INSTALLS/2014-03-25-17-12-56/mom5.mk
 #mom5_mk       = /home/Fei.Liu/OCN-INSTALLS/head/mom5.mk
+
+################################################################################
+## SEAICE settings
+## NUOPC compliant SEAICE models supply a standard makefile fragment
+
+#icedummy_mk   = /home/Gerhard.Theurich/ICE-INSTALLS/DummyICE-head/ice.mk
+icedummy_mk   = /home/Gerhard.Theurich/ICE-INSTALLS/DummyICE-rev38708/ice.mk
+cice_mk       = /home/Fei.Liu/ICE-INSTALLS/2014-03-19-18-52-00/cice.mk
 
 ################################################################################
 ## Other settings

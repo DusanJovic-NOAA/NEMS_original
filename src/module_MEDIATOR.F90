@@ -25,11 +25,17 @@ module module_MEDIATOR
   ! phase. Phase specific Clocks are implemented by swapping Clocks during the
   ! phase specific "label_SetRunClock" specialization method. These Clock
   ! objects are stored in the Component instance's own internal state.
+  !
+  ! Current implementation (March 2014) assumes the atm and ice are running
+  ! at the same coupling period which is shorter than the ocean coupling period.
+  ! Accumulation of atm and ice fields are done for the ocean model.  No 
+  ! accumulation is done for the atm or ice models from any model.  The
+  ! atm, ice, and ocean pass their latest data directly to the atm and ice models.
   !-----------------------------------------------------------------------------
 
   use ESMF
   use NUOPC
-  use NUOPC_Mediator, only: &
+  use NUOPC_Mediator, &
     mediator_routine_SS             => routine_SetServices, &
     mediator_routine_Run            => routine_Run, &
     mediator_type_IS                => type_InternalState, &
@@ -48,14 +54,18 @@ module module_MEDIATOR
   type InternalStateStruct
     type(ESMF_Clock)      :: clockAtm    ! clock for atm
     type(ESMF_Clock)      :: clockOcn    ! clock for ocn
-    integer               :: sliceAtm    ! slice counter for writing to NetCDF file
-    integer               :: sliceOcn    ! slice counter for writing to NetCDF file
+    type(ESMF_Clock)      :: clockIce    ! clock for ice
+    integer               :: fastcntr    ! slice counter for writing to NetCDF file
+    integer               :: slowcntr    ! slice counter for writing to NetCDF file
     integer               :: accumcntAtm ! accumulator counter
     integer               :: accumcntOcn ! accumulator counter
+    integer               :: accumcntIce ! accumulator counter
     type(ESMF_FieldBundle):: FBaccumAtm  ! accumulator of atm export data
     type(ESMF_FieldBundle):: FBaccumOcn  ! accumulator of ocn export data
+    type(ESMF_FieldBundle):: FBaccumIce  ! accumulator of ice export data
     type(ESMF_FieldBundle):: FBforOcn    ! data storage for ocn import
     type(ESMF_FieldBundle):: FBforAtm    ! data storage for atm import
+    type(ESMF_FieldBundle):: FBforIce    ! data storage for ice import
     type(ESMF_RouteHandle):: rh !gjt: temporary solution
 ! tcx Xgrid
 !    type(ESMF_RouteHandle):: RHa2x       ! atm to xgrid RH
@@ -83,10 +93,18 @@ module module_MEDIATOR
   ! tcraig some temporary debug variables
   integer, parameter :: nx_atm=400, ny_atm=200
   integer, parameter :: nx_ocn=400, ny_ocn=200
+  integer, parameter :: nx_ice=400, ny_ice=200
   integer, parameter :: dbug_flag = 5
   integer            :: dbrc
   character(len=256) :: tmpstr
   real(ESMF_KIND_R8), parameter :: const_lhvap = 2.501e6_ESMF_KIND_R8  ! latent heat of evaporation ~ J/kg
+
+  integer, parameter :: med_phase_max = 3
+
+  !--- These also appear in module_EARTH_GENERIC_COMP.F90
+  integer, parameter :: medPhase_slow = 1
+  integer, parameter :: medPhase_fast_before = 2
+  integer, parameter :: medPhase_fast_after  = 3
 
   type fld_list_type
     integer :: num = -1
@@ -100,6 +118,8 @@ module module_MEDIATOR
   type (fld_list_type) :: fldsFrAtm
   type (fld_list_type) :: fldsToOcn
   type (fld_list_type) :: fldsFrOcn
+  type (fld_list_type) :: fldsToIce
+  type (fld_list_type) :: fldsFrIce
 
 
   public SetServices
@@ -113,6 +133,7 @@ module module_MEDIATOR
     integer, intent(out) :: rc
 
     ! local variables
+    integer :: nphase
     character(len=*),parameter :: subname='(module_MEDIATOR:SetServices)'
     
     if (dbug_flag > 1) then
@@ -121,7 +142,7 @@ module module_MEDIATOR
     rc = ESMF_SUCCESS
     
     ! the NUOPC mediator component will register the generic methods
-    call mediator_routine_SS(gcomp, rc=rc)
+    call NUOPC_CompDerive(gcomp, mediator_routine_SS, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -168,20 +189,21 @@ module module_MEDIATOR
       return  ! bail out
       
     ! attach specializing method(s)
-    call ESMF_MethodAdd(gcomp, label=mediator_label_DataInitialize, &
-      userRoutine=DataInitialize, rc=rc)
+    call NUOPC_CompSpecialize(gcomp, specLabel=mediator_label_DataInitialize, &
+      specRoutine=DataInitialize, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    
-    ! Run phase 2 entry point
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_RUN, &
-      userRoutine=mediator_routine_Run, phase=2, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
+
+    do nphase = 2,med_phase_max
+      call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_RUN, &
+        userRoutine=mediator_routine_Run, phase=nphase, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    enddo
 
     ! overwrite Finalize
     call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_FINALIZE, &
@@ -191,145 +213,142 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
 
-    ! attach specializing methods for Run(phase=1) "atm"
-    call ESMF_MethodAdd(gcomp, label=mediator_label_SetRunClock, &
-      index=1, userRoutine=SetRunClock_atm, rc=rc)
+    ! attach specializing methods for Run ( phase = slow) "ocn"
+    call NUOPC_CompSpecialize(gcomp, specLabel=mediator_label_SetRunClock, &
+      specIndex=MedPhase_slow, specRoutine=SetRunClock_ocn, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    call ESMF_MethodAdd(gcomp, label=mediator_label_CheckImport, &
-      index=1, userRoutine=CheckImport_atm, rc=rc)
+    call NUOPC_CompSpecialize(gcomp, specLabel=mediator_label_Advance, &
+      specIndex=MedPhase_slow, specRoutine=Advance_slow, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    call ESMF_MethodAdd(gcomp, label=mediator_label_TimestampExport, &
-      index=1, userRoutine=TimestampExport_atm, rc=rc)
+
+    ! attach specializing methods for Run( phase = fast_before )
+    call NUOPC_CompSpecialize(gcomp, specLabel=mediator_label_SetRunClock, &
+      specIndex=MedPhase_fast_before, specRoutine=SetRunClock_atm_before, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    call ESMF_MethodAdd(gcomp, label=mediator_label_Advance, &
-      index=1, userRoutine=Advance_afterAtm, rc=rc)
+    call NUOPC_CompSpecialize(gcomp, specLabel=mediator_label_CheckImport, &
+      specIndex=MedPhase_fast_before, specRoutine=CheckImport_atm_before, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call NUOPC_CompSpecialize(gcomp, specLabel=mediator_label_TimestampExport, &
+      specIndex=MedPhase_fast_before, specRoutine=TimestampExport_atm_before, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call NUOPC_CompSpecialize(gcomp, specLabel=mediator_label_Advance, &
+      specIndex=MedPhase_fast_before, specRoutine=Advance_fast_before, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
     
-    ! attach specializing methods for Run(phase=2) "ocn"
-    call ESMF_MethodAdd(gcomp, label=mediator_label_SetRunClock, &
-      index=2, userRoutine=SetRunClock_ocn, rc=rc)
+    ! attach specializing methods for Run( phase = fast_after )
+    call NUOPC_CompSpecialize(gcomp, specLabel=mediator_label_SetRunClock, &
+      specIndex=MedPhase_fast_after, specRoutine=SetRunClock_atm_after, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    call ESMF_MethodAdd(gcomp, label=mediator_label_Advance, &
-      index=2, userRoutine=Advance_beforeOcn, rc=rc)
+    call NUOPC_CompSpecialize(gcomp, specLabel=mediator_label_CheckImport, &
+      specIndex=MedPhase_fast_after, specRoutine=CheckImport_atm_after, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    
+    call NUOPC_CompSpecialize(gcomp, specLabel=mediator_label_TimestampExport, &
+      specIndex=MedPhase_fast_after, specRoutine=TimestampExport_atm_after, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call NUOPC_CompSpecialize(gcomp, specLabel=mediator_label_Advance, &
+      specIndex=MedPhase_fast_after, specRoutine=Advance_fast_after, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! Fields to ATM
+    call fld_list_add(fldsToAtm,"sea_surface_temperature", "sst"     , "sea surface temperature on t-cell","K"    , "will provide")
+    call fld_list_add(fldsToAtm,"stress_on_air_ice_x"    , "strairxT", "stress on air by ice x component" ,"N m-2", "will provide")
+    call fld_list_add(fldsToAtm,"stress_on_air_ice_y"    , "strairyT", "stress on air by ice y component" ,"N m-2", "will provide")
+
     ! Fields from ATM
-    call fld_list_add(fldsFrAtm,"mean_zonal_moment_flx", "mzmfx", &
-      "Mean Zonal Component of Momentum Flux",           "Pa", "will provide")
-    call fld_list_add(fldsFrAtm,"mean_merid_moment_flx", "mmmfx", &
-      "Mean Merid Component of Momentum Flux",           "Pa", "will provide")
-    call fld_list_add(fldsFrAtm,"mean_sensi_heat_flx"        , "mshfx", &
-      "Mean Sensible Heat Flux",                      "W/m^2", "will provide")
-    call fld_list_add(fldsFrAtm,"mean_laten_heat_flx"        , "mlhfx" , &
-      "Mean Latent Heat Flux",                     "kg/m^2/s", "will provide")
-    call fld_list_add(fldsFrAtm,"mean_down_lw_flx"       , "mdlwfx" , &
-      "Mean Downward Long Wave Radiation Flux",       "W/m^2", "will provide")
-    call fld_list_add(fldsFrAtm,"mean_down_sw_flx"      , "mdswfx", &
-      "Mean Downward Shortwave Radiation Flux",       "W/m^2", "will provide")
-    call fld_list_add(fldsFrAtm,"mean_prec_rate"             , "lprec", &
-      "Mean Liquid Precipitation Rate",            "kg/m^2/s", "will provide")
-    call fld_list_add(fldsFrAtm,"mean_fprec_rate"            , "fprec", &
-      "Mean Frozen Precipitation Rate",            "kg/m^2/s", "will provide")
-    call fld_list_add(fldsFrAtm,"inst_zonal_moment_flx", "izmfx", &
-      "Instantaneous Zonal Component of Momentum Flux",  "Pa", "will provide")
-    call fld_list_add(fldsFrAtm,"inst_merid_moment_flx", "immfx", &
-      "Instantaneous Merid Component of Momentum Flux",  "Pa", "will provide")
-    call fld_list_add(fldsFrAtm,"inst_sensi_heat_flx"        , "ishfx", &
-      "Instantaneous Sensible Heat Flux",             "W/m^2", "will provide")
-    call fld_list_add(fldsFrAtm,"inst_laten_heat_flx"        , "ilhfx", &
-      "Instantaneous Latent Heat Flux",            "kg/m^2/s", "will provide")
-    call fld_list_add(fldsFrAtm,"inst_down_lw_flx"       , "idlwfx", &
-      "Instantaneous Downward Long Wave Radiation Flux","W/m^2", "will provide")
-    call fld_list_add(fldsFrAtm,"inst_down_sw_flx"      , "idswfx", &
-      "Instantaneous Downward Shortwave Radiation Flux","W/m^2", "will provide")
-    call fld_list_add(fldsFrAtm,"inst_temp_height2m"         , "ith2m", &
-      "Instantaneous Temperature 2m Above Ground"        ,"K", "will provide")
-    call fld_list_add(fldsFrAtm,"inst_spec_humid_height2m"   , "ishh2m", &
-      "Instantaneous Specific Humidity 2m Above Ground","kg kg-1", "will provide")
-    call fld_list_add(fldsFrAtm,"inst_u_wind_height10m"      , "iuwh10m", &
-      "Instantaneous u Wind 10m Above Ground",        "m s-1", "will provide")
-    call fld_list_add(fldsFrAtm,"inst_v_wind_height10m"      , "ivwh10m", &
-      "Instantaneous v Wind 10m Above Ground",       "m s-1" , "will provide")
-    call fld_list_add(fldsFrAtm,"inst_temp_height_surface"   , "its", &
-      "Instantaneous Temperature Surface",               "K" , "will provide")
-    call fld_list_add(fldsFrAtm,"inst_pres_height_surface"   , "ips", &
-      "Instantaneous Pressure Surface",                  "Pa", "will provide")
-    call fld_list_add(fldsFrAtm,"inst_surface_height"        , "ish", &
-      "Instantaneous Surface Height",                     "m", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_zonal_moment_flx"   , "mzmfx"  , "Mean Zonal Component of Momentum Flux",               "Pa", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_merid_moment_flx"   , "mmmfx"  , "Mean Merid Component of Momentum Flux",               "Pa", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_sensi_heat_flx"     , "mshfx"  , "Mean Sensible Heat Flux",                          "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_laten_heat_flx"     , "mlhfx"  , "Mean Latent Heat Flux",                            "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_down_lw_flx"        , "mdlwfx" , "Mean Downward Long Wave Radiation Flux",           "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_down_sw_flx"        , "mdswfx" , "Mean Downward Shortwave Radiation Flux",           "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_prec_rate"          , "lprec"  , "Mean Liquid Precipitation Rate",                "kg/m^2/s", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_fprec_rate"         , "fprec"  , "Mean Frozen Precipitation Rate",                "kg/m^2/s", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_zonal_moment_flx"   , "izmfx"  , "Instantaneous Zonal Component of Momentum Flux",      "Pa", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_merid_moment_flx"   , "immfx"  , "Instantaneous Merid Component of Momentum Flux",      "Pa", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_sensi_heat_flx"     , "ishfx"  , "Instantaneous Sensible Heat Flux",                 "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_laten_heat_flx"     , "ilhfx"  , "Instantaneous Latent Heat Flux",                   "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_down_lw_flx"        , "idlwfx" , "Instantaneous Downward Long Wave Radiation Flux",  "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_down_sw_flx"        , "idswfx" , "Instantaneous Downward Shortwave Radiation Flux",  "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_temp_height2m"      , "ith2m"  , "Instantaneous Temperature 2m Above Ground",            "K", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_spec_humid_height2m", "ishh2m" , "Instantaneous Specific Humidity 2m Above Ground","kg kg-1", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_u_wind_height10m"   , "iuwh10m", "Instantaneous u Wind 10m Above Ground",            "m s-1", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_v_wind_height10m"   , "ivwh10m", "Instantaneous v Wind 10m Above Ground",            "m s-1", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_temp_height_surface", "its"    , "Instantaneous Temperature Surface",                    "K", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_pres_height_surface", "ips"    , "Instantaneous Pressure Surface",                      "Pa", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_surface_height"     , "ish"    , "Instantaneous Surface Height",                         "m", "will provide")
 
     ! Fields to OCN
-    call fld_list_add(fldsToOcn,"mean_zonal_moment_flx" , "mzmfx", &
-      "Mean Zonal Component of Momentum Flux","Pa", "will provide")
-    call fld_list_add(fldsToOcn,"mean_merid_moment_flx" , "mmmfx", &
-      "Mean Merid Component of Momentum Flux","Pa", "will provide")
-    call fld_list_add(fldsToOcn,"mean_sensi_heat_flx"         , "mshfx", &
-      "Mean Sensible Heat Flux","W/m^2", "will provide")
-    call fld_list_add(fldsToOcn,"mean_laten_heat_flx"         , "mlhfx", &
-      "Mean Latent Heat Flux","kg/m^2/s", "will provide")
-    call fld_list_add(fldsToOcn,"mean_down_lw_flx"        , "mdlwfx" , &
-      "Mean Downward Long Wave Radiation Flux" ,"W/m^2", "will provide")
-    call fld_list_add(fldsToOcn,"mean_down_sw_vis_dir_flx", "mdvrsfx" , &
-      "Mean Downward visible direct Shortwave Radiation Flux","W/m^2", &
-      "will provide")
-    call fld_list_add(fldsToOcn,"mean_down_sw_vis_dif_flx", "mdvfsfx" , &
-      "Mean Downward visible diffuse Shortwave Radiation Flux" ,"W/m^2", &
-      "will provide")
-    call fld_list_add(fldsToOcn,"mean_down_sw_ir_dir_flx" , "mdirsfx" , &
-      "Mean Downward nearinfrared direct Shortwave Radiation Flux" ,"W/m^2", &
-      "will provide")
-    call fld_list_add(fldsToOcn,"mean_down_sw_ir_dif_flx" , "mdifsfx" , &
-      "Mean Downward nearinfrared diffuse Shortwave Radiation Flux","W/m^2", &
-      "will provide")
-!    call fld_list_add(fldsToOcn,"mean_salt_flx"               , "saltflx", &
-!      "salt flux into ocean","kg/m^2/s", "will provide")
-    call fld_list_add(fldsToOcn,"mean_prec_rate"              , "lprec" , &
-      "Mean Liquid Precipitation Rate" ,"kg/m^2/s", "will provide")
-!    call fld_list_add(fldsToOcn,"mean_fprec_rate"             , "fprec" , &
-!      "Mean Frozen Precipitation Rate" ,"kg/m^2/s" )
-!    call fld_list_add(fldsToOcn,"mean_runoff_rate"            , "runoff", &
-!      "mass flux of liquid runoff" ,"kg/m^2/s", "will provide")
-!    call fld_list_add(fldsToOcn,"mean_calving_rate"           , "calving" , &
-!      "mass flux of frozen runoff" ,"kg/m^2/s", "will provide")
-!    call fld_list_add(fldsToOcn,"mean_runoff_flx"             , "rofhfx", &
-!      "heat flux, relative to 0C, of liquid land water into ocean" ,"W/m^2", &
-!      "will provide")
-!    call fld_list_add(fldsToOcn,"mean_calving_flx"            , "cahflx", &
-!      "heat flux, relative to 0C, of frozen land water into ocean" ,"W/m^2", &
-!      "will provide")
-    call fld_list_add(fldsToOcn,"inst_pres_height_surface"    , "ips" , &
-      "pressure of overlying sea ice and atmosphere" ,"Pa", "will provide")
-!    call fld_list_add(fldsToOcn,"mass_of_overlying_sea_ice"   , "massice", &
-!      "mass of overlying sea ice" ,"kg")
+    call fld_list_add(fldsToOcn,"mean_zonal_moment_flx"   , "mzmfx"   , "Mean Zonal Component of Momentum Flux"                         ,"Pa", "will provide")
+    call fld_list_add(fldsToOcn,"mean_merid_moment_flx"   , "mmmfx"   , "Mean Merid Component of Momentum Flux"                         ,"Pa", "will provide")
+    call fld_list_add(fldsToOcn,"mean_sensi_heat_flx"     , "mshfx"   , "Mean Sensible Heat Flux"                                    ,"W m-2", "will provide")
+    call fld_list_add(fldsToOcn,"mean_laten_heat_flx"     , "mlhfx"   , "Mean Latent Heat Flux"                                      ,"W m-2", "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_lw_flx"        , "mdlwfx"  , "Mean Downward Long Wave Radiation Flux"                     ,"W m-2", "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_sw_vis_dir_flx", "mdvrsfx" , "Mean Downward visible direct Shortwave Radiation Flux"      ,"W m-2", "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_sw_vis_dif_flx", "mdvfsfx" , "Mean Downward visible diffuse Shortwave Radiation Flux"     ,"W m-2", "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_sw_ir_dir_flx" , "mdirsfx" , "Mean Downward nearinfrared direct Shortwave Radiation Flux" ,"W m-2", "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_sw_ir_dif_flx" , "mdifsfx" , "Mean Downward nearinfrared diffuse Shortwave Radiation Flux","W m-2", "will provide")
+!   call fld_list_add(fldsToOcn,"mean_salt_flx"           , "saltflx" , "salt flux into ocean"                                    ,"kg/m^2/s", "will provide")
+    call fld_list_add(fldsToOcn,"mean_prec_rate"          , "lprec"   , "Mean Liquid Precipitation Rate"                          ,"kg/m^2/s", "will provide")
+!   call fld_list_add(fldsToOcn,"mean_fprec_rate"         , "fprec"   , "Mean Frozen Precipitation Rate"                          ,"kg/m^2/s", "will provide")
+!   call fld_list_add(fldsToOcn,"mean_runoff_rate"        , "runoff"  , "mass flux of liquid runoff"                              ,"kg/m^2/s", "will provide")
+!   call fld_list_add(fldsToOcn,"mean_calving_rate"       , "calving" , "mass flux of frozen runoff"                              ,"kg/m^2/s", "will provide")
+!   call fld_list_add(fldsToOcn,"mean_runoff_flx"         , "rofhfx"  , "heat flux, relative to 0C, of liquid land water into ocean" ,"W m-2", "will provide")
+!   call fld_list_add(fldsToOcn,"mean_calving_flx"        , "cahflx"  , "heat flux, relative to 0C, of frozen land water into ocean" ,"W m-2", "will provide")
+    call fld_list_add(fldsToOcn,"inst_pres_height_surface", "ips"     , "pressure of overlying sea ice and atmosphere"                  ,"Pa", "will provide")
+!   call fld_list_add(fldsToOcn,"mass_of_overlying_sea_ice, "massice" , "mass of overlying sea ice"                                     ,"kg", "will provide")
+    call fld_list_add(fldsToOcn,"stress_on_ocn_ice_x"     , "strocnxT", "stress on ocn by ice x component"                           ,"N m-2", "will provide")
+    call fld_list_add(fldsToOcn,"stress_on_ocn_ice_y"     , "strocnyT", "stress on ocn by ice y component"                           ,"N m-2", "will provide")
 
     ! Fields from OCN
-    call fld_list_add(fldsFrOcn,"sea_surface_temperature"     , "sst" , &
-      "sea surface temperature on t-cell" ,"K", "will provide")
-!    call fld_list_add(fldsFrOcn,"s_surf"                      , "sss" , &
-!      "sea surface salinity on t-cell","psu")
-!    call fld_list_add(fldsFrOcn,"u_surf"                      , "uocn", &
-!      "i-directed surface ocean velocity on u-cell" ,"m/s")
-!    call fld_list_add(fldsFrOcn,"v_surf"                      , "vocn", &
-!      "j-directed surface ocean velocity on u-cell" ,"m/s")
-!    call fld_list_add(fldsFrOcn,"sea_lev"                     , "ssh",  &
-!      "Sea Level Height", "m")
+    call fld_list_add(fldsFrOcn,"sea_surface_temperature" , "sst" , "sea surface temperature on t-cell","K", "will provide")
+    call fld_list_add(fldsFrOcn,"s_surf"                  , "sss" , "sea surface salinity on t-cell" ,"psu", "will provide")
+    call fld_list_add(fldsFrOcn,"u_surf"                  , "uocn", "ocean current x component"    ,"m s-1", "will provide")
+    call fld_list_add(fldsFrOcn,"v_surf"                  , "vocn", "ocean current y component"    ,"m s-1", "will provide")
+    call fld_list_add(fldsFrOcn,"sea_lev"                 , "ssh" , "Sea Level Height"                 ,"m", "will provide")
+
+    ! Fields to ICE
+    call fld_list_add(fldsToIce,"sss_x"        , "ss_tltx", "sea surface slope x component" ,"m m-1", "will provide")
+    call fld_list_add(fldsToIce,"sss_y"        , "ss_tlty", "sea surface slope y component" ,"m m-1", "will provide")
+    call fld_list_add(fldsToIce,"wind_stress_x", "strax"  , "wind stress x component"       ,"N m-2", "will provide")
+    call fld_list_add(fldsToIce,"wind_stress_y", "stray"  , "wind stress y component"       ,"N m-2", "will provide")
+    call fld_list_add(fldsToIce,"ocn_current_x", "uocn"   , "ocean current x component"     ,"m s-1", "will provide")
+    call fld_list_add(fldsToIce,"ocn_current_y", "vocn"   , "ocean current y component"     ,"m s-1", "will provide")
+
+    ! Fields from ICE
+    call fld_list_add(fldsFrIce,"stress_on_air_ice_x", "strairxT", "stress on air by ice x component","N m-2", "will provide")
+    call fld_list_add(fldsFrIce,"stress_on_air_ice_y", "strairyT", "stress on air by ice y component","N m-2", "will provide")
+    call fld_list_add(fldsFrIce,"stress_on_ocn_ice_x", "strocnxT", "stress on ocn by ice x component","N m-2", "will provide")
+    call fld_list_add(fldsFrIce,"stress_on_ocn_ice_y", "strocnyT", "stress on ocn by ice y component","N m-2", "will provide")
 
     if (dbug_flag > 1) then
       call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
@@ -428,6 +447,21 @@ module module_MEDIATOR
         file=__FILE__)) &
         return  ! bail out
     enddo
+
+    do n = 1,fldsFrIce%num
+      if (dbug_flag > 1) then
+        call ESMF_LogWrite(trim(subname)//": Advertise "//trim(fldsFrIce%stdname(n))//":"// &
+          trim(fldsFrIce%shortname(n)), ESMF_LOGMSG_INFO, rc=dbrc)
+      endif
+      call NUOPC_StateAdvertiseField(importState, &
+        StandardName = fldsFrIce%stdname(n), &
+        name = fldsFrIce%shortname(n), &
+        TransferOfferGeomObject=fldsFrIce%transferOffer(n), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    enddo
       
     ! exportable fields:
 
@@ -461,6 +495,21 @@ module module_MEDIATOR
         return  ! bail out
     enddo
 
+    do n = 1,fldsToIce%num
+      if (dbug_flag > 1) then
+        call ESMF_LogWrite(trim(subname)//": Advertise "//trim(fldsToIce%stdname(n))//":"// &
+          trim(fldsToIce%shortname(n)), ESMF_LOGMSG_INFO, rc=dbrc)
+      endif
+      call NUOPC_StateAdvertiseField(exportState, &
+        StandardName = fldsToIce%stdname(n), &
+        name = fldsToIce%shortname(n), &
+        TransferOfferGeomObject=fldsToIce%transferOffer(n), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+    enddo
+
     if (dbug_flag > 1) then
       call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
     endif
@@ -476,7 +525,7 @@ module module_MEDIATOR
     integer, intent(out) :: rc
     
     ! local variables    
-    type(ESMF_Grid)             :: gridAtm, gridOcn
+    type(ESMF_Grid)             :: gridAtm, gridOcn, gridIce
     integer                     :: i, j
     real(kind=ESMF_KIND_R8),pointer :: lonPtr(:,:), latPtr(:,:)
     type(InternalState)         :: is
@@ -508,8 +557,8 @@ module module_MEDIATOR
       return  ! bail out
       
     ! Initialize the internal state members
-    is%wrap%sliceAtm = 1
-    is%wrap%sliceOcn = 1
+    is%wrap%fastcntr = 1
+    is%wrap%slowcntr = 1
 
     gridAtm = NUOPC_GridCreateSimpleSph(0._ESMF_KIND_R8, -85._ESMF_KIND_R8, &
       360._ESMF_KIND_R8, 85._ESMF_KIND_R8, nx_atm, ny_atm, &
@@ -518,8 +567,17 @@ module module_MEDIATOR
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
+
     gridOcn = NUOPC_GridCreateSimpleSph(0._ESMF_KIND_R8, -85._ESMF_KIND_R8, &
       360._ESMF_KIND_R8, 85._ESMF_KIND_R8, nx_ocn, ny_ocn, &
+      scheme=ESMF_REGRID_SCHEME_FULL3D, rc=rc)    
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    gridIce = NUOPC_GridCreateSimpleSph(0._ESMF_KIND_R8, -85._ESMF_KIND_R8, &
+      360._ESMF_KIND_R8, 85._ESMF_KIND_R8, nx_ice, ny_ice, &
       scheme=ESMF_REGRID_SCHEME_FULL3D, rc=rc)    
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -586,6 +644,24 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
 
+    !--- Importable fields from ice:
+
+    call realizeConnectedFields(importState, fieldNameList=fldsFrIce%shortname(1:fldsFrIce%num), &
+      grid=gridIce, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    !--- Exportable fields to ice:
+
+    call realizeConnectedFields(exportState, fieldNameList=fldsToIce%shortname(1:fldsToIce%num), &
+      grid=gridIce, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
     ! Accumulators
 
     call fieldBundle_init(is%wrap%FBaccumAtm, fieldNameList=fldsFrAtm%shortname(1:fldsFrAtm%num), &
@@ -602,6 +678,13 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
 
+    call fieldBundle_init(is%wrap%FBaccumIce, fieldNameList=fldsFrIce%shortname(1:fldsFrIce%num), &
+      grid=gridIce, state=importState, name='FBaccumIce', rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
     ! Data ready for export to models
 
     call fieldBundle_init(is%wrap%FBforAtm, fieldNameList=fldsToAtm%shortname(1:fldsToAtm%num), &
@@ -612,7 +695,14 @@ module module_MEDIATOR
       return  ! bail out
 
     call fieldBundle_init(is%wrap%FBforOcn, fieldNameList=fldsToOcn%shortname(1:fldsToOcn%num), &
-      grid=gridOcn, state=exportState, name='FBforAtm', rc=rc)
+      grid=gridOcn, state=exportState, name='FBforOcn', rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    call fieldBundle_init(is%wrap%FBforIce, fieldNameList=fldsToIce%shortname(1:fldsToIce%num), &
+      grid=gridIce, state=exportState, name='FBforIce', rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -627,6 +717,8 @@ module module_MEDIATOR
     is%wrap%clockAtm = ESMF_ClockCreate(clock, rc=rc)
     ESMF_ERR_RETURN(rc,rc)
     is%wrap%clockOcn = ESMF_ClockCreate(clock, rc=rc)
+    ESMF_ERR_RETURN(rc,rc)
+    is%wrap%clockIce = ESMF_ClockCreate(clock, rc=rc)
     ESMF_ERR_RETURN(rc,rc)
 
     config = ESMF_ConfigCreate(rc=rc)
@@ -670,6 +762,24 @@ module module_MEDIATOR
       ESMF_ERR_RETURN(rc,rc)
     endif
 
+    ! ICE coupling interval -> ice time step
+    call ESMF_ConfigGetAttribute(config, intervalSec, &
+      label="med_ice_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, &
+      rc=rc)
+    ESMF_ERR_RETURN(rc,rc)
+    if (dbug_flag > 1) then
+      write(tmpstr,'(A,f12.3)') trim(subname)//': ice intervalSec = ',intervalSec
+      call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    
+    if (intervalSec>0._ESMF_KIND_R8) then
+      ! The coupling time step was provided
+      call ESMF_TimeIntervalSet(timeStep, s_r8=intervalSec, rc=rc)
+      ESMF_ERR_RETURN(rc,rc)
+      call ESMF_ClockSet(is%wrap%clockIce, timestep=timeStep, rc=rc)
+      ESMF_ERR_RETURN(rc,rc)
+    endif
+    
     ! Clean Up
 
 !    call ESMF_GridDestroy(gridAtm, rc=rc)
@@ -1067,12 +1177,20 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
     is%wrap%accumcntAtm = 0
+
     call fieldBundle_reset(is%wrap%FBaccumOcn, value=0._ESMF_KIND_R8, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
     is%wrap%accumcntOcn = 0
+
+    call fieldBundle_reset(is%wrap%FBaccumIce, value=0._ESMF_KIND_R8, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    is%wrap%accumcntIce = 0
     
 #if 0
 !gjt: with different Grids on each side, need to precompute a Regrid
@@ -1106,14 +1224,14 @@ module module_MEDIATOR
 
   !-----------------------------------------------------------------------------
 
-  subroutine SetRunClock_atm(gcomp, rc)
+  subroutine SetRunClock_atm_before(gcomp, rc)
     type(ESMF_GridComp)   :: gcomp
     integer, intent(out)  :: rc
     
     ! local variables
     type(InternalState)     :: is_local
     type(mediator_type_IS)  :: is
-    character(len=*),parameter :: subname='(module_MEDIATOR:SetRunClock_atm)'
+    character(len=*),parameter :: subname='(module_MEDIATOR:SetRunClock_atm_before)'
 
     if (dbug_flag > 1) then
       call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
@@ -1155,7 +1273,60 @@ module module_MEDIATOR
       call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
     endif
 
-  end subroutine SetRunClock_atm
+  end subroutine SetRunClock_atm_before
+
+  !-----------------------------------------------------------------------------
+
+  subroutine SetRunClock_atm_after(gcomp, rc)
+    type(ESMF_GridComp)   :: gcomp
+    integer, intent(out)  :: rc
+    
+    ! local variables
+    type(InternalState)     :: is_local
+    type(mediator_type_IS)  :: is
+    character(len=*),parameter :: subname='(module_MEDIATOR:SetRunClock_atm_after)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    rc = ESMF_SUCCESS
+    
+    ! query component for its internal state
+    nullify(is_local%wrap)
+    call ESMF_GridCompGetInternalState(gcomp, is_local, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! set clockAtm to be the component clock
+    call ESMF_GridCompSet(gcomp, clock=is_local%wrap%clockAtm, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    ! query component for its inherited internal state
+    nullify(is%wrap)
+    call ESMF_UserCompGetInternalState(gcomp, mediator_label_IS, is, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    ! check and set the component clock against the driver clock
+    call NUOPC_GridCompCheckSetClock(gcomp, is%wrap%driverClock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+      msg="NUOPC INCOMPATIBILITY DETECTED: between model and driver clocks", &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine SetRunClock_atm_after
 
   !-----------------------------------------------------------------------------
 
@@ -1212,16 +1383,92 @@ module module_MEDIATOR
 
   !-----------------------------------------------------------------------------
 
-  subroutine CheckImport_atm(gcomp, rc)
+  subroutine CheckImport_atm_before(gcomp, rc)
     type(ESMF_GridComp)   :: gcomp
     integer, intent(out)  :: rc
     
     ! This is the routine that ensures that the import Fields come in with
-    ! the correct time stamps during the "atm" cycle: 
-    ! -> Fields from the ATM must be at stopTime. This is because the ATM model
-    !    has already advanced, and timestamped its export Fields.
-    ! -> Fields from the OCN must not be checked. They are currently not used
-    !    during the "atm" cycle of the MED.
+    ! the correct time stamps during the "fast" cycle: 
+    ! -> Fields from the ATM are not used by the "before" phase and need not 
+    !    be checked.
+    ! -> Fields from the OCN must be at the startTime of the parent driver 
+    !    Clock
+    
+    ! local variables
+    type(ESMF_Clock)        :: clock
+    type(ESMF_Time)         :: startTime
+    type(ESMF_State)        :: importState
+    type(ESMF_Field)        :: field
+    logical                 :: atCorrectTime
+    character(len=*),parameter :: subname='(module_MEDIATOR:CheckImport_atm_before)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    rc = ESMF_SUCCESS
+    
+    ! query the Component for its importState
+    call ESMF_GridCompGet(gcomp, importState=importState, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    ! query the Component for its driverClock
+    call NUOPC_MediatorGet(gcomp, driverClock=clock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    ! get the start time out of the driver Clock
+    call ESMF_ClockGet(clock, startTime=startTime, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! check fields from OCN to be at startTime of the driver Clock
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="sst")) then
+      call ESMF_StateGet(importState, itemName="sst", field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      atCorrectTime = NUOPC_FieldIsAtTime(field, startTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      if (.not.atCorrectTime) then
+        !TODO: introduce and use INCOMPATIBILITY return codes!!!!
+        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+          msg="NUOPC INCOMPATIBILITY DETECTED: Import Fields not at correct time", &
+          line=__LINE__, &
+          file=__FILE__, &
+          rcToReturn=rc)
+        return  ! bail out
+      endif
+    endif
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine CheckImport_atm_before
+
+  !-----------------------------------------------------------------------------
+  
+  subroutine CheckImport_atm_after(gcomp, rc)
+    type(ESMF_GridComp)   :: gcomp
+    integer, intent(out)  :: rc
+    
+    ! This is the routine that ensures that the import Fields come in with
+    ! the correct time stamps during the "fast" cycle: 
+    ! -> Fields from the ATM must be at stopTime because this mediator phase
+    !    runs _after_ the ATM runs.
+    ! -> Fields from the OCN are not used by the "after" phase and need not 
+    !    be checked.
     
     ! local variables
     type(ESMF_Clock)        :: clock
@@ -1229,7 +1476,7 @@ module module_MEDIATOR
     type(ESMF_State)        :: importState
     type(ESMF_Field)        :: field
     logical                 :: atCorrectTime
-    character(len=*),parameter :: subname='(module_MEDIATOR:CheckImport_atm)'
+    character(len=*),parameter :: subname='(module_MEDIATOR:CheckImport_atm_after)'
 
     if (dbug_flag > 1) then
       call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
@@ -1243,7 +1490,7 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
     
-    ! get the current time out of the Clock
+    ! get the stop time out of the Clock
     call ESMF_ClockGet(clock, stopTime=stopTime, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -1251,8 +1498,8 @@ module module_MEDIATOR
       return  ! bail out
 
     ! check fields from ATM to be at stopTime
-    if (NUOPC_StateIsFieldConnected(importState, fieldName="mzmfx")) then
-      call ESMF_StateGet(importState, itemName="mzmfx", field=field, rc=rc)
+    if (NUOPC_StateIsFieldConnected(importState, fieldName="pmsl")) then
+      call ESMF_StateGet(importState, itemName="pmsl", field=field, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -1277,11 +1524,59 @@ module module_MEDIATOR
       call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
     endif
 
-  end subroutine CheckImport_atm
+  end subroutine CheckImport_atm_after
 
   !-----------------------------------------------------------------------------
   
-  subroutine TimestampExport_atm(gcomp, rc)
+  subroutine TimestampExport_atm_before(gcomp, rc)
+    type(ESMF_GridComp)   :: gcomp
+    integer, intent(out)  :: rc
+    
+    ! This is the routine that executes _after_ the "fast_before" mediator 
+    ! phase has been run. Timestamping does not need to be adjusted here,
+    ! but the Clock needs to be stepped back because the "fast_after" phase
+    ! will be updating the same Clock during the same driver cylce.
+
+    ! local variables
+    type(ESMF_Clock)        :: clock
+    type(ESMF_TimeInterval) :: timeStep
+    character(len=*),parameter :: subname='(module_MEDIATOR:TimestampExport_atm_before)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    rc = ESMF_SUCCESS
+
+    ! query the Component for info
+    call ESMF_GridCompGet(gcomp, clock=clock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    ! get the timeStep out of Clock
+    call ESMF_ClockGet(clock, timeStep=timeStep, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! step the Clock back one timestep
+    call ESMF_ClockAdvance(clock, timeStep= -timeStep, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine TimestampExport_atm_before
+
+  !-----------------------------------------------------------------------------
+
+  subroutine TimestampExport_atm_after(gcomp, rc)
     type(ESMF_GridComp)   :: gcomp
     integer, intent(out)  :: rc
     
@@ -1295,7 +1590,7 @@ module module_MEDIATOR
     ! local variables
     type(ESMF_Clock)      :: clock
     type(ESMF_State)      :: exportState
-    character(len=*),parameter :: subname='(module_MEDIATOR:TimestampExport_atm)'
+    character(len=*),parameter :: subname='(module_MEDIATOR:TimestampExport_atm_after)'
 
     if (dbug_flag > 1) then
       call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
@@ -1320,11 +1615,155 @@ module module_MEDIATOR
       call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
     endif
 
-  end subroutine TimestampExport_atm
+  end subroutine TimestampExport_atm_after
 
   !-----------------------------------------------------------------------------
 
-  subroutine Advance_afterAtm(gcomp, rc)
+  subroutine Advance_fast_before(gcomp, rc)
+    type(ESMF_GridComp)  :: gcomp
+    integer, intent(out) :: rc
+    
+    ! This Mediator phase runs before ATM and ICE are being called and
+    ! prepares the ATM and ICE import Fields.
+    
+    ! local variables
+    type(ESMF_Clock)            :: clock
+    type(ESMF_Time)             :: time
+    character(len=64)           :: timestr
+    type(ESMF_State)            :: importState, exportState
+    type(InternalState)         :: is
+    integer                     :: i,j
+    character(len=*),parameter :: subname='(module_MEDIATOR:Advance_fast_before)'
+    
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    rc = ESMF_SUCCESS
+
+    ! query the Component for its clock, importState and exportState
+    call ESMF_GridCompGet(gcomp, clock=clock, importState=importState, &
+      exportState=exportState, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+      
+    ! Get the internal state from Component.
+    nullify(is%wrap)
+    call ESMF_GridCompGetInternalState(gcomp, is, rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! HERE THE MEDIATOR does the mediation of Fields that come in on the
+    ! importState with a timestamp consistent to the currTime of the 
+    ! mediators Clock.
+    
+    ! The Mediator uses the data on the import Fields to update the data
+    ! held by Fields in the exportState.
+    
+    ! After this routine returns the generic Mediator will correctly
+    ! timestamp the export Fields to the currTime.
+    
+    call ESMF_ClockGet(clock,currtime=time,rc=rc)
+    call ESMF_TimeGet(time,timestring=timestr)
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": time = "//trim(timestr), ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+    call NUOPC_ClockPrintCurrTime(clock, &
+      "-------->MED Advance() mediating for: ", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    !---------------------------------------
+    !--- this is fast, so just copy latest values from import state to atm/ice FB
+    !--- no accumulator needed
+    !---------------------------------------
+
+    call fieldBundle_copy(is%wrap%FBforAtm, importState, rc=rc)
+    call fieldBundle_copy(is%wrap%FBforIce, importState, rc=rc)
+
+    if (dbug_flag > 1) then
+      call FieldBundle_diagnose(is%wrap%FBforAtm, trim(subname)//' FBforA_AFcopy ', rc=rc)
+      call FieldBundle_diagnose(is%wrap%FBforIce, trim(subname)//' FBforI_AFcopy ', rc=rc)
+    endif
+
+    !---------------------------------------
+    !--- custom calculations to atm and ice
+    !---------------------------------------
+
+
+        ! None yet
+
+
+    !---------------------------------------
+    !--- set export State to special value for testing
+    !---------------------------------------
+
+    call state_reset(exportState, value=-99._ESMF_KIND_R8, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    if (dbug_flag > 1) then
+      call State_diagnose(exportState, trim(subname)//' es_AF99 ', rc=rc)
+    endif
+
+    !---------------------------------------
+    !--- copy into export state
+    !---------------------------------------
+
+    call fieldBundle_copy(exportState, is%wrap%FBforAtm, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call fieldBundle_copy(exportState, is%wrap%FBforIce, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    if (dbug_flag > 1) then
+      call state_diagnose(exportState, trim(subname)//' es_endfast ', rc=rc)
+    endif
+
+    ! write the fields exported to atm to file
+    call NUOPC_StateWrite(exportState, fieldNameList=fldsToAtm%shortname, &
+      filePrefix="field_med_to_atm_", timeslice=is%wrap%fastcntr, &
+      relaxedFlag=.true., rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! write the fields exported to ice to file
+    call NUOPC_StateWrite(exportState, fieldNameList=fldsToIce%shortname, &
+      filePrefix="field_med_to_ice_", timeslice=is%wrap%fastcntr, &
+      relaxedFlag=.true., rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    !---------------------------------------
+    !--- clean up
+    !---------------------------------------
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine Advance_fast_before
+
+  !-----------------------------------------------------------------------------
+
+  subroutine Advance_fast_after(gcomp, rc)
     type(ESMF_GridComp)  :: gcomp
     integer, intent(out) :: rc
     
@@ -1335,7 +1774,7 @@ module module_MEDIATOR
     type(ESMF_State)            :: importState, exportState
     type(InternalState)         :: is
     integer                     :: i,j
-    character(len=*),parameter :: subname='(module_MEDIATOR:Advance_afterAtm)'
+    character(len=*),parameter :: subname='(module_MEDIATOR:Advance_fast_after)'
     
     if (dbug_flag > 1) then
       call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
@@ -1388,19 +1827,30 @@ module module_MEDIATOR
 
     ! write the fields imported from atm to file
     call NUOPC_StateWrite(importState, fieldNameList=fldsFrAtm%shortname, &
-      filePrefix="field_med_from_atm_", timeslice=is%wrap%sliceAtm, &
+      filePrefix="field_med_from_atm_", timeslice=is%wrap%fastcntr, &
       relaxedFlag=.true., rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    is%wrap%sliceAtm = is%wrap%sliceAtm + 1
 
-    !--- atm accumulator
+    ! write the fields imported from ice to file
+    call NUOPC_StateWrite(importState, fieldNameList=fldsFrIce%shortname, &
+      filePrefix="field_med_from_ice_", timeslice=is%wrap%fastcntr, &
+      relaxedFlag=.true., rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    !---------------------------------------
+    !--- atm, ice accumulator for ocean
+    !---------------------------------------
 
     if (dbug_flag > 1) then
-      call State_diagnose(importState, trim(subname)//' state b4accum ', rc=rc)
-      call FieldBundle_diagnose(is%wrap%FBaccumAtm, trim(subname)//' FBaccB4accum ', rc=rc)
+      call State_diagnose(importState, trim(subname)//' is_beginfast ', rc=rc)
+      call FieldBundle_diagnose(is%wrap%FBaccumAtm, trim(subname)//' FBaccA_B4accum ', rc=rc)
+      call FieldBundle_diagnose(is%wrap%FBaccumIce, trim(subname)//' FBaccI_B4accum ', rc=rc)
     endif
 
     call fieldBundle_accum(is%wrap%FBaccumAtm, importState, rc=rc)
@@ -1409,20 +1859,46 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
     is%wrap%accumcntAtm = is%wrap%accumcntAtm + 1
+
+    call fieldBundle_accum(is%wrap%FBaccumIce, importState, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    is%wrap%accumcntIce = is%wrap%accumcntIce + 1
          
     if (dbug_flag > 1) then
-      call FieldBundle_diagnose(is%wrap%FBaccumAtm, trim(subname)//' FBaccAFaccum ', rc=rc)
+      call FieldBundle_diagnose(is%wrap%FBaccumAtm, trim(subname)//' FBaccA_AFaccum ', rc=rc)
+      call FieldBundle_diagnose(is%wrap%FBaccumIce, trim(subname)//' FBaccI_AFaccum ', rc=rc)
     endif
+
+    if (dbug_flag > 1) then
+      call State_diagnose(exportState, trim(subname)//' es_AF99 ', rc=rc)
+    endif
+
+    if (dbug_flag > 1) then
+      call state_diagnose(exportState, trim(subname)//' es_endfast ', rc=rc)
+    endif
+
+    !---------------------------------------
+    !--- clean up
+    !---------------------------------------
+
+    !---------------------------------------
+
+    is%wrap%fastcntr = is%wrap%fastcntr + 1
+
+    !---------------------------------------
 
     if (dbug_flag > 1) then
       call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
     endif
 
-  end subroutine Advance_afterAtm
+  end subroutine Advance_fast_after
 
   !-----------------------------------------------------------------------------
 
-  subroutine Advance_beforeOcn(gcomp, rc)
+  subroutine Advance_slow(gcomp, rc)
     type(ESMF_GridComp)  :: gcomp
     integer, intent(out) :: rc
     
@@ -1439,7 +1915,7 @@ module module_MEDIATOR
     type(ESMF_Field)            :: field1,field2
     real(ESMF_KIND_R8), pointer :: dataPtr1(:,:),dataPtr2(:,:)
     logical                     :: isPresent, checkOK
-    character(len=*),parameter  :: subname='(module_MEDIATOR:Advance_beforeOcn)'
+    character(len=*),parameter  :: subname='(module_MEDIATOR:Advance_slow)'
 
     if (dbug_flag > 1) then
       call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
@@ -1489,26 +1965,32 @@ module module_MEDIATOR
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    
+
     ! write the fields imported from ocn to file
     call NUOPC_StateWrite(importState, fieldNameList=fldsFrOcn%shortname, &
-      filePrefix="field_med_from_ocn_", timeslice=is%wrap%sliceOcn, &
-      relaxedFlag=.true., rc=rc)
+      filePrefix="field_med_from_ocn_", timeslice=is%wrap%slowcntr, &
+      overwrite=.true., relaxedFlag=.true., rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
       return  ! bail out
-    is%wrap%sliceOcn = is%wrap%sliceOcn + 1
-    
+
     !---------------------------------------
     !--- average atm accumulator
     !---------------------------------------
 
     if (dbug_flag > 1) then
-      call FieldBundle_diagnose(is%wrap%FBaccumAtm, trim(subname)//' FBaccB4avg ', rc=rc)
+      call FieldBundle_diagnose(is%wrap%FBaccumAtm, trim(subname)//' FBaccA_B4avg ', rc=rc)
+      call FieldBundle_diagnose(is%wrap%FBaccumIce, trim(subname)//' FBaccI_B4avg ', rc=rc)
     endif
 
     call FieldBundle_average(is%wrap%FBaccumAtm, is%wrap%accumcntAtm, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    call FieldBundle_average(is%wrap%FBaccumIce, is%wrap%accumcntIce, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -1519,7 +2001,8 @@ module module_MEDIATOR
     !---------------------------------------
 
     if (dbug_flag > 1) then
-      call FieldBundle_diagnose(is%wrap%FBaccumAtm, trim(subname)//' FBaccB4regrid ', rc=rc)
+      call FieldBundle_diagnose(is%wrap%FBaccumAtm, trim(subname)//' FBaccA_B4regrid ', rc=rc)
+      call FieldBundle_diagnose(is%wrap%FBaccumIce, trim(subname)//' FBaccI_B4regrid ', rc=rc)
     endif
 
 ! tcx Xgrid
@@ -1539,14 +2022,15 @@ module module_MEDIATOR
       return  ! bail out
 #else
     call fieldBundle_copy(is%wrap%FBforOcn, is%wrap%FBaccumAtm, rc=rc)
+    call fieldBundle_copy(is%wrap%FBforOcn, is%wrap%FBaccumIce, rc=rc)
 #endif
 
     if (dbug_flag > 1) then
-      call FieldBundle_diagnose(is%wrap%FBforOcn, trim(subname)//' FB4ocnAFregrid ', rc=rc)
+      call FieldBundle_diagnose(is%wrap%FBforOcn, trim(subname)//' FB4ocn_AFregrid ', rc=rc)
     endif
 
     !---------------------------------------
-    !--- custom calculations from atm to ocn
+    !--- custom calculations to ocn
     !---------------------------------------
 
     !--- split total solar into 4 terms
@@ -1646,7 +2130,7 @@ module module_MEDIATOR
     endif
 
     if (dbug_flag > 1) then
-      call FieldBundle_diagnose(is%wrap%FBforOcn, trim(subname)//' FB4ocnAFcc ', rc=rc)
+      call FieldBundle_diagnose(is%wrap%FBforOcn, trim(subname)//' FB4ocn_AFcc ', rc=rc)
     endif
 
     !---------------------------------------
@@ -1660,8 +2144,16 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
 
+    is%wrap%accumcntIce = 0
+    call fieldBundle_reset(is%wrap%FBaccumIce, value=0._ESMF_KIND_R8, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
     if (dbug_flag > 1) then
-!tcx      call FieldBundle_diagnose(is%wrap%FBaccumAtm, trim(subname)//' FBaccAFzero ', rc=rc)
+!tcx      call FieldBundle_diagnose(is%wrap%FBaccumAtm, trim(subname)//' FBacc_AFzero ', rc=rc)
+!tcx      call FieldBundle_diagnose(is%wrap%FBaccumIce, trim(subname)//' FBacc_AFzero ', rc=rc)
     endif
 
     !--- set export State to special value for testing
@@ -1673,11 +2165,11 @@ module module_MEDIATOR
       return  ! bail out
 
     if (dbug_flag > 1) then
-      call State_diagnose(exportState, trim(subname)//' esAF99 ', rc=rc)
+      call State_diagnose(exportState, trim(subname)//' es_AF99 ', rc=rc)
     endif
 
     !---------------------------------------
-    !--- copy to export State
+    !--- copy into export state
     !---------------------------------------
 
     call fieldBundle_copy(exportState, is%wrap%FBforOcn, rc=rc)
@@ -1687,8 +2179,21 @@ module module_MEDIATOR
       return  ! bail out
 
     if (dbug_flag > 1) then
-      call State_diagnose(exportState, trim(subname)//' esAFcp ', rc=rc)
+      call State_diagnose(exportState, trim(subname)//' es_AFcp ', rc=rc)
     endif
+
+    ! write the fields exported to ocn to file
+    call NUOPC_StateWrite(exportState, fieldNameList=fldsToOcn%shortname, &
+      filePrefix="field_med_to_ocn_", timeslice=is%wrap%slowcntr, &
+      relaxedFlag=.true., rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    !---------------------------------------
+
+    is%wrap%slowcntr = is%wrap%slowcntr + 1
 
     !---------------------------------------
     !--- clean up
@@ -1698,7 +2203,7 @@ module module_MEDIATOR
       call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
     endif
 
-  end subroutine Advance_beforeOcn
+  end subroutine Advance_slow
 
   !-----------------------------------------------------------------------------
 
@@ -1735,7 +2240,20 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
 
-    call fieldBundle_clean(is%wrap%FBaccumOcn, rc=rc)
+! tcraig - generates errors
+!    call fieldBundle_clean(is%wrap%FBaccumOcn, rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!      line=__LINE__, &
+!      file=__FILE__)) &
+!      return  ! bail out
+
+    call fieldBundle_clean(is%wrap%FBaccumIce, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    call fieldBundle_clean(is%wrap%FBforAtm, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -1747,7 +2265,7 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
 
-    call fieldBundle_clean(is%wrap%FBforAtm, rc=rc)
+    call fieldBundle_clean(is%wrap%FBforIce, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &

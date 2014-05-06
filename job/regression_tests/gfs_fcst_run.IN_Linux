@@ -28,6 +28,8 @@ set -x
  export IEMS=_IEMS_
  export ICO2=_ICO2_
  export ISOL=_ISOL_
+ export SLG=_SLG_
+ echo SLG=$SLG
 
 # GSM export fields
  export NGRID_A2OI=_NGRID_A2OI_

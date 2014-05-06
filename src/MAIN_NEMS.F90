@@ -185,7 +185,8 @@
 #else
         CALL ESMF_LogSet(flush      =.true.                             &
                         ,trace      =.false.                            &
-                        ,logmsgAbort=(/ ESMF_LOGMSG_ERROR /)            &
+! --> do not abort inside of ESMF, or else no ESMF backtrace will be in Log!!!!
+!                        ,logmsgAbort=(/ ESMF_LOGMSG_ERROR /)            &
                         ,rc         =RC)
 #endif
         ESMF_ERR_ABORT(RC)

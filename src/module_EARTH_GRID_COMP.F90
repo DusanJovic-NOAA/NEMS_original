@@ -43,7 +43,7 @@
 
 #ifdef WITH_NUOPC
       use NUOPC
-      use module_EARTH_GENERIC_COMP, only: &
+      use module_EARTH_GENERIC_COMP, &
         driver_routine_SS             => routine_SetServices, &
         driver_type_IS                => type_InternalState, &
         driver_label_IS               => label_InternalState, &
@@ -59,6 +59,13 @@
 #endif
 #ifdef FRONT_MOM5
       use FRONT_MOM5,       only: OCN_MOM5_SS   => SetServices
+#endif
+  ! - Handle build time ICE options:
+#ifdef FRONT_ICE_DUMMY
+      use FRONT_ICE_DUMMY,  only: ICE_DUMMY_SS  => SetServices
+#endif
+#ifdef FRONT_CICE
+      use FRONT_CICE,  only: ICE_CICE_SS  => SetServices
 #endif
   ! - Mediator
       use module_MEDIATOR,  only: MED_SS        => SetServices
@@ -132,17 +139,19 @@
 
       ! EARTH_GENERIC registers the generic methods
 
-      call driver_routine_SS(EARTH_GRID_COMP, rc=RC)
+      call NUOPC_CompDerive(EARTH_GRID_COMP, driver_routine_SS, rc=RC)
       ESMF_ERR_RETURN(RC,RC_REG)
 
       ! attach specializing method(s)
 
-      call ESMF_MethodAdd(EARTH_GRID_COMP, label=driver_label_SetModelPetLists,&
-        userRoutine=SetModelPetLists, rc=RC)
+      call NUOPC_CompSpecialize(EARTH_GRID_COMP, &
+        specLabel=driver_label_SetModelPetLists, specRoutine=SetModelPetLists, &
+        rc=RC)
       ESMF_ERR_RETURN(RC,RC_REG)
       
-      call ESMF_MethodAdd(EARTH_GRID_COMP, label=driver_label_SetModelServices,&
-        userRoutine=SetModelServices, rc=RC)
+      call NUOPC_CompSpecialize(EARTH_GRID_COMP, &
+        specLabel=driver_label_SetModelServices, specRoutine=SetModelServices, &
+        rc=RC)
       ESMF_ERR_RETURN(RC,RC_REG)
       
       ! create, open, and set the config
@@ -604,7 +613,136 @@
           file=__FILE__)) &
           return  ! bail out
       endif 
-       
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "wind_stress_x")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="wind_stress_x", &
+          canonicalUnits="N m-2", &
+          defaultLongName="wind stress x component", &
+          defaultShortName="strax", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif 
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "wind_stress_y")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="wind_stress_y", &
+          canonicalUnits="N m-2", &
+          defaultLongName="wind stress y component", &
+          defaultShortName="stray", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif 
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "ocn_current_x")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="ocn_current_x", &
+          canonicalUnits="m s-1", &
+          defaultLongName="ocean current x component", &
+          defaultShortName="uocn", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif 
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "ocn_current_y")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="ocn_current_y", &
+          canonicalUnits="m s-1", &
+          defaultLongName="ocean current y component", &
+          defaultShortName="vocn", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif 
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "sss_x")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="sss_x", &
+          canonicalUnits="m m-1", &
+          defaultLongName="sea surface slope x component", &
+          defaultShortName="ss_tltx", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif 
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "sss_y")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="sss_y", &
+          canonicalUnits="m m-1", &
+          defaultLongName="sea surface slope y component", &
+          defaultShortName="ss_tlty", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif 
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "stress_on_air_ice_x")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="stress_on_air_ice_x", &
+          canonicalUnits="N m-2", &
+          defaultLongName="stress on air by ice x component", &
+          defaultShortName="strairxT", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif 
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "stress_on_air_ice_y")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="stress_on_air_ice_y", &
+          canonicalUnits="N m-2", &
+          defaultLongName="stress on air by ice y component", &
+          defaultShortName="strairyT", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif 
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "stress_on_ocn_ice_x")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="stress_on_ocn_ice_x", &
+          canonicalUnits="N m-2", &
+          defaultLongName="stress on ocn by ice x component", &
+          defaultShortName="strocnxT", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif 
+      if (.not. NUOPC_FieldDictionaryHasEntry( &
+        "stress_on_ocn_ice_y")) then
+        call NUOPC_FieldDictionaryAddEntry( &
+          standardName="stress_on_ocn_ice_y", &
+          canonicalUnits="N m-2", &
+          defaultLongName="stress on ocn by ice y component", &
+          defaultShortName="strocnyT", &
+          rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+      endif 
 #else
 
 !-----------------------------------------------------------------------
@@ -666,26 +804,26 @@
 
 #ifdef WITH_NUOPC
 
-      subroutine SetModelPetLists(gcomp, rc)
-        type(ESMF_GridComp)  :: gcomp
+      subroutine SetModelPetLists(driver, rc)
+        type(ESMF_GridComp)  :: driver
         integer, intent(out) :: rc
         
         ! local variables
-        integer                       :: localrc
         type(driver_type_IS)          :: is
         integer                       :: petCount, i
         integer                       :: petListBounds(2)
         type(ESMF_Config)             :: config
+        character(len=20)             :: model
 
         rc = ESMF_SUCCESS
 
         ! query Component for its internal State
         nullify(is%wrap)
-        call ESMF_UserCompGetInternalState(gcomp, driver_label_IS, is, rc)
+        call ESMF_UserCompGetInternalState(driver, driver_label_IS, is, rc)
         ESMF_ERR_RETURN(rc,rc)
           
         ! get petCount and config
-        call ESMF_GridCompGet(gcomp, petCount=petCount, config=config, rc=rc)
+        call ESMF_GridCompGet(driver, petCount=petCount, config=config, rc=rc)
         ESMF_ERR_RETURN(rc,rc)
         
         ! determine the ATM petList bounds
@@ -697,11 +835,15 @@
           petListBounds(2) = petCount - 1
         endif
         
-        ! set petList for ATM
-        allocate(is%wrap%atmPetList(petListBounds(2)-petListBounds(1)+1))
-        do i=petListBounds(1), petListBounds(2)
-          is%wrap%atmPetList(i-petListBounds(1)+1) = i ! PET labeling is 0 based
-        enddo
+        call ESMF_ConfigGetAttribute(config, model, label="atm_model:", rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
+        if (trim(model) /= "none") then
+          ! set petList for ATM
+          allocate(is%wrap%atmPetList(petListBounds(2)-petListBounds(1)+1))
+          do i=petListBounds(1), petListBounds(2)
+            is%wrap%atmPetList(i-petListBounds(1)+1) = i ! PETs are 0 based
+          enddo
+        endif
           
         ! determine the OCN petList bounds
         call ESMF_ConfigGetAttribute(config, petListBounds, &
@@ -712,11 +854,34 @@
           petListBounds(2) = petCount - 1
         endif
         
-        ! set petList for OCN
-        allocate(is%wrap%ocnPetList(petListBounds(2)-petListBounds(1)+1))
-        do i=petListBounds(1), petListBounds(2)
-          is%wrap%ocnPetList(i-petListBounds(1)+1) = i ! PET labeling is 0 based
-        enddo
+        call ESMF_ConfigGetAttribute(config, model, label="ocn_model:", rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
+        if (trim(model) /= "none") then
+          ! set petList for OCN
+          allocate(is%wrap%ocnPetList(petListBounds(2)-petListBounds(1)+1))
+          do i=petListBounds(1), petListBounds(2)
+            is%wrap%ocnPetList(i-petListBounds(1)+1) = i ! PETs are 0 based
+          enddo
+        endif
+        
+        ! determine the ICE petList bounds
+        call ESMF_ConfigGetAttribute(config, petListBounds, &
+          label="ice_petlist_bounds:", default=-1, rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
+        if (petListBounds(1)==-1 .or. petListBounds(2)==-1) then
+          petListBounds(1) = 0
+          petListBounds(2) = petCount - 1
+        endif
+        
+        call ESMF_ConfigGetAttribute(config, model, label="ice_model:", rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
+        if (trim(model) /= "none") then
+          ! set petList for ICE
+          allocate(is%wrap%icePetList(petListBounds(2)-petListBounds(1)+1))
+          do i=petListBounds(1), petListBounds(2)
+            is%wrap%icePetList(i-petListBounds(1)+1) = i ! PETs are 0 based
+          enddo
+        endif
         
         ! determine the MED petList bounds
         call ESMF_ConfigGetAttribute(config, petListBounds, &
@@ -727,37 +892,42 @@
           petListBounds(2) = petCount - 1
         endif
         
-        ! set petList for MED
-        allocate(is%wrap%medPetList(petListBounds(2)-petListBounds(1)+1))
-        do i=petListBounds(1), petListBounds(2)
-          is%wrap%medPetList(i-petListBounds(1)+1) = i ! PET labeling is 0 based
-        enddo
+        call ESMF_ConfigGetAttribute(config, model, label="med_model:", rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
+        if (trim(model) /= "none") then
+          ! set petList for MED
+          allocate(is%wrap%medPetList(petListBounds(2)-petListBounds(1)+1))
+          do i=petListBounds(1), petListBounds(2)
+            is%wrap%medPetList(i-petListBounds(1)+1) = i ! PETs are 0 based
+          enddo
+        endif
 
       end subroutine
       
       ! ------------------------------------------------------------------------
 
-      subroutine SetModelServices(gcomp, rc)
-        type(ESMF_GridComp)  :: gcomp
+      subroutine SetModelServices(driver, rc)
+        type(ESMF_GridComp)  :: driver
         integer, intent(out) :: rc
 
         ! local variables
-        integer                       :: localrc
         type(driver_type_IS)          :: is
+        type(ESMF_GridComp)           :: comp
+        type(ESMF_CplComp)            :: conn
         type(ESMF_Config)             :: config
         character(len=20)             :: model
         character(len=160)            :: msg
-        logical                       :: atmFlag, ocnFlag
+        logical                       :: atmFlag, ocnFlag, iceFlag, medFlag
 
         rc = ESMF_SUCCESS
 
         ! query Component for its internal State
         nullify(is%wrap)
-        call ESMF_UserCompGetInternalState(gcomp, driver_label_IS, is, rc)
+        call ESMF_UserCompGetInternalState(driver, driver_label_IS, is, rc)
         ESMF_ERR_RETURN(rc,rc)
         
         ! get config
-        call ESMF_GridCompGet(gcomp, config=config, rc=rc)
+        call ESMF_GridCompGet(driver, config=config, rc=rc)
         ESMF_ERR_RETURN(rc,rc)
 
         ! SetServices for ATM
@@ -769,12 +939,9 @@
           atmFlag = .true.
 #define WITH_ATM
 #ifdef WITH_ATM
-          call ESMF_GridCompSetServices(is%wrap%atm, ATM_REGISTER, &
-            userRc=localrc, rc=rc)
+          call NUOPC_DriverAddComp(driver, "ATM", ATM_REGISTER, comp, rc=rc)
           ESMF_ERR_RETURN(rc,rc)
-          ESMF_ERR_RETURN(localrc,rc)
-          call ESMF_AttributeSet(is%wrap%atm, &
-            name="Verbosity", value="high", &
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
           ESMF_ERR_RETURN(rc,rc)
 #else
@@ -794,12 +961,9 @@
         if (trim(model) == "dummy") then
           ocnFlag = .true.
 #ifdef FRONT_OCN_DUMMY
-          call ESMF_GridCompSetServices(is%wrap%ocn, OCN_DUMMY_SS, &
-            userRc=localrc, rc=rc)
+          call NUOPC_DriverAddComp(driver, "OCN", OCN_DUMMY_SS, comp, rc=rc)
           ESMF_ERR_RETURN(rc,rc)
-          ESMF_ERR_RETURN(localrc,rc)
-          call ESMF_AttributeSet(is%wrap%ocn, &
-            name="Verbosity", value="high", &
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
           ESMF_ERR_RETURN(rc,rc)
 #else
@@ -812,12 +976,9 @@
         elseif (trim(model) == "hycom") then
           ocnFlag = .true.
 #ifdef FRONT_HYCOM
-          call ESMF_GridCompSetServices(is%wrap%ocn, OCN_HYCOM_SS, &
-            userRc=localrc, rc=rc)
+          call NUOPC_DriverAddComp(driver, "OCN", OCN_HYCOM_SS, comp, rc=rc)
           ESMF_ERR_RETURN(rc,rc)
-          ESMF_ERR_RETURN(localrc,rc)
-          call ESMF_AttributeSet(is%wrap%ocn, &
-            name="Verbosity", value="high", &
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
           ESMF_ERR_RETURN(rc,rc)
 #else
@@ -830,12 +991,9 @@
         elseif (trim(model) == "mom5") then
           ocnFlag = .true.
 #ifdef FRONT_MOM5
-          call ESMF_GridCompSetServices(is%wrap%ocn, OCN_MOM5_SS, &
-            userRc=localrc, rc=rc)
+          call NUOPC_DriverAddComp(driver, "OCN", OCN_MOM5_SS, comp, rc=rc)
           ESMF_ERR_RETURN(rc,rc)
-          ESMF_ERR_RETURN(localrc,rc)
-          call ESMF_AttributeSet(is%wrap%ocn, &
-            name="Verbosity", value="high", &
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
           ESMF_ERR_RETURN(rc,rc)
 #else
@@ -847,60 +1005,121 @@
 #endif
         endif
         
-        ! SetServices for Mediator
-        call ESMF_GridCompSetServices(is%wrap%med, MED_SS, &
-          userRc=localrc, rc=rc)
+        ! SetServices for ICE
+        call ESMF_ConfigGetAttribute(config, model, label="ice_model:", rc=rc)
         ESMF_ERR_RETURN(rc,rc)
-        ESMF_ERR_RETURN(localrc,rc)
-        call ESMF_AttributeSet(is%wrap%med, &
-          name="Verbosity", value="high", &
-          convention="NUOPC", purpose="General", rc=rc)
-        ESMF_ERR_RETURN(rc,rc)
-
-        ! SetServices for Connectors
-        if (atmFlag) then
-          ! SetServices for atm2med
-          call ESMF_CplCompSetServices(is%wrap%atm2med, conSS, userRc=localrc, &
-            rc=rc)
+        iceFlag = .false.
+        !print *, "ice_model: ", trim(model)
+        if (trim(model) == "dummy") then
+          iceFlag = .true.
+#ifdef FRONT_ICE_DUMMY
+          call NUOPC_DriverAddComp(driver, "ICE", ICE_DUMMY_SS, comp, rc=rc)
           ESMF_ERR_RETURN(rc,rc)
-          ESMF_ERR_RETURN(localrc,rc)
-          call ESMF_AttributeSet(is%wrap%atm2med, name="Verbosity", value="high", &
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
           ESMF_ERR_RETURN(rc,rc)
-          ! SetServices for med2atm
-          call ESMF_CplCompSetServices(is%wrap%med2atm, conSS, userRc=localrc, &
-            rc=rc)
+#else
+          write (msg, *) "ICE model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        elseif (trim(model) == "cice") then
+          iceFlag = .true.
+#ifdef FRONT_CICE
+          call NUOPC_DriverAddComp(driver, "ICE", ICE_CICE_SS, comp, rc=rc)
           ESMF_ERR_RETURN(rc,rc)
-          ESMF_ERR_RETURN(localrc,rc)
-          call ESMF_AttributeSet(is%wrap%med2atm, name="Verbosity", value="high", &
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
+            convention="NUOPC", purpose="General", rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+#else
+          write (msg, *) "ICE model '", trim(model), "' was requested, "// &
+            "but is not available in the executable!"
+          call ESMF_LogSetError(ESMF_RC_NOT_VALID, msg=msg, line=__LINE__, &
+            file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+#endif
+        endif
+        
+        ! SetServices for Mediator
+        call ESMF_ConfigGetAttribute(config, model, label="med_model:", rc=rc)
+        ESMF_ERR_RETURN(rc,rc)
+        medFlag = .false.
+        !print *, "med_model: ", trim(model)
+        if (trim(model) /= "none") then
+          medFlag = .true.
+          call NUOPC_DriverAddComp(driver, "MED", MED_SS, comp, rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          call ESMF_AttributeSet(comp, name="Verbosity", value="high", &
             convention="NUOPC", purpose="General", rc=rc)
           ESMF_ERR_RETURN(rc,rc)
         endif
-        if (ocnFlag) then
-          ! SetServices for ocn2med
-          call ESMF_CplCompSetServices(is%wrap%ocn2med, conSS, userRc=localrc, &
-            rc=rc)
+
+        ! SetServices for Connectors
+        if (atmFlag .and. medFlag) then
+          ! SetServices for atm2med
+          call NUOPC_DriverAddComp(driver, &
+            srcCompLabel="ATM", dstCompLabel="MED", &
+            compSetServicesRoutine=conSS, comp=conn, rc=rc)
           ESMF_ERR_RETURN(rc,rc)
-          ESMF_ERR_RETURN(localrc,rc)
-          call ESMF_AttributeSet(is%wrap%ocn2med, name="Verbosity", value="high", &
-            convention="NUOPC", purpose="General", rc=rc)
+          call ESMF_AttributeSet(conn, name="Verbosity", &
+            value="high", convention="NUOPC", purpose="General", rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          ! SetServices for med2atm
+          call NUOPC_DriverAddComp(driver, &
+            srcCompLabel="MED", dstCompLabel="ATM", &
+            compSetServicesRoutine=conSS, comp=conn, rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          call ESMF_AttributeSet(conn, name="Verbosity", &
+            value="high", convention="NUOPC", purpose="General", rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+        endif
+        if (ocnFlag .and. medFlag) then
+          ! SetServices for ocn2med
+          call NUOPC_DriverAddComp(driver, &
+            srcCompLabel="OCN", dstCompLabel="MED", &
+            compSetServicesRoutine=conSS, comp=conn, rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          call ESMF_AttributeSet(conn, name="Verbosity", &
+            value="high", convention="NUOPC", purpose="General", rc=rc)
           ESMF_ERR_RETURN(rc,rc)
           ! SetServices for med2ocn
-          call ESMF_CplCompSetServices(is%wrap%med2ocn, conSS, userRc=localrc, &
-            rc=rc)
+          call NUOPC_DriverAddComp(driver, &
+            srcCompLabel="MED", dstCompLabel="OCN", &
+            compSetServicesRoutine=conSS, comp=conn, rc=rc)
           ESMF_ERR_RETURN(rc,rc)
-          ESMF_ERR_RETURN(localrc,rc)
-          call ESMF_AttributeSet(is%wrap%ocn2med, name="Verbosity", value="high", &
-            convention="NUOPC", purpose="General", rc=rc)
+          call ESMF_AttributeSet(conn, name="Verbosity", &
+            value="high", convention="NUOPC", purpose="General", rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+        endif
+        if (iceFlag .and. medFlag) then
+          ! SetServices for ice2med
+          call NUOPC_DriverAddComp(driver, &
+            srcCompLabel="ICE", dstCompLabel="MED", &
+            compSetServicesRoutine=conSS, comp=conn, rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          call ESMF_AttributeSet(conn, name="Verbosity", &
+            value="high", convention="NUOPC", purpose="General", rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          ! SetServices for med2ice
+          call NUOPC_DriverAddComp(driver, &
+            srcCompLabel="MED", dstCompLabel="ICE", &
+            compSetServicesRoutine=conSS, comp=conn, rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+          call ESMF_AttributeSet(conn, name="Verbosity", &
+            value="high", convention="NUOPC", purpose="General", rc=rc)
           ESMF_ERR_RETURN(rc,rc)
         endif
 
         ! Read in the coupling intervals and set in the internal state
         call ESMF_ConfigGetAttribute(config, is%wrap%medAtmCouplingIntervalSec,&
-          label="med_atm_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, rc=rc)
+          label="med_atm_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, &
+          rc=rc)
         ESMF_ERR_RETURN(rc,rc)
         call ESMF_ConfigGetAttribute(config, is%wrap%medOcnCouplingIntervalSec,&
-          label="med_ocn_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, rc=rc)
+          label="med_ocn_coupling_interval_sec:", default=-1.0_ESMF_KIND_R8, &
+          rc=rc)
         ESMF_ERR_RETURN(rc,rc)
         
         ! Internal Clock and RunSequence will be set by EARTH_GENERIC_COMP

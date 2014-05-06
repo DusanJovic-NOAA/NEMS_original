@@ -414,6 +414,9 @@ export atm_model=none
 export atm_petlist_bounds="-1 -1"
 export ocn_model=none
 export ocn_petlist_bounds="-1 -1"
+export ice_model=none
+export ice_petlist_bounds="-1 -1"
+export med_model=nems
 export med_petlist_bounds="-1 -1"
 export med_atm_coupling_interval_sec=-1
 export med_ocn_coupling_interval_sec=-1
@@ -438,7 +441,7 @@ fi
 
 if [ $RT_NUOPC = true ] ; then
   echo "Running the NEMS with NUOPC test suite"
-  export RTPWD=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/REGRESSION_TEST
+  export RTPWD=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/REGRESSION_TEST_NUOPC_mergeworx
   
   if [ ${COMPILE_SORC_NUOPC:-YES} = YES ] ; then
   
@@ -465,7 +468,7 @@ if [ $RT_NUOPC = true ] ; then
       source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
       module list                            >> ${COMPILE_LOG} 2>&1
       gmake clean                            >> ${COMPILE_LOG} 2>&1
-      gmake nmm_gsm OCN=mom5,hycom,dummy     >> ${COMPILE_LOG} 2>&1
+      gmake nmm_gsm OCN=mom5,hycom,dummy ICE=dummy,cice >> ${COMPILE_LOG} 2>&1
 
     fi
     date                                     >> ${REGRESSIONTEST_LOG}
@@ -489,14 +492,14 @@ if [ $RT_NUOPC = true ] ; then
   #
   ###############################################################################
 
-  if [ $MACHINE_ID = zeusOFF ] ; then
+  if [ $MACHINE_ID = zeus ] ; then
 
     export TEST_DESCR="NUOPC: NMM-B pure binary input"
 
     #---------------------
     (( TEST_NR=TEST_NR+1 ))
     export RUNDIR=${RUNDIR_ROOT}/NMM_CNTRL_NUOPC
-    export CNTL_DIR=NMMB_glob_ESMF_5.2.0rAPI
+    export CNTL_DIR=NMMB_glob
     export LIST_FILES=" \
     nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0003h_00m_00.00s nmmb_hst_01_bin_0006h_00m_00.00s \
     nmmb_hst_01_bin_0009h_00m_00.00s nmmb_hst_01_bin_0012h_00m_00.00s nmmb_hst_01_bin_0015h_00m_00.00s \
@@ -514,12 +517,13 @@ if [ $RT_NUOPC = true ] ; then
     #---------------------
     export_nmm
     export TASKS=48
-    export WLCLK=60
+    export WLCLK=30
     export GBRG=glob
     # - nems.configure ---
     export_nems
     export atm_model=nmm
     export atm_petlist_bounds="0 47"
+    export med_model=none
     #---------------------
     ./rt_nmm.sh
     if [ $? = 2 ]; then exit ; fi
@@ -535,7 +539,7 @@ if [ $RT_NUOPC = true ] ; then
   #
   ###############################################################################
 
-  if [ $MACHINE_ID = zeusOFF ] ; then
+  if [ $MACHINE_ID = zeus ] ; then
 
     export TEST_DESCR="NUOPC: GSM with stepable Run() driven in 12h intervals"
 
@@ -549,11 +553,12 @@ if [ $RT_NUOPC = true ] ; then
 	flxf00 flxf03 flxf06 flxf12 flxf18 flxf24 flxf30 flxf36 flxf42 flxf48"
     #---------------------
     export_gsm
-    export WLCLK=60
+    export WLCLK=30
     # - nems.configure ---
     export_nems
     export atm_model=gsm
     export atm_petlist_bounds="0 31"
+    export med_model=none
     export med_atm_coupling_interval_sec=43200.0
     #---------------------
     ./rt_gfs.sh
@@ -562,6 +567,95 @@ if [ $RT_NUOPC = true ] ; then
 
   fi # endif machine
   
+  ###############################################################################
+  #
+  # TEST   - GSM + HYCOM side-by-side
+  #        - 6h intervals for both GSM and HYCOM
+  #        - GSM and HYCOM running from data files
+  #        - Simulation period for HYCOM is set by GSM parameters
+  #        - Starting at 2009120100, running for 2 days
+  #
+  ###############################################################################
+
+  if [ $MACHINE_ID = zeus ] ; then
+
+    export TEST_DESCR="NUOPC: GSM + HYCOM side-by-side from data with 6h intervals"
+
+    #---------------------
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/GSM_HYCOM_SIDEbySIDE
+    export CNTL_DIR=GSM_HYCOM_2DAY_2009120100
+    export IC_DIR=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/GSM_INITIAL_CONDITIONS
+    export LIST_FILES=" \
+	sigf00 sigf03 sigf06 sigf12 sigf18 sigf24 sigf30 sigf36 sigf42 sigf48 \
+	sfcf00 sfcf03 sfcf06 sfcf12 sfcf18 sfcf24 sfcf30 sfcf36 sfcf42 sfcf48 \
+	flxf00 flxf03 flxf06 flxf12 flxf18 flxf24 flxf30 flxf36 flxf42 flxf48 \
+        ovrtn_out restart_out.a restart_out.b summary_out"
+    #---------------------
+    export_gsm
+    export TASKS=178
+    export WLCLK=30
+    export CDATE=2009120100
+    export NDAYS=2
+    export wave=126 ; export lm=64 ; export lsoil=4
+    # - nems.configure ---
+    export_nems
+    export atm_model=gsm
+    export atm_petlist_bounds="0 31"
+    export ocn_model=hycom
+    export ocn_petlist_bounds="32 177"
+    export med_model=none
+    export med_ocn_coupling_interval_sec=21600.0
+    #---------------------
+    ./rt_gfs.sh
+    if [ $? = 2 ]; then exit ; fi
+    #---------------------
+
+  fi # endif machine
+
+  ###############################################################################
+  #
+  # TEST   - GSM + MOM5 side-by-side
+  #        - 2h coupling interval
+  #        - Starting at 2009120100, running for 2 days
+  #
+  ###############################################################################
+
+  if [ $MACHINE_ID = zeusOFF ] ; then
+
+    export TEST_DESCR="NUOPC: GSM + MOM5 side-by-side from data with 2h intervals"
+
+    #---------------------
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/GSM_MOM5_SIDEbySIDE
+    export CNTL_DIR=GFS_NODFI_2009120100
+    export IC_DIR=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/GSM_INITIAL_CONDITIONS
+    export LIST_FILES=" \
+	sigf00 sigf03 sigf06 sigf12 sigf18 sigf24 sigf30 sigf36 sigf42 sigf48 \
+	sfcf00 sfcf03 sfcf06 sfcf12 sfcf18 sfcf24 sfcf30 sfcf36 sfcf42 sfcf48 \
+	flxf00 flxf03 flxf06 flxf12 flxf18 flxf24 flxf30 flxf36 flxf42 flxf48"
+    #---------------------
+    export_gsm
+    export TASKS=56
+    export WLCLK=30
+    export CDATE=2009120100
+    export NDAYS=2
+    export wave=126 ; export lm=64 ; export lsoil=4
+    # - nems.configure ---
+    export_nems
+    export atm_model=gsm
+    export atm_petlist_bounds="0 31"
+    export ocn_model=mom5
+    export ocn_petlist_bounds="32 55"
+    export med_model=none
+    export med_ocn_coupling_interval_sec=7200.0
+    #---------------------
+    ./rt_gfs.sh
+    if [ $? = 2 ]; then exit ; fi
+    #---------------------
+
+  fi # endif machine
+
   ###############################################################################
   # 
   # TEST   - GSM <-> Mediator <-> DummyOCN
@@ -587,7 +681,7 @@ if [ $RT_NUOPC = true ] ; then
     #---------------------
     export_gsm
     export TASKS=64
-    export WLCLK=60
+    export WLCLK=30
     export CDATE=2009120100
     export NDAYS=2
     export wave=126 ; export lm=64 ; export lsoil=4
@@ -657,85 +751,48 @@ if [ $RT_NUOPC = true ] ; then
   fi # endif machine
   
   ###############################################################################
-  #
-  # TEST   - GSM + HYCOM side-by-side
-  #        - 6h intervals for both GSM and HYCOM
-  #        - GSM and HYCOM running from data files
-  #        - Simulation period for HYCOM is set by GSM parameters
-  #        - Starting at 2009120100, running for 2 days
+  #                  DummyICE  
+  #                     | 1h 
+  # TEST   - GSM <-> Mediator <-> MOM5
+  #        -      1h           2h    coupling interval
+  #        - Exchanging Fields
+  #        - Starting at 2009120100, running for 4 days
   #
   ###############################################################################
 
   if [ $MACHINE_ID = zeusOFF ] ; then
 
-    export TEST_DESCR="NUOPC: GSM + HYCOM side-by-side from data with 6h intervals"
+    export TEST_DESCR="NUOPC: GSM <-1h-> MED <-1h-> DummyICE <-1h-> MED <-2h-> MOM5 ... 4 days"
 
     #---------------------
     (( TEST_NR=TEST_NR+1 ))
-    export RUNDIR=${RUNDIR_ROOT}/GSM_HYCOM_SIDEbySIDE
-    export CNTL_DIR=GSM_HYCOM_2DAY_2009120100
+    export RUNDIR=${RUNDIR_ROOT}/GSM_DummyICE_MOM5
+    export CNTL_DIR=GFS_NODFI_2009120100_1h
     export IC_DIR=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/GSM_INITIAL_CONDITIONS
     export LIST_FILES=" \
-	sigf00 sigf03 sigf06 sigf12 sigf18 sigf24 sigf30 sigf36 sigf42 sigf48 \
-	sfcf00 sfcf03 sfcf06 sfcf12 sfcf18 sfcf24 sfcf30 sfcf36 sfcf42 sfcf48 \
-	flxf00 flxf03 flxf06 flxf12 flxf18 flxf24 flxf30 flxf36 flxf42 flxf48 \
-        ovrtn_out restart_out.a restart_out.b summary_out"
+	sigf00 sigf01 sigf02 sigf24 sigf25 sigf26 sigf48 sigf72 sigf95 sigf96 \
+	sfcf00 sfcf01 sfcf02 sfcf24 sfcf25 sfcf26 sfcf48 sfcf72 sfcf95 sfcf96 \
+	flxf00 flxf01 flxf02 flxf24 flxf25 flxf26 flxf48 flxf72 flxf95 flxf96"
     #---------------------
     export_gsm
-    export TASKS=192
+    export TASKS=64
     export WLCLK=60
     export CDATE=2009120100
-    export NDAYS=2
+    export NDAYS=4
     export wave=126 ; export lm=64 ; export lsoil=4
-    # - nems.configure ---
-    export_nems
-    export atm_model=gsm
-    export atm_petlist_bounds="0 31"
-    export ocn_model=hycom
-    export ocn_petlist_bounds="32 177"
-    export med_petlist_bounds="150 191"
-    export med_ocn_coupling_interval_sec=21600.0
-    #---------------------
-    ./rt_gfs.sh
-    if [ $? = 2 ]; then exit ; fi
-    #---------------------
-
-  fi # endif machine
-
-  ###############################################################################
-  #
-  # TEST   - GSM + MOM5 side-by-side
-  #        - 2h coupling interval
-  #        - Starting at 2009120100, running for 2 days
-  #
-  ###############################################################################
-
-  if [ $MACHINE_ID = zeusOFF ] ; then
-
-    export TEST_DESCR="NUOPC: GSM + MOM5 side-by-side from data with 2h intervals"
-
-    #---------------------
-    (( TEST_NR=TEST_NR+1 ))
-    export RUNDIR=${RUNDIR_ROOT}/GSM_MOM5_SIDEbySIDE
-    export CNTL_DIR=GFS_NODFI_2009120100
-    export IC_DIR=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/GSM_INITIAL_CONDITIONS
-    export LIST_FILES=" \
-	sigf00 sigf03 sigf06 sigf12 sigf18 sigf24 sigf30 sigf36 sigf42 sigf48 \
-	sfcf00 sfcf03 sfcf06 sfcf12 sfcf18 sfcf24 sfcf30 sfcf36 sfcf42 sfcf48 \
-	flxf00 flxf03 flxf06 flxf12 flxf18 flxf24 flxf30 flxf36 flxf42 flxf48"
-    #---------------------
-    export_gsm
-    export TASKS=56
-    export WLCLK=90
-    export CDATE=2009120100
-    export NDAYS=2
-    export wave=126 ; export lm=64 ; export lsoil=4
+    export A2OI_OUT=.true.
+    export FHZER=1
+    export FHOUT=1
     # - nems.configure ---
     export_nems
     export atm_model=gsm
     export atm_petlist_bounds="0 31"
     export ocn_model=mom5
     export ocn_petlist_bounds="32 55"
+    export ice_model=dummy
+    export ice_petlist_bounds="56 57"
+    export med_petlist_bounds="58 63"
+    export med_atm_coupling_interval_sec=3600.0
     export med_ocn_coupling_interval_sec=7200.0
     #---------------------
     ./rt_gfs.sh
@@ -743,7 +800,58 @@ if [ $RT_NUOPC = true ] ; then
     #---------------------
 
   fi # endif machine
+  
+  ###############################################################################
+  #                   CICE  
+  #                     | 1h 
+  # TEST   - GSM <-> Mediator <-> MOM5
+  #        -      1h           2h    coupling interval
+  #        - Exchanging Fields
+  #        - Starting at 2009120100, running for 4 days
+  #
+  ###############################################################################
 
+  if [ $MACHINE_ID = zeusOFF ] ; then
+
+    export TEST_DESCR="NUOPC: GSM <-1h-> MED <-1h-> CICE <-1h-> MED <-2h-> MOM5 ... 4 days"
+
+    #---------------------
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/GSM_CICE_MOM5
+    export CNTL_DIR=GFS_NODFI_2009120100_1h
+    export IC_DIR=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/GSM_INITIAL_CONDITIONS
+    export LIST_FILES=" \
+	sigf00 sigf01 sigf02 sigf24 sigf25 sigf26 sigf48 sigf72 sigf95 sigf96 \
+	sfcf00 sfcf01 sfcf02 sfcf24 sfcf25 sfcf26 sfcf48 sfcf72 sfcf95 sfcf96 \
+	flxf00 flxf01 flxf02 flxf24 flxf25 flxf26 flxf48 flxf72 flxf95 flxf96"
+    #---------------------
+    export_gsm
+    export TASKS=66
+    export WLCLK=60
+    export CDATE=2009120100
+    export NDAYS=4
+    export wave=126 ; export lm=64 ; export lsoil=4
+    export A2OI_OUT=.true.
+    export FHZER=1
+    export FHOUT=1
+    # - nems.configure ---
+    export_nems
+    export atm_model=gsm
+    export atm_petlist_bounds="0 31"
+    export ocn_model=mom5
+    export ocn_petlist_bounds="32 55"
+    export ice_model=cice
+    export ice_petlist_bounds="56 59"
+    export med_petlist_bounds="60 65"
+    export med_atm_coupling_interval_sec=3600.0
+    export med_ocn_coupling_interval_sec=7200.0
+    #---------------------
+    ./rt_gfs.sh
+    if [ $? = 2 ]; then exit ; fi
+    #---------------------
+
+  fi # endif machine
+  
   #----------------------------------------------
 
   echo "Finished the NEMS with NUOPC test suite"

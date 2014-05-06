@@ -44,6 +44,27 @@ ifneq (,$(findstring mom5,$(OCN)))
 endif
 ################################################################################
 
+# external SEAICE dependencies #################################################
+ifneq (,$(findstring dummy,$(ICE)))
+  include $(icedummy_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_ICE_DUMMY=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+ifneq (,$(findstring cice,$(ICE)))
+  include $(cice_mk)
+  DEP_FRONTS    := $(DEP_FRONTS) -DFRONT_CICE=$(ESMF_DEP_FRONT)
+  DEP_INCS      := $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+  DEP_CMPL_OBJS := $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+  DEP_LINK_OBJS := $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+  DEP_SHRD_PATH := $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH)) $(addprefix -Wl$(COMMA)-rpath$(COMMA), $(ESMF_DEP_SHRD_PATH))
+  DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+endif
+################################################################################
+
 CPPFLAGS += $(DEP_FRONTS)
 
 TARGET = ../exe/NEMS.x
@@ -193,7 +214,11 @@ all:
 	@echo
 	@echo "In order to build NEMS with ocean components, all of the above targets support"
 	@echo "the optional OCN variable. Supported values are: \"dummy\", \"hycom\", and \"mom5\"."
-	@echo "Specifying multiple values, e.g. \"gmake nmm_gsm OCN=mom5,dummy\", is supported."
+	@echo
+	@echo "In order to build NEMS with sea-ice components, all of the above targets support"
+	@echo "the optional ICE variable. Supported values are: \"dummy\", \"cice\"."
+	@echo
+	@echo "Specifying multiple values, e.g. \"gmake nmm_gsm OCN=mom5,dummy,hycom ICE=dummy\", is supported."
 	@echo
 
 ################################################################################
@@ -424,7 +449,7 @@ fim_gsm_libs:
 	cd atmos/share         && gmake
 	cd atmos/nmm           && gmake stub
 	cd atmos/io            && gmake
-	cd $(gfsdir)     && gmake
+	cd $(gfsdir)           && gmake
 	cd atmos/fim           && gmake
 	cd atmos/gen           && gmake stub
 	cd atmos/post          && gmake stub
@@ -451,7 +476,7 @@ clean:
 
 $(OBJS): %.o: %.f90
 	$(FC) $(FFLAGS) $(INCS) -c $*.f90
-#	$(RM) $*.f90
+	$(RM) $*.f90
 
 MAIN_NEMS.o: %.o: %.f90
 	$(FC) $(FFLAGS) $(INCS) -c $*.f90

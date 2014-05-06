@@ -110,7 +110,7 @@
 
 #ifdef WITH_NUOPC
       ! the NUOPC model component will register the generic methods
-      call model_routine_SS(ATM_GRID_COMP, rc=RC_REG)
+      call NUOPC_CompDerive(ATM_GRID_COMP, model_routine_SS, rc=RC_REG)
       if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -141,14 +141,15 @@
         return  ! bail out
 
       ! attach specializing method(s)
-      call ESMF_MethodAdd(ATM_GRID_COMP, label=model_label_DataInitialize, &
-        userRoutine=ATM_DATAINIT, rc=RC_REG)
+      call NUOPC_CompSpecialize(ATM_GRID_COMP, &
+        specLabel=model_label_DataInitialize, specRoutine=ATM_DATAINIT, &
+        rc=RC_REG)
       if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
-      call ESMF_MethodAdd(ATM_GRID_COMP, label=model_label_Advance, &
-        userRoutine=ATM_ADVANCE, rc=RC_REG)
+      call NUOPC_CompSpecialize(ATM_GRID_COMP, &
+        specLabel=model_label_Advance, specRoutine=ATM_ADVANCE, rc=RC_REG)
       if (ESMF_LogFoundError(rcToCheck=RC_REG, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -318,7 +319,6 @@
     integer, intent(out) :: rc
 
     type(ESMF_Grid)                 :: gridIn, gridOut
-    type(ESMF_Field)                :: field
     character(160)                  :: itemNameList(1)
     integer                         :: i, j
     real(kind=ESMF_KIND_R8),pointer :: lonPtr(:,:), latPtr(:,:)
@@ -339,27 +339,29 @@
     gridOut = gauss2d ! for exported Fields
 
 #if 1
-    ! dump the Grid coordinate arrays for reference      
-    call ESMF_GridGetCoord(gridIn, coordDim=1, array=array, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    call ESMF_ArrayWrite(array, file="array_coord1.nc", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      call ESMF_Finalize(endflag=ESMF_END_ABORT)
-    call ESMF_GridGetCoord(gridIn, coordDim=2, array=array, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      return  ! bail out
-    call ESMF_ArrayWrite(array, file="array_coord2.nc", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, &
-      file=__FILE__)) &
-      call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    if (atm_int_state%CORE == "gsm") then
+      ! dump the GSM Grid coordinate arrays for reference      
+      call ESMF_GridGetCoord(gridIn, coordDim=1, array=array, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_ArrayWrite(array, file="array_gsm_grid_coord1.nc", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        call ESMF_Finalize(endflag=ESMF_END_ABORT)
+      call ESMF_GridGetCoord(gridIn, coordDim=2, array=array, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      call ESMF_ArrayWrite(array, file="array_gsm_grid_coord2.nc", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    endif
 #endif
       
     ! conditionally realize or remove Fields from States ...
@@ -367,13 +369,13 @@
     ! importable field: sea_surface_temperature
     if (NUOPC_StateIsFieldConnected(importState, fieldName="sst")) then
       ! realize a connected Field
-      field = ESMF_FieldCreate(name="sst", grid=gridIn, &
+      inst_sea_surf_temp = ESMF_FieldCreate(name="sst", grid=gridIn, &
         typekind=ESMF_TYPEKIND_R8, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
-      call NUOPC_StateRealizeField(importState, field=field, rc=rc)
+      call NUOPC_StateRealizeField(importState, field=inst_sea_surf_temp, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
@@ -558,14 +560,13 @@
       
       if (present(rc)) rc = ESMF_SUCCESS
       
-      field = ESMF_FieldCreate(grid, ESMF_TYPEKIND_R8, name=fieldName, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, &
-        file=__FILE__)) &
-        return  ! bail out
-      
       if (NUOPC_StateIsFieldConnected(state, fieldName=fieldName)) then
-        ! realize the connected Field using the internal coupling Field
+        ! realize the connected Field pass back up for internal cpl fields
+        field = ESMF_FieldCreate(grid, ESMF_TYPEKIND_R8, name=fieldName, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
         call NUOPC_StateRealizeField(state, field=field, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
@@ -1200,7 +1201,7 @@
 !
       type(ESMF_Clock)              :: clock
       type(ESMF_Time)               :: stopTime
-      type(ESMF_State)              :: exportState
+      type(ESMF_State)              :: importState, exportState
       type(ESMF_Field)              :: field
       type(ESMF_StateItem_Flag)     :: itemType
       real(ESMF_KIND_R8), pointer   :: dataPtr(:,:)
@@ -1257,14 +1258,22 @@
 
 !-----------------------------------------------------------------------
 
-      ! query the Component for its exportState
-      call ESMF_GridCompGet(ATM_GRID_COMP, exportState=exportState, rc=rc)
+      ! query the Component for its importState and exportState
+      call ESMF_GridCompGet(ATM_GRID_COMP, exportState=exportState, &
+        importState=importState, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
       
 #if 1
+      ! for testing write all of the Fields in the importState to file
+      call NUOPC_StateWrite(importState, filePrefix="field_atm_import_", &
+        timeslice=slice, relaxedFlag=.true., rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
       ! for testing write all of the Fields in the exportState to file
       call NUOPC_StateWrite(exportState, filePrefix="field_atm_export_", &
         timeslice=slice, relaxedFlag=.true., rc=rc)
@@ -1272,6 +1281,7 @@
         line=__LINE__, &
         file=__FILE__)) &
         return  ! bail out
+      ! advance the time slice counter
       slice = slice + 1
 #endif
 

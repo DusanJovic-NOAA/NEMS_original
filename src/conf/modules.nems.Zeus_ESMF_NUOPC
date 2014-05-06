@@ -5,6 +5,8 @@
 
 module purge
 #module load mpt intel esmf/6.3.0r
-# -> MOM5 needs a NetCDF enabled ESMF -> for now use ESMF under my homedir
+# -> MOM5 needs a NetCDF enabled ESMF
+# -> NEMS now uses methods from the ESMF v7 NUOPC Layer API
 module use /home/Gerhard.Theurich/Modulefiles
-module load mpt intel esmf/7.0.0bs01-netcdf4.1.3
+module load mpt intel esmf/7.0.0bs06-netcdf4.1.3
+#module load mpt intel esmf/7.0.0head-netcdf4.1.3
