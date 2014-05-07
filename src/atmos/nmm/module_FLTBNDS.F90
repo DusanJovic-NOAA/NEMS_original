@@ -7,6 +7,8 @@ use module_control,only : klog,kint,kfpt
  
 use module_my_domain_specs
 
+use module_derived_types,only: bc_h_all,bc_v_all,filt_4d
+
 use module_dm_parallel,only : gather_layers,scatter_layers
 
 use module_exchange, only: halo_exch
@@ -3866,27 +3868,51 @@ real(kind=kfpt),allocatable,dimension(:) :: &
                         subroutine read_bc &
 (lm,lnsh,lnsv,ntsd,dt &
 ,runbc,idatbc,ihrstbc,tboco &
-,pdbs,pdbn,pdbw,pdbe &
-,tbs,tbn,tbw,tbe &
-,qbs,qbn,qbw,qbe &
-,wbs,wbn,wbw,wbe &
-,ubs,ubn,ubw,ube &
-,vbs,vbn,vbw,vbe)
+,nvars_bc_2d_h,nvars_bc_3d_h,nvars_bc_4d_h &
+,nvars_bc_2d_v,nvars_bc_3d_v &
+,bnd_vars_h &
+,bnd_vars_v &
+,n_bc_3d_h )
+!
 !-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***  This routine reads in boundary update data for the single domain
+!***  in the forecast or else for the uppermost parent if there are
+!***  nests.  The data is in external files generated during the
+!***  pre-processing.
+!
+!***  This routine is used for nest boundaries as well if digital
+!***  filtering is being used.
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
 !
 implicit none
 !
-!-----------------------------------------------------------------------
+!------------------------
+!***  Argument variables
+!------------------------
+
 integer(kind=kint),intent(in):: &
  lm  &                       ! total # of levels
 ,lnsh &                      ! # of boundary h lines for bc in reg. setup
 ,lnsv &                      ! # of boundary v lines for bc in reg. setup
 ,ntsd                        ! current timestep
 
+integer(kind=kint),intent(in) :: &
+ nvars_bc_2d_h &             ! # of 2-d h-pt boundary variables
+,nvars_bc_3d_h &             ! # of 3-d h-pt boundary variables
+,nvars_bc_4d_h &             ! # of 4-d h-pt boundary variables
+,nvars_bc_2d_v &             ! # of 2-d v-pt boundary variables
+,nvars_bc_3d_v               ! # of 3-d v-pt boundary variables
+
 integer(kind=kint),intent(out):: &
  ihrstbc                     ! boundary conditions starting time
+
+integer(kind=kint),dimension(1:3),intent(in):: &
+ n_bc_3d_h                   ! order in which to store domain #1's BC vbls
 
 integer(kind=kint),dimension(1:3),intent(out):: &
  idatbc                      ! date of boundary data, day, month, year
@@ -3897,46 +3923,18 @@ real(kind=kfpt),intent(in):: &
 real(kind=kfpt),intent(out):: &
  tboco                       ! boundary conditions interval, hours
 
-real(kind=kfpt),dimension(ims:ime,1:lnsh,1:2),intent(out):: &
- pdbn &                      ! pressure difference at northern boundary
-,pdbs                        ! pressure difference at southern boundary
+type(bc_h_all),intent(inout) :: &
+ bnd_vars_h                  ! boundary variables on h points
 
-real(kind=kfpt),dimension(1:lnsh,jms:jme,1:2),intent(out):: &
- pdbe &                      ! pressure difference at eastern boundary
-,pdbw                        ! pressure difference at western boundary
+type(bc_v_all),intent(inout) :: &
+ bnd_vars_v                  ! boundary variables on v points
 
-real(kind=kfpt),dimension(ims:ime,1:lnsh,1:lm,1:2),intent(out):: &
- tbn &                       ! temperature at northern boundary
-,tbs &                       ! temperature at southern boundary
-,qbn &                       ! specific humidity at northern boundary
-,qbs &                       ! specific humidity at southern boundary
-,wbn &                       ! condensate at northern boundary
-,wbs                         ! condensate at southern boundary
+logical(kind=klog),intent(out) :: runbc
 
-real(kind=kfpt),dimension(1:lnsh,jms:jme,1:lm,1:2),intent(out):: &
- tbe &                       ! temperature at eastern boundary
-,tbw &                       ! temperature at western boundary
-,qbe &                       ! specific humidity at eastern boundary
-,qbw &                       ! specific humidity at western boundary
-,wbe &                       ! condensate at eastern boundary
-,wbw                         ! condensate at western boundary
+!---------------------
+!***  Local variables
+!---------------------
 
-real(kind=kfpt),dimension(ims:ime,1:lnsv,1:lm,1:2),intent(out):: &
- ubn &                       ! u wind component at northern boundary
-,ubs &                       ! u wind component at southern boundary
-,vbn &                       ! v wind component at northern boundary
-,vbs                         ! v wind component at southern boundary
-
-real(kind=kfpt),dimension(1:lnsv,jms:jme,1:lm,1:2),intent(out):: &
- ube &                       ! u wind component at eastern boundary
-,ubw &                       ! u wind component at western boundary
-,vbe &                       ! v wind component at eastern boundary
-,vbw                         ! v wind component at western boundary
-
-logical(kind=klog) :: runbc
-!-----------------------------------------------------------------------
-!---local variables-----------------------------------------------------
-!-----------------------------------------------------------------------
 integer(kind=kint):: &
  i &                         ! index in x direction
 ,i_hi &                      ! max i loop limit (cannot be > ide)
@@ -3948,28 +3946,40 @@ integer(kind=kint):: &
 ,j_hi &                      ! max j loop limit (cannot be > jde)
 ,j_lo &                      ! min j loop limit (cannot be < jds)
 ,l &
+,lbnd &
 ,n1 &                        ! dimension 1 of working arrays
 ,n2 &                        ! dimension 2 of working arrays
 ,n3 &                        ! dimension 3 of working arrays
-,n4                          ! dimension 4 of working arrays
+,n4 &                        ! dimension 4 of working arrays
+,n5 &                        ! dimension 5 of working arrays
+,nl &
+,nv &
+,nvx &
+,ubnd
 
-real(kind=kfpt),dimension(1:lnsh,jds:jde,1:2) :: pdbe_g,pdbw_g
+real(kind=kfpt),dimension(1:lnsh,jds:jde,1:2) :: global_2d_h_east &
+                                                ,global_2d_h_west
 
-real(kind=kfpt),dimension(ids:ide,1:lnsh,1:2) :: pdbn_g,pdbs_g
+real(kind=kfpt),dimension(ids:ide,1:lnsh,1:2) :: global_2d_h_north &
+                                                ,global_2d_h_south
  
-real(kind=kfpt),dimension(1:lnsh,jds:jde,1:lm,1:2) :: tbe_g,tbw_g       &
-                                                     ,qbe_g,qbw_g       &
-                                                     ,wbe_g,wbw_g  
+real(kind=kfpt),dimension(1:lnsh,jds:jde,1:lm,1:2) :: global_3d_h_east &
+                                                     ,global_3d_h_west
 
-real(kind=kfpt),dimension(ids:ide,1:lnsh,1:lm,1:2) :: tbn_g,tbs_g       &
-                                                     ,qbn_g,qbs_g       &
-                                                     ,wbn_g,wbs_g  
+real(kind=kfpt),dimension(ids:ide,1:lnsh,1:lm,1:2) :: global_3d_h_north &
+                                                     ,global_3d_h_south
 
-real(kind=kfpt),dimension(1:lnsv,jds:jde,1:lm,1:2) :: ube_g,ubw_g       &
-                                                     ,vbe_g,vbw_g
+real(kind=kfpt),dimension(1:lnsv,jds:jde,1:2) :: global_2d_v_east &
+                                                ,global_2d_v_west
 
-real(kind=kfpt),dimension(ids:ide,1:lnsv,1:lm,1:2) :: ubn_g,ubs_g       &
-                                                     ,vbn_g,vbs_g
+real(kind=kfpt),dimension(ids:ide,1:lnsv,1:2) :: global_2d_v_north &
+                                                ,global_2d_v_south
+ 
+real(kind=kfpt),dimension(1:lnsv,jds:jde,1:lm,1:2) :: global_3d_v_east &
+                                                     ,global_3d_v_west
+
+real(kind=kfpt),dimension(ids:ide,1:lnsv,1:lm,1:2) :: global_3d_v_north &
+                                                     ,global_3d_v_south
 
 character(64) :: infile
 logical(kind=klog) :: opened
@@ -4020,117 +4030,200 @@ logical(kind=klog) :: opened
 
 !     write(6,*) 'DEBUG-GT, assortment of dimensions in subsequent read statements;  i_lo, i_hi, j_lo, j_hi, lm, lnsh, lnsv:', i_lo, i_hi, j_lo, j_hi, lm, lnsh, lnsv
 !
+!-----------------------------------------------------------------------
+!***  If there are 2-d h-pt boundary variables then loop through them
+!***  reading them from the input file.
+!-----------------------------------------------------------------------
+!
+      if(nvars_bc_2d_h>0)then
+!
+        do nv=1,nvars_bc_2d_h
 !     write(6,*) 'DEBUG-GT, reading PD.1, 2 arrays with N elements to read: ', (ide-ids+1)*lnsh*2, (ide-ids+1)*lnsh*2*4, ' bytes'
 !     write(6,*) 'DEBUG-GT, reading PD.2, 2 arrays with M elements to read: ', (jde-jds+1)*lnsh*2, (jde-jds+1)*lnsh*2*4, ' bytes'
-      read(iunit)pdbs_g,pdbn_g,pdbw_g,pdbe_g
+      read(iunit)global_2d_h_south,global_2d_h_north,global_2d_h_west,global_2d_h_east
 !     write(6,*) 'DEBUG-GT, read arrays pdbs_g,pdbn_g,pdbw_g,pdbe_g'
 !
-      do n3=1,2
-        do n2=1,lnsh
-!       do n1=ims,ime
-        do n1=i_lo,i_hi
-          pdbn(n1,n2,n3)=pdbn_g(n1,n2,n3)
-          pdbs(n1,n2,n3)=pdbs_g(n1,n2,n3)
-        enddo
+          do n3=1,2
+            do n2=1,lnsh
+            do n1=i_lo,i_hi
+              bnd_vars_h%var_2d(nv)%south(n1,n2,n3)=global_2d_h_south(n1,n2,n3)
+              bnd_vars_h%var_2d(nv)%north(n1,n2,n3)=global_2d_h_north(n1,n2,n3)
+            enddo
+            enddo
+!
+            do n2=j_lo,j_hi
+            do n1=1,lnsh
+              bnd_vars_h%var_2d(nv)%west(n1,n2,n3)=global_2d_h_west(n1,n2,n3)
+              bnd_vars_h%var_2d(nv)%east(n1,n2,n3)=global_2d_h_east(n1,n2,n3)
+            enddo
+            enddo
+          enddo
+!
         enddo
 !
-!       do n2=jms,jme
-        do n2=j_lo,j_hi
-        do n1=1,lnsh
-          pdbe(n1,n2,n3)=pdbe_g(n1,n2,n3)
-          pdbw(n1,n2,n3)=pdbw_g(n1,n2,n3)
-        enddo
-        enddo
-      enddo
+      endif
 !
-!     write(6,*) 'DEBUG-GT, reading T.1, 2 arrays with N elements to read: ', (ide-ids+1)*lnsh*2*lm, (ide-ids+1)*lnsh*2*lm*4, ' bytes'
-!     write(6,*) 'DEBUG-GT, reading T.2, 2 arrays with M elements to read: ', (jde-jds+1)*lnsh*2*lm, (jde-jds+1)*lnsh*2*lm*4, ' bytes'
-      read(iunit)tbs_g,tbn_g,tbw_g,tbe_g
-!     write(6,*) 'DEBUG-GT, read arrays tbs_g,tbn_g,tbw_g,tbe_g'
-!     write(6,*) 'DEBUG-GT, reading Q.1, 2 arrays with N elements to read: ', (ide-ids+1)*lnsh*2*lm, (ide-ids+1)*lnsh*2*lm*4, ' bytes'
-!     write(6,*) 'DEBUG-GT, reading Q.2, 2 arrays with M elements to read: ', (jde-jds+1)*lnsh*2*lm, (jde-jds+1)*lnsh*2*lm*4, ' bytes'
-      read(iunit)qbs_g,qbn_g,qbw_g,qbe_g
-!     write(6,*) 'DEBUG-GT, read arrays qbs_g,qbn_g,qbw_g,qbe_g'
-!     write(6,*) 'DEBUG-GT, reading W.1, 2 arrays with N elements to read: ', (ide-ids+1)*lnsh*2*lm, (ide-ids+1)*lnsh*2*lm*4, ' bytes'
-!     write(6,*) 'DEBUG-GT, reading W.2, 2 arrays with M elements to read: ', (jde-jds+1)*lnsh*2*lm, (jde-jds+1)*lnsh*2*lm*4, ' bytes'
-      read(iunit)wbs_g,wbn_g,wbw_g,wbe_g
-!     write(6,*) 'DEBUG-GT, read arrays wbs_g,wbn_g,wbw_g,wbe_g'
+!-----------------------------------------------------------------------
+!***  If there are 3-d h-pt boundary variables then loop through them
+!***  reading them from the input file.
+!***  IMPORTANT:  See the note in BUILD_BC_BUNDLE regarding the 
+!***              handling of order in which these 3-D H-pt BC
+!***              variables are stored.  If there are nests then
+!***              the order must agree with these variables'
+!***              order in the nests.txt file.
+!-----------------------------------------------------------------------
 !
-      do n4=1,2
-      do n3=1,lm
-        do n2=1,lnsh
-!       do n1=ims,ime
-        do n1=i_lo,i_hi
-          tbn(n1,n2,n3,n4)=tbn_g(n1,n2,n3,n4)
-          tbs(n1,n2,n3,n4)=tbs_g(n1,n2,n3,n4)
-          qbn(n1,n2,n3,n4)=qbn_g(n1,n2,n3,n4)
-          qbs(n1,n2,n3,n4)=qbs_g(n1,n2,n3,n4)
-          wbn(n1,n2,n3,n4)=wbn_g(n1,n2,n3,n4)
-          wbs(n1,n2,n3,n4)=wbs_g(n1,n2,n3,n4)
-        enddo
-        enddo
+      if(nvars_bc_3d_h>0)then
 !
-!       do n2=jms,jme
-        do n2=j_lo,j_hi
-        do n1=1,lnsh
-          tbe(n1,n2,n3,n4)=tbe_g(n1,n2,n3,n4)
-          tbw(n1,n2,n3,n4)=tbw_g(n1,n2,n3,n4)
-          qbe(n1,n2,n3,n4)=qbe_g(n1,n2,n3,n4)
-          qbw(n1,n2,n3,n4)=qbw_g(n1,n2,n3,n4)
-          wbe(n1,n2,n3,n4)=wbe_g(n1,n2,n3,n4)
-          wbw(n1,n2,n3,n4)=wbw_g(n1,n2,n3,n4)
-        enddo
-        enddo
-      enddo
-      enddo
+        do nv=1,nvars_bc_3d_h
 !
-!     write(6,*) 'DEBUG-GT, reading U.1, 2 arrays with N elements to read: ', (ide-ids+1)*lnsv*2*lm, (ide-ids+1)*lnsv*2*lm*4, ' bytes'
-!     write(6,*) 'DEBUG-GT, reading U.2, 2 arrays with M elements to read: ', (jde-jds+1)*lnsv*2*lm, (jde-jds+1)*lnsv*2*lm*4, ' bytes'
-      read(iunit)ubs_g,ubn_g,ubw_g,ube_g
-!     write(6,*) 'DEBUG-GT, reading V.1, 2 arrays with N elements to read: ', (ide-ids+1)*lnsv*2*lm, (ide-ids+1)*lnsv*2*lm*4, ' bytes'
-!     write(6,*) 'DEBUG-GT, reading V.2, 2 arrays with M elements to read: ', (jde-jds+1)*lnsv*2*lm, (jde-jds+1)*lnsv*2*lm*4, ' bytes'
-      read(iunit)vbs_g,vbn_g,vbw_g,vbe_g
+          nvx=n_bc_3d_h(nv)                                                !<-- Order of domain #1's T,Q,CW storage in bndry object
 !
-      do n4=1,2
-      do n3=1,lm
-        do n2=1,lnsv
-!       do n1=ims,ime
-        do n1=i_lo,i_hi
-          ubn(n1,n2,n3,n4)=ubn_g(n1,n2,n3,n4)       
-          ubs(n1,n2,n3,n4)=ubs_g(n1,n2,n3,n4)       
-          vbn(n1,n2,n3,n4)=vbn_g(n1,n2,n3,n4)       
-          vbs(n1,n2,n3,n4)=vbs_g(n1,n2,n3,n4)       
-        enddo
+          read(iunit)global_3d_h_south,global_3d_h_north,global_3d_h_west,global_3d_h_east
+!
+          do n4=1,2
+            do n3=1,lm
+              do n2=1,lnsh
+              do n1=i_lo,i_hi
+                bnd_vars_h%var_3d(nvx)%south(n1,n2,n3,n4)=global_3d_h_south(n1,n2,n3,n4)
+                bnd_vars_h%var_3d(nvx)%north(n1,n2,n3,n4)=global_3d_h_north(n1,n2,n3,n4)
+              enddo
+              enddo
+!
+              do n2=j_lo,j_hi
+              do n1=1,lnsh
+                bnd_vars_h%var_3d(nvx)%west(n1,n2,n3,n4)=global_3d_h_west(n1,n2,n3,n4)
+                bnd_vars_h%var_3d(nvx)%east(n1,n2,n3,n4)=global_3d_h_east(n1,n2,n3,n4)
+              enddo
+              enddo
+            enddo
+          enddo
+!
         enddo
 !
-!       do n2=jms,jme
-        do n2=j_lo,j_hi
-        do n1=1,lnsv
-          ube(n1,n2,n3,n4)=ube_g(n1,n2,n3,n4)
-          ubw(n1,n2,n3,n4)=ubw_g(n1,n2,n3,n4)
-          vbe(n1,n2,n3,n4)=vbe_g(n1,n2,n3,n4)
-          vbw(n1,n2,n3,n4)=vbw_g(n1,n2,n3,n4)
+      endif
+!
+!-----------------------------------------------------------------------
+!***  If there are 4-d h-pt boundary variables then loop through them
+!***  reading them from the input file.
+!-----------------------------------------------------------------------
+!
+      if(nvars_bc_4d_h>0)then
+!
+        do nv=1,nvars_bc_4d_h
+!
+          lbnd=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+          ubnd=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+          do nl=lbnd,ubnd
+            read(iunit)global_3d_h_south,global_3d_h_north,global_3d_h_west,global_3d_h_east
+!
+            do n4=1,2
+              do n3=1,lm
+                do n2=1,lnsh
+                do n1=i_lo,i_hi
+                  bnd_vars_h%var_4d(nv)%south(n1,n2,n3,n4,nl)=global_3d_h_south(n1,n2,n3,n4)
+                  bnd_vars_h%var_4d(nv)%north(n1,n2,n3,n4,nl)=global_3d_h_north(n1,n2,n3,n4)
+                enddo
+                enddo
+!
+                do n2=j_lo,j_hi
+                do n1=1,lnsh
+                  bnd_vars_h%var_4d(nv)%west(n1,n2,n3,n4,nl)=global_3d_h_west(n1,n2,n3,n4)
+                  bnd_vars_h%var_4d(nv)%east(n1,n2,n3,n4,nl)=global_3d_h_east(n1,n2,n3,n4)
+                enddo
+                enddo
+              enddo
+            enddo
+!
+          enddo
+!
         enddo
+!
+      endif
+!
+!-----------------------------------------------------------------------
+!***  If there are 2-d v-pt boundary variables then loop through them
+!***  reading them from the input file.
+!-----------------------------------------------------------------------
+!
+      if(nvars_bc_2d_v>0)then
+!
+        do nv=1,nvars_bc_2d_v
+!
+          read(iunit)global_2d_v_south,global_2d_v_north,global_2d_v_west,global_2d_v_east
+!
+          do n3=1,2
+            do n2=1,lnsv
+            do n1=i_lo,i_hi
+              bnd_vars_v%var_2d(nv)%south(n1,n2,n3)=global_2d_v_south(n1,n2,n3)
+              bnd_vars_v%var_2d(nv)%north(n1,n2,n3)=global_2d_v_north(n1,n2,n3)
+            enddo
+            enddo
+!
+            do n2=j_lo,j_hi
+            do n1=1,lnsv
+              bnd_vars_v%var_2d(nv)%west(n1,n2,n3)=global_2d_v_west(n1,n2,n3)
+              bnd_vars_v%var_2d(nv)%east(n1,n2,n3)=global_2d_v_east(n1,n2,n3)
+            enddo
+            enddo
+          enddo
+!
         enddo
-      enddo
-      enddo
+!
+      endif
+!
+!-----------------------------------------------------------------------
+!***  If there are 3-d v-pt boundary variables then loop through them
+!***  reading them from the input file.
+!-----------------------------------------------------------------------
+!
+      if(nvars_bc_3d_v>0)then
+!
+        do nv=1,nvars_bc_3d_v
+!
+          read(iunit)global_3d_v_south,global_3d_v_north,global_3d_v_west,global_3d_v_east
+!
+          do n4=1,2
+          do n3=1,lm
+            do n2=1,lnsv
+            do n1=i_lo,i_hi
+              bnd_vars_v%var_3d(nv)%south(n1,n2,n3,n4)=global_3d_v_south(n1,n2,n3,n4)
+              bnd_vars_v%var_3d(nv)%north(n1,n2,n3,n4)=global_3d_v_north(n1,n2,n3,n4)
+            enddo
+            enddo
+!
+            do n2=j_lo,j_hi
+            do n1=1,lnsv
+              bnd_vars_v%var_3d(nv)%west(n1,n2,n3,n4)=global_3d_v_west(n1,n2,n3,n4)
+              bnd_vars_v%var_3d(nv)%east(n1,n2,n3,n4)=global_3d_v_east(n1,n2,n3,n4)
+            enddo
+            enddo
+          enddo
+          enddo
+!
+        enddo
+!
+      endif
+!
+!-----------------------------------------------------------------------
 !
       close(iunit)
 !
 !-----------------------------------------------------------------------
+
                         end subroutine read_bc
 
 !-----------------------------------------------------------------------
                         subroutine write_bc &
 (lm,lnsh,lnsv,ntsd,dt &
 ,runbc,tboco &
-,pdbs,pdbn,pdbw,pdbe &
-,tbs,tbn,tbw,tbe &
-,qbs,qbn,qbw,qbe &
-,wbs,wbn,wbw,wbe &
-,ubs,ubn,ubw,ube &
-,vbs,vbn,vbw,vbe &
-,pd,t,q,cwm,u,v &
+,nvars_bc_2d_h &
+,nvars_bc_3d_h &
+,nvars_bc_4d_h &
+,nvars_bc_2d_v &
+,nvars_bc_3d_v &
+,bnd_vars_h &
+,bnd_vars_v &
 ,recomp_tend)
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4149,69 +4242,29 @@ integer(kind=kint),intent(in):: &
 ,lnsv &                      ! # of boundary v lines for bc in reg. setup
 ,ntsd                        ! current timestep
 
+integer(kind=kint),intent(in) :: &
+ nvars_bc_2d_h &
+,nvars_bc_3d_h &
+,nvars_bc_4d_h &
+,nvars_bc_2d_v &
+,nvars_bc_3d_v
+
 real(kind=kfpt),intent(in):: &
  dt                          ! dynamics time step
-
-real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
- pd   
-
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in):: &
- t   &
-,q   &
-,cwm  &
-,u   &
-,v 
 
 real(kind=kfpt),intent(in):: &
  tboco                       ! boundary conditions interval
 
 logical, intent(in) :: recomp_tend
 
-real(kind=kfpt),dimension(ims:ime,1:lnsh,1:2),intent(out):: &
- pdbn &                      ! pressure difference at northern boundary
-,pdbs                        ! pressure difference at southern boundary
+logical(kind=klog),intent(in) :: runbc
 
-real(kind=kfpt),dimension(1:lnsh,jms:jme,1:2),intent(out):: &
- pdbe &                      ! pressure difference at eastern boundary
-,pdbw                        ! pressure difference at western boundary
+type(bc_h_all),intent(inout) :: &
+ bnd_vars_h
 
-real(kind=kfpt),dimension(ims:ime,1:lnsh,1:lm,1:2),intent(out):: &
- tbn &                       ! temperature at northern boundary
-,tbs &                       ! temperature at southern boundary
-,qbn &                       ! specific humidity at northern boundary
-,qbs &                       ! specific humidity at southern boundary
-,wbn &                       ! condensate at northern boundary
-,wbs                         ! condensate at southern boundary
+type(bc_v_all),intent(inout) :: &
+ bnd_vars_v
 
-real(kind=kfpt),dimension(1:lnsh,jms:jme,1:lm,1:2),intent(out):: &
- tbe &                       ! temperature at eastern boundary
-,tbw &                       ! temperature at western boundary
-,qbe &                       ! specific humidity at eastern boundary
-,qbw &                       ! specific humidity at western boundary
-,wbe &                       ! condensate at eastern boundary
-,wbw                         ! condensate at western boundary
-
-real(kind=kfpt),dimension(ims:ime,1:lnsv,1:lm,1:2),intent(out):: &
- ubn &                       ! u wind component at northern boundary
-,ubs &                       ! u wind component at southern boundary
-,vbn &                       ! v wind component at northern boundary
-,vbs                         ! v wind component at southern boundary
-
-real(kind=kfpt),dimension(1:lnsv,jms:jme,1:lm,1:2),intent(out):: &
- ube &                       ! u wind component at eastern boundary
-,ubw &                       ! u wind component at western boundary
-,vbe &                       ! v wind component at eastern boundary
-,vbw                         ! v wind component at western boundary
-
-real(kind=kfpt),allocatable,dimension(:,:,:) :: targpdbn,targpdbs,targpdbe,targpdbw
-
-real(kind=kfpt),allocatable,dimension(:,:,:,:) :: targtbn,targtbs,targtbe,targtbw
-real(kind=kfpt),allocatable,dimension(:,:,:,:) :: targqbn,targqbs,targqbe,targqbw
-real(kind=kfpt),allocatable,dimension(:,:,:,:) :: targwbn,targwbs,targwbe,targwbw
-real(kind=kfpt),allocatable,dimension(:,:,:,:) :: targubn,targubs,targube,targubw
-real(kind=kfpt),allocatable,dimension(:,:,:,:) :: targvbn,targvbs,targvbe,targvbw
-
-logical(kind=klog) :: runbc
 !-----------------------------------------------------------------------
 !---local variables-----------------------------------------------------
 !-----------------------------------------------------------------------
@@ -4226,13 +4279,54 @@ integer(kind=kint):: &
 ,j_hi &                      ! max j loop limit (cannot be > jde)
 ,j_lo &                      ! min j loop limit (cannot be < jds)
 ,l &
+,lbnd &
 ,n1 &                        ! dimension 1 of working arrays
 ,n2 &                        ! dimension 2 of working arrays
 ,n3 &                        ! dimension 3 of working arrays
-,n4                          ! dimension 4 of working arrays
+,n4 &                        ! dimension 4 of working arrays
+,n5 &                        ! dimension 5 of working arrays
+,nv &
+,ubnd
+
+real(kind=kfpt) :: &
+ r_tboco
+
+real(kind=kfpt),dimension(:,:,:,:),allocatable :: &
+ targ_2d_h_e &
+,targ_2d_h_n &
+,targ_2d_h_s &
+,targ_2d_h_w
+
+real(kind=kfpt),dimension(:,:,:,:,:),allocatable :: &
+ targ_3d_h_e &
+,targ_3d_h_n &
+,targ_3d_h_s &
+,targ_3d_h_w
+
+real(kind=kfpt),dimension(:,:,:,:),allocatable :: &
+ targ_2d_v_e &
+,targ_2d_v_n &
+,targ_2d_v_s &
+,targ_2d_v_w
+
+real(kind=kfpt),dimension(:,:,:,:,:),allocatable :: &
+ targ_3d_v_e &
+,targ_3d_v_n &
+,targ_3d_v_s &
+,targ_3d_v_w
+
+type(filt_4d),dimension(:),allocatable :: &
+ targ_4d_h_e &
+,targ_4d_h_n &
+,targ_4d_h_s &
+,targ_4d_h_w
 
 !-----------------------------------------------------------------------
 !***********************************************************************
+!-----------------------------------------------------------------------
+!
+      r_tboco=1./tboco
+!
 !-----------------------------------------------------------------------
 !***  Because subdomains that lie along the global domain boundary
 !***  may have haloes that extend beyond the global limits, create
@@ -4248,168 +4342,360 @@ integer(kind=kint):: &
 !     if (mype_share == 0) write(0,*) 'inside write_bc with recomp_tend: ', recomp_tend
       if (recomp_tend) then
 
-	if (.not. allocated(targpdbn)) then
-           ALLOCATE(targpdbn(ims:ime,1:lnsh,1))
-           ALLOCATE(targpdbs(ims:ime,1:lnsh,1))
-           ALLOCATE(targpdbw(1:lnsh,jms:jme,1))
-           ALLOCATE(targpdbe(1:lnsh,jms:jme,1))
-
-           ALLOCATE(targtbn(ims:ime,1:lnsh,LM,1))
-           ALLOCATE(targtbs(ims:ime,1:lnsh,LM,1))
-           ALLOCATE(targtbw(1:lnsh,jms:jme,LM,1))
-           ALLOCATE(targtbe(1:lnsh,jms:jme,LM,1))
-
-           ALLOCATE(targqbn(ims:ime,1:lnsh,LM,1))
-           ALLOCATE(targqbs(ims:ime,1:lnsh,LM,1))
-           ALLOCATE(targqbw(1:lnsh,jms:jme,LM,1))
-           ALLOCATE(targqbe(1:lnsh,jms:jme,LM,1))
-
-           ALLOCATE(targwbn(ims:ime,1:lnsh,LM,1))
-           ALLOCATE(targwbs(ims:ime,1:lnsh,LM,1))
-           ALLOCATE(targwbw(1:lnsh,jms:jme,LM,1))
-           ALLOCATE(targwbe(1:lnsh,jms:jme,LM,1))
-
-           ALLOCATE(targubn(ims:ime,1:lnsv,LM,1))
-           ALLOCATE(targubs(ims:ime,1:lnsv,LM,1))
-           ALLOCATE(targubw(1:lnsv,jms:jme,LM,1))
-           ALLOCATE(targube(1:lnsv,jms:jme,LM,1))
-
-           ALLOCATE(targvbn(ims:ime,1:lnsv,LM,1))
-           ALLOCATE(targvbs(ims:ime,1:lnsv,LM,1))
-           ALLOCATE(targvbw(1:lnsv,jms:jme,LM,1))
-           ALLOCATE(targvbe(1:lnsv,jms:jme,LM,1))
-	endif
+!-----------------------------------------------------------------------
+!***  Is this task subdomain on the full domain's north side?
+!-----------------------------------------------------------------------
 
         IF (n_bdy) THEN
-          do n3=1,1
-            do n2=1,lnsh
-            do n1=i_lo,i_hi
-              targpdbn(n1,n2,n3)=pdbn(n1,n2,1)+tboco*pdbn(n1,n2,2)
-            enddo
-            enddo
-          enddo
 
-          do n4=1,1
-          do n3=1,lm
-            do n2=1,lnsh
-            do n1=i_lo,i_hi
-              targtbn(n1,n2,n3,n4)=tbn(n1,n2,n3,1)+tboco*tbn(n1,n2,n3,2)
-              targqbn(n1,n2,n3,n4)=qbn(n1,n2,n3,1)+tboco*qbn(n1,n2,n3,2)
-              targwbn(n1,n2,n3,n4)=wbn(n1,n2,n3,1)+tboco*wbn(n1,n2,n3,2)
+          if(nvars_bc_2d_h>0)then
+            allocate(targ_2d_h_n(ims:ime,1:lnsh,1,1:nvars_bc_2d_h))
+            do nv=1,nvars_bc_2d_h
+              do n3=1,1
+              do n2=1,lnsh
+              do n1=i_lo,i_hi
+                targ_2d_h_n(n1,n2,n3,nv)=bnd_vars_h%var_2d(nv)%north(n1,n2,1) &
+                                        +tboco*bnd_vars_h%var_2d(nv)%north(n1,n2,2)
+              enddo
+              enddo
+              enddo
             enddo
-            enddo
-          enddo
-          enddo
+          endif
 
-          do n4=1,1
-          do n3=1,lm
-            do n2=1,lnsv
-            do n1=i_lo,i_hi
-              targubn(n1,n2,n3,n4)=ubn(n1,n2,n3,1)+tboco*ubn(n1,n2,n3,2)
-              targvbn(n1,n2,n3,n4)=vbn(n1,n2,n3,1)+tboco*vbn(n1,n2,n3,2)
+          if(nvars_bc_3d_h>0)then
+            allocate(targ_3d_h_n(ims:ime,1:lnsh,1:lm,1,1:nvars_bc_3d_h))
+            do nv=1,nvars_bc_3d_h
+              do n4=1,1
+              do n3=1,lm
+              do n2=1,lnsh
+              do n1=i_lo,i_hi
+                targ_3d_h_n(n1,n2,n3,n4,nv)=bnd_vars_h%var_3d(nv)%north(n1,n2,n3,1) &
+                                           +tboco*bnd_vars_h%var_3d(nv)%north(n1,n2,n3,2)
+              enddo
+              enddo
+              enddo
+              enddo
             enddo
+          endif
+
+          if(nvars_bc_4d_h>0)then
+            allocate(targ_4d_h_n(1:nvars_bc_4d_h))
+            do nv=1,nvars_bc_4d_h
+              lbnd=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+              ubnd=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+              allocate(targ_4d_h_n(nv)%base(ims:ime,1:lnsh,1:lm,1,lbnd:ubnd))
+              do n5=lbnd,ubnd
+              do n4=1,1
+              do n3=1,lm
+              do n2=1,lnsh
+              do n1=i_lo,i_hi
+                targ_4d_h_n(nv)%base(n1,n2,n3,n4,n5)=bnd_vars_h%var_4d(nv)%north(n1,n2,n3,1,n5) &
+                                                    +tboco*bnd_vars_h%var_4d(nv)%north(n1,n2,n3,2,n5)
+              enddo
+              enddo
+              enddo
+              enddo
+              enddo
             enddo
-          enddo
-          enddo
+          endif
+
+          if(nvars_bc_2d_v>0)then
+            allocate(targ_2d_v_n(ims:ime,1:lnsv,1,nvars_bc_2d_v))
+            do nv=1,nvars_bc_2d_v
+              do n3=1,1
+              do n2=1,lnsv
+              do n1=i_lo,i_hi
+                targ_2d_v_n(n1,n2,n3,nv)=bnd_vars_v%var_2d(nv)%north(n1,n2,1) &
+                                        +tboco*bnd_vars_v%var_2d(nv)%north(n1,n2,2)
+              enddo
+              enddo
+              enddo
+            enddo
+          endif
+
+          if(nvars_bc_3d_v>0)then
+            allocate(targ_3d_v_n(ims:ime,1:lnsv,1:lm,1,nvars_bc_3d_v))
+            do nv=1,nvars_bc_3d_v
+              do n4=1,1
+              do n3=1,lm
+              do n2=1,lnsv
+              do n1=i_lo,i_hi
+                targ_3d_v_n(n1,n2,n3,n4,nv)=bnd_vars_v%var_3d(nv)%north(n1,n2,n3,1) &
+                                           +tboco*bnd_vars_v%var_3d(nv)%north(n1,n2,n3,2)
+              enddo
+              enddo
+              enddo
+              enddo
+            enddo
+          endif
+
 	ENDIF ! N_BDY
 
+!-----------------------------------------------------------------------
+!***  Is this task subdomain on the full domain's south side?
+!-----------------------------------------------------------------------
+
         IF (s_bdy) THEN
-          do n3=1,1
-            do n2=1,lnsh
-            do n1=i_lo,i_hi
-              targpdbs(n1,n2,n3)=pdbs(n1,n2,1)+tboco*pdbs(n1,n2,2)
-            enddo
-            enddo
-          enddo
 
-          do n4=1,1
-          do n3=1,lm
-            do n2=1,lnsh
-            do n1=i_lo,i_hi
-              targtbs(n1,n2,n3,n4)=tbs(n1,n2,n3,1)+tboco*tbs(n1,n2,n3,2)
-              targqbs(n1,n2,n3,n4)=qbs(n1,n2,n3,1)+tboco*qbs(n1,n2,n3,2)
-              targwbs(n1,n2,n3,n4)=wbs(n1,n2,n3,1)+tboco*wbs(n1,n2,n3,2)
+          if(nvars_bc_2d_h>0)then
+            allocate(targ_2d_h_s(ims:ime,1:lnsh,1,1:nvars_bc_2d_h))
+            do nv=1,nvars_bc_2d_h
+              do n3=1,1
+              do n2=1,lnsh
+              do n1=i_lo,i_hi
+                targ_2d_h_s(n1,n2,n3,nv)=bnd_vars_h%var_2d(nv)%south(n1,n2,1) &
+                                        +tboco*bnd_vars_h%var_2d(nv)%south(n1,n2,2)
+              enddo
+              enddo
+              enddo
             enddo
-            enddo
-          enddo
-          enddo
+          endif
 
-          do n4=1,1
-          do n3=1,lm
-            do n2=1,lnsv
-            do n1=i_lo,i_hi
-              targubs(n1,n2,n3,n4)=ubs(n1,n2,n3,1)+tboco*ubs(n1,n2,n3,2)
-              targvbs(n1,n2,n3,n4)=vbs(n1,n2,n3,1)+tboco*vbs(n1,n2,n3,2)
+          if(nvars_bc_3d_h>0)then
+            allocate(targ_3d_h_s(ims:ime,1:lnsh,1:lm,1,1:nvars_bc_3d_h))
+            do nv=1,nvars_bc_3d_h
+              do n4=1,1
+              do n3=1,lm
+              do n2=1,lnsh
+              do n1=i_lo,i_hi
+                targ_3d_h_s(n1,n2,n3,n4,nv)=bnd_vars_h%var_3d(nv)%south(n1,n2,n3,1) &
+                                           +tboco*bnd_vars_h%var_3d(nv)%south(n1,n2,n3,2)
+              enddo
+              enddo
+              enddo
+              enddo
             enddo
+          endif
+
+          if(nvars_bc_4d_h>0)then
+            allocate(targ_4d_h_s(1:nvars_bc_4d_h))
+            do nv=1,nvars_bc_4d_h
+              lbnd=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+              ubnd=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+              allocate(targ_4d_h_s(nv)%base(ims:ime,1:lnsh,1:lm,1,lbnd:ubnd))
+              do n5=lbnd,ubnd
+              do n4=1,1
+              do n3=1,lm
+              do n2=1,lnsh
+              do n1=i_lo,i_hi
+                targ_4d_h_s(nv)%base(n1,n2,n3,n4,n5)=bnd_vars_h%var_4d(nv)%south(n1,n2,n3,1,n5) &
+                                                    +tboco*bnd_vars_h%var_4d(nv)%south(n1,n2,n3,2,n5)
+              enddo
+              enddo
+              enddo
+              enddo
+              enddo
             enddo
-          enddo
-          enddo
+          endif
+
+          if(nvars_bc_2d_v>0)then
+            allocate(targ_2d_v_s(ims:ime,1:lnsv,1,nvars_bc_2d_v))
+            do nv=1,nvars_bc_2d_v
+              do n3=1,1
+              do n2=1,lnsv
+              do n1=i_lo,i_hi
+                targ_2d_v_s(n1,n2,n3,nv)=bnd_vars_v%var_2d(nv)%south(n1,n2,1) &
+                                        +tboco*bnd_vars_v%var_2d(nv)%south(n1,n2,2)
+              enddo
+              enddo
+              enddo
+            enddo
+          endif
+
+          if(nvars_bc_3d_v>0)then
+            allocate(targ_3d_v_s(ims:ime,1:lnsv,1:lm,1,nvars_bc_3d_v))
+            do nv=1,nvars_bc_3d_v
+              do n4=1,1
+              do n3=1,lm
+              do n2=1,lnsv
+              do n1=i_lo,i_hi
+                targ_3d_v_s(n1,n2,n3,n4,nv)=bnd_vars_v%var_3d(nv)%south(n1,n2,n3,1) &
+                                           +tboco*bnd_vars_v%var_3d(nv)%south(n1,n2,n3,2)
+              enddo
+              enddo
+              enddo
+              enddo
+            enddo
+          endif
+
 	ENDIF ! S_BDY
 
+!-----------------------------------------------------------------------
+!***  Is this task subdomain on the full domain's west side?
+!-----------------------------------------------------------------------
+
         IF (w_bdy) THEN
-          do n3=1,1
-            do n2=j_lo,j_hi
-            do n1=1,lnsh
-              targpdbw(n1,n2,n3)=pdbw(n1,n2,1)+tboco*pdbw(n1,n2,2)
-            enddo
-            enddo
-          enddo
 
-          do n4=1,1
-          do n3=1,lm
-            do n2=j_lo,j_hi
-            do n1=1,lnsh
-              targtbw(n1,n2,n3,n4)=tbw(n1,n2,n3,1)+tboco*tbw(n1,n2,n3,2)
-              targqbw(n1,n2,n3,n4)=qbw(n1,n2,n3,1)+tboco*qbw(n1,n2,n3,2)
-              targwbw(n1,n2,n3,n4)=wbw(n1,n2,n3,1)+tboco*wbw(n1,n2,n3,2)
+          if(nvars_bc_2d_h>0)then
+            allocate(targ_2d_h_w(1:lnsh,jms:jme,1,1:nvars_bc_2d_h))
+            do nv=1,nvars_bc_2d_h
+              do n3=1,1
+              do n2=j_lo,j_hi
+              do n1=1,lnsh
+                targ_2d_h_w(n1,n2,n3,nv)=bnd_vars_h%var_2d(nv)%west(n1,n2,1) &
+                                        +tboco*bnd_vars_h%var_2d(nv)%west(n1,n2,2)
+              enddo
+              enddo
+              enddo
             enddo
-            enddo
-          enddo
-          enddo
+          endif
 
-          do n4=1,1
-          do n3=1,lm
-            do n2=j_lo,j_hi
-            do n1=1,lnsv
-              targubw(n1,n2,n3,n4)=ubw(n1,n2,n3,1)+tboco*ubw(n1,n2,n3,2)
-              targvbw(n1,n2,n3,n4)=vbw(n1,n2,n3,1)+tboco*vbw(n1,n2,n3,2)
+          if(nvars_bc_3d_h>0)then
+            allocate(targ_3d_h_w(1:lnsh,jms:jme,1:lm,1,1:nvars_bc_3d_h))
+            do nv=1,nvars_bc_3d_h
+              do n4=1,1
+              do n3=1,lm
+              do n2=j_lo,j_hi
+              do n1=1,lnsh
+                targ_3d_h_w(n1,n2,n3,n4,nv)=bnd_vars_h%var_3d(nv)%west(n1,n2,n3,1) &
+                                           +tboco*bnd_vars_h%var_3d(nv)%west(n1,n2,n3,2)
+              enddo
+              enddo
+              enddo
+              enddo
             enddo
+          endif
+
+          if(nvars_bc_4d_h>0)then
+            allocate(targ_4d_h_w(1:nvars_bc_4d_h))
+            do nv=1,nvars_bc_4d_h
+              lbnd=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+              ubnd=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+              allocate(targ_4d_h_w(nv)%base(1:lnsh,jms:jme,1:lm,1,lbnd:ubnd))
+              do n5=lbnd,ubnd
+              do n4=1,1
+              do n3=1,lm
+              do n2=j_lo,j_hi
+              do n1=1,lnsh
+                targ_4d_h_w(nv)%base(n1,n2,n3,n4,n5)=bnd_vars_h%var_4d(nv)%west(n1,n2,n3,1,n5) &
+                                                    +tboco*bnd_vars_h%var_4d(nv)%west(n1,n2,n3,2,n5)
+              enddo
+              enddo
+              enddo
+              enddo
+              enddo
             enddo
-          enddo
-          enddo
+          endif
+
+          if(nvars_bc_2d_v>0)then
+            allocate(targ_2d_v_w(1:lnsv,jms:jme,1,nvars_bc_2d_v))
+            do nv=1,nvars_bc_2d_v
+              do n3=1,1
+              do n2=j_lo,j_hi
+              do n1=1,lnsv
+                targ_2d_v_w(n1,n2,n3,nv)=bnd_vars_v%var_2d(nv)%west(n1,n2,1) &
+                                        +tboco*bnd_vars_v%var_2d(nv)%west(n1,n2,2)
+              enddo
+              enddo
+              enddo
+            enddo
+          endif
+
+          if(nvars_bc_3d_v>0)then
+            allocate(targ_3d_v_w(1:lnsv,jms:jme,1:lm,1,nvars_bc_3d_v))
+            do nv=1,nvars_bc_3d_v
+              do n4=1,1
+              do n3=1,lm
+              do n2=j_lo,j_hi
+              do n1=1,lnsv
+                targ_3d_v_w(n1,n2,n3,n4,nv)=bnd_vars_v%var_3d(nv)%west(n1,n2,n3,1) &
+                                           +tboco*bnd_vars_v%var_3d(nv)%west(n1,n2,n3,2)
+              enddo
+              enddo
+              enddo
+              enddo
+            enddo
+          endif
+
 	ENDIF ! W_BDY
 
+!-----------------------------------------------------------------------
+!***  Is this task subdomain on the full domain's east side?
+!-----------------------------------------------------------------------
+
         IF (e_bdy) THEN
-          do n3=1,1
-            do n2=j_lo,j_hi
-            do n1=1,lnsh
-              targpdbe(n1,n2,n3)=pdbe(n1,n2,1)+tboco*pdbe(n1,n2,2)
-            enddo
-            enddo
-          enddo
 
-          do n4=1,1
-          do n3=1,lm
-            do n2=j_lo,j_hi
-            do n1=1,lnsh
-              targtbe(n1,n2,n3,n4)=tbe(n1,n2,n3,1)+tboco*tbe(n1,n2,n3,2)
-              targqbe(n1,n2,n3,n4)=qbe(n1,n2,n3,1)+tboco*qbe(n1,n2,n3,2)
-              targwbe(n1,n2,n3,n4)=wbe(n1,n2,n3,1)+tboco*wbe(n1,n2,n3,2)
+          if(nvars_bc_2d_h>0)then
+            allocate(targ_2d_h_e(1:lnsh,jms:jme,1,1:nvars_bc_2d_h))
+            do nv=1,nvars_bc_2d_h
+              do n3=1,1
+              do n2=j_lo,j_hi
+              do n1=1,lnsh
+                targ_2d_h_e(n1,n2,n3,nv)=bnd_vars_h%var_2d(nv)%east(n1,n2,1) &
+                                        +tboco*bnd_vars_h%var_2d(nv)%east(n1,n2,2)
+              enddo
+              enddo
+              enddo
             enddo
-            enddo
-          enddo
-          enddo
+          endif
 
-          do n4=1,1
-          do n3=1,lm
-            do n2=j_lo,j_hi
-            do n1=1,lnsv
-              targube(n1,n2,n3,n4)=ube(n1,n2,n3,1)+tboco*ube(n1,n2,n3,2)
-              targvbe(n1,n2,n3,n4)=vbe(n1,n2,n3,1)+tboco*vbe(n1,n2,n3,2)
+          if(nvars_bc_3d_h>0)then
+            allocate(targ_3d_h_e(1:lnsh,jms:jme,1:lm,1,1:nvars_bc_3d_h))
+            do nv=1,nvars_bc_3d_h
+              do n4=1,1
+              do n3=1,lm
+              do n2=j_lo,j_hi
+              do n1=1,lnsh
+                targ_3d_h_e(n1,n2,n3,n4,nv)=bnd_vars_h%var_3d(nv)%east(n1,n2,n3,1) &
+                                           +tboco*bnd_vars_h%var_3d(nv)%east(n1,n2,n3,2)
+              enddo
+              enddo
+              enddo
+              enddo
             enddo
+          endif
+
+          if(nvars_bc_4d_h>0)then
+            allocate(targ_4d_h_e(1:nvars_bc_4d_h))
+            do nv=1,nvars_bc_4d_h
+              lbnd=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+              ubnd=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+              allocate(targ_4d_h_e(nv)%base(1:lnsh,jms:jme,1:lm,1,lbnd:ubnd))
+              do n5=lbnd,ubnd
+              do n4=1,1
+              do n3=1,lm
+              do n2=j_lo,j_hi
+              do n1=1,lnsh
+                targ_4d_h_e(nv)%base(n1,n2,n3,n4,n5)=bnd_vars_h%var_4d(nv)%east(n1,n2,n3,1,n5) &
+                                                    +tboco*bnd_vars_h%var_4d(nv)%east(n1,n2,n3,2,n5)
+              enddo
+              enddo
+              enddo
+              enddo
+              enddo
             enddo
-          enddo
-          enddo
+          endif
+
+          if(nvars_bc_2d_v>0)then
+            allocate(targ_2d_v_e(1:lnsv,jms:jme,1,nvars_bc_2d_v))
+            do nv=1,nvars_bc_2d_v
+              do n3=1,1
+              do n2=j_lo,j_hi
+              do n1=1,lnsv
+                targ_2d_v_e(n1,n2,n3,nv)=bnd_vars_v%var_2d(nv)%east(n1,n2,1) &
+                                        +tboco*bnd_vars_v%var_2d(nv)%east(n1,n2,2)
+              enddo
+              enddo
+              enddo
+            enddo
+          endif
+
+          if(nvars_bc_3d_v>0)then
+            allocate(targ_3d_v_e(1:lnsv,jms:jme,1:lm,1,nvars_bc_3d_v))
+            do nv=1,nvars_bc_3d_v
+              do n4=1,1
+              do n3=1,lm
+              do n2=j_lo,j_hi
+              do n1=1,lnsv
+                targ_3d_v_e(n1,n2,n3,n4,nv)=bnd_vars_v%var_3d(nv)%east(n1,n2,n3,1) &
+                                           +tboco*bnd_vars_v%var_3d(nv)%east(n1,n2,n3,2)
+              enddo
+              enddo
+              enddo
+              enddo
+            enddo
+          endif
+
 	ENDIF ! E_BDY
 
       endif  ! recomp_tend
@@ -4419,246 +4705,643 @@ integer(kind=kint):: &
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       IF (n_bdy) THEN
-        do n3=1,1
-          do n2=1,lnsh
-          do n1=i_lo,i_hi
-            pdbn(n1,n2,n3)=PD(n1,n2+j_hi-lnsh)
-          enddo
-          enddo
-        enddo
 
-        do n4=1,1
-        do n3=1,lm
-          do n2=1,lnsh
-          do n1=i_lo,i_hi
-            tbn(n1,n2,n3,n4)=T(n1,n2+j_hi-lnsh,n3)
-            qbn(n1,n2,n3,n4)=Q(n1,n2+j_hi-lnsh,n3)
-            wbn(n1,n2,n3,n4)=CWM(n1,n2+j_hi-lnsh,n3)
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            do n3=1,1
+            do n2=1,lnsh
+            do n1=i_lo,i_hi
+              bnd_vars_h%var_2d(nv)%north(n1,n2,n3)=               &
+                bnd_vars_h%var_2d(nv)%full_var(n1,n2+j_hi-lnsh)
+            enddo
+            enddo
+            enddo
           enddo
-          enddo
-        enddo
-        enddo
+        endif
 
-        do n4=1,1
-        do n3=1,lm
-          do n2=1,lnsv
-          do n1=i_lo,i_hi
-            ubn(n1,n2,n3,n4)=U(n1,n2+j_hi-lnsv-1,n3)
-            vbn(n1,n2,n3,n4)=V(n1,n2+j_hi-lnsv-1,n3)
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do n4=1,1
+            do n3=1,lm
+            do n2=1,lnsh
+            do n1=i_lo,i_hi
+              bnd_vars_h%var_3d(nv)%north(n1,n2,n3,n4)=            &
+                bnd_vars_h%var_3d(nv)%full_var(n1,n2+j_hi-lnsh,n3)
+            enddo
+            enddo
+            enddo
+            enddo
           enddo
+        endif
+
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lbnd=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+            ubnd=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+            do n5=lbnd,ubnd
+            do n4=1,1
+            do n3=1,lm
+            do n2=1,lnsh
+            do n1=i_lo,i_hi
+              bnd_vars_h%var_4d(nv)%north(n1,n2,n3,n4,n5)=          &
+                bnd_vars_h%var_4d(nv)%full_var(n1,n2+j_hi-lnsh,n3,n5)
+            enddo
+            enddo
+            enddo
+            enddo
+            enddo
           enddo
-        enddo
-        enddo
+        endif
+
+        if(nvars_bc_2d_v>0)then
+          do nv=1,nvars_bc_2d_v
+            do n3=1,1
+            do n2=1,lnsv
+            do n1=i_lo,i_hi
+              bnd_vars_v%var_2d(nv)%north(n1,n2,n3)=               &
+                bnd_vars_v%var_2d(nv)%full_var(n1,n2+j_hi-lnsv-1)
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+
+        if(nvars_bc_3d_v>0)then
+          do nv=1,nvars_bc_3d_v
+            do n4=1,1
+            do n3=1,lm
+            do n2=1,lnsv
+            do n1=i_lo,i_hi
+              bnd_vars_v%var_3d(nv)%north(n1,n2,n3,n4)=            &
+                bnd_vars_v%var_3d(nv)%full_var(n1,n2+j_hi-lnsv,n3)
+            enddo
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+
       ENDIF ! N_BDY
 
       IF (s_bdy) THEN
-        do n3=1,1
-          do n2=1,lnsh
-          do n1=i_lo,i_hi
-            pdbs(n1,n2,n3)=PD(n1,j_lo+n2-1)
-          enddo
-          enddo
-        enddo
 
-        do n4=1,1
-        do n3=1,lm
-          do n2=1,lnsh
-          do n1=i_lo,i_hi
-            tbs(n1,n2,n3,n4)=T(n1,j_lo+n2-1,n3)
-            qbs(n1,n2,n3,n4)=Q(n1,j_lo+n2-1,n3)
-            wbs(n1,n2,n3,n4)=CWM(n1,j_lo+n2-1,n3)
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            do n3=1,1
+            do n2=1,lnsh
+            do n1=i_lo,i_hi
+              bnd_vars_h%var_2d(nv)%south(n1,n2,n3)=               &
+                bnd_vars_h%var_2d(nv)%full_var(n1,j_lo+n2-1)
+            enddo
+            enddo
+            enddo
           enddo
-          enddo
-        enddo
-        enddo
+        endif
 
-        do n4=1,1
-        do n3=1,lm
-          do n2=1,lnsv
-          do n1=i_lo,i_hi
-            ubs(n1,n2,n3,n4)=U(n1,j_lo+n2-1,n3)
-            vbs(n1,n2,n3,n4)=V(n1,j_lo+n2-1,n3)
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do n4=1,1
+            do n3=1,lm
+            do n2=1,lnsh
+            do n1=i_lo,i_hi
+              bnd_vars_h%var_3d(nv)%south(n1,n2,n3,n4)=            &
+                bnd_vars_h%var_3d(nv)%full_var(n1,j_lo+n2-1,n3)
+            enddo
+            enddo
+            enddo
+            enddo
           enddo
+        endif
+
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lbnd=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+            ubnd=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+            do n5=lbnd,ubnd
+            do n4=1,1
+            do n3=1,lm
+            do n2=1,lnsh
+            do n1=i_lo,i_hi
+              bnd_vars_h%var_4d(nv)%south(n1,n2,n3,n4,n5)=          &
+                bnd_vars_h%var_4d(nv)%full_var(n1,j_lo+n2-1,n3,n5)
+            enddo
+            enddo
+            enddo
+            enddo
+            enddo
           enddo
-        enddo
-        enddo
+        endif
+
+        if(nvars_bc_2d_v>0)then
+          do nv=1,nvars_bc_2d_v
+            do n3=1,1
+            do n2=1,lnsv
+            do n1=i_lo,i_hi
+              bnd_vars_v%var_2d(nv)%south(n1,n2,n3)=               &
+                bnd_vars_v%var_2d(nv)%full_var(n1,j_lo+n2-1)
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+
+        if(nvars_bc_3d_v>0)then
+          do nv=1,nvars_bc_3d_v
+            do n4=1,1
+            do n3=1,lm
+            do n2=1,lnsv
+            do n1=i_lo,i_hi
+              bnd_vars_v%var_3d(nv)%south(n1,n2,n3,n4)=            &
+                bnd_vars_v%var_3d(nv)%full_var(n1,j_lo+n2-1,n3)
+            enddo
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+
       ENDIF ! S_BDY
 
       IF (w_bdy) THEN
-        do n3=1,1
-          do n2=j_lo,j_hi
-          do n1=1,lnsh
-            pdbw(n1,n2,n3)=PD(i_lo+n1-1,n2)
-          enddo
-          enddo
-        enddo
 
-        do n4=1,1
-        do n3=1,lm
-          do n2=j_lo,j_hi
-          do n1=1,lnsh
-            tbw(n1,n2,n3,n4)=T(i_lo+n1-1,n2,n3)
-            qbw(n1,n2,n3,n4)=Q(i_lo+n1-1,n2,n3)
-            wbw(n1,n2,n3,n4)=CWM(i_lo+n1-1,n2,n3)
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            do n3=1,1
+            do n2=j_lo,j_hi
+            do n1=1,lnsh
+              bnd_vars_h%var_2d(nv)%west(n1,n2,n3)=                &
+                bnd_vars_h%var_2d(nv)%full_var(i_lo+n1-1,n2)
+            enddo
+            enddo
+            enddo
           enddo
-          enddo
-        enddo
-        enddo
+        endif
 
-        do n4=1,1
-        do n3=1,lm
-          do n2=j_lo,j_hi
-          do n1=1,lnsv
-            ubw(n1,n2,n3,n4)=U(i_lo+n1-1,n2,n3)
-            vbw(n1,n2,n3,n4)=V(i_lo+n1-1,n2,n3)
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do n4=1,1
+            do n3=1,lm
+            do n2=j_lo,j_hi
+            do n1=1,lnsh
+              bnd_vars_h%var_3d(nv)%west(n1,n2,n3,n4)=             &
+                bnd_vars_h%var_3d(nv)%full_var(i_lo+n1-1,n2,n3)
+            enddo
+            enddo
+            enddo
+            enddo
           enddo
+        endif
+
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lbnd=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+            ubnd=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+            do n5=lbnd,ubnd
+            do n4=1,1
+            do n3=1,lm
+            do n2=j_lo,j_hi
+            do n1=1,lnsh
+              bnd_vars_h%var_4d(nv)%west(n1,n2,n3,n4,n5)=           &
+                bnd_vars_h%var_4d(nv)%full_var(i_lo+n1-1,n2,n3,n5)
+            enddo
+            enddo
+            enddo
+            enddo
+            enddo
           enddo
-        enddo
-        enddo
+        endif
+
+        if(nvars_bc_2d_v>0)then
+          do nv=1,nvars_bc_2d_v
+            do n3=1,1
+            do n2=j_lo,j_hi
+            do n1=1,lnsv
+              bnd_vars_v%var_2d(nv)%west(n1,n2,n3)=                &
+                bnd_vars_v%var_2d(nv)%full_var(i_lo+n1-1,n2)
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+
+        if(nvars_bc_3d_v>0)then
+          do nv=1,nvars_bc_3d_v
+            do n4=1,1
+            do n3=1,lm
+            do n2=j_lo,j_hi
+            do n1=1,lnsv
+              bnd_vars_v%var_3d(nv)%west(n1,n2,n3,n4)=             &
+                bnd_vars_v%var_3d(nv)%full_var(i_lo+n1-1,n2,n3)
+            enddo
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+
       ENDIF ! W_BDY
 
       IF (e_bdy) THEN
-        do n3=1,1
-          do n2=j_lo,j_hi
-          do n1=1,lnsh
-            pdbe(n1,n2,n3)=PD(n1+i_hi-lnsh,n2)
-          enddo
-          enddo
-        enddo
 
-        do n4=1,1
-        do n3=1,lm
-          do n2=j_lo,j_hi
-          do n1=1,lnsh
-            tbe(n1,n2,n3,n4)=T(  n1+i_hi-lnsh,n2,n3)
-            qbe(n1,n2,n3,n4)=Q(  n1+i_hi-lnsh,n2,n3)
-            wbe(n1,n2,n3,n4)=CWM(n1+i_hi-lnsh,n2,n3)
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            do n3=1,1
+            do n2=j_lo,j_hi
+            do n1=1,lnsh
+              bnd_vars_h%var_2d(nv)%east(n1,n2,n3)=                &
+                bnd_vars_h%var_2d(nv)%full_var(n1+i_hi-lnsh,n2)
+            enddo
+            enddo
+            enddo
           enddo
-          enddo
-        enddo
-        enddo
+        endif
 
-        do n4=1,1
-        do n3=1,lm
-          do n2=j_lo,j_hi
-          do n1=1,lnsv
-            ube(n1,n2,n3,n4)=U(n1+i_hi-lnsv-1,n2,n3)
-            vbe(n1,n2,n3,n4)=V(n1+i_hi-lnsv-1,n2,n3)
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do n4=1,1
+            do n3=1,lm
+            do n2=j_lo,j_hi
+            do n1=1,lnsh
+              bnd_vars_h%var_3d(nv)%east(n1,n2,n3,n4)=             &
+                bnd_vars_h%var_3d(nv)%full_var(n1+i_hi-lnsh,n2,n3)
+            enddo
+            enddo
+            enddo
+            enddo
           enddo
+        endif
+
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lbnd=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+            ubnd=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+            do n5=lbnd,ubnd
+            do n4=1,1
+            do n3=1,lm
+            do n2=j_lo,j_hi
+            do n1=1,lnsh
+              bnd_vars_h%var_4d(nv)%east(n1,n2,n3,n4,n5)=           &
+                bnd_vars_h%var_4d(nv)%full_var(n1+i_hi-lnsh,n2,n3,n5)
+            enddo
+            enddo
+            enddo
+            enddo
+            enddo
           enddo
-        enddo
-        enddo
+        endif
+
+        if(nvars_bc_2d_v>0)then
+          do nv=1,nvars_bc_2d_v
+            do n3=1,1
+            do n2=j_lo,j_hi
+            do n1=1,lnsv
+              bnd_vars_v%var_2d(nv)%east(n1,n2,n3)=                &
+                bnd_vars_v%var_2d(nv)%full_var(n1+i_hi-lnsh,n2)
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+
+        if(nvars_bc_3d_v>0)then
+          do nv=1,nvars_bc_3d_v
+            do n4=1,1
+            do n3=1,lm
+            do n2=j_lo,j_hi
+            do n1=1,lnsv
+              bnd_vars_v%var_3d(nv)%east(n1,n2,n3,n4)=             &
+                bnd_vars_v%var_3d(nv)%full_var(n1+i_hi-lnsv-1,n2,n3)
+            enddo
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+
       ENDIF ! E_BDY
 
       if (recomp_tend) then
-
+    
         IF (n_bdy) THEN
-          do n2=1,lnsh
-          do n1=i_lo,i_hi
-            pdbn(n1,n2,2)=(targpdbn(n1,n2,1)-pdbn(n1,n2,1))/tboco
-          enddo
-          enddo
 
-          do n3=1,lm
-            do n2=1,lnsh
-            do n1=i_lo,i_hi
-              tbn(n1,n2,n3,2)=(targtbn(n1,n2,n3,1)-tbn(n1,n2,n3,1))/tboco
-              qbn(n1,n2,n3,2)=(targqbn(n1,n2,n3,1)-qbn(n1,n2,n3,1))/tboco
-              wbn(n1,n2,n3,2)=(targwbn(n1,n2,n3,1)-wbn(n1,n2,n3,1))/tboco
+          if(nvars_bc_2d_h>0)then
+            do nv=1,nvars_bc_2d_h
+              do n2=1,lnsh
+              do n1=i_lo,i_hi
+                bnd_vars_h%var_2d(nv)%north(n1,n2,2)=   & 
+                  (targ_2d_h_n(n1,n2,1,nv)-bnd_vars_h%var_2d(nv)%north(n1,n2,1))/tboco
+!                 (targ_2d_h_n(n1,n2,1,nv)-bnd_vars_h%var_2d(nv)%north(n1,n2,1))*r_tboco
+              enddo
+              enddo
             enddo
-            enddo
-          enddo
+            deallocate(targ_2d_h_n)
+          endif
 
-          do n3=1,lm
-            do n2=1,lnsv
-            do n1=i_lo,i_hi
-              ubn(n1,n2,n3,2)=(targubn(n1,n2,n3,1)-ubn(n1,n2,n3,1))/tboco
-              vbn(n1,n2,n3,2)=(targvbn(n1,n2,n3,1)-vbn(n1,n2,n3,1))/tboco
+          if(nvars_bc_3d_h>0)then
+            do nv=1,nvars_bc_3d_h
+              do n3=1,lm
+              do n2=1,lnsh
+              do n1=i_lo,i_hi
+                bnd_vars_h%var_3d(nv)%north(n1,n2,n3,2)=   & 
+                  (targ_3d_h_n(n1,n2,n3,1,nv)-bnd_vars_h%var_3d(nv)%north(n1,n2,n3,1))/tboco
+!                 (targ_3d_h_n(n1,n2,n3,1,nv)-bnd_vars_h%var_3d(nv)%north(n1,n2,n3,1))*r_tboco
+              enddo
+              enddo
+              enddo
             enddo
+            deallocate(targ_3d_h_n)
+          endif
+
+          if(nvars_bc_4d_h>0)then
+            do nv=1,nvars_bc_4d_h
+              lbnd=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+              ubnd=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+              do n4=lbnd,ubnd
+              do n3=1,lm
+              do n2=1,lnsh
+              do n1=i_lo,i_hi
+                bnd_vars_h%var_4d(nv)%north(n1,n2,n3,2,n4)=   & 
+                  (targ_4d_h_n(nv)%base(n1,n2,n3,1,nv)-bnd_vars_h%var_4d(nv)%north(n1,n2,n3,1,n4))/tboco
+!                 (targ_4d_h_n(nv)%base(n1,n2,n3,1,nv)-bnd_vars_h%var_4d(nv)%north(n1,n2,n3,1,n4))*r_tboco
+              enddo
+              enddo
+              enddo
+              enddo
+              deallocate(targ_4d_h_n(nv)%base)
             enddo
-          enddo
+            deallocate(targ_4d_h_n)
+          endif
+
+          if(nvars_bc_2d_v>0)then
+            do nv=1,nvars_bc_2d_v
+              do n2=1,lnsv
+              do n1=i_lo,i_hi
+                bnd_vars_v%var_2d(nv)%north(n1,n2,2)=   & 
+                  (targ_2d_v_n(n1,n2,1,nv)-bnd_vars_v%var_2d(nv)%north(n1,n2,1))/tboco
+!                 (targ_2d_v_n(n1,n2,1,nv)-bnd_vars_v%var_2d(nv)%north(n1,n2,1))*r_tboco
+              enddo
+              enddo
+            enddo
+            deallocate(targ_2d_v_n)
+          endif
+
+          if(nvars_bc_3d_v>0)then
+            do nv=1,nvars_bc_3d_v
+              do n3=1,lm
+              do n2=1,lnsv
+              do n1=i_lo,i_hi
+                bnd_vars_v%var_3d(nv)%north(n1,n2,n3,2)=   & 
+                  (targ_3d_v_n(n1,n2,n3,1,nv)-bnd_vars_v%var_3d(nv)%north(n1,n2,n3,1))/tboco
+!                 (targ_3d_v_n(n1,n2,n3,1,nv)-bnd_vars_v%var_3d(nv)%north(n1,n2,n3,1))*r_tboco
+              enddo
+              enddo
+              enddo
+            enddo
+            deallocate(targ_3d_v_n)
+          endif
+
 	ENDIF ! N_BDY
 
         IF (s_bdy) THEN
-          do n2=1,lnsh
-          do n1=i_lo,i_hi
-            pdbs(n1,n2,2)=(targpdbs(n1,n2,1)-pdbs(n1,n2,1))/tboco
-          enddo
-          enddo
 
-          do n3=1,lm
-            do n2=1,lnsh
-            do n1=i_lo,i_hi
-              tbs(n1,n2,n3,2)=(targtbs(n1,n2,n3,1)-tbs(n1,n2,n3,1))/tboco
-              qbs(n1,n2,n3,2)=(targqbs(n1,n2,n3,1)-qbs(n1,n2,n3,1))/tboco
-              wbs(n1,n2,n3,2)=(targwbs(n1,n2,n3,1)-wbs(n1,n2,n3,1))/tboco
+          if(nvars_bc_2d_h>0)then
+            do nv=1,nvars_bc_2d_h
+              do n2=1,lnsh
+              do n1=i_lo,i_hi
+                bnd_vars_h%var_2d(nv)%south(n1,n2,2)=   &
+                  (targ_2d_h_s(n1,n2,1,nv)-bnd_vars_h%var_2d(nv)%south(n1,n2,1))/tboco
+!                 (targ_2d_h_s(n1,n2,1,nv)-bnd_vars_h%var_2d(nv)%south(n1,n2,1))*r_tboco
+              enddo
+              enddo
             enddo
-            enddo
-          enddo
+            deallocate(targ_2d_h_s)
+          endif
 
-          do n3=1,lm
-            do n2=1,lnsv
-            do n1=i_lo,i_hi
-              ubs(n1,n2,n3,2)=(targubs(n1,n2,n3,1)-ubs(n1,n2,n3,1))/tboco
-              vbs(n1,n2,n3,2)=(targvbs(n1,n2,n3,1)-vbs(n1,n2,n3,1))/tboco
+          if(nvars_bc_3d_h>0)then
+            do nv=1,nvars_bc_3d_h
+              do n3=1,lm
+              do n2=1,lnsh
+              do n1=i_lo,i_hi
+                bnd_vars_h%var_3d(nv)%south(n1,n2,n3,2)=   &
+                  (targ_3d_h_s(n1,n2,n3,1,nv)-bnd_vars_h%var_3d(nv)%south(n1,n2,n3,1))/tboco
+!                 (targ_3d_h_s(n1,n2,n3,1,nv)-bnd_vars_h%var_3d(nv)%south(n1,n2,n3,1))*r_tboco
+              enddo
+              enddo
+              enddo
             enddo
+            deallocate(targ_3d_h_s)
+          endif
+
+          if(nvars_bc_4d_h>0)then
+            do nv=1,nvars_bc_4d_h
+              lbnd=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+              ubnd=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+              do n4=lbnd,ubnd
+              do n3=1,lm
+              do n2=1,lnsh
+              do n1=i_lo,i_hi
+                bnd_vars_h%var_4d(nv)%south(n1,n2,n3,2,n4)=   &
+                  (targ_4d_h_s(nv)%base(n1,n2,n3,1,nv)-bnd_vars_h%var_4d(nv)%south(n1,n2,n3,1,n4))/tboco
+!                 (targ_4d_h_s(nv)%base(n1,n2,n3,1,nv)-bnd_vars_h%var_4d(nv)%south(n1,n2,n3,1,n4))*r_tboco
+              enddo
+              enddo
+              enddo
+              enddo
+              deallocate(targ_4d_h_s(nv)%base)
             enddo
-          enddo
+            deallocate(targ_4d_h_s)
+          endif
+
+          if(nvars_bc_2d_v>0)then
+            do nv=1,nvars_bc_2d_v
+              do n2=1,lnsv
+              do n1=i_lo,i_hi
+                bnd_vars_v%var_2d(nv)%south(n1,n2,2)=   &
+                  (targ_2d_v_s(n1,n2,1,nv)-bnd_vars_v%var_2d(nv)%south(n1,n2,1))/tboco
+!                 (targ_2d_v_s(n1,n2,1,nv)-bnd_vars_v%var_2d(nv)%south(n1,n2,1))*r_tboco
+              enddo
+              enddo
+            enddo
+            deallocate(targ_2d_v_s)
+          endif
+
+          if(nvars_bc_3d_v>0)then
+            do nv=1,nvars_bc_3d_v
+              do n3=1,lm
+              do n2=1,lnsv
+              do n1=i_lo,i_hi
+                bnd_vars_v%var_3d(nv)%south(n1,n2,n3,2)=   &
+                  (targ_3d_v_s(n1,n2,n3,1,nv)-bnd_vars_v%var_3d(nv)%south(n1,n2,n3,1))/tboco
+!                 (targ_3d_v_s(n1,n2,n3,1,nv)-bnd_vars_v%var_3d(nv)%south(n1,n2,n3,1))*r_tboco
+              enddo
+              enddo
+              enddo
+            enddo
+            deallocate(targ_3d_v_s)
+          endif
+
 	ENDIF ! S_BDY
 
         IF (w_bdy) THEN
-          do n2=j_lo,j_hi
-          do n1=1,lnsh
-            pdbw(n1,n2,2)=(targpdbw(n1,n2,1)-pdbw(n1,n2,1))/tboco
-          enddo
-          enddo
 
-          do n3=1,lm
-            do n2=j_lo,j_hi
-            do n1=1,lnsh
-              tbw(n1,n2,n3,2)=(targtbw(n1,n2,n3,1)-tbw(n1,n2,n3,1))/tboco
-              qbw(n1,n2,n3,2)=(targqbw(n1,n2,n3,1)-qbw(n1,n2,n3,1))/tboco
-              wbw(n1,n2,n3,2)=(targwbw(n1,n2,n3,1)-wbw(n1,n2,n3,1))/tboco
+          if(nvars_bc_2d_h>0)then
+            do nv=1,nvars_bc_2d_h
+              do n2=j_lo,j_hi
+              do n1=1,lnsh
+                bnd_vars_h%var_2d(nv)%west(n1,n2,2)=   &
+                  (targ_2d_h_w(n1,n2,1,nv)-bnd_vars_h%var_2d(nv)%west(n1,n2,1))/tboco
+!                 (targ_2d_h_w(n1,n2,1,nv)-bnd_vars_h%var_2d(nv)%west(n1,n2,1))*r_tboco
+              enddo
+              enddo
             enddo
-            enddo
-          enddo
+            deallocate(targ_2d_h_w)
+          endif
 
-          do n3=1,lm
-            do n2=j_lo,j_hi
-            do n1=1,lnsv
-              ubw(n1,n2,n3,2)=(targubw(n1,n2,n3,1)-ubw(n1,n2,n3,1))/tboco
-              vbw(n1,n2,n3,2)=(targvbw(n1,n2,n3,1)-vbw(n1,n2,n3,1))/tboco
+          if(nvars_bc_3d_h>0)then
+            do nv=1,nvars_bc_3d_h
+              do n3=1,lm
+              do n2=j_lo,j_hi
+              do n1=1,lnsh
+                bnd_vars_h%var_3d(nv)%west(n1,n2,n3,2)=   &
+                  (targ_3d_h_w(n1,n2,n3,1,nv)-bnd_vars_h%var_3d(nv)%west(n1,n2,n3,1))/tboco
+!                 (targ_3d_h_w(n1,n2,n3,1,nv)-bnd_vars_h%var_3d(nv)%west(n1,n2,n3,1))*r_tboco
+              enddo
+              enddo
+              enddo
             enddo
+            deallocate(targ_3d_h_w)
+          endif
+
+          if(nvars_bc_4d_h>0)then
+            do nv=1,nvars_bc_4d_h
+              lbnd=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+              ubnd=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+              do n4=lbnd,ubnd
+              do n3=1,lm
+              do n2=j_lo,j_hi
+              do n1=1,lnsh
+                bnd_vars_h%var_4d(nv)%west(n1,n2,n3,2,n4)=   &
+                  (targ_4d_h_w(nv)%base(n1,n2,n3,1,nv)-bnd_vars_h%var_4d(nv)%west(n1,n2,n3,1,n4))/tboco
+!                 (targ_4d_h_w(nv)%base(n1,n2,n3,1,nv)-bnd_vars_h%var_4d(nv)%west(n1,n2,n3,1,n4))*r_tboco
+              enddo
+              enddo
+              enddo
+              enddo
+              deallocate(targ_4d_h_w(nv)%base)
             enddo
-          enddo
+            deallocate(targ_4d_h_w)
+          endif
+
+          if(nvars_bc_2d_v>0)then
+            do nv=1,nvars_bc_2d_v
+              do n2=j_lo,j_hi
+              do n1=1,lnsv
+                bnd_vars_v%var_2d(nv)%west(n1,n2,2)=   &
+                  (targ_2d_v_w(n1,n2,1,nv)-bnd_vars_v%var_2d(nv)%west(n1,n2,1))/tboco
+!                 (targ_2d_v_w(n1,n2,1,nv)-bnd_vars_v%var_2d(nv)%west(n1,n2,1))*r_tboco
+              enddo
+              enddo
+            enddo
+            deallocate(targ_2d_v_w)
+          endif
+
+          if(nvars_bc_3d_v>0)then
+            do nv=1,nvars_bc_3d_v
+              do n3=1,lm
+              do n2=j_lo,j_hi
+              do n1=1,lnsv
+                bnd_vars_v%var_3d(nv)%west(n1,n2,n3,2)=   &
+                  (targ_3d_v_w(n1,n2,n3,1,nv)-bnd_vars_v%var_3d(nv)%west(n1,n2,n3,1))/tboco
+!                 (targ_3d_v_w(n1,n2,n3,1,nv)-bnd_vars_v%var_3d(nv)%west(n1,n2,n3,1))*r_tboco
+              enddo
+              enddo
+              enddo
+            enddo
+            deallocate(targ_3d_v_w)
+          endif
+
 	ENDIF ! W_BDY
 
         IF (e_bdy) THEN
-          do n2=j_lo,j_hi
-          do n1=1,lnsh
-            pdbe(n1,n2,2)=(targpdbe(n1,n2,1)-pdbe(n1,n2,1))/tboco
-          enddo
-          enddo
 
-          do n3=1,lm
-            do n2=j_lo,j_hi
-            do n1=1,lnsh
-              tbe(n1,n2,n3,2)=(targtbe(n1,n2,n3,1)-tbe(n1,n2,n3,1))/tboco
-              qbe(n1,n2,n3,2)=(targqbe(n1,n2,n3,1)-qbe(n1,n2,n3,1))/tboco
-              wbe(n1,n2,n3,2)=(targwbe(n1,n2,n3,1)-wbe(n1,n2,n3,1))/tboco
+          if(nvars_bc_2d_h>0)then
+            do nv=1,nvars_bc_2d_h
+              do n2=j_lo,j_hi
+              do n1=1,lnsh
+                bnd_vars_h%var_2d(nv)%east(n1,n2,2)=   &
+                  (targ_2d_h_e(n1,n2,1,nv)-bnd_vars_h%var_2d(nv)%east(n1,n2,1))/tboco
+!                 (targ_2d_h_e(n1,n2,1,nv)-bnd_vars_h%var_2d(nv)%east(n1,n2,1))*r_tboco
+              enddo
+              enddo
             enddo
-            enddo
-          enddo
+            deallocate(targ_2d_h_e)
+          endif
 
-          do n3=1,lm
-            do n2=j_lo,j_hi
-            do n1=1,lnsv
-              ube(n1,n2,n3,2)=(targube(n1,n2,n3,1)-ube(n1,n2,n3,1))/tboco
-              vbe(n1,n2,n3,2)=(targvbe(n1,n2,n3,1)-vbe(n1,n2,n3,1))/tboco
+          if(nvars_bc_3d_h>0)then
+            do nv=1,nvars_bc_3d_h
+              do n3=1,lm
+              do n2=j_lo,j_hi
+              do n1=1,lnsh
+                bnd_vars_h%var_3d(nv)%east(n1,n2,n3,2)=   &
+                  (targ_3d_h_e(n1,n2,n3,1,nv)-bnd_vars_h%var_3d(nv)%east(n1,n2,n3,1))/tboco
+!                 (targ_3d_h_e(n1,n2,n3,1,nv)-bnd_vars_h%var_3d(nv)%east(n1,n2,n3,1))*r_tboco
+              enddo
+              enddo
+              enddo
             enddo
+            deallocate(targ_3d_h_e)
+          endif
+
+          if(nvars_bc_4d_h>0)then
+            do nv=1,nvars_bc_4d_h
+              lbnd=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+              ubnd=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+              do n4=lbnd,ubnd
+              do n3=1,lm
+              do n2=j_lo,j_hi
+              do n1=1,lnsh
+                bnd_vars_h%var_4d(nv)%east(n1,n2,n3,2,n4)=   &
+                  (targ_4d_h_e(nv)%base(n1,n2,n3,1,nv)-bnd_vars_h%var_4d(nv)%east(n1,n2,n3,1,n4))/tboco
+!                 (targ_4d_h_e(nv)%base(n1,n2,n3,1,nv)-bnd_vars_h%var_4d(nv)%east(n1,n2,n3,1,n4))*r_tboco
+              enddo
+              enddo
+              enddo
+              enddo
+              deallocate(targ_4d_h_e(nv)%base)
             enddo
-          enddo
+            deallocate(targ_4d_h_e)
+          endif
+
+          if(nvars_bc_2d_v>0)then
+            do nv=1,nvars_bc_2d_v
+              do n2=j_lo,j_hi
+              do n1=1,lnsv
+                bnd_vars_v%var_2d(nv)%east(n1,n2,2)=   &
+                  (targ_2d_v_e(n1,n2,1,nv)-bnd_vars_v%var_2d(nv)%east(n1,n2,1))/tboco
+!                 (targ_2d_v_e(n1,n2,1,nv)-bnd_vars_v%var_2d(nv)%east(n1,n2,1))*r_tboco
+              enddo
+              enddo
+            enddo
+            deallocate(targ_2d_v_e)
+          endif
+
+          if(nvars_bc_3d_v>0)then
+            do nv=1,nvars_bc_3d_v
+              do n3=1,lm
+              do n2=j_lo,j_hi
+              do n1=1,lnsv
+                bnd_vars_v%var_3d(nv)%east(n1,n2,n3,2)=   &
+                  (targ_3d_v_e(n1,n2,n3,1,nv)-bnd_vars_v%var_3d(nv)%east(n1,n2,n3,1))/tboco
+!                 (targ_3d_v_e(n1,n2,n3,1,nv)-bnd_vars_v%var_3d(nv)%east(n1,n2,n3,1))*r_tboco
+              enddo
+              enddo
+              enddo
+            enddo
+            deallocate(targ_3d_v_e)
+          endif
+
 	ENDIF ! E_BDY
+
       endif ! recomp_tend
 !
 !-----------------------------------------------------------------------
@@ -4670,11 +5353,10 @@ integer(kind=kint):: &
                         subroutine bocoh &
 (lm,lnsh &
 ,dt,pt &
-,dsg2,pdsg1 &
-,pd &
-,pdbe,pdbn,pdbs,pdbw &
-,tbe,tbn,tbs,tbw,qbe,qbn,qbs,qbw,wbe,wbn,wbs,wbw &
-,t,q,cw &
+,pd,dsg2,pdsg1 &
+,nvars_bc_2d_h,nvars_bc_3d_h,nvars_bc_4d_h &
+,lbnd_4d,ubnd_4d &
+,bnd_vars_h &
 ,pint)
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4691,6 +5373,15 @@ integer(kind=kint),intent(in):: &
  lm &                        ! total # of levels
 ,lnsh                        ! blending area width, h points
 
+integer(kind=kint),intent(in) :: &
+ nvars_bc_2d_h &             ! # of 2-d h-pt boundary variables
+,nvars_bc_3d_h &             ! # of 3-d h-pt boundary variables
+,nvars_bc_4d_h               ! # of 4-d h-pt boundary variables
+
+integer(kind=kint),dimension(*),intent(in) :: &
+ lbnd_4d &                   ! lower index of list of 4-D h-pt boundary variables
+,ubnd_4d                     ! upper index of list of 4-D h-pt boundary variables
+
 real(kind=kfpt),intent(in):: &
  dt &                        ! dynamics time step
 ,pt                          ! pressure at the top
@@ -4699,69 +5390,51 @@ real(kind=kfpt),dimension(1:lm),intent(in):: &
  dsg2 &                      ! delta sigmas
 ,pdsg1                       ! delta pressures
 
-real(kind=kfpt),dimension(ims:ime,1:lnsh,1:2),intent(inout):: &
- pdbn &                      ! pressure difference at northern boundary
-,pdbs                        ! pressure difference at southern boundary
+real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
+ pd
 
-real(kind=kfpt),dimension(1:lnsh,jms:jme,1:2),intent(inout):: &
- pdbe &                      ! pressure difference at eastern boundary
-,pdbw                        ! pressure difference at western boundary
-
-real(kind=kfpt),dimension(ims:ime,1:lnsh,1:lm,1:2),intent(inout):: &
- tbn &                       ! temperature at northern boundary
-,tbs &                       ! temperature at southern boundary
-,qbn &                       ! specific humidity at northern boundary
-,qbs &                       ! specific humidity at southern boundary
-,wbn &                       ! condensate at northern boundary
-,wbs                         ! condensate at southern boundary
-
-real(kind=kfpt),dimension(1:lnsh,jms:jme,1:lm,1:2),intent(inout):: &
- tbe &                       ! temperature at eastern boundary
-,tbw &                       ! temperature at western boundary
-,qbe &                       ! specific humidity at eastern boundary
-,qbw &                       ! specific humidity at western boundary
-,wbe &                       ! condensate at eastern boundary
-,wbw                         ! condensate at western boundary
-
-real(kind=kfpt),dimension(ims:ime,jms:jme),intent(inout):: &
- pd                          ! sigma range pressure difference
-
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
- cw &                        ! condensate
-,q &                         ! specific humidity
-,t                           ! temperature
+type(bc_h_all),intent(inout) :: &
+ bnd_vars_h                  ! boundary variables on h points
 
 real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm+1),intent(inout):: &
  pint                        ! pressure at interfaces
+
 !-----------------------------------------------------------------------
 !---local variables-----------------------------------------------------
 !-----------------------------------------------------------------------
+
 integer(kind=kint):: &
  i &                         ! index in x direction
+,i1 &
+,i2 &
 ,ib &                        ! index in x direction, boundary zone
 ,ihe &                       ! ending index in x direction, boundaries
 ,ihs &                       ! starting index in x direction, boundaries
 ,j &                         ! index in y direction
+,j1 &
+,j2 &
 ,jb &                        ! index in y direction, boundary zone
 ,jhe &                       ! ending index in x direction, boundaries
 ,jhs &                       ! starting index in x direction, boundaries
 ,k &                         ! boundary line counter
 ,ks &                        ! smoothing counter
 ,l &                         ! index in p direction
+,lbnd &
 ,lines &                     ! boundary smoothing area
-,nsmud                       ! number of smoothing passes
+,nl &
+,nsmud &                     ! number of smoothing passes
+,nv &
+,ubnd
 
 real(kind=kfpt),dimension(1:lnsh):: &
  wh(lnsh) &                  ! blending weighting function, temperature
 ,wq(lnsh)                    ! blending weighting function, moisture
 
-real(kind=kfpt),dimension(ims:ime,jms:jme):: &
- pdr                         ! pressure difference
+real(kind=kfpt),dimension(:,:),allocatable :: &
+ hbc_2d
 
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
- pr &                        ! pressure
-,qr &                        ! specific humidity
-,tr                          ! temperature
+real(kind=kfpt),dimension(:,:,:),pointer :: temp_3d
+
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -4776,94 +5449,272 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
          wq(k)=1.-(0.9/real(lnsh-1))*(k-1)
       enddo
 !-----------------------------------------------------------------------
-!-------------update of boundary values at h points---------------------
+!***  Update values of the boundary working objects at H points.
 !-----------------------------------------------------------------------
-!-------------southern and northern boundary----------------------------
-!-----------------------------------------------------------------------
-      if(s_bdy)then
-        do jb=1,lnsh
-          do ib=its_h2,ite_h2
-            pdbs(ib,jb,1)=pdbs(ib,jb,1)+pdbs(ib,jb,2)*dt
-          enddo
-        enddo
 !
-        do l=1,lm
-          do jb=1,lnsh
+!--------------------------------------
+!***  Southern and northern boundaries
+!--------------------------------------
+!
+      if(s_bdy)then
+!
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            do jb=1,lnsh
             do ib=its_h2,ite_h2
-              tbs(ib,jb,l,1)=tbs(ib,jb,l,1)+tbs(ib,jb,l,2)*dt
-              qbs(ib,jb,l,1)=qbs(ib,jb,l,1)+qbs(ib,jb,l,2)*dt
-              wbs(ib,jb,l,1)=wbs(ib,jb,l,1)+wbs(ib,jb,l,2)*dt
+              bnd_vars_h%var_2d(nv)%south(ib,jb,1)=bnd_vars_h%var_2d(nv)%south(ib,jb,1)   &
+                                                  +bnd_vars_h%var_2d(nv)%south(ib,jb,2)*dt
+            enddo
             enddo
           enddo
-        enddo
+        endif
+!
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do l=1,lm
+            do jb=1,lnsh
+            do ib=its_h2,ite_h2
+              bnd_vars_h%var_3d(nv)%south(ib,jb,l,1)=bnd_vars_h%var_3d(nv)%south(ib,jb,l,1)   &
+                                                    +bnd_vars_h%var_3d(nv)%south(ib,jb,l,2)*dt
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lbnd=lbnd_4d(nv)
+            ubnd=ubnd_4d(nv)
+            do nl=lbnd,ubnd
+              do l=1,lm
+              do jb=1,lnsh
+              do ib=its_h2,ite_h2
+                bnd_vars_h%var_4d(nv)%south(ib,jb,l,1,nl)=bnd_vars_h%var_4d(nv)%south(ib,jb,l,1,nl)   &
+                                                         +bnd_vars_h%var_4d(nv)%south(ib,jb,l,2,nl)*dt
+              enddo
+              enddo
+              enddo
+            enddo
+          enddo
+        endif
+!
       endif
 !
       if(n_bdy)then
-        do jb=1,lnsh
-          do ib=its_h2,ite_h2
-            pdbn(ib,jb,1)=pdbn(ib,jb,1)+pdbn(ib,jb,2)*dt
-          enddo
-        enddo
 !
-        do l=1,lm
-          do jb=1,lnsh
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            do jb=1,lnsh
             do ib=its_h2,ite_h2
-              tbn(ib,jb,l,1)=tbn(ib,jb,l,1)+tbn(ib,jb,l,2)*dt
-              qbn(ib,jb,l,1)=qbn(ib,jb,l,1)+qbn(ib,jb,l,2)*dt
-              wbn(ib,jb,l,1)=wbn(ib,jb,l,1)+wbn(ib,jb,l,2)*dt
+              bnd_vars_h%var_2d(nv)%north(ib,jb,1)=bnd_vars_h%var_2d(nv)%north(ib,jb,1)   &
+                                                  +bnd_vars_h%var_2d(nv)%north(ib,jb,2)*dt
+            enddo
             enddo
           enddo
-        enddo
-      endif
-!-----------------------------------------------------------------------
-!-------------western and eastern boundary------------------------------
-!-----------------------------------------------------------------------
-      if(w_bdy)then
-        do jb=jts_h2,jte_h2
-          do ib=1,lnsh
-            pdbw(ib,jb,1)=pdbw(ib,jb,1)+pdbw(ib,jb,2)*dt
-          enddo
-        enddo
+        endif
 !
-        do l=1,lm
-          do jb=jts_h2,jte_h2
-            do ib=1,lnsh
-              tbw(ib,jb,l,1)=tbw(ib,jb,l,1)+tbw(ib,jb,l,2)*dt
-              qbw(ib,jb,l,1)=qbw(ib,jb,l,1)+qbw(ib,jb,l,2)*dt
-              wbw(ib,jb,l,1)=wbw(ib,jb,l,1)+wbw(ib,jb,l,2)*dt
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do l=1,lm
+            do jb=1,lnsh
+            do ib=its_h2,ite_h2
+              bnd_vars_h%var_3d(nv)%north(ib,jb,l,1)=bnd_vars_h%var_3d(nv)%north(ib,jb,l,1)   &
+                                                    +bnd_vars_h%var_3d(nv)%north(ib,jb,l,2)*dt
+            enddo
+            enddo
             enddo
           enddo
-        enddo
+        endif
+!
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lbnd=lbnd_4d(nv)
+            ubnd=ubnd_4d(nv)
+            do nl=lbnd,ubnd
+              do l=1,lm
+              do jb=1,lnsh
+              do ib=its_h2,ite_h2
+                bnd_vars_h%var_4d(nv)%north(ib,jb,l,1,nl)=bnd_vars_h%var_4d(nv)%north(ib,jb,l,1,nl)   &
+                                                         +bnd_vars_h%var_4d(nv)%north(ib,jb,l,2,nl)*dt
+              enddo
+              enddo
+              enddo
+            enddo
+          enddo
+        endif
+!
+      endif
+!
+!------------------------------------
+!***  Western and eastern boundaries
+!------------------------------------
+!
+      if(w_bdy)then
+!
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            do jb=jts_h2,jte_h2
+            do ib=1,lnsh
+              bnd_vars_h%var_2d(nv)%west(ib,jb,1)=bnd_vars_h%var_2d(nv)%west(ib,jb,1)   &
+                                                 +bnd_vars_h%var_2d(nv)%west(ib,jb,2)*dt
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do l=1,lm
+            do jb=jts_h2,jte_h2
+            do ib=1,lnsh
+              bnd_vars_h%var_3d(nv)%west(ib,jb,l,1)=bnd_vars_h%var_3d(nv)%west(ib,jb,l,1)   &
+                                                   +bnd_vars_h%var_3d(nv)%west(ib,jb,l,2)*dt
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lbnd=lbnd_4d(nv)
+            ubnd=ubnd_4d(nv)
+            do nl=lbnd,ubnd
+              do l=1,lm
+              do jb=jts_h2,jte_h2
+              do ib=1,lnsh
+                bnd_vars_h%var_4d(nv)%west(ib,jb,l,1,nl)=bnd_vars_h%var_4d(nv)%west(ib,jb,l,1,nl)   &
+                                                        +bnd_vars_h%var_4d(nv)%west(ib,jb,l,2,nl)*dt
+              enddo
+              enddo
+              enddo
+            enddo
+          enddo
+        endif
+!
       endif
 !
       if(e_bdy)then
-        do jb=jts_h2,jte_h2
-          do ib=1,lnsh
-            pdbe(ib,jb,1)=pdbe(ib,jb,1)+pdbe(ib,jb,2)*dt
-          enddo
-        enddo
 !
-        do l=1,lm
-          do jb=jts_h2,jte_h2
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            do jb=jts_h2,jte_h2
             do ib=1,lnsh
-              tbe(ib,jb,l,1)=tbe(ib,jb,l,1)+tbe(ib,jb,l,2)*dt
-              qbe(ib,jb,l,1)=qbe(ib,jb,l,1)+qbe(ib,jb,l,2)*dt
-              wbe(ib,jb,l,1)=wbe(ib,jb,l,1)+wbe(ib,jb,l,2)*dt
+              bnd_vars_h%var_2d(nv)%east(ib,jb,1)=bnd_vars_h%var_2d(nv)%east(ib,jb,1)   &
+                                                 +bnd_vars_h%var_2d(nv)%east(ib,jb,2)*dt
+            enddo
             enddo
           enddo
-        enddo
+        endif
+!
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do l=1,lm
+            do jb=jts_h2,jte_h2
+            do ib=1,lnsh
+              bnd_vars_h%var_3d(nv)%east(ib,jb,l,1)=bnd_vars_h%var_3d(nv)%east(ib,jb,l,1)   &
+                                                   +bnd_vars_h%var_3d(nv)%east(ib,jb,l,2)*dt
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lbnd=lbnd_4d(nv)
+            ubnd=ubnd_4d(nv)
+            do nl=lbnd,ubnd
+              do l=1,lm
+              do jb=jts_h2,jte_h2
+              do ib=1,lnsh
+                bnd_vars_h%var_4d(nv)%east(ib,jb,l,1,nl)=bnd_vars_h%var_4d(nv)%east(ib,jb,l,1,nl)   &
+                                                        +bnd_vars_h%var_4d(nv)%east(ib,jb,l,2,nl)*dt
+              enddo
+              enddo
+              enddo
+            enddo
+          enddo
+        endif
+!
       endif
+!
 !-----------------------------------------------------------------------
-!-------------southern boundary-----------------------------------------
+!***  Now update the actual prognostic variables using the values 
+!***  just computed (coming from the parent) blended with the values
+!***  already generated in the blending region by the child.
 !-----------------------------------------------------------------------
+!
+!-----------------------
+!***  Southern boundary
+!-----------------------
+!
       if(s_bdy)then
+!
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            do j=1,lnsh
+              jb=j
+              ihs=jb
+              ihe=ide+1-jb
+              do i=max(its_h2,ihs),min(ite_h2,ihe)
+                ib=i
+                bnd_vars_h%var_2d(nv)%full_var(i,j)=bnd_vars_h%var_2d(nv)%south(ib,jb,1)*wh(jb)    &
+                                                   +bnd_vars_h%var_2d(nv)%full_var(i,j)*(1.-wh(jb))
+              enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do l=1,lm
+              do j=1,lnsh
+                jb=j
+                ihs=jb
+                ihe=ide+1-jb
+                do i=max(its_h2,ihs),min(ite_h2,ihe)
+                  ib=i
+                  bnd_vars_h%var_3d(nv)%full_var(i,j,l)=bnd_vars_h%var_3d(nv)%south(ib,jb,l,1)*wh(jb)    &
+                                                       +bnd_vars_h%var_3d(nv)%full_var(i,j,l)*(1.-wh(jb))
+                enddo
+              enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lbnd=lbnd_4d(nv)
+            ubnd=ubnd_4d(nv)
+            do nl=lbnd,ubnd
+              do l=1,lm
+                do j=1,lnsh
+                  jb=j
+                  ihs=jb
+                  ihe=ide+1-jb
+                  do i=max(its_h2,ihs),min(ite_h2,ihe)
+                    ib=i
+                    bnd_vars_h%var_4d(nv)%full_var(i,j,l,nl)=bnd_vars_h%var_4d(nv)%south(ib,jb,l,1,nl)*wh(jb)    &
+                                                            +bnd_vars_h%var_4d(nv)%full_var(i,j,l,nl)*(1.-wh(jb))
+                  enddo
+                enddo
+              enddo
+            enddo
+          enddo
+        endif
+!
+!--------------------
+!***  The pint array
+!--------------------
+!
         do j=1,lnsh
           jb=j
           ihs=jb
           ihe=ide+1-jb
           do i=max(its_h2,ihs),min(ite_h2,ihe)
             ib=i
-            pd(i,j)=pdbs(ib,jb,1)*wh(jb)+pd(i,j)*(1.-wh(jb))
             pint(i,j,1)=pt
           enddo
         enddo
@@ -4875,27 +5726,84 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
             ihe=ide+1-jb
             do i=max(its_h2,ihs),min(ite_h2,ihe)
               ib=i
-              t(i,j,l)=tbs(ib,jb,l,1)*wh(jb)+t(i,j,l)*(1.-wh(jb))
-              q(i,j,l)=qbs(ib,jb,l,1)*wq(jb)+q(i,j,l)*(1.-wq(jb))
-              cw(i,j,l)=wbs(ib,jb,l,1)*wq(jb)+cw(i,j,l)*(1.-wq(jb))
               pint(i,j,l+1)=(pint(i,j,l) &
                             +(dsg2(l)*pd(i,j)+pdsg1(l)))*wh(jb) &
                            +pint(i,j,l+1)*(1.-wh(jb))
             enddo
           enddo
         enddo
+!
       endif
-!-----------------------------------------------------------------------
-!-------------northern boundary-----------------------------------------
-!-----------------------------------------------------------------------
+!
+!-----------------------
+!***  Northern boundary
+!-----------------------
+!
       if(n_bdy)then
+!
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            do j=jde-lnsh+1,jde
+              jb=j-jde+lnsh
+              ihs=1-jb+lnsh
+              ihe=ide+jb-lnsh
+              do i=max(its_h2,ihs),min(ite_h2,ihe)
+                ib=i
+                bnd_vars_h%var_2d(nv)%full_var(i,j)=bnd_vars_h%var_2d(nv)%north(ib,jb,1)*wh(lnsh+1-jb)    &
+                                                   +bnd_vars_h%var_2d(nv)%full_var(i,j)*(1.-wh(lnsh+1-jb))
+              enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do l=1,lm
+              do j=jde-lnsh+1,jde
+                jb=j-jde+lnsh
+                ihs=1-jb+lnsh
+                ihe=ide+jb-lnsh
+                do i=max(its_h2,ihs),min(ite_h2,ihe)
+                  ib=i
+                  bnd_vars_h%var_3d(nv)%full_var(i,j,l)=bnd_vars_h%var_3d(nv)%north(ib,jb,l,1)*wh(lnsh+1-jb)    &
+                                                       +bnd_vars_h%var_3d(nv)%full_var(i,j,l)*(1.-wh(lnsh+1-jb))
+                enddo
+              enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lbnd=lbnd_4d(nv)
+            ubnd=ubnd_4d(nv)
+            do nl=lbnd,ubnd
+              do l=1,lm
+                do j=jde-lnsh+1,jde
+                  jb=j-jde+lnsh
+                  ihs=1-jb+lnsh
+                  ihe=ide+jb-lnsh
+                  do i=max(its_h2,ihs),min(ite_h2,ihe)
+                    ib=i
+                    bnd_vars_h%var_4d(nv)%full_var(i,j,l,nl)=bnd_vars_h%var_4d(nv)%north(ib,jb,l,1,nl)*wh(lnsh+1-jb)    &
+                                                            +bnd_vars_h%var_4d(nv)%full_var(i,j,l,nl)*(1.-wh(lnsh+1-jb))
+                  enddo
+                enddo
+              enddo
+            enddo
+          enddo
+        endif
+!
+!--------------------
+!***  The pint array
+!--------------------
+!
         do j=jde-lnsh+1,jde
           jb=j-jde+lnsh
           ihs=1-jb+lnsh
           ihe=ide+jb-lnsh
           do i=max(its_h2,ihs),min(ite_h2,ihe)
             ib=i
-            pd(i,j)=pdbn(ib,jb,1)*wh(lnsh+1-jb)+pd(i,j)*(1.-wh(lnsh+1-jb))
             pint(i,j,1)=pt
           enddo
         enddo
@@ -4907,30 +5815,84 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
             ihe=ide+jb-lnsh
             do i=max(its_h2,ihs),min(ite_h2,ihe)
               ib=i
-              t(i,j,l)=tbn(ib,jb,l,1)*wh(lnsh+1-jb) &
-                      +t(i,j,l)*(1.-wh(lnsh+1-jb))
-              q(i,j,l)=qbn(ib,jb,l,1)*wq(lnsh+1-jb) &
-                      +q(i,j,l)*(1.-wq(lnsh+1-jb))
-              cw(i,j,l)=wbn(ib,jb,l,1)*wq(lnsh+1-jb) &
-                       +cw(i,j,l)*(1.-wq(lnsh+1-jb))
               pint(i,j,l+1)=(pint(i,j,l) &
-                            +(dsg2(l)*pd(i,j)+pdsg1(l)))*wh(lnsh+1-jb) &                    
-                           +pint(i,j,l+1)*(1.-wh(lnsh+1-jb))
+                            +(dsg2(l)*pd(i,j)+pdsg1(l)))*wh(lnsh+1-jb) &
+                            +pint(i,j,l+1)*(1.-wh(lnsh+1-jb))
             enddo
           enddo
         enddo
+!
       endif
-!-----------------------------------------------------------------------
-!-------------western boundary------------------------------------------
-!-----------------------------------------------------------------------
+!
+!----------------------
+!***  Western boundary
+!----------------------
+!
       if(w_bdy)then
+!
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            do i=1,lnsh
+              ib=i
+              jhs=1+ib
+              jhe=jde-ib
+              do j=max(jts_h2,jhs),min(jte_h2,jhe)
+                jb=j
+                bnd_vars_h%var_2d(nv)%full_var(i,j)=bnd_vars_h%var_2d(nv)%west(ib,jb,1)*wh(ib)  &
+                                                   +bnd_vars_h%var_2d(nv)%full_var(i,j)*(1.-wh(ib))
+              enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do l=1,lm
+              do i=1,lnsh
+                ib=i
+                jhs=1+ib
+                jhe=jde-ib
+                do j=max(jts_h2,jhs),min(jte_h2,jhe)
+                  jb=j
+                  bnd_vars_h%var_3d(nv)%full_var(i,j,l)=bnd_vars_h%var_3d(nv)%west(ib,jb,l,1)*wh(ib)  &
+                                                       +bnd_vars_h%var_3d(nv)%full_var(i,j,l)*(1.-wh(ib))
+                enddo
+              enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lbnd=lbnd_4d(nv)
+            ubnd=ubnd_4d(nv)
+            do nl=lbnd,ubnd
+              do l=1,lm
+                do i=1,lnsh
+                  ib=i
+                  jhs=1+ib
+                  jhe=jde-ib
+                  do j=max(jts_h2,jhs),min(jte_h2,jhe)
+                    jb=j
+                    bnd_vars_h%var_4d(nv)%full_var(i,j,l,nl)=bnd_vars_h%var_4d(nv)%west(ib,jb,l,1,nl)*wh(ib)  &
+                                                            +bnd_vars_h%var_4d(nv)%full_var(i,j,l,nl)*(1.-wh(ib))
+                  enddo
+                enddo
+              enddo
+            enddo
+          enddo
+        endif
+!
+!--------------------
+!***  The pint array
+!--------------------
+!
         do i=1,lnsh
           ib=i
           jhs=1+ib
           jhe=jde-ib
           do j=max(jts_h2,jhs),min(jte_h2,jhe)
             jb=j
-            pd(i,j)=pdbw(ib,jb,1)*wh(ib)+pd(i,j)*(1.-wh(ib))
             pint(i,j,1)=pt
           enddo
         enddo
@@ -4942,27 +5904,85 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
             jhe=jde-ib
             do j=max(jts_h2,jhs),min(jte_h2,jhe)
               jb=j
-              t(i,j,l)=tbw(ib,jb,l,1)*wh(ib)+t(i,j,l)*(1.-wh(ib))
-              q(i,j,l)=qbw(ib,jb,l,1)*wq(ib)+q(i,j,l)*(1.-wq(ib))
-              cw(i,j,l)=wbw(ib,jb,l,1)*wq(ib)+cw(i,j,l)*(1.-wq(ib))
               pint(i,j,l+1)=(pint(i,j,l) &
                             +(dsg2(l)*pd(i,j)+pdsg1(l)))*wh(ib) &
-                           +pint(i,j,l+1)*(1.-wh(ib))
+                            +pint(i,j,l+1)*(1.-wh(ib))
             enddo
           enddo
         enddo
+!
       endif
-!-----------------------------------------------------------------------
-!-------------eastern boundary------------------------------------------
-!-----------------------------------------------------------------------
+!
+!----------------------
+!***  Eastern boundary
+!----------------------
+!
       if(e_bdy)then
+!
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            do i=ide+1-lnsh,ide
+              ib=i-ide+lnsh
+              jhs=2+lnsh-ib
+              jhe=jde-lnsh-1+ib
+              do j=max(jts_h2,jhs),min(jte_h2,jhe)
+                jb=j
+                bnd_vars_h%var_2d(nv)%full_var(i,j)=bnd_vars_h%var_2d(nv)%east(ib,jb,1)*wh(lnsh+1-ib)  &
+                                                   +bnd_vars_h%var_2d(nv)%full_var(i,j)*(1.-wh(lnsh+1-ib))
+              enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do l=1,lm
+              do i=ide+1-lnsh,ide
+                ib=i-ide+lnsh
+                jhs=2+lnsh-ib
+                jhe=jde-lnsh-1+ib
+                do j=max(jts_h2,jhs),min(jte_h2,jhe)
+                  jb=j
+                  bnd_vars_h%var_3d(nv)%full_var(i,j,l)=bnd_vars_h%var_3d(nv)%east(ib,jb,l,1)*wh(lnsh+1-ib)  &
+                                                       +bnd_vars_h%var_3d(nv)%full_var(i,j,l)*(1.-wh(lnsh+1-ib))
+                enddo
+              enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lbnd=lbnd_4d(nv)
+            ubnd=ubnd_4d(nv)
+            do nl=lbnd,ubnd
+              do l=1,lm
+                do i=ide+1-lnsh,ide
+                  ib=i-ide+lnsh
+                  jhs=2+lnsh-ib
+                  jhe=jde-lnsh-1+ib
+                  do j=max(jts_h2,jhs),min(jte_h2,jhe)
+                    jb=j
+                    bnd_vars_h%var_4d(nv)%full_var(i,j,l,nl)=bnd_vars_h%var_4d(nv)%east(ib,jb,l,1,nl)*wh(lnsh+1-ib)  &
+                                                            +bnd_vars_h%var_4d(nv)%full_var(i,j,l,nl)*(1.-wh(lnsh+1-ib))
+                  enddo
+                enddo
+              enddo
+            enddo
+          enddo
+        endif
+!
+!--------------------
+!***  The pint array
+!--------------------
+!
         do i=ide+1-lnsh,ide
           ib=i-ide+lnsh
           jhs=2+lnsh-ib
           jhe=jde-lnsh-1+ib
           do j=max(jts_h2,jhs),min(jte_h2,jhe)
             jb=j
-            pd(i,j)=pdbe(ib,jb,1)*wh(lnsh+1-ib)+pd(i,j)*(1.-wh(lnsh+1-ib))
+            pint(i,j,1)=pt
           enddo
         enddo
 !
@@ -4973,74 +5993,193 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
             jhe=jde-lnsh-1+ib
             do j=max(jts_h2,jhs),min(jte_h2,jhe)
               jb=j
-              t(i,j,l)=tbe(ib,jb,l,1)*wh(lnsh+1-ib) &
-                      +t(i,j,l)*(1.-wh(lnsh+1-ib))
-              q(i,j,l)=qbe(ib,jb,l,1)*wq(lnsh+1-ib) &
-                      +q(i,j,l)*(1.-wq(lnsh+1-ib))
-              cw(i,j,l)=wbe(ib,jb,l,1)*wq(lnsh+1-ib) &
-                       +cw(i,j,l)*(1.-wq(lnsh+1-ib))
               pint(i,j,l+1)=(pint(i,j,l) &
                             +(dsg2(l)*pd(i,j)+pdsg1(l)))*wh(lnsh+1-ib) &
-                           +pint(i,j,l+1)*(1.-wh(lnsh+1-ib))
+                            +pint(i,j,l+1)*(1.-wh(lnsh+1-ib))
             enddo
           enddo
         enddo
+!
       endif
 !
 !-----------------------------------------------------------------------
 !***  The four corner points.
 !-----------------------------------------------------------------------
 !
+!-----------------------------
       if(s_bdy.and.w_bdy)then
-        pd(its+1,jts+1)=(pd(its+1,jts)+pd(its,jts+1) &
-                        +pd(its+2,jts+1)+pd(its+1,jts+2))*0.25
-        do l=1,lm
-          t(its+1,jts+1,l)=(t(its+1,jts,l)+t(its,jts+1,l) &
-                           +t(its+2,jts+1,l)+t(its+1,jts+2,l))*0.25
-          q(its+1,jts+1,l)=(q(its+1,jts,l)+q(its,jts+1,l) &
-                           +q(its+2,jts+1,l)+q(its+1,jts+2,l))*0.25
-          cw(its+1,jts+1,l)=(cw(its+1,jts,l)+cw(its,jts+1,l) &
-                           + cw(its+2,jts+1,l)+cw(its+1,jts+2,l))*0.25
-        enddo
+!-----------------------------
+!
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            bnd_vars_h%var_2d(nv)%full_var(its+1,jts+1)=                &
+              (bnd_vars_h%var_2d(nv)%full_var(its+1,jts)                &
+              +bnd_vars_h%var_2d(nv)%full_var(its,jts+1)                &
+              +bnd_vars_h%var_2d(nv)%full_var(its+2,jts+1)              &
+              +bnd_vars_h%var_2d(nv)%full_var(its+1,jts+2))*0.25
+          enddo
+        endif
+!
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do l=1,lm
+              bnd_vars_h%var_3d(nv)%full_var(its+1,jts+1,l)=            &
+                (bnd_vars_h%var_3d(nv)%full_var(its+1,jts,l)            &
+                +bnd_vars_h%var_3d(nv)%full_var(its,jts+1,l)            &
+                +bnd_vars_h%var_3d(nv)%full_var(its+2,jts+1,l)          &
+                +bnd_vars_h%var_3d(nv)%full_var(its+1,jts+2,l))*0.25
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lbnd=lbnd_4d(nv)
+            ubnd=ubnd_4d(nv)
+            do nl=lbnd,ubnd
+              do l=1,lm
+                bnd_vars_h%var_4d(nv)%full_var(its+1,jts+1,l,nl)=       &
+                  (bnd_vars_h%var_4d(nv)%full_var(its+1,jts,l,nl)       &
+                  +bnd_vars_h%var_4d(nv)%full_var(its,jts+1,l,nl)       &
+                  +bnd_vars_h%var_4d(nv)%full_var(its+2,jts+1,l,nl)     &
+                  +bnd_vars_h%var_4d(nv)%full_var(its+1,jts+2,l,nl))*0.25
+              enddo
+            enddo
+          enddo
+        endif
+!
       endif
 !
+!-----------------------------
       if(s_bdy.and.e_bdy)then
-        pd(ite-1,jts+1)=(pd(ite-1,jts)+pd(ite-2,jts+1) &
-                        +pd(ite,jts+1)+pd(ite-1,jts+2))*0.25
-        do l=1,lm
-          t(ite-1,jts+1,l)=(t(ite-1,jts,l)+t(ite-2,jts+1,l) &
-                           +t(ite,jts+1,l)+t(ite-1,jts+2,l))*0.25
-          q(ite-1,jts+1,l)=(q(ite-1,jts,l)+q(ite-2,jts+1,l) &
-                           +q(ite,jts+1,l)+q(ite-1,jts+2,l))*0.25
-          cw(ite-1,jts+1,l)=(cw(ite-1,jts,l)+cw(ite-2,jts+1,l) &
-                            +cw(ite,jts+1,l)+cw(ite-1,jts+2,l))*0.25
-        enddo
+!-----------------------------
+!
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            bnd_vars_h%var_2d(nv)%full_var(ite-1,jts+1)=                &
+              (bnd_vars_h%var_2d(nv)%full_var(ite-1,jts)                &
+              +bnd_vars_h%var_2d(nv)%full_var(ite-2,jts+1)              &
+              +bnd_vars_h%var_2d(nv)%full_var(ite,jts+1)                &
+              +bnd_vars_h%var_2d(nv)%full_var(ite-1,jts+2))*0.25
+          enddo
+        endif
+!
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do l=1,lm
+              bnd_vars_h%var_3d(nv)%full_var(ite-1,jts+1,l)=            &
+                (bnd_vars_h%var_3d(nv)%full_var(ite-1,jts,l)            &
+                +bnd_vars_h%var_3d(nv)%full_var(ite-2,jts+1,l)          &
+                +bnd_vars_h%var_3d(nv)%full_var(ite,jts+1,l)            &
+                +bnd_vars_h%var_3d(nv)%full_var(ite-1,jts+2,l))*0.25
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lbnd=lbnd_4d(nv)
+            ubnd=ubnd_4d(nv)
+            do nl=lbnd,ubnd
+              do l=1,lm
+                bnd_vars_h%var_4d(nv)%full_var(ite-1,jts+1,l,nl)=       &
+                  (bnd_vars_h%var_4d(nv)%full_var(ite-1,jts,l,nl)       &
+                  +bnd_vars_h%var_4d(nv)%full_var(ite-2,jts+1,l,nl)     &
+                  +bnd_vars_h%var_4d(nv)%full_var(ite,jts+1,l,nl)       &
+                  +bnd_vars_h%var_4d(nv)%full_var(ite-1,jts+2,l,nl))*0.25
+              enddo
+            enddo
+          enddo
+        endif
+!
       endif
 !
+!-----------------------------
       if(n_bdy.and.w_bdy)then
-        pd(its+1,jte-1)=(pd(its+1,jte-2)+pd(its,jte-1) &
-                        +pd(its+2,jte-1)+pd(its+1,jte))*0.25
-        do l=1,lm
-          t(its+1,jte-1,l)=(t(its+1,jte-2,l)+t(its,jte-1,l) &
-                           +t(its+2,jte-1,l)+t(its+1,jte,l))*0.25
-          q(its+1,jte-1,l)=(q(its+1,jte-2,l)+q(its,jte-1,l) &
-                           +q(its+2,jte-1,l)+q(its+1,jte,l))*0.25
-          cw(its+1,jte-1,l)=(cw(its+1,jte-2,l)+cw(its,jte-1,l) &
-                            +cw(its+2,jte-1,l)+cw(its+1,jte,l))*0.25
-        enddo
+!-----------------------------
+!
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            bnd_vars_h%var_2d(nv)%full_var(its+1,jte-1)=                &
+              (bnd_vars_h%var_2d(nv)%full_var(its+1,jte-2)              &
+              +bnd_vars_h%var_2d(nv)%full_var(its,jte-1)                &
+              +bnd_vars_h%var_2d(nv)%full_var(its+2,jte-1)              &
+              +bnd_vars_h%var_2d(nv)%full_var(its+1,jte))*0.25
+          enddo
+        endif
+!
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do l=1,lm
+              bnd_vars_h%var_3d(nv)%full_var(its+1,jte-1,l)=            &
+                (bnd_vars_h%var_3d(nv)%full_var(its+1,jte-2,l)          &
+                +bnd_vars_h%var_3d(nv)%full_var(its,jte-1,l)            &
+                +bnd_vars_h%var_3d(nv)%full_var(its+2,jte-1,l)          &
+                +bnd_vars_h%var_3d(nv)%full_var(its+1,jte,l))*0.25
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lbnd=lbnd_4d(nv)
+            ubnd=ubnd_4d(nv)
+            do nl=lbnd,ubnd
+              do l=1,lm
+                bnd_vars_h%var_4d(nv)%full_var(its+1,jte-1,l,nl)=      &
+                  (bnd_vars_h%var_4d(nv)%full_var(its+1,jte-2,l,nl)    & 
+                  +bnd_vars_h%var_4d(nv)%full_var(its,jte-1,l,nl)      & 
+                  +bnd_vars_h%var_4d(nv)%full_var(its+2,jte-1,l,nl)    &
+                  +bnd_vars_h%var_4d(nv)%full_var(its+1,jte,l,nl))*0.25
+              enddo
+            enddo
+          enddo
+        endif
+!
       endif
 !
+!-----------------------------
       if(n_bdy.and.e_bdy)then
-        pd(ite-1,jte-1)=(pd(ite-1,jte-2)+pd(ite-2,jte-1) &
-                        +pd(ite,jte-1)+pd(ite-1,jte))*0.25
-        do l=1,lm
-          t(ite-1,jte-1,l)=(t(ite-1,jte-2,l)+t(ite-2,jte-1,l) &
-                           +t(ite,jte-1,l)+t(ite-1,jte,l))*0.25
-          q(ite-1,jte-1,l)=(q(ite-1,jte-2,l)+q(ite-2,jte-1,l) &
-                           +q(ite,jte-1,l)+q(ite-1,jte,l))*0.25
-          cw(ite-1,jte-1,l)=(cw(ite-1,jte-2,l)+cw(ite-2,jte-1,l) &
-                            +cw(ite,jte-1,l)+cw(ite-1,jte,l))*0.25
-        enddo
+!-----------------------------
+!
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            bnd_vars_h%var_2d(nv)%full_var(ite-1,jte-1)=                &
+              (bnd_vars_h%var_2d(nv)%full_var(ite-1,jte-2)              &
+              +bnd_vars_h%var_2d(nv)%full_var(ite-2,jte-1)              &
+              +bnd_vars_h%var_2d(nv)%full_var(ite,jte-1)                &
+              +bnd_vars_h%var_2d(nv)%full_var(ite-1,jte))*0.25
+          enddo
+        endif
+!
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do l=1,lm
+              bnd_vars_h%var_3d(nv)%full_var(ite-1,jte-1,l)=            &
+                (bnd_vars_h%var_3d(nv)%full_var(ite-1,jte-2,l)          &
+                +bnd_vars_h%var_3d(nv)%full_var(ite-2,jte-1,l)          &
+                +bnd_vars_h%var_3d(nv)%full_var(ite,jte-1,l)            &
+                +bnd_vars_h%var_3d(nv)%full_var(ite-1,jte,l))*0.25
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lbnd=lbnd_4d(nv)
+            ubnd=ubnd_4d(nv)
+            do nl=lbnd,ubnd
+              do l=1,lm
+                bnd_vars_h%var_4d(nv)%full_var(ite-1,jte-1,l,nl)=       &
+                  (bnd_vars_h%var_4d(nv)%full_var(ite-1,jte-2,l,nl)     &
+                  +bnd_vars_h%var_4d(nv)%full_var(ite-2,jte-1,l,nl)     &
+                  +bnd_vars_h%var_4d(nv)%full_var(ite,jte-1,l,nl)       &
+                  +bnd_vars_h%var_4d(nv)%full_var(ite-1,jte,l,nl))*0.25
+              enddo
+            enddo
+          enddo
+        endif
+!
       endif
 !
 !-----------------------------------------------------------------------
@@ -5108,6 +6247,9 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
           enddo
         enddo
       endif
+!
+!-----------------------------------------------------------------------
+!***  The following is executed if spatial smoothing is invoked.
 !-----------------------------------------------------------------------
 !
       if(nsmud>=1)then
@@ -5116,183 +6258,411 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
 !
 !-----------------------------------------------------------------------
 !
+!-----------
+!***  South
+!-----------
+!
           if(s_bdy)then
-            do j=jts+1,jts-1+lines
-              do i=max(its_h2,ids+1),min(ite_h2,ide-1)
-                pdr(i,j)=(pd(i,j-1)+pd(i-1,j) &
-                         +pd(i+1,j)+pd(i,j+1))*w1+w2*pd(i,j)       
+            i1=max(its_h2,ids+1)
+            i2=min(ite_h2,ide-1)
+            j1=jts+1
+            j2=jts-1+lines
+            allocate(hbc_2d(i1:i2,j1:j2))
+!
+            if(nvars_bc_2d_h>0)then
+              do nv=1,nvars_bc_2d_h
+                do j=j1,j2
+                do i=i1,i2
+                  hbc_2d(i,j)=(bnd_vars_h%var_2d(nv)%full_var(i,j-1) &
+                              +bnd_vars_h%var_2d(nv)%full_var(i-1,j) &
+                              +bnd_vars_h%var_2d(nv)%full_var(i+1,j) &
+                              +bnd_vars_h%var_2d(nv)%full_var(i,j+1))*w1 &
+                              +w2*bnd_vars_h%var_2d(nv)%full_var(i,j)
+                enddo
+                enddo
+!
+                do j=j1,j2
+                do i=i1,i2
+                  bnd_vars_h%var_2d(nv)%full_var(i,j)=hbc_2d(i,j)
+                enddo
+                enddo
+              enddo
+            endif
+!
+            if(nvars_bc_3d_h>0)then
+              do nv=1,nvars_bc_3d_h
+                do l=1,lm
+                  do j=j1,j2
+                  do i=i1,i2
+                    hbc_2d(i,j)=(bnd_vars_h%var_3d(nv)%full_var(i,j-1,l) &
+                                +bnd_vars_h%var_3d(nv)%full_var(i-1,j,l) &
+                                +bnd_vars_h%var_3d(nv)%full_var(i+1,j,l) &
+                                +bnd_vars_h%var_3d(nv)%full_var(i,j+1,l))*w1 &
+                                +w2*bnd_vars_h%var_3d(nv)%full_var(i,j,l)
+                  enddo
+                  enddo
+                  do j=j1,j2
+                  do i=i1,i2
+                    bnd_vars_h%var_3d(nv)%full_var(i,j,l)=hbc_2d(i,j)
+                  enddo
+                  enddo
+                enddo
+              enddo
+            endif
+!
+            if(nvars_bc_4d_h>0)then
+              do nv=1,nvars_bc_4d_h
+                lbnd=lbnd_4d(nv)
+                ubnd=ubnd_4d(nv)
+                do nl=lbnd,ubnd
+                  do l=1,lm
+                    do j=j1,j2
+                    do i=i1,i2
+                      hbc_2d(i,j)=(bnd_vars_h%var_4d(nv)%full_var(i,j-1,l,nl) &
+                                  +bnd_vars_h%var_4d(nv)%full_var(i-1,j,l,nl) &
+                                  +bnd_vars_h%var_4d(nv)%full_var(i+1,j,l,nl) &
+                                  +bnd_vars_h%var_4d(nv)%full_var(i,j+1,l,nl))*w1 &
+                                  +w2*bnd_vars_h%var_4d(nv)%full_var(i,j,l,nl)
+                    enddo
+                    enddo
+                    do j=j1,j2
+                    do i=i1,i2
+                      bnd_vars_h%var_4d(nv)%full_var(i,j,l,nl)=hbc_2d(i,j)
+                    enddo
+                    enddo
+                  enddo
+                enddo
+              enddo
+            endif
+!
+            do l=1,lm
+              do j=j1,j2
+              do i=i1,i2
+                hbc_2d(i,j)=(pint(i,j-1,l+1)+pint(i-1,j,l+1) &
+                            +pint(i+1,j,l+1)+pint(i,j+1,l+1))*w1 &
+                            +w2*pint(i,j,l+1)       
+              enddo
+              enddo
+              do j=j1,j2
+              do i=i1,i2
+                pint(i,j,l+1)=hbc_2d(i,j)
+              enddo
               enddo
             enddo
 !
-            do l=1,lm
-              do j=jts+1,jts-1+lines
-                do i=max(its_h2,ids+1),min(ite_h2,ide-1)
-                  tr(i,j,l)=(t(i,j-1,l)+t(i-1,j,l) &
-                            +t(i+1,j,l)+t(i,j+1,l))*w1 &
-                            +w2*t(i,j,l)       
-                  qr(i,j,l)=(q(i,j-1,l)+q(i-1,j,l) &
-                            +q(i+1,j,l)+q(i,j+1,l))*w1 &
-                            +w2*q(i,j,l)
-                  pr(i,j,l)=(pint(i,j-1,l+1)+pint(i-1,j,l+1) &
-                            +pint(i+1,j,l+1)+pint(i,j+1,l+1))*w1 &
-                            +w2*pint(i,j,l+1)       
-                enddo
-              enddo
-            enddo
+            deallocate(hbc_2d)
           endif
+!
+!-----------
+!***  North
+!-----------
 !
           if(n_bdy)then
-            do j=jte-lines+1,jte-1
-              do i=max(its_h2,ids+1),min(ite_h2,ide-1)
-                pdr(i,j)=(pd(i,j-1)+pd(i-1,j) &
-                         +pd(i+1,j)+pd(i,j+1))*w1+w2*pd(i,j)       
+            i1=max(its_h2,ids+1)
+            i2=min(ite_h2,ide-1)
+            j1=jte-lines+1
+            j2=jte-1
+            allocate(hbc_2d(i1:i2,j1:j2))
+!
+            if(nvars_bc_2d_h>0)then
+              do nv=1,nvars_bc_2d_h
+                do j=j1,j2
+                do i=i1,i2
+                  hbc_2d(i,j)=(bnd_vars_h%var_2d(nv)%full_var(i,j-1) &
+                              +bnd_vars_h%var_2d(nv)%full_var(i-1,j) &
+                              +bnd_vars_h%var_2d(nv)%full_var(i+1,j) &
+                              +bnd_vars_h%var_2d(nv)%full_var(i,j+1))*w1 &
+                              +w2*bnd_vars_h%var_2d(nv)%full_var(i,j)
+                enddo
+                enddo
+!
+                do j=j1,j2
+                do i=i1,i2
+                  bnd_vars_h%var_2d(nv)%full_var(i,j)=hbc_2d(i,j)
+                enddo
+                enddo
+              enddo
+            endif
+!
+            if(nvars_bc_3d_h>0)then
+              do nv=1,nvars_bc_3d_h
+                do l=1,lm
+                  do j=j1,j2
+                  do i=i1,i2
+                    hbc_2d(i,j)=(bnd_vars_h%var_3d(nv)%full_var(i,j-1,l) &
+                                +bnd_vars_h%var_3d(nv)%full_var(i-1,j,l) &
+                                +bnd_vars_h%var_3d(nv)%full_var(i+1,j,l) &
+                                +bnd_vars_h%var_3d(nv)%full_var(i,j+1,l))*w1 &
+                                +w2*bnd_vars_h%var_3d(nv)%full_var(i,j,l)
+                  enddo
+                  enddo
+                  do j=j1,j2
+                  do i=i1,i2
+                    bnd_vars_h%var_3d(nv)%full_var(i,j,l)=hbc_2d(i,j)
+                  enddo
+                  enddo
+                enddo
+              enddo
+            endif
+!
+            if(nvars_bc_4d_h>0)then
+              do nv=1,nvars_bc_4d_h
+                lbnd=lbnd_4d(nv)
+                ubnd=ubnd_4d(nv)
+                do nl=lbnd,ubnd
+                  do l=1,lm
+                    do j=j1,j2
+                    do i=i1,i2
+                      hbc_2d(i,j)=(bnd_vars_h%var_4d(nv)%full_var(i,j-1,l,nl) &
+                                  +bnd_vars_h%var_4d(nv)%full_var(i-1,j,l,nl) &
+                                  +bnd_vars_h%var_4d(nv)%full_var(i+1,j,l,nl) &
+                                  +bnd_vars_h%var_4d(nv)%full_var(i,j+1,l,nl))*w1 &
+                                  +w2*bnd_vars_h%var_4d(nv)%full_var(i,j,l,nl)
+                    enddo
+                    enddo
+                    do j=j1,j2
+                    do i=i1,i2
+                      bnd_vars_h%var_4d(nv)%full_var(i,j,l,nl)=hbc_2d(i,j)
+                    enddo
+                    enddo
+                  enddo
+                enddo
+              enddo
+            endif
+!
+            do l=1,lm
+              do j=j1,j2
+              do i=i1,i2
+                hbc_2d(i,j)=(pint(i,j-1,l+1)+pint(i-1,j,l+1) &
+                            +pint(i+1,j,l+1)+pint(i,j+1,l+1))*w1 &
+                            +w2*pint(i,j,l+1)       
+              enddo
+              enddo
+              do j=j1,j2
+              do i=i1,i2
+                pint(i,j,l+1)=hbc_2d(i,j)
+              enddo
               enddo
             enddo
 !
-            do l=1,lm
-              do j=jte-lines+1,jte-1
-                do i=max(its_h2,ids+1),min(ite_h2,ide-1)
-                  tr(i,j,l)=(t(i,j-1,l)+t(i-1,j,l) &
-                            +t(i+1,j,l)+t(i,j+1,l))*w1 &
-                            +w2*t(i,j,l)       
-                  qr(i,j,l)=(q(i,j-1,l)+q(i-1,j,l) &
-                            +q(i+1,j,l)+q(i,j+1,l))*w1 &
-                            +w2*q(i,j,l)
-                  pr(i,j,l)=(pint(i,j-1,l+1)+pint(i-1,j,l+1) &
-                            +pint(i+1,j,l+1)+pint(i,j+1,l+1))*w1 &
-                            +w2*pint(i,j,l+1)       
-                enddo
-              enddo
-            enddo
+            deallocate(hbc_2d)
           endif
+!
+!----------
+!***  West
+!----------
 !
           if(w_bdy)then
-            do j=max(jts_h2,jds+lines),min(jte_h2,jde-lines)
-              do i=its+1,its-1+lines
-                pdr(i,j)=(pd(i,j-1)+pd(i-1,j) &
-                         +pd(i+1,j)+pd(i,j+1))*w1+w2*pd(i,j)       
+            i1=its+1
+            i2=its-1+lines
+            j1=max(jts_h2,jds+lines)
+            j2=min(jte_h2,jde-lines)
+            allocate(hbc_2d(i1:i2,j1:j2))
+!
+            if(nvars_bc_2d_h>0)then
+              do nv=1,nvars_bc_2d_h
+                do j=j1,j2
+                do i=i1,i2
+                  hbc_2d(i,j)=(bnd_vars_h%var_2d(nv)%full_var(i,j-1) &
+                              +bnd_vars_h%var_2d(nv)%full_var(i-1,j) &
+                              +bnd_vars_h%var_2d(nv)%full_var(i+1,j) &
+                              +bnd_vars_h%var_2d(nv)%full_var(i,j+1))*w1 &
+                              +w2*bnd_vars_h%var_2d(nv)%full_var(i,j)
+                enddo
+                enddo
+!
+                do j=j1,j2
+                do i=i1,i2
+                  bnd_vars_h%var_2d(nv)%full_var(i,j)=hbc_2d(i,j)
+                enddo
+                enddo
               enddo
-            enddo
+            endif
+!
+            if(nvars_bc_3d_h>0)then
+              do nv=1,nvars_bc_3d_h
+                do l=1,lm
+                  do j=j1,j2
+                  do i=i1,i2
+                    hbc_2d(i,j)=(bnd_vars_h%var_3d(nv)%full_var(i,j-1,l) &
+                                +bnd_vars_h%var_3d(nv)%full_var(i-1,j,l) &
+                                +bnd_vars_h%var_3d(nv)%full_var(i+1,j,l) &
+                                +bnd_vars_h%var_3d(nv)%full_var(i,j+1,l))*w1 &
+                                +w2*bnd_vars_h%var_3d(nv)%full_var(i,j,l)
+                  enddo
+                  enddo
+                  do j=j1,j2
+                  do i=i1,i2
+                    bnd_vars_h%var_3d(nv)%full_var(i,j,l)=hbc_2d(i,j)
+                  enddo
+                  enddo
+                enddo
+              enddo
+            endif
+!
+            if(nvars_bc_4d_h>0)then
+              do nv=1,nvars_bc_4d_h
+                lbnd=lbnd_4d(nv)
+                ubnd=ubnd_4d(nv)
+                do nl=lbnd,ubnd
+                  do l=1,lm
+                    do j=j1,j2
+                    do i=i1,i2
+                      hbc_2d(i,j)=(bnd_vars_h%var_4d(nv)%full_var(i,j-1,l,nl) &
+                                  +bnd_vars_h%var_4d(nv)%full_var(i-1,j,l,nl) &
+                                  +bnd_vars_h%var_4d(nv)%full_var(i+1,j,l,nl) &
+                                  +bnd_vars_h%var_4d(nv)%full_var(i,j+1,l,nl))*w1 &
+                                  +w2*bnd_vars_h%var_4d(nv)%full_var(i,j,l,nl)
+                    enddo
+                    enddo
+                    do j=j1,j2
+                    do i=i1,i2
+                      bnd_vars_h%var_4d(nv)%full_var(i,j,l,nl)=hbc_2d(i,j)
+                    enddo
+                    enddo
+                  enddo
+                enddo
+              enddo
+            endif
 !
             do l=1,lm
-              do j=max(jts,jds+lines),min(jte,jde-lines)
-!fixversion            do j=max(jts_h2,jds+lines),min(jte_h2,jde-lines)
-                do i=its+1,its-1+lines
-                  tr(i,j,l)=(t(i,j-1,l)+t(i-1,j,l) &
-                            +t(i+1,j,l)+t(i,j+1,l))*w1 &
-                            +w2*t(i,j,l)       
-                  qr(i,j,l)=(q(i,j-1,l)+q(i-1,j,l) &
-                            +q(i+1,j,l)+q(i,j+1,l))*w1 &
-                            +w2*q(i,j,l)
-                  pr(i,j,l)=(pint(i,j-1,l+1)+pint(i-1,j,l+1) &
+              do j=j1,j2
+              do i=i1,i2
+                hbc_2d(i,j)=(pint(i,j-1,l+1)+pint(i-1,j,l+1) &
                             +pint(i+1,j,l+1)+pint(i,j+1,l+1))*w1 &
                             +w2*pint(i,j,l+1)       
-                enddo
+              enddo
+              enddo
+              do j=j1,j2
+              do i=i1,i2
+                pint(i,j,l+1)=hbc_2d(i,j)
+              enddo
               enddo
             enddo
+!
+            deallocate(hbc_2d)
           endif
 !
+!----------
+!***  East
+!----------
+!
           if(e_bdy)then
-            do j=max(jts_h2,jds+lines),min(jte_h2,jde-lines)
-              do i=ite-lines+1,ite-1
-                pdr(i,j)=(pd(i,j-1)+pd(i-1,j) &
-                         +pd(i+1,j)+pd(i,j+1))*w1+w2*pd(i,j)       
+            i1=ite-lines+1
+            i2=ite-1
+            j1=max(jts_h2,jds+lines)
+            j2=min(jte_h2,jde-lines)
+            allocate(hbc_2d(i1:i2,j1:j2))
+!
+            if(nvars_bc_2d_h>0)then
+              do nv=1,nvars_bc_2d_h
+                do j=j1,j2
+                do i=i1,i2
+                  hbc_2d(i,j)=(bnd_vars_h%var_2d(nv)%full_var(i,j-1) &
+                              +bnd_vars_h%var_2d(nv)%full_var(i-1,j) &
+                              +bnd_vars_h%var_2d(nv)%full_var(i+1,j) &
+                              +bnd_vars_h%var_2d(nv)%full_var(i,j+1))*w1 &
+                              +w2*bnd_vars_h%var_2d(nv)%full_var(i,j)
+                enddo
+                enddo
+!
+                do j=j1,j2
+                do i=i1,i2
+                  bnd_vars_h%var_2d(nv)%full_var(i,j)=hbc_2d(i,j)
+                enddo
+                enddo
               enddo
-            enddo
+            endif
+!
+            if(nvars_bc_3d_h>0)then
+              do nv=1,nvars_bc_3d_h
+                do l=1,lm
+                  do j=j1,j2
+                  do i=i1,i2
+                    hbc_2d(i,j)=(bnd_vars_h%var_3d(nv)%full_var(i,j-1,l) &
+                                +bnd_vars_h%var_3d(nv)%full_var(i-1,j,l) &
+                                +bnd_vars_h%var_3d(nv)%full_var(i+1,j,l) &
+                                +bnd_vars_h%var_3d(nv)%full_var(i,j+1,l))*w1 &
+                                +w2*bnd_vars_h%var_3d(nv)%full_var(i,j,l)
+                  enddo
+                  enddo
+                  do j=j1,j2
+                  do i=i1,i2
+                    bnd_vars_h%var_3d(nv)%full_var(i,j,l)=hbc_2d(i,j)
+                  enddo
+                  enddo
+                enddo
+              enddo
+            endif
+!
+            if(nvars_bc_4d_h>0)then
+              do nv=1,nvars_bc_4d_h
+                lbnd=lbnd_4d(nv)
+                ubnd=ubnd_4d(nv)
+                do nl=lbnd,ubnd
+                  do l=1,lm
+                    do j=j1,j2
+                    do i=i1,i2
+                      hbc_2d(i,j)=(bnd_vars_h%var_4d(nv)%full_var(i,j-1,l,nl) &
+                                  +bnd_vars_h%var_4d(nv)%full_var(i-1,j,l,nl) &
+                                  +bnd_vars_h%var_4d(nv)%full_var(i+1,j,l,nl) &
+                                  +bnd_vars_h%var_4d(nv)%full_var(i,j+1,l,nl))*w1 &
+                                  +w2*bnd_vars_h%var_4d(nv)%full_var(i,j,l,nl)
+                    enddo
+                    enddo
+                    do j=j1,j2
+                    do i=i1,i2
+                      bnd_vars_h%var_4d(nv)%full_var(i,j,l,nl)=hbc_2d(i,j)
+                    enddo
+                    enddo
+                  enddo
+                enddo
+              enddo
+            endif
 !
             do l=1,lm
-              do j=max(jts_h2,jds+lines),min(jte_h2,jde-lines)
-                do i=ite-lines+1,ite-1
-                  tr(i,j,l)=(t(i,j-1,l)+t(i-1,j,l) &
-                            +t(i+1,j,l)+t(i,j+1,l))*w1 &
-                            +w2*t(i,j,l)       
-                  qr(i,j,l)=(q(i,j-1,l)+q(i-1,j,l) &
-                            +q(i+1,j,l)+q(i,j+1,l))*w1 &
-                            +w2*q(i,j,l)
-                  pr(i,j,l)=(pint(i,j-1,l+1)+pint(i-1,j,l+1) &
+              do j=j1,j2
+              do i=i1,i2
+                hbc_2d(i,j)=(pint(i,j-1,l+1)+pint(i-1,j,l+1) &
                             +pint(i+1,j,l+1)+pint(i,j+1,l+1))*w1 &
                             +w2*pint(i,j,l+1)       
-                enddo
               enddo
-            enddo
-          endif
-!-----------------------------------------------------------------------
-          if(s_bdy)then
-            do j=jts+1,jts-1+lines
-              do i=max(its_h2,ids+1),min(ite_h2,ide-1)
-                pd(i,j)=pdr(i,j)
+              enddo
+              do j=j1,j2
+              do i=i1,i2
+                pint(i,j,l+1)=hbc_2d(i,j)
+              enddo
               enddo
             enddo
 !
-            do l=1,lm
-              do j=jts+1,jts-1+lines
-                do i=max(its_h2,ids+1),min(ite_h2,ide-1)
-                  t(i,j,l)=tr(i,j,l)
-                  q(i,j,l)=qr(i,j,l)
-                  pint(i,j,l+1)=pr(i,j,l)
-                enddo
-              enddo
-            enddo
+            deallocate(hbc_2d)
           endif
 !
-          if(n_bdy)then
-            do j=jte-lines+1,jte-1
-              do i=max(its_h2,ids+1),min(ite_h2,ide-1)
-                pd(i,j)=pdr(i,j)
-              enddo
-            enddo
-!
-            do l=1,lm
-              do j=jte-lines+1,jte-1
-                do i=max(its_h2,ids+1),min(ite_h2,ide-1)
-                  t(i,j,l)=tr(i,j,l)
-                  q(i,j,l)=qr(i,j,l)
-                  pint(i,j,l+1)=pr(i,j,l)
-                enddo
-              enddo
-            enddo
-          endif
-!
-          if(w_bdy)then
-            do j=max(jts_h2,jds+lines),min(jte_h2,jde-lines)
-              do i=its+1,its-1+lines
-                pd(i,j)=pdr(i,j)
-              enddo
-            enddo
-!
-            do l=1,lm
-              do j=max(jts_h2,jds+lines),min(jte_h2,jde-lines)
-                do i=its+1,its-1+lines
-                  t(i,j,l)=tr(i,j,l)
-                  q(i,j,l)=qr(i,j,l)
-                  pint(i,j,l+1)=pr(i,j,l)
-                enddo
-              enddo
-            enddo
-          endif
-!
-          if(e_bdy)then
-            do j=max(jts_h2,jds+lines),min(jte_h2,jde-lines)
-              do i=ite-lines+1,ite-1
-                pd(i,j)=pdr(i,j)
-              enddo
-            enddo
-!
-            do l=1,lm
-              do j=max(jts_h2,jds+lines),min(jte_h2,jde-lines)
-                do i=ite-lines+1,ite-1
-                  t(i,j,l)=tr(i,j,l)
-                  q(i,j,l)=qr(i,j,l)
-                  pint(i,j,l+1)=pr(i,j,l)
-                enddo
-              enddo
-            enddo
-          endif
 !-----------------------------------------------------------------------
 !
-          call halo_exch(pd,1,1,1)
-          call halo_exch(t,lm,1,1)
-          call halo_exch(q,lm,1,1)
+          if(nvars_bc_2d_h>0)then
+            do nv=1,nvars_bc_2d_h
+              call halo_exch(bnd_vars_h%var_2d(nv)%full_var,1,1,1)
+            enddo
+          endif
+!
+          if(nvars_bc_3d_h>0)then
+            do nv=1,nvars_bc_3d_h
+              call halo_exch(bnd_vars_h%var_3d(nv)%full_var,lm,1,1)
+            enddo
+          endif
+!
+          if(nvars_bc_4d_h>0)then
+            do nv=1,nvars_bc_4d_h
+              lbnd=lbnd_4d(nv)
+              ubnd=ubnd_4d(nv)
+              do nl=lbnd,ubnd
+                temp_3d=>bnd_vars_h%var_4d(nv)%full_var(:,:,:,nl)     
+                call halo_exch(temp_3d,lm,1,1)
+              enddo
+            enddo
+          endif
+!
           call halo_exch(pint,lm+1,1,1)
 !
 !-----------------------------------------------------------------------
@@ -5311,8 +6681,9 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
                         subroutine bocov &
 (lm,lnsv &
 ,dt &
-,ube,ubn,ubs,ubw,vbe,vbn,vbs,vbw &
-,u,v)
+,nvars_bc_2d_v,nvars_bc_3d_v &
+,bnd_vars_v &
+   )
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
@@ -5323,38 +6694,36 @@ real(kind=kfpt),parameter:: &
  wa=0.5 &                    ! weighting factor
 ,w1=wa*0.25 &                ! weighting factor
 ,w2=1.-wa                    ! weighting factor
+
 !-----------------------------------------------------------------------
+
 integer(kind=kint),intent(in):: &
  lm &                        ! total # of levels
 ,lnsv                        ! blending area width, v points
 
+integer(kind=kint),intent(in):: &
+ nvars_bc_2d_v &             ! # of 2-d v-pt boundary variables
+,nvars_bc_3d_v               ! # of 3-d v-pt boundary variables
+
 real(kind=kfpt),intent(in):: &
  dt                          ! dynamics time step
 
-real(kind=kfpt),dimension(ims:ime,1:lnsv,1:lm,1:2),intent(inout):: &
- ubn &                       ! u wind component at northern boundary
-,ubs &                       ! u wind component at southern boundary
-,vbn &                       ! v wind component at northern boundary
-,vbs                         ! v wind component at southern boundary
+type(bc_v_all),intent(inout) :: &
+ bnd_vars_v                  ! boundary variables on v points
 
-real(kind=kfpt),dimension(1:lnsv,jms:jme,1:lm,1:2),intent(inout):: &
- ube &                       ! u wind component at eastern boundary
-,ubw &                       ! u wind component at western boundary
-,vbe &                       ! v wind component at eastern boundary
-,vbw                         ! v wind component at western boundary
-
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
- u &                         ! u wind component
-,v                           ! v wind component
 !-----------------------------------------------------------------------
 !---local variables-----------------------------------------------------
 !-----------------------------------------------------------------------
 integer(kind=kint):: &
  i &                         ! index in x direction
+,i1 &
+,i2 &
 ,ib &                        ! index in x direction, boundary zone
 ,ive &                       ! ending index in x direction, boundaries
 ,ivs &                       ! starting index in x direction, boundaries
 ,j &                         ! index in y direction
+,j1 &
+,j2 &
 ,jb &                        ! index in y direction, boundary zone
 ,jve &                       ! ending index in x direction, boundaries
 ,jvs &                       ! starting index in x direction, boundaries
@@ -5362,14 +6731,15 @@ integer(kind=kint):: &
 ,ks &                        ! smoothing counter
 ,l &                         ! index in p direction
 ,lines &                     ! boundary smoothing area
-,nsmud                       ! number of smoothing passes
+,nsmud &                     ! number of smoothing passes
+,nv
 
 real(kind=kfpt),dimension(1:lnsv):: &
  wv(lnsv)                    ! blending weighting function, wind
 
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
- ur &                        ! u wind component
-,vr                          ! v wind component
+real(kind=kfpt),dimension(:,:),allocatable :: &
+ vbc_2d
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -5382,232 +6752,541 @@ real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm):: &
         wv(k)=1.-(0.9/real(lnsv-1))*(k-1)
       enddo
 !-----------------------------------------------------------------------
-!-------------update boundary values at v points------------------------
+!***  Update values of the boundary working objects at V points.
 !-----------------------------------------------------------------------
-!-------------southern and northern boundaries--------------------------
-!-----------------------------------------------------------------------
-      if(s_bdy)then
-        do l=1,lm
-          do jb=1,lnsv
-            do ib=its_h2,min(ite_h2,ide-1)
-              ubs(ib,jb,l,1)=ubs(ib,jb,l,1)+ubs(ib,jb,l,2)*dt
-              vbs(ib,jb,l,1)=vbs(ib,jb,l,1)+vbs(ib,jb,l,2)*dt
-            enddo
-          enddo
-        enddo
-      endif
 !
-      if(n_bdy)then
-        do l=1,lm
-          do jb=1,lnsv
-            do ib=its_h2,min(ite_h2,ide-1)
-              ubn(ib,jb,l,1)=ubn(ib,jb,l,1)+ubn(ib,jb,l,2)*dt
-              vbn(ib,jb,l,1)=vbn(ib,jb,l,1)+vbn(ib,jb,l,2)*dt
-            enddo
-          enddo
-        enddo
-      endif
-!-----------------------------------------------------------------------
-!-------------western and eastern boundaries----------------------------
-!-----------------------------------------------------------------------
-      if(w_bdy)then
-        do l=1,lm
-          do jb=jts_h2,min(jte_h2,jde-1)
-            do ib=1,lnsv
-              ubw(ib,jb,l,1)=ubw(ib,jb,l,1)+ubw(ib,jb,l,2)*dt
-              vbw(ib,jb,l,1)=vbw(ib,jb,l,1)+vbw(ib,jb,l,2)*dt
-            enddo
-          enddo
-        enddo
-      endif
+!--------------------------------------
+!***  Southern and northern boundaries
+!--------------------------------------
 !
-      if(e_bdy)then
-        do l=1,lm
-          do jb=jts_h1,min(jte_h2,jde-1)
-            do ib=1,lnsv
-              ube(ib,jb,l,1)=ube(ib,jb,l,1)+ube(ib,jb,l,2)*dt
-              vbe(ib,jb,l,1)=vbe(ib,jb,l,1)+vbe(ib,jb,l,2)*dt
-            enddo
-          enddo
-        enddo
-      endif
-!-----------------------------------------------------------------------
-!-------------southern boundary-----------------------------------------
-!-----------------------------------------------------------------------
       if(s_bdy)then
-        do l=1,lm
-          do j=jts,jts-1+lnsv
-            jb=j
-            ivs=max(its_h1,jb)
-            ive=min(ite_h1,ide-jb)
-            do i=ivs,ive
-              ib=i
-              u(i,j,l)=ubs(ib,jb,l,1)*wv(jb)+u(i,j,l)*(1.-wv(jb))
-              v(i,j,l)=vbs(ib,jb,l,1)*wv(jb)+v(i,j,l)*(1.-wv(jb))
+!
+        if(nvars_bc_2d_v>0)then
+          do nv=1,nvars_bc_2d_v
+            do jb=1,lnsv
+            do ib=its_h2,min(ite_h2,ide-1)
+              bnd_vars_v%var_2d(nv)%south(ib,jb,1)=bnd_vars_v%var_2d(nv)%south(ib,jb,1)   &
+                                                  +bnd_vars_v%var_2d(nv)%south(ib,jb,2)*dt
+            enddo
             enddo
           enddo
-        enddo
-      endif
-!-----------------------------------------------------------------------
-!-------------northern boundary-----------------------------------------
-!-----------------------------------------------------------------------
-      if(n_bdy)then
-        do l=1,lm
-          do j=jte-lnsv,jte-1
-            jb=j-jte+lnsv+1
-            ivs=max(its_h1,lnsv-jb+1)
-            ive=min(ite_h1,ide+jb-lnsv-1)
-            do i=ivs,ive
-              ib=i
-              u(i,j,l)=ubn(ib,jb,l,1)*wv(lnsv+1-jb) &
-                      +u(i,j,l)*(1.-wv(lnsv+1-jb))
-              v(i,j,l)=vbn(ib,jb,l,1)*wv(lnsv+1-jb) &
-                      +v(i,j,l)*(1.-wv(lnsv+1-jb))
-            enddo
-          enddo
-        enddo
-      endif
-!-----------------------------------------------------------------------
-!-------------western boundary------------------------------------------
-!-----------------------------------------------------------------------
-      if(w_bdy)then
-        do l=1,lm
-          do i=its,its-1+lnsv
-            ib=i
-            jvs=max(jts_h1,1+ib)
-            jve=min(jte_h1,jde-1-ib)
-            do j=jvs,jve
-              jb=j
-              u(i,j,l)=ubw(ib,jb,l,1)*wv(ib)+u(i,j,l)*(1.-wv(ib))
-              v(i,j,l)=vbw(ib,jb,l,1)*wv(ib)+v(i,j,l)*(1.-wv(ib))
-            enddo
-          enddo
-        enddo
-      endif
-!-----------------------------------------------------------------------
-!-------------eastern boundary------------------------------------------
-!-----------------------------------------------------------------------
-      if(e_bdy)then
-        do i=ite-lnsv,ite-1
-          ib=i-ide+lnsv+1
-          jvs=max(jts_h1,lnsv-ib+2)
-          jve=min(jte_h1,jde-lnsv+ib-2)
-          do j=jvs,jve
-            jb=j
+        endif
+!
+        if(nvars_bc_3d_v>0)then
+          do nv=1,nvars_bc_3d_v
             do l=1,lm
-              u(i,j,l)=ube(ib,jb,l,1)*wv(lnsv+1-ib) &
-                      +u(i,j,l)*(1.-wv(lnsv+1-ib))
-              v(i,j,l)=vbe(ib,jb,l,1)*wv(lnsv+1-ib) &
-                      +v(i,j,l)*(1.-wv(lnsv+1-ib))
+            do jb=1,lnsv
+            do ib=its_h2,min(ite_h2,ide-1)
+              bnd_vars_v%var_3d(nv)%south(ib,jb,l,1)=bnd_vars_v%var_3d(nv)%south(ib,jb,l,1)   &
+                                                    +bnd_vars_v%var_3d(nv)%south(ib,jb,l,2)*dt
+            enddo
+            enddo
             enddo
           enddo
-        enddo
+        endif
+!
       endif
+!
+      if(n_bdy)then
+!
+        if(nvars_bc_2d_v>0)then
+          do nv=1,nvars_bc_2d_v
+            do jb=1,lnsv
+            do ib=its_h2,min(ite_h2,ide-1)
+              bnd_vars_v%var_2d(nv)%north(ib,jb,1)=bnd_vars_v%var_2d(nv)%north(ib,jb,1)   &
+                                                  +bnd_vars_v%var_2d(nv)%north(ib,jb,2)*dt
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_v>0)then
+          do nv=1,nvars_bc_3d_v
+            do l=1,lm
+            do jb=1,lnsv
+            do ib=its_h2,min(ite_h2,ide-1)
+              bnd_vars_v%var_3d(nv)%north(ib,jb,l,1)=bnd_vars_v%var_3d(nv)%north(ib,jb,l,1)   &
+                                                    +bnd_vars_v%var_3d(nv)%north(ib,jb,l,2)*dt
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+      endif
+!
+!------------------------------------
+!***  Western and eastern boundaries
+!------------------------------------
+!
+      if(w_bdy)then
+!
+        if(nvars_bc_2d_v>0)then
+          do nv=1,nvars_bc_2d_v
+            do jb=jts_h2,min(jte_h2,jde-1)
+            do ib=1,lnsv
+              bnd_vars_v%var_2d(nv)%west(ib,jb,1)=bnd_vars_v%var_2d(nv)%west(ib,jb,1)   &
+                                                 +bnd_vars_v%var_2d(nv)%west(ib,jb,2)*dt
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_v>0)then
+          do nv=1,nvars_bc_3d_v
+            do l=1,lm
+            do jb=jts_h2,min(jte_h2,jde-1)
+            do ib=1,lnsv
+              bnd_vars_v%var_3d(nv)%west(ib,jb,l,1)=bnd_vars_v%var_3d(nv)%west(ib,jb,l,1)   &
+                                                   +bnd_vars_v%var_3d(nv)%west(ib,jb,l,2)*dt
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+      endif
+!
+      if(e_bdy)then
+!
+        if(nvars_bc_2d_v>0)then
+          do nv=1,nvars_bc_2d_v
+            do jb=jts_h1,min(jte_h2,jde-1)
+            do ib=1,lnsv
+              bnd_vars_v%var_2d(nv)%east(ib,jb,1)=bnd_vars_v%var_2d(nv)%east(ib,jb,1)   &
+                                                 +bnd_vars_v%var_2d(nv)%east(ib,jb,2)*dt
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_v>0)then
+          do nv=1,nvars_bc_3d_v
+            do l=1,lm
+            do jb=jts_h1,min(jte_h2,jde-1)
+            do ib=1,lnsv
+              bnd_vars_v%var_3d(nv)%east(ib,jb,l,1)=bnd_vars_v%var_3d(nv)%east(ib,jb,l,1)   &
+                                                   +bnd_vars_v%var_3d(nv)%east(ib,jb,l,2)*dt
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+      endif
+!
 !-----------------------------------------------------------------------
+!***  Now update the actual prognostic variables using the values
+!***  just computed (coming from the parent) blended with the values
+!***  already generated in the blending region by the child.
+!-----------------------------------------------------------------------
+!
+!-----------------------
+!***  Southern boundary
+!-----------------------
+!
+      if(s_bdy)then
+!
+        if(nvars_bc_2d_v>0)then
+          do nv=1,nvars_bc_2d_v
+            do j=jts,jts-1+lnsv
+              jb=j
+              ivs=max(its_h1,jb)
+              ive=min(ite_h1,ide-jb)
+              do i=ivs,ive
+                ib=i
+                bnd_vars_v%var_2d(nv)%full_var(i,j)=bnd_vars_v%var_2d(nv)%south(ib,jb,1)*wv(jb)    &
+                                                   +bnd_vars_v%var_2d(nv)%full_var(i,j)*(1.-wv(jb))
+              enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_v>0)then
+          do nv=1,nvars_bc_3d_v
+            do l=1,lm
+              do j=jts,jts-1+lnsv
+                jb=j
+                ivs=max(its_h1,jb)
+                ive=min(ite_h1,ide-jb)
+                do i=ivs,ive
+                  ib=i
+                  bnd_vars_v%var_3d(nv)%full_var(i,j,l)=bnd_vars_v%var_3d(nv)%south(ib,jb,l,1)*wv(jb)    &
+                                                       +bnd_vars_v%var_3d(nv)%full_var(i,j,l)*(1.-wv(jb))
+                enddo
+              enddo
+            enddo
+          enddo
+        endif
+!
+      endif
+!
+!-----------------------
+!***  Northern boundary
+!-----------------------
+!
+      if(n_bdy)then
+!
+        if(nvars_bc_2d_v>0)then
+          do nv=1,nvars_bc_2d_v
+            do j=jte-lnsv,jte-1
+              jb=j-jte+lnsv+1
+              ivs=max(its_h1,lnsv-jb+1)
+              ive=min(ite_h1,ide+jb-lnsv-1)
+              do i=ivs,ive
+                ib=i
+                bnd_vars_v%var_2d(nv)%full_var(i,j)=bnd_vars_v%var_2d(nv)%north(ib,jb,1)*wv(lnsv+1-jb)    &
+                                                   +bnd_vars_v%var_2d(nv)%full_var(i,j)*(1.-wv(lnsv+1-jb))
+              enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_v>0)then
+          do nv=1,nvars_bc_3d_v
+            do l=1,lm
+              do j=jte-lnsv,jte-1
+                jb=j-jte+lnsv+1
+                ivs=max(its_h1,lnsv-jb+1)
+                ive=min(ite_h1,ide+jb-lnsv-1)
+                do i=max(its_h2,ivs),min(ite_h2,ive)
+                  ib=i
+                  bnd_vars_v%var_3d(nv)%full_var(i,j,l)=bnd_vars_v%var_3d(nv)%north(ib,jb,l,1)*wv(lnsv+1-jb)    &
+                                                       +bnd_vars_v%var_3d(nv)%full_var(i,j,l)*(1.-wv(lnsv+1-jb))
+                enddo
+              enddo
+            enddo
+          enddo
+        endif
+!
+      endif
+!
+!
+!----------------------
+!***  Western boundary
+!----------------------
+!
+      if(w_bdy)then
+!
+        if(nvars_bc_2d_v>0)then
+          do nv=1,nvars_bc_2d_v
+            do i=its,its-1+lnsv
+              ib=i
+              jvs=max(jts_h1,1+ib)
+              jve=min(jte_h1,jde-1-ib)
+              do j=jvs,jve
+                jb=j
+                bnd_vars_v%var_2d(nv)%full_var(i,j)=bnd_vars_v%var_2d(nv)%west(ib,jb,1)*wv(ib)  &
+                                                   +bnd_vars_v%var_2d(nv)%full_var(i,j)*(1.-wv(ib))
+              enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_v>0)then
+          do nv=1,nvars_bc_3d_v
+            do l=1,lm
+              do i=its,its-1+lnsv
+                ib=i
+                jvs=max(jts_h1,1+ib)
+                jve=min(jte_h1,jde-1-ib)
+                do j=jvs,jve
+                  jb=j
+                  bnd_vars_v%var_3d(nv)%full_var(i,j,l)=bnd_vars_v%var_3d(nv)%west(ib,jb,l,1)*wv(ib)  &
+                                                       +bnd_vars_v%var_3d(nv)%full_var(i,j,l)*(1.-wv(ib))
+                enddo
+              enddo
+            enddo
+          enddo
+        endif
+!
+      endif
+!
+!----------------------
+!***  Eastern boundary
+!----------------------
+!
+      if(e_bdy)then
+!
+        if(nvars_bc_2d_v>0)then
+          do nv=1,nvars_bc_2d_v
+            do i=ite-lnsv,ite-1
+              ib=i-ide+lnsv+1
+              jvs=max(jts_h1,lnsv-ib+2)
+              jve=min(jte_h1,jde-lnsv+ib-2)
+              do j=jvs,jve
+                jb=j
+                bnd_vars_v%var_2d(nv)%full_var(i,j)=bnd_vars_v%var_2d(nv)%east(ib,jb,1)*wv(lnsv+1-ib)  &
+                                                   +bnd_vars_v%var_2d(nv)%full_var(i,j)*(1.-wv(lnsv+1-ib))
+              enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_v>0)then
+          do nv=1,nvars_bc_3d_v
+            do l=1,lm
+              do i=ite-lnsv,ite-1
+                ib=i-ide+lnsv+1
+                jvs=max(jts_h1,lnsv-ib+2)
+                jve=min(jte_h1,jde-lnsv+ib-2)
+                do j=jvs,jve
+                  jb=j
+                  bnd_vars_v%var_3d(nv)%full_var(i,j,l)=bnd_vars_v%var_3d(nv)%east(ib,jb,l,1)*wv(lnsv+1-ib)  &
+                                                       +bnd_vars_v%var_3d(nv)%full_var(i,j,l)*(1.-wv(lnsv+1-ib))
+                enddo
+              enddo
+            enddo
+          enddo
+        endif
+!
+      endif
+!
+!-----------------------------------------------------------------------
+!***  The following is executed if spatial smoothing is invoked.
+!-----------------------------------------------------------------------
+!
       if(nsmud>=1)then
 !
         smooth: do ks=1,nsmud
+!
 !-----------------------------------------------------------------------
+!
+!-----------
+!***  South
+!-----------
+!
           if(s_bdy)then
-            do l=1,lm
-              do j=jts+1,jts-1+lines
-                do i=max(its_h1,ids+1),min(ite_h1,ide-2)
-                  ur(i,j,l)=(u(i,j-1,l)+u(i,j-1,l) &
-                            +u(i+1,j,l)+u(i,j+1,l))*w1+w2*u(i,j,l)       
-                  vr(i,j,l)=(v(i,j-1,l)+v(i,j-1,l) &
-                            +v(i+1,j,l)+v(i,j+1,l))*w1+w2*v(i,j,l)       
+            i1=max(its_h1,ids+1)
+            i2=min(ite_h1,ide-2)
+            j1=jts+1
+            j2=jts-1+lines
+            allocate(vbc_2d(i1:i2,j1:j2))
+!
+            if(nvars_bc_2d_v>0)then
+              do nv=1,nvars_bc_2d_v
+                do j=j1,j2
+                do i=i1,i2
+                  vbc_2d(i,j)=(bnd_vars_v%var_2d(nv)%full_var(i,j-1) &
+                              +bnd_vars_v%var_2d(nv)%full_var(i-1,j) &
+                              +bnd_vars_v%var_2d(nv)%full_var(i+1,j) &
+                              +bnd_vars_v%var_2d(nv)%full_var(i,j+1))*w1 &
+                              +w2*bnd_vars_v%var_2d(nv)%full_var(i,j)
+                enddo
+                enddo
+!
+                do j=j1,j2
+                do i=i1,i2
+                  bnd_vars_v%var_2d(nv)%full_var(i,j)=vbc_2d(i,j)
+                enddo
                 enddo
               enddo
-            enddo
+            endif
+!
+            if(nvars_bc_3d_v>0)then
+              do nv=1,nvars_bc_3d_v
+                do l=1,lm
+                  do j=j1,j2
+                  do i=i1,i2
+                    vbc_2d(i,j)=(bnd_vars_v%var_3d(nv)%full_var(i,j-1,l) &
+                                +bnd_vars_v%var_3d(nv)%full_var(i-1,j,l) &
+                                +bnd_vars_v%var_3d(nv)%full_var(i+1,j,l) &
+                                +bnd_vars_v%var_3d(nv)%full_var(i,j+1,l))*w1 &
+                                +w2*bnd_vars_v%var_3d(nv)%full_var(i,j,l)
+                  enddo
+                  enddo
+                  do j=j1,j2
+                  do i=i1,i2
+                    bnd_vars_v%var_3d(nv)%full_var(i,j,l)=vbc_2d(i,j)
+                  enddo
+                  enddo
+                enddo
+              enddo
+            endif
+!
+            deallocate(vbc_2d)
           endif
+!
+!-----------
+!***  North
+!-----------
 !
           if(n_bdy)then
-            do l=1,lm
-              do j=jte-lines,jte-2
-                do i=max(its_h1,ids+1),min(ite_h1,ide-2)
-                  ur(i,j,l)=(u(i,j-1,l)+u(i,j-1,l) &
-                            +u(i+1,j,l)+u(i,j+1,l))*w1+w2*u(i,j,l)       
-                  vr(i,j,l)=(v(i,j-1,l)+v(i,j-1,l) &
-                            +v(i+1,j,l)+v(i,j+1,l))*w1+w2*v(i,j,l)       
+            i1=max(its_h1,ids+1)
+            i2=min(ite_h1,ide-2)
+            j1=jte-lines
+            j2=jte-2
+            allocate(vbc_2d(i1:i2,j1:j2))
+!
+            if(nvars_bc_2d_v>0)then
+              do nv=1,nvars_bc_2d_v
+                do j=j1,j2
+                do i=i1,i2
+                  vbc_2d(i,j)=(bnd_vars_v%var_2d(nv)%full_var(i,j-1) &
+                              +bnd_vars_v%var_2d(nv)%full_var(i-1,j) &
+                              +bnd_vars_v%var_2d(nv)%full_var(i+1,j) &
+                              +bnd_vars_v%var_2d(nv)%full_var(i,j+1))*w1 &
+                              +w2*bnd_vars_v%var_2d(nv)%full_var(i,j)
+                enddo
+                enddo
+!
+                do j=j1,j2
+                do i=i1,i2
+                  bnd_vars_v%var_2d(nv)%full_var(i,j)=vbc_2d(i,j)
+                enddo
                 enddo
               enddo
-            enddo
+            endif
+!
+            if(nvars_bc_3d_v>0)then
+              do nv=1,nvars_bc_3d_v
+                do l=1,lm
+                  do j=j1,j2
+                  do i=i1,i2
+                    vbc_2d(i,j)=(bnd_vars_v%var_3d(nv)%full_var(i,j-1,l) &
+                                +bnd_vars_v%var_3d(nv)%full_var(i-1,j,l) &
+                                +bnd_vars_v%var_3d(nv)%full_var(i+1,j,l) &
+                                +bnd_vars_v%var_3d(nv)%full_var(i,j+1,l))*w1 &
+                                +w2*bnd_vars_v%var_3d(nv)%full_var(i,j,l)
+                  enddo
+                  enddo
+                  do j=j1,j2
+                  do i=i1,i2
+                    bnd_vars_v%var_3d(nv)%full_var(i,j,l)=vbc_2d(i,j)
+                  enddo
+                  enddo
+                enddo
+              enddo
+            endif
+!
+            deallocate(vbc_2d)
           endif
+!
+!----------
+!***  West
+!----------
 !
           if(w_bdy)then
-            do l=1,lm
-              do j=max(jts_h1,jds+lines),min(jte_h1,jde-lines-1)
-                do i=its+1,its-1+lines
-                  ur(i,j,l)=(u(i,j-1,l)+u(i,j-1,l) &
-                            +u(i+1,j,l)+u(i,j+1,l))*w1+w2*u(i,j,l)       
-                  vr(i,j,l)=(v(i,j-1,l)+v(i,j-1,l) &
-                            +v(i+1,j,l)+v(i,j+1,l))*w1+w2*v(i,j,l)       
+            i1=ite-lines
+            i2=ite-2
+            j1=max(jts_h1,jds+lines)
+            j2=min(jte_h1,jde-lines-1)
+            allocate(vbc_2d(i1:i2,j1:j2))
+!
+            if(nvars_bc_2d_v>0)then
+              do nv=1,nvars_bc_2d_v
+                do j=j1,j2
+                do i=i1,i2
+                  vbc_2d(i,j)=(bnd_vars_v%var_2d(nv)%full_var(i,j-1) &
+                              +bnd_vars_v%var_2d(nv)%full_var(i-1,j) &
+                              +bnd_vars_v%var_2d(nv)%full_var(i+1,j) &
+                              +bnd_vars_v%var_2d(nv)%full_var(i,j+1))*w1 &
+                              +w2*bnd_vars_v%var_2d(nv)%full_var(i,j)
+                enddo
+                enddo
+!
+                do j=j1,j2
+                do i=i1,i2
+                  bnd_vars_v%var_2d(nv)%full_var(i,j)=vbc_2d(i,j)
+                enddo
                 enddo
               enddo
-            enddo
+            endif
+!
+            if(nvars_bc_3d_v>0)then
+              do nv=1,nvars_bc_3d_v
+                do l=1,lm
+                  do j=j1,j2
+                  do i=i1,i2
+                    vbc_2d(i,j)=(bnd_vars_v%var_3d(nv)%full_var(i,j-1,l) &
+                                +bnd_vars_v%var_3d(nv)%full_var(i-1,j,l) &
+                                +bnd_vars_v%var_3d(nv)%full_var(i+1,j,l) &
+                                +bnd_vars_v%var_3d(nv)%full_var(i,j+1,l))*w1 &
+                                +w2*bnd_vars_v%var_3d(nv)%full_var(i,j,l)
+                  enddo
+                  enddo
+!
+                  do j=j1,j2
+                  do i=i1,i2
+                    bnd_vars_v%var_3d(nv)%full_var(i,j,l)=vbc_2d(i,j)
+                  enddo
+                  enddo
+                enddo
+              enddo
+            endif
+!
+            deallocate(vbc_2d)
           endif
+!
+!----------
+!***  East
+!----------
 !
           if(e_bdy)then
-            do l=1,lm
-              do j=max(jts_h1,jds+lines),min(jte_h1,jde-lines-1)
-                do i=ite-lines,ite-2
-                  ur(i,j,l)=(u(i,j-1,l)+u(i,j-1,l) &
-                            +u(i+1,j,l)+u(i,j+1,l))*w1+w2*u(i,j,l)       
-                  vr(i,j,l)=(v(i,j-1,l)+v(i,j-1,l) &
-                            +v(i+1,j,l)+v(i,j+1,l))*w1+w2*v(i,j,l)       
-                enddo
-              enddo
-            enddo
-          endif
-!-----------------------------------------------------------------------
-          if(s_bdy)then
-            do l=1,lm
-              do j=jts+1,jts-1+lines
-                do i=max(its_h1,ids+1),min(ite_h1,ide-2)
-                  u(i,j,l)=ur(i,j,l)       
-                  v(i,j,l)=vr(i,j,l)       
-                enddo
-              enddo
-            enddo
-          endif
+            i1=ite-lines
+            i2=ite-2
+            j1=max(jts_h1,jds+lines)
+            j2=min(jte_h1,jde-lines-1)
+            allocate(vbc_2d(i1:i2,j1:j2))
 !
-          if(n_bdy)then
-            do l=1,lm
-              do j=jte-lines,jte-2
-                do i=max(its_h1,ids+1),min(ite_h1,ide-2)
-                  u(i,j,l)=ur(i,j,l)       
-                  v(i,j,l)=vr(i,j,l)       
+            if(nvars_bc_2d_v>0)then
+              do nv=1,nvars_bc_2d_v
+                do j=j1,j2
+                do i=i1,i2
+                  vbc_2d(i,j)=(bnd_vars_v%var_2d(nv)%full_var(i,j-1) &
+                              +bnd_vars_v%var_2d(nv)%full_var(i-1,j) &
+                              +bnd_vars_v%var_2d(nv)%full_var(i+1,j) &
+                              +bnd_vars_v%var_2d(nv)%full_var(i,j+1))*w1 &
+                              +w2*bnd_vars_v%var_2d(nv)%full_var(i,j)
                 enddo
-              enddo
-            enddo
-          endif
+                enddo
 !
-          if(w_bdy)then
-            do l=1,lm
-              do j=max(jts_h1,jds+lines),min(jte_h1,jde-lines-1)
-                do i=its+1,its-1+lines
-                  u(i,j,l)=ur(i,j,l)       
-                  v(i,j,l)=vr(i,j,l)       
+                do j=j1,j2
+                do i=i1,i2
+                  bnd_vars_v%var_2d(nv)%full_var(i,j)=vbc_2d(i,j)
+                enddo
                 enddo
               enddo
-            enddo
-          endif
+            endif
 !
-          if(e_bdy)then
-            do l=1,lm
-              do j=max(jts_h1,jds+lines),min(jte_h1,jde-lines-1)
-                do i=ite-lines,ite-2
-                  u(i,j,l)=ur(i,j,l)       
-                  v(i,j,l)=vr(i,j,l)       
+            if(nvars_bc_3d_v>0)then
+              do nv=1,nvars_bc_3d_v
+                do l=1,lm
+                  do j=j1,j2
+                  do i=i1,i2
+                    vbc_2d(i,j)=(bnd_vars_v%var_3d(nv)%full_var(i,j-1,l) &
+                                +bnd_vars_v%var_3d(nv)%full_var(i-1,j,l) &
+                                +bnd_vars_v%var_3d(nv)%full_var(i+1,j,l) &
+                                +bnd_vars_v%var_3d(nv)%full_var(i,j+1,l))*w1 &
+                                +w2*bnd_vars_v%var_3d(nv)%full_var(i,j,l)
+                  enddo
+                  enddo
+!
+                  do j=j1,j2
+                  do i=i1,i2
+                    bnd_vars_v%var_3d(nv)%full_var(i,j,l)=vbc_2d(i,j)
+                  enddo
+                  enddo
                 enddo
               enddo
-            enddo
+            endif
+!
+            deallocate(vbc_2d)
           endif
 !
 !-----------------------------------------------------------------------
 !
-          call halo_exch(u,lm,1,1)
-          call halo_exch(v,lm,1,1)
+          if(nvars_bc_2d_v>0)then
+            do nv=1,nvars_bc_2d_v
+              call halo_exch(bnd_vars_v%var_2d(nv)%full_var,1,1,1)
+            enddo
+          endif
+!
+          if(nvars_bc_3d_v>0)then
+            do nv=1,nvars_bc_3d_v
+              call halo_exch(bnd_vars_v%var_3d(nv)%full_var,lm,1,1)
+            enddo
+          endif
 !
 !-----------------------------------------------------------------------
 !

@@ -3016,7 +3016,6 @@
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
-!     write(0,*)' enter SEND_UPDATED_ATTRIBUTES'
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Get Name of the Output Bundle"
@@ -3056,7 +3055,6 @@
 !***  Allocate the ISend handles if not done already.
 !-----------------------------------------------------------------------
 !
-!     write(0,*)' SEND_UPDATED_ATTRIBUTES bundle_name=',trim(bundle_name)
       IF(BUNDLE_NAME=='History Bundle')THEN
 !
         IF(.NOT.ALLOCATED(HANDLE_INT_ATT_HST))THEN
@@ -3099,7 +3097,6 @@
 !
       ENDIF
 !
-!     write(0,*)' SEND_UPDATED_ATTRIBUTES before attrib_loop num_attrib=',num_attrib
 !-----------------------------------------------------------------------
 !
       attrib_loop: DO N=1,NUM_ATTRIB
@@ -3118,14 +3115,6 @@
                               ,itemCount     =LENGTH                    &  !<-- Each Attribute's length
                               ,rc            =RC)
 !
-!     if(datatype==esmf_typekind_i4)then
-!     if(datatype==esmf_typekind_i4.and.trim(attrib_name)=='NMTS'.and.bundle_name=='Restart Bundle')then
-!       write(0,*)' SEND_UPDATED n=',n,' name=',trim(attrib_name),' in restart bundle'
-!     elseif(datatype==esmf_typekind_r4)then
-!       write(0,*)' n=',n,' name=',trim(attrib_name),' is a real'
-!     else
-!       write(0,*)' n=',n,' name=',trim(attrib_name),' is a logical'
-!     endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ATT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3185,8 +3174,6 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ATT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!     write(0,*)' attrib_loop n=',n,' r4 attrib_name=',trim(attrib_name),' length=',length &
-!              ,' value=',work_array_real_att(1:length)
           KOUNT_REAL_ATT=KOUNT_REAL_ATT+1                                 !<-- Count # of real Attributes
 !
           DO L=1,LENGTH
@@ -3217,11 +3204,6 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_ATT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-!     if(work_logical==esmf_true)then
-!       write(0,*)' attrib_loop n=',n,' log attrib_name=',trim(attrib_name),' value=T'
-!     else
-!       write(0,*)' attrib_loop n=',n,' log attrib_name=',trim(attrib_name),' value=F'
-!     endif
           KOUNT_LOG_ATT=KOUNT_LOG_ATT+1                                   !<-- Count # of logical Attributes
 !
           ALL_DATA_LOG_ATT(LENGTH_SUM_LOG_ATT+1)=WORK_LOGICAL             !<-- String together the logical Attributes
@@ -3241,12 +3223,10 @@
 !***  quilt task.
 !-----------------------------------------------------------------------
 !
-!     write(0,*)' ISend Update int length_sum_int_att=',length_sum_int_att
       IF(LENGTH_SUM_INT_ATT>0)THEN
 !
         CALL MPI_WAIT(HANDLE_INT_ATT(WRITE_GROUP),JSTAT,IERR)
 !
-!     write(0,*)' Sending int tag=',write_group
         CALL MPI_ISSEND(ALL_DATA_INT_ATT                                &  !<-- String of integer Attribute output data
                        ,LENGTH_SUM_INT_ATT                              &  !<-- # of words in the data string
                        ,MPI_INTEGER                                     &  !<-- The datatype
@@ -3255,8 +3235,6 @@
                        ,INTERCOMM                                       &  !<-- The MPI intercommunicator between fcst and quilt tasks
                        ,HANDLE_INT_ATT(WRITE_GROUP)                     &  !<-- MPI communication request handle
                        ,IERR )
-!     write(0,*)' SEND_UPDATE lead fcst task ISent ALL_DATA_INT_ATT with length=',LENGTH_SUM_INT_ATT
-!     write(0,*)' NMTS=ALL_DATA_INT_ATT(10)=',ALL_DATA_INT_ATT(10)
 !
       ENDIF
 !
@@ -3264,12 +3242,10 @@
 !***  Lead fcst task sends the real Attributes to the lead quilt task.
 !-----------------------------------------------------------------------
 !
-!     write(0,*)' ISend Update real length_sum_real_att=',length_sum_real_att
       IF(LENGTH_SUM_REAL_ATT>0)THEN
 !
         CALL MPI_WAIT(HANDLE_REAL_ATT(WRITE_GROUP),JSTAT,IERR)
 !
-!     write(0,*)' Sending real tag=',write_group
         CALL MPI_ISSEND(ALL_DATA_REAL_ATT                               &  !<-- String of real Attribute output data
                        ,LENGTH_SUM_REAL_ATT                             &  !<-- # of words in the data string
                        ,MPI_REAL                                        &  !<-- The datatype
@@ -3278,7 +3254,6 @@
                        ,INTERCOMM                                       &  !<-- The MPI intercommunicator between fcst and quilt tasks
                        ,HANDLE_REAL_ATT(WRITE_GROUP)                    &  !<-- MPI communication request handle
                        ,IERR )
-!     write(0,*)' Sent real tag=',write_group,' ierr=',ierr
 !
       ENDIF
 !
@@ -3287,12 +3262,10 @@
 !***  lead quilt task.
 !-----------------------------------------------------------------------
 !
-!     write(0,*)' ISend Update log length_sum_log_att=',length_sum_log_att
       IF(LENGTH_SUM_LOG_ATT>0)THEN
 !
         CALL MPI_WAIT(HANDLE_LOG_ATT(WRITE_GROUP),JSTAT,IERR)
 !
-!     write(0,*)' Sending log tag=',write_group
         CALL MPI_ISSEND(ALL_DATA_LOG_ATT                                &  !<-- String of logical Attribute output data
                        ,LENGTH_SUM_LOG_ATT                              &  !<-- # of words in the data string
                        ,MPI_LOGICAL                                     &  !<-- The datatype
@@ -3301,7 +3274,6 @@
                        ,INTERCOMM                                       &  !<-- The MPI intercommunicator between fcst and quilt tasks
                        ,HANDLE_LOG_ATT(WRITE_GROUP)                     &  !<-- MPI communication request handle
                        ,IERR )
-!     write(0,*)' Sent log tag=',write_group,' ierr=',ierr
 !
       ENDIF
 !

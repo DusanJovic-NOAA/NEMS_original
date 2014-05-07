@@ -111,8 +111,16 @@
                                 ,LEAD_WRITE_TASK                        &  !<-- Rank of the lead (first) Write task in this Write group
                                 ,LAST_WRITE_TASK                        &  !<-- Rank of the last Write task the Write group
                                 ,LM                                     &  !<-- # of model layers
+                                ,LNSH                                   &  !<-- H Rows in boundary region
                                 ,LNSV                                   &  !<-- V Rows in boundary region
+                                ,NLEV_H                                 &  !<-- Total # of levels in H-pt boundary variables
+                                ,NLEV_V                                 &  !<-- Total # of levels in V-pt boundary variables
                                 ,NTASKS                                 &  !<-- # of Write tasks in the current group + all Fcst tasks
+                                ,NVARS_BC_2D_H                          &  !<-- # of 2-D H-pt boundary variables
+                                ,NVARS_BC_3D_H                          &  !<-- # of 3-D H-pt boundary variables
+                                ,NVARS_BC_4D_H                          &  !<-- # of 4-D H-pt boundary variables
+                                ,NVARS_BC_2D_V                          &  !<-- # of 2-D V-pt boundary variables
+                                ,NVARS_BC_3D_V                          &  !<-- # of 3-D V-pt boundary variables
                                 ,NUM_DOMAINS_TOTAL                      &  !<-- Total # of domains
                                 ,NUM_PES_FCST                           &  !<-- # of Fcst tasks in the current group + all Fcst tasks
                                 ,NWTPG                                     !<-- # of Write tasks (servers) per group 
@@ -305,7 +313,8 @@
 !
       INTEGER(kind=KINT) :: ID_DOMAIN,IEND,IM                           &
                            ,INTERCOMM_WRITE_GROUP,IONE                  &
-                           ,JEND,JM,MYPE,N,NUM_WORDS_TOT
+                           ,JEND,JM,LB,LBND,MYPE                        &
+                           ,N,NL,NUM_WORDS_TOT,NV,UB,UBND
 !
       INTEGER(kind=KINT) :: IERR,ISTAT,RC
 !
@@ -776,8 +785,8 @@
       LM=wrt_int_state%LM(1)
 !
 !-----------------------------------------------------------------------
-!***  # of words in BC wind data on each side of the domain
-!***  on this forecast task.
+!***  # of words in BC data on each side of the domain on this
+!***  forecast task.
 !-----------------------------------------------------------------------
 !
       fcst_tasks: IF(MYPE<=LAST_FCST_TASK)THEN
@@ -805,15 +814,171 @@
         JEND=JTE
 !
 !-----------------------------------------------------------------------
-!***  And how many boundary rows for V points?
+!***  And how many boundary rows for H and V points?
 !-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract LNSH from Write Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE_WRITE                    &  !<-- The Write component import state
+                              ,name ='LNSH'                             &  !<-- Name of the Attribute to extract
+                              ,value=wrt_int_state%LNSH                 &  !<-- Extract this Attribute from import state
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        LNSH=wrt_int_state%LNSH
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract LNSV from Write Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_AttributeGet(state=IMP_STATE_WRITE                    &  !<-- The Write component import state
                               ,name ='LNSV'                             &  !<-- Name of the Attribute to extract
                               ,value=wrt_int_state%LNSV                 &  !<-- Extract this Attribute from import state
                               ,rc   =RC)
 !
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
         LNSV=wrt_int_state%LNSV
+!
+!-----------------------------------------------------------------------
+!***  How many 2-D,3-D,4-D H-pt and 2-D,3-D V-pt boundary variables?
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract BC Vbl Dim Counts from Write Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE_WRITE                    &  !<-- The Write component import state
+                              ,name ='NVARS_BC_2D_H'                    &  !<-- Name of the Attribute to extract
+                              ,value=wrt_int_state%NVARS_BC_2D_H        &  !<-- Extract this Attribute from import state
+                              ,rc   =RC)
+!
+        NVARS_BC_2D_H=wrt_int_state%NVARS_BC_2D_H
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE_WRITE                    &  !<-- The Write component import state
+                              ,name ='NVARS_BC_3D_H'                    &  !<-- Name of the Attribute to extract
+                              ,value=wrt_int_state%NVARS_BC_3D_H        &  !<-- Extract this Attribute from import state
+                              ,rc   =RC)
+!
+        NVARS_BC_3D_H=wrt_int_state%NVARS_BC_3D_H
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE_WRITE                    &  !<-- The Write component import state
+                              ,name ='NVARS_BC_4D_H'                    &  !<-- Name of the Attribute to extract
+                              ,value=wrt_int_state%NVARS_BC_4D_H        &  !<-- Extract this Attribute from import state
+                              ,rc   =RC)
+!
+        NVARS_BC_4D_H=wrt_int_state%NVARS_BC_4D_H
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE_WRITE                    &  !<-- The Write component import state
+                              ,name ='NVARS_BC_2D_V'                    &  !<-- Name of the Attribute to extract
+                              ,value=wrt_int_state%NVARS_BC_2D_V        &  !<-- Extract this Attribute from import state
+                              ,rc   =RC)
+!
+        NVARS_BC_2D_V=wrt_int_state%NVARS_BC_2D_V
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE_WRITE                    &  !<-- The Write component import state
+                              ,name ='NVARS_BC_3D_V'                    &  !<-- Name of the Attribute to extract
+                              ,value=wrt_int_state%NVARS_BC_3D_V        &  !<-- Extract this Attribute from import state
+                              ,rc   =RC)
+!
+        NVARS_BC_3D_V=wrt_int_state%NVARS_BC_3D_V
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Lower/upper bounds of the count of the # of 3-D arrays within
+!***  each 4-D variable.
+!-----------------------------------------------------------------------
+!
+        IF(NVARS_BC_4D_H==0)THEN
+          ALLOCATE(wrt_int_state%LBND_4D(1:1))
+          ALLOCATE(wrt_int_state%UBND_4D(1:1))
+!
+!
+        ELSEIF(NVARS_BC_4D_H>0)THEN
+!
+          ALLOCATE(wrt_int_state%LBND_4D(1:NVARS_BC_4D_H))
+          ALLOCATE(wrt_int_state%UBND_4D(1:NVARS_BC_4D_H))
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract Lower Bnds of 3-D Arrays in 4-D Vbls"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(state=IMP_STATE_WRITE                  &  !<-- The Write component import state
+                                ,name ='LBND_4D'                        &  !<-- Name of the Attribute to extract
+                                ,itemCount=NVARS_BC_4D_H                &  !<-- # of 4-D boundary variables
+                                ,valueList=wrt_int_state%LBND_4D        &  !<-- Lower bounds of 3-D array count in each 4-D vbl
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract Upper Bnds of 3-D Arrays in 4-D Vbls"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeGet(state=IMP_STATE_WRITE                  &  !<-- The Write component import state
+                                ,name ='UBND_4D'                        &  !<-- Name of the Attribute to extract
+                                ,itemCount=NVARS_BC_4D_H                &  !<-- # of 4-D boundary variables
+                                ,valueList=wrt_int_state%UBND_4D        &  !<-- Upper bounds of 3-D array count in each 4-D vbl
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  How many total levels in H-pt and V-pt boundary variables?
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract NLEV_H from Write Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE_WRITE                    &  !<-- The Write component import state
+                              ,name ='NLEV_H'                           &  !<-- Name of the Attribute to extract
+                              ,value=wrt_int_state%NLEV_H               &  !<-- Extract this Attribute from import state
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        NLEV_H=wrt_int_state%NLEV_H
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract NLEV_V from Write Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE_WRITE                    &  !<-- The Write component import state
+                              ,name ='NLEV_V'                           &  !<-- Name of the Attribute to extract
+                              ,value=wrt_int_state%NLEV_V               &  !<-- Extract this Attribute from import state
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        NLEV_V=wrt_int_state%NLEV_V
 !
 !-----------------------------------------------------------------------
 !***  Compute the number of boundary words on boundary tasks then
@@ -821,8 +986,10 @@
 !***  assemble the full-domain boundary data.
 !-----------------------------------------------------------------------
 !
-        IF(JTS==1)THEN                                                     !<-- Fcst tasks on south boundary
-          wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE)=(5*LM+1)*2*LNSV*(IEND-ITS+1)
+        IF(JTS==JDS)THEN                                                   !<-- Fcst tasks on south boundary
+          wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE)=(NLEV_H*LNSH           &
+                                                 +NLEV_V*LNSV)          &
+                                                 *2*(ITE-ITS+1)
           ALLOCATE(wrt_int_state%RST_BC_DATA_SOUTH(1:wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE)),stat=ISTAT)
           IF(ISTAT/=0)WRITE(0,*)' Failed to allocate RST_BC_DATA_SOUTH'
 !
@@ -841,7 +1008,9 @@
 !-----------------------------------------------------------------------
 !
         IF(JTE==JDE)THEN                                                   !<-- Fcst tasks on north boundary
-          wrt_int_state%NUM_WORDS_BC_NORTH(MYPE)=(5*LM+1)*2*LNSV*(IEND-ITS+1)
+          wrt_int_state%NUM_WORDS_BC_NORTH(MYPE)=(NLEV_H*LNSH           &
+                                                 +NLEV_V*LNSV)          &
+                                                 *2*(ITE-ITS+1)
           ALLOCATE(wrt_int_state%RST_BC_DATA_NORTH(1:wrt_int_state%NUM_WORDS_BC_NORTH(MYPE)),stat=ISTAT)
           IF(ISTAT/=0)WRITE(0,*)' Failed to allocate RST_BC_DATA_NORTH'
 !
@@ -859,8 +1028,10 @@
 !
 !-----------------------------------------------------------------------
 !
-        IF(ITS==1)THEN                                                     !<-- Fcst tasks on west boundary
-          wrt_int_state%NUM_WORDS_BC_WEST(MYPE)=(5*LM+1)*2*LNSV*(JEND-JTS+1)
+        IF(ITS==IDS)THEN                                                   !<-- Fcst tasks on west boundary
+          wrt_int_state%NUM_WORDS_BC_WEST(MYPE)=(NLEV_H*LNSH            &
+                                                +NLEV_V*LNSV)           &
+                                                *2*(JTE-JTS+1)
           ALLOCATE(wrt_int_state%RST_BC_DATA_WEST(1:wrt_int_state%NUM_WORDS_BC_WEST(MYPE)),stat=ISTAT)
           IF(ISTAT/=0)WRITE(0,*)' Failed to allocate RST_BC_DATA_WEST'
 !
@@ -879,7 +1050,9 @@
 !-----------------------------------------------------------------------
 !
         IF(ITE==IDE)THEN                                                   !<-- Fcst tasks on east boundary
-          wrt_int_state%NUM_WORDS_BC_EAST(MYPE)=(5*LM+1)*2*LNSV*(JEND-JTS+1)
+          wrt_int_state%NUM_WORDS_BC_EAST(MYPE)=(NLEV_H*LNSH            &
+                                                +NLEV_V*LNSV)           &
+                                                *2*(JTE-JTS+1)
           ALLOCATE(wrt_int_state%RST_BC_DATA_EAST(1:wrt_int_state%NUM_WORDS_BC_EAST(MYPE)),stat=ISTAT)
           IF(ISTAT/=0)WRITE(0,*)' Failed to allocate RST_BC_DATA_EAST'
 !
@@ -956,7 +1129,7 @@
       ENDIF fcst_tasks
 !
 !-----------------------------------------------------------------------
-!***  Full-domain boundary wind data.
+!***  Full-domain boundary data.
 !-----------------------------------------------------------------------
 !
       IF(MYPE==0)THEN                                                      !<-- Fcst task 0 needs all the full arrays
@@ -965,40 +1138,87 @@
 !***  Each side of domain
 !-------------------------
 !
-        ALLOCATE(wrt_int_state%PDBS(1:IDE,1:LNSV,1:2))
-        ALLOCATE(wrt_int_state%PDBN(1:IDE,1:LNSV,1:2))
-        ALLOCATE(wrt_int_state%TBS(1:IDE,1:LNSV,1:LM,1:2))
-        ALLOCATE(wrt_int_state%TBN(1:IDE,1:LNSV,1:LM,1:2))
-        ALLOCATE(wrt_int_state%QBS(1:IDE,1:LNSV,1:LM,1:2))
-        ALLOCATE(wrt_int_state%QBN(1:IDE,1:LNSV,1:LM,1:2))
-        ALLOCATE(wrt_int_state%WBS(1:IDE,1:LNSV,1:LM,1:2))
-        ALLOCATE(wrt_int_state%WBN(1:IDE,1:LNSV,1:LM,1:2))
-        ALLOCATE(wrt_int_state%UBS(1:IDE,1:LNSV,1:LM,1:2))
-        ALLOCATE(wrt_int_state%UBN(1:IDE,1:LNSV,1:LM,1:2))
-        ALLOCATE(wrt_int_state%VBS(1:IDE,1:LNSV,1:LM,1:2))
-        ALLOCATE(wrt_int_state%VBN(1:IDE,1:LNSV,1:LM,1:2))
-
-        ALLOCATE(wrt_int_state%PDBW(1:LNSV,1:JDE,1:2))
-        ALLOCATE(wrt_int_state%PDBE(1:LNSV,1:JDE,1:2))
-        ALLOCATE(wrt_int_state%TBW(1:LNSV,1:JDE,1:LM,1:2))
-        ALLOCATE(wrt_int_state%TBE(1:LNSV,1:JDE,1:LM,1:2))
-        ALLOCATE(wrt_int_state%QBW(1:LNSV,1:JDE,1:LM,1:2))
-        ALLOCATE(wrt_int_state%QBE(1:LNSV,1:JDE,1:LM,1:2))
-        ALLOCATE(wrt_int_state%WBW(1:LNSV,1:JDE,1:LM,1:2))
-        ALLOCATE(wrt_int_state%WBE(1:LNSV,1:JDE,1:LM,1:2))
-        ALLOCATE(wrt_int_state%UBW(1:LNSV,1:JDE,1:LM,1:2))
-        ALLOCATE(wrt_int_state%UBE(1:LNSV,1:JDE,1:LM,1:2))
-        ALLOCATE(wrt_int_state%VBW(1:LNSV,1:JDE,1:LM,1:2))
-        ALLOCATE(wrt_int_state%VBE(1:LNSV,1:JDE,1:LM,1:2))
+        IF(NVARS_BC_2D_H>0)THEN
+!
+          ALLOCATE(wrt_int_state%BND_VARS_H%VAR_2D(1:NVARS_BC_2D_H))
+!
+          DO NV=1,NVARS_BC_2D_H
+            ALLOCATE(wrt_int_state%BND_VARS_H%VAR_2D(NV)%SOUTH(1:IDE,1:LNSH,1:2))
+            ALLOCATE(wrt_int_state%BND_VARS_H%VAR_2D(NV)%NORTH(1:IDE,1:LNSH,1:2))
+            ALLOCATE(wrt_int_state%BND_VARS_H%VAR_2D(NV)%WEST(1:LNSH,1:JDE,1:2))
+            ALLOCATE(wrt_int_state%BND_VARS_H%VAR_2D(NV)%EAST(1:LNSH,1:JDE,1:2))
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_H>0)THEN
+!
+          ALLOCATE(wrt_int_state%BND_VARS_H%VAR_3D(1:NVARS_BC_3D_H))
+!
+          DO NV=1,NVARS_BC_3D_H
+            ALLOCATE(wrt_int_state%BND_VARS_H%VAR_3D(NV)%SOUTH(1:IDE,1:LNSH,1:LM,1:2))
+            ALLOCATE(wrt_int_state%BND_VARS_H%VAR_3D(NV)%NORTH(1:IDE,1:LNSH,1:LM,1:2))
+            ALLOCATE(wrt_int_state%BND_VARS_H%VAR_3D(NV)%WEST(1:LNSH,1:JDE,1:LM,1:2))
+            ALLOCATE(wrt_int_state%BND_VARS_H%VAR_3D(NV)%EAST(1:LNSH,1:JDE,1:LM,1:2))
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_4D_H>0)THEN
+!
+          ALLOCATE(wrt_int_state%BND_VARS_H%VAR_4D(1:NVARS_BC_4D_H))
+!
+          DO NV=1,NVARS_BC_4D_H
+            LB=wrt_int_state%LBND_4D(NV)
+            UB=wrt_int_state%UBND_4D(NV)
+            DO NL=LB,UB
+              ALLOCATE(wrt_int_state%BND_VARS_H%VAR_4D(NV)%SOUTH(1:IDE,1:LNSH,1:LM,1:2,NL))
+              ALLOCATE(wrt_int_state%BND_VARS_H%VAR_4D(NV)%NORTH(1:IDE,1:LNSH,1:LM,1:2,NL))
+              ALLOCATE(wrt_int_state%BND_VARS_H%VAR_4D(NV)%WEST(1:LNSH,1:JDE,1:LM,1:2,NL))
+              ALLOCATE(wrt_int_state%BND_VARS_H%VAR_4D(NV)%EAST(1:LNSH,1:JDE,1:LM,1:2,NL))
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_2D_V>0)THEN
+!
+          ALLOCATE(wrt_int_state%BND_VARS_V%VAR_2D(1:NVARS_BC_2D_V))
+!
+          DO NV=1,NVARS_BC_2D_V
+            ALLOCATE(wrt_int_state%BND_VARS_V%VAR_2D(NV)%SOUTH(1:IDE,1:LNSV,1:2))
+            ALLOCATE(wrt_int_state%BND_VARS_V%VAR_2D(NV)%NORTH(1:IDE,1:LNSV,1:2))
+            ALLOCATE(wrt_int_state%BND_VARS_V%VAR_2D(NV)%WEST(1:LNSV,1:JDE,1:2))
+            ALLOCATE(wrt_int_state%BND_VARS_V%VAR_2D(NV)%EAST(1:LNSV,1:JDE,1:2))
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_V>0)THEN
+!
+          ALLOCATE(wrt_int_state%BND_VARS_V%VAR_3D(1:NVARS_BC_3D_V))
+!
+          DO NV=1,NVARS_BC_3D_V
+            ALLOCATE(wrt_int_state%BND_VARS_V%VAR_3D(NV)%SOUTH(1:IDE,1:LNSV,1:LM,1:2))
+            ALLOCATE(wrt_int_state%BND_VARS_V%VAR_3D(NV)%NORTH(1:IDE,1:LNSV,1:LM,1:2))
+            ALLOCATE(wrt_int_state%BND_VARS_V%VAR_3D(NV)%WEST(1:LNSV,1:JDE,1:LM,1:2))
+            ALLOCATE(wrt_int_state%BND_VARS_V%VAR_3D(NV)%EAST(1:LNSV,1:JDE,1:LM,1:2))
+          ENDDO
+        ENDIF
 !
 !-----------------
 !***  Full domain
 !-----------------
 !
-        NUM_WORDS_TOT=(5*LM+1)*2*2*LNSV*(IDE+JDE)                  !<-- Total # of words, full-domain bndry U,V arrays
+        NUM_WORDS_TOT=(NLEV_H*LNSH                                      &  !<-- Total # of words
+                      +NLEV_V*LNSV)                                     &  !    in full-domain
+                      *2*2*(IDE-IDS+JDE-JDS+2)                             !<-- boundary arrays
+!
         ALLOCATE(wrt_int_state%NUM_WORDS_SEND_BC(1))
         wrt_int_state%NUM_WORDS_SEND_BC(1)=NUM_WORDS_TOT
+!
         ALLOCATE(wrt_int_state%RST_ALL_BC_DATA(1:NUM_WORDS_TOT),stat=ISTAT)
+        IF(ISTAT/=0)THEN
+          WRITE(0,*)' Failed to allocate RST_ALL_BC_DATA in Write Initialize'
+          WRITE(0,*)' Aborting!'
+          CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
+        ENDIF
 !
       ENDIF
 !
@@ -1089,22 +1309,22 @@
                                 ,MPI_COMM_COMP                          &
                                 ,N_START,N_END                          &
                                 ,NPOSN_1,NPOSN_2                        &
-                                ,NSUM_WORDS  
+                                ,NSUM_WORDS    
 !
       INTEGER(kind=KINT),SAVE :: NSUM_WORDS_NEW=0
 !
       INTEGER(kind=KINT) :: I,I1,IJ,IJG,IM,IMJM                         &
                            ,J,JM,K,KOUNT                                &
-                           ,L,LEAD_TASK_DOMAIN                          &
+                           ,L,LB,LEAD_TASK_DOMAIN                       &
                            ,MY_LOCAL_ID,MY_RANK                         &
                            ,MYPE,MYPE_ROW                               &
                            ,N,N1,N2,NF,NN,NX                            &
                            ,NN_INTEGER,NN_REAL                          &
                            ,N_POSITION                                  &
-                           ,NA,NB,NC,ND                                 &
-                           ,NTASK                                       &
-                           ,NUM_ATTRIB                                  &
-                           ,WRITE_GROUP
+                           ,NA,NB,NC,ND,NL                              &
+                           ,NT,NTASK                                    &
+                           ,NUM_ATTRIB,NV                               &
+                           ,UB,WRITE_GROUP
 !
       INTEGER(kind=KINT) :: DIM1                                        &
                            ,DIM2                                        &
@@ -1331,10 +1551,10 @@
 !***  The forecast tasks increment the write group so they know 
 !***  which one is active.  Only the forecast tasks enter the 
 !***  Run step of the Write component every output time therefore 
-!***  only they need to increment the number of the current write group. 
-!***  group.  The quilt tasks belong to only a single write group so
-!***  if they present here then it must be their write group that is
-!***  active.
+!***  only they need to increment the number of the current write
+!***  group.  The quilt tasks belong to only a single write group
+!***  so if they present here then it must be their write group 
+!***  that is active.
 !-----------------------------------------------------------------------
 !
       IF(MYPE<=LAST_FCST_TASK)THEN
@@ -1974,7 +2194,7 @@
         write_send_outp_tim=write_send_outp_tim+timef()-btim
 !
 !-----------------------------------------------------------------------
-!***  The restart files need to contain the full-domain BC wind data
+!***  The restart files need to contain the full-domain BC data
 !***  in order for nests to produce bitwise identical results when
 !***  restarting as compared to their free forecasts.
 !***  Thus all boundary forecast tasks need to unload their pieces 
@@ -1994,8 +2214,8 @@
         IF(wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE)>0)THEN                   !<-- Fcst tasks along south boundary
 
           CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                        &  !<-- The Write component import state
-                                ,name     ='RST_BC_DATA_SOUTH'                    &  !<-- Name of south BC wind data on this task
-                                ,itemCount=wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE) &  !<-- # of words in this south BC wind data
+                                ,name     ='RST_BC_DATA_SOUTH'                    &  !<-- Name of south BC data on this task
+                                ,itemCount=wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE) &  !<-- # of words in this south BC data
                                 ,valueList=wrt_int_state%RST_BC_DATA_SOUTH        &  !<-- Place the data here
                                 ,rc       =RC)
 
@@ -2027,8 +2247,8 @@
         IF(wrt_int_state%NUM_WORDS_BC_NORTH(MYPE)>0)THEN                   !<-- Fcst tasks along north boundary
 
           CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                        &  !<-- The Write component import state
-                                ,name     ='RST_BC_DATA_NORTH'                    &  !<-- Name of north BC wind data on this task
-                                ,itemCount=wrt_int_state%NUM_WORDS_BC_NORTH(MYPE) &  !<-- # of words in this north BC wind data
+                                ,name     ='RST_BC_DATA_NORTH'                    &  !<-- Name of north BC data on this task
+                                ,itemCount=wrt_int_state%NUM_WORDS_BC_NORTH(MYPE) &  !<-- # of words in this north BC data
                                 ,valueList=wrt_int_state%RST_BC_DATA_NORTH        &  !<-- Place the data here
                                 ,rc       =RC)
 
@@ -2060,8 +2280,8 @@
         IF(wrt_int_state%NUM_WORDS_BC_WEST(MYPE)>0)THEN                    !<-- Fcst tasks along west boundary
 
           CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                       &  !<-- The Write component import state
-                                ,name     ='RST_BC_DATA_WEST'                    &  !<-- Name of west BC wind data on this task
-                                ,itemCount=wrt_int_state%NUM_WORDS_BC_WEST(MYPE) &  !<-- # of words in this west BC wind data
+                                ,name     ='RST_BC_DATA_WEST'                    &  !<-- Name of west BC data on this task
+                                ,itemCount=wrt_int_state%NUM_WORDS_BC_WEST(MYPE) &  !<-- # of words in this west BC data
                                 ,valueList=wrt_int_state%RST_BC_DATA_WEST        &  !<-- Place the data here
                                 ,rc       =RC)
 
@@ -2093,8 +2313,8 @@
         IF(wrt_int_state%NUM_WORDS_BC_EAST(MYPE)>0)THEN                    !<-- Fcst tasks along east boundary
 
           CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                       &  !<-- The Write component import state
-                                ,name     ='RST_BC_DATA_EAST'                    &  !<-- Name of west BC wind data on this task
-                                ,itemCount=wrt_int_state%NUM_WORDS_BC_EAST(MYPE) &  !<-- # of words in this east BC wind data
+                                ,name     ='RST_BC_DATA_EAST'                    &  !<-- Name of west BC data on this task
+                                ,itemCount=wrt_int_state%NUM_WORDS_BC_EAST(MYPE) &  !<-- # of words in this east BC data
                                 ,valueList=wrt_int_state%RST_BC_DATA_EAST        &  !<-- Place the data here
                                 ,rc       =RC)
 
@@ -2115,7 +2335,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  Forecast task 0 receives the boundary wind data from the
+!***  Forecast task 0 receives the boundary data from the
 !***  boundary tasks and assembles it into full-domain arrays.
 !-----------------------------------------------------------------------
 !
@@ -2146,31 +2366,100 @@
 !
               NX=0
 !
-              DO NB=1,LNSV
-              DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
-                wrt_int_state%PDBS(NA,NB,1)=BUFF_NTASK(NX+1)
-                wrt_int_state%PDBS(NA,NB,2)=BUFF_NTASK(NX+2)
-                NX=NX+2
-              ENDDO 
-              ENDDO 
+!-----------------------------------------------------------------------
+!***  Extract south boundary points for 2-D H-pt variables.
+!-----------------------------------------------------------------------
 !
-              DO NC=1,LM
-              DO NB=1,LNSV
-              DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
-                wrt_int_state%TBS(NA,NB,NC,1)=BUFF_NTASK(NX+ 1)
-                wrt_int_state%TBS(NA,NB,NC,2)=BUFF_NTASK(NX+ 2)
-                wrt_int_state%QBS(NA,NB,NC,1)=BUFF_NTASK(NX+ 3)
-                wrt_int_state%QBS(NA,NB,NC,2)=BUFF_NTASK(NX+ 4)
-                wrt_int_state%WBS(NA,NB,NC,1)=BUFF_NTASK(NX+ 5)
-                wrt_int_state%WBS(NA,NB,NC,2)=BUFF_NTASK(NX+ 6)
-                wrt_int_state%UBS(NA,NB,NC,1)=BUFF_NTASK(NX+ 7)
-                wrt_int_state%UBS(NA,NB,NC,2)=BUFF_NTASK(NX+ 8)
-                wrt_int_state%VBS(NA,NB,NC,1)=BUFF_NTASK(NX+ 9)
-                wrt_int_state%VBS(NA,NB,NC,2)=BUFF_NTASK(NX+10)
-                NX=NX+10
-              ENDDO 
-              ENDDO 
-              ENDDO 
+              IF(NVARS_BC_2D_H>0)THEN
+                DO NV=1,NVARS_BC_2D_H
+                  DO NT=1,2
+                  DO NB=1,LNSH
+                  DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_H%VAR_2D(NV)%SOUTH(NA,NB,NT)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO 
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract south boundary points for 3-D H-pt variables.
+!-----------------------------------------------------------------------
+!
+              IF(NVARS_BC_3D_H>0)THEN
+                DO NV=1,NVARS_BC_3D_H
+                  DO NT=1,2
+                  DO NC=1,LM
+                  DO NB=1,LNSH
+                  DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_H%VAR_3D(NV)%SOUTH(NA,NB,NC,NT)=BUFF_NTASK(NX)
+                  ENDDO 
+                  ENDDO 
+                  ENDDO 
+                  ENDDO 
+                ENDDO
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract south boundary points for 4-D H-pt variables.
+!-----------------------------------------------------------------------
+!
+              IF(NVARS_BC_4D_H>0)THEN
+                DO NV=1,NVARS_BC_4D_H
+                  LB=wrt_int_state%LBND_4D(NV)
+                  UB=wrt_int_state%UBND_4D(NV)
+                  DO NL=LB,UB
+                  DO NT=1,2
+                  DO NC=1,LM
+                  DO NB=1,LNSH
+                  DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_H%VAR_4D(NV)%SOUTH(NA,NB,NC,NT,NL)=BUFF_NTASK(NX)
+                  ENDDO 
+                  ENDDO 
+                  ENDDO 
+                  ENDDO 
+                  ENDDO 
+                ENDDO
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract south boundary points for 2-D V-pt variables.
+!-----------------------------------------------------------------------
+!
+              IF(NVARS_BC_2D_V>0)THEN
+                DO NV=1,NVARS_BC_2D_V
+                  DO NT=1,2
+                  DO NB=1,LNSV
+                  DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_V%VAR_2D(NV)%SOUTH(NA,NB,NT)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO 
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract south boundary points for 3-D V-pt variables.
+!-----------------------------------------------------------------------
+!
+              IF(NVARS_BC_3D_V>0)THEN
+                DO NV=1,NVARS_BC_3D_V
+                  DO NT=1,2
+                  DO NC=1,LM
+                  DO NB=1,LNSV
+                  DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_V%VAR_3D(NV)%SOUTH(NA,NB,NC,NT)=BUFF_NTASK(NX)
+                  ENDDO 
+                  ENDDO 
+                  ENDDO 
+                  ENDDO 
+                ENDDO
+              ENDIF
 !
               DEALLOCATE(BUFF_NTASK)
             ENDDO
@@ -2207,31 +2496,100 @@
 !
               NX=0
 !
-              DO NB=1,LNSV
-              DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
-                wrt_int_state%PDBN(NA,NB,1)=BUFF_NTASK(NX+1)
-                wrt_int_state%PDBN(NA,NB,2)=BUFF_NTASK(NX+2)
-                NX=NX+2
-              ENDDO 
-              ENDDO 
+!-----------------------------------------------------------------------
+!***  Extract north boundary points for 2-D H-pt variables.
+!-----------------------------------------------------------------------
 !
-              DO NC=1,LM
-              DO NB=1,LNSV
-              DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
-                wrt_int_state%TBN(NA,NB,NC,1)=BUFF_NTASK(NX+ 1)
-                wrt_int_state%TBN(NA,NB,NC,2)=BUFF_NTASK(NX+ 2)
-                wrt_int_state%QBN(NA,NB,NC,1)=BUFF_NTASK(NX+ 3)
-                wrt_int_state%QBN(NA,NB,NC,2)=BUFF_NTASK(NX+ 4)
-                wrt_int_state%WBN(NA,NB,NC,1)=BUFF_NTASK(NX+ 5)
-                wrt_int_state%WBN(NA,NB,NC,2)=BUFF_NTASK(NX+ 6)
-                wrt_int_state%UBN(NA,NB,NC,1)=BUFF_NTASK(NX+ 7)
-                wrt_int_state%UBN(NA,NB,NC,2)=BUFF_NTASK(NX+ 8)
-                wrt_int_state%VBN(NA,NB,NC,1)=BUFF_NTASK(NX+ 9)
-                wrt_int_state%VBN(NA,NB,NC,2)=BUFF_NTASK(NX+10)
-                NX=NX+10
-              ENDDO 
-              ENDDO 
-              ENDDO 
+              IF(NVARS_BC_2D_H>0)THEN
+                DO NV=1,NVARS_BC_2D_H
+                  DO NT=1,2
+                  DO NB=1,LNSH
+                  DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_H%VAR_2D(NV)%NORTH(NA,NB,NT)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract north boundary points for 3-D H-pt variables.
+!-----------------------------------------------------------------------
+!
+              IF(NVARS_BC_3D_H>0)THEN
+                DO NV=1,NVARS_BC_3D_H
+                  DO NT=1,2
+                  DO NC=1,LM
+                  DO NB=1,LNSH
+                  DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_H%VAR_3D(NV)%NORTH(NA,NB,NC,NT)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract north boundary points for 4-D H-pt variables.
+!-----------------------------------------------------------------------
+!
+              IF(NVARS_BC_4D_H>0)THEN
+                DO NV=1,NVARS_BC_4D_H
+                  LB=wrt_int_state%LBND_4D(NV)
+                  UB=wrt_int_state%UBND_4D(NV)
+                  DO NL=LB,UB
+                  DO NT=1,2
+                  DO NC=1,LM
+                  DO NB=1,LNSH
+                  DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_H%VAR_4D(NV)%NORTH(NA,NB,NC,NT,NL)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract north boundary points for 2-D V-pt variables.
+!-----------------------------------------------------------------------
+!
+              IF(NVARS_BC_2D_V>0)THEN
+                DO NV=1,NVARS_BC_2D_V
+                  DO NT=1,2
+                  DO NB=1,LNSV
+                  DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_V%VAR_2D(NV)%NORTH(NA,NB,NT)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract north boundary points for 3-D V-pt variables.
+!-----------------------------------------------------------------------
+!
+              IF(NVARS_BC_3D_V>0)THEN
+                DO NV=1,NVARS_BC_3D_V
+                  DO NT=1,2
+                  DO NC=1,LM
+                  DO NB=1,LNSV
+                  DO NA=wrt_int_state%LOCAL_ISTART(NTASK),wrt_int_state%LOCAL_IEND(NTASK)
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_V%VAR_3D(NV)%NORTH(NA,NB,NC,NT)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO
+              ENDIF
 !
               DEALLOCATE(BUFF_NTASK)
             ENDDO
@@ -2263,31 +2621,100 @@
 !
               NX=0
 !
-              DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
-              DO NA=1,LNSV
-                wrt_int_state%PDBW(NA,NB,1)=BUFF_NTASK(NX+1)
-                wrt_int_state%PDBW(NA,NB,2)=BUFF_NTASK(NX+2)
-                NX=NX+2
-              ENDDO 
-              ENDDO 
+!-----------------------------------------------------------------------
+!***  Extract west boundary points for 2-D H-pt variables.
+!-----------------------------------------------------------------------
 !
-              DO NC=1,LM
-              DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
-              DO NA=1,LNSV
-                wrt_int_state%TBW(NA,NB,NC,1)=BUFF_NTASK(NX+ 1)
-                wrt_int_state%TBW(NA,NB,NC,2)=BUFF_NTASK(NX+ 2)
-                wrt_int_state%QBW(NA,NB,NC,1)=BUFF_NTASK(NX+ 3)
-                wrt_int_state%QBW(NA,NB,NC,2)=BUFF_NTASK(NX+ 4)
-                wrt_int_state%WBW(NA,NB,NC,1)=BUFF_NTASK(NX+ 5)
-                wrt_int_state%WBW(NA,NB,NC,2)=BUFF_NTASK(NX+ 6)
-                wrt_int_state%UBW(NA,NB,NC,1)=BUFF_NTASK(NX+ 7)
-                wrt_int_state%UBW(NA,NB,NC,2)=BUFF_NTASK(NX+ 8)
-                wrt_int_state%VBW(NA,NB,NC,1)=BUFF_NTASK(NX+ 9)
-                wrt_int_state%VBW(NA,NB,NC,2)=BUFF_NTASK(NX+10)
-                NX=NX+10
-              ENDDO 
-              ENDDO 
-              ENDDO 
+              IF(NVARS_BC_2D_H>0)THEN
+                DO NV=1,NVARS_BC_2D_H
+                  DO NT=1,2
+                  DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
+                  DO NA=1,LNSH
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_H%VAR_2D(NV)%WEST(NA,NB,NT)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract west boundary points for 3-D H-pt variables.
+!-----------------------------------------------------------------------
+!
+              IF(NVARS_BC_3D_H>0)THEN
+                DO NV=1,NVARS_BC_3D_H
+                  DO NT=1,2
+                  DO NC=1,LM
+                  DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
+                  DO NA=1,LNSH
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_H%VAR_3D(NV)%WEST(NA,NB,NC,NT)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract west boundary points for 4-D H-pt variables.
+!-----------------------------------------------------------------------
+!
+              IF(NVARS_BC_4D_H>0)THEN
+                DO NV=1,NVARS_BC_4D_H
+                  LB=wrt_int_state%LBND_4D(NV)
+                  UB=wrt_int_state%UBND_4D(NV)
+                  DO NL=LB,UB
+                  DO NT=1,2
+                  DO NC=1,LM
+                  DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
+                  DO NA=1,LNSH
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_H%VAR_4D(NV)%WEST(NA,NB,NC,NT,NL)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract west boundary points for 2-D V-pt variables.
+!-----------------------------------------------------------------------
+!
+              IF(NVARS_BC_2D_V>0)THEN
+                DO NV=1,NVARS_BC_2D_V
+                  DO NT=1,2
+                  DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
+                  DO NA=1,LNSV
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_V%VAR_2D(NV)%WEST(NA,NB,NT)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract west boundary points for 3-D V-pt variables.
+!-----------------------------------------------------------------------
+!
+              IF(NVARS_BC_3D_V>0)THEN
+                DO NV=1,NVARS_BC_3D_V
+                  DO NT=1,2
+                  DO NC=1,LM
+                  DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
+                  DO NA=1,LNSV
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_V%VAR_3D(NV)%WEST(NA,NB,NC,NT)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO
+              ENDIF
 !
               DEALLOCATE(BUFF_NTASK)
             ENDDO
@@ -2324,31 +2751,100 @@
 !
               NX=0
 !
-              DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
-              DO NA=1,LNSV
-                wrt_int_state%PDBE(NA,NB,1)=BUFF_NTASK(NX+1)
-                wrt_int_state%PDBE(NA,NB,2)=BUFF_NTASK(NX+2)
-                NX=NX+2
-              ENDDO 
-              ENDDO 
+!-----------------------------------------------------------------------
+!***  Extract east boundary points for 2-D H-pt variables.
+!-----------------------------------------------------------------------
 !
-              DO NC=1,LM
-              DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
-              DO NA=1,LNSV
-                wrt_int_state%TBE(NA,NB,NC,1)=BUFF_NTASK(NX+ 1)
-                wrt_int_state%TBE(NA,NB,NC,2)=BUFF_NTASK(NX+ 2)
-                wrt_int_state%QBE(NA,NB,NC,1)=BUFF_NTASK(NX+ 3)
-                wrt_int_state%QBE(NA,NB,NC,2)=BUFF_NTASK(NX+ 4)
-                wrt_int_state%WBE(NA,NB,NC,1)=BUFF_NTASK(NX+ 5)
-                wrt_int_state%WBE(NA,NB,NC,2)=BUFF_NTASK(NX+ 6)
-                wrt_int_state%UBE(NA,NB,NC,1)=BUFF_NTASK(NX+ 7)
-                wrt_int_state%UBE(NA,NB,NC,2)=BUFF_NTASK(NX+ 8)
-                wrt_int_state%VBE(NA,NB,NC,1)=BUFF_NTASK(NX+ 9)
-                wrt_int_state%VBE(NA,NB,NC,2)=BUFF_NTASK(NX+10)
-                NX=NX+10
-              ENDDO 
-              ENDDO 
-              ENDDO 
+              IF(NVARS_BC_2D_H>0)THEN
+                DO NV=1,NVARS_BC_2D_H
+                  DO NT=1,2
+                  DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
+                  DO NA=1,LNSH
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_H%VAR_2D(NV)%EAST(NA,NB,NT)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract east boundary points for 3-D H-pt variables.
+!-----------------------------------------------------------------------
+!
+              IF(NVARS_BC_3D_H>0)THEN
+                DO NV=1,NVARS_BC_3D_H
+                  DO NT=1,2
+                  DO NC=1,LM
+                  DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
+                  DO NA=1,LNSH
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_H%VAR_3D(NV)%EAST(NA,NB,NC,NT)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract east boundary points for 4-D H-pt variables.
+!-----------------------------------------------------------------------
+!
+              IF(NVARS_BC_4D_H>0)THEN
+                DO NV=1,NVARS_BC_4D_H
+                  LB=wrt_int_state%LBND_4D(NV)
+                  UB=wrt_int_state%UBND_4D(NV)
+                  DO NL=LB,UB
+                  DO NT=1,2
+                  DO NC=1,LM
+                  DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
+                  DO NA=1,LNSH
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_H%VAR_4D(NV)%EAST(NA,NB,NC,NT,NL)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract east boundary points for 2-D V-pt variables.
+!-----------------------------------------------------------------------
+!
+              IF(NVARS_BC_2D_V>0)THEN
+                DO NV=1,NVARS_BC_2D_V
+                  DO NT=1,2
+                  DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
+                  DO NA=1,LNSV
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_V%VAR_2D(NV)%EAST(NA,NB,NT)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO
+              ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract east boundary points for 3-D V-pt variables.
+!-----------------------------------------------------------------------
+!
+              IF(NVARS_BC_3D_V>0)THEN
+                DO NV=1,NVARS_BC_3D_V
+                  DO NT=1,2
+                  DO NC=1,LM
+                  DO NB=wrt_int_state%LOCAL_JSTART(NTASK),wrt_int_state%LOCAL_JEND(NTASK)
+                  DO NA=1,LNSV
+                    NX=NX+1
+                    wrt_int_state%BND_VARS_V%VAR_3D(NV)%EAST(NA,NB,NC,NT)=BUFF_NTASK(NX)
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                  ENDDO
+                ENDDO
+              ENDIF
 !
               DEALLOCATE(BUFF_NTASK)
             ENDDO
@@ -2356,127 +2852,443 @@
           ENDIF recv_east
 !
 !-----------------------------------------------------------------------
-!***  Forecast task 0's own BC data.
+!***  Forecast task 0's own BC data.  First the south boundary.
 !-----------------------------------------------------------------------
 !
-          IF(JTS==1)THEN                                                   !<-- Fcst task 0's south boundary data    
+          IF(JTS==JDS)THEN
+!
             NX=0
 !
-            DO NB=1,LNSV
-            DO NA=ITS,ITE
-              wrt_int_state%PDBS(NA,NB,1)=wrt_int_state%RST_BC_DATA_SOUTH(NX+1)
-              wrt_int_state%PDBS(NA,NB,2)=wrt_int_state%RST_BC_DATA_SOUTH(NX+2)
-              NX=NX+2
-            ENDDO 
-            ENDDO 
+!-----------------------------------------------------------------------
+!***  Extract south boundary points for 2-D H-pt variables.
+!-----------------------------------------------------------------------
 !
-            DO NC=1,LM
-            DO NB=1,LNSV
-            DO NA=ITS,ITE
-              wrt_int_state%TBS(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 1)
-              wrt_int_state%TBS(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 2)
-              wrt_int_state%QBS(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 3)
-              wrt_int_state%QBS(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 4)
-              wrt_int_state%WBS(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 5)
-              wrt_int_state%WBS(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 6)
-              wrt_int_state%UBS(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 7)
-              wrt_int_state%UBS(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 8)
-              wrt_int_state%VBS(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_SOUTH(NX+ 9)
-              wrt_int_state%VBS(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_SOUTH(NX+10)
-              NX=NX+10
-            ENDDO 
-            ENDDO 
-            ENDDO 
+            IF(NVARS_BC_2D_H>0)THEN
+              DO NV=1,NVARS_BC_2D_H
+                DO NT=1,2
+                DO NB=1,LNSH
+                DO NA=ITS,ITE
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_H%VAR_2D(NV)%SOUTH(NA,NB,NT)=  &
+                      wrt_int_state%RST_BC_DATA_SOUTH(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract south boundary points for 3-D H-pt variables.
+!-----------------------------------------------------------------------
+!
+            IF(NVARS_BC_3D_H>0)THEN
+              DO NV=1,NVARS_BC_3D_H
+                DO NT=1,2
+                DO NC=1,LM
+                DO NB=1,LNSH
+                DO NA=ITS,ITE
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_H%VAR_3D(NV)%SOUTH(NA,NB,NC,NT)= &
+                     wrt_int_state%RST_BC_DATA_SOUTH(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract south boundary points for 4-D H-pt variables.
+!-----------------------------------------------------------------------
+!
+            IF(NVARS_BC_4D_H>0)THEN
+              DO NV=1,NVARS_BC_4D_H
+                LB=wrt_int_state%LBND_4D(NV)
+                UB=wrt_int_state%UBND_4D(NV)
+                DO NL=LB,UB
+                DO NT=1,2
+                DO NC=1,LM
+                DO NB=1,LNSH
+                DO NA=ITS,ITE
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_H%VAR_4D(NV)%SOUTH(NA,NB,NC,NT,NL)= &
+                     wrt_int_state%RST_BC_DATA_SOUTH(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract south boundary points for 2-D V-pt variables.
+!-----------------------------------------------------------------------
+!
+            IF(NVARS_BC_2D_V>0)THEN
+              DO NV=1,NVARS_BC_2D_V
+                DO NT=1,2
+                DO NB=1,LNSV
+                DO NA=ITS,ITE
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_V%VAR_2D(NV)%SOUTH(NA,NB,NT)= &
+                     wrt_int_state%RST_BC_DATA_SOUTH(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract south boundary points for 3-D V-pt variables.
+!-----------------------------------------------------------------------
+!
+            IF(NVARS_BC_3D_V>0)THEN
+              DO NV=1,NVARS_BC_3D_V
+                DO NT=1,2
+                DO NC=1,LM
+                DO NB=1,LNSV
+                DO NA=ITS,ITE
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_V%VAR_3D(NV)%SOUTH(NA,NB,NC,NT)= &
+                     wrt_int_state%RST_BC_DATA_SOUTH(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
           ENDIF
 !
-          IF(JTE==JDE)THEN                                                 !<-- Fcst task 0's north boundary data    
+!-----------------------------------------------------------------------
+!***  Forecast task 0's north boundary.
+!-----------------------------------------------------------------------
+!
+          IF(JTE==JDE)THEN     
+!
             NX=0
 !
-            DO NB=1,LNSV
-            DO NA=ITS,ITE
-              wrt_int_state%PDBN(NA,NB,1)=wrt_int_state%RST_BC_DATA_NORTH(NX+1)
-              wrt_int_state%PDBN(NA,NB,2)=wrt_int_state%RST_BC_DATA_NORTH(NX+2)
-              NX=NX+2
-            ENDDO 
-            ENDDO 
+!-----------------------------------------------------------------------
+!***  Extract north boundary points for 2-D H-pt variables.
+!-----------------------------------------------------------------------
 !
-            DO NC=1,LM
-            DO NB=1,LNSV
-            DO NA=ITS,ITE
-              wrt_int_state%TBN(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 1)
-              wrt_int_state%TBN(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 2)
-              wrt_int_state%QBN(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 3)
-              wrt_int_state%QBN(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 4)
-              wrt_int_state%WBN(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 5)
-              wrt_int_state%WBN(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 6)
-              wrt_int_state%UBN(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 7)
-              wrt_int_state%UBN(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 8)
-              wrt_int_state%VBN(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_NORTH(NX+ 9)
-              wrt_int_state%VBN(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_NORTH(NX+10)
-              NX=NX+10
-            ENDDO 
-            ENDDO 
-            ENDDO 
+            IF(NVARS_BC_2D_H>0)THEN
+              DO NV=1,NVARS_BC_2D_H
+                DO NT=1,2
+                DO NB=1,LNSH
+                DO NA=ITS,ITE
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_H%VAR_2D(NV)%NORTH(NA,NB,NT)=  &
+                      wrt_int_state%RST_BC_DATA_NORTH(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract north boundary points for 3-D H-pt variables.
+!-----------------------------------------------------------------------
+!
+            IF(NVARS_BC_3D_H>0)THEN
+              DO NV=1,NVARS_BC_3D_H
+                DO NT=1,2
+                DO NC=1,LM
+                DO NB=1,LNSH
+                DO NA=ITS,ITE
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_H%VAR_3D(NV)%NORTH(NA,NB,NC,NT)= &
+                     wrt_int_state%RST_BC_DATA_NORTH(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract north boundary points for 4-D H-pt variables.
+!-----------------------------------------------------------------------
+!
+            IF(NVARS_BC_4D_H>0)THEN
+              DO NV=1,NVARS_BC_4D_H
+                LB=wrt_int_state%LBND_4D(NV)
+                UB=wrt_int_state%UBND_4D(NV)
+                DO NL=LB,UB
+                DO NT=1,2
+                DO NC=1,LM
+                DO NB=1,LNSH
+                DO NA=ITS,ITE
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_H%VAR_4D(NV)%NORTH(NA,NB,NC,NT,NL)= &
+                     wrt_int_state%RST_BC_DATA_NORTH(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract north boundary points for 2-D V-pt variables.
+!-----------------------------------------------------------------------
+!
+            IF(NVARS_BC_2D_V>0)THEN
+              DO NV=1,NVARS_BC_2D_V
+                DO NT=1,2
+                DO NB=1,LNSV
+                DO NA=ITS,ITE
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_V%VAR_2D(NV)%NORTH(NA,NB,NT)= &
+                     wrt_int_state%RST_BC_DATA_NORTH(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract north boundary points for 3-D V-pt variables.
+!-----------------------------------------------------------------------
+!
+            IF(NVARS_BC_3D_V>0)THEN
+              DO NV=1,NVARS_BC_3D_V
+                DO NT=1,2
+                DO NC=1,LM
+                DO NB=1,LNSV
+                DO NA=ITS,ITE
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_V%VAR_3D(NV)%NORTH(NA,NB,NC,NT)= &
+                     wrt_int_state%RST_BC_DATA_NORTH(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
           ENDIF
 !
-          IF(ITS==1)THEN                                                   !<-- Fcst task 0's west boundary data    
+!-----------------------------------------------------------------------
+!***  Forecast task 0's west boundary.
+!-----------------------------------------------------------------------
+!
+          IF(ITS==IDS)THEN  
+!
             NX=0
 !
-            DO NB=JTS,JTE
-            DO NA=1,LNSV
-              wrt_int_state%PDBW(NA,NB,1)=wrt_int_state%RST_BC_DATA_WEST(NX+1)
-              wrt_int_state%PDBW(NA,NB,2)=wrt_int_state%RST_BC_DATA_WEST(NX+2)
-              NX=NX+2
-            ENDDO 
-            ENDDO 
+!-----------------------------------------------------------------------
+!***  Extract west boundary points for 2-D H-pt variables.
+!-----------------------------------------------------------------------
 !
-            DO NC=1,LM
-            DO NB=JTS,JTE
-            DO NA=1,LNSV
-              wrt_int_state%TBW(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_WEST(NX+ 1)
-              wrt_int_state%TBW(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_WEST(NX+ 2)
-              wrt_int_state%QBW(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_WEST(NX+ 3)
-              wrt_int_state%QBW(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_WEST(NX+ 4)
-              wrt_int_state%WBW(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_WEST(NX+ 5)
-              wrt_int_state%WBW(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_WEST(NX+ 6)
-              wrt_int_state%UBW(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_WEST(NX+ 7)
-              wrt_int_state%UBW(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_WEST(NX+ 8)
-              wrt_int_state%VBW(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_WEST(NX+ 9)
-              wrt_int_state%VBW(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_WEST(NX+10)
-              NX=NX+10
-            ENDDO 
-            ENDDO 
-            ENDDO 
+            IF(NVARS_BC_2D_H>0)THEN
+              DO NV=1,NVARS_BC_2D_H
+                DO NT=1,2
+                DO NB=JTS,JTE
+                DO NA=1,LNSH
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_H%VAR_2D(NV)%WEST(NA,NB,NT)=   &
+                      wrt_int_state%RST_BC_DATA_WEST(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract west boundary points for 3-D H-pt variables.
+!-----------------------------------------------------------------------
+!
+            IF(NVARS_BC_3D_H>0)THEN
+              DO NV=1,NVARS_BC_3D_H
+                DO NT=1,2
+                DO NC=1,LM
+                DO NB=JTS,JTE
+                DO NA=1,LNSH
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_H%VAR_3D(NV)%WEST(NA,NB,NC,NT)=  &
+                     wrt_int_state%RST_BC_DATA_WEST(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract west boundary points for 4-D H-pt variables.
+!-----------------------------------------------------------------------
+!
+            IF(NVARS_BC_4D_H>0)THEN
+              DO NV=1,NVARS_BC_3D_H
+                LB=wrt_int_state%LBND_4D(NV)
+                UB=wrt_int_state%UBND_4D(NV)
+                DO NL=LB,UB
+                DO NT=1,2
+                DO NC=1,LM
+                DO NB=JTS,JTE
+                DO NA=1,LNSH
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_H%VAR_4D(NV)%WEST(NA,NB,NC,NT,NL)=  &
+                     wrt_int_state%RST_BC_DATA_WEST(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract west boundary points for 2-D V-pt variables.
+!-----------------------------------------------------------------------
+!
+            IF(NVARS_BC_2D_V>0)THEN
+              DO NV=1,NVARS_BC_2D_V
+                DO NT=1,2
+                DO NB=JTS,JTE
+                DO NA=1,LNSV
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_V%VAR_2D(NV)%WEST(NA,NB,NT)=   &
+                      wrt_int_state%RST_BC_DATA_WEST(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract west boundary points for 3-D V-pt variables.
+!-----------------------------------------------------------------------
+!
+            IF(NVARS_BC_3D_V>0)THEN
+              DO NV=1,NVARS_BC_3D_V
+                DO NT=1,2
+                DO NC=1,LM
+                DO NB=JTS,JTE
+                DO NA=1,LNSV
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_V%VAR_3D(NV)%WEST(NA,NB,NC,NT)=  &
+                     wrt_int_state%RST_BC_DATA_WEST(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
           ENDIF
 !
-          IF(ITE==IDE)THEN                                                  !<-- Fcst task 0's east boundary data    
+!-----------------------------------------------------------------------
+!***  Forecast task 0's east boundary.
+!-----------------------------------------------------------------------
+!
+          IF(ITE==IDE)THEN
+!
             NX=0
 !
-            DO NB=JTS,JTE
-            DO NA=1,LNSV
-              wrt_int_state%PDBE(NA,NB,1)=wrt_int_state%RST_BC_DATA_EAST(NX+1)
-              wrt_int_state%PDBE(NA,NB,2)=wrt_int_state%RST_BC_DATA_EAST(NX+2)
-              NX=NX+2
-            ENDDO 
-            ENDDO 
+!-----------------------------------------------------------------------
+!***  Extract east boundary points for 2-D H-pt variables.
+!-----------------------------------------------------------------------
 !
-            DO NC=1,LM
-            DO NB=JTS,JTE
-            DO NA=1,LNSV
-              wrt_int_state%TBE(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_EAST(NX+ 1)
-              wrt_int_state%TBE(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_EAST(NX+ 2)
-              wrt_int_state%QBE(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_EAST(NX+ 3)
-              wrt_int_state%QBE(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_EAST(NX+ 4)
-              wrt_int_state%WBE(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_EAST(NX+ 5)
-              wrt_int_state%WBE(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_EAST(NX+ 6)
-              wrt_int_state%UBE(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_EAST(NX+ 7)
-              wrt_int_state%UBE(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_EAST(NX+ 8)
-              wrt_int_state%VBE(NA,NB,NC,1)=wrt_int_state%RST_BC_DATA_EAST(NX+ 9)
-              wrt_int_state%VBE(NA,NB,NC,2)=wrt_int_state%RST_BC_DATA_EAST(NX+10)
-              NX=NX+10
-            ENDDO 
-            ENDDO 
-            ENDDO 
+            IF(NVARS_BC_2D_H>0)THEN
+              DO NV=1,NVARS_BC_2D_H
+                DO NT=1,2
+                DO NB=JTS,JTE
+                DO NA=1,LNSH
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_H%VAR_2D(NV)%EAST(NA,NB,NT)=   &
+                      wrt_int_state%RST_BC_DATA_EAST(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract east boundary points for 3-D H-pt variables.
+!-----------------------------------------------------------------------
+!
+            IF(NVARS_BC_3D_H>0)THEN
+              DO NV=1,NVARS_BC_3D_H
+                DO NT=1,2
+                DO NC=1,LM
+                DO NB=JTS,JTE
+                DO NA=1,LNSH
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_H%VAR_3D(NV)%EAST(NA,NB,NC,NT)=  &
+                     wrt_int_state%RST_BC_DATA_EAST(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract east boundary points for 4-D H-pt variables.
+!-----------------------------------------------------------------------
+!
+            IF(NVARS_BC_4D_H>0)THEN
+              DO NV=1,NVARS_BC_3D_H
+                LB=wrt_int_state%LBND_4D(NV)
+                UB=wrt_int_state%UBND_4D(NV)
+                DO NL=LB,UB
+                DO NT=1,2
+                DO NC=1,LM
+                DO NB=JTS,JTE
+                DO NA=1,LNSH
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_H%VAR_4D(NV)%EAST(NA,NB,NC,NT,NL)=  &
+                     wrt_int_state%RST_BC_DATA_EAST(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract east boundary points for 2-D V-pt variables.
+!-----------------------------------------------------------------------
+!
+            IF(NVARS_BC_2D_V>0)THEN
+              DO NV=1,NVARS_BC_2D_V
+                DO NT=1,2
+                DO NB=JTS,JTE
+                DO NA=1,LNSV
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_V%VAR_2D(NV)%EAST(NA,NB,NT)=   &
+                      wrt_int_state%RST_BC_DATA_EAST(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Extract east boundary points for 3-D V-pt variables.
+!-----------------------------------------------------------------------
+!
+            IF(NVARS_BC_3D_V>0)THEN
+              DO NV=1,NVARS_BC_3D_V
+                DO NT=1,2
+                DO NC=1,LM
+                DO NB=JTS,JTE
+                DO NA=1,LNSV
+                  NX=NX+1
+                  wrt_int_state%BND_VARS_V%VAR_3D(NV)%EAST(NA,NB,NC,NT)=  &
+                     wrt_int_state%RST_BC_DATA_EAST(NX)
+                ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDIF
+!
           ENDIF
 !
 !-----------------------------------------------------------------------
@@ -2486,108 +3298,344 @@
 !
           KOUNT=0
 !
-!------------------------
-!***  South Boundary U,V
-!------------------------
+!--------------------
+!***  South Boundary
+!--------------------
 !
-          DO ND=1,2
-          DO NB=1,LNSV
-          DO NA=1,IDE
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%PDBS(NA,NB,ND)
-            KOUNT=KOUNT+1
-          ENDDO
-          ENDDO
-          DO NC=1,LM
-          DO NB=1,LNSV
-          DO NA=1,IDE
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%TBS(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+2)=wrt_int_state%QBS(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+3)=wrt_int_state%WBS(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+4)=wrt_int_state%UBS(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+5)=wrt_int_state%VBS(NA,NB,NC,ND)
-            KOUNT=KOUNT+5
-          ENDDO
-          ENDDO
-          ENDDO
-          ENDDO
+          IF(NVARS_BC_2D_H>0)THEN
+            DO NV=1,NVARS_BC_2D_H
+              DO NT=1,2
+              DO NB=1,LNSH
+              DO NA=1,IDE
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_H%VAR_2D(NV)%SOUTH(NA,NB,NT)
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
-!------------------------
-!***  North Boundary U,V
-!------------------------
+          IF(NVARS_BC_3D_H>0)THEN
+            DO NV=1,NVARS_BC_3D_H
+              DO NT=1,2
+              DO NC=1,LM
+              DO NB=1,LNSH
+              DO NA=1,IDE
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_H%VAR_3D(NV)%SOUTH(NA,NB,NC,NT)
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
-          DO ND=1,2
-          DO NB=1,LNSV
-          DO NA=1,IDE
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%PDBN(NA,NB,ND)
-            KOUNT=KOUNT+1
-          ENDDO
-          ENDDO
-          DO NC=1,LM
-          DO NB=1,LNSV
-          DO NA=1,IDE
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%TBN(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+2)=wrt_int_state%QBN(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+3)=wrt_int_state%WBN(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+4)=wrt_int_state%UBN(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+5)=wrt_int_state%VBN(NA,NB,NC,ND)
-            KOUNT=KOUNT+5
-          ENDDO
-          ENDDO
-          ENDDO
-          ENDDO
+          IF(NVARS_BC_4D_H>0)THEN
+            DO NV=1,NVARS_BC_4D_H
+              LB=wrt_int_state%LBND_4D(NV)
+              UB=wrt_int_state%UBND_4D(NV)
+              DO NL=LB,UB
+              DO NT=1,2
+              DO NC=1,LM
+              DO NB=1,LNSH
+              DO NA=1,IDE
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_H%VAR_4D(NV)%SOUTH(NA,NB,NC,NT,NL)
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
-!-----------------------
-!***  West Boundary U,V
-!-----------------------
+          IF(NVARS_BC_2D_V>0)THEN
+            DO NV=1,NVARS_BC_2D_V
+              DO NT=1,2
+              DO NB=1,LNSV
+              DO NA=1,IDE
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_V%VAR_2D(NV)%SOUTH(NA,NB,NT)
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
-          DO ND=1,2
-          DO NB=1,JDE
-          DO NA=1,LNSV
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%PDBW(NA,NB,ND)
-            KOUNT=KOUNT+1
-          ENDDO
-          ENDDO
-          DO NC=1,LM
-          DO NB=1,JDE
-          DO NA=1,LNSV
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%TBW(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+2)=wrt_int_state%QBW(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+3)=wrt_int_state%WBW(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+4)=wrt_int_state%UBW(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+5)=wrt_int_state%VBW(NA,NB,NC,ND)
-            KOUNT=KOUNT+5
-          ENDDO
-          ENDDO
-          ENDDO
-          ENDDO
+          IF(NVARS_BC_3D_V>0)THEN
+            DO NV=1,NVARS_BC_3D_V
+              DO NT=1,2
+              DO NC=1,LM
+              DO NB=1,LNSV
+              DO NA=1,IDE
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_V%VAR_3D(NV)%SOUTH(NA,NB,NC,NT)
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
-!-----------------------
-!***  East Boundary U,V
-!-----------------------
+!--------------------
+!***  North Boundary
+!--------------------
 !
-          DO ND=1,2
-          DO NB=1,JDE
-          DO NA=1,LNSV
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%PDBE(NA,NB,ND)
-            KOUNT=KOUNT+1
-          ENDDO
-          ENDDO
-          DO NC=1,LM
-          DO NB=1,JDE
-          DO NA=1,LNSV
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+1)=wrt_int_state%TBE(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+2)=wrt_int_state%QBE(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+3)=wrt_int_state%WBE(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+4)=wrt_int_state%UBE(NA,NB,NC,ND)
-            wrt_int_state%RST_ALL_BC_DATA(KOUNT+5)=wrt_int_state%VBE(NA,NB,NC,ND)
-            KOUNT=KOUNT+5
-          ENDDO
-          ENDDO
-          ENDDO
-          ENDDO
+          IF(NVARS_BC_2D_H>0)THEN
+            DO NV=1,NVARS_BC_2D_H
+              DO NT=1,2
+              DO NB=1,LNSH
+              DO NA=1,IDE
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_H%VAR_2D(NV)%NORTH(NA,NB,NT)
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_H>0)THEN
+            DO NV=1,NVARS_BC_3D_H
+              DO NT=1,2
+              DO NC=1,LM
+              DO NB=1,LNSH
+              DO NA=1,IDE
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_H%VAR_3D(NV)%NORTH(NA,NB,NC,NT)
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_4D_H>0)THEN
+            DO NV=1,NVARS_BC_4D_H
+              LB=wrt_int_state%LBND_4D(NV)
+              UB=wrt_int_state%UBND_4D(NV)
+              DO NL=LB,UB
+              DO NT=1,2
+              DO NC=1,LM
+              DO NB=1,LNSH
+              DO NA=1,IDE
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_H%VAR_4D(NV)%NORTH(NA,NB,NC,NT,NL)
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_2D_V>0)THEN
+            DO NV=1,NVARS_BC_2D_V
+              DO NT=1,2
+              DO NB=1,LNSV
+              DO NA=1,IDE
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_V%VAR_2D(NV)%NORTH(NA,NB,NT)
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_V>0)THEN
+            DO NV=1,NVARS_BC_3D_V
+              DO NT=1,2
+              DO NC=1,LM
+              DO NB=1,LNSV
+              DO NA=1,IDE
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_V%VAR_3D(NV)%NORTH(NA,NB,NC,NT)
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+!-------------------
+!***  West Boundary
+!-------------------
+!
+          IF(NVARS_BC_2D_H>0)THEN
+            DO NV=1,NVARS_BC_2D_H
+              DO NT=1,2
+              DO NB=1,JDE
+              DO NA=1,LNSH
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_H%VAR_2D(NV)%WEST(NA,NB,NT)
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_H>0)THEN
+            DO NV=1,NVARS_BC_3D_H
+              DO NT=1,2
+              DO NC=1,LM
+              DO NB=1,JDE
+              DO NA=1,LNSH
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_H%VAR_3D(NV)%WEST(NA,NB,NC,NT)
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_4D_H>0)THEN
+            DO NV=1,NVARS_BC_4D_H
+              LB=wrt_int_state%LBND_4D(NV)
+              UB=wrt_int_state%UBND_4D(NV)
+              DO NL=LB,UB
+              DO NT=1,2
+              DO NC=1,LM
+              DO NB=1,JDE
+              DO NA=1,LNSH
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_H%VAR_4D(NV)%WEST(NA,NB,NC,NT,NL)
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_2D_V>0)THEN
+            DO NV=1,NVARS_BC_2D_V
+              DO NT=1,2
+              DO NB=1,JDE
+              DO NA=1,LNSV
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_V%VAR_2D(NV)%WEST(NA,NB,NT)
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_V>0)THEN
+            DO NV=1,NVARS_BC_3D_V
+              DO NT=1,2
+              DO NC=1,LM
+              DO NB=1,JDE
+              DO NA=1,LNSV
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_V%VAR_3D(NV)%WEST(NA,NB,NC,NT)
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+!-------------------
+!***  East Boundary
+!-------------------
+!
+          IF(NVARS_BC_2D_H>0)THEN
+            DO NV=1,NVARS_BC_2D_H
+              DO NT=1,2
+              DO NB=1,JDE
+              DO NA=1,LNSH
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_H%VAR_2D(NV)%EAST(NA,NB,NT)
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_H>0)THEN
+            DO NV=1,NVARS_BC_3D_H
+              DO NT=1,2
+              DO NC=1,LM
+              DO NB=1,JDE
+              DO NA=1,LNSH
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_H%VAR_3D(NV)%EAST(NA,NB,NC,NT)
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_4D_H>0)THEN
+            DO NV=1,NVARS_BC_4D_H
+              LB=wrt_int_state%LBND_4D(NV)
+              UB=wrt_int_state%UBND_4D(NV)
+              DO NL=LB,UB
+              DO NT=1,2
+              DO NC=1,LM
+              DO NB=1,JDE
+              DO NA=1,LNSH
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_H%VAR_4D(NV)%EAST(NA,NB,NC,NT,NL)
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_2D_V>0)THEN
+            DO NV=1,NVARS_BC_2D_V
+              DO NT=1,2
+              DO NB=1,JDE
+              DO NA=1,LNSV
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_V%VAR_2D(NV)%EAST(NA,NB,NT)
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_V>0)THEN
+            DO NV=1,NVARS_BC_3D_V
+              DO NT=1,2
+              DO NC=1,LM
+              DO NB=1,JDE
+              DO NA=1,LNSV
+                KOUNT=KOUNT+1
+                wrt_int_state%RST_ALL_BC_DATA(KOUNT)=                   &
+                  wrt_int_state%BND_VARS_V%VAR_3D(NV)%EAST(NA,NB,NC,NT)
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Now forecast task 0 must send the full-domain boundary wind data
+!***  Now forecast task 0 must send the full-domain boundary data
 !***  to the lead write task for inserting it into the restart file.
 !-----------------------------------------------------------------------
 !
@@ -2600,7 +3648,7 @@
           wait_time=timef()-btim
           if(wait_time>1.e3)write(0,*)' Long BC buffer WAIT =',wait_time*1.e-3
 !
-          CALL MPI_ISSEND(wrt_int_state%RST_ALL_BC_DATA                 &  !<-- 1-D String of full domain BC wind data
+          CALL MPI_ISSEND(wrt_int_state%RST_ALL_BC_DATA                 &  !<-- 1-D String of full domain BC data
                          ,wrt_int_state%NUM_WORDS_SEND_BC(1)            &  !<-- # of words in the BC data string
                          ,MPI_REAL                                      &  !<-- The datatype
                          ,0                                             &  !<-- Local ID of lead write task
@@ -3664,14 +4712,14 @@
       ENDDO rst_from_fcst_tasks
 !
 !-----------------------------------------------------------------------
-!***  The lead Write task must receive the full-domain boundary wind
-!***  data from the lead Forecast task.  The data is required in the
-!***  restart files when nests are present.
+!***  The lead Write task must receive the full-domain boundary 
+!***  data from the lead Forecast task.  The data is required in
+!***  the restart files when nests are present.
 !-----------------------------------------------------------------------
 !
       insert_bc_data: IF(MYPE==LEAD_WRITE_TASK)THEN                        !<-- The lead write task
 !
-        CALL MPI_RECV(wrt_int_state%RST_ALL_BC_DATA                     &  !<-- 1-D string of BC wind data for restart
+        CALL MPI_RECV(wrt_int_state%RST_ALL_BC_DATA                     &  !<-- 1-D string of BC data for restart
                      ,wrt_int_state%NUM_WORDS_SEND_BC(1)                &  !<-- # of words in the data string
                      ,MPI_REAL                                          &  !<-- The datatype
                      ,0                                                 &  !<-- Recv from this fcst task

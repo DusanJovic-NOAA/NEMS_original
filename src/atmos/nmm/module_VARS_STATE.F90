@@ -426,9 +426,6 @@
                                   ,name       =VARS(N)%VBL_NAME         &  !<-- Name of the integer scalar
                                   ,value      =VARS(N)%I0D              &  !<-- The scalar being inserted into the import state
                                   ,rc         =RC)
-!     if(trim(VARS(N)%VBL_NAME)=='NMTS')then
-!       write(0,*)' PUT_VARS_IN_BUNDLES n=',n,' set name=',trim(VARS(N)%VBL_NAME),' in Restart bundle rc=',rc
-!     endif
           END IF
 
         END IF
@@ -841,7 +838,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             FIELD=ESMF_FieldCreate(grid         =GRID                   &  !<-- The ESMF grid
-                                  ,farray       =VARS(N)%R4D(:,:,K,M)               &  !<-- Level K of 4D real array being inserted into history Bundle
+                                  ,farray       =VARS(N)%R4D(:,:,K,M)   &  !<-- Level K of 4D real array being inserted into history Bundle
                                   ,datacopyflag =COPYFLAG               &
                                   ,totalUWidth  =(/IHALO,JHALO/)        &
                                   ,totalLWidth  =(/IHALO,JHALO/)        &

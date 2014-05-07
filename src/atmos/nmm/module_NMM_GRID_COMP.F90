@@ -36,30 +36,32 @@
 !
       USE module_NMM_INTEGRATE,ONLY: NMM_INTEGRATE
 !
-      USE module_NESTING,ONLY: COMMS_FAMILY                             &
-                              ,CTASK_LIMITS                             &
-                              ,HANDLE_CHILD_LIMITS                      &
-                              ,HANDLE_CHILD_TOPO_S                      &
-                              ,HANDLE_CHILD_TOPO_N                      &
-                              ,HANDLE_CHILD_TOPO_W                      &
-                              ,HANDLE_CHILD_TOPO_E                      &
-                              ,HANDLE_IJ_SW                             &
-                              ,HANDLE_PACKET_S_H                        &
-                              ,HANDLE_PACKET_S_V                        &
-                              ,HANDLE_PACKET_N_H                        &
-                              ,HANDLE_PACKET_N_V                        &
-                              ,HANDLE_PACKET_W_H                        &
-                              ,HANDLE_PACKET_W_V                        &
-                              ,HANDLE_PACKET_E_H                        &
-                              ,HANDLE_PACKET_E_V                        &
-                              ,HANDLE_PARENT_DOM_LIMITS                 &
-                              ,HANDLE_PARENT_ITE                        &
-                              ,HANDLE_PARENT_ITS                        &
-                              ,HANDLE_PARENT_JTE                        &
-                              ,HANDLE_PARENT_JTS                        &
-                              ,INFO_SEND                                &
-                              ,PARENT_CHILD_COMMS                       &
-                              ,PTASK_LIMITS       
+      USE module_DERIVED_TYPES,ONLY: COMMS_FAMILY                       &
+                                    ,CTASK_LIMITS                       &
+                                    ,HANDLE_CHILD_LIMITS                &
+                                    ,HANDLE_CHILD_TOPO_S                &
+                                    ,HANDLE_CHILD_TOPO_N                &
+                                    ,HANDLE_CHILD_TOPO_W                &
+                                    ,HANDLE_CHILD_TOPO_E                &
+                                    ,HANDLE_I_SW                        &
+                                    ,HANDLE_J_SW                        &
+                                    ,HANDLE_PACKET_S_H                  &
+                                    ,HANDLE_PACKET_S_V                  &
+                                    ,HANDLE_PACKET_N_H                  &
+                                    ,HANDLE_PACKET_N_V                  &
+                                    ,HANDLE_PACKET_W_H                  &
+                                    ,HANDLE_PACKET_W_V                  &
+                                    ,HANDLE_PACKET_E_H                  &
+                                    ,HANDLE_PACKET_E_V                  &
+                                    ,HANDLE_PARENT_DOM_LIMITS           &
+                                    ,HANDLE_PARENT_ITE                  &
+                                    ,HANDLE_PARENT_ITS                  &
+                                    ,HANDLE_PARENT_JTE                  &
+                                    ,HANDLE_PARENT_JTS                  &
+                                    ,INFO_SEND                          &
+                                    ,PTASK_LIMITS
+!
+      USE module_NESTING,ONLY: PARENT_CHILD_COMMS
 !
       USE module_PARENT_CHILD_CPL_COMP,ONLY: PARENT_CHILD_CPL_REGISTER  &  !<-- The Register routine for PARENT_CHILD Coupler
                                             ,PARENT_CHILD_COUPLER_SETUP
@@ -1714,7 +1716,7 @@
 !-----------------------------------------------------------------------
 !
         COMM_TO_MY_PARENT=>comms_domain(MY_DOMAIN_ID)%TO_PARENT
-        comm_to_my_children=>comms_domain(MY_DOMAIN_ID)%to_children
+        COMM_TO_MY_CHILDREN=>comms_domain(MY_DOMAIN_ID)%to_children
 !
         IMP_STATE_DOMAIN=>nmm_int_state%IMP_STATE_DOMAIN(MY_DOMAIN_ID)
         NUM_CHILDREN    =>nmm_int_state%NUM_CHILDREN(MY_DOMAIN_ID)
@@ -2153,7 +2155,8 @@
       ALLOCATE(HANDLE_PACKET_E_H(1:NUM_DOMAINS_TOTAL))                     !
       ALLOCATE(HANDLE_PACKET_E_V(1:NUM_DOMAINS_TOTAL))                     !<--
 !
-      ALLOCATE(HANDLE_IJ_SW(1:NUM_DOMAINS_TOTAL))                          !<-- Request handle for child ISend of its SW corner to parent
+      ALLOCATE(HANDLE_I_SW(1:NUM_DOMAINS_TOTAL))                           !<-- Request handle for child ISend of its SW corner to parent
+      ALLOCATE(HANDLE_J_SW(1:NUM_DOMAINS_TOTAL))                           !<-- Request handle for child ISend of its SW corner to parent
 !
       ALLOCATE(HANDLE_CHILD_LIMITS(1:NUM_DOMAINS_TOTAL))                   !<-- Request handles for parent IRecvs of child task limits
 !
@@ -2303,7 +2306,8 @@
 !***  coupler and does preliminary data exchange.  Because that data
 !***  exchange includes child-->parent and the parents must use that
 !***  data in the upcoming execution of the 1st phase of the coupler
-!***  then the setup and the 1st phase must be in their own loops.
+!***  then the setup and the 1st phase must be in their own loops
+!***  across the generations.
 !-----------------------------------------------------------------------
 !
       gens_0: DO NN=1,NUM_GENS
@@ -2546,7 +2550,7 @@
                            ,rc             =RC)
 !
 !-----------------------------------------------------------------------
-!***  Before executing phase 1 of the initialization of the Parent-
+!***  Before executing phase 2 of the initialization of the Parent-
 !***  Child coupler we will clear the request handles associated with
 !***  the nonblocking sends/recvs of the child subdomain limits in 
 !***  subroutine PARENT_CHILD_COUPLER_SETUP called in the previous 
@@ -2555,7 +2559,7 @@
 !***  only one generation at a time was executed during the loop's
 !***  iterations those data exchanges had to be non-blocking.  Now
 !***  loop through the generations again, make certain the non-blocking
-!***  sends/recvs have finished, then call phase 1 of the Parent-
+!***  sends/recvs have finished, then call phase 2 of the Parent-
 !***  Child coupler's initialization that includes the use of the
 !***  exchanged data.
 !-----------------------------------------------------------------------
@@ -2779,7 +2783,7 @@
       gens_3: DO NN=1,NUM_GENS
 !
 !-----------------------------------------------------------------------
-!***  Before executing phase 2 of the initialization of the Parent-
+!***  Before executing phase 3 of the initialization of the Parent-
 !***  Child coupler we will clear the request handles associated with
 !***  the nonblocking sends/recvs of the child topography in phase 1
 !***  of the initialization.  Those sends/recvs consisted of cross-
@@ -2788,7 +2792,7 @@
 !***  during the loop's iterations those data exchanges had to be
 !***  non-blocking.  Now loop through the generations again, make
 !***  certain the non-blocking sends/recvs have finished, then call
-!***  phase 2 of the Parent-Child coupler's initialization that
+!***  phase 3 of the Parent-Child coupler's initialization that
 !***  includes the use of the exchanged data.
 !-----------------------------------------------------------------------
 !
@@ -3063,7 +3067,7 @@
         CALL MPI_BARRIER(COMM_MY_DOMAIN,IERR)
 !
 !-----------------------------------------------------------------------
-!***  The forecast tasks now execute phase 2 of the Parent-Child
+!***  The forecast tasks now execute phase 3 of the Parent-Child
 !***  coupler initialization.
 !-----------------------------------------------------------------------
 !

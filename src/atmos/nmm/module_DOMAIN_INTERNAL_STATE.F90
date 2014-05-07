@@ -13,7 +13,7 @@
 !
       USE module_INCLUDE
 !
-      USE MODULE_NESTING,ONLY: MIXED_DATA
+      USE MODULE_DERIVED_TYPES,ONLY: MIXED_DATA
 !
 !---------------------------------------------------------------------------
 !
@@ -78,10 +78,12 @@
 !
         TYPE(MIXED_DATA),DIMENSION(1:9) :: SHIFT_DATA                          !<-- Intertask shift data on the pre-move footprint
 !
-        TYPE(ESMF_FieldBundle) :: MOVE_BUNDLE_H                             &  !<-- ESMF Bundle of update H variables on moving nests
-                                 ,MOVE_BUNDLE_V                                !<-- ESMF Bundle of update V variables on moving nests
+        TYPE(ESMF_FieldBundle) :: BUNDLE_NESTBC                                !<-- ESMF Bundle of BC update variables (parent to child)
 !
         TYPE(ESMF_FieldBundle) :: BUNDLE_2WAY                                  !<-- ESMF Bundle of 2-way exchange vbls (child to parent)
+!
+        TYPE(ESMF_FieldBundle) :: MOVE_BUNDLE_H                             &  !<-- ESMF Bundle of update H variables on moving nests
+                                 ,MOVE_BUNDLE_V                                !<-- ESMF Bundle of update V variables on moving nests
 !
 !---------------------------------------------------------------------------
 !***  The following are specific to asynchronous quilting/writing.

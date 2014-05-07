@@ -29,6 +29,7 @@
 !
       USE esmf_mod
       USE MODULE_INCLUDE
+      USE MODULE_DERIVED_TYPES,ONLY: BC_H_ALL,BC_V_ALL
 !
 !-----------------------------------------------------------------------
 !
@@ -197,7 +198,8 @@
 !***  Boundary restart 
 !----------------------
 !
-      INTEGER(kind=KINT) :: LNSV                                           !<-- # of V bndry rows obtained from dynamics
+      INTEGER(kind=KINT) :: LNSH,LNSV                                      !<-- # of H,V bndry rows, respectively
+      INTEGER(kind=KINT) :: NLEV_H,NLEV_V                                  !<-- Total # of 2-D levels in all H-pt,V-pt bndry vbls
 !
 !-----------
 !***  Local
@@ -219,14 +221,20 @@
 !
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: NUM_WORDS_SEND_BC     !<-- Word count of full-domain 1-D boundary data string
 !
-      REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE :: PDBS,PDBN,PDBW,PDBE  !<-- 1-D string for PD on each side of domain
-      REAL(kind=KFPT),DIMENSION(:,:,:,:),ALLOCATABLE :: TBS,TBN,TBW,TBE &  !<-- 1-D string for T on each side of domain
-                                                       ,QBS,QBN,QBW,QBE &  !<-- 1-D string for Q on each side of domain
-                                                       ,WBS,WBN,WBW,WBE &  !<-- 1-D string for CW on each side of domain
-                                                       ,UBS,UBN,UBW,UBE &  !<-- 1-D string for U,V on each side of domain
-                                                       ,VBS,VBN,VBW,VBE
+      INTEGER(kind=KINT) :: NVARS_BC_2D_H                               &  !<-- # of 2-D H-pt boundary variables
+                           ,NVARS_BC_3D_H                               &  !<-- # of 3-D H-pt boundary variables
+                           ,NVARS_BC_4D_H                               &  !<-- # of 4-D H-pt boundary variables
+                           ,NVARS_BC_2D_V                               &  !<-- # of 2-D V-pt boundary variables
+                           ,NVARS_BC_3D_V                                     !<-- # of 3-D V-pt boundary variables
+!
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: LBND_4D            &  !<-- Lower,upper bounds of the counts of the # of 
+                                                    ,UBND_4D               !    3-D arrays in each 4-D boundary variable
 !
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: RST_ALL_BC_DATA          !<-- 1-D string of full-domain boundary data
+!
+      TYPE(BC_H_ALL) :: BND_VARS_H                                         !<-- All H-pt boundary data/tendencies
+!
+      TYPE(BC_V_ALL) :: BND_VARS_V                                         !<-- All V-pt boundary data/tendencies
 !
 !--------------------
 !***  Storage arrays

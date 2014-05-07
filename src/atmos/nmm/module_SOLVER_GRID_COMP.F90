@@ -46,6 +46,7 @@
 !
       USE esmf_mod
       USE MODULE_INCLUDE
+      USE MODULE_VARS,ONLY : FIND_VAR_INDX
       USE MODULE_VARS_STATE
       USE MODULE_SOLVER_INTERNAL_STATE                                     !<-- Horizontal loop limits obtained here
 !
@@ -60,6 +61,8 @@
 !
       USE MODULE_GET_CONFIG
 !
+      USE MODULE_DERIVED_TYPES,ONLY : BC_H_ALL,BC_V_ALL
+!
       USE MODULE_CONTROL,ONLY : NUM_DOMAINS_MAX,TIMEF
 !
       USE MODULE_CONSTANTS,ONLY : A2,A3,A4,CAPPA,CP,ELIV,ELWV,EPSQ,G &
@@ -70,13 +73,15 @@
                                 ,HMAXMIN,TWR,VMAXMIN,VWR,WRT_PCP        &
                                 ,LAT_LON_BNDS
 !
-      USE MODULE_OUTPUT,ONLY: POINT_OUTPUT
-!
       USE MODULE_CLOCKTIMES,ONLY : INTEGRATION_TIMERS,TIMERS
 !
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
       USE MODULE_FLTBNDS,ONLY : POLEHN,POLEWN,SWAPHN,SWAPWN
+!
+      USE MODULE_VARS,ONLY : VAR
+!
+      USE MODULE_NESTING,ONLY : SUFFIX_NESTBC
 !
       USE MODULE_RADIATION  ,ONLY : RADIATION
       USE MODULE_RA_GFDL    ,ONLY : GFDL_INIT,RDTEMP,TIME_MEASURE
@@ -123,21 +128,19 @@
 !
       LOGICAL(kind=KLOG) :: I_AM_A_NEST                                    !<-- Flag indicating if DOMAIN Component is a nest
 !
-      TYPE(SOLVER_INTERNAL_STATE),POINTER :: INT_STATE                     !<-- The Solver component internal state pointer.
-!
 #ifdef ESMF_3
       TYPE(ESMF_Logical),SAVE :: MOVE_NOW                               &  !<-- Flag indicating if nested moves this timestep
 !                               ,MY_DOMAIN_MOVES                        &  !<-- Flag indicating if nested domain moves
                                 ,NEST_FLAG                                 !<-- Flag indicating if DOMAIN Component is a nest
 #else
-      LOGICAL(kind=KLOG) :: MOVE_NOW                                       !<-- Flag indicating if nested moves this timestep
+      LOGICAL(kind=KLOG),SAVE :: MOVE_NOW                                  !<-- Flag indicating if nested moves this timestep
 !     LOGICAL(kind=KLOG) :: MOVE_NOW                                    &  !<-- Flag indicating if nested moves this timestep
 !                          ,MY_DOMAIN_MOVES                                !<-- Flag indicating if nested domain moves
 #endif
  
-      LOGICAL, SAVE :: BDY_WAS_READ
-!
       REAL(kind=KFPT),SAVE :: PT
+!
+      TYPE(SOLVER_INTERNAL_STATE),POINTER :: INT_STATE                     !<-- The Solver component internal state pointer.
 !
 !-----------------------------------------------------------------------
 !***  For determining clocktimes of various pieces of the Solver.
@@ -301,7 +304,7 @@
 !***  Carry out all necessary setups for the model Solver.
 !-----------------------------------------------------------------------
 !
-      USE MODULE_CONTROL,ONLY : BOUNDARY_INIT,CONSTS                       !  <-- Subroutines
+      USE MODULE_CONTROL,ONLY : CONSTS
 !
       USE MODULE_INIT_READ_BIN,ONLY : READ_BINARY
       USE MODULE_INIT_READ_NEMSIO,ONLY : READ_NEMSIO
@@ -331,12 +334,13 @@
                            ,JDE,JDS,JME,JMS,JTE,JTS
 !
       INTEGER(kind=KINT) :: IHALO,JHALO,MPI_COMM_COMP,MY_DOMAIN_ID      &
-                           ,MY_DOMAIN_ID_LOC,MYPE,NUM_PES
+                           ,MY_DOMAIN_ID_LOC,MYPE,NUM_PES,UBOUND_VARS
 !
       INTEGER(kind=KINT) :: I,I_INC,IDENOMINATOR_DT                     &
                            ,IEND,IERR,INTEGER_DT                        &
-                           ,J,J_INC,JEND,KK,KOUNT,KSE,KSS,L,LL,LMP1     &
-                           ,N,NUMERATOR_DT,RC
+                           ,J,J_INC,JEND,KK,KOUNT,KSE,KSS               &
+                           ,L,LL,LMP1,LNSH,LNSV                         &
+                           ,N,NUMERATOR_DT,NV,RC
 !
       INTEGER(kind=KINT) :: ITE_H2,ITS_H2,JTE_H2,JTS_H2
 !
@@ -362,9 +366,9 @@
 !
       TYPE(ESMF_VM) :: VM                                                  !<-- The ESMF Virtual Machine
 !
-      TYPE(ESMF_State) :: IMP_STATE_WRITE                                  !<-- The Solver import state
-!
       TYPE(ESMF_Field) :: FIELD
+!
+      TYPE(ESMF_FieldBundle) :: BUNDLE_NESTBC
 !
       TYPE(ESMF_TimeInterval) :: DT_ESMF                                   !<-- The ESMF fundamental timestep (s)
 !
@@ -623,6 +627,9 @@
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+      LNSH=int_state%LNSH
+      LNSV=int_state%LNSV
+!
 !-----------------------------------------------------------------------
 !***  We must know whether or not this is a global domain.  Get the
 !***  configure object from the Solver component and extract the
@@ -867,80 +874,8 @@
         int_state%MY_DOMAIN_ID=MY_DOMAIN_ID_LOC
 !
 !-----------------------------------------------------------------------
-!***  Retrieve the import state of the Write gridded component
-!***  from the Solver export state.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Write Import State from Solver Export State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_StateGet(state      =EXP_STATE                        &  !<-- The Solver export state
-                          ,itemName   ='Write Import State'             &  !<-- Name of the state to get from Solver export state
-                          ,nestedState=IMP_STATE_WRITE                  &  !<-- Extract write component import state from Solver export
-                          ,rc         =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
 !***  Initialize allocated arrays.
 !-----------------------------------------------------------------------
-!
-        DO N=1,2
-        DO L=1,LM
-        DO LL=1,int_state%LNSV
-        DO I=IMS,IME
-          int_state%UBN(I,LL,L,N)=-1.E6
-          int_state%UBS(I,LL,L,N)=-1.E6
-          int_state%VBN(I,LL,L,N)=-1.E6
-          int_state%VBS(I,LL,L,N)=-1.E6
-        ENDDO
-        ENDDO
-        ENDDO
-        ENDDO
-!
-        DO N=1,2
-        DO L=1,LM
-        DO J=JMS,JME
-        DO LL=1,int_state%LNSV
-          int_state%UBE(LL,J,L,N)=-1.E6
-          int_state%UBW(LL,J,L,N)=-1.E6
-          int_state%VBE(LL,J,L,N)=-1.E6
-          int_state%VBW(LL,J,L,N)=-1.E6
-        ENDDO
-        ENDDO
-        ENDDO
-        ENDDO
-!
-        IF(.NOT.int_state%GLOBAL)THEN
-!
-          DO N=1,2
-          DO LL=1,int_state%LNSH
-          DO I=IMS,IME
-            int_state%PDBN(I,LL,N)=0.
-            int_state%PDBS(I,LL,N)=0.
-          ENDDO
-          ENDDO
-          ENDDO
-!
-          DO N=1,2
-          DO J=JMS,JME
-          DO LL=1,int_state%LNSH
-            int_state%PDBE(LL,J,N)=0.
-            int_state%PDBW(LL,J,N)=0.
-          ENDDO
-          ENDDO
-          ENDDO
-!
-          int_state%NUM_WORDS_BC_SOUTH=-1                                    !<-- Word counts of 1-D boundary data strings
-          int_state%NUM_WORDS_BC_NORTH=-1                                    !
-          int_state%NUM_WORDS_BC_WEST =-1                                    !
-          int_state%NUM_WORDS_BC_EAST =-1                                    !<--
-!
-        ENDIF
 !
         DO J=JMS,JME
         DO I=IMS,IME
@@ -1223,7 +1158,7 @@
           int_state%NTSCM(N)=-999
         ENDDO
 !
-        BDY_WAS_READ=.FALSE.
+        int_state%BDY_WAS_READ=.FALSE.
 !
 !-----------------------------------------------------------------------
 !***  Initialize the timer variables now.
@@ -1343,6 +1278,53 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Fill the ESMF Bundle with the user-selected boundary variables
+!***  and also the generalized boundary object that Solver must use
+!***  when handling those boundary variables.  This must take place 
+!***  here because it must follow the creation of the Solver's
+!***  internal state but precede the call to the read routine.  For
+!***  restarted runs the read routine must allocate an object to
+!***  hold special boundary data from the restart files and the size
+!***  of tha object depends on values determined when the ESMF Bundle
+!***  is filled.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Solver Init Extracts BC Bundle"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateGet(state      =IMP_STATE                        &  !<-- The Solver component import state
+                          ,itemname   ='Bundle_nestbc'                  &  !<-- Name of Bundle of selected BC variables
+                          ,fieldbundle=BUNDLE_NESTBC                    &  !<-- The Bundle 
+                          ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        UBOUND_VARS=SIZE(int_state%VARS)
+!
+        CALL BUILD_BC_BUNDLE(GRID                                       &  !<-- Add Solver int state variables to the nest BC Bundle
+                            ,LNSH,LNSV                                  &
+                            ,IHALO,JHALO                                &
+                            ,UBOUND_VARS                                &
+                            ,int_state%VARS                             &
+                            ,MY_DOMAIN_ID                               &
+                            ,BUNDLE_NESTBC                              &
+                            ,int_state%BND_VARS_H                       &
+                            ,int_state%BND_VARS_V                       &
+                            ,int_state%NVARS_BC_2D_H                    &
+                            ,int_state%NVARS_BC_3D_H                    &
+                            ,int_state%NVARS_BC_4D_H                    &
+                            ,int_state%NVARS_BC_2D_V                    &
+                            ,int_state%NVARS_BC_3D_V                    &
+                            ,int_state%NLEV_H                           &
+                            ,int_state%NLEV_V                           &
+                            ,int_state%N_BC_3D_H                        &
+                               )
 !
 !-----------------------------------------------------------------------
 !***  The input file is about to be read and halo exchanges will be
@@ -1544,35 +1526,6 @@
 #endif
 !
         IF(I_AM_A_NEST)THEN
-!
-!-----------------------------------------------------------------------
-!
-          IF (.NOT. int_state%RESTART )THEN
-
-          CALL BOUNDARY_INIT(ITS,ITE,JTS,JTE,LM                         &
-                            ,IMS,IME,JMS,JME                            &
-                            ,IDS,IDE,JDS,JDE                            &
-                            ,int_state%LNSH,int_state%LNSV              &
-                            ,int_state%PD                               &
-                            ,int_state%PDBS,int_state%PDBN              &
-                            ,int_state%PDBW,int_state%PDBE              &
-                            ,int_state%T                                &
-                            ,int_state%TBS,int_state%TBN                &
-                            ,int_state%TBW,int_state%TBE                &
-                            ,int_state%Q                                &
-                            ,int_state%QBS,int_state%QBN                &
-                            ,int_state%QBW,int_state%QBE                &
-                            ,int_state%CW                               &
-                            ,int_state%WBS,int_state%WBN                &
-                            ,int_state%WBW,int_state%WBE                &
-                            ,int_state%U                                &
-                            ,int_state%UBS,int_state%UBN                &
-                            ,int_state%UBW,int_state%UBE                &
-                            ,int_state%V                                &
-                            ,int_state%VBS,int_state%VBN                &
-                            ,int_state%VBW,int_state%VBE                &
-                              )
-          END IF
 !
 !-----------------------------------------------------------------------
 !***  Also we need to retrieve the Parent-Child timestep ratio in order
@@ -2493,70 +2446,6 @@
         int_state%FIRST_PASS=.TRUE.
 !
 !-----------------------------------------------------------------------
-!***  The restart output file must contain the winds from the
-!***  boundary arrays UBS,UBN,.... BUT:
-!***   (1) They must be passed from the Solver to the Write
-!***       component and since they are not on the ESMF Grid
-!***       they must be passed as 1-D Attributes.
-!***   (2) We do not want to waste clocktime inserting these
-!***       BC winds into the 1-D arrays every timestep when
-!***       they are only needed at restart output times
-!***       so we must inform the Solver when to fill those
-!***       arrays.
-!
-!***  The 1-D arrays are placed into the Write component's
-!***  import state in POINT_OUTPUT.  They are unloaded
-!***  in WRT_RUN and sent to the lead forecast task to assemble
-!***  into a full-domain 1-D datastring that can be sent to the
-!***  lead write task for insertion into the restart file.
-!-----------------------------------------------------------------------
-!
-        int_state%NSTEPS_BC_RESTART=NINT((int_state%MINUTES_RESTART*60)   &  !<-- Timestep frequency for BC data insertion into
-                                         /int_state%DT)                      !    1-D local datastrings
-!
-        IEND=ITE
-        JEND=JTE
-!
-!       IF(JTS==1)THEN                                                       !<-- South boundary tasks
-          int_state%NUM_WORDS_BC_SOUTH=(5*LM+1)*2*int_state%LNSV*(IEND-ITS+1)
-          ALLOCATE(int_state%RST_BC_DATA_SOUTH(1:int_state%NUM_WORDS_BC_SOUTH))
-          DO N=1,int_state%NUM_WORDS_BC_SOUTH
-            int_state%RST_BC_DATA_SOUTH(N)=0.
-          ENDDO
-!       ENDIF
-!
-!       IF(JTE==JM)THEN                                                      !<-- North boundary tasks
-          int_state%NUM_WORDS_BC_NORTH=(5*LM+1)*2*int_state%LNSV*(IEND-ITS+1)
-          ALLOCATE(int_state%RST_BC_DATA_NORTH(1:int_state%NUM_WORDS_BC_NORTH))
-          DO N=1,int_state%NUM_WORDS_BC_NORTH
-            int_state%RST_BC_DATA_NORTH(N)=0.
-          ENDDO
-!       ENDIF
-!
-!       IF(ITS==1)THEN                                                       !<-- West boundary tasks
-          int_state%NUM_WORDS_BC_WEST=(5*LM+1)*2*int_state%LNSV*(JEND-JTS+1)
-          ALLOCATE(int_state%RST_BC_DATA_WEST(1:int_state%NUM_WORDS_BC_WEST))
-          DO N=1,int_state%NUM_WORDS_BC_WEST
-            int_state%RST_BC_DATA_WEST(N)=0.
-          ENDDO
-!       ENDIF
-!
-!       IF(ITE==IM)THEN                                                      !<-- East boundary tasks
-          int_state%NUM_WORDS_BC_EAST=(5*LM+1)*2*int_state%LNSV*(JEND-JTS+1)
-          ALLOCATE(int_state%RST_BC_DATA_EAST(1:int_state%NUM_WORDS_BC_EAST))
-          DO N=1,int_state%NUM_WORDS_BC_EAST
-            int_state%RST_BC_DATA_EAST(N)=0.
-          ENDDO
-!       ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Insert history and restart data pointers (from INT_STATE) into the
-!***  Write component's import state (IMP_STATE_WRITE).
-!-----------------------------------------------------------------------
-!
-        CALL POINT_OUTPUT(GRID,INT_STATE,IMP_STATE_WRITE)
-!
-!-----------------------------------------------------------------------
 !***  Set flag for the operational physics suite.
 !***  This will be used to save clocktime by skipping
 !***  frequent updates of the moist array and instead
@@ -3150,7 +3039,7 @@
 !     FILTER_METHOD_LAST=int_state%FILTER_METHOD_LAST
 !
 !-----------------------------------------------------------------------
-        if (USE_RADAR_FIRST == 1 .and. FIRST_PASS ) then
+        IF (USE_RADAR_FIRST == 1 .and. FIRST_PASS ) THEN
            ALLOCATE(RH_HOLD(IMS:IME,JMS:JME,1:LM))
            IFLAG=1 ! <----   IFLAG=1 takes T,Q,P and returns RH_HOLD
            CALL CALC_RH_RADAR_DFI(int_state%T,int_state%Q,int_state%PD  &
@@ -3158,9 +3047,7 @@
                                   ,R_D,R_V,RH_HOLD                      & 
                                   ,IMS,IME,JMS,JME,LM                   & 
                                   ,IFLAG)
-
-
-        endif
+        ENDIF
 
 !
 !     ENDIF firstpass
@@ -3413,21 +3300,13 @@
             CALL WRITE_BC(LM,LNSH,LNSV,NTIMESTEP,DT                     &
                          ,RUNBC                                         &
                          ,TBOCO+int_state%DFIHR_BOCO/2.                 &
-                         ,int_state%PDBS,int_state%PDBN                 &
-                         ,int_state%PDBW,int_state%PDBE                 &
-                         ,int_state%TBS,int_state%TBN                   &
-                         ,int_state%TBW,int_state%TBE                   &
-                         ,int_state%QBS,int_state%QBN                   &
-                         ,int_state%QBW,int_state%QBE                   &
-                         ,int_state%WBS,int_state%WBN                   &
-                         ,int_state%WBW,int_state%WBE                   &
-                         ,int_state%UBS,int_state%UBN                   &
-                         ,int_state%UBW,int_state%UBE                   &
-                         ,int_state%VBS,int_state%VBN                   &
-                         ,int_state%VBW,int_state%VBE                   &
-                         ,int_state%PD,int_state%T                      &
-                         ,int_state%Q,int_state%CW                      &
-                         ,int_state%U,int_state%V                       &
+                         ,int_state%NVARS_BC_2D_H                       &
+                         ,int_state%NVARS_BC_3D_H                       &
+                         ,int_state%NVARS_BC_4D_H                       &
+                         ,int_state%NVARS_BC_2D_V                       &
+                         ,int_state%NVARS_BC_3D_V                       &
+                         ,int_state%BND_VARS_H                          &
+                         ,int_state%BND_VARS_V                          &
                          ,.TRUE.)                                          !<-- Recompute tendencies at this stage?
           ENDIF
 !
@@ -3715,7 +3594,7 @@
             ,int_state%HDACVX,int_state%HDACVY                          &
             ,int_state%W,int_state%Z                                    &
             ,int_state%CW,int_state%Q,int_state%Q2                      & ! And how about other TRACER elements?
-            ,int_state%T,int_state%U,int_state%V,int_state%DEF)            
+            ,int_state%T,int_state%U,int_state%V,int_state%DEF)
         ENDIF
 !
         td%hdiff_tim=td%hdiff_tim+(timef()-btim)
@@ -3807,18 +3686,14 @@
             IF(MYPE==0)THEN
               WRITE_BC_FLAG=0
 !
-!rv           IF(NTIMESTEP<=1 .AND. BDY_WAS_READ) THEN
-!
-              IF(NTIMESTEP<=1                                           &
-                     .AND.                                              &
-                 int_state%PDBS(1,1,1)/=0                               &
-                     .AND.                                              &
-                 int_state%PDBS(1,1,2)/=0) THEN
-!
-                WRITE_BC_FLAG=1
-              ELSE
-                WRITE_BC_FLAG=0
+              IF(FILTER_METHOD>0)THEN
+                IF(NTIMESTEP<=1.AND.int_state%BDY_WAS_READ)THEN
+                  WRITE_BC_FLAG=1
+                ELSE
+                  WRITE_BC_FLAG=0
+                ENDIF
               ENDIF
+!
             ENDIF
 !
             CALL MPI_BCAST(WRITE_BC_FLAG,1,MPI_INTEGER,0                &
@@ -3867,15 +3742,15 @@
             IF(MYPE==0)THEN
               WRITE_BC_FLAG_NEST=0
 !
-              IF (S_BDY.AND.W_BDY                                       &
-                       .AND.                                            &
-                  NTIMESTEP <= 1                                        &
-                       .AND.                                            &
-                  int_state%PDBS(1,1,1)/=0                              &
-                       .AND.                                            &
-                  int_state%PDBS(1,1,2)/=0) THEN
+              IF(FILTER_METHOD>0)THEN
+                IF (S_BDY.AND.W_BDY                                     &
+                         .AND.                                          &
+                    NTIMESTEP <= 1                                      &
+                         .AND.                                          &
+                    int_state%BDY_WAS_READ) THEN
 !
-                WRITE_BC_FLAG_NEST=1
+                  WRITE_BC_FLAG_NEST=1
+                ENDIF
               ENDIF
 !
             ENDIF
@@ -3960,21 +3835,13 @@
                 TBOCO=PARENT_CHILD_TIME_RATIO*DT
                 CALL WRITE_BC(LM,LNSH,LNSV,NTIMESTEP,DT                 &
                              ,RUNBC,TBOCO                               &
-                             ,int_state%PDBS,int_state%PDBN             &
-                             ,int_state%PDBW,int_state%PDBE             &
-                             ,int_state%TBS,int_state%TBN               &
-                             ,int_state%TBW,int_state%TBE               &
-                             ,int_state%QBS,int_state%QBN               &
-                             ,int_state%QBW,int_state%QBE               &
-                             ,int_state%WBS,int_state%WBN               &
-                             ,int_state%WBW,int_state%WBE               &
-                             ,int_state%UBS,int_state%UBN               &
-                             ,int_state%UBW,int_state%UBE               &
-                             ,int_state%VBS,int_state%VBN               &
-                             ,int_state%VBW,int_state%VBE               &
-                             ,int_state%PD,int_state%T                  &
-                             ,int_state%Q,int_state%CW                  & ! And how about other TRACER elements?
-                             ,int_state%U,int_state%V                   &
+                             ,int_state%NVARS_BC_2D_H                   &
+                             ,int_state%NVARS_BC_3D_H                   &
+                             ,int_state%NVARS_BC_4D_H                   &
+                             ,int_state%NVARS_BC_2D_V                   &
+                             ,int_state%NVARS_BC_3D_V                   &
+                             ,int_state%BND_VARS_H                      &
+                             ,int_state%BND_VARS_V                      &
                              ,.FALSE.)                                     !<-- Are tendencies recomputed?
 !
               ENDIF
@@ -3990,18 +3857,15 @@
                                     ,LM,LNSH,LNSV                       &
                                     ,PARENT_CHILD_TIME_RATIO,DT         &
                                     ,S_BDY,N_BDY,W_BDY,E_BDY            &
-                                    ,int_state%PDBS,int_state%PDBN      &
-                                    ,int_state%PDBW,int_state%PDBE      &
-                                    ,int_state%TBS,int_state%TBN        &
-                                    ,int_state%TBW,int_state%TBE        &
-                                    ,int_state%QBS,int_state%QBN        &
-                                    ,int_state%QBW,int_state%QBE        &
-                                    ,int_state%WBS,int_state%WBN        &
-                                    ,int_state%WBW,int_state%WBE        &
-                                    ,int_state%UBS,int_state%UBN        &
-                                    ,int_state%UBW,int_state%UBE        &
-                                    ,int_state%VBS,int_state%VBN        &
-                                    ,int_state%VBW,int_state%VBE        &
+                                    ,int_state%NLEV_H                   &
+                                    ,int_state%NLEV_V                   &
+                                    ,int_state%NVARS_BC_2D_H            &
+                                    ,int_state%NVARS_BC_3D_H            &
+                                    ,int_state%NVARS_BC_4D_H            &
+                                    ,int_state%NVARS_BC_2D_V            &
+                                    ,int_state%NVARS_BC_3D_V            &
+                                    ,int_state%BND_VARS_H               &
+                                    ,int_state%BND_VARS_V               &
                                     ,int_state%ITS,int_state%ITE        &
                                     ,int_state%JTS,int_state%JTE        &
                                     ,int_state%IMS,int_state%IME        &
@@ -4055,18 +3919,16 @@
              if (MYPE .eq. 0) write(0,*) 'call READ_BC'
                   CALL READ_BC(LM,LNSH,LNSV,NTIMESTEP_BC,DT             &
                               ,RUNBC,IDATBC,IHRSTBC,TBOCO               &
-                              ,int_state%PDBS,int_state%PDBN            &
-                              ,int_state%PDBW,int_state%PDBE            &
-                              ,int_state%TBS,int_state%TBN              &
-                              ,int_state%TBW,int_state%TBE              &
-                              ,int_state%QBS,int_state%QBN              &
-                              ,int_state%QBW,int_state%QBE              &
-                              ,int_state%WBS,int_state%WBN              &
-                              ,int_state%WBW,int_state%WBE              &
-                              ,int_state%UBS,int_state%UBN              &
-                              ,int_state%UBW,int_state%UBE              &
-                              ,int_state%VBS,int_state%VBN              &
-                              ,int_state%VBW,int_state%VBE              &
+!
+                              ,int_state%NVARS_BC_2D_H                  &
+                              ,int_state%NVARS_BC_3D_H                  &
+                              ,int_state%NVARS_BC_4D_H                  &
+                              ,int_state%NVARS_BC_2D_V                  &
+                              ,int_state%NVARS_BC_3D_V                  &
+!
+                              ,int_state%BND_VARS_H                     &
+                              ,int_state%BND_VARS_V                     &
+                              ,int_state%N_BC_3D_H                      &
                                 )
 !
                 ELSE
@@ -4074,21 +3936,13 @@
                   IF (NTIMESTEP==0) THEN
                     CALL WRITE_BC(LM,LNSH,LNSV,NTIMESTEP,DT             &
                             ,RUNBC,TBOCO                                &
-                            ,int_state%PDBS,int_state%PDBN              &
-                            ,int_state%PDBW,int_state%PDBE              &
-                            ,int_state%TBS,int_state%TBN                &
-                            ,int_state%TBW,int_state%TBE                &
-                            ,int_state%QBS,int_state%QBN                &
-                            ,int_state%QBW,int_state%QBE                &
-                            ,int_state%WBS,int_state%WBN                &
-                            ,int_state%WBW,int_state%WBE                &
-                            ,int_state%UBS,int_state%UBN                &
-                            ,int_state%UBW,int_state%UBE                &
-                            ,int_state%VBS,int_state%VBN                &
-                            ,int_state%VBW,int_state%VBE                &
-                            ,int_state%PD,int_state%T                   &
-                            ,int_state%Q,int_state%CW                   & ! And how about other TRACER elements?
-                            ,int_state%U,int_state%V                    &
+                            ,int_state%NVARS_BC_2D_H                    &
+                            ,int_state%NVARS_BC_3D_H                    &
+                            ,int_state%NVARS_BC_4D_H                    &
+                            ,int_state%NVARS_BC_2D_V                    &
+                            ,int_state%NVARS_BC_3D_V                    &
+                            ,int_state%BND_VARS_H                       &
+                            ,int_state%BND_VARS_V                       &
                             ,.TRUE.)                                       !<-- Are tendencies recomputed?
                  ENDIF
 !
@@ -4104,24 +3958,23 @@
 !
 !-----------------------------------------------------------------------
 !
+          IF(.NOT.int_state%BDY_WAS_READ) THEN
+            int_state%BDY_WAS_READ=.TRUE.
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!
           btim=timef()
 !
-        if ( .not. BDY_WAS_READ )  then  
-             BDY_WAS_READ=.TRUE.
-        endif
-!
           CALL BOCOH                                                    &
-            (LM,LNSH,DT,PT,int_state%DSG2,int_state%PDSG1               &
-             ,int_state%PD                                              &
-             ,int_state%PDBE,int_state%PDBN                             &
-             ,int_state%PDBS,int_state%PDBW                             &
-             ,int_state%TBE,int_state%TBN                               &
-             ,int_state%TBS,int_state%TBW                               &
-             ,int_state%QBE,int_state%QBN                               &
-             ,int_state%QBS,int_state%QBW                               &
-             ,int_state%WBE,int_state%WBN                               &
-             ,int_state%WBS,int_state%WBW                               &
-             ,int_state%T,int_state%Q,int_state%CW                      & ! And how about other TRACER elements?
+            (LM,LNSH,DT,PT                                              &
+             ,int_state%PD,int_state%DSG2,int_state%PDSG1               &
+             ,int_state%NVARS_BC_2D_H                                   &
+             ,int_state%NVARS_BC_3D_H                                   &
+             ,int_state%NVARS_BC_4D_H                                   &
+             ,int_state%LBND_4D                                         &
+             ,int_state%UBND_4D                                         &
+             ,int_state%BND_VARS_H                                      &
              ,int_state%PINT)
 !
           td%bocoh_tim=td%bocoh_tim+(timef()-btim)
@@ -4216,9 +4069,9 @@
           btim=timef()
           CALL BOCOV                                                    &
             (LM,LNSV,DT                                                 &
-            ,int_state%UBE,int_state%UBN,int_state%UBS,int_state%UBW    &
-            ,int_state%VBE,int_state%VBN,int_state%VBS,int_state%VBW    &
-            ,int_state%U,int_state%V)
+            ,int_state%NVARS_BC_2D_V                                    &
+            ,int_state%NVARS_BC_3D_V                                    &
+            ,int_state%BND_VARS_V )
           td%bocov_tim=td%bocov_tim+(timef()-btim)
 !
         ENDIF
@@ -4232,13 +4085,14 @@
 !
         IF(MOD(NTIMESTEP+1,int_state%NSTEPS_BC_RESTART)==0)THEN            !<-- Look ahead to the end of this timestep
           CALL SAVE_BC_DATA                                             &
-            (LM,LNSV                                                    &
-            ,int_state%PDBS,int_state%PDBN,int_state%PDBW,int_state%PDBE&
-            ,int_state%TBS,int_state%TBN,int_state%TBW,int_state%TBE    &
-            ,int_state%QBS,int_state%QBN,int_state%QBW,int_state%QBE    &
-            ,int_state%WBS,int_state%WBN,int_state%WBW,int_state%WBE    &
-            ,int_state%UBS,int_state%UBN,int_state%UBW,int_state%UBE    &
-            ,int_state%VBS,int_state%VBN,int_state%VBW,int_state%VBE    &
+            (LM,LNSH,LNSV                                               &
+            ,int_state%NVARS_BC_2D_H                                    &
+            ,int_state%NVARS_BC_3D_H                                    &
+            ,int_state%NVARS_BC_4D_H                                    &
+            ,int_state%NVARS_BC_2D_V                                    &
+            ,int_state%NVARS_BC_3D_V                                    &
+            ,int_state%BND_VARS_H                                       &
+            ,int_state%BND_VARS_V                                       &
             ,int_state%NUM_WORDS_BC_SOUTH,int_state%RST_BC_DATA_SOUTH   &
             ,int_state%NUM_WORDS_BC_NORTH,int_state%RST_BC_DATA_NORTH   &
             ,int_state%NUM_WORDS_BC_WEST ,int_state%RST_BC_DATA_WEST    &
@@ -4954,7 +4808,7 @@
 !                    ,ids,ide,jds,jde,lm                                &
 !                    ,ims,ime,jms,jme                                   &
 !                    ,its,ite,jts,jte)
-!     if(mod(nint(dt*ntimestep),60)==0.and.nint(dt*ntimestep)<=1800)then
+!     if(mod(nint(dt*ntimestep),3600)==0)then
 !       call twr(int_state%t,lm,'tphy',ntimestep,mype,num_pes,mpi_comm_comp &
 !               ,ids,ide,jds,jde &
 !               ,ims,ime,jms,jme &
@@ -7122,16 +6976,904 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
+      SUBROUTINE BUILD_BC_BUNDLE(GRID                                   &
+                                ,LNSH,LNSV                              &
+                                ,IHALO,JHALO                            &
+                                ,UBOUND_VARS                            &
+                                ,VARS                                   &
+                                ,MY_DOMAIN_ID                           &
+                                ,BUNDLE_NESTBC                          &
+                                ,BND_VARS_H                             &
+                                ,BND_VARS_V                             &
+                                ,NVARS_BC_2D_H                          &
+                                ,NVARS_BC_3D_H                          &
+                                ,NVARS_BC_4D_H                          &
+                                ,NVARS_BC_2D_V                          &
+                                ,NVARS_BC_3D_V                          &
+                                ,NLEV_H                                 &
+                                ,NLEV_V                                 &
+                                ,N_BC_3D_H                              &
+                                   )
+!
+!-----------------------------------------------------------------------
+!***  This routine builds an ESMF Bundle for holding groups of pointers
+!***  to Solver internal state variables that are updated on the 
+!***  domain boundaries during the integration.
+!***  In addition the object that holds primary boundary information
+!***  is partially allocated and pointed at the relevant variables.
+!-----------------------------------------------------------------------
+!
+!------------------------
+!***  Argument Variables
+!------------------------
+!
+      INTEGER(kind=KINT),INTENT(IN) :: IHALO,JHALO                      &  !<-- Subdomain halo widths
+                                      ,LNSH,LNSV                           !<-- Domain boundary blending width
+      INTEGER(kind=KINT),INTENT(IN) :: MY_DOMAIN_ID                     &  !<-- This domain's ID
+                                      ,UBOUND_VARS                         !<-- Upper dimension of the VARS array
+!
+      INTEGER(kind=KINT),DIMENSION(1:3),INTENT(OUT) :: N_BC_3D_H           !<-- Hold order of domain #1's BC vbls from boco files
+!
+      TYPE(ESMF_Grid),INTENT(IN) :: GRID                                   !<-- The ESMF Grid for this domain
+!
+      TYPE(VAR),DIMENSION(1:UBOUND_VARS),INTENT(INOUT) :: VARS             !<-- Variables in the Solver internal state
+!
+      TYPE(ESMF_FieldBundle),INTENT(INOUT) :: BUNDLE_NESTBC                !<-- The Bundle of Solver internal state vbls to be
+!                                                                          !    updated on the nest boundaries
+      INTEGER(kind=KINT),INTENT(OUT) :: NVARS_BC_2D_H                   &  !<-- # of 2-D,3-D,4-D H-pt variables
+                                       ,NVARS_BC_3D_H                   &  !    that are inserted
+                                       ,NVARS_BC_4D_H                      !    into the Bundle.
+!
+      INTEGER(kind=KINT),INTENT(OUT) :: NVARS_BC_2D_V                   &  !<-- # of 2-D,3-D V-pt variables
+                                       ,NVARS_BC_3D_V                      !    that are inserted into the Bundle.
+!
+      INTEGER(kind=KINT),INTENT(OUT) :: NLEV_H,NLEV_V                      !<-- # of model levels in all H-pt,V-pt variables used
+!
+      TYPE(BC_H_ALL),INTENT(OUT) :: BND_VARS_H                             !<-- Object holding H-pt variable info on domain boundaries
+      TYPE(BC_V_ALL),INTENT(OUT) :: BND_VARS_V                             !<-- Object holding V-pt variable info on domain boundaries
+!
+!---------------------
+!***  Local Variables
+!---------------------
+!
+      INTEGER(kind=KINT) :: H_OR_V_INT,IOS,LB3,LB4                      &
+                           ,N,NSIZE,NUM_DIMS,NUM_FIELDS                 &
+                           ,UB3,UB4
+!
+      INTEGER(kind=KINT) :: IMS,IME,JMS,JME
+!
+      INTEGER(kind=KINT) :: KNT_2D_H,KNT_3D_H,KNT_4D_H                  &
+                           ,KNT_2D_V,KNT_3D_V
+!
+      INTEGER(kind=KINT) :: KNT_3D_DOM_01
+!
+      INTEGER(kind=KINT) :: ISTAT,RC,RC_CMB
+!
+      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ARRAY_2D=>NULL()
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: ARRAY_3D=>NULL()
+      REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: ARRAY_4D=>NULL()
+!
+      CHARACTER(len=1) :: CH_2,CH_B,H_OR_V
+!           
+      CHARACTER(len=2) :: CH_M
+!           
+      CHARACTER(len=9),SAVE :: FNAME='nests.txt'
+!
+      CHARACTER(len=99) :: BUNDLE_NAME,FIELD_NAME,VBL_NAME
+!
+      CHARACTER(len=256) :: STRING
+!
+      LOGICAL(kind=KLOG) :: CASE_2WAY,CASE_NESTBC
+!
+      TYPE(ESMF_Field) :: FIELD_X
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      IMS=int_state%IMS
+      IME=int_state%IME
+      JMS=int_state%JMS
+      JME=int_state%JME
+!
+      NVARS_BC_2D_H=0     
+      NVARS_BC_3D_H=0     
+      NVARS_BC_4D_H=0     
+!
+      NVARS_BC_2D_V=0     
+      NVARS_BC_3D_V=0     
+!
+      KNT_3D_DOM_01=0
+!
+      DO N=1,3
+        N_BC_3D_H(N)=-1
+      ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Loop through all Solver internal state variables.
+!-----------------------------------------------------------------------
+!
+      OPEN(unit=10,file=FNAME,status='OLD',action='READ'                &  !<-- Open the text file with user specifications
+            ,iostat=IOS)
+!
+      IF(IOS/=0)THEN
+        WRITE(0,*)' Failed to open ',FNAME,' so ABORT!'
+        CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                          ,rc             =RC)
+      ENDIF
+!
+      NLEV_H=0                                                               !<-- Counter for total # of levels in all 2-way vbls
+      NLEV_V=0                                                               !<-- Counter for total # of levels in all 2-way vbls
+!
+!-----------------------------------------------------------------------
+      bundle_loop: DO
+!-----------------------------------------------------------------------
+!
+        READ(UNIT=10,FMT='(A)',iostat=IOS)STRING                           !<-- Read in the next specification line
+        IF(IOS/=0)EXIT                                                     !<-- Finished reading the specification lines
+!
+        IF(STRING(1:1)=='#'.OR.TRIM(STRING)=='')THEN
+          CYCLE                                                            !<-- Read past comments and blanks.
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Read the text line containing the H or V specification for 
+!***  variable N then find that variable's place within the VARS 
+!***  object.
+!-----------------------------------------------------------------------
+!
+        READ(UNIT=STRING,FMT=*,iostat=IOS)VBL_NAME                      &  !<-- The variable's name in the text file.
+                                         ,CH_B                          &  !<-- The flag for nest BC vbls in the text file.
+                                         ,CH_M                          &  !<-- Not relevant here (flag for moving nests)
+                                         ,CH_2                             !<-- The flag for 2-way vbls in the text file.
+!
+        CALL FIND_VAR_INDX(VBL_NAME,VARS,UBOUND_VARS,N)
+!
+        FIELD_NAME=TRIM(VARS(N)%VBL_NAME)//TRIM(SUFFIX_NESTBC)             !<-- Append the BC suffix to the Field
+!                                                                 
+!-----------------------------------------------------------------------
+!***  Check the Bundle's name to determine which column of user
+!***  specifications to read from the text file.
+!-----------------------------------------------------------------------
+!
+        H_OR_V=CH_B                                                        !<-- H-V flag for this nest BC variable
+!
+!-----------------------------------------------------------------------
+!***  Find the variables in the Solver internal state that have been
+!***  selected to be placed into the Bundle.  The user has specified
+!***  whether the variable lies on H points or V points.
+!***  Currently ESMF will not allow the use of Attributes that are
+!***  characters therefore we must translate the character codes from
+!***  the txt file into something that ESMF can use.  In this case
+!***  we will use integers:  H-->1 and V-->2 .
+!-----------------------------------------------------------------------
+!
+        IF(H_OR_V=='H')THEN
+          H_OR_V_INT=1                                                     !<-- H-pt variable
+        ELSEIF(H_OR_V=='V')THEN
+          H_OR_V_INT=2                                                     !<-- V-pt variable
+        ELSE
+          H_OR_V_INT=-999                                                  !<-- Variable not specified for use.
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+        build_bundle: IF(H_OR_V=='H'                                    &
+                            .OR.                                        &
+                         H_OR_V=='V'                                    &
+                                     )THEN
+!
+!-----------------------------------------------------------------------
+!
+!-------------------
+!***  2-D Variables
+!-------------------
+!
+!-------------
+!***  Integer
+!-------------
+!
+          IF(ASSOCIATED(VARS(N)%I2D))THEN                                  !<-- 2-D integer array on mass points
+!
+!           FIELD_X=ESMF_FieldCreate(grid       =GRID                   &  !<-- The ESMF Grid for this domain
+!                                   ,farray     =VARS(N)%I2D            &  !<-- Nth variable in the VARS array
+!                                   ,totalUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
+!                                   ,totalLWidth=(/IHALO,JHALO/)        &  !<-- Lower bound of halo region
+!                                   ,name       =FIELD_NAME             &  !<-- The name of this variable
+!                                   ,indexFlag  =ESMF_INDEX_GLOBAL      &  !<-- The variable uses global indexing
+!                                   ,rc         =RC)
+            WRITE(0,*)' MUST ADD THE CAPABILITY TO USE 2-D INTEGERS IN 2WAY/BC UPDATES!!'
+            WRITE(0,*)' Variable name is ',VARS(N)%VBL_NAME,' for variable #',N
+            WRITE(0,*)' H_OR_V_INT=',H_OR_V_INT
+            WRITE(0,*)' ABORT!!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+!
+!
+!----------
+!***  Real
+!----------
+!
+          ELSEIF(ASSOCIATED(VARS(N)%R2D))THEN                              !<-- 2-D real array on mass points
+!
+            FIELD_X=ESMF_FieldCreate(grid       =GRID                   &  !<-- The ESMF Grid for this domain
+                                    ,farray     =VARS(N)%R2D            &  !<-- Nth variable in the VARS array
+                                    ,totalUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
+                                    ,totalLWidth=(/IHALO,JHALO/)        &  !<-- Lower bound of halo region
+                                    ,name       =FIELD_NAME             &  !<-- The name of this variable
+                                    ,indexFlag  =ESMF_INDEX_GLOBAL      &  !<-- The variable uses global indexing
+                                    ,rc         =RC)
+!
+            IF(H_OR_V=='H')THEN
+              NVARS_BC_2D_H=NVARS_BC_2D_H+1                                !<-- Count # of 2-D H-pt variables
+              NLEV_H=NLEV_H+1                                              !<-- Sum all levels for H-pt variables
+            ELSEIF(H_OR_V=='V')THEN
+              NVARS_BC_2D_V=NVARS_BC_2D_V+1                                !<-- Count # of 2-D V-pt variables
+              NLEV_V=NLEV_V+1                                              !<-- Sum all levels for V-pt variables
+            ENDIF
+!
+!-------------------
+!***  3-D Variables
+!-------------------
+!
+!----------
+!***  Real
+!----------
+!
+          ELSEIF(ASSOCIATED(VARS(N)%R3D))THEN                              !<-- 3-D real array on mass points
+!
+            FIELD_X=ESMF_FieldCreate(grid           =GRID                           &  !<-- The ESMF Grid for this domain
+                                    ,farray         =VARS(N)%R3D                    &  !<-- Nth variable in the VARS array
+                                    ,totalUWidth    =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
+                                    ,totalLWidth    =(/IHALO,JHALO/)                &  !<-- Lower bound of halo region
+                                    ,ungriddedLBound=(/lbound(VARS(N)%R3D,dim=3)/)  &
+                                    ,ungriddedUBound=(/ubound(VARS(N)%R3D,dim=3)/)  &
+                                    ,name           =FIELD_NAME                     &  !<-- The name of this variable
+                                    ,indexFlag      =ESMF_INDEX_GLOBAL              &  !<-- The variable uses global indexing
+                                    ,rc             =RC)
+!
+            LB3=LBOUND(VARS(N)%R3D,3)
+            UB3=UBOUND(VARS(N)%R3D,3)
+!
+            IF(H_OR_V=='H')THEN
+              NVARS_BC_3D_H=NVARS_BC_3D_H+1                                !<-- Count # of 3-D H-pt variables
+              NLEV_H=NLEV_H+(UB3-LB3+1)                                    !<-- Sum all levels for H-pt variables
+            ELSEIF(H_OR_V=='V')THEN
+              NVARS_BC_3D_V=NVARS_BC_3D_V+1                                !<-- Count # of 3-D V-pt variables
+              NLEV_V=NLEV_V+(UB3-LB3+1)                                    !<-- Sum all levels for V-pt variables
+            ENDIF
+!
+!-------------------
+!***  4-D Variables
+!-------------------
+!
+!----------
+!***  Real
+!----------
+!
+          ELSEIF(ASSOCIATED(VARS(N)%R4D))THEN                              !<-- 4-D real array on mass points
+!
+            LB4=LBOUND(VARS(N)%R4D,dim=4)
+            UB4=UBOUND(VARS(N)%R4D,dim=4)
+!
+            FIELD_X=ESMF_FieldCreate(grid           =GRID                           &  !<-- The ESMF Grid for this domain
+                                    ,farray         =VARS(N)%R4D                    &  !<-- Nth variable in the VARS array
+                                    ,totalUWidth    =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
+                                    ,totalLWidth    =(/IHALO,JHALO/)                &  !<-- Lower bound of halo region
+                                    ,ungriddedLBound =(/ LBOUND(VARS(N)%R4D,dim=3),LB4 /) &
+                                    ,ungriddedUBound =(/ UBOUND(VARS(N)%R4D,dim=3),UB4 /) &
+                                    ,name           =FIELD_NAME                     &  !<-- The name of this variable
+                                    ,indexFlag      =ESMF_INDEX_GLOBAL              &  !<-- The variable uses global indexing
+                                    ,rc             =RC)
+!
+            LB3=LBOUND(VARS(N)%R4D,3)
+            UB3=UBOUND(VARS(N)%R4D,3)
+!
+            IF(H_OR_V=='H')THEN
+              NVARS_BC_4D_H=NVARS_BC_4D_H+1                                !<-- Count # of 4-D H-pt variables
+              NLEV_H=NLEV_H+(UB3-LB3+1)*(UB4-LB4+1)                        !<-- Sum all levels for H-pt variables
+            ENDIF
+!
+!----------------
+!***  All Others
+!----------------
+!
+          ELSE
+            WRITE(0,*)' SELECTED UPDATE H VARIABLE IS NOT 2,3,4-D REAL.'
+            WRITE(0,*)' Variable name is ',VARS(N)%VBL_NAME,' for variable #',N
+            WRITE(0,*)' H_OR_V_INT=',H_OR_V_INT
+            WRITE(0,*)' ABORT!!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+!
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Attach the index of this variable within the Solver internal
+!***  state so it can be referenced w/r to the boundary objects.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Add Solver Int State Indx to Bundle Field"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(field=FIELD_X                          &  !<-- The Field to be added to the Bundle
+                                ,name ='Solver Int State Indx'          &  !<-- The name of the Attribute to set
+                                ,value=N                                &  !<-- The index of the Solver internal state vbl
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Attach the specification flag to this Field that indicates
+!***  whether it is an H-pt or a V-pt variable.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Add H-or-V Specification Flag to Bundle Field"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_AttributeSet(field=FIELD_X                          &  !<-- The Field to be added to the Bundle
+                                ,name ='H_OR_V_INT'                     &  !<-- The name of the Attribute to set
+                                ,value=H_OR_V_INT                       &  !<-- H-pt or V-pt flag 
+                                ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  Add this Field to the Bundle that holds pointers to all
+!***  variables in the Solver internal state that have been
+!***  selected.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Add Desired Field to the Bundle"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_FieldBundleAdd(            BUNDLE_NESTBC            &  !<-- The Bundle of Solver internal state BC variables
+                                  ,            LISTWRAPPER(FIELD_X)     &  !<-- Add this Field to the Bundle
+                                  ,rc         =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF build_bundle
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO bundle_loop
+!
+!-----------------------------------------------------------------------
+!***  Allocate the appropriate pieces of the boundary variable
+!***  objects.  All nests use the same set of boundary variables
+!***  that are specified by the user in the external text file.
+!
+!***  The upper parent domain uses its own set of boundary variables
+!***  updated from the BC files generated during preprocessing.
+!***  They are currently hardwired to PD,T,Q,CW,U,V.
+!-----------------------------------------------------------------------
+!
+      IF(MY_DOMAIN_ID==1)THEN                                              !<-- The uppermost parent will hardwire its BC vbls
+!
+        NVARS_BC_2D_H=1                                                    !<-- PD
+        NVARS_BC_3D_H=3                                                    !<-- T,Q,CW
+        NVARS_BC_4D_H=0
+        NVARS_BC_2D_V=0
+        NVARS_BC_3D_V=2                                                    !<-- U,V
+!
+      ENDIF
+!
+      IF(NVARS_BC_2D_H>0)THEN
+        ALLOCATE(BND_VARS_H%VAR_2D(1:NVARS_BC_2D_H))                       !<-- All 2-D H-pt nest boundary variables
+      ENDIF
+!
+      IF(NVARS_BC_3D_H>0)THEN
+        ALLOCATE(BND_VARS_H%VAR_3D(1:NVARS_BC_3D_H))                       !<-- All 3-D H-pt nest boundary variables
+      ENDIF
+!
+      IF(NVARS_BC_4D_H>0)THEN
+        ALLOCATE(BND_VARS_H%VAR_4D(1:NVARS_BC_4D_H))                       !<-- All 4-D H-pt nest boundary variables
+      ENDIF
+!
+      IF(NVARS_BC_2D_V>0)THEN
+        ALLOCATE(BND_VARS_V%VAR_2D(1:NVARS_BC_2D_V))                       !<-- All 2-D V-pt nest boundary variables
+      ENDIF
+!
+      IF(NVARS_BC_3D_V>0)THEN
+        ALLOCATE(BND_VARS_V%VAR_3D(1:NVARS_BC_3D_V))                       !<-- All 3-D V-pt nest boundary variables
+      ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Now go through the boundary Bundle's variables and point the
+!***  full variable pointer of the appropriate boundary object that
+!***  was allocated immediately above at that variable in the Bundle
+!***  in order to associate each piece of the boundary object with
+!***  the actual boundary variable.
+!-----------------------------------------------------------------------
+!
+      CALL ESMF_FieldBundleGet(FIELDBUNDLE=BUNDLE_NESTBC                &  !<-- Bundle holding the arrays for BC updates
+                              ,fieldCount =NUM_FIELDS                   &  !<-- Number of Fields in the Bundle
+                              ,rc         =RC )
+!
+!-----------------------------------------------------------------------
+!
+      KNT_2D_H=0
+      KNT_3D_H=0
+      KNT_4D_H=0
+      KNT_2D_V=0
+      KNT_3D_V=0
+!
+!-----------------------------------------------------------------------
+!
+      bc_fields: DO N=1,NUM_FIELDS
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Field N from the Bundle"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE=BUNDLE_NESTBC              &  !<-- Bundle holding the arrays for BC updates
+                                ,fieldIndex =N                          &  !<-- Index of the Field in the Bundle
+                                ,field      =FIELD_X                    &  !<-- Field N in the Bundle
+                                ,rc         =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract H_OR_V Flag from the Field"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(field=FIELD_X                            &  !<-- The Domain import state
+                              ,name ='H_OR_V_INT'                       &  !<-- Name of the Attribute
+                              ,value=H_OR_V_INT                         &  !<-- Is the Field on H or V points? (1 is H; 2 is V)
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------
+!***  H-pt boundary variables
+!-----------------------------
+!
+        h_v: IF(H_OR_V_INT==1)THEN                                         !<-- If true, it is an H-pt variable
+!
+          CALL ESMF_FieldGet(field   =FIELD_X                           &  !<-- Field N in the Bundle
+                            ,dimCount=NUM_DIMS                          &  !<-- How many dimensions?
+                            ,rc      =RC )
+!
+!--------------
+!***  2-D Real
+!--------------
+!
+          IF(NUM_DIMS==2)THEN
+!
+            KNT_2D_H=KNT_2D_H+1
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Extract the 2-D H-pt Array from the Field"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_FieldGet(field    =FIELD_X                        &  !<-- Field N in the Bundle
+                              ,localDe  =0                              &
+                              ,farrayPtr=ARRAY_2D                       &  !<-- Dummy 2-D array with Field's Real data
+                              ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            BND_VARS_H%VAR_2D(KNT_2D_H)%FULL_VAR=>ARRAY_2D                 !<-- This variable becomes a boundary variable
+!
+            ALLOCATE(BND_VARS_H%VAR_2D(KNT_2D_H)%SOUTH(IMS:IME,1:LNSH,1:2) & !<-- 2-D H-pt boundary variable N on domain's south side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45001)ISTAT
+45001         FORMAT(' Failed to allocate BND_VARS_H%VAR_2D(N)%SOUTH  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            ALLOCATE(BND_VARS_H%VAR_2D(KNT_2D_H)%NORTH(IMS:IME,1:LNSH,1:2) & !<-- 2-D H-pt boundary variable N on domain's north side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45002)ISTAT
+45002         FORMAT(' Failed to allocate BND_VARS_H%VAR_2D(N)%NORTH  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            ALLOCATE(BND_VARS_H%VAR_2D(KNT_2D_H)%WEST(1:LNSH,JMS:JME,1:2)  & !<-- 2-D H-pt boundary variable N on domain's west side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45003)ISTAT
+45003         FORMAT(' Failed to allocate BND_VARS_H%VAR_2D(N)%WEST  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            ALLOCATE(BND_VARS_H%VAR_2D(KNT_2D_H)%EAST(1:LNSH,JMS:JME,1:2)  & !<-- 2-D H-pt boundary variable N on domain's east side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45004)ISTAT
+45004         FORMAT(' Failed to allocate BND_VARS_H%VAR_2D(N)%EasT  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            BND_VARS_H%VAR_2D(KNT_2D_H)%SOUTH=R4_IN
+            BND_VARS_H%VAR_2D(KNT_2D_H)%NORTH=R4_IN
+            BND_VARS_H%VAR_2D(KNT_2D_H)%WEST=R4_IN
+            BND_VARS_H%VAR_2D(KNT_2D_H)%EAST=R4_IN
+!
+!--------------
+!***  3-D Real
+!--------------
+!
+          ELSEIF(NUM_DIMS==3)THEN
+!
+            KNT_3D_H=KNT_3D_H+1
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Extract the 3-D H-pt Array from the Field"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_FieldGet(field    =FIELD_X                        &  !<-- Field N in the Bundle
+                              ,localDe  =0                              &
+                              ,farrayPtr=ARRAY_3D                       &  !<-- Dummy 3-D array with Field's Real data
+                              ,rc       =RC )
+!
+            CALL ESMF_FieldGet(field=FIELD_X                            &  !<-- Field N in the Bundle
+                              ,name =FIELD_NAME                         &  !<-- This Field's name
+                              ,rc   =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            BND_VARS_H%VAR_3D(KNT_3D_H)%FULL_VAR=>ARRAY_3D                 !<-- This variable becomes a boundary variable
+!
+            LB3=LBOUND(ARRAY_3D,3)
+            UB3=UBOUND(ARRAY_3D,3)
+!
+            ALLOCATE(BND_VARS_H%VAR_3D(KNT_3D_H)%SOUTH(IMS:IME,1:LNSH,LB3:UB3,1:2) & !<-- 3-D H-pt bndry vbl N on domain's south side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45011)ISTAT
+45011         FORMAT(' Failed to allocate BND_VARS_H%VAR_3D(N)%SOUTH  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            ALLOCATE(BND_VARS_H%VAR_3D(KNT_3D_H)%NORTH(IMS:IME,1:LNSH,LB3:UB3,1:2) & !<-- 3-D H-pt bndry vbl N on domain's north side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45012)ISTAT
+45012         FORMAT(' Failed to allocate BND_VARS_H%VAR_3D(N)%NORTH  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            ALLOCATE(BND_VARS_H%VAR_3D(KNT_3D_H)%WEST(1:LNSH,JMS:JME,LB3:UB3,1:2)  & !<-- 3-D H-pt bndry vbl N on domain's west side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45013)ISTAT
+45013         FORMAT(' Failed to allocate BND_VARS_H%VAR_3D(N)%WEST  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            ALLOCATE(BND_VARS_H%VAR_3D(KNT_3D_H)%EAST(1:LNSH,JMS:JME,LB3:UB3,1:2)  & !<-- 3-D H-pt bndry vbl N on domain's east side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45014)ISTAT
+45014         FORMAT(' Failed to allocate BND_VARS_H%VAR_3D(N)%EAST  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            BND_VARS_H%VAR_3D(KNT_3D_H)%SOUTH=R4_IN
+            BND_VARS_H%VAR_3D(KNT_3D_H)%NORTH=R4_IN
+            BND_VARS_H%VAR_3D(KNT_3D_H)%WEST=R4_IN
+            BND_VARS_H%VAR_3D(KNT_3D_H)%EAST=R4_IN
+!
+!-----------------------------------------------------------------------
+!***  Now some hardwiring is required.  The same boundary objects
+!***  are of course used by all domains but the arrays for the
+!***  upper domain will be read in from the external boco files
+!***  when that domain is not global.  The boundary objects store
+!***  the arrays in the order they are encountered in the nests.txt
+!***  file and in general that order will be different than the 
+!***  order they are read from the boco files.  Therefore we now
+!***  save the order of the three 3-D H-pt boundary arrays used
+!***  by the upper parent so they can be saved in the proper order
+!***  when they are read in subroutine READ_BC.  The order in which
+!***  READ_BC reads them from the boco files is T,Q,CW.
+!***  REGRETTABLY THIS IS DIRTY but is needed since all domains 
+!***  must use the same boundary objects but the dataread in
+!***  READ_BC is fixed in its order in NPS.
+!-----------------------------------------------------------------------
+!
+            IF(FIELD_NAME(1:1)=='T'                                     &
+                         .OR.                                           &
+               FIELD_NAME(1:1)=='Q'                                     &
+                         .OR.                                           &
+               FIELD_NAME(1:2)=='CW')THEN
+!
+              KNT_3D_DOM_01=KNT_3D_DOM_01+1
+!
+              IF(FIELD_NAME(1:1)=='T')THEN
+                N_BC_3D_H(1)=KNT_3D_DOM_01
+              ELSEIF(FIELD_NAME(1:1)=='Q')THEN
+                N_BC_3D_H(2)=KNT_3D_DOM_01
+              ELSEIF(FIELD_NAME(1:2)=='CW')THEN
+                N_BC_3D_H(3)=KNT_3D_DOM_01
+              ENDIF
+!
+            ENDIF
+!
+!--------------
+!***  4-D Real
+!--------------
+!
+          ELSEIF(NUM_DIMS==4)THEN
+!
+            KNT_4D_H=KNT_4D_H+1
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Extract the 4-D H-pt Array from the Field"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_FieldGet(field    =FIELD_X                        &  !<-- Field N in the Bundle
+                              ,localDe  =0                              &
+                              ,farrayPtr=ARRAY_4D                       &  !<-- Dummy 4-D array with Field's Real data
+                              ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            BND_VARS_H%VAR_4D(KNT_4D_H)%FULL_VAR=>ARRAY_4D                 !<-- This variable becomes a boundary variable
+!
+            LB3=LBOUND(ARRAY_4D,3)
+            UB3=UBOUND(ARRAY_4D,3)
+            LB4=LBOUND(ARRAY_4D,4)
+            UB4=UBOUND(ARRAY_4D,4)
+!
+            ALLOCATE(BND_VARS_H%VAR_4D(KNT_4D_H)%SOUTH(IMS:IME,1:LNSH,LB4:UB4,1:2,LB4:UB4) & !<-- 4-D H-pt bndry vbl N on domain's south side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45021)ISTAT
+45021         FORMAT(' Failed to allocate BND_VARS_H%VAR_4D(N)%SOUTH  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            ALLOCATE(BND_VARS_H%VAR_4D(KNT_4D_H)%NORTH(IMS:IME,1:LNSH,LB3:UB3,1:2,LB4:UB4) & !<-- 4-D H-pt bndry vbl N on domain's north side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45022)ISTAT
+45022         FORMAT(' Failed to allocate BND_VARS_H%VAR_4D(N)%NORTH  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            ALLOCATE(BND_VARS_H%VAR_4D(KNT_4D_H)%WEST(1:LNSH,JMS:JME,LB3:UB3,1:2,LB4:UB4)  & !<-- 4-D H-pt bndry vbl N on domain's west side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45023)ISTAT
+45023         FORMAT(' Failed to allocate BND_VARS_H%VAR_4D(N)%WEST  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            ALLOCATE(BND_VARS_H%VAR_4D(KNT_4D_H)%EAST(1:LNSH,JMS:JME,LB3:UB3,1:2,LB4:UB4)  & !<-- 4-D H-pt bndry vbl N on domain's east side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45024)ISTAT
+45024         FORMAT(' Failed to allocate BND_VARS_H%VAR_4D(N)%EAST  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            BND_VARS_H%VAR_4D(KNT_4D_H)%SOUTH=R4_IN
+            BND_VARS_H%VAR_4D(KNT_4D_H)%NORTH=R4_IN
+            BND_VARS_H%VAR_4D(KNT_4D_H)%WEST=R4_IN
+            BND_VARS_H%VAR_4D(KNT_4D_H)%EAST=R4_IN
+!
+          ENDIF
+!
+!-----------------------------
+!***  V-pt boundary variables
+!-----------------------------
+!
+        ELSEIF(H_OR_V_INT==2)THEN
+!
+          CALL ESMF_FieldGet(field   =FIELD_X                           &  !<-- Field N in the Bundle
+                            ,dimCount=NUM_DIMS                          &  !<-- How many dimensions?
+                            ,rc      =RC )
+!
+!--------------
+!***  2-D Real
+!--------------
+!
+          IF(NUM_DIMS==2)THEN
+!
+            KNT_2D_V=KNT_2D_V+1
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Extract the 2-D V-pt Array from the Field"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_FieldGet(field    =FIELD_X                        &  !<-- Field N in the Bundle
+                              ,localDe  =0                              &
+                              ,farrayPtr=ARRAY_2D                       &  !<-- Dummy 2-D array with Field's Real data
+                              ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            BND_VARS_V%VAR_2D(KNT_2D_V)%FULL_VAR=>ARRAY_2D                   !<-- This variable becomes a boundary variable
+!
+            ALLOCATE(BND_VARS_V%VAR_2D(KNT_2D_V)%SOUTH(IMS:IME,1:LNSV,1:2) & !<-- 2-D V-pt bndry vbl N on domain's south side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45041)ISTAT
+45041         FORMAT(' Failed to allocate BND_VARS_V%VAR_2D(N)%SOUTH  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            ALLOCATE(BND_VARS_V%VAR_2D(KNT_2D_V)%NORTH(IMS:IME,1:LNSV,1:2) & !<-- 2-D V-pt bndry vbl N on domain's north side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45042)ISTAT
+45042         FORMAT(' Failed to allocate BND_VARS_V%VAR_2D(N)%NORTH  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            ALLOCATE(BND_VARS_V%VAR_2D(KNT_2D_V)%WEST(1:LNSV,JMS:JME,1:2)  & !<-- 2-D V-pt bndry vbl N on domain's west side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45043)ISTAT
+45043         FORMAT(' Failed to allocate BND_VARS_V%VAR_2D(N)%WEST  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            ALLOCATE(BND_VARS_V%VAR_2D(KNT_2D_V)%EAST(1:LNSV,JMS:JME,1:2)  & !<-- 2-D V-pt bndry vbl N on domain's east side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45044)ISTAT
+45044         FORMAT(' Failed to allocate BND_VARS_V%VAR_2D(N)%EAST  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            BND_VARS_V%VAR_2D(KNT_2D_V)%SOUTH=R4_IN
+            BND_VARS_V%VAR_2D(KNT_2D_V)%NORTH=R4_IN
+            BND_VARS_V%VAR_2D(KNT_2D_V)%WEST=R4_IN
+            BND_VARS_V%VAR_2D(KNT_2D_V)%EAST=R4_IN
+!
+!--------------
+!***  3-D Real
+!--------------
+!
+          ELSEIF(NUM_DIMS==3)THEN
+!
+            KNT_3D_V=KNT_3D_V+1
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            MESSAGE_CHECK="Extract the 3-D V-pt Array from the Field"
+!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_FieldGet(field    =FIELD_X                        &  !<-- Field N in the Bundle
+                              ,localDe  =0                              &
+                              ,farrayPtr=ARRAY_3D                       &  !<-- Dummy 3-D array with Field's Real data
+                              ,rc       =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            BND_VARS_V%VAR_3D(KNT_3D_V)%FULL_VAR=>ARRAY_3D                 !<-- This variable becomes a boundary variable
+!
+            LB3=LBOUND(ARRAY_3D,3)
+            UB3=UBOUND(ARRAY_3D,3)
+!
+            ALLOCATE(BND_VARS_V%VAR_3D(KNT_3D_V)%SOUTH(IMS:IME,1:LNSV,LB3:UB3,1:2) & !<-- 3-D V-pt bndry vbl N on domain's south side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45051)ISTAT
+45051         FORMAT(' Failed to allocate BND_VARS_V%VAR_3D(N)%SOUTH  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            ALLOCATE(BND_VARS_V%VAR_3D(KNT_3D_V)%NORTH(IMS:IME,1:LNSV,LB3:UB3,1:2) & !<-- 3-D V-pt bndry vbl N on domain's north side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45052)ISTAT
+45052         FORMAT(' Failed to allocate BND_VARS_V%VAR_3D(N)%NORTH  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            ALLOCATE(BND_VARS_V%VAR_3D(KNT_3D_V)%WEST(1:LNSV,JMS:JME,LB3:UB3,1:2)  & !<-- 3-D V-pt bndry vbl N on domain's west side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45053)ISTAT
+45053         FORMAT(' Failed to allocate BND_VARS_V%VAR_3D(N)%WEST  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            ALLOCATE(BND_VARS_V%VAR_3D(KNT_3D_V)%EAST(1:LNSV,JMS:JME,LB3:UB3,1:2)  & !<-- 3-D V-pt bndry vbl N on domain's east side
+                    ,stat=ISTAT)
+            IF(ISTAT/=0)THEN
+              WRITE(0,45054)ISTAT
+45054         FORMAT(' Failed to allocate BND_VARS_V%VAR_3D(N)%EAST  istat=',i5)
+              WRITE(0,*)' Aborting!'
+              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            ENDIF
+!
+            BND_VARS_V%VAR_3D(KNT_3D_V)%SOUTH=R4_IN
+            BND_VARS_V%VAR_3D(KNT_3D_V)%NORTH=R4_IN
+            BND_VARS_V%VAR_3D(KNT_3D_V)%WEST=R4_IN
+            BND_VARS_V%VAR_3D(KNT_3D_V)%EAST=R4_IN
+!
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!
+        ENDIF h_v
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO bc_fields
+!
+!-----------------------------------------------------------------------
+!
+      CLOSE(10)
+!
+!-----------------------------------------------------------------------
+!
+      END SUBROUTINE BUILD_BC_BUNDLE
+!
+!-----------------------------------------------------------------------
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+!-----------------------------------------------------------------------
+!
       SUBROUTINE UPDATE_BC_TENDS(IMP_STATE                              &
                                 ,LM,LNSH,LNSV                           &
                                 ,PARENT_CHILD_TIME_RATIO,DT             &
                                 ,S_BDY,N_BDY,W_BDY,E_BDY                &
-                                ,PDBS,PDBN,PDBW,PDBE                    &
-                                ,TBS,TBN,TBW,TBE                        &
-                                ,QBS,QBN,QBW,QBE                        &
-                                ,WBS,WBN,WBW,WBE                        &
-                                ,UBS,UBN,UBW,UBE                        &
-                                ,VBS,VBN,VBW,VBE                        &
+                                ,NLEV_H,NLEV_V                          &
+                                ,NVARS_BC_2D_H                          &
+                                ,NVARS_BC_3D_H                          &
+                                ,NVARS_BC_4D_H                          &
+                                ,NVARS_BC_2D_V                          &
+                                ,NVARS_BC_3D_V                          &
+                                ,BND_VARS_H                             &
+                                ,BND_VARS_V                             &
                                 ,ITS,ITE,JTS,JTE                        &
                                 ,IMS,IME,JMS,JME                        &
                                 ,IDS,IDE,JDS,JDE )
@@ -7154,6 +7896,9 @@
 !
       INTEGER,INTENT(IN) :: LNSH                                        &  !<-- # of boundary blending rows for H points
                            ,LNSV                                        &  !<-- # of boundary blending rows for V points
+                           ,NLEV_H,NLEV_V                               &  !<-- Total # of levels in H-pt,V-pt BC vbls
+                           ,NVARS_BC_2D_H,NVARS_BC_3D_H,NVARS_BC_4D_H   &  !<-- # of multi-dim H-pt boundary variables
+                           ,NVARS_BC_2D_V,NVARS_BC_3D_V                 &  !<-- # of multi-dim V-pt boundary variables
                            ,PARENT_CHILD_TIME_RATIO                        !<-- # of child timesteps per parent timestep
 !
       INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE                             &  !
@@ -7167,45 +7912,32 @@
 !
       TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE                          !<-- Solver import state
 !
-      REAL,DIMENSION(IMS:IME,1:LNSH,     1:2),INTENT(INOUT) :: PDBS,PDBN   !<-- South/North PD values/tendencies
+      TYPE(BC_H_ALL),INTENT(INOUT) :: BND_VARS_H                           !<-- All H-pt boundary data/tendencies
 !
-      REAL,DIMENSION(IMS:IME,1:LNSH,1:LM,1:2),INTENT(INOUT) :: TBS,TBN  &  !<-- South/North temperature values/tendencies
-                                                              ,QBS,QBN  &  !<-- South/North specific humidity values/tendencies
-                                                              ,WBS,WBN     !<-- South/North cloud condensate values/tendencies
-!
-      REAL,DIMENSION(IMS:IME,1:LNSV,1:LM,1:2),INTENT(INOUT) :: UBS,UBN  &  !<-- South/North U wind values/tendencies
-                                                              ,VBS,VBN     !<-- South/North V wind values/tendencies
-!
-      REAL,DIMENSION(1:LNSH,JMS:JME,     1:2),INTENT(INOUT) :: PDBW,PDBE   !<-- West/East PD values/tendencies
-!
-      REAL,DIMENSION(1:LNSH,JMS:JME,1:LM,1:2),INTENT(INOUT) :: TBW,TBE  &  !<-- West/East temperature values/tendencies
-                                                              ,QBW,QBE  &  !<-- West/East specific humidity values/tendencies
-                                                              ,WBW,WBE     !<-- West/East cloud condensate values/tendencies
-!
-      REAL,DIMENSION(1:LNSV,JMS:JME,1:LM,1:2),INTENT(INOUT) :: UBW,UBE  &  !<-- West/East U wind values/tendencies
-                                                              ,VBW,VBE     !<-- West/East V wind values/tendencies
+      TYPE(BC_V_ALL),INTENT(INOUT) :: BND_VARS_V                           !<-- All V-pt boundary data/tendencies
 !
 !---------------------
 !***  Local Variables
 !---------------------
 !
-      INTEGER,SAVE :: I1=-1,I2_H=-1,I2_V,J1=-1,J2_H=-1,J2_V
+      INTEGER(kind=KINT) :: I1,I2_H,I2_V,J1,J2_H,J2_V
 !
-      INTEGER,SAVE :: KOUNT_S_H,KOUNT_S_V,KOUNT_N_H,KOUNT_N_V           &
-                     ,KOUNT_W_H,KOUNT_W_V,KOUNT_E_H,KOUNT_E_V
+      INTEGER(kind=KINT) :: KOUNT_S_H,KOUNT_S_V,KOUNT_N_H,KOUNT_N_V     &
+                           ,KOUNT_W_H,KOUNT_W_V,KOUNT_E_H,KOUNT_E_V
 !
-      INTEGER      :: I,J,K,KOUNT,RC,RC_BCT
+      INTEGER(kind=KINT) :: I,J,K,KOUNT,LBND,NL,NV,UBND
+      INTEGER(kind=KINT) :: ISTAT,RC,RC_BCT
 !
       REAL,SAVE :: RECIP
 !
-      REAL,DIMENSION(:),ALLOCATABLE,SAVE :: BND_DATA_S_H                &
-                                           ,BND_DATA_S_V                & 
-                                           ,BND_DATA_N_H                & 
-                                           ,BND_DATA_N_V                & 
-                                           ,BND_DATA_W_H                & 
-                                           ,BND_DATA_W_V                & 
-                                           ,BND_DATA_E_H                & 
-                                           ,BND_DATA_E_V
+      REAL,DIMENSION(:),ALLOCATABLE :: BND_DATA_S_H                     &
+                                      ,BND_DATA_S_V                     & 
+                                      ,BND_DATA_N_H                     & 
+                                      ,BND_DATA_N_V                     & 
+                                      ,BND_DATA_W_H                     & 
+                                      ,BND_DATA_W_V                     &
+                                      ,BND_DATA_E_H                     & 
+                                      ,BND_DATA_E_V
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -7230,31 +7962,17 @@
 !-----------------------------------------------------------------------
 !***  The following 'KOUNT' variables are the number of gridpoints
 !***  on the given task subdomain's South/North/West/East boundaries
-!***  for all quantities on mass and velocity points.
+!***  for all 2-D,3-D,4-D quantities on mass and velocity points.
 !-----------------------------------------------------------------------
 !
-      KOUNT_S_H=(3*LM+1)*(I2_H-I1+1)*LNSH
-      KOUNT_N_H=(3*LM+1)*(I2_H-I1+1)*LNSH
-      KOUNT_S_V=2*LM*(I2_V-I1+1)*LNSV
-      KOUNT_N_V=2*LM*(I2_V-I1+1)*LNSV
-      KOUNT_W_H=(3*LM+1)*(J2_H-J1+1)*LNSH
-      KOUNT_E_H=(3*LM+1)*(J2_H-J1+1)*LNSH
-      KOUNT_W_V=2*LM*(J2_V-J1+1)*LNSV
-      KOUNT_E_V=2*LM*(J2_V-J1+1)*LNSV
-!
-!-----------------------------------------------------------------------
-!***  Allocate the boundary pointer arrays into which the boundary
-!***  data from the Solver import state will be unloaded.
-!-----------------------------------------------------------------------
-!
-      ALLOCATE(BND_DATA_S_H(1:KOUNT_S_H))
-      ALLOCATE(BND_DATA_S_V(1:KOUNT_S_V))
-      ALLOCATE(BND_DATA_N_H(1:KOUNT_N_H))
-      ALLOCATE(BND_DATA_N_V(1:KOUNT_N_V))
-      ALLOCATE(BND_DATA_W_H(1:KOUNT_W_H))
-      ALLOCATE(BND_DATA_W_V(1:KOUNT_W_V))
-      ALLOCATE(BND_DATA_E_H(1:KOUNT_E_H))
-      ALLOCATE(BND_DATA_E_V(1:KOUNT_E_V))
+      KOUNT_S_H=NLEV_H*(I2_H-I1+1)*LNSH
+      KOUNT_N_H=NLEV_H*(I2_H-I1+1)*LNSH
+      KOUNT_S_V=NLEV_V*(I2_V-I1+1)*LNSV
+      KOUNT_N_V=NLEV_V*(I2_V-I1+1)*LNSV
+      KOUNT_W_H=NLEV_H*(J2_H-J1+1)*LNSH
+      KOUNT_E_H=NLEV_H*(J2_H-J1+1)*LNSH
+      KOUNT_W_V=NLEV_V*(J2_V-J1+1)*LNSV
+      KOUNT_E_V=NLEV_V*(J2_V-J1+1)*LNSV
 !
 !-----------------------------------------------------------------------
 !***  Compute RECIP every time in case the sign of DT has changed 
@@ -7291,6 +8009,8 @@
 !***  South H
 !-------------
 !
+        ALLOCATE(BND_DATA_S_H(1:KOUNT_S_H))                                !<-- For south boundary H-pt data from Solver import state 
+!
 #ifdef ESMF_3
         move_now_south_h: IF(MOVE_NOW==ESMF_TRUE)THEN
 #else
@@ -7319,23 +8039,46 @@
 !
           KOUNT=0
 !
-          DO J=1,LNSH
-          DO I=I1,I2_H
-            KOUNT=KOUNT+1
-            PDBS(I,J,1)=BND_DATA_S_H(KOUNT)
-          ENDDO
-          ENDDO
+          IF(NVARS_BC_2D_H>0)THEN
+            DO NV=1,NVARS_BC_2D_H
+              DO J=1,LNSH
+              DO I=I1,I2_H
+                KOUNT=KOUNT+1
+                BND_VARS_H%VAR_2D(NV)%SOUTH(I,J,1)=BND_DATA_S_H(KOUNT)
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
-          DO K=1,LM
-          DO J=1,LNSH
-          DO I=I1,I2_H
-            TBS(I,J,K,1)=BND_DATA_S_H(KOUNT+1)
-            QBS(I,J,K,1)=BND_DATA_S_H(KOUNT+2)
-            WBS(I,J,K,1)=BND_DATA_S_H(KOUNT+3)
-            KOUNT=KOUNT+3
-          ENDDO
-          ENDDO
-          ENDDO
+          IF(NVARS_BC_3D_H>0)THEN
+            DO NV=1,NVARS_BC_3D_H
+              DO K=1,LM
+              DO J=1,LNSH
+              DO I=I1,I2_H
+                KOUNT=KOUNT+1
+                BND_VARS_H%VAR_3D(NV)%SOUTH(I,J,K,1)=BND_DATA_S_H(KOUNT)
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_4D_H>0)THEN
+            DO NV=1,NVARS_BC_4D_H
+              LBND=LBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+              UBND=UBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+              DO NL=LBND,UBND
+              DO K=1,LM
+              DO J=1,LNSH
+              DO I=I1,I2_H
+                KOUNT=KOUNT+1
+                BND_VARS_H%VAR_4D(NV)%SOUTH(I,J,K,1,NL)=BND_DATA_S_H(KOUNT)
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
         ENDIF move_now_south_h
 !
@@ -7361,27 +8104,57 @@
 !
         KOUNT=0
 !
-        DO J=1,LNSH
-        DO I=I1,I2_H
-          KOUNT=KOUNT+1
-          PDBS(I,J,2)=(BND_DATA_S_H(KOUNT)-PDBS(I,J,1))*RECIP
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_2D_H>0)THEN
+          DO NV=1,NVARS_BC_2D_H
+            DO J=1,LNSH
+            DO I=I1,I2_H
+              KOUNT=KOUNT+1
+              BND_VARS_H%VAR_2D(NV)%SOUTH(I,J,2)=                       &
+                 (BND_DATA_S_H(KOUNT)-BND_VARS_H%VAR_2D(NV)%SOUTH(I,J,1))*RECIP
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
 !
-        DO K=1,LM
-        DO J=1,LNSH
-        DO I=I1,I2_H
-          TBS(I,J,K,2)=(BND_DATA_S_H(KOUNT+1)-TBS(I,J,K,1))*RECIP
-          QBS(I,J,K,2)=(BND_DATA_S_H(KOUNT+2)-QBS(I,J,K,1))*RECIP
-          WBS(I,J,K,2)=(BND_DATA_S_H(KOUNT+3)-WBS(I,J,K,1))*RECIP
-          KOUNT=KOUNT+3
-        ENDDO
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            DO K=1,LM
+            DO J=1,LNSH
+            DO I=I1,I2_H
+              KOUNT=KOUNT+1
+              BND_VARS_H%VAR_3D(NV)%SOUTH(I,J,K,2)=                    &
+                (BND_DATA_S_H(KOUNT)-BND_VARS_H%VAR_3D(NV)%SOUTH(I,J,K,1))*RECIP
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            LBND=LBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+            UBND=UBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+            DO NL=LBND,UBND
+            DO K=1,LM
+            DO J=1,LNSH
+            DO I=I1,I2_H
+              KOUNT=KOUNT+1
+              BND_VARS_H%VAR_4D(NV)%SOUTH(I,J,K,2,NL)=                  &
+                (BND_DATA_S_H(KOUNT)-BND_VARS_H%VAR_4D(NV)%SOUTH(I,J,K,1,NL))*RECIP
+            ENDDO
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        DEALLOCATE(BND_DATA_S_H)
 !
 !-------------
 !***  South V
 !-------------
+!
+        ALLOCATE(BND_DATA_S_V(1:KOUNT_S_V))                                !<-- For south boundary V-pt data from Solver import state
 !
 #ifdef ESMF_3
         move_now_south_v: IF(MOVE_NOW==ESMF_TRUE)THEN
@@ -7411,15 +8184,29 @@
 !
           KOUNT=0
 !
-          DO K=1,LM
-          DO J=1,LNSV
-          DO I=I1,I2_V
-            UBS(I,J,K,1)=BND_DATA_S_V(KOUNT+1)
-            VBS(I,J,K,1)=BND_DATA_S_V(KOUNT+2)
-            KOUNT=KOUNT+2
-          ENDDO
-          ENDDO
-          ENDDO
+          IF(NVARS_BC_2D_V>0)THEN
+            DO NV=1,NVARS_BC_2D_V
+              DO J=1,LNSV
+              DO I=I1,I2_V
+                KOUNT=KOUNT+1
+                BND_VARS_V%VAR_2D(NV)%SOUTH(I,J,1)=BND_DATA_S_V(KOUNT)
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_V>0)THEN
+            DO NV=1,NVARS_BC_3D_V
+              DO K=1,LM
+              DO J=1,LNSV
+              DO I=I1,I2_V
+                KOUNT=KOUNT+1
+                BND_VARS_V%VAR_3D(NV)%SOUTH(I,J,K,1)=BND_DATA_S_V(KOUNT)
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
         ENDIF move_now_south_v
 !
@@ -7445,15 +8232,33 @@
 !
         KOUNT=0
 !
-        DO K=1,LM
-        DO J=1,LNSV
-        DO I=I1,I2_V
-          UBS(I,J,K,2)=(BND_DATA_S_V(KOUNT+1)-UBS(I,J,K,1))*RECIP
-          VBS(I,J,K,2)=(BND_DATA_S_V(KOUNT+2)-VBS(I,J,K,1))*RECIP
-          KOUNT=KOUNT+2
-        ENDDO
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            DO J=1,LNSV
+            DO I=I1,I2_V
+              KOUNT=KOUNT+1
+              BND_VARS_V%VAR_2D(NV)%SOUTH(I,J,2)=                       &
+                 (BND_DATA_S_V(KOUNT)-BND_VARS_V%VAR_2D(NV)%SOUTH(I,J,1))*RECIP
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            DO K=1,LM
+            DO J=1,LNSV
+            DO I=I1,I2_V
+              KOUNT=KOUNT+1
+              BND_VARS_V%VAR_3D(NV)%SOUTH(I,J,K,2)=                    &
+                (BND_DATA_S_V(KOUNT)-BND_VARS_V%VAR_3D(NV)%SOUTH(I,J,K,1))*RECIP
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        DEALLOCATE(BND_DATA_S_V)
 !
       ENDIF south
 !
@@ -7466,6 +8271,8 @@
 !-------------
 !***  North H
 !-------------
+!
+        ALLOCATE(BND_DATA_N_H(1:KOUNT_N_H),stat=ISTAT)                     !<-- For north boundary H-pt data from Solver import state
 !
 #ifdef ESMF_3
         move_now_north_h: IF(MOVE_NOW==ESMF_TRUE)THEN
@@ -7495,23 +8302,46 @@
 !
           KOUNT=0
 !
-          DO J=1,LNSH
-          DO I=I1,I2_H
-            KOUNT=KOUNT+1
-            PDBN(I,J,1)=BND_DATA_N_H(KOUNT)
-          ENDDO
-          ENDDO
+          IF(NVARS_BC_2D_H>0)THEN
+            DO NV=1,NVARS_BC_2D_H
+              DO J=1,LNSH
+              DO I=I1,I2_H
+                KOUNT=KOUNT+1
+                BND_VARS_H%VAR_2D(NV)%NORTH(I,J,1)=BND_DATA_N_H(KOUNT)
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
-          DO K=1,LM
-          DO J=1,LNSH
-          DO I=I1,I2_H
-            TBN(I,J,K,1)=BND_DATA_N_H(KOUNT+1)
-            QBN(I,J,K,1)=BND_DATA_N_H(KOUNT+2)
-            WBN(I,J,K,1)=BND_DATA_N_H(KOUNT+3)
-            KOUNT=KOUNT+3
-          ENDDO
-          ENDDO
-          ENDDO
+          IF(NVARS_BC_3D_H>0)THEN
+            DO NV=1,NVARS_BC_3D_H
+              DO K=1,LM
+              DO J=1,LNSH
+              DO I=I1,I2_H
+                KOUNT=KOUNT+1
+                BND_VARS_H%VAR_3D(NV)%NORTH(I,J,K,1)=BND_DATA_N_H(KOUNT)
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_4D_H>0)THEN
+            DO NV=1,NVARS_BC_4D_H
+              LBND=LBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+              UBND=UBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+              DO NL=LBND,UBND
+              DO K=1,LM
+              DO J=1,LNSH
+              DO I=I1,I2_H
+                KOUNT=KOUNT+1
+                BND_VARS_H%VAR_4D(NV)%NORTH(I,J,K,1,NL)=BND_DATA_N_H(KOUNT)
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
         ENDIF move_now_north_h
 !
@@ -7537,27 +8367,57 @@
 !
         KOUNT=0
 !
-        DO J=1,LNSH
-        DO I=I1,I2_H
-          KOUNT=KOUNT+1
-          PDBN(I,J,2)=(BND_DATA_N_H(KOUNT)-PDBN(I,J,1))*RECIP
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_2D_H>0)THEN
+          DO NV=1,NVARS_BC_2D_H
+            DO J=1,LNSH
+            DO I=I1,I2_H
+              KOUNT=KOUNT+1
+              BND_VARS_H%VAR_2D(NV)%NORTH(I,J,2)=                       &
+                 (BND_DATA_N_H(KOUNT)-BND_VARS_H%VAR_2D(NV)%NORTH(I,J,1))*RECIP
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
 !
-        DO K=1,LM
-        DO J=1,LNSH
-        DO I=I1,I2_H
-          TBN(I,J,K,2)=(BND_DATA_N_H(KOUNT+1)-TBN(I,J,K,1))*RECIP
-          QBN(I,J,K,2)=(BND_DATA_N_H(KOUNT+2)-QBN(I,J,K,1))*RECIP
-          WBN(I,J,K,2)=(BND_DATA_N_H(KOUNT+3)-WBN(I,J,K,1))*RECIP
-          KOUNT=KOUNT+3
-        ENDDO
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            DO K=1,LM
+            DO J=1,LNSH
+            DO I=I1,I2_H
+              KOUNT=KOUNT+1
+              BND_VARS_H%VAR_3D(NV)%NORTH(I,J,K,2)=                    &
+                (BND_DATA_N_H(KOUNT)-BND_VARS_H%VAR_3D(NV)%NORTH(I,J,K,1))*RECIP
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            LBND=LBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+            UBND=UBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+            DO NL=LBND,UBND
+            DO K=1,LM
+            DO J=1,LNSH
+            DO I=I1,I2_H
+              KOUNT=KOUNT+1
+              BND_VARS_H%VAR_4D(NV)%NORTH(I,J,K,2,NL)=                  &
+                (BND_DATA_N_H(KOUNT)-BND_VARS_H%VAR_4D(NV)%NORTH(I,J,K,1,NL))*RECIP
+            ENDDO
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        DEALLOCATE(BND_DATA_N_H)
 !
 !-------------
 !***  North V
 !-------------
+!
+        ALLOCATE(BND_DATA_N_V(1:KOUNT_N_V))                                !<-- For north boundary V-pt data from Solver import state
 !
 #ifdef ESMF_3
         move_now_north_v: IF(MOVE_NOW==ESMF_TRUE)THEN
@@ -7587,15 +8447,29 @@
 !
           KOUNT=0
 !
-          DO K=1,LM
-          DO J=1,LNSV
-          DO I=I1,I2_V
-            UBN(I,J,K,1)=BND_DATA_N_V(KOUNT+1)
-            VBN(I,J,K,1)=BND_DATA_N_V(KOUNT+2)
-            KOUNT=KOUNT+2
-          ENDDO
-          ENDDO
-          ENDDO
+          IF(NVARS_BC_2D_V>0)THEN
+            DO NV=1,NVARS_BC_2D_V
+              DO J=1,LNSV
+              DO I=I1,I2_V
+                KOUNT=KOUNT+1
+                BND_VARS_V%VAR_2D(NV)%NORTH(I,J,1)=BND_DATA_S_V(KOUNT)
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_V>0)THEN
+            DO NV=1,NVARS_BC_3D_V
+              DO K=1,LM
+              DO J=1,LNSV
+              DO I=I1,I2_V
+                KOUNT=KOUNT+1
+                BND_VARS_V%VAR_3D(NV)%NORTH(I,J,K,1)=BND_DATA_N_V(KOUNT)
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
         ENDIF move_now_north_v
 !
@@ -7621,15 +8495,33 @@
 !
         KOUNT=0
 !
-        DO K=1,LM
-        DO J=1,LNSV
-        DO I=I1,I2_V
-          UBN(I,J,K,2)=(BND_DATA_N_V(KOUNT+1)-UBN(I,J,K,1))*RECIP
-          VBN(I,J,K,2)=(BND_DATA_N_V(KOUNT+2)-VBN(I,J,K,1))*RECIP
-          KOUNT=KOUNT+2
-        ENDDO
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            DO J=1,LNSV
+            DO I=I1,I2_V
+              KOUNT=KOUNT+1
+              BND_VARS_V%VAR_2D(NV)%NORTH(I,J,2)=                       &
+                 (BND_DATA_N_V(KOUNT)-BND_VARS_V%VAR_2D(NV)%NORTH(I,J,1))*RECIP
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            DO K=1,LM
+            DO J=1,LNSV
+            DO I=I1,I2_V
+              KOUNT=KOUNT+1
+              BND_VARS_V%VAR_3D(NV)%NORTH(I,J,K,2)=                    &
+                (BND_DATA_N_V(KOUNT)-BND_VARS_V%VAR_3D(NV)%NORTH(I,J,K,1))*RECIP
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        DEALLOCATE(BND_DATA_N_V)
 !
       ENDIF north
 !
@@ -7642,6 +8534,8 @@
 !------------
 !***  West H
 !------------
+!
+        ALLOCATE(BND_DATA_W_H(1:KOUNT_W_H))                                !<-- For west boundary H-pt data from Solver import state
 !
 #ifdef ESMF_3
         move_now_west_h: IF(MOVE_NOW==ESMF_TRUE)THEN
@@ -7671,23 +8565,46 @@
 !
           KOUNT=0
 !
-          DO J=J1,J2_H
-          DO I=1,LNSH
-            KOUNT=KOUNT+1
-            PDBW(I,J,1)=BND_DATA_W_H(KOUNT)
-          ENDDO
-          ENDDO
+          IF(NVARS_BC_2D_H>0)THEN
+            DO NV=1,NVARS_BC_2D_H
+              DO J=J1,J2_H
+              DO I=1,LNSH
+                KOUNT=KOUNT+1
+                BND_VARS_H%VAR_2D(NV)%WEST(I,J,1)=BND_DATA_W_H(KOUNT)
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
-          DO K=1,LM
-          DO J=J1,J2_H
-          DO I=1,LNSH
-            TBW(I,J,K,1)=BND_DATA_W_H(KOUNT+1)
-            QBW(I,J,K,1)=BND_DATA_W_H(KOUNT+2)
-            WBW(I,J,K,1)=BND_DATA_W_H(KOUNT+3)
-            KOUNT=KOUNT+3
-          ENDDO
-          ENDDO
-          ENDDO
+          IF(NVARS_BC_3D_H>0)THEN
+            DO NV=1,NVARS_BC_3D_H
+              DO K=1,LM
+              DO J=J1,J2_H
+              DO I=1,LNSH
+                KOUNT=KOUNT+1
+                BND_VARS_H%VAR_3D(NV)%WEST(I,J,K,1)=BND_DATA_W_H(KOUNT)
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_4D_H>0)THEN
+            DO NV=1,NVARS_BC_4D_H
+              LBND=LBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+              UBND=UBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+              DO NL=LBND,UBND
+              DO K=1,LM
+              DO J=J1,J2_H
+              DO I=1,LNSH
+                KOUNT=KOUNT+1
+                BND_VARS_H%VAR_4D(NV)%WEST(I,J,K,1,NL)=BND_DATA_W_H(KOUNT)
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
         ENDIF move_now_west_h
 !
@@ -7713,27 +8630,57 @@
 !
         KOUNT=0
 !
-        DO J=J1,J2_H
-        DO I=1,LNSH
-          KOUNT=KOUNT+1
-          PDBW(I,J,2)=(BND_DATA_W_H(KOUNT)-PDBW(I,J,1))*RECIP
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_2D_H>0)THEN
+          DO NV=1,NVARS_BC_2D_H
+            DO J=J1,J2_H
+            DO I=1,LNSH
+              KOUNT=KOUNT+1
+              BND_VARS_H%VAR_2D(NV)%WEST(I,J,2)=                        &
+                 (BND_DATA_W_H(KOUNT)-BND_VARS_H%VAR_2D(NV)%WEST(I,J,1))*RECIP
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
 !
-        DO K=1,LM
-        DO J=J1,J2_H
-        DO I=1,LNSH
-          TBW(I,J,K,2)=(BND_DATA_W_H(KOUNT+1)-TBW(I,J,K,1))*RECIP
-          QBW(I,J,K,2)=(BND_DATA_W_H(KOUNT+2)-QBW(I,J,K,1))*RECIP
-          WBW(I,J,K,2)=(BND_DATA_W_H(KOUNT+3)-WBW(I,J,K,1))*RECIP
-          KOUNT=KOUNT+3
-        ENDDO
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            DO K=1,LM
+            DO J=J1,J2_H
+            DO I=1,LNSH
+              KOUNT=KOUNT+1
+              BND_VARS_H%VAR_3D(NV)%WEST(I,J,K,2)=                     &
+                (BND_DATA_W_H(KOUNT)-BND_VARS_H%VAR_3D(NV)%WEST(I,J,K,1))*RECIP
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            LBND=LBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+            UBND=UBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+            DO NL=LBND,UBND
+            DO K=1,LM
+            DO J=J1,J2_H
+            DO I=1,LNSH
+              KOUNT=KOUNT+1
+              BND_VARS_H%VAR_4D(NV)%WEST(I,J,K,2,NL)=                   &
+                (BND_DATA_W_H(KOUNT)-BND_VARS_H%VAR_4D(NV)%WEST(I,J,K,1,NL))*RECIP
+            ENDDO
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        DEALLOCATE(BND_DATA_W_H)
 !
 !------------
 !***  West V
 !------------
+!
+        ALLOCATE(BND_DATA_W_V(1:KOUNT_W_V))                                !<-- For west boundary V-pt data from Solver import state
 !
 #ifdef ESMF_3
         move_now_west_v: IF(MOVE_NOW==ESMF_TRUE)THEN
@@ -7763,15 +8710,29 @@
 !
           KOUNT=0
 !
-          DO K=1,LM
-          DO J=J1,J2_V
-          DO I=1,LNSV
-            UBW(I,J,K,1)=BND_DATA_W_V(KOUNT+1)
-            VBW(I,J,K,1)=BND_DATA_W_V(KOUNT+2)
-            KOUNT=KOUNT+2
-          ENDDO
-          ENDDO
-          ENDDO
+          IF(NVARS_BC_2D_V>0)THEN
+            DO NV=1,NVARS_BC_2D_V
+              DO J=J1,J2_V
+              DO I=1,LNSV
+                KOUNT=KOUNT+1
+                BND_VARS_V%VAR_2D(NV)%WEST(I,J,1)=BND_DATA_W_V(KOUNT)
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_V>0)THEN
+            DO NV=1,NVARS_BC_3D_V
+              DO K=1,LM
+              DO J=J1,J2_V
+              DO I=1,LNSV
+                KOUNT=KOUNT+1
+                BND_VARS_V%VAR_3D(NV)%WEST(I,J,K,1)=BND_DATA_W_V(KOUNT)
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
         ENDIF move_now_west_v
 !
@@ -7797,15 +8758,33 @@
 !
         KOUNT=0
 !
-        DO K=1,LM
-        DO J=J1,J2_V
-        DO I=1,LNSV
-          UBW(I,J,K,2)=(BND_DATA_W_V(KOUNT+1)-UBW(I,J,K,1))*RECIP
-          VBW(I,J,K,2)=(BND_DATA_W_V(KOUNT+2)-VBW(I,J,K,1))*RECIP
-          KOUNT=KOUNT+2
-        ENDDO
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            DO J=J1,J2_V
+            DO I=1,LNSV
+              KOUNT=KOUNT+1
+              BND_VARS_V%VAR_2D(NV)%WEST(I,J,2)=                        &
+                 (BND_DATA_W_V(KOUNT)-BND_VARS_V%VAR_2D(NV)%WEST(I,J,1))*RECIP
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            DO K=1,LM
+            DO J=J1,J2_V
+            DO I=1,LNSV
+              KOUNT=KOUNT+1
+              BND_VARS_V%VAR_3D(NV)%WEST(I,J,K,2)=                     &
+                (BND_DATA_W_V(KOUNT)-BND_VARS_V%VAR_3D(NV)%WEST(I,J,K,1))*RECIP
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        DEALLOCATE(BND_DATA_W_V)
 !
       ENDIF west
 !
@@ -7818,6 +8797,8 @@
 !------------
 !***  East H
 !------------
+!
+        ALLOCATE(BND_DATA_E_H(1:KOUNT_E_H))                                !<-- For east boundary H-pt data from Solver import state
 !
 #ifdef ESMF_3
         move_now_east_h: IF(MOVE_NOW==ESMF_TRUE)THEN
@@ -7847,23 +8828,46 @@
 !
           KOUNT=0
 !
-          DO J=J1,J2_H
-          DO I=1,LNSH
-            KOUNT=KOUNT+1
-            PDBE(I,J,1)=BND_DATA_E_H(KOUNT)
-          ENDDO
-          ENDDO
+          IF(NVARS_BC_2D_H>0)THEN
+            DO NV=1,NVARS_BC_2D_H
+              DO J=J1,J2_H
+              DO I=1,LNSH
+                KOUNT=KOUNT+1
+                BND_VARS_H%VAR_2D(NV)%EAST(I,J,1)=BND_DATA_E_H(KOUNT)
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
-          DO K=1,LM
-          DO J=J1,J2_H
-          DO I=1,LNSH
-            TBE(I,J,K,1)=BND_DATA_E_H(KOUNT+1)
-            QBE(I,J,K,1)=BND_DATA_E_H(KOUNT+2)
-            WBE(I,J,K,1)=BND_DATA_E_H(KOUNT+3)
-            KOUNT=KOUNT+3
-          ENDDO
-          ENDDO
-          ENDDO
+          IF(NVARS_BC_3D_H>0)THEN
+            DO NV=1,NVARS_BC_3D_H
+              DO K=1,LM
+              DO J=J1,J2_H
+              DO I=1,LNSH
+                KOUNT=KOUNT+1
+                BND_VARS_H%VAR_3D(NV)%EAST(I,J,K,1)=BND_DATA_E_H(KOUNT)
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_4D_H>0)THEN
+            DO NV=1,NVARS_BC_4D_H
+              LBND=LBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+              UBND=UBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+              DO NL=LBND,UBND
+              DO K=1,LM
+              DO J=J1,J2_H
+              DO I=1,LNSH
+                KOUNT=KOUNT+1
+                BND_VARS_H%VAR_4D(NV)%EAST(I,J,K,1,NL)=BND_DATA_E_H(KOUNT)
+              ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
         ENDIF move_now_east_h
 !
@@ -7889,27 +8893,57 @@
 !
         KOUNT=0
 !
-        DO J=J1,J2_H
-        DO I=1,LNSH
-          KOUNT=KOUNT+1
-          PDBE(I,J,2)=(BND_DATA_E_H(KOUNT)-PDBE(I,J,1))*RECIP
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_2D_H>0)THEN
+          DO NV=1,NVARS_BC_2D_H
+            DO J=J1,J2_H
+            DO I=1,LNSH
+              KOUNT=KOUNT+1
+              BND_VARS_H%VAR_2D(NV)%EAST(I,J,2)=                        &
+                 (BND_DATA_E_H(KOUNT)-BND_VARS_H%VAR_2D(NV)%EAST(I,J,1))*RECIP
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
 !
-        DO K=1,LM
-        DO J=J1,J2_H
-        DO I=1,LNSH
-          TBE(I,J,K,2)=(BND_DATA_E_H(KOUNT+1)-TBE(I,J,K,1))*RECIP
-          QBE(I,J,K,2)=(BND_DATA_E_H(KOUNT+2)-QBE(I,J,K,1))*RECIP
-          WBE(I,J,K,2)=(BND_DATA_E_H(KOUNT+3)-WBE(I,J,K,1))*RECIP
-          KOUNT=KOUNT+3
-        ENDDO
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            DO K=1,LM
+            DO J=J1,J2_H
+            DO I=1,LNSH
+              KOUNT=KOUNT+1
+              BND_VARS_H%VAR_3D(NV)%EAST(I,J,K,2)=                     &
+                (BND_DATA_E_H(KOUNT)-BND_VARS_H%VAR_3D(NV)%EAST(I,J,K,1))*RECIP
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            LBND=LBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+            UBND=UBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+            DO NL=LBND,UBND
+            DO K=1,LM
+            DO J=J1,J2_H
+            DO I=1,LNSH
+              KOUNT=KOUNT+1
+              BND_VARS_H%VAR_4D(NV)%EAST(I,J,K,2,NL)=                   &
+                (BND_DATA_E_H(KOUNT)-BND_VARS_H%VAR_4D(NV)%EAST(I,J,K,1,NL))*RECIP
+            ENDDO
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        DEALLOCATE(BND_DATA_E_H)
 !
 !------------
 !***  East V
 !------------
+!
+        ALLOCATE(BND_DATA_E_V(1:KOUNT_E_V))                                !<-- For east boundary V-pt data from Solver import state
 !
 #ifdef ESMF_3
         move_now_east_v: IF(MOVE_NOW==ESMF_TRUE)THEN
@@ -7939,15 +8973,29 @@
 !
           KOUNT=0
 !
-          DO K=1,LM
-          DO J=J1,J2_V
-          DO I=1,LNSV
-            UBE(I,J,K,1)=BND_DATA_E_V(KOUNT+1)
-            VBE(I,J,K,1)=BND_DATA_E_V(KOUNT+2)
-            KOUNT=KOUNT+2
-          ENDDO
-          ENDDO
-          ENDDO
+          IF(NVARS_BC_2D_V>0)THEN
+            DO NV=1,NVARS_BC_2D_V
+              DO J=J1,J2_V
+              DO I=1,LNSV
+                KOUNT=KOUNT+1
+                BND_VARS_V%VAR_2D(NV)%EAST(I,J,1)=BND_DATA_E_V(KOUNT)
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_V>0)THEN
+            DO NV=1,NVARS_BC_3D_V
+              DO K=1,LM
+              DO J=J1,J2_V
+              DO I=1,LNSV
+                KOUNT=KOUNT+1
+                BND_VARS_V%VAR_3D(NV)%EAST(I,J,K,1)=BND_DATA_E_V(KOUNT)
+              ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDIF
 !
         ENDIF move_now_east_v
 !
@@ -7973,28 +9021,35 @@
 !
         KOUNT=0
 !
-        DO K=1,LM
-        DO J=J1,J2_V
-        DO I=1,LNSV
-          UBE(I,J,K,2)=(BND_DATA_E_V(KOUNT+1)-UBE(I,J,K,1))*RECIP
-          VBE(I,J,K,2)=(BND_DATA_E_V(KOUNT+2)-VBE(I,J,K,1))*RECIP
-          KOUNT=KOUNT+2
-        ENDDO
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            DO J=J1,J2_V
+            DO I=1,LNSV
+              KOUNT=KOUNT+1
+              BND_VARS_V%VAR_2D(NV)%EAST(I,J,2)=                        &
+                 (BND_DATA_E_V(KOUNT)-BND_VARS_V%VAR_2D(NV)%EAST(I,J,1))*RECIP
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            DO K=1,LM
+            DO J=J1,J2_V
+            DO I=1,LNSV
+              KOUNT=KOUNT+1
+              BND_VARS_V%VAR_3D(NV)%EAST(I,J,K,2)=                     &
+                (BND_DATA_E_V(KOUNT)-BND_VARS_V%VAR_3D(NV)%EAST(I,J,K,1))*RECIP
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        DEALLOCATE(BND_DATA_E_V)
 !
       ENDIF east
-!
-!-----------------------------------------------------------------------
-!
-      DEALLOCATE(BND_DATA_S_H)
-      DEALLOCATE(BND_DATA_S_V)
-      DEALLOCATE(BND_DATA_N_H)
-      DEALLOCATE(BND_DATA_N_V)
-      DEALLOCATE(BND_DATA_W_H)
-      DEALLOCATE(BND_DATA_W_V)
-      DEALLOCATE(BND_DATA_E_H)
-      DEALLOCATE(BND_DATA_E_V)
 !
 !-----------------------------------------------------------------------
 !
@@ -8004,13 +9059,14 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE SAVE_BC_DATA(LM,LNSV                                   &
-                             ,PDBS,PDBN,PDBW,PDBE                       &
-                             ,TBS,TBN,TBW,TBE                           &
-                             ,QBS,QBN,QBW,QBE                           &
-                             ,WBS,WBN,WBW,WBE                           &
-                             ,UBS,UBN,UBW,UBE                           &
-                             ,VBS,VBN,VBW,VBE                           &
+      SUBROUTINE SAVE_BC_DATA(LM,LNSH,LNSV                              &
+                             ,NVARS_BC_2D_H                             &
+                             ,NVARS_BC_3D_H                             &
+                             ,NVARS_BC_4D_H                             &
+                             ,NVARS_BC_2D_V                             &
+                             ,NVARS_BC_3D_V                             &
+                             ,BND_VARS_H                                &
+                             ,BND_VARS_V                                &
                              ,NUM_WORDS_BC_SOUTH,RST_BC_DATA_SOUTH      &
                              ,NUM_WORDS_BC_NORTH,RST_BC_DATA_NORTH      &
                              ,NUM_WORDS_BC_WEST ,RST_BC_DATA_WEST       &
@@ -8036,36 +9092,27 @@
 !***  Input Arguments
 !---------------------
 !
-      INTEGER(kind=KINT),INTENT(IN) :: LNSV                             &  !<-- # of boundary blending rows for V points
+      INTEGER(kind=KINT),INTENT(IN) :: LNSH                             &  !<-- # of boundary blending rows for H points
+                                      ,LNSV                             &  !<-- # of boundary blending rows for V points
                                       ,NUM_WORDS_BC_SOUTH               &  !<-- Total # of words in south bndry winds, this fcst task
                                       ,NUM_WORDS_BC_NORTH               &  !<-- Total # of words in north bndry winds, this fcst task
                                       ,NUM_WORDS_BC_WEST                &  !<-- Total # of words in west bndry winds, this fcst task
                                       ,NUM_WORDS_BC_EAST                   !<-- Total # of words in east bndry winds, this fcst task
+!
+      INTEGER(kind=KINT),INTENT(IN) :: NVARS_BC_2D_H                    &
+                                      ,NVARS_BC_3D_H                    &
+                                      ,NVARS_BC_4D_H                    &
+                                      ,NVARS_BC_2D_V                    &
+                                      ,NVARS_BC_3D_V
 !
       INTEGER(kind=KINT),INTENT(IN) :: IDS,IDE,JDS,JDE                  &  !<-- 
                                       ,IMS,IME,JMS,JME                  &  !<-- Array dimensions
                                       ,ITS,ITE,JTS,JTE                  &  !<-- 
                                       ,LM                                  !<--
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,1:LNSV,1:2),INTENT(IN) ::  &
-                                                             PDBS,PDBN     !<-- South/north boundary PD
+      TYPE(BC_H_ALL),INTENT(IN) :: BND_VARS_H                              !<-- All H-pt boundary data/tendencies
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,1:LNSV,1:LM,1:2),INTENT(IN) ::  &
-                                                               TBS,TBN  &  !<-- South/north boundary T
-                                                              ,QBS,QBN  &  !<-- South/north boundary Q
-                                                              ,WBS,WBN  &  !<-- South/north boundary CW
-                                                              ,UBS,UBN  &  !<-- South/north boundary U
-                                                              ,VBS,VBN     !<-- South/north boundary V
-!
-      REAL(kind=KFPT),DIMENSION(1:LNSV,JMS:JME,1:2),INTENT(IN) ::  &
-                                                             PDBW,PDBE     !<-- West/east boundary PS
-!
-      REAL(kind=KFPT),DIMENSION(1:LNSV,JMS:JME,1:LM,1:2),INTENT(IN) ::  &
-                                                               TBW,TBE  &  !<-- West/east boundary T
-                                                              ,QBW,QBE  &  !<-- West/east boundary Q
-                                                              ,WBW,WBE  &  !<-- West/east boundary CW
-                                                              ,UBW,UBE  &  !<-- West/east boundary U
-                                                              ,VBW,VBE     !<-- West/east boundary V
+      TYPE(BC_V_ALL),INTENT(IN) :: BND_VARS_V                              !<-- All V-pt boundary data/tendencies
 !
 !---------------------
 !***  Inout Arguments
@@ -8092,7 +9139,9 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: IB,JB,KOUNT,L,RC,RC_SAVE
+      INTEGER(kind=KINT) :: IB,JB,KOUNT,L,LBND,NL,NT,NV,UBND
+!
+      INTEGER(kind=KINT) :: RC,RC_SAVE
 !
       TYPE(ESMF_State) :: IMP_STATE_WRITE
 !
@@ -8105,33 +9154,83 @@
 !-----------------------------------------------------------------------
 !
       IF(JTS==JDS)THEN                                                     !<-- Tasks on south boundary
+!
         KOUNT=0
 !
-          DO JB=1,LNSV
+        IF(NVARS_BC_2D_H>0)THEN
+          DO NV=1,NVARS_BC_2D_H
+            DO NT=1,2
+            DO JB=1,LNSH
             DO IB=ITS,ITE
-              RST_BC_DATA_SOUTH(KOUNT+ 1)=PDBS(IB,JB,1)
-              RST_BC_DATA_SOUTH(KOUNT+ 2)=PDBS(IB,JB,2)
-              KOUNT=KOUNT+2
+              KOUNT=KOUNT+1
+              RST_BC_DATA_SOUTH(KOUNT)=BND_VARS_H%VAR_2D(NV)%SOUTH(IB,JB,NT)
+            ENDDO
+            ENDDO
             ENDDO
           ENDDO
-
-        DO L=1,LM
-          DO JB=1,LNSV
-            DO IB=ITS,ITE
-              RST_BC_DATA_SOUTH(KOUNT+ 1)=TBS(IB,JB,L,1)
-              RST_BC_DATA_SOUTH(KOUNT+ 2)=TBS(IB,JB,L,2)
-              RST_BC_DATA_SOUTH(KOUNT+ 3)=QBS(IB,JB,L,1)
-              RST_BC_DATA_SOUTH(KOUNT+ 4)=QBS(IB,JB,L,2)
-              RST_BC_DATA_SOUTH(KOUNT+ 5)=WBS(IB,JB,L,1)
-              RST_BC_DATA_SOUTH(KOUNT+ 6)=WBS(IB,JB,L,2)
-              RST_BC_DATA_SOUTH(KOUNT+ 7)=UBS(IB,JB,L,1)
-              RST_BC_DATA_SOUTH(KOUNT+ 8)=UBS(IB,JB,L,2)
-              RST_BC_DATA_SOUTH(KOUNT+ 9)=VBS(IB,JB,L,1)
-              RST_BC_DATA_SOUTH(KOUNT+10)=VBS(IB,JB,L,2)
-              KOUNT=KOUNT+10
+        ENDIF
+!
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            DO NT=1,2
+            DO L=1,LM
+              DO JB=1,LNSH
+              DO IB=ITS,ITE
+                KOUNT=KOUNT+1
+                RST_BC_DATA_SOUTH(KOUNT)=BND_VARS_H%VAR_3D(NV)%SOUTH(IB,JB,L,NT)
+              ENDDO
+              ENDDO
+            ENDDO
             ENDDO
           ENDDO
-        ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            LBND=LBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+            UBND=UBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+            DO NL=LBND,UBND
+              DO NT=1,2
+              DO L=1,LM
+                DO JB=1,LNSH
+                DO IB=ITS,ITE
+                  KOUNT=KOUNT+1
+                  RST_BC_DATA_SOUTH(KOUNT)=BND_VARS_H%VAR_4D(NV)%SOUTH(IB,JB,L,NT,NL)
+                ENDDO
+                ENDDO
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            DO NT=1,2
+            DO JB=1,LNSV
+            DO IB=ITS,ITE
+              KOUNT=KOUNT+1
+              RST_BC_DATA_SOUTH(KOUNT)=BND_VARS_V%VAR_2D(NV)%SOUTH(IB,JB,NT)
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            DO NT=1,2
+            DO L=1,LM
+              DO JB=1,LNSV
+              DO IB=ITS,ITE
+                KOUNT=KOUNT+1
+                RST_BC_DATA_SOUTH(KOUNT)=BND_VARS_V%VAR_3D(NV)%SOUTH(IB,JB,L,NT)
+              ENDDO
+              ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Write Import State in SAVE_BC_DATA"
@@ -8144,7 +9243,7 @@
                           ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -8169,33 +9268,109 @@
 !-----------------------------------------------------------------------
 !
       IF(JTE==JDE)THEN                                                     !<-- Tasks on north boundary
+!
         KOUNT=0
 !
-          DO JB=1,LNSV
+        IF(NVARS_BC_2D_H>0)THEN
+          DO NV=1,NVARS_BC_2D_H
+            DO JB=1,LNSH
             DO IB=ITS,ITE
-              RST_BC_DATA_NORTH(KOUNT+ 1)=PDBN(IB,JB,1)
-              RST_BC_DATA_NORTH(KOUNT+ 2)=PDBN(IB,JB,2)
-              KOUNT=KOUNT+2
+              KOUNT=KOUNT+1
+              RST_BC_DATA_NORTH(KOUNT)=BND_VARS_H%VAR_2D(NV)%NORTH(IB,JB,1)
+            ENDDO
+            ENDDO
+            DO JB=1,LNSH
+            DO IB=ITS,ITE
+              KOUNT=KOUNT+1
+              RST_BC_DATA_NORTH(KOUNT)=BND_VARS_H%VAR_2D(NV)%NORTH(IB,JB,2)
+            ENDDO
             ENDDO
           ENDDO
-
-        DO L=1,LM
-          DO JB=1,LNSV
-            DO IB=ITS,ITE
-              RST_BC_DATA_NORTH(KOUNT+ 1)=TBN(IB,JB,L,1)
-              RST_BC_DATA_NORTH(KOUNT+ 2)=TBN(IB,JB,L,2)
-              RST_BC_DATA_NORTH(KOUNT+ 3)=QBN(IB,JB,L,1)
-              RST_BC_DATA_NORTH(KOUNT+ 4)=QBN(IB,JB,L,2)
-              RST_BC_DATA_NORTH(KOUNT+ 5)=WBN(IB,JB,L,1)
-              RST_BC_DATA_NORTH(KOUNT+ 6)=WBN(IB,JB,L,2)
-              RST_BC_DATA_NORTH(KOUNT+ 7)=UBN(IB,JB,L,1)
-              RST_BC_DATA_NORTH(KOUNT+ 8)=UBN(IB,JB,L,2)
-              RST_BC_DATA_NORTH(KOUNT+ 9)=VBN(IB,JB,L,1)
-              RST_BC_DATA_NORTH(KOUNT+10)=VBN(IB,JB,L,2)
-              KOUNT=KOUNT+10
+        ENDIF
+!
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            DO L=1,LM
+              DO JB=1,LNSH
+              DO IB=ITS,ITE
+                KOUNT=KOUNT+1
+                RST_BC_DATA_NORTH(KOUNT)=BND_VARS_H%VAR_3D(NV)%NORTH(IB,JB,L,1)
+              ENDDO
+              ENDDO
+            ENDDO
+            DO L=1,LM
+              DO JB=1,LNSH
+              DO IB=ITS,ITE
+                KOUNT=KOUNT+1
+                RST_BC_DATA_NORTH(KOUNT)=BND_VARS_H%VAR_3D(NV)%NORTH(IB,JB,L,2)
+              ENDDO
+              ENDDO
             ENDDO
           ENDDO
-        ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            LBND=LBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+            UBND=UBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+            DO NL=LBND,UBND
+              DO L=1,LM
+                DO JB=1,LNSH
+                DO IB=ITS,ITE
+                  KOUNT=KOUNT+1
+                  RST_BC_DATA_NORTH(KOUNT)=BND_VARS_H%VAR_4D(NV)%NORTH(IB,JB,L,1,NL)
+                ENDDO
+                ENDDO
+              ENDDO
+              DO L=1,LM
+                DO JB=1,LNSH
+                DO IB=ITS,ITE
+                  KOUNT=KOUNT+1
+                  RST_BC_DATA_NORTH(KOUNT)=BND_VARS_H%VAR_4D(NV)%NORTH(IB,JB,L,2,NL)
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            DO JB=1,LNSV
+            DO IB=ITS,ITE
+              KOUNT=KOUNT+1
+              RST_BC_DATA_NORTH(KOUNT)=BND_VARS_V%VAR_2D(NV)%NORTH(IB,JB,1)
+            ENDDO
+            ENDDO
+            DO JB=1,LNSV
+            DO IB=ITS,ITE
+              KOUNT=KOUNT+1
+              RST_BC_DATA_NORTH(KOUNT)=BND_VARS_V%VAR_2D(NV)%NORTH(IB,JB,2)
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            DO L=1,LM
+              DO JB=1,LNSV
+              DO IB=ITS,ITE
+                KOUNT=KOUNT+1
+                RST_BC_DATA_NORTH(KOUNT)=BND_VARS_V%VAR_3D(NV)%NORTH(IB,JB,L,1)
+              ENDDO
+              ENDDO
+            ENDDO
+            DO L=1,LM
+              DO JB=1,LNSV
+              DO IB=ITS,ITE
+                KOUNT=KOUNT+1
+                RST_BC_DATA_NORTH(KOUNT)=BND_VARS_V%VAR_3D(NV)%NORTH(IB,JB,L,2)
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Write Import State in SAVE_BC_DATA"
@@ -8208,7 +9383,7 @@
                           ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -8223,7 +9398,7 @@
                               ,rc       =RC)
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SAVE)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       ENDIF
@@ -8233,33 +9408,109 @@
 !-----------------------------------------------------------------------
 !
       IF(ITS==IDS)THEN                                                     !<-- Tasks on west boundary
+!
         KOUNT=0
 !
-          DO JB=JTS,JTE
-            DO IB=1,LNSV
-              RST_BC_DATA_WEST(KOUNT+ 1)=PDBW(IB,JB,1)
-              RST_BC_DATA_WEST(KOUNT+ 2)=PDBW(IB,JB,2)
-              KOUNT=KOUNT+2
+        IF(NVARS_BC_2D_H>0)THEN
+          DO NV=1,NVARS_BC_2D_H
+            DO JB=JTS,JTE
+            DO IB=1,LNSH
+              KOUNT=KOUNT+1
+              RST_BC_DATA_WEST(KOUNT)=BND_VARS_H%VAR_2D(NV)%WEST(IB,JB,1)
+            ENDDO
+            ENDDO
+            DO JB=JTS,JTE
+            DO IB=1,LNSH
+              KOUNT=KOUNT+1
+              RST_BC_DATA_WEST(KOUNT)=BND_VARS_H%VAR_2D(NV)%WEST(IB,JB,2)
+            ENDDO
             ENDDO
           ENDDO
-
-        DO L=1,LM
-          DO JB=JTS,JTE
-            DO IB=1,LNSV
-              RST_BC_DATA_WEST(KOUNT+ 1)=TBW(IB,JB,L,1)
-              RST_BC_DATA_WEST(KOUNT+ 2)=TBW(IB,JB,L,2)
-              RST_BC_DATA_WEST(KOUNT+ 3)=QBW(IB,JB,L,1)
-              RST_BC_DATA_WEST(KOUNT+ 4)=QBW(IB,JB,L,2)
-              RST_BC_DATA_WEST(KOUNT+ 5)=WBW(IB,JB,L,1)
-              RST_BC_DATA_WEST(KOUNT+ 6)=WBW(IB,JB,L,2)
-              RST_BC_DATA_WEST(KOUNT+ 7)=UBW(IB,JB,L,1)
-              RST_BC_DATA_WEST(KOUNT+ 8)=UBW(IB,JB,L,2)
-              RST_BC_DATA_WEST(KOUNT+ 9)=VBW(IB,JB,L,1)
-              RST_BC_DATA_WEST(KOUNT+10)=VBW(IB,JB,L,2)
-              KOUNT=KOUNT+10
+        ENDIF
+!
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            DO L=1,LM
+              DO JB=JTS,JTE
+              DO IB=1,LNSH
+                KOUNT=KOUNT+1
+                RST_BC_DATA_WEST(KOUNT)=BND_VARS_H%VAR_3D(NV)%WEST(IB,JB,L,1)
+              ENDDO
+              ENDDO
+            ENDDO
+            DO L=1,LM
+              DO JB=JTS,JTE
+              DO IB=1,LNSH
+                KOUNT=KOUNT+1
+                RST_BC_DATA_WEST(KOUNT)=BND_VARS_H%VAR_3D(NV)%WEST(IB,JB,L,2)
+              ENDDO
+              ENDDO
             ENDDO
           ENDDO
-        ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            LBND=LBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+            UBND=UBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+            DO NL=LBND,UBND
+              DO L=1,LM
+                DO JB=JTS,JTE
+                DO IB=1,LNSH
+                  KOUNT=KOUNT+1
+                  RST_BC_DATA_WEST(KOUNT)=BND_VARS_H%VAR_4D(NV)%WEST(IB,JB,L,1,NL)
+                ENDDO
+                ENDDO
+              ENDDO
+              DO L=1,LM
+                DO JB=JTS,JTE
+                DO IB=1,LNSH
+                  KOUNT=KOUNT+1
+                  RST_BC_DATA_WEST(KOUNT)=BND_VARS_H%VAR_4D(NV)%WEST(IB,JB,L,2,NL)
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            DO JB=JTS,JTE
+            DO IB=1,LNSV
+              KOUNT=KOUNT+1
+              RST_BC_DATA_WEST(KOUNT)=BND_VARS_V%VAR_2D(NV)%WEST(IB,JB,1)
+            ENDDO
+            ENDDO
+            DO JB=JTS,JTE
+            DO IB=1,LNSV
+              KOUNT=KOUNT+1
+              RST_BC_DATA_WEST(KOUNT)=BND_VARS_V%VAR_2D(NV)%WEST(IB,JB,2)
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            DO L=1,LM
+              DO JB=JTS,JTE
+              DO IB=1,LNSV
+                KOUNT=KOUNT+1
+                RST_BC_DATA_WEST(KOUNT)=BND_VARS_V%VAR_3D(NV)%WEST(IB,JB,L,1)
+              ENDDO
+              ENDDO
+            ENDDO
+            DO L=1,LM
+              DO JB=JTS,JTE
+              DO IB=1,LNSV
+                KOUNT=KOUNT+1
+                RST_BC_DATA_WEST(KOUNT)=BND_VARS_V%VAR_3D(NV)%WEST(IB,JB,L,2)
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Write Import State in SAVE_BC_DATA"
@@ -8297,33 +9548,109 @@
 !-----------------------------------------------------------------------
 !
       IF(ITE==IDE)THEN                                                     !<-- Tasks on east boundary
+!
         KOUNT=0
 !
-          DO JB=JTS,JTE
-            DO IB=1,LNSV
-              RST_BC_DATA_EAST(KOUNT+ 1)=PDBE(IB,JB,1)
-              RST_BC_DATA_EAST(KOUNT+ 2)=PDBE(IB,JB,2)
-              KOUNT=KOUNT+2
+        IF(NVARS_BC_2D_H>0)THEN
+          DO NV=1,NVARS_BC_2D_H
+            DO JB=JTS,JTE
+            DO IB=1,LNSH
+              KOUNT=KOUNT+1
+              RST_BC_DATA_EAST(KOUNT)=BND_VARS_H%VAR_2D(NV)%EAST(IB,JB,1)
+            ENDDO
+            ENDDO
+            DO JB=JTS,JTE
+            DO IB=1,LNSH
+              KOUNT=KOUNT+1
+              RST_BC_DATA_EAST(KOUNT)=BND_VARS_H%VAR_2D(NV)%EAST(IB,JB,2)
+            ENDDO
             ENDDO
           ENDDO
-
-        DO L=1,LM
-          DO JB=JTS,JTE
-            DO IB=1,LNSV
-              RST_BC_DATA_EAST(KOUNT+ 1)=TBE(IB,JB,L,1)
-              RST_BC_DATA_EAST(KOUNT+ 2)=TBE(IB,JB,L,2)
-              RST_BC_DATA_EAST(KOUNT+ 3)=QBE(IB,JB,L,1)
-              RST_BC_DATA_EAST(KOUNT+ 4)=QBE(IB,JB,L,2)
-              RST_BC_DATA_EAST(KOUNT+ 5)=WBE(IB,JB,L,1)
-              RST_BC_DATA_EAST(KOUNT+ 6)=WBE(IB,JB,L,2)
-              RST_BC_DATA_EAST(KOUNT+ 7)=UBE(IB,JB,L,1)
-              RST_BC_DATA_EAST(KOUNT+ 8)=UBE(IB,JB,L,2)
-              RST_BC_DATA_EAST(KOUNT+ 9)=VBE(IB,JB,L,1)
-              RST_BC_DATA_EAST(KOUNT+10)=VBE(IB,JB,L,2)
-              KOUNT=KOUNT+10
+        ENDIF
+!
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            DO L=1,LM
+              DO JB=JTS,JTE
+              DO IB=1,LNSH
+                KOUNT=KOUNT+1
+                RST_BC_DATA_EAST(KOUNT)=BND_VARS_H%VAR_3D(NV)%EAST(IB,JB,L,1)
+              ENDDO
+              ENDDO
+            ENDDO
+            DO L=1,LM
+              DO JB=JTS,JTE
+              DO IB=1,LNSH
+                KOUNT=KOUNT+1
+                RST_BC_DATA_EAST(KOUNT)=BND_VARS_H%VAR_3D(NV)%EAST(IB,JB,L,2)
+              ENDDO
+              ENDDO
             ENDDO
           ENDDO
-        ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            LBND=LBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+            UBND=UBOUND(BND_VARS_H%VAR_4D(NV)%FULL_VAR,4)
+            DO NL=LBND,UBND
+              DO L=1,LM
+                DO JB=JTS,JTE
+                DO IB=1,LNSH
+                  KOUNT=KOUNT+1
+                  RST_BC_DATA_EAST(KOUNT)=BND_VARS_H%VAR_4D(NV)%EAST(IB,JB,L,1,NL)
+                ENDDO
+                ENDDO
+              ENDDO
+              DO L=1,LM
+                DO JB=JTS,JTE
+                DO IB=1,LNSH
+                  KOUNT=KOUNT+1
+                  RST_BC_DATA_EAST(KOUNT)=BND_VARS_H%VAR_4D(NV)%EAST(IB,JB,L,2,NL)
+                ENDDO
+                ENDDO
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            DO JB=JTS,JTE
+            DO IB=1,LNSV
+              KOUNT=KOUNT+1
+              RST_BC_DATA_EAST(KOUNT)=BND_VARS_V%VAR_2D(NV)%EAST(IB,JB,1)
+            ENDDO
+            ENDDO
+            DO JB=JTS,JTE
+            DO IB=1,LNSV
+              KOUNT=KOUNT+1
+              RST_BC_DATA_EAST(KOUNT)=BND_VARS_V%VAR_2D(NV)%EAST(IB,JB,2)
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            DO L=1,LM
+              DO JB=JTS,JTE
+              DO IB=1,LNSV
+                KOUNT=KOUNT+1
+                RST_BC_DATA_EAST(KOUNT)=BND_VARS_V%VAR_3D(NV)%EAST(IB,JB,L,1)
+              ENDDO
+              ENDDO
+            ENDDO
+            DO L=1,LM
+              DO JB=JTS,JTE
+              DO IB=1,LNSV
+                KOUNT=KOUNT+1
+                RST_BC_DATA_EAST(KOUNT)=BND_VARS_V%VAR_3D(NV)%EAST(IB,JB,L,2)
+              ENDDO
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Write Import State in SAVE_BC_DATA"

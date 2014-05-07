@@ -56,18 +56,24 @@
 !***  of the Write components.
 !-----------------------------------------------------------------------
 !
+!------------------------
+!***  Argument variables
+!------------------------
+!
       TYPE(ESMF_Grid) ,INTENT(IN) :: GRID                                  !<-- The ESMF Grid
 !
       TYPE(SOLVER_INTERNAL_STATE),POINTER,INTENT(INOUT) :: INT_STATE       !<-- The Solver internal state
 !
       TYPE(ESMF_State),INTENT(INOUT) :: IMP_STATE_WRITE                    !<-- Import state for the Write components
 !
-!-----------------------------------------------------------------------
+!---------------------
+!***  Local variables
+!---------------------
 !
       INTEGER :: IHALO,JHALO
 !
       INTEGER :: K,LENGTH,MYPE                                          &
-                ,N,NDIM3,NFIND,NUM_2D_FIELDS                            &
+                ,N,NDIM3,NFIND,NUM_2D_FIELDS,NV                         &
                 ,RC,RC_DYN_OUT
 !
       INTEGER :: LDIM1,LDIM2                                            &
@@ -209,8 +215,7 @@
                             ,itemCount=int_state%NUM_PES                &  !<-- Length of array being inserted into the import state
                             ,valueList=int_state%LOCAL_JEND             &  !<-- The array being inserted into the import state
                             ,rc       =RC)
-
-
+!
       CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
                             ,name ='INPES'                              &  !<-- Name of the integer scalar
                             ,value=int_state%INPES                      &  !<-- The value being inserted into the import state
@@ -242,16 +247,69 @@
                             ,rc   =RC)
 !
       CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
+                            ,name ='LNSH'                               &  !<-- Name of the integer scalar
+                            ,value=int_state%LNSH                       &  !<-- The value being inserted into the import state
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
                             ,name ='LNSV'                               &  !<-- Name of the integer scalar
                             ,value=int_state%LNSV                       &  !<-- The value being inserted into the import state
                             ,rc   =RC)
-
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
+                            ,name ='NVARS_BC_2D_H'                      &  !<-- Name of the integer scalar
+                            ,value=int_state%NVARS_BC_2D_H              &  !<-- The value being inserted into the import state
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
+                            ,name ='NVARS_BC_3D_H'                      &  !<-- Name of the integer scalar
+                            ,value=int_state%NVARS_BC_3D_H              &  !<-- The value being inserted into the import state
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
+                            ,name ='NVARS_BC_4D_H'                      &  !<-- Name of the integer scalar
+                            ,value=int_state%NVARS_BC_4D_H              &  !<-- The value being inserted into the import state
+                            ,rc   =RC)
+!
+      IF(int_state%NVARS_BC_4D_H>0)THEN
+        CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                &  !<-- The Write component import state
+                              ,name     ='LBND_4D'                      &  !<-- Name of the integer scalar
+                              ,itemCount=int_state%NVARS_BC_4D_H        &  !<-- Length of array being inserted into the import state
+                              ,valuelist=int_state%LBND_4D              &  !<-- The array being inserted into the import state
+                              ,rc   =RC)
+        CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                &  !<-- The Write component import state
+                              ,name     ='UBND_4D'                      &  !<-- Name of the integer scalar
+                              ,itemCount=int_state%NVARS_BC_4D_H        &  !<-- Length of array being inserted into the import state
+                              ,valuelist=int_state%UBND_4D              &  !<-- The array being inserted into the import state
+                              ,rc   =RC)
+      ENDIF
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
+                            ,name ='NVARS_BC_2D_V'                      &  !<-- Name of the integer scalar
+                            ,value=int_state%NVARS_BC_2D_V              &  !<-- The value being inserted into the import state
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
+                            ,name ='NVARS_BC_3D_V'                      &  !<-- Name of the integer scalar
+                            ,value=int_state%NVARS_BC_3D_V              &  !<-- The value being inserted into the import state
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
+                            ,name ='NLEV_H'                             &  !<-- Name of the integer scalar
+                            ,value=int_state%NLEV_H                     &  !<-- The value being inserted into the import state
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
+                            ,name ='NLEV_V'                             &  !<-- Name of the integer scalar
+                            ,value=int_state%NLEV_V                     &  !<-- The value being inserted into the import state
+                            ,rc   =RC)
+!
       CALL ESMF_AttributeSet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
                             ,name     ='LOCAL_JEND'                     &  !<-- Name of the integer array
                             ,itemCount=int_state%NUM_PES                &  !<-- Length of array being inserted into the import state
                             ,valueList=int_state%LOCAL_JEND             &  !<-- The array being inserted into the import state
                             ,rc       =RC)
-
+!
       CALL ESMF_AttributeSet(state=IMP_STATE_WRITE                      &  !<-- The Write component import state
                             ,name ='IDS'                                &  !<-- Name of the integer scalar
                             ,value=int_state%IDS                        &  !<-- The value being inserted into the import state
@@ -361,9 +419,9 @@
 !-----------------------------------------------------------------------
 !***  Now insert into the Write components' import state the pointers
 !***  of only those quantities that are specified by the user for
-!***  history output.  The data is placed into an ESMF Bundle which
-!***  itself will be placed into the import state at the end of
-!***  the routine.
+!***  history and restart output.  The data is placed into an ESMF 
+!***  Bundle which itself will be placed into the import state at 
+!***  the end of the routine.
 !-----------------------------------------------------------------------
 !
       CALL PUT_VARS_IN_BUNDLES(int_state%VARS                           &

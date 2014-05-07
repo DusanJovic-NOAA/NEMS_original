@@ -71,7 +71,9 @@ integer(kind=kint) :: &
 ,ks &                        ! tracer index
 ,l &                         ! index in p direction
 ,length &
-,n
+,n &
+,nl &
+,nv
 
 integer(kind=kint) :: &
  iyear_fcst           &
@@ -79,6 +81,15 @@ integer(kind=kint) :: &
 ,iday_fcst            &
 ,ihour_fcst
  
+integer(kind=kint) :: &
+ lb &
+,ub &
+,nvars_bc_2d_h &
+,nvars_bc_3d_h &
+,nvars_bc_4d_h &
+,nvars_bc_2d_v &
+,nvars_bc_3d_v 
+
 integer(kind=kint) :: idate(7)
 integer(kind=kint) :: fcstdate(7)
 character(2)       ::tn
@@ -878,122 +889,392 @@ integer,allocatable       :: reclev(:)
         ENDDO
 !
 !-----------------------------------------------------------------------
-!***  Read in the full-domain 1-D datastring of boundary winds.
+!***  Read in the full-domain 1-D string of boundary data.
 !***  Each task isolates its own piece of that data.
 !-----------------------------------------------------------------------
 !
-        length=(5*lm+1)*2*2*int_state%lnsv*((ide-ids+1)+(jde-jds+1))
+        length=(int_state%nlev_h*int_state%lnsh                         &  !<-- Total # of words
+               +int_state%nlev_v*int_state%lnsv)                        &  !    in full-domain
+               *2*2*(ide-ids+jde-jds+2)                                    !    boundary arrays.
         allocate(all_bc_data(1:length))
 !
         call nemsio_getheadvar(gfile,'ALL_BC_DATA',all_bc_data,ierr)
 !
 !-----------------------------------------------------------------------
 !
+        nvars_bc_2d_h=int_state%nvars_bc_2d_h
+        nvars_bc_3d_h=int_state%nvars_bc_3d_h
+        nvars_bc_4d_h=int_state%nvars_bc_4d_h
+        nvars_bc_2d_v=int_state%nvars_bc_2d_v
+        nvars_bc_3d_v=int_state%nvars_bc_3d_v
+!
         kount=0
 !
 !-----------------------------------------------------------------------
 !
         iend=min(ite_h2,ide)
-        do n=1,2
-        do j=1,int_state%lnsv
-        do i=ids,ide
-          if(jts==jds.and.i>=its_h2.and.i<=iend)then                         !<-- South boundary tasks extract their BC winds
-            int_state%pdbs(i,j,n)=all_bc_data(kount+1)
-          endif
-          kount=kount+1
-        enddo
-        enddo
-        do l=1,lm
-        do j=1,int_state%lnsv
-        do i=ids,ide
-          if(jts==jds.and.i>=its_h2.and.i<=iend)then                         !<-- South boundary tasks extract their BC winds
-            int_state%tbs(i,j,l,n)=all_bc_data(kount+1)
-            int_state%qbs(i,j,l,n)=all_bc_data(kount+2)
-            int_state%wbs(i,j,l,n)=all_bc_data(kount+3)
-            int_state%ubs(i,j,l,n)=all_bc_data(kount+4)
-            int_state%vbs(i,j,l,n)=all_bc_data(kount+5)
-          endif
-          kount=kount+5
-        enddo
-        enddo
-        enddo
-        enddo
 !
-        do n=1,2
-        do j=1,int_state%lnsv
-        do i=ids,ide
-          if(jte==jde.and.i>=its_h2.and.i<=iend)then                         !<-- North boundary tasks extract their BC winds
-            int_state%pdbn(i,j,n)=all_bc_data(kount+1)
-          endif
-          kount=kount+1
-        enddo
-        enddo
-        do l=1,lm
-        do j=1,int_state%lnsv
-        do i=ids,ide
-          if(jte==jde.and.i>=its_h2.and.i<=iend)then                         !<-- North boundary tasks extract their BC winds
-            int_state%tbn(i,j,l,n)=all_bc_data(kount+1)
-            int_state%qbn(i,j,l,n)=all_bc_data(kount+2)
-            int_state%wbn(i,j,l,n)=all_bc_data(kount+3)
-            int_state%ubn(i,j,l,n)=all_bc_data(kount+4)
-            int_state%vbn(i,j,l,n)=all_bc_data(kount+5)
-          endif
-          kount=kount+5
-        enddo
-        enddo
-        enddo
-        enddo
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            do n=1,2
+            do j=1,int_state%lnsh
+            do i=ids,ide
+              kount=kount+1
+              if(jts==jds.and.i>=its_h2.and.i<=iend)then                   !<-- South boundary tasks extract 2-D BC H-pt data
+                int_state%bnd_vars_h%var_2d(nv)%south(i,j,n)=           &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do n=1,2
+            do l=1,lm
+            do j=1,int_state%lnsh
+            do i=ids,ide
+              kount=kount+1
+              if(jts==jds.and.i>=its_h2.and.i<=iend)then                   !<-- South boundary tasks extract 3-D BC H-pt data
+                int_state%bnd_vars_h%var_3d(nv)%south(i,j,l,n)=         &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lb=int_state%lbnd_4d(nv)
+            ub=int_state%ubnd_4d(nv)
+            do nl=lb,ub
+            do n=1,2
+            do l=1,lm
+            do j=1,int_state%lnsh
+            do i=ids,ide
+              kount=kount+1
+              if(jts==jds.and.i>=its_h2.and.i<=iend)then                   !<-- South boundary tasks extract 4-D BC H-pt data
+                int_state%bnd_vars_h%var_4d(nv)%south(i,j,l,n,nl)=      &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_2d_v>0)then
+          do nv=1,nvars_bc_2d_v
+            do n=1,2
+            do j=1,int_state%lnsv
+            do i=ids,ide
+              kount=kount+1
+              if(jts==jds.and.i>=its_h2.and.i<=iend)then                   !<-- South boundary tasks extract 2-D BC V-pt data
+                int_state%bnd_vars_v%var_2d(nv)%south(i,j,n)=           &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_v>0)then
+          do nv=1,nvars_bc_3d_v
+            do n=1,2
+            do l=1,lm
+            do j=1,int_state%lnsv
+            do i=ids,ide
+              kount=kount+1
+              if(jts==jds.and.i>=its_h2.and.i<=iend)then                   !<-- South boundary tasks extract 3-D BC V-pt data
+                int_state%bnd_vars_v%var_3d(nv)%south(i,j,l,n)=         &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            do n=1,2
+            do j=1,int_state%lnsh
+            do i=ids,ide
+              kount=kount+1
+              if(jte==jde.and.i>=its_h2.and.i<=iend)then                   !<-- North boundary tasks extract 2-D BC H-pt data
+                int_state%bnd_vars_h%var_2d(nv)%north(i,j,n)=           &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do n=1,2
+            do l=1,lm
+            do j=1,int_state%lnsh
+            do i=ids,ide
+              kount=kount+1
+              if(jte==jde.and.i>=its_h2.and.i<=iend)then                   !<-- North boundary tasks extract 3-D BC H-pt data
+                int_state%bnd_vars_h%var_3d(nv)%north(i,j,l,n)=         &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lb=int_state%lbnd_4d(nv)
+            ub=int_state%ubnd_4d(nv)
+            do nl=lb,ub
+            do n=1,2
+            do l=1,lm
+            do j=1,int_state%lnsh
+            do i=ids,ide
+              kount=kount+1
+              if(jte==jde.and.i>=its_h2.and.i<=iend)then                   !<-- North boundary tasks extract 4-D BC H-pt data
+                int_state%bnd_vars_h%var_4d(nv)%north(i,j,l,n,nl)=      &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_2d_v>0)then
+          do nv=1,nvars_bc_2d_v
+            do n=1,2
+            do j=1,int_state%lnsv
+            do i=ids,ide
+              kount=kount+1
+              if(jte==jde.and.i>=its_h2.and.i<=iend)then                   !<-- North boundary tasks extract 2-D BC V-pt data
+                int_state%bnd_vars_v%var_2d(nv)%north(i,j,n)=           &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_v>0)then
+          do nv=1,nvars_bc_3d_v
+            do n=1,2
+            do l=1,lm
+            do j=1,int_state%lnsv
+            do i=ids,ide
+              kount=kount+1
+              if(jte==jde.and.i>=its_h2.and.i<=iend)then                   !<-- North boundary tasks extract 3-D BC V-pt data
+                int_state%bnd_vars_v%var_3d(nv)%north(i,j,l,n)=         &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
 !
         jend=min(jte_h2,jde)
-        do n=1,2
-        do j=jds,jde
-        do i=1,int_state%lnsv
-          if(its==ids.and.j>=jts_h2.and.j<=jend)then                         !<-- West boundary tasks extract their BC winds
-            int_state%pdbw(i,j,n)=all_bc_data(kount+1)
-          endif
-          kount=kount+1
-        enddo
-        enddo
-        do l=1,lm
-        do j=jds,jde
-        do i=1,int_state%lnsv
-          if(its==ids.and.j>=jts_h2.and.j<=jend)then                         !<-- West boundary tasks extract their BC winds
-            int_state%tbw(i,j,l,n)=all_bc_data(kount+1)
-            int_state%qbw(i,j,l,n)=all_bc_data(kount+2)
-            int_state%wbw(i,j,l,n)=all_bc_data(kount+3)
-            int_state%ubw(i,j,l,n)=all_bc_data(kount+4)
-            int_state%vbw(i,j,l,n)=all_bc_data(kount+5)
-          endif
-          kount=kount+5
-        enddo
-        enddo
-        enddo
-        enddo
 !
-        do n=1,2
-        do j=jds,jde
-        do i=1,int_state%lnsv
-          if(ite==ide.and.j>=jts_h2.and.j<=jend)then                         !<-- West boundary tasks extract their BC winds
-            int_state%pdbe(i,j,n)=all_bc_data(kount+1)
-          endif
-          kount=kount+1
-        enddo
-        enddo
-        do l=1,lm
-        do j=jds,jde
-        do i=1,int_state%lnsv
-          if(ite==ide.and.j>=jts_h2.and.j<=jend)then                         !<-- West boundary tasks extract their BC winds
-            int_state%tbe(i,j,l,n)=all_bc_data(kount+1)
-            int_state%qbe(i,j,l,n)=all_bc_data(kount+2)
-            int_state%wbe(i,j,l,n)=all_bc_data(kount+3)
-            int_state%ube(i,j,l,n)=all_bc_data(kount+4)
-            int_state%vbe(i,j,l,n)=all_bc_data(kount+5)
-          endif
-          kount=kount+5
-        enddo
-        enddo
-        enddo
-        enddo
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            do n=1,2
+            do j=jds,jde
+            do i=1,int_state%lnsh
+              kount=kount+1
+              if(its==ids.and.j>=jts_h2.and.j<=jend)then                   !<-- West boundary tasks extract 2-D BC H-pt data
+                int_state%bnd_vars_h%var_2d(nv)%west(i,j,n)=            &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do n=1,2
+            do l=1,lm
+            do j=jds,jde
+            do i=1,int_state%lnsh
+              kount=kount+1
+              if(its==ids.and.j>=jts_h2.and.j<=jend)then                   !<-- West boundary tasks extract 3-D BC H-pt data
+                int_state%bnd_vars_h%var_3d(nv)%west(i,j,l,n)=          &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lb=int_state%lbnd_4d(nv)
+            ub=int_state%ubnd_4d(nv)
+            do nl=lb,ub
+            do n=1,2
+            do l=1,lm
+            do j=jds,jde
+            do i=1,int_state%lnsh
+              kount=kount+1
+              if(its==ids.and.j>=jts_h2.and.j<=jend)then                   !<-- West boundary tasks extract 4-D BC H-pt data
+                int_state%bnd_vars_h%var_4d(nv)%west(i,j,l,n,nl)=       &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_2d_v>0)then
+          do nv=1,nvars_bc_2d_v
+            do n=1,2
+            do j=jds,jde
+            do i=1,int_state%lnsv
+              kount=kount+1
+              if(its==ids.and.j>=jts_h2.and.j<=jend)then                   !<-- West boundary tasks extract 2-D BC V-pt data
+                int_state%bnd_vars_v%var_2d(nv)%west(i,j,n)=            &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_v>0)then
+          do nv=1,nvars_bc_3d_v
+            do n=1,2
+            do l=1,lm
+            do j=jds,jde
+            do i=1,int_state%lnsv
+              kount=kount+1
+              if(its==ids.and.j>=jts_h2.and.j<=jend)then                   !<-- West boundary tasks extract 3-D BC V-pt data
+                int_state%bnd_vars_v%var_3d(nv)%west(i,j,l,n)=          &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_2d_h>0)then
+          do nv=1,nvars_bc_2d_h
+            do n=1,2
+            do j=jds,jde
+            do i=1,int_state%lnsh
+              kount=kount+1
+              if(ite==ide.and.j>=jts_h2.and.j<=jend)then                   !<-- East boundary tasks extract 2-D BC H-pt data
+                int_state%bnd_vars_h%var_2d(nv)%east(i,j,n)=            &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_h>0)then
+          do nv=1,nvars_bc_3d_h
+            do n=1,2
+            do l=1,lm
+            do j=jds,jde
+            do i=1,int_state%lnsh
+              kount=kount+1
+              if(ite==ide.and.j>=jts_h2.and.j<=jend)then                   !<-- East boundary tasks extract 3-D BC H-pt data
+                int_state%bnd_vars_h%var_3d(nv)%east(i,j,l,n)=          &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_4d_h>0)then
+          do nv=1,nvars_bc_4d_h
+            lb=int_state%lbnd_4d(nv)
+            ub=int_state%ubnd_4d(nv)
+            do nl=lb,ub
+            do n=1,2
+            do l=1,lm
+            do j=jds,jde
+            do i=1,int_state%lnsh
+              kount=kount+1
+              if(ite==ide.and.j>=jts_h2.and.j<=jend)then                   !<-- East boundary tasks extract 4-D BC H-pt data
+                int_state%bnd_vars_h%var_4d(nv)%east(i,j,l,n,nl)=       &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_2d_v>0)then
+          do nv=1,nvars_bc_2d_v
+            do n=1,2
+            do j=jds,jde
+            do i=1,int_state%lnsv
+              kount=kount+1
+              if(ite==ide.and.j>=jts_h2.and.j<=jend)then                   !<-- East boundary tasks extract 2-D BC V-pt data
+                int_state%bnd_vars_v%var_2d(nv)%east(i,j,n)=            &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
+!
+        if(nvars_bc_3d_v>0)then
+          do nv=1,nvars_bc_3d_v
+            do n=1,2
+            do l=1,lm
+            do j=jds,jde
+            do i=1,int_state%lnsv
+              kount=kount+1
+              if(ite==ide.and.j>=jts_h2.and.j<=jend)then                   !<-- East boundary tasks extract 3-D BC V-pt data
+                int_state%bnd_vars_v%var_3d(nv)%east(i,j,l,n)=          &
+                  all_bc_data(kount)
+              endif
+            enddo
+            enddo
+            enddo
+            enddo
+          enddo
+        endif
 !
         deallocate(all_bc_data)
 !

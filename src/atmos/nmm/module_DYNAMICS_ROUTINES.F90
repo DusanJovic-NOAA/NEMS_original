@@ -357,7 +357,6 @@ real(kind=kfpt),dimension(its:ite_h2,jts_b1:jte_h2):: &
           jcl=jds+2
           jch=jde-2
 !
-!     write(0,*)' vertical_loop before s_bdy'
           if(s_bdy) then
             jp=jds+1
             wprp=wpdar(jp)
@@ -3008,7 +3007,7 @@ real(kind=kfpt):: &
 ,wup &                       ! w wind component at upper interface
 ,zup                         ! height of upper interface
            
-real(kind=kfpt),dimension(its_b1:ite_h1,jts_b1:jte_h1):: &
+real(kind=kfpt),dimension(its_b1:ite_h2,jts_b1:jte_h2):: &
  zne &                       ! height flux, ne direction
 ,znw &                       ! height flux, nw direction
 ,zx &                        ! height flux, x direction

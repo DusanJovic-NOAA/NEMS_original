@@ -162,10 +162,21 @@ For 2-way nesting:
     tasks are.  Therefore the sum of inpes*jnpes for all domains in the most expensive generation plus the sum of write_groups
     times write_tasks_per_group for all domains must equal the total number of tasks assigned to the run in the runscript.
 
-    
-========================
-How to add new variable:
-========================
+-----------------------------------
+Specifying nest boundary variables
+-----------------------------------
+
+   The boundary variables in single-domain regional runs and for the (regional) upper parent in nested runs are hardwired to PD,T,Q,CW,U,V.  
+   However the user specifies which variables are desired for the nests' domain boundaries.  This is done through the external nests.txt
+   file.  A column labeled 'BC' in that file is used for this purpose.  The user places an 'H' or a 'V' in that column for the 2-D, 3-D,
+   or 4-D Solver internal state H-pt or V-pt variables that will be updated by the parent(s) on the nest boundaries.  If the desired
+   Solver internal state variable is not listed in nests.txt then simply add it.  If the desired variable is not yet in the Solver internal
+   state then see the section below called 'How to add a new variable'.  The copy of nests.txt in job/regression_tests currently specifies
+   PD,T,Q,CW,U,V as the nest boundary variables.
+
+===========================
+How to add a new variable:
+===========================
 
 1) Go to ~/src/atmos/nmm directory
 2) In file module_SOLVER_INTERNAL_STATE.F90 search for similar variable; in this

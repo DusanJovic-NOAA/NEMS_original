@@ -23,6 +23,7 @@
       USE ESMF_Mod
 !
       USE module_INCLUDE
+      USE module_DERIVED_TYPES,ONLY: BC_H_ALL,BC_V_ALL
       USE module_CONTROL, ONLY: NUM_DOMAINS_MAX
 
       USE module_LS_NOAHLSM, ONLY: NUM_SOIL_LAYERS
@@ -363,6 +364,7 @@
                           ,WCOR
 !
         LOGICAL(kind=KLOG) :: ADIABATIC                                 &
+                             ,BDY_WAS_READ                              &
                              ,FIRST_NMM                                 &
                              ,FREERUN                                   &
                              ,GLOBAL                                    &
@@ -510,23 +512,14 @@
 !
         INTEGER(kind=KINT) :: IHRSTBC,LNSH,LNSV
 !
-        INTEGER(kind=KINT),DIMENSION(3) :: IDATBC
+        INTEGER(kind=KINT),DIMENSION(3) :: IDATBC                       &
+                                          ,N_BC_3D_H
 !
         REAL(kind=KFPT) :: TBOCO
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE :: PDBS,PDBN       &
-                                                       ,PDBW,PDBE
+        TYPE(BC_H_ALL) :: BND_VARS_H                                       !<-- H-pt boundary variables
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:,:),ALLOCATABLE :: TBS,TBN       &
-                                                         ,TBW,TBE       &
-                                                         ,QBS,QBN       &
-                                                         ,QBW,QBE       &
-                                                         ,UBS,UBN       &
-                                                         ,UBW,UBE       &
-                                                         ,VBS,VBN       &
-                                                         ,VBW,VBE       &
-                                                         ,WBS,WBN       &
-                                                         ,WBW,WBE
+        TYPE(BC_V_ALL) :: BND_VARS_V                                       !<-- V-pt boundary variables
 !
         LOGICAL(kind=KLOG) :: RUNBC
 !
@@ -578,8 +571,14 @@
 !***  Nesting
 !-----------------------------------------------------------------------
 !
+        INTEGER(kind=KINT) :: NVARS_BC_2D_H,NVARS_BC_3D_H,NVARS_BC_4D_H    !<-- # of 2-D,3-D,4-D H-pt nest boundary variables
+        INTEGER(kind=KINT) :: NVARS_BC_2D_V,NVARS_BC_3D_V                  !<-- # of 2-D,3-D V-pt nest boundary variables
+        INTEGER(kind=KINT) :: NLEV_H,NLEV_V                                !<-- Total # of levels in all H-pt,V-pt bndry vbls
+!
         INTEGER(kind=KINT) :: PARENT_CHILD_TIME_RATIO                      !<-- # of child timesteps per parent timestep
 !
+        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: LBND_4D          &  !<-- Lower/upper bounds of the count of the # of
+                                                      ,UBND_4D             !    3-D arrays in the 4-D variables
 !
 #ifdef ESMF_3
         TYPE(ESMF_Logical) :: I_AM_A_NEST                                  !<-- Am I in a nested domain?
@@ -641,7 +640,6 @@
                                                      ,TSNAV
 !
         REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE :: Q02,TH02
-!
 !
 !-----------------------------------------------------------------------
 !***  GFS physics additional arrays
@@ -747,8 +745,9 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: I,I_CYCLE,J,L,LNSH,LNSV,N,NV
+      INTEGER(kind=KINT) :: I,I_CYCLE,J,L,LB,LNSH,LNSV,N,NV,UB
       INTEGER(kind=KINT) :: TRACER_SIZE_1, TRACER_SIZE
+      INTEGER(kind=KINT) :: ISTAT
 !
       INTEGER :: LATSOZP,TIMEOZ,LEVOZP,PL_COEFF,KOZPL=28
 !
@@ -1206,7 +1205,7 @@
       CALL FIND_VAR_INDX('TRACERS_PREV',int_state%VARS,int_state%NUM_VARS,I)
       int_state%VARS(I)%R4D (IMS:IME,JMS:JME,1:LM,1:int_state%NUM_TRACERS_TOTAL) => int_state%TRACERS_PREV_ARR
       int_state%TRACERS_PREV=>int_state%VARS(I)%R4D
-      
+!     
 !-----------------------------------------------------------------------
 !***  Point Q at level 1(INDX_Q) of the Tracers array.
 !-----------------------------------------------------------------------
@@ -1372,40 +1371,6 @@
 !
       int_state%IHALO=IHALO
       int_state%JHALO=JHALO
-!
-!-----------------------------------------------------------------------
-!***  Regional boundary conditions.
-!-----------------------------------------------------------------------
-!
-      ALLOCATE(int_state%UBN(IMS:IME,1:LNSV,1:LM,1:2))    ;int_state%UBN  = R4_IN  !<-- U wind component at northern boundary  (m s-1)
-      ALLOCATE(int_state%UBS(IMS:IME,1:LNSV,1:LM,1:2))    ;int_state%UBS  = R4_IN  !<-- U wind component at southern boundary  (m s-1)
-      ALLOCATE(int_state%VBN(IMS:IME,1:LNSV,1:LM,1:2))    ;int_state%VBN  = R4_IN  !<-- V wind component at northern boundary  (m s-1)
-      ALLOCATE(int_state%VBS(IMS:IME,1:LNSV,1:LM,1:2))    ;int_state%VBS  = R4_IN  !<-- V wind component at southern boundary  (m s-1)
-!
-      ALLOCATE(int_state%UBE(1:LNSV,JMS:JME,1:LM,1:2))    ;int_state%UBE  = R4_IN  !<-- U wind component at eastern boundary  (m s-1)
-      ALLOCATE(int_state%UBW(1:LNSV,JMS:JME,1:LM,1:2))    ;int_state%UBW  = R4_IN  !<-- U wind component at western boundary  (m s-1)
-      ALLOCATE(int_state%VBE(1:LNSV,JMS:JME,1:LM,1:2))    ;int_state%VBE  = R4_IN  !<-- V wind component at eastern boundary  (m s-1)
-      ALLOCATE(int_state%VBW(1:LNSV,JMS:JME,1:LM,1:2))    ;int_state%VBW  = R4_IN  !<-- V wind component at western boundary  (m s-1)
-!
-      ALLOCATE(int_state%PDBN(IMS:IME,1:LNSH,1:2))        ;int_state%PDBN = R4_IN  !<-- Pressure difference at northern boundary  (Pa)
-      ALLOCATE(int_state%PDBS(IMS:IME,1:LNSH,1:2))        ;int_state%PDBS = R4_IN  !<-- Pressure difference at southern boundary  (Pa)
-!
-      ALLOCATE(int_state%PDBE(1:LNSH,JMS:JME,1:2))        ;int_state%PDBE = R4_IN  !<-- Pressure difference at eastern boundary  (Pa)
-      ALLOCATE(int_state%PDBW(1:LNSH,JMS:JME,1:2))        ;int_state%PDBW = R4_IN  !<-- Pressure difference at western boundary  (Pa)
-!
-      ALLOCATE(int_state%QBN(IMS:IME,1:LNSH,1:LM,1:2))    ;int_state%QBN  = R4_IN  !<-- Specific humidity at northern boundary  (kg kg-1)
-      ALLOCATE(int_state%QBS(IMS:IME,1:LNSH,1:LM,1:2))    ;int_state%QBS  = R4_IN  !<-- Specific humidity at southern boundary  (kg kg-1)
-      ALLOCATE(int_state%TBN(IMS:IME,1:LNSH,1:LM,1:2))    ;int_state%TBN  = R4_IN  !<-- Temperature at northern boundary  (K)
-      ALLOCATE(int_state%TBS(IMS:IME,1:LNSH,1:LM,1:2))    ;int_state%TBS  = R4_IN  !<-- Temperature at southern boundary  (K)
-      ALLOCATE(int_state%WBN(IMS:IME,1:LNSH,1:LM,1:2))    ;int_state%WBN  = R4_IN  !<-- Vertical velocity at northern boundary  (m s-1)
-      ALLOCATE(int_state%WBS(IMS:IME,1:LNSH,1:LM,1:2))    ;int_state%WBS  = R4_IN  !<-- Vertical velocity at southern boundary  (m s-1)
-!
-      ALLOCATE(int_state%QBE(1:LNSH,JMS:JME,1:LM,1:2))    ;int_state%QBE  = R4_IN  !<-- Specific humidity at eastern boundary  (kg kg-1)
-      ALLOCATE(int_state%QBW(1:LNSH,JMS:JME,1:LM,1:2))    ;int_state%QBW  = R4_IN  !<-- Specific humidity at western boundary  (kg kg-1)
-      ALLOCATE(int_state%TBE(1:LNSH,JMS:JME,1:LM,1:2))    ;int_state%TBE  = R4_IN  !<-- Temperature at eastern boundary  (K)
-      ALLOCATE(int_state%TBW(1:LNSH,JMS:JME,1:LM,1:2))    ;int_state%TBW  = R4_IN  !<-- Temperature at western boundary  (K)
-      ALLOCATE(int_state%WBE(1:LNSH,JMS:JME,1:LM,1:2))    ;int_state%WBE  = R4_IN  !<-- Vertical velocity at eastern boundary  (m s-1)
-      ALLOCATE(int_state%WBW(1:LNSH,JMS:JME,1:LM,1:2))    ;int_state%WBW  = R4_IN  !<-- Vertical velocity at western boundary  (m s-1)
 !
 !-----------------------------------------------------------------------
 !***  Atmospheric variables, hydrostatic (mostly)

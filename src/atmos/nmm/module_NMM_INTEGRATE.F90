@@ -1207,11 +1207,15 @@
 !-----------------------------------------------------------------------
 !
       IF(.NOT.ESMF_ClockIsStopTime(CLOCK_INTEGRATE,rc=RC))THEN
+!
         RETURN
+!
       ELSE
+!
         IF(PRESENT(GENERATION_FINISHED))THEN
           GENERATION_FINISHED=.TRUE.
         ENDIF
+!
       ENDIF
 !
 !-----------------------------------------------------------------------

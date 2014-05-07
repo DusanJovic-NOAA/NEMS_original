@@ -42,48 +42,56 @@
 !
       USE module_INCLUDE
 !
+      USE module_DERIVED_TYPES,ONLY: BC_H                               &
+                                    ,BC_V                               &
+                                    ,BNDS_2D                            &
+                                    ,CHILD_UPDATE_LINK                  &
+                                    ,CTASK_LIMITS                       &
+                                    ,HANDLE_CHILD_LIMITS                &
+                                    ,HANDLE_CHILD_TOPO_S                &
+                                    ,HANDLE_CHILD_TOPO_N                &
+                                    ,HANDLE_CHILD_TOPO_W                &
+                                    ,HANDLE_CHILD_TOPO_E                &
+                                    ,HANDLE_I_SW                        &
+                                    ,HANDLE_J_SW                        &
+                                    ,HANDLE_PACKET_S_H                  &
+                                    ,HANDLE_PACKET_S_V                  &
+                                    ,HANDLE_PACKET_N_H                  &
+                                    ,HANDLE_PACKET_N_V                  &
+                                    ,HANDLE_PACKET_W_H                  &
+                                    ,HANDLE_PACKET_W_V                  &
+                                    ,HANDLE_PACKET_E_H                  &
+                                    ,HANDLE_PACKET_E_V                  &
+                                    ,HANDLE_PARENT_DOM_LIMITS           &
+                                    ,HANDLE_PARENT_ITE                  &
+                                    ,HANDLE_PARENT_ITS                  &
+                                    ,HANDLE_PARENT_JTE                  &
+                                    ,HANDLE_PARENT_JTS                  &
+                                    ,INFO_SEND                          &
+                                    ,INTEGER_DATA                       &
+                                    ,INTEGER_DATA_2D                    &
+                                    ,INTERIOR_DATA_FROM_PARENT          &
+                                    ,MIXED_DATA                         &
+                                    ,MIXED_DATA_TASKS                   &
+                                    ,MULTIDATA                          &
+                                    ,REAL_DATA                          &
+                                    ,REAL_DATA_TASKS                    &
+                                    ,PTASK_LIMITS                       &
+                                    ,REAL_DATA_2D                       &
+                                    ,REAL_VBLS_3D
+!
       USE module_CONTROL,ONLY: NUM_DOMAINS_MAX,TIMEF
 !
       USE module_EXCHANGE,ONLY: HALO_EXCH
 !
       USE module_VARS,ONLY: VAR
 !
-      USE module_NESTING,ONLY: BNDS_2D                                  &
-                              ,CHECK_REAL                               &
+      USE module_NESTING,ONLY: CHECK_REAL                               &
                               ,CHILD_2WAY_BOOKKEEPING                   &
                               ,CHILD_RANKS                              &
-                              ,CTASK_LIMITS                             &
                               ,GENERATE_2WAY_DATA                       &
-                              ,HANDLE_CHILD_LIMITS                      &
-                              ,HANDLE_CHILD_TOPO_S                      &
-                              ,HANDLE_CHILD_TOPO_N                      &
-                              ,HANDLE_CHILD_TOPO_W                      &
-                              ,HANDLE_CHILD_TOPO_E                      &
-                              ,HANDLE_IJ_SW                             &
-                              ,HANDLE_PACKET_S_H                        &
-                              ,HANDLE_PACKET_S_V                        &
-                              ,HANDLE_PACKET_N_H                        &
-                              ,HANDLE_PACKET_N_V                        &
-                              ,HANDLE_PACKET_W_H                        &
-                              ,HANDLE_PACKET_W_V                        &
-                              ,HANDLE_PACKET_E_H                        &
-                              ,HANDLE_PACKET_E_V                        &
-                              ,HANDLE_PARENT_DOM_LIMITS                 &
-                              ,HANDLE_PARENT_ITE                        &
-                              ,HANDLE_PARENT_ITS                        &
-                              ,HANDLE_PARENT_JTE                        &
-                              ,HANDLE_PARENT_JTS                        &
                               ,HYPERBOLA                                &
-                              ,INFO_SEND                                &
-                              ,INTEGER_DATA                             &
-                              ,INTEGER_DATA_2D                          &
-                              ,INTERIOR_DATA_FROM_PARENT                &
                               ,LAG_STEPS                                &
-                              ,MIXED_DATA                               &
-                              ,REAL_DATA                                &
-                              ,MIXED_DATA_TASKS                         &
-                              ,REAL_DATA_TASKS                          &
-                              ,CHILD_UPDATE_LINK                        &
                               ,MOVING_NEST_BOOKKEEPING                  &
                               ,MOVING_NEST_RECV_DATA                    &
                               ,PARENT_2WAY_BOOKKEEPING                  &
@@ -283,6 +291,8 @@
         INTEGER(kind=KINT) :: N_STENCIL_V,N_STENCIL_SFC_V
         INTEGER(kind=KINT) :: NEXT_MOVE_TIMESTEP
         INTEGER(kind=KINT) :: NHALO
+        INTEGER(kind=KINT) :: NLEV_H
+        INTEGER(kind=KINT) :: NLEV_V
         INTEGER(kind=KINT) :: NPHS
         INTEGER(kind=KINT) :: NTASKS_UPDATE_PARENT
         INTEGER(kind=KINT) :: NTIMESTEP_CHECK  
@@ -300,6 +310,11 @@
         INTEGER(kind=KINT) :: NUM_LEVELS_MOVE_3D_H
         INTEGER(kind=KINT) :: NUM_LEVELS_MOVE_3D_V
         INTEGER(kind=KINT) :: NUM_SPACE_RATIOS_MVG
+        INTEGER(kind=KINT) :: NVARS_BC_2D_H
+        INTEGER(kind=KINT) :: NVARS_BC_3D_H
+        INTEGER(kind=KINT) :: NVARS_BC_4D_H
+        INTEGER(kind=KINT) :: NVARS_BC_2D_V
+        INTEGER(kind=KINT) :: NVARS_BC_3D_V
         INTEGER(kind=KINT) :: SPACE_RATIO_MY_PARENT
         INTEGER(kind=KINT) :: TIME_RATIO_MY_PARENT
 !
@@ -346,6 +361,8 @@
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: HANDLE_SEND_2WAY_DATA
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: HANDLE_SEND_2WAY_SFC
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: HANDLE_SEND_ALLCLEAR
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: LBND_4D
+        INTEGER(kind=KINT),DIMENSION(:),POINTER :: UBND_4D
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: LOCAL_ISTART
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: LOCAL_IEND
         INTEGER(kind=KINT),DIMENSION(:),POINTER :: LOCAL_JSTART
@@ -414,17 +431,6 @@
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: U
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: V
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: CWB_S,CWB_N         &
-                                                   ,CWB_W,CWB_E
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: QB_S,QB_N           &
-                                                   ,QB_W,QB_E
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TB_S,TB_N           &
-                                                   ,TB_W,TB_E
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: UB_S,UB_N           &
-                                                   ,UB_W,UB_E
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: VB_S,VB_N           &
-                                                   ,VB_W,VB_E
-!
         REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS
 !
         CHARACTER(len=6),DIMENSION(:),POINTER :: STATIC_OR_MOVING     
@@ -477,30 +483,15 @@
         TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: PD_B_WEST_V
         TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: PD_B_EAST_V
 !
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: T_B_SOUTH
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: T_B_NORTH
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: T_B_WEST
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: T_B_EAST
+        TYPE(MULTIDATA),DIMENSION(:),POINTER :: BND_VAR_H_SOUTH
+        TYPE(MULTIDATA),DIMENSION(:),POINTER :: BND_VAR_H_NORTH
+        TYPE(MULTIDATA),DIMENSION(:),POINTER :: BND_VAR_H_WEST
+        TYPE(MULTIDATA),DIMENSION(:),POINTER :: BND_VAR_H_EAST
 !
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: Q_B_SOUTH
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: Q_B_NORTH
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: Q_B_WEST
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: Q_B_EAST
-!
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: CW_B_SOUTH
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: CW_B_NORTH
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: CW_B_WEST
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: CW_B_EAST
-!
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: U_B_SOUTH
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: U_B_NORTH
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: U_B_WEST
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: U_B_EAST
-!
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: V_B_SOUTH
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: V_B_NORTH
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: V_B_WEST
-        TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: V_B_EAST
+        TYPE(MULTIDATA),DIMENSION(:),POINTER :: BND_VAR_V_SOUTH
+        TYPE(MULTIDATA),DIMENSION(:),POINTER :: BND_VAR_V_NORTH
+        TYPE(MULTIDATA),DIMENSION(:),POINTER :: BND_VAR_V_WEST
+        TYPE(MULTIDATA),DIMENSION(:),POINTER :: BND_VAR_V_EAST
 !
         TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: FIS_CHILD_SOUTH
         TYPE(REAL_DATA_TASKS),DIMENSION(:),POINTER :: FIS_CHILD_NORTH
@@ -515,6 +506,16 @@
         TYPE(REAL_DATA_TASKS),DIMENSION(:,:),POINTER :: CHILD_BOUND_V_NORTH
         TYPE(REAL_DATA_TASKS),DIMENSION(:,:),POINTER :: CHILD_BOUND_V_WEST
         TYPE(REAL_DATA_TASKS),DIMENSION(:,:),POINTER :: CHILD_BOUND_V_EAST
+!
+        TYPE(BC_H) :: MY_BC_VARS_H_S 
+        TYPE(BC_H) :: MY_BC_VARS_H_N 
+        TYPE(BC_H) :: MY_BC_VARS_H_W 
+        TYPE(BC_H) :: MY_BC_VARS_H_E 
+!
+        TYPE(BC_V) :: MY_BC_VARS_V_S 
+        TYPE(BC_V) :: MY_BC_VARS_V_N 
+        TYPE(BC_V) :: MY_BC_VARS_V_W 
+        TYPE(BC_V) :: MY_BC_VARS_V_E 
 !
         TYPE(MIXED_DATA_TASKS),DIMENSION(:),POINTER :: MOVING_CHILD_UPDATE
 !
@@ -558,6 +559,7 @@
         TYPE(ESMF_Config),DIMENSION(:),POINTER :: CF
 !
         TYPE(ESMF_FieldBundle) :: BUNDLE_2WAY
+        TYPE(ESMF_FieldBundle) :: BUNDLE_NESTBC
         TYPE(ESMF_FieldBundle) :: MOVE_BUNDLE_H
         TYPE(ESMF_FieldBundle) :: MOVE_BUNDLE_V
 !
@@ -669,6 +671,8 @@
                                    ,N_STENCIL_H,N_STENCIL_SFC_H         &
                                    ,N_STENCIL_V,N_STENCIL_SFC_V         &
                                    ,NHALO                               &
+                                   ,NLEV_H                              &
+                                   ,NLEV_V                              &
                                    ,NPHS                                &
                                    ,NTASKS_UPDATE_PARENT                &
                                    ,NTIMESTEP_CHECK                     &
@@ -687,6 +691,11 @@
                                    ,NUM_LEVELS_MOVE_3D_H                &
                                    ,NUM_LEVELS_MOVE_3D_V                &
                                    ,NUM_SPACE_RATIOS_MVG                &
+                                   ,NVARS_BC_2D_H                       &
+                                   ,NVARS_BC_3D_H                       &
+                                   ,NVARS_BC_4D_H                       &
+                                   ,NVARS_BC_2D_V                       &
+                                   ,NVARS_BC_3D_V                       &
                                    ,SPACE_RATIO_MY_PARENT               &
                                    ,TIME_RATIO_MY_PARENT
 !                                         
@@ -707,6 +716,8 @@
                                                 ,ITS_PARENT                  &
                                                 ,JTE_PARENT                  &
                                                 ,JTS_PARENT                  &
+                                                ,LBND_4D                     &
+                                                ,UBND_4D                     &
                                                 ,LINK_MRANK_RATIO            &
                                                 ,LIST_OF_RATIOS              &
                                                 ,LOCAL_ISTART                &
@@ -802,17 +813,6 @@
                                                  ,U                     &
                                                  ,V
 !
-      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: CWB_S,CWB_N           &
-                                                 ,CWB_W,CWB_E
-      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: QB_S,QB_N             &
-                                                 ,QB_W,QB_E
-      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TB_S,TB_N             &
-                                                 ,TB_W,TB_E
-      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: UB_S,UB_N             &
-                                                 ,UB_W,UB_E
-      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: VB_S,VB_N             &
-                                                 ,VB_W,VB_E
-!
       REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: TRACERS
 !
       CHARACTER(len=6),DIMENSION(:),POINTER,SAVE :: STATIC_OR_MOVING     
@@ -865,31 +865,6 @@
                                                    ,PD_B_WEST_V         &
                                                    ,PD_B_EAST_V         &
 !
-                                                   ,T_B_SOUTH           &
-                                                   ,T_B_NORTH           &
-                                                   ,T_B_WEST            &
-                                                   ,T_B_EAST            &
-!
-                                                   ,Q_B_SOUTH           &
-                                                   ,Q_B_NORTH           &
-                                                   ,Q_B_WEST            &
-                                                   ,Q_B_EAST            &
-!
-                                                   ,CW_B_SOUTH          &
-                                                   ,CW_B_NORTH          &
-                                                   ,CW_B_WEST           &
-                                                   ,CW_B_EAST           &
-!
-                                                   ,U_B_SOUTH           &
-                                                   ,U_B_NORTH           &
-                                                   ,U_B_WEST            &
-                                                   ,U_B_EAST            &
-!
-                                                   ,V_B_SOUTH           &
-                                                   ,V_B_NORTH           &
-                                                   ,V_B_WEST            &
-                                                   ,V_B_EAST            &
-!
                                                    ,FIS_CHILD_SOUTH     &
                                                    ,FIS_CHILD_NORTH     &
                                                    ,FIS_CHILD_WEST      &
@@ -904,7 +879,26 @@
                                                      ,CHILD_BOUND_V_WEST  &
                                                      ,CHILD_BOUND_V_EAST
 !
+      TYPE(BC_H),POINTER :: MY_BC_VARS_H_S                     &
+                           ,MY_BC_VARS_H_N                     &
+                           ,MY_BC_VARS_H_W                     &
+                           ,MY_BC_VARS_H_E                              
+!
+      TYPE(BC_V),POINTER :: MY_BC_VARS_V_S                     &
+                           ,MY_BC_VARS_V_N                     &
+                           ,MY_BC_VARS_V_W                     &
+                           ,MY_BC_VARS_V_E 
+!
       TYPE(MIXED_DATA_TASKS),DIMENSION(:),POINTER :: MOVING_CHILD_UPDATE
+!
+      TYPE(MULTIDATA),DIMENSION(:),POINTER :: BND_VAR_H_SOUTH  &
+                                             ,BND_VAR_H_NORTH  &
+                                             ,BND_VAR_H_WEST   &
+                                             ,BND_VAR_H_EAST   &
+                                             ,BND_VAR_V_SOUTH  &
+                                             ,BND_VAR_V_NORTH  &
+                                             ,BND_VAR_V_WEST   &
+                                             ,BND_VAR_V_EAST
 !
       TYPE(BNDS_2D),DIMENSION(:),POINTER :: NEST_FIS_ON_PARENT_BNDS
 !
@@ -946,6 +940,7 @@
       TYPE(ESMF_Config),DIMENSION(:),POINTER :: CF
 !
       TYPE(ESMF_FieldBundle),POINTER :: BUNDLE_2WAY                     &
+                                       ,BUNDLE_NESTBC                   &
                                        ,MOVE_BUNDLE_H                   &
                                        ,MOVE_BUNDLE_V
 !
@@ -1033,7 +1028,6 @@
 !
       INTEGER(kind=KINT),SAVE :: CHILD_ID                               &
                                 ,COMM_FCST_TASKS                        &
-                                ,ID_MY_PARENT                           &
                                 ,INDX_CW,INDX_Q                         &
                                 ,NHOURS_FCST                            &
                                 ,NLEV_2WAY                              &
@@ -1049,9 +1043,15 @@
                                 ,NUM_FIELDS_MOVE_3D_H                   &
                                 ,NUM_FIELDS_MOVE_2D_V                   &
                                 ,NUM_FIELDS_MOVE_3D_V                   &
-                                ,NVARS_2WAY_UPDATE
+                                ,NVARS_2WAY_UPDATE                      &
+                                ,NVARS_NESTBC                           & 
+                                ,NVARS_NESTBC_H                         & 
+                                ,NVARS_NESTBC_V
 !
       INTEGER(kind=KINT) :: TWOWAY_SIGNAL_TAG                              !<-- Arbitrary tag used for 2way exchange
+!
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE,SAVE :: NBASE_VAR_H   &
+                                                         ,NBASE_VAR_V
 !
       REAL(kind=KDBL),SAVE :: HYPER_A
 !
@@ -1853,7 +1853,7 @@
                           ,CHILDTASK_0                                  &  !<-- The Child task who sent
                           ,NTAG                                         &  !<-- Unique MPI tag
                           ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI communicator between parent and child N
-                          ,HANDLE_IJ_SW(ID_CHILD)                       &  !<-- Request handle for IRecv from child N
+                          ,HANDLE_I_SW(ID_CHILD)                        &  !<-- Request handle for IRecv from child N
                           ,IERR ) 
 !
             NTAG=12122+100*MY_CHILDREN_ID(N)
@@ -1864,7 +1864,7 @@
                           ,CHILDTASK_0                                  &  !<-- The Child task who sent
                           ,NTAG                                         &  !<-- Unique MPI tag
                           ,COMM_TO_MY_CHILDREN(N)                       &  !<-- MPI communicator between parent and child N
-                          ,HANDLE_IJ_SW(ID_CHILD)                       &  !<-- Request handle for IRecv from child N
+                          ,HANDLE_J_SW(ID_CHILD)                        &  !<-- Request handle for IRecv from child N
                           ,IERR )
 !
           ENDDO
@@ -1914,13 +1914,14 @@
 !
       INTEGER(kind=KINT) :: I,J,L
 !
-      INTEGER(kind=KINT) :: CHILDTASK_0,CONFIG_ID,HANDLE_X              &
+      INTEGER(kind=KINT) :: CHILDTASK_0,CONFIG_ID,HANDLE_X,H_OR_V_INT   &
                            ,ID_CHILD,ID_DOM                             &
                            ,IDIM,IEND,ISTART,IUNIT_FIS_NEST             &
                            ,JCORNER,JDIM,JEND,JSTART,JSTOP              &
                            ,KOUNT                                       &
                            ,LENGTH,LIM1_H,LIM1_V,LIM2_H,LIM2_V,LMP1,LOR &
-                           ,MAX_DOMAINS,MY_DOMAIN_ID,MYPE_X             &
+                           ,MAX_DOMAINS,MY_DOMAIN_ID,MY_PARENT_ID       &
+                           ,MYPE_X                                      &
                            ,N,N1,N2,N3,NN                               &
                            ,N_CHILD,N_FIELD,N_START,N_END               &
                            ,N_H_EAST_WEST,N_H_NORTH_SOUTH               &
@@ -1928,7 +1929,7 @@
                            ,NKOUNT,NTAG,NTIMESTEP                       &
                            ,NUM_BOUNDARY_WORDS                          &
                            ,NUM_DOMAINS,NUM_TASKS_TOTAL                 &
-                           ,NUM_WORDS
+                           ,NUM_WORDS,NV
 !
       INTEGER(kind=KINT) :: IERR,ISTAT,RC,RC_CPL_INIT
 !
@@ -1943,10 +1944,13 @@
                         ,REAL_I                                         &
                         ,REAL_J
 !
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: ARRAY_R3D
+!
       CHARACTER(len=2) :: INT_TO_CHAR
       CHARACTER(len=6) :: FMT='(I2.2)'
       CHARACTER(len=5),DIMENSION(:),ALLOCATABLE :: NEST_MODE_CHILD
       CHARACTER(len=19) :: PRESCRIBED_FILENAME
+      CHARACTER(len=99) :: FIELD_NAME
 !
       LOGICAL(kind=KLOG) :: DOMAIN_MOVES,OPENED
 !
@@ -2117,14 +2121,14 @@
 !***  Number of forecast tasks on this domain's parent
 !------------------------------------------------------
 !
-      ID_MY_PARENT=ID_PARENTS(MY_DOMAIN_ID)                                !<-- Domain ID of the current domain's parent
+      MY_PARENT_ID=ID_PARENTS(MY_DOMAIN_ID)                                !<-- Domain ID of the current domain's parent
 !
       NUM_TASKS_PARENT     =>cc%NUM_TASKS_PARENT
       NUM_FCST_TASKS_PARENT=>cc%NUM_FCST_TASKS_PARENT
 !
-      IF(ID_MY_PARENT>0)THEN
-        NUM_TASKS_PARENT     =NTASKS_DOMAIN(ID_MY_PARENT)                  !<-- Total # of fcst+quilt tasks on the parent's domain
-        NUM_FCST_TASKS_PARENT=FTASKS_DOMAIN(ID_MY_PARENT)                  !<-- # of forecast tasks on the parent's domain
+      IF(MY_PARENT_ID>0)THEN
+        NUM_TASKS_PARENT     =NTASKS_DOMAIN(MY_PARENT_ID)                  !<-- Total # of fcst+quilt tasks on the parent's domain
+        NUM_FCST_TASKS_PARENT=FTASKS_DOMAIN(MY_PARENT_ID)                  !<-- # of forecast tasks on the parent's domain
       ELSE
         NUM_TASKS_PARENT=0                                                 !<-- Uppermost parent has no parent
         NUM_FCST_TASKS_PARENT=0                                            !<-- Uppermost parent has no parent
@@ -2472,7 +2476,10 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  Unload the domains' prognostic data.
+!***  Unload some key prognostic data from the import state that are
+!***  needed inside the Parent-Child coupler and point at those data
+!***  (located in the Solver internal state) appropriate for the
+!***  current domain.
 !-----------------------------------------------------------------------
 !
 !--------
@@ -3075,6 +3082,275 @@
       cc%CW=>TRACERS(IMS:IME,JMS:JME,1:LM,INDX_CW)
 !
 !-----------------------------------------------------------------------
+!***  Extract the Bundles holding pointers to nest boundary variables
+!***  updated by the parents (used in all nesting) and to 2-way 
+!***  variables updated by the child on the parent (if indeed 2-way
+!***  nesting is invoked).  Since the Fields in these Bundles will be 
+!***  accessed via looping through the Bundles then we need to know
+!***  how many total Fields are present as well as specifically how
+!***  many are on H points and on V points. 
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+      IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
+#else
+      IF(I_AM_A_FCST_TASK)THEN
+#endif
+!
+!-----------------------------------------------------------------------
+!***  Begin with the Bundle of pointers to the variables specified
+!***  by the user that are to be updated on the nest boundaries.
+!***  In addition to the total number of such variables, we need
+!***  to know how many of them are on H points and how many are
+!***  on V points.
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Nest BC Bundle in P-C Init"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateGet(state      =IMP_STATE                        &  !<-- The Parent-Child coupler import state
+                          ,itemname   ='Bundle_nestbc'                  &  !<-- Name of Bundle of nest BC internal state arrays to use
+                          ,fieldbundle=BUNDLE_NESTBC                    &  !<-- The ESMF nest BC Bundle
+                          ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="How many Fields in the Nest BC Bundle?"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE=BUNDLE_NESTBC              &  !<-- The ESMF Bundle of 2-way exchange variables
+                                ,fieldcount =NVARS_NESTBC               &  !<-- # of Fields in the Bundle
+                                ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        NLEV_H=>cc%NLEV_H
+        NLEV_V=>cc%NLEV_V
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract # of Model Lyrs for all Nest BC Variables"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The parent-child coupler import state
+                              ,name ='NLEV_H'                           &  !<-- Name of Attribute to extract
+                              ,value=NLEV_H                             &  !<-- # of model lyrs for all BC H-pt variables
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The parent-child coupler import state
+                              ,name ='NLEV_V'                           &  !<-- Name of Attribute to extract
+                              ,value=NLEV_V                             &  !<-- # of model lyrs for all BC H-pt variables
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        NVARS_BC_2D_H=>cc%NVARS_BC_2D_H
+        NVARS_BC_3D_H=>cc%NVARS_BC_3D_H
+        NVARS_BC_4D_H=>cc%NVARS_BC_4D_H
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract # of H-pt Nest BC Variables from P-C Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The parent-child coupler import state
+                              ,name ='NVARS_BC_2D_H'                    &  !<-- Name of Attribute to extract
+                              ,value=NVARS_BC_2D_H                      &  !<-- # of 2-D H-pt boundary variables
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The parent-child coupler import state
+                              ,name ='NVARS_BC_3D_H'                    &  !<-- Name of Attribute to extract
+                              ,value=NVARS_BC_3D_H                      &  !<-- # of 3-D H-pt boundary variables
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The parent-child coupler import state
+                              ,name ='NVARS_BC_4D_H'                    &  !<-- Name of Attribute to extract
+                              ,value=NVARS_BC_4D_H                      &  !<-- # of 4-D H-pt boundary variables
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        NVARS_BC_2D_V=>cc%NVARS_BC_2D_V
+        NVARS_BC_3D_V=>cc%NVARS_BC_3D_V
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract # of V-pt Nest BC Variables from P-C Import State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The parent-child coupler import state
+                              ,name ='NVARS_BC_2D_V'                    &  !<-- Name of Attribute to extract
+                              ,value=NVARS_BC_2D_V                      &  !<-- # of 2-D V-pt boundary variables
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The parent-child coupler import state
+                              ,name ='NVARS_BC_3D_V'                    &  !<-- Name of Attribute to extract
+                              ,value=NVARS_BC_3D_V                      &  !<-- # of 3-D V-pt boundary variables
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        NVARS_NESTBC_H=NVARS_BC_2D_H+NVARS_BC_3D_H+NVARS_BC_4D_H
+        NVARS_NESTBC_V=NVARS_BC_2D_V+NVARS_BC_3D_V
+!
+        IF(.NOT.ALLOCATED(NBASE_VAR_H))THEN
+          ALLOCATE(NBASE_VAR_H(1:NVARS_NESTBC_H-1))
+        ENDIF
+!
+        IF(.NOT.ALLOCATED(NBASE_VAR_V))THEN
+          ALLOCATE(NBASE_VAR_V(1:NVARS_NESTBC_V))
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Allocate the objects that hold the boundary values for arrays
+!***  of various dimensions.  While it is certain there will be 2-D
+!***  H-pt variables (PD) and 3-D H-pt and V-pt variables (T,Q,U,V)
+!***  there may not be 4-D H-pt or 2-D V-pt variables so account for
+!***  the possible lack of those.
+!-----------------------------------------------------------------------
+!
+        ALLOCATE(cc%MY_BC_VARS_H_S%VAR_2D(1:NVARS_BC_2D_H))
+        ALLOCATE(cc%MY_BC_VARS_H_N%VAR_2D(1:NVARS_BC_2D_H))
+        ALLOCATE(cc%MY_BC_VARS_H_W%VAR_2D(1:NVARS_BC_2D_H))
+        ALLOCATE(cc%MY_BC_VARS_H_E%VAR_2D(1:NVARS_BC_2D_H))
+!
+        ALLOCATE(cc%MY_BC_VARS_H_S%VAR_3D(1:NVARS_BC_3D_H))
+        ALLOCATE(cc%MY_BC_VARS_H_N%VAR_3D(1:NVARS_BC_3D_H))
+        ALLOCATE(cc%MY_BC_VARS_H_W%VAR_3D(1:NVARS_BC_3D_H))
+        ALLOCATE(cc%MY_BC_VARS_H_E%VAR_3D(1:NVARS_BC_3D_H))
+!
+        IF(NVARS_BC_4D_H==0)THEN
+          ALLOCATE(cc%MY_BC_VARS_H_S%VAR_4D(-1:-1))
+          ALLOCATE(cc%MY_BC_VARS_H_N%VAR_4D(-1:-1))
+          ALLOCATE(cc%MY_BC_VARS_H_W%VAR_4D(-1:-1))
+          ALLOCATE(cc%MY_BC_VARS_H_E%VAR_4D(-1:-1))
+        ELSEIF(NVARS_BC_4D_H>0)THEN
+          ALLOCATE(cc%MY_BC_VARS_H_S%VAR_4D(1:NVARS_BC_4D_H))
+          ALLOCATE(cc%MY_BC_VARS_H_N%VAR_4D(1:NVARS_BC_4D_H))
+          ALLOCATE(cc%MY_BC_VARS_H_W%VAR_4D(1:NVARS_BC_4D_H))
+          ALLOCATE(cc%MY_BC_VARS_H_E%VAR_4D(1:NVARS_BC_4D_H))
+        ENDIF
+!
+        IF(NVARS_BC_2D_V==0)THEN
+          ALLOCATE(cc%MY_BC_VARS_V_S%VAR_2D(-1:-1))
+          ALLOCATE(cc%MY_BC_VARS_V_N%VAR_2D(-1:-1))
+          ALLOCATE(cc%MY_BC_VARS_V_W%VAR_2D(-1:-1))
+          ALLOCATE(cc%MY_BC_VARS_V_E%VAR_2D(-1:-1))
+        ELSEIF(NVARS_BC_2D_V>0)THEN
+          ALLOCATE(cc%MY_BC_VARS_V_S%VAR_2D(1:NVARS_BC_2D_V))
+          ALLOCATE(cc%MY_BC_VARS_V_N%VAR_2D(1:NVARS_BC_2D_V))
+          ALLOCATE(cc%MY_BC_VARS_V_W%VAR_2D(1:NVARS_BC_2D_V))
+          ALLOCATE(cc%MY_BC_VARS_V_E%VAR_2D(1:NVARS_BC_2D_V))
+        ENDIF
+!
+        ALLOCATE(cc%MY_BC_VARS_V_S%VAR_3D(1:NVARS_BC_3D_V))
+        ALLOCATE(cc%MY_BC_VARS_V_N%VAR_3D(1:NVARS_BC_3D_V))
+        ALLOCATE(cc%MY_BC_VARS_V_W%VAR_3D(1:NVARS_BC_3D_V))
+        ALLOCATE(cc%MY_BC_VARS_V_E%VAR_3D(1:NVARS_BC_3D_V))
+!
+!-----------------------------------------------------------------------
+!***  Extract the lower and upper bounds of each of the 4-D H-pt
+!***  boundary variables.
+!-----------------------------------------------------------------------
+!
+        IF(NVARS_BC_4D_H==0)THEN
+!
+          ALLOCATE(cc%LBND_4D(1:1))
+          ALLOCATE(cc%UBND_4D(1:1))
+!
+          cc%LBND_4D(1)=-1
+          cc%UBND_4D(1)=-1
+!
+        ELSEIF(NVARS_BC_4D_H>0)THEN
+!
+          ALLOCATE(cc%LBND_4D(1:NVARS_BC_4D_H))
+          ALLOCATE(cc%UBND_4D(1:NVARS_BC_4D_H))
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Get Lower Bounds of 4-D Bndry Vbls"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+          CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- The parent-child coupler import state
+                                ,name     ='LBND_4D'                    &  !<-- Extract Attribute with this name
+                                ,count    =NVARS_BC_4D_H                &  !<-- How many items?
+                                ,valueList=cc%LBND_4D                   &  !<-- Lower bounds of 4-D H-pt bndry vbls
+                                ,rc       =RC )
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- The parent-child coupler import state
+                                ,name     ='LBND_4D'                    &  !<-- Extract Attribute with this name
+                                ,itemCount=NVARS_BC_4D_H                &  !<-- How many items?
+                                ,valueList=cc%LBND_4D                   &  !<-- Lower bounds of 4-D H-pt bndry vbls
+                                ,rc       =RC )
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Get Upper Bounds of 4-D Bndry Vbls"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+          CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- The parent-child coupler import state
+                                ,name     ='UBND_4D'                    &  !<-- Extract Attribute with this name
+                                ,count    =NVARS_BC_4D_H                &  !<-- How many items?
+                                ,valueList=cc%UBND_4D                   &  !<-- Upper bounds of 4-D H-pt bndry vbls
+                                ,rc       =RC )
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- The parent-child coupler import state
+                                ,name     ='UBND_4D'                    &  !<-- Extract Attribute with this name
+                                ,itemCount=NVARS_BC_4D_H                &  !<-- How many items?
+                                ,valueList=cc%UBND_4D                   &  !<-- Upper bounds of 4-D H-pt bndry vbls
+                                ,rc       =RC )
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+        IF(NVARS_NESTBC/=NVARS_BC_2D_H+NVARS_BC_3D_H+NVARS_BC_4D_H      &
+                        +NVARS_BC_2D_V+NVARS_BC_3D_V)THEN
+          WRITE(0,22001)NVARS_NESTBC
+22001     FORMAT(' Total # of variables in nest BC Bundle is ',I4)
+          WRITE(0,22002)NVARS_BC_2D_H+NVARS_BC_3D_H+NVARS_BC_4D_H
+22002     FORMAT(' # of H-pt nest BC variables is ',I4)
+          WRITE(0,22002)NVARS_BC_2D_V+NVARS_BC_3D_V
+22003     FORMAT(' # of V-pt nest BC variables is ',I4)
+          WRITE(0,22004)
+22004     FORMAT(' They do not add up so ABORT!!')
+          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+                            ,rc             =RC)
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      ENDIF
+!
+!-----------------------------------------------------------------------
 !***  Extract the mode of nesting, i.e., 1-way or 2-way.  Use the
 !***  configure file of domain #1 where the variable is required.
 !-----------------------------------------------------------------------
@@ -3212,11 +3488,11 @@
 !***  those pieces of information from the parent.
 !-----------------------------------------------------------------------
 !
-        ID_MY_PARENT=ID_PARENTS(MY_DOMAIN_ID)                              !<-- Domain ID of the current domain's parent
+        MY_PARENT_ID=ID_PARENTS(MY_DOMAIN_ID)                              !<-- Domain ID of the current domain's parent
 !
 !-----------------------------------------------------------------------
 !
-        NUM_FCST_TASKS_PARENT=FTASKS_DOMAIN(ID_MY_PARENT)                  !<-- # of forecast tasks on the parent's domain
+        NUM_FCST_TASKS_PARENT=FTASKS_DOMAIN(MY_PARENT_ID)                  !<-- # of forecast tasks on the parent's domain
 !
         ALLOCATE(PTASK_LIMITS(MY_DOMAIN_ID)%ITS(0:NUM_FCST_TASKS_PARENT-1)) !<-- Task subdomain limits for current domain's parent
         ALLOCATE(PTASK_LIMITS(MY_DOMAIN_ID)%ITE(0:NUM_FCST_TASKS_PARENT-1)) !
@@ -3335,8 +3611,8 @@
 !***  needed for the exchange of boundary data during the integration.
 !-----------------------------------------------------------------------
 !
-        ID_MY_PARENT=ID_PARENTS(MY_DOMAIN_ID)                              !<-- Domain ID of the current domain's parent
-        ALLOCATE(CC%PARENT_TASK(1:FTASKS_DOMAIN(ID_MY_PARENT)))            !<-- Dimensioned as # of fcst tasks on domain of parent.
+        MY_PARENT_ID=ID_PARENTS(MY_DOMAIN_ID)                              !<-- Domain ID of the current domain's parent
+        ALLOCATE(CC%PARENT_TASK(1:FTASKS_DOMAIN(MY_PARENT_ID)))            !<-- Dimensioned as # of fcst tasks on domain of parent.
 !
         CALL CHILD_RECVS_CHILD_DATA_LIMITS(EXP_STATE,MY_DOMAIN_ID)         !<-- Recv specs of new parent/child task associations
 !
@@ -3355,8 +3631,8 @@
 !***  parents' configure files so load those objects into memory.
 !-----------------------------------------------------------------------
 !
-        ID_MY_PARENT=ID_PARENTS(MY_DOMAIN_ID)
-        CONFIG_ID=DOMAIN_ID_TO_RANK(ID_MY_PARENT)
+        MY_PARENT_ID=ID_PARENTS(MY_DOMAIN_ID)
+        CONFIG_ID=DOMAIN_ID_TO_RANK(MY_PARENT_ID)
         WRITE(INT_TO_CHAR,FMT)CONFIG_ID
         CONFIG_FILE_NAME='configure_file_'//INT_TO_CHAR                    !<-- Prepare the parent's config file name
 !
@@ -4151,7 +4427,7 @@
 !
           IF(I_AM_LEAD_FCST_TASK)THEN                                      !<-- Lead parent task clears IRecv in P-C Initialize0
             ID_CHILD=MY_CHILDREN_ID(N)                                     !<-- Child N's domain ID
-            CALL MPI_WAIT(HANDLE_IJ_SW(ID_CHILD)                        &  !<-- Be sure the lead parent task has recvd child N's data.
+            CALL MPI_WAIT(HANDLE_I_SW(ID_CHILD)                         &  !<-- Be sure the lead parent task has recvd child N's data.
                          ,JSTAT                                         &
                          ,IERR )
           ENDIF
@@ -4162,6 +4438,13 @@
                         ,0                                              &  !<-- Lead parent task in parent-child intracomm is root
                         ,COMM_FCST_TASKS                                &  !<-- Intracommunicator for fcst tasks
                         ,IERR )
+!
+          IF(I_AM_LEAD_FCST_TASK)THEN                                      !<-- Lead parent task clears IRecv in P-C Initialize0
+            ID_CHILD=MY_CHILDREN_ID(N)                                     !<-- Child N's domain ID
+            CALL MPI_WAIT(HANDLE_J_SW(ID_CHILD)                         &  !<-- Be sure the lead parent task has recvd child N's data.
+                         ,JSTAT                                         &
+                         ,IERR )
+          ENDIF
 !
           CALL MPI_BCAST(J_PARENT_SW(N)                                 &  !<-- Parent J of chkid N's SW corner
                         ,1                                              &  !<-- It is one word
@@ -4196,7 +4479,15 @@
 !***  to subroutine PARENT_SENDS_CHILD_DATA_LIMITS.
 !-----------------------------------------------------------------------
 !
-        ALLOCATE(HANDLE_PACKET_S_H(MY_DOMAIN_ID)%CHILDREN(1:NUM_CHILDREN))
+        ALLOCATE(HANDLE_PACKET_S_H(MY_DOMAIN_ID)%CHILDREN(1:NUM_CHILDREN) &
+                ,stat=ISTAT)
+        IF(ISTAT/=0)THEN
+          WRITE(0,20001)MY_DOMAIN_ID,NUM_CHILDREN
+20001     FORMAT(' Failed to allocate HANDLE_PACKET_S_H(',I2,')%CHILDREN(1:',I2,')')
+          WRITE(0,*)' ISTAT=',ISTAT
+          WRITE(0,*)' Aborting!'
+          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+        ENDIF
         ALLOCATE(HANDLE_PACKET_S_V(MY_DOMAIN_ID)%CHILDREN(1:NUM_CHILDREN))
         ALLOCATE(HANDLE_PACKET_N_H(MY_DOMAIN_ID)%CHILDREN(1:NUM_CHILDREN))
         ALLOCATE(HANDLE_PACKET_N_V(MY_DOMAIN_ID)%CHILDREN(1:NUM_CHILDREN))
@@ -4640,11 +4931,11 @@
 !---------------------
 !
       INTEGER(kind=KINT) :: CONFIG_ID                                   &
-                           ,ID_CHILD,ID_MY_PARENT,KR                    &
+                           ,ID_CHILD,KR                                 &
                            ,MINUTES_RESTART,MY_DOMAIN_ID                &
                            ,N,N_FIELD,N_MOVING,N1,N2,NN                 &
                            ,NROWS_P_UPD_X,NTAG,NTIMESTEP                &
-                           ,NUM_CHILD_TASKS,NUM_DIMS                    &
+                           ,NUM_CHILD_TASKS,NUM_DIMS,NV                 &
                            ,SFC_FILE_RATIO,UPDATE_TYPE_INT
 !
       INTEGER(kind=KINT) :: IERR,ISTAT,RC,RC_CPL_INIT
@@ -4676,6 +4967,7 @@
       CHARACTER(len=1) :: UPDATE_TYPE_CHAR
       CHARACTER(len=2) :: INT_TO_CHAR
       CHARACTER(len=6) :: FMT='(I2.2)'
+      CHARACTER(len=99) :: FIELD_NAME
 !
       TYPE(COMPOSITE),POINTER :: CC
 !
@@ -4809,8 +5101,6 @@
 !***  is directly or indirectly related to the grid.
 !-----------------------------------------------------------------------
 !
-        I_AM_A_FCST_TASK=>cc%I_AM_A_FCST_TASK
-!
 #ifdef ESMF_3
         IF(I_AM_A_FCST_TASK==ESMF_False)RETURN
 #else
@@ -4902,20 +5192,58 @@
         ALLOCATE(cc%PD_B_SOUTH_V(1:NUM_CHILDREN),stat=ISTAT)               !<-- South boundary PD on V points
         PD_B_SOUTH_V=>cc%PD_B_SOUTH_V
 !
-        ALLOCATE(cc%T_B_SOUTH (1:NUM_CHILDREN),stat=ISTAT)                 !<-- South boundary temperature
-        T_B_SOUTH=>cc%T_B_SOUTH
+!-----------------------------------------------------------------------
+!***  Allocate the working objects used by the parents for H-pt
+!***  update variables on the nest boundaries.  Exclude PD since
+!***  it must be handled separately (thus the '-1' in the allocates).
+!-----------------------------------------------------------------------
 !
-        ALLOCATE(cc%Q_B_SOUTH (1:NUM_CHILDREN),stat=ISTAT)                 !<-- South boundary specific humidity
-        Q_B_SOUTH=>cc%Q_B_SOUTH
+        ALLOCATE(cc%BND_VAR_H_SOUTH(1:NVARS_NESTBC_H-1),stat=ISTAT)
+        IF(ISTAT>0)THEN
+          WRITE(0,11001)NVARS_NESTBC_H-1,ISTAT
+11001     FORMAT(' P-C Init2 failed to allocate BND_VAR_H_SOUTH(1:',I2,') istat=',i3)
+        ENDIF
+        ALLOCATE(cc%BND_VAR_H_NORTH(1:NVARS_NESTBC_H-1),stat=ISTAT)
+        ALLOCATE(cc%BND_VAR_H_WEST (1:NVARS_NESTBC_H-1),stat=ISTAT)
+        ALLOCATE(cc%BND_VAR_H_EAST (1:NVARS_NESTBC_H-1),stat=ISTAT)
 !
-        ALLOCATE(cc%CW_B_SOUTH(1:NUM_CHILDREN),stat=ISTAT)                 !<-- South boundary cloud condensate
-        CW_B_SOUTH=>cc%CW_B_SOUTH
+        DO NV=1,NVARS_NESTBC_H-1 
+          ALLOCATE(cc%BND_VAR_H_SOUTH(NV)%CHILD(1:NUM_CHILDREN),stat=ISTAT)
+          IF(ISTAT>0)THEN
+            WRITE(0,11011)NV,NUM_CHILDREN,ISTAT
+11011       FORMAT(' P-C Init2 failed to allocate BND_VAR_H_SOUTH(',I2,')%CHILD(1:',I2,') istat=',i3)
+          ENDIF
+          ALLOCATE(cc%BND_VAR_H_NORTH(NV)%CHILD(1:NUM_CHILDREN),stat=ISTAT)
+          ALLOCATE(cc%BND_VAR_H_WEST(NV)%CHILD(1:NUM_CHILDREN),stat=ISTAT)
+          ALLOCATE(cc%BND_VAR_H_EAST(NV)%CHILD(1:NUM_CHILDREN),stat=ISTAT)
+        ENDDO
 !
-        ALLOCATE(cc%U_B_SOUTH (1:NUM_CHILDREN),stat=ISTAT)                 !<-- South boundary U wind component
-        U_B_SOUTH=>cc%U_B_SOUTH
+        BND_VAR_H_SOUTH=>cc%BND_VAR_H_SOUTH
+        BND_VAR_H_NORTH=>cc%BND_VAR_H_NORTH
+        BND_VAR_H_WEST =>cc%BND_VAR_H_WEST
+        BND_VAR_H_EAST =>cc%BND_VAR_H_EAST
 !
-        ALLOCATE(cc%V_B_SOUTH (1:NUM_CHILDREN),stat=ISTAT)                 !<-- South boundary V wind component
-        V_B_SOUTH=>cc%V_B_SOUTH
+!-----------------------------------------------------------------------
+!***  Allocate the working objects used by the parents for V-pt
+!***  update variables on the nest boundaries.
+!-----------------------------------------------------------------------
+!
+        ALLOCATE(cc%BND_VAR_V_SOUTH(1:NVARS_NESTBC_V),stat=ISTAT)
+        ALLOCATE(cc%BND_VAR_V_NORTH(1:NVARS_NESTBC_V),stat=ISTAT)
+        ALLOCATE(cc%BND_VAR_V_WEST (1:NVARS_NESTBC_V),stat=ISTAT)
+        ALLOCATE(cc%BND_VAR_V_EAST (1:NVARS_NESTBC_V),stat=ISTAT)
+!
+        DO NV=1,NVARS_NESTBC_V
+          ALLOCATE(cc%BND_VAR_V_SOUTH(NV)%CHILD(1:NUM_CHILDREN),stat=ISTAT)
+          ALLOCATE(cc%BND_VAR_V_NORTH(NV)%CHILD(1:NUM_CHILDREN),stat=ISTAT)
+          ALLOCATE(cc%BND_VAR_V_WEST(NV)%CHILD(1:NUM_CHILDREN),stat=ISTAT)
+          ALLOCATE(cc%BND_VAR_V_EAST(NV)%CHILD(1:NUM_CHILDREN),stat=ISTAT)
+        ENDDO
+!
+        BND_VAR_V_SOUTH=>cc%BND_VAR_V_SOUTH
+        BND_VAR_V_NORTH=>cc%BND_VAR_V_NORTH
+        BND_VAR_V_WEST =>cc%BND_VAR_V_WEST
+        BND_VAR_V_EAST =>cc%BND_VAR_V_EAST
 !
 !-----------------------------------------------------------------------
 !
@@ -4949,21 +5277,6 @@
         ALLOCATE(cc%PD_B_NORTH_V(1:NUM_CHILDREN),stat=ISTAT)               !<-- North boundary PD on V points
         PD_B_NORTH_V=>cc%PD_B_NORTH_V
 !
-        ALLOCATE(cc%T_B_NORTH(1:NUM_CHILDREN),stat=ISTAT)                  !<-- North boundary temperature
-        T_B_NORTH=>cc%T_B_NORTH     
-!
-        ALLOCATE(cc%Q_B_NORTH(1:NUM_CHILDREN),stat=ISTAT)                  !<-- North boundary specific humidity
-        Q_B_NORTH=>cc%Q_B_NORTH
-!
-        ALLOCATE(cc%CW_B_NORTH(1:NUM_CHILDREN),stat=ISTAT)                 !<-- North boundary cloud condensate
-        CW_B_NORTH=>cc%CW_B_NORTH
-!
-        ALLOCATE(cc%U_B_NORTH(1:NUM_CHILDREN),stat=ISTAT)                  !<-- North boundary U wind component
-        U_B_NORTH=>cc%U_B_NORTH
-!
-        ALLOCATE(cc%V_B_NORTH(1:NUM_CHILDREN),stat=ISTAT)                  !<-- North boundary V wind component
-        V_B_NORTH=>cc%V_B_NORTH
-!
 !-----------------------------------------------------------------------
 !
         ALLOCATE(cc%CHILD_BOUND_H_WEST(1:NUM_CHILDREN,1:2),stat=ISTAT)     !<-- 1-D bndry data string for child tasks with Wbndry H points
@@ -4996,21 +5309,6 @@
         ALLOCATE(cc%PD_B_WEST_V(1:NUM_CHILDREN),stat=ISTAT)                !<-- West boundary PD on V points
         PD_B_WEST_V=>cc%PD_B_WEST_V
 !
-        ALLOCATE(cc%T_B_WEST(1:NUM_CHILDREN),stat=ISTAT)                   !<-- West boundary temperature
-        T_B_WEST=>cc%T_B_WEST
-!
-        ALLOCATE(cc%Q_B_WEST(1:NUM_CHILDREN),stat=ISTAT)                   !<-- West boundary specific humidity
-        Q_B_WEST=>cc%Q_B_WEST
-!
-        ALLOCATE(cc%CW_B_WEST(1:NUM_CHILDREN),stat=ISTAT)                  !<-- West boundary cloud condensate
-        CW_B_WEST=>cc%CW_B_WEST
-!
-        ALLOCATE(cc%U_B_WEST(1:NUM_CHILDREN),stat=ISTAT)                   !<-- West boundary U wind component
-        U_B_WEST=>cc%U_B_WEST
-!
-        ALLOCATE(cc%V_B_WEST(1:NUM_CHILDREN),stat=ISTAT)                   !<-- West boundary V wind component
-        V_B_WEST=>cc%V_B_WEST
-!
 !-----------------------------------------------------------------------
 !
         ALLOCATE(cc%CHILD_BOUND_H_EAST(1:NUM_CHILDREN,1:2),stat=ISTAT)     !<-- 1-D bndry data string for child tasks with Ebndry H points
@@ -5040,21 +5338,6 @@
 !
         ALLOCATE(cc%PD_B_EAST_V(1:NUM_CHILDREN),stat=ISTAT)                !<-- East boundary PD on V points
         PD_B_EAST_V=>cc%PD_B_EAST_V
-!
-        ALLOCATE(cc%T_B_EAST(1:NUM_CHILDREN),stat=ISTAT)                   !<-- East boundary temperature
-        T_B_EAST=>cc%T_B_EAST
-!
-        ALLOCATE(cc%Q_B_EAST(1:NUM_CHILDREN),stat=ISTAT)                   !<-- East boundary specific humidity
-        Q_B_EAST=>cc%Q_B_EAST
-!
-        ALLOCATE(cc%CW_B_EAST(1:NUM_CHILDREN),stat=ISTAT)                  !<-- East boundary cloud condensate
-        CW_B_EAST=>cc%CW_B_EAST
-!
-        ALLOCATE(cc%U_B_EAST(1:NUM_CHILDREN),stat=ISTAT)                   !<-- East boundary U wind component
-        U_B_EAST=>cc%U_B_EAST
-!
-        ALLOCATE(cc%V_B_EAST(1:NUM_CHILDREN),stat=ISTAT)                   !<-- East boundary V wind component
-        V_B_EAST=>cc%V_B_EAST
 !
         DO NN=1,2
           DO N=1,NUM_CHILDREN
@@ -7749,7 +8032,7 @@
               DT_GRANDPARENT=DT_DOMAIN(ID_GRANDPARENT)                     !<-- My parent's parent's timestep interval (sec)
 !
               NTIMESTEP_WAIT_FORCED_PARENT=NTIMESTEP                          &  !<--  The next timestep this domain
-                                           +NINT(DT_GRANDPARENT*(LAG_STEPS+1) &  !     will be allowed to intiate a
+                                           +NINT(DT_GRANDPARENT*(LAG_STEPS+1) &  !     will be allowed to initiate a
                                                 /DT_DOMAIN(MY_DOMAIN_ID))        !     forced move of its parent.
 !
             ENDIF
@@ -7796,12 +8079,13 @@
 !
       INTEGER(kind=KINT) :: ID_ADD,IERR,N,NP_H,NP_V,NTAG
 !
+      integer(kind=kint) :: mype_intra
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-!***  Point at the quantities valid for this particular domain
+!***  Point at the memory valid for this particular domain
 !***  since individual tasks might lie on more than one domain.
 !-----------------------------------------------------------------------
 !
@@ -7864,7 +8148,7 @@
         NTAG=NTIMESTEP+101+ID_ADD                                          !<-- Add 101 and domain ID to obtain a unique south H tag
 !
         DO N=1,NP_H                                                        !<-- Loop over each parent task sending Sboundary H data
-!         call date_and_time(values=values)     
+          call date_and_time(values=values)     
 !         write(0,123)n,parent_task(n)%south_h%id_source,values(5),values(6),values(7),values(8)
   123     format(' Ready to recv South_H from parent task #',i1,' id=',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
@@ -7885,7 +8169,7 @@
                        ,IERR)
           cpl1_south_h_recv_tim=cpl1_south_h_recv_tim+(timef()-btim)
           cpl1_recv_tim=cpl1_recv_tim+(timef()-btim)
-!         call date_and_time(values=values)     
+          call date_and_time(values=values)     
 !         write(0,124)n,parent_task(n)%south_h%id_source,values(5),values(6),values(7),values(8)
   124     format(' Recvd South_H from parent task #',i1,' id=',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 ! 
@@ -7902,10 +8186,15 @@
                                      ,i_end      =PARENT_TASK(N)%SOUTH_H%INDX_END   &  !<-- Child's segment Iend on each parent task
                                      ,j_start    =1                                 &  !<-- Child's segment Jstart on each parent task
                                      ,j_end      =N_BLEND_H                         &  !<-- Child's segment Jend on each parent task
-                                     ,pdb        =PDB_S                             &  !<-- Child's 1-D segment of PD on this side of bndry
-                                     ,tb         =TB_S                              &  !<-- Child's 1-D segment of T on this side of bndry
-                                     ,qb         =QB_S                              &  !<-- Child's 1-D segment of Q on this side of bndry
-                                     ,cwb        =CWB_S )                              !<-- Child's 1-D segment of CW on this side of bndry
+                                     ,nvars_bc_2d_h =NVARS_BC_2D_H                  &  !<-- # of 2-D H-pt vbls on child boundary
+                                     ,nvars_bc_3d_h =NVARS_BC_3D_H                  &  !<-- # of 3-D H-pt vbls on child boundary
+                                     ,nvars_bc_4d_h =NVARS_BC_4D_H                  &  !<-- # of 4-D H-pt vbls on child boundary
+                                     ,lbnd_4d    =LBND_4D                           &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                     ,ubnd_4d    =UBND_4D                           &  !<-- Upper bounds of 4-D variables' 4th dimension
+                                     ,nvars_bc_2d_v =NVARS_BC_2D_V                  &  !<-- # of 2-D V-pt vbls on child boundary
+                                     ,nvars_bc_3d_v =NVARS_BC_3D_V                  &  !<-- # of 3-D V-pt vbls on child boundary
+                                     ,pdb        =PDB_S                             &  !<-- Child's 1-D segment of PD on Sbndry
+                                     ,bc_vars_h  =MY_BC_VARS_H_S )                     !<-- Child's 1-D segment of other H-pt vbls on Sbndry
 !
           cpl1_south_h_undo_tim=cpl1_south_h_undo_tim+(timef()-btim)
 !
@@ -7914,17 +8203,22 @@
 !-----------------------------------------------------------------------
 !
         btim=timef()
-        CALL EXPORT_CHILD_BOUNDARY(pdb         =PDB_S                   &  !<-- Child's 1-D segment of PD on this side of bndry
-                                  ,tb          =TB_S                    &  !<-- Child's 1-D segment of T on this side of bndry
-                                  ,qb          =QB_S                    &  !<-- Child's 1-D segment of Q on this side of bndry
-                                  ,cwb         =CWB_S                   &  !<-- Child's 1-D segment of CW on this side of bndry
-                                  ,ilim_lo     =INDX_MIN_H%SOUTH        &  !<-- Lower I limit of child's segment of boundary
-                                  ,ilim_hi     =INDX_MAX_H%SOUTH        &  !<-- Upper I limit of child's segment of boundary
-                                  ,jlim_lo     =1                       &  !<-- Lower J limit of child's segment of boundary
-                                  ,jlim_hi     =N_BLEND_H               &  !<-- Upper J limit of child's segment of boundary
-                                  ,data_name   ='SOUTH_H_'//TIME_FLAG   &  !<-- Name attached to the combined exported data
-                                  ,data_exp    =BOUND_1D_SOUTH_H        &  !<-- Combined boundary segment H data for child task
-                                  ,export_state=EXP_STATE )                !<-- The Parent-Child Coupler export state
+        CALL EXPORT_CHILD_BOUNDARY(nvars_bc_2d_h=NVARS_BC_2D_H          &  !<-- # of 2-D H-pt vbls on child boundary
+                                  ,nvars_bc_3d_h=NVARS_BC_3D_H          &  !<-- # of 3-D H-pt vbls on child boundary
+                                  ,nvars_bc_4d_h=NVARS_BC_4D_H          &  !<-- # of 4-D H-pt vbls on child boundary
+                                  ,lbnd_4d      =LBND_4D                &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                  ,ubnd_4d      =UBND_4D                &  !<-- Upper bounds of 4-D variables' 4th dimension
+                                  ,nvars_bc_2d_v=NVARS_BC_2D_V          &  !<-- # of 2-D V-pt vbls on child boundary
+                                  ,nvars_bc_3d_v=NVARS_BC_3D_V          &  !<-- # of 3-D V-pt vbls on child boundary
+                                  ,pdb          =PDB_S                  &  !<-- Child's 1-D segment of PD on Sbndry
+                                  ,bc_vars_h    =MY_BC_VARS_H_S         &  !<-- Child's 1-D segment of other H-pt vbls on Sbndry
+                                  ,ilim_lo      =INDX_MIN_H%SOUTH       &  !<-- Lower I limit of child's segment of boundary
+                                  ,ilim_hi      =INDX_MAX_H%SOUTH       &  !<-- Upper I limit of child's segment of boundary
+                                  ,jlim_lo      =1                      &  !<-- Lower J limit of child's segment of boundary
+                                  ,jlim_hi      =N_BLEND_H              &  !<-- Upper J limit of child's segment of boundary
+                                  ,data_name    ='SOUTH_H_'//TIME_FLAG  &  !<-- Name attached to the combined exported data
+                                  ,data_exp     =BOUND_1D_SOUTH_H       &  !<-- Combined boundary segment H data for child task
+                                  ,export_state =EXP_STATE )               !<-- The Parent-Child Coupler export state
 !
           cpl1_south_h_exp_tim=cpl1_south_h_exp_tim+(timef()-btim)
       ENDIF
@@ -7955,7 +8249,9 @@
                        ,IERR)
           cpl1_south_v_recv_tim=cpl1_south_v_recv_tim+(timef()-btim)
           cpl1_recv_tim=cpl1_recv_tim+(timef()-btim)
-!
+          call date_and_time(values=values)     
+!         write(0,125)n,parent_task(n)%south_v%id_source,values(5),values(6),values(7),values(8)
+  125     format(' Recvd South_V from parent task #',i1,' id=',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
 !-----------------------------------------------------------------------
 !
@@ -7970,8 +8266,14 @@
                                      ,i_end      =PARENT_TASK(N)%SOUTH_V%INDX_END   &  !<-- Child's segment Iend on each parent task
                                      ,j_start    =1                                 &  !<-- Child's segment Jstart on each parent task
                                      ,j_end      =N_BLEND_V                         &  !<-- Child's segment Jend on each parent task
-                                     ,ub         =UB_S                              &  !<-- Child's 1-D segment of U on this side of bndry
-                                     ,vb         =VB_S )                               !<-- Child's 1-D segment of V on this side of bndry
+                                     ,nvars_bc_2d_h=NVARS_BC_2D_H                   &  !<-- # of 2-D H-pt vbls on child boundary
+                                     ,nvars_bc_3d_h=NVARS_BC_3D_H                   &  !<-- # of 3-D H-pt vbls on child boundary
+                                     ,nvars_bc_4d_h=NVARS_BC_4D_H                   &  !<-- # of 4-D H-pt vbls on child boundary
+                                     ,lbnd_4d    =LBND_4D                           &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                     ,ubnd_4d    =UBND_4D                           &  !<-- Upper bounds of 4-D variables' 4th dimension
+                                     ,nvars_bc_2d_v=NVARS_BC_2D_V                   &  !<-- # of 2-D V-pt vbls on child boundary
+                                     ,nvars_bc_3d_v=NVARS_BC_3D_V                   &  !<-- # of 3-D V-pt vbls on child boundary
+                                     ,bc_vars_v  =MY_BC_VARS_V_S )                     !<-- Child's 1-D segment of V-pt vbls on Sbndry
           cpl1_south_v_undo_tim=cpl1_south_v_undo_tim+(timef()-btim)
 !
         ENDDO
@@ -7979,15 +8281,21 @@
 !-----------------------------------------------------------------------
 !
         btim=timef()
-        CALL EXPORT_CHILD_BOUNDARY(ub          =UB_S                    &  !<-- Child's 1-D segment of U on this side of bndry
-                                  ,vb          =VB_S                    &  !<-- Child's 1-D segment of V on this side of bndry
-                                  ,ilim_lo     =INDX_MIN_V%SOUTH        &  !<-- Lower I limit of child's segment of boundary
-                                  ,ilim_hi     =INDX_MAX_V%SOUTH        &  !<-- Upper I limit of child's segment of boundary
-                                  ,jlim_lo     =1                       &  !<-- Lower J limit of child's segment of boundary
-                                  ,jlim_hi     =N_BLEND_V               &  !<-- Upper J limit of child's segment of boundary
-                                  ,data_name   ='SOUTH_V_'//TIME_FLAG   &  !<-- Name attached to the combined exported data
-                                  ,data_exp    =BOUND_1D_SOUTH_V        &  !<-- Combined boundary segment V data for child task
-                                  ,export_state=EXP_STATE )                !<-- The Parent-Child Coupler export state
+        CALL EXPORT_CHILD_BOUNDARY(nvars_bc_2d_h=NVARS_BC_2D_H          &  !<-- # of 2-D H-pt vbls on child boundary
+                                  ,nvars_bc_3d_h=NVARS_BC_3D_H          &  !<-- # of 3-D H-pt vbls on child boundary
+                                  ,nvars_bc_4d_h=NVARS_BC_4D_H          &  !<-- # of 4-D H-pt vbls on child boundary
+                                  ,lbnd_4d      =LBND_4D                &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                  ,ubnd_4d      =UBND_4D                &  !<-- Upper bounds of 4-D variables' 4th dimension
+                                  ,nvars_bc_2d_v=NVARS_BC_2D_V          &  !<-- # of 2-D V-pt vbls on child boundary
+                                  ,nvars_bc_3d_v=NVARS_BC_3D_V          &  !<-- # of 3-D V-pt vbls on child boundary
+                                  ,bc_vars_v    =MY_BC_VARS_V_S         &  !<-- Child's 1-D segment of V-pt vbls on Sbndry
+                                  ,ilim_lo      =INDX_MIN_V%SOUTH       &  !<-- Lower I limit of child's segment of boundary
+                                  ,ilim_hi      =INDX_MAX_V%SOUTH       &  !<-- Upper I limit of child's segment of boundary
+                                  ,jlim_lo      =1                      &  !<-- Lower J limit of child's segment of boundary
+                                  ,jlim_hi      =N_BLEND_V              &  !<-- Upper J limit of child's segment of boundary
+                                  ,data_name    ='SOUTH_V_'//TIME_FLAG  &  !<-- Name attached to the combined exported data
+                                  ,data_exp     =BOUND_1D_SOUTH_V       &  !<-- Combined boundary segment V data for child task
+                                  ,export_state =EXP_STATE )               !<-- The Parent-Child Coupler export state
 !
         cpl1_south_v_exp_tim=cpl1_south_v_exp_tim+(timef()-btim)
 !
@@ -8016,40 +8324,50 @@
                        ,COMM_TO_MY_PARENT                               &  !<-- MPI intracommunicator
                        ,JSTAT                                           &  !<-- MPI status object
                        ,IERR)
-!         cpl1_recv_tim=cpl1_recv_tim+(timef()-btim)
+          cpl1_recv_tim=cpl1_recv_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
 !
-          CALL CHILD_DATA_FROM_STRING(length_data=PARENT_TASK(N)%NORTH_H%LENGTH     &
-                                     ,datastring =PARENT_TASK(N)%NORTH_H%STRING     & 
-                                     ,ilim_lo    =INDX_MIN_H%NORTH                  &
-                                     ,ilim_hi    =INDX_MAX_H%NORTH                  &
-                                     ,jlim_lo    =1                                 &
-                                     ,jlim_hi    =N_BLEND_H                         &
-                                     ,i_start    =PARENT_TASK(N)%NORTH_H%INDX_START &
-                                     ,i_end      =PARENT_TASK(N)%NORTH_H%INDX_END   &
-                                     ,j_start    =1                                 &
-                                     ,j_end      =N_BLEND_H                         &
-                                     ,pdb        =PDB_N                             &
-                                     ,tb         =TB_N                              &
-                                     ,qb         =QB_N                              &
-                                     ,cwb        =CWB_N )
+          CALL CHILD_DATA_FROM_STRING(length_data  =PARENT_TASK(N)%NORTH_H%LENGTH     &
+                                     ,datastring   =PARENT_TASK(N)%NORTH_H%STRING     & 
+                                     ,ilim_lo      =INDX_MIN_H%NORTH                  &
+                                     ,ilim_hi      =INDX_MAX_H%NORTH                  &
+                                     ,jlim_lo      =1                                 &
+                                     ,jlim_hi      =N_BLEND_H                         &
+                                     ,i_start      =PARENT_TASK(N)%NORTH_H%INDX_START &
+                                     ,i_end        =PARENT_TASK(N)%NORTH_H%INDX_END   &
+                                     ,j_start      =1                                 &
+                                     ,j_end        =N_BLEND_H                         &
+                                     ,nvars_bc_2d_h=NVARS_BC_2D_H                     &  !<-- # of 2-D H-pt vbls on child boundary
+                                     ,nvars_bc_3d_h=NVARS_BC_3D_H                     &  !<-- # of 3-D H-pt vbls on child boundary
+                                     ,nvars_bc_4d_h=NVARS_BC_4D_H                     &  !<-- # of 4-D H-pt vbls on child boundary
+                                     ,lbnd_4d      =LBND_4D                           &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                     ,ubnd_4d      =UBND_4D                           &  !<-- Upper bounds of 4-D variables' 4th dimension
+                                     ,nvars_bc_2d_v=NVARS_BC_2D_V                     &  !<-- # of 2-D V-pt vbls on child boundary
+                                     ,nvars_bc_3d_v=NVARS_BC_3D_V                     &  !<-- # of 3-D V-pt vbls on child boundary
+                                     ,pdb          =PDB_N                             &  !<-- Child's 1-D segment of PD on Nbndry
+                                     ,bc_vars_h    =MY_BC_VARS_H_N )                     !<-- Child's 1-D segment of other H-pt vbls on Nbndry
 !
         ENDDO
 !
 !-----------------------------------------------------------------------
 !
-        CALL EXPORT_CHILD_BOUNDARY(pdb         =PDB_N                   &  !<-- Child's 1-D segment of PD on this side of bndry
-                                  ,tb          =TB_N                    &  !<-- Child's 1-D segment of T on this side of bndry
-                                  ,qb          =QB_N                    &  !<-- Child's 1-D segment of Q on this side of bndry
-                                  ,cwb         =CWB_N                   &  !<-- Child's 1-D segment of CW on this side of bndry
-                                  ,ilim_lo     =INDX_MIN_H%NORTH        &  !<-- Lower I limit of child's segment of boundary
-                                  ,ilim_hi     =INDX_MAX_H%NORTH        &  !<-- Upper I limit of child's segment of boundary
-                                  ,jlim_lo     =1                       &  !<-- Lower J limit of child's segment of boundary
-                                  ,jlim_hi     =N_BLEND_H               &  !<-- Upper J limit of child's segment of boundary
-                                  ,data_name   ='NORTH_H_'//TIME_FLAG   &  !<-- Name attached to the combined exported data
-                                  ,data_exp    =BOUND_1D_NORTH_H        &  !<-- Combined boundary segment H data for child task
-                                  ,export_state=EXP_STATE )                !<-- The Parent-Child Coupler export state
+        CALL EXPORT_CHILD_BOUNDARY(nvars_bc_2d_h=NVARS_BC_2D_H          &  !<-- # of 2-D H-pt vbls on child boundary
+                                  ,nvars_bc_3d_h=NVARS_BC_3D_H          &  !<-- # of 3-D H-pt vbls on child boundary
+                                  ,nvars_bc_4d_h=NVARS_BC_4D_H          &  !<-- # of 4-D H-pt vbls on child boundary
+                                  ,lbnd_4d      =LBND_4D                &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                  ,ubnd_4d      =UBND_4D                &  !<-- Upper bounds of 4-D variables' 4th dimension
+                                  ,nvars_bc_2d_v=NVARS_BC_2D_V          &  !<-- # of 2-D V-pt vbls on child boundary
+                                  ,nvars_bc_3d_v=NVARS_BC_3D_V          &  !<-- # of 3-D V-pt vbls on child boundary
+                                  ,pdb          =PDB_N                  &  !<-- Child's 1-D segment of PD on Nbndry
+                                  ,bc_vars_h    =MY_BC_VARS_H_N         &  !<-- Child's 1-D segment of other H-pt vbls on Nbndry
+                                  ,ilim_lo      =INDX_MIN_H%NORTH       &  !<-- Lower I limit of child's segment of boundary
+                                  ,ilim_hi      =INDX_MAX_H%NORTH       &  !<-- Upper I limit of child's segment of boundary
+                                  ,jlim_lo      =1                      &  !<-- Lower J limit of child's segment of boundary
+                                  ,jlim_hi      =N_BLEND_H              &  !<-- Upper J limit of child's segment of boundary
+                                  ,data_name    ='NORTH_H_'//TIME_FLAG  &  !<-- Name attached to the combined exported data
+                                  ,data_exp     =BOUND_1D_NORTH_H       &  !<-- Combined boundary segment H data for child task
+                                  ,export_state =EXP_STATE )               !<-- The Parent-Child Coupler export state
 !
       ENDIF
 !
@@ -8080,32 +8398,44 @@
 !
 !-----------------------------------------------------------------------
 !
-          CALL CHILD_DATA_FROM_STRING(length_data=PARENT_TASK(N)%NORTH_V%LENGTH     &
-                                     ,datastring =PARENT_TASK(N)%NORTH_V%STRING     & 
-                                     ,ilim_lo    =INDX_MIN_V%NORTH                  &
-                                     ,ilim_hi    =INDX_MAX_V%NORTH                  &
-                                     ,jlim_lo    =1                                 &
-                                     ,jlim_hi    =N_BLEND_V                         &
-                                     ,i_start    =PARENT_TASK(N)%NORTH_V%INDX_START &
-                                     ,i_end      =PARENT_TASK(N)%NORTH_V%INDX_END   &
-                                     ,j_start    =1                                 &
-                                     ,j_end      =N_BLEND_V                         &
-                                     ,ub         =UB_N                              &
-                                     ,vb         =VB_N )
+          CALL CHILD_DATA_FROM_STRING(length_data  =PARENT_TASK(N)%NORTH_V%LENGTH     &
+                                     ,datastring   =PARENT_TASK(N)%NORTH_V%STRING     & 
+                                     ,ilim_lo      =INDX_MIN_V%NORTH                  &
+                                     ,ilim_hi      =INDX_MAX_V%NORTH                  &
+                                     ,jlim_lo      =1                                 &
+                                     ,jlim_hi      =N_BLEND_V                         &
+                                     ,i_start      =PARENT_TASK(N)%NORTH_V%INDX_START &
+                                     ,i_end        =PARENT_TASK(N)%NORTH_V%INDX_END   &
+                                     ,j_start      =1                                 &
+                                     ,j_end        =N_BLEND_V                         &
+                                     ,nvars_bc_2d_h=NVARS_BC_2D_H                     &  !<-- # of 2-D H-pt vbls on child boundary
+                                     ,nvars_bc_3d_h=NVARS_BC_3D_H                     &  !<-- # of 3-D H-pt vbls on child boundary
+                                     ,nvars_bc_4d_h=NVARS_BC_4D_H                     &  !<-- # of 4-D H-pt vbls on child boundary
+                                     ,lbnd_4d      =LBND_4D                           &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                     ,ubnd_4d      =UBND_4D                           &  !<-- Upper bounds of 4-D variables' 4th dimension
+                                     ,nvars_bc_2d_v=NVARS_BC_2D_V                     &  !<-- # of 2-D V-pt vbls on child boundary
+                                     ,nvars_bc_3d_v=NVARS_BC_3D_V                     &  !<-- # of 3-D V-pt vbls on child boundary
+                                     ,bc_vars_v    =MY_BC_VARS_V_N )                     !<-- Child's 1-D segment of V-pt vbls on Nbndry
 !
         ENDDO
 !
 !-----------------------------------------------------------------------
 !
-        CALL EXPORT_CHILD_BOUNDARY(ub          =UB_N                    &  !<-- Child's 1-D segment of U on this side of bndry
-                                  ,vb          =VB_N                    &  !<-- Child's 1-D segment of V on this side of bndry
-                                  ,ilim_lo     =INDX_MIN_V%NORTH        &  !<-- Lower I limit of child's segment of boundary
-                                  ,ilim_hi     =INDX_MAX_V%NORTH        &  !<-- Upper I limit of child's segment of boundary
-                                  ,jlim_lo     =1                       &  !<-- Lower J limit of child's segment of boundary
-                                  ,jlim_hi     =N_BLEND_V               &  !<-- Upper J limit of child's segment of boundary
-                                  ,data_name   ='NORTH_V_'//TIME_FLAG   &  !<-- Name attached to the combined exported data
-                                  ,data_exp    =BOUND_1D_NORTH_V        &  !<-- Combined boundary segment V data for child task
-                                  ,export_state=EXP_STATE )                !<-- The Parent-Child Coupler export state
+        CALL EXPORT_CHILD_BOUNDARY(nvars_bc_2d_h=NVARS_BC_2D_H          &  !<-- # of 2-D H-pt vbls on child boundary
+                                  ,nvars_bc_3d_h=NVARS_BC_3D_H          &  !<-- # of 3-D H-pt vbls on child boundary
+                                  ,nvars_bc_4d_h=NVARS_BC_4D_H          &  !<-- # of 4-D H-pt vbls on child boundary
+                                  ,lbnd_4d      =LBND_4D                &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                  ,ubnd_4d      =UBND_4D                &  !<-- Upper bounds of 4-D variables' 4th dimension
+                                  ,nvars_bc_2d_v=NVARS_BC_2D_V          &  !<-- # of 2-D V-pt vbls on child boundary
+                                  ,nvars_bc_3d_v=NVARS_BC_3D_V          &  !<-- # of 3-D V-pt vbls on child boundary
+                                  ,bc_vars_v    =MY_BC_VARS_V_N         &  !<-- Child's 1-D segment of V-pt vbls on Nbndry
+                                  ,ilim_lo      =INDX_MIN_V%NORTH       &  !<-- Lower I limit of child's segment of boundary
+                                  ,ilim_hi      =INDX_MAX_V%NORTH       &  !<-- Upper I limit of child's segment of boundary
+                                  ,jlim_lo      =1                      &  !<-- Lower J limit of child's segment of boundary
+                                  ,jlim_hi      =N_BLEND_V              &  !<-- Upper J limit of child's segment of boundary
+                                  ,data_name    ='NORTH_V_'//TIME_FLAG  &  !<-- Name attached to the combined exported data
+                                  ,data_exp     =BOUND_1D_NORTH_V       &  !<-- Combined boundary segment V data for child task
+                                  ,export_state =EXP_STATE )               !<-- The Parent-Child Coupler export state
 !
       ENDIF
 !
@@ -8136,36 +8466,46 @@
 !
 !-----------------------------------------------------------------------
 !
-          CALL CHILD_DATA_FROM_STRING(length_data=PARENT_TASK(N)%WEST_H%LENGTH      &
-                                     ,datastring =PARENT_TASK(N)%WEST_H%STRING      & 
-                                     ,ilim_lo    =1                                 &
-                                     ,ilim_hi    =N_BLEND_H                         &
-                                     ,jlim_lo    =INDX_MIN_H%WEST                   &
-                                     ,jlim_hi    =INDX_MAX_H%WEST                   &
-                                     ,i_start    =1                                 &
-                                     ,i_end      =N_BLEND_H                         &
-                                     ,j_start    =PARENT_TASK(N)%WEST_H%INDX_START  &
-                                     ,j_end      =PARENT_TASK(N)%WEST_H%INDX_END    &
-                                     ,pdb        =PDB_W                             &
-                                     ,tb         =TB_W                              &
-                                     ,qb         =QB_W                              &
-                                     ,cwb        =CWB_W )
+          CALL CHILD_DATA_FROM_STRING(length_data  =PARENT_TASK(N)%WEST_H%LENGTH     &
+                                     ,datastring   =PARENT_TASK(N)%WEST_H%STRING     & 
+                                     ,ilim_lo      =1                                &
+                                     ,ilim_hi      =N_BLEND_H                        &
+                                     ,jlim_lo      =INDX_MIN_H%WEST                  &
+                                     ,jlim_hi      =INDX_MAX_H%WEST                  &
+                                     ,i_start      =1                                &
+                                     ,i_end        =N_BLEND_H                        &
+                                     ,j_start      =PARENT_TASK(N)%WEST_H%INDX_START &
+                                     ,j_end        =PARENT_TASK(N)%WEST_H%INDX_END   &
+                                     ,nvars_bc_2d_h=NVARS_BC_2D_H                    &  !<-- # of 2-D H-pt vbls on child boundary
+                                     ,nvars_bc_3d_h=NVARS_BC_3D_H                    &  !<-- # of 3-D H-pt vbls on child boundary
+                                     ,nvars_bc_4d_h=NVARS_BC_4D_H                    &  !<-- # of 4-D H-pt vbls on child boundary
+                                     ,lbnd_4d      =LBND_4D                          &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                     ,ubnd_4d      =UBND_4D                          &  !<-- Upper bounds of 4-D variables' 4th dimension
+                                     ,nvars_bc_2d_v=NVARS_BC_2D_V                    &  !<-- # of 2-D V-pt vbls on child boundary
+                                     ,nvars_bc_3d_v=NVARS_BC_3D_V                    &  !<-- # of 3-D V-pt vbls on child boundary
+                                     ,pdb          =PDB_W                            &  !<-- Child's 1-D segment of PD on Wbndry
+                                     ,bc_vars_h    =MY_BC_VARS_H_W )                    !<-- Child's 1-D segment of other H-pt vbls on Wbndry
 !
         ENDDO
 !
 !-----------------------------------------------------------------------
 !
-        CALL EXPORT_CHILD_BOUNDARY(pdb         =PDB_W                   &  !<-- Child's 1-D segment of PD on this side of bndry
-                                  ,tb          =TB_W                    &  !<-- Child's 1-D segment of T on this side of bndry
-                                  ,qb          =QB_W                    &  !<-- Child's 1-D segment of Q on this side of bndry
-                                  ,cwb         =CWB_W                   &  !<-- Child's 1-D segment of CW on this side of bndry
-                                  ,ilim_lo     =1                       &  !<-- Lower I limit of child's segment of boundary
-                                  ,ilim_hi     =N_BLEND_H               &  !<-- Upper I limit of child's segment of boundary
-                                  ,jlim_lo     =INDX_MIN_H%WEST         &  !<-- Lower J limit of child's segment of boundary
-                                  ,jlim_hi     =INDX_MAX_H%WEST         &  !<-- Upper J limit of child's segment of boundary
-                                  ,data_name   ='WEST_H_'//TIME_FLAG    &  !<-- Name attached to the combined exported data
-                                  ,data_exp    =BOUND_1D_WEST_H         &  !<-- Combined boundary segment H data for child task
-                                  ,export_state=EXP_STATE )                !<-- The Parent-Child Coupler export state
+        CALL EXPORT_CHILD_BOUNDARY(nvars_bc_2d_h=NVARS_BC_2D_H          &  !<-- # of 2-D H-pt vbls on child boundary
+                                  ,nvars_bc_3d_h=NVARS_BC_3D_H          &  !<-- # of 3-D H-pt vbls on child boundary
+                                  ,nvars_bc_4d_h=NVARS_BC_4D_H          &  !<-- # of 4-D H-pt vbls on child boundary
+                                  ,lbnd_4d      =LBND_4D                &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                  ,ubnd_4d      =UBND_4D                &  !<-- Upper bounds of 4-D variables' 4th dimension
+                                  ,nvars_bc_2d_v=NVARS_BC_2D_V          &  !<-- # of 2-D V-pt vbls on child boundary
+                                  ,nvars_bc_3d_v=NVARS_BC_3D_V          &  !<-- # of 3-D V-pt vbls on child boundary
+                                  ,pdb          =PDB_W                  &  !<-- Child's 1-D segment of PD on Wbndry
+                                  ,bc_vars_h    =MY_BC_VARS_H_W         &  !<-- Child's 1-D segment of other H-pt vbls on Wbndry
+                                  ,ilim_lo      =1                      &  !<-- Lower I limit of child's segment of boundary
+                                  ,ilim_hi      =N_BLEND_H              &  !<-- Upper I limit of child's segment of boundary
+                                  ,jlim_lo      =INDX_MIN_H%WEST        &  !<-- Lower J limit of child's segment of boundary
+                                  ,jlim_hi      =INDX_MAX_H%WEST        &  !<-- Upper J limit of child's segment of boundary
+                                  ,data_name    ='WEST_H_'//TIME_FLAG   &  !<-- Name attached to the combined exported data
+                                  ,data_exp     =BOUND_1D_WEST_H        &  !<-- Combined boundary segment H data for child task
+                                  ,export_state =EXP_STATE )               !<-- The Parent-Child Coupler export state
 !
       ENDIF
 !
@@ -8196,32 +8536,44 @@
 !
 !-----------------------------------------------------------------------
 !
-          CALL CHILD_DATA_FROM_STRING(length_data=PARENT_TASK(N)%WEST_V%LENGTH      &
-                                     ,datastring =PARENT_TASK(N)%WEST_V%STRING      & 
-                                     ,ilim_lo    =1                                 &
-                                     ,ilim_hi    =N_BLEND_V                         &
-                                     ,jlim_lo    =INDX_MIN_V%WEST                   &
-                                     ,jlim_hi    =INDX_MAX_V%WEST                   &
-                                     ,i_start    =1                                 &
-                                     ,i_end      =N_BLEND_V                         &
-                                     ,j_start    =PARENT_TASK(N)%WEST_V%INDX_START  &
-                                     ,j_end      =PARENT_TASK(N)%WEST_V%INDX_END    &
-                                     ,ub         =UB_W                              &
-                                     ,vb         =VB_W )
+          CALL CHILD_DATA_FROM_STRING(length_data  =PARENT_TASK(N)%WEST_V%LENGTH     &
+                                     ,datastring   =PARENT_TASK(N)%WEST_V%STRING     & 
+                                     ,ilim_lo      =1                                &
+                                     ,ilim_hi      =N_BLEND_V                        &
+                                     ,jlim_lo      =INDX_MIN_V%WEST                  &
+                                     ,jlim_hi      =INDX_MAX_V%WEST                  &
+                                     ,i_start      =1                                &
+                                     ,i_end        =N_BLEND_V                        &
+                                     ,j_start      =PARENT_TASK(N)%WEST_V%INDX_START &
+                                     ,j_end        =PARENT_TASK(N)%WEST_V%INDX_END   &
+                                     ,nvars_bc_2d_h=NVARS_BC_2D_H                    &  !<-- # of 2-D H-pt vbls on child boundary
+                                     ,nvars_bc_3d_h=NVARS_BC_3D_H                    &  !<-- # of 3-D H-pt vbls on child boundary
+                                     ,nvars_bc_4d_h=NVARS_BC_4D_H                    &  !<-- # of 4-D H-pt vbls on child boundary
+                                     ,lbnd_4d      =LBND_4D                          &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                     ,ubnd_4d      =UBND_4D                          &  !<-- Upper bounds of 4-D variables' 4th dimension
+                                     ,nvars_bc_2d_v=NVARS_BC_2D_V                    &  !<-- # of 2-D V-pt vbls on child boundary
+                                     ,nvars_bc_3d_v=NVARS_BC_3D_V                    &  !<-- # of 3-D V-pt vbls on child boundary
+                                     ,bc_vars_v    =MY_BC_VARS_V_W )                    !<-- Child's 1-D segment of V-pt vbls on Wbndry
 !
         ENDDO
 !
 !-----------------------------------------------------------------------
 !
-        CALL EXPORT_CHILD_BOUNDARY(ub          =UB_W                    &  !<-- Child's 1-D segment of U on this side of bndry
-                                  ,vb          =VB_W                    &  !<-- Child's 1-D segment of V on this side of bndry
-                                  ,ilim_lo     =1                       &  !<-- Lower I limit of child's segment of boundary
-                                  ,ilim_hi     =N_BLEND_V               &  !<-- Upper I limit of child's segment of boundary
-                                  ,jlim_lo     =INDX_MIN_V%WEST         &  !<-- Lower J limit of child's segment of boundary
-                                  ,jlim_hi     =INDX_MAX_V%WEST         &  !<-- Upper J limit of child's segment of boundary
-                                  ,data_name   ='WEST_V_'//TIME_FLAG    &  !<-- Name attached to the combined exported data
-                                  ,data_exp    =BOUND_1D_WEST_V         &  !<-- Combined boundary segment V data for child task
-                                  ,export_state=EXP_STATE )                !<-- The Parent-Child Coupler export state
+        CALL EXPORT_CHILD_BOUNDARY(nvars_bc_2d_h=NVARS_BC_2D_H          &  !<-- # of 2-D H-pt vbls on child boundary
+                                  ,nvars_bc_3d_h=NVARS_BC_3D_H          &  !<-- # of 3-D H-pt vbls on child boundary
+                                  ,nvars_bc_4d_h=NVARS_BC_4D_H          &  !<-- # of 4-D H-pt vbls on child boundary
+                                  ,lbnd_4d      =LBND_4D                &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                  ,ubnd_4d      =UBND_4D                &  !<-- Upper bounds of 4-D variables' 4th dimension
+                                  ,nvars_bc_2d_v=NVARS_BC_2D_V          &  !<-- # of 2-D V-pt vbls on child boundary
+                                  ,nvars_bc_3d_v=NVARS_BC_3D_V          &  !<-- # of 3-D V-pt vbls on child boundary
+                                  ,bc_vars_v    =MY_BC_VARS_V_W         &  !<-- Child's 1-D segment of V-pt vbls on Wbndry
+                                  ,ilim_lo      =1                      &  !<-- Lower I limit of child's segment of boundary
+                                  ,ilim_hi      =N_BLEND_V              &  !<-- Upper I limit of child's segment of boundary
+                                  ,jlim_lo      =INDX_MIN_V%WEST        &  !<-- Lower J limit of child's segment of boundary
+                                  ,jlim_hi      =INDX_MAX_V%WEST        &  !<-- Upper J limit of child's segment of boundary
+                                  ,data_name    ='WEST_V_'//TIME_FLAG   &  !<-- Name attached to the combined exported data
+                                  ,data_exp     =BOUND_1D_WEST_V        &  !<-- Combined boundary segment V data for child task
+                                  ,export_state =EXP_STATE )               !<-- The Parent-Child Coupler export state
 !
       ENDIF
 !
@@ -8252,36 +8604,46 @@
 !
 !-----------------------------------------------------------------------
 !
-          CALL CHILD_DATA_FROM_STRING(length_data=PARENT_TASK(N)%EAST_H%LENGTH      &
-                                     ,datastring =PARENT_TASK(N)%EAST_H%STRING      & 
-                                     ,ilim_lo    =1                                 &
-                                     ,ilim_hi    =N_BLEND_H                         &
-                                     ,jlim_lo    =INDX_MIN_H%EAST                   &
-                                     ,jlim_hi    =INDX_MAX_H%EAST                   &
-                                     ,i_start    =1                                 &
-                                     ,i_end      =N_BLEND_H                         &
-                                     ,j_start    =PARENT_TASK(N)%EAST_H%INDX_START  &
-                                     ,j_end      =PARENT_TASK(N)%EAST_H%INDX_END    &
-                                     ,pdb        =PDB_E                             &
-                                     ,tb         =TB_E                              &
-                                     ,qb         =QB_E                              &
-                                     ,cwb        =CWB_E )
+          CALL CHILD_DATA_FROM_STRING(length_data  =PARENT_TASK(N)%EAST_H%LENGTH     &
+                                     ,datastring   =PARENT_TASK(N)%EAST_H%STRING     & 
+                                     ,ilim_lo      =1                                &
+                                     ,ilim_hi      =N_BLEND_H                        &
+                                     ,jlim_lo      =INDX_MIN_H%EAST                  &
+                                     ,jlim_hi      =INDX_MAX_H%EAST                  &
+                                     ,i_start      =1                                &
+                                     ,i_end        =N_BLEND_H                        &
+                                     ,j_start      =PARENT_TASK(N)%EAST_H%INDX_START &
+                                     ,j_end        =PARENT_TASK(N)%EAST_H%INDX_END   &
+                                     ,nvars_bc_2d_h=NVARS_BC_2D_H                    &  !<-- # of 2-D H-pt vbls on child boundary
+                                     ,nvars_bc_3d_h=NVARS_BC_3D_H                    &  !<-- # of 3-D H-pt vbls on child boundary
+                                     ,nvars_bc_4d_h=NVARS_BC_4D_H                    &  !<-- # of 4-D H-pt vbls on child boundary
+                                     ,lbnd_4d      =LBND_4D                          &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                     ,ubnd_4d      =UBND_4D                          &  !<-- Upper bounds of 4-D variables' 4th dimension
+                                     ,nvars_bc_2d_v=NVARS_BC_2D_V                    &  !<-- # of 2-D V-pt vbls on child boundary
+                                     ,nvars_bc_3d_v=NVARS_BC_3D_V                    &  !<-- # of 3-D V-pt vbls on child boundary
+                                     ,pdb          =PDB_E                            &  !<-- Child's 1-D segment of PD on Ebndry
+                                     ,bc_vars_h    =MY_BC_VARS_H_E )                    !<-- Child's 1-D segment of other H-pt vbls on Ebndry
 !
         ENDDO
 !
 !-----------------------------------------------------------------------
 !
-        CALL EXPORT_CHILD_BOUNDARY(pdb         =PDB_E                   &  !<-- Child's 1-D segment of PD on this side of bndry
-                                  ,tb          =TB_E                    &  !<-- Child's 1-D segment of T on this side of bndry
-                                  ,qb          =QB_E                    &  !<-- Child's 1-D segment of Q on this side of bndry
-                                  ,cwb         =CWB_E                   &  !<-- Child's 1-D segment of CW on this side of bndry
-                                  ,ilim_lo     =1                       &  !<-- Lower I limit of child's segment of boundary
-                                  ,ilim_hi     =N_BLEND_H               &  !<-- Upper I limit of child's segment of boundary
-                                  ,jlim_lo     =INDX_MIN_H%EAST         &  !<-- Lower J limit of child's segment of boundary
-                                  ,jlim_hi     =INDX_MAX_H%EAST         &  !<-- Upper J limit of child's segment of boundary
-                                  ,data_name   ='EAST_H_'//TIME_FLAG    &  !<-- Name attached to the combined exported data
-                                  ,data_exp    =BOUND_1D_EAST_H         &  !<-- Combined boundary segment H data for child task
-                                  ,export_state=EXP_STATE )                !<-- The Parent-Child Coupler export state
+        CALL EXPORT_CHILD_BOUNDARY(nvars_bc_2d_h=NVARS_BC_2D_H          &  !<-- # of 2-D H-pt vbls on child boundary
+                                  ,nvars_bc_3d_h=NVARS_BC_3D_H          &  !<-- # of 3-D H-pt vbls on child boundary
+                                  ,nvars_bc_4d_h=NVARS_BC_4D_H          &  !<-- # of 4-D H-pt vbls on child boundary
+                                  ,lbnd_4d      =LBND_4D                &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                  ,ubnd_4d      =UBND_4D                &  !<-- Upper bounds of 4-D variables' 4th dimension
+                                  ,nvars_bc_2d_v=NVARS_BC_2D_V          &  !<-- # of 2-D V-pt vbls on child boundary
+                                  ,nvars_bc_3d_v=NVARS_BC_3D_V          &  !<-- # of 3-D V-pt vbls on child boundary
+                                  ,pdb          =PDB_E                  &  !<-- Child's 1-D segment of PD on Ebndry
+                                  ,bc_vars_h    =MY_BC_VARS_H_E         &  !<-- Child's 1-D segment of other H-pt vbls on Ebndry
+                                  ,ilim_lo      =1                      &  !<-- Lower I limit of child's segment of boundary
+                                  ,ilim_hi      =N_BLEND_H              &  !<-- Upper I limit of child's segment of boundary
+                                  ,jlim_lo      =INDX_MIN_H%EAST        &  !<-- Lower J limit of child's segment of boundary
+                                  ,jlim_hi      =INDX_MAX_H%EAST        &  !<-- Upper J limit of child's segment of boundary
+                                  ,data_name    ='EAST_H_'//TIME_FLAG   &  !<-- Name attached to the combined exported data
+                                  ,data_exp     =BOUND_1D_EAST_H        &  !<-- Combined boundary segment H data for child task
+                                  ,export_state =EXP_STATE )               !<-- The Parent-Child Coupler export state
 !
       ENDIF
 !
@@ -8312,32 +8674,44 @@
 !
 !-----------------------------------------------------------------------
 !
-          CALL CHILD_DATA_FROM_STRING(length_data=PARENT_TASK(N)%EAST_V%LENGTH      &
-                                     ,datastring =PARENT_TASK(N)%EAST_V%STRING      & 
-                                     ,ilim_lo    =1                                 &
-                                     ,ilim_hi    =N_BLEND_V                         &
-                                     ,jlim_lo    =INDX_MIN_V%EAST                   &
-                                     ,jlim_hi    =INDX_MAX_V%EAST                   &
-                                     ,i_start    =1                                 &
-                                     ,i_end      =N_BLEND_V                         &
-                                     ,j_start    =PARENT_TASK(N)%EAST_V%INDX_START  &
-                                     ,j_end      =PARENT_TASK(N)%EAST_V%INDX_END    &
-                                     ,ub         =UB_E                              &
-                                     ,vb         =VB_E )
+          CALL CHILD_DATA_FROM_STRING(length_data  =PARENT_TASK(N)%EAST_V%LENGTH     &
+                                     ,datastring   =PARENT_TASK(N)%EAST_V%STRING     & 
+                                     ,ilim_lo      =1                                &
+                                     ,ilim_hi      =N_BLEND_V                        &
+                                     ,jlim_lo      =INDX_MIN_V%EAST                  &
+                                     ,jlim_hi      =INDX_MAX_V%EAST                  &
+                                     ,i_start      =1                                &
+                                     ,i_end        =N_BLEND_V                        &
+                                     ,j_start      =PARENT_TASK(N)%EAST_V%INDX_START &
+                                     ,j_end        =PARENT_TASK(N)%EAST_V%INDX_END   &
+                                     ,nvars_bc_2d_h=NVARS_BC_2D_H                    &  !<-- # of 2-D H-pt vbls on child boundary
+                                     ,nvars_bc_3d_h=NVARS_BC_3D_H                    &  !<-- # of 3-D H-pt vbls on child boundary
+                                     ,nvars_bc_4d_h=NVARS_BC_4D_H                    &  !<-- # of 4-D H-pt vbls on child boundary
+                                     ,lbnd_4d      =LBND_4D                          &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                     ,ubnd_4d      =UBND_4D                          &  !<-- Upper bounds of 4-D variables' 4th dimension
+                                     ,nvars_bc_2d_v=NVARS_BC_2D_V                    &  !<-- # of 2-D V-pt vbls on child boundary
+                                     ,nvars_bc_3d_v=NVARS_BC_3D_V                    &  !<-- # of 3-D V-pt vbls on child boundary
+                                     ,bc_vars_v    =MY_BC_VARS_V_E )                    !<-- Child's 1-D segment of V-pt vbls on Ebndry
 !
         ENDDO
 !
 !-----------------------------------------------------------------------
 !
-        CALL EXPORT_CHILD_BOUNDARY(ub          =UB_E                    &  !<-- Child's 1-D segment of U on this side of bndry
-                                  ,vb          =VB_E                    &  !<-- Child's 1-D segment of V on this side of bndry
-                                  ,ilim_lo     =1                       &  !<-- Lower I limit of child's segment of boundary
-                                  ,ilim_hi     =N_BLEND_V               &  !<-- Upper I limit of child's segment of boundary
-                                  ,jlim_lo     =INDX_MIN_V%EAST         &  !<-- Lower J limit of child's segment of boundary
-                                  ,jlim_hi     =INDX_MAX_V%EAST         &  !<-- Upper J limit of child's segment of boundary
-                                  ,data_name   ='EAST_V_'//TIME_FLAG    &  !<-- Name attached to the combined exported data
-                                  ,data_exp    =BOUND_1D_EAST_V         &  !<-- Combined boundary segment V data for child task
-                                  ,export_state=EXP_STATE )                !<-- The Parent-Child Coupler export state
+        CALL EXPORT_CHILD_BOUNDARY(nvars_bc_2d_h=NVARS_BC_2D_H          &  !<-- # of 2-D H-pt vbls on child boundary
+                                  ,nvars_bc_3d_h=NVARS_BC_3D_H          &  !<-- # of 3-D H-pt vbls on child boundary
+                                  ,nvars_bc_4d_h=NVARS_BC_4D_H          &  !<-- # of 4-D H-pt vbls on child boundary
+                                  ,lbnd_4d      =LBND_4D                &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                  ,ubnd_4d      =UBND_4D                &  !<-- Upper bounds of 4-D variables' 4th dimension
+                                  ,nvars_bc_2d_v=NVARS_BC_2D_V          &  !<-- # of 2-D V-pt vbls on child boundary
+                                  ,nvars_bc_3d_v=NVARS_BC_3D_V          &  !<-- # of 3-D V-pt vbls on child boundary
+                                  ,bc_vars_v     =MY_BC_VARS_V_E        &  !<-- Child's 1-D segment of V-pt vbls on Ebndry
+                                  ,ilim_lo       =1                     &  !<-- Lower I limit of child's segment of boundary
+                                  ,ilim_hi       =N_BLEND_V             &  !<-- Upper I limit of child's segment of boundary
+                                  ,jlim_lo       =INDX_MIN_V%EAST       &  !<-- Lower J limit of child's segment of boundary
+                                  ,jlim_hi       =INDX_MAX_V%EAST       &  !<-- Upper J limit of child's segment of boundary
+                                  ,data_name     ='EAST_V_'//TIME_FLAG  &  !<-- Name attached to the combined exported data
+                                  ,data_exp      =BOUND_1D_EAST_V       &  !<-- Combined boundary segment V data for child task
+                                  ,export_state  =EXP_STATE )              !<-- The Parent-Child Coupler export state
 !
       ENDIF
 !
@@ -8470,9 +8844,9 @@
 !
       CALL POINT_TO_COMPOSITE(MY_DOMAIN_ID)
 !
-!-----------------------------------------------------------
+!-----------------------------------------------------------------------
 !***  Intracommunicator for current domain's forecast tasks
-!-----------------------------------------------------------
+!-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract Fcst Task Intracommunicator"
@@ -9280,18 +9654,35 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: CHILDTASK,ID_ADD,IERR,INDX2                 &
-                           ,N,NRANK,NT,NTAG,NUM_CHILD_TASKS
+      INTEGER(kind=KINT) :: CHILDTASK,H_OR_V_INT,I,ID_ADD,IERR,INDX2,J  &
+                           ,KOUNT_H,KOUNT_V                             &
+                           ,LB1,LB2,LB_4D                               &
+                           ,N,N4,NRANK,NT,NTAG                          &
+                           ,NUM_CHILD_TASKS,NUM_DIMS,NUM_LEVS,NV        &
+                           ,UB1,UB2,UB_4D
+!
+      INTEGER(kind=KINT) :: ISTAT
 !
       INTEGER(kind=KINT),DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME) :: PD_V
 !
+      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ARRAY_R2D
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: ARRAY_R3D             &
+                                                 ,VBL_ARRAY
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: ARRAY_R4D
+!
+      CHARACTER(len=99) :: FIELD_NAME
+!
+      TYPE(ESMF_Field) :: HOLD_FIELD
+!
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 ! 
-      N=N_CHILD
+      N=N_CHILD                                                            !<-- The Nth child of this parent.
 !
 !-----------------------------------------------------------------------
 !***  Select the appropriate part of the working array depending on
@@ -9304,6 +9695,9 @@
       ELSEIF(TIME_FLAG=='Current')THEN
         INDX2=2
       ENDIF
+!
+      KOUNT_H=0
+      KOUNT_V=0
 !
 !-----------------------------------------------------------------------
 !***  Before parents can generate new boundary data for their children
@@ -9414,23 +9808,27 @@
 !-----------------------------------------------------------------------
 !***  The parents can now compute the new surface pressure on the
 !***  nests' boundary points (overwriting the previous values).
+!***  This must be done for both H points and V points.  Only the
+!***  H point pressure is actually sent to the nest boundaries.
+!***  The V point pressures are only used for proper vertical
+!***  interpolation of V point boundary variables.
 !-----------------------------------------------------------------------
 !
       NUM_CHILD_TASKS=FTASKS_DOMAIN(MY_CHILDREN_ID(N))
 !
-!--------
-!***  PD
-!--------
+!--------------------
+!***  PD on H points
+!--------------------
 !
       btim=timef()
-      CALL PARENT_UPDATE_CHILD_PSFC(FIS,PD,T,TRACERS(:,:,:,INDX_Q)      &  !<-- Native parent values
+      CALL PARENT_UPDATE_CHILD_PSFC(FIS,PD,T,Q                          &  !<-- Native parent values
                                    ,PT,PDTOP                            &  !<-- Domain PT and PDTOP
                                    ,SG1,SG2                             &  !<-- General vertical structure (shared by all domains)
                                    ,IMS,IME,JMS,JME                     &  !<-- Parent task subdomain lateral memory dimensions
                                    ,LM                                  &  !<-- # of model layers
 !
                                    ,NUM_CHILD_TASKS                     &  !<-- # of fcst tasks on child N
-                         ,CTASK_LIMITS(MY_DOMAIN_ID)%CHILDREN(N)%DATA   &   !<-- Integration limits on each task of child N
+                         ,CTASK_LIMITS(MY_DOMAIN_ID)%CHILDREN(N)%DATA   &  !<-- Integration limits on each task of child N
 !
                                    ,FIS_CHILD_SOUTH(N)%TASKS            &  !<-- Sfc geopotential on Sbndry points on child tasks
                                    ,FIS_CHILD_NORTH(N)%TASKS            &  !<-- Sfc geopotential on Nbndry points on child tasks
@@ -9490,216 +9888,10 @@
                                    ,PD_B_EAST(N)%TASKS )                   !<--
 !
 !-----------------------------------------------------------------------
-!***  Now compute the new mass variable values in the columns above
-!***  the nest boundary points.
-!-----------------------------------------------------------------------
 !
-!-----------------
-!***  Temperature
-!-----------------
-!
-      CALL PARENT_UPDATE_CHILD_BNDRY(T                                  &  !<-- Parent sensible temperature (K)
-                                    ,'T'                                &  !<-- Parent interpolating T
-!
-                                    ,PD,PT,PDTOP                        &  !<-- Parent PD; domain PT and PDTOP
-                                    ,PSGML1,SGML2,SG1,SG2               &  !<-- General vertical structure (shared by all domains)
-!
-                                    ,PD_B_SOUTH(N)%TASKS                &  !<-- Sigma domain pressure (Pa) on nest Sbndry points
-                                    ,PD_B_NORTH(N)%TASKS                &  !<-- Sigma domain pressure (Pa) on nest Nbndry points
-                                    ,PD_B_WEST(N)%TASKS                 &  !<-- Sigma domain pressure (Pa) on nest Wbndry points
-                                    ,PD_B_EAST(N)%TASKS                 &  !<-- Sigma domain pressure (Pa) on nest Ebndry points
-!
-                                    ,IMS,IME,JMS,JME                    &  !<-- Parent task subdomain lateral memory dimensions
-                                    ,LM                                 &  !<-- # of model layers
-                                    ,0                                  &  !<-- # of rows to ignore on north/east nest boundaries
-!
-                                    ,NUM_TASKS_SEND_H_S(N)              &  !<-- # of child tasks with south boundary segments
-                                    ,NUM_TASKS_SEND_H_N(N)              &  !<-- # of child tasks with north boundary segments
-                                    ,NUM_TASKS_SEND_H_W(N)              &  !<-- # of child tasks with west boundary segments
-                                    ,NUM_TASKS_SEND_H_E(N)              &  !<-- # of child tasks with east boundary segments
-!
-                                   ,PARENT_4_INDICES_H(N)%I_INDX_SBND   &  !<-- Parent I's west and east of each child S bndry point
-                                   ,PARENT_4_INDICES_H(N)%I_INDX_NBND   &  !<-- Parent I's west and east of each child N bndry point
-                                   ,PARENT_4_INDICES_H(N)%I_INDX_WBND   &  !<-- Parent I's west and east of each child W bndry point
-                                   ,PARENT_4_INDICES_H(N)%I_INDX_EBND   &  !<-- Parent I's west and east of each child E bndry point
-                                   ,PARENT_4_INDICES_H(N)%J_INDX_SBND   &  !<-- Parent J's south and north of each child S bndry point
-                                   ,PARENT_4_INDICES_H(N)%J_INDX_NBND   &  !<-- Parent J's south and north of each child N bndry point
-                                   ,PARENT_4_INDICES_H(N)%J_INDX_WBND   &  !<-- Parent J's south and north of each child W bndry point
-                                   ,PARENT_4_INDICES_H(N)%J_INDX_EBND   &  !<-- Parent J's south and north of each child E bndry point
-!
-                             ,CHILDTASK_H_SAVE(N)%I_LO_SOUTH            &  !<-- Starting I on each south boundary child task
-                             ,CHILDTASK_H_SAVE(N)%I_HI_SOUTH            &  !<-- Ending I on each south boundary child task
-                             ,CHILDTASK_H_SAVE(N)%I_HI_SOUTH_TRANSFER   &  !<-- Ending I for transfer to child on each Sbndry child task
-                             ,CHILDTASK_H_SAVE(N)%I_LO_NORTH            &  !<-- Starting I on each north boundary child task
-                             ,CHILDTASK_H_SAVE(N)%I_HI_NORTH            &  !<-- Ending I on each north boundary child task
-                             ,CHILDTASK_H_SAVE(N)%I_HI_NORTH_TRANSFER   &  !<-- Ending I for transfer to child on each Nbndry child task
-                             ,CHILDTASK_H_SAVE(N)%J_LO_WEST             &  !<-- Starting J on each west boundary child task
-                             ,CHILDTASK_H_SAVE(N)%J_HI_WEST             &  !<-- Ending J on each west boundary child task
-                             ,CHILDTASK_H_SAVE(N)%J_HI_WEST_TRANSFER    &  !<-- Ending J for transfer to child on each Wbndry child task
-                             ,CHILDTASK_H_SAVE(N)%J_LO_EAST             &  !<-- Starting J on each east boundary child task
-                             ,CHILDTASK_H_SAVE(N)%J_HI_EAST             &  !<-- Ending J on each east boundary child task
-                             ,CHILDTASK_H_SAVE(N)%J_HI_EAST_TRANSFER    &  !<-- Ending J for transfer to child on each Ebndry child task
-!
-                                  ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_SBND   &  !<-- Bilinear interpolation wgts of the four parent
-                                  ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_NBND   &  !    points surrounding each child bndry point.
-                                  ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_WBND   &  !
-                                  ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_EBND   &  !<--
-!
-                                    ,N_BLEND_H_CHILD(N)                 &  !<-- Width of boundary blending region
-                                    ,IM_CHILD(N)                        &  !<-- East-west points on child domain
-                                    ,JM_CHILD(N)                        &  !<-- North-south points on child domain
-!                                                                               ^
-!                                                                               |
-!                                                                             Input
-!                                                                          --------------
-!                                                                             Output
-!                                                                               |   
-!                                                                               v   
-                                    ,T_B_SOUTH(N)%TASKS                 &  !<-- Updated sensible temperature (K) on nest bndry points.
-                                    ,T_B_NORTH(N)%TASKS                 &  !
-                                    ,T_B_WEST(N)%TASKS                  &  !
-                                    ,T_B_EAST(N)%TASKS )                   !<-- 
-!
-!-----------------
-!***  Specific humidity
-!-----------------
-!
-      CALL PARENT_UPDATE_CHILD_BNDRY(TRACERS(:,:,:,INDX_Q)              &  !<-- Parent specific humidity (kg/kg) 
-                                    ,'Q'                                &  !<-- Parent interpolating Q
-!
-                                    ,PD,PT,PDTOP                        &  !<-- Parent PD; domain PT and PDTOP
-                                    ,PSGML1,SGML2,SG1,SG2               &  !<-- General vertical structure (shared by all domains)
-!
-                                    ,PD_B_SOUTH(N)%TASKS                &  !<-- Sigma domain pressure (Pa) on nest Sbndry points
-                                    ,PD_B_NORTH(N)%TASKS                &  !<-- Sigma domain pressure (Pa) on nest Nbndry points
-                                    ,PD_B_WEST(N)%TASKS                 &  !<-- Sigma domain pressure (Pa) on nest Wbndry points
-                                    ,PD_B_EAST(N)%TASKS                 &  !<-- Sigma domain pressure (Pa) on nest Ebndry points
-!
-                                    ,IMS,IME,JMS,JME                    &  !<-- Parent task subdomain lateral memory dimensions
-                                    ,LM                                 &  !<-- # of model layers
-                                    ,0                                  &  !<-- # of rows to ignore on north/east nest boundaries
-!
-                                    ,NUM_TASKS_SEND_H_S(N)              &  !<-- # of child tasks with south boundary segments
-                                    ,NUM_TASKS_SEND_H_N(N)              &  !<-- # of child tasks with north boundary segments
-                                    ,NUM_TASKS_SEND_H_W(N)              &  !<-- # of child tasks with west boundary segments
-                                    ,NUM_TASKS_SEND_H_E(N)              &  !<-- # of child tasks with east boundary segments
-!
-                                   ,PARENT_4_INDICES_H(N)%I_INDX_SBND   &  !<-- Parent I's west and east of each child S bndry point
-                                   ,PARENT_4_INDICES_H(N)%I_INDX_NBND   &  !<-- Parent I's west and east of each child N bndry point
-                                   ,PARENT_4_INDICES_H(N)%I_INDX_WBND   &  !<-- Parent I's west and east of each child W bndry point
-                                   ,PARENT_4_INDICES_H(N)%I_INDX_EBND   &  !<-- Parent I's west and east of each child E bndry point
-                                   ,PARENT_4_INDICES_H(N)%J_INDX_SBND   &  !<-- Parent J's south and north of each child S bndry point
-                                   ,PARENT_4_INDICES_H(N)%J_INDX_NBND   &  !<-- Parent J's south and north of each child N bndry point
-                                   ,PARENT_4_INDICES_H(N)%J_INDX_WBND   &  !<-- Parent J's south and north of each child W bndry point
-                                   ,PARENT_4_INDICES_H(N)%J_INDX_EBND   &  !<-- Parent J's south and north of each child E bndry point
-!
-                             ,CHILDTASK_H_SAVE(N)%I_LO_SOUTH            &  !<-- Starting I on each south boundary child task
-                             ,CHILDTASK_H_SAVE(N)%I_HI_SOUTH            &  !<-- Ending I on each south boundary child task
-                             ,CHILDTASK_H_SAVE(N)%I_HI_SOUTH_TRANSFER   &  !<-- Ending I for transfer to child on each Sbndry child task
-                             ,CHILDTASK_H_SAVE(N)%I_LO_NORTH            &  !<-- Starting I on each north boundary child task
-                             ,CHILDTASK_H_SAVE(N)%I_HI_NORTH            &  !<-- Ending I on each north boundary child task
-                             ,CHILDTASK_H_SAVE(N)%I_HI_NORTH_TRANSFER   &  !<-- Ending I for transfer to child on each Nbndry child task
-                             ,CHILDTASK_H_SAVE(N)%J_LO_WEST             &  !<-- Starting J on each west boundary child task
-                             ,CHILDTASK_H_SAVE(N)%J_HI_WEST             &  !<-- Ending J on each west boundary child task
-                             ,CHILDTASK_H_SAVE(N)%J_HI_WEST_TRANSFER    &  !<-- Ending J for transfer to child on each Wbndry child task
-                             ,CHILDTASK_H_SAVE(N)%J_LO_EAST             &  !<-- Starting J on each east boundary child task
-                             ,CHILDTASK_H_SAVE(N)%J_HI_EAST             &  !<-- Ending J on each east boundary child task
-                             ,CHILDTASK_H_SAVE(N)%J_HI_EAST_TRANSFER    &  !<-- Ending J for transfer to child on each Ebndry child task
-!
-                                  ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_SBND   &  !<-- Bilinear interpolation wgts of the four parent
-                                  ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_NBND   &  !    points surrounding each child bndry point.
-                                  ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_WBND   &  !
-                                  ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_EBND   &  !<--
-!
-                                    ,N_BLEND_H_CHILD(N)                 &  !<-- Width of boundary blending region
-                                    ,IM_CHILD(N)                        &  !<-- East-west points on child domain
-                                    ,JM_CHILD(N)                        &  !<-- North-south points on child domain
-!                                                                               ^
-!                                                                               |
-!                                                                             Input
-!                                                                          --------------
-!                                                                             Output
-!                                                                               |   
-!                                                                               v   
-                                    ,Q_B_SOUTH(N)%TASKS                 &  !<-- Updated specific humidity (kg/kg) on nest bndry points.
-                                    ,Q_B_NORTH(N)%TASKS                 &  !
-                                    ,Q_B_WEST(N)%TASKS                  &  !
-                                    ,Q_B_EAST(N)%TASKS )                   !<-- 
-!
-!-----------------------------------------------------------------------
-!
-!----------------------
-!***  Cloud Condensate 
-!----------------------
-!
-      CALL PARENT_UPDATE_CHILD_BNDRY(TRACERS(:,:,:,INDX_CW)             &  !<-- Parent cloud condensate (kg/kg)
-                                    ,'CW'                               &  !<-- Parent interpolating cloud condensate
-!
-                                    ,PD,PT,PDTOP                        &  !<-- Parent PD; domain PT and PDTOP
-                                    ,PSGML1,SGML2,SG1,SG2               &  !<-- General vertical structure (shared by all domains)
-!
-                                    ,PD_B_SOUTH(N)%TASKS                &  !<-- Sigma domain pressure (Pa) on nest Sbndry points
-                                    ,PD_B_NORTH(N)%TASKS                &  !<-- Sigma domain pressure (Pa) on nest Nbndry points
-                                    ,PD_B_WEST(N)%TASKS                 &  !<-- Sigma domain pressure (Pa) on nest Wbndry points
-                                    ,PD_B_EAST(N)%TASKS                 &  !<-- Sigma domain pressure (Pa) on nest Ebndry points
-!
-                                    ,IMS,IME,JMS,JME                    &  !<-- Parent task subdomain lateral memory dimensions
-                                    ,LM                                 &  !<-- # of model layers
-                                    ,0                                  &  !<-- # of rows to ignore on north/east nest boundaries
-!
-                                    ,NUM_TASKS_SEND_H_S(N)              &  !<-- # of child tasks with south boundary segments
-                                    ,NUM_TASKS_SEND_H_N(N)              &  !<-- # of child tasks with north boundary segments
-                                    ,NUM_TASKS_SEND_H_W(N)              &  !<-- # of child tasks with west boundary segments
-                                    ,NUM_TASKS_SEND_H_E(N)              &  !<-- # of child tasks with east boundary segments
-!
-                                   ,PARENT_4_INDICES_H(N)%I_INDX_SBND   &  !<-- Parent I's west and east of each child S bndry point
-                                   ,PARENT_4_INDICES_H(N)%I_INDX_NBND   &  !<-- Parent I's west and east of each child N bndry point
-                                   ,PARENT_4_INDICES_H(N)%I_INDX_WBND   &  !<-- Parent I's west and east of each child W bndry point
-                                   ,PARENT_4_INDICES_H(N)%I_INDX_EBND   &  !<-- Parent I's west and east of each child E bndry point
-                                   ,PARENT_4_INDICES_H(N)%J_INDX_SBND   &  !<-- Parent J's south and north of each child S bndry point
-                                   ,PARENT_4_INDICES_H(N)%J_INDX_NBND   &  !<-- Parent J's south and north of each child N bndry point
-                                   ,PARENT_4_INDICES_H(N)%J_INDX_WBND   &  !<-- Parent J's south and north of each child W bndry point
-                                   ,PARENT_4_INDICES_H(N)%J_INDX_EBND   &  !<-- Parent J's south and north of each child E bndry point
-!
-                             ,CHILDTASK_H_SAVE(N)%I_LO_SOUTH            &  !<-- Starting I on each south boundary child task
-                             ,CHILDTASK_H_SAVE(N)%I_HI_SOUTH            &  !<-- Ending I on each south boundary child task
-                             ,CHILDTASK_H_SAVE(N)%I_HI_SOUTH_TRANSFER   &  !<-- Ending I for transfer to child on each Sbndry child task
-                             ,CHILDTASK_H_SAVE(N)%I_LO_NORTH            &  !<-- Starting I on each north boundary child task
-                             ,CHILDTASK_H_SAVE(N)%I_HI_NORTH            &  !<-- Ending I on each north boundary child task
-                             ,CHILDTASK_H_SAVE(N)%I_HI_NORTH_TRANSFER   &  !<-- Ending I for transfer to child on each Nbndry child task
-                             ,CHILDTASK_H_SAVE(N)%J_LO_WEST             &  !<-- Starting J on each west boundary child task
-                             ,CHILDTASK_H_SAVE(N)%J_HI_WEST             &  !<-- Ending J on each west boundary child task
-                             ,CHILDTASK_H_SAVE(N)%J_HI_WEST_TRANSFER    &  !<-- Ending J for transfer to child on each Wbndry child task
-                             ,CHILDTASK_H_SAVE(N)%J_LO_EAST             &  !<-- Starting J on each east boundary child task
-                             ,CHILDTASK_H_SAVE(N)%J_HI_EAST             &  !<-- Ending J on each east boundary child task
-                             ,CHILDTASK_H_SAVE(N)%J_HI_EAST_TRANSFER    &  !<-- Ending J for transfer to child on each Ebndry child task
-!
-                                  ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_SBND   &  !<-- Bilinear interpolation wgts of the four parent
-                                  ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_NBND   &  !    points surrounding each child bndry point.
-                                  ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_WBND   &  !
-                                  ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_EBND   &  !<--
-!
-                                    ,N_BLEND_H_CHILD(N)                 &  !<-- Width of boundary blending region
-                                    ,IM_CHILD(N)                        &  !<-- East-west points on child domain
-                                    ,JM_CHILD(N)                        &  !<-- North-south points on child domain
-!                                                                               ^
-!                                                                               |
-!                                                                             Input
-!                                                                          --------------
-!                                                                             Output
-!                                                                               |   
-!                                                                               v   
-                                    ,CW_B_SOUTH(N)%TASKS                &  !<-- Updated cloud condensate (kg/kg) on nest bndry points.
-                                    ,CW_B_NORTH(N)%TASKS                &  !
-                                    ,CW_B_WEST(N)%TASKS                 &  !
-                                    ,CW_B_EAST(N)%TASKS )                  !<-- 
-!
-!-----------------------------------------------------------------------
-!***  Before we can let the parent proceed to compute wind component
-!***  updates on the nests' boundaries, we must generate the pressure
-!***  on the parent's V points and at the nest boundary V points.
-!***  This is begun by simple 4-pt averaging.  
-!-----------------------------------------------------------------------
+!--------------------
+!***  PD on V points
+!--------------------
 !
       CALL PRESSURE_ON_NEST_BNDRY_V(PD                                  &  !<-- Sigma domain pressure (Pa) on parent mass points
                                    ,IMS,IME,JMS,JME                     &  !<-- Memory dimensions of PD
@@ -9752,144 +9944,336 @@
                                    ,PD_B_EAST_V(N)%TASKS )                 !<-- Sigma domain pressure (Pa) on nest Ebndry V points
 !
 !-----------------------------------------------------------------------
+!***  Now loop through the Solver internal state variables that the
+!***  user has specified for the nest boundary conditions.  The 2-D
+!***  PD array was already taken care of.  For the remaining variables
+!***  find the number of dimensions and see whether they are on H or
+!***  V points.
+!-----------------------------------------------------------------------
 !
-!----------------------
-!***  U Wind Component 
-!----------------------
+      vars_bc: DO NV=1,NVARS_NESTBC                                        !<-- Loop over all nest BC variables updated by the parent.
 !
-      CALL PARENT_UPDATE_CHILD_BNDRY(U                                  &  !<-- Parent U wind component (m/s)
-                                    ,'U'                                &  !<-- Parent interpolating U wind component
+!-----------------------------------------------------------------------
 !
-                                    ,PD_V,PT,PDTOP                      &  !<-- Parent PD; domain PT and PDTOP
-                                    ,PSGML1,SGML2,SG1,SG2               &  !<-- General vertical structure (shared by all domains)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Field from the Bundle of Nest BC Vars"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-                                    ,PD_B_SOUTH_V(N)%TASKS              &  !<-- Sigma domain pressure (Pa) on nest Sbndry points
-                                    ,PD_B_NORTH_V(N)%TASKS              &  !<-- Sigma domain pressure (Pa) on nest Nbndry points
-                                    ,PD_B_WEST_V(N)%TASKS               &  !<-- Sigma domain pressure (Pa) on nest Wbndry points
-                                    ,PD_B_EAST_V(N)%TASKS               &  !<-- Sigma domain pressure (Pa) on nest Ebndry points
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE=BUNDLE_NESTBC            &  !<-- Bundle holding the arrays of nest BC update variables
+                                ,fieldIndex =NV                       &  !<-- Index of the Field in the Bundle
+                                ,field      =HOLD_FIELD               &  !<-- Field NV in the Bundle
+                                ,rc         =RC )
 !
-                                    ,IMS,IME,JMS,JME                    &  !<-- Parent task subdomain lateral memory dimensions
-                                    ,LM                                 &  !<-- # of model layers
-                                    ,1                                  &  !<-- # of rows to ignore on north/east nest boundaries
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-                                    ,NUM_TASKS_SEND_V_S(N)              &  !<-- # of child tasks with south boundary segments
-                                    ,NUM_TASKS_SEND_V_N(N)              &  !<-- # of child tasks with north boundary segments
-                                    ,NUM_TASKS_SEND_V_W(N)              &  !<-- # of child tasks with west boundary segments
-                                    ,NUM_TASKS_SEND_V_E(N)              &  !<-- # of child tasks with east boundary segments
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract the Name of this Nest BC Variable"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-                                   ,PARENT_4_INDICES_V(N)%I_INDX_SBND   &  !<-- Parent I's west and east of each child S bndry point
-                                   ,PARENT_4_INDICES_V(N)%I_INDX_NBND   &  !<-- Parent I's west and east of each child N bndry point
-                                   ,PARENT_4_INDICES_V(N)%I_INDX_WBND   &  !<-- Parent I's west and east of each child W bndry point
-                                   ,PARENT_4_INDICES_V(N)%I_INDX_EBND   &  !<-- Parent I's west and east of each child E bndry point
-                                   ,PARENT_4_INDICES_V(N)%J_INDX_SBND   &  !<-- Parent J's south and north of each child S bndry point
-                                   ,PARENT_4_INDICES_V(N)%J_INDX_NBND   &  !<-- Parent J's south and north of each child N bndry point
-                                   ,PARENT_4_INDICES_V(N)%J_INDX_WBND   &  !<-- Parent J's south and north of each child W bndry point
-                                   ,PARENT_4_INDICES_V(N)%J_INDX_EBND   &  !<-- Parent J's south and north of each child E bndry point
+        CALL ESMF_FieldGet(field   =HOLD_FIELD                          &  !<-- Field NV in the Bundle
+                          ,name    =FIELD_NAME                          &  !<-- This Field's name
+                          ,dimCount=NUM_DIMS                            &  !<-- Is this Field 2-D or 3-D?
+                          ,rc      =RC )
 !
-                             ,CHILDTASK_V_SAVE(N)%I_LO_SOUTH            &  !<-- Starting I on each south boundary child task
-                             ,CHILDTASK_V_SAVE(N)%I_HI_SOUTH            &  !<-- Ending I on each south boundary child task
-                             ,CHILDTASK_V_SAVE(N)%I_HI_SOUTH_TRANSFER   &  !<-- Not relevant for V points
-                             ,CHILDTASK_V_SAVE(N)%I_LO_NORTH            &  !<-- Starting I on each north boundary child task
-                             ,CHILDTASK_V_SAVE(N)%I_HI_NORTH            &  !<-- Ending I on each north boundary child task
-                             ,CHILDTASK_V_SAVE(N)%I_HI_NORTH_TRANSFER   &  !<-- Not relevant for V points
-                             ,CHILDTASK_V_SAVE(N)%J_LO_WEST             &  !<-- Starting J on each west boundary child task
-                             ,CHILDTASK_V_SAVE(N)%J_HI_WEST             &  !<-- Ending J on each west boundary child task
-                             ,CHILDTASK_V_SAVE(N)%J_HI_WEST_TRANSFER    &  !<-- Not relevant for V points
-                             ,CHILDTASK_V_SAVE(N)%J_LO_EAST             &  !<-- Starting J on each east boundary child task
-                             ,CHILDTASK_V_SAVE(N)%J_HI_EAST             &  !<-- Ending J on each east boundary child task
-                             ,CHILDTASK_V_SAVE(N)%J_HI_EAST_TRANSFER    &  !<-- Not relevant for V points
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-                                  ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_SBND   &  !<-- Bilinear interpolation wgts of the four parent
-                                  ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_NBND   &  !    points surrounding each child bndry point.
-                                  ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_WBND   &  !
-                                  ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_EBND   &  !<--
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Is this an H-pt or a V-pt Variable?"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-                                    ,N_BLEND_V_CHILD(N)                 &  !<-- Width of boundary blending region
-                                    ,IM_CHILD(N)                        &  !<-- East-west points on child domain
-                                    ,JM_CHILD(N)                        &  !<-- North-south points on child domain
-!                                                                               ^
-!                                                                               |
-!                                                                             Input
-!                                                                          --------------
-!                                                                             Output
-!                                                                               |   
-!                                                                               v   
-                                    ,U_B_SOUTH(N)%TASKS                 &  !<-- Updated U wind component (m/s) on nest bndry points.
-                                    ,U_B_NORTH(N)%TASKS                 &  !
-                                    ,U_B_WEST(N)%TASKS                  &  !
-                                    ,U_B_EAST(N)%TASKS )                   !<-- 
+        CALL ESMF_AttributeGet(field=HOLD_FIELD                         &  !<-- Get Attribute from this Field
+                              ,name ='H_OR_V_INT'                       &  !<-- Name of the attribute to extract
+                              ,value=H_OR_V_INT                         &  !<-- Value of the Attribute
+                              ,rc   =RC)
 !
-!------------
-!***  V Wind
-!------------
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL PARENT_UPDATE_CHILD_BNDRY(V                                  &  !<-- Parent V wind component (m/s)
-                                    ,'V'                                &  !<-- Parent interpolating V wind component
+        IF(TRIM(FIELD_NAME)=='PD-nestbc')THEN
 !
-                                    ,PD_V,PT,PDTOP                      &  !<-- Parent PD; domain PT and PDTOP
-                                    ,PSGML1,SGML2,SG1,SG2               &  !<-- General vertical structure (shared by all domains)
+          CYCLE vars_bc                                                    !<-- PD was already taken care of.
 !
-                                    ,PD_B_SOUTH_V(N)%TASKS              &  !<-- Sigma domain pressure (Pa) on nest Sbndry points
-                                    ,PD_B_NORTH_V(N)%TASKS              &  !<-- Sigma domain pressure (Pa) on nest Nbndry points
-                                    ,PD_B_WEST_V(N)%TASKS               &  !<-- Sigma domain pressure (Pa) on nest Wbndry points
-                                    ,PD_B_EAST_V(N)%TASKS               &  !<-- Sigma domain pressure (Pa) on nest Ebndry points
+        ENDIF
 !
-                                    ,IMS,IME,JMS,JME                    &  !<-- Parent task subdomain lateral memory dimensions
-                                    ,LM                                 &  !<-- # of model layers
-                                    ,1                                  &  !<-- # of rows to ignore on north/east nest boundaries
+!-----------------------------------------------------------------------
+!***  Get the desired boundary variable array from the Field and
+!***  see whether it is on H or V points.
+!-----------------------------------------------------------------------
 !
-                                    ,NUM_TASKS_SEND_V_S(N)              &  !<-- # of child tasks with south boundary segments
-                                    ,NUM_TASKS_SEND_V_N(N)              &  !<-- # of child tasks with north boundary segments
-                                    ,NUM_TASKS_SEND_V_W(N)              &  !<-- # of child tasks with west boundary segments
-                                    ,NUM_TASKS_SEND_V_E(N)              &  !<-- # of child tasks with east boundary segments
+!---------
+!***  2-D
+!---------
 !
-                                   ,PARENT_4_INDICES_V(N)%I_INDX_SBND   &  !<-- Parent I's west and east of each child S bndry point
-                                   ,PARENT_4_INDICES_V(N)%I_INDX_NBND   &  !<-- Parent I's west and east of each child N bndry point
-                                   ,PARENT_4_INDICES_V(N)%I_INDX_WBND   &  !<-- Parent I's west and east of each child W bndry point
-                                   ,PARENT_4_INDICES_V(N)%I_INDX_EBND   &  !<-- Parent I's west and east of each child E bndry point
-                                   ,PARENT_4_INDICES_V(N)%J_INDX_SBND   &  !<-- Parent J's south and north of each child S bndry point
-                                   ,PARENT_4_INDICES_V(N)%J_INDX_NBND   &  !<-- Parent J's south and north of each child N bndry point
-                                   ,PARENT_4_INDICES_V(N)%J_INDX_WBND   &  !<-- Parent J's south and north of each child W bndry point
-                                   ,PARENT_4_INDICES_V(N)%J_INDX_EBND   &  !<-- Parent J's south and north of each child E bndry point
+        IF(NUM_DIMS==2)THEN
 !
-                             ,CHILDTASK_V_SAVE(N)%I_LO_SOUTH            &  !<-- Starting I on each south boundary child task
-                             ,CHILDTASK_V_SAVE(N)%I_HI_SOUTH            &  !<-- Ending I on each south boundary child task
-                             ,CHILDTASK_V_SAVE(N)%I_HI_SOUTH_TRANSFER   &  !<-- Not relevant for V points
-                             ,CHILDTASK_V_SAVE(N)%I_LO_NORTH            &  !<-- Starting I on each north boundary child task
-                             ,CHILDTASK_V_SAVE(N)%I_HI_NORTH            &  !<-- Ending I on each north boundary child task
-                             ,CHILDTASK_V_SAVE(N)%I_HI_NORTH_TRANSFER   &  !<-- Not relevant for V points
-                             ,CHILDTASK_V_SAVE(N)%J_LO_WEST             &  !<-- Starting J on each west boundary child task
-                             ,CHILDTASK_V_SAVE(N)%J_HI_WEST             &  !<-- Ending J on each west boundary child task
-                             ,CHILDTASK_V_SAVE(N)%J_HI_WEST_TRANSFER    &  !<-- Not relevant for V points
-                             ,CHILDTASK_V_SAVE(N)%J_LO_EAST             &  !<-- Starting J on each east boundary child task
-                             ,CHILDTASK_V_SAVE(N)%J_HI_EAST             &  !<-- Ending J on each east boundary child task
-                             ,CHILDTASK_V_SAVE(N)%J_HI_EAST_TRANSFER    &  !<-- Not relevant for V points
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract the Nest BC Real 2-D Array from the Field"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-                                  ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_SBND   &  !<-- Bilinear interpolation wgts of the four parent
-                                  ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_NBND   &  !    points surrounding each child bndry point.
-                                  ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_WBND   &  !
-                                  ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_EBND   &  !<--
+          CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field that holds the data pointer
+                            ,localDe  =0                                &
+                            ,farrayPtr=ARRAY_R2D                        &  !<-- Use this 2-D pointer to the variable.
+                            ,rc       =RC)
 !
-                                    ,N_BLEND_V_CHILD(N)                 &  !<-- Width of boundary blending region
-                                    ,IM_CHILD(N)                        &  !<-- East-west points on child domain
-                                    ,JM_CHILD(N)                        &  !<-- North-south points on child domain
-!                                                                               ^
-!                                                                               |
-!                                                                             Input
-!                                                                          --------------
-!                                                                             Output
-!                                                                               |   
-!                                                                               v   
-                                    ,V_B_SOUTH(N)%TASKS                 &  !<-- Updated V wind component (m/s) on nest bndry points.
-                                    ,V_B_NORTH(N)%TASKS                 &  !
-                                    ,V_B_WEST(N)%TASKS                  &  !
-                                    ,V_B_EAST(N)%TASKS )                   !<-- 
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          NUM_LEVS=1                                                       !<-- # of vertical levels for this variable.
+          LB_4D=1
+          UB_4D=1
+!
+          LB1=LBOUND(ARRAY_R2D,1)
+          UB1=UBOUND(ARRAY_R2D,1)
+          LB2=LBOUND(ARRAY_R2D,2)
+          UB2=UBOUND(ARRAY_R2D,2)
+          ALLOCATE(VBL_ARRAY(LB1:UB1,LB2:UB2,1),stat=ISTAT)                !<-- Use only 3-D arrays in PARENT_UPDATE_CHILD_BNDRY below.
+          IF(ISTAT/=0)THEN
+            WRITE(0,20001)ISTAT
+20001       FORMAT(' Failed to allocate VBL_ARRAY for 2-D variable  stat=',i4)
+            WRITE(0,*)' Aborting!!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          ENDIF
+!
+          DO J=LB2,UB2
+          DO I=LB1,UB1
+            VBL_ARRAY(I,J,1)=ARRAY_R2D(I,J)                                !<-- Fill the 3-D array with the 2-D boundary variable.
+          ENDDO
+          ENDDO
+!
+!---------
+!***  3-D
+!---------
+!
+        ELSEIF(NUM_DIMS==3)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract the Nest BC Real 3-D Array from the Field"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field that holds the data pointer
+                            ,localDe  =0                                &
+                            ,farrayPtr=VBL_ARRAY                        &  !<-- Use this 3-D pointer to the variable.
+                            ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          NUM_LEVS=SIZE(VBL_ARRAY,3)                                       !<-- # of vertical levels for this 3-D boundary variable.
+          LB_4D=1
+          UB_4D=1
+!
+!---------
+!***  4-D
+!---------
+!
+        ELSEIF(NUM_DIMS==4)THEN                                            !<-- Possible only for H-pt boundary variables
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract the Nest BC Real 4-D Array from the Field"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field that holds the data pointer
+                            ,localDe  =0                                &
+                            ,farrayPtr=ARRAY_R4D                        &  !<-- Use this 4-D pointer to the variable.
+                            ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          LB_4D=LBOUND(ARRAY_R4D,4)
+          UB_4D=UBOUND(ARRAY_R4D,4)
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  The parent computes the new values of the specified H-pt
+!***  variables in the columns above the nest boundary points.
+!-----------------------------------------------------------------------
+!
+        IF(H_OR_V_INT==1)THEN                                                 !<-- Value of 1 implies an H-point variable
+!
+          KOUNT_H=KOUNT_H+1                                                   !<-- Count the H-pt boundary variables (excluding PD)
+!
+          loop_4d: DO N4=LB_4D,UB_4D                                          !<-- Loop through 3-D sub-variables of 4-D variables, if any.
+!
+            IF(NUM_DIMS==4)THEN
+              VBL_ARRAY=>ARRAY_R4D(:,:,:,N4)                                  !<-- Point at the current 3-D array in the 4-D variable.
+              NUM_LEVS=SIZE(VBL_ARRAY,3)                                      !<-- # of vertical levels for this 3-D sub-variable.
+            ENDIF
+!
+            CALL PARENT_UPDATE_CHILD_BNDRY(VBL_ARRAY                         &  !<-- Parent variable to interpolate to nest boundary
+                                          ,TRIM(FIELD_NAME)                  &  !<-- Name of the variable
+!
+                                          ,PD,PT,PDTOP                       &  !<-- Parent PD; domain PT and PDTOP
+                                          ,PSGML1,SGML2,SG1,SG2              &  !<-- General vertical structure (shared by all domains)
+!
+                                          ,PD_B_SOUTH(N)%TASKS               &  !<-- Sigma domain pressure (Pa) on nest Sbndry points
+                                          ,PD_B_NORTH(N)%TASKS               &  !<-- Sigma domain pressure (Pa) on nest Nbndry points
+                                          ,PD_B_WEST(N)%TASKS                &  !<-- Sigma domain pressure (Pa) on nest Wbndry points
+                                          ,PD_B_EAST(N)%TASKS                &  !<-- Sigma domain pressure (Pa) on nest Ebndry points
+!
+                                          ,IMS,IME,JMS,JME                   &  !<-- Parent task subdomain lateral memory dimensions
+                                          ,NUM_LEVS                          &  !<-- # of model layers in the given H-pt boundary variable
+                                          ,0                                 &  !<-- # of rows to ignore on north/east nest boundaries
+!
+                                          ,NUM_TASKS_SEND_H_S(N)             &  !<-- # of child tasks with south boundary segments
+                                          ,NUM_TASKS_SEND_H_N(N)             &  !<-- # of child tasks with north boundary segments
+                                          ,NUM_TASKS_SEND_H_W(N)             &  !<-- # of child tasks with west boundary segments
+                                          ,NUM_TASKS_SEND_H_E(N)             &  !<-- # of child tasks with east boundary segments
+!
+                                         ,PARENT_4_INDICES_H(N)%I_INDX_SBND  &  !<-- Parent I's west and east of each child S bndry point
+                                         ,PARENT_4_INDICES_H(N)%I_INDX_NBND  &  !<-- Parent I's west and east of each child N bndry point
+                                         ,PARENT_4_INDICES_H(N)%I_INDX_WBND  &  !<-- Parent I's west and east of each child W bndry point
+                                         ,PARENT_4_INDICES_H(N)%I_INDX_EBND  &  !<-- Parent I's west and east of each child E bndry point
+                                         ,PARENT_4_INDICES_H(N)%J_INDX_SBND  &  !<-- Parent J's south and north of each child S bndry point
+                                         ,PARENT_4_INDICES_H(N)%J_INDX_NBND  &  !<-- Parent J's south and north of each child N bndry point
+                                         ,PARENT_4_INDICES_H(N)%J_INDX_WBND  &  !<-- Parent J's south and north of each child W bndry point
+                                         ,PARENT_4_INDICES_H(N)%J_INDX_EBND  &  !<-- Parent J's south and north of each child E bndry point
+!
+                                   ,CHILDTASK_H_SAVE(N)%I_LO_SOUTH           &  !<-- Starting I on each south boundary child task
+                                   ,CHILDTASK_H_SAVE(N)%I_HI_SOUTH           &  !<-- Ending I on each south boundary child task
+                                   ,CHILDTASK_H_SAVE(N)%I_HI_SOUTH_TRANSFER  &  !<-- Ending I for transfer to child on each Sbndry child task
+                                   ,CHILDTASK_H_SAVE(N)%I_LO_NORTH           &  !<-- Starting I on each north boundary child task
+                                   ,CHILDTASK_H_SAVE(N)%I_HI_NORTH           &  !<-- Ending I on each north boundary child task
+                                   ,CHILDTASK_H_SAVE(N)%I_HI_NORTH_TRANSFER  &  !<-- Ending I for transfer to child on each Nbndry child task
+                                   ,CHILDTASK_H_SAVE(N)%J_LO_WEST            &  !<-- Starting J on each west boundary child task
+                                   ,CHILDTASK_H_SAVE(N)%J_HI_WEST            &  !<-- Ending J on each west boundary child task
+                                   ,CHILDTASK_H_SAVE(N)%J_HI_WEST_TRANSFER   &  !<-- Ending J for transfer to child on each Wbndry child task
+                                   ,CHILDTASK_H_SAVE(N)%J_LO_EAST            &  !<-- Starting J on each east boundary child task
+                                   ,CHILDTASK_H_SAVE(N)%J_HI_EAST            &  !<-- Ending J on each east boundary child task
+                                   ,CHILDTASK_H_SAVE(N)%J_HI_EAST_TRANSFER   &  !<-- Ending J for transfer to child on each Ebndry child task
+!
+                                        ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_SBND  &  !<-- Bilinear interpolation wgts of the four parent
+                                        ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_NBND  &  !    points surrounding each child bndry point.
+                                        ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_WBND  &  !
+                                        ,PARENT_4_WEIGHTS_H(N)%WEIGHTS_EBND  &  !<--
+!
+                                          ,N_BLEND_H_CHILD(N)                &  !<-- Width of boundary blending region
+                                          ,IM_CHILD(N)                       &  !<-- East-west points on child domain
+                                          ,JM_CHILD(N)                       &  !<-- North-south points on child domain
+!                                                                                    ^
+!                                                                                    |
+!                                                                                  Input
+!                                                                               --------------
+!                                                                                  Output
+!                                                                                    |   
+!                                                                                    v   
+                                  ,BND_VAR_H_SOUTH(KOUNT_H)%CHILD(N)%TASKS   &  !<--
+                                  ,BND_VAR_H_NORTH(KOUNT_H)%CHILD(N)%TASKS   &  !    Updated H-point variable on the four sides
+                                  ,BND_VAR_H_WEST(KOUNT_H)%CHILD(N)%TASKS    &  !    of the nest domain boundary.
+                                  ,BND_VAR_H_EAST(KOUNT_H)%CHILD(N)%TASKS    &  !<--
+                                                                        )
+!
+          ENDDO loop_4d
+!
+!-----------------------------------------------------------------------
+!***  The parent computes the new values of the specified velocity
+!***  variables in the columns above the nest boundary points.
+!-----------------------------------------------------------------------
+!
+!
+        ELSEIF(H_OR_V_INT==2)THEN                                             !<-- Value of 2 implies a V-point variable
+!
+          KOUNT_V=KOUNT_V+1                                                   !<-- Count the V-pt boundary variables.
+!
+          CALL PARENT_UPDATE_CHILD_BNDRY(VBL_ARRAY                         &  !<-- Parent variable to interpolate to nest boundary
+                                        ,TRIM(FIELD_NAME)                  &  !<-- Name of the variable
+!
+                                        ,PD_V,PT,PDTOP                     &  !<-- Parent PD on V; domain PT and PDTOP
+                                        ,PSGML1,SGML2,SG1,SG2              &  !<-- General vertical structure (shared by all domains)
+!
+                                        ,PD_B_SOUTH_V(N)%TASKS             &  !<-- Sigma domain pressure (Pa) on nest Sbndry points
+                                        ,PD_B_NORTH_V(N)%TASKS             &  !<-- Sigma domain pressure (Pa) on nest Nbndry points
+                                        ,PD_B_WEST_V(N)%TASKS              &  !<-- Sigma domain pressure (Pa) on nest Wbndry points
+                                        ,PD_B_EAST_V(N)%TASKS              &  !<-- Sigma domain pressure (Pa) on nest Ebndry points
+!
+                                        ,IMS,IME,JMS,JME                   &  !<-- Parent task subdomain lateral memory dimensions
+                                        ,NUM_LEVS                          &  !<-- # of model layers
+                                        ,1                                 &  !<-- # of rows to ignore on north/east nest boundaries
+!
+                                        ,NUM_TASKS_SEND_V_S(N)             &  !<-- # of child tasks with south boundary segments
+                                        ,NUM_TASKS_SEND_V_N(N)             &  !<-- # of child tasks with north boundary segments
+                                        ,NUM_TASKS_SEND_V_W(N)             &  !<-- # of child tasks with west boundary segments
+                                        ,NUM_TASKS_SEND_V_E(N)             &  !<-- # of child tasks with east boundary segments
+!
+                                       ,PARENT_4_INDICES_V(N)%I_INDX_SBND  &  !<-- Parent I's west and east of each child S bndry point
+                                       ,PARENT_4_INDICES_V(N)%I_INDX_NBND  &  !<-- Parent I's west and east of each child N bndry point
+                                       ,PARENT_4_INDICES_V(N)%I_INDX_WBND  &  !<-- Parent I's west and east of each child W bndry point
+                                       ,PARENT_4_INDICES_V(N)%I_INDX_EBND  &  !<-- Parent I's west and east of each child E bndry point
+                                       ,PARENT_4_INDICES_V(N)%J_INDX_SBND  &  !<-- Parent J's south and north of each child S bndry point
+                                       ,PARENT_4_INDICES_V(N)%J_INDX_NBND  &  !<-- Parent J's south and north of each child N bndry point
+                                       ,PARENT_4_INDICES_V(N)%J_INDX_WBND  &  !<-- Parent J's south and north of each child W bndry point
+                                       ,PARENT_4_INDICES_V(N)%J_INDX_EBND  &  !<-- Parent J's south and north of each child E bndry point
+!
+                                 ,CHILDTASK_V_SAVE(N)%I_LO_SOUTH           &  !<-- Starting I on each south boundary child task
+                                 ,CHILDTASK_V_SAVE(N)%I_HI_SOUTH           &  !<-- Ending I on each south boundary child task
+                                 ,CHILDTASK_V_SAVE(N)%I_HI_SOUTH_TRANSFER  &  !<-- Not relevant for V points
+                                 ,CHILDTASK_V_SAVE(N)%I_LO_NORTH           &  !<-- Starting I on each north boundary child task
+                                 ,CHILDTASK_V_SAVE(N)%I_HI_NORTH           &  !<-- Ending I on each north boundary child task
+                                 ,CHILDTASK_V_SAVE(N)%I_HI_NORTH_TRANSFER  &  !<-- Not relevant for V points
+                                 ,CHILDTASK_V_SAVE(N)%J_LO_WEST            &  !<-- Starting J on each west boundary child task
+                                 ,CHILDTASK_V_SAVE(N)%J_HI_WEST            &  !<-- Ending J on each west boundary child task
+                                 ,CHILDTASK_V_SAVE(N)%J_HI_WEST_TRANSFER   &  !<-- Not relevant for V points
+                                 ,CHILDTASK_V_SAVE(N)%J_LO_EAST            &  !<-- Starting J on each east boundary child task
+                                 ,CHILDTASK_V_SAVE(N)%J_HI_EAST            &  !<-- Ending J on each east boundary child task
+                                 ,CHILDTASK_V_SAVE(N)%J_HI_EAST_TRANSFER   &  !<-- Not relevant for V points
+!
+                                      ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_SBND  &  !<-- Bilinear interpolation wgts of the four parent
+                                      ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_NBND  &  !    points surrounding each child bndry point.
+                                      ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_WBND  &  !
+                                      ,PARENT_4_WEIGHTS_V(N)%WEIGHTS_EBND  &  !<--
+!
+                                        ,N_BLEND_V_CHILD(N)                &  !<-- Width of boundary blending region
+                                        ,IM_CHILD(N)                       &  !<-- East-west points on child domain
+                                        ,JM_CHILD(N)                       &  !<-- North-south points on child domain
+!                                                                                  ^
+!                                                                                  |
+!                                                                                Input
+!                                                                             --------------
+!                                                                                Output
+!                                                                                  |   
+!                                                                                  v   
+                                ,BND_VAR_V_SOUTH(KOUNT_V)%CHILD(N)%TASKS   &  !<--
+                                ,BND_VAR_V_NORTH(KOUNT_V)%CHILD(N)%TASKS   &  !    Updated V-point variable on the four sides
+                                ,BND_VAR_V_WEST(KOUNT_V)%CHILD(N)%TASKS    &  !    of the nest domain boundary.
+                                ,BND_VAR_V_EAST(KOUNT_V)%CHILD(N)%TASKS    &  !<--
+                                                                        )
+!
+        ENDIF
+!
+        IF(NUM_DIMS==2.AND.ASSOCIATED(VBL_ARRAY))THEN
+          DEALLOCATE(VBL_ARRAY,stat=ISTAT)
+          IF(ISTAT/=0)THEN
+            WRITE(0,20002)ISTAT
+20002       FORMAT(' Failed to deallocate VBL_ARRAY stat=',i4)
+            WRITE(0,*)' Aborting!!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          ENDIF
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO vars_bc
 !
       cpl2_comp_tim=cpl2_comp_tim+(timef()-btim)
 !
 !-----------------------------------------------------------------------
-!***  Parent tasks send data directly to child tasks whose boundary
-!***  points the parent tasks contain. 
+!***  Parent tasks send data directly to those child tasks whose
+!***  boundary points the parent tasks contain. 
 !-----------------------------------------------------------------------
 !
       IF(TIME_FLAG=='Current')THEN
@@ -9971,9 +10355,9 @@
                          ,IERR )
           cpl2_send_tim=cpl2_send_tim+(timef()-btim)
 !
-!           call date_and_time(values=values)
-!           write(0,126)n,nt,childtask,values(5),values(6),values(7),values(8)
-  126       format(' Sent South_V to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
+!         call date_and_time(values=values)
+!         write(0,126)n,nt,childtask,values(5),values(6),values(7),values(8)
+  126     format(' Sent South_V to child #',i1,' task #',i1,' id #',i3.3,' at ',i2.2,':',i2.2,':',i2.2,'.',i3.3)
 !
         ENDDO 
       ENDIF
@@ -10229,6 +10613,7 @@
       TYPE(ESMF_TypeKind) :: DATATYPE
 !
       integer(kind=kint),dimension(8) :: values
+      integer(kind=kint) :: mype_intra
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -10321,7 +10706,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_FieldGet(field   =HOLD_FIELD                        &  !<-- Field N_FIELD in the Bundle
+        CALL ESMF_FieldGet(field   =HOLD_FIELD                        &  !<-- Field NV in the Bundle
                           ,dimCount=NUM_DIMS                          &  !<-- Is this Field 2-D or 3-D?
                           ,typeKind=DATATYPE                          &  !<-- Does the Field contain an integer or real array?
                           ,name    =FIELD_NAME                        &  !<-- This Field's name
@@ -10465,6 +10850,7 @@
 !-----------------------------------------------------------------------
 !
         N_ALL=RANK_2WAY_CHILD(N)                                           !<-- Rank of 2-way child N among ALL children
+      call mpi_comm_rank(comm_to_my_children(n_all),mype_intra,ierr)
 !
         IF(STATIC_OR_MOVING(N_ALL)=='Moving')THEN                          !<-- If so, 2-way child N's domain is movable.
 !
@@ -10760,7 +11146,8 @@
 !
       INTEGER(kind=KINT),SAVE :: H_OR_V_INT,NTOT,NTOT_H_V
 !
-      INTEGER(kind=KINT) :: MY_DOMAIN_ID,N,N_STENCIL,N_STENCIL_SFC      &
+      INTEGER(kind=KINT) :: KNT_LEV,MY_DOMAIN_ID,MY_PARENT_ID           &
+                           ,N,N_STENCIL,N_STENCIL_SFC                   &
                            ,N1,N1P,N2,N2P,NT,NTAG,NTIMESTEP,NUM_DIMS    &
                            ,NV,NVERT,NX,NY
 !
@@ -10975,7 +11362,7 @@
          NTIMESTEP==PARENT_SHIFT(1)*TIME_RATIO_MY_PARENT                &  !<-- Parent moved at the start of 
                     +TIME_RATIO_MY_PARENT-1)THEN                           !<-- the current parent timestep.
 !                            
-        ID_MY_PARENT=ID_PARENTS(MY_DOMAIN_ID)                              !<-- Domain ID of the current domain's parent
+        MY_PARENT_ID=ID_PARENTS(MY_DOMAIN_ID)                              !<-- Domain ID of the current domain's parent
 !
         CALL CHILD_2WAY_BOOKKEEPING(I_SW_PARENT_CURRENT_X               &  !   ^
                                    ,J_SW_PARENT_CURRENT_X               &  !   |
@@ -11108,6 +11495,7 @@
 !-----------------------------------------------------------------------
 !
         N2=0
+        KNT_LEV=0
         BEGIN_H=.TRUE.
         BEGIN_V=.TRUE.
 !
@@ -11186,9 +11574,9 @@
 !             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-              CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field that holds the data pointer
-                                ,localDe  =0                                &
-                                ,farrayPtr=ARRAY_2WAY_R3D                   &  !<-- Put the pointer here
+              CALL ESMF_FieldGet(field    =HOLD_FIELD                   &  !<-- Field that holds the data pointer
+                                ,localDe  =0                            &
+                                ,farrayPtr=ARRAY_2WAY_R3D               &  !<-- Use this 3-D pointer to the variable.
                                 ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -11196,6 +11584,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
               NVERT=LM
+              KNT_LEV=KNT_LEV+LM
               VAR_CHILD=>ARRAY_2WAY_R3D
 !
 !-----------------------------------------------------------------------
@@ -11207,9 +11596,9 @@
 !             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-              CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field that holds the 2-D data pointer
-                                ,localDe  =0                                &
-                                ,farrayPtr=ARRAY_2WAY_R2D                   &  !<-- Put the 2-D pointer here
+              CALL ESMF_FieldGet(field    =HOLD_FIELD                   &  !<-- Field that holds the 2-D data pointer
+                                ,localDe  =0                            &
+                                ,farrayPtr=ARRAY_2WAY_R2D               &  !<-- Use this 2-D pointer to the variable.
                                 ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -11217,6 +11606,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
               NVERT=1
+              KNT_LEV=KNT_LEV+1
 !
               LBND=LBOUND(ARRAY_2WAY_R2D)
               LB1=LBND(1)
@@ -11241,7 +11631,9 @@
           ELSEIF(DATATYPE==ESMF_TYPEKIND_I4)THEN
 !
             WRITE(0,10001)
-10001       FORMAT(' Add the use of Integer 2-way exchange variables')
+10001       FORMAT(' Must add the use of Integer 2-way exchange variables')
+            WRITE(0,*)' ABORT!!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
 !
 !-----------------------------------------------------------------------
 !
@@ -11279,14 +11671,14 @@
             INTERPOLATE_SFC=.TRUE.
             N1P=1                                                          !<-- Starting word location for FIS,PD on H for parent task NT
             N2P=NPTS_UPDATE_ON_PARENT_TASKS(NT)                            !<-- Ending word location for FIS,PD on H for parent task NT
-            CHILD_SFC_INTERP=>CHILD_SFC_ON_PARENT(NT)%DATA(N1P:N2P,1:2)    !<-- Child's FIS,PD on parent task NT's update H points
+            CHILD_SFC_INTERP=>cc%CHILD_SFC_ON_PARENT(NT)%DATA(N1P:N2P,1:2) !<-- Child's FIS,PD on parent task NT's update H points
             N_STENCIL_SFC=N_STENCIL_SFC_H                                  !<-- Stencil width for interpolating child FIS,PD to parent H
 !
           ELSEIF(H_OR_V=='V'.AND.BEGIN_V)THEN                              !<-- Child generates FIS,PD on V only once for parent task NT
             INTERPOLATE_SFC=.TRUE.
             N1P=NPTS_UPDATE_ON_PARENT_TASKS(NT)+1                          !<-- Starting word location for FIS,PD on V for parent task NT
             N2P=N1P+NPTS_UPDATE_ON_PARENT_TASKS(NT)-1                      !<-- Ending word location for FIS,PD on V for parent task NT
-            CHILD_SFC_INTERP=>CHILD_SFC_ON_PARENT(NT)%DATA(N1P:N2P,1:2)    !<-- Child's FIS,PD on parent task NT's update V points
+            CHILD_SFC_INTERP=>cc%CHILD_SFC_ON_PARENT(NT)%DATA(N1P:N2P,1:2) !<-- Child's FIS,PD on parent task NT's update V points
             N_STENCIL_SFC=N_STENCIL_SFC_V                                  !<-- Stencil width for interpolating child FIS,PD to parent V
 !
           ENDIF
@@ -11329,7 +11721,7 @@
 !***  H and V points to be updated.
 !-----------------------------------------------------------------------
 !
-        NTOT=NVARS_2WAY_UPDATE*NPTS_UPDATE_ON_PARENT_TASKS(NT)*LM          !<-- # of points (3-D) updated for all vbls on parent task NT
+        NTOT=KNT_LEV*NPTS_UPDATE_ON_PARENT_TASKS(NT)                       !<-- # of points (3-D) updated for all vbls on parent task NT
         NTAG=100*MY_DOMAIN_ID+MYPE
 !
         CALL MPI_ISSEND(cc%UPDATE_PARENT_2WAY(NT)%DATA                  &  !<-- All variables at parent task NT's 2-way update points
@@ -11345,7 +11737,7 @@
         NTOT_SFC=2*NTOT_H_V                                                !<-- # of updated FIS and PD values updated (thus *2)
         NTAG=100*MY_DOMAIN_ID+MYPE
 !
-        CALL MPI_ISSEND(CHILD_SFC_ON_PARENT(NT)%DATA                    &  !<-- Child FIS,PD on H,V update points of parent task NT
+        CALL MPI_ISSEND(cc%CHILD_SFC_ON_PARENT(NT)%DATA                 &  !<-- Child FIS,PD on H,V update points of parent task NT
                        ,NTOT_SFC                                        &  !<-- # of words sent to parent task to update FIS,PD
                        ,MPI_REAL                                        &  !<-- The words are real
                        ,ID_PARENT_UPDATE_TASKS(NT)                      &  !<-- Local ID of parent task in P-C intracomm
@@ -11576,6 +11968,7 @@
 !
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: PARENT_CHILD_RATIO
 !
+!
       REAL(kind=KFPT) :: DYH,PDTOP,PT
 !
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ARRAY_1D
@@ -11604,7 +11997,6 @@
       RC_NESTSET=ESMF_SUCCESS
 !
 !-----------------------------------------------------------------------
-!***  Extract the total domain count and the curent domain's ID from
 !***  Allocate the coupler's composite object to the total # of domains
 !***  for generality.  Use the specific domain ID to access only that 
 !***  part of the object that is pertinent to the given domain.  This
@@ -11737,8 +12129,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_VMGet(vm      =VM_DOMAIN                            &  !<-- The virtual machine for this Domain component
-                     ,localpet=MYPE_DOMAIN                          &  !<-- Each MPI task rank in the Domain component
+      CALL ESMF_VMGet(vm      =VM_DOMAIN                                &  !<-- The virtual machine for this Domain component
+                     ,localpet=MYPE_DOMAIN                              &  !<-- Each MPI task rank in the Domain component
                      ,rc      =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -11830,7 +12222,7 @@
                             ,valueList=NTASKS_DOMAIN                    &  !<-- Insert this into the import state
                             ,rc       =RC)
 #else
-      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
+      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler's import state
                             ,name     ='NTASKS_DOMAIN'                  &  !<-- Number of fcst+quilt tasks on each domain
                             ,itemCount=NUM_DOMAINS                      &  !<-- Number of domains
                             ,valueList=NTASKS_DOMAIN                    &  !<-- Insert this into the import state
@@ -11850,7 +12242,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
+      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler's import state
                             ,name     ='FTASKS_DOMAIN'                  &  !<-- Number of forecast tasks on each domain
                             ,itemCount=NUM_DOMAINS                      &  !<-- Number of domains
                             ,valueList=FTASKS_DOMAIN                    &  !<-- Insert this into the import state
@@ -11888,7 +12280,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
+      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler's import state
                             ,name     ='ID_PARENTS'                     &  !<-- IDs of parent domain
                             ,itemCount=NUM_DOMAINS                      &  !<-- Number of domains
                             ,valueList=ID_PARENTS_IN                    &  !<-- Insert this into the import state
@@ -11927,7 +12319,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST             &  !<-- The Nesting Coupler's import state
+        CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST             &  !<-- The Parent-Child Coupler's import state
                               ,name     ='Parent-to-Child Comms'        &  !<-- Name of Attribute
                               ,itemCount=NUM_CHILDREN                   &  !<-- Length of inserted array
                               ,valueList=COMM_TO_MY_CHILDREN            &  !<-- Communicators to my children
@@ -11938,6 +12330,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       ENDIF
+!
 !----------------------------
 !***  Communicator to Parent
 !----------------------------
@@ -11966,7 +12359,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       CALL ESMF_VMGet(vm             =VM_DOMAIN                         &  !<-- This domain's VM
-                     ,mpiCommunicator=COMM_MY_DOMAIN                    &  !<-- This domain's VM
+                     ,mpiCommunicator=COMM_MY_DOMAIN                    &  !<-- This domain's intracommunicator
                      ,rc             =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -12489,7 +12882,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The DOMAIN export state
                         ,itemName='FIS'                                 &  !<-- Extract FIS Field
                         ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
@@ -12520,7 +12913,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The DOMAIN export state
                         ,itemName='GLAT'                                &  !<-- Extract GLAT Field
                         ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
@@ -12551,7 +12944,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The DOMAIN export state
                         ,itemName='GLON'                                &  !<-- Extract GLON Field
                         ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
@@ -12584,7 +12977,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
                             ,name ='PT'                                 &  !<-- Extract PT
                             ,value=PT                                   &  !<-- Put the extracted value here
                             ,rc   =RC)
@@ -12594,7 +12987,7 @@
                             ,value=PT                                   &  !<-- Insert this value
                             ,rc   =RC)
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
                             ,name ='PDTOP'                              &  !<-- Extract PDTOP
                             ,value=PDTOP                                &  !<-- Put the extracted value here
                             ,rc   =RC)
@@ -12606,31 +12999,31 @@
 !
       ALLOCATE(ARRAY_1D(1:LM))
 !
-      CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
                             ,name     ='PSGML1'                         &  !<-- Extract PGMSL1
                             ,itemCount=LM                               &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here 
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
+      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler's import state
                             ,name     ='PSGML1'                         &  !<-- Insert PGMSL1
                             ,itemCount=LM                               &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Insert these values
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's ATM export state
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
                             ,name     ='SGML2'                          &  !<-- Extract SGML2
                             ,itemCount=LM                               &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
+      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler's import state
                             ,name     ='SGML2'                          &  !<-- Insert SGML2
                             ,itemCount=LM                               &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Insert these values
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
                             ,name     ='DSG2'                           &  !<-- Extract DSG2
                             ,itemCount=LM                               &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
@@ -12642,7 +13035,7 @@
                             ,valueList=ARRAY_1D                         &  !<-- Insert these values
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
                             ,name     ='PDSG1'                          &  !<-- Extract PDSG1
                             ,itemCount=LM                               &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
@@ -12658,25 +13051,25 @@
 !
       ALLOCATE(ARRAY_1D(1:LMP1))
 !
-      CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's ATM export state
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
                             ,name     ='SG1'                            &  !<-- Extract SG1
                             ,itemCount=LMP1                             &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
+      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler's import state
                             ,name     ='SG1'                            &  !<-- Insert SG1
                             ,itemCount=LMP1                             &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Insert these values
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's ATM export state
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
                             ,name     ='SG2'                            &  !<-- Extract SG2
                             ,itemCount=LMP1                             &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
+      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler's import state
                             ,name     ='SG2'                            &  !<-- Insert SG2
                             ,itemCount=LMP1                             &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Insert these values
@@ -12700,7 +13093,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
                             ,name ='DYH'                                &  !<-- Extract DYH
                             ,value=DYH                                  &  !<-- Put the extracted value here
                             ,rc   =RC)
@@ -12710,13 +13103,13 @@
                             ,value=DYH                                  &  !<-- Insert this value
                             ,rc   =RC)
 !
-      CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN                 &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
                             ,name     ='DXH'                            &  !<-- Extract DXH
                             ,itemCount=NKOUNT                           &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Put extracted values here
                             ,rc       =RC)
 !
-      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Nesting Coupler's import state
+      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler's import state
                             ,name     ='DXH'                            &  !<-- Insert DXH
                             ,itemCount=NKOUNT                           &  !<-- # of words in data list
                             ,valueList=ARRAY_1D                         &  !<-- Insert these values
@@ -12753,7 +13146,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST             &  !<-- The Nesting Coupler's import state
+        CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST             &  !<-- The Parent-Child Coupler's import state
                               ,name     ='Parent-Child Time Ratio'      &  !<-- Name of Attribute
                               ,itemCount=NUM_CHILDREN                   &  !<-- Length of inserted array
                               ,valueList=PARENT_CHILD_RATIO             &  !<-- The communicator to my parent
@@ -12774,7 +13167,7 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST             &  !<-- The Nesting Coupler's import state
+        CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST             &  !<-- The Parent-Child Coupler's import state
                               ,name     ='CHILD_IDs'                    &  !<-- Name of Attribute
                               ,itemCount=NUM_CHILDREN                   &  !<-- Length of inserted array
                               ,valueList=CHILD_ID                       &  !<-- The children's IDs of this ATM Component
@@ -12801,7 +13194,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The DOMAIN export state
                         ,itemName='PD'                                  &  !<-- Extract PD Field
                         ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
@@ -12832,7 +13225,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The DOMAIN export state
                         ,itemName='PINT'                                &  !<-- Extract PINT Field
                         ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
@@ -12863,7 +13256,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The DOMAIN export state
                         ,itemName='T'                                   &  !<-- Extract T Field
                         ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
@@ -12894,7 +13287,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The DOMAIN export state
                         ,itemName='U'                                   &  !<-- Extract U Field
                         ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
@@ -12925,7 +13318,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The DOMAIN export state
                         ,itemName='V'                                   &  !<-- Extract V Field
                         ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
@@ -12956,7 +13349,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The DOMAIN export state
                         ,itemName='TRACERS'                             &  !<-- Extract TRACERS Field
                         ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
@@ -12987,7 +13380,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_StateGet(state   =EXP_STATE_DOMAIN                      &  !<-- The DOMAIN export state
                         ,itemName='SM'                                  &  !<-- Extract Seas Mask Field
                         ,field   =HOLD_FIELD                            &  !<-- Put the extracted Field here
                         ,rc      =RC)
@@ -13018,7 +13411,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
                             ,name ='INDX_Q'                             &  !<-- Name of Attribute to extract
                             ,value=INDX_Q                               &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
@@ -13050,7 +13443,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
                             ,name ='INDX_CW'                            &  !<-- Name of Attribute to extract
                             ,value=INDX_CW                              &  !<-- Put the extracted Attribute here
                             ,rc   =RC)
@@ -13214,6 +13607,196 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
+!***  The Parent-Child coupler needs the pointers to the Solver
+!***  internal state variables that are updated on the child 
+!***  boundaries by the parents.  The Bundle holding those pointers
+!***  is in the Domain component's export state.  Transfer the
+!***  Bundle to the P-C coupler's import state.
+!-----------------------------------------------------------------------
+!
+!
+#ifdef ESMF_3
+      get_bc_bundle: IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
+#else
+      get_bc_bundle: IF(I_AM_A_FCST_TASK)THEN
+#endif
+        BUNDLE_NESTBC=>cc%BUNDLE_NESTBC
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Bundle of Nest BC Vbls from Domain Exp State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateGet(state      =EXP_STATE_DOMAIN                 &  !<-- The DOMAIN export state
+                          ,itemName   ='Bundle_nestbc'                  &  !<-- Bundle of Solver internal state pointers for nest BC vbls
+                          ,fieldbundle=BUNDLE_NESTBC                    &  !<-- Put the extracted Bundle here
+                          ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert Bundle of Nest BC Vbls into P-C Coupler Imp State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_StateAdd(IMP_STATE_CPL_NEST                           &  !<-- The Parent-Child Coupler's import state
+                          ,LISTWRAPPER(BUNDLE_NESTBC)                   &  !<-- The Bundle of Solver int state pointers for nest BC vbls
+                          ,rc         =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  The Parent-Child coupler also needs to know the # of H-pt and
+!***  V-pt boundary variables.  Transfer those values.
+!-----------------------------------------------------------------------
+!
+        NVARS_BC_2D_H=>cc%NVARS_BC_2D_H
+        NVARS_BC_3D_H=>cc%NVARS_BC_3D_H
+        NVARS_BC_4D_H=>cc%NVARS_BC_4D_H
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract # of H-pt Nest Bndry Vrbls from Domain Exp State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                   &  !<-- The DOMAIN export state
+                              ,name ='NVARS_BC_2D_H'                    &  !<-- Name of Attribute to extract
+                              ,value=NVARS_BC_2D_H                      &  !<-- # of 2-D H-pt boundary variables
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                   &  !<-- The DOMAIN export state
+                              ,name ='NVARS_BC_3D_H'                    &  !<-- Name of Attribute to extract
+                              ,value=NVARS_BC_3D_H                      &  !<-- # of 3-D H-pt boundary variables
+                              ,rc   =RC)
+!
+        CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                   &  !<-- The DOMAIN export state
+                              ,name ='NVARS_BC_4D_H'                    &  !<-- Name of Attribute to extract
+                              ,value=NVARS_BC_4D_H                      &  !<-- # of 4-D H-pt boundary variables
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        NVARS_BC_2D_V=>cc%NVARS_BC_2D_V
+        NVARS_BC_3D_V=>cc%NVARS_BC_3D_V
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract # of V-pt Nest Bndry Vrbls from Domain Exp State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
+                            ,name ='NVARS_BC_2D_V'                      &  !<-- Name of Attribute to extract
+                            ,value=NVARS_BC_2D_V                        &  !<-- # of 2-D V-pt boundary variables
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
+                            ,name ='NVARS_BC_3D_V'                      &  !<-- Name of Attribute to extract
+                            ,value=NVARS_BC_3D_V                        &  !<-- # of 3-D V-pt boundary variables
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert # of H-pt Nest Bndry Vrbls into P-C Imp State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                   &  !<-- The Parent-Child Coupler's import state
+                            ,name ='NVARS_BC_2D_H'                      &  !<-- The name of the Attribute to insert
+                            ,value=NVARS_BC_2D_H                        &  !<-- # of 2-D H-pt boundary variables
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                   &  !<-- The Parent-Child Coupler's import state
+                            ,name ='NVARS_BC_3D_H'                      &  !<-- The name of the Attribute to insert
+                            ,value=NVARS_BC_3D_H                        &  !<-- # of 3-D H-pt boundary variables
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                   &  !<-- The Parent-Child Coupler's import state
+                            ,name ='NVARS_BC_4D_H'                      &  !<-- The name of the Attribute to insert
+                            ,value=NVARS_BC_4D_H                        &  !<-- # of 4-D H-pt boundary variables
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Insert # of V-pt Nest Bndry Vrbls into P-C Imp State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                   &  !<-- The Parent-Child Coupler's import state
+                            ,name ='NVARS_BC_2D_V'                      &  !<-- The name of the Attribute to insert
+                            ,value=NVARS_BC_2D_V                        &  !<-- # of 2-D H-pt boundary variables
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                   &  !<-- The Parent-Child Coupler's import state
+                            ,name ='NVARS_BC_3D_V'                      &  !<-- The name of the Attribute to insert
+                            ,value=NVARS_BC_3D_V                        &  !<-- # of 3-D H-pt boundary variables
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!***  How many total model layers are involved with all H-pt and V-pt
+!***  boundary variables?  Tansfer that information to the Parent-
+!***  Child coupler for use in allocating working objects.
+!-----------------------------------------------------------------------
+!
+      NLEV_H=>cc%NLEV_H
+      NLEV_V=>cc%NLEV_V
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract # of Model Lyrs in all Nest Bndry Vrbls"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
+                            ,name ='NLEV_H'                             &  !<-- Name of Attribute to extract
+                            ,value=NLEV_H                               &  !<-- # of model layers for all H-pt BC variables
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeGet(state=EXP_STATE_DOMAIN                     &  !<-- The DOMAIN export state
+                            ,name ='NLEV_V'                             &  !<-- Name of Attribute to extract
+                            ,value=NLEV_V                               &  !<-- # of model layers for all V-pt BC variables
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Set # of Model Lyrs in all Nest Bndry Vrbls"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                   &  !<-- The P-C coupler import state
+                            ,name ='NLEV_H'                             &  !<-- Name of Attribute to extract
+                            ,value=NLEV_H                               &  !<-- # of model layers for all H-pt BC variables
+                            ,rc   =RC)
+!
+      CALL ESMF_AttributeSet(state=IMP_STATE_CPL_NEST                   &  !<-- The P-C coupler import state
+                            ,name ='NLEV_V'                             &  !<-- Name of Attribute to extract
+                            ,value=NLEV_V                               &  !<-- # of model layers for all V-pt BC variables
+                            ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF get_bc_bundle
+!
+!-----------------------------------------------------------------------
 !***  If there are moving nests then their parents need the Bundles
 !***  of 2-D and 3-D variables in the Solver internal state that
 !***  need to be updated after the nests move.  The Bundles are
@@ -13230,12 +13813,12 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state      =EXP_STATE_DOMAIN                   &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_StateGet(state      =EXP_STATE_DOMAIN                   &  !<-- The DOMAIN export state
                         ,itemName   ='Move_Bundle H'                    &  !<-- Name of Bundle of internal state H arrays
                         ,fieldbundle=MOVE_BUNDLE_H                      &  !<-- Put the extracted Bundle here
                         ,rc         =RC)
 !
-      CALL ESMF_StateGet(state      =EXP_STATE_DOMAIN                   &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_StateGet(state      =EXP_STATE_DOMAIN                   &  !<-- The DOMAIN export state
                         ,itemName   ='Move_Bundle V'                    &  !<-- Name of Bundle of internal state V arrays
                         ,fieldbundle=MOVE_BUNDLE_V                      &  !<-- Put the extracted Bundle here
                         ,rc         =RC)
@@ -13279,7 +13862,7 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateGet(state      =EXP_STATE_DOMAIN                   &  !<-- The Parent's DOMAIN export state
+      CALL ESMF_StateGet(state      =EXP_STATE_DOMAIN                   &  !<-- The DOMAIN export state
                         ,itemName   ='Bundle_2way'                      &  !<-- Bundle of Solver internal state pointers for 2-way exch
                         ,fieldbundle=BUNDLE_2WAY                        &  !<-- Put the extracted Bundle here
                         ,rc         =RC)
@@ -13374,6 +13957,8 @@
       N_STENCIL_V          =>cc%N_STENCIL_V
       N_STENCIL_SFC_H      =>cc%N_STENCIL_SFC_H
       N_STENCIL_SFC_V      =>cc%N_STENCIL_SFC_V
+      NLEV_H               =>cc%NLEV_H
+      NLEV_V               =>cc%NLEV_V
       NHALO                =>cc%NHALO
       NPHS                 =>cc%NPHS
       NTASKS_UPDATE_PARENT =>cc%NTASKS_UPDATE_PARENT
@@ -13391,12 +13976,19 @@
       NUM_LEVELS_MOVE_3D_H =>cc%NUM_LEVELS_MOVE_3D_H
       NUM_LEVELS_MOVE_3D_V =>cc%NUM_LEVELS_MOVE_3D_V
       NUM_SPACE_RATIOS_MVG =>cc%NUM_SPACE_RATIOS_MVG
+      NVARS_BC_2D_H        =>cc%NVARS_BC_2D_H
+      NVARS_BC_3D_H        =>cc%NVARS_BC_3D_H
+      NVARS_BC_4D_H        =>cc%NVARS_BC_4D_H
+      NVARS_BC_2D_V        =>cc%NVARS_BC_2D_V
       SPACE_RATIO_MY_PARENT=>cc%SPACE_RATIO_MY_PARENT
       TIME_RATIO_MY_PARENT =>cc%TIME_RATIO_MY_PARENT
 !
       NTIMESTEP_WAIT_PARENT       =>cc%NTIMESTEP_WAIT_PARENT
       NTIMESTEP_WAIT_FORCED_PARENT=>cc%NTIMESTEP_WAIT_FORCED_PARENT
       PARENT_WANTS_TO_MOVE        =>cc%PARENT_WANTS_TO_MOVE
+!
+      LBND_4D=>cc%LBND_4D
+      UBND_4D=>cc%UBND_4D
 !
       LOCAL_ISTART=>cc%LOCAL_ISTART
       LOCAL_IEND  =>cc%LOCAL_IEND
@@ -13513,31 +14105,6 @@
       U   =>cc%U
       V   =>cc%V
 !
-      CWB_S=>cc%CWB_S
-      CWB_N=>cc%CWB_N
-      CWB_W=>cc%CWB_W
-      CWB_E=>cc%CWB_E
-!
-      TB_S=>cc%TB_S
-      TB_N=>cc%TB_N
-      TB_W=>cc%TB_W
-      TB_E=>cc%TB_E
-!
-      QB_S=>cc%QB_S
-      QB_N=>cc%QB_N
-      QB_W=>cc%QB_W
-      QB_E=>cc%QB_E
-!
-      UB_S=>cc%UB_S
-      UB_N=>cc%UB_N
-      UB_W=>cc%UB_W
-      UB_E=>cc%UB_E
-!
-      VB_S=>cc%VB_S
-      VB_N=>cc%VB_N
-      VB_W=>cc%VB_W
-      VB_E=>cc%VB_E
-!
       TRACERS=>cc%TRACERS
 !
       STATIC_OR_MOVING=>cc%STATIC_OR_MOVING
@@ -13593,30 +14160,23 @@
       PD_B_WEST_V =>cc%PD_B_WEST_V
       PD_B_EAST_V =>cc%PD_B_EAST_V
 !
-      T_B_SOUTH=>cc%T_B_SOUTH
-      T_B_NORTH=>cc%T_B_NORTH
-      T_B_WEST =>cc%T_B_WEST
-      T_B_EAST =>cc%T_B_EAST
+      MY_BC_VARS_H_S=>cc%MY_BC_VARS_H_S
+      MY_BC_VARS_H_N=>cc%MY_BC_VARS_H_N
+      MY_BC_VARS_H_W=>cc%MY_BC_VARS_H_W
+      MY_BC_VARS_H_E=>cc%MY_BC_VARS_H_E
+      MY_BC_VARS_V_S=>cc%MY_BC_VARS_V_S
+      MY_BC_VARS_V_N=>cc%MY_BC_VARS_V_N
+      MY_BC_VARS_V_W=>cc%MY_BC_VARS_V_W
+      MY_BC_VARS_V_E=>cc%MY_BC_VARS_V_E
 !
-      Q_B_SOUTH=>cc%Q_B_SOUTH
-      Q_B_NORTH=>cc%Q_B_NORTH
-      Q_B_WEST =>cc%Q_B_WEST
-      Q_B_EAST =>cc%Q_B_EAST
-!
-      CW_B_SOUTH=>cc%CW_B_SOUTH
-      CW_B_NORTH=>cc%CW_B_NORTH
-      CW_B_WEST =>cc%CW_B_WEST
-      CW_B_EAST =>cc%CW_B_EAST
-!
-      U_B_SOUTH=>cc%U_B_SOUTH
-      U_B_NORTH=>cc%U_B_NORTH
-      U_B_WEST =>cc%U_B_WEST
-      U_B_EAST =>cc%U_B_EAST
-!
-      V_B_SOUTH=>cc%V_B_SOUTH
-      V_B_NORTH=>cc%V_B_NORTH
-      V_B_WEST =>cc%V_B_WEST
-      V_B_EAST =>cc%V_B_EAST
+      BND_VAR_H_SOUTH=>cc%BND_VAR_H_SOUTH
+      BND_VAR_H_NORTH=>cc%BND_VAR_H_NORTH
+      BND_VAR_H_WEST =>cc%BND_VAR_H_WEST
+      BND_VAR_H_EAST =>cc%BND_VAR_H_EAST
+      BND_VAR_V_SOUTH=>cc%BND_VAR_V_SOUTH
+      BND_VAR_V_NORTH=>cc%BND_VAR_V_NORTH
+      BND_VAR_V_WEST =>cc%BND_VAR_V_WEST
+      BND_VAR_V_EAST =>cc%BND_VAR_V_EAST
 !
       FIS_CHILD_SOUTH=>cc%FIS_CHILD_SOUTH
       FIS_CHILD_NORTH=>cc%FIS_CHILD_NORTH
@@ -13672,6 +14232,7 @@
       CF       =>cc%CF
 !
       BUNDLE_2WAY  =>cc%BUNDLE_2WAY
+      BUNDLE_NESTBC=>cc%BUNDLE_NESTBC
       MOVE_BUNDLE_H=>cc%MOVE_BUNDLE_H
       MOVE_BUNDLE_V=>cc%MOVE_BUNDLE_V
 !
@@ -14942,14 +15503,10 @@
 !
                 IF(I_SAVE_LO_SOUTH(NC_HOLD_S(NC))<0)THEN
                   I_SAVE_LO_SOUTH(NC_HOLD_S(NC))=I_CHILD                   !<-- Save westernmost Sbndry I of child task NC
-!     write(0,*)' PARENT_TO_CHILD_INTERP_FACTORS nc=',nc,' nc_hold_s=',nc_hold_s(nc) &
-!              ,' i_save_lo_south=',i_save_lo_south(nc_hold_s(nc))
                                                                            !    that is on this parent task.
                 ENDIF
                 I_SAVE_HI_SOUTH(NC_HOLD_S(NC))=I_CHILD                     !<-- Save easternmost Sbndry I of child task NC
                                                                            !    that is on this parent task.
-!     write(0,*)' PARENT_TO_CHILD_INTERP_FACTORS nc=',nc,' nc_hold_s=',nc_hold_s(nc) &
-!              ,' i_save_hi_south=',i_save_hi_south(nc_hold_s(nc))
 !
               ENDIF
 ! 
@@ -15383,11 +15940,11 @@
 !
       INTEGER(kind=KINT) :: I_END_TRANSFER,ITE_CHILD_X,INDX2            &
                            ,J_END_TRANSFER,JTE_CHILD_X                  &
-                           ,N,N_TASK                                    &
-                           ,NBASE,NBASE_3D,NBASE_EXP                    &
+                           ,KOUNT_VAR,N,N_TASK                          &
+                           ,NBASE,NBASE_3D,NBASE_4D,NBASE_EXP           &
                            ,NCHILD_TASKS                                &
                            ,NLOC_1,NLOC_2,NLOC_2_EXP                    &
-                           ,NN,NT,NWORDS
+                           ,NN,NT,NV,NVAR,NWORDS,PROD
 !
       INTEGER(kind=KINT) :: ISTAT
 !
@@ -15432,133 +15989,208 @@
       south_h: IF(NUM_TASKS_SEND_H_S(N)>0)THEN                             !<-- Parent task has child south boundary H points?
 !
         NCHILD_TASKS=NUM_TASKS_SEND_H_S(N)                                 !<-- # of Sbndry tasks on child N to recv H point data
-        ALLOCATE(CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(1:NCHILD_TASKS))       !<-- 1-D bndry data string for child tasks with Sbndry H points
+        ALLOCATE(CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(1:NCHILD_TASKS)     &  !<-- 1-D bndry data string for child tasks with Sbndry H points
+                                                            ,stat=ISTAT)
         ALLOCATE(WORDS_BOUND_H_SOUTH(N)%TASKS(1:NCHILD_TASKS))             !<-- # of words in Sbndry H point 1-D data string
-!
         ALLOCATE(PD_B_SOUTH(N)%TASKS(1:NCHILD_TASKS))                      !<-- PD_B_SOUTH for each child task
-        ALLOCATE(T_B_SOUTH (N)%TASKS(1:NCHILD_TASKS))                      !<-- T_B_SOUTH for each child task
-        ALLOCATE(Q_B_SOUTH (N)%TASKS(1:NCHILD_TASKS))                      !<-- Q_B_SOUTH for each child task
-        ALLOCATE(CW_B_SOUTH(N)%TASKS(1:NCHILD_TASKS))                      !<-- CW_B_SOUTH for each child task
+!
+        DO NVAR=1,NVARS_NESTBC_H-1                                         !<-- All nest 3D BC H-pt variables (excludes PD)
+          ALLOCATE(BND_VAR_H_SOUTH(NVAR)%CHILD(N)%TASKS(1:NCHILD_TASKS) &  !<-- Working object for each 3D Sbnd H-pt vbl on each child task
+                  ,stat=ISTAT)
+          IF(ISTAT/=0)THEN
+            WRITE(0,11101)NVAR,N,NCHILD_TASKS,ISTAT
+11101       FORMAT(' POINT_INTERP_DATA_TO_MEMORY failed to allocate'    &
+                  ,' BND_VAR(',I2,')%CHILD(',I2,')%TASKS(1:',I4,')'     &
+                  ,' ISTAT=',I4)
+            CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          ENDIF
+        ENDDO
+!
+!-----------------------------------------------------------------------
 !
         nt_south_h: DO NT=1,NCHILD_TASKS
 !
           N_TASK=CHILDTASK_BNDRY_H_RANKS(N)%SOUTH(NT,1)                    !<-- Count of this task in list of all child fcst tasks
 !
-!------------------------------------------------------------------------
-!
-          NBASE=CHILDTASK_H_SAVE(N)%I_HI_SOUTH_TRANSFER(NT)              &
+          NBASE=CHILDTASK_H_SAVE(N)%I_HI_SOUTH_TRANSFER(NT)             &
                -CHILDTASK_H_SAVE(N)%I_LO_SOUTH(NT)+1          
 !
-          NBASE_3D=LM*NBASE*N_BLEND_H_CHILD(N)
-          NWORDS  =(3*LM+1)*NBASE*N_BLEND_H_CHILD(N)                         !<-- # of Sbndry words to transfer from parent to child
-          WORDS_BOUND_H_SOUTH(N)%TASKS(NT)=NWORDS                            !<-- Save total number of words
+          PROD=NBASE*N_BLEND_H_CHILD(N)
+          NBASE_3D=LM*PROD
+          NWORDS=(NVARS_BC_2D_H+NVARS_BC_3D_H*LM)*PROD                     !<-- # of Sbndry words in 2D,3D H-pt vbls parent sends to child
+!
+          KOUNT_VAR=0
+          IF(NVARS_BC_2D_H>1)THEN
+            DO NV=2,NVARS_BC_2D_H
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Count 2-D H-pt vbls excluding PD
+              NBASE_VAR_H(KOUNT_VAR)=NBASE
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_H>0)THEN
+            DO NV=1,NVARS_BC_3D_H
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Add the 3-D H-pt vbls
+              NBASE_VAR_H(KOUNT_VAR)=NBASE_3D
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_4D_H>0)THEN
+            DO NV=1,NVARS_BC_4D_H
+              NBASE_4D=(UBND_4D(NV)-LBND_4D(NV)+1)*NBASE_3D
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Add the 4-D H-pt vbls
+              NBASE_VAR_H(KOUNT_VAR)=NBASE_4D
+              NWORDS=NWORDS+(UBND_4D(NV)-LBND_4D(NV)+1)*NBASE_3D           !<-- Add the # of Sbndry words in 4-D H-pt variables
+            ENDDO
+          ENDIF
+!
+          WORDS_BOUND_H_SOUTH(N)%TASKS(NT)=NWORDS                          !<-- Save total number of words
 !
           CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(NT)%DATA=>NULL()
-!
           CALL CHECK_REAL(CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(NT)%DATA &
                         ,'CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(NT)%DATA')
-          ALLOCATE(CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(NT)%DATA(1:NWORDS))    !<-- 1-D bndry data string for child tasks
-!                                                                                 with South boundary H points
+          ALLOCATE(CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(NT)%DATA(1:NWORDS))  !<-- 1-D bndry data string for child tasks
+!                                                                               with South boundary H points
           NLOC_1=1
           NLOC_2=NLOC_1+NBASE*N_BLEND_H_CHILD(N)-1
 !
-          NBASE_EXP=CHILDTASK_H_SAVE(N)%I_HI_SOUTH(NT)                   &
+          NBASE_EXP=CHILDTASK_H_SAVE(N)%I_HI_SOUTH(NT)                  &
                    -CHILDTASK_H_SAVE(N)%I_LO_SOUTH(NT)+1
 !
-          NLOC_2_EXP=NLOC_1+NBASE_EXP*(N_BLEND_H_CHILD(N)+1)-1               !<-- Extend PD_B_* to allow 4-pt averaging to V pts
+          NLOC_2_EXP=NLOC_1+NBASE_EXP*(N_BLEND_H_CHILD(N)+1)-1             !<-- Extend PD_B_* to allow 4-pt averaging to V pts
 !
           PD_B_SOUTH(N)%TASKS(NT)%DATA=>NULL()
-!
-          CALL CHECK_REAL(PD_B_SOUTH(N)%TASKS(NT)%DATA                   &
+          CALL CHECK_REAL(PD_B_SOUTH(N)%TASKS(NT)%DATA                  &
                         ,'PD_B_SOUTH(N)%TASKS(NT)%DATA')
           ALLOCATE(PD_B_SOUTH(N)%TASKS(NT)%DATA(NLOC_1:NLOC_2_EXP),stat=ISTAT)
 !
-          NLOC_1=NLOC_2+1                                                    !<-- Start at NLOC_2, NOT NLOC_2_EXPAND
-          NLOC_2=NLOC_1+NBASE_3D-1
-          T_B_SOUTH(N)%TASKS(NT)%DATA=>CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- T_B_SOUTH storage location
+!-----------------------------------------------------------------------
+!***  Point the working pointer for each nest H-pt boundary variable
+!***  into the object that holds all nest BC update data for child N's
+!***  domain's south side.
+!-----------------------------------------------------------------------
 !
-          NLOC_1=NLOC_2+1
-          NLOC_2=NLOC_1+NBASE_3D-1
-          Q_B_SOUTH(N)%TASKS(NT)%DATA=>CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- Q_B_SOUTH storage location
+          DO NVAR=1,NVARS_NESTBC_H-1
 !
-          NLOC_1=NLOC_2+1
-          NLOC_2=NLOC_1+NBASE_3D-1
-          CW_B_SOUTH(N)%TASKS(NT)%DATA=>CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)  !<-- CW_B_SOUTH storage location
+            NLOC_1=NLOC_2+1                                                !<-- Start at NLOC_2, NOT NLOC_2_EXPAND
+            NLOC_2=NLOC_1+NBASE_VAR_H(NVAR)-1
+            BND_VAR_H_SOUTH(NVAR)%CHILD(N)%TASKS(NT)%DATA=>             &
+              CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- Sbndry storage for H-pt vbl NVAR, child N, task NT
+!
+          ENDDO
 !
         ENDDO  nt_south_h
 !
-      ELSE  south_h                                                          !<-- Dummy nonzero length 
+      ELSE  south_h                                                        !<-- Dummy nonzero length 
 !
         ALLOCATE(CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(1:1))       
         CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(1)%DATA=>NULL()
-        CALL CHECK_REAL(CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(1)%DATA        &
+        CALL CHECK_REAL(CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(1)%DATA       &
                       ,'CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(1)%DATA')
         ALLOCATE(CHILD_BOUND_H_SOUTH(N,INDX2)%TASKS(1)%DATA(1:1))
         ALLOCATE(PD_B_SOUTH(N)%TASKS(1:1))              
         PD_B_SOUTH(N)%TASKS(1)%DATA=>NULL()
-        CALL CHECK_REAL(PD_B_SOUTH(N)%TASKS(1)%DATA                       &
+        CALL CHECK_REAL(PD_B_SOUTH(N)%TASKS(1)%DATA                      &
                       ,'PD_B_SOUTH(N)%TASKS(1)%DATA')
         ALLOCATE(PD_B_SOUTH(N)%TASKS(1)%DATA(1:1),stat=ISTAT)              
-        ALLOCATE(T_B_SOUTH (N)%TASKS(1:1))             
-        ALLOCATE(Q_B_SOUTH (N)%TASKS(1:1))            
-        ALLOCATE(CW_B_SOUTH(N)%TASKS(1:1))           
+!
+        DO NVAR=1,NVARS_NESTBC_H-1
+          ALLOCATE(BND_VAR_H_SOUTH(NVAR)%CHILD(N)%TASKS(1:1),stat=ISTAT)
+          IF(ISTAT>0)THEN
+            WRITE(0,11201)NVAR,N,ISTAT
+11201       FORMAT(' POINT_INTERP_DATA_TO_MEMORY failed to allocate'    &
+                  ,' dummy BND_VAR(',I2,')%CHILD(',I2,')%TASKS(1:1)'    &
+                  ,' ISTAT=',I4)
+          ENDIF
+          BND_VAR_H_SOUTH(NVAR)%CHILD(N)%TASKS(1)%DATA=>NULL()
+        ENDDO
+!
         ALLOCATE(WORDS_BOUND_H_SOUTH(N)%TASKS(1:1))           
 !
       ENDIF south_h
 !
-!------------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !
-      south_v: IF(NUM_TASKS_SEND_V_S(N)>0)THEN                              !<-- Parent task has child south boundary V points?
+      south_v: IF(NUM_TASKS_SEND_V_S(N)>0)THEN                             !<-- Parent task has child south boundary V points?
 !
         NCHILD_TASKS=NUM_TASKS_SEND_V_S(N)
-        ALLOCATE(CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(1:NCHILD_TASKS))        !<-- 1-D bndry data string for child tasks with Sbndry V points
-        ALLOCATE(WORDS_BOUND_V_SOUTH(N)%TASKS(1:NCHILD_TASKS))              !<-- # of words in Sbndry V point 1-D data string
+        ALLOCATE(CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(1:NCHILD_TASKS))       !<-- 1-D bndry data string for child tasks with Sbndry V points
+        ALLOCATE(WORDS_BOUND_V_SOUTH(N)%TASKS(1:NCHILD_TASKS))             !<-- # of words in Sbndry V point 1-D data string
 !
-        ALLOCATE(PD_B_SOUTH_V(N)%TASKS(1:NCHILD_TASKS))                     !<-- PD_B_SOUTH_V for each child task
-        ALLOCATE(U_B_SOUTH(N)%TASKS(1:NCHILD_TASKS))                        !<-- U_B_SOUTH for each child task
-        ALLOCATE(V_B_SOUTH(N)%TASKS(1:NCHILD_TASKS))                        !<-- V_B_SOUTH for each child task
+        ALLOCATE(PD_B_SOUTH_V(N)%TASKS(1:NCHILD_TASKS))                    !<-- PD_B_SOUTH_V for each child task
+!
+        DO NVAR=1,NVARS_NESTBC_V                                           !<-- All nest 3D BC V-pt variables
+          ALLOCATE(BND_VAR_V_SOUTH(NVAR)%CHILD(N)%TASKS(1:NCHILD_TASKS))   !<-- Working object for each 3D Sbnd V-pt vbl on each child task
+        ENDDO
 !
         DO NT=1,NCHILD_TASKS
-          NBASE   =CHILDTASK_V_SAVE(N)%I_HI_SOUTH(NT)                    &
+          NBASE   =CHILDTASK_V_SAVE(N)%I_HI_SOUTH(NT)                   &
                   -CHILDTASK_V_SAVE(N)%I_LO_SOUTH(NT)+1
-          NBASE_3D=LM*NBASE*N_BLEND_V_CHILD(N)
-          NWORDS  =2*NBASE_3D                                               !<-- Total number of V boundary words for child task's segment
-          WORDS_BOUND_V_SOUTH(N)%TASKS(NT)=NWORDS                           !<-- Save total number of words
+          PROD=NBASE*N_BLEND_V_CHILD(N)
+          NBASE_3D=LM*PROD
+          NWORDS=(NVARS_BC_2D_V+NVARS_BC_3D_V*LM)*PROD                     !<-- # of Sbndry words in 2D,3D V-pt vbls parent sends to child
+          WORDS_BOUND_V_SOUTH(N)%TASKS(NT)=NWORDS                          !<-- Save total number of words
+!
+          KOUNT_VAR=0
+          IF(NVARS_BC_2D_V>0)THEN
+            DO NV=2,NVARS_BC_2D_V
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Count 2-D H-pt vbls excluding PD
+              NBASE_VAR_V(KOUNT_VAR)=NBASE
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_V>0)THEN
+            DO NV=1,NVARS_BC_3D_V
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Add the 3-D H-pt vbls
+              NBASE_VAR_V(KOUNT_VAR)=NBASE_3D
+            ENDDO
+          ENDIF
 !
           CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(NT)%DATA=>NULL()
-          CALL CHECK_REAL(CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(NT)%DATA    &
+          CALL CHECK_REAL(CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(NT)%DATA   &
                         ,'CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(NT)%DATA')
-          ALLOCATE(CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(NT)%DATA(1:NWORDS))   !<-- 1-D bndry data string for child tasks with Sbndry V points
+          ALLOCATE(CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(NT)%DATA(1:NWORDS))  !<-- 1-D bndry data string for child tasks with Sbndry V points
 !
           PD_B_SOUTH_V(N)%TASKS(NT)%DATA=>NULL()
-          CALL CHECK_REAL(PD_B_SOUTH_V(N)%TASKS(NT)%DATA                 &
+          CALL CHECK_REAL(PD_B_SOUTH_V(N)%TASKS(NT)%DATA                &
                         ,'PD_B_SOUTH_V(N)%TASKS(NT)%DATA')
           ALLOCATE(PD_B_SOUTH_V(N)%TASKS(NT)%DATA(1:NBASE*N_BLEND_V_CHILD(N)),stat=ISTAT)
 !
-          NLOC_1=1
-          NLOC_2=NLOC_1+NBASE_3D-1
-          U_B_SOUTH(N)%TASKS(NT)%DATA=>CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- U_B_SOUTH storage location
+!-----------------------------------------------------------------------
+!***  Point the working pointer for each nest V-pt boundary variable
+!***  into the object that holds all nest BC update data for child N's
+!***  domain's south side.
+!-----------------------------------------------------------------------
 !
-          NLOC_1=NLOC_2+1
-          NLOC_2=NLOC_1+NBASE_3D-1
-          V_B_SOUTH(N)%TASKS(NT)%DATA=>CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- V_B_SOUTH storage location
+          NLOC_2=0
+          DO NVAR=1,NVARS_NESTBC_V
+!
+            NLOC_1=NLOC_2+1
+            NLOC_2=NLOC_1+NBASE_VAR_V(NVAR)-1
+            BND_VAR_V_SOUTH(NVAR)%CHILD(N)%TASKS(NT)%DATA=>             &
+              CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- S bndry storage for V-pt vbl NVAR, child N, task NT
+!
+          ENDDO
 !
         ENDDO
 !
-      ELSE  south_v                                                         !<-- Dummy nonzero length
+      ELSE  south_v                                                        !<-- Dummy nonzero length
 !
         ALLOCATE(CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(1:1))       
         CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(1)%DATA=>NULL()
-        CALL CHECK_REAL(CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(1)%DATA       &
+        CALL CHECK_REAL(CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(1)%DATA      &
                       ,'CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(1)%DATA')
         ALLOCATE(CHILD_BOUND_V_SOUTH(N,INDX2)%TASKS(1)%DATA(1:1))
         ALLOCATE(PD_B_SOUTH_V(N)%TASKS(1:1))
         PD_B_SOUTH_V(N)%TASKS(1)%DATA=>NULL()
-        CALL CHECK_REAL(PD_B_SOUTH_V(N)%TASKS(1)%DATA                    &
+        CALL CHECK_REAL(PD_B_SOUTH_V(N)%TASKS(1)%DATA                   &
                       ,'PD_B_SOUTH_V(N)%TASKS(1)%DATA')
         ALLOCATE(PD_B_SOUTH_V(N)%TASKS(1)%DATA(1:1),stat=ISTAT)
-        ALLOCATE(U_B_SOUTH(N)%TASKS(1:1))
-        ALLOCATE(V_B_SOUTH(N)%TASKS(1:1))
+!
+        DO NVAR=1,NVARS_NESTBC_V
+          ALLOCATE(BND_VAR_V_SOUTH(NVAR)%CHILD(N)%TASKS(1:1))             
+          BND_VAR_V_SOUTH(NVAR)%CHILD(N)%TASKS(1)%DATA=>NULL()
+        ENDDO
+!
         ALLOCATE(WORDS_BOUND_V_SOUTH(N)%TASKS(1:1))           
 !
       ENDIF south_v
@@ -15575,29 +16207,53 @@
         ALLOCATE(CHILD_BOUND_H_NORTH(N,INDX2)%TASKS(1:NCHILD_TASKS)      &  !<-- 1-D bndry data string for child tasks with Nbndry H points
                                                             ,stat=ISTAT)
         ALLOCATE(WORDS_BOUND_H_NORTH(N)%TASKS(1:NCHILD_TASKS))              !<-- # of words in Nbndry H point 1-D data string
-!
         ALLOCATE(PD_B_NORTH(N)%TASKS(1:NCHILD_TASKS))                       !<-- PD_B_NORTH for each child task
-        ALLOCATE(T_B_NORTH (N)%TASKS(1:NCHILD_TASKS))                       !<-- T_B_NORTH for each child task
-        ALLOCATE(Q_B_NORTH (N)%TASKS(1:NCHILD_TASKS))                       !<-- Q_B_NORTH for each child task
-        ALLOCATE(CW_B_NORTH(N)%TASKS(1:NCHILD_TASKS))                       !<-- CW_B_NORTH for each child task
+!
+        DO NVAR=1,NVARS_NESTBC_H-1                                          !<-- All nest 3D BC H-pt variables (excludes PD)
+          ALLOCATE(BND_VAR_H_NORTH(NVAR)%CHILD(N)%TASKS(1:NCHILD_TASKS))    !<-- Working object for each 3D Nbnd H-pt vbl on each child task
+        ENDDO
 !
         nt_north_h: DO NT=1,NCHILD_TASKS
 !
-          N_TASK=CHILDTASK_BNDRY_H_RANKS(N)%NORTH(NT,1)                    !<-- Count of this task in list of all child fcst tasks
+          N_TASK=CHILDTASK_BNDRY_H_RANKS(N)%NORTH(NT,1)                     !<-- Count of this task in list of all child fcst tasks
 !
 !------------------------------------------------------------------------
 !
           NBASE=CHILDTASK_H_SAVE(N)%I_HI_NORTH_TRANSFER(NT)              &
                -CHILDTASK_H_SAVE(N)%I_LO_NORTH(NT)+1
 !
+          PROD=NBASE*N_BLEND_H_CHILD(N)
           NBASE_3D=LM*NBASE*N_BLEND_H_CHILD(N)
-          NWORDS  =(3*LM+1)*NBASE*N_BLEND_H_CHILD(N)                        !<-- # of Nbndry words to transfer from parent to child
+          NWORDS=(NVARS_BC_2D_H+NVARS_BC_3D_H*LM)*PROD                      !<-- # of Nbndry words in 2D,3D H-pt vbls parent sends to child
           WORDS_BOUND_H_NORTH(N)%TASKS(NT)=NWORDS                           !<-- Save total number of words
+!
+          KOUNT_VAR=0
+          IF(NVARS_BC_2D_H>1)THEN
+            DO NV=2,NVARS_BC_2D_H
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Count 2-D H-pt vbls excluding PD
+              NBASE_VAR_H(KOUNT_VAR)=NBASE
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_H>0)THEN
+            DO NV=1,NVARS_BC_3D_H
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Add the 3-D H-pt vbls
+              NBASE_VAR_H(KOUNT_VAR)=NBASE_3D
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_4D_H>0)THEN
+            DO NV=1,NVARS_BC_4D_H
+              NBASE_4D=(UBND_4D(NV)-LBND_4D(NV)+1)*NBASE_3D
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Add the 4-D H-pt vbls
+              NBASE_VAR_H(KOUNT_VAR)=NBASE_4D
+              NWORDS=NWORDS+(UBND_4D(NV)-LBND_4D(NV)+1)*NBASE_3D           !<-- Add the # of Nbndry words in 4-D H-pt variables
+            ENDDO
+          ENDIF
 !
           CHILD_BOUND_H_NORTH(N,INDX2)%TASKS(NT)%DATA=>NULL()
           CALL CHECK_REAL(CHILD_BOUND_H_NORTH(N,INDX2)%TASKS(NT)%DATA    &
                         ,'CHILD_BOUND_H_NORTH(N,INDX2)%TASKS(NT)%DATA')
-!
           ALLOCATE(CHILD_BOUND_H_NORTH(N,INDX2)%TASKS(NT)%DATA(1:NWORDS) &  !<-- 1-D bndry data string for child tasks
                                                              ,stat=ISTAT)   !     with north boundary H points.
           NLOC_1=1
@@ -15611,21 +16267,23 @@
           PD_B_NORTH(N)%TASKS(NT)%DATA=>NULL()
           CALL CHECK_REAL(PD_B_NORTH(N)%TASKS(NT)%DATA                   &
                         ,'PD_B_NORTH(N)%TASKS(NT)%DATA')
-!
           ALLOCATE(PD_B_NORTH(N)%TASKS(NT)%DATA(NLOC_1:NLOC_2_EXP)       &
                                                            ,stat=ISTAT)
 !
-          NLOC_1=NLOC_2+1                                                   !<-- Start at NLOC_2, NOT NLOC_2_EXPAND
-          NLOC_2=NLOC_1+NBASE_3D-1
-          T_B_NORTH(N)%TASKS(NT)%DATA=>CHILD_BOUND_H_NORTH(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- T_B_NORTH storage location
+!-----------------------------------------------------------------------
+!***  Point the working pointer for each nest H-pt boundary variable
+!***  into the object that holds all nest BC update data for child N's
+!***  domain's north side.
+!-----------------------------------------------------------------------
 !
-          NLOC_1=NLOC_2+1
-          NLOC_2=NLOC_1+NBASE_3D-1
-          Q_B_NORTH(N)%TASKS(NT)%DATA=>CHILD_BOUND_H_NORTH(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- Q_B_NORTH storage location
+          DO NVAR=1,NVARS_NESTBC_H-1
 !
-          NLOC_1=NLOC_2+1
-          NLOC_2=NLOC_1+NBASE_3D-1
-          CW_B_NORTH(N)%TASKS(NT)%DATA=>CHILD_BOUND_H_NORTH(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)  !<-- CW_B_NORTH storage location
+            NLOC_1=NLOC_2+1                                                !<-- Start at NLOC_2, NOT NLOC_2_EXPAND
+            NLOC_2=NLOC_1+NBASE_VAR_H(NVAR)-1
+            BND_VAR_H_NORTH(NVAR)%CHILD(N)%TASKS(NT)%DATA=>             &
+              CHILD_BOUND_H_NORTH(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- N bndry storage for H-pt vbl NVAR, child N, task NT
+!
+          ENDDO
 !
         ENDDO  nt_north_h
 !
@@ -15642,9 +16300,11 @@
         CALL CHECK_REAL(PD_B_NORTH(N)%TASKS(1)%DATA                      &
                       ,'PD_B_NORTH(N)%TASKS(1)%DATA')
         ALLOCATE(PD_B_NORTH(N)%TASKS(1)%DATA(1:1),stat=ISTAT)
-        ALLOCATE(T_B_NORTH (N)%TASKS(1:1))
-        ALLOCATE(Q_B_NORTH (N)%TASKS(1:1))
-        ALLOCATE(CW_B_NORTH(N)%TASKS(1:1))
+!
+        DO NVAR=1,NVARS_NESTBC_H-1
+          ALLOCATE(BND_VAR_H_NORTH(NVAR)%CHILD(N)%TASKS(1:1))
+        ENDDO
+!
         ALLOCATE(WORDS_BOUND_H_NORTH(N)%TASKS(1:1))           
 !
       ENDIF north_h
@@ -15658,15 +16318,33 @@
         ALLOCATE(WORDS_BOUND_V_NORTH(N)%TASKS(1:NCHILD_TASKS))              !<-- # of words in Nbndry V point 1-D data string
 !
         ALLOCATE(PD_B_NORTH_V(N)%TASKS(1:NCHILD_TASKS))                     !<-- PD_B_NORTH_V for each child task
-        ALLOCATE(U_B_NORTH(N)%TASKS(1:NCHILD_TASKS))                        !<-- U_B_NORTH for each child task
-        ALLOCATE(V_B_NORTH(N)%TASKS(1:NCHILD_TASKS))                        !<-- V_B_NORTH for each child task
+!
+        DO NVAR=1,NVARS_NESTBC_V                                           !<-- All nest 3D BC V-pt variables
+          ALLOCATE(BND_VAR_V_NORTH(NVAR)%CHILD(N)%TASKS(1:NCHILD_TASKS))   !<-- Working object for each 3D Nbnd V-pt vbl on each child task
+        ENDDO
 !
         DO NT=1,NCHILD_TASKS
           NBASE=CHILDTASK_V_SAVE(N)%I_HI_NORTH(NT)                       &
                -CHILDTASK_V_SAVE(N)%I_LO_NORTH(NT)+1
-          NBASE_3D=LM*NBASE*N_BLEND_V_CHILD(N)
-          NWORDS=2*NBASE_3D                                                 !<-- Total number of V boundary words for child task's segment
+          PROD=NBASE*N_BLEND_V_CHILD(N)
+          NBASE_3D=LM*PROD             
+          NWORDS=(NVARS_BC_2D_V+NVARS_BC_3D_V*LM)*PROD                      !<-- # of Nbndry words in 2D,3D V-pt vbls parent sends to child
           WORDS_BOUND_V_NORTH(N)%TASKS(NT)=NWORDS                           !<-- Save total number of words
+!
+          KOUNT_VAR=0
+          IF(NVARS_BC_2D_V>0)THEN
+            DO NV=2,NVARS_BC_2D_V
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Count 2-D H-pt vbls excluding PD
+              NBASE_VAR_V(KOUNT_VAR)=NBASE
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_V>0)THEN
+            DO NV=1,NVARS_BC_3D_V
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Add the 3-D H-pt vbls
+              NBASE_VAR_V(KOUNT_VAR)=NBASE_3D
+            ENDDO
+          ENDIF
 !
           CHILD_BOUND_V_NORTH(N,INDX2)%TASKS(NT)%DATA=>NULL()
           CALL CHECK_REAL(CHILD_BOUND_V_NORTH(N,INDX2)%TASKS(NT)%DATA    &
@@ -15677,17 +16355,24 @@
           PD_B_NORTH_V(N)%TASKS(NT)%DATA=>NULL()
           CALL CHECK_REAL(PD_B_NORTH_V(N)%TASKS(NT)%DATA                 &
                         ,'PD_B_NORTH_V(N)%TASKS(NT)%DATA')
-!
           ALLOCATE(PD_B_NORTH_V(N)%TASKS(NT)%DATA(1:NBASE*N_BLEND_V_CHILD(N)) &
                                                                  ,stat=ISTAT)
 !
-          NLOC_1=1
-          NLOC_2=NLOC_1+NBASE_3D-1
-          U_B_NORTH(N)%TASKS(NT)%DATA=>CHILD_BOUND_V_NORTH(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- U_B_NORTH storage location
+!-----------------------------------------------------------------------
+!***  Point the working pointer for each nest V-pt boundary variable
+!***  into the object that holds all nest BC update data for child N's
+!***  domain's north side.
+!-----------------------------------------------------------------------
 !
-          NLOC_1=NLOC_2+1
-          NLOC_2=NLOC_1+NBASE_3D-1
-          V_B_NORTH(N)%TASKS(NT)%DATA=>CHILD_BOUND_V_NORTH(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- V_B_NORTH storage location
+          NLOC_2=0
+          DO NVAR=1,NVARS_NESTBC_V
+!
+            NLOC_1=NLOC_2+1
+            NLOC_2=NLOC_1+NBASE_VAR_V(NVAR)-1
+            BND_VAR_V_NORTH(NVAR)%CHILD(N)%TASKS(NT)%DATA=>             &
+              CHILD_BOUND_V_NORTH(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- N bndry storage for V-pt vbl NVAR, child N, task NT
+!
+          ENDDO
 !
         ENDDO
 !
@@ -15704,8 +16389,11 @@
         CALL CHECK_REAL(PD_B_NORTH_V(N)%TASKS(1)%DATA                    &
                       ,'PD_B_NORTH_V(N)%TASKS(1)%DATA')
         ALLOCATE(PD_B_NORTH_V(N)%TASKS(1)%DATA(1:1),stat=ISTAT)
-        ALLOCATE(U_B_NORTH(N)%TASKS(1:1))
-        ALLOCATE(V_B_NORTH(N)%TASKS(1:1))
+!
+        DO NVAR=1,NVARS_NESTBC_V
+          ALLOCATE(BND_VAR_V_NORTH(NVAR)%CHILD(N)%TASKS(1:1))
+        ENDDO
+!
         ALLOCATE(WORDS_BOUND_V_NORTH(N)%TASKS(1:1))           
 !
       ENDIF north_v
@@ -15716,59 +16404,89 @@
 !***  West
 !----------
 !
-      west_h: IF(NUM_TASKS_SEND_H_W(N)>0)THEN                               !<-- Parent task has child west boundary H points?
+      west_h: IF(NUM_TASKS_SEND_H_W(N)>0)THEN                              !<-- Parent task has child west boundary H points?
 !
         NCHILD_TASKS=NUM_TASKS_SEND_H_W(N)
-        ALLOCATE(CHILD_BOUND_H_WEST(N,INDX2)%TASKS(1:NCHILD_TASKS))         !<-- 1-D bndry data string for child tasks with Wbndry H points
-        ALLOCATE(WORDS_BOUND_H_WEST(N)%TASKS(1:NCHILD_TASKS))               !<-- # of words in Wbndry H point 1-D data string
+        ALLOCATE(CHILD_BOUND_H_WEST(N,INDX2)%TASKS(1:NCHILD_TASKS)      &  !<-- 1-D bndry data string for child tasks with Wbndry H points
+                                                            ,stat=ISTAT)
+        ALLOCATE(WORDS_BOUND_H_WEST(N)%TASKS(1:NCHILD_TASKS))              !<-- # of words in Wbndry H point 1-D data string
+        ALLOCATE(PD_B_WEST(N)%TASKS(1:NCHILD_TASKS))                       !<-- PD_B_WEST for each child task
 !
-        ALLOCATE(PD_B_WEST(N)%TASKS(1:NCHILD_TASKS))                        !<-- PD_B_WEST for each child task
-        ALLOCATE(T_B_WEST (N)%TASKS(1:NCHILD_TASKS))                        !<-- T_B_WEST for each child task
-        ALLOCATE(Q_B_WEST (N)%TASKS(1:NCHILD_TASKS))                        !<-- Q_B_WEST for each child task
-        ALLOCATE(CW_B_WEST(N)%TASKS(1:NCHILD_TASKS))                        !<-- CW_B_WEST for each child task
+        DO NVAR=1,NVARS_NESTBC_H-1                                         !<-- All nest 3D BC H-pt variables (excludes PD)
+          ALLOCATE(BND_VAR_H_WEST(NVAR)%CHILD(N)%TASKS(1:NCHILD_TASKS))    !<-- Working object for each 3D Wbnd H-pt vbl on each child task
+        ENDDO
 !
         nt_west_h: DO NT=1,NCHILD_TASKS
 !
           N_TASK=CHILDTASK_BNDRY_H_RANKS(N)%WEST(NT,1)                     !<-- Count of this task in list of all child fcst tasks
 !
-!------------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !
-          NBASE=CHILDTASK_H_SAVE(N)%J_HI_WEST_TRANSFER(NT)               &
+          NBASE=CHILDTASK_H_SAVE(N)%J_HI_WEST_TRANSFER(NT)              &
                -CHILDTASK_H_SAVE(N)%J_LO_WEST(NT)+1
 !
-          NBASE_3D=LM*NBASE*N_BLEND_H_CHILD(N)
-          NWORDS  =(3*LM+1)*NBASE*N_BLEND_H_CHILD(N)                        !<-- # of Wbndry words to transfer from parent to child
-          WORDS_BOUND_H_WEST(N)%TASKS(NT)=NWORDS                            !<-- Save total number of words
+          PROD=NBASE*N_BLEND_H_CHILD(N)
+          NBASE_3D=LM*PROD                     
+          NWORDS=(NVARS_BC_2D_H+NVARS_BC_3D_H*LM)*PROD                     !<-- # of Wbndry words in 2D,3D H-pt vbls parent sends to child
+!
+          KOUNT_VAR=0
+          IF(NVARS_BC_2D_H>1)THEN
+            DO NV=2,NVARS_BC_2D_H
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Count 2-D H-pt vbls excluding PD
+              NBASE_VAR_H(KOUNT_VAR)=NBASE
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_H>0)THEN
+            DO NV=1,NVARS_BC_3D_H
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Add the 3-D H-pt vbls
+              NBASE_VAR_H(KOUNT_VAR)=NBASE_3D
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_4D_H>0)THEN
+            DO NV=1,NVARS_BC_4D_H
+              NBASE_4D=(UBND_4D(NV)-LBND_4D(NV)+1)*NBASE_3D
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Add the 4-D H-pt vbls
+              NBASE_VAR_H(KOUNT_VAR)=NBASE_4D
+              NWORDS=NWORDS+(UBND_4D(NV)-LBND_4D(NV)+1)*NBASE_3D           !<-- Add the # of Wbndry words in 4-D H-pt variables
+            ENDDO
+          ENDIF
+!
+          WORDS_BOUND_H_WEST(N)%TASKS(NT)=NWORDS                           !<-- Save total number of words
 !
           CHILD_BOUND_H_WEST(N,INDX2)%TASKS(NT)%DATA=>NULL()
-          CALL CHECK_REAL(CHILD_BOUND_H_WEST(N,INDX2)%TASKS(NT)%DATA     &
+          CALL CHECK_REAL(CHILD_BOUND_H_WEST(N,INDX2)%TASKS(NT)%DATA    &
                         ,'CHILD_BOUND_H_WEST(N,INDX2)%TASKS(NT)%DATA')
-          ALLOCATE(CHILD_BOUND_H_WEST(N,INDX2)%TASKS(NT)%DATA(1:NWORDS))    !<-- 1-D bndry data string for child tasks
-!                                                                                with west boundary H points
+          ALLOCATE(CHILD_BOUND_H_WEST(N,INDX2)%TASKS(NT)%DATA(1:NWORDS))   !<-- 1-D bndry data string for child tasks
+!                                                                               with west boundary H points
           NLOC_1=1
           NLOC_2=NLOC_1+NBASE*N_BLEND_H_CHILD(N)-1
 !
-          NBASE_EXP=CHILDTASK_H_SAVE(N)%J_HI_WEST(NT)                    &
+          NBASE_EXP=CHILDTASK_H_SAVE(N)%J_HI_WEST(NT)                   &
                    -CHILDTASK_H_SAVE(N)%J_LO_WEST(NT)+1
 !
-          NLOC_2_EXP=NLOC_1+NBASE_EXP*(N_BLEND_H_CHILD(N)+1)-1              !<-- Extend PD_B_* by one row to allow 4-pt averaging to V pts
+          NLOC_2_EXP=NLOC_1+NBASE_EXP*(N_BLEND_H_CHILD(N)+1)-1             !<-- Extend PD_B_* by one row to allow 4-pt averaging to V pts
 !
           PD_B_WEST(N)%TASKS(NT)%DATA=>NULL()
           CALL CHECK_REAL(PD_B_WEST(N)%TASKS(NT)%DATA                    &
                         ,'PD_B_WEST(N)%TASKS(NT)%DATA')
           ALLOCATE(PD_B_WEST(N)%TASKS(NT)%DATA(NLOC_1:NLOC_2_EXP),stat=ISTAT)
 !
-          NLOC_1=NLOC_2+1                                                   !<-- Start at NLOC_2, NOT NLOC_2_EXPAND
-          NLOC_2=NLOC_1+NBASE_3D-1
-          T_B_WEST(N)%TASKS(NT)%DATA=>CHILD_BOUND_H_WEST(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- T_B_WEST storage location
+!-----------------------------------------------------------------------
+!***  Point the working pointer for each nest H-pt boundary variable
+!***  into the object that holds all nest BC update data for child N's
+!***  domain's west side.
+!-----------------------------------------------------------------------
 !
-          NLOC_1=NLOC_2+1
-          NLOC_2=NLOC_1+NBASE_3D-1
-          Q_B_WEST(N)%TASKS(NT)%DATA=>CHILD_BOUND_H_WEST(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- Q_B_WEST storage location
+          DO NVAR=1,NVARS_NESTBC_H-1
 !
-          NLOC_1=NLOC_2+1
-          NLOC_2=NLOC_1+NBASE_3D-1
-          CW_B_WEST(N)%TASKS(NT)%DATA=>CHILD_BOUND_H_WEST(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)  !<-- CW_B_WEST storage location
+            NLOC_1=NLOC_2+1                                                !<-- Start at NLOC_2, NOT NLOC_2_EXPAND
+            NLOC_2=NLOC_1+NBASE_VAR_H(NVAR)-1
+            BND_VAR_H_WEST(NVAR)%CHILD(N)%TASKS(NT)%DATA=>              &
+              CHILD_BOUND_H_WEST(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)    !<-- W bndry storage for H-pt vbl NVAR, child N, task NT
+!
+          ENDDO
 !
         ENDDO  nt_west_h
 !
@@ -15784,49 +16502,79 @@
         CALL CHECK_REAL(PD_B_WEST(N)%TASKS(1)%DATA                       &
                       ,'PD_B_WEST(N)%TASKS(1)%DATA')
         ALLOCATE(PD_B_WEST(N)%TASKS(1)%DATA(1:1),stat=ISTAT)
-        ALLOCATE(T_B_WEST (N)%TASKS(1:1))
-        ALLOCATE(Q_B_WEST (N)%TASKS(1:1))
-        ALLOCATE(CW_B_WEST(N)%TASKS(1:1))
+!
+        DO NVAR=1,NVARS_NESTBC_H-1
+          ALLOCATE(BND_VAR_H_WEST(NVAR)%CHILD(N)%TASKS(1:1))
+        ENDDO
+!
         ALLOCATE(WORDS_BOUND_H_WEST(N)%TASKS(1:1))           
 !
       ENDIF west_h
 !
-!------------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !
-      west_v: IF(NUM_TASKS_SEND_V_W(N)>0)THEN                               !<-- Parent task has child west boundary V points?
+      west_v: IF(NUM_TASKS_SEND_V_W(N)>0)THEN                              !<-- Parent task has child west boundary V points?
 !
         NCHILD_TASKS=NUM_TASKS_SEND_V_W(N)
-        ALLOCATE(CHILD_BOUND_V_WEST(N,INDX2)%TASKS(1:NCHILD_TASKS))         !<-- 1-D bndry data string for child tasks with Wbndry V points
-        ALLOCATE(WORDS_BOUND_V_WEST(N)%TASKS(1:NCHILD_TASKS))               !<-- # of words in Wbndry V point 1-D data string
+        ALLOCATE(CHILD_BOUND_V_WEST(N,INDX2)%TASKS(1:NCHILD_TASKS))        !<-- 1-D bndry data string for child tasks with Wbndry V points
+        ALLOCATE(WORDS_BOUND_V_WEST(N)%TASKS(1:NCHILD_TASKS))              !<-- # of words in Wbndry V point 1-D data string
 !
-        ALLOCATE(PD_B_WEST_V(N)%TASKS(1:NCHILD_TASKS))                      !<-- PD_B_WEST_V for each child task
-        ALLOCATE(U_B_WEST(N)%TASKS(1:NCHILD_TASKS))                         !<-- U_B_WEST for each child task
-        ALLOCATE(V_B_WEST(N)%TASKS(1:NCHILD_TASKS))                         !<-- V_B_WEST for each child task
+        ALLOCATE(PD_B_WEST_V(N)%TASKS(1:NCHILD_TASKS))                     !<-- PD_B_WEST_V for each child task
+!
+        DO NVAR=1,NVARS_NESTBC_V                                           !<-- All nest 3D BC V-pt variables
+          ALLOCATE(BND_VAR_V_WEST(NVAR)%CHILD(N)%TASKS(1:NCHILD_TASKS)  &  !<-- Working object for each 3D Wbnd V-pt vbl on each child task
+                  ,stat=ISTAT)
+        ENDDO
 !
         DO NT=1,NCHILD_TASKS
-          NBASE=CHILDTASK_V_SAVE(N)%J_HI_WEST(NT)                        &  
+          NBASE=CHILDTASK_V_SAVE(N)%J_HI_WEST(NT)                       &  
                -CHILDTASK_V_SAVE(N)%J_LO_WEST(NT)+1
-          NBASE_3D=LM*NBASE*N_BLEND_V_CHILD(N)
-          NWORDS=2*NBASE_3D                                                 !<-- Total number of V boundary words for child task's segment
+          PROD=NBASE*N_BLEND_V_CHILD(N)
+          NBASE_3D=LM*PROD               
+          NWORDS=(NVARS_BC_2D_V+NVARS_BC_3D_V*LM)*PROD                      !<-- # of Wbndry words in 2D,3D V-pt vbls parent sends to child
           WORDS_BOUND_V_WEST(N)%TASKS(NT)=NWORDS                            !<-- Save total number of words
 !
+          KOUNT_VAR=0
+          IF(NVARS_BC_2D_V>0)THEN
+            DO NV=2,NVARS_BC_2D_V
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Count 2-D H-pt vbls excluding PD
+              NBASE_VAR_V(KOUNT_VAR)=NBASE
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_V>0)THEN
+            DO NV=1,NVARS_BC_3D_V
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Add the 3-D H-pt vbls
+              NBASE_VAR_V(KOUNT_VAR)=NBASE_3D
+            ENDDO
+          ENDIF
+!
           CHILD_BOUND_V_WEST(N,INDX2)%TASKS(NT)%DATA=>NULL()
-          CALL CHECK_REAL(CHILD_BOUND_V_WEST(N,INDX2)%TASKS(NT)%DATA     &
+          CALL CHECK_REAL(CHILD_BOUND_V_WEST(N,INDX2)%TASKS(NT)%DATA    &
                         ,'CHILD_BOUND_V_WEST(N,INDX2)%TASKS(NT)%DATA')
-          ALLOCATE(CHILD_BOUND_V_WEST(N,INDX2)%TASKS(NT)%DATA(1:NWORDS))    !<-- 1-D bndry data string for child tasks with Wbndry V points
+          ALLOCATE(CHILD_BOUND_V_WEST(N,INDX2)%TASKS(NT)%DATA(1:NWORDS) &   !<-- 1-D bndry data string for child tasks with Wbndry V points
+                  ,stat=ISTAT)
 !
           PD_B_WEST_V(N)%TASKS(NT)%DATA=>NULL()
-          CALL CHECK_REAL(PD_B_WEST_V(N)%TASKS(NT)%DATA                  &
+          CALL CHECK_REAL(PD_B_WEST_V(N)%TASKS(NT)%DATA                 &
                         ,'PD_B_WEST_V(N)%TASKS(NT)%DATA')
           ALLOCATE(PD_B_WEST_V(N)%TASKS(NT)%DATA(1:NBASE*N_BLEND_V_CHILD(N)),stat=ISTAT)
 !
-          NLOC_1=1
-          NLOC_2=NLOC_1+NBASE_3D-1
-          U_B_WEST(N)%TASKS(NT)%DATA=>CHILD_BOUND_V_WEST(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- U_B_WEST storage location
+!-----------------------------------------------------------------------
+!***  Point the working pointer for each nest V-pt boundary variable
+!***  into the object that holds all nest BC update data for child N's
+!***  domain's west side.
+!-----------------------------------------------------------------------
 !
-          NLOC_1=NLOC_2+1
-          NLOC_2=NLOC_1+NBASE_3D-1
-          V_B_WEST(N)%TASKS(NT)%DATA=>CHILD_BOUND_V_WEST(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- V_B_WEST storage location
+          NLOC_2=0
+          DO NVAR=1,NVARS_NESTBC_V
+!
+            NLOC_1=NLOC_2+1
+            NLOC_2=NLOC_1+NBASE_VAR_V(NVAR)-1
+            BND_VAR_V_WEST(NVAR)%CHILD(N)%TASKS(NT)%DATA=>              &
+              CHILD_BOUND_V_WEST(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)    !<-- W bndry storage for V-pt vbl NVAR, child N, task NT
+!
+          ENDDO
 !
         ENDDO
 !
@@ -15842,71 +16590,105 @@
         CALL CHECK_REAL(PD_B_WEST_V(N)%TASKS(1)%DATA                     &
                       ,'PD_B_WEST_V(N)%TASKS(1)%DATA')
         ALLOCATE(PD_B_WEST_V(N)%TASKS(1)%DATA(1:1),stat=ISTAT)
-        ALLOCATE(U_B_WEST(N)%TASKS(1:1))
-        ALLOCATE(V_B_WEST(N)%TASKS(1:1))
+!
+        DO NVAR=1,NVARS_NESTBC_V
+          ALLOCATE(BND_VAR_V_WEST(NVAR)%CHILD(N)%TASKS(1:1))
+        ENDDO
+!
         ALLOCATE(WORDS_BOUND_V_WEST(N)%TASKS(1:1))           
 !
       ENDIF west_v
 !
-!------------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !
 !----------
 !***  East
 !----------
 !
-      east_h: IF(NUM_TASKS_SEND_H_E(N)>0)THEN                               !<-- Parent task has child east boundary H points?
+      east_h: IF(NUM_TASKS_SEND_H_E(N)>0)THEN                              !<-- Parent task has child east boundary H points?
 !
         NCHILD_TASKS=NUM_TASKS_SEND_H_E(N)
-        ALLOCATE(CHILD_BOUND_H_EAST(N,INDX2)%TASKS(1:NCHILD_TASKS))         !<-- 1-D bndry data string for child tasks with Ebndry H points
-        ALLOCATE(WORDS_BOUND_H_EAST(N)%TASKS(1:NCHILD_TASKS))               !<-- # of words in Ebndry H point 1-D data string
+        ALLOCATE(CHILD_BOUND_H_EAST(N,INDX2)%TASKS(1:NCHILD_TASKS)      &  !<-- 1-D bndry data string for child tasks with Ebndry H points
+                                                            ,stat=ISTAT)
+        ALLOCATE(WORDS_BOUND_H_EAST(N)%TASKS(1:NCHILD_TASKS))              !<-- # of words in Ebndry H point 1-D data string
 !
-        ALLOCATE(PD_B_EAST(N)%TASKS(1:NCHILD_TASKS))                        !<-- PD_B_EAST for each child task
-        ALLOCATE(T_B_EAST (N)%TASKS(1:NCHILD_TASKS))                        !<-- T_B_EAST for each child task
-        ALLOCATE(Q_B_EAST (N)%TASKS(1:NCHILD_TASKS))                        !<-- Q_B_EAST for each child task
-        ALLOCATE(CW_B_EAST(N)%TASKS(1:NCHILD_TASKS))                        !<-- CW_B_EAST for each child task
+        ALLOCATE(PD_B_EAST(N)%TASKS(1:NCHILD_TASKS))                       !<-- PD_B_EAST for each child task
+!
+        DO NVAR=1,NVARS_NESTBC_H-1                                         !<-- All nest 3D BC H-pt variables (excludes PD)
+          ALLOCATE(BND_VAR_H_EAST(NVAR)%CHILD(N)%TASKS(1:NCHILD_TASKS))    !<-- Working object for each 3D Ebnd H-pt vbl on each child task
+        ENDDO
 !
         nt_east_h: DO NT=1,NCHILD_TASKS
 !
           N_TASK=CHILDTASK_BNDRY_H_RANKS(N)%EAST(NT,1)                     !<-- Count of this task in list of all child fcst tasks
 !
-!------------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !
-          NBASE=CHILDTASK_H_SAVE(N)%J_HI_EAST_TRANSFER(NT)               &
+          NBASE=CHILDTASK_H_SAVE(N)%J_HI_EAST_TRANSFER(NT)              &
                -CHILDTASK_H_SAVE(N)%J_LO_EAST(NT)+1
 !
+          PROD=NBASE*N_BLEND_H_CHILD(N)
           NBASE_3D=LM*NBASE*N_BLEND_H_CHILD(N)
-          NWORDS  =(3*LM+1)*NBASE*N_BLEND_H_CHILD(N)                        !<-- # of Ebndry words to transfer from parent to child
-          WORDS_BOUND_H_EAST(N)%TASKS(NT)=NWORDS                            !<-- Save total number of words
+          NWORDS=(NVARS_BC_2D_H+NVARS_BC_3D_H*LM)*PROD                     !<-- # of Ebndry words in 2D,3D H-pt vbls parent sends to child
+!
+          KOUNT_VAR=0
+          IF(NVARS_BC_2D_H>1)THEN
+            DO NV=2,NVARS_BC_2D_H
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Count 2-D H-pt vbls excluding PD
+              NBASE_VAR_H(KOUNT_VAR)=NBASE
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_H>0)THEN
+            DO NV=1,NVARS_BC_3D_H
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Add the 3-D H-pt vbls
+              NBASE_VAR_H(KOUNT_VAR)=NBASE_3D
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_4D_H>0)THEN
+            DO NV=1,NVARS_BC_4D_H
+              NBASE_4D=(UBND_4D(NV)-LBND_4D(NV)+1)*NBASE_3D
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Add the 4-D H-pt vbls
+              NBASE_VAR_H(KOUNT_VAR)=NBASE_4D
+              NWORDS=NWORDS+(UBND_4D(NV)-LBND_4D(NV)+1)*NBASE_3D           !<-- Add the # of Wbndry words in 4-D H-pt variables
+            ENDDO
+          ENDIF
+!
+          WORDS_BOUND_H_EAST(N)%TASKS(NT)=NWORDS                           !<-- Save total number of words
 !
           CHILD_BOUND_H_EAST(N,INDX2)%TASKS(NT)%DATA=>NULL()
-          CALL CHECK_REAL(CHILD_BOUND_H_EAST(N,INDX2)%TASKS(NT)%DATA     &
+          CALL CHECK_REAL(CHILD_BOUND_H_EAST(N,INDX2)%TASKS(NT)%DATA    &
                         ,'CHILD_BOUND_H_EAST(N,INDX2)%TASKS(NT)%DATA')
-          ALLOCATE(CHILD_BOUND_H_EAST(N,INDX2)%TASKS(NT)%DATA(1:NWORDS))    !<-- 1-D bndry data string for child tasks
-!                                                                                with east boundary H points
+          ALLOCATE(CHILD_BOUND_H_EAST(N,INDX2)%TASKS(NT)%DATA(1:NWORDS))   !<-- 1-D bndry data string for child tasks
+!                                                                               with east boundary H points
           NLOC_1=1
           NLOC_2=NLOC_1+NBASE*N_BLEND_H_CHILD(N)-1
 !
-          NBASE_EXP=CHILDTASK_H_SAVE(N)%J_HI_EAST(NT)                    &
+          NBASE_EXP=CHILDTASK_H_SAVE(N)%J_HI_EAST(NT)                   &
                    -CHILDTASK_H_SAVE(N)%J_LO_EAST(NT)+1
 !
-          NLOC_2_EXP=NLOC_1+NBASE_EXP*(N_BLEND_H_CHILD(N)+1)-1              !<-- Extend PD_B_* by one row to allow 4-pt averaging to V pts
+          NLOC_2_EXP=NLOC_1+NBASE_EXP*(N_BLEND_H_CHILD(N)+1)-1             !<-- Extend PD_B_* by one row to allow 4-pt averaging to V pts
 !
           PD_B_EAST(N)%TASKS(NT)%DATA=>NULL()
-          CALL CHECK_REAL(PD_B_EAST(N)%TASKS(NT)%DATA                    &
+          CALL CHECK_REAL(PD_B_EAST(N)%TASKS(NT)%DATA                   &
                         ,'PD_B_EAST(N)%TASKS(NT)%DATA')
           ALLOCATE(PD_B_EAST(N)%TASKS(NT)%DATA(NLOC_1:NLOC_2_EXP),stat=ISTAT)
 !
-          NLOC_1=NLOC_2+1                                                   !<-- Start at NLOC_2, NOT NLOC_2_EXPAND
-          NLOC_2=NLOC_1+NBASE_3D-1
-          T_B_EAST(N)%TASKS(NT)%DATA=>CHILD_BOUND_H_EAST(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- T_B_EAST storage location
+!-----------------------------------------------------------------------
+!***  Point the working pointer for each nest H-pt boundary variable
+!***  into the object that holds all nest BC update data for child N's
+!***  domain's east side.
+!-----------------------------------------------------------------------
 !
-          NLOC_1=NLOC_2+1
-          NLOC_2=NLOC_1+NBASE_3D-1
-          Q_B_EAST(N)%TASKS(NT)%DATA=>CHILD_BOUND_H_EAST(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- Q_B_EAST storage location
+          DO NVAR=1,NVARS_NESTBC_H-1
 !
-          NLOC_1=NLOC_2+1
-          NLOC_2=NLOC_1+NBASE_3D-1
-          CW_B_EAST(N)%TASKS(NT)%DATA=>CHILD_BOUND_H_EAST(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)  !<-- CW_B_EAST storage location
+            NLOC_1=NLOC_2+1                                               !<-- Start at NLOC_2, NOT NLOC_2_EXPAND
+            NLOC_2=NLOC_1+NBASE_VAR_H(NVAR)-1
+            BND_VAR_H_EAST(NVAR)%CHILD(N)%TASKS(NT)%DATA=>             &
+               CHILD_BOUND_H_EAST(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)  !<-- E bndry storage for H-pt vbl NVAR, child N, task NT
+!
+          ENDDO
 !
         ENDDO  nt_east_h
 !
@@ -15922,31 +16704,51 @@
         CALL CHECK_REAL(PD_B_EAST(N)%TASKS(1)%DATA                       &
                       ,'PD_B_EAST(N)%TASKS(1)%DATA')
         ALLOCATE(PD_B_EAST(N)%TASKS(1)%DATA(1:1))
-        ALLOCATE(T_B_EAST (N)%TASKS(1:1))
-        ALLOCATE(Q_B_EAST (N)%TASKS(1:1))
-        ALLOCATE(CW_B_EAST(N)%TASKS(1:1))
+!
+        DO NVAR=1,NVARS_NESTBC_H-1
+          ALLOCATE(BND_VAR_H_EAST(NVAR)%CHILD(N)%TASKS(1:1))
+        ENDDO
+!
         ALLOCATE(WORDS_BOUND_H_EAST(N)%TASKS(1:1))           
 !
       ENDIF east_h
 !
 !-----------------------------------------------------------------------
 !
-       east_v: IF(NUM_TASKS_SEND_V_E(N)>0)THEN                             !<-- Parent task has child east boundary V points?
+      east_v: IF(NUM_TASKS_SEND_V_E(N)>0)THEN                              !<-- Parent task has child east boundary V points?
 !
         NCHILD_TASKS=NUM_TASKS_SEND_V_E(N)
         ALLOCATE(CHILD_BOUND_V_EAST(N,INDX2)%TASKS(1:NCHILD_TASKS))        !<-- 1-D bndry data string for child tasks with Ebndry V points
         ALLOCATE(WORDS_BOUND_V_EAST(N)%TASKS(1:NCHILD_TASKS))              !<-- # of words in Ebndry V point 1-D data string
 !
         ALLOCATE(PD_B_EAST_V(N)%TASKS(1:NCHILD_TASKS))                     !<-- PD_B_EAST_V for each child task
-        ALLOCATE(U_B_EAST(N)%TASKS(1:NCHILD_TASKS))                        !<-- U_B_EAST for each child task
-        ALLOCATE(V_B_EAST(N)%TASKS(1:NCHILD_TASKS))                        !<-- V_B_EAST for each child task
+!
+        DO NVAR=1,NVARS_NESTBC_V                                           !<-- All nest 3D BC V-pt variables
+          ALLOCATE(BND_VAR_V_EAST(NVAR)%CHILD(N)%TASKS(1:NCHILD_TASKS))    !<-- Working object for each 3D Ebnd V-pt vbl on each child task
+        ENDDO
 !
         DO NT=1,NCHILD_TASKS
           NBASE=CHILDTASK_V_SAVE(N)%J_HI_EAST(NT)                       &
                -CHILDTASK_V_SAVE(N)%J_LO_EAST(NT)+1
-          NBASE_3D=LM*NBASE*N_BLEND_V_CHILD(N)
-          NWORDS=2*NBASE_3D                                                !<-- Total number of V boundary words for child task's segment
+          PROD=NBASE*N_BLEND_V_CHILD(N)
+          NBASE_3D=LM*PROD                 
+          NWORDS=(NVARS_BC_2D_V+NVARS_BC_3D_V*LM)*PROD                     !<-- # of Ebndry words in 2D,3D V-pt vbls parent sends to child
           WORDS_BOUND_V_EAST(N)%TASKS(NT)=NWORDS                           !<-- Save total number of words
+!
+          KOUNT_VAR=0
+          IF(NVARS_BC_2D_V>0)THEN
+            DO NV=2,NVARS_BC_2D_V
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Count 2-D H-pt vbls excluding PD
+              NBASE_VAR_V(KOUNT_VAR)=NBASE
+            ENDDO
+          ENDIF
+!
+          IF(NVARS_BC_3D_V>0)THEN
+            DO NV=1,NVARS_BC_3D_V
+              KOUNT_VAR=KOUNT_VAR+1                                        !<-- Add the 3-D H-pt vbls
+              NBASE_VAR_V(KOUNT_VAR)=NBASE_3D
+            ENDDO
+          ENDIF
 !
           CHILD_BOUND_V_EAST(N,INDX2)%TASKS(NT)%DATA=>NULL()
           CALL CHECK_REAL(CHILD_BOUND_V_EAST(N,INDX2)%TASKS(NT)%DATA    &
@@ -15958,13 +16760,21 @@
                         ,'PD_B_EAST_V(N)%TASKS(NT)%DATA')
           ALLOCATE(PD_B_EAST_V(N)%TASKS(NT)%DATA(1:NBASE*N_BLEND_V_CHILD(N)),stat=ISTAT)
 !
-          NLOC_1=1
-          NLOC_2=NLOC_1+NBASE_3D-1
-          U_B_EAST(N)%TASKS(NT)%DATA=>CHILD_BOUND_V_EAST(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- U_B_EAST storage location
+!-----------------------------------------------------------------------
+!***  Point the working pointer for each nest V-pt boundary variable
+!***  into the object that holds all nest BC update data for child N's
+!***  domain's east side.
+!-----------------------------------------------------------------------
 !
-          NLOC_1=NLOC_2+1
-          NLOC_2=NLOC_1+NBASE_3D-1
-          V_B_EAST(N)%TASKS(NT)%DATA=>CHILD_BOUND_V_EAST(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- V_B_EAST storage location
+          NLOC_2=0
+          DO NVAR=1,NVARS_NESTBC_V
+!
+            NLOC_1=NLOC_2+1
+            NLOC_2=NLOC_1+NBASE_VAR_V(NVAR)-1
+            BND_VAR_V_EAST(NVAR)%CHILD(N)%TASKS(NT)%DATA=>              &
+               CHILD_BOUND_V_EAST(N,INDX2)%TASKS(NT)%DATA(NLOC_1:NLOC_2)   !<-- E bndry storage for V-pt vbl NVAR, child N, task NT
+!
+          ENDDO
 !
         ENDDO
 !
@@ -15980,8 +16790,11 @@
         CALL CHECK_REAL(PD_B_EAST_V(N)%TASKS(1)%DATA                    &
                       ,'PD_B_EAST_V(N)%TASKS(1)%DATA')
         ALLOCATE(PD_B_EAST_V(N)%TASKS(1)%DATA(1:1),stat=ISTAT)
-        ALLOCATE(U_B_EAST(N)%TASKS(1:1))
-        ALLOCATE(V_B_EAST(N)%TASKS(1:1))
+!
+        DO NVAR=1,NVARS_NESTBC_V
+          ALLOCATE(BND_VAR_V_EAST(NVAR)%CHILD(N)%TASKS(1:1))
+        ENDDO
+!
         ALLOCATE(WORDS_BOUND_V_EAST(N)%TASKS(1:1))           
 !
       ENDIF east_v
@@ -16023,8 +16836,8 @@
           WRITE(0,*)' Failed to allocate HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(1:',NUM_TASKS_SEND_H_S(N) &
                    ,')  stat=',ISTAT
           WRITE(0,*)' N=',N,' INDX2=',INDX2
-!       else
-!         write(0,*)' allocated HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(1:',NUM_TASKS_SEND_H_S(N),')'
+!       ELSE
+!         WRITE(0,*)' Allocated HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(1:',NUM_TASKS_SEND_H_S(N),')'
         ENDIF
         DO NN=1,NUM_TASKS_SEND_H_S(N)
           HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(NN)=MPI_REQUEST_NULL
@@ -16034,8 +16847,8 @@
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate dummy HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(1:1)  stat=',ISTAT
           WRITE(0,*)' N=',N,' INDX2=',INDX2
-!       else 
-!         write(0,*)' allocated dummy HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(1:1)'
+!       ELSE 
+!         WRITE(0,*)' Allocated dummy HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(1:1)'
         ENDIF
         HANDLE_H_SOUTH(N,INDX2)%NTASKS_TO_RECV(1)=MPI_REQUEST_NULL
       ENDIF
@@ -16277,7 +17090,7 @@
         NTAG_SEND=11111+ID_CHILDTASK+ID_ADD                                !<-- Combine child task rank and child domain ID for unique tag
 !     write(0,*)' PARENT_SENDS_CHILD_DATA_LIMITS my_domain_id=',id,' dummy South H isend to child #',n,' child rank ',ID_CHILDTASK &
 !              ,' task #',nt
-        CALL MPI_ISSEND(INFO,6,MPI_INTEGER,ID_CHILDTASK                 &  !<-- So send this child task some dummy information
+        CALL MPI_ISSEND(INFO,6,MPI_INTEGER,ID_CHILDTASK                 &  !<-- Then send this child task some dummy information
                        ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                &  
                        ,HANDLE_PACKET(NT),IERR)
 !
@@ -16333,7 +17146,7 @@
         ID_CHILDTASK=child_ranks(ID)%CHILDREN(N)%DATA(NT)                  !<-- This child task has no south boundary H points
         NTAG_SEND=22222+ID_CHILDTASK+ID_ADD                                !<-- Combine child task rank and child domain ID for unique tag
 !
-        CALL MPI_ISSEND(INFO,5,MPI_INTEGER,ID_CHILDTASK                 &  !<-- So send this child task some dummy information
+        CALL MPI_ISSEND(INFO,5,MPI_INTEGER,ID_CHILDTASK                 &  !<-- Then send this child task some dummy information
                        ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                &
                        ,HANDLE_PACKET(NT),IERR)
 !
@@ -16390,7 +17203,7 @@
         ID_CHILDTASK=child_ranks(ID)%CHILDREN(N)%DATA(NT)                  !<-- This child task has no north boundary H points
         NTAG_SEND=33333+ID_CHILDTASK+ID_ADD                                !<-- Combine child task rank and child domain ID for unique tag
 !
-        CALL MPI_ISSEND(INFO,6,MPI_INTEGER,ID_CHILDTASK                 &  !<-- So send this child task some dummy information
+        CALL MPI_ISSEND(INFO,6,MPI_INTEGER,ID_CHILDTASK                 &  !<-- Then send this child task some dummy information
                        ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                &  
                        ,HANDLE_PACKET(NT),IERR)
 !
@@ -16446,7 +17259,7 @@
         ID_CHILDTASK=child_ranks(ID)%CHILDREN(N)%DATA(NT)                  !<-- This child task has no north boundary V points
         NTAG_SEND=44444+ID_CHILDTASK+ID_ADD                                !<-- Combine child task rank and child domain ID for unique tag
 !
-        CALL MPI_ISSEND(INFO,5,MPI_INTEGER,ID_CHILDTASK                 &  !<-- So send this child task some dummy information
+        CALL MPI_ISSEND(INFO,5,MPI_INTEGER,ID_CHILDTASK                 &  !<-- Then send this child task some dummy information
                        ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                &
                        ,HANDLE_PACKET(NT),IERR)
 !
@@ -16503,7 +17316,7 @@
         ID_CHILDTASK=child_ranks(ID)%CHILDREN(N)%DATA(NT)                  !<-- This child task has no west boundary H points
         NTAG_SEND=55555+ID_CHILDTASK+ID_ADD                                !<-- Combine child task rank and child domain ID for unique tag
 !
-        CALL MPI_ISSEND(INFO,6,MPI_INTEGER,ID_CHILDTASK                 &  !<-- So send this child task some dummy information
+        CALL MPI_ISSEND(INFO,6,MPI_INTEGER,ID_CHILDTASK                 &  !<-- Then send this child task some dummy information
 !                      ,55555,COMM_TO_MY_CHILDREN(N)                    &  
                        ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                &  
                        ,HANDLE_PACKET(NT),IERR)
@@ -16560,7 +17373,7 @@
         ID_CHILDTASK=child_ranks(ID)%CHILDREN(N)%DATA(NT)                  !<-- This child task has no west boundary V points
         NTAG_SEND=66666+ID_CHILDTASK+ID_ADD                                !<-- Combine child task rank and child domain ID for unique tag
 !
-        CALL MPI_ISSEND(INFO,5,MPI_INTEGER,ID_CHILDTASK                 &  !<-- So send this child task some dummy information
+        CALL MPI_ISSEND(INFO,5,MPI_INTEGER,ID_CHILDTASK                 &  !<-- Then send this child task some dummy information
 !                      ,66666,COMM_TO_MY_CHILDREN(N)                    &
                        ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                &
                        ,HANDLE_PACKET(NT),IERR)
@@ -16618,7 +17431,7 @@
         ID_CHILDTASK=child_ranks(ID)%CHILDREN(N)%DATA(NT)                  !<-- This child task has no east boundary H points
         NTAG_SEND=77777+ID_CHILDTASK+ID_ADD                                !<-- Combine child task rank and child domain ID for unique tag
 !
-        CALL MPI_ISSEND(INFO,6,MPI_INTEGER,ID_CHILDTASK                 &  !<-- So send this child task some dummy information
+        CALL MPI_ISSEND(INFO,6,MPI_INTEGER,ID_CHILDTASK                 &  !<-- Then send this child task some dummy information
                        ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                &  
                        ,HANDLE_PACKET(NT),IERR)
 !
@@ -16674,7 +17487,7 @@
         ID_CHILDTASK=child_ranks(ID)%CHILDREN(N)%DATA(NT)                  !<-- This child task has no east boundary V points
         NTAG_SEND=88888+ID_CHILDTASK+ID_ADD                                !<-- Combine child task rank and child domain ID for unique tag
 !
-        CALL MPI_ISSEND(INFO,5,MPI_INTEGER,ID_CHILDTASK                 &  !<-- So send this child task some dummy information
+        CALL MPI_ISSEND(INFO,5,MPI_INTEGER,ID_CHILDTASK                 &  !<-- Then send this child task some dummy information
                        ,NTAG_SEND,COMM_TO_MY_CHILDREN(N)                &
                        ,HANDLE_PACKET(NT),IERR)
 !
@@ -16710,8 +17523,8 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: ID_ADD,ID_DOM,KOUNT,LENGTH,N,N1,NBASE       &
-                           ,NTAG_RECV
+      INTEGER(kind=KINT) :: ID_ADD,ID_DOM,KOUNT,LB,LENGTH,N,N1,NBASE    &
+                           ,NTAG_RECV,NV,UB
 !
       INTEGER(kind=KINT) :: ILIM_HI,ILIM_LO,JLIM_HI,JLIM_LO
 !
@@ -16827,7 +17640,7 @@
           PARENT_TASK(N)%SOUTH_H%INDX_END_EXP=PARENT_INFO(4,N)             !<-- Iend on child grid of the expanded boundary data segment
 !
           NBASE =(PARENT_INFO(3,N)-PARENT_INFO(2,N)+1)*N_BLEND_H
-          LENGTH=(3*LM+1)*NBASE
+          LENGTH=NLEV_H*NBASE
 !
           PARENT_TASK(N)%SOUTH_H%LENGTH=LENGTH                             !<-- # of words in this parent task's datastring of child bndry
 !
@@ -16841,19 +17654,36 @@
       NUM_PARENT_TASKS_SENDING_H%SOUTH=KOUNT
 !!!   LENGTH_BND_SEG_H%SOUTH=INDX_MAX_H%SOUTH-INDX_MIN_H%SOUTH+1
 !
-      south_h: IF(NUM_PARENT_TASKS_SENDING_H%SOUTH>0)THEN                    !<-- Does this child task recv Sboundary H data from parent?
+      south_h: IF(NUM_PARENT_TASKS_SENDING_H%SOUTH>0)THEN                  !<-- Does this child task recv Sboundary H data from parent?
 !
         ALLOCATE(cc%PDB_S(INDX_MIN_H%SOUTH:INDX_MAX_H%SOUTH,1:N_BLEND_H))      !<-- Full PDB south H boundary segment on this child task
-        ALLOCATE( cc%TB_S(INDX_MIN_H%SOUTH:INDX_MAX_H%SOUTH,1:N_BLEND_H,1:LM)) !<-- Full TB south H boundary segment on this child task
-        ALLOCATE( cc%QB_S(INDX_MIN_H%SOUTH:INDX_MAX_H%SOUTH,1:N_BLEND_H,1:LM)) !<-- Full QB south H boundary segment on this child task
-        ALLOCATE(cc%CWB_S(INDX_MIN_H%SOUTH:INDX_MAX_H%SOUTH,1:N_BLEND_H,1:LM)) !<-- Full CWB south H boundary segment on this child task
+!
+        IF(NVARS_BC_2D_H>1)THEN
+          DO NV=1,NVARS_BC_2D_H-1  
+            ALLOCATE(cc%MY_BC_VARS_H_S%VAR_2D(NV)%SIDE(INDX_MIN_H%SOUTH:INDX_MAX_H%SOUTH,1:N_BLEND_H)) !<-- 2-D BC H-pt vbls except PD
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            ALLOCATE(cc%MY_BC_VARS_H_S%VAR_3D(NV)%SIDE(INDX_MIN_H%SOUTH:INDX_MAX_H%SOUTH,1:N_BLEND_H,1:LM)) !<-- 3-D BC H-pt vbls
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            LB=LBND_4D(NV)
+            UB=UBND_4D(NV)
+            ALLOCATE(cc%MY_BC_VARS_H_S%VAR_4D(NV)%SIDE(INDX_MIN_H%SOUTH:INDX_MAX_H%SOUTH,1:N_BLEND_H,1:LM,LB:UB)) !<-- 4-D BC H-pt vbls
+          ENDDO
+        ENDIF
 !
         ILIM_LO=INDX_MIN_H%SOUTH
         ILIM_HI=INDX_MAX_H%SOUTH
         JLIM_LO=1
         JLIM_HI=N_BLEND_H
 !
-        LENGTH=(3*LM+1)*(ILIM_HI-ILIM_LO+1)*(JLIM_HI-JLIM_LO+1)
+        LENGTH=NLEV_H*(ILIM_HI-ILIM_LO+1)*(JLIM_HI-JLIM_LO+1)
         ALLOCATE(cc%BOUND_1D_SOUTH_H(1:LENGTH),stat=ISTAT)                 !<-- 1-D combined H-point data on child task's Sbndry segment
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -16973,7 +17803,7 @@
           PARENT_TASK(N)%SOUTH_V%INDX_END  =PARENT_INFO(3,N)               !<-- Iend on child grid of the boundary data segment
 !
           NBASE =(PARENT_INFO(3,N)-PARENT_INFO(2,N)+1)*N_BLEND_V
-          LENGTH=2*LM*NBASE
+          LENGTH=NLEV_V*NBASE
 !
           PARENT_TASK(N)%SOUTH_V%LENGTH=LENGTH                             !<-- # of words in this parent task's datastring of child bndry
 !
@@ -16989,15 +17819,26 @@
 !
       south_v: IF(NUM_PARENT_TASKS_SENDING_V%SOUTH>0)THEN                  !<-- Does this child task recv any Sboundary V data from parent?
 !
-        ALLOCATE(cc%UB_S(INDX_MIN_V%SOUTH:INDX_MAX_V%SOUTH,1:N_BLEND_H,1:LM))
-        ALLOCATE(cc%VB_S(INDX_MIN_V%SOUTH:INDX_MAX_V%SOUTH,1:N_BLEND_H,1:LM))
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            ALLOCATE(cc%MY_BC_VARS_V_S%VAR_2D(NV)%SIDE(INDX_MIN_V%SOUTH:INDX_MAX_V%SOUTH,1:N_BLEND_V)) !<-- 2-D vbls on this child task's
+                                                                                                       !    south V bndry segment.
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            ALLOCATE(cc%MY_BC_VARS_V_S%VAR_3D(NV)%SIDE(INDX_MIN_V%SOUTH:INDX_MAX_V%SOUTH,1:N_BLEND_V,1:LM)) !<-- 3-D vbls on this child task's
+                                                                                                            !    south V bndry segment.
+          ENDDO
+        ENDIF
 !
         ILIM_LO=INDX_MIN_V%SOUTH
         ILIM_HI=INDX_MAX_V%SOUTH
         JLIM_LO=1
         JLIM_HI=N_BLEND_V
 !
-        LENGTH=2*LM*(ILIM_HI-ILIM_LO+1)*(JLIM_HI-JLIM_LO+1)
+        LENGTH=NLEV_V*(ILIM_HI-ILIM_LO+1)*(JLIM_HI-JLIM_LO+1)
         ALLOCATE(cc%BOUND_1D_SOUTH_V(1:LENGTH),stat=ISTAT)                 !<-- 1-D combined V-point data on child task's Sbndry segment
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -17118,7 +17959,7 @@
           PARENT_TASK(N)%NORTH_H%INDX_END_EXP=PARENT_INFO(4,N)             !<-- Iend on child grid of the expanded boundary data segment
 !
           NBASE =(PARENT_INFO(3,N)-PARENT_INFO(2,N)+1)*N_BLEND_H
-          LENGTH=(3*LM+1)*NBASE
+          LENGTH=NLEV_H*NBASE
 !
           PARENT_TASK(N)%NORTH_H%LENGTH=LENGTH                             !<-- # of words in this parent task's datastring of child bndry
 !
@@ -17135,16 +17976,33 @@
       north_h: IF(NUM_PARENT_TASKS_SENDING_H%NORTH>0)THEN                  !<-- Does this child task recv Nboundary H data from parent?
 !
         ALLOCATE(cc%PDB_N(INDX_MIN_H%NORTH:INDX_MAX_H%NORTH,1:N_BLEND_H))
-        ALLOCATE( cc%TB_N(INDX_MIN_H%NORTH:INDX_MAX_H%NORTH,1:N_BLEND_H,1:LM))
-        ALLOCATE( cc%QB_N(INDX_MIN_H%NORTH:INDX_MAX_H%NORTH,1:N_BLEND_H,1:LM))
-        ALLOCATE(cc%CWB_N(INDX_MIN_H%NORTH:INDX_MAX_H%NORTH,1:N_BLEND_H,1:LM))
+!
+        IF(NVARS_BC_2D_H>1)THEN
+          DO NV=1,NVARS_BC_2D_H-1
+            ALLOCATE(cc%MY_BC_VARS_H_N%VAR_2D(NV)%SIDE(INDX_MIN_H%NORTH:INDX_MAX_H%NORTH,1:N_BLEND_H)) !<-- 2-D BC H-pt vbls except PD
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            ALLOCATE(cc%MY_BC_VARS_H_N%VAR_3D(NV)%SIDE(INDX_MIN_H%NORTH:INDX_MAX_H%NORTH,1:N_BLEND_H,1:LM)) !<-- 3-D BC H-pt vbls
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            LB=LBND_4D(NV)
+            UB=UBND_4D(NV)
+            ALLOCATE(cc%MY_BC_VARS_H_N%VAR_4D(NV)%SIDE(INDX_MIN_H%NORTH:INDX_MAX_H%NORTH,1:N_BLEND_H,1:LM,LB:UB)) !<-- 4-D BC H-pt vbls
+          ENDDO
+        ENDIF
 !
         ILIM_LO=INDX_MIN_H%NORTH
         ILIM_HI=INDX_MAX_H%NORTH
         JLIM_LO=1
         JLIM_HI=N_BLEND_H
 !
-        LENGTH=(3*LM+1)*(ILIM_HI-ILIM_LO+1)*(JLIM_HI-JLIM_LO+1)
+        LENGTH=NLEV_H*(ILIM_HI-ILIM_LO+1)*(JLIM_HI-JLIM_LO+1)
         ALLOCATE(cc%BOUND_1D_NORTH_H(1:LENGTH),stat=ISTAT)                 !<-- 1-D combined H-point data on child task's Nbndry segment
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -17271,7 +18129,7 @@
           PARENT_TASK(N)%NORTH_V%INDX_END  =PARENT_INFO(3,N)               !<-- Iend on child grid of the boundary data segment
 !
           NBASE =(PARENT_INFO(3,N)-PARENT_INFO(2,N)+1)*N_BLEND_V
-          LENGTH=2*LM*NBASE
+          LENGTH=NLEV_V*NBASE
 !
           PARENT_TASK(N)%NORTH_V%LENGTH=LENGTH                             !<-- # of words in this parent task's datastring of child bndry
 !
@@ -17287,15 +18145,26 @@
 !
       north_v: IF(NUM_PARENT_TASKS_SENDING_V%NORTH>0)THEN                  !<-- Does this child task recv any Nboundary V data from parent?
 !
-        ALLOCATE(cc%UB_N(INDX_MIN_V%NORTH:INDX_MAX_V%NORTH,1:N_BLEND_V,1:LM))
-        ALLOCATE(cc%VB_N(INDX_MIN_V%NORTH:INDX_MAX_V%NORTH,1:N_BLEND_V,1:LM))
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            ALLOCATE(cc%MY_BC_VARS_V_N%VAR_2D(NV)%SIDE(INDX_MIN_V%NORTH:INDX_MAX_V%NORTH,1:N_BLEND_V)) !<-- 2-D vbls on this child task's
+                                                                                                       !    north V bndry segment.
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            ALLOCATE(cc%MY_BC_VARS_V_N%VAR_3D(NV)%SIDE(INDX_MIN_V%NORTH:INDX_MAX_V%NORTH,1:N_BLEND_V,1:LM)) !<-- 3-D vbls on this child task's
+                                                                                                            !    north V bndry segment.
+          ENDDO
+        ENDIF
 !
         ILIM_LO=INDX_MIN_V%NORTH
         ILIM_HI=INDX_MAX_V%NORTH
         JLIM_LO=1
         JLIM_HI=N_BLEND_V
 !
-        LENGTH=2*LM*(ILIM_HI-ILIM_LO+1)*(JLIM_HI-JLIM_LO+1)
+        LENGTH=NLEV_V*(ILIM_HI-ILIM_LO+1)*(JLIM_HI-JLIM_LO+1)
         ALLOCATE(cc%BOUND_1D_NORTH_V(1:LENGTH),stat=ISTAT)                 !<-- 1-D combined V-point data on child task's Nbndry segment
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -17416,7 +18285,7 @@
           PARENT_TASK(N)%WEST_H%INDX_END_EXP=PARENT_INFO(4,N)              !<-- Jend on child grid of the expanded boundary data segment
 !
           NBASE =(PARENT_INFO(3,N)-PARENT_INFO(2,N)+1)*N_BLEND_H
-          LENGTH=(3*LM+1)*NBASE
+          LENGTH=NLEV_H*NBASE
 !
           PARENT_TASK(N)%WEST_H%LENGTH=LENGTH                              !<-- # of words in this parent task's datastring of child bndry
 !
@@ -17433,16 +18302,33 @@
       west_h: IF(NUM_PARENT_TASKS_SENDING_H%WEST>0)THEN                    !<-- Does this child task recv Wboundary H data from parent?
 !
         ALLOCATE(cc%PDB_W(1:N_BLEND_H,INDX_MIN_H%WEST:INDX_MAX_H%WEST))
-        ALLOCATE( cc%TB_W(1:N_BLEND_H,INDX_MIN_H%WEST:INDX_MAX_H%WEST,1:LM))
-        ALLOCATE( cc%QB_W(1:N_BLEND_H,INDX_MIN_H%WEST:INDX_MAX_H%WEST,1:LM))
-        ALLOCATE(cc%CWB_W(1:N_BLEND_H,INDX_MIN_H%WEST:INDX_MAX_H%WEST,1:LM))
+!
+        IF(NVARS_BC_2D_H>1)THEN
+          DO NV=1,NVARS_BC_2D_H-1
+            ALLOCATE(cc%MY_BC_VARS_H_W%VAR_2D(NV)%SIDE(1:N_BLEND_H,INDX_MIN_H%WEST:INDX_MAX_H%WEST)) !<-- 2-D BC H-pt vbls except PD
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            ALLOCATE(cc%MY_BC_VARS_H_W%VAR_3D(NV)%SIDE(1:N_BLEND_H,INDX_MIN_H%WEST:INDX_MAX_H%WEST,1:LM)) !<-- 3-D BC H-pt vbls
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            LB=LBND_4D(NV)
+            UB=UBND_4D(NV)
+            ALLOCATE(cc%MY_BC_VARS_H_W%VAR_4D(NV)%SIDE(1:N_BLEND_H,INDX_MIN_H%WEST:INDX_MAX_H%WEST,1:LM,LB:UB)) !<-- 4-D BC H-pt vbls
+          ENDDO
+        ENDIF
 !
         ILIM_LO=1
         ILIM_HI=N_BLEND_H
         JLIM_LO=INDX_MIN_H%WEST
         JLIM_HI=INDX_MAX_H%WEST
 !
-        LENGTH=(3*LM+1)*(ILIM_HI-ILIM_LO+1)*(JLIM_HI-JLIM_LO+1)
+        LENGTH=NLEV_H*(ILIM_HI-ILIM_LO+1)*(JLIM_HI-JLIM_LO+1)
         ALLOCATE(cc%BOUND_1D_WEST_H(1:LENGTH),stat=ISTAT)                  !<-- 1-D combined H-point data on child task's Wbndry segment
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -17562,7 +18448,7 @@
           PARENT_TASK(N)%WEST_V%INDX_END  =PARENT_INFO(3,N)                !<-- Jend on child grid of the boundary data segment
 !
           NBASE =(PARENT_INFO(3,N)-PARENT_INFO(2,N)+1)*N_BLEND_V
-          LENGTH=2*LM*NBASE
+          LENGTH=NLEV_V*NBASE
 !
           PARENT_TASK(N)%WEST_V%LENGTH=LENGTH                              !<-- # of words in this parent task's datastring of child bndry
 !
@@ -17578,15 +18464,26 @@
 !
       west_v: IF(NUM_PARENT_TASKS_SENDING_V%WEST>0)THEN                    !<-- Does this child task recv Wboundary V data from parent?
 !
-        ALLOCATE(cc%UB_W(1:N_BLEND_H,INDX_MIN_V%WEST:INDX_MAX_V%WEST,1:LM))
-        ALLOCATE(cc%VB_W(1:N_BLEND_H,INDX_MIN_V%WEST:INDX_MAX_V%WEST,1:LM))
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            ALLOCATE(cc%MY_BC_VARS_V_W%VAR_2D(NV)%SIDE(1:N_BLEND_V,INDX_MIN_V%WEST:INDX_MAX_V%WEST)) !<-- 2-D vbls on this child task's
+                                                                                                     !    west V bndry segment.
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            ALLOCATE(cc%MY_BC_VARS_V_W%VAR_3D(NV)%SIDE(1:N_BLEND_V,INDX_MIN_V%WEST:INDX_MAX_V%WEST,1:LM)) !<-- 3-D vbls on this child task's
+                                                                                                          !    west V bndry segment.
+          ENDDO
+        ENDIF
 !
         ILIM_LO=1
-        ILIM_HI=N_BLEND_H
+        ILIM_HI=N_BLEND_V
         JLIM_LO=INDX_MIN_V%WEST
         JLIM_HI=INDX_MAX_V%WEST
 !
-        LENGTH=2*LM*(ILIM_HI-ILIM_LO+1)*(JLIM_HI-JLIM_LO+1)
+        LENGTH=NLEV_V*(ILIM_HI-ILIM_LO+1)*(JLIM_HI-JLIM_LO+1)
         ALLOCATE(cc%BOUND_1D_WEST_V(1:LENGTH),stat=ISTAT)                  !<-- 1-D combined V-point data on child task's Wbndry segment
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -17713,7 +18610,7 @@
           PARENT_TASK(N)%EAST_H%INDX_END_EXP=PARENT_INFO(4,N)              !<-- Jend on child grid of the expanded boundary data segment
 !
           NBASE =(PARENT_INFO(3,N)-PARENT_INFO(2,N)+1)*N_BLEND_H
-          LENGTH=(3*LM+1)*NBASE
+          LENGTH=NLEV_H*NBASE
 !
           PARENT_TASK(N)%EAST_H%LENGTH=LENGTH                              !<-- # of words in this parent task's datastring of child bndry
 !
@@ -17730,16 +18627,33 @@
       east_h: IF(NUM_PARENT_TASKS_SENDING_H%EAST>0)THEN                    !<-- Does this child task recv Eboundary H data from parent?
 !
         ALLOCATE(cc%PDB_E(1:N_BLEND_H,INDX_MIN_H%EAST:INDX_MAX_H%EAST))
-        ALLOCATE( cc%TB_E(1:N_BLEND_H,INDX_MIN_H%EAST:INDX_MAX_H%EAST,1:LM))
-        ALLOCATE( cc%QB_E(1:N_BLEND_H,INDX_MIN_H%EAST:INDX_MAX_H%EAST,1:LM))
-        ALLOCATE(cc%CWB_E(1:N_BLEND_H,INDX_MIN_H%EAST:INDX_MAX_H%EAST,1:LM))
+!
+        IF(NVARS_BC_2D_H>1)THEN
+          DO NV=1,NVARS_BC_2D_H-1
+            ALLOCATE(cc%MY_BC_VARS_H_E%VAR_2D(NV)%SIDE(1:N_BLEND_H,INDX_MIN_H%EAST:INDX_MAX_H%EAST)) !<-- 2-D BC H-pt vbls except PD
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            ALLOCATE(cc%MY_BC_VARS_H_E%VAR_3D(NV)%SIDE(1:N_BLEND_H,INDX_MIN_H%EAST:INDX_MAX_H%EAST,1:LM)) !<-- 3-D BC H-pt vbls
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            LB=LBND_4D(NV)
+            UB=UBND_4D(NV)
+            ALLOCATE(cc%MY_BC_VARS_H_E%VAR_4D(NV)%SIDE(1:N_BLEND_H,INDX_MIN_H%EAST:INDX_MAX_H%EAST,1:LM,LB:UB)) !<-- 4-D BC H-pt vbls
+          ENDDO
+        ENDIF
 !
         ILIM_LO=1
         ILIM_HI=N_BLEND_H
         JLIM_LO=INDX_MIN_H%EAST
         JLIM_HI=INDX_MAX_H%EAST
 !
-        LENGTH=(3*LM+1)*(ILIM_HI-ILIM_LO+1)*(JLIM_HI-JLIM_LO+1)
+        LENGTH=NLEV_H*(ILIM_HI-ILIM_LO+1)*(JLIM_HI-JLIM_LO+1)
         ALLOCATE(cc%BOUND_1D_EAST_H(1:LENGTH),stat=ISTAT)                  !<-- 1-D combined H-point data on child task's Ebndry segment
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -17865,7 +18779,7 @@
           PARENT_TASK(N)%EAST_V%INDX_END  =PARENT_INFO(3,N)                !<-- Jend on child grid of the boundary data segment
 !
           NBASE =(PARENT_INFO(3,N)-PARENT_INFO(2,N)+1)*N_BLEND_V
-          LENGTH=2*LM*NBASE
+          LENGTH=NLEV_V*NBASE
 !
           PARENT_TASK(N)%EAST_V%LENGTH=LENGTH                              !<-- # of words in this parent task's datastring of child bndry
 !
@@ -17881,15 +18795,26 @@
 !
       east_v: IF(NUM_PARENT_TASKS_SENDING_V%EAST>0)THEN                    !<-- Does this child task recv Eboundary V data from parent?
 !
-        ALLOCATE(cc%UB_E(1:N_BLEND_H,INDX_MIN_V%EAST:INDX_MAX_V%EAST,1:LM))
-        ALLOCATE(cc%VB_E(1:N_BLEND_H,INDX_MIN_V%EAST:INDX_MAX_V%EAST,1:LM))
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            ALLOCATE(cc%MY_BC_VARS_V_E%VAR_2D(NV)%SIDE(1:N_BLEND_V,INDX_MIN_V%EAST:INDX_MAX_V%EAST)) !<-- 2-D vbls on this child task's
+                                                                                                     !    east V bndry segment.
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            ALLOCATE(cc%MY_BC_VARS_V_E%VAR_3D(NV)%SIDE(1:N_BLEND_V,INDX_MIN_V%EAST:INDX_MAX_V%EAST,1:LM)) !<-- 3-D vbls on this child task's
+                                                                                                          !    east V bndry segment.
+          ENDDO
+        ENDIF
 !
         ILIM_LO=1
-        ILIM_HI=N_BLEND_H
+        ILIM_HI=N_BLEND_V
         JLIM_LO=INDX_MIN_V%EAST
         JLIM_HI=INDX_MAX_V%EAST
 !
-        LENGTH=2*LM*(ILIM_HI-ILIM_LO+1)*(JLIM_HI-JLIM_LO+1)
+        LENGTH=NLEV_V*(ILIM_HI-ILIM_LO+1)*(JLIM_HI-JLIM_LO+1)              !<-- All V-pt BC variables are assumed to be 3-D
         ALLOCATE(cc%BOUND_1D_EAST_V(1:LENGTH),stat=ISTAT)                  !<-- 1-D combined V-point data on child task's Ebndry segment
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -18815,15 +19740,15 @@
                                                         ,FIS_CHILD_WBND &  !<-- Sfc geopot on Wbndry points of each child task
                                                         ,FIS_CHILD_EBND    !<-- Sfc geopot on Ebndry points of each child task
 !
-      TYPE(REAL_DATA),DIMENSION(:),POINTER,INTENT(OUT) :: CHILD_H_SBND  &  !<-- All H point data for child Sbndry to be sent by parent
-                                                         ,CHILD_H_NBND  &  !<-- All H point data for child Nbndry to be sent by parent
-                                                         ,CHILD_H_WBND  &  !<-- All H point data for child Wbndry to be sent by parent
-                                                         ,CHILD_H_EBND  &  !<-- All H point data for child Ebndry to be sent by parent
+      TYPE(REAL_DATA),DIMENSION(:),POINTER,INTENT(INOUT) :: CHILD_H_SBND  &  !<-- All H point data for child Sbndry to be sent by parent
+                                                           ,CHILD_H_NBND  &  !<-- All H point data for child Nbndry to be sent by parent
+                                                           ,CHILD_H_WBND  &  !<-- All H point data for child Wbndry to be sent by parent
+                                                           ,CHILD_H_EBND  &  !<-- All H point data for child Ebndry to be sent by parent
 !
-                                                         ,PDB_SBND      &  !<-- Child boundary PD (Pa) on child domain Sbndry
-                                                         ,PDB_NBND      &  !<-- Child boundary PD (Pa) on child domain Nbndry
-                                                         ,PDB_WBND      &  !<-- Child boundary PD (Pa) on child domain Wbndry
-                                                         ,PDB_EBND         !<-- Child boundary PD (Pa) on child domain Ebndry
+                                                           ,PDB_SBND      &  !<-- Child boundary PD (Pa) on child domain Sbndry
+                                                           ,PDB_NBND      &  !<-- Child boundary PD (Pa) on child domain Nbndry
+                                                           ,PDB_WBND      &  !<-- Child boundary PD (Pa) on child domain Wbndry
+                                                           ,PDB_EBND         !<-- Child boundary PD (Pa) on child domain Ebndry
 !
 !---------------------
 !***  Local Variables
@@ -19233,7 +20158,7 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE PARENT_UPDATE_CHILD_BNDRY(VBL_PARENT                   &
-                                          ,VBL_FLAG                     &
+                                          ,VBL_NAME                     &
 !
                                           ,PD,PT,PDTOP                  &
                                           ,PSGML1,SGML2,SG1,SG2         &
@@ -19343,7 +20268,7 @@
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: PD          !<-- Parent PD
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:NLEV),INTENT(IN) ::   &
-                                                           VBL_PARENT      !<-- Parent mass point variable
+                                                           VBL_PARENT      !<-- Current variable on the parent domain
 !
       REAL(kind=KFPT),DIMENSION(:,:,:),POINTER,INTENT(IN) ::            &
                                                          WEIGHT_SBND    &  !<-- Bilinear interp weights of the 4 parent points around 
@@ -19351,7 +20276,7 @@
                                                         ,WEIGHT_WBND    &  !   
                                                         ,WEIGHT_EBND       !  
 !
-      CHARACTER(len=*),INTENT(IN) :: VBL_FLAG                              !<-- Which variable is the parent interpolating?
+      CHARACTER(len=*),INTENT(IN) :: VBL_NAME                              !<-- Which variable is the parent interpolating?  Suffix: -nestbc
 !
       TYPE(REAL_DATA),DIMENSION(:),POINTER,INTENT(IN) :: PD_SBND        &  !<-- Boundary region PD (Pa) (column mass in sigma domain)
                                                         ,PD_NBND        &  !    on the four sides of the child boundary.
@@ -19374,7 +20299,7 @@
                            ,J_START,J_START_EXPAND                      &
                            ,J_END,J_END_EXPAND                          &
                            ,KNT_PTS,KNT_PTS_X                           &
-                           ,LOC_1,LOC_2                                 &
+                           ,L_VBL,LOC_1,LOC_2                           &
                            ,N_ADD,N_EXP,N_SIDE,N_STRIDE,NTX             &
                            ,NUM_LEVS_SEC,NUM_LEVS_SPLINE                &
                            ,NUM_TASKS_SEND                              &
@@ -19420,7 +20345,7 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      N_EXP=1-N_REMOVE                                                     !<-- Handles expansion of PDB range (H->1; V->0)
+      N_EXP=1-N_REMOVE                                                     !<-- Handle expansion of PDB range (H->1; V->0)
       NUM_LEVS_SEC=LM+1                                                    !<-- # of levels in spline routine's 2nd derivative array
 !
 !-----------------------------------------------------------------------
@@ -19563,7 +20488,7 @@
           N_STRIDE=(I_END-I_START+1)*(J_END-J_START+1)                     !<-- # of pts, this side, this child task's bndry region
 !
           ALLOCATE(PMID_INTERP(1:N_STRIDE,1:LM))
-          ALLOCATE(VBL_INTERP (1:N_STRIDE,1:LM))
+          ALLOCATE(VBL_INTERP (1:N_STRIDE,1:NLEV))
           ALLOCATE(T_LOWEST   (1:N_STRIDE))
           ALLOCATE(INVERSION  (1:N_STRIDE))
 !
@@ -19615,10 +20540,16 @@
 !***  pressure levels.
 !-----------------------------------------------------------------------
 !
-          DO L=NLEV,1,-1                                                   !<-- Work upward to get geopotentials on child layer interfaces
+          DO L=LM,1,-1                                                     !<-- Work upward to get geopotentials on child layer interfaces
 !
             KNT_PTS=0
             PDTOP_PT=SG1(L)*PDTOP+PT
+!
+            IF(NLEV==1)THEN
+              L_VBL=1                                                      !<-- Account for possible 2-D boundary variables
+            ELSE
+              L_VBL=L
+            ENDIF
 !
             DO J=J_START,J_END                                             !<-- J limits of child task bndry region on parent task
             DO I=I_START,I_END                                             !<-- I limits of child task bndry region on parent task
@@ -19648,25 +20579,28 @@
               PMID_INTERP(KNT_PTS,L)=0.5*(PINT_INTERP_HI(I,J)           &  !<-- Parent midlayer pressure interp'd to child gridpoint
                                          +PINT_INTERP_LO(I,J,L+1))         !    in child's boundary region of child task NTX
 !
-              VBL_INTERP(KNT_PTS,L)=WGHT_SW                             &  !<-- Parent variable interp'd to child gridpoint 
-                                    *VBL_PARENT(I_WEST,J_SOUTH,L)       &  !    in child's boundary region of child task NTX.
-                                   +WGHT_SE                             &  !  
-                                    *VBL_PARENT(I_EAST,J_SOUTH,L)       &  !
-                                   +WGHT_NW                             &  !  
-                                    *VBL_PARENT(I_WEST,J_NORTH,L)       &  !
-                                   +WGHT_NE                             &  !
-                                    *VBL_PARENT(I_EAST,J_NORTH,L)          !<--
-!     if(i==ixx.and.j==jxx.and.l==nlev)then 
-!     if(n_side==2.and.i==36.and.l==nlev.and.trim(vbl_flag)=='V')then 
-!       write(0,44371)vbl_interp(knt_pts,l),knt_pts,i_west,i_east,j_south,j_north
+              VBL_INTERP(KNT_PTS,L_VBL)=WGHT_SW                         &  !<-- Parent variable interp'd to child gridpoint 
+                                        *VBL_PARENT(I_WEST,J_SOUTH,L)   &  !    in child's boundary region of child task NTX.
+                                       +WGHT_SE                         &  !  
+                                        *VBL_PARENT(I_EAST,J_SOUTH,L)   &  !
+                                       +WGHT_NW                         &  !  
+                                        *VBL_PARENT(I_WEST,J_NORTH,L)   &  !
+                                       +WGHT_NE                         &  !
+                                        *VBL_PARENT(I_EAST,J_NORTH,L)      !<--
+!     if(i==isee.and.j==jsee.and.l==ksee)then 
+!     if(n_side==2)then 
+!       write(0,44370)trim(vbl_name)
+!       write(0,44371)vbl_interp(knt_pts,l_vbl),knt_pts,i_west,i_east,j_south,j_north
 !       write(0,44372)wght_sw,wght_se,wght_nw,wght_ne
 !       write(0,44373)vbl_parent(i_west,j_south,l),vbl_parent(i_east,j_south,l) &
 !                    ,vbl_parent(i_west,j_north,l),vbl_parent(i_east,j_north,l)
+44370   format(' PARENT_UPDATE_CHILD_BNDRY vbl_name=',a)
 44371   format(' vbl_interp=',f6.2,' knt_pnts=',i6,' i_west=',i3,' i_east=',i3,' j_south=',i3,' j_north=',i3)
 44372   format(' wgts=',4(1x,f6.3))
 44373   format(' parent values=',4(1x,f6.2))
 !     endif
-!     if(n_side==3.and.i==5.and.j==7.and.l==1.and.trim(vbl_flag)=='T')THEN
+!     endif
+!     if(n_side==3.and.i==5.and.j==7.and.l==1.and.trim(vbl_flag)=='T-nestbc')THEN
 !       write(0,33891)knt_pts,vbl_interp(knt_pts,l)
 !       write(0,33892)vbl_parent(i_west,j_south,l),vbl_parent(i_east,j_south,l) &
 !                    ,vbl_parent(i_west,j_north,l),vbl_parent(i_east,j_north,l)
@@ -19682,6 +20616,8 @@
             ENDDO
             ENDDO
 !
+            IF(NLEV==1)EXIT
+!
           ENDDO
 !
 !-----------------------------------------------------------------------
@@ -19690,7 +20626,7 @@
 !***  when there is an inversion present.
 !-----------------------------------------------------------------------
 !
-          IF(TRIM(VBL_FLAG)=='T')THEN
+          IF(TRIM(VBL_NAME)=='T-nestbc')THEN
             KNT_PTS=0
 !
             DO J=J_START,J_END   
@@ -19753,6 +20689,18 @@
                J<J_START.OR.J>J_END)CYCLE
 !
             KNT_PTS=KNT_PTS+1                                              !<-- Location in 1-D datastring of child bndry variable
+            LOC_1=LOC_1+1                                                  !<-- Next storage location in the final BC object
+!
+!-----------------------------------------------------------------------
+!***  For 2-D boundary variables the parent simply inserts the 
+!***  given I,J value for the single level into the final output
+!***  object.
+!-----------------------------------------------------------------------
+!
+            IF(NLEV==1)THEN
+              VBL_CHILD_BND(NTX)%DATA(LOC_1)=VBL_INTERP(KNT_PTS,1)
+              CYCLE                                                        !<-- Move through the I,J locations disregarding the vertical.
+            ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Midlayer pressures for the nest boundary points.
@@ -19782,7 +20730,6 @@
               VBL_INPUT(L)= VBL_INTERP(KNT_PTS,L)
             ENDDO
 !
-            LOC_1=LOC_1+1
             LOC_2=LOC_1+N_ADD
             VBL_COL_CHILD=>VBL_CHILD_BND(NTX)%DATA(LOC_1:LOC_2:N_STRIDE)   !<-- Point working column pointer into 1-D horizontal
 !                                                                               output pointer for this variable.
@@ -19811,19 +20758,19 @@
             ENDDO
 !
             CALL SPLINE(NUM_LEVS_SPLINE                                 &  !<-- # of input levels
-                       ,P_INPUT                                         &  !<-- Input mid-layer pressures
-                       ,VBL_INPUT                                       &  !<-- Input mid-layer mass variable value
+                       ,P_INPUT(1:NUM_LEVS_SPLINE)                      &  !<-- Input mid-layer pressures
+                       ,VBL_INPUT(1:NUM_LEVS_SPLINE)                    &  !<-- Input mid-layer mass variable value
                        ,SEC_DERIV                                       &  !<-- Specified 2nd derivatives (=0) at parent points
                        ,NUM_LEVS_SEC                                    &
                        ,LM                                              &  !<-- # of child mid-layers to interpolate to
                        ,PMID_CHILD                                      &  !<-- Child mid-layer pressures to interpolate to
                        ,VBL_COL_CHILD)                                     !<-- Child mid-layer variable value returned
-!     if(n_side==2.and.i==36.and.trim(vbl_flag)=='V')THEN
-!       write(0,69471)ntx,j,loc_1,loc_2,n_stride,vbl_child_bnd(ntx)%data(loc_2)
-!       write(0,69476)knt_pts,vbl_input(lm-2),vbl_input(lm-1),vbl_input(lm)
-!       write(0,69477)p_input(lm-2),p_input(lm-1),p_input(lm)
-69471   format(' PARENT_UPDATE_CHILD_BNDRY after SPLINE ntx=',i2,' j=',i2,' loc_1=',i5,' loc_2=',i5,' n_stride=',i5 &
-              ,' vbl_child_bnd(ntx)%data(loc_2)=',f6.2)
+!     if(n_side==2.and.i==isee.and.j==jsee.and.trim(vbl_name)=='T-nestbc')THEN
+!       write(0,69471)ntx,loc_1,loc_2,n_stride,vbl_child_bnd(ntx)%data(loc_1)
+!       write(0,69476)knt_pts,vbl_input(1),vbl_input(2),vbl_input(3)
+!       write(0,69477)p_input(1),p_input(2),p_input(3)
+69471   format(' PARENT_UPDATE_CHILD_BNDRY T after SPLINE ntx=',i2,' loc_1=',i5,' loc_2=',i5,' n_stride=',i5 &
+              ,' vbl_child_bnd(ntx)%data(loc_1)=',f6.2)
 69476   format(' knt_pts=',i6,' vbl_input=',3(1x,f6.2))
 69477   format(' p_input=',3(1x,f9.2))
 !     endif
@@ -20258,8 +21205,6 @@
 !
       REAL(kind=KFPT),DIMENSION(1:LM+1),INTENT(IN) :: SG1,SG2              !<-- Interface 'sigma' values in pressure and hybrid regions
 !
-!--------------------
-!
       REAL(kind=KFPT),DIMENSION(1:NPTS_UPDATE_TOTAL),TARGET             &
                                              ,INTENT(INOUT):: VAR_2WAY     !<-- String of all 2-way update data from child
 !
@@ -20589,14 +21534,23 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
+!
       SUBROUTINE CHILD_DATA_FROM_STRING(LENGTH_DATA                     &
                                        ,DATASTRING                      &
                                        ,ILIM_LO,ILIM_HI                 &
                                        ,JLIM_LO,JLIM_HI                 &
                                        ,I_START,I_END                   &
                                        ,J_START,J_END                   &
-                                       ,PDB,TB,QB,CWB                   &
-                                       ,UB,VB )
+                                       ,NVARS_BC_2D_H                   &
+                                       ,NVARS_BC_3D_H                   &
+                                       ,NVARS_BC_4D_H                   &
+                                       ,LBND_4D                         &
+                                       ,UBND_4D                         &
+                                       ,NVARS_BC_2D_V                   &
+                                       ,NVARS_BC_3D_V                   &
+                                       ,PDB                             &
+                                       ,BC_VARS_H                       &
+                                       ,BC_VARS_V )
 !
 !-----------------------------------------------------------------------
 !***  Extract variables for a nest's boundary from the datastring
@@ -20621,23 +21575,27 @@
 !
       REAL(kind=KFPT),DIMENSION(:),INTENT(IN) :: DATASTRING                !<-- The string of boundary data from the parent
 !      
+      INTEGER(kind=KINT),INTENT(IN) :: NVARS_BC_2D_H                    &  !<-- # of 2-D H-pt vbls on child boundary
+                                      ,NVARS_BC_3D_H                    &  !<-- # of 3-D H-pt vbls on child boundary
+                                      ,NVARS_BC_4D_H                    &  !<-- # of 4-D H-pt vbls on child boundary
+                                      ,NVARS_BC_2D_V                    &  !<-- # of 2-D V-pt vbls on child boundary
+                                      ,NVARS_BC_3D_V                       !<-- # of 3-D V-pt vbls on child boundary
+!      
+      INTEGER(kind=KINT),DIMENSION(:),INTENT(IN) :: LBND_4D             &  !<-- Lower bounds of 4-D variables' 4th dimension
+                                                   ,UBND_4D                !<-- Upper bounds of 4-D variables' 4th dimension
+!      
       REAL(kind=KFPT),DIMENSION(ILIM_LO:ILIM_HI,JLIM_LO:JLIM_HI)        &
                                           ,INTENT(OUT),OPTIONAL :: PDB     !<-- PD for segment of the child boundary
 !      
-      REAL(kind=KFPT),DIMENSION(ILIM_LO:ILIM_HI,JLIM_LO:JLIM_HI,1:LM)   &
-                                           ,INTENT(OUT),OPTIONAL :: TB  &  !<-- Temperature for segment of the child boundary
-                                                                   ,QB  &  !<-- Specific humidity for segment of the child boundary
-                                                                  ,CWB  &  !<-- Cloud condensate for segment of the child boundary
-                                                                   ,UB  &  !<-- U wind for segment of the child boundary
-                                                                   ,VB     !<-- V wind for segment of the child boundary
-!      
-!-----------------------------------------------------------------------
+      TYPE(BC_H),INTENT(INOUT),OPTIONAL :: BC_VARS_H                       !<-- Child's 1-D segment of other H-pt vbls on bndry segment
 !
+      TYPE(BC_V),INTENT(INOUT),OPTIONAL :: BC_VARS_V                       !<-- Child's 1-D segment of V-pt vbls on bndry segment
+!      
 !---------------------
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: I,J,K,N
+      INTEGER(kind=KINT) :: I,J,K,L,LB,N,NV,UB
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -20651,65 +21609,88 @@
 !***  whose ends may overlap that are arriving from different parent
 !***  tasks.  To export these boundary arrays out of the coupler
 !***  though the data must be put back into 1-D.
+!
+!***  The 2-D pressure array PD is always the first variable in the
+!***  datastring from the parent.  
 !-----------------------------------------------------------------------
 !
       N=0
 !
-      IF(PRESENT(TB))THEN                                                  !<-- Datastring for mass variables has been sent in
+      IF(PRESENT(BC_VARS_H))THEN                                           !<-- Parent datastring for H-pt variables has been sent in
 !
         DO J=J_START,J_END
         DO I=I_START,I_END
           N=N+1
-          PDB(I,J)=DATASTRING(N)
+          PDB(I,J)=DATASTRING(N)                                           !<-- The 2-D PD array is handled separately
         ENDDO
         ENDDO
 !
-        DO K=1,LM
-        DO J=J_START,J_END
-        DO I=I_START,I_END
-          N=N+1
-          TB(I,J,K)=DATASTRING(N)
-        ENDDO
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_2D_H>1)THEN                                            !<-- Loop through remaining 2-D H-pt boundary variables
+          DO NV=1,NVARS_BC_2D_H-1
+            DO J=J_START,J_END
+            DO I=I_START,I_END
+              N=N+1
+              BC_VARS_H%VAR_2D(NV)%SIDE(I,J)=DATASTRING(N)
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
 !
-        DO K=1,LM
-        DO J=J_START,J_END
-        DO I=I_START,I_END
-          N=N+1
-          QB(I,J,K)=DATASTRING(N)
-        ENDDO
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_3D_H>0)THEN                                            !<-- Loop through 3-D H-pt boundary variables
+          DO NV=1,NVARS_BC_3D_H
+            DO K=1,LM
+            DO J=J_START,J_END
+            DO I=I_START,I_END
+              N=N+1
+              BC_VARS_H%VAR_3D(NV)%SIDE(I,J,K)=DATASTRING(N)
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
 !
-        DO K=1,LM
-        DO J=J_START,J_END
-        DO I=I_START,I_END
-          N=N+1
-          CWB(I,J,K)=DATASTRING(N)
-        ENDDO
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_4D_H>0)THEN                                            !<-- Loop through 3-D H-pt boundary variables
+          DO NV=1,NVARS_BC_4D_H  
+            LB=LBND_4D(NV)
+            UB=UBND_4D(NV)
+            DO L=LB,UB
+            DO K=1,LM
+            DO J=J_START,J_END
+            DO I=I_START,I_END
+              N=N+1
+              BC_VARS_H%VAR_4D(NV)%SIDE(I,J,K,L)=DATASTRING(N)
+            ENDDO
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
 !
-      ELSEIF(PRESENT(UB))THEN                                              !<-- Datastring for wind variables has been sent in
+      ELSEIF(PRESENT(BC_VARS_V))THEN                                       !<-- Parent datastring for V-pt variables has been sent in
 !
-        DO K=1,LM
-        DO J=J_START,J_END
-        DO I=I_START,I_END
-          N=N+1
-          UB(I,J,K)=DATASTRING(N)
-        ENDDO
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_2D_V>1)THEN                                            !<-- Loop through 2-D V-pt boundary variables
+          DO NV=1,NVARS_BC_2D_V
+            DO J=J_START,J_END
+            DO I=I_START,I_END
+              N=N+1
+              BC_VARS_V%VAR_2D(NV)%SIDE(I,J)=DATASTRING(N)
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
 !
-        DO K=1,LM
-        DO J=J_START,J_END
-        DO I=I_START,I_END
-          N=N+1
-          VB(I,J,K)=DATASTRING(N)
-        ENDDO
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_3D_V>1)THEN                                            !<-- Loop through all the 3-D V-pt boundary variables
+          DO NV=1,NVARS_BC_3D_V
+            DO K=1,LM
+            DO J=J_START,J_END
+            DO I=I_START,I_END
+              N=N+1
+              BC_VARS_V%VAR_3D(NV)%SIDE(I,J,K)=DATASTRING(N)
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
 !
       ENDIF
 !
@@ -20720,13 +21701,17 @@
 !-----------------------------------------------------------------------
 !#######################################################################
 !-----------------------------------------------------------------------
-      SUBROUTINE EXPORT_CHILD_BOUNDARY(PDB                              &
-                                      ,TB                               &
-                                      ,QB                               &
-                                      ,CWB                              &
 !
-                                      ,UB                               &
-                                      ,VB                               &
+      SUBROUTINE EXPORT_CHILD_BOUNDARY(NVARS_BC_2D_H                    &
+                                      ,NVARS_BC_3D_H                    &
+                                      ,NVARS_BC_4D_H                    &
+                                      ,LBND_4D                          &
+                                      ,UBND_4D                          &
+                                      ,NVARS_BC_2D_V                    &
+                                      ,NVARS_BC_3D_V                    &
+                                      ,PDB                              &
+                                      ,BC_VARS_H                        &
+                                      ,BC_VARS_V                        &
 !
                                       ,ILIM_LO,ILIM_HI                  &
                                       ,JLIM_LO,JLIM_HI                  &
@@ -20746,21 +21731,27 @@
 !***  Argument Variables
 !------------------------
 !
+      INTEGER(kind=KINT),INTENT(IN) :: NVARS_BC_2D_H                    &  !<-- # of 2-D H-pt vbls on child boundary
+                                      ,NVARS_BC_3D_H                    &  !<-- # of 3-D H-pt vbls on child boundary
+                                      ,NVARS_BC_4D_H                    &  !<-- # of 4-D H-pt vbls on child boundary
+                                      ,NVARS_BC_2D_V                    &  !<-- # of 2-D V-pt vbls on child boundary
+                                      ,NVARS_BC_3D_V                       !<-- # of 3-D V-pt vbls on child boundary
+!      
       INTEGER(kind=KINT),INTENT(IN) :: ILIM_LO                          &  !<-- Lower I limit of full boundary segment
                                       ,ILIM_HI                          &  !<-- Upper I limit of full boundary segment
                                       ,JLIM_LO                          &  !<-- Lower J limit of full boundary segment
                                       ,JLIM_HI                             !<-- Upper J limit of full boundary segment
 !      
+      INTEGER(kind=KINT),DIMENSION(:),INTENT(IN) :: LBND_4D             &  !<-- Lower bound of 4-D variables' 4th dimension
+                                                   ,UBND_4D                !<-- Upper bound of 4-D variables' 4th dimension
+!      
       REAL(kind=KFPT),DIMENSION(ILIM_LO:ILIM_HI,JLIM_LO:JLIM_HI)        &
                                            ,INTENT(IN),OPTIONAL :: PDB     !<-- PD for segment of the child boundary
 !      
-      REAL(kind=KFPT),DIMENSION(ILIM_LO:ILIM_HI,JLIM_LO:JLIM_HI,1:LM)   &
-                                            ,INTENT(IN),OPTIONAL :: TB  &  !<-- Temperature for segment of the child boundary
-                                                                   ,QB  &  !<-- Specific humidity for segment of the child boundary
-                                                                  ,CWB  &  !<-- Cloud condensate for segment of the child boundary
-                                                                   ,UB  &  !<-- U wind for segment of the child boundary
-                                                                   ,VB     !<-- V wind for segment of the child boundary
+      TYPE(BC_H),INTENT(IN),OPTIONAL :: BC_VARS_H                          !<-- Child's 1-D segment of other H-pt vbls on bndry segment
 !
+      TYPE(BC_V),INTENT(IN),OPTIONAL :: BC_VARS_V                          !<-- Child's 1-D segment of V-pt vbls on bndry segment
+!      
       CHARACTER(*),INTENT(IN) :: DATA_NAME                                 !<-- Name used for each child task's boundary segment
 !
       REAL(kind=KFPT),DIMENSION(:),POINTER,INTENT(INOUT) :: DATA_EXP       !<-- Combined boundary segment data on child task
@@ -20771,7 +21762,7 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: I,J,K                                       &
+      INTEGER(kind=KINT) :: I,J,K,L,LB,NV,UB                            &
                            ,ISTAT,RC,RC_EXP_BNDRY
 !
       INTEGER(kind=KINT),SAVE :: NN
@@ -20792,7 +21783,7 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-      main: IF(PRESENT(PDB))THEN                                           !<-- If true then H point variables were sent in
+      main: IF(PRESENT(BC_VARS_H))THEN                                     !<-- If true then H-point variables were sent in
 !-----------------------------------------------------------------------
 !
         NN=0                                                               !<-- The data always begins with H points
@@ -20800,20 +21791,51 @@
         DO J=JLIM_LO,JLIM_HI
         DO I=ILIM_LO,ILIM_HI
           NN=NN+1
-          DATA_EXP(NN)=PDB(I,J)                                            !<-- Insert complete PDB into the 1-D H boundary data
+          DATA_EXP(NN)=PDB(I,J)                                            !<-- First insert complete PDB into the 1-D H boundary data
         ENDDO
         ENDDO
 !
-        DO K=1,LM
-        DO J=JLIM_LO,JLIM_HI
-        DO I=ILIM_LO,ILIM_HI
-          DATA_EXP(NN+1)= TB(I,J,K)                                        !<-- Insert complete TB into the 1-D H boundary data
-          DATA_EXP(NN+2)= QB(I,J,K)                                        !<-- Insert complete QB into the 1-D H boundary data
-          DATA_EXP(NN+3)=CWB(I,J,K)                                        !<-- Insert complete CWB into the 1-D H boundary data
-          NN=NN+3
-        ENDDO
-        ENDDO
-        ENDDO
+!
+        IF(NVARS_BC_2D_H>1)THEN
+          DO NV=1,NVARS_BC_2D_H-1
+            DO J=JLIM_LO,JLIM_HI
+            DO I=ILIM_LO,ILIM_HI
+              NN=NN+1         
+              DATA_EXP(NN)=BC_VARS_H%VAR_2D(NV)%SIDE(I,J)                  !<-- Insert 2-D H-pt BC vbls into the 1-D H boundary data
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            DO K=1,LM
+            DO J=JLIM_LO,JLIM_HI
+            DO I=ILIM_LO,ILIM_HI
+              NN=NN+1         
+              DATA_EXP(NN)=BC_VARS_H%VAR_3D(NV)%SIDE(I,J,K)                !<-- Insert 3-D H-pt BC vbls into the 1-D H boundary data
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            LB=LBND_4D(NV)
+            UB=UBND_4D(NV)
+            DO L=LB,UB
+            DO K=1,LM
+            DO J=JLIM_LO,JLIM_HI
+            DO I=ILIM_LO,ILIM_HI
+              NN=NN+1         
+              DATA_EXP(NN)=BC_VARS_H%VAR_4D(NV)%SIDE(I,J,K,L)              !<-- Insert 4-D H-pt BC vbls into the 1-D H boundary data
+            ENDDO
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -20834,21 +21856,35 @@
 !
 !-----------------------------------------------------------------------
 !
-      ELSEIF(PRESENT(UB))THEN  
+      ELSEIF(PRESENT(BC_VARS_V))THEN                                       !<-- If true then V-point variables were sent in
 !
 !-----------------------------------------------------------------------
 !
         NN=0
 !
-        DO K=1,LM
-        DO J=JLIM_LO,JLIM_HI
-        DO I=ILIM_LO,ILIM_HI
-          DATA_EXP(NN+1)=UB(I,J,K)
-          DATA_EXP(NN+2)=VB(I,J,K)
-          NN=NN+2
-        ENDDO
-        ENDDO
-        ENDDO
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            DO J=JLIM_LO,JLIM_HI
+            DO I=ILIM_LO,ILIM_HI
+              NN=NN+1
+              DATA_EXP(NN)=BC_VARS_V%VAR_2D(NV)%SIDE(I,J)                  !<-- Insert 2-D V-pt BC vbls into the 1-D V boundary data
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
+!
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            DO K=1,LM
+            DO J=JLIM_LO,JLIM_HI
+            DO I=ILIM_LO,ILIM_HI
+              NN=NN+1
+              DATA_EXP(NN)=BC_VARS_V%VAR_3D(NV)%SIDE(I,J,K)                !<-- Insert 3-D V-pt BC vbls into the 1-D V boundary data
+            ENDDO
+            ENDDO
+            ENDDO
+          ENDDO
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -20900,7 +21936,7 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: IERR,INDX2,ISTAT,NCHILD_TASKS,NMAX,NT
+      INTEGER(kind=KINT) :: IERR,INDX2,ISTAT,NCHILD_TASKS,NMAX,NT,NV
 !
       INTEGER(kind=KINT),DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
@@ -20966,9 +22002,17 @@
       ENDDO
 !
       DEALLOCATE(PD_B_SOUTH(N)%TASKS)
-      DEALLOCATE( T_B_SOUTH(N)%TASKS)
-      DEALLOCATE( Q_B_SOUTH(N)%TASKS)
-      DEALLOCATE(CW_B_SOUTH(N)%TASKS)
+!
+      DO NV=1,NVARS_NESTBC_H-1
+        DEALLOCATE(BND_VAR_H_SOUTH(NV)%CHILD(N)%TASKS,stat=ISTAT)
+        IF(ISTAT>0)THEN
+          WRITE(0,11011)NV,N,ISTAT
+11011     FORMAT(' DEALLOC_WORK_PARENTS failed to deallocate'          &
+                ,' BND_VAR_H_SOUTH(',I2,')%CHILD(',I2,')%TASKS'        &
+                ,' ISTAT=',I4)
+        ENDIF
+      ENDDO
+!
       DEALLOCATE(FIS_CHILD_SOUTH(N)%TASKS)
       DEALLOCATE(WORDS_BOUND_H_SOUTH(N)%TASKS)
 !
@@ -21008,8 +22052,10 @@
 !
       DEALLOCATE(WORDS_BOUND_V_SOUTH(N)%TASKS)
       DEALLOCATE(PD_B_SOUTH_V(N)%TASKS)
-      DEALLOCATE(U_B_SOUTH(N)%TASKS)
-      DEALLOCATE(V_B_SOUTH(N)%TASKS)
+!
+      DO NV=1,NVARS_NESTBC_V
+        DEALLOCATE(BND_VAR_V_SOUTH(NV)%CHILD(N)%TASKS)
+      ENDDO
 !
 !-----------------------------------------------------------------------
 !
@@ -21068,9 +22114,11 @@
       ENDDO
 !
       DEALLOCATE(PD_B_NORTH(N)%TASKS)
-      DEALLOCATE( T_B_NORTH(N)%TASKS)
-      DEALLOCATE( Q_B_NORTH(N)%TASKS)
-      DEALLOCATE(CW_B_NORTH(N)%TASKS)
+!
+      DO NV=1,NVARS_NESTBC_H-1
+        DEALLOCATE(BND_VAR_H_NORTH(NV)%CHILD(N)%TASKS)
+      ENDDO
+!
       DEALLOCATE(FIS_CHILD_NORTH(N)%TASKS)
       DEALLOCATE(WORDS_BOUND_H_NORTH(N)%TASKS)
 !
@@ -21124,8 +22172,10 @@
 !
       DEALLOCATE(WORDS_BOUND_V_NORTH(N)%TASKS)
       DEALLOCATE(PD_B_NORTH_V(N)%TASKS)
-      DEALLOCATE(U_B_NORTH(N)%TASKS)
-      DEALLOCATE(V_B_NORTH(N)%TASKS)
+!
+      DO NV=1,NVARS_NESTBC_V
+        DEALLOCATE(BND_VAR_V_NORTH(NV)%CHILD(N)%TASKS)
+      ENDDO
 !
 !-----------------------------------------------------------------------
 !
@@ -21168,9 +22218,11 @@
       ENDDO
 !
       DEALLOCATE(PD_B_WEST(N)%TASKS)
-      DEALLOCATE( T_B_WEST(N)%TASKS)
-      DEALLOCATE( Q_B_WEST(N)%TASKS)
-      DEALLOCATE(CW_B_WEST(N)%TASKS)
+!
+      DO NV=1,NVARS_NESTBC_H-1
+        DEALLOCATE(BND_VAR_H_WEST(NV)%CHILD(N)%TASKS)
+      ENDDO
+!
       DEALLOCATE(FIS_CHILD_WEST(N)%TASKS)
       DEALLOCATE(WORDS_BOUND_H_WEST(N)%TASKS)
 !
@@ -21210,8 +22262,10 @@
 !
       DEALLOCATE(WORDS_BOUND_V_WEST(N)%TASKS)
       DEALLOCATE(PD_B_WEST_V(N)%TASKS)
-      DEALLOCATE(U_B_WEST(N)%TASKS)
-      DEALLOCATE(V_B_WEST(N)%TASKS)
+!
+      DO NV=1,NVARS_NESTBC_V
+        DEALLOCATE(BND_VAR_V_WEST(NV)%CHILD(N)%TASKS)
+      ENDDO
 !
 !-----------------------------------------------------------------------
 !
@@ -21255,9 +22309,11 @@
       ENDDO
 !
       DEALLOCATE(PD_B_EAST(N)%TASKS)
-      DEALLOCATE( T_B_EAST(N)%TASKS)
-      DEALLOCATE( Q_B_EAST(N)%TASKS)
-      DEALLOCATE(CW_B_EAST(N)%TASKS)
+!
+      DO NV=1,NVARS_NESTBC_H-1
+        DEALLOCATE(BND_VAR_H_EAST(NV)%CHILD(N)%TASKS)
+      ENDDO
+!
       DEALLOCATE(FIS_CHILD_EAST(N)%TASKS)
       DEALLOCATE(WORDS_BOUND_H_EAST(N)%TASKS)
 !
@@ -21297,8 +22353,10 @@
 !
       DEALLOCATE(WORDS_BOUND_V_EAST(N)%TASKS)
       DEALLOCATE(PD_B_EAST_V(N)%TASKS)
-      DEALLOCATE(U_B_EAST(N)%TASKS)
-      DEALLOCATE(V_B_EAST(N)%TASKS)
+!
+      DO NV=1,NVARS_NESTBC_V
+        DEALLOCATE(BND_VAR_V_EAST(NV)%CHILD(N)%TASKS)
+      ENDDO
 !
 !-----------------------------------------------------------------------
 !
@@ -21327,13 +22385,15 @@
 !***  Local Variables
 !---------------------
 !
-      INTEGER(kind=KINT) :: ID_DOM,LIM_HI,N
+      INTEGER(kind=KINT) :: ID_DOM,LIM_HI,N,NV
 !
       TYPE(COMPOSITE),POINTER :: CC
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
+!
+      CALL POINT_TO_COMPOSITE(MY_DOMAIN_ID)
 !
       CC=>CPL_COMPOSITE(MY_DOMAIN_ID)
 !
@@ -21372,56 +22432,139 @@
       ENDDO
 !
       IF(NUM_PARENT_TASKS_SENDING_H%SOUTH>0)THEN                           !<-- Did this child task recv Sboundary H data from parent?
+        IF(NVARS_BC_2D_H>0)THEN
+          DO NV=1,NVARS_BC_2D_H-1
+            DEALLOCATE(MY_BC_VARS_H_S%VAR_2D(NV)%SIDE)
+          ENDDO
+        ENDIF
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            DEALLOCATE(MY_BC_VARS_H_S%VAR_3D(NV)%SIDE)
+          ENDDO
+        ENDIF
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            DEALLOCATE(MY_BC_VARS_H_S%VAR_4D(NV)%SIDE)
+          ENDDO
+        ENDIF
         DEALLOCATE(cc%PDB_S)
-        DEALLOCATE( cc%TB_S)
-        DEALLOCATE( cc%QB_S)
-        DEALLOCATE(cc%CWB_S)
         DEALLOCATE(cc%BOUND_1D_SOUTH_H)
       ENDIF
+!
       IF(NUM_PARENT_TASKS_SENDING_V%SOUTH>0)THEN                           !<-- Did this child task recv Sboundary V data from parent?
-        DEALLOCATE(cc%UB_S)
-        DEALLOCATE(cc%VB_S)
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            DEALLOCATE(MY_BC_VARS_V_S%VAR_2D(NV)%SIDE)
+          ENDDO
+        ENDIF
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            DEALLOCATE(MY_BC_VARS_V_S%VAR_3D(NV)%SIDE)
+          ENDDO
+        ENDIF
         DEALLOCATE(cc%BOUND_1D_SOUTH_V)
       ENDIF
 !
       IF(NUM_PARENT_TASKS_SENDING_H%NORTH>0)THEN                           !<-- Did this child task recv Nboundary H data from parent?
-        DEALLOCATE(cc%PDB_N)
-        DEALLOCATE( cc%TB_N)
-        DEALLOCATE( cc%QB_N)
-        DEALLOCATE(cc%CWB_N)
+        IF(NVARS_BC_2D_H>0)THEN
+          DO NV=1,NVARS_BC_2D_H-1
+            DEALLOCATE(MY_BC_VARS_H_N%VAR_2D(NV)%SIDE)
+          ENDDO
+        ENDIF
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            DEALLOCATE(MY_BC_VARS_H_N%VAR_3D(NV)%SIDE)
+          ENDDO
+        ENDIF
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            DEALLOCATE(MY_BC_VARS_H_N%VAR_4D(NV)%SIDE)
+          ENDDO
+        ENDIF
         DEALLOCATE(cc%BOUND_1D_NORTH_H)
+        DEALLOCATE(cc%PDB_N)
       ENDIF
+!
       IF(NUM_PARENT_TASKS_SENDING_V%NORTH>0)THEN                           !<-- Did this child task recv Nboundary V data from parent?
-        DEALLOCATE(cc%UB_N)
-        DEALLOCATE(cc%VB_N)
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            DEALLOCATE(MY_BC_VARS_V_N%VAR_2D(NV)%SIDE)
+          ENDDO
+        ENDIF
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            DEALLOCATE(MY_BC_VARS_V_N%VAR_3D(NV)%SIDE)
+          ENDDO
+        ENDIF
         DEALLOCATE(cc%BOUND_1D_NORTH_V)
       ENDIF
 !
       IF(NUM_PARENT_TASKS_SENDING_H%WEST>0)THEN                            !<-- Did this child task recv Wboundary H data from parent?
+        IF(NVARS_BC_2D_H>0)THEN
+          DO NV=1,NVARS_BC_2D_H-1
+            DEALLOCATE(MY_BC_VARS_H_W%VAR_2D(NV)%SIDE)
+          ENDDO
+        ENDIF
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            DEALLOCATE(MY_BC_VARS_H_W%VAR_3D(NV)%SIDE)
+          ENDDO
+        ENDIF
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            DEALLOCATE(MY_BC_VARS_H_W%VAR_4D(NV)%SIDE)
+          ENDDO
+        ENDIF
         DEALLOCATE(cc%PDB_W)
-        DEALLOCATE( cc%TB_W)
-        DEALLOCATE( cc%QB_W)
-        DEALLOCATE(cc%CWB_W)
         DEALLOCATE(cc%BOUND_1D_WEST_H)
       ENDIF
+!
       IF(NUM_PARENT_TASKS_SENDING_V%WEST>0)THEN                            !<-- Did this child task recv Wboundary V data from parent?
-        DEALLOCATE(cc%UB_W)
-        DEALLOCATE(cc%VB_W)
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            DEALLOCATE(MY_BC_VARS_V_W%VAR_2D(NV)%SIDE)
+          ENDDO
+        ENDIF
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            DEALLOCATE(MY_BC_VARS_V_W%VAR_3D(NV)%SIDE)
+          ENDDO
+        ENDIF
         DEALLOCATE(cc%BOUND_1D_WEST_V)
       ENDIF
 !
       IF(NUM_PARENT_TASKS_SENDING_H%EAST>0)THEN                            !<-- Did this child task recv Eboundary H data from parent?
+        IF(NVARS_BC_2D_H>0)THEN
+          DO NV=1,NVARS_BC_2D_H-1
+            DEALLOCATE(MY_BC_VARS_H_E%VAR_2D(NV)%SIDE)
+          ENDDO
+        ENDIF
+        IF(NVARS_BC_3D_H>0)THEN
+          DO NV=1,NVARS_BC_3D_H
+            DEALLOCATE(MY_BC_VARS_H_E%VAR_3D(NV)%SIDE)
+          ENDDO
+        ENDIF
+        IF(NVARS_BC_4D_H>0)THEN
+          DO NV=1,NVARS_BC_4D_H
+            DEALLOCATE(MY_BC_VARS_H_E%VAR_4D(NV)%SIDE)
+          ENDDO
+        ENDIF
         DEALLOCATE(cc%PDB_E)
-        DEALLOCATE( cc%TB_E)
-        DEALLOCATE( cc%QB_E)
-        DEALLOCATE(cc%CWB_E)
         DEALLOCATE(cc%BOUND_1D_EAST_H)
       ENDIF
+!
       IF(NUM_PARENT_TASKS_SENDING_V%EAST>0)THEN                            !<-- Did this child task recv Eboundary V data from parent?
-        DEALLOCATE(cc%UB_E)
-        DEALLOCATE(cc%VB_E)
+        IF(NVARS_BC_2D_V>0)THEN
+          DO NV=1,NVARS_BC_2D_V
+            DEALLOCATE(MY_BC_VARS_V_E%VAR_2D(NV)%SIDE)
+          ENDDO
+        ENDIF
+        IF(NVARS_BC_3D_V>0)THEN
+          DO NV=1,NVARS_BC_3D_V
+            DEALLOCATE(MY_BC_VARS_V_E%VAR_3D(NV)%SIDE)
+          ENDDO
+        ENDIF
         DEALLOCATE(cc%BOUND_1D_EAST_V)
-!     write(0,*)' DEALLOC_WORK_CHILDREN deallocated cc%BOUND_1D_EAST_V'
       ENDIF
 !
 !-----------------------------------------------------------------------

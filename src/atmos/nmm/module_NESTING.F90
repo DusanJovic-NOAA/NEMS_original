@@ -42,6 +42,15 @@
 !
       USE module_INCLUDE
 !
+      USE module_DERIVED_TYPES,ONLY: BNDS_2D                            &
+                                    ,CHILD_UPDATE_LINK                  &
+                                    ,COMMS_FAMILY                       &
+                                    ,DOMAIN_DATA                        &
+                                    ,INTEGER_DATA                       &
+                                    ,INTERIOR_DATA_FROM_PARENT          &
+                                    ,MIXED_DATA_TASKS                   &
+                                    ,REAL_DATA_2D
+!
       USE module_VARS,ONLY: VAR
 !
       USE module_LS_NOAHLSM,ONLY: NUM_SOIL_LAYERS
@@ -62,46 +71,16 @@
 !
       PRIVATE
 !
-      PUBLIC :: BNDS_2D                                                 &
-               ,BOUNDARY_DATA_STATE_TO_STATE                            &
+      PUBLIC :: BOUNDARY_DATA_STATE_TO_STATE                            &
                ,CHECK_REAL                                              &
                ,CHILD_2WAY_BOOKKEEPING                                  &
                ,CHILD_RANKS                                             &
-               ,CHILD_UPDATE_LINK                                       &
-               ,COMMS_FAMILY                                            &
-               ,CTASK_LIMITS                                            &
                ,GENERATE_2WAY_DATA                                      &
-               ,HANDLE_CHILD_LIMITS                                     &
-               ,HANDLE_CHILD_TOPO_S                                     &
-               ,HANDLE_CHILD_TOPO_N                                     &
-               ,HANDLE_CHILD_TOPO_W                                     &
-               ,HANDLE_CHILD_TOPO_E                                     &
-               ,HANDLE_IJ_SW                                            &
-               ,HANDLE_PACKET_S_H                                       &
-               ,HANDLE_PACKET_S_V                                       &
-               ,HANDLE_PACKET_N_H                                       &
-               ,HANDLE_PACKET_N_V                                       &
-               ,HANDLE_PACKET_W_H                                       &
-               ,HANDLE_PACKET_W_V                                       &
-               ,HANDLE_PACKET_E_H                                       &
-               ,HANDLE_PACKET_E_V                                       &
-               ,HANDLE_PARENT_DOM_LIMITS                                &
-               ,HANDLE_PARENT_ITE                                       &
-               ,HANDLE_PARENT_ITS                                       &
-               ,HANDLE_PARENT_JTE                                       &
-               ,HANDLE_PARENT_JTS                                       &
                ,HYPERBOLA                                               &
-               ,INFO_SEND                                               &
-               ,INTEGER_DATA                                            &
-               ,INTEGER_DATA_2D                                         &
-               ,INTERIOR_DATA_FROM_PARENT                               &
-               ,INTERIOR_DATA_STATE_TO_STATE                            &
                ,INTERNAL_DATA_TO_DOMAIN                                 &
+               ,INTERIOR_DATA_STATE_TO_STATE                            &
                ,LAG_STEPS                                               &
                ,LATLON_TO_IJ                                            &
-               ,MIXED_DATA                                              &
-               ,MIXED_DATA_TASKS                                        &
-               ,MOVE_SUFFIX                                             &
                ,MOVING_NEST_BOOKKEEPING                                 &
                ,MOVING_NEST_RECV_DATA                                   &
                ,PARENT_2WAY_BOOKKEEPING                                 &
@@ -111,107 +90,14 @@
                ,PARENT_TO_CHILD_INIT_NMM                                &
                ,PARENT_UPDATES_HALOS                                    &
                ,PARENT_UPDATES_MOVING                                   &
-               ,PTASK_LIMITS                                            &
-               ,REAL_DATA                                               &
-               ,REAL_DATA_2D                                            &
-               ,REAL_DATA_TASKS                                         &
                ,SET_NEST_GRIDS                                          &
                ,STENCIL_H_EVEN,STENCIL_SFC_H_EVEN                       &
                ,STENCIL_V_EVEN,STENCIL_SFC_V_EVEN                       &
                ,STENCIL_H_ODD,STENCIL_SFC_H_ODD                         &
                ,STENCIL_V_ODD,STENCIL_SFC_V_ODD                         &
-               ,TWOWAY_SUFFIX
-!
-!-----------------------------------------------------------------------
-!
-      TYPE MIXED_DATA
-        INTEGER(kind=KINT),DIMENSION(:),POINTER :: DATA_INTEGER
-        REAL(kind=KFPT),DIMENSION(:),POINTER :: DATA_REAL
-      END TYPE MIXED_DATA
-!
-      TYPE MIXED_DATA_TASKS
-        TYPE(MIXED_DATA),DIMENSION(:),POINTER :: TASKS
-      END TYPE MIXED_DATA_TASKS
-!
-      TYPE INTEGER_DATA
-        INTEGER(kind=KINT),DIMENSION(:),POINTER :: DATA
-      END TYPE INTEGER_DATA
-!
-      TYPE INTEGER_DATA_2D
-        INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: DATA
-      END TYPE INTEGER_DATA_2D
-!
-      TYPE REAL_DATA
-        REAL(kind=KFPT),DIMENSION(:),POINTER :: DATA
-      END TYPE REAL_DATA
-!
-      TYPE REAL_DATA_2D
-        REAL(kind=KFPT),DIMENSION(:,:),POINTER :: DATA
-      END TYPE REAL_DATA_2D
-!
-      TYPE REAL_DATA_TASKS
-        TYPE(REAL_DATA),DIMENSION(:),POINTER :: TASKS
-      END TYPE REAL_DATA_TASKS
-!
-      TYPE BNDS_2D
-        INTEGER(kind=KINT) :: LBND1
-        INTEGER(kind=KINT) :: UBND1
-        INTEGER(kind=KINT) :: LBND2
-        INTEGER(kind=KINT) :: UBND2
-      END TYPE BNDS_2D
-!
-      TYPE :: INTERIOR_DATA_FROM_PARENT
-        INTEGER(kind=KINT) :: ID 
-        INTEGER(kind=KINT) :: NPTS
-        INTEGER(kind=KINT),DIMENSION(1:2) :: ISTART
-        INTEGER(kind=KINT),DIMENSION(1:2) :: IEND
-        INTEGER(kind=KINT),DIMENSION(1:2) :: JSTART
-        INTEGER(kind=KINT),DIMENSION(1:2) :: JEND
-      END TYPE INTERIOR_DATA_FROM_PARENT
-!
-      TYPE :: CHILD_UPDATE_LINK
-        INTEGER(kind=KINT),POINTER :: TASK_ID
-        INTEGER(kind=KINT),POINTER :: NUM_PTS_UPDATE_HZ
-        INTEGER(kind=KINT),DIMENSION(:),POINTER :: IL
-        INTEGER(kind=KINT),DIMENSION(:),POINTER :: JL
-        TYPE(CHILD_UPDATE_LINK),POINTER :: NEXT_LINK
-      END TYPE CHILD_UPDATE_LINK
-!
-      TYPE :: COMMS_FAMILY
-        INTEGER(kind=KINT) :: TO_PARENT
-        INTEGER(kind=KINT) :: TO_FCST_TASKS
-        INTEGER(kind=KINT),DIMENSION(:),POINTER :: TO_CHILDREN
-      END TYPE COMMS_FAMILY
-!
-      TYPE :: DOMAIN_DATA
-        TYPE(INTEGER_DATA),DIMENSION(:),POINTER :: CHILDREN
-      END TYPE DOMAIN_DATA
-!
-      TYPE :: DOMAIN_DATA_2
-        TYPE(INTEGER_DATA_2D),DIMENSION(:),POINTER :: CHILDREN
-      END TYPE DOMAIN_DATA_2
-!
-      TYPE :: DOMAIN_LIMITS
-        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: ITS
-        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: ITE
-        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JTS
-        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JTE
-      END TYPE DOMAIN_LIMITS
-!
-      TYPE :: TASK_LIMITS
-        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: ITS
-        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: ITE
-        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JTS
-        INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JTE
-      END TYPE TASK_LIMITS
-!
-      TYPE :: BC_INFO
-        TYPE(CHILD_INFO),DIMENSION(:),POINTER :: CHILDREN
-      END TYPE BC_INFO
-!
-      TYPE CHILD_INFO
-        INTEGER(kind=KINT),DIMENSION(:,:,:),POINTER :: INFO
-      END TYPE CHILD_INFO
+               ,SUFFIX_MOVE                                             &
+               ,SUFFIX_NESTBC                                           &
+               ,SUFFIX_TWOWAY
 !
 !-----------------------------------------------------------------------
 !
@@ -234,47 +120,17 @@
       REAL(kind=KFPT),SAVE :: CHILD_PARENT_SPACE_RATIO                  &
                              ,EPS=1.E-4 
 !
-      CHARACTER(len=5) :: MOVE_SUFFIX='-move'
-      CHARACTER(len=5) :: TWOWAY_SUFFIX='-2way'
+      CHARACTER(len=5) :: SUFFIX_MOVE='-move'
+      CHARACTER(len=5) :: SUFFIX_TWOWAY='-2way'
+      CHARACTER(len=7) :: SUFFIX_NESTBC='-nestbc'
 !
 !-----------------------------------------------------------------------
 !
       REAL(kind=KDBL) :: btim,btim0
 !
-      INTEGER(kind=KINT),DIMENSION(:),POINTER :: HANDLE_IJ_SW
-!
-      TYPE(INTEGER_DATA),DIMENSION(:),ALLOCATABLE :: HANDLE_PARENT_DOM_LIMITS  !<-- Request handle for ISSend of parent domain limits
-!
-      TYPE(INTEGER_DATA),DIMENSION(:),POINTER :: HANDLE_PARENT_ITE      &   !<-- Request handles for ISSends
-                                                ,HANDLE_PARENT_ITS      &   !    of each parent task's
-                                                ,HANDLE_PARENT_JTE      &   !<-- integration limits to children.
-                                                ,HANDLE_PARENT_JTS
-!
       TYPE(CHILD_UPDATE_LINK),POINTER,SAVE :: TAIL
 !
-      TYPE(DOMAIN_DATA),DIMENSION(:),POINTER,SAVE :: CHILD_RANKS         &  !<-- Lists of child tasks' local ranks in p-c intracomms
-!
-                                                    ,HANDLE_CHILD_LIMITS &  !<-- Request handles for parents' IRecvs if child task limits
-!
-                                                    ,HANDLE_CHILD_TOPO_S &  !<-- Request handles for parents' IRecvs of child bndry topo
-                                                    ,HANDLE_CHILD_TOPO_N &  !
-                                                    ,HANDLE_CHILD_TOPO_W &  !
-                                                    ,HANDLE_CHILD_TOPO_E    !<--
-!
-      TYPE(DOMAIN_DATA),DIMENSION(:),POINTER,SAVE :: HANDLE_PACKET_S_H   &  !<-- Request handles for parents' ISends of bndry info packets
-                                                    ,HANDLE_PACKET_S_V   &  !
-                                                    ,HANDLE_PACKET_N_H   &  !
-                                                    ,HANDLE_PACKET_N_V   &  !
-                                                    ,HANDLE_PACKET_W_H   &  !
-                                                    ,HANDLE_PACKET_W_V   &  !
-                                                    ,HANDLE_PACKET_E_H   &  !
-                                                    ,HANDLE_PACKET_E_V      !<--
-!
-      TYPE(TASK_LIMITS),DIMENSION(:),ALLOCATABLE,SAVE :: PTASK_LIMITS      !<-- I,J limits on parent task subdomains
-!
-      TYPE(DOMAIN_DATA_2),DIMENSION(:),POINTER,SAVE :: CTASK_LIMITS        !<-- For limits of parents' children's tasks' subdomains
-!
-      TYPE(BC_INFO),DIMENSION(:),POINTER,SAVE :: INFO_SEND                 !<-- Parent info to children about which BC updates
+      TYPE(DOMAIN_DATA),DIMENSION(:),POINTER,SAVE :: CHILD_RANKS            !<-- Lists of child tasks' local ranks in p-c intracomms
 !
       integer(kind=kint) :: iprt=01,jprt=61
 !-----------------------------------------------------------------------
@@ -4934,8 +4790,6 @@
 !
       INTEGER(kind=KINT),DIMENSION(1:3) :: LBND_3D,UBND_3D
 !
-      INTEGER(kind=KINT),DIMENSION(1:4) :: LBND_4D,UBND_4D
-!
       REAL(kind=KFPT) :: DYH,PDTOP,PT
 !
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ARRAY_1D
@@ -6263,7 +6117,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-------------
-!***    North V
+!***  North V
 !-------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -9203,7 +9057,7 @@
                           ,name    =FIELD_NAME                          &  !<-- This Field's name
                           ,rc      =RC )
 !
-        N_REMOVE=INDEX(FIELD_NAME,MOVE_SUFFIX)
+        N_REMOVE=INDEX(FIELD_NAME,SUFFIX_MOVE)
         FIELD_NAME=FIELD_NAME(1:N_REMOVE-1)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -10011,7 +9865,7 @@
       REAL(kind=KFPT),INTENT(IN) :: PDTOP                               &  !<-- Pressure at top of sigma domain (Pa)
                                    ,PT                                     !<-- Top pressure of model domain (Pa)
 !
-      REAL(kind=KDBL),INTENT(IN) :: HYPER_A                                !<-- Unerground extrapolation quantity
+      REAL(kind=KDBL),INTENT(IN) :: HYPER_A                                !<-- Underground extrapolation quantity
 !
       REAL(kind=KFPT),DIMENSION(1:NUM_LYRS),INTENT(IN) :: DSG2          &  !<-- Vertical structure coefficients for midlayers
                                                          ,PDSG1         &  !
@@ -10341,7 +10195,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
-                                ,FIELDNAME  ='PDO'//MOVE_SUFFIX         &  !<-- Get the Field with this name
+                                ,FIELDNAME  ='PDO'//SUFFIX_MOVE         &  !<-- Get the Field with this name
                                 ,field      =HOLD_FIELD                 &  !<-- Put the Field here
                                 ,rc         =RC)
 !
@@ -10375,7 +10229,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
-                                ,FIELDNAME  ='SM'//MOVE_SUFFIX          &  !<-- The parent's sea mask
+                                ,FIELDNAME  ='SM'//SUFFIX_MOVE          &  !<-- The parent's sea mask
                                 ,field      =HOLD_FIELD                 &  !<-- Put the Field here
                                 ,rc         =RC)
 !
@@ -10936,7 +10790,7 @@
                               ,name    =FIELD_NAME                      &  !<-- This Field's name
                               ,rc      =RC )
 !
-            N_REMOVE=INDEX(FIELD_NAME,MOVE_SUFFIX)
+            N_REMOVE=INDEX(FIELD_NAME,SUFFIX_MOVE)
             FIELD_NAME=FIELD_NAME(1:N_REMOVE-1)                            !<-- Remove Move Bundle Fieldname's suffix '-move'
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

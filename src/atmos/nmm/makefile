@@ -11,6 +11,7 @@ MODULES  = \
            module_CLOCKTIMES.o \
            module_CONTROL.o \
            module_CONVECTION.o \
+           module_DERIVED_TYPES.o \
            module_DIAGNOSE.o \
            module_DIGITAL_FILTER_NMM.o \
            module_DM_PARALLEL.o \

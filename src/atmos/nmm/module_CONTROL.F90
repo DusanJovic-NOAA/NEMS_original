@@ -6,6 +6,7 @@
 use module_include
 use module_exchange
 use module_constants
+use module_derived_types,only: bc_h_all,bc_v_all
 !
 !-----------------------------------------------------------------------
 !
@@ -1131,12 +1132,10 @@ real(kind=kfpt),dimension(jds:jde):: &
       ,ims,ime,jms,jme &
       ,ids,ide,jds,jde &
       ,lnsh,lnsv &
-      ,pd,pdbs,pdbn,pdbw,pdbe &
-      ,t,tbs,tbn,tbw,tbe &           
-      ,q,qbs,qbn,qbw,qbe &           
-      ,cw,cwbs,cwbn,cwbw,cwbe &
-      ,u,ubs,ubn,ubw,ube &
-      ,v,vbs,vbn,vbw,vbe &
+      ,nvars_2d_h,nvars_3d_h,nvars_4d_h &
+      ,nvars_2d_v,nvars_3d_v &
+      ,bnd_vars_h &
+      ,bnd_vars_v &
        )
 !
 !-----------------------------------------------------------------------
@@ -1145,7 +1144,11 @@ real(kind=kfpt),dimension(jds:jde):: &
 !-----------------------------------------------------------------------
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !-----------------------------------------------------------------------
-!
+ 
+!------------------------
+!***  Argument variables
+!------------------------
+ 
 integer(kind=kint),intent(in) :: &
  ids &
 ,ide &
@@ -1163,68 +1166,42 @@ integer(kind=kint),intent(in) :: &
 ,lnsh &
 ,lnsv
 
-real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in) :: &
- pd 
+integer(kind=kint),intent(in) :: &
+ nvars_2d_h &
+,nvars_3d_h &
+,nvars_4d_h &
+,nvars_2d_v &
+,nvars_3d_v
 
-real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in) :: &
- t &
-,q &
-,cw &
-,u &
-,v
+type(bc_h_all),intent(inout) :: bnd_vars_h
 
-real(kind=kfpt),dimension(ims:ime,1:lnsh,1:2),intent(out) :: &
- pdbs &
-,pdbn
-
-real(kind=kfpt),dimension(1:lnsh,jms:jme,1:2),intent(out) :: &
- pdbw &
-,pdbe
-
-real(kind=kfpt),dimension(ims:ime,1:lnsh,1:lm,1:2),intent(out) :: &
- tbs &
-,qbs &
-,cwbs &
-,tbn &
-,qbn &
-,cwbn
-
-real(kind=kfpt),dimension(1:lnsh,jms:jme,1:lm,1:2),intent(out) :: &
- tbw &
-,qbw &
-,cwbw &
-,tbe &
-,qbe &
-,cwbe
-
-real(kind=kfpt),dimension(ims:ime,1:lnsv,1:lm,1:2),intent(out) :: &
- ubs &
-,vbs &
-,ubn &
-,vbn
-
-real(kind=kfpt),dimension(1:lnsv,jms:jme,1:lm,1:2),intent(out) :: &
- ube &
-,vbe &
-,ubw &
-,vbw
-!
-!-----------------------------------------------------------------------
+type(bc_v_all),intent(inout) :: bnd_vars_v
+ 
+!---------------------
 !***  Local variables
-!-----------------------------------------------------------------------
-!
+!---------------------
+ 
 integer(kind=kint) :: &
  i &
 ,j &
 ,k &
-,n
-!
+,l &
+,l1 &
+,l2 &
+,n &
+,nv
+ 
+real(kind=kfpt),dimension(:,:),pointer :: var2d
+real(kind=kfpt),dimension(:,:,:),pointer :: bnd2d,var3d
+real(kind=kfpt),dimension(:,:,:,:),pointer :: bnd3d,var4d
+real(kind=kfpt),dimension(:,:,:,:,:),pointer :: bnd4d
+ 
 logical(kind=klog) :: &
  e_bdy &
 ,n_bdy &
 ,s_bdy &
 ,w_bdy
-!
+ 
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -1235,162 +1212,545 @@ logical(kind=klog) :: &
       n_bdy=(jte==jde)  ! This task is on the northern boundary
 !
 !-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !***  South
 !-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
 !
       if(s_bdy)then
 !
-        n=0
+!-----------------------------------------------------------------------
 !
-        do j=1,lnsh
-          n=n+1
-          do i=ims,ime
-            pdbs(i,j,1)=pd(i,jds-1+n)
-          enddo
-        enddo
+!------------------------
+!***  2-d h variables
+!------------------------
 !
-        do k=1,lm
-          n=0
-          do j=1,lnsh
-            n=n+1
-            do i=ims,ime
-              tbs(i,j,k,1) =t(i,jds-1+n,k)
-              qbs(i,j,k,1) =q(i,jds-1+n,k)
-              cwbs(i,j,k,1)=cw(i,jds-1+n,k)
+        if(nvars_2d_h>0)then 
+!
+          do nv=1,nvars_2d_h         
+!
+            bnd2d=>bnd_vars_h%var_2d(nv)%south
+            var2d=>bnd_vars_h%var_2d(nv)%full_var
+!
+            n=0
+            do j=1,lnsh
+              n=n+1
+              do i=ims,ime
+                bnd2d(i,j,1)=var2d(i,jds-1+n)
+              enddo
             enddo
-          enddo
-        enddo
 !
-        do k=1,lm
-          n=0
-          do j=1,lnsv
-            n=n+1
-            do i=ims,ime
-              ubs(i,j,k,1)=u(i,jds-1+n,k)
-              vbs(i,j,k,1)=v(i,jds-1+n,k)
-            enddo
           enddo
-        enddo
+!
+        endif
+!
+!------------------------
+!***  3-d h variables
+!------------------------
+!
+        if(nvars_3d_h>0)then 
+!
+          do nv=1,nvars_3d_h         
+!
+            bnd3d=>bnd_vars_h%var_3d(nv)%south
+            var3d=>bnd_vars_h%var_3d(nv)%full_var
+!
+            do k=1,lm
+              n=0
+              do j=1,lnsh
+                n=n+1
+                do i=ims,ime
+                  bnd3d(i,j,k,1)=var3d(i,jds-1+n,k)
+                enddo
+              enddo
+            enddo
+!
+          enddo
+!
+        endif
+!
+!------------------------
+!***  4-d h variables
+!------------------------
+!
+        if(nvars_4d_h>0)then
+!
+          do nv=1,nvars_4d_h
+!
+            bnd4d=>bnd_vars_h%var_4d(nv)%south
+            var4d=>bnd_vars_h%var_4d(nv)%full_var
+!
+            l1=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+            l2=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+            do l=l1,l2
+              do k=1,lm
+                n=0
+                do j=1,lnsh
+                  n=n+1
+                  do i=ims,ime
+                    bnd4d(i,j,k,l,1)=var4d(i,jds-1+n,k,l)
+                  enddo
+                enddo
+              enddo
+            enddo
+!
+          enddo
+!
+        endif
+!
+!------------------------
+!***  2-d v variables
+!------------------------
+!
+        if(nvars_2d_v>0)then 
+!
+          do nv=1,nvars_2d_v         
+!
+            bnd2d=>bnd_vars_v%var_2d(nv)%south
+            var2d=>bnd_vars_v%var_2d(nv)%full_var
+!
+            n=0
+            do j=1,lnsv
+              n=n+1
+              do i=ims,ime
+                bnd2d(i,j,1)=var2d(i,jds-1+n)
+              enddo
+            enddo
+!
+          enddo
+!
+        endif
+!
+!------------------------
+!***  3-d v variables
+!------------------------
+!
+        if(nvars_3d_v>0)then 
+!
+          do nv=1,nvars_3d_v         
+!
+            bnd3d=>bnd_vars_v%var_3d(nv)%south
+            var3d=>bnd_vars_v%var_3d(nv)%full_var
+!
+            do k=1,lm
+              n=0
+              do j=1,lnsv
+                n=n+1
+                do i=ims,ime
+                  bnd3d(i,j,k,1)=var3d(i,jds-1+n,k)
+                enddo
+              enddo
+            enddo
+!
+          enddo
+!
+        endif
 !
       endif
 !
 !-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !***  North
+!-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
       if(n_bdy)then
 !
-        n=0
+!------------------------
+!***  2-d h variables
+!------------------------
 !
-        do j=1,lnsh
-          n=n+1
-          do i=ims,ime
-            pdbn(i,j,1)=pd(i,jde-lnsh+n)
-          enddo
-        enddo
+        if(nvars_2d_h>0)then 
 !
-        do k=1,lm
-          n=0
-          do j=1,lnsh
-            n=n+1
-            do i=ims,ime
-              tbn(i,j,k,1) =t(i,jde-lnsh+n,k)
-              qbn(i,j,k,1) =q(i,jde-lnsh+n,k)
-              cwbn(i,j,k,1)=cw(i,jde-lnsh+n,k)
+          do nv=1,nvars_2d_h         
+!
+            bnd2d=>bnd_vars_h%var_2d(nv)%north
+            var2d=>bnd_vars_h%var_2d(nv)%full_var
+!
+            n=0
+            do j=1,lnsh
+              n=n+1
+              do i=ims,ime
+                bnd2d(i,j,1)=var2d(i,jde-lnsh+n)
+              enddo
             enddo
-          enddo
-        enddo
 !
-        do k=1,lm
-          n=0
-          do j=1,lnsv
-            n=n+1
-            do i=ims,ime
-              ubn(i,j,k,1)=u(i,jde-1-lnsv+n,k)
-              vbn(i,j,k,1)=v(i,jde-1-lnsv+n,k)
-            enddo
           enddo
-        enddo
+!
+        endif
+!
+!------------------------
+!***  3-d h variables
+!------------------------
+!
+        if(nvars_3d_h>0)then 
+!
+          do nv=1,nvars_3d_h         
+!
+            bnd3d=>bnd_vars_h%var_3d(nv)%north
+            var3d=>bnd_vars_h%var_3d(nv)%full_var
+!
+            do k=1,lm
+              n=0
+              do j=1,lnsh
+                n=n+1
+                do i=ims,ime
+                  bnd3d(i,j,k,1)=var3d(i,jde-lnsh+n,k)
+                enddo
+              enddo
+            enddo
+!
+          enddo
+!
+        endif
+!
+!------------------------
+!***  4-d h variables
+!------------------------
+!
+        if(nvars_4d_h>0)then
+!
+          do nv=1,nvars_4d_h
+!
+            bnd4d=>bnd_vars_h%var_4d(nv)%north
+            var4d=>bnd_vars_h%var_4d(nv)%full_var
+!
+            l1=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+            l2=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+            do l=l1,l2
+              do k=1,lm
+                n=0
+                do j=1,lnsh
+                  n=n+1
+                  do i=ims,ime
+                    bnd4d(i,j,k,l,1)=var4d(i,jde-lnsh+n,k,l)
+                  enddo
+                enddo
+              enddo
+            enddo
+!
+          enddo
+!
+        endif
+!
+!------------------------
+!***  2-d v variables
+!------------------------
+!
+        if(nvars_2d_v>0)then 
+!
+          do nv=1,nvars_2d_v         
+!
+            bnd2d=>bnd_vars_v%var_2d(nv)%north
+            var2d=>bnd_vars_v%var_2d(nv)%full_var
+!
+            n=0
+            do j=1,lnsv
+              n=n+1
+              do i=ims,ime
+                bnd2d(i,j,1)=var2d(i,jde-1-lnsv+n)
+              enddo
+            enddo
+!
+          enddo
+!
+        endif
+!
+!------------------------
+!***  3-d v variables
+!------------------------
+!
+        if(nvars_3d_v>0)then 
+!
+          do nv=1,nvars_3d_v         
+!
+            bnd3d=>bnd_vars_v%var_3d(nv)%north
+            var3d=>bnd_vars_v%var_3d(nv)%full_var
+!
+            do k=1,lm
+              n=0
+              do j=1,lnsv
+                n=n+1
+                do i=ims,ime
+                  bnd3d(i,j,k,1)=var3d(i,jde-1-lnsv+n,k)
+                enddo
+              enddo
+            enddo
+!
+          enddo
+!
+        endif
 !
       endif
 !
 !-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !***  West
+!-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
       if(w_bdy)then
 !
+!------------------------
+!***  2-d h variables
+!------------------------
 !
-        do j=jms,jme
-          n=0
-          do i=1,lnsh
-            n=n+1
-            pdbw(i,j,1)=pd(ids-1+n,j)
-          enddo
-        enddo
+        if(nvars_2d_h>0)then 
 !
-        do k=1,lm
-          do j=jms,jme
-            n=0
-            do i=1,lnsh
-              n=n+1
-              tbw(i,j,k,1) =t(ids-1+n,j,k)
-              qbw(i,j,k,1) =q(ids-1+n,j,k)
-              cwbw(i,j,k,1)=cw(ids-1+n,j,k)
+          do nv=1,nvars_2d_h         
+!
+            bnd2d=>bnd_vars_h%var_2d(nv)%west
+            var2d=>bnd_vars_h%var_2d(nv)%full_var
+!
+            do j=jms,jme
+              n=0
+              do i=1,lnsh
+                n=n+1
+                bnd2d(i,j,1)=var2d(ids-1+n,j)
+              enddo
             enddo
-          enddo
-        enddo
 !
-        do k=1,lm
-          do j=jms,jme
-            n=0
-            do i=1,lnsv
-              n=n+1
-              ubw(i,j,k,1)=u(ids-1+n,j,k)
-              vbw(i,j,k,1)=v(ids-1+n,j,k)
-            enddo
           enddo
-        enddo
+!
+        endif
+!
+!------------------------
+!***  3-d h variables
+!------------------------
+!
+        if(nvars_3d_h>0)then 
+!
+          do nv=1,nvars_3d_h         
+!
+            bnd3d=>bnd_vars_h%var_3d(nv)%west
+            var3d=>bnd_vars_h%var_3d(nv)%full_var
+!
+            do k=1,lm
+              do j=jms,jme
+                n=0
+                do i=1,lnsh
+                  n=n+1
+                  bnd3d(i,j,k,1)=var3d(ids-1+n,j,k)
+                enddo
+              enddo
+            enddo
+!
+          enddo
+!
+        endif
+!
+!------------------------
+!***  4-d h variables
+!------------------------
+!
+        if(nvars_4d_h>0)then
+!
+          do nv=1,nvars_4d_h
+!
+            bnd4d=>bnd_vars_h%var_4d(nv)%west
+            var4d=>bnd_vars_h%var_4d(nv)%full_var
+!
+            l1=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+            l2=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+            do l=l1,l2
+              do k=1,lm
+                do j=jms,jme
+                  n=0
+                  do i=1,lnsh
+                    n=n+1
+                    bnd4d(i,j,k,l,1)=var4d(ids-1+n,j,k,l)
+                  enddo
+                enddo
+              enddo
+            enddo
+!
+          enddo
+!
+        endif
+!
+!------------------------
+!***  2-d v variables
+!------------------------
+!
+        if(nvars_2d_v>0)then 
+!
+          do nv=1,nvars_2d_v         
+!
+            bnd2d=>bnd_vars_v%var_2d(nv)%west
+            var2d=>bnd_vars_v%var_2d(nv)%full_var
+!
+            do j=jms,jme
+              n=0
+              do i=1,lnsv
+                n=n+1
+                bnd2d(i,j,1)=var2d(ids-1+n,j)
+              enddo
+            enddo
+!
+          enddo
+!
+        endif
+!
+!------------------------
+!***  3-d v variables
+!------------------------
+!
+        if(nvars_3d_v>0)then 
+!
+          do nv=1,nvars_3d_v         
+!
+            bnd3d=>bnd_vars_v%var_3d(nv)%west
+            var3d=>bnd_vars_v%var_3d(nv)%full_var
+!
+            do k=1,lm
+              do j=jms,jme
+                n=0
+                do i=1,lnsv
+                  n=n+1
+                  bnd3d(i,j,k,1)=var3d(ids-1+n,j,k)
+                enddo
+              enddo
+            enddo
+!
+          enddo
+!
+        endif
 !
       endif
 !
 !-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
 !***  East
+!-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
       if(e_bdy)then
 !
+!------------------------
+!***  2-d h variables
+!------------------------
 !
-        do j=jms,jme
-          n=0
-          do i=1,lnsh
-            n=n+1
-            pdbe(i,j,1)=pd(ide-lnsh+n,j)
-          enddo
-        enddo
+        if(nvars_2d_h>0)then 
 !
-        do k=1,lm
-          do j=jms,jme
-            n=0
-            do i=1,lnsh
-              n=n+1
-              tbe(i,j,k,1) =t(ide-lnsh+n,j,k)
-              qbe(i,j,k,1) =q(ide-lnsh+n,j,k)
-              cwbe(i,j,k,1)=cw(ide-lnsh+n,j,k)
+          do nv=1,nvars_2d_h         
+!
+            bnd2d=>bnd_vars_h%var_2d(nv)%east
+            var2d=>bnd_vars_h%var_2d(nv)%full_var
+!
+            do j=jms,jme
+              n=0
+              do i=1,lnsh
+                n=n+1
+                bnd2d(i,j,1)=var2d(ide-lnsh+n,j)
+              enddo
             enddo
-          enddo
-        enddo
 !
-        do k=1,lm
-          do j=jms,jme
-            n=0
-            do i=1,lnsv
-              n=n+1
-              ube(i,j,k,1)=u(ide-1-lnsv+n,j,k)
-              vbe(i,j,k,1)=v(ide-1-lnsv+n,j,k)
-            enddo
           enddo
-        enddo
+!
+        endif
+!
+!------------------------
+!***  3-d h variables
+!------------------------
+!
+        if(nvars_3d_h>0)then 
+!
+          do nv=1,nvars_3d_h         
+!
+            bnd3d=>bnd_vars_h%var_3d(nv)%east
+            var3d=>bnd_vars_h%var_3d(nv)%full_var
+!
+            do k=1,lm
+              do j=jms,jme
+                n=0
+                do i=1,lnsh
+                  n=n+1
+                  bnd3d(i,j,k,1)=var3d(ide-lnsh+n,j,k)
+                enddo
+              enddo
+            enddo
+!
+          enddo
+!
+        endif
+!
+!------------------------
+!***  4-d h variables
+!------------------------
+!
+        if(nvars_4d_h>0)then
+!
+          do nv=1,nvars_4d_h
+!
+            bnd4d=>bnd_vars_h%var_4d(nv)%east
+            var4d=>bnd_vars_h%var_4d(nv)%full_var
+!
+            l1=lbound(bnd_vars_h%var_4d(nv)%full_var,4)
+            l2=ubound(bnd_vars_h%var_4d(nv)%full_var,4)
+            do l=l1,l2
+              do k=1,lm
+                do j=jms,jme
+                  n=0
+                  do i=1,lnsh
+                    n=n+1
+                    bnd4d(i,j,k,l,1)=var4d(ids-1+n,j,k,l)
+                  enddo
+                enddo
+              enddo
+            enddo
+!
+          enddo
+!
+        endif
+!
+!------------------------
+!***  2-d v variables
+!------------------------
+!
+        if(nvars_2d_v>0)then 
+!
+          do nv=1,nvars_2d_v         
+!
+            bnd2d=>bnd_vars_v%var_2d(nv)%east
+            var2d=>bnd_vars_v%var_2d(nv)%full_var
+!
+            do j=jms,jme
+              n=0
+              do i=1,lnsv
+                n=n+1
+                bnd2d(i,j,1)=var2d(ide-1-lnsv+n,j)
+              enddo
+            enddo
+!
+          enddo
+!
+        endif
+!
+!------------------------
+!***  3-d v variables
+!------------------------
+!
+        if(nvars_3d_v>0)then 
+!
+          do nv=1,nvars_3d_v         
+!
+            bnd3d=>bnd_vars_v%var_3d(nv)%east
+            var3d=>bnd_vars_v%var_3d(nv)%full_var
+!
+            do k=1,lm
+              do j=jms,jme
+                n=0
+                do i=1,lnsv
+                  n=n+1
+                  bnd3d(i,j,k,1)=var3d(ide-1-lnsv+n,j,k)
+                enddo
+              enddo
+            enddo
+!
+          enddo
+!
+        endif
 !
       endif
 !
