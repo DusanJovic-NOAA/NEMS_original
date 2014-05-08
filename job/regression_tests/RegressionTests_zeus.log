@@ -1,11 +1,11 @@
-Wed May  7 06:18:40 EDT 2014
+Wed May  7 14:43:16 UTC 2014
 Start Regression test
 
 
 
-Wed May  7 06:18:40 EDT 2014
+Wed May  7 14:43:16 UTC 2014
 Compilation ALL
-Wed May  7 06:36:11 EDT 2014
+Wed May  7 14:57:17 UTC 2014
 Test 1
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 1 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  81.781
+ Original timing:  151.20  , test_glob timing:  85.947
 
 
 Test 2
@@ -261,5 +261,5 @@ Checking test 14 results ....
  Comparing ngac.t00z.aerf12.........OK
  Comparing ngac.t00z.aerf24.........OK
  Test 14 passed 
-Wed May  7 08:36:12 EDT 2014
+Wed May  7 17:20:31 UTC 2014
 REGRESSION TEST WAS SUCCESSFUL
