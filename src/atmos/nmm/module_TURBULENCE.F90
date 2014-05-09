@@ -79,19 +79,18 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
       SUBROUTINE TURBL(NTSD,DT,NPHS                                     &
-                      ,NUM_WATER,NSOIL,SLDPTH,DZSOIL                    &
+                      ,NSOIL,SLDPTH,DZSOIL                              &
                       ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1,PT              &
                       ,SM,CZEN,CZMEAN,SIGT4,RLWIN,RSWIN,RADOT           &
-!- RLWIN/RSWIN - downward longwave/shortwave at the surface (also TOTLWDN/TOTSWDN in RADIATION)
-                      ,RLWTT,RSWTT                                      &   !! added by wang 2010-10-6
+                      ,RLWTT,RSWTT                                      &
                       ,PD,T,Q,CWM,F_ICE,F_RAIN,F_RIMEF,SR               &
                       ,Q2,U,V,DUDT,DVDT                                 &
-                      ,THS,TSFC,SST,PREC,SNO,SNOWC,WATER                &
-                      ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG                    &
+                      ,THS,TSFC,SST,PREC,SNO,SNOWC                      &
+                      ,QV,QC,QR,QI,QS,QG                                &
                       ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG                    &
                       ,FIS,Z0,Z0BASE,USTAR,PBLH,LPBL,XLEN_MIX,RMOL      &
                       ,EXCH_H,AKHS,AKMS,AKHS_OUT,AKMS_OUT               &
-                      ,THZ0,QZ0,UZ0,VZ0,QS,MAVAIL                       &
+                      ,THZ0,QZ0,UZ0,VZ0,QSH,MAVAIL                      &
                       ,STC,SMC,CMC,SMSTAV,SMSTOT,SSROFF,BGROFF          &
                       ,IVGTYP,ISLTYP,VEGFRC,GRNFLX                      &
                       ,SFCEXC,ACSNOW,ACSNOM,SNOPCX,SICE,TG,SOILTB       &
@@ -162,10 +161,8 @@
       INTEGER(kind=KINT),INTENT(IN) :: IDS,IDE,JDS,JDE,LM               &
                                       ,IMS,IME,JMS,JME                  &
                                       ,ITS,ITE,JTS,JTE                  &
-                                      ,NPHS,NSOIL,NTSD,NUM_WATER        &
+                                      ,NPHS,NSOIL,NTSD                  &
                                       ,UCMCALL,IVEGSRC
-!
-      INTEGER(kind=KINT),INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
 !
       INTEGER(kind=KINT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: ISLTYP &
                                                                  ,IVGTYP
@@ -213,7 +210,7 @@
                                                                  ,BGROFF,CMC       &
                                                                  ,PBLH,POTEVP      &
                                                                  ,POTFLX,PREC      &
-                                                                 ,QCG,QS,QSG       &
+                                                                 ,QCG,QSH,QSG      &
                                                                  ,QVG,QZ0,RMOL     &
                                                                  ,SFCEVP           &
                                                                  ,SFCLHX,SFCSHX    &
@@ -243,7 +240,7 @@
                                                                       ,Q,Q2   &
                                                                       ,T,U,V
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM,NUM_WATER),INTENT(INOUT) :: WATER
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QV,QC,QR,QI,QS,QG
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) ::  F_ICE  &
                                                                        ,F_RAIN
@@ -277,7 +274,7 @@
 !
       REAL(kind=KFPT),PARAMETER :: XLV=ELWV
 !
-      INTEGER(kind=KINT) :: I,I_M,IEND,IJ,ISTR,IW,J,K,KOUNT_ALL   &
+      INTEGER(kind=KINT) :: I,IEND,IJ,ISTR,IW,J,K,KOUNT_ALL         &
                            ,LENGTH_ROW,N,NRDL,NRL,NWL,SST_UPDATE
 !
       INTEGER(kind=KINT) :: PBL_PHYSICS,SFCLAY_PHYSICS,SURFACE_PHYSICS
@@ -290,9 +287,7 @@
 !
       REAL(kind=KFPT) :: ALTITUDE,DECLIN_URB,DQDT,DTBL,DTDT,DTMIN,DTPHS,DZHALF &
                         ,FACTOR,FACTRL,G_INV,PDSL,PLM,PLYR,PSFC                &
-!aligo                        ,QI,QL,QLOWX,QOLD,QR,QW                                &
-                        ,QI,QL,QLOWX,QOLD,QR,QW,QSnow,QGraup                   &
-!aligo
+                        ,QIce,QL,QLOWX,QOLD,QRain,QW,QSnow,QGraup                 &
                         ,RATIOMX,RDTPHS,ROG,RXNER,SNO_FACTR                    &
                         ,TL,TLMH,TSFC2,XLVRW
 !
@@ -312,8 +307,13 @@
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: PHINT,Z
 !
-      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM) :: RTHBLTEN,RQVBLTEN       &
-                                                        ,RQCBLTEN,RQIBLTEN, RQRBLTEN, RQSBLTEN,RQGBLTEN
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM) :: RTHBLTEN       &
+                                                        ,RQVBLTEN       &
+                                                        ,RQCBLTEN       &
+                                                        ,RQIBLTEN       &
+                                                        ,RQRBLTEN       &
+                                                        ,RQSBLTEN       &
+                                                        ,RQGBLTEN
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM) :: DUDT_GWD,DVDT_GWD
 
@@ -429,6 +429,7 @@
 !
       SST_UPDATE=0
 !
+!$omp parallel do private(j,i)
       DO J=JMS,JME
       DO I=IMS,IME
         ONE(I,J)=1.
@@ -436,6 +437,7 @@
         SFCEVPX(I,J)=0.  !Dummy for accumulated latent energy, not flux
       ENDDO
       ENDDO
+!$omp end parallel do
 !
       W_BDY=(ITS==IDS)
       E_BDY=(ITE==IDE)
@@ -444,16 +446,19 @@
 !
       IF(SURFACE_PHYSICS==99.OR.SURFACE_PHYSICS==LISSSCHEME)THEN
         SNO_FACTR=1.
+!$omp parallel do private(j,i)
         DO J=JTS,JTE
         DO I=ITS,ITE
           SNOWC(I,J)=0.
           IF(SNO(I,J)>0.) SNOWC(I,J)=1.
         ENDDO
         ENDDO
+!$omp end parallel do
       ELSE
         SNO_FACTR=0.001
       ENDIF
 !
+!$omp parallel do private(j,i)
       DO J=JTS,JTE
       DO I=ITS,ITE
         VGFRCK(I,J)=100.*VEGFRC(I,J)
@@ -463,8 +468,10 @@
         T2(I,J)=TSFC(I,J)
       ENDDO
       ENDDO
+!$omp end parallel do
 !
       IF(NTSD==0)THEN
+!$omp parallel do private(j,i)
         DO J=JTS,JTE
         DO I=ITS,ITE
           Z0BASE(I,J)=Z0(I,J)
@@ -473,28 +480,22 @@
           ENDIF
         ENDDO
         ENDDO
+!$omp end parallel do
       ENDIF
 !
-!.......................................................................
-!$omp parallel do                                                       &
-!$omp& private(i,j,k)
-!.......................................................................
+!$omp parallel do private(k,j,i)
       DO K=1,LM
       DO J=JTS,JTE
       DO I=ITS,ITE
         Q2(I,J,K)=MAX(Q2(I,J,K),EPSQ2)
         EXCH_H(I,J,K)=0.
+        DZ(I,J,K)=0.
       ENDDO
       ENDDO
       ENDDO
-!.......................................................................
 !$omp end parallel do
-!.......................................................................
 !
-!.......................................................................
-!$omp parallel do                                                       &
-!$omp& private(i,j,k)
-!.......................................................................
+!$omp parallel do private(k,j,i)
       DO K=1,LM+1
       DO J=JTS,JTE
       DO I=ITS,ITE
@@ -502,33 +503,15 @@
       ENDDO
       ENDDO
       ENDDO
-!.......................................................................
 !$omp end parallel do
-!.......................................................................
-!
-!.......................................................................
-!$omp parallel do                                                       &
-!$omp& private(i,j,k)
-!.......................................................................
-      DO K=1,LM
-      DO J=JTS,JTE
-      DO I=ITS,ITE
-        DZ(I,J,K)=0.
-      ENDDO
-      ENDDO
-      ENDDO
-!.......................................................................
-!$omp end parallel do
-!.......................................................................
-!
 
 !-----------------------------------------------------------------------
 !***  Prepare needed arrays
 !-----------------------------------------------------------------------
 !
 !.......................................................................
-!$omp parallel do                                                     &
-!$omp private(j,i,pdsl,psfc,plm,tlmh,factrl,k,plyr,ql,tl        &
+!$omp parallel do                                                       &
+!$omp private(j,i,pdsl,psfc,plm,tlmh,factrl,k,plyr,ql,tl                &
 !$omp        ,rxner),SCHEDULE(dynamic)
 !.......................................................................
       DO J=JTS,JTE
@@ -714,7 +697,7 @@
       DO K=1,LM
         DO J=JMS,JME
           DO I=IMS,IME
-            WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))
+            QV(I,J,K)=Q(I,J,K)/(1.-Q(I,J,K))
           ENDDO
         ENDDO
       ENDDO
@@ -790,9 +773,9 @@
               MYJ =.TRUE.
               CALL JSFC(NTSD,SFCZ,DZ,                                   &
                         PHMID,PHINT,TH,T,                               &
-                        WATER(IMS,JMS,1,P_QV),WATER(IMS,JMS,1,P_QC),    &
+                        QV,QC,                                          &
                         U_PHY,V_PHY,Q2,                                 &
-                        TSFC,QS,THZ0,QZ0,UZ0,VZ0,                       &
+                        TSFC,QSH,THZ0,QZ0,UZ0,VZ0,                      &
                         XLAND,                                          &
                         VEGFRC,SNOWC,                                   & !added 5/17/2013
                         USTAR,Z0,Z0BASE,PBLH,ONE,RMOL,                  &
@@ -821,14 +804,14 @@
 
             CASE (LISSSCHEME)
 
-              CALL LISS(DZ,WATER(IMS,JMS,1,P_QV),PHINT,RR,              &
+              CALL LISS(DZ,QV,PHINT,RR,                                 &
                         T,TH,TSFC,CHS,                                  &
                         TWBS,QWBS,QGH,RSW_DN_SFC,RLW_DN_SFC,ELFLX,RMOL, &
                         SMSTAV,SMSTOT,SSROFF,                           &
                         BGROFF,IVGTYP,ISLTYP,VGFRCK,SFCEVPX,POTEVP,     &
                         GRNFLX,SFCEXC,ACSNOW,ACSNOM,SNOPCX,             &
                         ALBASE,TG,XLAND,SICE,QZ0,                       &
-                        TH2X,Q2X,SNOWC,CQS2,QS,SOILTB,CHKLOWQ,RAINBL,   &
+                        TH2X,Q2X,SNOWC,CQS2,QSH,SOILTB,CHKLOWQ,RAINBL,  &
                         NSOIL,DTBL,DZSOIL,NTSD,                         &
                         SMC,STC,SNOW,CMC,CPM,CAPPA,SR,                  &
                         ALBEDO,MXSNAL,SH2O,SNOWH,                       &
@@ -844,13 +827,13 @@
               NWL=1
               NRDL=1
 
-              CALL NOAHLSM(DZ,WATER(IMS,JMS,1,P_QV),PHINT,T,TSFC,       &
+              CALL NOAHLSM(DZ,QV,PHINT,T,TSFC,                          &
                            TWBS,QWBS,ELFLX,GRNFLX,QGH,                  &
                            RSW_NET_SFC,RSW_DN_SFC,RLW_DN_SFC,           &
                            SMSTAV,SMSTOT,                               &
                            SSROFF,BGROFF,IVGTYP,ISLTYP,VGFRCK,          &
                            ALBEDO,ALBASE,Z0,Z0BASE,TG,XLAND,SICE,EPSR,  &
-                           SNOWC,QS,RAINBL,                             &
+                           SNOWC,QSH,RAINBL,                            &
                            NSOIL,DTBL,DZSOIL,NTSD,                      &
                            SMC,STC,SNOW,CMC,                            &
                            CHS, CHS2, CQS2, CPM,CAPPA,                  &
@@ -890,7 +873,7 @@
               ENDDO
               ENDDO
 
-              CALL SFCDIAGS(TWBS,QWBS,TSFC,QS,CHS2,CQS2,T2,TH2X,Q2X,    &
+              CALL SFCDIAGS(TWBS,QWBS,TSFC,QSH,CHS2,CQS2,T2,TH2X,Q2X,   &
                             PSFC_OUT,CP,R_d,CAPPA,                      &
                             IDS,IDE, JDS,JDE, 1,LM+1,                   &
                             IMS,IME, JMS,JME, 1,LM+1,                   &
@@ -977,10 +960,10 @@
 
               CALL MYJPBL(DT=DT,NPHS=NPHS,HT=SFCZ,DZ=DZ                 &
                          ,PHMID=PHMID,PHINT=PHINT,TH=TH,T=T,EXNER=EXNER &
-                         ,QV=WATER(IMS,JMS,1,P_QV)                      &
-                         ,CWM=WATER(IMS,JMS,1,P_QC)                     &
+                         ,QV=QV                                         &
+                         ,CWM=QC                                        &
                          ,U=U_PHY,V=V_PHY                               &
-                         ,TSK=TSFC,QSFC=QS,CHKLOWQ=CHKLOWQ,THZ0=THZ0    &
+                         ,TSK=TSFC,QSFC=QSH,CHKLOWQ=CHKLOWQ,THZ0=THZ0   &
                          ,QZ0=QZ0,UZ0=UZ0,VZ0=VZ0                       &
                          ,XLAND=XLAND,SICE=SICE,SNOW=SNOW               &
                          ,Q2=Q2,EXCH_H=EXCH_H,USTAR=USTAR,Z0=Z0         &
@@ -1006,9 +989,9 @@
               CALL GFSPBL(DT=DT,NPHS=NPHS,DP=DELP,AIRDEN=RR              &
                          ,RIB=RIB                                        &
                          ,PHMID=PHMID,PHINT=PHINT,T=T,ZINT=Z             &
-                         ,NUM_WATER=NUM_WATER,WATER=WATER                &
-                         ,P_QV=P_QV,P_QC=P_QC,P_QR=P_QR                  &
-                         ,P_QI=P_QI,P_QS=P_QS,P_QG=P_QG                  &
+                         ,QV=QV,QC=QC,QR=QR,QI=QI,QS=QS,QG=QG            &
+                         ,F_QV=F_QV,F_QC=F_QC,F_QR=F_QR                  &
+                         ,F_QI=F_QI,F_QS=F_QS,F_QG=F_QG                  &
                          ,U=U_PHY,V=V_PHY                                &
                          ,USTAR=USTAR                                    &
                          ,SHEAT=TWBS, LHEAT=QWBS*XLV*CHKLOWQ             & 
@@ -1017,7 +1000,7 @@
                          ,XLAND=XLAND                                    &
                          ,AKHS=AKHS,AKMS=AKMS                            &
                          ,THZ0=THZ0,QZ0=QZ0                              &
-                         ,QSFC=QS                                        &
+                         ,QSFC=QSH                                       &
                          ,TSK=TSFC,SNOW=SNOW,SICE=SICE,CHKLOWQ=CHKLOWQ   &
                          ,FACTRS=FACTRS,RSWTT=RSWTT,RLWTT=RLWTT          &    !! radiative heating
                          ,PBLH=PBLH,PBLK=LPBL                            &
@@ -1167,13 +1150,16 @@
       ELSE
         SNO_FACTR=1000.
       ENDIF
-!
+
+!$omp parallel do private(j,i)
       DO J=JTS_B1,JTE_B1
       DO I=ITS_B1,ITE_B1
         SNO(I,J)=SNOW(I,J)
         SI(I,J)=SNOWH(I,J)*SNO_FACTR
       ENDDO
       ENDDO
+!$omp end parallel do
+
 !
 !-----------------------------------------------------------------------
 !***  Diagnostic radiation accumulation.
@@ -1210,7 +1196,7 @@
 !
       IF(GWDFLG) THEN
 
-        CALL GWD_DRIVER(DTPHS,U_PHY,V_PHY,T,WATER(IMS,JMS,1,P_QV)       &
+        CALL GWD_DRIVER(DTPHS,U_PHY,V_PHY,T,QV                          &
                        ,Z,DELP                                          &
                        ,PHINT,PHMID,EXNER                               &
                        ,LPBL                                            &
@@ -1250,9 +1236,8 @@
 
 !.......................................................................
 !$omp parallel do                                                       &
-!$omp& private(j,k,i,dtdt,dqdt,qold,ratiomx,qw,qi,qr,QSnow,QGraup,i_m)
+!$omp& private(j,k,i,dtdt,dqdt,qold,ratiomx,qw,QIce,QRain,QSnow,QGraup)
 !.......................................................................
-
       DO K=1,LM
         DO J=JTS_B1,JTE_B1
           DO I=ITS_B1,ITE_B1
@@ -1261,46 +1246,43 @@
             T(I,J,K)=T(I,J,K)+DTDT*DTPHS
             QOLD=Q(I,J,K)
             RATIOMX=QOLD/(1.-QOLD)+DQDT*DTPHS
-!aligo
-            WATER(I,J,K,P_QV)=RATIOMX
-!aligo
+            QV(I,J,K)=RATIOMX
             Q(I,J,K)=RATIOMX/(1.+RATIOMX)
 !           Q(I,J,K)=MAX(Q(I,J,K),EPSQ)
-            QW=MAX(0.,WATER(I,J,K,P_QC)+RQCBLTEN(I,J,K)*DTPHS )
-!aligo
-            WATER(I,J,K,P_QC)=QW
-            QR=WATER(I,J,K,P_QR)
-            QSnow=WATER(I,J,K,P_QS)
-            QI=0.
+            QW=MAX(0.,QC(I,J,K)+RQCBLTEN(I,J,K)*DTPHS )
+            QC(I,J,K)=QW
+            QRain=0.
+            IF (F_QR) QRain=QR(I,J,K)
+            QSnow=0.
+            IF (F_QS) QSnow=QS(I,J,K)
+            QIce=0.
             QGraup=0.
             IF(.NOT.FER_MIC)THEN
               IF(F_QI) THEN
-                QI=MAX(0.,WATER(I,J,K,P_QI)+RQIBLTEN(I,J,K)*DTPHS )
-                WATER(I,J,K,P_QI)=QI
+                QIce=MAX(0.,QI(I,J,K)+RQIBLTEN(I,J,K)*DTPHS )
+                QI(I,J,K)=QIce
               ENDIF
               IF(F_QG) THEN
-                QGraup=WATER(I,J,K,P_QG)
+                QGraup=QG(I,J,K)
               ENDIF
             ENDIF
-            CWM(I,J,K)=QW+QR+QI+QSnow+QGraup
+            CWM(I,J,K)=QW+QRain+QIce+QSnow+QGraup
             IF(FER_MIC)THEN
               IF(QSnow<=EPSQ)THEN
                 F_ICE(I,J,K)=0.
               ELSE
                 F_ICE(I,J,K)=QSnow/CWM(I,J,K)
               ENDIF
-              IF(QR<=EPSQ)THEN
+              IF(QRain<=EPSQ)THEN
                 F_RAIN(I,J,K)=0.
               ELSE
-                F_RAIN(I,J,K)=QR/(QW+QR)
+                F_RAIN(I,J,K)=QRain/(QW+QRain)
               ENDIF
             ENDIF
-!aligo
           ENDDO
         ENDDO
 
       ENDDO
-
 !.......................................................................
 !$omp end parallel do
 !.......................................................................
@@ -1348,6 +1330,7 @@
 !***  COUNTERS (need to make 2D arrays so fields can be updated in ESMF)
 !-----------------------------------------------------------------------
 !
+!$omp parallel do private(j,i)
       DO J=JTS,JTE
       DO I=ITS,ITE
          APHTIM(I,J)=APHTIM(I,J)+1.
@@ -1356,7 +1339,7 @@
          ASRFC(I,J) =ASRFC(I,J) +1.
       ENDDO
       ENDDO
-!-----------------------------------------------------------------------
+!$omp end parallel do
 
       END SUBROUTINE TURBL
 !

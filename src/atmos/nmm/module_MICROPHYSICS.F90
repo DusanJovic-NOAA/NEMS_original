@@ -57,13 +57,13 @@
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
-      SUBROUTINE GSMDRIVE(ITIMESTEP,DT,NPHS,NUM_WATER                   &
+      SUBROUTINE GSMDRIVE(ITIMESTEP,DT,NPHS                             &
                          ,DX,DY,SM,FIS                                  &
                          ,DSG2,SGML2,PDSG1,PSGML1,PT,PD                 &
-                         ,T,Q,CWM,OMGALF,WATER                          &
+                         ,T,Q,CWM,OMGALF                                &
                          ,TRAIN,SR                                      &
                          ,F_ICE,F_RAIN,F_RIMEF                          &
-                         ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG,P_NI,P_NR       &
+                         ,QV,QC,QR,QI,QS,QG,NI,NR                       &
                          ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI,F_NR       &
                          ,PREC,ACPREC,AVRAIN                            &
                          ,acpcp_ra,acpcp_sn,acpcp_gr, refl_10cm         &
@@ -75,7 +75,7 @@
                          ,MICROPHYSICS                                  &
                          ,TP1,QP1,PSP1                                  &
                          ,USE_RADAR                                     &
-                         ,DFI_TTEN                                      & 
+                         ,DFI_TTEN                                      &
                          ,IDS,IDE,JDS,JDE,LM                            &
                          ,IMS,IME,JMS,JME                               &
                          ,ITS,ITE,JTS,JTE                               &
@@ -112,13 +112,11 @@
 !***  Argument Variables
 !------------------------
 !
-      INTEGER,INTENT(IN) :: D_SS,ITIMESTEP,NPHS,NUM_WATER               &
+      INTEGER,INTENT(IN) :: D_SS,ITIMESTEP,NPHS                         &
                            ,IDS,IDE,JDS,JDE,LM                          &
                            ,IMS,IME,JMS,JME                             &
                            ,ITS,ITE,JTS,JTE                             &
                            ,ITS_B1,ITE_B1,JTS_B1,JTE_B1
-!
-      INTEGER,INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG,P_NI,P_NR
 !
       INTEGER,INTENT(IN) :: USE_RADAR
 !
@@ -144,7 +142,7 @@
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: CWM,Q,T     &
                                                            ,TRAIN
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,NUM_WATER),INTENT(INOUT) :: WATER
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QV,QC,QR,QI,QS,QG,NI,NR
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: F_ICE       &
                                                            ,F_RAIN      &
@@ -175,13 +173,13 @@
 !
       INTEGER,DIMENSION(IMS:IME,JMS:JME) :: LOWLYR
 !
-      REAL :: DPL,DTPHS,PCPCOL,PDSL,PHMID,QI,QR,QW,RDTPHS,TNEW
+      REAL :: DPL,DTPHS,PCPCOL,PDSL,PHMID,QW,RDTPHS,TNEW
       REAL :: MP_TTEN,mytten
 !
       REAL,DIMENSION(1:LM) :: QL,TL
 !
       REAL,DIMENSION(IMS:IME,JMS:JME) :: CUBOT,CUTOP,RAINNC,RAINNCV     &
-                                        ,SNOWNC,SNOWNCV,XLAND           & 
+                                        ,SNOWNC,SNOWNCV,XLAND           &
                                         ,graupelnc,graupelncv
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM) :: DZ                        &
@@ -277,7 +275,7 @@
       DO K=1,LM
         DO J=JMS,JME
           DO I=IMS,IME
-            WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))
+            QV(I,J,K)=Q(I,J,K)/(1.-Q(I,J,K))
           ENDDO
         ENDDO
       ENDDO
@@ -333,10 +331,10 @@
             CALL ETAMP_NEW(                                                   &
                    ITIMESTEP=ntsd,DT=dtphs,DX=dx,DY=dy                        &
                   ,DZ8W=dz,RHO_PHY=rr,P_PHY=p_phy,PI_PHY=pi_phy,TH_PHY=th_phy &
-                  ,QV=water(ims,jms,1,p_qv)                                   &
-                  ,QC=water(ims,jms,1,p_qc)                                   &
-                  ,QS=water(ims,jms,1,p_qs)                                   &
-                  ,QR=water(ims,jms,1,p_qr)                                   &
+                  ,QV=QV                                                      &
+                  ,QC=QC                                                      &
+                  ,QS=QS                                                      &
+                  ,QR=QR                                                      &
                   ,QT=cwm                                                     &
                   ,LOWLYR=LOWLYR,SR=SR                                        &
                   ,F_ICE_PHY=F_ICE,F_RAIN_PHY=F_RAIN                          &
@@ -353,10 +351,10 @@
             CALL FER_HIRES(                                                   &
                    ITIMESTEP=ntsd,DT=dtphs,DX=dx,DY=dy                        &
                   ,DZ8W=dz,RHO_PHY=rr,P_PHY=p_phy,PI_PHY=pi_phy,TH_PHY=th_phy &
-                  ,QV=water(ims,jms,1,p_qv)                                   &
-                  ,QC=water(ims,jms,1,p_qc)                                   &
-                  ,QS=water(ims,jms,1,p_qs)                                   &
-                  ,QR=water(ims,jms,1,p_qr)                                   &
+                  ,QV=QV                                                      &
+                  ,QC=QC                                                      &
+                  ,QS=QS                                                      &
+                  ,QR=QR                                                      &
                   ,QT=cwm                                                     &
                   ,LOWLYR=LOWLYR,SR=SR                                        &
                   ,F_ICE_PHY=F_ICE,F_RAIN_PHY=F_RAIN                          &
@@ -370,16 +368,12 @@
                   ,D_SS=d_ss,MPRATES=mprates                                  &
                                                                             )
           CASE ('gfs')
-               !  write(0,*)'before call gfsmp,cwm=',cwm(10,10,:)
-               !  write(0,*)'water(p_qi)=',water(10,10,:,p_qi)
-               !  write(0,*)'water(p_qc)=',water(10,10,:,p_qc)
-               !  write(0,*)'water(p_qv)=',water(10,10,:,p_qv)
             CALL GFSMP(DT=dtphs,                                               &
                    dz8w=dz,rho_phy=rr,p_phy=p_phy,pi_phy=pi_phy,th_phy=th_phy, &
                    SR=SR,QT=CWM, F_ICE_PHY=F_ICE,                              &
                    RAINNC=RAINNC,RAINNCV=RAINNCV,                              &
-                   WATER=WATER,P_QV=P_QV,P_QC=P_QC,P_QI=P_QI,                  &
-                   NUM_WATER=NUM_WATER,                                        &
+                   QV=QV,QC=QC,QI=QI,                                          &
+                   F_QV=F_QV,F_QC=F_QC,F_QI=F_QI,                              &
                    TP1=TP1,QP1=QP1,PSP1=PSP1,                                  &
                    IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=LM+1,           &
                    IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=LM ,            &
@@ -388,14 +382,14 @@
       !       write(0,*)'call wsm6'
              CALL wsm6(                                             &
                   TH=th_phy                                         &
-                 ,Q=water(ims,jms,1,p_qv)                           &
-                 ,QC=water(ims,jms,1,p_qc)                          &
-                 ,QR=water(ims,jms,1,p_qr)                          &
-                 ,QI=water(ims,jms,1,p_qi)                          &
-                 ,QS=water(ims,jms,1,p_qs)                          &
-                 ,QG=water(ims,jms,1,p_qg)                          &
-                 ,DEN=rr,PII=pi_phy,P=p_phy,DELZ=dz                  &
-                 ,DELT=dtphs,G=g,CPD=cp,CPV=cpv                        &
+                 ,Q=QV                                              &
+                 ,QC=QC                                             &
+                 ,QR=QR                                             &
+                 ,QI=QI                                             &
+                 ,QS=QS                                             &
+                 ,QG=QG                                             &
+                 ,DEN=rr,PII=pi_phy,P=p_phy,DELZ=dz                 &
+                 ,DELT=dtphs,G=g,CPD=cp,CPV=cpv                     &
                  ,RD=r_d,RV=r_v,T0C=svpt0                           &
                  ,EP1=ep_1, EP2=ep_2, QMIN=epsilon                  &
                  ,XLS=xls, XLV0=xlv, XLF0=xlf                       &
@@ -412,8 +406,8 @@
                 DO K=1,LM
                 DO J=JMS,JME
                 DO I=IMS,IME
-                 CWM(I,J,K)=water(i,j,k,p_qc)+water(i,j,k,p_qr)+water(i,j,k,p_qi) &
-                           +water(i,j,k,p_qs)+water(i,j,k,p_qg)
+                 CWM(I,J,K)=QC(i,j,k)+QR(i,j,k)+QI(i,j,k) &
+                           +QS(i,j,k)+QG(i,j,k)
                 ENDDO
                 ENDDO
                 ENDDO
@@ -422,14 +416,14 @@
           CASE ('thompson')
 !            write(6,*)'DEBUG-GT, calling mp_gt_driver'
              CALL mp_gt_driver(                                     &
-                  qv=water(ims,jms,1,p_qv)                          &
-                 ,qc=water(ims,jms,1,p_qc)                          &
-                 ,qr=water(ims,jms,1,p_qr)                          &
-                 ,qi=water(ims,jms,1,p_qi)                          &
-                 ,qs=water(ims,jms,1,p_qs)                          &
-                 ,qg=water(ims,jms,1,p_qg)                          &
-                 ,ni=water(ims,jms,1,p_ni)                          &
-                 ,nr=water(ims,jms,1,p_nr)                          &
+                  qv=qv                                             &
+                 ,qc=qc                                             &
+                 ,qr=qr                                             &
+                 ,qi=qi                                             &
+                 ,qs=qs                                             &
+                 ,qg=qg                                             &
+                 ,ni=ni                                             &
+                 ,nr=nr                                             &
                  ,TH=th_phy,PII=pi_phy,P=p_phy,dz=dz,dt_in=dtphs    &
                  ,itimestep=ntsd                                    &
                  ,RAINNC=rainnc ,RAINNCV=rainncv                    &
@@ -452,8 +446,8 @@
                 DO K=1,LM
                 DO J=JMS,JME
                 DO I=IMS,IME
-                 CWM(I,J,K)=water(i,j,k,p_qc)+water(i,j,k,p_qr)+water(i,j,k,p_qi) &
-                           +water(i,j,k,p_qs)+water(i,j,k,p_qg)
+                 CWM(I,J,K)=QC(i,j,k)+QR(i,j,k)+QI(i,j,k) &
+                           +QS(i,j,k)+QG(i,j,k)
                 ENDDO
                 ENDDO
                 ENDDO
@@ -520,7 +514,7 @@
           ELSE
             T(I,J,K)=TNEW
           ENDIF
-          Q(I,J,K)=WATER(I,J,K,P_QV)/(1.+WATER(I,J,K,P_QV)) !To s.h.
+          Q(I,J,K)=QV(I,J,K)/(1.+QV(I,J,K)) !To s.h.
         ENDDO
         ENDDO
       ENDDO

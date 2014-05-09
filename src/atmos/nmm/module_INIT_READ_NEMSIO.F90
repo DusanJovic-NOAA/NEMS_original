@@ -339,7 +339,7 @@ integer,allocatable       :: reclev(:)
         do l=1,lm
         do j=jms,jme
         do i=ims,ime
-          int_state%water(i,j,l,int_state%p_qv)=int_state%q(i,j,l)/(1.-int_state%q(i,j,l))    ! WRF water array uses mixing ratio for vapor
+          int_state%qv(i,j,l)=int_state%q(i,j,l)/(1.-int_state%q(i,j,l))    ! WRF water array uses mixing ratio for vapor
         enddo
         enddo
         enddo
@@ -3648,20 +3648,8 @@ integer,allocatable       :: reclev(:)
         enddo
       enddo
       call halo_exch(int_state%tracers,lm,int_state%num_tracers_total,1,2,2)
-!
-      do n=1,int_state%num_water
-      do l=1,lm
-        do j=jms,jme
-        do i=ims,ime
-          int_state%water(i,j,l,n)=int_state%tracers(i,j,l,n+int_state%num_tracers_total-int_state%num_water)
-        enddo
-        enddo
-      enddo
-      enddo
-!
 !-----------------------------------------------------------------------
 !
-
         ntsd=0
         int_state%ntsti=ntsd+1
 !

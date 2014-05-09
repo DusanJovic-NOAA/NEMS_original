@@ -47,13 +47,13 @@
                        ,ENTRAIN,NEWALL,NEWSWAP,NEWUPUP,NODEEP           &
                        ,FRES,FR,FSL,FSS                                 &
                        ,DYH,RESTRT,HYDRO                                &
-                       ,CLDEFI,NUM_WATER                                &
+                       ,CLDEFI                                          &
                        ,F_ICE,F_RAIN                                    &
-                       ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG                   &
+                       ,QV,QC,QR,QI,QS,QG                               &
                        ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG                   &
                        ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1                &
                        ,dxh                                             &
-                       ,PT,PD,T,Q,CWM,TCUCN,WATER                       &
+                       ,PT,PD,T,Q,CWM,TCUCN                             &
                        ,OMGALF,U,V                                      &
                        ,FIS,W0AVG                                       &
                        ,PREC,ACPREC,CUPREC,CUPPT,CPRATE                 &
@@ -115,8 +115,7 @@
       ,its,ite,jts,jte &
       ,its_b1,ite_b1,jts_b1,jte_b1 &
       ,ncnvc,minutes_history &
-      ,nrads,nradl,ntsd,num_water &
-      ,p_qv,p_qc,p_qr,p_qi,p_qs,p_qg
+      ,nrads,nradl,ntsd
 !
       integer(kind=kint),dimension(ims:ime,jms:jme),intent(in):: &
        lpbl
@@ -167,9 +166,9 @@
       real(kind=kfpt),dimension(ims:ime,1:lm+1,jms:jme),intent(inout):: &
        w0avg
 !
-      real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm,1:num_water) &
-                     ,intent(inout):: &
-       water
+
+      real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(inout):: &
+       qv,qc,qr,qi,qs,qg
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
@@ -191,7 +190,7 @@
 !
       real(kind=kfpt):: &
        cf_hi,dqdt,dtcnvc,dtdt,fice,frain,g_inv &
-      ,pcpcol,pdsl,qi,ql,ql_k,qr,qw,rdtcnvc &
+      ,pcpcol,pdsl,ql,ql_k,rdtcnvc &
       ,tl
 !
       REAL(kind=kfpt),DIMENSION(IMS:IME,JMS:JME):: &
@@ -200,7 +199,7 @@
 !
       REAL(kind=kfpt),DIMENSION(IMS:IME,JMS:JME,1:LM):: &
        DZ,PHMID,exner &
-      ,qv,th,rr &
+      ,th,rr &
       ,RQCCUTEN,RQRCUTEN &
       ,RQICUTEN,RQSCUTEN &
       ,RQVCUTEN,RTHCUTEN &
@@ -423,8 +422,7 @@
       DO K=1,LM
         DO J=JMS,JME
           DO I=IMS,IME
-            WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))
-            qv(i,j,k)=water(i,j,k,p_qv)
+            QV(I,J,K)=Q(I,J,K)/(1.-Q(I,J,K))
           ENDDO
         ENDDO
       ENDDO
@@ -471,7 +469,8 @@
                       ,its,ite,jts,jte,lm &
                       ,dt,ntsd,ncnvc &
                       ,th,t,sice,omgalf,twbs,qwbs,pblh,u_phy,v_phy & !zj orig u&v 
-                      ,water,p_qv,p_qc,p_qr,p_qs,p_qi,p_qg,num_water &
+                      ,qv,qc,qr,qi,qs,qg &
+                      ,f_qv,f_qc,f_qr,f_qi,f_qs,f_qg &
                       ,phint,phmid,exner,rr,dz &
                       ,xland,cu_act_flag &
                       ,raincv,cutop,cubot &
@@ -531,7 +530,7 @@
 !***  RQVCUTEN IN BMJDRV IS THE MIXING RATIO TENDENCY,
 !***  SO RETRIEVE DQDT BY CONVERTING TO SPECIFIC HUMIDITY.
 !
-          DQDT=RQVCUTEN(I,J,K)/(1.+WATER(I,J,K,P_QV))**2
+          DQDT=RQVCUTEN(I,J,K)/(1.+QV(I,J,K))**2
 !
 !***  RTHCUTEN IN BMJDRV IS DTDT OVER exner.
 !
@@ -539,15 +538,15 @@
           T(I,J,K)=T(I,J,K)+DTDT*DTCNVC
           Q(I,J,K)=Q(I,J,K)+DQDT*DTCNVC
           TCUCN(I,J,K)=TCUCN(I,J,K)+DTDT
-          WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))       !Convert to mixing ratio
+          QV(I,J,K)=Q(I,J,K)/(1.-Q(I,J,K))       !Convert to mixing ratio
 
 !!! WANG, 11-2-2010 SAS convection
                 IF(CONVECTION=='sas') THEN
-                 WATER(I,J,K,P_QC)=WATER(I,J,K,P_QC)+DTCNVC*RQCCUTEN(I,J,K)
-                 WATER(I,J,K,P_QR)=WATER(I,J,K,P_QR)+DTCNVC*RQRCUTEN(I,J,K)
-                 WATER(I,J,K,P_QI)=WATER(I,J,K,P_QI)+DTCNVC*RQICUTEN(I,J,K)
-                 WATER(I,J,K,P_QS)=WATER(I,J,K,P_QS)+DTCNVC*RQSCUTEN(I,J,K)
-                 WATER(I,J,K,P_QG)=WATER(I,J,K,P_QG)+DTCNVC*RQGCUTEN(I,J,K)
+                 IF(F_QC) QC(I,J,K)=QC(I,J,K)+DTCNVC*RQCCUTEN(I,J,K)
+                 IF(F_QR) QR(I,J,K)=QR(I,J,K)+DTCNVC*RQRCUTEN(I,J,K)
+                 IF(F_QI) QI(I,J,K)=QI(I,J,K)+DTCNVC*RQICUTEN(I,J,K)
+                 IF(F_QS) QS(I,J,K)=QS(I,J,K)+DTCNVC*RQSCUTEN(I,J,K)
+                 IF(F_QG) QG(I,J,K)=QG(I,J,K)+DTCNVC*RQGCUTEN(I,J,K)
                 ENDIF
 !!! wang, 11-2-2010
 !

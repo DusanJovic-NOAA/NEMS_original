@@ -484,8 +484,8 @@
           QWFLIP(I,J,K)=MAX(QW(I,J,K),0.)      !Modified
 ! Note that QIFLIP will contain QS+QI if both are passed in, otherwise just QS 
 !     Eta MP now outputs QS instead of QI (JD 2006-05-12)
-          QIFLIP(I,J,K)=MAX(QS(I,J,K),0.)
-!rv       IF(PRESENT(QI))QIFLIP(I,J,K)=QIFLIP(I,J,K)+QI(I,J,K)
+          QIFLIP(I,J,K)=0.0
+          IF(F_QS)QIFLIP(I,J,K)=MAX(QS(I,J,K),0.)
           IF(F_QI)QIFLIP(I,J,K)=QIFLIP(I,J,K)+QI(I,J,K)
 !
 !***  USE MONOTONIC HYDROSTATIC PRESSURE INTERPOLATED TO MID-LEVEL

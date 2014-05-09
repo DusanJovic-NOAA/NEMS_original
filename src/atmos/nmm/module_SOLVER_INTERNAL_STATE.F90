@@ -563,8 +563,6 @@
         INTEGER(kind=KINT) :: INDX_WATER_START                          &  !<-- Start index of the water in tracers array
                              ,INDX_WATER_END                               !<-- End index of the water in tracers array
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: WATER                !<-- Storage array for MP source/sink terms and water substance
-!
         LOGICAL(kind=KLOG) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI,F_NR
 !
 !-----------------------------------------------------------------------
@@ -1248,7 +1246,6 @@
 !
       int_state%INDX_WATER_START = int_state%NUM_TRACERS_MET + int_state%NUM_TRACERS_CHEM + 1
       int_state%INDX_WATER_END = int_state%INDX_WATER_START + int_state%NUM_WATER - 1
-      int_state%WATER(IMS:IME,JMS:JME,1:LM,1:int_state%NUM_WATER) => int_state%TRACERS_ARR( (int_state%INDX_WATER_START-1)*TRACER_SIZE_1+1 : int_state%INDX_WATER_END*TRACER_SIZE_1)
 
       if (int_state%P_QV .gt. 1) then
          int_state%INDX_QV = int_state%INDX_WATER_START-1 + int_state%P_QV

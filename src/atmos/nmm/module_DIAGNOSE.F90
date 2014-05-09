@@ -2429,7 +2429,7 @@ dbz_mix:  IF (RQR>RQmix .AND. RQLICE>RQmix) THEN
 !
 
       SUBROUTINE MAX_FIELDS_w6(T,Q,U,V,Z,W            &
-                           ,WATER,PINT,PD             &
+                           ,QR,QS,QG,PINT,PD          &
                            ,CPRATE,HTOP               &
                            ,T2,U10,V10                &
                            ,PSHLTR,TSHLTR,QSHLTR      &
@@ -2448,13 +2448,12 @@ dbz_mix:  IF (RQR>RQmix .AND. RQLICE>RQmix) THEN
                            ,DT,NPHS,NTSD              &
                            ,DXH,DYH                   &
                            ,FIS                       &
-                           ,P_QR,P_QS,P_QG            &
                            ,ITS,ITE,JTS,JTE           & 
                            ,IMS,IME,JMS,JME           &
                            ,IDE,JDE                   & 
                            ,ITS_B1,ITE_B1             &
                            ,JTS_B1,JTE_B1             &
-                           ,LM,NUM_WATER              &
+                           ,LM                        &
                            ,NCOUNT,FIRST_NMM          &
                            ,MY_DOMAIN_ID)
 
@@ -2462,13 +2461,12 @@ dbz_mix:  IF (RQR>RQmix .AND. RQLICE>RQmix) THEN
        
       INTEGER,INTENT(IN) :: ITS,ITE,JTS,JTE,IMS,IME,JMS,JME,LM,NTSD
       INTEGER,INTENT(IN) :: ITS_B1,ITE_B1,JTS_B1,JTE_B1
-      INTEGER,INTENT(IN) :: IDE,JDE,NPHS,NUM_WATER
+      INTEGER,INTENT(IN) :: IDE,JDE,NPHS
       INTEGER,INTENT(IN) :: MY_DOMAIN_ID
-      INTEGER,INTENT(IN) :: P_QR,P_QS,P_QG
 
       REAL, DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: T,Q,U,V,Z,W
 
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,NUM_WATER),INTENT(INOUT) :: WATER
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QR,QS,QG
 
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(IN) :: PINT
 
@@ -2580,12 +2578,12 @@ dbz_mix:  IF (RQR>RQmix .AND. RQLICE>RQmix) THEN
             T1D(2)=T(I,J,L+1)
             Q1D(1)=Q(I,J,L)
             Q1D(2)=Q(I,J,L+1)
-            QQR(1)=WATER(I,J,L,P_QR)
-            QQR(2)=WATER(I,J,L+1,P_QR)
-            QQS(1)=WATER(I,J,L,P_QS)
-            QQS(2)=WATER(I,J,L+1,P_QS)
-            QQG(1)=WATER(I,J,L,P_QG)
-            QQG(2)=WATER(I,J,L+1,P_QG)
+            QQR(1)=QR(I,J,L)
+            QQR(2)=QR(I,J,L+1)
+            QQS(1)=QS(I,J,L)
+            QQS(2)=QS(I,J,L+1)
+            QQG(1)=QG(I,J,L)
+            QQG(2)=QG(I,J,L+1)
             EXIT vloop
           ENDIF
         ENDDO vloop

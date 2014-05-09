@@ -48,8 +48,8 @@
         SUBROUTINE GFSPBL(DT,NPHS,DP,AIRDEN                              &
      &                    ,RIB                                            &
      &                    ,PHMID,PHINT,T,ZINT                             &
-     &                    ,NUM_WATER,WATER                                &
-     &                    ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG                  &
+     &                    ,QV,QC,QR,QI,QS,QG                              &
+     &                    ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG                  &
      &                    ,U,V                                            &
      &                    ,USTAR                                          &
      &                    ,SHEAT, LHEAT                                   &
@@ -86,8 +86,7 @@
      &                     ,IMS,IME,JMS,JME,KMS,KME                    &
      &                     ,ITS,ITE,JTS,JTE,KTS,KTE
 !
-      INTEGER,INTENT(IN) :: NPHS, NUM_WATER
-      INTEGER,INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
+      INTEGER,INTENT(IN) :: NPHS
 !
 !
       REAL,INTENT(IN) :: DT
@@ -102,8 +101,8 @@
       REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) :: PHINT,ZINT
       REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE),INTENT(IN) :: U,V,T
 
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE,NUM_WATER),INTENT(IN)::   &
-     &                                                  WATER             !in z, (1:LM)
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE),INTENT(IN):: QV,QC,QR,QI,QS,QG
+      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: MIXHT,PBLH,QSFC
       INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: PBLK
@@ -134,7 +133,7 @@
       REAL(kind=kind_phys), DIMENSION(1)       :: xmu, psk,rb,ffmm,ffhh,tsea,qss,hflx,& 
                                    evap,stress,wind, &
                                    dusfc1,dvsfc1,dtsfc1,dqsfc1,hpbl,gamt,gamq,pii
-      REAL(kind=kind_phys), DIMENSION(1,KTE,NUM_WATER-1) :: dqdt ,qgrs
+      REAL(kind=kind_phys), DIMENSION(1,KTE,3) :: dqdt ,qgrs
        real a96, a97, temp1, plow, tz0,seamask,qz0ss
       REAL :: QKLOW, CWMKLOW,RHOKLOW,QFC1,EXNSFC, PSFC, THSK, zmid1
       LOGICAL :: lpr, lprnt
@@ -148,8 +147,8 @@
 
       LM = KTE
       levs = LM
-      nvdiff = NUM_WATER -1     !! p_qv = 2, 
-      ntcw  = P_QC-1    !-- Mix only cloud water; mixing of other species may not be robust
+      nvdiff = 3 
+      ntcw  = 2         !-- Mix only cloud water; mixing of other species may not be robust
    !
       kinver(1) = levs          !! temp
       xkzm_m = 3.0
@@ -161,7 +160,7 @@
 !$omp parallel do                &
 !$omp     private(k,j,i)
 !.......................................................................
-      DO K=KMS,KME
+      DO K=1,LM
       DO J=JMS,JME
       DO I=IMS,IME
       RQCBLTEN(I,J,K) = 0.0
@@ -193,7 +192,6 @@
 !$omp end parallel do
 !.......................................................................
 
-!!         write(0,*)'inside GFSBL',water(35,17,lm-5:lm,p_qv)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! THIS PART FOLLOWS MYJPBL TO UPDATE QSFC AND QZ0
 !!!  NOTE: THIS PART IS SUPPOSED TO BE DONE CORRECTLY IN JSFC.F90, BUT IT IS NOT. THIS IS 
@@ -210,9 +208,8 @@
       DO J=JTS,JTE
       DO I=ITS,ITE
            K=LM
-           QKLOW=WATER(I,J,K,P_QV)/(1.0+ WATER(I,J,K,P_QV))
-           CWMKLOW=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)+WATER(I,J,K,P_QI)+ &
-                   WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
+           QKLOW=QV(I,J,K)/(1.0+ QV(I,J,K))
+           CWMKLOW=QC(I,J,K)+QI(I,J,K)
            RHOKLOW=PHMID(I,J,K)/(RD99*T(I,J,K)*(1.+P608*QKLOW-CWMKLOW))
            THSK=TSK(I,J)*(1.E5/PHINT(I,J,LM+1))**CAPPA
 
@@ -286,15 +283,9 @@
               vgrs(1,K) = V(I,J,KFLIP)
               tgrs(1,K) = T(I,J,KFLIP)
      !! mixing ratio to specific humidity
-              qgrs(1,K,1) = WATER(I,J,KFLIP,P_QV)/(1.0+WATER(I,J,KFLIP,P_QV))
-              DO k1=2,nvdiff
-                qgrs(1,K,K1) = WATER(I,J,KFLIP,K1+1)
-              ENDDO 
-
-        !       if (i == 35 .and. j == 17) then 
-        !         write(0,*)'qgrs(1:5)=',qgrs(1,1:5,1)
-        !         write(0,*)'water = ', water(i,j,lm-5:lm,p_qv)
-        !       endif
+              qgrs(1,K,1) = QV(I,J,KFLIP)/(1.0+QV(I,J,KFLIP))
+              qgrs(1,K,2) = QC(I,J,KFLIP)
+              qgrs(1,K,3) = QI(I,J,KFLIP)
 
               del(1,K)  = DP(I,J,KFLIP)     !! pa
               prsl(1,K) = PHMID(I,J,KFLIP)  !! pa
@@ -359,13 +350,9 @@
              RVBLTEN(I,J,K)  = dvdt(1,KFLIP)                      
              RTHBLTEN(I,J,K) = dtdt(1,KFLIP)/prslk(1,KFLIP)  !! /EXNER(I,J,K)
         !!     RTHBLTEN(I,J,K) = dtdt(1,KFLIP)*prsik(1,1)/prslk(1,KFLIP)  !! /EXNER(I,J,K)
-        !!     IF(P_QV .GT. 1) RQVBLTEN(I,J,K) = dqdt(1,KFLIP,P_QV-1)/(1.0-qgrs(1,kflip,1))  ! to mixing ratio
-             IF(P_QV .GT. 1) RQVBLTEN(I,J,K) = dqdt(1,KFLIP,P_QV-1)/(1.0-qgrs(1,kflip,1))**2  ! to mixing ratio
-             IF(P_QC .GT. 1) RQCBLTEN(I,J,K) = dqdt(1,KFLIP,P_QC-1)
-             IF(P_QR .GT. 1) RQRBLTEN(I,J,K) = dqdt(1,KFLIP,P_QR-1)
-             IF(P_QI .GT. 1) RQIBLTEN(I,J,K) = dqdt(1,KFLIP,P_QI-1)
-             IF(P_QS .GT. 1) RQSBLTEN(I,J,K) = dqdt(1,KFLIP,P_QS-1)
-             IF(P_QG .GT. 1) RQGBLTEN(I,J,K) = dqdt(1,KFLIP,P_QG-1)
+             RQVBLTEN(I,J,K) = dqdt(1,KFLIP,1)/(1.0-qgrs(1,kflip,1))**2  ! to mixing ratio
+             RQCBLTEN(I,J,K) = dqdt(1,KFLIP,2)
+             RQIBLTEN(I,J,K) = dqdt(1,KFLIP,3)
           ENDDO
 
              PBLH(I,J)  = hpbl(1)
@@ -383,12 +370,9 @@
       write(0,*)'max T=',maxval(T(its:ite,jts:jte,1:lm)), minval(T(its:ite,jts:jte,1:lm))
       write(0,*)'max u=',maxval(u), minval(u)
       write(0,*)'max v=',maxval(v), minval(v)
-      write(0,*)'max water=',maxval(water), minval(water)
       write(0,*)'max dudt,dvdt=',maxval(abs(dudt)),maxval(abs(dvdt))
       write(0,*)'max dqdt,dqdt=',maxval(dqdt),minval(dqdt)
       write(0,*)'max dqvdt,dqvdt=',maxval(dqdt(1,:,1)),minval(dqdt(1,:,1))
-      write(0,*)'max qv=',maxval(water(:,:,:,p_qv))
-      write(0,*)'min qv=',minval(water(:,:,:,p_qv)),'its,ite,jts,jte=',its,ite,jts,jte
       write(0,*)'max lheat=',maxval(abs(lheat(its:ite,jts:jte))),maxloc(abs(lheat(its:ite,jts:jte))) 
       write(0,*)'max sheat=',maxval(abs(sheat(its:ite,jts:jte))),maxloc(abs(sheat(its:ite,jts:jte))) 
         ENDIF

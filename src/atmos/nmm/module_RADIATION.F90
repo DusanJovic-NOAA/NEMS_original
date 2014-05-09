@@ -67,10 +67,9 @@
      &                    ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1,PT,PD       &
      &                    ,T,Q                                          &
      &                    ,THS,ALBEDO                                   &
-     &                    ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG                &
+     &                    ,QV,QC,QR,QI,QS,QG                            &
      &                    ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG                &
      &                    ,SM,CLDFRA                                    &
-     &                    ,NUM_WATER,WATER                              &
      &                    ,RLWTT,RSWTT                                  &
      &                    ,RLWIN,RSWIN                                  &
      &                    ,RSWINC,RSWOUT                                &
@@ -132,11 +131,9 @@
 !
       INTEGER,INTENT(IN) :: LM,DT_INT                                   &
                            ,IHRST,ITIMESTEP,JULDAY,JULYR                &
-                           ,NPHS,NRADL,NRADS,NUM_WATER
+                           ,NPHS,NRADL,NRADS
 !
       INTEGER,INTENT(IN) :: JDAT(8)
-!
-      INTEGER,INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
 !
       INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: NCFRCV,NCFRST
 !
@@ -171,7 +168,7 @@
                                                     ,CFRACM,CZMEAN      &
                                                     ,SIGT4
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,LM,NUM_WATER),INTENT(INOUT) :: WATER
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QV,QC,QR,QI,QS,QG
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: CLDFRA
 !
@@ -322,7 +319,7 @@
       DO K=1,LM                                            
         DO J=JMS,JME                                      
           DO I=IMS,IME                                   
-            WATER(I,J,K,P_QV)=Q(I,J,K)/(1.-Q(I,J,K))    
+            QV(I,J,K)=Q(I,J,K)/(1.-Q(I,J,K))    
           ENDDO                                        
         ENDDO                                         
       ENDDO                                          
@@ -463,9 +460,7 @@
         CASE DEFAULT
 
           CALL CAL_CLDFRA(CLDFRA,                               &
-                          WATER(IMS:IME,JMS:JME,1:LM,P_QC),     &
-                          WATER(IMS:IME,JMS:JME,1:LM,P_QI),     &
-                          F_QC,F_QI,                            &
+                          QC,QI,F_QC,F_QI,                      &
                           IDS,IDE, JDS,JDE, 1,LM+1,             &
                           IMS,IME, JMS,JME, 1,LM+1,             &
                           IQS,IQE, JQS,JQE, 1,LM  )
@@ -488,9 +483,8 @@
                    ,T,Q,CW,O3                                       &
                    ,ALBEDO                                          &
                    ,F_ICE,F_RAIN                                    &
-                   ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG                   &
+                   ,QC,QS,F_QC,F_QS                                 &
                    ,SM,CLDFRA                                       &
-                   ,NUM_WATER,WATER                                 &
                    ,RLWTT,RSWTT                                     &
                    ,RLWIN,RSWIN                                     &
                    ,RSWINC,RSWOUT                                   &
@@ -515,10 +509,10 @@
                  CALL GFDL(                                         &
                   DT=dt,XLAND=xland                                 &
                  ,PHINT=phint,T=t                                   &
-                 ,QV=WATER(IMS:IME,JMS:JME,1:LM,P_QV)               &
-                 ,QW=WATER(IMS:IME,JMS:JME,1:LM,P_QC)               &
-                 ,QI=WATER(IMS:IME,JMS:JME,1:LM,P_QI)               &
-                 ,QS=WATER(IMS:IME,JMS:JME,1:LM,P_QS)               &
+                 ,QV=QV                                             &
+                 ,QW=QC                                             &
+                 ,QI=QI                                             &
+                 ,QS=QS                                             &
                  ,F_QV=F_QV,F_QC=F_QC,F_QR=F_QR,F_QI=F_QI           &
                  ,F_QS=F_QS,F_QG=F_QG                               &
                  ,TSK2D=tsfc,GLW=GLW,RSWIN=SWDOWN,GSW=GSW           &
@@ -573,10 +567,10 @@
                  CALL GFDL(                                         &
                   DT=dt,XLAND=xland                                 &
                  ,PHINT=phint,T=t                                   &
-                 ,QV=WATER(IMS:IME,JMS:JME,1:LM,P_QV)               &
-                 ,QW=WATER(IMS:IME,JMS:JME,1:LM,P_QC)               &
-                 ,QI=WATER(IMS:IME,JMS:JME,1:LM,P_QI)               &
-                 ,QS=WATER(IMS:IME,JMS:JME,1:LM,P_QS)               &
+                 ,QV=QV                                             &
+                 ,QW=QC                                             &
+                 ,QI=QI                                             &
+                 ,QS=QS                                             &
                  ,F_QV=F_QV,F_QC=F_QC,F_QR=F_QR,F_QI=F_QI           &
                  ,F_QS=F_QS,F_QG=F_QG                               &
                  ,TSK2D=tsfc,GLW=GLW,RSWIN=SWDOWN,GSW=GSW           &
@@ -594,7 +588,7 @@
                  ,RSWTOA=rswtoa,RLWTOA=rlwtoa,CZMEAN=czmean         &
                  ,THRATEN=thraten,THRATENLW=thratenlw               &
                  ,THRATENSW=thratensw                               &
-                 ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=lm+1  &     
+                 ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=lm+1  &
                  ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=lm+1  &
                  ,ITS=iqs,ITE=iqe, JTS=jqs,JTE=jqe, KTS=1,KTE=lm    &
                                                                     )
@@ -829,15 +823,10 @@
 ! Compute cloud fraction from input ice and cloud water fields
 ! if provided.
 !
-! Whether QI or QC is active or not is determined from the indices of
-! the fields into the 4D scalar arrays in WRF. These indices are 
-! P_QI and P_QC, respectively, and they are passed in to the routine
-! to enable testing to see if QI and QC represent active fields in
-! the moisture 4D scalar array carried by WRF.
+! Whether QI or QC is active or not is determined from the logical
+! switches f_qi and f_qc. They are passed in to the routine
+! to enable testing to see if QI and QC represent active fields.
 ! 
-! If a field is active its index will have a value greater than or
-! equal to PARAM_FIRST_SCALAR, which is also an input argument to 
-! this routine.
 !---------------------------------------------------------------------
      thresh=1.0e-6
 

@@ -40,7 +40,8 @@
                        ,ITS,ITE,JTS,JTE,lm &
                        ,DT,NTSD,NCNVC &
                        ,TH,T,SICE,OMGALF,SHEAT,LHEAT,PBLH,U,V &
-                       ,WATER,P_QV,P_QC,P_QR,P_QS,P_QI,P_QG,NUM_WATER &
+                       ,QV,QC,QR,QI,QS,QG &
+                       ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG &
                        ,PHINT,PHMID,exner,RR,DZ &
                        ,XLAND,CU_ACT_FLAG &
                        ,RAINCV,CUTOP,CUBOT &   !! out below
@@ -58,8 +59,6 @@
        IMS,IME,JMS,JME & 
       ,ITS,ITE,JTS,JTE,lm
 !
-      INTEGER,INTENT(IN) :: P_QV,P_QG,P_QR,P_QI,P_QC,P_QS,NUM_WATER
-!
       INTEGER,INTENT(IN) :: ntsd,NCNVC
       REAL,   INTENT(IN) :: DT
 !
@@ -73,8 +72,8 @@
       REAL,DIMENSION(IMS:IME,JMS:JME,1:lm+1),INTENT(IN):: &
        phint
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:lm,NUM_WATER),INTENT(IN):: &
-       WATER 
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:lm),INTENT(IN):: QV,QC,QR,QI,QS,QG
+      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:lm),optional,intent(inout):: &
        RQVCUTEN,RTHCUTEN &
@@ -232,9 +231,16 @@
            t1(1,K)    = T(I,J,KFLIP)
 !***  CONVERT FROM MIXING RATIO TO SPECIFIC HUMIDITY
         !   q1(1,K)   = MAX(EPSQ,QV(I,J,K)/(1.+QV(I,J,K))) 
-           q1(1,K)    = MAX(EPSQ,WATER(I,J,KFLIP,P_QV)/(1.+WATER(I,J,KFLIP,P_QV))) 
-           clw(1,K,1) = WATER(I,J,KFLIP,P_QC)+WATER(I,J,KFLIP,P_QR)                         ! Liquid
-           clw(1,K,2) = WATER(I,J,KFLIP,P_QI)+WATER(I,J,KFLIP,P_QS)+WATER(I,J,KFLIP,P_QG)   ! ICE
+           q1(1,K)    = MAX(EPSQ,QV(I,J,KFLIP)/(1.+QV(I,J,KFLIP))) 
+           clw(1,K,1) = 0.0
+        !   clw(1,K,1) = QC(I,J,KFLIP)+QR(I,J,KFLIP)                 ! Liquid
+           if (f_qc) clw(1,K,1) = clw(1,K,1) + QC(I,J,KFLIP)
+           if (f_qr) clw(1,K,1) = clw(1,K,1) + QR(I,J,KFLIP)
+        !   clw(1,K,2) = QI(I,J,KFLIP)+QS(I,J,KFLIP)+QG(I,J,KFLIP)   ! ICE
+           clw(1,K,2) = 0.0
+           if (f_qi) clw(1,K,2) = clw(1,K,2) + QI(I,J,KFLIP)
+           if (f_qs) clw(1,K,2) = clw(1,K,2) + QS(I,J,KFLIP)
+           if (f_qg) clw(1,K,2) = clw(1,K,2) + QG(I,J,KFLIP)
            ud_mf(1,K) = 0.0
            dd_mf(1,K) = 0.0
            dt_mf(1,K) = 0.0 
@@ -320,20 +326,19 @@
               ! IF liquid water=0 at t0, then change is assigned to QC tendency
                    RQCCUTEN(I,J,KFLIP) = tmp             
                     IF(CLW0(1,K,1) .GT. EPSQ ) THEN
-                       fract = WATER(I,J,KFLIP,P_QC)/CLW0(1,K,1)
+                       fract = QC(I,J,KFLIP)/CLW0(1,K,1)
                        RQCCUTEN(I,J,KFLIP) = tmp*fract
                        RQRCUTEN(I,J,KFLIP) = tmp*(1.0-fract)
                            
                           if(abs(rqccuten(i,j,kflip)) .gt. 0.1) then
                             write(0,*)'i=,j=',i,j,kflip
-                            write(0,*)'qc=',water(i,j,kflip,p_qc)
-                            write(0,*)'qr=',water(i,j,kflip,p_qr)
+                            write(0,*)'qc=',qc(i,j,kflip)
+                            write(0,*)'qr=',qr(i,j,kflip)
                             write(0,*)'clw,clw0=',clw(1,k,1),clw0(1,k,1)
                             write(0,*)'rqccuten=',rqccuten(i,j,kflip)
                             write(0,*)'delt=',delt
                             write(0,*)'q1,q0=',q1(1,k),q0(1,k)
                             write(0,*)'t1,t0=',t1(1,k),t0(1,k)
-                            write(0,*)'water(i,j,k,:)',water(i,j,kflip,:)
                             stop
                           endif
                     ENDIF
@@ -341,12 +346,16 @@
                    tmp   = (CLW(1,K,2)-CLW0(1,K,2))/DELT 
                    RQICUTEN(I,J,KFLIP) = tmp             
                     IF(CLW0(1,K,2) .GT. EPSQ ) THEN
-                       fract = WATER(I,J,KFLIP,P_QI)/CLW0(1,K,2)
-                       RQICUTEN(I,J,KFLIP) = tmp*fract
-                       fract = WATER(I,J,KFLIP,P_QS)/CLW0(1,K,2)
-                       RQSCUTEN(I,J,KFLIP) = tmp*fract
-                       fract = WATER(I,J,KFLIP,P_QG)/CLW0(1,K,2)
-                       RQGCUTEN(I,J,KFLIP) = tmp*fract
+
+                       RQICUTEN(I,J,KFLIP) = 0.0
+                       IF (F_QI) RQICUTEN(I,J,KFLIP) = tmp*QI(I,J,KFLIP)/CLW0(1,K,2)
+
+                       RQSCUTEN(I,J,KFLIP) = 0.0
+                       IF (F_QS) RQSCUTEN(I,J,KFLIP) = tmp*QS(I,J,KFLIP)/CLW0(1,K,2)
+
+                       RQGCUTEN(I,J,KFLIP) = 0.0
+                       IF (F_QG) RQGCUTEN(I,J,KFLIP) = tmp*QG(I,J,KFLIP)/CLW0(1,K,2)
+
                     ENDIF
                    
                  ENDDO                              !! K 
@@ -380,10 +389,9 @@
            write(0,*)'max dqidt,location=', maxval(abs(rqicuten)),maxloc(abs(rqicuten))
            write(0,*)'max dqsdt,location=', maxval(abs(rqscuten)),maxloc(abs(rqscuten))
            write(0,*)'max dqgdt,location=', maxval(abs(rqgcuten)),maxloc(abs(rqgcuten))
-            write(0,*)'min water',minval(water)
            write(0,*)'clw0(1,2)=',clw0(1,10,1),clw0(1,10,2)
-           write(0,*)'water(p_qc,p_qr)=',water(i,j,lm+1-10,p_qc),water(i,j,lm+1-10,p_qr)
-           write(0,*)'water(p_qi,p_qs,p_qg)=',water(i,j,lm+1-10,p_qi),water(i,j,lm+1-10,p_qs),water(i,j,lm+1-10,p_qg)
+           write(0,*)'water(p_qc,p_qr)=',qc(i,j,lm+1-10),qr(i,j,lm+1-10)
+           write(0,*)'water(p_qi,p_qs,p_qg)=',qi(i,j,lm+1-10),qs(i,j,lm+1-10),qg(i,j,lm+1-10)
            write(0,*)'EXNER=',exner(i,j,:)
            write(0,*)'hPBL=',hpbl(1)
            write(0,*)'SICE=',sice(i,j)

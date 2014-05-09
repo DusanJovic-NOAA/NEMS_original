@@ -99,9 +99,8 @@
      &                    ,T,Q,CW,O3                                    &
      &                    ,ALBEDO                                       &
      &                    ,F_ICE,F_RAIN                                 &
-     &                    ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG                &
+     &                    ,QC,QS,F_QC,F_QS                              &
      &                    ,SM,CLDFRA                                    &
-     &                    ,NUM_WATER,WATER                              &
      &                    ,RLWTT,RSWTT                                  &
      &                    ,RLWIN,RSWIN                                  &
      &                    ,RSWINC,RSWOUT                                &
@@ -129,12 +128,9 @@
      &                     ,JME,JMS,JTE,JTS                             &
      &                     ,LM,MYPE                                     &
      &                     ,NTIMESTEP                                   &
-     &                     ,NPHS,NRADL,NRADS                            &
-     &                     ,NUM_WATER
+     &                     ,NPHS,NRADL,NRADS
 !
       INTEGER,INTENT(IN) :: JDAT(8)
-!
-      INTEGER,INTENT(IN) :: P_QV,P_QC,P_QR,P_QI,P_QS,P_QG
 !
       INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: NCFRCV,NCFRST
 !
@@ -166,18 +162,19 @@
                                                       ,CFRACM,CZMEAN    &
                                                       ,SIGT4
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,LM,NUM_WATER),INTENT(INOUT) :: WATER
+      LOGICAL,INTENT(IN) :: F_QC,F_QS
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QC,QS
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: CLDFRA
 !
-       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: TSKIN,Z0,SICE      &
+      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: TSKIN,Z0,SICE       &
                                                     ,MXSNAL,STDH        
 !
-       REAL,DIMENSION(1:LM+1),INTENT(IN) :: SGM
+      REAL,DIMENSION(1:LM+1),INTENT(IN) :: SGM
 !
-       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: F_RIMEF,OMGALF
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: F_RIMEF,OMGALF
 !
-       REAL*8,DIMENSION(IMS:IME,JMS:JME) :: COSZDG    ! future output
+      REAL*8,DIMENSION(IMS:IME,JMS:JME) :: COSZDG    ! future output
 !
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
@@ -489,8 +486,8 @@
         DO 255 L=1,LM
 !
           WV=MAX(EPSQ,Q(I,J,L))/(1.-MAX(EPSQ,Q(I,J,L)))   !-- Water vapor mixing ratio
-          QICE=MAX(WATER(I,J,L,P_QS),0.)                  !-- Ice mixing ratio
-          QCLD=QICE+MAX(WATER(I,J,L,P_QC),0.)             !-- Total cloud water + ice mixing ratio
+          QICE=MAX(QS(I,J,L),0.)                          !-- Ice mixing ratio
+          QCLD=QICE+MAX(QS(I,J,L),0.)                     !-- Total cloud water + ice mixing ratio
 !rv------------------------------------
 !rv   This should be temporary fix!!!!!
 !rv   New (currently operational) calculation of cloud fraction is
@@ -751,7 +748,7 @@
 !
 !--   => The following 2 lines were intended to reduce cloud optical depths further
 !        than what's parameterized in the NAM and what's theoretically justified
-            CTau=CTau+ABSCOEF_W*WATER(I,J,L,P_QC)+ABSCOEF_I*WATER(I,J,L,P_QS)
+            CTau=CTau+ABSCOEF_W*QC(I,J,L)+ABSCOEF_I*QS(I,J,L)
 
             TAUTOTAL(I,J,L)=CTau*DELP                          !Total model level cloud optical depth
             CLDFRA(I,J,L)=MAX(CCMID(I,J,LL),CSMID(I,J,LL))     !Cloud fraction at model level           

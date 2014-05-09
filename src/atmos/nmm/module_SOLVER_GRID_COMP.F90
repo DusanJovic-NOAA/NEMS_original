@@ -917,6 +917,18 @@
         ENDDO
         ENDDO
 !
+        IF(.NOT. (int_state%GFS .or. &
+                  TRIM(int_state%MICROPHYSICS) == 'wsm6' .or. &
+                  TRIM(int_state%MICROPHYSICS) == 'thompson' ) )THEN
+        DO L=1,LM
+        DO J=JMS,JME
+        DO I=IMS,IME
+          int_state%TRACERS     (I,J,L,int_state%INDX_WATER_START)=0.0
+        ENDDO
+        ENDDO
+        ENDDO
+        ENDIF
+!
         DO L=1,LM
         DO J=JMS,JME
         DO I=IMS,IME
@@ -1448,7 +1460,6 @@
           write(0,*)'w=',minval(int_state%w),maxval(int_state%w)
           write(0,*)'w_tot=',minval(int_state%w_tot),maxval(int_state%w_tot)
           write(0,*)'pint=',minval(int_state%pint),maxval(int_state%pint)
-          write(0,*)'water=',minval(int_state%water),minval(int_state%water)
           write(0,*)'tracers=',minval(int_state%tracers),maxval(int_state%tracers)
 !         write(0,*)'sp=',minval(int_state%sp),maxval(int_state%sp)
           write(0,*)'run=',int_state%run 
@@ -2600,8 +2611,6 @@
                            ,NSTEPS_PER_RESET,USE_RADAR,USE_RADAR_FIRST
 !
       INTEGER(kind=KINT),SAVE :: HDIFF_ON                               &
-                                ,P_QV,P_QC,P_QR,P_QI,P_QS,P_QG          &
-                                ,P_NI,P_NR                              & ! G. Thompson
                                 ,PARENT_CHILD_TIME_RATIO
 !
       INTEGER(kind=ESMF_KIND_I8) :: NTIMESTEP_ESMF
@@ -2903,22 +2912,12 @@
       USE_RADAR=int_state%USE_RADAR
       USE_RADAR_FIRST=int_state%USE_RADAR
 !
-      P_QV=int_state%P_QV
-      P_QC=int_state%P_QC
-      P_QR=int_state%P_QR
-      P_QI=int_state%P_QI
-      P_QS=int_state%P_QS
-      P_QG=int_state%P_QG
-      P_NI=int_state%P_NI           ! G. Thompson
-      P_NR=int_state%P_NR           ! G. Thompson
-!aligo
       RIME_FACTOR_ADVECT=.FALSE.
       RIME_FACTOR_INPUT=.FALSE.
       IF (TRIM(int_state%MICROPHYSICS) == 'fer_hires' .AND.         &
           int_state%F_QG .AND. int_state%SPEC_ADV) THEN
          RIME_FACTOR_ADVECT=.TRUE.
       ENDIF
-!aligo
 !
       PARENT_CHILD_TIME_RATIO=int_state%PARENT_CHILD_TIME_RATIO
 !
@@ -4331,20 +4330,16 @@
 !
         IF(int_state%SPEC_ADV)THEN
           KSE1=int_state%NUM_TRACERS_TOTAL
-!aligo
           IF (RIME_FACTOR_ADVECT) THEN
-!-- WATER(:,:,:,P_QG)=F_RIMEF(:,:,:)*WATER(:,:,:,P_QS) for advection
+!----------- QG(:,:,:)=F_RIMEF(:,:,:)*QS(:,:,:) for advection
              RIME_FACTOR_INPUT=.TRUE.
              CALL RIME_FACTOR_UPDATE (RIME_FACTOR_INPUT                 &
-                                     ,int_state%WATER                   &
-                                     ,int_state%NUM_WATER               &
-                                     ,int_state%P_QS,int_state%P_QG     &
+                                     ,int_state%QS,int_state%QG         &
                                      ,int_state%F_RIMEF                 &
                                      ,IDS,IDE,JDS,JDE,LM                &
                                      ,IMS,IME,JMS,JME                   &
                                      ,ITS,ITE,JTS,JTE)
           ENDIF
-!aligo
         ELSE
           KSE1=KSE
         ENDIF
@@ -4473,20 +4468,17 @@
                 int_state%TRACERS(IMS:IME,JMS:JME,1:LM,KS),LM           &
                ,2,2)
 !
-!aligo
               IF (RIME_FACTOR_ADVECT) THEN
-!-- F_RIMEF(:,:,:)=WATER(:,:,:,P_QG)/WATER(:,:,:,P_QS) for physics
+!--------------- F_RIMEF(:,:,:)=QG(:,:,:)/QS(:,:,:) for physics
                  RIME_FACTOR_INPUT=.FALSE.
-                 CALL RIME_FACTOR_UPDATE (RIME_FACTOR_INPUT                 &
-                                         ,int_state%WATER                   &
-                                         ,int_state%NUM_WATER               &
-                                         ,int_state%P_QS,int_state%P_QG     &
-                                         ,int_state%F_RIMEF                 &
-                                         ,IDS,IDE,JDS,JDE,LM                &
-                                         ,IMS,IME,JMS,JME                   &
+                 CALL RIME_FACTOR_UPDATE (RIME_FACTOR_INPUT             &
+                                         ,int_state%QS,int_state%QG     &
+                                         ,int_state%F_RIMEF             &
+                                         ,IDS,IDE,JDS,JDE,LM            &
+                                         ,IMS,IME,JMS,JME               &
                                          ,ITS,ITE,JTS,JTE)
               ENDIF
-!aligo
+!
             ENDIF
 !
           ENDDO
@@ -4965,7 +4957,7 @@
 !
          CALL MAX_FIELDS_W6(int_state%T,int_state%Q,int_state%U         &
                            ,int_state%V,int_state%Z,int_state%W_TOT     &
-                           ,int_state%WATER                             &
+                           ,int_state%QR,int_state%QS,int_state%QG      &
                            ,int_state%PINT,int_state%PD                 &
                            ,int_state%CPRATE,int_state%HTOP             &
                            ,int_state%T2,int_state%U10,int_state%V10    &
@@ -4988,13 +4980,11 @@
                            ,int_state%DT,int_state%NPHS,int_state%NTSD  &
                            ,int_state%DXH,int_state%DYH                 &
                            ,int_state%FIS                               &
-                           ,int_state%P_QR,int_state%P_QS               &
-                           ,int_state%P_QG                              &
                            ,ITS,ITE,JTS,JTE                             &
                            ,IMS,IME,JMS,JME                             &
                            ,IDE,JDE                                     &
                            ,ITS_B1,ITE_B1,JTS_B1,JTE_B1                 &
-                           ,LM,int_state%NUM_WATER                      &
+                           ,LM                                          &
                            ,int_state%NCOUNT,int_state%FIRST_NMM        &
                            ,MY_DOMAIN_ID                                &
                                            )
@@ -5039,14 +5029,12 @@
                             ,int_state%F_ICE                            &
                             ,int_state%F_RAIN                           &
                             ,int_state%F_RIMEF                          &
-                            ,int_state%NUM_WATER                        &
-                            ,int_state%WATER                            &
                             ,int_state%T                                &
-                            ,int_state%P_QC                             &
-                            ,int_state%P_QR                             &
-                            ,int_state%P_QS                             &
-                            ,int_state%P_QI                             &
-                            ,int_state%P_QG                             &
+                            ,int_state%QC                               &
+                            ,int_state%QR                               &
+                            ,int_state%QS                               &
+                            ,int_state%QI                               &
+                            ,int_state%QG                               &
                             ,int_state%MICROPHYSICS                     &
                             ,int_state%SPEC_ADV                         &
                             ,NTIMESTEP                                  &
@@ -5156,12 +5144,11 @@
                         ,int_state%PT,int_state%PD                      &
                         ,int_state%T,int_state%Q                        &
                         ,int_state%THS,int_state%ALBEDO                 &
-                        ,int_state%P_QV,int_state%P_QC,int_state%P_QR   &
-                        ,int_state%P_QI,int_state%P_QS,int_state%P_QG   &
+                        ,int_state%QV,int_state%QC,int_state%QR         &
+                        ,int_state%QI,int_state%QS,int_state%QG         &
                         ,int_state%F_QV,int_state%F_QC,int_state%F_QR   &
                         ,int_state%F_QI,int_state%F_QS,int_state%F_QG   &
                         ,int_state%SM,int_state%CLDFRA                  &
-                        ,int_state%NUM_WATER,int_state%WATER            &
                         ,int_state%RLWTT,int_state%RSWTT                &
                         ,int_state%RLWIN,int_state%RSWIN                &
                         ,int_state%RSWINC,int_state%RSWOUT              &
@@ -5319,13 +5306,13 @@
           ENDIF
 !
           CALL TURBL(NTIMESTEP,int_state%DT,int_state%NPHS              &
-                    ,int_state%NUM_WATER,NUM_SOIL_LAYERS,SLDPTH,DZSOIL  &
+                    ,NUM_SOIL_LAYERS,SLDPTH,DZSOIL                      &
                     ,int_state%DSG2,int_state%SGML2,int_state%SG2       &
                     ,int_state%PDSG1,int_state%PSGML1,int_state%PSG1,PT &
                     ,int_state%SM,int_state%CZEN,int_state%CZMEAN       &
                     ,int_state%SIGT4,int_state%RLWIN,int_state%RSWIN    &
                     ,int_state%RADOT                                    &
-                    ,int_state%RLWTT,int_state%RSWTT                    &   !! added by wang 2010-10-6
+                    ,int_state%RLWTT,int_state%RSWTT                    &
                     ,int_state%PD,int_state%T                           &
                     ,int_state%Q,int_state%CW                           &
                     ,int_state%F_ICE,int_state%F_RAIN,int_state%F_RIMEF &
@@ -5333,9 +5320,9 @@
                     ,int_state%DUDT,int_state%DVDT                      &
                     ,int_state%THS,int_state%TSKIN,int_state%SST        &
                     ,int_state%PREC,int_state%SNO                       &
-                    ,int_state%SNOWC,int_state%WATER                    &
-                    ,int_state%P_QV,int_state%P_QC,int_state%P_QR       &
-                    ,int_state%P_QI,int_state%P_QS,int_state%P_QG       &
+                    ,int_state%SNOWC                                    &
+                    ,int_state%QV,int_state%QC,int_state%QR             &
+                    ,int_state%QI,int_state%QS,int_state%QG             &
                     ,int_state%F_QV,int_state%F_QC,int_state%F_QR       &
                     ,int_state%F_QI,int_state%F_QS,int_state%F_QG       &
                     ,int_state%FIS,int_state%Z0,int_state%Z0BASE        &
@@ -5560,10 +5547,10 @@
                        ,int_state%FRES,int_state%FR                       &
                        ,int_state%FSL,int_state%FSS                       &
                        ,int_state%DYH,int_state%RESTART,int_state%HYDRO   &
-                       ,int_state%CLDEFI,int_state%NUM_WATER              &
+                       ,int_state%CLDEFI                                  &
                        ,int_state%F_ICE,int_state%F_RAIN                  &
-                       ,int_state%P_QV,int_state%P_QC,int_state%P_QR      &
-                       ,int_state%P_QI,int_state%P_QS,int_state%P_QG      &
+                       ,int_state%QV,int_state%QC,int_state%QR            &
+                       ,int_state%QI,int_state%QS,int_state%QG            &
                        ,int_state%F_QV,int_state%F_QC,int_state%F_QR      &
                        ,int_state%F_QI,int_state%F_QS,int_state%F_QG      &
                        ,int_state%DSG2,int_state%SGML2,int_state%SG2      &
@@ -5571,7 +5558,7 @@
                        ,int_state%DXH                                     &
                        ,int_state%PT,int_state%PD                         &
                        ,int_state%T,int_state%Q                           &
-                       ,int_state%CW,int_state%TCUCN,int_state%WATER      &
+                       ,int_state%CW,int_state%TCUCN                      &
                        ,int_state%OMGALF                                  &
                        ,int_state%U,int_state%V                           &
                        ,int_state%FIS,int_state%W0AVG                     &
@@ -5691,7 +5678,7 @@
           btim=timef()
 !
           CALL GSMDRIVE(NTIMESTEP,int_state%DT                             &
-                       ,NPRECIP,int_state%NUM_WATER                        &
+                       ,NPRECIP                                            &
                        ,int_state%DXH(JC),int_state%DYH                    &
                        ,int_state%SM,int_state%FIS                         &
                        ,int_state%DSG2,int_state%SGML2                     &
@@ -5699,12 +5686,11 @@
                        ,int_state%PT,int_state%PD                          &
                        ,int_state%T,int_state%Q                            &
                        ,int_state%CW,int_state%OMGALF                      &
-                       ,int_state%WATER                                    &
                        ,int_state%TRAIN,int_state%SR                       &
                        ,int_state%F_ICE,int_state%F_RAIN,int_state%F_RIMEF &
-                       ,int_state%P_QV,int_state%P_QC,int_state%P_QR       &
-                       ,int_state%P_QI,int_state%P_QS,int_state%P_QG       &
-                       ,int_state%P_NI,int_state%P_NR                      & ! G. Thompson
+                       ,int_state%QV,int_state%QC,int_state%QR             &
+                       ,int_state%QI,int_state%QS,int_state%QG             &
+                       ,int_state%NI,int_state%NR                          & ! G. Thompson
                        ,int_state%F_QV,int_state%F_QC,int_state%F_QR       &
                        ,int_state%F_QI,int_state%F_QS,int_state%F_QG       &
                        ,int_state%F_NI,int_state%F_NR                      & ! G. Thompson
@@ -5847,16 +5833,21 @@
 !
         btim=timef()
 !
-        CALL HALO_EXCH(int_state%T,LM                                   &
-                      ,2,2)
+        CALL HALO_EXCH(int_state%T,LM,2,2)
 !
 !-----------------------------------------------------------------------
 !***  If advection is on, cloud species are advected.
 !-----------------------------------------------------------------------
 !
         IF(int_state%SPEC_ADV)THEN
-          CALL HALO_EXCH(int_state%WATER,LM,int_state%NUM_WATER,2       &
-                       ,2,2)
+          IF(int_state%F_QV) CALL HALO_EXCH(int_state%QV,LM,2,2)
+          IF(int_state%F_QC) CALL HALO_EXCH(int_state%QC,LM,2,2)
+          IF(int_state%F_QR) CALL HALO_EXCH(int_state%QR,LM,2,2)
+          IF(int_state%F_QS) CALL HALO_EXCH(int_state%QS,LM,2,2)
+          IF(int_state%F_QI) CALL HALO_EXCH(int_state%QI,LM,2,2)
+          IF(int_state%F_QG) CALL HALO_EXCH(int_state%QG,LM,2,2)
+          IF(int_state%F_NI) CALL HALO_EXCH(int_state%NI,LM,2,2)
+          IF(int_state%F_NR) CALL HALO_EXCH(int_state%NR,LM,2,2)
         ENDIF
 
 !
@@ -10685,8 +10676,7 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE UPDATE_WATER(CWM,F_ICE,F_RAIN,F_RIMEF                  &
-                             ,NUM_WATER,WATER,T                         &
-                             ,P_QC,P_QR,P_QS,P_QI,P_QG                  &
+                             ,T,QC,QR,QS,QI,QG                          &
                              ,MICROPHYSICS,SPEC_ADV,NTIMESTEP           &
                              ,IDS,IDE,JDS,JDE,LM                        &
                              ,IMS,IME,JMS,JME                           &
@@ -10717,9 +10707,7 @@
 !-- Argument Variables
 !----------------------
 !
-      INTEGER,INTENT(IN) :: NUM_WATER,NTIMESTEP                         &
-                           ,P_QC,P_QR,P_QS,P_QI,P_QG                    &
-!
+      INTEGER,INTENT(IN) :: NTIMESTEP                                   &
                            ,IDS,IDE,JDS,JDE,LM                          &
                            ,IMS,IME,JMS,JME                             &
                            ,ITS,ITE,JTS,JTE
@@ -10734,7 +10722,7 @@
                                                            ,F_RIMEF     &
                                                            ,T
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,NUM_WATER),INTENT(INOUT) :: WATER
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QC,QR,QS,QI,QG
 !
 !--------------------
 !--  Local Variables
@@ -10751,24 +10739,13 @@
 !
       IF(NTIMESTEP<=1)THEN
         CLD_INIT=.TRUE.
-        DO K=1,LM
-         DO J=JMS,JME
-          DO I=IMS,IME
-            IF(P_QC == 1) WATER(I,J,K,P_QC)=0.0  !  This is really silly
-            IF(P_QR == 1) WATER(I,J,K,P_QR)=0.0  !  If all these vars=1
-            IF(P_QI == 1) WATER(I,J,K,P_QI)=0.0  !  then we are doing 5 times.
-            IF (P_QS==1) WATER(I,J,K,P_QS)=0.0   !  G. Thompson
-            IF (P_QG==1) WATER(I,J,K,P_QG)=0.0                          
-          ENDDO
-         ENDDO
-        ENDDO
       ELSE
         CLD_INIT=.FALSE.
       ENDIF
 !
 !----------------------------------------------------------------------
 !-- Couple 2 sets of condensed water arrays for different microphysics: 
-!   4D WATER(:,:,:,P_Qx) array <=> CWM,F_ice,F_rain,F_RimeF 3D arrays
+!   QC,QR,QS, etc. arrays <=> CWM,F_ice,F_rain,F_RimeF 3D arrays
 !----------------------------------------------------------------------
 !
       SELECT CASE ( TRIM(MICROPHYSICS) )
@@ -10785,13 +10762,13 @@
               DO I=IMS,IME
                 IF (CWM(I,J,K)>EPSQ) THEN
                   LIQW=(1.-F_ice(I,J,K))*CWM(I,J,K)
-                  WATER(I,J,K,P_QC)=(1.-F_rain(I,J,K))*LIQW
-                  WATER(I,J,K,P_QR)=F_rain(I,J,K)*LIQW
-                  WATER(I,J,K,P_QS)=F_ice(I,J,K)*CWM(I,J,K)
+                  QC(I,J,K)=(1.-F_rain(I,J,K))*LIQW
+                  QR(I,J,K)=F_rain(I,J,K)*LIQW
+                  QS(I,J,K)=F_ice(I,J,K)*CWM(I,J,K)
                 ELSE
-                  WATER(I,J,K,P_QC)=0.
-                  WATER(I,J,K,P_QR)=0.
-                  WATER(I,J,K,P_QS)=0.
+                  QC(I,J,K)=0.
+                  QR(I,J,K)=0.
+                  QS(I,J,K)=0.
                 ENDIF
               ENDDO
              ENDDO
@@ -10802,14 +10779,14 @@
             DO K=1,LM
              DO J=JMS,JME
               DO I=IMS,IME
-                CWM(I,J,K)=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)+WATER(I,J,K,P_QS)
-                IF (WATER(I,J,K,P_QS)>EPSQ) THEN
-                  F_ICE(I,J,K)=WATER(I,J,K,P_QS)/CWM(I,J,K)
+                CWM(I,J,K)=QC(I,J,K)+QR(I,J,K)+QS(I,J,K)
+                IF (QS(I,J,K)>EPSQ) THEN
+                  F_ICE(I,J,K)=QS(I,J,K)/CWM(I,J,K)
                 ELSE
                   F_ICE(I,J,K)=0.0
                 ENDIF
-                IF (WATER(I,J,K,P_QR)>EPSQ) THEN
-                  F_RAIN(I,J,K)=WATER(I,J,K,P_QR)/(WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR))
+                IF (QR(I,J,K)>EPSQ) THEN
+                  F_RAIN(I,J,K)=QR(I,J,K)/(QC(I,J,K)+QR(I,J,K))
                 ELSE
                   F_RAIN(I,J,K)=0.
                 ENDIF
@@ -10843,17 +10820,17 @@
                ENDDO
               ENDDO
             ENDIF  cld_init_gfs
-!-- Update WATER arrays when advecting only total condensate (spec_adv=F)
+!-- Update WATER arrays (QC,QI) when advecting only total condensate (spec_adv=F)
 !   or initialize them at the start of the forecast (CLD_INIT=T).
             DO K=1,LM
              DO J=JMS,JME
               DO I=IMS,IME
                 IF (CWM(I,J,K)>EPSQ) THEN
-                  WATER(I,J,K,P_QC)=(1.-F_ice(I,J,K))*CWM(I,J,K)
-                  WATER(I,J,K,P_QI)=F_ice(I,J,K)*CWM(I,J,K)
+                  QC(I,J,K)=(1.-F_ice(I,J,K))*CWM(I,J,K)
+                  QI(I,J,K)=F_ice(I,J,K)*CWM(I,J,K)
                 ELSE
-                  WATER(I,J,K,P_QC)=0.
-                  WATER(I,J,K,P_QI)=0.
+                  QC(I,J,K)=0.
+                  QI(I,J,K)=0.
                 ENDIF
               ENDDO
              ENDDO
@@ -10863,9 +10840,9 @@
             DO K=1,LM
              DO J=JMS,JME
               DO I=IMS,IME
-                CWM(I,J,K)=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QI)
+                CWM(I,J,K)=QC(I,J,K)+QI(I,J,K)
                 IF (CWM(I,J,K)>EPSQ) THEN
-                  F_ICE(I,J,K)=WATER(I,J,K,P_QI)/CWM(I,J,K)
+                  F_ICE(I,J,K)=QI(I,J,K)/CWM(I,J,K)
                 ELSE
                   F_ICE(I,J,K)=0.
                 ENDIF
@@ -10883,48 +10860,48 @@
             DO K=1,LM
              DO J=JMS,JME
               DO I=IMS,IME
-                WATER(I,J,K,P_QS)=0.0
-                WATER(I,J,K,P_QG)=0.0
+                QS(I,J,K)=0.0
+                QG(I,J,K)=0.0
                 IF (CWM(I,J,K)>EPSQ) THEN
                   LIQW=(1.-F_ice(I,J,K))*CWM(I,J,K)
-                  WATER(I,J,K,P_QC)=(1.-F_rain(I,J,K))*LIQW
-                  WATER(I,J,K,P_QR)=F_rain(I,J,K)*LIQW
-                  WATER(I,J,K,P_QI)=F_ice(I,J,K)*CWM(I,J,K)
+                  QC(I,J,K)=(1.-F_rain(I,J,K))*LIQW
+                  QR(I,J,K)=F_rain(I,J,K)*LIQW
+                  QI(I,J,K)=F_ice(I,J,K)*CWM(I,J,K)
                 ELSE
-                  WATER(I,J,K,P_QC)=0.
-                  WATER(I,J,K,P_QR)=0.
-                  WATER(I,J,K,P_QI)=0.
+                  QC(I,J,K)=0.
+                  QR(I,J,K)=0.
+                  QI(I,J,K)=0.
                 ENDIF
               ENDDO
              ENDDO
             ENDDO
           ELSE init_adv_wsm6
             notspec_adv_wsm6: IF (.NOT.SPEC_ADV) THEN
-!-- Update WATER arrays when advecting only total condensate (spec_adv=F).
+!-- Update WATER arrays (QC,QR,...) when advecting only total condensate (spec_adv=F).
 !-- Assume fraction of each water category is unchanged by advection. 
               DO K=1,LM
                DO J=JMS,JME
                 DO I=IMS,IME
-                  OLDCWM=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)   &
-                        +WATER(I,J,K,P_QI)+WATER(I,J,K,P_QS)   &
-                        +WATER(I,J,K,P_QG)
+                  OLDCWM=QC(I,J,K)+QR(I,J,K)   &
+                        +QI(I,J,K)+QS(I,J,K)   &
+                        +QG(I,J,K)
                   IF (OLDCWM>EPSQ) THEN
                     FRACTION=CWM(I,J,K)/OLDCWM
-                    WATER(I,J,K,P_QC)=FRACTION*WATER(I,J,K,P_QC)
-                    WATER(I,J,K,P_QR)=FRACTION*WATER(I,J,K,P_QR)
-                    WATER(I,J,K,P_QI)=FRACTION*WATER(I,J,K,P_QI)
-                    WATER(I,J,K,P_QS)=FRACTION*WATER(I,J,K,P_QS)
-                    WATER(I,J,K,P_QG)=FRACTION*WATER(I,J,K,P_QG)
+                    QC(I,J,K)=FRACTION*QC(I,J,K)
+                    QR(I,J,K)=FRACTION*QR(I,J,K)
+                    QI(I,J,K)=FRACTION*QI(I,J,K)
+                    QS(I,J,K)=FRACTION*QS(I,J,K)
+                    QG(I,J,K)=FRACTION*QG(I,J,K)
                   ELSE
-                    WATER(I,J,K,P_QC)=0.0
-                    WATER(I,J,K,P_QR)=0.0
-                    WATER(I,J,K,P_QI)=0.0
-                    WATER(I,J,K,P_QS)=0.0
-                    WATER(I,J,K,P_QG)=0.0
+                    QC(I,J,K)=0.0
+                    QR(I,J,K)=0.0
+                    QI(I,J,K)=0.0
+                    QS(I,J,K)=0.0
+                    QG(I,J,K)=0.0
                     IF (T(I,J,K)<233.15) THEN
-                      WATER(I,J,K,P_QI)=CWM(I,J,K)
+                      QI(I,J,K)=CWM(I,J,K)
                     ELSE
-                      WATER(I,J,K,P_QC)=CWM(I,J,K)
+                      QC(I,J,K)=CWM(I,J,K)
                     ENDIF
                   ENDIF
                 ENDDO
@@ -10932,30 +10909,30 @@
               ENDDO
             ENDIF  notspec_adv_wsm6
 !
-!-- Couple 4D WATER(:,:,:,P_Qx) <=> CWM,F_ice,F_rain,F_RimeF arrays
+!-- Couple QC,QR,... <=> CWM,F_ice,F_rain,F_RimeF arrays
 !-- Update CWM,F_XXX arrays from separate species advection (spec_adv=T)
 !
             DO K=1,LM
              DO J=JMS,JME
               DO I=IMS,IME
-                CWM(I,J,K)=WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)      &
-                          +WATER(I,J,K,P_QI)+WATER(I,J,K,P_QS)      &
-                          +WATER(I,J,K,P_QG)
+                CWM(I,J,K)=QC(I,J,K)+QR(I,J,K)      &
+                          +QI(I,J,K)+QS(I,J,K)      &
+                          +QG(I,J,K)
                 IF (CWM(I,J,K)>EPSQ) THEN
-                  LIQW=WATER(I,J,K,P_QI)+WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
+                  LIQW=QI(I,J,K)+QS(I,J,K)+QG(I,J,K)
                   F_ICE(I,J,K)=LIQW/CWM(I,J,K)
                 ELSE
                   F_ICE(I,J,K)=0.
                 ENDIF
-                IF (WATER(I,J,K,P_QR)>EPSQ) THEN
-                  F_RAIN(I,J,K)=WATER(I,J,K,P_QR)/(WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR))
+                IF (QR(I,J,K)>EPSQ) THEN
+                  F_RAIN(I,J,K)=QR(I,J,K)/(QC(I,J,K)+QR(I,J,K))
                 ELSE
                   F_RAIN(I,J,K)=0.
                 ENDIF
-                IF (WATER(I,J,K,P_QG)>EPSQ) THEN
+                IF (QG(I,J,K)>EPSQ) THEN
 !-- Update F_RIMEF: assume 5x higher graupel density (500 kg/m**3) vs snow (100 kg/m**3)
-                  LIQW=5.*WATER(I,J,K,P_QG)+WATER(I,J,K,P_QS)
-                  F_RIMEF(I,J,K)=LIQW/(WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG))
+                  LIQW=5.*QG(I,J,K)+QS(I,J,K)
+                  F_RIMEF(I,J,K)=LIQW/(QS(I,J,K)+QG(I,J,K))
                 ELSE
                   F_RIMEF(I,J,K)=1.
                 ENDIF
@@ -10986,17 +10963,17 @@
              DO K=1,LM
                 DO J=JMS,JME
                 DO I=IMS,IME
-                   WATER(I,J,K,P_QS)=0.0
-                   WATER(I,J,K,P_QG)=0.0
+                   QS(I,J,K)=0.0
+                   QG(I,J,K)=0.0
                    IF (CWM(I,J,K) .gt. EPSQ) THEN
                       LIQW=(1.-F_ice(I,J,K))*CWM(I,J,K)
-                      WATER(I,J,K,P_QC)=(1.-F_rain(I,J,K))*LIQW
-                      WATER(I,J,K,P_QR)=F_rain(I,J,K)*LIQW
-                      WATER(I,J,K,P_QI)=F_ice(I,J,K)*CWM(I,J,K)
+                      QC(I,J,K)=(1.-F_rain(I,J,K))*LIQW
+                      QR(I,J,K)=F_rain(I,J,K)*LIQW
+                      QI(I,J,K)=F_ice(I,J,K)*CWM(I,J,K)
                    ELSE
-                      WATER(I,J,K,P_QC)=0.
-                      WATER(I,J,K,P_QR)=0.
-                      WATER(I,J,K,P_QI)=0.
+                      QC(I,J,K)=0.
+                      QR(I,J,K)=0.
+                      QI(I,J,K)=0.
                    ENDIF
                 ENDDO
                 ENDDO
@@ -11005,25 +10982,25 @@
              DO K=1,LM
                 DO J=JMS,JME
                 DO I=IMS,IME
-                   CWM(I,J,K) = WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)     &
-                              + WATER(I,J,K,P_QI)                       &
-                              + WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
+                   CWM(I,J,K) = QC(I,J,K)+QR(I,J,K)     &
+                              + QI(I,J,K)                       &
+                              + QS(I,J,K)+QG(I,J,K)
                    IF (CWM(I,J,K) .gt. EPSQ) THEN
-                      LIQW = MAX(0., CWM(I,J,K) - WATER(I,J,K,P_QI)     &
-                                                - WATER(I,J,K,P_QS)     &
-                                                - WATER(I,J,K,P_QG))
+                      LIQW = MAX(0., CWM(I,J,K) - QI(I,J,K)     &
+                                                - QS(I,J,K)     &
+                                                - QG(I,J,K))
                       F_ICE(I,J,K) = MAX(0., 1.0 - LIQW/CWM(I,J,K))
-                      IF (WATER(I,J,K,P_QR) .gt. EPSQ) THEN
-                         F_RAIN(I,J,K) = WATER(I,J,K,P_QR)              &
-                                 / (WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR))
+                      IF (QR(I,J,K) .gt. EPSQ) THEN
+                         F_RAIN(I,J,K) = QR(I,J,K)              &
+                                 / (QC(I,J,K)+QR(I,J,K))
                       ELSE
                          F_RAIN(I,J,K)=0.
                       ENDIF
-                      IF (WATER(I,J,K,P_QG) .gt. EPSQ) THEN
-                         F_RIMEF(I,J,K) = (5.*WATER(I,J,K,P_QG)         &
-                                        +     WATER(I,J,K,P_QS))        &
-                                        / (WATER(I,J,K,P_QS)            &
-                                        +  WATER(I,J,K,P_QG))
+                      IF (QG(I,J,K) .gt. EPSQ) THEN
+                         F_RIMEF(I,J,K) = (5.*QG(I,J,K)         &
+                                        +     QS(I,J,K))        &
+                                        / (QS(I,J,K)            &
+                                        +  QG(I,J,K))
                       ELSE
                          F_RIMEF(I,J,K)=1.
                       ENDIF
@@ -11045,90 +11022,90 @@
                 DO K=LM,1,-1
                    deep_ice = .false.
                    IF (CWM(I,J,K) .gt. EPSQ) THEN
-                      OLDCWM  = WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR)     &
-                              + WATER(I,J,K,P_QI)                       &
-                              + WATER(I,J,K,P_QS)+WATER(I,J,K,P_QG)
+                      OLDCWM  = QC(I,J,K)+QR(I,J,K)     &
+                              + QI(I,J,K)                       &
+                              + QS(I,J,K)+QG(I,J,K)
                       IF (OLDCWM .gt. EPSQ) THEN
-                         LIQW = MAX(0., OLDCWM - WATER(I,J,K,P_QI)      &
-                                               - WATER(I,J,K,P_QS)      &
-                                               - WATER(I,J,K,P_QG))
+                         LIQW = MAX(0., OLDCWM - QI(I,J,K)      &
+                                               - QS(I,J,K)      &
+                                               - QG(I,J,K))
                          F_ICE(I,J,K) = MAX(0., 1.0 - LIQW/OLDCWM)
-                         IF (WATER(I,J,K,P_QR) .gt. EPSQ) THEN
-                            F_RAIN(I,J,K) = WATER(I,J,K,P_QR)           &
-                                 / (WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR))
+                         IF (QR(I,J,K) .gt. EPSQ) THEN
+                            F_RAIN(I,J,K) = QR(I,J,K)           &
+                                 / (QC(I,J,K)+QR(I,J,K))
                          ELSE
                             F_RAIN(I,J,K)=0.
                          ENDIF
-                         IF (WATER(I,J,K,P_QG) .gt. EPSQ) THEN
-                            F_RIMEF(I,J,K) = (5.*WATER(I,J,K,P_QG)      &
-                                           +     WATER(I,J,K,P_QS))     &
-                                           / (WATER(I,J,K,P_QS)         &
-                                           +  WATER(I,J,K,P_QG))
+                         IF (QG(I,J,K) .gt. EPSQ) THEN
+                            F_RIMEF(I,J,K) = (5.*QG(I,J,K)      &
+                                           +     QS(I,J,K))     &
+                                           / (QS(I,J,K)         &
+                                           +  QG(I,J,K))
                          ELSE
                             F_RIMEF(I,J,K)=1.
                          ENDIF
                          LIQW = MAX(0., (1.-F_ICE(I,J,K))*CWM(I,J,K))
-                         WATER(I,J,K,P_QR) = LIQW*F_RAIN(I,J,K)*CWM(I,J,K)
-                         WATER(I,J,K,P_QC) = LIQW*(1.-F_RAIN(I,J,K))*CWM(I,J,K)
-                         FRACTION = MAX(0., MIN(WATER(I,J,K,P_QG) &
-                                  / (WATER(I,J,K,P_QG)+WATER(I,J,K,P_QS)), 1.) )
-                         WATER(I,J,K,P_QG) = FRACTION*F_ICE(I,J,K)*CWM(I,J,K)
-                         WATER(I,J,K,P_QI) = 0.1*(1.-FRACTION)*F_ICE(I,J,K)*CWM(I,J,K)
-                         WATER(I,J,K,P_QS) = 0.9*(1.-FRACTION)*F_ICE(I,J,K)*CWM(I,J,K)
+                         QR(I,J,K) = LIQW*F_RAIN(I,J,K)*CWM(I,J,K)
+                         QC(I,J,K) = LIQW*(1.-F_RAIN(I,J,K))*CWM(I,J,K)
+                         FRACTION = MAX(0., MIN(QG(I,J,K) &
+                                  / (QG(I,J,K)+QS(I,J,K)), 1.) )
+                         QG(I,J,K) = FRACTION*F_ICE(I,J,K)*CWM(I,J,K)
+                         QI(I,J,K) = 0.1*(1.-FRACTION)*F_ICE(I,J,K)*CWM(I,J,K)
+                         QS(I,J,K) = 0.9*(1.-FRACTION)*F_ICE(I,J,K)*CWM(I,J,K)
 
                       ELSE       ! Below, the condensate is all new here
-                         WATER(I,J,K,P_QC) = 0.0
-                         WATER(I,J,K,P_QI) = 0.0
-                         WATER(I,J,K,P_QR) = 0.0
-                         WATER(I,J,K,P_QS) = 0.0
-                         WATER(I,J,K,P_QG) = 0.0
+                         QC(I,J,K) = 0.0
+                         QI(I,J,K) = 0.0
+                         QR(I,J,K) = 0.0
+                         QS(I,J,K) = 0.0
+                         QG(I,J,K) = 0.0
                          IF (T(I,J,K) .le. 235.15) THEN
-                            WATER(I,J,K,P_QI) = 0.5*CWM(I,J,K)
-                            WATER(I,J,K,P_QS) = 0.5*CWM(I,J,K)
+                            QI(I,J,K) = 0.5*CWM(I,J,K)
+                            QS(I,J,K) = 0.5*CWM(I,J,K)
                          ELSEIF (T(I,J,K) .le. 258.15) THEN
-                            WATER(I,J,K,P_QI) = 0.1*CWM(I,J,K)
-                            WATER(I,J,K,P_QS) = 0.9*CWM(I,J,K)
+                            QI(I,J,K) = 0.1*CWM(I,J,K)
+                            QS(I,J,K) = 0.9*CWM(I,J,K)
                             deep_ice = .true.
                          ELSEIF (T(I,J,K) .le. 275.15) THEN
                             if (deep_ice .and. T(I,J,K).lt.273.15) then
-                               WATER(I,J,K,P_QS) = CWM(I,J,K)
+                               QS(I,J,K) = CWM(I,J,K)
                             elseif (deep_ice .and. T(I,J,K).lt.274.15) then
-                               WATER(I,J,K,P_QS) = 0.333*CWM(I,J,K)
-                               WATER(I,J,K,P_QR) = 0.667*CWM(I,J,K)
+                               QS(I,J,K) = 0.333*CWM(I,J,K)
+                               QR(I,J,K) = 0.667*CWM(I,J,K)
                             elseif (deep_ice) then
-                               WATER(I,J,K,P_QS) = 0.1*CWM(I,J,K)
-                               WATER(I,J,K,P_QR) = 0.9*CWM(I,J,K)
+                               QS(I,J,K) = 0.1*CWM(I,J,K)
+                               QR(I,J,K) = 0.9*CWM(I,J,K)
                             else
-                               WATER(I,J,K,P_QC) = CWM(I,J,K)
+                               QC(I,J,K) = CWM(I,J,K)
                             endif
                          ELSE
-                            WATER(I,J,K,P_QC) = CWM(I,J,K)
+                            QC(I,J,K) = CWM(I,J,K)
                          ENDIF
-                         LIQW = MAX(0., CWM(I,J,K) - WATER(I,J,K,P_QI)  &
-                                                   - WATER(I,J,K,P_QS)  &
-                                                   - WATER(I,J,K,P_QG))
+                         LIQW = MAX(0., CWM(I,J,K) - QI(I,J,K)  &
+                                                   - QS(I,J,K)  &
+                                                   - QG(I,J,K))
                          F_ICE(I,J,K) = (1.0-LIQW)/CWM(I,J,K)
-                         IF (WATER(I,J,K,P_QR) .gt. EPSQ) THEN
-                            F_RAIN(I,J,K) = WATER(I,J,K,P_QR)           &
-                                    / (WATER(I,J,K,P_QC)+WATER(I,J,K,P_QR))
+                         IF (QR(I,J,K) .gt. EPSQ) THEN
+                            F_RAIN(I,J,K) = QR(I,J,K)           &
+                                    / (QC(I,J,K)+QR(I,J,K))
                          ELSE
                             F_RAIN(I,J,K)=0.
                          ENDIF
-                         IF (WATER(I,J,K,P_QG) .gt. EPSQ) THEN
-                            F_RIMEF(I,J,K) = (5.*WATER(I,J,K,P_QG)      &
-                                           +     WATER(I,J,K,P_QS))     &
-                                           / (WATER(I,J,K,P_QS)         &
-                                           +  WATER(I,J,K,P_QG))
+                         IF (QG(I,J,K) .gt. EPSQ) THEN
+                            F_RIMEF(I,J,K) = (5.*QG(I,J,K)      &
+                                           +     QS(I,J,K))     &
+                                           / (QS(I,J,K)         &
+                                           +  QG(I,J,K))
                          ELSE
                             F_RIMEF(I,J,K)=1.
                          ENDIF
                       ENDIF
                    ELSE
-                      WATER(I,J,K,P_QC) = 0.0
-                      WATER(I,J,K,P_QR) = 0.0
-                      WATER(I,J,K,P_QI) = 0.0
-                      WATER(I,J,K,P_QS) = 0.0
-                      WATER(I,J,K,P_QG) = 0.0
+                      QC(I,J,K) = 0.0
+                      QR(I,J,K) = 0.0
+                      QI(I,J,K) = 0.0
+                      QS(I,J,K) = 0.0
+                      QG(I,J,K) = 0.0
                       F_ICE(I,J,K) = 0.0
                       F_RAIN(I,J,K) = 0.0
                       F_RIMEF(I,J,K) = 1.0
@@ -11310,8 +11287,7 @@
 !-----------------------------------------------------------------------
 
       SUBROUTINE RIME_FACTOR_UPDATE (RIME_FACTOR_INPUT                  &
-                                    ,WATER,NUM_WATER                    &
-                                    ,P_QS,P_QG,F_RIMEF                  &
+                                    ,QS,QG,F_RIMEF                      &
                                     ,IDS,IDE,JDS,JDE,LM                 &
                                     ,IMS,IME,JMS,JME                    &
                                     ,ITS,ITE,JTS,JTE)
@@ -11352,14 +11328,13 @@
 !
       LOGICAL,INTENT(IN) :: RIME_FACTOR_INPUT
 !
-      INTEGER,INTENT(IN) :: NUM_WATER,P_QS,P_QG                        &
-                           ,IDS,IDE,JDS,JDE,LM                         &
+      INTEGER,INTENT(IN) :: IDS,IDE,JDS,JDE,LM                         &
                            ,IMS,IME,JMS,JME                            &
                            ,ITS,ITE,JTS,JTE
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: F_RIMEF
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM,NUM_WATER),INTENT(INOUT) :: WATER
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QS,QG
 !
 !***  LOCAL VARIABLES
 !
@@ -11371,21 +11346,21 @@
          DO K=1,LM
            DO J=JTS,JTE
              DO I=ITS,ITE
-                WATER(I,J,K,P_QG)=WATER(I,J,K,P_QS)*F_RIMEF(I,J,K)
+                QG(I,J,K)=QS(I,J,K)*F_RIMEF(I,J,K)
              ENDDO
            ENDDO
          ENDDO
 !
-         CALL HALO_EXCH(WATER(:,:,:,P_QG),LM,2,2)
+         CALL HALO_EXCH(QG,LM,2,2)
 !
 
       ELSE                            !-- After advection
          DO K=1,LM
            DO J=JMS,JME
              DO I=IMS,IME
-                IF (WATER(I,J,K,P_QG)>EPSQ .AND.                        &
-                    WATER(I,J,K,P_QS)>EPSQ) THEN
-                   RIMEF=WATER(I,J,K,P_QG)/WATER(I,J,K,P_QS)
+                IF (QG(I,J,K)>EPSQ .AND.                        &
+                    QS(I,J,K)>EPSQ) THEN
+                   RIMEF=QG(I,J,K)/QS(I,J,K)
                    F_RIMEF(I,J,K)=MIN(50., MAX(1.,RIMEF) )
                 ELSE
                    F_RIMEF(I,J,K)=1.

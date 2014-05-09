@@ -345,7 +345,7 @@ integer(kind=kint):: &
         do l=1,lm
         do j=jms,jme
         do i=ims,ime
-          int_state%water(i,j,l,int_state%p_qv)=int_state%q(i,j,l)/(1.-int_state%q(i,j,l))    ! WRF water array uses mixing ratio for vapor
+          int_state%qv(i,j,l)=int_state%q(i,j,l)/(1.-int_state%q(i,j,l))    ! WRF water array uses mixing ratio for vapor
         enddo
         enddo
         enddo
@@ -2232,17 +2232,6 @@ integer(kind=kint):: &
         ENDDO
       ENDDO
       CALL HALO_EXCH(int_state%TRACERS,LM,int_state%NUM_TRACERS_TOTAL,1,2,2)
-!
-      DO N=1,int_state%NUM_WATER
-      DO L=1,LM
-        DO J=JMS,JME
-        DO I=IMS,IME
-          int_state%WATER(I,J,L,N)= &
-          int_state%TRACERS(I,J,L,N+int_state%NUM_TRACERS_TOTAL-int_state%NUM_WATER)
-        ENDDO
-        ENDDO
-      ENDDO
-      ENDDO
 !-----------------------------------------------------------------------
 !***  TRACERS_PREV
 !-----------------------------------------------------------------------
@@ -3763,16 +3752,6 @@ integer(kind=kint):: &
 !
         call halo_exch(int_state%TRACERS,lm,int_state%NUM_TRACERS_TOTAL,1,2,2)
 !
-        do n=1,int_state%NUM_WATER
-        do l=1,lm
-          do j=jms,jme
-          do i=ims,ime
-            int_state%WATER(i,j,l,n)= &
-            int_state%TRACERS (i,j,l,n+int_state%NUM_TRACERS_TOTAL-int_state%NUM_WATER)
-          enddo
-          enddo
-        enddo
-        enddo
 !-----------------------------------------------------------------------
 #endif
 !-----------------------------------------------------------------------
