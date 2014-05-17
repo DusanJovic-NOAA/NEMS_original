@@ -99,11 +99,11 @@
       module module_radiation_gases_nmmb      !
 !.............................................!
 !
-      use machine ,         only : kind_phys, kind_io4
-
-      use physpara,         only : ico2flg, ictmflg, ioznflg, ivflip,   &
+      use physparam,        only : ico2flg, ictmflg, ioznflg, ivflip,   &
      &                             co2dat_file, co2gbl_file,            &
-     &                             co2usr_file, co2cyc_file
+     &                             co2usr_file, co2cyc_file,            &
+     &                             kind_phys, kind_io4
+
       use funcphys,         only : fpkap
       use physcons,         only : con_pi, con_rocp
       use ozne_def,         only : JMR => latsozc, LOZ => levozc,       &

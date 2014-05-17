@@ -40,9 +40,13 @@
 !                             no further data extrapolation.            !
 !                     =yyyy1: use yyyy data for the fcst. if needed, do !
 !                             extrapolation to match the fcst time.     !
-!   isol             :=0: use a fixed solar constant value              !
-!                     =1: use 11-year cycle solar constant table        !
-!   icoe             :=0: use prescribed global mean co2 (old  oper)    !
+!   isol             := 0: use the old fixed solar constant in "physcon"!
+!                     =10: use the new fixed solar constant in "physcon"!
+!                     = 1: use noaa ann-mean tsi tbl abs-scale data tabl!
+!                     = 2: use noaa ann-mean tsi tbl tim-scale data tabl!
+!                     = 3: use cmip5 ann-mean tsi tbl tim-scale data tbl!
+!                     = 4: use cmip5 mon-mean tsi tbl tim-scale data tbl!
+!   ico2             :=0: use prescribed global mean co2 (old  oper)    !
 !                     =1: use observed co2 annual mean value only       !
 !                     =2: use obs co2 monthly data with 2-d variation   !
 !   iaer             : 3-digit aerosol flag (abc for volc, lw, sw)      !
@@ -53,6 +57,10 @@
 !                        =2 comp tropspheric aero in multi bands for lw !
 !                     c: =0 no topospheric aerosol in sw radiation      !
 !                        =1 include tropspheric aerosols for sw         !
+!   iaer_mdl         : control flag for topospheric aerosol models      !
+!                     =0: opac-climatology aerosol model                !
+!                     =1: gocart-climatology aerosol model              !
+!                     =2: gocart-prognostic aerosol model               !
 !   ialb             : control flag for surface albedo schemes          !
 !                     =0: climatology, based on surface veg types       !
 !                     =1: modis retrieval based surface albedo scheme   !
@@ -91,12 +99,11 @@
 !                                                                       !
 !  ===================================================================  !
 !
-      use physpara, only : isolar , ictmflg, ico2flg, ioznflg, iaerflg, &
+      use physparam,only : isolar , ictmflg, ico2flg, ioznflg, iaerflg, &
      &            iaermdl, laswflg, lalwflg, lavoflg, icldflg, icmphys, &
      &            iovrsw , iovrlw , lsashal, lcrick , lcnorm , lnoprec, &
-     &            ialbflg, iemsflg, isubcsw, isubclw, ivflip , ipsd0
-
-      use machine,                      only : kind_phys
+     &            ialbflg, iemsflg, isubcsw, isubclw, ivflip , ipsd0,   &
+     &            kind_phys
 
       use module_radiation_driver_nmmb, only : radinit_nmmb
 !

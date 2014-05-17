@@ -148,6 +148,7 @@ if [ $argn -eq 1 ]; then
     cp ${RTPWD}/GFS_GOCART_NEMSIO/*        ${RTPWD_U}/GFS_GOCART_NEMSIO/.
     cp ${RTPWD}/GFS_SLG_adiab/*            ${RTPWD_U}/GFS_SLG_adiab/.
     cp ${RTPWD}/GFS_SLG_adiab_DFI/*        ${RTPWD_U}/GFS_SLG_adiab_DFI/.
+    cp ${RTPWD}/GFS_NODFI_ESMF_6.3.0rAPI/* ${RTPWD_U}/GFS_NODFI_ESMF_6.3.0rAPI/.
   fi
   if [ $CP_nmm = true ]; then
     echo "copy nmm"

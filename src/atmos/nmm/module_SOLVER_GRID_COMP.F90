@@ -9744,7 +9744,7 @@
 !-----------------------------------------------------------------------
 !
 
-      USE physpara,      ONLY : ISOLx,ICO2x,IALBx,IEMSx,IAERx,ICTMx     &
+      USE physparam,     ONLY : ISOLx,ICO2x,IALBx,IEMSx,IAERx,ICTMx     &
      &                         ,IOVR_SWx,IOVR_LWx,SASHALx               &
      &                         ,NTOZx,NTCWx,IFLIPx,IAER_MDL             &
      &                         ,NP3Dx, ISUBCSWx, ISUBCLWx               &

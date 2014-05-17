@@ -112,10 +112,8 @@
       module module_radiation_aerosols_nmmb   !
 !.............................................!
 !
-      use machine,  only : kind_io8, kind_phys
-
-      use physpara, only : iaermdl, iaerflg, lavoflg, lalwflg, laswflg, &
-     &                     lalw1bd, aeros_file, ivflip
+      use physparam,only : iaermdl, iaerflg, lavoflg, lalwflg, laswflg, &
+     &                     lalw1bd, aeros_file, ivflip, kind_phys
       use physcons, only : con_pi, con_rd, con_g, con_t0c, con_c,       &
      &                     con_boltz, con_plnk, con_fvirt
 

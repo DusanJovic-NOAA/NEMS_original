@@ -122,10 +122,9 @@
       module module_radiation_clouds_nmmb     !
 !.............................................!
 !
-      use physpara,            only : icldflg, icmphys, iovrsw, iovrlw, &
+      use physparam,           only : icldflg, icmphys, iovrsw, iovrlw, &
      &                                lcrick, lcnorm, lnoprec, lsashal, &
-     &                                ivflip
-      use machine,             only : kind_phys, kind_io8, kind_io4
+     &                                ivflip, kind_phys, kind_io4
       use physcons,            only : con_fvirt, con_ttp, con_rocp,     &
      &                                con_t0c, con_pi, con_g, con_rd
 
@@ -2287,7 +2286,7 @@
       integer, intent(out) :: ier
 
 !  ---  locals:
-      real (kind=kind_io8), dimension(NBIN,NLON,NLAT,MCLD,NSEAL) ::     &
+      real (kind=kind_phys), dimension(NBIN,NLON,NLAT,MCLD,NSEAL) ::    &
      &      rhfd, rtnfd, rhcf, rtncf, rhcla
 
       real (kind=kind_io4), dimension(NBIN,NLON,NLAT,MCLD,NSEAL) ::     &

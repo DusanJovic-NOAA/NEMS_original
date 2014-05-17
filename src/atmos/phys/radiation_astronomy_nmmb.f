@@ -63,7 +63,7 @@
       module module_radiation_astronomy_nmmb  !
 !.............................................!
 !
-      use physpara,                only : isolar, solar_file, kind_phys
+      use physparam,               only : isolar, solar_file, kind_phys
       use physcons,                only : con_solr, con_solr_old, con_pi
       use module_iounitdef,        only : NIRADSF
 !

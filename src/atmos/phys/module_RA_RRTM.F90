@@ -10,9 +10,10 @@
 !
       USE MODULE_INCLUDE
 !
-      use physpara,      only : icldflg, ioznflg, NTCWx,               &
-                                NCLDX, NTRAC, LSSAV, LPRNT, kind_phys
-      use physcons,      only : con_pi
+      use physparam,     only : icldflg, ioznflg, NTCWx, kind_phys,    &
+                                NCLDX, NTRAC => NTRACx,                &
+                                       LSSAV => LSSAVx,                &
+                                       LPRNT => LPRNTx
 
       USE MODULE_CONSTANTS, ONLY : R,CP,PI,EPSQ,STBOLT,EP_2
 
@@ -812,7 +813,7 @@
        ! if ( GLON(I,J) >= 0.0 ) then
            XLON(1) = GLON(I,J)
        ! else
-       !    XLON(1) = GLON(I,J) + con_pi        ! if in -pi->+pi convert to 0->2pi
+       !    XLON(1) = GLON(I,J) + PI        ! if in -pi->+pi convert to 0->2pi
        ! endif
 
        XLAT(1)=GLAT(I,J)
@@ -1253,7 +1254,7 @@
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: EMISS
 !
       INTEGER :: I,IHRST,J,N
-      REAL :: PCLD,XSD,PI,SQR2PI
+      REAL :: PCLD,XSD,SQR2PI
       REAL :: SSLP=1013.25
       REAL, PARAMETER :: PTOP_HI=150.,PTOP_MID=350.,PTOP_LO=642.,       &
      &                   PLBTM=105000.
@@ -1293,7 +1294,6 @@
 !---  Calculate the area under the Gaussian curve at the start of the
 !---  model run and build the look up table AXSD
 !
-      PI=ACOS(-1.)
       SQR2PI=SQRT(2.*PI)
       RSQR=1./SQR2PI
       DO I=1,NXSD

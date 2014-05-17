@@ -152,10 +152,12 @@
       module module_radiation_driver_nmmb     !
 !.............................................!
 !
-      use physpara
+      use physparam
       use physcons,                 only : con_eps, con_epsm1,          &
      &                                     con_fvirt, PI=>con_pi
       use funcphys,                 only : fpvs, fpkapx
+
+      use MODULE_CONSTANTS,         only : EPSQ
 
       use module_radiation_astronomy_nmmb,only : sol_init_nmmb,         &
      &                                     sol_update_nmmb, coszmn_nmmb
@@ -188,9 +190,9 @@
 !    &   VTAGRAD='NCEP-Radiation_driver    v5.0  Aug 2012 '
 
 !  ---  constant values
-      real (kind=kind_phys) :: QMIN, QME5, QME6, EPSQ
+      real (kind=kind_phys) :: QMIN, QME5, QME6
 !     parameter (QMIN=1.0e-10, QME5=1.0e-5,  QME6=1.0e-6,  EPSQ=1.0e-12)
-      parameter (QMIN=1.0e-10, QME5=1.0e-7,  QME6=1.0e-7,  EPSQ=1.0e-12)
+      parameter (QMIN=1.0e-10, QME5=1.0e-7,  QME6=1.0e-7)
 !     parameter (QMIN=1.0e-10, QME5=1.0e-20, QME6=1.0e-20, EPSQ=1.0e-12)
       real, parameter :: prsmin = 1.0e-6 ! toa pressure minimum value in mb (hpa)
 
@@ -440,7 +442,7 @@
 
 
 !-----------------------------------
-      subroutine radupdate_nmmb                                              &
+      subroutine radupdate_nmmb                                         &
 !...................................
 
 !  ---  inputs:
@@ -1172,9 +1174,9 @@
 
 !  --- ...  compute relative humidity
 
-          ! Note for qs:
+          ! Note for qs (**Saturation specific humidity):
           !   ** prsl unit in NMMB is kPa
-          !   it can be done in es for 0.001*fpvs
+          !   it can be done in es (**Saturation vapor pressure) for 0.001*fpvs
           !   or multiple every prsl by 1000
           !   (Hsin-mu Lin, 20110927)
 

@@ -44,8 +44,7 @@ MODULES_NMM_RRTM = grrad_nmmb.o                   \
                    radiation_clouds_gfs.o    \
                    radiation_surface_gfs.o   \
                    grrad_gfs.o               \
-                   precpd_nmmb.o                  \
-                   physpara_nmmb.o
+                   precpd_nmmb.o
 
 MODULE_FGFS =                                \
 	           num_parthds.o

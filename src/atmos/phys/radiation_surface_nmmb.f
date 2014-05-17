@@ -74,8 +74,9 @@
       module module_radiation_surface_nmmb    !
 !.....................................=====...!
 !
-      use physpara,          only : ialbflg, iemsflg, semis_file
-      use machine,           only : kind_phys
+      use physparam,         only : ialbflg, iemsflg, semis_file,       &
+     &                              kind_phys
+
       use physcons,          only : con_t0c, con_ttp, con_pi, con_tice
       use module_iounitdef,  only : NIRADSF
 !
