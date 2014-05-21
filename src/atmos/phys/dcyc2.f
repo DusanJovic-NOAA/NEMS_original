@@ -18,11 +18,13 @@
 !          ( solhr,slag,sdec,cdec,sinlat,coslat,                        !
 !            xlon,coszen,tsea,tf,tsflw,                                 !
 !            sfcdsw,sfcnsw,sfcdlw,swh,hlw,                              !
+!            sfcnirbm,sfcnirdf,sfcvisbm,sfcvisdf,                       !
 !            ix, im, levs,                                              !
 !      input/output:                                                    !
 !            dtdt,                                                      !
 !      outputs:                                                         !
-!            adjsfcdsw,adjsfcnsw,adjsfcdlw,adjsfculw,xmu,xcosz)         !
+!            adjsfcdsw,adjsfcnsw,adjsfcdlw,adjsfculw,xmu,xcosz,         !
+!            adjnirbm,adjnirdf,adjvisbm,adjvisdf)                       !
 !                                                                       !
 !                                                                       !
 !  program history:                                                     !
@@ -42,6 +44,8 @@
 !                 program.                                              !
 !     apr  2009  y. hou     - integrated with the new parallel model    !
 !                 along with other modifications                        !
+!     mar  2014  x. wu      - add sfc nir/vis bm/df to the variable     !
+!                             list for the coupled model input          !
 !                                                                       !
 !  subprograms called:  none                                            !
 !                                                                       !
@@ -88,11 +92,13 @@
      &     ( solhr,slag,sdec,cdec,sinlat,coslat,                        &
      &       xlon,coszen,tsea,tf,tsflw,                                 &
      &       sfcdsw,sfcnsw,sfcdlw,swh,hlw,                              &
+     &       sfcnirbm,sfcnirdf,sfcvisbm,sfcvisdf,                       &
      &       ix, im, levs,                                              &
 !  ---  input/output:
      &       dtdt,                                                      &
 !  ---  outputs:
-     &       adjsfcdsw,adjsfcnsw,adjsfcdlw,adjsfculw,xmu,xcosz          &
+     &       adjsfcdsw,adjsfcnsw,adjsfcdlw,adjsfculw,xmu,xcosz,         &
+     &       adjnirbm,adjnirdf,adjvisbm,adjvisdf                        &
      &     )
 !
       use machine,         only : kind_phys
@@ -111,7 +117,7 @@
 
       real(kind=kind_phys), dimension(im), intent(in) ::                &
      &      sinlat, coslat, xlon, coszen, tsea, tf, tsflw, sfcdlw,      &
-     &      sfcdsw, sfcnsw
+     &      sfcdsw, sfcnsw, sfcnirbm,sfcnirdf,sfcvisbm,sfcvisdf
 
       real(kind=kind_phys), dimension(ix,levs), intent(in) :: swh, hlw
 
@@ -120,7 +126,8 @@
 
 !  ---  outputs:
       real(kind=kind_phys), dimension(im), intent(out) ::               &
-     &      adjsfcdsw, adjsfcnsw, adjsfcdlw, adjsfculw, xmu, xcosz
+     &      adjsfcdsw, adjsfcnsw, adjsfcdlw, adjsfculw, xmu, xcosz,     &
+     &      adjnirbm,adjnirdf,adjvisbm,adjvisdf
 
 !  ---  locals:
       integer :: i, k
@@ -169,6 +176,10 @@
 !  --- ...  adjust sfc net and downward sw fluxes for zenith angle changes
         adjsfcnsw(i) = sfcnsw(i) * xmu(i)
         adjsfcdsw(i) = sfcdsw(i) * xmu(i)
+        adjnirbm(i)  = sfcnirbm(i) * xmu(i)
+        adjnirdf(i)  = sfcnirdf(i) * xmu(i)
+        adjvisbm(i)  = sfcvisbm(i) * xmu(i)
+        adjvisdf(i)  = sfcvisdf(i) * xmu(i)
       enddo
 
 !  --- ...  adjust sw heating rates with zenith angle change and

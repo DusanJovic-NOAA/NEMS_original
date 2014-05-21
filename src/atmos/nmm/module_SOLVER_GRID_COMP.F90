@@ -42,6 +42,7 @@
 !   2012-07-20  Black  - Modified for generational usage.
 !   2013-09-09 Moorthi - Adding SR, DTDT, and TRIGGERPERTS for GBPHYS call
 !   2013-11-09 Xingren Wu - Adding DUSFCI/DVSFCI for GBPHYS call
+!   2014-03-28 Xingren Wu - Add "_CPL" field for GBPHYS call
 !-----------------------------------------------------------------------
 !
       USE esmf_mod
@@ -2696,6 +2697,7 @@
       LOGICAL,SAVE                                 :: FIRST=.true.
       LOGICAL                                      :: LPRNT=.false.,NORAD_PRECIP=.false.,CRICK_PROOF=.false., CCNORM=.false.
       LOGICAL                                      :: LSFWD,OPENED,FLIPV,CHANGE,LSSAV_CC,LGOCART=.FALSE.
+      LOGICAL                                      :: LSSAV_CPL
       INTEGER,PARAMETER                            :: IFLIP=1,NTRAC=3            !!!!!! later ntrac read form namelist
       INTEGER                                      :: ICWP,IMJM, IDATE(4)
       INTEGER                                      :: ISEED,IDE_GR
@@ -2723,6 +2725,8 @@
       REAL (kind=KDBL) ,DIMENSION(:,:,:),ALLOCATABLE :: GR1
 !
       REAL (kind=KDBL) ,DIMENSION(1)               :: SFALB,TSFLW,SEMIS,SFCDLW,SFCDSW,SFCNSW
+      REAL (kind=KDBL) ,DIMENSION(1)               :: ALBNBM_CPL,ALBNDF_CPL,ALBVBM_CPL,ALBVDF_CPL
+      REAL (kind=KDBL) ,DIMENSION(1)               :: NIRBMI_CPL,NIRDFI_CPL,VISBMI_CPL,VISDFI_CPL
 
       type (topfsw_type), dimension(1) :: topfsw
       type (sfcfsw_type), dimension(1) :: sfcfsw
@@ -2763,11 +2767,22 @@
       REAL (kind=KDBL) ,DIMENSION(1)               :: PSURF, U10M, V10M, T2M, Q2M, HPBL, PWAT, SNOHFA
       REAL (kind=KDBL) ,DIMENSION(1)               :: DLWSFC_CC, ULWSFC_CC, DTSFC_CC, SWSFC_CC
       REAL (kind=KDBL) ,DIMENSION(1)               :: DUSFC_CC, DVSFC_CC, DQSFC_CC, PRECR_CC
+      REAL (kind=KDBL) ,DIMENSION(1)               :: DUSFC_CPL,DVSFC_CPL,DTSFC_CPL,DQSFC_CPL
+      REAL (kind=KDBL) ,DIMENSION(1)               :: DLWSFC_CPL,DSWSFC_CPL,DNIRBM_CPL,DNIRDF_CPL
+      REAL (kind=KDBL) ,DIMENSION(1)               :: DVISBM_CPL,DVISDF_CPL,RAIN_CPL
+      REAL (kind=KDBL) ,DIMENSION(1)               :: NLWSFC_CPL,NSWSFC_CPL,NNIRBM_CPL,NNIRDF_CPL
+      REAL (kind=KDBL) ,DIMENSION(1)               :: NVISBM_CPL,NVISDF_CPL
       REAL (kind=KDBL) ,DIMENSION(1)               :: XT, XS, XU, XV, XZ, ZM, XTTS
       REAL (kind=KDBL) ,DIMENSION(1)               :: XZTS, D_CONV, IFD, DT_COOL, QRAIN
       REAL (kind=KDBL) ,DIMENSION(1)               :: SMCWLT2, SMCREF2, GSOIL, GTMP2M, GUSTAR, GPBLH, WET1
       REAL (kind=KDBL) ,DIMENSION(1)               :: GU10M, GV10M, GZORL, GORO, SR
       REAL (kind=KDBL) ,DIMENSION(1)               :: XMU_CC, DLW_CC, DSW_CC, SNW_CC, LPREC_CC, TREF
+      REAL (kind=KDBL) ,DIMENSION(1)               :: DUSFCI_CPL,DVSFCI_CPL,DTSFCI_CPL,DQSFCI_CPL
+      REAL (kind=KDBL) ,DIMENSION(1)               :: DLWSFCI_CPL,DSWSFCI_CPL,DNIRBMI_CPL,DNIRDFI_CPL
+      REAL (kind=KDBL) ,DIMENSION(1)               :: DVISBMI_CPL,DVISDFI_CPL
+      REAL (kind=KDBL) ,DIMENSION(1)               :: NLWSFCI_CPL,NSWSFCI_CPL,NNIRBMI_CPL,NNIRDFI_CPL
+      REAL (kind=KDBL) ,DIMENSION(1)               :: NVISBMI_CPL,NVISDFI_CPL,T2MI_CPL,Q2MI_CPL
+      REAL (kind=KDBL) ,DIMENSION(1)               :: U10MI_CPL,V10MI_CPL,TSEAI_CPL,PSURFI_CPL,ORO_CPL
       REAL (kind=KDBL) ,DIMENSION(1)               :: Z_C, C_0, C_D, W_0, W_D, RQTK
       REAL (kind=KDBL) ,DIMENSION(1)               :: HLWD
       REAL (kind=KDBL) ,DIMENSION(LM)              :: DTDT
@@ -6196,6 +6211,7 @@
           XLVRWI   = 1./XLVRW
           RoCP     = R/CP
           LSSAV_CC = LSSAV
+          LSSAV_CPL= LSSAV
           IDE_GR   = IDE-1
           IF(int_state%GLOBAL) IDE_GR = IDE-3
 !
@@ -6244,6 +6260,23 @@
               DVSFC_CC(1)     = 0.0D0
               DQSFC_CC(1)     = 0.0D0
               PRECR_CC(1)     = 0.0D0
+              DUSFC_CPL(1)    = 0.0D0
+              DVSFC_CPL(1)    = 0.0D0
+              DTSFC_CPL(1)    = 0.0D0
+              DQSFC_CPL(1)    = 0.0D0
+              DLWSFC_CPL(1)   = 0.0D0
+              DSWSFC_CPL(1)   = 0.0D0
+              DNIRBM_CPL(1)   = 0.0D0
+              DNIRDF_CPL(1)   = 0.0D0
+              DVISBM_CPL(1)   = 0.0D0
+              DVISDF_CPL(1)   = 0.0D0
+              NLWSFC_CPL(1)   = 0.0D0
+              NSWSFC_CPL(1)   = 0.0D0
+              NNIRBM_CPL(1)   = 0.0D0
+              NNIRDF_CPL(1)   = 0.0D0
+              NVISBM_CPL(1)   = 0.0D0
+              NVISDF_CPL(1)   = 0.0D0
+              RAIN_CPL(1)     = 0.0D0
               XT(1)           = 0.0D0
               XS(1)           = 0.0D0
               XU(1)           = 0.0D0
@@ -6261,6 +6294,29 @@
               DSW_CC(1)       = 0.0D0
               SNW_CC(1)       = 0.0D0
               LPREC_CC(1)     = 0.0D0
+              DUSFCI_CPL(1)   = 0.0D0
+              DVSFCI_CPL(1)   = 0.0D0
+              DTSFCI_CPL(1)   = 0.0D0
+              DQSFCI_CPL(1)   = 0.0D0
+              DLWSFCI_CPL(1)  = 0.0D0
+              DSWSFCI_CPL(1)  = 0.0D0
+              DNIRBMI_CPL(1)  = 0.0D0
+              DNIRDFI_CPL(1)  = 0.0D0
+              DVISBMI_CPL(1)  = 0.0D0
+              DVISDFI_CPL(1)  = 0.0D0
+              NLWSFCI_CPL(1)  = 0.0D0
+              NSWSFCI_CPL(1)  = 0.0D0
+              NNIRBMI_CPL(1)  = 0.0D0
+              NNIRDFI_CPL(1)  = 0.0D0
+              NVISBMI_CPL(1)  = 0.0D0
+              NVISDFI_CPL(1)  = 0.0D0
+              T2MI_CPL(1)     = 0.0D0
+              Q2MI_CPL(1)     = 0.0D0
+              U10MI_CPL(1)    = 0.0D0
+              V10MI_CPL(1)    = 0.0D0
+              TSEAI_CPL(1)    = 0.0D0
+              PSURFI_CPL(1)   = 0.0D0
+              ORO_CPL(1)      = 0.0D0
               TREF(1)         = 0.0D0
               Z_C(1)          = 0.0D0
               C_0(1)          = 0.0D0
@@ -6472,6 +6528,15 @@
           SEMIS(1)    = int_state%SEMIS(I,J)
         ENDIF
 !---
+          ALBNBM_CPL(1) = SFALB(1)    
+          ALBNDF_CPL(1) = SFALB(1)    
+          ALBVBM_CPL(1) = SFALB(1)    
+          ALBVDF_CPL(1) = SFALB(1)    
+          NIRBMI_CPL(1) = 0.25 * SFCDSW(1)
+          NIRDFI_CPL(1) = 0.26 * SFCDSW(1)
+          VISBMI_CPL(1) = 0.16 * SFCDSW(1)
+          VISDFI_CPL(1) = 0.33 * SFCDSW(1)
+!---
           DPSHC(1)    = 0.3 * PRSI(1)
           GQ(1)       = PRSI(1)
 !---
@@ -6540,8 +6605,10 @@
            RANN, OZPLOUT_V, PL_PRES, DPSHC, HPRIME, XLON(I,J), XLAT,        &
            XSLPFCS, SHDMIN, SHDMAX, SNOALB, XTG3FCS, SLMSK, XVEGFCS,        &
            XVETFCS, XSOTFCS, UUSTAR, ORO, oro, COSZEN(I,J), SFCDSW, SFCNSW, &
+           NIRBMI_CPL,       NIRDFI_CPL,  VISBMI_CPL,       VISDFI_CPL,     &
+           ALBNBM_CPL,       ALBNDF_CPL,  ALBVBM_CPL,       ALBVDF_CPL,     &
            SFCDLW, TSFLW, SEMIS, SFALB, SWH, HLW, RAS, PRE_RAD,             &
-           LDIAG3D, LGGFS3D, LGOCART, LSSAV, LSSAV_CC,                      &
+           LDIAG3D, LGGFS3D, LGOCART, LSSAV, LSSAV_CC, LSSAV_CPL,           &
            BKGD_VDIF_M, BKGD_VDIF_H, BKGD_VDIF_S, PSAUTCO, PRAUTCO, EVPCO,  &
            WMINCO,                                                          &
            FLIPV, OLD_MONIN, CNVGWD, SHAL_CNV, SASHAL, NEWSAS, CAL_PRE,     &
@@ -6561,6 +6628,11 @@
              PHY_F2DV,                                                      &
            DLWSFC_CC, ULWSFC_CC, DTSFC_CC, SWSFC_CC,                        &
            DUSFC_CC, DVSFC_CC, DQSFC_CC, PRECR_CC,                          &
+           DUSFC_CPL, DVSFC_CPL, DTSFC_CPL, DQSFC_CPL,                      &
+           DLWSFC_CPL,DSWSFC_CPL,DNIRBM_CPL,DNIRDF_CPL,                     &
+           DVISBM_CPL,DVISDF_CPL,RAIN_CPL,                                  &
+           NLWSFC_CPL,NSWSFC_CPL,NNIRBM_CPL,NNIRDF_CPL,                     &
+           NVISBM_CPL,NVISDF_CPL,                                           &
            XT, XS, XU, XV, XZ, ZM, XTTS, XZTS, D_CONV, IFD, DT_COOL, QRAIN, &
            ADT, ADR, ADU, ADV, T2M, Q2M, U10M, V10M,                        &
            ZLVL, PSURF, HPBL, PWAT, T1, Q1, U1, V1,                         &
@@ -6568,6 +6640,12 @@
            DTSFCI, DQSFCI, GFLUXI, EPI, SMCWLT2, SMCREF2, WET1,             &
            GSOIL, GTMP2M, GUSTAR, GPBLH, GU10M, GV10M, GZORL, GORO, SR,     &
            XMU_CC, DLW_CC, DSW_CC, SNW_CC, LPREC_CC,                        &
+           DUSFCI_CPL, DVSFCI_CPL, DTSFCI_CPL, DQSFCI_CPL,                  &
+           DLWSFCI_CPL,DSWSFCI_CPL,DNIRBMI_CPL,DNIRDFI_CPL,                 &
+           DVISBMI_CPL,DVISDFI_CPL,                                         &
+           NLWSFCI_CPL,NSWSFCI_CPL,NNIRBMI_CPL,NNIRDFI_CPL,                 &
+           NVISBMI_CPL,NVISDFI_CPL,T2MI_CPL,Q2MI_CPL,                       &
+           U10MI_CPL,V10MI_CPL,TSEAI_CPL,PSURFI_CPL,ORO_CPL,                &
            TREF, Z_C, C_0, C_D, W_0, W_D, RQTK, HLWD, LSIDEA,               &
            DTDT, TRIGGERPERTS)
 !-----------------------------------------------------------------------

@@ -31,8 +31,9 @@
 !            dtlw,dtsw, lsswr,lslwr,lssav,                             !
 !            IX, IM, LM, me, lprnt, ipt, kdt,                          !
 !         output:                                                      !
-!            htrsw,topfsw,sfcfsw,sfalb,coszen,coszdg,                  !
+!            htrsw,topfsw,sfcfsw,scmpsw,sfalb,coszen,coszdg,           !
 !            htrlw,topflw,sfcflw,tsflw,semis,cldcov,                   !
+!            albnbm,albndf,albvbm,albvdf,                              !
 !         input/output:                                                !
 !            fluxr                                                     !
 !         optional output:                                             !
@@ -160,6 +161,8 @@
 !     may 2013    s. mooorthi - removed fpkapx                         !
 !     aug 2013    s. moorthi  - port from gfs to nems                  !
 !     13Feb2014   sarah lu - add aerodp to fluxr                       !
+!     Apr 2014    Xingren Wu - add sfc SW downward fluxes nir/vis and  !
+!                    sfcalb to export for A/O/I coupling               !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -629,8 +632,9 @@
      &       dtlw,dtsw, lsswr,lslwr,lssav,                              &
      &       IX, IM, LM, me, lprnt, ipt, kdt,                           &
 !  ---  outputs:
-     &       htrsw,topfsw,sfcfsw,sfalb,coszen,coszdg,                   &
+     &       htrsw,topfsw,sfcfsw,scmpsw,sfalb,coszen,coszdg,            &
      &       htrlw,topflw,sfcflw,tsflw,semis,cldcov,                    &
+     &       albnbm,albndf,albvbm,albvdf,                               &
 !  ---  input/output:
      &       fluxr                                                      &
 !! ---  optional outputs:
@@ -939,6 +943,9 @@
 
       real (kind=kind_phys), dimension(IM),   intent(out):: tsflw,      &
      &       sfalb, semis, coszen, coszdg
+
+      real (kind=kind_phys), dimension(IM), intent(out):: albnbm,       &
+     &       albndf, albvbm, albvdf
 
       type (topfsw_type), dimension(IM), intent(out) :: topfsw
       type (sfcfsw_type), dimension(IM), intent(out) :: sfcfsw
@@ -1414,6 +1421,18 @@
 !  --- lu [+4L]: derive SFALB from vis- and nir- diffuse surface albedo
         do i = 1, IM
           sfalb(i) = max(0.01, 0.5 * (sfcalb(i,2) + sfcalb(i,4)))
+!  --- Xingren Wu: Add for A/O/I coupling
+          if (coszen(i) >= 0.0001) then
+            albnbm(i) = min(1.0, sfcalb(i,1))
+            albndf(i) = sfcalb(i,2)
+            albvbm(i) = min(1.0, sfcalb(i,3))
+            albvdf(i) = sfcalb(i,4)
+          else
+            albnbm(i) = 0.
+            albndf(i) = 0.
+            albvbm(i) = 0.
+            albvdf(i) = 0.
+          endif
         enddo
 
         if (nday > 0) then

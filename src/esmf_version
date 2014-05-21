@@ -13,6 +13,12 @@ elif [[ $1 = 3_wcoss ]]; then
      cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
      set +x
      echo "Use the ESMF 3.1.0rp2 library"
+elif [[ $1 = 3_gaea ]]; then
+     set -x
+     cp conf/configure.nems.Gaea.intel conf/configure.nems
+     cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
+     set +x
+     echo "Use the ESMF 3.1.0rp5 library"
 elif [[ $1 = 3_yellowstone ]]; then
      set -x
      cp conf/configure.nems.Yellowstone.intel conf/configure.nems

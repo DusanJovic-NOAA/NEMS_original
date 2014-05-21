@@ -18,8 +18,10 @@
 !           rann,prdout,poz,dpshc,hprime,xlon,xlat,                     !
 !           slope,shdmin,shdmax,snoalb,tg3,slmsk,vfrac,                 !
 !           vtype,stype,uustar,oro,oro_uf,coszen,sfcdsw,sfcnsw,         !
+!           sfcnirbmi,sfcnirdfi,sfcvisbmi,sfcvisdfi,                    !
+!           albnbm,albndf,albvbm,albvdf,                                !
 !           sfcdlw,tsflw,sfcemis,sfalb,swh,hlw,ras,pre_rad,             !
-!           ldiag3d,lggfs3d,lgocart,lssav,lssav_cc,                     !
+!           ldiag3d,lggfs3d,lgocart,lssav,lssav_cc,lssav_cpl            !
 !           xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,wminco,          !
 !           flipv,old_monin,cnvgwd,shal_cnv,sashal,newsas,cal_pre,      !
 !           mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,fscav,         !
@@ -36,6 +38,10 @@
 !           slc,smc,stc,upd_mf,dwn_mf,det_mf,dkh,rnp,phy_f3d,phy_f2d,   !
 !           dlwsfc_cc,ulwsfc_cc,dtsfc_cc,swsfc_cc,                      !
 !           dusfc_cc, dvsfc_cc, dqsfc_cc,precr_cc,                      !
+!           dusfc_cpl, dvsfc_cpl, dtsfc_cpl, dqsfc_cpl,                 !
+!           dlwsfc_cpl,dswsfc_cpl,dnirbm_cpl,dnirdf_cpl,                !
+!           dvisbm_cpl,dvisdf_cpl,rain_cpl,  nlwsfc_cpl,nswsfc_cpl,     !
+!           nnirbm_cpl,nnirdf_cpl,nvisbm_cpl,nvisdf_cpl,                !
 !           xt,xs,xu,xv,xz,zm,xtts,xzts,d_conv,ifd,dt_cool,Qrain,       !
 !       outputs:                                                        !
 !           gt0,gq0,gu0,gv0,t2m,q2m,u10m,v10m,                          !
@@ -45,6 +51,13 @@
 !hchuang code change
 !           gsoil,gtmp2m,gustar,gpblh,gu10m,gv10m,gzorl,goro,           !
 !           xmu_cc,dlw_cc,dsw_cc,snw_cc,lprec_cc,                       !
+!           dusfci_cpl,dvsfci_cpl,dtsfci_cpl,dqsfci_cpl,                !
+!           dlwsfci_cpl,dswsfci_cpl,                                    !
+!           dnirbmi_cpl,dnirdfi_cpl,dvisbmi_cpl,dvisdfi_cpl,            !
+!           nlwsfci_cpl,nswsfci_cpl,                                    !
+!           nnirbmi_cpl,nnirdfi_cpl,nvisbmi_cpl,nvisdfi_cpl,            !
+!           t2mi_cpl,q2mi_cpl,                                          !
+!           u10mi_cpl,v10mi_cpl,tseai_cpl,psurfi_cpl,oro_cpl,           !
 !           tref, z_c, c_0, c_d, w_0, w_d, rqtk,                        !
 !           hlwd,lsidea                         )                       !
 !                                                                       !
@@ -105,7 +118,9 @@
 !      Aug  2013  - s. moorthi updating J. Whitekar's changes related   !
 !                              to stochastic physics perturnbation      !
 !      Oct  2013  - Xingren Wu  add dusfci/dvsfci                       !
-!
+!      Mar  2014  - Xingren Wu  add "_cpl" for coupling                 !
+!      Mar  2014  - Xingren Wu  add "nir/vis beam and nir/vis diff"     !
+!      Apr  2014  - Xingren Wu  add "NET LW/SW including nir/vis"       !
 !                                                                       !
 !                                                                       !
 !  ====================  defination of variables  ====================  !
@@ -198,6 +213,10 @@
 !     tsflw    - real, sfc air (layer 1) temp over lw interval (k) im   !
 !     sfcemis  - real, sfc lw emissivity ( fraction )              im   !
 !     sfalb    - real, mean sfc diffused sw albedo                 im   !
+!     albnbm   - real, near ir direct beam albedo                  im   !
+!     albndf   - real, near ir diffused albedo                     im   !
+!     albvbm   - real, uv+vis direct beam albedo                   im   !
+!     albvdf   - real, uv+vis diffused albedo                      im   !
 !     swh      - real, total sky sw heating rates ( k/s )       ix,levs !
 !     hlw      - real, total sky lw heating rates ( k/s )       ix,levs !
 !     hlwd     - real, idea  sky lw heating rates ( k/s )       ix,levs !
@@ -208,6 +227,7 @@
 !     lgocart  - logical, flag for 3d diagnostic fields for gocart 1    !
 !     lssav    - logical, flag controls data store and output      1    !
 !     lssav_cc - logical, flag for save data for ocean coupling    1    !
+!     lssav_cpl- logical, flag for save data for A/O/I coupling    1    !
 !     flipv    - logical, flag for vertical direction flip (ras)   1    !
 !     xkzm_m   - real, background vertical diffusion for momentum  1    !
 !     xkzm_h   - real, background vertical diffusion for heat, q   1    !
@@ -308,6 +328,23 @@
 !     dtsfc_cc - real, sfc sensible heat flux    for ocn coupling  im   !
 !     dqsfc_cc - real, sfc moisture flux (evap)  for ocn coupling  im   !
 !     precr_cc - real, total precipitation       for ocn coupling  im   !
+!     dusfc_cpl - real, sfc u-momentum flux       for A/O/I coupling im !
+!     dvsfc_cpl - real, sfc v-momentum flux       for A/O/I coupling im !
+!     dtsfc_cpl - real, sfc sensible heat flux    for A/O/I coupling im !
+!     dqsfc_cpl - real, sfc latent heat flux      for A/O/I coupling im !
+!     dlwsfc_cpl- real, sfc dnwd lw flux (w/m**2) for A/O/I coupling im !
+!     dswsfc_cpl- real, sfc dnwd sw flux (w/m**2) for A/O/I coupling im !
+!     dnirbm_cpl- real, sfc nir beam dnwd sw rad flux (w/m**2)       im !
+!     dnirdf_cpl- real, sfc nir diff dnwd sw rad flux (w/m**2)       im !
+!     dvisbm_cpl- real, sfc uv+vis beam dnwd sw rad flux (w/m**2)    im !
+!     dvisdf_cpl- real, sfc uv+vis diff dnwd sw rad flux (w/m**2)    im !
+!     nlwsfc_cpl- real, net dnwd lw flux (w/m**2) for A/O/I coupling im !
+!     nswsfc_cpl- real, net dnwd sw flux (w/m**2) for A/O/I coupling im !
+!     nnirbm_cpl- real, net nir beam dnwd sw rad flux (w/m**2)       im !
+!     nnirdf_cpl- real, net nir diff dnwd sw rad flux (w/m**2)       im !
+!     nvisbm_cpl- real, net uv+vis beam dnwd sw rad flux (w/m**2)    im !
+!     nvisdf_cpl- real, net uv+vis diff dnwd sw rad flux (w/m**2)    im !
+!     rain_cpl  - real, total precipitation       for A/O/I coupling im !
 !
 !     xt       - real, heat content in DTL                         im   !
 !     xs       - real, salinity  content in DTL                    im   !
@@ -367,6 +404,30 @@
 !     snw_cc   - real, lower atms snow fall rate for ocn cpl       im   !
 !     lprec_cc - real, lower atms rain fall rate for ocn cpl       im   !
 
+!     dusfci_cpl  - real, sfc u-momentum flux at time step AOI cpl  im  !
+!     dvsfci_cpl  - real, sfc v-momentum flux at time step AOI cpl  im  !
+!     dtsfci_cpl  - real, sfc sensib heat flux at time step AOI cpl im  !
+!     dqsfci_cpl  - real, sfc latent heat flux at time step AOI cpl im  !
+!     dlwsfci_cpl - real, sfc dnwd lw flux at time step AOI cpl     im  !
+!     dswsfci_cpl - real, sfc dnwd sw flux at time step AOI cpl     im  !
+!     dnirbmi_cpl - real, sfc nir beam dnwd sw flx rad at time step im  !
+!     dnirdfi_cpl - real, sfc nir diff dnwd sw flx rad at time step im  !
+!     dvisbmi_cpl - real, sfc uv+vis beam dnwd sw flx at time step  im  !
+!     dvisdfi_cpl - real, sfc uv+vis diff dnwd sw flx at time step  im  !
+!     nlwsfci_cpl - real, net sfc dnwd lw flux at time step AOI cpl im  !
+!     nswsfci_cpl - real, net sfc dnwd sw flux at time step AOI cpl im  !
+!     nnirbmi_cpl - real, net nir beam dnwd sw flx rad at time step im  !
+!     nnirdfi_cpl - real, net nir diff dnwd sw flx rad at time step im  !
+!     nvisbmi_cpl - real, net uv+vis beam dnwd sw flx at time step  im  !
+!     nvisdfi_cpl - real, net uv+vis diff dnwd sw flx at time step  im  !
+!     t2mi_cpl    - real, T2m at time step AOI cpl                  im  !
+!     q2mi_cpl    - real, Q2m at time step AOI cpl                  im  !
+!     u10mi_cpl   - real, U10m at time step AOI cpl                 im  !
+!     v10mi_cpl   - real, V10m at time step AOI cpl                 im  !
+!     tseai_cpl   - real, sfc temp at time step AOI cpl             im  !
+!     psurfi_cpl  - real, sfc pressure at time step AOI cpl         im  !
+!     oro_cpl     - real, orography AOI cpl                         im  !
+
 !     tref     - real, Reference Temperature                       im   !
 !     z_c      - real, Sub-layer cooling thickness                 im   !
 !     c_0      - real, coefficient1 to calculate d(Tz)/d(Ts)       im   !
@@ -392,8 +453,10 @@
      &      rann,prdout,poz,dpshc,hprime,xlon,xlat,                     &
      &      slope,shdmin,shdmax,snoalb,tg3,slmsk,vfrac,                 &
      &      vtype,stype,uustar,oro,oro_uf,coszen,sfcdsw,sfcnsw,         &
+     &      sfcnirbmi,sfcnirdfi,sfcvisbmi,sfcvisdfi,                    &
+     &      albnbm,albndf,albvbm,albvdf,                                &
      &      sfcdlw,tsflw,sfcemis,sfalb,swh,hlw,ras,pre_rad,             &
-     &      ldiag3d,lggfs3d,lgocart,lssav,lssav_cc,                     &
+     &      ldiag3d,lggfs3d,lgocart,lssav,lssav_cc,lssav_cpl,           &
      &      xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,wminco,          &
      &      flipv,old_monin,cnvgwd,shal_cnv,sashal,newsas,cal_pre,      &
      &      mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,fscav,         &
@@ -410,6 +473,10 @@
      &      slc,smc,stc,upd_mf,dwn_mf,det_mf,dkh,rnp,phy_f3d,phy_f2d,   &
      &      dlwsfc_cc,ulwsfc_cc,dtsfc_cc,swsfc_cc,                      &
      &      dusfc_cc, dvsfc_cc, dqsfc_cc,precr_cc,                      &
+     &      dusfc_cpl, dvsfc_cpl, dtsfc_cpl, dqsfc_cpl,                 &
+     &      dlwsfc_cpl,dswsfc_cpl,dnirbm_cpl,dnirdf_cpl,                & 
+     &      dvisbm_cpl,dvisdf_cpl,rain_cpl,  nlwsfc_cpl,nswsfc_cpl,     &
+     &      nnirbm_cpl,nnirdf_cpl,nvisbm_cpl,nvisdf_cpl,                &
      &      xt,xs,xu,xv,xz,zm,xtts,xzts,d_conv,ifd,dt_cool,Qrain,       &
 !  ---  outputs:
      &      gt0,gq0,gu0,gv0,t2m,q2m,u10m,v10m,                          &
@@ -418,6 +485,13 @@
      &      dtsfci,dqsfci,gfluxi,epi,smcwlt2,smcref2,wet1,              &
      &      gsoil,gtmp2m,gustar,gpblh,gu10m,gv10m,gzorl,goro,sr,        &
      &      xmu_cc,dlw_cc,dsw_cc,snw_cc,lprec_cc,                       &
+     &      dusfci_cpl,dvsfci_cpl,dtsfci_cpl,dqsfci_cpl,                &
+     &      dlwsfci_cpl,dswsfci_cpl,                                    &
+     &      dnirbmi_cpl,dnirdfi_cpl,dvisbmi_cpl,dvisdfi_cpl,            &
+     &      nlwsfci_cpl,nswsfci_cpl,                                    &
+     &      nnirbmi_cpl,nnirdfi_cpl,nvisbmi_cpl,nvisdfi_cpl,            &
+     &      t2mi_cpl,q2mi_cpl,                                          &
+     &      u10mi_cpl,v10mi_cpl,tseai_cpl,psurfi_cpl,oro_cpl,           &
      &      tref, z_c, c_0, c_d, w_0, w_d,                              &
      &      rqtk,                                                       &
 !
@@ -480,12 +554,14 @@
      &                       lssav,      lssav_cc,  mom4ice, mstrat,    &
      &                       trans_trac, moist_adj, lggfs3d, cal_pre,   &
      &                       shal_cnv,   gen_coord_hybrid,   lgocart,   &
-     &                       lsidea
+     &                       lsidea,     lssav_cpl
 
       real(kind=kind_phys), dimension(im),            intent(in) ::     &
      &      sinlat, coslat, pgr,    dpshc,  xlon,   xlat,               &
      &      slope,  shdmin, shdmax, snoalb, tg3,    slmsk,  vfrac,      &
      &      vtype,  stype,  uustar, oro,    coszen, sfcnsw, sfcdsw,     &
+     &      albnbm,         albndf,         albvbm,         albvdf,     &
+     &      sfcnirbmi,      sfcnirdfi,      sfcvisbmi,      sfcvisdfi,  &
      &      sfcdlw, tsflw,  sfalb,  sfcemis, oro_uf
 
       real(kind=kind_phys), dimension(ix,levs),       intent(in) ::     &
@@ -519,14 +595,24 @@
      &      snowca, soilm,   tmpmin, tmpmax, dusfc,  dvsfc,  dtsfc,     &
      &      dqsfc,  totprcp, gflux,  dlwsfc, ulwsfc, suntim, runoff, ep,&
      &      cldwrk, dugwd,   dvgwd,  psmean, cnvprcp,spfhmin, spfhmax,  &
-     &      rain,   rainc,   acv,    acvb,   acvt,                                      &
+     &      rain,   rainc,   acv,    acvb,   acvt,                      &
 ! om coupling
      &      dlwsfc_cc, ulwsfc_cc, dtsfc_cc, swsfc_cc, dusfc_cc,         &
      &      dvsfc_cc,  dqsfc_cc,  precr_cc,                             &
+! A/O/I coupling
+     &      dusfc_cpl, dvsfc_cpl, dtsfc_cpl, dqsfc_cpl,                 &
+     &      dlwsfc_cpl,dswsfc_cpl,rain_cpl,                             &
+     &      dnirbm_cpl,dnirdf_cpl,dvisbm_cpl,dvisdf_cpl,                &
+     &      nlwsfc_cpl,nswsfc_cpl,                                      &
+     &      nnirbm_cpl,nnirdf_cpl,nvisbm_cpl,nvisdf_cpl,                &
 ! nst
-     &      xt(im),     xs(im),   xu(im),     xv(im),  xz(im),   zm(im),&
-     &      xtts(im),   xzts(im), d_conv(im), ifd(im), dt_cool(im),     &
-     &      Qrain(im)
+!    &      xt(im),     xs(im),   xu(im),     xv(im),  xz(im),   zm(im),&
+!    &      xtts(im),   xzts(im), d_conv(im), ifd(im), dt_cool(im),     &
+!    &      Qrain(im)
+! Xingren Wu: delete (im) for nst above
+     &      xt, xs, xu, xv, xz, zm, xtts, xzts, d_conv, ifd, dt_cool,
+     &      Qrain
+
 !
       real(kind=kind_phys), dimension(ix,lsoil),      intent(inout) ::  &
      &      smc, stc, slc
@@ -547,9 +633,18 @@
      &      dusfci,  dvsfci,  dtsfci,  dqsfci,                          &
      &      gfluxi,  epi,     smcwlt2, smcref2, wet1,                   &
 !hchuang code change 11/12/2007 [+2L]
-     &      gsoil(im), gtmp2m(im), gustar(im), gpblh(im), gu10m(im),    &
-     &      gv10m(im), gzorl(im), goro(im),                             &
+!    &      gsoil(im), gtmp2m(im), gustar(im), gpblh(im), gu10m(im),    &
+!    &      gv10m(im), gzorl(im), goro(im),                             &
+! Xingren Wu: delete (im) above
+     &      gsoil, gtmp2m, gustar, gpblh, gu10m, gv10m, gzorl, goro,    &
      &      xmu_cc,  dlw_cc,  dsw_cc,  snw_cc,  lprec_cc,               &
+     &      dusfci_cpl,dvsfci_cpl,dtsfci_cpl,dqsfci_cpl,                &
+     &      dlwsfci_cpl,dswsfci_cpl,                                    &
+     &      dnirbmi_cpl,dnirdfi_cpl,dvisbmi_cpl,dvisdfi_cpl,            &
+     &      nlwsfci_cpl,nswsfci_cpl,                                    &
+     &      nnirbmi_cpl,nnirdfi_cpl,nvisbmi_cpl,nvisdfi_cpl,            &
+     &      t2mi_cpl,q2mi_cpl,                                          &
+     &      u10mi_cpl,v10mi_cpl,tseai_cpl,psurfi_cpl,oro_cpl,           &
      &      tref,    z_c,     c_0,     c_d,     w_0,   w_d, rqtk,       &
      &      triggerperts,sr
 
@@ -572,6 +667,7 @@
      &      fm10,    fh2,    tsurf,  tx1,    tx2,     ctei_r, flgmin_l, &
      &      evbs,    evcw,   trans,  sbsno,  snowc,   adjsfcdsw,        &
      &      adjsfcnsw, adjsfcdlw, adjsfculw, asfcdlw, asfculw, gsfcdlw, &
+     &      adjnirbm,  adjnirdf,  adjvisbm,  adjvisdf,                  &
      &      gsfculw, xcosz,  tseal,  snohf,  dlqfac,  work3,            &
      &      domr,    domzr,  domip,  doms,   psautco_l, prautco_l,      &
      &      ctei_rml
@@ -844,12 +940,14 @@
      &     ( solhr,slag,sdec,cdec,sinlat,coslat,                        &
      &       xlon,coszen,tsea,tgrs(1,1),tgrs(1,1),                      &
      &       sfcdsw,sfcnsw,sfcdlw,swh,hlw,                              &
+     &       sfcnirbmi,sfcnirdfi,sfcvisbmi,sfcvisdfi,                   &
      &       ix, im, levs,                                              &
 !  ---  input/output:
      &       dtdt,                                                      &
 !  ---  outputs:
-     &       adjsfcdsw,adjsfcnsw,adjsfcdlw,adjsfculw,xmu,xcosz          &
+     &       adjsfcdsw,adjsfcnsw,adjsfcdlw,adjsfculw,xmu,xcosz,         &
 !old vars   ( dswsfc,    -radsl,  dlwsf1,   ulwsf1,  xmu,xcosz )
+     &       adjnirbm,adjnirdf,adjvisbm,adjvisdf                        &
      &     )
 
       else
@@ -859,12 +957,14 @@
      &     ( solhr,slag,sdec,cdec,sinlat,coslat,                        &
      &       xlon,coszen,tsea,tgrs(1,1),tsflw,                          &
      &       sfcdsw,sfcnsw,sfcdlw,swh,hlw,                              &
+     &       sfcnirbmi,sfcnirdfi,sfcvisbmi,sfcvisdfi,                   &
      &       ix, im, levs,                                              &
 !  ---  input/output:
      &       dtdt,                                                      &
 !  ---  outputs:
-     &       adjsfcdsw,adjsfcnsw,adjsfcdlw,adjsfculw,xmu,xcosz          &
+     &       adjsfcdsw,adjsfcnsw,adjsfcdlw,adjsfculw,xmu,xcosz,         &
 !old vars   ( dswsfc,    -radsl,  dlwsf1,   ulwsf1,  xmu,xcosz )
+     &       adjnirbm,adjnirdf,adjvisbm,adjvisdf                        &
      &     )
 
 !
@@ -1296,6 +1396,42 @@
 
 !     if (lprnt) print *,' tseaim=',tsea(ipr),' me=',me,' kdt=',kdt
 
+      if (lssav_cpl) then
+        do i = 1, im
+          dlwsfci_cpl(i)   = gsfcdlw(i)
+          dswsfci_cpl(i)   = adjsfcdsw(i)
+          dlwsfc_cpl(i)    = dlwsfc_cpl(i) + gsfcdlw(i)
+          dswsfc_cpl(i)    = dswsfc_cpl(i) + adjsfcdsw(i)
+          dnirbmi_cpl(i)   = adjnirbm(i)
+          dnirdfi_cpl(i)   = adjnirdf(i)
+          dvisbmi_cpl(i)   = adjvisbm(i)
+          dvisdfi_cpl(i)   = adjvisdf(i)
+          dnirbm_cpl(i)    = dnirbm_cpl(i) + adjnirbm(i)
+          dnirdf_cpl(i)    = dnirdf_cpl(i) + adjnirdf(i)
+          dvisbm_cpl(i)    = dvisbm_cpl(i) + adjvisbm(i)
+          dvisdf_cpl(i)    = dvisdf_cpl(i) + adjvisdf(i)
+          nlwsfci_cpl(i)   = gsfcdlw(i) - gsfculw(i)
+          nswsfci_cpl(i)   = adjsfcnsw(i)
+          nlwsfc_cpl(i)    = nlwsfc_cpl(i) + nlwsfci_cpl(i)
+          nswsfc_cpl(i)    = nswsfc_cpl(i) + nswsfci_cpl(i)
+          nnirbmi_cpl(i)   = adjnirbm(i) * (1. - albnbm(i) )
+          nnirdfi_cpl(i)   = adjnirdf(i) * (1. - albndf(i) )
+          nvisbmi_cpl(i)   = adjvisbm(i) * (1. - albvbm(i) )
+          nvisdfi_cpl(i)   = adjvisdf(i) * (1. - albvdf(i) )
+          nnirbm_cpl(i)    = nnirbm_cpl(i) + nnirbmi_cpl(i)
+          nnirdf_cpl(i)    = nnirdf_cpl(i) + nnirdfi_cpl(i)
+          nvisbm_cpl(i)    = nvisbm_cpl(i) + nvisbmi_cpl(i)
+          nvisdf_cpl(i)    = nvisdf_cpl(i) + nvisdfi_cpl(i)
+          t2mi_cpl(i)      = t2m(i)
+          q2mi_cpl(i)      = q2m(i)
+          u10mi_cpl(i)     = u10m(i)
+          v10mi_cpl(i)     = v10m(i)
+          tseai_cpl(i)     = tsea(i)
+          psurfi_cpl(i)    = pgr(i)
+          oro_cpl(i)       = oro(i)
+        enddo
+      endif
+
       if (lssav) then
         do i = 1, im
           gflux(i)   = gflux(i)  + gflx(i)*dtf
@@ -1405,6 +1541,19 @@
           dvsfc_cc(i) = dvsfc_cc(i) + dvsfc1(i)        !*dtf <-na h.(?)
           dtsfc_cc(i) = dtsfc_cc(i) + dtsfc1(i)        !*dtf <-na h.(?)
           dqsfc_cc(i) = dqsfc_cc(i) + dqsfc1(i)        !*dtf <-na h.(?)
+        enddo
+      endif
+
+      if (lssav_cpl) then
+        do i=1, im
+          dusfc_cpl(i) = dusfc_cpl(i) + dusfc1(i)
+          dvsfc_cpl(i) = dvsfc_cpl(i) + dvsfc1(i)
+          dtsfc_cpl(i) = dtsfc_cpl(i) + dtsfc1(i)
+          dqsfc_cpl(i) = dqsfc_cpl(i) + dqsfc1(i)
+          dusfci_cpl(i) = dusfc1(i)
+          dvsfci_cpl(i) = dvsfc1(i)
+          dtsfci_cpl(i) = dtsfc1(i)
+          dqsfci_cpl(i) = dqsfc1(i)
         enddo
       endif
 
@@ -2510,6 +2659,10 @@
 
       if (lssav_cc) then
         precr_cc(1:im) = precr_cc(1:im) + rain(1:im)
+      endif
+
+      if (lssav_cpl) then
+        rain_cpl(1:im) = rain_cpl(1:im) + rain(1:im)
       endif
 
 !  --- ...  end coupling insertion
