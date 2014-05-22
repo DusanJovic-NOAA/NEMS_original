@@ -1,7 +1,8 @@
       subroutine gwdc(im,ix,iy,km,lat,u1,v1,t1,q1,
-     &                pmid1,pint1,dpmid1,qmax,cumchr1,ktop,kbot,kuo,
-     &                fu1,fv1,g,cp,rd,fv,dlength,lprnt,ipr,fhour,
-     &                tauctx,taucty,brunm1,rhom1)
+     &                pmid1,pint1,dpmid1,qmax,ktop,kbot,kcnv,cldf,
+!    &                pmid1,pint1,dpmid1,qmax,cumchr1,ktop,kbot,kcnv,
+     &                grav,cp,rd,fv,dlength,lprnt,ipr,fhour,
+     &                utgwc,vtgwc,tauctx,taucty)
 !    &                gwdcloc,critic,brunm1,rhom1)
 
 !***********************************************************************
@@ -29,35 +30,35 @@
 !  qmax     : deep convective heating
 !  kcldtop  : Vertical level index for cloud top    ( mid level ) 
 !  kcldbot  : Vertical level index for cloud bottom ( mid level )
-!  kuo      : (0,1) dependent on whether convection occur or not
+!  kcnv     : (0,1) dependent on whether convection occur or not
 !
 !  Output variables
 !
-!  fu1     : zonal wind tendency
-!  fv1     : meridional wind tendency
+!  utgwc    : zonal wind tendency
+!  vtgwc    : meridional wind tendency
 !
 !-----------------------------------------------------------------------
 
-      integer im, ix, iy, km, lat, ipr, ilev
-      integer ktop(im),kbot(im),kuo(im)
-      integer kcldtop(im),kcldbot(im)
+      integer im, ix, iy, km, lat, ipr
+      integer ktop(im),kbot(im),kcnv(im)
 
-      real(kind=kind_phys) g,cp,rd,fv,dlength(im)
-      real(kind=kind_phys) qmax(ix),cumchr1(ix,km),cumchr(ix,km)
-      real(kind=kind_phys) fhour,fhourpr
-      real(kind=kind_phys) u1(ix,km),v1(ix,km),t1(ix,km),q1(ix,km),
-     &                     pmid1(ix,km),dpmid1(ix,km),pint1(ix,km+1),
-     &                     fu1(iy,km),fv1(iy,km)
-      real(kind=kind_phys) u(im,km),v(im,km),t(im,km),spfh(im,km),
-     &                     pmid(im,km),dpmid(im,km),pint(im,km+1)
+      real(kind=kind_phys) grav,cp,rd,fv,fhour,fhourpr
+      real(kind=kind_phys), dimension(ix)      :: qmax
+     &,                                           tauctx, taucty
+      real(kind=kind_phys), dimension(im)      :: cldf,dlength
+      real(kind=kind_phys), dimension(ix,km)   :: u1,v1,t1,q1,
+     &                                            pmid1,dpmid1
+!    &,                                           cumchr1
+      real(kind=kind_phys), dimension(iy,km)   :: utgwc,vtgwc
+      real(kind=kind_phys), dimension(ix,km+1) :: pint1
 
       logical lprnt
 
 !------------------------- Local workspace -----------------------------
 !
 !  i, k     : Loop index
-!  ii,kk    : Loop index
-!  cldbar   : Deep convective cloud coverage at the cloud top.
+!  kk       : Loop index
+!  cldf     : Deep convective cloud fraction at the cloud top.
 !  ugwdc    : Zonal wind after GWDC paramterization
 !  vgwdc    : Meridional wind after GWDC parameterization
 !  plnmid   : Log(pmid) ( mid level )
@@ -72,9 +73,9 @@
 !             meterization. ( mid level )
 !  wtgwc    : Wind tendency in direction to the wind vector at the cloud top level
 !             due to convectively generated gravity waves ( mid level )
-!  utgwc    : Zonal wind tendency due to convectively generated 
+!  utgwcl   : Zonal wind tendency due to convectively generated 
 !             gravity waves ( mid level )
-!  vtgwc    : Meridional wind tendency due to convectively generated
+!  vtgwcl   : Meridional wind tendency due to convectively generated
 !             gravity waves ( mid level )
 !  taugwci  : Profile of wave stress calculated using basic-wind
 !             parallel to the wind vector at the cloud top 
@@ -106,23 +107,45 @@
 !
 !-----------------------------------------------------------------------
 
-      integer i,ii,k,k1,k2,kk,kb
+      integer i,ii,k,k1,kk,kb,ilev,npt,kcb,kcldm,npr
+      integer, dimension(im) :: ipt
 
-      real(kind=kind_phys) cldbar(im),
-     &     ugwdc(im,km),vgwdc(im,km),
-     &     plnmid(im,km),plnint(im,km+1),dpint(im,km+1),
-     &     tauct(im),tauctx(im),taucty(im),
-     &     wtgwc(im,km),utgwc(im,km),vtgwc(im,km),
-     &     taugwci(im,km+1),taugwcxi(im,km+1),taugwcyi(im,km+1),
-     &     bruni(im,km+1),rhoi(im,km+1),ti(im,km+1),
-     &     brunm(im,km),rhom(im,km),brunm1(im,km),rhom1(im,km),
-     &     basicum(im,km),basicui(im,km+1),
-     &     riloc(km+1),rimin(km+1)
+      real(kind=kind_phys) tem, tem1,  tem2, qtem, wtgwc, tauct,
+     &                     windcltop,  shear, nonlinct, nonlin, nonlins,
+     &                     n2,   dtdp,  crit1, crit2, pi, p1, p2,
+     &                     gsqr,  onebg
+!    &                     taus, n2,   dtdp,  crit1, crit2, pi, p1, p2
 
-      real(kind=kind_phys) gwdcloc(im),break(im),critic(im)
-      real(kind=kind_phys) tem1, tem2, qtem
-
-      logical dogwdc(im)
+      integer,              allocatable :: kcldtop(:),kcldbot(:)
+      logical,              allocatable :: do_gwc(:)
+      real(kind=kind_phys), allocatable :: tauctxl(:), tauctyl(:),
+     &                                     gwdcloc(:), break(:),
+     &                                     critic(:),
+!    &                                     critic(:),  angle(:),
+     &                                     cosphi(:),  sinphi(:),
+     &                                     xstress(:), ystress(:),
+     &                                     ucltop(:),  vcltop(:),
+     &                                     wrk(:),
+     &                                     dlen(:),       gqmcldlen(:)
+!     real(kind=kind_phys), allocatable :: plnint(:,:),   dpint(:,:),
+!    &                                     taugwci(:,:),  taugwcxi(:,:),
+!    &                                     taugwcyi(:,:), bruni(:,:),
+!    &                                     taugwcyi(:,:), bruni(:,:),
+      real(kind=kind_phys), allocatable :: plnint(:,:),
+     &                                     taugwci(:,:),  bruni(:,:),
+     &                                     rhoi(:,:),     basicui(:,:),
+     &                                     ti(:,:),       riloc(:,:),
+     &                                     rimin(:,:),    pint(:,:)
+!     real(kind=kind_phys), allocatable :: ugwdc(:,:),    vgwdc(:,:),
+      real(kind=kind_phys), allocatable :: 
+!    &                                     plnmid(:,:),   wtgwc(:,:),
+     &                                     plnmid(:,:),
+     &                                     utgwcl(:,:),   vtgwcl(:,:),
+     &                                     basicum(:,:),  u(:,:),v(:,:),
+     &                                     t(:,:),        spfh(:,:),
+     &                                     pmid(:,:),     dpmid(:,:),
+!    &                                     pmid(:,:),     cumchr(:,:),
+     &                                     brunm(:,:),    rhom(:,:)
 
 !-----------------------------------------------------------------------
 !
@@ -138,22 +161,16 @@
 !  nonlinct  : Nonlinear parameter at the cloud top
 !  nonlin    : Nonlinear parameter above the cloud top
 !  nonlins   : Saturation nonlinear parameter
-!  taus      : Saturation gravity wave drag
+!  taus      : Saturation gravity wave drag == taugwci(i,k)
 !  n2        : Square of Brunt-Vaisala frequency
 !  dtdp      : dT/dp
 !  xstress   : Vertically integrated zonal momentum change due to GWDC
 !  ystress   : Vertically integrated meridional momentum change due to GWDC
 !  crit1     : Variable 1 for checking critical level
 !  crit2     : Variable 2 for checking critical level
-!  sum1      : Temporary variable
 !
 !-----------------------------------------------------------------------
 
-      real(kind=kind_phys) ucltop, vcltop, windcltop, shear, kcldtopi
-      real(kind=kind_phys) cosphi, sinphi, angle
-      real(kind=kind_phys) nonlinct, nonlin, nonlins, taus 
-
-!-----------------------------------------------------------------------
       real(kind=kind_phys), parameter ::
      &                      c1=1.41,          c2=-0.38,     ricrit=0.25
      &,                     n2min=1.e-32,     zero=0.0,     one=1.0
@@ -164,94 +181,28 @@
      &,                     riminx=-1.0e+20,  riminm=-1.01e+20
      &,                     riminp=-0.99e+20, rismall=-0.9e+20
 
-      real(kind=kind_phys) n2, dtdp, sum1, xstress, ystress
-      real(kind=kind_phys) crit1, crit2
-      real(kind=kind_phys) pi,p1,p2
-
-!-----------------------------------------------------------------------
-!        Write out incoming variables
-!-----------------------------------------------------------------------
-
-      fhourpr = zero
-      if (lprnt) then
-        if (fhour.ge.fhourpr) then
-          print *,' '
-          write(*,*) 'Inside GWDC raw input start print at fhour = ',
-     &               fhour
-          write(*,*) 'IX  IM  KM  ',ix,im,km
-          write(*,*) 'KBOT KTOP QMAX DLENGTH KUO  ',
-     +     kbot(ipr),ktop(ipr),qmax(ipr),dlength(ipr),kuo(ipr)
-          write(*,*) 'g  cp  rd  ',g,cp,rd
-
-!-------- Pressure levels ----------
-          write(*,9100)
-          ilev=km+1
-          write(*,9110) ilev,(10.*pint1(ipr,ilev))
-          do ilev=km,1,-1
-            write(*,9120) ilev,(10.*pmid1(ipr,ilev)),
-     &                         (10.*dpmid1(ipr,ilev))
-            write(*,9110) ilev,(10.*pint1(ipr,ilev))
-          enddo
-
-!-------- U1 V1 T1 ----------
-          write(*,9130)
-          do ilev=km,1,-1
-            write(*,9140) ilev,U1(ipr,ilev),V1(ipr,ilev),T1(ipr,ilev)
-          enddo
-
-          print *,' '
-          print *,' Inside GWDC raw input end print'
+!
+      npt = 0
+      do i = 1,im
+        ipt(i) = 0
+        if (kcnv(i) /= 0 .and. qmax(i) > zero) then
+          npt      = npt + 1
+          ipt(npt) = i
         endif
-      endif
-
- 9100 format(//,14x,'PRESSURE LEVELS',//,
-     +' ILEV',6x,'PINT1',7x,'PMID1',6x,'DPMID1',/)
- 9110 format(i4,2x,f10.3)
- 9120 format(i4,12x,2(2x,f10.3))
- 9130 format(//,' ILEV',7x,'U1',10x,'V1',10x,'T1',/)
- 9140 format(i4,3(2x,f10.3))
-
-!-----------------------------------------------------------------------
-!        Create local arrays with reversed vertical indices
-!-----------------------------------------------------------------------
-
+      enddo
       do k=1,km
-        k1 = km - k + 1
         do i=1,im
-          u(i,k)      = u1(i,k1)
-          v(i,k)      = v1(i,k1)
-          t(i,k)      = t1(i,k1)
-          spfh(i,k)   = max(q1(i,k1),qmin)
-          pmid(i,k)   = pmid1(i,k1)
-          dpmid(i,k)  = dpmid1(i,k1)
-          cumchr(i,k) = cumchr1(i,k1)
-        enddo
-      enddo
-
-      do k=1,km+1
-        k1 = km - k + 2
-        do i=1,im
-          pint(i,k) = pint1(i,k1)
-        enddo
-      enddo
-
-      do i = 1, im
-        kcldtop(i) = km - ktop(i) + 1
-        kcldbot(i) = km - kbot(i) + 1
-      enddo
-
-      if (lprnt) then
-        if (fhour.ge.fhourpr) then
-          write(*,9200)
-          do i=1,im
-            write(*,9201) kuo(i),kcldbot(i),kcldtop(i)
+          utgwc(i,k) = 0.0
+          vtgwc(i,k) = 0.0
+!         brunm(i,k) = 0.0
+!         rhom(i,k)  = 0.0
           enddo
-        endif
-      endif
-
- 9200 format(//,'  Inside GWDC local variables start print',//,
-     +2x,'KUO',2x,'KCLDBOT',2x,'KCLDTOP',//)
- 9201 format(i4,2x,i5,4x,i5)
+      enddo
+      do i=1,im
+        tauctx(i) = 0.0
+        taucty(i) = 0.0
+      enddo
+      if (npt == 0) return      ! No gwdc calculation done!
 
 !***********************************************************************
 !
@@ -259,13 +210,161 @@
 !
 !***********************************************************************
 
+!-----------------------------------------------------------------------
+!        Write out incoming variables
+!-----------------------------------------------------------------------
+
+      fhourpr = zero
+!     if (lprnt) then
+!       if (fhour >= fhourpr) then
+!         print *,' '
+!         write(*,*) 'Inside GWDC raw input start print at fhour = ',
+!    &               fhour
+!         write(*,*) 'IX  IM  KM  ',ix,im,km
+!         write(*,*) 'KBOT KTOP QMAX DLENGTH kcnv  ',
+!    +     kbot(ipr),ktop(ipr),qmax(ipr),dlength(ipr),kcnv(ipr)
+!         write(*,*) 'grav  cp  rd  ',grav,cp,rd
+
+!-------- Pressure levels ----------
+!         write(*,9100)
+!         ilev=km+1
+!         write(*,9110) ilev,(10.*pint1(ipr,ilev))
+!         do ilev=km,1,-1
+!           write(*,9120) ilev,(10.*pmid1(ipr,ilev)),
+!    &                         (10.*dpmid1(ipr,ilev))
+!           write(*,9110) ilev,(10.*pint1(ipr,ilev))
+!         enddo
+
+!-------- U1 V1 T1 ----------
+!         write(*,9130)
+!         do ilev=km,1,-1
+!           write(*,9140) ilev,U1(ipr,ilev),V1(ipr,ilev),T1(ipr,ilev)
+!         enddo
+
+!         print *,' '
+!         print *,' Inside GWDC raw input end print'
+!       endif
+!     endif
+
+!9100 format(//,14x,'PRESSURE LEVELS',//,
+!    +' ILEV',6x,'PINT1',7x,'PMID1',6x,'DPMID1',/)
+!9110 format(i4,2x,f10.3)
+!9120 format(i4,12x,2(2x,f10.3))
+!9130 format(//,' ILEV',7x,'U1',10x,'V1',10x,'T1',/)
+!9140 format(i4,3(2x,f10.3))
+
+!     Allocate local arrays
+
+      allocate (kcldtop(npt), kcldbot(npt), do_gwc(npt))
+      allocate (tauctxl(npt), tauctyl(npt),
+     &          gwdcloc(npt), break(npt), critic(npt),   cosphi(npt),
+     &          sinphi(npt),  xstress(npt),  ystress(npt), wrk(npt),
+     &          ucltop(npt),  vcltop(npt),dlen(npt),     gqmcldlen(npt))
+
+!     allocate (plnint(npt,km+1),   dpint(npt,km+1),
+!    &          taugwci(npt,km+1),  taugwcxi(npt,km+1),
+!    &          taugwcyi(npt,km+1), bruni(npt,km+1),
+      allocate (plnint(npt,km+1),
+     &          taugwci(npt,km+1),  bruni(npt,km+1),
+     &          rhoi(npt,km+1),     basicui(npt,km+1),
+     &          ti(npt,km+1),       riloc(npt,km+1),
+     &          rimin(npt,km+1),    pint(npt,km+1))
+
+!     allocate (ugwdc(npt,km),   vgwdc(npt,km),
+      allocate 
+!    &         (plnmid(npt,km),  wtgwc(npt,km),
+     &         (plnmid(npt,km),
+     &          utgwcl(npt,km),  vtgwcl(npt,km),
+     &          basicum(npt,km), u(npt,km),    v(npt,km),
+     &          t(npt,km),       spfh(npt,km), pmid(npt,km),
+     &          dpmid(npt,km),
+!    &          dpmid(npt,km),   cumchr(npt,km),
+     &          brunm(npt,km),   rhom(npt,km))
+
+!-----------------------------------------------------------------------
+!        Create local arrays with reversed vertical indices
+!        and Initialize local variables
+!-----------------------------------------------------------------------
+      gsqr  = grav * grav
+      onebg = one / grav
+
+      if (lprnt) then
+        npr = 1
+        do i=1,npt
+          if (ipr == ipt(i))then
+            npr = i
+            exit
+          endif
+        enddo
+      endif
+
+      do k=1,km
+        k1 = km - k + 1
+        do i=1,npt
+          ii = ipt(i)
+          u(i,k)        = u1(ii,k1)
+          v(i,k)        = v1(ii,k1)
+          t(i,k)        = t1(ii,k1)
+          spfh(i,k)     = max(q1(ii,k1),qmin)
+          pmid(i,k)     = pmid1(ii,k1)
+          dpmid(i,k)    = dpmid1(ii,k1) * onebg
+!         cumchr(i,k)   = cumchr1(ii,k1)
+
+          rhom(i,k)     = pmid(i,k) / (rd*t(i,k)*(1.0+fv*spfh(i,k)))
+          plnmid(i,k)   = log(pmid(i,k))
+          utgwcl(i,k)   = zero
+          vtgwcl(i,k)   = zero
+!         ugwdc(i,k)    = zero
+!         vgwdc(i,k)    = zero
+          brunm(i,k)    = zero
+          basicum(i,k)  = zero
+        enddo
+      enddo
+
+      do k=1,km+1
+        k1 = km - k + 2
+        do i=1,npt
+          ii = ipt(i)
+          pint(i,k)     = pint1(ii,k1)
+          plnint(i,k)   = log(pint(i,k))
+          taugwci(i,k)  = zero
+          bruni(i,k)    = zero
+          rhoi(i,k)     = zero
+          ti(i,k)       = zero
+          basicui(i,k)  = zero
+          riloc(i,k)    = zero
+          rimin(i,k)    = zero
+        enddo
+      enddo
+
+      do i = 1, npt
+        ii = ipt(i)
+        kcldtop(i)   = km - ktop(ii) + 1
+        kcldbot(i)   = km - kbot(ii) + 1
+        dlen(i)      = dlength(ii)
+!                                    (g*qmax(ii)*cldf(ii)*dlength(ii))
+        gqmcldlen(i) = grav*qmax(ii)*cldf(ii)*dlen(i)
+      enddo
+
+!     if (lprnt) then
+!       if (fhour.ge.fhourpr) then
+!         write(*,9200)
+!         do i=1,im
+!           write(*,9201) kcnv(i),kcldbot(i),kcldtop(i)
+!         enddo
+!       endif
+!     endif
+
+!9200 format(//,'  Inside GWDC local variables start print',//,
+!    +2x,'kcnv',2x,'KCLDBOT',2x,'KCLDTOP',//)
+!9201 format(i4,2x,i5,4x,i5)
+
+!***********************************************************************
+
       pi     = 2.*asin(1.)
 
 !-----------------------------------------------------------------------
 !
-!  Initialize local variables
-!
-!-----------------------------------------------------------------------
 !                              PRESSURE VARIABLES
 !
 !  Interface 1 ======== pint(1)           *********
@@ -285,51 +384,9 @@
 !
 !-----------------------------------------------------------------------
 
-      do k = 1, km+1
-        do i = 1, im
-          plnint(i,k)   = log(pint(i,k))
-          taugwci(i,k)  = zero
-          taugwcxi(i,k) = zero
-          taugwcyi(i,k) = zero
-          bruni(i,k)    = zero
-          rhoi(i,k)     = zero
-          ti(i,k)       = zero
-          basicui(i,k)  = zero
-          riloc(k)      = zero
-          rimin(k)      = zero
-        enddo
-      enddo
-
-      do k = 1, km
-        do i = 1, im
-          plnmid(i,k)  = log(pmid(i,k))
-          wtgwc(i,k)   = zero
-          utgwc(i,k)   = zero
-          vtgwc(i,k)   = zero
-          ugwdc(i,k)   = zero
-          vgwdc(i,k)   = zero
-          brunm(i,k)   = zero
-          rhom(i,k)    = zero
-          basicum(i,k) = zero
-        enddo
-      enddo
-
-      do k = 2, km
-        do i = 1, im
-          dpint(i,k) = pmid(i,k) - pmid(i,k-1)
-        enddo
-      enddo
-
-      do i = 1, im
-        dpint(i,1)    = zero
-        dpint(i,km+1) = zero
-        tauct(i)      = zero
-        tauctx(i)     = zero
-        taucty(i)     = zero
-        gwdcloc(i)    = zero
-        break(i)      = zero
-        critic(i)     = zero
-      enddo
+      do i = 1, npt
+        tauctxl(i)    = zero
+        tauctyl(i)    = zero
 
 !-----------------------------------------------------------------------
 !                              THERMAL VARIABLES
@@ -349,25 +406,21 @@
 !           18 -------- T(18)        RHOM(18)          BRUNM(18)
 !           19 ========       TI(19)          RHOI(19)           BRUNI(19)
 !
-!-----------------------------------------------------------------------
 
-      do k = 1, km
-        do i = 1, im
-          rhom(i,k) = pmid(i,k) / (rd*t(i,k)*(1.0+fv*spfh(i,k)))
-        enddo
-      enddo
-
-!-----------------------------------------------------------------------
 !
 !  Top interface temperature is calculated assuming an isothermal 
 !  atmosphere above the top mid level.
-!
-!-----------------------------------------------------------------------
 
-      do i = 1, im
         ti(i,1)    = t(i,1)
         rhoi(i,1)  = pint(i,1)/(rd*ti(i,1))
-        bruni(i,1) = sqrt ( g*g / (cp*ti(i,1)) )
+        bruni(i,1) = sqrt ( gsqr / (cp*ti(i,1)) )
+!
+!  Bottom interface temperature is calculated assuming an isothermal
+!  atmosphere below the bottom mid level
+
+        ti(i,km+1)    = t(i,km)
+        rhoi(i,km+1)  = pint(i,km+1)/(rd*ti(i,km+1)*(1.0+fv*spfh(i,km)))
+        bruni(i,km+1) = sqrt ( gsqr / (cp*ti(i,km+1)) )
       enddo
 
 !-----------------------------------------------------------------------
@@ -378,31 +431,19 @@
 !-----------------------------------------------------------------------
 
       do k = 2, km
-        do i = 1, im
+        do i = 1, npt
           tem1 = (plnmid(i,k)-plnint(i,k)) / (plnmid(i,k)-plnmid(i,k-1))
           tem2 = one - tem1
           ti(i,k)    = t(i,k-1)    * tem1 + t(i,k)    * tem2
           qtem       = spfh(i,k-1) * tem1 + spfh(i,k) * tem2
           rhoi(i,k)  = pint(i,k) / ( rd * ti(i,k)*(1.0+fv*qtem) )
           dtdp       = (t(i,k)-t(i,k-1)) / (pmid(i,k)-pmid(i,k-1))
-          n2         = g*g/ti(i,k)*( 1./cp - rhoi(i,k)*dtdp ) 
+          n2         = gsqr / ti(i,k) * ( 1./cp - rhoi(i,k)*dtdp ) 
           bruni(i,k) = sqrt (max (n2min, n2))
         enddo
       enddo
-
-!-----------------------------------------------------------------------
-!
-!  Bottom interface temperature is calculated assuming an isothermal
-!  atmosphere below the bottom mid level
-!
-!-----------------------------------------------------------------------
-   
-      do i = 1, im
-        ti(i,km+1)    = t(i,km)
-        rhoi(i,km+1)  = pint(i,km+1)/(rd*ti(i,km+1)*(1.0+fv*spfh(i,km)))
-        bruni(i,km+1) = sqrt ( g*g / (cp*ti(i,km+1)) )
-      enddo
  
+      deallocate (spfh)
 !-----------------------------------------------------------------------
 !
 !  Determine the mid-level Brunt-Vaisala frequencies.
@@ -411,9 +452,9 @@
 !-----------------------------------------------------------------------
 
       do k = 1, km
-        do i = 1, im
+        do i = 1, npt
           dtdp       = (ti(i,k+1)-ti(i,k)) / (pint(i,k+1)-pint(i,k))
-          n2         = g*g/t(i,k)*( 1./cp - rhom(i,k)*dtdp ) 
+          n2         = gsqr / t(i,k) * ( 1./cp - rhom(i,k)*dtdp ) 
           brunm(i,k) = sqrt (max (n2min, n2))
         enddo
       enddo
@@ -422,68 +463,56 @@
 !        PRINTOUT
 !-----------------------------------------------------------------------
 
-      if (lprnt) then
-        if (fhour.ge.fhourpr) then
+!     if (lprnt) then
+!       if (fhour.ge.fhourpr) then
 
 !-------- Pressure levels ----------
-          write(*,9101)
-          do ilev=1,km
-            write(*,9111) ilev,(0.01*pint(ipr,ilev)),
-     &                         (0.01*dpint(ipr,ilev)),plnint(ipr,ilev)
-            write(*,9121) ilev,(0.01*pmid(ipr,ilev)),
-     &                         (0.01*dpmid(ipr,ilev)),plnmid(ipr,ilev)
-          enddo
-          ilev=km+1
-          write(*,9111) ilev,(0.01*pint(ipr,ilev)),
-     &                       (0.01*dpint(ipr,ilev)),plnint(ipr,ilev)
+!         write(*,9101)
+!         do ilev=1,km
+!           write(*,9111) ilev,(0.01*pint(ipr,ilev)),
+!    &                         (0.01*dpint(ipr,ilev)),plnint(ipr,ilev)
+!           write(*,9121) ilev,(0.01*pmid(ipr,ilev)),
+!    &                         (0.01*dpmid(ipr,ilev)),plnmid(ipr,ilev)
+!         enddo
+!         ilev=km+1
+!         write(*,9111) ilev,(0.01*pint(ipr,ilev)),
+!    &                       (0.01*dpint(ipr,ilev)),plnint(ipr,ilev)
 
 !                2
 !-------- U V T N  ----------
-          write(*,9102)
-          do ilev=1,km
-            write(*,9112) ilev,ti(ipr,ilev),(100.*bruni(ipr,ilev))
-            write(*,9122) ilev,u(ipr,ilev),v(ipr,ilev),
-     +                    t(ipr,ilev),(100.*brunm(ipr,ilev))
-          enddo
-          ilev=km+1
-          write(*,9112) ilev,ti(ipr,ilev),(100.*bruni(ipr,ilev))
+!         write(*,9102)
+!         do ilev=1,km
+!           write(*,9112) ilev,ti(ipr,ilev),(100.*bruni(ipr,ilev))
+!           write(*,9122) ilev,u(ipr,ilev),v(ipr,ilev),
+!    +                    t(ipr,ilev),(100.*brunm(ipr,ilev))
+!         enddo
+!         ilev=km+1
+!         write(*,9112) ilev,ti(ipr,ilev),(100.*bruni(ipr,ilev))
 
-        endif
-      endif
+!       endif
+!     endif
 
- 9101 format(//,14x,'PRESSURE LEVELS',//,
-     +' ILEV',4x,'PINT',4x,'PMID',4x,'DPINT',3x,'DPMID',5x,'LNP',/)
- 9111 format(i4,1x,f8.2,9x,f8.2,9x,f8.2)
- 9121 format(i4,9x,f8.2,9x,f8.2,1x,f8.2)
- 9102 format(//' ILEV',5x,'U',7x,'V',5x,'TI',7x,'T',
-     +5x,'BRUNI',3x,'BRUNM',//)
- 9112 format(i4,16x,f8.2,8x,f8.3)
- 9122 format(i4,2f8.2,8x,f8.2,8x,f8.3)
+!9101 format(//,14x,'PRESSURE LEVELS',//,
+!    +' ILEV',4x,'PINT',4x,'PMID',4x,'DPINT',3x,'DPMID',5x,'LNP',/)
+!9111 format(i4,1x,f8.2,9x,f8.2,9x,f8.2)
+!9121 format(i4,9x,f8.2,9x,f8.2,1x,f8.2)
+!9102 format(//' ILEV',5x,'U',7x,'V',5x,'TI',7x,'T',
+!    +5x,'BRUNI',3x,'BRUNM',//)
+!9112 format(i4,16x,f8.2,8x,f8.3)
+!9122 format(i4,2f8.2,8x,f8.2,8x,f8.3)
 
-!-----------------------------------------------------------------------
-!
-!  Set switch for no convection present
-!
-!-----------------------------------------------------------------------
-
-      do i = 1, im
-        dogwdc(i) =.true.
-        if (kuo(i) == 0 .or. qmax(i) <= zero) dogwdc(i) =.false.
-      enddo
 
 !***********************************************************************
 !
-!        Big loop over grid points                    ONLY done if KUO=1
+!        Big loop over grid points                    ONLY done if kcnv=1
 !
 !***********************************************************************
 
-      do i = 1, im
-
-      if ( dogwdc(i) ) then                 !  For fast GWDC calculation
-
-      kk        = kcldtop(i)
-      kb        = kcldbot(i)
-      cldbar(i) = 0.1
+      kcldm = 1
+      do i = 1, npt
+        kk        = kcldtop(i)
+        kb        = kcldbot(i)
+        kcldm     = max(kcldm,kk)
 
 !-----------------------------------------------------------------------
 !
@@ -493,12 +522,15 @@
 !
 !-----------------------------------------------------------------------
 
-      ucltop    = u(i,kcldtop(i))
-      vcltop    = v(i,kcldtop(i))
-      windcltop = sqrt( ucltop*ucltop + vcltop*vcltop )
-      cosphi    = ucltop/windcltop
-      sinphi    = vcltop/windcltop
-      angle     = acos(cosphi)*180./pi
+        ucltop(i) = u(i,kk)
+        vcltop(i) = v(i,kk)
+!       windcltop = sqrt( ucltop(i)*ucltop(i) + vcltop(i)*vcltop(i) )
+        windcltop = 1.0 / sqrt( ucltop(i)*ucltop(i)
+     &                        + vcltop(i)*vcltop(i) )
+        cosphi(i) = ucltop(i)*windcltop
+        sinphi(i) = vcltop(i)*windcltop
+!       angle(i)  = acos(cosphi)*180./pi
+      enddo
 
 !-----------------------------------------------------------------------
 !
@@ -509,7 +541,9 @@
 !-----------------------------------------------------------------------
 
       do k=1,km
-        basicum(i,k) = u(i,k)*cosphi + v(i,k)*sinphi
+        do i=1,npt
+          basicum(i,k) = u(i,k)*cosphi(i) + v(i,k)*sinphi(i)
+        enddo
       enddo
 
 !-----------------------------------------------------------------------
@@ -522,13 +556,17 @@
 !
 !-----------------------------------------------------------------------
 
-      basicui(i,1)   = basicum(i,1)
-      do k=2,km
-        tem1 = (plnmid(i,k)-plnint(i,k)) / (plnmid(i,k)-plnmid(i,k-1))
-        tem2 = one - tem1
-        basicui(i,k) = basicum(i,k)*tem2 + basicum(i,k-1)*tem2
+      do i=1,npt
+        basicui(i,1)    = basicum(i,1)
+        basicui(i,km+1) = basicum(i,km)
       enddo
-      basicui(i,km+1) = basicum(i,km)
+      do k=2,km
+        do i=1,npt
+          tem1 = (plnmid(i,k)-plnint(i,k)) / (plnmid(i,k)-plnmid(i,k-1))
+          tem2 = one - tem1
+          basicui(i,k) = basicum(i,k)*tem2 + basicum(i,k-1)*tem1
+        enddo
+      enddo
 
 !-----------------------------------------------------------------------
 !
@@ -555,39 +593,44 @@
 !-----------------------------------------------------------------------     
 
       do k=2,km
-         shear     =  (basicum(i,k) - basicum(i,k-1))/dpint(i,k) *
-     &                ( rhoi(i,k)*g )
-         if ( abs(shear) .lt. shmin ) then
-           riloc(k) = rimax
-         else
-           riloc(k)  = (bruni(i,k)/shear) ** 2 
-           if (riloc(k) .ge. rimax ) riloc(k) = rilarge
-         end if 
+        do i=1,npt
+          shear = grav*rhoi(i,k) * (basicum(i,k) - basicum(i,k-1))
+     &                           / (pmid(i,k) - pmid(i,k-1))
+          if ( abs(shear) < shmin ) then
+            riloc(i,k) = rimax
+          else
+            tem = bruni(i,k) / shear
+            riloc(i,k)  = tem * tem
+            if (riloc(i,k) >= rimax ) riloc(i,k) = rilarge
+          end if 
+        enddo
       enddo
  
-      riloc(1)    = riloc(2)
-      riloc(km+1) = riloc(km)
+      do i=1,npt
+        riloc(i,1)    = riloc(i,2)
+        riloc(i,km+1) = riloc(i,km)
+      enddo
 
-      if (lprnt.and.(i.eq.ipr)) then
-        if (fhour.ge.fhourpr) then
-          write(*,9104) ucltop,vcltop,windcltop,angle,kk
-          do ilev=1,km
-            write(*,9114) ilev,basicui(ipr,ilev),dpint(ipr,ilev),
-     +      rhoi(ipr,ilev),(100.*bruni(ipr,ilev)),riloc(ilev)
-            write(*,9124) ilev,(basicum(ipr,ilev))
-          enddo
-          ilev=km+1
-          write(*,9114) ilev,basicui(ipr,ilev),dpint(ipr,ilev),
-     +      rhoi(ipr,ilev),(100.*bruni(ipr,ilev)),riloc(ilev)
-        endif
-      endif
+!     if (lprnt.and.(i.eq.ipr)) then
+!       if (fhour.ge.fhourpr) then
+!         write(*,9104) ucltop,vcltop,windcltop,angle,kk
+!         do ilev=1,km
+!           write(*,9114) ilev,basicui(ipr,ilev),dpint(ipr,ilev),
+!    +      rhoi(ipr,ilev),(100.*bruni(ipr,ilev)),riloc(ilev)
+!           write(*,9124) ilev,(basicum(ipr,ilev))
+!         enddo
+!         ilev=km+1
+!         write(*,9114) ilev,basicui(ipr,ilev),dpint(ipr,ilev),
+!    +      rhoi(ipr,ilev),(100.*bruni(ipr,ilev)),riloc(ilev)
+!       endif
+!     endif
 
- 9104 format(//,'WIND VECTOR AT CLOUDTOP = (',f6.2,' , ',f6.2,' ) = ',
-     +f6.2,' IN DIRECTION ',f6.2,4x,'KK = ',i2,//,
-     +' ILEV',2x,'BASICUM',2x,'BASICUI',4x,'DPINT',6x,'RHOI',5x,
-     +'BRUNI',6x,'RI',/)
- 9114 format(i4,10x,f8.2,4(2x,f8.2))
- 9124 format(i4,1x,f8.2)
+!9104 format(//,'WIND VECTOR AT CLOUDTOP = (',f6.2,' , ',f6.2,' ) = ',
+!    +f6.2,' IN DIRECTION ',f6.2,4x,'KK = ',i2,//,
+!    +' ILEV',2x,'BASICUM',2x,'BASICUI',4x,'DPINT',6x,'RHOI',5x,
+!    +'BRUNI',6x,'RI',/)
+!9114 format(i4,10x,f8.2,4(2x,f8.2))
+!9124 format(i4,1x,f8.2)
 
 !-----------------------------------------------------------------------
 !
@@ -607,11 +650,11 @@
 !
 !  B : kk is the vertical index for interface level cloud top
 !
-!  C : Total convective fractional cover (cldbar) is used as the
+!  C : Total convective fractional cover (cldf) is used as the
 !      convective cloud cover for GWDC calculation instead of   
 !      convective cloud cover in each layer (concld).
-!                       a1 = cldbar*dlength
-!      You can see the difference between cldbar(i) and concld(i)
+!                       a1 = cldf*dlength
+!      You can see the difference between cldf(i) and concld(i)
 !      in (4.a.2) in Description of the NCAR Community Climate    
 !      Model (CCM3).
 !      In NCAR CCM3, cloud fractional cover in each layer in a deep
@@ -639,46 +682,40 @@
 !
 !-----------------------------------------------------------------------
 !D
-      if ( basicui(i,kcldtop(i)) > zero ) then 
+      do i=1,npt
+        kk = kcldtop(i)
+        if ( abs(basicui(i,kk)) > zero .and. riloc(i,kk) > ricrit) then
 !E
-        if ( riloc(kcldtop(i)) > ricrit ) then
-          nonlinct  = ( g*qmax(i)*cldbar(i)*dlength(i) )/
-     &  (bruni(i,kcldtop(i))*t(i,kcldtop(i))*(basicum(i,kcldtop(i))**2))
-          tauct(i)  = - (rhom(i,kcldtop(i))*(basicum(i,kcldtop(i))**2))
-     &              /   (bruni(i,kcldtop(i))*dlength(i))
-     &              * basicum(i,kcldtop(i))*c1*c2*c2*nonlinct*nonlinct
-          tauctx(i) = tauct(i)*cosphi
-          taucty(i) = tauct(i)*sinphi
+          tem       = basicum(i,kk)
+          tem1      = tem * tem
+          nonlinct  = gqmcldlen(i) / (bruni(i,kk)*t(i,kk)*tem1)    ! Mu
+          tem2      = c2*nonlinct
+!                                  RhoU^3c1(c2mu)^2/Ndx
+          tauct     = - rhom(i,kk) * tem * tem1 * c1 * tem2 * tem2
+     &              /  (bruni(i,kk)*dlen(i))
+
+          tauct         = max(tauctmax, tauct)
+          tauctxl(i)    = tauct * cosphi(i)           ! X stress at cloud top
+          tauctyl(i)    = tauct * sinphi(i)           ! Y stress at cloud top
+          taugwci(i,kk) = tauct                                    !  *1
+          do_gwc(i)     = .true.
         else
 !F
-          tauct(i)  = zero
-          tauctx(i) = zero 
-          taucty(i) = zero
-          go to 1000
-        end if
-      else
-!G
-        tauct(i)  = zero
-        tauctx(i) = zero 
-        taucty(i) = zero
-        go to 1000
-
-      end if 
+          tauctxl(i) = zero 
+          tauctyl(i) = zero
+          do_gwc(i) = .false.
+        end if 
 !H
-      if ( tauct(i) .lt. tauctmax ) then
-        tauct(i)  = tauctmax
-        tauctx(i) = tauctmax*cosphi
-        taucty(i) = tauctmax*sinphi
-      end if
+      enddo
 
-      if (lprnt.and.(i.eq.ipr)) then
-        if (fhour.ge.fhourpr) then
-           write(*,9210) tauctx(ipr),taucty(ipr),tauct(ipr),angle,kk
-        endif
-      endif
+!       if (lprnt.and.(i.eq.ipr)) then
+!         if (fhour.ge.fhourpr) then
+!            write(*,9210) tauctx(ipr),taucty(ipr),tauct(ipr),angle,kk
+!         endif
+!       endif
 
- 9210 format(/,5x,'STRESS VECTOR = ( ',f8.3,' , ',f8.3,' ) = ',f8.3,
-     +' IN DIRECTION ',f6.2,4x,'KK = ',i2,/)
+!9210 format(/,5x,'STRESS VECTOR = ( ',f8.3,' , ',f8.3,' ) = ',f8.3,
+!    +' IN DIRECTION ',f6.2,4x,'KK = ',i2,/)
 
 !-----------------------------------------------------------------------
 !
@@ -703,35 +740,38 @@
 !
 !-----------------------------------------------------------------------
 
-       do k=kcldtop(i),1,-1
+      do k=kcldm,1,-1
 
-         if ( k .ne. 1 ) then
-           crit1 = ucltop*(u(i,k)+u(i,k-1))*0.5
-           crit2 = vcltop*(v(i,k)+v(i,k-1))*0.5
-         else
-           crit1 = ucltop*u(i,1)
-           crit2 = vcltop*v(i,1)
-         end if
+        do i=1,npt
+          if (do_gwc(i)) then
+            kk = kcldtop(i)
+            if (k > kk) cycle
+            if ( k /= 1 ) then
+              crit1 = ucltop(i)*(u(i,k)+u(i,k-1))*0.5
+              crit2 = vcltop(i)*(v(i,k)+v(i,k-1))*0.5
+            else
+              crit1 = ucltop(i)*u(i,1)
+              crit2 = vcltop(i)*v(i,1)
+            end if
 
-         if((basicui(i,k) > zero).and.(crit1 > zero).and.
-     &                                (crit2 > zero)) then
-           nonlin   = ( g*qmax(i)*cldbar(i)*dlength(i) )/
-     &                ( bruni(i,k)*ti(i,k)*(basicui(i,k)**2) )        
-           if ( riloc(k)  <  rimaxm ) then
-             rimin(k) = riloc(k)*( 1 - nonlin*abs(c2) ) /
-     &                ( 1 + nonlin*sqrt(riloc(k))*abs(c2) )**2
-           else if((riloc(k) > rimaxm).and.
-     &             (riloc(k) < rimaxp))then
-             rimin(k) = ( 1 - nonlin*abs(c2) ) /
-     &                  ( (nonlin**2)*(c2**2) ) 
-           end if
-           if ( rimin(k) <= riminx ) then
-             rimin(k) = rismall
-           end if
-         else
-           rimin(k) = riminx
-         end if
-       end do              
+            if ( abs(basicui(i,k)) > zero .and. crit1 > zero 
+     &                                    .and. crit2 > zero ) then
+              tem = basicui(i,k) * basicui(i,k)
+              nonlin   = gqmcldlen(i) / (bruni(i,k)*ti(i,k)*tem)        
+              tem  = nonlin*abs(c2)
+              if ( riloc(i,k)  <  rimaxm ) then
+                tem1 = 1 + tem*sqrt(riloc(i,k))
+                rimin(i,k) = riloc(i,k) * (1-tem) / (tem1*tem1)
+              else if((riloc(i,k) > rimaxm) .and.
+     &                (riloc(i,k) < rimaxp)) then
+                rimin(i,k) = ( 1 - tem) / (tem*tem)
+              end if
+              if ( rimin(i,k) <= riminx ) then
+                rimin(i,k) = rismall
+              end if
+            else
+              rimin(i,k) = riminx
+            end if
 
 !-----------------------------------------------------------------------
 !
@@ -796,77 +836,68 @@
 !
 !-----------------------------------------------------------------------
  
-      taugwci(i,kcldtop(i)) = tauct(i)                          !  *1
+            if (k < kk .and. k > 1) then
+              if ( abs(taugwci(i,k+1)) > taumin ) then                  ! TAUGWCI
+                if ( riloc(i,k) > ricrit ) then                         ! RIloc
+                  if ( rimin(i,k) > ricrit ) then                       ! RImin
+                    taugwci(i,k) = taugwci(i,k+1)
+                  elseif (rimin(i,k) > riminp) then
+                    tem = 2.0 + 1.0 / sqrt(riloc(i,k))
+                    nonlins = (1.0/abs(c2)) * (2.*sqrt(tem) - tem) 
+                    tem1 = basicui(i,k)
+                    tem2 = c2*nonlins*tem1
+                    taugwci(i,k) = - rhoi(i,k) * c1 * tem1 * tem2 * tem2
+     &                           /  (bruni(i,k)*dlen(i))
+                  elseif (rimin(i,k) > riminm) then
+                    taugwci(i,k) = zero 
+                  end if                                              ! RImin
+                else
 
-      do k=kcldtop(i)-1,2,-1
-        if ( abs(taugwci(i,k+1)) > taumin ) then                ! TAUGWCI
-          if ( riloc(k) > ricrit ) then                         ! RIloc
-            if ( rimin(k) > ricrit ) then                       ! RImin
-              taugwci(i,k) = taugwci(i,k+1)
-            else if ((rimin(k) > riminp) .and.
-     &               (rimin(k) <= ricrit)) then
-              nonlins = (1.0/abs(c2))*( 2.*sqrt(2. + 1./sqrt(riloc(k)) )
-     &                             - ( 2. + 1./sqrt(riloc(k)) )    )
-              taus    =  - ( rhoi(i,k)*( basicui(i,k)**2 ) )/
-     &                     ( bruni(i,k)*dlength(i) ) *
-     &                       basicui(i,k)*c1*c2*c2*nonlins*nonlins
-              taugwci(i,k) = taus
-            else if((rimin(k) > riminm) .and.
-     &              (rimin(k) < riminp)) then
-              taugwci(i,k) = zero 
-            end if                                              ! RImin
-          else
+!!!!!!!!!! In the dynamically unstable environment, there is no gravity wave stress
 
-!!!!!!!!!! In the dynamically unstable environment, there is no gravity 
-!!!!!!!!!! wave stress
+                  taugwci(i,k) = zero    
+                end if                                                ! RIloc
+              else
+                 taugwci(i,k) = zero
+              end if                                                  ! TAUGWCI
 
-            taugwci(i,k) = zero    
-          end if                                                ! RIloc
-        else
-           taugwci(i,k) = zero
-        end if                                                  ! TAUGWCI
+              if ( (basicum(i,k+1)*basicum(i,k) ) < 0. ) then
+                 taugwci(i,k+1) = zero
+                 taugwci(i,k)   = zero
+              endif
 
-        if ( (basicum(i,k+1)*basicum(i,k) ) .lt. 0. ) then
-           taugwci(i,k+1) = zero
-           taugwci(i,k)   = zero
-        endif
+              if (abs(taugwci(i,k)) > abs(taugwci(i,k+1))) then
+                taugwci(i,k) = taugwci(i,k+1)
+              end if
 
-        if (abs(taugwci(i,k)) .gt. abs(taugwci(i,k+1))) then
-           taugwci(i,k) = taugwci(i,k+1)
-        end if
+            elseif (k == 1) then
 
-      end do 
+!!!!!! Upper boundary condition - permit upward propagation of gravity wave energy
 
-!!!!!! Upper boundary condition to permit upward propagation of gravity  
-!!!!!! wave energy at the upper boundary 
-
-       taugwci(i,1) = taugwci(i,2)
-
-!-----------------------------------------------------------------------
-!
-!  Calculate zonal and meridional wind tendency 
-!
-!-----------------------------------------------------------------------
-
-       do k=1,km+1
-         taugwcxi(i,k) = taugwci(i,k)*cosphi
-         taugwcyi(i,k) = taugwci(i,k)*sinphi
-       end do
+              taugwci(i,1) = taugwci(i,2)
+            endif
+          endif
+        enddo                     ! end of i=1,npt loop
+      enddo                       ! end of k=kcldm,1,-1 loop
 
 !!!!!! Vertical differentiation
 !!!!!!
-       do k=1,kcldtop(i)-1
-         tem1 = g / dpmid(i,k)
-         wtgwc(i,k) = tem1 * (taugwci(i,k+1)  - taugwci(i,k))
-         utgwc(i,k) = tem1 * (taugwcxi(i,k+1) - taugwcxi(i,k))
-         vtgwc(i,k) = tem1 * (taugwcyi(i,k+1) - taugwcyi(i,k))
-       end do
 
-       do k=kcldtop(i),km
-         wtgwc(i,k) = zero
-         utgwc(i,k) = zero
-         vtgwc(i,k) = zero
-       end do
+      do k=1,km
+        do i=1,npt
+          if (do_gwc(i)) then
+            kk = kcldtop(i)
+            if (k < kk) then
+              wtgwc       = (taugwci(i,k+1) - taugwci(i,k)) / dpmid(i,k)
+              utgwcl(i,k) = wtgwc * cosphi(i)
+              vtgwcl(i,k) = wtgwc * sinphi(i)
+            else
+              utgwcl(i,k) = zero
+              vtgwcl(i,k) = zero
+            endif
+          endif
+        enddo
+      enddo
 
 !-----------------------------------------------------------------------
 !
@@ -875,35 +906,50 @@
 !
 !-----------------------------------------------------------------------
 
-      xstress = zero
-      ystress = zero
-      do k=1,kcldtop(i)-1
-        xstress = xstress + utgwc(i,k)*dpmid(i,k)/g 
-        ystress = ystress + vtgwc(i,k)*dpmid(i,k)/g  
-      end do
+      do i=1,npt
+        xstress(i) = zero
+        ystress(i) = zero
+      enddo
+      do k=1,kcldm
+        do i=1,npt
+          if (do_gwc(i)) then
+            xstress(i) = xstress(i) + utgwcl(i,k)*dpmid(i,k)
+            ystress(i) = ystress(i) + vtgwcl(i,k)*dpmid(i,k)
+          endif
+        enddo
+      enddo
 
 !-----------------------------------------------------------------------
 !        ALT 1      ONLY UPPERMOST LAYER
 !-----------------------------------------------------------------------
 
-C     kk = kcldtop(i)
-C     tem1 = g / dpmid(i,kk)
-C     utgwc(i,kk) = - tem1 * xstress
-C     vtgwc(i,kk) = - tem1 * ystress
+!     kk = kcldtop(i)
+!     tem1 = g / dpmid(i,kk)
+!     utgwc(i,kk) = - tem1 * xstress
+!     vtgwc(i,kk) = - tem1 * ystress
 
 !-----------------------------------------------------------------------
 !        ALT 2      SIN(KT-KB)
 !-----------------------------------------------------------------------
 
-      kk = kcldtop(i)
-      kb = kcldbot(i)
-      do k=kk,kb
-      p1=pi/2.*(pint(i,k)-pint(i,kk))/
-     +         (pint(i,kb+1)-pint(i,kk))
-      p2=pi/2.*(pint(i,k+1)-pint(i,kk))/
-     +         (pint(i,kb+1)-pint(i,kk))
-      utgwc(i,k) = - g*xstress*(sin(p2)-sin(p1))/dpmid(i,k)
-      vtgwc(i,k) = - g*ystress*(sin(p2)-sin(p1))/dpmid(i,k)
+      do i=1,npt
+        if (do_gwc(i)) then
+          wrk(i) = 0.5 * pi / (pint(i,kcldbot(i)+1)-pint(i,kcldtop(i)))
+        endif
+      enddo
+      do k=1,km
+        do i=1,npt
+          if (do_gwc(i)) then
+            kk = kcldtop(i)
+            if (k >= kk .and. k <= kcldbot(i)) then
+              p1 = sin(wrk(i) * (pint(i,k)  -pint(i,kk)))
+              p2 = sin(wrk(i) * (pint(i,k+1)-pint(i,kk)))
+              tem = - (p2-p1) / dpmid(i,k)
+              utgwcl(i,k) = tem*xstress(i)
+              vtgwcl(i,k) = tem*ystress(i)
+            endif
+          endif
+        enddo
       enddo
 
 !-----------------------------------------------------------------------
@@ -913,7 +959,7 @@ C     vtgwc(i,kk) = - tem1 * ystress
 !     do k=kcldtop(i),kcldbot(i)
 !     p1=cumchr(i,k)
 !     p2=cumchr(i,k+1)
-!     utgwc(i,k) = - g*xstress*(p1-p2)/dpmid(i,k)
+!     utgwcl(i,k) = - g*xstress*(p1-p2)/dpmid(i,k)
 !     enddo
 
 !-----------------------------------------------------------------------
@@ -926,7 +972,7 @@ C     vtgwc(i,kk) = - tem1 * ystress
 
 !     do k=1,kcldtop(i)-1
 
-!      if (utgwc(i,k)*u(i,k) .gt. 0.0) then
+!      if (utgwcl(i,k)*u(i,k) .gt. 0.0) then
 
 !-------------------- x-component-------------------
 
@@ -943,7 +989,7 @@ C     vtgwc(i,kk) = - tem1 * ystress
 !       do k1=1,km
 !         write(6,'(i2,36x,2(1x,e17.10))')
 !    +             k1,taugwcxi(i,k1),taugwci(i,k1)
-!         write(6,'(i2,2(1x,e17.10))') k1,utgwc(i,k1),u(i,k1) 
+!         write(6,'(i2,2(1x,e17.10))') k1,utgwcl(i,k1),u(i,k1) 
 !       end do
 !       write(6,'(i2,36x,1x,e17.10)') (km+1),taugwcxi(i,km+1)
 !       end if
@@ -981,28 +1027,25 @@ C     vtgwc(i,kk) = - tem1 * ystress
 
 !     enddo
 
- 1000 continue
+!1000 continue
 
-       end if   ! DO GWDC CALCULATION
-   
-      end do   ! I-LOOP 
 
 !***********************************************************************
 
-      if (lprnt) then
-        if (fhour.ge.fhourpr) then
+!     if (lprnt) then
+!       if (fhour.ge.fhourpr) then
 !-------- UTGWC VTGWC ----------
-          write(*,9220)
-          do ilev=1,km
-            write(*,9221) ilev,(86400.*utgwc(ipr,ilev)),
-     +                         (86400.*vtgwc(ipr,ilev))
-          enddo
-        endif
-      endif
+!         write(*,9220)
+!         do ilev=1,km
+!           write(*,9221) ilev,(86400.*utgwcl(ipr,ilev)),
+!    +                         (86400.*vtgwcl(ipr,ilev))
+!         enddo
+!       endif
+!     endif
 
- 9220 format(//,14x,'TENDENCY DUE TO GWDC',//,
-     +' ILEV',6x,'UTGWC',7x,'VTGWC',/)
- 9221 format(i4,2(2x,f10.3))
+!9220 format(//,14x,'TENDENCY DUE TO GWDC',//,
+!    +' ILEV',6x,'UTGWC',7x,'VTGWC',/)
+!9221 format(i4,2(2x,f10.3))
 
 !-----------------------------------------------------------------------
 !
@@ -1010,40 +1053,41 @@ C     vtgwc(i,kk) = - tem1 * ystress
 !
 !-----------------------------------------------------------------------
 
-      do i = 1, im
-      kk=kcldtop(i)
+!     do k = 1, kk-1
+!       do i = 1, nct
 
-       if ( dogwdc(i) .and. (abs(taugwci(i,kk)).gt.taumin) ) then
+!         kk = kcldtop(i)
 
-        gwdcloc(i) = one
+!         if ( (abs(taugwci(i,kk)) > taumin) ) then
 
-        do k = 1, kk-1
-         if ( abs(taugwci(i,k)-taugwci(i,kk)).gt.taumin ) then
-          break(i) = 1.0
-          go to 2000
-         endif 
-        enddo
- 2000   continue
+!           gwdcloc(i) = one
 
-        do k = 1, kk-1
+!        if ( abs(taugwci(i,k)-taugwci(i,kk)) > taumin ) then
+!         break(i) = 1.0
+!         go to 2000
+!        endif 
+!       enddo
+!2000   continue
 
-         if ( ( abs(taugwci(i,k)).lt.taumin ) .and.
-     &        ( abs(taugwci(i,k+1)).gt.taumin ) .and.
-     &        ( basicum(i,k+1)*basicum(i,k) .lt. 0. ) ) then
-          critic(i) = 1.0
+!       do k = 1, kk-1
+
+!        if ( ( abs(taugwci(i,k)).lt.taumin ) .and.
+!    &        ( abs(taugwci(i,k+1)).gt.taumin ) .and.
+!    &        ( basicum(i,k+1)*basicum(i,k) .lt. 0. ) ) then
+!         critic(i) = 1.0
 !         print *,i,k,' inside GWDC  taugwci(k) = ',taugwci(i,k)
 !         print *,i,k+1,' inside GWDC  taugwci(k+1) = ',taugwci(i,k+1)
 !         print *,i,k,' inside GWDC  basicum(k) = ',basicum(i,k)
 !         print *,i,k+1,' inside GWDC  basicum(k+1) = ',basicum(i,k+1)
 !         print *,i,' inside GWDC  critic = ',critic(i)
-          goto 2010
-         endif
-        enddo
- 2010   continue
+!         goto 2010
+!        endif
+!       enddo
+!2010   continue
 
-       endif
+!      endif
 
-      enddo
+!     enddo
 
 !-----------------------------------------------------------------------
 !        Convert back local GWDC Tendency arrays to GFS model vertical indices
@@ -1051,29 +1095,53 @@ C     vtgwc(i,kk) = - tem1 * ystress
 !-----------------------------------------------------------------------
 
       do k=1,km
-        k1=km-k+1
-        do i=1,im
-          fu1(i,k1)    = utgwc(i,k)
-          fv1(i,k1)    = vtgwc(i,k)
-          brunm1(i,k1) = brunm(i,k)
-          rhom1(i,k1)  = rhom(i,k)
+        k1 = km - k + 1
+        do i=1,npt
+          ii = ipt(i)
+          utgwc(ii,k1) = utgwcl(i,k)
+
+          vtgwc(ii,k1) = vtgwcl(i,k)
+
+!         brunm(ii,kk) = brunm(i,k)
+!         brunm(i,k)  = tem
+
+!         rhom(ii,kk) = rhom(i,k)
+
         enddo
       enddo
+      do i=1,npt
+        ii = ipt(i)
+        tauctx(ii) = tauctxl(i)
+        taucty(ii) = tauctyl(i)
+       enddo
 
-      if (lprnt) then
-        if (fhour.ge.fhourpr) then
+!     if (lprnt) then
+!       if (fhour.ge.fhourpr) then
 !-------- UTGWC VTGWC ----------
-          write(*,9225)
-          do ilev=km,1,-1
-            write(*,9226) ilev,(86400.*fu1(ipr,ilev)),
-     +                         (86400.*fv1(ipr,ilev))
-          enddo
-        endif
-      endif
+!         write(*,9225)
+!         do ilev=km,1,-1
+!           write(*,9226) ilev,(86400.*fu1(ipr,ilev)),
+!    +                         (86400.*fv1(ipr,ilev))
+!         enddo
+!       endif
+!     endif
 
- 9225 format(//,14x,'TENDENCY DUE TO GWDC - TO GBPHYS',//,
-     +' ILEV',6x,'UTGWC',7x,'VTGWC',/)
- 9226 format(i4,2(2x,f10.3))
+!9225 format(//,14x,'TENDENCY DUE TO GWDC - TO GBPHYS',//,
+!    +' ILEV',6x,'UTGWC',7x,'VTGWC',/)
+!9226 format(i4,2(2x,f10.3))
+
+      deallocate (kcldtop,kcldbot,do_gwc)
+      deallocate (tauctxl,  tauctyl,
+     &            gwdcloc, break, critic,   cosphi,
+     &            sinphi,         xstress,  ystress,
+     &            dlen,    ucltop, vcltop,  gqmcldlen, wrk)
+
+      deallocate (plnint,          taugwci,
+     &            bruni, rhoi,     basicui,
+     &            ti,       riloc, rimin,    pint)
+
+      deallocate (plnmid, utgwcl, vtgwcl, basicum, u, v, t,
+     &            pmid,   dpmid,  brunm,  rhom)
 
       return
       end

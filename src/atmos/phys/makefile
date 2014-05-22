@@ -104,6 +104,8 @@ MODULES_GFSF=                                \
 	           moninq.o                  \
 	           gwdps.o                   \
 	           gwdc.o                    \
+	           rayleigh_damp.o           \
+	           rayleigh_damp_mesopause.o \
 	           sascnv.o                  \
 	           sascnvn.o                 \
 	           cnvc90.o                  \

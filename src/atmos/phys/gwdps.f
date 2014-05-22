@@ -1,5 +1,4 @@
-!     SUBROUTINE GWDPS(IM,IX,IY,KM,A,B,U1,V1,T1,Q1,PSTAR,KPBL,
-      SUBROUTINE GWDPS(IM,IX,IY,KM,A,B,U1,V1,T1,Q1,KPBL,
+      SUBROUTINE GWDPS(IM,IX,IY,KM,A,B,C,U1,V1,T1,Q1,KPBL,
      &               PRSI,DEL,PRSL,PRSLK,PHII, PHIL,DELTIM,KDT,
      &               HPRIME,OC,OA4,CLX4,THETA,SIGMA,GAMMA,ELVMAX, 
      &               DUSFC,DVSFC,G, CP, RD, RV, IMX, 
@@ -74,6 +73,7 @@
 !  INPUT
 !        A(IY,KM)  NON-LIN TENDENCY FOR V WIND COMPONENT
 !        B(IY,KM)  NON-LIN TENDENCY FOR U WIND COMPONENT
+!        C(IY,KM)  NON-LIN TENDENCY FOR TEMPERATURE
 !        U1(IX,KM) ZONAL WIND M/SEC  AT T0-DT
 !        V1(IX,KM) MERIDIONAL WIND M/SEC AT T0-DT
 !        T1(IX,KM) TEMPERATURE DEG K AT T0-DT
@@ -91,16 +91,16 @@
 !                OTHER INPUT VARIABLES UNMODIFIED.
 !  revision log:
 !    May 2013  J. Wang change cleff back to opn setting
+!    Jan 2014  J. Wang merge Henry and Fangin's dissipation heat in gfs to nems 
 !     
 !
 !   ********************************************************************
       USE MACHINE , ONLY : kind_phys
       implicit none
-      integer im, iy, ix, km, imx, lat, kdt, ipr, me
+      integer im, iy, ix, km, imx, kdt, ipr, me
       integer KPBL(IM)                 ! Index for the PBL top layer!
       real(kind=kind_phys) deltim, G, CP, RD, RV,      cdmbgwd(2)
-!     real(kind=kind_phys) A(IY,KM),    B(IY,KM),      PSTAR(IM)
-      real(kind=kind_phys) A(IY,KM),    B(IY,KM),
+      real(kind=kind_phys) A(IY,KM),    B(IY,KM),      C(IY,KM),
      &                     U1(IX,KM),   V1(IX,KM),     T1(IX,KM),
      &                     Q1(IX,KM),   PRSI(IX,KM+1), DEL(IX,KM),
      &                     PRSL(IX,KM), PRSLK(IX,KM),  PHIL(IX,KM),
@@ -113,6 +113,7 @@
       real(kind=kind_phys) bnv2lm(IM,KM),PE(IM),EK(IM),ZBK(IM),UP(IM)
       real(kind=kind_phys) DB(IM,KM),ANG(IM,KM),UDS(IM,KM)
       real(kind=kind_phys) ZLEN, DBTMP, R, PHIANG, CDmb, DBIM
+      real(kind=kind_phys) ENG0, ENG1
 !
 !     Some constants
 !
@@ -125,9 +126,11 @@
       PARAMETER (EFMIN=0.0, EFMAX=10.0, hpmax=2400.0, hpmin=1.0)
 !
       real(kind=kind_phys) FRC,    CE,     CEOFRC, frmax, CG, GMAX
-     &,                    CRITAC, VELEPS, FACTOP, RLOLEV, RDI
+     &,                    VELEPS, FACTOP, RLOLEV, RDI
+!     &,                    CRITAC, VELEPS, FACTOP, RLOLEV, RDI
       parameter (FRC=1.0, CE=0.8, CEOFRC=CE/FRC, frmax=100., CG=0.5)
-      parameter (GMAX=1.0, CRITAC=5.0E-4, VELEPS=1.0, FACTOP=0.5)
+      parameter (GMAX=1.0, VELEPS=1.0, FACTOP=0.5)
+!      parameter (GMAX=1.0, CRITAC=5.0E-4, VELEPS=1.0, FACTOP=0.5)
       parameter (RLOLEV=50000.0) 
 !     parameter (RLOLEV=500.0) 
 !     parameter (RLOLEV=0.5)
@@ -169,21 +172,21 @@
      &,                    VTJ(IM,KM),   SCOR(IM),      VELCO(IM,KM-1)
      &,                    bnv2bar(im)
 !
-      real(kind=kind_phys) VELKO(KM-1)
-      Integer   kref(IM), kint(im), iwk(im), iwk2(im), ipt(im)
+!     real(kind=kind_phys) VELKO(KM-1)
+      Integer   kref(IM), kint(im), iwk(im), ipt(im)
 ! for lm mtn blocking
-      Integer   kreflm(IM), iwklm(im), iptlm(im)
-      Integer   idxzb(im), idxm1, ktrial, klevm1, nmtvr
+      Integer   kreflm(IM), iwklm(im)
+      Integer   idxzb(im), ktrial, klevm1, nmtvr
 !
-      real(kind=kind_phys) gor,    gocp,  fv,    xl,    gr2,  bnv,  fr
+      real(kind=kind_phys) gor,    gocp,  fv,    gr2,  bnv,  fr
      &,                    brvf,   cleff, tem,   tem1,  tem2, temc, temv
      &,                    wdir,   ti,    rdz,   dw2,   shr2, bvf2
-     &,                    rdelks, wtkbj, efact, coefm, gfobnv
+     &,                    rdelks, efact, coefm, gfobnv
      &,                    scork,  rscor, hd,    fro,   rim,  sira
      &,                    dtaux,  dtauy, pkp1log, pklog
-      integer ncnt, kmm1, kmm2, lcap, lcapp1, kbps, kbpsp1,kbpsm1
-     &, kmps, kmpsp1, idir, nwd, i, j, k, klcap, kp1, kmpbl, npt, npr
-     &, kmll,kmds
+      integer kmm1, kmm2, lcap, lcapp1, kbps, kbpsp1,kbpsm1
+     &, kmps, idir, nwd, i, j, k, klcap, kp1, kmpbl, npt, npr
+     &, kmll
 !    &, kmll,kmds,ihit,jhit
       logical lprnt
 !
@@ -410,7 +413,8 @@
         DO I = 1, npt
           J    = ipt(i)
 ! --- Calc if N constant in layers (Zb guess) - a diagnostic only.
-          ZBK(I) =  ELVMAX(J) - SQRT(UBAR(I)**2 + VBAR(I)**2)/BNV2bar(I)
+          ZBK(I) = ELVMAX(J)
+     &           - SQRT(UBAR(I)*UBAR(I) + VBAR(I)*VBAR(I))/BNV2bar(I)
         ENDDO
 !
 !     if (lprnt .and. npr .gt. 0) then
@@ -826,11 +830,13 @@
           TAUD(I,K)  = TAUD(I,K) * DTFAC(I)
           DTAUX      = TAUD(I,K) * XN(I)
           DTAUY      = TAUD(I,K) * YN(I)
+          ENG0       = 0.5*(U1(j,K)*U1(j,K)+V1(J,K)*V1(J,K))
 ! ---  lm mb (*j*)  changes overwrite GWD
           if ( K .lt. IDXZB(I) .AND. IDXZB(I) .ne. 0 ) then
             DBIM = DB(I,K) / (1.+DB(I,K)*DELTIM)
             A(J,K)  = - DBIM * V1(J,K) + A(J,K)
             B(J,K)  = - DBIM * U1(J,K) + B(J,K)
+            ENG1    = ENG0*(1.0-DBIM*DELTIM)*(1.0-DBIM*DELTIM)
 !          if ( ABS(DBIM * U1(J,K)) .gt. .01 ) 
 !    & print *,' in gwdps_lmi.f KDT=',KDT,I,K,DB(I,K),
 !    &                      dbim,idxzb(I),U1(J,K),V1(J,K),me
@@ -840,9 +846,13 @@
 !
             A(J,K)     = DTAUY     + A(J,K)
             B(J,K)     = DTAUX     + B(J,K)
+            ENG1       = 0.5*(
+     &                   (U1(J,K)+DTAUX*DELTIM)*(U1(J,K)+DTAUX*DELTIM)
+     &                 + (V1(J,K)+DTAUY*DELTIM)*(V1(J,K)+DTAUY*DELTIM))
             DUSFC(J)   = DUSFC(J)  + DTAUX * DEL(J,K)
             DVSFC(J)   = DVSFC(J)  + DTAUY * DEL(J,K)
           endif
+          C(J,K) = C(J,K) + max(ENG0-ENG1,0.)/CP/DELTIM
         ENDDO
       ENDDO
 !     if (lprnt) then

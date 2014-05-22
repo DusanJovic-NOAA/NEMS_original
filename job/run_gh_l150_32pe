@@ -1,7 +1,7 @@
 #! /bin/sh -l
 #
-#BSUB -oo out_wam_dfiall
-#BSUB -eo err_wam_dfiall
+#BSUB -oo out_wam
+#BSUB -eo err_wam
 #BSUB -J wamtest
 ####BSUB -n 1
 #BSUB -n 32
@@ -37,7 +37,7 @@ export MACHINE_ID=wcoss
 #jw export CDATE=2011092300
 export CDATE=2013081000
 export CDATE=2007041700
-export expt=testwam_${CDATE}_dfiall
+export expt=testwam_${CDATE}_tvd
 export RUNDIR=${RUNDIR:-/ptmp/$LOGNAME/$expt}
 mkdir -p $RUNDIR/restart
 cd $RUNDIR
@@ -167,6 +167,11 @@ export MP_SHARED_MEMORY=yes
  export ldiag3d=${ldiag3d:-.false.}
 #
  export nemsioget=${nemsiOget:-/nems/save/Jun.Wang/util/nemsio_get}
+ if [ $NEMSIO_IN = .true. ]; then
+   export SIGHDR=${nemsiOget:-/nems/save/Jun.Wang/util/nemsio_get}
+ else
+   export SIGHDR=${SIGHDR:-${EXECGLOBAL}/global_sighdr$XC}
+ fi
 #
 #
 #
@@ -174,7 +179,7 @@ export MP_SHARED_MEMORY=yes
 #    needs to be specified. ndays is the Length of #orecast in days
 #    begining from nhourb
 #
- export ndays=30
+ export ndays=3
 #
  export nhours=`expr $ndays \* 24`
 #export nhours=72
@@ -230,7 +235,7 @@ export LEVR=${levr:-0}
 #
 #     Forecaset script and executable name
 #
- export NEMSDIR=/nems/save/Jun.Wang/nems/20140401/nems_dfilev
+ export NEMSDIR=/nems/save/Jun.Wang/nems/20140428/nemswam_tvd
  cp -p ${NEMSDIR}/job/exglobal_fcst.sh.sms_nems .
  cp -p ${NEMSDIR}/exe/NEMS.x .
  export FCSTSCRIPT=${RUNDIR}/exglobal_fcst.sh.sms_nems

@@ -43,6 +43,7 @@
 !   2013-09-09 Moorthi - Adding SR, DTDT, and TRIGGERPERTS for GBPHYS call
 !   2013-11-09 Xingren Wu - Adding DUSFCI/DVSFCI for GBPHYS call
 !   2014-03-28 Xingren Wu - Add "_CPL" field for GBPHYS call
+!   2014-05-14 J. Wang - Adding cgwf,prslrd0 and levr to gbphys call
 !-----------------------------------------------------------------------
 !
       USE esmf_mod
@@ -2556,7 +2557,7 @@
       USE MODULE_RADIATION_DRIVER_gfs,    ONLY : GRRAD_gfs,RADINIT_gfs
       USE MODULE_RADIATION_ASTRONOMY_gfs, ONLY : ASTRONOMY
       USE MERSENNE_TWISTER
-      USE N_RESOL_DEF,                ONLY : LATR,LONR                  &
+      USE N_RESOL_DEF,                ONLY : LATR,LONR,LEVR             &
                                             ,NCLD,NFXR,NMTVR            &
                                             ,NTCW,NTOZ                  &
                                             ,THERMODYN_ID, SFCPRESS_ID  &
@@ -2737,6 +2738,7 @@
 !--- gbphys ---
       LOGICAL                                      :: OLD_MONIN, CNVGWD, NEWSAS
       INTEGER ,DIMENSION(2)                        :: NCW
+      REAL (kind=KDBL)                             :: CGWF(2),PRSLRD0
       REAL (kind=KDBL)                             :: CCWF,FAC
       REAL (kind=KDBL) ,DIMENSION(1)               :: CNVPRCP, TOTPRCP, TPRCP, SRFLAG, SHDMIN, SHDMAX, CANOPY
       REAL (kind=KDBL) ,DIMENSION(1)               :: RAIN, RAINC
@@ -6568,6 +6570,8 @@
          CNVGWD      = .FALSE.
          NEWSAS      = .FALSE.
          CCWF        = 0.5d0  ! only for RAS scheme
+         CGWF        = 0.1    ! cloud top fraction for convective gwd scheme
+         PRSLRD0     = 0.     ! pressure(pa) above which Raleigh damping applied
 !
 ! ---- ESTIMATE T850 FOR RAIN-SNOW DECISION ----------------------------
 !
@@ -6598,9 +6602,9 @@
            NMTVR, 1, LEVOZP, IDE_GR, LATR, 62, NUM_P3D, NUM_P2D,            &
            NTIMESTEP, J-JTS+1, MYPE, PL_COEFF, LONR, NCW, FLGMIN, CRTRH,    &
              CDMBGWD, &
-           CCWF, DLQF, CTEI_RM, CLSTP, DTP, DTF, FHOUR, SOLHR,              &
-           int_state%SLAG, int_state%SDEC, int_state%CDEC, SINLAT_R(J),     &
-           COSLAT_R(J), GQ, GU, GV,                                         &
+           CCWF, DLQF, CTEI_RM, CLSTP, CGWF, PRSLRD0, DTP, DTF, FHOUR,      &
+           SOLHR, int_state%SLAG, int_state%SDEC, int_state%CDEC,           &
+           SINLAT_R(J), COSLAT_R(J), GQ, GU, GV,                            &
            GT, GR3, VVEL, PRSI, PRSL, PRSLK, PRSIK, PHII, PHIL,             &
            RANN, OZPLOUT_V, PL_PRES, DPSHC, HPRIME, XLON(I,J), XLAT,        &
            XSLPFCS, SHDMIN, SHDMAX, SNOALB, XTG3FCS, SLMSK, XVEGFCS,        &
@@ -6613,7 +6617,7 @@
            WMINCO,                                                          &
            FLIPV, OLD_MONIN, CNVGWD, SHAL_CNV, SASHAL, NEWSAS, CAL_PRE,     &
            MOM4ICE, MSTRAT, TRANS_TRAC, NST_FCST, MOIST_ADJ, FSCAV,         &
-           THERMODYN_ID, SFCPRESS_ID, GEN_COORD_HYBRID,                     &
+           THERMODYN_ID, SFCPRESS_ID, GEN_COORD_HYBRID, LEVR,               &
            XSIHFCS, XSICFCS, TISFC, TSEA, TPRCP, CV, CVB, CVT,              &
            SRFLAG, SNWDPH, WEASD, SNCOVR, ZORL, CANOPY,                     &
            FFMM, FFHH, F10M, SRUNOFF, EVBSA, EVCWA, SNOHFA,                 &

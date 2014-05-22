@@ -12,7 +12,7 @@
 !         ( im,ix,levs,lsoil,lsm,ntrac,ncld,ntoz,ntcw,                  !
 !           nmtvr,nrcm,ko3,lonf,latg,jcap,num_p3d,num_p2d,              !
 !           kdt,lat,me,pl_coeff,nlons,ncw,flgmin,crtrh,cdmbgwd,         !
-!           ccwf,dlqf,ctei_rm,clstp,dtp,dtf,fhour,solhr,                !
+!           ccwf,dlqf,ctei_rm,clstp,cgwf,prslrd0,dtp,dtf,fhour,solhr,   !
 !           slag,sdec,cdec,sinlat,coslat,pgr,ugrs,vgrs,                 !
 !           tgrs,qgrs,vvel,prsi,prsl,prslk,prsik,phii,phil,             !
 !           rann,prdout,poz,dpshc,hprime,xlon,xlat,                     !
@@ -25,7 +25,7 @@
 !           xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,wminco,          !
 !           flipv,old_monin,cnvgwd,shal_cnv,sashal,newsas,cal_pre,      !
 !           mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,fscav,         !
-!           thermodyn_id, sfcpress_id, gen_coord_hybrid,                !
+!           thermodyn_id, sfcpress_id, gen_coord_hybrid,levr,           !
 !       input/outputs:                                                  !
 !           hice,fice,tisfc,tsea,tprcp,cv,cvb,cvt,                      !
 !           srflag,snwdph,weasd,sncovr,zorl,canopy,                     !
@@ -121,6 +121,8 @@
 !      Mar  2014  - Xingren Wu  add "_cpl" for coupling                 !
 !      Mar  2014  - Xingren Wu  add "nir/vis beam and nir/vis diff"     !
 !      Apr  2014  - Xingren Wu  add "NET LW/SW including nir/vis"       !
+!      Jan  2014  - Jun Wang    merge Moorthi's gwdc change and H.Juang !
+!                               and F. Yang's energy conversion from GWD!
 !                                                                       !
 !                                                                       !
 !  ====================  defination of variables  ====================  !
@@ -169,6 +171,9 @@
 !                      criteria (used if mstrat=.true.)                 !
 !     clstp    - real, index used by cnvc90 (for convective clouds)1    !
 !                      legacy stuff - does not affect forecast          !
+!     cgwf     - real, multiplication factor for convective GWD    2    !
+!     prslrd0  - real, pressure level from which Rayleigh Damping       !
+!                      is applied                                  1    !
 !     dtp      - real, physics time step in seconds                1    !
 !     dtf      - real, dynamics time step in seconds               1    !
 !     fhour    - real, forecast hour                               1    !
@@ -252,6 +257,7 @@
 !     thermodyn_id - integer, valid for GFS only for get_prs/phi   1    !
 !     sfcpress_id  - integer, valid for GFS only for get_prs/phi   1    !
 !     gen_coord_hybrid - logical for Henry's gen coord             1    !
+!     levr  - integer, the number of layers GFS Radiative heating calculated at 1 !
 !                                                                       !
 !  input/outputs:                                                       !
 !     hice     - real, sea-ice thickness                           im   !
@@ -447,7 +453,7 @@
      &    ( im,ix,levs,lsoil,lsm,ntrac,ncld,ntoz,ntcw,                  &
      &      nmtvr,nrcm,ko3,lonf,latg,jcap,num_p3d,num_p2d,              &
      &      kdt,lat,me,pl_coeff,nlons,ncw,flgmin,crtrh,cdmbgwd,         &
-     &      ccwf,dlqf,ctei_rm,clstp,dtp,dtf,fhour,solhr,                &
+     &      ccwf,dlqf,ctei_rm,clstp,cgwf,prslrd0,dtp,dtf,fhour,solhr,   &
      &      slag,sdec,cdec,sinlat,coslat,pgr,ugrs,vgrs,                 &
      &      tgrs,qgrs,vvel,prsi,prsl,prslk,prsik,phii,phil,             &
      &      rann,prdout,poz,dpshc,hprime,xlon,xlat,                     &
@@ -460,7 +466,7 @@
      &      xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,wminco,          &
      &      flipv,old_monin,cnvgwd,shal_cnv,sashal,newsas,cal_pre,      &
      &      mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,fscav,         &
-     &      thermodyn_id, sfcpress_id, gen_coord_hybrid,                &
+     &      thermodyn_id, sfcpress_id, gen_coord_hybrid,levr,           &
 !  ---  input/outputs:
      &      hice,fice,tisfc,tsea,tprcp,cv,cvb,cvt,                      &
      &      srflag,snwdph,weasd,sncovr,zorl,canopy,                     &
@@ -544,7 +550,7 @@
      &                       ncld, ntoz, ntcw, nmtvr,   nrcm,    ko3,   &
      &                       lonf, latg, jcap, num_p3d, num_p2d, kdt,   &
      &                       me,   pl_coeff, lat,                       &
-     &                       thermodyn_id, sfcpress_id
+     &                       thermodyn_id, sfcpress_id, levr
 
 
       integer, intent(in) :: nlons(im), ncw(2), nst_fcst
@@ -582,7 +588,7 @@
      &      slag,    sdec,     cdec,       ctei_rm(2), clstp,           &
      &      ccwf(2), crtrh(3), flgmin(2),  dlqf(2), cdmbgwd(2),         &
      &      xkzm_m,  xkzm_h, xkzm_s, psautco(2),   prautco(2), evpco,   &
-     &      wminco(2)
+     &      wminco(2), cgwf(2), prslrd0
 
       real(kind=kind_phys), intent(in) ::  fscav(ntrac-ncld-1)
 
@@ -670,7 +676,7 @@
      &      adjnirbm,  adjnirdf,  adjvisbm,  adjvisdf,                  &
      &      gsfculw, xcosz,  tseal,  snohf,  dlqfac,  work3,            &
      &      domr,    domzr,  domip,  doms,   psautco_l, prautco_l,      &
-     &      ctei_rml
+     &      ctei_rml,cldf
 
 !    &      dswsfc, radsl,                                              &
 !    &      dlwsf1,  ulwsf1, xcosz,  tseal,  snohf,   dlqfac,           &
@@ -707,6 +713,8 @@
       logical, dimension(im) :: flag_iter, flag_guess, invrsn
 
       logical :: lprnt
+
+      real(kind=kind_phys) eng0, eng1
 
 !
 !===> ...  begin here
@@ -907,6 +915,7 @@
         tem2        = con_rerth * con_pi/latg
         garea(i)    = tem1 * tem2
         dlength(i)  = sqrt( tem1*tem1+tem2*tem2 )
+        cldf(i)     = cgwf(1)*work1(i) + cgwf(2)*work2(i)
       enddo
 
       if (lssav) then
@@ -1689,7 +1698,7 @@
 
       endif   ! end if_nmtvr
 
-      call gwdps(im, ix, im,   levs,  dvdt, dudt,                       &
+      call gwdps(im, ix, im,   levs,  dvdt, dudt, dtdt,                 &
      &           ugrs,   vgrs, tgrs,  qgrs,                             &
      &           kpbl,   prsi, del,   prsl, prslk,                      &
      &           phii,   phil, dtp,                                     &
@@ -1714,9 +1723,18 @@
             do i = 1, im
               du3dt(i,k,2) = du3dt(i,k,2) + dudt(i,k) * dtf
               dv3dt(i,k,2) = dv3dt(i,k,2) + dvdt(i,k) * dtf
+              dt3dt(i,k,2) = dt3dt(i,k,2) + dtdt(i,k) * dtf
             enddo
           enddo
         endif
+      endif
+
+      if( .not. lsidea ) then
+!        call rayleigh_damp_mesopause(im, ix, im, levs, dvdt, dudt, dtdt,
+!     &                   ugrs, vgrs, dtp, con_cp, levr, prsl, prslrd0)
+!      else
+        call rayleigh_damp(im, ix, im, levs, dvdt, dudt, dtdt,
+     &                   ugrs, vgrs, dtp, con_cp, levr, prsl, prslrd0)
       endif
 
       do  k = 1, levs
@@ -2158,101 +2176,107 @@
 !           cuhr = temperature change due to deep convection
 
         do i = 1, im
-          qmax(i)   = 0.
-          cumabs(i) = 0.
+!         qmax(i)   = 0.
+          cumabs(i) = 0.0
+          work3(i)  = 0.0
         enddo
 
         do k = 1, levs
           do i = 1, im
 !           cuhr(i,k) = (gt0(i,k)-dtdt(i,k)) / dtf
-            cuhr(i,k) = (gt0(i,k)-dtdt(i,k)) / dtp    ! moorthi
+!           cuhr(i,k) = (gt0(i,k)-dtdt(i,k)) / dtp    ! moorthi
 
-            cumchr(i,k) = 0.
-            gwdcu(i,k)  = 0.
-            gwdcv(i,k)  = 0.
-            diagn1(i,k) = 0.
-            diagn2(i,k) = 0.
+!           cumchr(i,k) = 0.
+!           gwdcu(i,k)  = 0.
+!           gwdcv(i,k)  = 0.
+!           diagn1(i,k) = 0.
+!           diagn2(i,k) = 0.
 
             if (k >= kbot(i) .and. k <= ktop(i)) then
-              qmax(i)     = max(qmax(i),cuhr(i,k))
-              cumabs(i)   = cuhr(i,k) + cumabs(i)
+!              qmax(i)     = max(qmax(i),cuhr(i,k))
+!              cumabs(i)   = cuhr(i,k) + cumabs(i)
+              cumabs(i) = cumabs(i) + (gt0(i,k)-dtdt(i,k)) * del(i,k)
+              work3(i)  = work3(i)  + del(i,k)
             endif
           enddo
         enddo
-
-        do i = 1, im
-          do k = kbot(i), ktop(i)
-            do k1 = kbot(i), k
-              cumchr(i,k) = cuhr(i,k1) + cumchr(i,k)
-            enddo
-
-            cumchr(i,k) = cumchr(i,k) / cumabs(i)
-          enddo
+        do i=1,im
+          if (work3(i) > 0.0) cumabs(i) = cumabs(i) / (dtp*work3(i))
         enddo
+
+!       do i = 1, im
+!         do k = kbot(i), ktop(i)
+!           do k1 = kbot(i), k
+!             cumchr(i,k) = cuhr(i,k1) + cumchr(i,k)
+!           enddo
+
+!           cumchr(i,k) = cumchr(i,k) / cumabs(i)
+!         enddo
+!       enddo
 
 !  --- ...  check print
 
-        if (lprnt) then
-          if (kbot(ipr) <= ktop(ipr)) then
-            write(*,*) 'kbot <= ktop     for (lat,lon) = ',             &
-     &            xlon(ipr)*57.29578,xlat(ipr)*57.29578
-            write(*,*) 'kcnv kbot ktop qmax dlength  ',kcnv(ipr),       &
-     &            kbot(ipr),ktop(ipr),(86400.*qmax(ipr)),dlength(ipr)
-            write(*,9000) kdt
- 9000       format(/,3x,'k',5x,'cuhr(k)',4x,'cumchr(k)',5x,             &
-     &            'at kdt = ',i4,/)
+!       if (lprnt) then
+!         if (kbot(ipr) <= ktop(ipr)) then
+!           write(*,*) 'kbot <= ktop     for (lat,lon) = ',             &
+!    &            xlon(ipr)*57.29578,xlat(ipr)*57.29578
+!           write(*,*) 'kcnv kbot ktop qmax dlength  ',kcnv(ipr),       &
+!    &            kbot(ipr),ktop(ipr),(86400.*qmax(ipr)),dlength(ipr)
+!           write(*,9000) kdt
+!9000       format(/,3x,'k',5x,'cuhr(k)',4x,'cumchr(k)',5x,             &
+!    &            'at kdt = ',i4,/)
 
-            do k = ktop(ipr), kbot(ipr),-1
-              write(*,9010) k,(86400.*cuhr(ipr,k)),(100.*cumchr(ipr,k))
- 9010         format(2x,i2,2x,f8.2,5x,f6.0)
-            enddo
-          endif
+!           do k = ktop(ipr), kbot(ipr),-1
+!             write(*,9010) k,(86400.*cuhr(ipr,k)),(100.*cumchr(ipr,k))
+!9010         format(2x,i2,2x,f8.2,5x,f6.0)
+!           enddo
+!         endif
 
 !         print *,' before gwdc in gbphys fhour ',fhour
 
-          if (fhour >= fhourpr) then
-            print *,' before gwdc in gbphys start print'
-            write(*,*) 'fhour ix im levs = ',fhour,ix,im,levs
-            print *,'dtp  dtf  = ',dtp,dtf
+!         if (fhour >= fhourpr) then
+!           print *,' before gwdc in gbphys start print'
+!           write(*,*) 'fhour ix im levs = ',fhour,ix,im,levs
+!           print *,'dtp  dtf  = ',dtp,dtf
 
-            write(*,9100)
- 9100       format(//,14x,'pressure levels',//                          &
-     &             ' ilev',7x,'prsi',8x,'prsl',8x,'delp',/)
+!           write(*,9100)
+!9100       format(//,14x,'pressure levels',//                          &
+!    &             ' ilev',7x,'prsi',8x,'prsl',8x,'delp',/)
 
-            k = levs + 1
-            write(*,9110) k,(10.*prsi(ipr,k))
- 9110       format(i4,2x,f10.3)
+!           k = levs + 1
+!           write(*,9110) k,(10.*prsi(ipr,k))
+!9110       format(i4,2x,f10.3)
 
-            do k = levs, 1, -1
-              write(*,9120) k,(10.*prsl(ipr,k)),(10.*del(ipr,k))
-              write(*,9110) k,(10.*prsi(ipr,k))
-            enddo
- 9120       format(i4,12x,2(2x,f10.3))
+!           do k = levs, 1, -1
+!             write(*,9120) k,(10.*prsl(ipr,k)),(10.*del(ipr,k))
+!             write(*,9110) k,(10.*prsi(ipr,k))
+!           enddo
+!9120       format(i4,12x,2(2x,f10.3))
 
-            write(*,9130)
- 9130       format(//,10x,'before gwdc in gbphys',//,' ilev',6x,        &
-     &             'ugrs',9x,'gu0',8x,'vgrs',9x,'gv0',8x,               &
-     &             'tgrs',9x,'gt0',8x,'gt0b',8x,'dudt',8x,'dvdt',/)
+!           write(*,9130)
+!9130       format(//,10x,'before gwdc in gbphys',//,' ilev',6x,        &
+!    &             'ugrs',9x,'gu0',8x,'vgrs',9x,'gv0',8x,               &
+!    &             'tgrs',9x,'gt0',8x,'gt0b',8x,'dudt',8x,'dvdt',/)
 
-            do k = levs, 1, -1
-              write(*,9140) k,ugrs(ipr,k),gu0(ipr,k),                   &
-     &                        vgrs(ipr,k),gv0(ipr,k),                   &
-     &                        tgrs(ipr,k),gt0(ipr,k),dtdt(ipr,k),       &
-     &                        dudt(ipr,k),dvdt(ipr,k)
-            enddo
- 9140       format(i4,9(2x,f10.3))
+!           do k = levs, 1, -1
+!             write(*,9140) k,ugrs(ipr,k),gu0(ipr,k),                   &
+!    &                        vgrs(ipr,k),gv0(ipr,k),                   &
+!    &                        tgrs(ipr,k),gt0(ipr,k),dtdt(ipr,k),       &
+!    &                        dudt(ipr,k),dvdt(ipr,k)
+!           enddo
+!9140       format(i4,9(2x,f10.3))
 
-            print *,' before gwdc in gbphys end print'
-          endif
-        endif   ! end if_lprnt
+!           print *,' before gwdc in gbphys end print'
+!         endif
+!       endif   ! end if_lprnt
 
 !  --- ...  end check print
 
         call gwdc(im, ix, im, levs, lat, ugrs, vgrs, tgrs, qgrs,        &
-     &           prsl, prsi, del, qmax, cumchr, ktop, kbot, kcnv,       &
-     &          gwdcu, gwdcv,con_g,con_cp,con_rd,con_fvirt, dlength,    &
-     &          lprnt, ipr, fhour,                                      &
-     &          dusfcg,dvsfcg,diagn1,diagn2)
+     &            prsl, prsi, del, cumabs,       ktop, kbot, kcnv,cldf, &
+     &            con_g,con_cp,con_rd,con_fvirt, dlength,               &
+     &            lprnt, ipr, fhour,                                    &
+     &            gwdcu, gwdcv,dusfcg,dvsfcg)
 
         if (lprnt) then
           if (fhour >= fhourpr) then
@@ -2299,8 +2323,11 @@
 
         do k = 1, levs
           do i = 1, im
+            eng0       = 0.5*(gu0(i,k)*gu0(i,k)+gv0(i,k)*gv0(i,k))
             gu0(i,k)   = gu0(i,k)   + gwdcu(i,k)   * dtp
             gv0(i,k)   = gv0(i,k)   + gwdcv(i,k)   * dtp
+            eng1       = 0.5*(gu0(i,k)*gu0(i,k)+gv0(i,k)*gv0(i,k))
+            gt0(i,k)   = gt0(i,k) + (eng0-eng1)/(dtp*con_cp)
           enddo
         enddo
 
