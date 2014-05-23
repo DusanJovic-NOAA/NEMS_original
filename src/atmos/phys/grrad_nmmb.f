@@ -171,13 +171,13 @@
       use module_radiation_clouds_nmmb,  only : NF_CLDS, cld_init,      &
      &                                     progcld1, progcld2, diagcld1
 
-      use module_radsw_parameters_nmmb,  only : topfsw_type, sfcfsw_type,    &
+      use module_radsw_parameters,  only : topfsw_type, sfcfsw_type,    &
      &                                     profsw_type,cmpfsw_type,NBDSW
-      use module_radsw_main_nmmb,        only : rswinit,  swrad
+      use module_radsw_main,        only : rswinit,  swrad
 
-      use module_radlw_parameters_nmmb,  only : topflw_type, sfcflw_type,    &
+      use module_radlw_parameters,  only : topflw_type, sfcflw_type,    &
      &                                     proflw_type, NBDLW
-      use module_radlw_main_nmmb,        only : rlwinit,  lwrad
+      use module_radlw_main,        only : rlwinit,  lwrad
 !
       implicit   none
 !
@@ -409,31 +409,28 @@
 
 !  --- ...  call cloud initialization routine
 
-        !==========================================================
-        ! The following "if" is only for using NP3D=5 GFDL cloud
-        ! It is different from standard GFS call
-        ! In order not to conflict criteria in "rlwinit & rswinit"
-        ! "ICLD" is assigned to "1"             (12/28/2011 Lin)
-        !==========================================================
+      !==========================================================
+      ! The following can't use for NP3D=5 GFDL cloud
+      !==========================================================
 
-      if ( icldflg < 0 ) then
-         icldflg = 1
-       !  CICWP = icldflg
-         RICWP = 0
-      else
-       !  CICWP = icldflg 
-         RICWP = icldflg
-      endif
+     ! if ( icldflg < 0 ) then
+     !    icldflg = 1
+     !  !  CICWP = icldflg
+     !    RICWP = 0
+     ! else
+     !  !  CICWP = icldflg 
+     !    RICWP = icldflg
+     ! endif
 
       call cld_init ( si, NLAY, me)
 
 !  --- ...  call lw radiation initialization routine
 
-      call rlwinit ( RICWP, me, NLAY, iovrlw, isubclw )
+      call rlwinit ( me )
 
 !  --- ...  call sw radiation initialization routine
 
-      call rswinit ( RICWP, me, NLAY, iovrsw, isubcsw )
+      call rswinit ( me )
 !
       return
 !...................................
@@ -442,7 +439,7 @@
 
 
 !-----------------------------------
-      subroutine radupdate_nmmb                                         &
+      subroutine radupdate_nmmb                                              &
 !...................................
 
 !  ---  inputs:
@@ -453,11 +450,11 @@
 
 ! =================   subprogram documentation block   ================ !
 !                                                                       !
-! subprogram:   radupdate_update calls many update subroutines to check and  !
+! subprogram:   radupdate   calls many update subroutines to check and  !
 !   update radiation required but time varying data sets and module     !
 !   variables.                                                          !
 !                                                                       !
-! usage:        call radupdate_nmmb                                          !
+! usage:        call radupdate                                          !
 !                                                                       !
 ! attributes:                                                           !
 !   language:  fortran 90                                               !
@@ -599,7 +596,7 @@
 !  ---  inputs:
      &     ( prsi,prsl,prslk,tgrs,qgrs,tracer,vvl,slmsk,                &
      &       xlon,xlat,tsfc,snowd,sncovr,snoalb,zorl,hprim,             &
-!    &       alvsf,alnsf,alvwf,alnwf,facsf,facwf,                      &  ! processed inside
+ !    &       alvsf,alnsf,alvwf,alnwf,facsf,facwf,                      &  ! processed inside
      &       SALBEDO,SM,                                                &  ! input for albedo cal.
      &       fice,tisfc,                                                &
      &       sinlat,coslat,solhr,jdate,solcon,                          &
@@ -757,29 +754,25 @@
 !                14      - high domain mean cloud top temperature       !
 !                15      - mid  domain mean cloud top temperature       !
 !                16      - low  domain mean cloud top temperature       !
-!                17      -                                              !
-!                18      - toa incoming solar radiation flux            !
+!                17      - total cloud fraction                         !
+!                18      - boundary layer domain cloud fraction         !
 !                19      - sfc total sky dnwd lw radiation flux         !
 !                20      - sfc total sky upwd lw radiation flux         !
 !                21      - sfc total sky dnwd sw uv-b radiation flux    !
 !                22      - sfc clear sky dnwd sw uv-b radiation flux    !
-!                23      -                                              !
-!                24      -                                              !
-!                25      -                                              !
-!                26      - total cloud fraction                         !
-!                27      - boundary layer domain cloud fraction         !
+!                23      - toa incoming solar radiation flux            !
+!                24      - sfc vis beam dnwd sw radiation flux          !
+!                25      - sfc vis diff dnwd sw radiation flux          !
+!                26      - sfc nir beam dnwd sw radiation flux          !
+!                27      - sfc nir diff dnwd sw radiation flux          !
 !                28      - toa clear sky upwd lw radiation flux         !
 !                29      - toa clear sky upwd sw radiation flux         !
 !                30      - sfc clear sky dnwd lw radiation flux         !
 !                31      - sfc clear sky upwd sw radiation flux         !
 !                32      - sfc clear sky dnwd sw radiation flux         !
 !                33      - sfc clear sky upwd lw radiation flux         !
-!                34      - aeros opt depth at 550nm (all components)    !
-!                35      - aeros opt depth at 550nm for du component    !
-!                36      - aeros opt depth at 550nm for bc component    !
-!                37      - aeros opt depth at 550nm for oc component    !
-!                38      - aeros opt depth at 550nm for su component    !
-!                39      - aeros opt depth at 550nm for ss component    !
+!optional        34      - aeros opt depth at 550nm (all components)    !
+!               ....     - optional for test and future use             !
 !                                                                       !
 !    optional output variables:                                         !
 !      htrswb(IX,LM,NBDSW) : spectral band total sky sw heating rate    !
@@ -954,6 +947,7 @@
      &                       CZMEAN
 
       real (kind=kind_phys), dimension(IM,LM+LTP,NF_CLDS) :: clouds
+      real (kind=kind_phys), dimension(IM,LM+LTP,NF_CLDS) :: dummys
       real (kind=kind_phys), dimension(IM,LM+LTP,NF_VGAS) :: gasvmr
       real (kind=kind_phys), dimension(IM,       NF_ALBD) :: sfcalb
 !     real (kind=kind_phys), dimension(IM,       NSPC1)   :: aerodp      ! optn for aod output
@@ -1174,7 +1168,7 @@
 
 !  --- ...  compute relative humidity
 
-          ! Note for qs (**Saturation specific humidity):
+          ! Note for qs (**Saturation specific humidity): 
           !   ** prsl unit in NMMB is kPa
           !   it can be done in es (**Saturation vapor pressure) for 0.001*fpvs
           !   or multiple every prsl by 1000
@@ -1213,7 +1207,7 @@
           qstl(i,lyb) = qstl(i,lya)
         enddo
 
-       ! do j = 1, NTRAC     ! NTRAC=3 as defined in physpara_nmmb.f
+       ! do j = 1, NTRAC     ! NTRAC=3 as defined in physparam_nmmb.f
           do i = 1, IM
 !  ---  note: may need to take care the top layer mount
             tracer1(i,lyb,1) = tracer1(i,lya,1)   ! ozone
@@ -1563,8 +1557,6 @@
 
       endif                                ! end_if_ntcw
 
-
-
 !==========================================================================
 !  Albedo (ETA era) calculation from 2012 RRTM  (Lin, 20130225)
 !==========================================================================
@@ -1680,7 +1672,7 @@
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
      &       clouds,icsdsw,faersw,sfcalb,                               &
      &       coszen,solcon, nday,idxday,                                &
-     &       IM, LMK, LMP, ivflip, lprnt,                               &
+     &       IM, LMK, LMP, lprnt,                                       &
 !  ---  outputs:
      &       htswc,topfsw,sfcfsw                                        &
 !! ---  optional:
@@ -1705,7 +1697,7 @@
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
      &       clouds,icsdsw,faersw,sfcalb,                               &
      &       coszen,solcon, nday,idxday,                                &
-     &       IM, LMK, LMP, ivflip, lprnt,                               &
+     &       IM, LMK, LMP, lprnt,                                       &
 !  ---  outputs:
      &       htswc,topfsw,sfcfsw                                        &
 !! ---  optional:
@@ -1714,8 +1706,6 @@
      &     )
 
           endif
-
-        ! if (lprnt) write(0,*)' htswc=',htswc(ipt,1:5)
 
           do k = 1, LM
             k1 = k + kd      ! kd: index diff between in/out and local
@@ -1770,6 +1760,23 @@
 
 !     print *,' in grrad : calling lwrad'
 
+!==========================================================================
+!  Special for the "progcld2" lwrad to enhence the emissivity
+!  it is similar to *1.5 to the odcld in radlw   (Hsin-Mu Lin, 20140520)
+!==========================================================================
+
+        if (np3d == 3) then          ! ferrier's microphysics
+          do k = 1, LMK
+            do i = 1, IM
+              dummys(i,k,2) = clouds(i,k,2)
+              dummys(i,k,4) = clouds(i,k,4)
+              clouds(i,k,2) = dummys(i,k,2)*1.5  ! cloud liquid path 
+              clouds(i,k,4) = dummys(i,k,4)*1.5  ! cloud ice path
+            enddo
+          enddo
+        endif
+
+!==========================================================================
 
         if ( present(htrlwb) ) then
 
@@ -1777,7 +1784,7 @@
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
      &       clouds,icsdlw,faerlw,sfcemis,tsfg,                         &
-     &       IM, LMK, LMP, ivflip, lprnt,                               &
+     &       IM, LMK, LMP, lprnt,                                       &
 !  ---  outputs:
      &       htlwc,topflw,sfcflw                                        &
 !! ---  optional:
@@ -1801,7 +1808,7 @@
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
      &       clouds,icsdlw,faerlw,sfcemis,tsfg,                         &
-     &       IM, LMK, LMP, ivflip, lprnt,                               &
+     &       IM, LMK, LMP, lprnt,                                       &
 !  ---  outputs 
      &       htlwc,topflw,sfcflw                                        &
 !! ---  optional:
@@ -1809,7 +1816,6 @@
      &     )
 
         endif
-        ! if (lprnt) write(0,*)' htlwc=',htlwc(ipt,1:5)
 
         do i = 1, IM
           semis (i) = sfcemis(i)
@@ -1825,14 +1831,24 @@
           enddo
         enddo
 
+!==========================================================================
+!   return *1.5 clouds to original value  (Hsin-Mu Lin, 20140520)
+!==========================================================================
+
+        if (np3d == 3) then          ! ferrier's microphysics
+          do k = 1, LMK
+            do i = 1, IM
+              clouds(i,k,2) = dummys(i,k,2)  ! cloud liquid path
+              clouds(i,k,4) = dummys(i,k,4)  ! cloud ice path
+            enddo
+          enddo
+        endif
+
+!==========================================================================
+
       endif                                ! end_if_lslwr
 
 !  --- ...  collect the fluxr data for wrtsfc
-
-!  ---  in previous codes, fluxr(17) contained various attempts at
-!        calculating surface albedo...it has proven unsatisfactory!!
-!       so now, sfc albedo will be calculated in wrtsfc as the
-!        ratio of the time-mean of the sfcsw fluxes .. kac+mi dec98
 
       if (lssav) then
 
@@ -1851,9 +1867,6 @@
           enddo
         endif
 
-!  ---  proper diurnal sw wgt..coszro=mean cosz over daylight, while
-!       coszdg= mean cosz over entire interval
-
 !  ---  save sw toa and sfc fluxes with proper diurnal sw wgt. coszen=mean cosz over daylight
 !       part of sw calling interval, while coszdg= mean cosz over entire interval
 
@@ -1865,17 +1878,16 @@
               fluxr(i,2 ) = fluxr(i,2)  + topfsw(i)%upfxc * tem0d  ! total sky top sw up
               fluxr(i,3 ) = fluxr(i,3)  + sfcfsw(i)%upfxc * tem0d  ! total sky sfc sw up
               fluxr(i,4 ) = fluxr(i,4)  + sfcfsw(i)%dnfxc * tem0d  ! total sky sfc sw dn
-              fluxr(i,18) = fluxr(i,18) + topfsw(i)%dnfxc * tem0d  ! total sky top sw dn
 !  ---  sw uv-b fluxes
               fluxr(i,21) = fluxr(i,21) + scmpsw(i)%uvbfc * tem0d  ! total sky uv-b sw dn
               fluxr(i,22) = fluxr(i,22) + scmpsw(i)%uvbf0 * tem0d  ! clear sky uv-b sw dn
 !  ---  sw toa incoming fluxes
-            !  fluxr(i,23) = fluxr(i,23) + topfsw(i)%dnfxc * tem0d  ! top sw dn
+              fluxr(i,23) = fluxr(i,23) + topfsw(i)%dnfxc * tem0d  ! top sw dn
 !  ---  sw sfc flux components
-            !  fluxr(i,24) = fluxr(i,24) + scmpsw(i)%visbm * tem0d  ! uv/vis beam sw dn
-            !  fluxr(i,25) = fluxr(i,25) + scmpsw(i)%visdf * tem0d  ! uv/vis diff sw dn
-            !  fluxr(i,26) = fluxr(i,26) + scmpsw(i)%nirbm * tem0d  ! nir beam sw dn        !?
-            !  fluxr(i,27) = fluxr(i,27) + scmpsw(i)%nirdf * tem0d  ! nir diff sw dn        !?
+              fluxr(i,24) = fluxr(i,24) + scmpsw(i)%visbm * tem0d  ! uv/vis beam sw dn
+              fluxr(i,25) = fluxr(i,25) + scmpsw(i)%visdf * tem0d  ! uv/vis diff sw dn
+              fluxr(i,26) = fluxr(i,26) + scmpsw(i)%nirbm * tem0d  ! nir beam sw dn        !?
+              fluxr(i,27) = fluxr(i,27) + scmpsw(i)%nirdf * tem0d  ! nir diff sw dn        !?
 !  ---  sw clear-sky fluxes
               fluxr(i,29) = fluxr(i,29) + topfsw(i)%upfx0 * tem0d  ! clear sky top sw up
               fluxr(i,31) = fluxr(i,31) + sfcfsw(i)%upfx0 * tem0d  ! clear sky sfc sw up
@@ -1888,10 +1900,8 @@
 
         if (lsswr .or. lslwr) then
           do i = 1, IM
-            ! fluxr(i,17) = fluxr(i,17) + raddt * cldsa(i,4)             !?
-            ! fluxr(i,18) = fluxr(i,18) + raddt * cldsa(i,5)             !?
-            fluxr(i,26) = fluxr(i,26) + raddt * cldsa(i,4)
-            fluxr(i,27) = fluxr(i,27) + raddt * cldsa(i,5)
+            fluxr(i,17) = fluxr(i,17) + raddt * cldsa(i,4)             !?
+            fluxr(i,18) = fluxr(i,18) + raddt * cldsa(i,5)             !?
           enddo
 
 !  ---  save cld frac,toplyr,botlyr and top temp, note that the order

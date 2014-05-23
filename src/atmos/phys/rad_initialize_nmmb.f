@@ -103,7 +103,7 @@
      &            iaermdl, laswflg, lalwflg, lavoflg, icldflg, icmphys, &
      &            iovrsw , iovrlw , lsashal, lcrick , lcnorm , lnoprec, &
      &            ialbflg, iemsflg, isubcsw, isubclw, ivflip , ipsd0,   &
-     &            kind_phys
+     &            ilwcice, kind_phys
 
       use module_radiation_driver_nmmb, only : radinit_nmmb
 !
@@ -174,6 +174,11 @@
 
       ivflip = iflip                    ! vertical index direction control flag
 
+!  --- for nmmb LW as description in "physparam" (20140521, Lin)
+
+      ilwcice = 1
+
+
 ! ! ---  assign initial permutation seed for mcica cloud-radiation
   !    if ( isubc_sw>0 .or. isubc_lw>0 ) then
 ! !      ipsd0 = 17*idate(1)+43*idate(2)+37*idate(3)+23*idate(4) + ipsd0
@@ -190,6 +195,9 @@
      &          ' isubclw=',isubc_lw,' iflip=',iflip,'  me=',me
         print *,' sashal=',sashal,' crick=',crick_proof,                &
      &          ' ccnorm=',ccnorm,' norad=',norad_precip
+
+        print *,'=== lw optical property for ice clouds ==='
+        print *,' ilwcice=',ilwcice
       endif
 
       call radinit_nmmb                                                 &

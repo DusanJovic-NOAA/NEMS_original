@@ -22,8 +22,8 @@
 
       use module_radiation_driver_nmmb,  only : grrad_nmmb
 
-      use module_radsw_parameters_nmmb,  only : topfsw_type, sfcfsw_type
-      use module_radlw_parameters_nmmb,  only : topflw_type, sfcflw_type
+      use module_radsw_parameters,  only : topfsw_type, sfcfsw_type
+      use module_radlw_parameters,  only : topflw_type, sfcflw_type
 
 !-----------------------------------------------------------------------
 !

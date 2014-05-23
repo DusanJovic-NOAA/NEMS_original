@@ -117,10 +117,10 @@
       use physcons, only : con_pi, con_rd, con_g, con_t0c, con_c,       &
      &                     con_boltz, con_plnk, con_fvirt
 
-      use module_iounitdef,             only : NIAERCM
-      use module_radsw_parameters_nmmb, only : NBDSW,  wvnsw1=>wvnum1,  &
-     &                                         NSWSTR, wvnsw2=>wvnum2
-      use module_radlw_parameters_nmmb, only : NBDLW,  wvnlw1, wvnlw2
+      use module_iounitdef,        only : NIAERCM
+      use module_radsw_parameters, only : NBDSW,  wvnsw1=>wvnum1,       &
+     &                                    NSWSTR, wvnsw2=>wvnum2
+      use module_radlw_parameters, only : NBDLW,  wvnlw1, wvnlw2
 !
       implicit   none
 !
@@ -226,10 +226,7 @@
       integer, allocatable, save :: ivolae(:,:,:)
 
 !  ---  static control variables:
-      integer, save :: kyrstr  = 0
-      integer, save :: kyrend  = 0
-      integer, save :: kyrsav  = 0
-      integer, save :: kmonsav = 0
+      integer :: kyrstr, kyrend, kyrsav, kmonsav
 
 ! --------------------------------------------------------------------- !
 !   section-3 : module variables for opac climatological aerosols       !
@@ -500,6 +497,11 @@
 !
 !===>  ...  begin here
 !
+      kyrstr  = 1
+      kyrend  = 1
+      kyrsav  = 1
+      kmonsav = 1
+
 !  --- ...  write aerosol parameter configuration to output logs
 
       if ( me == 0 ) then

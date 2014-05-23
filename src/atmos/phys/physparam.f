@@ -76,7 +76,7 @@
                                         ! =0:input cld opt depth, ignoring ilwcice setting
                                         ! =1:input cwp,rew, use hu and stamnes(1993) method
                                         ! =2:not defined yet
-      integer,parameter :: ilwcice = 3  ! lw optical property for ice clouds (only ilwcliq>0)
+      integer,save      :: ilwcice = 3  ! lw optical property for ice clouds (only ilwcliq>0)
                                         ! =0:not defined yet
                                         ! =1:input cip,rei, use ebert and curry (1992) method
                                         ! =2:input cip,rei, use streamer (1996) method
