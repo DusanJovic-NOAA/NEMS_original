@@ -6186,7 +6186,7 @@
         READ(UNIT=STRING,FMT=*,iostat=IOS)VBL_NAME                      &  !<-- The variable's name in the text file.
                                          ,CH_B                          &  !<-- The flag for nest BC vbls in the text file.
                                          ,CH_M                          &  !<-- Not relevant here (flag for moving nests)
-                                         ,CH_2                             !<-- The flag for 2-way vbls in the text file.
+                                         ,CH_2                             !<-- Not relevant here (flag for 2-way vbls)
 !
         CALL FIND_VAR_INDX(VBL_NAME,VARS,UBOUND_VARS,N)
 !
@@ -6243,7 +6243,7 @@
 !                                   ,name       =FIELD_NAME             &  !<-- The name of this variable
 !                                   ,indexFlag  =ESMF_INDEX_GLOBAL      &  !<-- The variable uses global indexing
 !                                   ,rc         =RC)
-            WRITE(0,*)' MUST ADD THE CAPABILITY TO USE 2-D INTEGERS IN 2WAY/BC UPDATES!!'
+            WRITE(0,*)' The scheme does not consider integers IN BC updates!!'
             WRITE(0,*)' Variable name is ',VARS(N)%VBL_NAME,' for variable #',N
             WRITE(0,*)' H_OR_V_INT=',H_OR_V_INT
             WRITE(0,*)' ABORT!!'
@@ -6417,9 +6417,9 @@
 !***  objects.  All nests use the same set of boundary variables
 !***  that are specified by the user in the external text file.
 !
-!***  The upper parent domain uses its own set of boundary variables
-!***  updated from the BC files generated during preprocessing.
-!***  They are currently hardwired to PD,T,Q,CW,U,V.
+!***  If the upper parent domain is regional then it uses its own set
+!***  of boundary variables updated from the BC files generated during
+!***  preprocessing.  They are currently hardwired to PD,T,Q,CW,U,V.
 !-----------------------------------------------------------------------
 !
       IF(MY_DOMAIN_ID==1)THEN                                              !<-- The uppermost parent will hardwire its BC vbls
@@ -7525,13 +7525,19 @@
 !
           IF(ASSOCIATED(VARS(N)%I2D))THEN                                  !<-- 2-D integer array on mass points
 !
-            FIELD_X=ESMF_FieldCreate(grid       =GRID_DOMAIN            &  !<-- The ESMF Grid for this domain
-                                    ,farray     =VARS(N)%I2D            &  !<-- Nth variable in the VARS array
-                                    ,totalUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
-                                    ,totalLWidth=(/IHALO,JHALO/)        &  !<-- Lower bound of halo region
-                                    ,name       =FIELD_NAME             &  !<-- The name of this variable
-                                    ,indexFlag  =ESMF_INDEX_GLOBAL      &  !<-- The variable uses global indexing
-                                    ,rc         =RC)
+!           FIELD_X=ESMF_FieldCreate(grid       =GRID_DOMAIN            &  !<-- The ESMF Grid for this domain
+!                                   ,farray     =VARS(N)%I2D            &  !<-- Nth variable in the VARS array
+!                                   ,totalUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
+!                                   ,totalLWidth=(/IHALO,JHALO/)        &  !<-- Lower bound of halo region
+!                                   ,name       =FIELD_NAME             &  !<-- The name of this variable
+!                                   ,indexFlag  =ESMF_INDEX_GLOBAL      &  !<-- The variable uses global indexing
+!                                   ,rc         =RC)
+!
+            WRITE(0,*)' The scheme does not consider integer variables.'
+            WRITE(0,*)' Variable name is ',VARS(N)%VBL_NAME,' for variable #',N
+            WRITE(0,*)' H_OR_V_INT=',H_OR_V_INT
+            WRITE(0,*)' ABORT!!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
 !
 !----------
 !***  Real
@@ -7547,7 +7553,7 @@
                                     ,indexFlag  =ESMF_INDEX_GLOBAL      &  !<-- The variable uses global indexing
                                     ,rc         =RC)
 !
-            NLEV=NLEV+1                                                    !<-- Sum the levels for all 2-way variables.
+            NLEV=NLEV+1                                                    !<-- Sum the levels for all real 2-way variables.
 !
 !---------------------
 !***  3-D H Variables
@@ -7569,7 +7575,7 @@
                                     ,indexFlag      =ESMF_INDEX_GLOBAL              &  !<-- The variable uses global indexing
                                     ,rc             =RC)
 !
-            NLEV=NLEV+LM                                                   !<-- Sum the levels for all 2-way variables.
+            NLEV=NLEV+LM                                                   !<-- Sum the levels for all real 2-way variables.
 !
 !---------------------
 !***  4-D H Variables
@@ -7582,7 +7588,7 @@
 !----------------
 !
           ELSE
-            WRITE(0,*)' SELECTED UPDATE H VARIABLE IS NOT 2-D OR 3-D.'
+            WRITE(0,*)' Selected update H variable is NOT 2-D,3-D, OR 4-D Real.'
             WRITE(0,*)' Variable name is ',VARS(N)%VBL_NAME,' for variable #',N
             WRITE(0,*)' H_OR_V_INT=',H_OR_V_INT
             WRITE(0,*)' ABORT!!'

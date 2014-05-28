@@ -142,7 +142,7 @@ For 2-way nesting:
 (1) Set 'nest_mode' to '2-way' in all configure files.  The integer value of each domain's generation must be given to the variable
     called 'generation'.  The generation variable is ignored in 1-way mode.
 
-(2) The nests.txt file must be present in the working directory.  The file's 2nd column specifies which of the Solver's internal state
+(2) The nests.txt file must be present in the working directory.  The file's 3rd column specifies which of the Solver's internal state
     variables will be used in the 2-way exchange from child to parent.  Currently 2-D and 3-D real variables may be selected.  As
     stated in that file's instructions, an H is used to specify that the given H-pt variable is to be part of the 2-way exchange 
     while a V indicates that the given V-pt variable is to be part of the 2-way exchange.

@@ -1824,16 +1824,16 @@
 !***  used to transfer the data to the lead Write task.
 !-----------------------------------------------------------------------
 !
+          LENGTH=IM*(JEND_WRITE-JSTA_WRITE+1)
+!
           IF(OUTPUT_FLAG=='History')THEN
 !
-            LENGTH=IM*(JEND_WRITE-JSTA_WRITE+1)*KOUNT_I2D(1)
             ALLOCATE(wrt_int_state%WRITE_SUBSET_I(1:IM,JSTA_WRITE:JEND_WRITE  &
                                                  ,KOUNT_I2D(1)))
             ALLOCATE(wrt_int_state%BUFF_INT(LENGTH))
             WRITE_SUBSET_I=>wrt_int_state%WRITE_SUBSET_I
             BUFF_INT=>wrt_int_state%BUFF_INT
 !
-            LENGTH=IM*(JEND_WRITE-JSTA_WRITE+1)*KOUNT_R2D(1)
             ALLOCATE(wrt_int_state%WRITE_SUBSET_R(1:IM,JSTA_WRITE:JEND_WRITE  &
                                                  ,KOUNT_R2D(1)))
             ALLOCATE(wrt_int_state%BUFF_REAL(LENGTH))
@@ -1841,14 +1841,13 @@
             BUFF_REAL=>wrt_int_state%BUFF_REAL
 !
           ELSEIF(OUTPUT_FLAG=='Restart')THEN
-            LENGTH=IM*(JEND_WRITE-JSTA_WRITE+1)*KOUNT_I2D(1)
+!
             ALLOCATE(wrt_int_state%RST_WRITE_SUBSET_I(1:IM,JSTA_WRITE:JEND_WRITE  &
                                                      ,KOUNT_I2D(1)))
             ALLOCATE(wrt_int_state%RST_BUFF_INT(LENGTH))
             WRITE_SUBSET_I=>wrt_int_state%RST_WRITE_SUBSET_I
             BUFF_INT=>wrt_int_state%RST_BUFF_INT
 !
-            LENGTH=IM*(JEND_WRITE-JSTA_WRITE+1)*KOUNT_R2D(1)
             ALLOCATE(wrt_int_state%RST_WRITE_SUBSET_R(1:IM,JSTA_WRITE:JEND_WRITE  &
                                                      ,KOUNT_R2D(1)))
             ALLOCATE(wrt_int_state%RST_BUFF_REAL(LENGTH))

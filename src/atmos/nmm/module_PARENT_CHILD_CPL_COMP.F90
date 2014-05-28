@@ -99,8 +99,6 @@
                               ,PARENT_READS_MOVING_CHILD_TOPO           &
                               ,PARENT_UPDATES_HALOS                     &
                               ,PARENT_UPDATES_MOVING                    &
-                              ,PTASK_LIMITS                             &
-                              ,REAL_DATA_2D                             &
                               ,STENCIL_H_EVEN                           &
                               ,STENCIL_V_EVEN                           &
                               ,STENCIL_SFC_H_EVEN                       &
@@ -3851,7 +3849,9 @@
 !***  the children will use to hold the indices of the points to
 !***  be updated on each parent task.  The use of the upper dimension
 !***  of 4 in the following allocations is a reflection of the fact
-!***  that a nest task can update no more than 4 parent task subdomains.
+!***  that a nest task can update no more than 4 parent task subdomains
+!***  under the assumption that parent task subdomains must always 
+!***  cover a larger physical area than child task subdomains.
 !-----------------------------------------------------------------------
 !
         IF(NEST_MODE=='2-way')THEN
@@ -6592,7 +6592,7 @@
 !
         CALL ESMF_AttributeGet(FIELDBUNDLE=BUNDLE_2WAY                  &  !<-- The ESMF Bundle of 2-way exchange variables
                               ,name ='NLEV 2-way'                       &  !<-- Name of the attribute to extract
-                              ,value=NLEV_2WAY                          &  !<-- Total # of levels in all 2-way exchange variables
+                              ,value=NLEV_2WAY                          &  !<-- Total # of levels in all Real 2-way exch variables
                               ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -10566,8 +10566,8 @@
 !
       INTEGER(kind=KINT) :: ALLCLEAR_SIGNAL_TAG                         &
                            ,CHILDTASK,CHILDTASK_0,COMM_FCST_TASKS       &
-                           ,ID_CHILD,KNT_LEV,MY_DOMAIN_ID,MYPE_LOCAL    &
-                           ,N,N_ALL,NCHILD_TASKS,NM,NMX,NPTS2           &
+                           ,ID_CHILD,L1,L2,MY_DOMAIN_ID,MYPE_LOCAL      &
+                           ,N,N_ALL,NCHILD_TASKS,NL,NM,NMX,NPTS2        &
                            ,NPTS_UPDATE_HORIZ,NPTS_UPDATE_TOTAL         &
                            ,NT,NTIMESTEP,NTIMESTEP_CHILD,NUM_DIMS,NV    &
                            ,PARENT_TAG,SFC_TAG,TASK_ID,UPDATE_TAG
@@ -10588,6 +10588,10 @@
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: VAR_2WAY
 !
       REAL(kind=KFPT),DIMENSION(:,:),ALLOCATABLE :: CHILD_SFC_ON_PARENT_GRID
+!
+      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: VAR_PARENT_2D
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: VAR_PARENT_3D,VAR_3D
+      REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: VAR_PARENT_4D
 !
       LOGICAL(kind=KLOG),SAVE :: ALLCLEAR_SIGNAL=.TRUE.
 !
@@ -10671,60 +10675,6 @@
                         ,rc          =rc)
 !
       NTIMESTEP=NTIMESTEP_ESMF                                             !<-- The current parent timestep
-!
-      KNT_LEV=0
-!
-!-----------------------------------------------------------------------
-!***  To know the total number of words being sent to this parent task
-!***  from the child tasks we need to know the number of 2D levels in
-!***  all the update variables.  This would be the number of 2-D
-!***  exchange variables plus LM times the number of 3-D exchange
-!***  variables.  So check each of the variables in the 2-way Bundle
-!***  that holds the pointers to all the exchange variables.
-!-----------------------------------------------------------------------
-!
-      vars: DO NV=1,NVARS_2WAY_UPDATE                                     !<-- Loop over all parent exchange variables updated by the child.
-!
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Field from the Bundle of 2-way Vars"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_FieldBundleGet(FIELDBUNDLE=BUNDLE_2WAY              &  !<-- Bundle holding pointers to the 2-way exchange variables
-                                ,fieldIndex =NV                       &  !<-- Index of the Field in the Bundle
-                                ,field      =HOLD_FIELD               &  !<-- Field NV in the Bundle
-                                ,rc         =RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Info about this 2-way Variable"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_FieldGet(field   =HOLD_FIELD                        &  !<-- Field NV in the Bundle
-                          ,dimCount=NUM_DIMS                          &  !<-- Is this Field 2-D or 3-D?
-                          ,typeKind=DATATYPE                          &  !<-- Does the Field contain an integer or real array?
-                          ,name    =FIELD_NAME                        &  !<-- This Field's name
-                          ,rc      =RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        IF(NUM_DIMS==2)THEN
-          KNT_LEV=KNT_LEV+1
-        ELSEIF(NUM_DIMS==3)THEN
-          KNT_LEV=KNT_LEV+LM
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!
-      ENDDO vars
 !
 !-----------------------------------------------------------------------
 !***  At this point all the children's 2-way data is ready to be 
@@ -10935,7 +10885,7 @@
 !
           IF(NT>1)PTR=>PTR%NEXT_LINK                                       !<-- Advance through this child's tasks that are sending data
 !
-          NPTS_UPDATE_TOTAL=KNT_LEV*PTR%NUM_PTS_UPDATE_HZ                  !<-- Total # of values updated by child N's task NT.
+          NPTS_UPDATE_TOTAL=NLEV_2WAY*PTR%NUM_PTS_UPDATE_HZ                !<-- Total # of values (Real) updated by child N's task NT.
           ALLOCATE(VAR_2WAY(1:NPTS_UPDATE_TOTAL))                          !<-- The recv buffer
 !
           TASK_ID=PTR%TASK_ID                                               !<-- Local rank of task NT among child N's fcst tasks.
@@ -11073,9 +11023,6 @@
       ENDIF task0_b
 !
 !-----------------------------------------------------------------------
-!***  Now that parent variables have been modified by its children
-!***  we need to update the parent's subdomain haloes.
-!-----------------------------------------------------------------------
 !
       CALL SET_DOMAIN_SPECS(ITS,ITE,JTS,JTE                             &
                            ,IMS,IME,JMS,JME                             &
@@ -11088,14 +11035,128 @@
                            ,NUM_PES_FCST                                &
                             )
 !
-      CALL HALO_EXCH(T,LM                                               &
-                    ,Q,LM                                               &
-                    ,CW,LM                                              &
-                    ,2,2)
+!-----------------------------------------------------------------------
+!***  Now that parent variables have been modified by each of the
+!***  children who have contributions the parent's halos need to
+!***  be updated.  Therefore extract each of the 2-way exchange
+!***  variables from the Bundle and call the halo exchange.
+!-----------------------------------------------------------------------
 !
-      CALL HALO_EXCH(U,LM                                               &
-                    ,V,LM                                               &
-                    ,2,2)
+      vars: DO NV=1,NVARS_2WAY_UPDATE                                     !<-- Loop over all parent exchange variables updated by the child.
+!
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Field from the Bundle of 2-way Vars"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_FieldBundleGet(FIELDBUNDLE=BUNDLE_2WAY              &  !<-- Bundle holding pointers to the 2-way exchange variables
+                                ,fieldIndex =NV                       &  !<-- Index of the Field in the Bundle
+                                ,field      =HOLD_FIELD               &  !<-- Field NV in the Bundle
+                                ,rc         =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Extract Info about this 2-way Variable"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_FieldGet(field   =HOLD_FIELD                        &  !<-- Field NV in the Bundle
+                          ,dimCount=NUM_DIMS                          &  !<-- Is this Field 2-D or 3-D?
+                          ,typeKind=DATATYPE                          &  !<-- Does the Field contain an integer or real array?
+                          ,name    =FIELD_NAME                        &  !<-- This Field's name
+                          ,rc      =RC )
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!-----------------------------------------------------------------------
+!
+        IF(NUM_DIMS==2)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Extract Real 2-way 2-D Array from the Field"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field that holds the exchange variable pointer
+                            ,localDe  =0                                &
+                            ,farrayPtr=VAR_PARENT_2D                    &  !<-- Put the pointer here
+                            ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL HALO_EXCH(VAR_PARENT_2D,LM,2,2)
+!
+!-----------------------------------------------------------------------
+!
+        ELSEIF(NUM_DIMS>=3)THEN
+!
+!-----------------------------------------------------------------------
+!
+          IF(NUM_DIMS==3)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Real 2-way 3-D Array from the Field"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field that holds the exchange variable pointer
+                              ,localDe  =0                                &
+                              ,farrayPtr=VAR_PARENT_3D                    &  !<-- Put the pointer here
+                              ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            L1=1
+            L2=1
+            VAR_3D=>VAR_PARENT_3D
+!
+          ELSEIF(NUM_DIMS==4)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Real 2-way 4-D Array from the Field"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field that holds the exchange variable pointer
+                              ,localDe  =0                                &
+                              ,farrayPtr=VAR_PARENT_4D                    &  !<-- Put the pointer here
+                              ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            L1=LBOUND(VAR_PARENT_4D,4)
+            L2=UBOUND(VAR_PARENT_4D,4)
+!
+          ENDIF
+!
+          DO NL=L1,L2
+!
+            IF(NUM_DIMS==4)THEN
+              VAR_3D=>VAR_PARENT_4D(:,:,:,NL)                                !<-- Point at NL'th 3-D array in the 4-D variable.
+            ENDIF
+!
+            CALL HALO_EXCH(VAR_3D,LM,2,2)
+!
+          ENDDO
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!
+      ENDDO vars
 !
 !-----------------------------------------------------------------------
 !
@@ -11146,10 +11207,10 @@
 !
       INTEGER(kind=KINT),SAVE :: H_OR_V_INT,NTOT,NTOT_H_V
 !
-      INTEGER(kind=KINT) :: KNT_LEV,MY_DOMAIN_ID,MY_PARENT_ID           &
+      INTEGER(kind=KINT) :: L1,L2,MY_DOMAIN_ID,MY_PARENT_ID             &
                            ,N,N_STENCIL,N_STENCIL_SFC                   &
-                           ,N1,N1P,N2,N2P,NT,NTAG,NTIMESTEP,NUM_DIMS    &
-                           ,NV,NVERT,NX,NY
+                           ,N1,N1P,N2,N2P,NL,NT,NTAG,NTIMESTEP          &
+                           ,NUM_DIMS,NV,NVERT,NX,NY
 !
       INTEGER(kind=KINT) :: I_SW_PARENT_CURRENT_X                       &
                            ,J_SW_PARENT_CURRENT_X
@@ -11175,6 +11236,8 @@
 !
       REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: ARRAY_2WAY_R3D        &
                                                  ,VAR_CHILD
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: ARRAY_2WAY_R4D
 !
       LOGICAL(kind=KLOG) :: INTERPOLATE_SFC
 !
@@ -11495,7 +11558,6 @@
 !-----------------------------------------------------------------------
 !
         N2=0
-        KNT_LEV=0
         BEGIN_H=.TRUE.
         BEGIN_V=.TRUE.
 !
@@ -11564,81 +11626,8 @@
           ENDIF
 !
 !-----------------------------------------------------------------------
-!
-          dtype: IF(DATATYPE==ESMF_TYPEKIND_R4)THEN                        !<-- Is this a Real 2-way variable?
-!
-            ndims: IF(NUM_DIMS==3)THEN                                     !<-- Is this a 3-D 2-way variable?
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-              MESSAGE_CHECK="Extract 2-way Real 3-D Array from the Field"
-!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-              CALL ESMF_FieldGet(field    =HOLD_FIELD                   &  !<-- Field that holds the data pointer
-                                ,localDe  =0                            &
-                                ,farrayPtr=ARRAY_2WAY_R3D               &  !<-- Use this 3-D pointer to the variable.
-                                ,rc       =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-              NVERT=LM
-              KNT_LEV=KNT_LEV+LM
-              VAR_CHILD=>ARRAY_2WAY_R3D
-!
-!-----------------------------------------------------------------------
-!
-            ELSEIF(NUM_DIMS==2)THEN
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-              MESSAGE_CHECK="Extract 2-way Real 2-D Array from the Field"
-!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-              CALL ESMF_FieldGet(field    =HOLD_FIELD                   &  !<-- Field that holds the 2-D data pointer
-                                ,localDe  =0                            &
-                                ,farrayPtr=ARRAY_2WAY_R2D               &  !<-- Use this 2-D pointer to the variable.
-                                ,rc       =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-              NVERT=1
-              KNT_LEV=KNT_LEV+1
-!
-              LBND=LBOUND(ARRAY_2WAY_R2D)
-              LB1=LBND(1)
-              LB2=LBND(2)
-              UBND=UBOUND(ARRAY_2WAY_R2D)
-              UB1=UBND(1)
-              UB2=UBND(2)
-!
-              ALLOCATE(VAR_CHILD(LB1:UB1,LB2:UB2,1))
-              DO NY=LB2,UB2
-              DO NX=LB1,UB1
-                VAR_CHILD(NX,NY,1)=ARRAY_2WAY_R2D(NX,NY)
-              ENDDO
-              ENDDO
-!
-!-----------------------------------------------------------------------
-!
-            ENDIF ndims
-!
-!-----------------------------------------------------------------------
-!
-          ELSEIF(DATATYPE==ESMF_TYPEKIND_I4)THEN
-!
-            WRITE(0,10001)
-10001       FORMAT(' Must add the use of Integer 2-way exchange variables')
-            WRITE(0,*)' ABORT!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-!
-!-----------------------------------------------------------------------
-!
-          ENDIF dtype
-!
+!***  Point at the child I,J points used for interpolation to the
+!***  appropriate parent tasks' H and V points.
 !-----------------------------------------------------------------------
 !
           IF(H_OR_V=='H')THEN
@@ -11654,12 +11643,6 @@
           ENDIF
 !
 !-----------------------------------------------------------------------
-!
-          N1=N2+1                                                          !<-- Starting word location of Real vbl #NV to parent task NT
-          N2=N1+NPTS_UPDATE_ON_PARENT_TASKS(NT)*NVERT-1                    !<-- Ending word location of Real vbl #NV to parent task NT
-          VAR_PARENT=>cc%UPDATE_PARENT_2WAY(NT)%DATA(N1:N2)                !<-- Updated values for Real variable #NV on parent task NT
-!
-!-----------------------------------------------------------------------
 !***  The nest also interpolates its PD and sfc geopotential to parent
 !***  H and V points so the parent will be able to adjust the update
 !***  variables when the parent and nest surface elevations differ.
@@ -11667,14 +11650,14 @@
 !
           INTERPOLATE_SFC=.FALSE.
 !
-          IF(H_OR_V=='H'.AND.BEGIN_H)THEN                                  !<-- Child generates FIS,PD on H only once for parent task NT
+          IF(H_OR_V=='H'.AND.BEGIN_H)THEN                                  !<-- Child generates FIS,PD on H only once per vbl for parent task NT
             INTERPOLATE_SFC=.TRUE.
             N1P=1                                                          !<-- Starting word location for FIS,PD on H for parent task NT
             N2P=NPTS_UPDATE_ON_PARENT_TASKS(NT)                            !<-- Ending word location for FIS,PD on H for parent task NT
             CHILD_SFC_INTERP=>cc%CHILD_SFC_ON_PARENT(NT)%DATA(N1P:N2P,1:2) !<-- Child's FIS,PD on parent task NT's update H points
             N_STENCIL_SFC=N_STENCIL_SFC_H                                  !<-- Stencil width for interpolating child FIS,PD to parent H
 !
-          ELSEIF(H_OR_V=='V'.AND.BEGIN_V)THEN                              !<-- Child generates FIS,PD on V only once for parent task NT
+          ELSEIF(H_OR_V=='V'.AND.BEGIN_V)THEN                              !<-- Child generates FIS,PD on V only once per vbl for parent task NT
             INTERPOLATE_SFC=.TRUE.
             N1P=NPTS_UPDATE_ON_PARENT_TASKS(NT)+1                          !<-- Starting word location for FIS,PD on V for parent task NT
             N2P=N1P+NPTS_UPDATE_ON_PARENT_TASKS(NT)-1                      !<-- Ending word location for FIS,PD on V for parent task NT
@@ -11685,19 +11668,132 @@
 !
 !-----------------------------------------------------------------------
 !
-          CALL GENERATE_2WAY_DATA(VAR_CHILD                             &  !<-- Child variable to be interpolated
-                                 ,PD                                    &  !<-- The child's PD array
-                                 ,FIS                                   &  !<-- The child's sfc geopotential array
-                                 ,IMS,IME,JMS,JME,NVERT                 &  !<-- This child task subdomain's memory dimensions
-                                 ,I_2WAY_X                              &  !<-- Child I at each parent update point (H or V)
-                                 ,J_2WAY_X                              &  !<-- Child J at each parent update point (H or V)
-                                 ,N_STENCIL                             &  !<-- Stencil width of child averaging for parent variable
-                                 ,N_STENCIL_SFC                         &  !<-- Stencil width of child averaging its FIS,PD to parent grid
-                                 ,NPTS_UPDATE_ON_PARENT_TASKS(NT)       &  !<-- # of update points (I,J) on parent task NT
-                                 ,VAR_PARENT                            &  !<-- Child values interpolated onto parent points for this vbl
-                                 ,INTERPOLATE_SFC                       &  !<-- Should PD and FIS be interpolated in this call?
-                                 ,CHILD_SFC_INTERP                      &  !<-- Child PD,FIS interpolated onto parent H then V points
-                                                    )
+          dtype: IF(DATATYPE==ESMF_TYPEKIND_R4)THEN                        !<-- Is this a Real 2-way variable?
+!
+!-----------------------------------------------------------------------
+!
+            ndims: IF(NUM_DIMS==2)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              MESSAGE_CHECK="Extract 2-way Real 2-D Array from the Field"
+!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              CALL ESMF_FieldGet(field    =HOLD_FIELD                   &  !<-- Field that holds the 2-D data pointer
+                                ,localDe  =0                            &
+                                ,farrayPtr=ARRAY_2WAY_R2D               &  !<-- Use this 2-D pointer to the variable.
+                                ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              L1=1
+              L2=1
+              NVERT=1
+!
+              LBND=LBOUND(ARRAY_2WAY_R2D)
+              LB1=LBND(1)
+              LB2=LBND(2)
+              UBND=UBOUND(ARRAY_2WAY_R2D)
+              UB1=UBND(1)
+              UB2=UBND(2)
+!
+              ALLOCATE(VAR_CHILD(LB1:UB1,LB2:UB2,1))
+              DO NY=LB2,UB2
+              DO NX=LB1,UB1
+                VAR_CHILD(NX,NY,1)=ARRAY_2WAY_R2D(NX,NY)                   !<-- For simplicity the generic exchange input is always 3-D
+              ENDDO
+              ENDDO
+!
+!-----------------------------------------------------------------------
+!
+            ELSEIF(NUM_DIMS==3)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              MESSAGE_CHECK="Extract 2-way Real 3-D Array from the Field"
+!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              CALL ESMF_FieldGet(field    =HOLD_FIELD                   &  !<-- Field that holds the data pointer
+                                ,localDe  =0                            &
+                                ,farrayPtr=ARRAY_2WAY_R3D               &  !<-- Use this 3-D pointer to the variable.
+                                ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              L1=1
+              L2=1
+              NVERT=LM                                                     !<-- Assume all 3-D exchange vbls have LM levels
+              VAR_CHILD=>ARRAY_2WAY_R3D
+!
+!-----------------------------------------------------------------------
+!
+            ELSEIF(NUM_DIMS==4)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              MESSAGE_CHECK="Extract 2-way Real 4-D Array from the Field"
+!             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              CALL ESMF_FieldGet(field    =HOLD_FIELD                   &  !<-- Field that holds the data pointer
+                                ,localDe  =0                            &
+                                ,farrayPtr=ARRAY_2WAY_R4D               &  !<-- Use this 4-D pointer to the variable.
+                                ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+              CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+              L1=LBOUND(ARRAY_2WAY_R4D,4)
+              L2=UBOUND(ARRAY_2WAY_R4D,4)
+              NVERT=LM                                                     !<-- Assume all 3-D exchange vbls have LM levels
+!
+!-----------------------------------------------------------------------
+!
+            ENDIF ndims
+!
+!-----------------------------------------------------------------------
+!
+          ELSEIF(DATATYPE==ESMF_TYPEKIND_I4)THEN
+!
+            WRITE(0,10001)
+10001       FORMAT(' Not considering the use of Integer 2-way exchange variables')
+            WRITE(0,*)' ABORT!!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+!
+!-----------------------------------------------------------------------
+!
+          ENDIF dtype
+!
+!-----------------------------------------------------------------------
+!
+          DO NL=L1,L2                                                      !<-- Loop through this variable's 4th dimension if it exists.
+!
+            IF(NUM_DIMS==4)THEN
+              VAR_CHILD=>ARRAY_2WAY_R4D(:,:,:,NL)                          !<-- Select the NL'th 3-D piece of the 4-D exchange variable
+            ENDIF
+!
+            N1=N2+1                                                        !<-- Starting word location of Real vbl #NV to parent task NT
+            N2=N1+NPTS_UPDATE_ON_PARENT_TASKS(NT)*NVERT-1                  !<-- Ending word location of Real vbl #NV to parent task NT
+            VAR_PARENT=>cc%UPDATE_PARENT_2WAY(NT)%DATA(N1:N2)              !<-- Updated values for Real variable #NV on parent task NT
+!
+            CALL GENERATE_2WAY_DATA(VAR_CHILD                           &  !<-- Child variable to be interpolated
+                                   ,PD                                  &  !<-- The child's PD array
+                                   ,FIS                                 &  !<-- The child's sfc geopotential array
+                                   ,IMS,IME,JMS,JME,NVERT               &  !<-- This child task subdomain's memory dimensions
+                                   ,I_2WAY_X                            &  !<-- Child I at each parent update point (H or V)
+                                   ,J_2WAY_X                            &  !<-- Child J at each parent update point (H or V)
+                                   ,N_STENCIL                           &  !<-- Stencil width of child averaging for parent variable
+                                   ,N_STENCIL_SFC                       &  !<-- Stencil width of child averaging its FIS,PD to parent grid
+                                   ,NPTS_UPDATE_ON_PARENT_TASKS(NT)     &  !<-- # of update points (I,J) on parent task NT
+                                   ,VAR_PARENT                          &  !<-- Child values interpolated onto parent points for this vbl
+                                   ,INTERPOLATE_SFC                     &  !<-- Should PD and FIS be interpolated in this call?
+                                   ,CHILD_SFC_INTERP                    &  !<-- Child PD,FIS interpolated onto parent H then V points
+                                                      )
+          ENDDO
 !
           IF(BEGIN_H)THEN
             BEGIN_H=.FALSE.
@@ -11721,7 +11817,7 @@
 !***  H and V points to be updated.
 !-----------------------------------------------------------------------
 !
-        NTOT=KNT_LEV*NPTS_UPDATE_ON_PARENT_TASKS(NT)                       !<-- # of points (3-D) updated for all vbls on parent task NT
+        NTOT=NLEV_2WAY*NPTS_UPDATE_ON_PARENT_TASKS(NT)                     !<-- # of points (3-D) updated for all vbls on parent task NT
         NTAG=100*MY_DOMAIN_ID+MYPE
 !
         CALL MPI_ISSEND(cc%UPDATE_PARENT_2WAY(NT)%DATA                  &  !<-- All variables at parent task NT's 2-way update points
@@ -21215,8 +21311,8 @@
 !---------------------
 !
       INTEGER(kind=KINT) :: I,IPTS,J,JPTS,KNT,KNT_HZ                    &
-                           ,L,LOC1_2WAY,LOC2_2WAY                       &
-                           ,N_STRIDE,NPTS_3D,NPTS_HZ                    &
+                           ,L,L1,L2,LOC1_2WAY,LOC2_2WAY                 &
+                           ,N_STRIDE,NL,NPTS_3D,NPTS_HZ                 &
                            ,NUM_DIMS,NUM_LEVS_SEC,NUM_LEVS_SPLINE,NV
 !
       INTEGER(kind=KINT) :: RC,RC_UPD
@@ -21239,7 +21335,10 @@
 !
       REAL(kind=KFPT),DIMENSION(:,:),POINTER :: VAR_PARENT_2D
 !
-      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: VAR_PARENT_3D
+      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: VAR_PARENT_3D         &
+                                                 ,VAR_3D
+!
+      REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: VAR_PARENT_4D
 !
       LOGICAL(kind=KLOG) :: EXTRAPOLATE
 !
@@ -21271,8 +21370,8 @@
 !
 !-----------------------------------------------------------------------
 !
-      IPTS=I_2WAY_UPDATE_END-I_2WAY_UPDATE_START+1                         !<-- # of parent points updated in I
-      JPTS=J_2WAY_UPDATE_END-J_2WAY_UPDATE_START+1                         !<-- # of parent points updated in J
+      IPTS=I_2WAY_UPDATE_END-I_2WAY_UPDATE_START+1                         !<-- # of parent points updated in I dimension
+      JPTS=J_2WAY_UPDATE_END-J_2WAY_UPDATE_START+1                         !<-- # of parent points updated in J dimension
       NPTS_HZ=IPTS*JPTS                                                    !<-- # of parent update points in the horizontal
       NPTS_3D=NPTS_HZ*LM                                                   !<-- # of parent points updated for each 3D variable
 !
@@ -21298,6 +21397,7 @@
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
+!-----------------------------------------------------------------------
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -21317,182 +21417,7 @@
 !
 !-----------------------------------------------------------------------
 !
-        ndim: IF(NUM_DIMS==3)THEN
-!
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Extract Real 2-way 3-D Array from the Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_FieldGet(field    =HOLD_FIELD                       &  !<-- Field that holds the exchange variable pointer
-                            ,localDe  =0                                &
-                            ,farrayPtr=VAR_PARENT_3D                    &  !<-- Put the pointer here
-                            ,rc       =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-          KNT_HZ=0
-!
-          DO J=J_2WAY_UPDATE_START,J_2WAY_UPDATE_END
-          DO I=I_2WAY_UPDATE_START,I_2WAY_UPDATE_END
-!
-!-----------------------------------------------------------------------
-!
-            KNT_HZ=KNT_HZ+1
-            EXTRAPOLATE=.FALSE.
-!
-!-----------------------------------------------------------------------
-!***  If either the interpolated nest sfc or the parent sfc lies
-!***  above sea level then the parent adjusts the child data in
-!***  the vertical to account for different topographies.
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-            adjust: IF(CHILD_SFC_ON_PARENT_GRID(KNT_HZ,1)>1.            &  !<-- Child's interpolated sfc is above sea level
-                          .OR.                                          &
-                       FIS(I,J)>1.)THEN                                    !<-- Parent's sfc is above sea level
-!-----------------------------------------------------------------------
-!
-              PDTOP_PT=SG1(1)*PDTOP+PT
-              PINT_HI_CHILD=SG2(1)*CHILD_SFC_ON_PARENT_GRID(KNT_HZ,2)+PDTOP_PT
-              PINT_HI_PARENT=SG2(1)*PD(I,J)+PDTOP_PT
-!
-              DO L=1,LM
-                PDTOP_PT=SG1(L+1)*PDTOP+PT
-                PINT_LO=SG2(L+1)*CHILD_SFC_ON_PARENT_GRID(KNT_HZ,2)+PDTOP_PT
-                PMID_CHILD(L)=0.5*(PINT_HI_CHILD+PINT_LO)                  !<-- Midlayer P of 2-way data from child at parent I,J
-                PINT_HI_CHILD=PINT_LO
-!
-                PINT_LO=SG2(L+1)*PD(I,J)+PDTOP_PT
-                PMID_PARENT(L)=0.5*(PINT_HI_PARENT+PINT_LO)                !<-- Current midlayer pressure at parent I,J
-                PINT_HI_PARENT=PINT_LO
-              ENDDO
-!
-              NUM_LEVS_SPLINE=LM
-!
-              DO L=1,NUM_LEVS_SEC
-                SEC_DERIV(L)=0.                                            !<-- Needed in the SPLINE subroutine
-              ENDDO
-!
-!-----------------------------------------------------------------------
-!***  If the target parent midlayer pressure level lies below the
-!***  lowest child input midlayer (interpolated) pressure then
-!***  extrapolate linearly downward in pressure to obtain an
-!***  artificial child input value at the lowest parent midlayer
-!***  pressure then fill in the remaining 'underground' parent levels
-!***  using SPLINE just as is done with all the higher levels.
-!
-!***  In order to reduce the effects of the ground surface, the lowest
-!***  input layer is changed to be the mass-weighted average of the
-!***  original two lowest layers while the 2nd lowest input layer is
-!***  changed to be the mass-weighted average of the three original
-!***  lowest layers.
-!-----------------------------------------------------------------------
-!
-              IF(PMID_PARENT(LM)>PMID_CHILD(LM))THEN
-                EXTRAPOLATE=.TRUE.
-                NUM_LEVS_SPLINE=LM+1                                       !<-- Insert 'underground' artificial input level from child
-!
-                PMID_CHILD(LM+1)=PMID_PARENT(LM)                           !<-- 'Underground' child P is the  parent's bottom midlayer P
-                ALLOCATE(VBL_X(1:LM+1))                                    !<-- Allocate 2-way data input column with extra bottom layer
-              ENDIF
-!
-              LOC1_2WAY=(NV-1)*NPTS_3D                                  &  !<-- The 1st word of the column of 2-way data in 1-D data
-                        +(J-J_2WAY_UPDATE_START)*IPTS                   &  !    recvd from child for variable NV at parent I,J.
-                        +(I-I_2WAY_UPDATE_START+1)
-              LOC2_2WAY=LOC1_2WAY+(LM-1)*NPTS_HZ                           !<-- The last word of parent I,J column in 2-way exchange data.
-              N_STRIDE=NPTS_HZ                                             !<-- Stride between points in this I,J column.
-!
-              VBL_COL=>VAR_2WAY(LOC1_2WAY:LOC2_2WAY:N_STRIDE)              !<-- Pre-adjusted values in this column of the input 2-way data
-!
-              IF(.NOT.EXTRAPOLATE)THEN
-                VBL_X=>VBL_COL                                             !<-- No extrapolation so no need to copy values
-!
-              ELSEIF(EXTRAPOLATE)THEN
-                DO L=1,LM-2
-                  VBL_X(L)=VBL_COL(L)                                      !<-- Copy the genuine values from the input column
-                ENDDO
-!
-                PROD_LM=VBL_COL(LM)*PMID_CHILD(LM)
-                PROD_LM1=VBL_COL(LM-1)*PMID_CHILD(LM-1)
-                PROD_LM2=VBL_COL(LM-2)*PMID_CHILD(LM-2)
-                VBL_LM=(PROD_LM+PROD_LM1)                               &
-                      /(PMID_CHILD(LM)+PMID_CHILD(LM-1))
-                VBL_LM1=(PROD_LM+PROD_LM1+PROD_LM2)                     &
-                      /(PMID_CHILD(LM)+PMID_CHILD(LM-1)                 &
-                       +PMID_CHILD(LM-2))
-                VBL_X(LM)=VBL_LM
-                VBL_X(LM-1)=VBL_LM1
-                PMID_CHILD_LM=0.5*(PMID_CHILD(LM-1)+PMID_CHILD(LM))
-                PMID_CHILD_LM1=(PMID_CHILD(LM-2)+PMID_CHILD(LM-1)       &
-                               +PMID_CHILD(LM))/3.
-                PMID_CHILD(LM)=PMID_CHILD_LM
-                PMID_CHILD(LM-1)=PMID_CHILD_LM1
-                R_DELP=1./(PMID_CHILD(LM)-PMID_CHILD(LM-1))
-                DELP_EXTRAP=PMID_PARENT(LM)-PMID_CHILD(LM)
-!
-                COEFF_1=(VBL_X(LM)-VBL_X(LM-1))*R_DELP
-                FACTOR=HYPER_A/(DELP_EXTRAP+HYPER_A)
-                VBL_X(LM+1)=VBL_X(LM)                                   &  !<-- Fill in the extra artificial underground value
-                           +COEFF_1*DELP_EXTRAP*FACTOR                     !    in 2-way input.
-!
-              ENDIF
-!
-              CALL SPLINE(NUM_LEVS_SPLINE                               &  !<-- # of midlayers in column of child input 2-way data
-                         ,PMID_CHILD                                    &  !<-- Interpolated input pressures at child's midlayers
-                         ,VBL_X                                         &  !<-- Input values of variable in column at parent I,J
-                         ,SEC_DERIV                                     &
-                         ,NUM_LEVS_SEC                                  &
-                         ,LM                                            &  !<-- Interpolate to this many parent midlayers
-                         ,PMID_PARENT                                   &  !<-- Target output pressures at parent's midlayers
-                         ,VBL_OUT )                                        !<-- Values in the column at I,J adjusted for topo differences
-!
-              DO L=1,LM
-                VBL_COL(L)=VBL_OUT(L)                                      !<-- Transfer adjusted column values back into 2-way data
-              ENDDO
-!
-              IF(EXTRAPOLATE)THEN                                          !<-- VBL_X is explicitly allocated only if EXTRAPOLATE is true.
-                DEALLOCATE(VBL_X)
-              ENDIF
-!
-!-----------------------------------------------------------------------
-!
-            ENDIF adjust
-!
-!-----------------------------------------------------------------------
-!
-          ENDDO
-          ENDDO
-!
-!-----------------------------------------------------------------------
-!***  Now the parent simply updates its values of the exchange
-!***  variables at its update points using a weighted average
-!***  between its original values and those coming from the child.
-!-----------------------------------------------------------------------
-!
-!
-          DO L=1,LM
-            DO J=J_2WAY_UPDATE_START,J_2WAY_UPDATE_END
-            DO I=I_2WAY_UPDATE_START,I_2WAY_UPDATE_END
-!
-              KNT=KNT+1
-!
-              VAR_PARENT_3D(I,J,L)=VAR_2WAY(KNT)*WGT_CHILD              &  !<-- The 2-way data from the child provides the fraction
-                                  +VAR_PARENT_3D(I,J,L)*WGT_PARENT         !    WGT_CHILD of the final updated parent value.
-!
-            ENDDO
-            ENDDO
-          ENDDO
-!
-!-----------------------------------------------------------------------
-!
-        ELSEIF(NUM_DIMS==2)THEN
+        ndim: IF(NUM_DIMS==2)THEN
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract Real 2-way 2-D Array from the Field"
@@ -21518,6 +21443,221 @@
 !
           ENDDO
           ENDDO
+!
+!-----------------------------------------------------------------------
+!
+        ELSEIF(NUM_DIMS>=3)THEN
+!
+!-----------------------------------------------------------------------
+!
+          IF(NUM_DIMS==3)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Real 2-way 3-D Array from the Field"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_FieldGet(field    =HOLD_FIELD                     &  !<-- Field that holds the exchange variable pointer
+                              ,localDe  =0                              &
+                              ,farrayPtr=VAR_PARENT_3D                  &  !<-- Put the pointer here
+                              ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            L1=1
+            L2=1
+!
+!-----------------------------------------------------------------------
+!
+          ELSEIF(NUM_DIMS==4)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Extract Real 2-way 4-D Array from the Field"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            CALL ESMF_FieldGet(field    =HOLD_FIELD                     &  !<-- Field that holds the exchange variable pointer
+                              ,localDe  =0                              &
+                              ,farrayPtr=VAR_PARENT_4D                  &  !<-- Put the pointer here
+                              ,rc       =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPD)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+            L1=LBOUND(VAR_PARENT_4D,4)
+            L2=UBOUND(VAR_PARENT_4D,4)
+!
+          ENDIF
+!
+!-----------------------------------------------------------------------
+!
+          nl_loop: DO NL=L1,L2                                             !<-- Loop through exchange variable's 4th dimension
+!                                                                               if it exists.
+            KNT_HZ=0
+!
+            DO J=J_2WAY_UPDATE_START,J_2WAY_UPDATE_END
+            DO I=I_2WAY_UPDATE_START,I_2WAY_UPDATE_END
+!
+!-----------------------------------------------------------------------
+!
+              KNT_HZ=KNT_HZ+1
+              EXTRAPOLATE=.FALSE.
+!
+!-----------------------------------------------------------------------
+!***  If either the interpolated nest sfc or the parent sfc lies
+!***  above sea level then the parent adjusts the child data in
+!***  the vertical to account for different topographies.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+              adjust: IF(CHILD_SFC_ON_PARENT_GRID(KNT_HZ,1)>1.          &  !<-- Child's interpolated sfc is above sea level
+                            .OR.                                        &
+                         FIS(I,J)>1.)THEN                                  !<-- Parent's sfc is above sea level
+!-----------------------------------------------------------------------
+!
+                PDTOP_PT=SG1(1)*PDTOP+PT
+                PINT_HI_CHILD=SG2(1)*CHILD_SFC_ON_PARENT_GRID(KNT_HZ,2)+PDTOP_PT
+                PINT_HI_PARENT=SG2(1)*PD(I,J)+PDTOP_PT
+!
+                DO L=1,LM
+                  PDTOP_PT=SG1(L+1)*PDTOP+PT
+                  PINT_LO=SG2(L+1)*CHILD_SFC_ON_PARENT_GRID(KNT_HZ,2)+PDTOP_PT
+                  PMID_CHILD(L)=0.5*(PINT_HI_CHILD+PINT_LO)                !<-- Midlayer P of 2-way data from child at parent I,J
+                  PINT_HI_CHILD=PINT_LO
+!
+                  PINT_LO=SG2(L+1)*PD(I,J)+PDTOP_PT
+                  PMID_PARENT(L)=0.5*(PINT_HI_PARENT+PINT_LO)              !<-- Current midlayer pressure at parent I,J
+                  PINT_HI_PARENT=PINT_LO
+                ENDDO
+!
+                NUM_LEVS_SPLINE=LM
+!
+                DO L=1,NUM_LEVS_SEC
+                  SEC_DERIV(L)=0.                                          !<-- Needed in the SPLINE subroutine
+                ENDDO
+!
+!-----------------------------------------------------------------------
+!***  If the target parent midlayer pressure level lies below the
+!***  lowest child input midlayer (interpolated) pressure then
+!***  extrapolate linearly downward in pressure to obtain an
+!***  artificial child input value at the lowest parent midlayer
+!***  pressure then fill in the remaining 'underground' parent levels
+!***  using SPLINE just as is done with all the higher levels.
+!
+!***  In order to reduce the effects of the ground surface, the lowest
+!***  input layer is changed to be the mass-weighted average of the
+!***  original two lowest layers while the 2nd lowest input layer is
+!***  changed to be the mass-weighted average of the three original
+!***  lowest layers.
+!-----------------------------------------------------------------------
+!
+                IF(PMID_PARENT(LM)>PMID_CHILD(LM))THEN
+                  EXTRAPOLATE=.TRUE.
+                  NUM_LEVS_SPLINE=LM+1                                     !<-- Insert 'underground' artificial input level from child
+!
+                  PMID_CHILD(LM+1)=PMID_PARENT(LM)                         !<-- 'Underground' child P is the  parent's bottom midlayer P
+                  ALLOCATE(VBL_X(1:LM+1))                                  !<-- Allocate 2-way data input column with extra bottom layer
+                ENDIF
+!
+                LOC1_2WAY=(NV-1)*NPTS_3D                                &  !<-- The 1st word of the column of 2-way data in 1-D data
+                          +(J-J_2WAY_UPDATE_START)*IPTS                 &  !    recvd from child for variable NV at parent I,J.
+                          +(I-I_2WAY_UPDATE_START+1)
+                LOC2_2WAY=LOC1_2WAY+(LM-1)*NPTS_HZ                         !<-- The last word of parent I,J column in 2-way exchange data.
+                N_STRIDE=NPTS_HZ                                           !<-- Stride between points in this I,J column.
+!
+                VBL_COL=>VAR_2WAY(LOC1_2WAY:LOC2_2WAY:N_STRIDE)            !<-- Pre-adjusted values in this column of the input 2-way data
+!
+                IF(.NOT.EXTRAPOLATE)THEN
+                  VBL_X=>VBL_COL                                           !<-- No extrapolation so no need to copy values
+!
+                ELSEIF(EXTRAPOLATE)THEN
+                  DO L=1,LM-2
+                    VBL_X(L)=VBL_COL(L)                                    !<-- Copy the genuine values from the input column
+                  ENDDO
+!
+                  PROD_LM=VBL_COL(LM)*PMID_CHILD(LM)
+                  PROD_LM1=VBL_COL(LM-1)*PMID_CHILD(LM-1)
+                  PROD_LM2=VBL_COL(LM-2)*PMID_CHILD(LM-2)
+                  VBL_LM=(PROD_LM+PROD_LM1)                             &
+                        /(PMID_CHILD(LM)+PMID_CHILD(LM-1))
+                  VBL_LM1=(PROD_LM+PROD_LM1+PROD_LM2)                   &
+                        /(PMID_CHILD(LM)+PMID_CHILD(LM-1)               &
+                         +PMID_CHILD(LM-2))
+                  VBL_X(LM)=VBL_LM
+                  VBL_X(LM-1)=VBL_LM1
+                  PMID_CHILD_LM=0.5*(PMID_CHILD(LM-1)+PMID_CHILD(LM))
+                  PMID_CHILD_LM1=(PMID_CHILD(LM-2)+PMID_CHILD(LM-1)     &
+                                 +PMID_CHILD(LM))/3.
+                  PMID_CHILD(LM)=PMID_CHILD_LM
+                  PMID_CHILD(LM-1)=PMID_CHILD_LM1
+                  R_DELP=1./(PMID_CHILD(LM)-PMID_CHILD(LM-1))
+                  DELP_EXTRAP=PMID_PARENT(LM)-PMID_CHILD(LM)
+!
+                  COEFF_1=(VBL_X(LM)-VBL_X(LM-1))*R_DELP
+                  FACTOR=HYPER_A/(DELP_EXTRAP+HYPER_A)
+                  VBL_X(LM+1)=VBL_X(LM)                                 &  !<-- Fill in the extra artificial underground value
+                             +COEFF_1*DELP_EXTRAP*FACTOR                   !    in 2-way input.
+!
+                ENDIF
+!
+                CALL SPLINE(NUM_LEVS_SPLINE                             &  !<-- # of midlayers in column of child input 2-way data
+                           ,PMID_CHILD                                  &  !<-- Interpolated input pressures at child's midlayers
+                           ,VBL_X                                       &  !<-- Input values of variable in column at parent I,J
+                           ,SEC_DERIV                                   &
+                           ,NUM_LEVS_SEC                                &
+                           ,LM                                          &  !<-- Interpolate to this many parent midlayers
+                           ,PMID_PARENT                                 &  !<-- Target output pressures at parent's midlayers
+                           ,VBL_OUT )                                      !<-- Values in the column at I,J adjusted for topo differences
+!
+                DO L=1,LM
+                  VBL_COL(L)=VBL_OUT(L)                                    !<-- Transfer adjusted column values back into 2-way data
+                ENDDO
+!
+                IF(EXTRAPOLATE)THEN                                        !<-- VBL_X is explicitly allocated only if EXTRAPOLATE is true.
+                  DEALLOCATE(VBL_X)
+                ENDIF
+!
+!-----------------------------------------------------------------------
+!
+              ENDIF adjust
+!
+!-----------------------------------------------------------------------
+!
+            ENDDO
+            ENDDO
+!
+!-----------------------------------------------------------------------
+!***  Now the parent simply updates its values of the exchange
+!***  variables at its update points using a weighted average
+!***  between its original values and those coming from the child.
+!-----------------------------------------------------------------------
+!
+            IF(NUM_DIMS==3)THEN
+              VAR_3D=>VAR_PARENT_3D
+            ELSEIF(NUM_DIMS==4)THEN
+              VAR_3D=>VAR_PARENT_4D(:,:,:,NL)
+            ENDIF
+!
+            DO L=1,LM
+              DO J=J_2WAY_UPDATE_START,J_2WAY_UPDATE_END
+              DO I=I_2WAY_UPDATE_START,I_2WAY_UPDATE_END
+!
+                KNT=KNT+1
+!
+                VAR_3D(I,J,L)=VAR_2WAY(KNT)*WGT_CHILD                   &  !<-- The 2-way data from the child provides the fraction
+                             +VAR_3D(I,J,L)*WGT_PARENT                     !    WGT_CHILD of the final updated parent value.
+!
+              ENDDO
+              ENDDO
+!
+            ENDDO
+!
+!-----------------------------------------------------------------------
+!
+          ENDDO nl_loop
 !
 !-----------------------------------------------------------------------
 !

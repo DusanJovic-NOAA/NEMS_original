@@ -5134,7 +5134,7 @@
                            ,MPI_COMM_COMP                               &  !<-- MPI communicator
                            ,IERR )
 !
-              CALL MPI_RECV(wrt_int_state%RST_BUFF_REAL                     &  !<-- Recv string of subsection data from other write tasks
+              CALL MPI_RECV(wrt_int_state%RST_BUFF_REAL                 &  !<-- Recv string of subsection data from other write tasks
                            ,IM*JM                                       &  !<-- Maximum number of words sent
                            ,MPI_REAL                                    &  !<-- Datatype
                            ,N                                           &  !<-- Recv from this write task
