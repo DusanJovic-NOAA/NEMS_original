@@ -398,8 +398,8 @@
 !-----------------------------------------------------------------------
       SUBROUTINE GFDL(DT,THRATEN,THRATENLW,THRATENSW,CLDFRA,PI3D        &
      &                ,XLAND,PHINT,T                                    &
-     &                ,QV,QW,QI,QS                                      & 
-     &                ,F_QV,F_QC,F_QR,F_QI ,F_QS,F_QG                   &
+     &                ,Q,QW,QI,QS                                       & 
+     &                ,F_QC,F_QI,F_QS                                   &
      &                ,TSK2D,GLW,RSWIN,GSW,RSWINC                       &
      &                ,RSWTOA,RLWTOA,CZMEAN                             & 
      &                ,GLAT,GLON,HTOP,HBOT,ALBEDO,CUPPT                 &
@@ -431,8 +431,9 @@
                                                    ,THRATENLW,THRATENSW
       REAL,INTENT(IN),DIMENSION(ims:ime, jms:jme, kms:kme)::   phint
       REAL,INTENT(IN),DIMENSION(ims:ime, jms:jme, kts:kte)::     t,     &
+     &                                                           q,     &
      &                                                          qs,     &
-     &                                                          qv,     &
+     &                                                          qi,     &
      &                                                          qw,     &
      &                                                        PI3D
       REAL, INTENT(IN), DIMENSION(ims:ime, jms:jme):: ALBEDO,SNOW,      &
@@ -448,8 +449,7 @@
      &                                           ,RSWIN,RSWINC        &
      &                                           ,CFRACL,CFRACM,CFRACH
       LOGICAL, INTENT(IN) :: gfdl_lw,gfdl_sw
-      LOGICAL, INTENT(IN) :: F_QV,F_QC,F_QR,F_QI ,F_QS,F_QG
-      REAL, OPTIONAL, INTENT(IN), DIMENSION(ims:ime, jms:jme, kts:kte):: QI
+      LOGICAL, INTENT(IN) :: F_QC,F_QI,F_QS
 
       REAL, DIMENSION(ims:ime, jms:jme, kms:kme):: PFLIP,QIFLIP,QFLIP,  &
      &                                             QWFLIP
@@ -480,7 +480,7 @@
       DO K=KTS,KTE
         DO J=JTS,JTE
         DO I=ITS,ITE
-          QFLIP (I,J,K)=MAX(0.,QV(I,J,K)/(1.+QV(I,J,K)))
+          QFLIP (I,J,K)=MAX(0.,Q(I,J,K))
           QWFLIP(I,J,K)=MAX(QW(I,J,K),0.)      !Modified
 ! Note that QIFLIP will contain QS+QI if both are passed in, otherwise just QS 
 !     Eta MP now outputs QS instead of QI (JD 2006-05-12)

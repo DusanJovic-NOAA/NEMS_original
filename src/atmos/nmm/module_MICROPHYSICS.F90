@@ -331,7 +331,7 @@
             CALL ETAMP_NEW(                                                   &
                    ITIMESTEP=ntsd,DT=dtphs,DX=dx,DY=dy                        &
                   ,DZ8W=dz,RHO_PHY=rr,P_PHY=p_phy,PI_PHY=pi_phy,TH_PHY=th_phy &
-                  ,QV=QV                                                      &
+                  ,Q=Q                                                        &
                   ,QC=QC                                                      &
                   ,QS=QS                                                      &
                   ,QR=QR                                                      &
@@ -351,7 +351,7 @@
             CALL FER_HIRES(                                                   &
                    ITIMESTEP=ntsd,DT=dtphs,DX=dx,DY=dy                        &
                   ,DZ8W=dz,RHO_PHY=rr,P_PHY=p_phy,PI_PHY=pi_phy,TH_PHY=th_phy &
-                  ,QV=QV                                                      &
+                  ,Q=Q                                                        &
                   ,QC=QC                                                      &
                   ,QS=QS                                                      &
                   ,QR=QR                                                      &
@@ -372,8 +372,8 @@
                    dz8w=dz,rho_phy=rr,p_phy=p_phy,pi_phy=pi_phy,th_phy=th_phy, &
                    SR=SR,QT=CWM, F_ICE_PHY=F_ICE,                              &
                    RAINNC=RAINNC,RAINNCV=RAINNCV,                              &
-                   QV=QV,QC=QC,QI=QI,                                          &
-                   F_QV=F_QV,F_QC=F_QC,F_QI=F_QI,                              &
+                   Q=Q,QC=QC,QI=QI,                                            &
+                   F_QC=F_QC,F_QI=F_QI,                                        &
                    TP1=TP1,QP1=QP1,PSP1=PSP1,                                  &
                    IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=LM+1,           &
                    IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=LM ,            &
@@ -406,6 +406,7 @@
                 DO K=1,LM
                 DO J=JMS,JME
                 DO I=IMS,IME
+                 Q(I,J,K)=QV(I,J,K)/(1.+QV(I,J,K)) !To s.h.
                  CWM(I,J,K)=QC(i,j,k)+QR(i,j,k)+QI(i,j,k) &
                            +QS(i,j,k)+QG(i,j,k)
                 ENDDO
@@ -446,6 +447,7 @@
                 DO K=1,LM
                 DO J=JMS,JME
                 DO I=IMS,IME
+                 Q(I,J,K)=QV(I,J,K)/(1.+QV(I,J,K)) !To s.h.
                  CWM(I,J,K)=QC(i,j,k)+QR(i,j,k)+QI(i,j,k) &
                            +QS(i,j,k)+QG(i,j,k)
                 ENDDO
@@ -514,7 +516,6 @@
           ELSE
             T(I,J,K)=TNEW
           ENDIF
-          Q(I,J,K)=QV(I,J,K)/(1.+QV(I,J,K)) !To s.h.
         ENDDO
         ENDDO
       ENDDO

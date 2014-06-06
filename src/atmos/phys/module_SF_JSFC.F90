@@ -78,7 +78,7 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
       SUBROUTINE JSFC(NTSD,HT,DZ                                       &
-     &               ,PHMID,PHINT,TH,T,QV,QC,U,V,Q2                    &
+     &               ,PHMID,PHINT,TH,T,Q,QC,U,V,Q2                     &
      &               ,TSK,QSFC,THZ0,QZ0,UZ0,VZ0                        &
      &               ,XLAND                                            &
      &               ,VEGFRC,SNOWC                                     & !added 5/17/2013
@@ -110,11 +110,11 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(IN) :: PHINT
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: QV,QC,U,V,Q2,T,TH
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: Q,QC,U,V,Q2,T,TH
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: FLX_LH,HFX,PSHLTR &
      &                                              ,QFX,Q10,QSHLTR    &
-     &                                              ,TH10,TSHLTR,T02       &
+     &                                              ,TH10,TSHLTR,T02   &
      &                                              ,U10,V10,TH02,Q02
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: AKHS,AKMS       &
@@ -239,8 +239,7 @@
           DO K=LM,KTS,-1
             THK(K)=TH(I,J,K)
             TK(K)=T(I,J,K)
-            RATIOMX=QV(I,J,K)
-            QK(K)=RATIOMX/(1.+RATIOMX)
+            QK(K)=Q(I,J,K)
             PK(K)=PHMID(I,J,K)
             CWMK(K)=QC(I,J,K)
             THEK(K)=(CWMK(K)*(-ELOCP/TK(K))+1.)*THK(K)
@@ -995,7 +994,6 @@
 !!!   QGH=PQ0/PSHLTR*EXP(A2S*(TSK-A3S)/(TSK-A4S))
       QGH=((1.-SEAMASK)*PQ0+SEAMASK*PQ0SEA)                            &
      &     /PLOW*EXP(A2S*(TLOW-A3S)/(TLOW-A4S))
-      QGH=QGH/(1.-QGH)    !Convert to mixing ratio
       CPM=CP*(1.+0.8*QLOW)
 !
 !***  DO NOT COMPUTE QS OVER LAND POINTS HERE SINCE IT IS

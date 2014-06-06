@@ -92,7 +92,7 @@
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 !-----------------------------------------------------------------------
       SUBROUTINE ETAMP_NEW (itimestep,DT,DX,DY,                         &
-     &                      dz8w,rho_phy,p_phy,pi_phy,th_phy,qv,qt,     &
+     &                      dz8w,rho_phy,p_phy,pi_phy,th_phy,q,qt,      &
      &                      LOWLYR,SR,                                  &
      &                      F_ICE_PHY,F_RAIN_PHY,F_RIMEF_PHY,           &
      &                      QC,QR,QS,                                   &
@@ -115,7 +115,7 @@
       REAL, INTENT(IN),     DIMENSION(ims:ime, jms:jme, kms:kme)::      &
      &                      dz8w,p_phy,pi_phy,rho_phy
       REAL, INTENT(INOUT),  DIMENSION(ims:ime, jms:jme, kms:kme)::      &
-     &                      th_phy,qv,qt
+     &                      th_phy,q,qt
       REAL, INTENT(INOUT),  DIMENSION(ims:ime,jms:jme, kms:kme ) ::    &
      &                      qc,qr,qs
       REAL, INTENT(INOUT),  DIMENSION(ims:ime, jms:jme,kms:kme) ::    &
@@ -165,7 +165,7 @@
       INTEGER :: LSFC,I_index,J_index,L
       INTEGER,DIMENSION(its:ite,jts:jte) :: LMH
       REAL :: TC,QI,QRdum,QW,Fice,Frain,DUM,ASNOW,ARAIN
-      REAL,DIMENSION(kts:kte) :: P_col,Q_col,T_col,QV_col,WC_col,       &
+      REAL,DIMENSION(kts:kte) :: P_col,Q_col,T_col,WC_col,              &
          RimeF_col,QI_col,QR_col,QW_col, THICK_col,DPCOL,pcond1d,       &
          pidep1d,piacw1d,piacwi1d,piacwr1d,piacr1d,picnd1d,pievp1d,     &
          pimlt1d,praut1d,pracw1d,prevp1d,pisub1d,pevap1d
@@ -198,7 +198,6 @@
       DO k = kts,kte
       DO i = its,ite
         t_phy(i,j,k) = th_phy(i,j,k)*pi_phy(i,j,k)
-        qv(i,j,k)=qv(i,j,k)/(1.+qv(i,j,k)) !Convert to specific humidity
 !     if(i==101.and.j==163)then
 !       write(0,*)' enter etamp_new k=',k,' t=',t_phy(i,k,j),' th=',th_phy(i,k,j),' pii=',pi_phy(i,k,j)
 !     endif
@@ -258,7 +257,7 @@
 !$omp end parallel do
 !.......................................................................
 !$omp parallel do                                                       &
-!$omp private (j,i,k,lsfc,dpcol,l,p_col,thick_col,t_col,tc,qv_col,      &
+!$omp private (j,i,k,lsfc,dpcol,l,p_col,thick_col,t_col,tc,q_col,       &
 !$omp          wc_col,wc,qi,QRdum,qw,fice,frain,rimef_col,qi_col,qr_col,   &
 !$omp          qw_col,i_index,j_index,arain,asnow,dum,prectot,precmax,  &
 !$omp          qmax,qtot,nstats),SCHEDULE(dynamic)  
@@ -289,7 +288,7 @@
             THICK_col(L)=DPCOL(L)*RGRAV
             T_col(L)=T_phy(I,J,L)
             TC=T_col(L)-T0C
-            QV_col(L)=max(EPSQ, qv(I,J,L))
+            Q_col(L)=max(EPSQ, q(I,J,L))
             IF (qt(I,J,L) .LE. EPSQ1) THEN
               WC_col(L)=0.
               IF (TC .LT. T_ICE) THEN
@@ -345,7 +344,7 @@
           I_index=I
           J_index=J
        CALL EGCP01COLUMN ( ARAIN, ASNOW, DT, I_index, J_index, LSFC,  &
-     & P_col, QI_col, QR_col, QV_col, QW_col, RimeF_col, T_col,         &
+     & P_col, QI_col, QR_col, Q_col, QW_col, RimeF_col, T_col,         &
      & THICK_col, WC_col,KTS,KTE,NSTATS,QMAX,QTOT,pcond1d,pidep1d,    &
      & piacw1d,piacwi1d,piacwr1d,piacr1d,picnd1d,pievp1d,pimlt1d,       &
      & praut1d,pracw1d,prevp1d,pisub1d,pevap1d)
@@ -357,7 +356,7 @@
             TRAIN_phy(I,J,L)=(T_col(L)-T_phy(I,J,L))/DT
             TLATGS_phy(I,J,L)=T_col(L)-T_phy(I,J,L)
             T_phy(I,J,L)=T_col(L)
-            qv(I,J,L)=QV_col(L)
+            q(I,J,L)=Q_col(L)
             qt(I,J,L)=WC_col(L)
 !---convert 1D source/sink terms to one 4D array
 !---d_ss is the total number of source/sink terms in the 4D mprates array
@@ -443,7 +442,6 @@
         DO k = kts,kte
 	DO i = its,ite
            th_phy(i,j,k) = t_phy(i,j,k)/pi_phy(i,j,k)
-           qv(i,j,k)=qv(i,j,k)/(1.-qv(i,j,k))  !Convert to mixing ratio
            WC=qt(I,J,K)
            QS(I,J,K)=0.
            QR(I,J,K)=0.
@@ -555,7 +553,7 @@
 !###############################################################################
 !
       SUBROUTINE EGCP01COLUMN ( ARAIN, ASNOW, DTPH, I_index, J_index,   &
-     & LSFC, P_col, QI_col, QR_col, QV_col, QW_col, RimeF_col, T_col,   &
+     & LSFC, P_col, QI_col, QR_col, Q_col, QW_col, RimeF_col, T_col,    &
      & THICK_col, WC_col ,KTS,KTE,NSTATS,QMAX,QTOT,pcond1d,pidep1d,     &
      & piacw1d,piacwi1d,piacwr1d,piacr1d,picnd1d,pievp1d,pimlt1d,        &
      & praut1d,pracw1d,prevp1d,pisub1d,pevap1d)
@@ -593,7 +591,7 @@
 !   P_col      - vertical column of model pressure (Pa)
 !   QI_col     - vertical column of model ice mixing ratio (kg/kg)
 !   QR_col     - vertical column of model rain ratio (kg/kg)
-!   QV_col     - vertical column of model water vapor specific humidity (kg/kg)
+!   Q_col      - vertical column of model water vapor specific humidity (kg/kg)
 !   QW_col     - vertical column of model cloud water mixing ratio (kg/kg)
 !   RimeF_col  - vertical column of rime factor for ice in model (ratio, defined below)
 !   T_col      - vertical column of model temperature (deg K)
@@ -604,7 +602,7 @@
 ! OUTPUT ARGUMENT LIST: 
 !   ARAIN      - accumulated rainfall at the surface (kg)
 !   ASNOW      - accumulated snowfall at the surface (kg)
-!   QV_col     - vertical column of model water vapor specific humidity (kg/kg)
+!   Q_col      - vertical column of model water vapor specific humidity (kg/kg)
 !   WC_col     - vertical column of model mixing ratio of total condensate (kg/kg)
 !   QW_col     - vertical column of model cloud water mixing ratio (kg/kg)
 !   QI_col     - vertical column of model ice mixing ratio (kg/kg)
@@ -653,7 +651,7 @@
       INTEGER,INTENT(IN) :: KTS,KTE,I_index, J_index, LSFC
       REAL,INTENT(INOUT) ::  ARAIN, ASNOW
       REAL,DIMENSION(KTS:KTE),INTENT(INOUT) ::  P_col, QI_col,QR_col    &
-      & ,QV_col ,QW_col, RimeF_col, T_col, THICK_col,WC_col,pcond1d     &
+      & ,Q_col ,QW_col, RimeF_col, T_col, THICK_col,WC_col,pcond1d      &
       & ,pidep1d,piacw1d,piacwi1d,piacwr1d,piacr1d,picnd1d,pievp1d      &
       & ,pimlt1d,praut1d,pracw1d,prevp1d,pisub1d,pevap1d
 
@@ -748,7 +746,7 @@
      &        PCOND,PIACR,PIACW,PIACWI,PIACWR,PICND,PIDEP,PIDEP_max,    &
      &        PIEVP,PILOSS,PIMLT,PP,PRACW,PRAUT,PREVP,PRLOSS,           &
      &        QI,QInew,QLICE,QR,QRnew,QSI,QSIgrd,QSInew,QSW,QSW0,       &
-     &        QSWgrd,QSWnew,QT,QTICE,QTnew,QTRAIN,QV,QW,QW0,QWnew,      &
+     &        QSWgrd,QSWnew,QT,QTICE,QTnew,QTRAIN,Q,QW,QW0,QWnew,       &
      &        RFACTOR,RHO,RIMEF,RIMEF1,RQR,RR,RRHO,SFACTOR,             &
      &        TC,TCC,TFACTOR,THERM_COND,THICK,TK,TK2,TNEW,              &
      &        TOT_ICE,TOT_ICEnew,TOT_RAIN,TOT_RAINnew,                  &
@@ -787,7 +785,7 @@
 !--- Skip this level and go to the next lower level if no condensate 
 !      and very low specific humidities
 !
-        IF (QV_col(L).LE.EPSQ .AND. WC_col(L).LE.EPSQ) GO TO 10
+        IF (Q_col(L).LE.EPSQ .AND. WC_col(L).LE.EPSQ) GO TO 10
 !
 !-----------------------------------------------------------------------
 !------------ Proceed with cloud microphysics calculations -------------
@@ -796,8 +794,8 @@
           TK=T_col(L)         ! Temperature (deg K)
           TC=TK-T0C           ! Temperature (deg C)
           PP=P_col(L)         ! Pressure (Pa)
-          QV=QV_col(L)        ! Specific humidity of water vapor (kg/kg)
-          WV=QV/(1.-QV)       ! Water vapor mixing ratio (kg/kg)
+          Q=Q_col(L)          ! Specific humidity of water vapor (kg/kg)
+          WV=Q/(1.-Q)         ! Water vapor mixing ratio (kg/kg)
           WC=WC_col(L)        ! Grid-scale mixing ratio of total condensate (water or ice; kg/kg)
 !
 !-----------------------------------------------------------------------
@@ -863,7 +861,7 @@
 !--- Virtual temperature, TV=T*(1./EPS-1)*Q, Q is specific humidity;
 !    (see pp. 63-65 in Fleagle & Businger, 1963)
 !
-          RHO=PP/(RD*TK*(1.+EPS1*QV))   ! Air density (kg/m**3)
+          RHO=PP/(RD*TK*(1.+EPS1*Q)) ! Air density (kg/m**3)
           RRHO=1./RHO                ! Reciprocal of air density
           DTRHO=DTPH*RHO             ! Time step * air density
           BLDTRH=BLEND*DTRHO         ! Blend parameter * time step * air density
@@ -1856,7 +1854,7 @@
 
           T_col(L)=Tnew                           ! Updated temperature
 !
-          QV_col(L)=max(EPSQ, WVnew/(1.+WVnew))   ! Updated specific humidity
+          Q_col(L)=max(EPSQ, WVnew/(1.+WVnew))    ! Updated specific humidity
           WC_col(L)=max(EPSQ, WCnew)              ! Updated total condensate mixing ratio
           QI_col(L)=max(EPSQ, QInew)              ! Updated ice mixing ratio
           QR_col(L)=max(EPSQ, QRnew)              ! Updated rain mixing ratio

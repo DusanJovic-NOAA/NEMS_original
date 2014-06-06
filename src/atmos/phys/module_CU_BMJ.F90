@@ -125,11 +125,11 @@
                        ,fres,fr,fsl,fss &
                        ,dt,dyh,ntsd,ncnvc &
                        ,raincv,cutop,cubot,dxh,kpbl &
-                       ,th,t,qv,u_phy,v_phy,dudt_phy,dvdt_phy &
+                       ,th,t,q,u_phy,v_phy,dudt_phy,dvdt_phy &
                        ,phint,phmid,exner &
                        ,cldefi,xland,cu_act_flag &
                      ! optional
-                       ,rthcuten,rqvcuten &
+                       ,rthcuten,rqcuten &
                        )
 !-----------------------------------------------------------------------
       implicit none
@@ -162,7 +162,7 @@
        xland
 !
       real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in):: &
-       qv &
+       q &
       ,exner,phmid,t,th,u_phy,v_phy
 !
       real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm+1),intent(in):: &
@@ -171,7 +171,7 @@
       real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm) &
                      ,optional &
                      ,intent(inout):: &
-       rqvcuten,rthcuten 
+       rqcuten,rthcuten 
 ! 
       real(kind=kfpt),dimension(ims:ime,jms:jme),intent(inout):: &
        cldefi,raincv
@@ -291,9 +291,7 @@
 !
             ucol    (k)=u_phy(i,j,k)
             vcol    (k)=v_phy(i,j,k)
-!***  convert from mixing ratio to specific humidity
-!
-            qcol    (k)=max(epsq,qv(i,j,k)/(1.+qv(i,j,k)))
+            qcol    (k)=max(epsq,q(i,j,k))
             tcol    (k)=t(i,j,k)
             pcol    (k)=phmid(i,j,k)
             exnercol(k)=exner(i,j,k)
@@ -337,19 +335,10 @@
 !
 !***  compute heating and moistening tendencies
 !
-          if(present(rthcuten).and.present(rqvcuten))then
+          if(present(rthcuten).and.present(rqcuten))then
             do k=1,lm
               rthcuten(i,j,k)=dtdt(k)/exner(i,j,k)
-!
-!***  convert from specific humidty back to mixing ratio
-!
-              qold=qcol(k)
-              qnew=qold+dqdt(k)
-!
-              rqvcuten(i,j,k)=qnew/(1.-qnew)-qold/(1.-qold)
-!
-!looks like bug              rqvcuten(i,j,k)=dqdt(k)/(1.-qcol(k))**2
-!
+              rqcuten(i,j,k)=dqdt(k)
             enddo
           endif
 !

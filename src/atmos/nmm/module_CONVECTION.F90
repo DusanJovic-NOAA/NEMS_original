@@ -202,7 +202,7 @@
       ,th,rr &
       ,RQCCUTEN,RQRCUTEN &
       ,RQICUTEN,RQSCUTEN &
-      ,RQVCUTEN,RTHCUTEN &
+      ,RQCUTEN,RTHCUTEN &
       ,RQGCUTEN &
       ,u_phy,v_phy
 
@@ -363,7 +363,7 @@
             v_phy(i,j,k)=0.
 !
             RTHCUTEN(I,J,K)=0.
-            RQVCUTEN(I,J,K)=0.
+            RQCUTEN(I,J,K)=0.
             RQCCUTEN(I,J,K)=0.
             RQRCUTEN(I,J,K)=0.
             RQICUTEN(I,J,K)=0.
@@ -412,24 +412,6 @@
 !zj$omp end parallel do
 !.......................................................................
 !
-!-----------------------------------------------------------------------
-!***  SYNCHRONIZE MIXING RATIO IN WATER ARRAY WITH SPECIFIC HUMIDITY.
-!-----------------------------------------------------------------------
-!
-!.......................................................................
-!zj$omp parallel do private(i,j,k)
-!.......................................................................
-      DO K=1,LM
-        DO J=JMS,JME
-          DO I=IMS,IME
-            QV(I,J,K)=Q(I,J,K)/(1.-Q(I,J,K))
-          ENDDO
-        ENDDO
-      ENDDO
-!.......................................................................
-!zj$omp end parallel do
-!.......................................................................
-
 !write(0,*)'A2,A3,A4,cappa,CP,ELIV,ELWV,EPSQ,p608,PQ0,R_D,TIW' &
 !,A2,A3,A4,cappa,CP,ELIV,ELWV,EPSQ,p608,PQ0,R_D,TIW
 
@@ -456,11 +438,11 @@
                         ,fres,fr,fsl,fss &
                         ,dt,dyh,ntsd,ncnvc &
                         ,raincv,cutop,cubot,dxh,kpbl &
-                        ,th,t,qv,u_phy,v_phy,dudt_phy,dvdt_phy &
+                        ,th,t,q,u_phy,v_phy,dudt_phy,dvdt_phy &
                         ,phint,phmid,exner &
                         ,cldefi,xland,cu_act_flag &
                       ! optional
-                        ,rthcuten,rqvcuten &
+                        ,rthcuten,rqcuten &
                         )
 !-----------------------------------------------------------------------
            CASE (SASSCHEME)
@@ -469,14 +451,14 @@
                       ,its,ite,jts,jte,lm &
                       ,dt,ntsd,ncnvc &
                       ,th,t,sice,omgalf,twbs,qwbs,pblh,u_phy,v_phy & !zj orig u&v 
-                      ,qv,qc,qr,qi,qs,qg &
-                      ,f_qv,f_qc,f_qr,f_qi,f_qs,f_qg &
+                      ,q,qc,qr,qi,qs,qg &
+                      ,f_qc,f_qr,f_qi,f_qs,f_qg &
                       ,phint,phmid,exner,rr,dz &
                       ,xland,cu_act_flag &
                       ,raincv,cutop,cubot &
                       ,dudt_phy,dvdt_phy &
                       ! optional
-                      ,rthcuten, rqvcuten &
+                      ,rthcuten, rqcuten &
                       ,rqccuten, rqrcuten &
                       ,rqicuten, rqscuten &
                       ,rqgcuten  &
@@ -527,18 +509,12 @@
 !
         DO K=1,LM
 !
-!***  RQVCUTEN IN BMJDRV IS THE MIXING RATIO TENDENCY,
-!***  SO RETRIEVE DQDT BY CONVERTING TO SPECIFIC HUMIDITY.
-!
-          DQDT=RQVCUTEN(I,J,K)/(1.+QV(I,J,K))**2
-!
 !***  RTHCUTEN IN BMJDRV IS DTDT OVER exner.
 !
           DTDT=RTHCUTEN(I,J,K)*exner(I,J,K)
           T(I,J,K)=T(I,J,K)+DTDT*DTCNVC
-          Q(I,J,K)=Q(I,J,K)+DQDT*DTCNVC
+          Q(I,J,K)=Q(I,J,K)+RQCUTEN(I,J,K)*DTCNVC
           TCUCN(I,J,K)=TCUCN(I,J,K)+DTDT
-          QV(I,J,K)=Q(I,J,K)/(1.-Q(I,J,K))       !Convert to mixing ratio
 
 !!! WANG, 11-2-2010 SAS convection
                 IF(CONVECTION=='sas') THEN
@@ -558,7 +534,7 @@
         ENDDO
 
 !write(0,*),'t',(rthcuten(i,j,k),k=1,lm)
-!write(0,*),'q',(rqvcuten(i,j,k),k=1,lm)
+!write(0,*),'q',(rqcuten(i,j,k),k=1,lm)
 !write(0,*),'u',(dudt_phy(i,j,k),k=1,lm)
 !write(0,*),'v',(dvdt_phy(i,j,k),k=1,lm)
 !write(0,*),'exner',(exner(i,j,k),k=1,lm)

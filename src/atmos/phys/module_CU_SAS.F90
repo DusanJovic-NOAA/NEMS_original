@@ -40,14 +40,14 @@
                        ,ITS,ITE,JTS,JTE,lm &
                        ,DT,NTSD,NCNVC &
                        ,TH,T,SICE,OMGALF,SHEAT,LHEAT,PBLH,U,V &
-                       ,QV,QC,QR,QI,QS,QG &
-                       ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG &
+                       ,Q,QC,QR,QI,QS,QG &
+                       ,F_QC,F_QR,F_QI,F_QS,F_QG &
                        ,PHINT,PHMID,exner,RR,DZ &
                        ,XLAND,CU_ACT_FLAG &
                        ,RAINCV,CUTOP,CUBOT &   !! out below
                        ,DUDT,DVDT &
                       ! optional
-                       ,RTHCUTEN,RQVCUTEN &
+                       ,RTHCUTEN,RQCUTEN &
                        ,RQCCUTEN,RQRCUTEN &
                        ,RQICUTEN,RQSCUTEN &
                        ,RQGCUTEN &
@@ -72,11 +72,11 @@
       REAL,DIMENSION(IMS:IME,JMS:JME,1:lm+1),INTENT(IN):: &
        phint
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:lm),INTENT(IN):: QV,QC,QR,QI,QS,QG
-      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:lm),INTENT(IN):: Q,QC,QR,QI,QS,QG
+      LOGICAL,INTENT(IN) :: F_QC,F_QR,F_QI,F_QS,F_QG
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:lm),optional,intent(inout):: &
-       RQVCUTEN,RTHCUTEN &
+       RQCUTEN,RTHCUTEN &
       ,RQCCUTEN,RQRCUTEN &
       ,RQSCUTEN,RQICUTEN &
       ,RQGCUTEN 
@@ -149,7 +149,7 @@
         DO J=JMS,JME
          DO I=IMS,IME
             RTHCUTEN(I,J,K) = 0.0
-            RQVCUTEN(I,J,K) = 0.0
+            RQCUTEN(I,J,K) = 0.0
             RQCCUTEN(I,J,K) = 0.0
             RQRCUTEN(I,J,K) = 0.0
             RQICUTEN(I,J,K) = 0.0
@@ -229,9 +229,7 @@
            v1(1,K)    = (V(I,J  ,KFLIP)+V(I-1,J  ,KFLIP)                       &
                         +V(I,J-1,KFLIP)+V(I-1,J-1,KFLIP))*0.25
            t1(1,K)    = T(I,J,KFLIP)
-!***  CONVERT FROM MIXING RATIO TO SPECIFIC HUMIDITY
-        !   q1(1,K)   = MAX(EPSQ,QV(I,J,K)/(1.+QV(I,J,K))) 
-           q1(1,K)    = MAX(EPSQ,QV(I,J,KFLIP)/(1.+QV(I,J,KFLIP))) 
+           q1(1,K)    = MAX(EPSQ,Q(I,J,KFLIP)) 
            clw(1,K,1) = 0.0
         !   clw(1,K,1) = QC(I,J,KFLIP)+QR(I,J,KFLIP)                 ! Liquid
            if (f_qc) clw(1,K,1) = clw(1,K,1) + QC(I,J,KFLIP)
@@ -307,14 +305,11 @@
                 DVDT(I,J,KFLIP) = mommix*(v1(1,K)-v0(1,K))/delt
               ENDDO
 
-            IF(PRESENT(RTHCUTEN).AND.PRESENT(RQVCUTEN))THEN
+            IF(PRESENT(RTHCUTEN).AND.PRESENT(RQCUTEN))THEN
               DO K=1,lm
                 KFLIP = LM+1-K
                 RTHCUTEN(I,J,KFLIP)=(t1(1,K)-t0(1,K))/delt/exner(I,J,KFLIP)
-!
-!***  CONVERT FROM SPECIFIC HUMIDTY BACK TO MIXING RATIO
-!
-                RQVCUTEN(I,J,KFLIP)=(q1(1,K)-q0(1,K))/DELT/(1.-q0(1,K))**2
+                RQCUTEN(I,J,KFLIP)=(q1(1,K)-q0(1,K))/DELT
               ENDDO
             ENDIF
             IF(    PRESENT(RQCCUTEN).OR.PRESENT(RQRCUTEN)     &
@@ -378,12 +373,12 @@
            write(0,*)'dudt=',dudt(i,j,:)
            write(0,*)'dvdt=',dvdt(i,j,:)
            write(0,*)'dthdt=',rthcuten(i,j,:)
-           write(0,*)'dqvdt=',rqvcuten(i,j,:)
+           write(0,*)'dqdt=',rqcuten(i,j,:)
            write(0,*)'dqcdt=',rqccuten(i,j,:)
            write(0,*)'dqidt=',rqicuten(i,j,:)
            write(0,*)'dqsdt=',rqscuten(i,j,:)
            write(0,*)'dqgdt=',rqgcuten(i,j,:)
-           write(0,*)'max dqvdt,location=', maxval(abs(rqvcuten)),maxloc(abs(rqvcuten))
+           write(0,*)'max dqdt,location=', maxval(abs(rqcuten)),maxloc(abs(rqcuten))
            write(0,*)'max dqcdt,location=', maxval(abs(rqccuten)),maxloc(abs(rqccuten))
            write(0,*)'max dqrdt,location=', maxval(abs(rqrcuten)),maxloc(abs(rqrcuten))
            write(0,*)'max dqidt,location=', maxval(abs(rqicuten)),maxloc(abs(rqicuten))

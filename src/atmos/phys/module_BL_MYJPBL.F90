@@ -128,12 +128,12 @@
 !
 !-----------------------------------------------------------------------
       SUBROUTINE MYJPBL(DT,NPHS,HT,DZ                                  &
-     &                 ,PHMID,PHINT,TH,T,EXNER,QV,CWM,U,V              &
+     &                 ,PHMID,PHINT,TH,T,EXNER,Q,CWM,U,V               &
      &                 ,TSK,QSFC,CHKLOWQ,THZ0,QZ0,UZ0,VZ0              &
      &                 ,XLAND,SICE,SNOW                                &
      &                 ,Q2,EXCH_H,USTAR,Z0,EL_MYJ,PBLH,KPBL,CT         &
      &                 ,AKHS,AKMS,ELFLX,MIXHT                          &
-     &                 ,RUBLTEN,RVBLTEN,RTHBLTEN,RQVBLTEN,RQCBLTEN     &
+     &                 ,RUBLTEN,RVBLTEN,RTHBLTEN,RQBLTEN,RQCBLTEN      &
      &                 ,IDS,IDE,JDS,JDE                                &
      &                 ,IMS,IME,JMS,JME                                &
      &                 ,ITS,ITE,JTS,JTE,LM)
@@ -162,7 +162,7 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM+1),INTENT(IN) :: PHINT
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: QV,CWM,U,V,T,TH
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: Q,CWM,U,V,T,TH
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: MIXHT,PBLH
 !
@@ -174,7 +174,7 @@
      &                                                   ,RUBLTEN      &
      &                                                   ,RVBLTEN      &
      &                                                   ,RTHBLTEN     &
-     &                                                   ,RQVBLTEN
+     &                                                   ,RQBLTEN
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: CT,QSFC,QZ0     &
      &                                                ,THZ0,USTAR      &
@@ -192,9 +192,9 @@
 !
       INTEGER,DIMENSION(ITS:ITE,JTS:JTE) :: LPBL
 !
-      REAL :: AKHS_DENS,AKMS_DENS,APEX,DCDT,DELTAZ,DQDT,DTDIF,DTDT     &
-     &       ,DTTURBL,DUDT,DVDT,EXNSFC,PSFC,PTOP,QFC1,QLOW,QOLD        &
-     &       ,RATIOMX,RDTTURBL,RG,SEAMASK,THNEW,THOLD,TX               &
+      REAL :: AKHS_DENS,AKMS_DENS,DELTAZ,DTDIF                         &
+     &       ,DTTURBL,DUDT,DVDT,EXNSFC,PSFC,PTOP,QFC1,QLOW             &
+     &       ,RDTTURBL,SEAMASK,THNEW,THOLD                             &
      &       ,ULOW,VLOW
 !
       REAL,DIMENSION(1:LM) :: CWMK,PK,Q2K,QK,THEK,TK,UK,VK
@@ -233,7 +233,6 @@
       DTTURBL=DT*NPHS
       RDTTURBL=1./DTTURBL
       DTDIF=DTTURBL
-      RG=1./G
 !
       DO K=1,LM-1
       DO J=JTS,JTE
@@ -261,10 +260,8 @@
         DO J=JTS,JTE
         DO I=ITS,ITE
           ZINT(I,J,K)=ZINT(I,J,K+1)+DZ(I,J,K)
-          APEX=1./EXNER(I,J,K)
-          APE(I,J,K)=APEX
-          TX=T(I,J,K)
-          THE(I,J,K)=(CWM(I,J,K)*(-ELOCP/TX)+1.)*TH(I,J,K)
+          APE(I,J,K)=1./EXNER(I,J,K)
+          THE(I,J,K)=(CWM(I,J,K)*(-ELOCP/T(I,J,K))+1.)*TH(I,J,K)
         ENDDO
         ENDDO
       ENDDO
@@ -278,7 +275,7 @@
 !----------------------------------------------------------------------
 !.......................................................................
 !$omp parallel do &
-!$omp private(j,i,lmh,ptop,psfc,seamask,k,tk,thek,ratiomx,qk,cwmk,       &
+!$omp private(j,i,lmh,ptop,psfc,seamask,k,tk,thek,qk,cwmk,       &
 !$omp         pk,uk,vk,q2k,zhk,lmxl,gm,gh,el,akmk,akhk,deltaz),          &
 !$omp         SCHEDULE(dynamic)
 !.......................................................................
@@ -304,8 +301,7 @@
           DO K=LM,1,-1
             TK(K)=T(I,J,K)
             THEK(K)=THE(I,J,K)
-            RATIOMX=QV(I,J,K)
-            QK(K)=RATIOMX/(1.+RATIOMX)
+            QK(K)=Q(I,J,K)
             CWMK(K)=CWM(I,J,K)
             PK(K)=PHMID(I,J,K)
             UK(K)=U(I,J,K)
@@ -410,9 +406,9 @@
 !----------------------------------------------------------------------
 !.......................................................................
 !$omp parallel do  private(i,j,k    &
-!$omp  & ,thek,ratiomx,qk,cwmk,zhk,rhok   &
+!$omp  & ,thek,qk,cwmk,zhk,rhok   &
 !$omp  & ,akhk,seamask,llow,akhs_dens,qfc1,qlow,psfc,exnsfc,lmh &
-!$omp  & ,thold,thnew,dtdt,qold,dqdt,dcdt,zsl_diag,akmk,akms_dens,uk,vk &
+!$omp  & ,thold,thnew,zsl_diag,akmk,akms_dens,uk,vk &
 !$omp  & ,dudt,dvdt),SCHEDULE(dynamic)
 !.......................................................................
 !----------------------------------------------------------------------
@@ -425,8 +421,7 @@
 !
           DO K=LM,1,-1
             THEK(K)=THE(I,J,K)
-            RATIOMX=QV(I,J,K)
-            QK(K)=RATIOMX/(1.+RATIOMX)
+            QK(K)=Q(I,J,K)
             CWMK(K)=CWM(I,J,K)
             ZHK(K)=ZINT(I,J,K)
             RHOK(K)=PHMID(I,J,K)/(R_D*T(I,J,K)*(1.+P608*QK(K)-CWMK(K)))
@@ -493,14 +488,9 @@
           DO K=1,LM
             THOLD=TH(I,J,K)
             THNEW=THEK(K)+CWMK(K)*ELOCP*APE(I,J,K)
-            DTDT=(THNEW-THOLD)*RDTTURBL
-            QOLD=QV(I,J,K)/(1.+QV(I,J,K))
-            DQDT=(QK(K)-QOLD)*RDTTURBL
-            DCDT=(CWMK(K)-CWM(I,J,K))*RDTTURBL
-!
-            RTHBLTEN(I,J,K)=DTDT
-            RQVBLTEN(I,J,K)=DQDT/(1.-QK(K))**2
-            RQCBLTEN(I,J,K)=DCDT
+            RTHBLTEN(I,J,K)=(THNEW-THOLD)*RDTTURBL
+            RQBLTEN(I,J,K)=(QK(K)-Q(I,J,K))*RDTTURBL
+            RQCBLTEN(I,J,K)=(CWMK(K)-CWM(I,J,K))*RDTTURBL
           ENDDO
 !
 !*** Begin debugging
@@ -1430,7 +1420,7 @@
 !         RUBLTEN(I,J,K)=0.
 !         RVBLTEN(I,J,K)=0.
 !         RTHBLTEN(I,J,K)=0.
-!         RQVBLTEN(I,J,K)=0.
+!         RQBLTEN(I,J,K)=0.
           EXCH_H(I,J,K)=0.
         ENDDO
         ENDDO

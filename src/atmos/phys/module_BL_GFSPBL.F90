@@ -48,8 +48,8 @@
         SUBROUTINE GFSPBL(DT,NPHS,DP,AIRDEN                              &
      &                    ,RIB                                            &
      &                    ,PHMID,PHINT,T,ZINT                             &
-     &                    ,QV,QC,QR,QI,QS,QG                              &
-     &                    ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG                  &
+     &                    ,Q,QC,QR,QI,QS,QG                               &
+     &                    ,F_QC,F_QR,F_QI,F_QS,F_QG                       &
      &                    ,U,V                                            &
      &                    ,USTAR                                          &
      &                    ,SHEAT, LHEAT                                   &
@@ -64,7 +64,7 @@
      &                    ,RUBLTEN                                        &
      &                    ,RVBLTEN                                        &
      &                    ,RTHBLTEN                                       &
-     &                    ,RQVBLTEN                                       &
+     &                    ,RQBLTEN                                        &
      &                    ,RQCBLTEN                                       &
      &                    ,RQRBLTEN                                       &
      &                    ,RQIBLTEN                                       &
@@ -101,8 +101,8 @@
       REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) :: PHINT,ZINT
       REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE),INTENT(IN) :: U,V,T
 
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE),INTENT(IN):: QV,QC,QR,QI,QS,QG
-      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:KTE),INTENT(IN):: Q,QC,QR,QI,QS,QG
+      LOGICAL,INTENT(IN) :: F_QC,F_QR,F_QI,F_QS,F_QG
 !
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: MIXHT,PBLH,QSFC
       INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: PBLK
@@ -112,7 +112,7 @@
      &    ,INTENT(OUT) ::                                              &
      &                                         RQCBLTEN                &
      &                                        ,RUBLTEN,RVBLTEN         &
-     &                                        ,RTHBLTEN,RQVBLTEN       &
+     &                                        ,RTHBLTEN,RQBLTEN        &
      &                                        ,RQRBLTEN,RQIBLTEN       &
      &                                        ,RQSBLTEN,RQGBLTEN       
 
@@ -164,7 +164,7 @@
       DO J=JMS,JME
       DO I=IMS,IME
       RQCBLTEN(I,J,K) = 0.0
-      RQVBLTEN(I,J,K) = 0.0
+      RQBLTEN(I,J,K) = 0.0
       RQRBLTEN(I,J,K) = 0.0
       RQIBLTEN(I,J,K) = 0.0
       RQSBLTEN(I,J,K) = 0.0
@@ -208,7 +208,7 @@
       DO J=JTS,JTE
       DO I=ITS,ITE
            K=LM
-           QKLOW=QV(I,J,K)/(1.0+ QV(I,J,K))
+           QKLOW=Q(I,J,K)
            CWMKLOW=QC(I,J,K)+QI(I,J,K)
            RHOKLOW=PHMID(I,J,K)/(RD99*T(I,J,K)*(1.+P608*QKLOW-CWMKLOW))
            THSK=TSK(I,J)*(1.E5/PHINT(I,J,LM+1))**CAPPA
@@ -282,8 +282,7 @@
               ugrs(1,K) = U(I,J,KFLIP)
               vgrs(1,K) = V(I,J,KFLIP)
               tgrs(1,K) = T(I,J,KFLIP)
-     !! mixing ratio to specific humidity
-              qgrs(1,K,1) = QV(I,J,KFLIP)/(1.0+QV(I,J,KFLIP))
+              qgrs(1,K,1) = Q(I,J,KFLIP)
               qgrs(1,K,2) = QC(I,J,KFLIP)
               qgrs(1,K,3) = QI(I,J,KFLIP)
 
@@ -350,7 +349,7 @@
              RVBLTEN(I,J,K)  = dvdt(1,KFLIP)                      
              RTHBLTEN(I,J,K) = dtdt(1,KFLIP)/prslk(1,KFLIP)  !! /EXNER(I,J,K)
         !!     RTHBLTEN(I,J,K) = dtdt(1,KFLIP)*prsik(1,1)/prslk(1,KFLIP)  !! /EXNER(I,J,K)
-             RQVBLTEN(I,J,K) = dqdt(1,KFLIP,1)/(1.0-qgrs(1,kflip,1))**2  ! to mixing ratio
+             RQBLTEN(I,J,K) = dqdt(1,KFLIP,1)
              RQCBLTEN(I,J,K) = dqdt(1,KFLIP,2)
              RQIBLTEN(I,J,K) = dqdt(1,KFLIP,3)
           ENDDO
@@ -372,7 +371,7 @@
       write(0,*)'max v=',maxval(v), minval(v)
       write(0,*)'max dudt,dvdt=',maxval(abs(dudt)),maxval(abs(dvdt))
       write(0,*)'max dqdt,dqdt=',maxval(dqdt),minval(dqdt)
-      write(0,*)'max dqvdt,dqvdt=',maxval(dqdt(1,:,1)),minval(dqdt(1,:,1))
+      write(0,*)'max dqdt,dqdt=',maxval(dqdt(1,:,1)),minval(dqdt(1,:,1))
       write(0,*)'max lheat=',maxval(abs(lheat(its:ite,jts:jte))),maxloc(abs(lheat(its:ite,jts:jte))) 
       write(0,*)'max sheat=',maxval(abs(sheat(its:ite,jts:jte))),maxloc(abs(sheat(its:ite,jts:jte))) 
         ENDIF

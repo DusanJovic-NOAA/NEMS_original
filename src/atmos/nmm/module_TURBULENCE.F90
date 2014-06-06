@@ -285,7 +285,7 @@
 !
       INTEGER(kind=KINT),DIMENSION(IMS:IME,JMS:JME) :: UTYPE_URB2D
 !
-      REAL(kind=KFPT) :: ALTITUDE,DECLIN_URB,DQDT,DTBL,DTDT,DTMIN,DTPHS,DZHALF &
+      REAL(kind=KFPT) :: ALTITUDE,DECLIN_URB,DTBL,DTDT,DTMIN,DTPHS,DZHALF &
                         ,FACTOR,FACTRL,G_INV,PDSL,PLM,PLYR,PSFC                &
                         ,QIce,QL,QLOWX,QOLD,QRain,QW,QSnow,QGraup                 &
                         ,RATIOMX,RDTPHS,ROG,RXNER,SNO_FACTR                    &
@@ -308,7 +308,7 @@
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM+1) :: PHINT,Z
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM) :: RTHBLTEN       &
-                                                        ,RQVBLTEN       &
+                                                        ,RQBLTEN        &
                                                         ,RQCBLTEN       &
                                                         ,RQIBLTEN       &
                                                         ,RQRBLTEN       &
@@ -603,12 +603,10 @@
           RQCBLTEN(I,J,K)=0.
           RQIBLTEN(I,J,K)=0.
           RTHBLTEN(I,J,K)=0.
-          RQVBLTEN(I,J,K)=0.
-! added 9-10-2010
+          RQBLTEN(I,J,K)=0.
           RQRBLTEN(I,J,K)=0.
           RQSBLTEN(I,J,K)=0.
           RQGBLTEN(I,J,K)=0.
-! end
 !
           DZ(I,J,K)=T(I,J,K)*(P608*QL+1.)*R_D                           &
                     *(PHINT(I,J,K+1)-PHINT(I,J,K))                      &
@@ -687,24 +685,6 @@
       ENDIF
 !
 !-----------------------------------------------------------------------
-!***  Synchronize mixing ratio in Water array with specific humidity.
-!-----------------------------------------------------------------------
-!
-!.......................................................................
-!$omp parallel do                                                       &
-!$omp& private(i,j,k)
-!.......................................................................
-      DO K=1,LM
-        DO J=JMS,JME
-          DO I=IMS,IME
-            QV(I,J,K)=Q(I,J,K)/(1.-Q(I,J,K))
-          ENDDO
-        ENDDO
-      ENDDO
-!.......................................................................
-!$omp end parallel do
-!.......................................................................
-!-----------------------------------------------------------------------
 !
 !***  Call surface layer and land surface physics.
 !
@@ -773,7 +753,7 @@
               MYJ =.TRUE.
               CALL JSFC(NTSD,SFCZ,DZ,                                   &
                         PHMID,PHINT,TH,T,                               &
-                        QV,QC,                                          &
+                        Q,QC,                                           &
                         U_PHY,V_PHY,Q2,                                 &
                         TSFC,QSH,THZ0,QZ0,UZ0,VZ0,                      &
                         XLAND,                                          &
@@ -804,7 +784,7 @@
 
             CASE (LISSSCHEME)
 
-              CALL LISS(DZ,QV,PHINT,RR,                                 &
+              CALL LISS(DZ,Q,PHINT,RR,                                  &
                         T,TH,TSFC,CHS,                                  &
                         TWBS,QWBS,QGH,RSW_DN_SFC,RLW_DN_SFC,ELFLX,RMOL, &
                         SMSTAV,SMSTOT,SSROFF,                           &
@@ -827,7 +807,7 @@
               NWL=1
               NRDL=1
 
-              CALL NOAHLSM(DZ,QV,PHINT,T,TSFC,                          &
+              CALL NOAHLSM(DZ,Q,PHINT,T,TSFC,                           &
                            TWBS,QWBS,ELFLX,GRNFLX,QGH,                  &
                            RSW_NET_SFC,RSW_DN_SFC,RLW_DN_SFC,           &
                            SMSTAV,SMSTOT,                               &
@@ -960,7 +940,7 @@
 
               CALL MYJPBL(DT=DT,NPHS=NPHS,HT=SFCZ,DZ=DZ                 &
                          ,PHMID=PHMID,PHINT=PHINT,TH=TH,T=T,EXNER=EXNER &
-                         ,QV=QV                                         &
+                         ,Q=Q                                           &
                          ,CWM=QC                                        &
                          ,U=U_PHY,V=V_PHY                               &
                          ,TSK=TSFC,QSFC=QSH,CHKLOWQ=CHKLOWQ,THZ0=THZ0   &
@@ -972,7 +952,7 @@
                          ,RUBLTEN=DUDT                                  &
                          ,RVBLTEN=DVDT                                  &
                          ,RTHBLTEN=RTHBLTEN                             &
-                         ,RQVBLTEN=RQVBLTEN                             &
+                         ,RQBLTEN=RQBLTEN                               &
                          ,RQCBLTEN=RQCBLTEN                             &
                          ,IDS=IDS,IDE=IDE,JDS=JDS,JDE=JDE               &
                          ,IMS=IMS,IME=IME,JMS=JMS,JME=JME               &
@@ -989,12 +969,12 @@
               CALL GFSPBL(DT=DT,NPHS=NPHS,DP=DELP,AIRDEN=RR              &
                          ,RIB=RIB                                        &
                          ,PHMID=PHMID,PHINT=PHINT,T=T,ZINT=Z             &
-                         ,QV=QV,QC=QC,QR=QR,QI=QI,QS=QS,QG=QG            &
-                         ,F_QV=F_QV,F_QC=F_QC,F_QR=F_QR                  &
+                         ,Q=Q,QC=QC,QR=QR,QI=QI,QS=QS,QG=QG              &
+                         ,F_QC=F_QC,F_QR=F_QR                            &
                          ,F_QI=F_QI,F_QS=F_QS,F_QG=F_QG                  &
                          ,U=U_PHY,V=V_PHY                                &
                          ,USTAR=USTAR                                    &
-                         ,SHEAT=TWBS, LHEAT=QWBS*XLV*CHKLOWQ             & 
+                         ,SHEAT=TWBS, LHEAT=QWBS*XLV*CHKLOWQ             &
                     !     ,SHEAT=TWBS, LHEAT=QWBS*XLV*CHKLOWQ            &    !! After testing, TWBS is regular 
                                                                               !surface heat flux (i.e., up is +)
                          ,XLAND=XLAND                                    &
@@ -1008,7 +988,7 @@
                          ,RUBLTEN=DUDT                                   &
                          ,RVBLTEN=DVDT                                   &
                          ,RTHBLTEN=RTHBLTEN                              &
-                         ,RQVBLTEN=RQVBLTEN                              &
+                         ,RQBLTEN=RQBLTEN                                &
                          ,RQCBLTEN=RQCBLTEN                              &
                          ,RQRBLTEN=RQRBLTEN                              &
                          ,RQIBLTEN=RQIBLTEN                              &
@@ -1196,7 +1176,7 @@
 !
       IF(GWDFLG) THEN
 
-        CALL GWD_DRIVER(DTPHS,U_PHY,V_PHY,T,QV                          &
+        CALL GWD_DRIVER(DTPHS,U_PHY,V_PHY,T,Q                           &
                        ,Z,DELP                                          &
                        ,PHINT,PHMID,EXNER                               &
                        ,LPBL                                            &
@@ -1236,18 +1216,14 @@
 
 !.......................................................................
 !$omp parallel do                                                       &
-!$omp& private(j,k,i,dtdt,dqdt,qold,ratiomx,qw,QIce,QRain,QSnow,QGraup)
+!$omp& private(j,k,i,dtdt,qold,ratiomx,qw,QIce,QRain,QSnow,QGraup)
 !.......................................................................
       DO K=1,LM
         DO J=JTS_B1,JTE_B1
           DO I=ITS_B1,ITE_B1
             DTDT=RTHBLTEN(I,J,K)*EXNER(I,J,K)
-            DQDT=RQVBLTEN(I,J,K)         !Mixing ratio tendency
             T(I,J,K)=T(I,J,K)+DTDT*DTPHS
-            QOLD=Q(I,J,K)
-            RATIOMX=QOLD/(1.-QOLD)+DQDT*DTPHS
-            QV(I,J,K)=RATIOMX
-            Q(I,J,K)=RATIOMX/(1.+RATIOMX)
+            Q(I,J,K)=Q(I,J,K)+RQBLTEN(I,J,K)*DTPHS
 !           Q(I,J,K)=MAX(Q(I,J,K),EPSQ)
             QW=MAX(0.,QC(I,J,K)+RQCBLTEN(I,J,K)*DTPHS )
             QC(I,J,K)=QW

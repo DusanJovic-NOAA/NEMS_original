@@ -5852,6 +5852,19 @@
 !
         CALL HALO_EXCH(int_state%T,LM,2,2)
 !
+!
+!-----------------------------------------------------------------------
+!***  Synchronize mixing ratio with specific humidity.
+!-----------------------------------------------------------------------
+!
+        DO L=1,LM
+        DO J=JTS,JTE
+        DO I=ITS,ITE
+          int_state%QV(I,J,L)=int_state%Q(I,J,L)/(1.-int_state%Q(I,J,L))
+        ENDDO
+        ENDDO
+        ENDDO
+!
 !-----------------------------------------------------------------------
 !***  If advection is on, cloud species are advected.
 !-----------------------------------------------------------------------
@@ -5866,17 +5879,9 @@
           IF(int_state%F_NI) CALL HALO_EXCH(int_state%NI,LM,2,2)
           IF(int_state%F_NR) CALL HALO_EXCH(int_state%NR,LM,2,2)
         ENDIF
-
 !
         td%exch_tim=td%exch_tim+(timef()-btim)
 !
-!-----------------------------------------------------------------------
-!***  NOTE:  The Physics export state is fully updated now
-!***         because subroutine PHY_INITIALIZE inserted the
-!***         appropriate ESMF Fields into it.  Those Fields
-!***         contain pointers to the actual data and those
-!***         pointers are never re-directed.
-!-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
       ELSE gfs_phys_test                                                   !<-- Use GFS physics package

@@ -185,7 +185,7 @@
 ! Urban related variable are added to arguments - urban
 !----------------------------------------------------------------
    SUBROUTINE noahlsm(                                          &
-                  DZ8W,QV3D,P8W3D,T3D,TSK,                      &
+                  DZ8W,Q3D,P8W3D,T3D,TSK,                       &
                   HFX,QFX,LH,GRDFLX, QGH,GSW,SWDOWN,GLW,        &
                   SMSTAV,SMSTOT,                                &
                   SFCRUNOFF, UDRUNOFF,IVGTYP,ISLTYP,VEGFRA,     &          
@@ -229,13 +229,13 @@
 !-- DT          time step (seconds)
 !-- DZ8W        thickness of layers (m)
 !-- T3D         temperature (K)
-!-- QV3D        3D water vapor mixing ratio (Kg/Kg)
+!-- Q3D         3D specific humidity (Kg/Kg)
 !-- P3D         3D pressure (Pa)
 !-- FLHC        exchange coefficient for heat (m/s)
 !-- FLQC        exchange coefficient for moisture (m/s)
 !-- PSFC        surface pressure (Pa)
 !-- XLAND       land mask (1 for land, 2 for water)
-!-- QGH         saturated mixing ratio at 2 meter
+!-- QGH         saturated specific humidity at 2 meter
 !-- GSW         downward short wave flux at ground surface (W/m^2)
 !-- GLW         downward long wave flux at ground surface (W/m^2)
 !-- History variables 
@@ -379,11 +379,11 @@
    REAL,    DIMENSION( ims:ime, jms:jme, kms:kme )            , &
             INTENT(IN   )    ::                          p8w3D, &
                                                            T3D, &
-                                                          QV3D
+                                                           Q3D
 
    REAL,     DIMENSION( ims:ime, jms:jme )                    , &
              INTENT(IN   )               ::               QGH,  &
-                                                          CHS,   &
+                                                          CHS,  &
                                                           CPM
 
    INTEGER, DIMENSION( ims:ime, jms:jme )                     , &
@@ -679,11 +679,8 @@
         PSFC=P8w3D(i,j,KTE+1)
 ! pressure in middle of lowest layer
         SFCPRS=(P8W3D(I,j,KTE)+P8W3D(i,j,KTE+1))*0.5
-! convert from mixing ratio to specific humidity
-         Q2K=QV3D(i,j,KTE)/(1.0+QV3D(i,j,KTE))
-!
-!         Q2SAT=QGH(I,j)
-         Q2SAT=QGH(I,J)/(1.0+QGH(I,J))        ! Q2SAT is sp humidity 
+         Q2K=Q3D(i,j,KTE)
+         Q2SAT=QGH(I,j)
 ! add check on myj=.true.
 !        IF((Q2K.GE.Q2SAT*TRESH).AND.Q2K.LT.QZ0(I,J))THEN
         IF((myj).AND.(Q2K.GE.Q2SAT*TRESH).AND.Q2K.LT.QZ0(I,J))THEN

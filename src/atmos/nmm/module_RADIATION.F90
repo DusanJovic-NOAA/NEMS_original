@@ -309,25 +309,6 @@
 !.......................................................................
 !
 !-----------------------------------------------------------------------
-!***  SYNCHRONIZE MIXING RATIO IN WATER ARRAY WITH SPECIFIC HUMIDITY.
-!-----------------------------------------------------------------------
-!
-!.......................................................................
-!$omp parallel do                                                       &
-!$omp& private(i,j,k)
-!.......................................................................
-      DO K=1,LM                                            
-        DO J=JMS,JME                                      
-          DO I=IMS,IME                                   
-            QV(I,J,K)=Q(I,J,K)/(1.-Q(I,J,K))    
-          ENDDO                                        
-        ENDDO                                         
-      ENDDO                                          
-!.......................................................................
-!$omp end parallel do
-!.......................................................................
-!
-!-----------------------------------------------------------------------
 !
 !***  CALL THE INNER DRIVER.
 !
@@ -509,12 +490,11 @@
                  CALL GFDL(                                         &
                   DT=dt,XLAND=xland                                 &
                  ,PHINT=phint,T=t                                   &
-                 ,QV=QV                                             &
+                 ,Q=Q                                               &
                  ,QW=QC                                             &
                  ,QI=QI                                             &
                  ,QS=QS                                             &
-                 ,F_QV=F_QV,F_QC=F_QC,F_QR=F_QR,F_QI=F_QI           &
-                 ,F_QS=F_QS,F_QG=F_QG                               &
+                 ,F_QC=F_QC,F_QI=F_QI,F_QS=F_QS                     &
                  ,TSK2D=tsfc,GLW=GLW,RSWIN=SWDOWN,GSW=GSW           &
                  ,RSWINC=SWDOWNC,CLDFRA=CLDFRA,PI3D=PI3D            &
                  ,GLAT=glat,GLON=glon,HTOP=htop,HBOT=hbot           &
@@ -530,7 +510,7 @@
                  ,RSWTOA=rswtoa,RLWTOA=rlwtoa,CZMEAN=czmean         &
                  ,THRATEN=thraten,THRATENLW=thratenlw               &
                  ,THRATENSW=thratensw                               &
-                 ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=lm+1  &     
+                 ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=lm+1  &
                  ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=lm+1  &
                  ,ITS=iqs,ITE=iqe, JTS=jqs,JTE=jqe, KTS=1,KTE=lm    &
                                                                     )
@@ -567,12 +547,11 @@
                  CALL GFDL(                                         &
                   DT=dt,XLAND=xland                                 &
                  ,PHINT=phint,T=t                                   &
-                 ,QV=QV                                             &
+                 ,Q=Q                                               &
                  ,QW=QC                                             &
                  ,QI=QI                                             &
                  ,QS=QS                                             &
-                 ,F_QV=F_QV,F_QC=F_QC,F_QR=F_QR,F_QI=F_QI           &
-                 ,F_QS=F_QS,F_QG=F_QG                               &
+                 ,F_QC=F_QC,F_QI=F_QI,F_QS=F_QS                     &
                  ,TSK2D=tsfc,GLW=GLW,RSWIN=SWDOWN,GSW=GSW           &
                  ,RSWINC=SWDOWNC,CLDFRA=CLDFRA,PI3D=PI3D            &
                  ,GLAT=glat,GLON=glon,HTOP=htop,HBOT=hbot           &

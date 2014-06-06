@@ -25,7 +25,7 @@
                            dz8w,rho_phy,p_phy,pi_phy,th_phy,           &
                            SR,QT,F_ICE_phy,                            &
                            RAINNC,RAINNCV,                             &
-                           QV,QC,QI,F_QV,F_QC,F_QI,                    &
+                           Q,QC,QI,F_QC,F_QI,                          &
                            TP1,QP1,PSP1,                               &
                            ids,ide, jds,jde, kds,kde,                  &
                            ims,ime, jms,jme, kms,kme,                  &
@@ -46,8 +46,8 @@
       REAL, INTENT(INOUT),  DIMENSION(ims:ime,jms:jme)           ::     &
                                                          RAINNC,RAINNCV
       REAL, INTENT(OUT),    DIMENSION(ims:ime,jms:jme):: SR
-      REAL, INTENT(INOUT),  DIMENSION(IMS:IME,JMS:JME,1:KTE):: QV,QC,QI
-      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QI
+      REAL, INTENT(INOUT),  DIMENSION(IMS:IME,JMS:JME,1:KTE):: Q,QC,QI
+      LOGICAL,INTENT(IN) :: F_QC,F_QI
       REAL, INTENT(INOUT),  DIMENSION(ims:ime,jms:jme)           :: PSP1
       REAL, INTENT(INOUT),  DIMENSION(ims:ime,jms:jme,1:KTE)     :: TP1,QP1
 
@@ -152,7 +152,7 @@
 
             DELP(IX,KFLIP)=RHO_PHY(I,J,K)*g99*dz8w(I,J,K)
             PRSL(IX,KFLIP)=P_phy(I,J,K)
-            Q_COL(IX,KFLIP) = QV(I,J,K)/(1.0+QV(I,J,K) )   !! to specific humidity        
+            Q_COL(IX,KFLIP) = Q(I,J,K)
             CWM_COL(IX,KFLIP)=QC(I,J,K)+QI(I,J,K) 
             T_COL(IX,KFLIP) = t_phy(i,j,k) 
 !
@@ -230,7 +230,7 @@
           DO K=1,KM
             KFLIP=KM + 1 - K 
             T_phy(I,J,K)=T_col(1,KFLIP)
-            QV(I,J,K)= Q_col(1,KFLIP)/(1.0-Q_COL(1,KFLIP) )
+            Q(I,J,K)= Q_col(1,KFLIP)
               fice=1.0
               IF(T_COL(1,KFLIP) .GT. t_ice .and.                   &
                  T_COL(1,KFLIP) .LE. t0c ) THEN

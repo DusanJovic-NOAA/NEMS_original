@@ -287,7 +287,7 @@ data brftbl &
 !
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE liss(DZ8W,QV3D,P8W3D,RHO3D,                            &
+      SUBROUTINE liss(DZ8W,Q3D,P8W3D,RHO3D,                             &
      &               T3D,TH3D,TSK,CHS,                                  &
      &               HFX,QFX,QGH,GSW,GLW,ELFLX,RMOL,                    & ! added for WRF CHEM
      &               SMSTAV,SMSTOT,SFCRUNOFF,                           &
@@ -309,7 +309,7 @@ data brftbl &
 !-----------------------------------------------------------------------
 !-- DZ8W        thickness of layers (m)
 !-- T3D         temperature (K)
-!-- QV3D        3D water vapor mixing ratio (Kg/Kg)
+!-- Q3D         3D specific humidity (Kg/Kg)
 !-- P8W3D       3D pressure on layer interfaces (Pa)
 !-- FLHC        exchange coefficient for heat (m/s)
 !-- FLQC        exchange coefficient for moisture (m/s)
@@ -424,7 +424,7 @@ data brftbl &
                                                                    QZ0, &
                                                                     SR
 
-      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) ::       QV3D, &
+      REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(IN) ::        Q3D, &
                                                                   TH3D, &
                                                                    T3D
 
@@ -451,7 +451,7 @@ data brftbl &
 
 ! LOCAL VARS
 
-      REAL,DIMENSION(ITS:ITE) ::                                  QV1D, &
+      REAL,DIMENSION(ITS:ITE) ::                                   Q1D, &
      &                                                             T1D, &
      &                                                            TH1D, &
      &                                                            ZA1D, &
@@ -477,9 +477,7 @@ data brftbl &
         DO I=ITS,ITE
           t1d(i)    = t3d(i,j,kte) !zj
           th1d(i)   = th3d(i,J,kte) !zj
-!!!       qv1d(i)   = qv3d(i,j,kte) !zj
-          ratiomx   = qv3d(i,j,kte) !zj
-          QV1D(I)   = RATIOMX/(1.+RATIOMX)
+          q1d(i)    = q3d(i,j,kte) !zj
           p8w1d(i)  = (p8w3d(i,j,kte+1)+p8w3d(i,j,kte))*0.5 !zj
           psfc1d(i) = p8w3d(i,j,kte+1) !zj
           za1d(i)   = 0.5*dz8w(i,j,kte) !zj
@@ -490,7 +488,7 @@ data brftbl &
 !FLHC = SFCEXC
 !-----------------------------------------------------------------------
         call surface &
-        (j,za1d,qv1d,p8w1d,psfc1d,rho1d,t1d,th1d,tsk &
+        (j,za1d,q1d,p8w1d,psfc1d,rho1d,t1d,th1d,tsk &
         ,chs(ims,j),prec1d,hfx,qfx,qgh(ims,j),gsw,glw &
         ,smstav,smstot,sfcrunoff &
         ,udrunoff,ivgtyp,isltyp,vegfra,sfcevp,potevp,grdflx &
@@ -508,7 +506,7 @@ data brftbl &
    END SUBROUTINE liss
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine surface &
-(j,za,qv,p8w,psfc,rho,t,th,tsk,chs,prec,hfx,qfx &
+(j,za,q,p8w,psfc,rho,t,th,tsk,chs,prec,hfx,qfx &
 ,qgh,gsw,glw,smstav,smstot,sfcrunoff,udrunoff &
 ,ivgtyp,isltyp,vegfra,sfcevp,potevp,grdflx &
 ,elflx,sfcexc,acsnow,acsnom,snopcx &
@@ -574,7 +572,7 @@ real,dimension(1:num_soil_layers),intent(in):: &
  dzs                 ! unused
 
 real,dimension(its:ite),intent(in):: &
- p8w,prec,psfc,qv &
+ p8w,prec,psfc,q &
 ,rho &               ! unused
 ,t,th,za
 
@@ -769,7 +767,7 @@ real,dimension(1:kmsc):: &
         tlbc=tmn(i,j)
 !---humidity variables--------------------------------------------------
         qlmsat=qgh(i)
-        qlm=qv(i)
+        qlm=q(i)
         qs =qsfc(i,j)
 !---check for saturation at the lowest model level----------------------
         if((qlm.ge.qlmsat*tresh).and.qlm.lt.qz0(i,j))then
