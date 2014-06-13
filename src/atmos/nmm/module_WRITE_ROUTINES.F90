@@ -5160,7 +5160,7 @@
  121  FORMAT('xdef ',I6,' linear  -180.000 ',f12.6)
  122  FORMAT('ydef ',I6,' linear   -90.000 ',f12.6)
  131  FORMAT('xdef ',I6,' linear  ',f8.3,' ',f12.6)
- 132  FORMAT('ydef ',I6,' linear  ',f6.3,' ',f12.6)
+ 132  FORMAT('ydef ',I6,' linear  ',f8.3,' ',f12.6)
  113  FORMAT('zdef ',I6,' linear 1 1 ')
  114  FORMAT('tdef ',I6,' linear ',A12,' 6hr')
 !

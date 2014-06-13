@@ -1135,6 +1135,7 @@ integer :: ierr,ixx,jxx,kxx
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_h &
                         ,mype,mpi_comm_comp &
+                        ,its,ite,ims,ime,ids,ide,jts,jte,jms,jme &
                         ,hn)
 !
 !-----------------------------------------------------------------------
@@ -1244,6 +1245,7 @@ integer :: ierr,ixx,jxx,kxx
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_h &
                          ,mype,mpi_comm_comp &
+                         ,its,ite,ims,ime,ids,ide,jts,jte,jms,jme &
                          ,field_h)
 !
 !-----------------------------------------------------------------------
@@ -1361,6 +1363,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_v &
                         ,mype,mpi_comm_comp &
+                        ,its,ite,ims,ime,ids,ide,jts,jte,jms,jme &
                         ,wn)
 !
 !-----------------------------------------------------------------------
@@ -1421,6 +1424,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
                          ,mype,mpi_comm_comp &
+                         ,its,ite,ims,ime,ids,ide,jts,jte,jms,jme &
                          ,field_w)
 !
 !-----------------------------------------------------------------------
@@ -1541,6 +1545,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_v &
                         ,mype,mpi_comm_comp &
+                        ,its,ite,ims,ime,ids,ide,jts,jte,jms,jme &
                         ,un)
       call gather_layers(v,km,npes,msize_dummy_fft &
                         ,lm_fft,k1_fft,k2_fft &
@@ -1551,6 +1556,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                         ,ipe_start,ipe_end &
                         ,my_domain_has_fft_lats_v &
                         ,mype,mpi_comm_comp &
+                        ,its,ite,ims,ime,ids,ide,jts,jte,jms,jme &
                         ,vn)
 !
 !-----------------------------------------------------------------------
@@ -1666,6 +1672,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
                          ,mype,mpi_comm_comp &
+                         ,its,ite,ims,ime,ids,ide,jts,jte,jms,jme &
                          ,u)
       call scatter_layers(vn,km,npes,msize_dummy_fft &
                          ,lm_fft,k1_fft,k2_fft &
@@ -1676,6 +1683,7 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
                          ,ipe_start,ipe_end &
                          ,my_domain_has_fft_lats_v &
                          ,mype,mpi_comm_comp &
+                         ,its,ite,ims,ime,ids,ide,jts,jte,jms,jme &
                          ,v)
 !
 !-----------------------------------------------------------------------

@@ -1,11 +1,11 @@
-Wed Jun  4 16:56:30 UTC 2014
+Thu Jun 12 10:48:36 EDT 2014
 Start Regression test
 
 
 
-Wed Jun  4 16:56:30 UTC 2014
+Thu Jun 12 10:48:36 EDT 2014
 Compilation ALL
-Wed Jun  4 17:25:41 UTC 2014
+Thu Jun 12 11:18:01 EDT 2014
 Test 1
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 1 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  96.036
+ Original timing:  151.20  , test_glob timing:  94.517
 
 
 Test 2
@@ -128,7 +128,7 @@ Checking test 8 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  183.25
+ Original timing:  240.82  , test_reg timing:  179.23
 
 
 Test 9
@@ -918,9 +918,9 @@ Checking test 49 results ....
  Comparing sigf18.........OK
  Comparing sigf24.........OK
  Test 49 passed 
-Thu Jun  5 03:11:34 UTC 2014
+Thu Jun 12 22:29:57 EDT 2014
 Compilation with POST
-Thu Jun  5 03:30:54 UTC 2014
+Thu Jun 12 22:50:32 EDT 2014
 Test 50
 NMMB-regional run with post on quilt
 
@@ -966,9 +966,9 @@ Checking test 51 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 51 passed 
-Thu Jun  5 03:41:40 UTC 2014
+Thu Jun 12 23:04:22 EDT 2014
 Compilation ESMF 6.3.0r API
-Thu Jun  5 03:57:31 UTC 2014
+Thu Jun 12 23:19:43 EDT 2014
 Test 52
 Compare GFS results with previous trunk version ESMF6.3.0rAPI
 GFS, 32 proc, 1 thread
@@ -996,9 +996,9 @@ Checking test 52 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 52 passed 
-Thu Jun  5 04:00:46 UTC 2014
+Thu Jun 12 23:22:59 EDT 2014
 Compilation only GFS
-Thu Jun  5 04:11:34 UTC 2014
+Thu Jun 12 23:33:59 EDT 2014
 Test 53
 Compare GFS results with previous trunk version, only GFS compiled
 GFS, 32 proc, 1 thread
@@ -1026,5 +1026,5 @@ Checking test 53 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 53 passed 
-Thu Jun  5 04:15:21 UTC 2014
+Thu Jun 12 23:42:13 EDT 2014
 REGRESSION TEST WAS SUCCESSFUL

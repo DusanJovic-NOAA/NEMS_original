@@ -615,6 +615,7 @@
         REAL(kind=KFPT) :: RNPTS_HZ
 !
         LOGICAL(kind=KLOG) :: FIRST_PASS_M
+        LOGICAL(kind=KLOG) :: FIRST_STEP_2WAY
         LOGICAL(kind=KLOG) :: I_HOLD_CENTER_POINT
 !
         LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: IN_WINDOW
@@ -999,6 +1000,7 @@
       REAL(kind=KFPT),POINTER :: RNPTS_HZ
 !
       LOGICAL(kind=KLOG),POINTER :: FIRST_PASS_M
+      LOGICAL(kind=KLOG),POINTER :: FIRST_STEP_2WAY
       LOGICAL(kind=KLOG),POINTER :: I_HOLD_CENTER_POINT
 !
       LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: IN_WINDOW
@@ -1991,8 +1993,6 @@
       CALL POINT_TO_COMPOSITE(MY_DOMAIN_ID)
 !
       CC=>CPL_COMPOSITE(MY_DOMAIN_ID)                                      !<-- Use dummy for shorter reference to composite
-!
-!-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !***  What is the total number of domains in this run?
@@ -3856,6 +3856,8 @@
 !
         IF(NEST_MODE=='2-way')THEN
 !
+!-----------------------------------------------------------------------
+!
           CALLED_CHILD_2WAY_BOOKKEEPING=>cc%CALLED_CHILD_2WAY_BOOKKEEPING
           CALLED_CHILD_2WAY_BOOKKEEPING=.FALSE.
 !
@@ -4015,6 +4017,15 @@
             ENDIF
 !
           ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Initialize the flag that indicates whether or not the 2-way
+!***  forecast is in its first step.
+!-----------------------------------------------------------------------
+!
+          cc%FIRST_STEP_2WAY=.TRUE.
+!
+!-----------------------------------------------------------------------
 !
         ENDIF
 !
@@ -10800,7 +10811,8 @@
 !-----------------------------------------------------------------------
 !
         N_ALL=RANK_2WAY_CHILD(N)                                           !<-- Rank of 2-way child N among ALL children
-      call mpi_comm_rank(comm_to_my_children(n_all),mype_intra,ierr)
+        NM=1
+        call mpi_comm_rank(comm_to_my_children(n_all),mype_intra,ierr)
 !
         IF(STATIC_OR_MOVING(N_ALL)=='Moving')THEN                          !<-- If so, 2-way child N's domain is movable.
 !
@@ -11294,24 +11306,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
-!***  Did this domain move at the beginning of this timestep?
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      MESSAGE_CHECK="CHILDREN_SEND_PARENTS_2WAY_DATA: Extract Move Flag"
-!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_AttributeGet(state=EXP_STATE                            &  !<-- The parent-child coupler export state
-                            ,name ='MOVE_NOW'                           &  !<-- Name of the attribute to extract
-                            ,value=MOVE_NOW                             &  !<-- Did this child just move?
-                            ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
 !***  Point to the correct part of the composite object which will
 !***  align working variables in this task's memory with values
 !***  associated with this particular domain.
@@ -11320,6 +11314,38 @@
       CALL POINT_TO_COMPOSITE(MY_DOMAIN_ID)
 !
       CC=>CPL_COMPOSITE(MY_DOMAIN_ID)
+!
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
+!***  Did this domain move at the beginning of this timestep?
+!-----------------------------------------------------------------------
+!
+#ifdef ESMF_3
+      IF(MY_DOMAIN_MOVES==ESMF_TRUE.AND..NOT.FIRST_STEP_2WAY)THEN
+#else
+      IF(MY_DOMAIN_MOVES.AND..NOT.FIRST_STEP_2WAY)THEN
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="CHILDREN_SEND_PARENTS_2WAY_DATA: Extract Move Flag"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_AttributeGet(state=EXP_STATE                          &  !<-- The parent-child coupler export state
+                              ,name ='MOVE_NOW'                         &  !<-- Name of the attribute to extract
+                              ,value=MOVE_NOW                           &  !<-- Did this child just move?
+                              ,rc   =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_FINAL)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF
+!
+      IF(FIRST_STEP_2WAY)THEN
+        FIRST_STEP_2WAY=.FALSE.
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -14381,8 +14407,9 @@
       RNPTS_HZ=>cc%RNPTS_HZ
       ELAPSED_TIME_MIN=>cc%ELAPSED_TIME_MIN
 !
-      FIRST_PASS_M=>cc%FIRST_PASS_M
-      IN_WINDOW=>cc%IN_WINDOW
+      FIRST_PASS_M   =>cc%FIRST_PASS_M
+      FIRST_STEP_2WAY=>cc%FIRST_STEP_2WAY
+      IN_WINDOW      =>cc%IN_WINDOW
 !
       I_HOLD_CENTER_POINT=>cc%I_HOLD_CENTER_POINT
       I_HOLD_PG_POINT=>cc%I_HOLD_PG_POINT

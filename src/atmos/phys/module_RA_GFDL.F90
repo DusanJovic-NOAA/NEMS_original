@@ -432,10 +432,8 @@
       REAL,INTENT(IN),DIMENSION(ims:ime, jms:jme, kms:kme)::   phint
       REAL,INTENT(IN),DIMENSION(ims:ime, jms:jme, kts:kte)::     t,     &
      &                                                           q,     &
-     &                                                          qs,     &
-     &                                                          qi,     &
-     &                                                          qw,     &
      &                                                        PI3D
+      REAL,INTENT(IN),DIMENSION(:, :, :), pointer:: qs, qi, qw
       REAL, INTENT(IN), DIMENSION(ims:ime, jms:jme):: ALBEDO,SNOW,      &
      &                                                TSK2D,XLAND
       REAL, INTENT(IN), DIMENSION(ims:ime, jms:jme):: GLAT,GLON
@@ -464,6 +462,13 @@
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
+!      write(0,*)' accociated(qs) ',associated(qs)
+!      write(0,*)' accociated(qi) ',associated(qi)
+!      write(0,*)' accociated(qw) ',associated(qw)
+!
+!      write(0,*)' lbound(qs) ',lbound(qs),ubound(qs)
+!      write(0,*)' lbound(qi) ',lbound(qi),ubound(qi)
+!      write(0,*)' lbound(qw) ',lbound(qw),ubound(qw)
 
       IF(GFDL_LW.AND.GFDL_SW )GO TO 100
 !

@@ -12,7 +12,7 @@
      , Cwet=1./.189      &   !-- Wet ice spheres at >=0C (Smith, JCAM, 1984, p. 1259, eq. 10)
      , Cboth=Cice*Cwet   &   !-- Rain + wet ice at >0C
      , CU_A=300, CU_B=1.4    &   !-- For convective precipitation reflectivity
-     , TFRZ=TIW, TTP=TIW+0.01, DBZmin=-20.                              &
+     , TFRZ=TIW, TTP=TIW+0.01, DBZmin=-20., Zmin=0.01                   &
      , EPSILON=R_D/R_V, ONE_MINUS_EPSILON=1.-EPSILON                    &
      , R_FACTOR=1./EPSILON-1., CP_FACTOR=CPV/CP-1., RCP=R_D/CP          &
      , P00_INV=1.E-5, XA=(CLIQ-CPV)/R_V, XB=XA+XLV/(R_V*TTP)
@@ -1359,7 +1359,7 @@
                DBZ1
 
       REAL :: FLARGE, FSMALL, WV, ESAT, TC, WC, RHO,                       &
-              RRHO, RQR, ZMIN, Fice, Frain, Rimef , XLI, QICE, DRmm,       &
+              RRHO, RQR, Fice, Frain, Rimef , XLI, QICE, DRmm,             &
               DLI, XSIMASS, XLIMASS, DUM, WVQW, QSIGRD, QLICE, FLIMASS
 
       REAL, PARAMETER ::                                                   &
@@ -1371,93 +1371,85 @@
      & ,N0rmin=1.E4
 
 ! ---------
-      Zmin=10.**(0.1*DBZmin)
-          QW1=0.
-          QI1=0.
-          QR1=0.
-          QS1=0.
-          DBZ1=DBZmin
-!          DBZR1=DBZmin
-!          DBZI1=DBZmin
-!          DBZC1=DBZmin
-
-          Zrain=0.            !--- Radar reflectivity from rain
-          Zice=0.             !--- Radar reflectivity from ice
-          Zconv=CUREFL   !--- Radar reflectivity from convection
-          IF (C1D .LE. EPSQ) THEN
+      DBZ1=DBZmin
+      IF (C1D<=EPSQ) THEN
 !
 !--- Skip rest of calculatiions if no condensate is present
 !
-            GO TO 10
-          ELSE
-            WC=C1D
-          ENDIF
+        RETURN
+      ELSE
+        WC=C1D
+      ENDIF
 !
 !--- Code below is from GSMDRIVE for determining:
 !    QI1 - total ice (cloud ice & snow) mixing ratio
 !    QW1 - cloud water mixing ratio
 !    QR1 - rain mixing ratio
-
-          TC=T1D-TFRZ
-          Fice=FI1D
-          Frain=FR1D
-          IF (TC.LE.T_ICE .OR. Fice.GE.1.) THEN
-            QI1=WC
-          ELSE IF (Fice .LE. 0.) THEN
-            QW1=WC
-          ELSE
-            QI1=Fice*WC
-            QW1=WC-QI1
-          ENDIF
-
-          IF (QW1.GT.0. .AND. Frain.GT.0.) THEN
-            IF (Frain .GE. 1.) THEN
-              QR1=QW1
-              QW1=0.
-            ELSE
-              QR1=Frain*QW1
-              QW1=QW1-QR1
-            ENDIF
-          ENDIF
-          WV=Q1D/(1.-Q1D)
-
-          RHO=P1D/(R_D*T1D*(1.+P608*Q1D))
-
-          RRHO=1./RHO
+!
+      Zrain=0.            !--- Radar reflectivity from rain
+      Zice=0.             !--- Radar reflectivity from ice
+      Zconv=CUREFL   !--- Radar reflectivity from convection
+      QW1=0.
+      QI1=0.
+      QR1=0.
+      QS1=0.
+      TC=T1D-TFRZ
+      Fice=FI1D
+      Frain=FR1D
+      IF (TC.LE.T_ICE .OR. Fice.GE.1.) THEN
+        QI1=WC
+      ELSE IF (Fice .LE. 0.) THEN
+        QW1=WC
+      ELSE
+        QI1=Fice*WC
+        QW1=WC-QI1
+      ENDIF
+!
+      IF (QW1>0. .AND. Frain>0.) THEN
+        IF (Frain>=1.) THEN
+          QR1=QW1
+          QW1=0.
+        ELSE
+          QR1=Frain*QW1
+          QW1=QW1-QR1
+        ENDIF
+      ENDIF
+      WV=Q1D/(1.-Q1D)
+      RHO=P1D/(R_D*T1D*(1.+P608*Q1D))
+      RRHO=1./RHO
   !
   !--- Based on code from GSMCOLUMN in model to determine reflectivity from rain
   !
-
-          IF (QR1 .GT. EPSQ) THEN
-            RQR=RHO*QR1
-            IF (RQR .LE. RQR_DRmin) THEN
-              N0r=MAX(N0rmin, CN0r_DMRmin*RQR)
-              INDEXR=MDRmin
-            ELSE IF (RQR .GE. RQR_DRmax) THEN
-              N0r=CN0r_DMRmax*RQR
-              INDEXR=MDRmax
-            ELSE
-              N0r=N0r0
-              INDEXR=MAX( XMRmin, MIN(CN0r0*RQR**.25, XMRmax) )
-            ENDIF
+rain_dbz: IF (QR1>EPSQ) THEN
+        RQR=RHO*QR1
+        IF (RQR<=RQR_DRmin) THEN
+          N0r=MAX(N0rmin, CN0r_DMRmin*RQR)
+          INDEXR=MDRmin
+        ELSE IF (RQR>=RQR_DRmax) THEN
+          N0r=CN0r_DMRmax*RQR
+          INDEXR=MDRmax
+        ELSE
+          N0r=N0r0
+          INDEXR=MAX( XMRmin, MIN(CN0r0*RQR**.25, XMRmax) )
+        ENDIF
   !
   !--- INDEXR is the mean drop size in microns; convert to mm
   !
-            DRmm=1.e-3*REAL(INDEXR)
-            Zrain=0.72*N0r*DRmm*DRmm*DRmm*DRmm*DRmm*DRmm*DRmm
-          ENDIF        !--- End IF (QR1 .GT. EPSQ) block
+        DRmm=1.e-3*REAL(INDEXR)
+        Zrain=0.72*N0r*DRmm*DRmm*DRmm*DRmm*DRmm*DRmm*DRmm
+      ENDIF   rain_dbz     !--- End IF (QR1 .GT. EPSQ)
 !
 !--- Based on code from GSMCOLUMN in model to determine partition of
 !    total ice into cloud ice & snow (precipitation ice)
 !
-          IF (QI1 .GT. EPSQ) THEN
-            QICE=QI1
-            RHO=P1D/(R_D*T1D*(1.+P608*Q1D))
-            RRHO=1./RHO
+ice_dbz: IF (QI1 .GT. EPSQ) THEN
+        QICE=QI1
+        RHO=P1D/(R_D*T1D*(1.+P608*Q1D))
+        RRHO=1./RHO
 !- FPVS - saturation vapor pressure w/r/t water ( >=0C ) or ice ( <0C ) in kPa
-            ESAT=1000.*FPVS(T1D)      !-- saturation w/r/t ice at <0C in Pa
-            QSIgrd=RHgrd*EPSILON*ESAT/(P1D-ESAT)
-            WVQW=WV+QW1
+        ESAT=1000.*FPVS(T1D)      !-- saturation w/r/t ice at <0C in Pa
+        QSIgrd=RHgrd*EPSILON*ESAT/(P1D-ESAT)
+        WVQW=WV+QW1
 !
 ! * FLARGE  - ratio of number of large ice to total (large & small) ice
 ! * FSMALL  - ratio of number of small ice crystals to large ice particles
@@ -1472,56 +1464,59 @@
 !  * QLICE   - time-averaged mixing ratio of large ice
 !  * NLICE   - time-averaged number concentration of large ice
 !
-            IF (TC.GE.0. .OR. WVQW.LT.QSIgrd) THEN
-              FLARGE=1.
-            ELSE
-              FLARGE=.2
-              IF (TC.GE.-8. .AND. TC.LE.-3.) FLARGE=.5*FLARGE
-            ENDIF
-            FSMALL=(1.-FLARGE)/FLARGE
-            XSIMASS=RRHO*MASSI(MDImin)*FSMALL
-      if(tc<-150..or.tc>100.)then
-        write(0,67311)i,j,tc,my_domain_id
-67311   format(' CALMICT i=',i3,' j=',i3,' tc=',e13.6,' domain id=',i2)
-      endif
-            DUM=XMImax*EXP(.0536*TC)
-            INDEXS=MIN(MDImax, MAX(MDImin, INT(DUM) ) )
-            RimeF=AMAX1(1., FS1D )
-            XLIMASS=RRHO*RimeF*MASSI(INDEXS)
-            FLIMASS=XLIMASS/(XLIMASS+XSIMASS)
-            QLICE=FLIMASS*QICE
-            NLICE=QLICE/XLIMASS
-            IF (NLICE.LT.NLImin .OR. NLICE.GT.NLImax) THEN
+        IF (TC>=0. .OR. WVQW<QSIgrd) THEN
+          FLARGE=1.
+        ELSE
+          FLARGE=.2
+          IF (TC>=-8. .AND. TC<=-3.) FLARGE=.5*FLARGE
+        ENDIF
+        FSMALL=(1.-FLARGE)/FLARGE
+        XSIMASS=RRHO*MASSI(MDImin)*FSMALL
+!
+!      if(tc<-150..or.tc>100.)then
+!        write(0,67311)i,j,tc,my_domain_id
+!67311   format(' CALMICT i=',i3,' j=',i3,' tc=',e13.6,' domain id=',i2)
+!      endif
+!
+        DUM=XMImax*EXP(.0536*TC)
+        INDEXS=MIN(MDImax, MAX(MDImin, INT(DUM) ) )
+        RimeF=AMAX1(1., FS1D )
+        XLIMASS=RRHO*RimeF*MASSI(INDEXS)
+        FLIMASS=XLIMASS/(XLIMASS+XSIMASS)
+        QLICE=FLIMASS*QICE
+        NLICE=QLICE/XLIMASS
+new_nlice: IF (NLICE<NLImin .OR. NLICE>NLImax) THEN
 !
 !--- Force NLICE to be between NLImin and NLImax
 !
-              DUM=MAX(NLImin, MIN(NLImax, NLICE) )
-              XLI=RHO*(QICE/DUM-XSIMASS)/RimeF
-              IF (XLI .LE. MASSI(MDImin) ) THEN
-                INDEXS=MDImin
-              ELSE IF (XLI .LE. MASSI(450) ) THEN
-                DLI=9.5885E5*XLI**.42066         ! DLI in microns
-                INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
-              ELSE IF (XLI .LE. MASSI(MDImax) ) THEN
-                DLI=3.9751E6*XLI**.49870         ! DLI in microns
-                INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
-              ELSE
-                INDEXS=MDImax
+          DUM=MAX(NLImin, MIN(NLImax, NLICE) )
+          XLI=RHO*(QICE/DUM-XSIMASS)/RimeF
+          IF (XLI<=MASSI(MDImin) ) THEN
+            INDEXS=MDImin
+          ELSE IF (XLI<=MASSI(450) ) THEN
+            DLI=9.5885E5*XLI**.42066         ! DLI in microns
+            INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
+          ELSE IF (XLI<=MASSI(MDImax) ) THEN
+            DLI=3.9751E6*XLI**.49870         ! DLI in microns
+            INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
+          ELSE
+            INDEXS=MDImax
 !
 !--- 8/22/01: Increase density of large ice if maximum limits
 !    are reached for number concentration (NLImax) and mean size
 !    (MDImax).  Done to increase fall out of ice.
 !
-                IF (DUM .GE. NLImax) &
-                 RimeF=RHO*(QICE/NLImax-XSIMASS)/MASSI(INDEXS)
-              ENDIF             ! End IF (XLI .LE. MASSI(MDImin) )
-              XLIMASS=RRHO*RimeF*MASSI(INDEXS)
-              FLIMASS=XLIMASS/(XLIMASS+XSIMASS)
-              QLICE=FLIMASS*QICE
-              NLICE=QLICE/XLIMASS
-            ENDIF               ! End IF (NLICE.LT.NLImin ...
-            QS1=AMIN1(QI1, QLICE)
-            QI1=AMAX1(0., QI1-QS1)
+            IF (DUM>=NLImax) THEN
+              RimeF=RHO*(QICE/NLImax-XSIMASS)/MASSI(INDEXS)
+            ENDIF
+          ENDIF             ! End IF (XLI .LE. MASSI(MDImin) )
+          XLIMASS=RRHO*RimeF*MASSI(INDEXS)
+          FLIMASS=XLIMASS/(XLIMASS+XSIMASS)
+          QLICE=FLIMASS*QICE
+          NLICE=QLICE/XLIMASS
+        ENDIF  new_nlice
+        QS1=AMIN1(QI1, QLICE)
+        QI1=AMAX1(0., QI1-QS1)
    !
    !--- Equation (C.8) in Ferrier (1994, JAS, p. 272), which when
    !    converted from cgs units to mks units results in the same
@@ -1532,12 +1527,15 @@
    !
    !--- Valid only for exponential ice distributions
    !
-            Zice=Cice*RHO*RHO*QLICE*QLICE/NLICE
-          ENDIF                 ! End IF (QI1 .GT. 0.) THEN
+         IF (NLICE>0. .AND. QLICE>0.) THEN
+           Zice=Cice*RHO*RHO*QLICE*QLICE/NLICE
+         ENDIF
+      ENDIF  ice_dbz         ! End IF (QI1 .GT. EPSQ)
 !
 !---  Calculate total (convective + grid-scale) radar reflectivity
-10        Ztot=Zrain+Zice+Zconv
-          IF (Ztot .GT. Zmin)  DBZ1= 10.*ALOG10(Ztot)
+!
+      Ztot=Zrain+Zice+Zconv
+      IF (Ztot>Zmin) DBZ1= 10.*ALOG10(Ztot)
       RETURN
       END SUBROUTINE CALMICT
 
@@ -1917,100 +1915,94 @@
 
       REAL, PARAMETER :: RQmix=0.1E-3, NSI_max=250.E3
 
-
       REAL ::  NLICE,N0r,Ztot,Zrain,Zice,Zconv,Zmix,QW1,QI1,QR1,QS1     &
-     & ,WV,TC,WC,RHO,RRHO,RQR,ZMIN,Fice,Frain,RimeF,XLI,QICE,DRmm,DLI   &
+     & ,WV,TC,WC,RHO,RRHO,RQR,Fice,Frain,RimeF,XLI,QICE,DRmm,DLI        &
      & ,DUM,QLICE,RQLICE,NSmICE,QSmICE,NRAIN,NLImax,NSImax,Nmix
 
       LOGICAL :: LARGE_RF, HAIL
 
 ! ---------
 
-      Zmin=10.**(0.1*DBZmin)
-          QW1=0.
-          QI1=0.
-          QLICE=0.
-          QR1=0.
-          QS1=0.
-          DBZ1=DBZmin
-!          DBZR1=DBZmin
-!          DBZI1=DBZmin
-!          DBZC1=DBZmin
-
-          Zrain=0.            !--- Radar reflectivity from rain
-          Zice=0.             !--- Radar reflectivity from ice
-          Zconv=CUREFL   !--- Radar reflectivity from convection
-          IF (C1D .LE. EPSQ) THEN
+      DBZ1=DBZmin
+      IF (C1D<=EPSQ) THEN
 !
-!--- Skip rest of calculatiions if no condensate is present
+!--- Skip rest of the calculations if no condensate is present
 !
-            GO TO 10
-          ELSE
-            WC=C1D
-          ENDIF
+        RETURN
+      ELSE
+        WC=C1D
+      ENDIF
 !
 !--- Code below is from GSMDRIVE for determining:
 !    QI1 - total ice (cloud ice & snow) mixing ratio
 !    QW1 - cloud water mixing ratio
 !    QR1 - rain mixing ratio
-
-          TC=T1D-TFRZ
-          Fice=FI1D
-          Frain=FR1D
-          IF (TC.LE.T_ICE .OR. Fice.GE.1.) THEN
-            QI1=WC
-          ELSE IF (Fice .LE. 0.) THEN
-            QW1=WC
-          ELSE
-            QI1=Fice*WC
-            QW1=WC-QI1
-          ENDIF
-          IF (QW1.GT.0. .AND. Frain.GT.0.) THEN
-            IF (Frain .GE. 1.) THEN
-              QR1=QW1
-              QW1=0.
-            ELSE
-              QR1=Frain*QW1
-              QW1=QW1-QR1
-            ENDIF
-          ENDIF
-          WV=Q1D/(1.-Q1D)
-          RHO=P1D/(R_D*T1D*(1.+P608*Q1D))
-          RRHO=1./RHO
-          RQR=0.
-          RQLICE=0.
+!
+      Zrain=0.            !--- Radar reflectivity from rain
+      Zice=0.             !--- Radar reflectivity from ice
+      Zconv=CUREFL        !--- Radar reflectivity from convection
+      QW1=0.
+      QI1=0.
+      QLICE=0.
+      QR1=0.
+      QS1=0.
+      TC=T1D-TFRZ
+      Fice=FI1D
+      Frain=FR1D
+      IF (TC<=T_ICE .OR. Fice>=1.) THEN
+        QI1=WC
+      ELSE IF (Fice<=0.) THEN
+        QW1=WC
+      ELSE
+        QI1=Fice*WC
+        QW1=WC-QI1
+      ENDIF
+      IF (QW1>0. .AND. Frain>0.) THEN
+        IF (Frain>=1.) THEN
+          QR1=QW1
+          QW1=0.
+        ELSE
+          QR1=Frain*QW1
+          QW1=QW1-QR1
+        ENDIF
+      ENDIF
+      WV=Q1D/(1.-Q1D)
+      RHO=P1D/(R_D*T1D*(1.+P608*Q1D))
+      RRHO=1./RHO
+      RQR=0.
+      RQLICE=0.
   !
   !--- Based on code from GSMCOLUMN in model to determine reflectivity from rain
   !
 
-          IF (QR1 .GT. EPSQ) THEN
-            RQR=RHO*QR1
-            IF (RQR .LE. RQR_DRmin) THEN
-              N0r=MAX(N0rmin, CN0r_DMRmin*RQR)
-              INDEXR=MDRmin
-            ELSE IF (RQR .GE. RQR_DRmax) THEN
-              N0r=CN0r_DMRmax*RQR
-              INDEXR=MDRmax
-            ELSE
-              N0r=N0r0
-              INDEXR=CN0r0*RQR**.25
-              INDEXR=MAX( MDRmin, MIN(INDEXR, MDRmax) )
-            ENDIF
+rain_dbz: IF (QR1>EPSQ) THEN
+        RQR=RHO*QR1
+        IF (RQR<=RQR_DRmin) THEN
+          N0r=MAX(N0rmin, CN0r_DMRmin*RQR)
+          INDEXR=MDRmin
+        ELSE IF (RQR>=RQR_DRmax) THEN
+          N0r=CN0r_DMRmax*RQR
+          INDEXR=MDRmax
+        ELSE
+          N0r=N0r0
+          INDEXR=CN0r0*RQR**.25
+          INDEXR=MAX( MDRmin, MIN(INDEXR, MDRmax) )
+        ENDIF
   !
   !--- INDEXR is the mean drop size in microns; convert to mm
   !
-            DRmm=1.e-3*REAL(INDEXR)
+        DRmm=1.e-3*REAL(INDEXR)
   !
   !--- Number concentration of rain drops (convert INDEXR to m)
   !
-            NRAIN=N0r*1.E-6*REAL(INDEXR)
-            Zrain=0.72*N0r*DRmm*DRmm*DRmm*DRmm*DRmm*DRmm*DRmm
-          ENDIF        !--- End IF (QR1 .GT. EPSQ) block
+        NRAIN=N0r*1.E-6*REAL(INDEXR)
+        Zrain=0.72*N0r*DRmm*DRmm*DRmm*DRmm*DRmm*DRmm*DRmm
+      ENDIF  rain_dbz      !--- End IF (QR1 .GT. EPSQ) block
 !
 !--- Based on code from GSMCOLUMN in model to determine partition of
 !    total ice into cloud ice & snow (precipitation ice)
 !
-          IF (QI1>EPSQ) THEN
+ice_dbz: IF (QI1>EPSQ) THEN
 !
 !  ->  Small ice particles are assumed to have a mean diameter of 50 microns.
 !  * QSmICE  - estimated mixing ratio for small cloud ice
@@ -2023,75 +2015,78 @@
 !  * RQLICE  - time-averaged mass content of large ice
 !  * NLICE   - time-averaged number concentration of large ice
 !
-            IF (TC>=0.) THEN
+        IF (TC>=0.) THEN
    !
    !--- Eliminate small ice particle contributions for melting & sublimation
    !
-              NSmICE=0.
-              QSmICE=0. 
-            ELSE
+          NSmICE=0.
+          QSmICE=0. 
+        ELSE
 !
 !--- Max # conc of small ice crystals based on 10% of total ice content 
 !    or the parameter NSI_max
 !
-              NSImax=MAX(NSI_max, 0.1*RHO*QI1/MASSI(MDImin) )
+          NSImax=MAX(NSI_max, 0.1*RHO*QI1/MASSI(MDImin) )
 !
 !-- Specify Fletcher, Cooper, Meyers, etc. here for ice nuclei concentrations
 !
-              NSmICE=MIN(0.01*EXP(-0.6*TC), NSImax)       !- Fletcher (1962)
-              DUM=RRHO*MASSI(MDImin)
-              NSmICE=MIN(NSmICE, QI1/DUM)
-              QSmICE=NSmICE*DUM
-            ENDIF            ! End IF (TC>=0. .OR. QI1<=EPSQ) THEN
-      if(tc<-150..or.tc>100.)then
-        write(0,68311)i,j,tc,my_domain_id
-68311   format(' CALMICT_HR i=',i3,' j=',i3,' tc=',e13.6,' domain id=',i2)
-      endif
-            QLICE=MAX(0., QI1-QSmICE)
-            RimeF=AMAX1(1., FS1D )
-            RimeF=MIN(RimeF, RFmax)
-            RQLICE=RHO*QLICE
-            DUM=XMImax*EXP(XMIexp*TC)
-            INDEXS=MIN(MDImax, MAX(MDImin, INT(DUM) ) )
+          NSmICE=MIN(0.01*EXP(-0.6*TC), NSImax)       !- Fletcher (1962)
+          DUM=RRHO*MASSI(MDImin)
+          NSmICE=MIN(NSmICE, QI1/DUM)
+          QSmICE=NSmICE*DUM
+        ENDIF
+! 
+!       if(tc<-150..or.tc>100.)then
+!         write(0,68311)i,j,tc,my_domain_id
+! 68311   format(' CALMICT_HR i=',i3,' j=',i3,' tc=',e13.6,' domain id=',i2)
+!       endif
+! 
+        QLICE=MAX(0., QI1-QSmICE)
+LG_ice: IF (QLICE>0.) THEN
+          RimeF=AMAX1(1., FS1D )
+          RimeF=MIN(RimeF, RFmax)
+          RQLICE=RHO*QLICE
+          DUM=XMImax*EXP(XMIexp*TC)
+          INDEXS=MIN(MDImax, MAX(MDImin, INT(DUM) ) )
 !
 !-- NLImax depends on presence of high density ice (rime factors >10)
 !
-            IF (RimeF>10.) THEN
-              LARGE_RF=.TRUE.      !-- Convective precipitation (and sleet)
-              NLImax=1.E3
-            ELSE
-              LARGE_RF=.FALSE.     !-- Non-convective precipitation
+          IF (RimeF>10.) THEN
+            LARGE_RF=.TRUE.      !-- Convective precipitation (and sleet)
+            NLImax=1.E3
+          ELSE
+            LARGE_RF=.FALSE.     !-- Non-convective precipitation
 !-- NLImax=10 L-1 at 0C and slowly decreasing to 5 L-1 at <=-40C
-              DUM=MAX(TC, T_ICE)
-              NLImax=10.E3*EXP(-0.017*DUM)
-            ENDIF
-            NLICE=RQLICE/(RimeF*MASSI(INDEXS))
-            DUM=RRHO*NLImin*MASSI(MDImin)     !-- Minimum large ice mixing ratio
-new_nlice:  IF (QLICE<=DUM) THEN
-              NLICE=RQLICE/MASSI(MDImin)
-            ELSE IF (NLICE<NLImin .OR. NLICE>NLImax) THEN  new_nlice
+            DUM=MAX(TC, T_ICE)
+            NLImax=10.E3*EXP(-0.017*DUM)
+          ENDIF
+          NLICE=RQLICE/(RimeF*MASSI(INDEXS))
+          DUM=RRHO*NLImin*MASSI(MDImin)     !-- Minimum large ice mixing ratio
+new_nlice: IF (QLICE<=DUM) THEN
+            NLICE=RQLICE/MASSI(MDImin)
+          ELSE IF (NLICE<NLImin .OR. NLICE>NLImax) THEN  new_nlice
 !
 !--- Force NLICE to be between NLImin and NLImax
 !
-              HAIL=.FALSE.
-              NLICE=MAX(NLImin, MIN(NLImax, NLICE) )
-              XLI=RQLICE/(NLICE*RimeF)
-new_size:     IF (XLI .LE. MASSI(MDImin) ) THEN
-                INDEXS=MDImin
-              ELSE IF (XLI .LE. MASSI(450) ) THEN  new_size
-                DLI=9.5885E5*XLI**.42066         ! DLI in microns
-                INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
-              ELSE IF (XLI .LE. MASSI(MDImax) ) THEN  new_size
-                DLI=3.9751E6*XLI**.49870         ! DLI in microns
-                INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
-              ELSE  new_size
-                INDEXS=MDImax
-                IF (LARGE_RF) HAIL=.TRUE.
-              ENDIF    new_size
-no_hail:      IF (.NOT. HAIL) THEN
-                NLICE=RQLICE/(RimeF*MASSI(INDEXS))     !-- NLICE > NLImax
-              ENDIF    no_hail
-            ENDIF      new_nlice
+            HAIL=.FALSE.
+            NLICE=MAX(NLImin, MIN(NLImax, NLICE) )
+            XLI=RQLICE/(NLICE*RimeF)
+new_size:   IF (XLI<=MASSI(MDImin) ) THEN
+              INDEXS=MDImin
+            ELSE IF (XLI<=MASSI(450) ) THEN  new_size
+              DLI=9.5885E5*XLI**.42066         ! DLI in microns
+              INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
+            ELSE IF (XLI<=MASSI(MDImax) ) THEN  new_size
+              DLI=3.9751E6*XLI**.49870         ! DLI in microns
+              INDEXS=MIN(MDImax, MAX(MDImin, INT(DLI) ) )
+            ELSE  new_size
+              INDEXS=MDImax
+              IF (LARGE_RF) HAIL=.TRUE.
+            ENDIF    new_size
+no_hail:    IF (.NOT. HAIL) THEN
+              NLICE=RQLICE/(RimeF*MASSI(INDEXS))     !-- NLICE > NLImax
+            ENDIF    no_hail
+          ENDIF      new_nlice
    !
    !--- Equation (C.8) in Ferrier (1994, JAS, p. 272), which when
    !    converted from cgs units to mks units results in the same
@@ -2102,34 +2097,37 @@ no_hail:      IF (.NOT. HAIL) THEN
    !
    !--- Valid only for exponential ice distributions
    !
-            Zice=Cice*RQLICE*RQLICE/NLICE   !- dry ice, T<0C
-            IF (TC>=0.) Zice=Cwet*Zice            !- melting wet ice
-          ENDIF                 ! End IF (QI1>EPSQ) THEN
+          IF (RQLICE>0. .AND. NLICE>0.) THEN
+            Zice=Cice*RQLICE*RQLICE/NLICE      !- dry ice, T<0C
+            IF (TC>=0.) Zice=Cwet*Zice         !- melting wet ice
+          ENDIF
+        ENDIF  LG_ice       ! End IF (QLICE>0.)
+      ENDIF  ice_dbz        ! End IF (QI1>EPSQ)
 !
 !--- Assume enhanced radar reflectivity when rain and ice coexist
 !    above an assumed threshold mass content, RQmix
 !
-dbz_mix:  IF (RQR>RQmix .AND. RQLICE>RQmix) THEN
-            IF (RQR>RQLICE) THEN
-              Nmix=NRAIN
-            ELSE
-              Nmix=NLICE
-            ENDIF
-            DUM=RQR+RQLICE
-            Zmix=Cboth*DUM*DUM/Nmix
-            IF (Zmix > Zrain+Zice) THEN
-              IF (RQR>RQLICE) THEN
-                Zrain=Zmix-Zice
-              ELSE
-                Zice=Zmix-Zrain
-              ENDIF
-            ENDIF
-          ENDIF  dbz_mix
+dbz_mix: IF (RQR>RQmix .AND. RQLICE>RQmix) THEN
+        IF (RQR>RQLICE) THEN
+          Nmix=NRAIN
+        ELSE
+          Nmix=NLICE
+        ENDIF
+        DUM=RQR+RQLICE
+        Zmix=Cboth*DUM*DUM/Nmix
+        IF (Zmix>Zrain+Zice) THEN
+          IF (RQR>RQLICE) THEN
+            Zrain=Zmix-Zice
+          ELSE
+            Zice=Zmix-Zrain
+          ENDIF
+        ENDIF
+      ENDIF  dbz_mix
 !
 !---  Calculate total (convective + grid-scale) radar reflectivity
 !
-10        Ztot=Zrain+Zice+Zconv
-          IF (Ztot .GT. Zmin)  DBZ1= 10.*ALOG10(Ztot)
+      Ztot=Zrain+Zice+Zconv
+      IF (Ztot>Zmin)  DBZ1= 10.*ALOG10(Ztot)
       RETURN
       END SUBROUTINE CALMICT_HR
 

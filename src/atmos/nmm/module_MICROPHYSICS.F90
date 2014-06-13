@@ -504,15 +504,12 @@
 !
           TNEW=TH_PHY(I,J,K)*PI_PHY(I,J,K)
           TRAIN(I,J,K)=TRAIN(I,J,K)+(TNEW-T(I,J,K))*RDTPHS
-!*  sliu added
-          MP_TTEN=(TNEW-T(I,J,K))*RDTPHS
-          mytten=MP_TTEN
-          if(DFI_TTEN(I,J,K)>MP_TTEN.and.DFI_TTEN(I,J,K)<0.1)then
-          mytten=DFI_TTEN(I,J,K)
-          end if
-!*  end sliu added
-          IF (USE_RADAR .eq. 1) THEN
-            T(I,J,K)=T(I,J,K)+mytten/RDTPHS
+          IF (USE_RADAR==1) THEN
+            MP_TTEN=(TNEW-T(I,J,K))*RDTPHS              
+            IF(DFI_TTEN(I,J,K)>MP_TTEN.AND.DFI_TTEN(I,J,K)<0.1)THEN 
+              MP_TTEN=DFI_TTEN(I,J,K)                              
+            END IF                                                
+            T(I,J,K)=T(I,J,K)+MP_TTEN/RDTPHS
           ELSE
             T(I,J,K)=TNEW
           ENDIF

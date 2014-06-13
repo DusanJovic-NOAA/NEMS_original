@@ -1412,6 +1412,7 @@ integer :: mpi_intra
       ,ipe_start,ipe_end &
       ,my_domain_has_fft_lats &
       ,mype,mpi_comm_comp &
+      ,its,ite,ims,ime,ids,ide,jts,jte,jms,jme &
       ,array_lyrs)
 !-----------------------------------------------------------------------
 !***  GATHER_LAYERS distributes all the elements of field between layers
@@ -1422,6 +1423,18 @@ integer :: mpi_intra
       implicit none
 !
 !-----------------------------------------------------------------------
+!
+integer(kind=kint),intent(in) :: &
+ its &
+,ite &
+,ims &
+,ime &
+,ids &
+,ide &
+,jts &
+,jte &
+,jms &
+,jme
 !
 integer(kind=kint),intent(in) :: &
  ipe_end &
@@ -1663,6 +1676,7 @@ real(kind=kfpt),dimension(:,:),allocatable,save :: &
       ,ipe_start,ipe_end &
       ,my_domain_has_fft_lats &
       ,mype,mpi_comm_comp &
+      ,its,ite,ims,ime,ids,ide,jts,jte,jms,jme &
       ,field)
 !-----------------------------------------------------------------------
 !***  SCATTER_LAYERS distributes the elements of array_lyrs between 
@@ -1673,6 +1687,18 @@ real(kind=kfpt),dimension(:,:),allocatable,save :: &
       implicit none
 !
 !-----------------------------------------------------------------------
+!
+integer(kind=kint),intent(in) :: &
+ its &
+,ite &
+,ims &
+,ime &
+,ids &
+,ide &
+,jts &
+,jte &
+,jms &
+,jme
 !
 integer(kind=kint),intent(in) :: &
  ipe_end &

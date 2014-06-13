@@ -257,15 +257,13 @@ NDBneg=0   !-- 20140210 dbg
 
       DO J=JTS,JTE
         DO I=ITS,ITE
-          if (kpbl(i,j)<1 .or. kpbl(i,j)>LM) go to 100
+          if (kpbl(i,j)<=1 .or. kpbl(i,j)>LM) CYCLE  !-- Go to next grid column
 !
 !-- Initial test to see if GWD calculations should be made, otherwise skip
 !
           TERRtest=HZMAX(I,J)+SIGFAC*HSTDV(I,J)
           TERRmin=Z(I,J,LM)-Z(I,J,LM+1)
-          IF (TERRtest < TERRmin) then
-            GO TO 100
-          endif
+          IF (TERRtest < TERRmin) CYCLE             !-- Go to next grid column
 !
 !-- For debugging:
 !
@@ -373,7 +371,6 @@ ENDIF
           UGWDsfc(I,J)=DUsfc(IM)*CROT(I,J)-DVsfc(IM)*SROT(I,J)
           VGWDsfc(I,J)=DUsfc(IM)*SROT(I,J)+DVsfc(IM)*CROT(I,J)
 !
-100       CONTINUE
         ENDDO     !- I
       ENDDO       !- J
 
