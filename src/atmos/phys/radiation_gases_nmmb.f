@@ -277,7 +277,9 @@
           stop
         endif
 
-        allocate (pkstr(LOZ), o3r(JMR,LOZ,12))
+        if(.not.allocated(pkstr)) allocate (pkstr(LOZ))
+        if(.not.allocated(o3r))   allocate (o3r(JMR,LOZ,12))
+
         rewind NIO3CLM
 
         if ( LOZ == 17 ) then       ! For the operational ozone climatology

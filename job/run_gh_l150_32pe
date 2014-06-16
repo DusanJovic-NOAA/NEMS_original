@@ -7,8 +7,8 @@
 #BSUB -n 32
 #BSUB -x
 #BSUB -R span[ptile=16]
-#BSUB -W 03:00
-#BSUB -q "dev"
+#BSUB -W 00:30
+#BSUB -q "debug"
 #BSUB -a poe
 
 ulimit -s unlimited
@@ -34,11 +34,9 @@ set -aeux
 export SCHEDULER=lsf
 export MACHINE_ID=wcoss
 
-#jw export CDATE=2011092300
-export CDATE=2013081000
 export CDATE=2007041700
-export expt=testwam_${CDATE}_tvd
-export RUNDIR=${RUNDIR:-/ptmp/$LOGNAME/$expt}
+export expt=testwam_${CDATE}
+export RUNDIR=${RUNDIR:-/ptmpd2/$LOGNAME/$expt}
 mkdir -p $RUNDIR/restart
 cd $RUNDIR
 
@@ -53,7 +51,15 @@ cd $RUNDIR
  export GOCART=0
 # reduced_grid default is true
  export REDUCED_GRID=.true.
-
+ export SLG=.false.
+ export EXPLICIT=.false.
+ export ICO2=2
+ export ISOL=1
+ export IEMS=0
+ export A2OI_OUT=${A2OI_OUT:-.false.}
+ export NGRID_A2OI=${NGRID_A2OI:-32}
+ export CPLFLX=${CPLFLX:-.false.}
+ export CLIMATE=${CLIMATE:-.false.}
 #
  NST_FCST=0         # valid values are 0 (AM), 1(am,nst) and 2(cpld nstnst)
  if [[ $ADIAB = .true. ]] ; then
@@ -147,6 +153,17 @@ export WRT_GROUP=1
   export POST_GRIBVERSION="grib1"
   export GOCART_AER2POST=.false.
   export liope=.false.
+if [ $SLG = .true. ] ; then
+    export ZFLXTVD=.false.
+    export SHUFF_LATS_A=.false.
+    export SHUFF_LATS_R=.false.
+else
+    export ZFLXTVD=.true.
+    export SHUFF_LATS_A=.true.
+    export SHUFF_LATS_R=.true.
+    export A2OI_OUT=.false.
+
+fi
 
 #
 export MP_STDOUTMODE=ordered
@@ -170,7 +187,7 @@ export MP_SHARED_MEMORY=yes
  if [ $NEMSIO_IN = .true. ]; then
    export SIGHDR=${nemsiOget:-/nems/save/Jun.Wang/util/nemsio_get}
  else
-   export SIGHDR=${SIGHDR:-${EXECGLOBAL}/global_sighdr$XC}
+   export SIGHDR=${SIGHDR:-/nwprod/exec/global_sighdr}
  fi
 #
 #
@@ -182,7 +199,7 @@ export MP_SHARED_MEMORY=yes
  export ndays=3
 #
  export nhours=`expr $ndays \* 24`
-#export nhours=72
+ export nhours=12
 
 #
 # For two tracers
@@ -225,8 +242,10 @@ export lsm=${lsm:-1}
 #
  export DYNVARS="nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,\
                  sigio_out=$SIGIO_OUT,liope=.F."
- export PHYVARS="nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,\
-                 sfcio_out=$SFCIO_OUT,ldiag3d=$ldiag3d,liope=.F."
+# export PHYVARS="nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,\
+#                 sfcio_out=$SFCIO_OUT,ldiag3d=$ldiag3d,liope=.F."
+export PHYVARS=liope=$liope,ras=.false.,zhao_mic=.true.,lsm=1,old_monin=.false.,sashal=.true.,newsas=.true.,shal_cnv=.true.,shuff_lats_r=$SHUFF_LATS_R,ialb=0,pre_rad=.false.,random_clds=.false.,iovr_lw=1,iovr_sw=1,IEMS=$IEMS,ISOL=$ISOL,ICO2=$ICO2,IAER=$IAER,ictm=0,nsout=0,ldiag3d=.false.,sfcio_out=$SFCIO_OUT,ncw=20,120,crtrh=0.85,0.85,0.85,flgmin=0.200,0.300,cnvgwd=.false.,ctei_rm=,mstrat=.false.,ccnorm=.false.,mom4ice=.false.,A2OI_OUT=$A2OI_OUT,CPLFLX=$CPLFLX,NGRID_A2OI=$NGRID_A2OI,NST_FCST=0,NST_SPINUP=.false.,lgoc3d=.false.,trans_trac=.true.,cal_pre=.false.,bkgd_vdif_m=3.0,bkgd_vdif_h=1.0,bkgd_vdif_s=0.2,climate=$CLIMATE,psautco=4.0e-4,4.0e-4,prautco=1.0e-4,1.0e-4,evpco=2.0e-5,wminco=1.0e-5,1.0e-5,CCWF=1.0,1.0,dlqf=0.0,0.0,shal_cnv=.true.,nemsio_in=$NEMSIO_IN,nemsio_out=$NEMSIO_OUT,cdmbgwd=1.0,1.0,grid_aldata=.false.
+
 
 #
 export NGPTC=12
@@ -235,7 +254,7 @@ export LEVR=${levr:-0}
 #
 #     Forecaset script and executable name
 #
- export NEMSDIR=/nems/save/Jun.Wang/nems/20140428/nemswam_tvd
+ export NEMSDIR=/nems/save/Jun.Wang/nems/20140513/trunk
  cp -p ${NEMSDIR}/job/exglobal_fcst.sh.sms_nems .
  cp -p ${NEMSDIR}/exe/NEMS.x .
  export FCSTSCRIPT=${RUNDIR}/exglobal_fcst.sh.sms_nems
@@ -265,8 +284,8 @@ export LEVR=${levr:-0}
  cp -p ${NEMSDIR}/job/regression_tests/Chem_Registry.rc $RUNDIR
  cp -p ${NEMSDIR}/job/regression_tests/MAPL.rc $RUNDIR
 
- export FIXGLOBAL=/global/noscrub/Shrinivas.Moorthi/para/fix/fix_am
- export FIX_RAD=/global/noscrub/Shrinivas.Moorthi/para/fix/fix_am
+ export FIXGLOBAL=/global/noscrub/Shrinivas.Moorthi/para_new/para/fix/fix_am
+ export FIX_RAD=/global/noscrub/Shrinivas.Moorthi/para_new/para/fix/fix_am
  export FIX_IDEA=/meso/noscrub/wx20rv/REGRESSION_TEST/WAM_gh_l150
 #
 # export POSTGPDIR=$TOPDIR/wx23hh/00wkgfs/src/global_postgp.fd

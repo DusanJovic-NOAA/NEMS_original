@@ -162,13 +162,12 @@ if [ $argn -eq 1 ]; then
     cp ${RTPWD}/NMMB_reg_filt/*            ${RTPWD_U}/NMMB_reg_filt/.
     cp ${RTPWD}/NMMB_reg_pcpadj/*          ${RTPWD_U}/NMMB_reg_pcpadj/.
     cp ${RTPWD}/NMMB_reg_spec_adv/*        ${RTPWD_U}/NMMB_reg_spec_adv/.
-    cp ${RTPWD}/NMMB_reg_sas_zhao_rrtm/*   ${RTPWD_U}/NMMB_reg_sas_zhao_rrtm/.
+    cp ${RTPWD}/NMMB_reg_sas_zhao/*        ${RTPWD_U}/NMMB_reg_sas_zhao/.
     cp ${RTPWD}/NMMB_reg_sel_phy/*         ${RTPWD_U}/NMMB_reg_sel_phy/.
     cp ${RTPWD}/NMMB_reg_thomp/*           ${RTPWD_U}/NMMB_reg_thomp/.
     cp ${RTPWD}/NMMB_reg_timesr/*          ${RTPWD_U}/NMMB_reg_timesr/.
     cp ${RTPWD}/NMMB_reg_wsm6_gfdl/*       ${RTPWD_U}/NMMB_reg_wsm6_gfdl/.
     cp ${RTPWD}/NMMB_reg_wsm6_rrtm/*       ${RTPWD_U}/NMMB_reg_wsm6_rrtm/.
-    cp ${RTPWD}/NMMB_rrtm_nests/*          ${RTPWD_U}/NMMB_rrtm_nests/.
   fi
   if [ $CP_fim = true ]; then
     echo "copy fim"
@@ -378,7 +377,7 @@ export NCHILD=0          ; export MODE=1-way        ; export WGT=0.0
 export FCSTL=48
 export PCPFLG=false      ; export WPREC=false
 export TS=false
-export RADTN=gfdl        ; export CONVC=bmj         ; export TURBL=myj
+export RADTN=rrtm        ; export CONVC=bmj         ; export TURBL=myj
 export MICRO=fer_hires   ; export gfsP=false        ; export SPEC_ADV=false
 }
 
@@ -1549,19 +1548,19 @@ else
 
  ###############################################################################
  #
- # TEST   - Regional NMM-B with selected physics schemes (SAS, ZHAO, RRTM)
+ # TEST   - Regional NMM-B with selected physics schemes (SAS, ZHAO)
  #        - 6x5 compute tasks / 1 thread / selected GFS physics / free fcst / pure binary input
  #
  ###############################################################################
 
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
-  export TEST_DESCR="Test NMMB-regional with physics schemes SAS, ZHAO and RRTM"
+  export TEST_DESCR="Test NMMB-regional with physics schemes SAS and ZHAO"
 
 #---------------------
   (( TEST_NR=TEST_NR+1 ))
-  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_SAS_ZHAO_RRTM
-  export CNTL_DIR=NMMB_reg_sas_zhao_rrtm
+  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_SAS_ZHAO
+  export CNTL_DIR=NMMB_reg_sas_zhao
   export LIST_FILES=" \
   nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
   nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
@@ -1569,7 +1568,7 @@ else
 #---------------------
   export_nmm
   export GBRG=reg  ; export FCSTL=24
-  export CONVC=sas ; export MICRO=gfs ; export RADTN=rrtm
+  export CONVC=sas ; export MICRO=gfs
 #---------------------
    ./rt_nmm.sh
    if [ $? = 2 ]; then exit ; fi
@@ -1579,8 +1578,8 @@ else
 
  ###############################################################################
  #
- # TEST   - Regional NMM-B with THOMPSON microphysics and RRTM radiation
- #        - 6x5 compute tasks / 1 thread / THOMPSON and RRTM / free fcst / pure binary input
+ # TEST   - Regional NMM-B with THOMPSON microphysics
+ #        - 6x5 compute tasks / 1 thread / THOMPSON / free fcst / pure binary input
  #
  ###############################################################################
 
@@ -1603,7 +1602,7 @@ else
 #---------------------
   export_nmm
   export GBRG=reg   ; export FCSTL=24       ; export WLCLK=35
-  export RADTN=rrtm ; export MICRO=thompson ; export SPEC_ADV=true
+  export MICRO=thompson ; export SPEC_ADV=true
 #---------------------
    ./rt_nmm.sh
    if [ $? = 2 ]; then exit ; fi
@@ -1700,7 +1699,7 @@ else
 # ---------------------
   export_nmm
   export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
-  export AFFN=cpu   ; export NODE=3   ; export WLCLK=40
+  export AFFN=cpu   ; export NODE=3   ; export WLCLK=45
   export TASKS=$TASKS_nest ; export TPN=$TPN_nest
   export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
 #---------------------
@@ -1743,118 +1742,6 @@ else
   export AFFN=cpu   ; export NODE=3   ; export WLCLK=40
   export TASKS=$TASKS_nest ; export TPN=$TPN_nest
   export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
-#---------------------
-   ./rt_nmm.sh
-   if [ $? = 2 ]; then exit ; fi
-#---------------------
-
- fi # endif test
-
- ###############################################################################
- #
- # TEST   - NMM-B using RRTM radiation (static nests)
- #        - Regional parent with two children and one grandchild
- #        - Compute tasks - Upper parent 2x3 | Child #1 4x8 | Child #2 2x4 | Grandchild 7x10
- #        - 1 thread / test physics / free fcst / pure binary input
- #
- ###############################################################################
-
- if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
-
-  export TEST_DESCR="Test NMMB-regional/RRTM with static nests"
-
-#---------------------
-  (( TEST_NR=TEST_NR+1 ))
-  export RUNDIR=${RUNDIR_ROOT}/NMM_rrtm_nests
-  export CNTL_DIR=NMMB_rrtm_nests
-  export LIST_FILES=" \
-  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
-  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-  nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s \
-  nmmb_hst_02_bin_0000h_00m_00.00s nmmb_hst_02_bin_0024h_00m_00.00s \
-  nmmb_hst_02_nio_0000h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
-  nmmb_rst_02_bin_0012h_00m_00.00s nmmb_rst_02_nio_0012h_00m_00.00s \
-  nmmb_hst_03_bin_0000h_00m_00.00s nmmb_hst_03_bin_0024h_00m_00.00s \
-  nmmb_hst_03_nio_0000h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
-  nmmb_rst_03_bin_0012h_00m_00.00s nmmb_rst_03_nio_0012h_00m_00.00s \
-  nmmb_hst_04_bin_0000h_00m_00.00s nmmb_hst_04_bin_0024h_00m_00.00s \
-  nmmb_hst_04_nio_0000h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s \
-  nmmb_rst_04_bin_0012h_00m_00.00s nmmb_rst_04_nio_0012h_00m_00.00s"
-#---------------------
-  export_nmm
-  export RADTN=rrtm
-  export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
-  export AFFN=cpu   ; export NODE=3   ; export WLCLK=45
-  export TASKS=$TASKS_nest ; export TPN=$TPN_nest
-  export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
-#---------------------
-   ./rt_nmm.sh
-   if [ $? = 2 ]; then exit ; fi
-#---------------------
-
- fi # endif test
-
-
- ###############################################################################
- #
- # TEST   - NMM-B using RRTM radiation (restart static nests)
- #        - Regional parent with two children and one grandchild
- #        - Compute tasks - Upper parent 2x3 | Child #1 4x8 | Child #2 2x4 | Grandchild 7x10
- #        - 1 thread / test physics / free fcst / pure binary input
- #
- ###############################################################################
-
- if [ $ST_test = true -o $RT_FULL = true ]; then
-
-  export TEST_DESCR="Test NMMB-regional/RRTM static nests with restart"
-
-#---------------------
-  (( TEST_NR=TEST_NR+1 ))
-  export RUNDIR=${RUNDIR_ROOT}/NMM_rrtm_nest_rest
-  export CNTL_DIR=NMMB_rrtm_nests
-  export LIST_FILES=" \
-  nmmb_hst_01_bin_0024h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-  nmmb_hst_02_bin_0024h_00m_00.00s nmmb_hst_02_nio_0024h_00m_00.00s \
-  nmmb_hst_03_bin_0024h_00m_00.00s nmmb_hst_03_nio_0024h_00m_00.00s \
-  nmmb_hst_04_bin_0024h_00m_00.00s nmmb_hst_04_nio_0024h_00m_00.00s"
-#---------------------
-  export_nmm
-  export RADTN=rrtm ; export RSTRT=true
-  export GBRG=nests ; export FCSTL=24 ; export NCHILD=02
-  export AFFN=cpu   ; export NODE=3   ; export WLCLK=30
-  export TASKS=$TASKS_nest ; export TPN=$TPN_nest
-  export INPES=$INPES_nest ; export JNPES=$JNPES_nest ; export WTPG=$WTPG_nest
-#---------------------
-   ./rt_nmm.sh
-   if [ $? = 2 ]; then exit ; fi
-#---------------------
-
- fi # endif test
-
- ###############################################################################
- #
- # TEST   - NMM-B using RRTM radiation
- #        - 2 threads / test physics / free fcst / pure binary input
- #
- ###############################################################################
-
- if [ $RT_FULL = true ]; then
-
-  export TEST_DESCR="Test NMMB-regional/RRTM threading"
-
-#---------------------
-  (( TEST_NR=TEST_NR+1 ))
-  export RUNDIR=${RUNDIR_ROOT}/NMM_rrtm_THREAD
-  export CNTL_DIR=NMMB_rrtm_nests
-  export LIST_FILES=" \
-  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
-  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-  nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
-#---------------------
-  export_nmm
-  export RADTN=rrtm        ; export THRD=2            ; export FCSTL=24
-  export TASKS=$TASKS_thrd ; export TPN=$TPN_thrd
-  export INPES=$INPES_thrd ; export JNPES=$JNPES_thrd ; export WTPG=$WTPG_thrd
 #---------------------
    ./rt_nmm.sh
    if [ $? = 2 ]; then exit ; fi
@@ -2105,13 +1992,6 @@ fi # endif test
  fi # endif test
 
 fi # end of the loop SKIP_NMM
-
-#RV# Temporary, until GFS is ready on WCOSS
-#if [ $MACHINE_ID = wcoss ]; then
-#  echo REGRESSION TEST WAS SUCCESSFUL
-#  echo REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
-## exit
-#fi
 
 if [ ${SKIP_GFS:-NO} = YES ] ; then
  echo "Skipping GFS tests"

@@ -95,11 +95,6 @@ if [ ${GBRG} = nests ]; then
                                     | sed s:_CONVC_:${CONVC}:g                  \
                                     | sed s:_TURBL_:${TURBL}:g > configure_file_04
 
-  if [ ${RADTN} = rrtm ]; then
-    cat nmm_run | sed s:NMMB_nests:NMMB_rrtm_nests:g > tmp
-    mv tmp nmm_run
-  fi
-
 fi
 
 if [ ${GBRG} = mnests ]; then
