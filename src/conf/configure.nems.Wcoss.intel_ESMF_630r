@@ -58,8 +58,7 @@ EXTLIBS_POST = $(NEMSIO_LIB) \
                $(NETCDF_LIB) \
                $(SYS_LIB)
 
-##FC          = mpiifort -g -traceback
-FC          = mpiifort -g -openmp  -mkl=sequential
+FC          = mpiifort -g -openmp -mkl=sequential -align array32byte -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
 FREE        = -free
 FIXED       = -fixed
 R8          = -r8

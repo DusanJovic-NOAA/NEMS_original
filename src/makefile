@@ -2,6 +2,11 @@ SHELL = /bin/sh
 
 export TOP := $(shell pwd)
 
+export MP_MPILIB=pempi
+
+export MKL_NUM_THREADS=1
+export MKL_CBWR=AVX
+
 # check if configure.nems file exists
 
 exist := $(wildcard ./conf/configure.nems)
