@@ -130,9 +130,9 @@ if [ $argn -eq 1 ]; then
   RTPWD_U=${STMP}/${USER}/REGRESSION_TEST
   if [ $CP_gfs = true ]; then
     echo "copy gfs"
-#    cp ${RTPWD}/GEFS_m4/*                  ${RTPWD_U}/GEFS_m4/.
-#    cp ${RTPWD}/GEFS_m4_5.2.0rp1/*         ${RTPWD_U}/GEFS_m4_5.2.0rp1/.
-#    cp ${RTPWD}/GEFS_m4_6.1.1/*            ${RTPWD_U}/GEFS_m4_6.1.1/.
+    cp ${RTPWD}/GEFS_m4/*                  ${RTPWD_U}/GEFS_m4/.
+    cp ${RTPWD}/GEFS_m4_5.2.0rp1/*         ${RTPWD_U}/GEFS_m4_5.2.0rp1/.
+    cp ${RTPWD}/GEFS_m4_6.1.1/*            ${RTPWD_U}/GEFS_m4_6.1.1/.
     cp ${RTPWD}/GFS_ADIAB/*                ${RTPWD_U}/GFS_ADIAB/.
     cp ${RTPWD}/GFS_DFI_REDUCEDGRID/*      ${RTPWD_U}/GFS_DFI_REDUCEDGRID/.
 #   cp ${RTPWD}/GFS_DFI_REDUCEDGRID_HYB/*  ${RTPWD_U}/GFS_DFI_REDUCEDGRID_HYB/.
@@ -880,10 +880,10 @@ fi # endif NUOPC
 # On ZEUS machine:
 # Clean and compile both NMMB & GFS cores, using ESMF 3.1.0r API.
 # On WCOSS machine:
-# Clean and compile NMMB and GFS cores, using ESMF 6.3.0r series 
-# library,as the NEMS.x_630r.
-# When tests related to the GOCART, Clean and compile both NMMB &
-# GFS cores, using ESMF 3.1.0r API.
+# Clean and compile for both NMMB with GFS physics & GFS cores,
+# using ESMF 3.1.0r series library, as NEMS.x_310r
+# Clean and compile NMMB core, using ESMF 6.3.0r series library,
+# as the NEMS.x_630r.
 #################################################################
 
 if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB_arg = all ] ; then
@@ -893,11 +893,11 @@ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB
  if [ ${COMPILE_SORC:-YES} = YES ] ; then
   echo "Preparing model code for regression tests"
   if [ $MACHINE_ID = wcoss ]; then
-  echo "Using an ESMF 3.1.0r series library for GFS which related to the GOCART"
+  echo "Using an ESMF 3.1.0r series library for GFS and NMM with GFS physics"
   echo "    "
-  echo "Using an ESMF 6.3.0r series library for all other NMM and GFS tests"
-  printf %s "Using an ESMF 3.1.0r series library for GFS which related to the GOCART.  "
-  printf %s "Using an ESMF 6.3.0r series library for all other NMM and GFS tests.  "
+  echo "Using an ESMF 6.3.0r series library for NMM which not related GFS physics"
+  printf %s "Using an ESMF 3.1.0r series library for GFS and NMM with GFS physics.  "
+  printf %s "Using an ESMF 6.3.0r series library for NMM which not related GFS physics.  "
   else
   echo "Using an ESMF 3.1.0r series library"
   printf %s "Using an ESMF 3.1.0r series library.   "
@@ -912,28 +912,15 @@ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB
 
   if [ $MACHINE_ID = wcoss ]; then
 
-# Since the GOCART tests still need to fix on the wcoss machine,
-# skip the ESMF 3.1.0rp5 compiling process.
-#    ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
-#    gmake clean                            >> ${COMPILE_LOG} 2>&1
-#    gmake nmm_gsm_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
-#    mv ../exe/NEMS.x ../exe/NEMS.x_310r
-
-    . /usrx/local/Modules/3.2.9/init/ksh    
-    module unload ics
-# Compile gsm using the new 14.0.1 ics compiler.
-#-----------------------------------------------
-    module load ics/14.0.1
-    module list
-    export MKL_NUM_THREADS=1
-    export MKL_CBWR=AVX
-
-    ./esmf_version 6.3r_wcoss              >> ${COMPILE_LOG} 2>&1
+    ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
     gmake clean                            >> ${COMPILE_LOG} 2>&1
-    gmake nmm_gsm                          >> ${COMPILE_LOG} 2>&1
-    mv ../exe/NEMS.x ../exe/NEMS.x_630r
+    gmake nmm_gsm_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
+    mv ../exe/NEMS.x ../exe/NEMS.x_310r
 
-    export MP_MPILIB=pempi
+    ./esmf_version 6.3r_wcoss
+    gmake clean                            >> ${COMPILE_LOG} 2>&1
+    gmake nmm                              >> ${COMPILE_LOG} 2>&1
+    mv ../exe/NEMS.x ../exe/NEMS.x_630r
 
   elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
 
@@ -965,12 +952,11 @@ if [ ${SKIP_NMM:-NO} = YES ] ; then
  echo "Skipping NMMB tests"
 else
 
- if [ $MACHINE_ID = wcoss ]; then
-  cp ../../exe/NEMS.x_630r ../../exe/NEMS.x
- fi
-
  if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_630r ../../exe/NEMS.x
+  fi
 
   export TEST_DESCR="Compare NMMB-global results with previous trunk version"
 
@@ -1000,6 +986,7 @@ else
   echo " Original timing: " $timingc " , test_glob timing: " $timing1;echo;echo
 
  fi # endif test
+
 
  ###############################################################################
  #
@@ -1154,6 +1141,10 @@ else
 
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
 
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_310r ../../exe/NEMS.x
+  fi
+
   export TEST_DESCR="Test NMMB-global with GFS physics package "
 
 #---------------------
@@ -1182,6 +1173,10 @@ else
  ###############################################################################
 
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
+
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_630r ../../exe/NEMS.x
+  fi
 
   export TEST_DESCR="Compare NMMB-regional results with previous trunk version"
 
@@ -1223,6 +1218,10 @@ else
  ###############################################################################
 
  if [ $ST_test = true -o $RT_FULL = true ]; then
+
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_630r ../../exe/NEMS.x
+  fi
 
   export TEST_DESCR="Test NMMB-regional NEMSIO as input file"
 
@@ -1365,6 +1364,10 @@ else
 
  if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_310r ../../exe/NEMS.x
+  fi
+
   export TEST_DESCR="Test NMMB-regional with GFS physics package "
 
 #---------------------
@@ -1424,6 +1427,10 @@ else
 
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_630r ../../exe/NEMS.x
+  fi
+
   export TEST_DESCR="Test NMMB-regional with separate species advection ON"
 
 #---------------------
@@ -1480,6 +1487,10 @@ else
 
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_310r ../../exe/NEMS.x
+  fi
+
   export TEST_DESCR="Test NMMB-regional with physics schemes WSM6 and GFDL"
 
 #---------------------
@@ -1509,6 +1520,10 @@ else
  ###############################################################################
 
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
+
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_310r ../../exe/NEMS.x
+  fi
 
   export TEST_DESCR="Test NMMB-regional with physics schemes WSM6 and RRTM"
 
@@ -1569,6 +1584,10 @@ else
  ###############################################################################
 
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
+
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_630r ../../exe/NEMS.x
+  fi
 
   export TEST_DESCR="Test NMMB-regional with THOMPSON microphysics scheme "
 
@@ -1701,6 +1720,10 @@ else
 
  if [ $ST_test = true -o $RT_FULL = true ] ; then
 
+  if [ $MACHINE_ID = wcoss ]; then
+  cp ../../exe/NEMS.x_630r ../../exe/NEMS.x
+  fi
+
   export TEST_DESCR="Test NMMB-regional static nests with restart"
 
 #---------------------
@@ -1810,11 +1833,6 @@ fi # endif test
 #
 ####################################################################################################
 
-# For this test, the hst_02_bin_0024h, hst_03_bin_0024h,hst_02_nio_0024h, and hst_03_nio_0024h,
-# are differ! All others results are OK. Skip now for fixing it.
-# ---------------------------------------------------------------------------------------------
-if [ 2 = 1 ]; then
-
 if [ ${RT_FULL} = true ]; then
 
   export TEST_DESCR="Test NMMB-regional with moving nests - RESTART"
@@ -1845,8 +1863,6 @@ export RSTRT=true
 #---------------------
 
 fi # endif test
-
-fi # 2 = 1, for skip this test.
 
 ####################################################################################################
 #
@@ -1982,7 +1998,7 @@ if [ ${SKIP_GFS:-NO} = YES ] ; then
 else
 
   if [ $MACHINE_ID = wcoss ]; then
-  cp ../../exe/NEMS.x_630r ../../exe/NEMS.x
+  cp ../../exe/NEMS.x_310r ../../exe/NEMS.x
   fi
 
  ###############################################################################
@@ -2083,14 +2099,10 @@ else
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/GFS_32_48
   export CNTL_DIR=GFS_NODFI
-# For this test, all sig and sfc outputs and flx03, flx06, even the flxf48 are OK, only flxf12 
-# and flxf24 are not OK.  Skip the check of flx12 and flx24, and will fix it.
-#---------------------------------------------------------------------------------------------
   export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 sigf48 \
 	sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-	flxf03 flxf06 flxf48"
-#	flxf03 flxf06 flxf12 flxf24 flxf48"
+	flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
   export_gsm
   export TASKS=48 ; export PE1=46 ; export WLCLK=80
@@ -2116,15 +2128,10 @@ else
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/GFS_16_32
   export CNTL_DIR=GFS_NODFI
-# For this test, all sig and sfc outputs and flx06 are OK, only flxf03 , flxf12
-# and flxf24 are not OK.  Skip the check of flxf03, flx12 and flx24, and will fix it.
-#------------------------------------------------------------------------------------
   export LIST_FILES=" \
        sigf03 sigf06 sigf12 sigf24 \
        sfcf03 sfcf06 sfcf12 sfcf24 \
-       flxf06"
-#       flxf03 flxf06 flxf12 flxf24"
-
+       flxf03 flxf06 flxf12 flxf24"
 #---------------------
   export_gsm
   export TASKS=16 ; export PE1=12 ; export THRD=2 ; export TPN=$TPN_thrd
@@ -2245,15 +2252,10 @@ else
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/GFS_16_48_NOQUILT_NSOUT
   export CNTL_DIR=GFS_NODFI
-# For this test, all sig and sfc outputs and flx06 are OK, only flxf03 , flxf12
-# and flxf24 are not OK.  Skip the check of flxf03, flx12 and flx24, and will fix it.
-#------------------------------------------------------------------------------------
   export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 \
 	sfcf03 sfcf06 sfcf12 sfcf24 \
-	flxf06"
-#	flxf03 flxf06 flxf12 flxf24"
-
+	flxf03 flxf06 flxf12 flxf24"
 #---------------------
   export_gsm
   export TASKS=16 ; export PE1=16  ; export WTPG=1 ; export WRTGP=1
@@ -2281,15 +2283,10 @@ else
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/GFS_16_48_NOQUILT_NSOUT
   export CNTL_DIR=GFS_NODFI
-# For this test, all sig and sfc outputs and flx03, flx06, even the flxf48 are OK, only flxf12 
-# and flxf24 are not OK.  Skip the check of flx12 and flx24, and will fix it.
-#---------------------------------------------------------------------------------------------
   export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 sigf48 \
 	sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-	flxf03 flxf06 flxf48"
-#	flxf03 flxf06 flxf12 flxf24 flxf48"
-
+	flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
   export_gsm
   export TASKS=48 ; export PE1=46 ; export WTPG=1 ; export WRTGP=1
@@ -2345,15 +2342,10 @@ else
   (( TEST_NR=TEST_NR+1 ))
   export RUNDIR=${RUNDIR_ROOT}/GFS_16_1_dfi
   export CNTL_DIR=GFS_DFI_REDUCEDGRID
-# For this test, all sig and sfc outputs are OK, but flux files are not OK.
-# Skip the check of flux files, and will fix it.
-#--------------------------------------------------------------------------
   export LIST_FILES=" \
 	sigf03 sigf06 sigf12 sigf24 \
 	sfcf03 sfcf06 sfcf12 sfcf24 \
-	"
-#	flxf03 flxf06 flxf12 flxf24"
-
+	flxf03 flxf06 flxf12 flxf24"
 #---------------------
   export_gsm
   export TASKS=16 ; export PE1=12 ; export WRTGP=1 ; export WTPG=1 ; export THRD=2
@@ -2382,7 +2374,7 @@ else
    export RUNDIR=${RUNDIR_ROOT}/GFS_16_1_dfi
    export CNTL_DIR=GFS_DFI_REDUCEDGRID
    export LIST_FILES=" \
-        sigf03 sigf06 sigf12 sigf24 sigf48 \
+	sigf03 sigf06 sigf12 sigf24 sigf48 \
         sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
         flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
@@ -2414,9 +2406,9 @@ else
    export RUNDIR=${RUNDIR_ROOT}/GFS_OPAC
    export CNTL_DIR=GFS_OPAC
    export LIST_FILES=" \
-        sigf03 sigf06 sigf12 sigf24 \
-        sfcf03 sfcf06 sfcf12 sfcf24 \
-        flxf03 flxf06 flxf12 flxf24"
+	sigf03 sigf06 sigf12 sigf24 \
+	sfcf03 sfcf06 sfcf12 sfcf24 \
+	flxf03 flxf06 flxf12 flxf24"
 #---------------------
    export_gsm
    export IAER=11 ; export NDAYS=1
@@ -2430,7 +2422,7 @@ else
 
  ###############################################################################
  #
- # TEST   - GFS
+ # TEST   - GFS 
  #        - NDSL 12 compute tasks / 2 thread
  #
  ###############################################################################
@@ -2467,6 +2459,7 @@ else
   fi # endif test
  fi  # endif machine
 
+ #
  ###############################################################################
  #
  # TEST   - GFS hyb 2 loop with digital filter
@@ -2493,7 +2486,6 @@ else
    export FDFI=3   ; export CP2=.true.
    export IDVC=2   ; export THERMODYN_ID=0  ; export SFCPRESS_ID=0 ; export SPECTRALLOOP=2
    export NDAYS=1
-   export TPN=8
 #  export NEMSIOIN=.true. ; export NEMSIOOUT=.true.
 #  export CDATE=2010010100
 #  if [ $NEMSIOIN = .true. ] ; then
@@ -2504,7 +2496,6 @@ else
 #---------------------
    ./rt_gfs.sh
    if [ $? = 2 ]; then exit ; fi
-   export TPN=
 #---------------------
 
   fi # endif test
@@ -2520,7 +2511,7 @@ else
 
  if [ $MACHINE_ID = ccs ]; then
   if [ $RT_FULL = true ]; then
-
+ 
    export TEST_DESCR="GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, HYB 2loop digital filter on reduced grid, restart"
 
 #---------------------
@@ -2599,9 +2590,9 @@ else
    export RUNDIR=${RUNDIR_ROOT}/GFS_16_dfi_hyb_1loop
    export CNTL_DIR=GFS_DFI_REDUCEDGRID_HYB
    export LIST_FILES=" \
-        sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
-        sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-        flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
+	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
+	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
    export_gsm
    export TASKS=16 ; export PE1=12 ; export THRD=2 ; export WRTGP=1 ; export WTPG=1
@@ -2870,7 +2861,6 @@ fi   # end of SKIP_GFS test
 if [ ${SKIP_GENS:-NO} = YES ] ; then
  echo 'Skipping the global ensemble tests'
 else
-
  ###############################################################################
  #
  # TEST   - Concurrency GEFS
@@ -3209,11 +3199,11 @@ else
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
   if [ ${COMPILE_SORC_520rAPI:-YES} = YES ] ; then
-
+  
   echo "Preparing model code for regression tests"
   echo "Using the ESMF 5.2.0r API"
   printf %s "Using the ESMF 5.2.0r API.   "
-
+  
   printf %s "Compiling model code (this will take some time)......."
   cd ${PATHTR}/src
 
@@ -3275,9 +3265,9 @@ else
  fi # endif machine (only WCOSS)
 
  ###############################################################################
- #
- # TEST   - GFS
- #        - 30 compute tasks / 1 thread
+ # 
+ # TEST   - GFS 
+ #        - 30 compute tasks / 1 thread 
  #
  ###############################################################################
 
@@ -3292,9 +3282,9 @@ else
    export RUNDIR=${RUNDIR_ROOT}/GFS_32_ESMF5.2.0rAPI
    export CNTL_DIR=GFS_NODFI
    export LIST_FILES=" \
-        sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
-        sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
-        flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
+	sigf00 sigf03 sigf06 sigf12 sigf24 sigf48 \
+	sfcf00 sfcf03 sfcf06 sfcf12 sfcf24 sfcf48 \
+	flxf00 flxf03 flxf06 flxf12 flxf24 flxf48"
 #---------------------
    export_gsm
 #---------------------
@@ -3345,10 +3335,6 @@ else
  fi   # SKIP_GENS_CONCUR test
 fi   # SKIP_ESMF520rAPI test
 
-# On zeus, test ESMF 6.3.0r library is not ready.
-#------------------------------------------------
-
-if [ 2 = 1 ]; then
 
 if [ ${SKIP_ESMF630rAPI:-NO} = YES ] ; then
  echo "Skipping NMMB and GFS tests using ESMF 6.3.0r API"
@@ -3357,11 +3343,29 @@ else
  # Clean and compile both NMMB & GFS cores, using ESMF 6.3.0r API.
  #########################################################################
 
-# Since the ESMF 6.3.0r already tested on the wcoss machine, this part only testing
-# on the zeus machine.
+ if [ $MACHINE_ID = wcoss ] ; then
 
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB_arg = all ] ; then
-  if [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
+
+  if [ ${COMPILE_SORC_630rAPI:-YES} = YES ] ; then
+
+  echo "Preparing model code for regression tests"
+  echo "Using the ESMF 6.3.0r API"
+  printf %s "Using the ESMF 6.3.0r API.   "
+
+  printf %s "Compiling model code (this will take some time)......."
+  cd ${PATHTR}/src
+
+  date                                     >> ${REGRESSIONTEST_LOG}
+  echo "Compilation ESMF 6.3.0r API"       >> ${REGRESSIONTEST_LOG}
+  rm -f ${PATHTR}/exe/NEMS.x
+  if [ $MACHINE_ID = wcoss ]; then
+
+    ./esmf_version 6.3r_wcoss               >> ${COMPILE_LOG} 2>&1
+    gmake clean                            >> ${COMPILE_LOG} 2>&1
+    gmake nmm_gsm                          >> ${COMPILE_LOG} 2>&1
+
+  elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
 
     ./esmf_version 6.3.0rAPI_zeus          >> ${COMPILE_LOG} 2>&1
     source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
@@ -3370,9 +3374,11 @@ else
     gmake nmm_gsm                          >> ${COMPILE_LOG} 2>&1
 
    fi
-  fi # endif compilation
-
    date                                     >> ${REGRESSIONTEST_LOG}
+
+  fi # endif compilation
+  fi # endif skipping compilation
+ fi # endif machine (only WCOSS)
 
   cd $PATHRT
 
@@ -3383,7 +3389,7 @@ else
  #
  ###############################################################################
 
- if [ $MACHINE_ID = zeus ] ; then
+ if [ $MACHINE_ID = wcoss ] ; then
   if [ $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
    export TEST_DESCR="Compare GFS results with previous trunk version ESMF6.3.0rAPI"
@@ -3405,14 +3411,18 @@ else
 
   fi # endif test
 
- fi # endif machine (only zeus)
+ fi # endif machine (only wcoss)
 
  fi # SKIP_ESMF630rAPI
-fi # skip this test, for [ 2 = 1].
 
 if [ ${SKIP_SINGLECORE:-NO} = YES ] ; then
  echo "Skipping single core NMMB and GFS tests"
 else
+
+# Since on wcoss, only NMMB already tested by using the ESMF 6.3.0r
+# library, skip this test on wcoss.
+
+if [ $MACHINE_ID = zeus ] ; then
 
 #########################################################################
 # Clean and compile only NMMB core
@@ -3430,20 +3440,10 @@ if [ $RT_FULL = true ] ; then
  rm -f ${PATHTR}/exe/NEMS.x
 
  if [ $MACHINE_ID = wcoss ]; then
-    . /usrx/local/Modules/3.2.9/init/ksh
-    module unload ics
-# Compile gsm using the new 14.0.1 ics compiler.
-#-----------------------------------------------
-    module load ics/14.0.1
-    module list
-    export MKL_NUM_THREADS=1
-    export MKL_CBWR=AVX
 
-    ./esmf_version 6.3r_wcoss              >> ${COMPILE_LOG} 2>&1
-    gmake clean                            >> ${COMPILE_LOG} 2>&1
-    gmake nmm                              >> ${COMPILE_LOG} 2>&1
-
-    export MP_MPILIB=pempi
+  ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
+  gmake clean                            >> ${COMPILE_LOG} 2>&1
+  gmake nmm                              >> ${COMPILE_LOG} 2>&1
 
  elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
 
@@ -3496,6 +3496,8 @@ if [ $RT_FULL = true ] ; then
 
 fi # endif test
 
+fi  # only on zeus machine.
+
 #########################################################################
 # Clean and compile only GFS core
 #########################################################################
@@ -3512,20 +3514,9 @@ if [ $RT_FULL = true ] ; then
  rm -f ${PATHTR}/exe/NEMS.x
  if [ $MACHINE_ID = wcoss ]; then
 
-    . /usrx/local/Modules/3.2.9/init/ksh
-    module unload ics
-# Compile gsm using the new 14.0.1 ics compiler.
-#-----------------------------------------------
-    module load ics/14.0.1
-    module list
-    export MKL_NUM_THREADS=1
-    export MKL_CBWR=AVX
-
-    ./esmf_version 6.3r_wcoss              >> ${COMPILE_LOG} 2>&1
-    gmake clean                            >> ${COMPILE_LOG} 2>&1
-    gmake gsm                              >> ${COMPILE_LOG} 2>&1
-
-    export MP_MPILIB=pempi
+  ./esmf_version 3_wcoss                 >> ${COMPILE_LOG} 2>&1
+  gmake clean                            >> ${COMPILE_LOG} 2>&1
+  gmake gsm                              >> ${COMPILE_LOG} 2>&1
 
  elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
 
