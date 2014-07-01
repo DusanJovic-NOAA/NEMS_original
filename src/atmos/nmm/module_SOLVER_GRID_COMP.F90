@@ -9824,19 +9824,6 @@
                                        ,CAL_PRE,MOM4ICE,MSTRAT          &
                                        ,TRANS_TRAC,NST_FCST             &
                                        ,MOIST_ADJ
-
-!
-!-----------------------------------------------------------------------
-!***  For threading safe  (rad_initialize)
-!-----------------------------------------------------------------------
-!
-
-      USE physparam,     ONLY : ISOLx,ICO2x,IALBx,IEMSx,IAERx,ICTMx     &
-     &                         ,IOVR_SWx,IOVR_LWx,SASHALx               &
-     &                         ,NTOZx,NTCWx,IFLIPx,IAER_MDL             &
-     &                         ,NP3Dx, ISUBCSWx, ISUBCLWx               &
-     &                         ,CRICK_PROOFx,CCNORMx,NORAD_PRECIPx
-
 !
 !-----------------------------------------------------------------------
 !
@@ -9875,6 +9862,9 @@
 !
       INTEGER :: LDIM1,LDIM2,UDIM1,UDIM2
 !
+      INTEGER :: IAER_MDL, NP3D, ISUBCSW, ISUBCLW, IFLIP,               &
+                 ICLIQ_SW, ICICE_SW, ICLIQ_LW, ICICE_LW
+!
       INTEGER,DIMENSION(3) :: IDAT
 !
       INTEGER,DIMENSION(:,:),ALLOCATABLE :: ITEMP,LOWLYR
@@ -9901,6 +9891,8 @@
 !
       LOGICAL,SAVE :: ALLOWED_TO_READ=.TRUE.
       LOGICAL :: OPENED
+
+      LOGICAL :: CRICK_PROOF, CCNORM, NORAD_PRECIP
 !
 !---------------------------------
 !***  GFS physics local variables
@@ -10473,6 +10465,88 @@
             CALL GPKAP    ! for ozone by using the unified RRTM from GFS
             CALL GPVS     ! for aerosol by using the unified RRTM from GFS
 
+!
+!-----------------------------------------------------------------------
+!***  For threading safe  (rad_initialize). Default value
+!-----------------------------------------------------------------------
+!
+            ICTM=1     !  0: use data at initial cond time, if not available, use latest, no extrapolation.
+                       !  1: use data at the forecast time, if not available, use latest and extrapolation.
+                       ! -1: use user provided external data for the fcst time, no extrapolation.
+                       ! -2: same as ictm=0, but add seasonal cycle from climatology. no extrapolation.
+                       ! yyyy0: use yyyy data for the forecast time, no further data extrapolation.
+                       ! yyyy1: use yyyy data for the fcst. if needed, do extrapolation to match the fcst time.
+            ISOL=0     ! 0: use a fixed solar constant value 1.3660e+3 (default)
+                       !10: use a fixed solar constant value 1.3608e+3
+                       ! 1: use 11-year cycle solar constant table
+            ICO2=1     ! 0: use prescribed global mean co2   (default)
+                       ! 1: use observed co2 annual mean value only
+                       ! 2: use obs co2 monthly data with 2-d variation
+            IAER=11    ! flag for aerosols scheme selection (all options work for NMMB)
+                       ! - 3-digit aerosol flag (volc,lw,sw)
+                       !   0: turn all aeros effects off (sw,lw,volc)
+                       !   1: use clim tropspheric aerosol for sw only
+                       !  10: use clim tropspheric aerosol for lw only
+                       !  11: use clim tropspheric aerosol for both sw and lw
+                       ! 100: volc aerosol only for both sw and lw
+                       ! 101: volc and clim trops aerosol for sw only
+                       ! 110: volc and clim trops aerosol for lw only
+                       ! 111: volc and clim trops aerosol for both sw and lw
+                       !   2: gocart/BSC-Dust tropspheric aerosol for sw only
+                       !  20: gocart/BSC-Dust tropspheric aerosol for lw only
+                       !  22: gocart/BSC-Dust tropspheric aerosol for both sw and lw
+                       ! 102: volc and gocart trops aerosol for sw only
+                       ! 120: volc and gocart trops aerosol for lw only
+                       ! 122: volc and gocart trops aerosol for both sw and lw
+            IAER_MDL=0 !  default aerosol model is opac-climatology
+                       !  > 0,  future gocart-clim/prog scheme (not ready)
+            IALB=2     ! control flag for surface albedo schemes
+                       ! 0: climatology, based on surface veg types  ! ONLY THIS ONE WORKS (GFS)
+                       ! 1: modis retrieval based surface albedo scheme
+                       ! 2: use externally provided albedoes directly. ! ONLY THIS ONE WORKS for regional
+                       !    (CALCULATES ALBEDO FROM NMMB MONTHLY CLIMATOLOGY AS IN GFDL RADIATION)
+            IEMS=0     ! control flag for surface emissivity schemes
+                       ! 0: fixed value of 1.0   (default)
+                       ! 1: varying value based on surface veg types
+            NTCW=3     !  0: no cloud condensate calculated
+                       ! >0: array index location for cloud condensate
+            NP3D=3     ! 3: ferrier's microphysics cloud scheme (only stratiform cloud)
+                       !    (set iflagliq>0 in radsw_param.f and radlw_param.f)
+                       ! 4: zhao/carr/sundqvist microphysics cloud (now available in the NMMB)
+                       ! 5: NAM stratiform + convective cloud optical depth and fraction
+                       !    (set iflagliq=0 in radsw_param.f and radlw_param.f)
+            NTOZ=0     !  0: climatological ozone profile
+                       ! >0: interactive ozone profile
+            IOVR_SW=1  !  0 sw: random overlap clouds
+                       !  1 sw: max-random overlap clouds
+            IOVR_LW=1  !  0 lw: random overlap clouds
+                       !  1 lw: max-random overlap clouds
+            ISUBCSW=0  !  isubcsw/isubclw
+                       !  sub-column cloud approx control flag (sw/lw rad)
+                       !  0: with out sub-column cloud approximation
+                       !  1: mcica sub-col approx. prescribed random seed
+                       !  2: mcica sub-col approx. provided random seed
+            ISUBCLW=0
+
+            !----------------------------------------------------------
+            ! --- check physparam for detail of the following ---------
+
+            ICLIQ_SW=1 ! sw optical property for liquid clouds
+            ICICE_SW=3 ! sw optical property for ice clouds (only iswcliq>0)
+            ICLIQ_LW=1 ! lw optical property for liquid clouds
+            ICICE_LW=1 ! lw optical property for ice clouds (only ilwcliq>0)
+
+            !----------------------------------------------------------
+
+            IFLIP=0    !   0: input data from toa to sfc
+                       !   1: input data from sfc to toa
+
+            SASHAL=.false.        ! New Massflux based shallow convection  (Not in use for NMMB)
+            CRICK_PROOF=.false.   ! flag for eliminating CRICK (smooths profiles)
+            CCNORM=.true.         ! flag for incloud condensate mixing ratio
+            NORAD_PRECIP=.false.  ! flag for precip in radiation
+                                  ! .true. snow/rain has no impact on radiation
+
 !-----------------------------------------------------------------------
 !***  Initialize ozone
 !-----------------------------------------------------------------------
@@ -10481,7 +10555,7 @@
 !
 ! there is no header in global_o3clim.txt file
 
-            IF (NTOZx .LE. 0) THEN     ! DIAGNOSTIC OZONE, ONLY THIS ONE WORKS
+            IF (NTOZ .LE. 0) THEN     ! DIAGNOSTIC OZONE, ONLY THIS ONE WORKS
                LEVOZC  = 17
                LATSOZC = 18
                BLATC   = -85.0
@@ -10508,15 +10582,15 @@
 
             call rad_initialize_nmmb                                   &
 !        ---  inputs:
-     &       ( SFULLD,LM,ICTMx,ISOLx,ICO2x,IAERx,IAER_MDL,IALBx,IEMSx, &
-     &         NTCWx,NP3Dx,NTOZx,IOVR_SWx,IOVR_LWx,ISUBCSWx,ISUBCLWx,  &
-     &         SASHALx,CRICK_PROOFx,CCNORMx,NORAD_PRECIPx,IFLIPx,MYPE )
+     &       ( SFULLD,LM,ICTM,ISOL,ICO2,IAER,IAER_MDL,IALB,IEMS,NTCW,  &
+     &         NP3D,NTOZ,IOVR_SW,IOVR_LW,ISUBCSW,ISUBCLW,              &
+     &         ICLIQ_SW,ICICE_SW,ICLIQ_LW,ICICE_LW,                    &
+     &         SASHAL,CRICK_PROOF,CCNORM,NORAD_PRECIP,IFLIP,MYPE )
 !  ---        outputs:
 !                ( none )
 
 !==========================================================================
 !==========================================================================
-
 
             DO K=1,LM
               KFLIP=LM+1-K
@@ -10526,7 +10600,6 @@
             SFULL_FLIP(LM+1)=SFULL(1)
 !
             GMT=REAL(START_HOUR)
-
 
 !==========================================================================
 ! This following "RRTM_INIT" is only a L,M,H  DIAGNOSTIC cloud.

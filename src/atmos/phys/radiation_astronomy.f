@@ -181,8 +181,8 @@
       nstp    = 6
 
       if ( isolar == 0 ) then
+        solc0   = con_solr_old
         if ( me == 0 ) then
-          solc0   = con_solr_old
           print *,' - Using old fixed solar constant =', solc0
         endif
       elseif ( isolar == 10 ) then

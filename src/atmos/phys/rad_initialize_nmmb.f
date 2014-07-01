@@ -4,6 +4,7 @@
 !  ---  inputs:
      &     ( si,levr,ictm,isol,ico2,iaer,iaer_mdl,ialb,iems,ntcw,       &
      &       num_p3d,ntoz,iovr_sw,iovr_lw,isubc_sw,isubc_lw,            &
+     &       icliq_sw, icice_sw, icliq_lw, icice_lw,                    &
      &       sashal,crick_proof,ccnorm,norad_precip, iflip, me )
 !  ---  outputs:
 !          ( none )
@@ -74,6 +75,7 @@
 !                     >0 array index location for cloud condensate      !
 !   num_p3d          :=3: ferrier's microphysics cloud scheme           !
 !                     =4: zhao/carr/sundqvist microphysics cloud        !
+!                     =8: Thompson microphysics cloud                   !
 !   ntoz             : ozone data control flag                          !
 !                     =0: use climatological ozone profile              !
 !                     >0: use interactive ozone profile                 !
@@ -103,7 +105,7 @@
      &            iaermdl, laswflg, lalwflg, lavoflg, icldflg, icmphys, &
      &            iovrsw , iovrlw , lsashal, lcrick , lcnorm , lnoprec, &
      &            ialbflg, iemsflg, isubcsw, isubclw, ivflip , ipsd0,   &
-     &            ilwcice, kind_phys
+     &            ilwcice, ilwcliq, iswcice, iswcliq, kind_phys
 
       use module_radiation_driver_nmmb, only : radinit_nmmb
 !
@@ -113,6 +115,7 @@
 
       integer,  intent(in) :: levr, ictm, isol, ico2, iaer, iaer_mdl,   &
      &       ntcw, ialb, iems, num_p3d, ntoz, iovr_sw, iovr_lw,         &
+     &       icliq_sw, icice_sw, icliq_lw, icice_lw,                    &
      &       isubc_sw, isubc_lw, iflip, me
 
       real (kind=kind_phys), intent(in) :: si(levr+1)
@@ -169,15 +172,15 @@
       isubcsw = isubc_sw                ! sub-column cloud approx flag in sw radiation
       isubclw = isubc_lw                ! sub-column cloud approx flag in lw radiation
 
-      ialbflg= ialb                     ! surface albedo control flag
-      iemsflg= iems                     ! surface emissivity control flag
+      iswcliq = icliq_sw                ! sw optical property for liquid clouds
+      iswcice = icice_sw                ! sw optical property for ice clouds (only iswcliq>0)
+      ilwcliq = icliq_lw                ! lw optical property for liquid clouds
+      ilwcice = icice_lw                ! lw optical property for ice clouds (only ilwcliq>0)
+
+      ialbflg = ialb                    ! surface albedo control flag
+      iemsflg = iems                    ! surface emissivity control flag
 
       ivflip = iflip                    ! vertical index direction control flag
-
-!  --- for nmmb LW as description in "physparam" (20140521, Lin)
-
-      ilwcice = 1
-
 
 ! ! ---  assign initial permutation seed for mcica cloud-radiation
   !    if ( isubc_sw>0 .or. isubc_lw>0 ) then
@@ -196,8 +199,12 @@
         print *,' sashal=',sashal,' crick=',crick_proof,                &
      &          ' ccnorm=',ccnorm,' norad=',norad_precip
 
-        print *,'=== lw optical property for ice clouds ==='
-        print *,' ilwcice=',ilwcice
+        print *,'=== lw optical property for clouds ==='
+        print *,' ilwcice=',ilwcice, ' ilwcliq=',ilwcliq
+
+        print *,'=== sw optical property for clouds ==='
+        print *,' iswcice=',iswcice, ' iswcliq=',iswcliq
+
       endif
 
       call radinit_nmmb                                                 &

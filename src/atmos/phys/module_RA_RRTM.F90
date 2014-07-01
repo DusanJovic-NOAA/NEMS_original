@@ -10,10 +10,7 @@
 !
       USE MODULE_INCLUDE
 !
-      use physparam,     only : icldflg, ioznflg, NTCWx, kind_phys,    &
-                                NCLDX, NTRAC => NTRACx,                &
-                                       LSSAV => LSSAVx,                &
-                                       LPRNT => LPRNTx
+      use physparam,     only : icldflg, ioznflg, kind_phys
 
       USE MODULE_CONSTANTS, ONLY : R,CP,PI,EPSQ,STBOLT,EP_2
 
@@ -181,13 +178,25 @@
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
 !
+!
+      LOGICAL ::  LSSAV=.TRUE.
+                ! logical flag for store 3-d cloud field
+                ! ** need to be .TRUE. for non-zero FLUXR_V & CLDCOV_V off GRRAD
+
+      LOGICAL :: LPRNT=.FALSE.
+!
       LOGICAL :: LSLWR, LSSWR
 
       INTEGER,PARAMETER :: NFLUXR=39
+
+      INTEGER,PARAMETER :: NTRAC=3   ! dimension veriable for array oz
+      INTEGER,PARAMETER :: NTCW =3   ! ARRAY INDEX LOCATION FOR CLOUD CONDENSATE
+      INTEGER,PARAMETER :: NCLDX=1   ! only used when ntcw .gt. 0
+
 !
       INTEGER :: NUMX, NUMY, NFXR, KFLIP, I, L, J, K
 
-      INTEGER :: ICWP, NTOZ, NTCW
+      INTEGER :: ICWP, NTOZ
 !
       REAL*8 :: FHSWR, FHLWR, DTSW, DTLW, RTvR, ARG_CW
 !
@@ -256,6 +265,7 @@
       REAL,DIMENSION(10),SAVE :: CC,PPT
       LOGICAL, SAVE :: CNCLD=.TRUE.
       LOGICAL, SAVE :: OPER=.TRUE.
+
 !
       DATA CC/0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0/
       DATA PPT/0.,.14,.31,.70,1.6,3.4,7.7,17.,38.,85./
@@ -389,7 +399,6 @@
                      ! *** not used in this version of code ***
                      ! can be any value at this moment
 
-      NTCW = NTCWx
       ICWP = icldflg
       NTOZ = ioznflg
 

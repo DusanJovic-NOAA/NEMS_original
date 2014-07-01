@@ -50,11 +50,11 @@
                                         ! =1:k/day; =2:k/second.
       integer,parameter :: iswrgas = 1  ! sw rare gases effect control flag (ch4,n2o,o2,...)
                                         ! =0:no; =1:yes.
-      integer,parameter :: iswcliq = 1  ! sw optical property for liquid clouds
+      integer,save      :: iswcliq = 1  ! sw optical property for liquid clouds
                                         ! =0:input cld opt depth, ignoring iswcice setting
                                         ! =1:input cwp,rew, use hu and stamnes(1993) method
                                         ! =2:not defined yet
-      integer,parameter :: iswcice = 3  ! sw optical property for ice clouds (only iswcliq>0)
+      integer,save      :: iswcice = 3  ! sw optical property for ice clouds (only iswcliq>0)
                                         ! =0:not defined yet
                                         ! =1:input cip,rei, use ebert and curry (1992) method
                                         ! =2:input cip,rei, use streamer v3.0 (2001) method
@@ -72,7 +72,7 @@
                                         ! =1:k/day; =2:k/second.
       integer,parameter :: ilwrgas = 1  ! lw rare gases effect control flag (ch4,n2o,o2,cfcs...)
                                         ! =0:no; =1:yes.
-      integer,parameter :: ilwcliq = 1  ! lw optical property for liquid clouds
+      integer,save      :: ilwcliq = 1  ! lw optical property for liquid clouds
                                         ! =0:input cld opt depth, ignoring ilwcice setting
                                         ! =1:input cwp,rew, use hu and stamnes(1993) method
                                         ! =2:not defined yet
@@ -166,115 +166,6 @@
       integer, save :: isubclw = 0      ! sub-column cloud approx flag in lw radiation
       integer, save :: ipsd0   = 0      ! initial permutation seed for mcica radiation
 
-
-! ......................................................................!
-!  Special section for NMMB used only                                   !
-!  variables used in old module_RRTM and now updated in rad_initialize  !
-! ......................................................................!
-
-      integer,parameter :: NP3Dx=3 
-                               ! 3: ferrier's microphysics cloud scheme (only stratiform cloud)
-                               !    (set iflagliq>0 in radsw_param.f and radlw_param.f)
-                               ! 4: zhao/carr/sundqvist microphysics cloud (now available in the NMMB)
-                               ! 5: NAM stratiform + convective cloud optical depth and fraction
-                               !    (set iflagliq=0 in radsw_param.f and radlw_param.f)
-      integer,parameter :: ISOLx=0    
-                               ! 0: use a fixed solar constant value 1.3660e+3 (default)
-                               !10: use a fixed solar constant value 1.3608e+3 
-                               ! 1: use 11-year cycle solar constant table
-      integer,parameter :: ICO2x=1 
-                               ! 0: use prescribed global mean co2   (default)
-                               ! 1: use observed co2 annual mean value only
-                               ! 2: use obs co2 monthly data with 2-d variation
-      integer,parameter :: ICWPx=1 
-                               ! control flag for cloud generation schemes.  use "icldflg" instead
-                               !  0: use diagnostic cloud scheme
-                               ! -1: use diagnostic cloud scheme (use with NMMB for NP3D=5)(GFDL type)
-                               !  1: use prognostic cloud scheme (use with NMMB for NP3D=3)
-      integer,parameter :: IALBx=2
-                               ! control flag for surface albedo schemes
-                               ! 0: climatology, based on surface veg types  ! ONLY THIS ONE WORKS (GFS)
-                               ! 1: modis retrieval based surface albedo scheme
-                               ! 2: use externally provided albedoes directly. ! ONLY THIS ONE WORKS for regional
-                               !    (CALCULATES ALBEDO FROM NMMB MONTHLY CLIMATOLOGY AS IN GFDL RADIATION)
-      integer,parameter :: IEMSx=0
-                               ! control flag for surface emissivity schemes
-                               ! 0: fixed value of 1.0   (default)
-                               ! 1: varying value based on surface veg types
-      integer,parameter :: IAERx=11
-                               ! flag for aerosols scheme selection (all options work for NMMB)
-                               ! - 3-digit aerosol flag (volc,lw,sw)
-                               !   0: turn all aeros effects off (sw,lw,volc)
-                               !   1: use clim tropspheric aerosol for sw only
-                               !  10: use clim tropspheric aerosol for lw only
-                               !  11: use clim tropspheric aerosol for both sw and lw
-                               ! 100: volc aerosol only for both sw and lw
-                               ! 101: volc and clim trops aerosol for sw only
-                               ! 110: volc and clim trops aerosol for lw only
-                               ! 111: volc and clim trops aerosol for both sw and lw
-                               !   2: gocart/BSC-Dust tropspheric aerosol for sw only
-                               !  20: gocart/BSC-Dust tropspheric aerosol for lw only
-                               !  22: gocart/BSC-Dust tropspheric aerosol for both sw and lw
-                               ! 102: volc and gocart trops aerosol for sw only
-                               ! 120: volc and gocart trops aerosol for lw only
-                               ! 122: volc and gocart trops aerosol for both sw and lw
-       integer,parameter :: NTRACx=3
-                               ! dimension veriable for array oz
-       integer,parameter :: NTOZx=0
-                               !  0: climatological ozone profile
-                               ! >0: interactive ozone profile
-       integer,parameter :: NCLDX=1
-                               !  only used when ntcw .gt. 0
-       integer,parameter :: NTCWx=3
-                               !  0: no cloud condensate calculated
-                               ! >0: array index location for cloud condensate
-       integer,parameter :: IOVR_SWx=1
-                               !  0 sw: random overlap clouds
-                               !  1 sw: max-random overlap clouds
-       integer,parameter :: IOVR_LWx=1
-                               !  0 lw: random overlap clouds
-                               !  1 lw: max-random overlap clouds
-       integer,parameter :: ICTMx=1
-                               !  0: use data at initial cond time, if not
-                               !     available, use latest, no extrapolation.
-                               !  1: use data at the forecast time, if not
-                               !     available, use latest and extrapolation.
-                               ! -1: use user provided external data for
-                               !     the fcst time, no extrapolation.
-                               ! -2: same as ictm=0, but add seasonal cycle
-                               !     from climatology. no extrapolation.
-                               ! yyyy0: use yyyy data for the forecast time,
-                               !     no further data extrapolation.
-                               ! yyyy1: use yyyy data for the fcst.
-                               !     if needed, do extrapolation to match the fcst time.
-       integer,parameter :: IFLIPx=0
-                               !   0: input data from toa to sfc
-                               !   1: input data from sfc to toa
-       integer,parameter :: IAER_MDL=0
-                               !  default aerosol model is opac-climatology
-                               !  > 0,  future gocart-clim/prog scheme (not ready)
-
-       integer,parameter :: ISUBCSWx=0
-                               !  isubcsw/isubclw
-                               !  sub-column cloud approx control flag (sw/lw rad)
-                               !  0: with out sub-column cloud approximation
-                               !  1: mcica sub-col approx. prescribed random seed
-                               !  2: mcica sub-col approx. provided random seed
-       integer,parameter :: ISUBCLWx=0
-
-       logical :: LSSAVx=.TRUE.
-                               ! logical flag for store 3-d cloud field
-                               !  ** need to be .TRUE. for non-zero FLUXR_V & CLDCOV_V off GRRAD
-       logical :: NORAD_PRECIPx=.false.
-                               ! flag for precip in radiation
-                               ! .true. snow/rain has no impact on radiation
-       logical :: CRICK_PROOFx=.false.
-                               ! flag for eliminating CRICK (smooths profiles)
-       logical :: CCNORMx=.true.
-                               ! flag for incloud condensate mixing ratio
-       logical :: SASHALx=.false.
-                               ! New Massflux based shallow convection  (Not in use for NMMB)
-       logical :: LPRNTx=.FALSE.
 !
 !...................................!
       end module physparam          !
