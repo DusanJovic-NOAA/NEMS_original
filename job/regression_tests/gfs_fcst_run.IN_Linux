@@ -132,12 +132,6 @@ NST_SPINUP=${NST_SPINUP:-.false.}
 
 if [ $NDSLFV = .true. ]
 then
- if [[ $wave -eq  62 ]] ; then export DELTIM=1200 ; fi
- if [[ $wave -eq 126 ]] ; then export DELTIM=1200 ; fi
- if [[ $wave -eq 254 ]] ; then export DELTIM=900  ; fi
- if [[ $wave -eq 382 ]] ; then export DELTIM=600  ; fi
- if [[ $wave -eq 574 ]] ; then export DELTIM=400  ; fi
- if [[ $wave -eq 852 ]] ; then export DELTIM=300  ; fi
  export MASS_DP=.true.
  export PROCESS_SPLIT=.false.
 else
