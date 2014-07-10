@@ -442,9 +442,16 @@
       DO K=1,2
 !----------------------------------------------------------------------
 !
+      DO J=JDS,JDE 
+      DO I=IDS,IDE 
+        TWRITE(I,J)=0.
+      ENDDO
+      ENDDO
+!
       IF(MYPE==0)THEN
         DO J=JTS,JTE
         DO I=ITS,ITE
+          TWRITE(I,J)=0.
           IF(K==1) THEN
             TWRITE(I,J)=ARRAY1(I,J)
           ELSE

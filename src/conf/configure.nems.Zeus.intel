@@ -103,6 +103,7 @@ R8           = -r8
 
 FINCS        = $(ESMF_INC) $(NEMSIO_INC)
 TRAPS        =
+#TRAPS        = -g -fno-inline -no-ip -traceback -ftrapuv -fpe0 -ftz -check all -check noarg_temp_created -fp-stack-check
 
 FFLAGS       = $(TRAPS) $(FINCS) -fp-model strict
 

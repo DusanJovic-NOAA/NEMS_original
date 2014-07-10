@@ -1064,7 +1064,8 @@
 !
       CHARACTER(len=99) :: CONFIG_FILE_NAME
 !
-      LOGICAL(kind=KLOG),SAVE :: RESTART                                   !<-- Is this a restarted run?
+      LOGICAL(kind=KLOG),SAVE :: GLOBAL_TOP_PARENT                      &  !<-- Is the uppermost parent global?
+                                ,RESTART                                   !<-- Is this a restarted run?
 !
       TYPE(ESMF_Config),SAVE :: CF_1                                       !<-- Domain #1's configure object
 !
@@ -2778,14 +2779,12 @@
 !
       CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
                         ,localDe  =0                                    &
-                        ,farrayPtr=GLAT                                 &  !<-- Put the pointer here
+                        ,farrayPtr=cc%GLAT                              &  !<-- Put the pointer here
                         ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      cc%GLAT=>GLAT
 !
 !--------------------------
 !***  Geographic longitude
@@ -2812,14 +2811,12 @@
 !
       CALL ESMF_FieldGet(field    =HOLD_FIELD                           &  !<-- Field that holds the data pointer
                         ,localDe  =0                                    &
-                        ,farrayPtr=GLON                                 &  !<-- Put the pointer here
+                        ,farrayPtr=cc%GLON                              &  !<-- Put the pointer here
                         ,rc       =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      cc%GLON=>GLON
 !
 !----------------------------------------------
 !***  PT,PDTOP,PSGML1,SG1,SG2,SGML2,DSG2,PDSG1
@@ -6216,6 +6213,20 @@
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          MESSAGE_CHECK="Is the Upper Parent Global?"
+!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+          CALL ESMF_ConfigGetAttribute(config=CF_1                      &  !<-- The config object of domain #1
+                                      ,value =GLOBAL_TOP_PARENT         &  !<-- The variable filled
+                                      ,label ='global:'                 &  !<-- True--> upper parent is global
+                                      ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Base Dimensions of Uppermost Domain"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -6533,11 +6544,13 @@
 !***  topography at child H points and child V points.
 !-----------------------------------------------------------------------
 !
-        CALL PARENT_READS_MOVING_CHILD_TOPO(NUM_MOVING_CHILDREN         &
+        CALL PARENT_READS_MOVING_CHILD_TOPO(MY_DOMAIN_ID                &
+                                           ,NUM_MOVING_CHILDREN         &
                                            ,LINK_MRANK_RATIO            &
                                            ,LIST_OF_RATIOS              &
                                            ,M_NEST_RATIO                &
                                            ,NUM_SPACE_RATIOS_MVG        &
+                                           ,GLOBAL_TOP_PARENT           &
                                            ,IM_1,JM_1                   &
                                            ,TPH0_1,TLM0_1               &
                                            ,SB_1,WB_1                   &
@@ -8970,11 +8983,13 @@
 !***  number of children must equal the number of moving children.
 !-----------------------------------------------------------------------
 !
-          CALL PARENT_READS_MOVING_CHILD_TOPO(NUM_CHILDREN              &
+          CALL PARENT_READS_MOVING_CHILD_TOPO(MY_DOMAIN_ID              &
+                                             ,NUM_CHILDREN              &
                                              ,LINK_MRANK_RATIO          &
                                              ,LIST_OF_RATIOS            &
                                              ,M_NEST_RATIO              &
                                              ,NUM_SPACE_RATIOS_MVG      &
+                                             ,GLOBAL_TOP_PARENT         &
                                              ,IM_1,JM_1                 &
                                              ,TPH0_1,TLM0_1             &
                                              ,SB_1,WB_1                 &

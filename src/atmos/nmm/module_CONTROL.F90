@@ -468,6 +468,9 @@ integer(kind=kint):: &
 ,j_hi &                      ! max j loop limit (cannot be > jde)
 ,j_lo                        ! min j loop limit (cannot be < jds)
   
+real(kind=kfpt),save :: &
+ eps=1.e-5
+
 real(kind=kfpt):: &
  acdt &                      ! diffusion coefficient parameter
 ,alm &                       ! lambda
@@ -854,8 +857,20 @@ real(kind=kfpt),dimension(jds:jde):: &
           aph=tph_base+(j-jds+1)*dph
           do i=i_lo,i_hi
             alm=tlm_base+(i-ids+1)*dlm
-            if(alm> pi) alm=alm-pi-pi
-            if(alm<-pi) alm=alm+pi+pi
+            if(alm> pi)then
+              if(i<=ite-2)then
+                alm=alm-pi-pi
+              else
+                alm=pi+(i-ite+1)*dlm
+              endif
+            endif
+            if(alm<-pi)then
+              if(i>=its+2)then
+                alm=alm+pi+pi
+              else
+                alm=-pi+(i-its-1)*dlm
+              endif
+            endif
             glat(i,j)=aph
             glon(i,j)=alm
           enddo

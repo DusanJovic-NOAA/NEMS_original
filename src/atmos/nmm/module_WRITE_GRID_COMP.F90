@@ -667,33 +667,55 @@
       MESSAGE_CHECK="WRITE_INITIALIZE: Extract Local Domain Limits"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
+!
       IF(MYPE<=LAST_FCST_TASK)THEN
-
+!
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
                               ,name     ='LOCAL_ISTART'                 &  !<-- Name of the Attribute to extract
-                              ,itemCount=NUM_PES_FCST                   &  !<-- Length of Attribute
+                              ,count    =NUM_PES_FCST                   &  !<-- Length of Attribute
                               ,valueList=wrt_int_state%LOCAL_ISTART     &  !<-- Extract local subdomain starting I's
                               ,rc=RC)
 !
         CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
                               ,name     ='LOCAL_IEND'                   &  !<-- Name of the Attribute to extract
-                              ,itemCount=NUM_PES_FCST                   &  !<-- Length of Attribute
+                              ,count    =NUM_PES_FCST                   &  !<-- Length of Attribute
                               ,valueList=wrt_int_state%LOCAL_IEND       &  !<-- Extract local subdomain ending I's
                               ,rc=RC)
 !
         CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
                               ,name     ='LOCAL_JSTART'                 &  !<-- Name of the Attribute to extract
-                              ,itemCount=NUM_PES_FCST                   &  !<-- Length of Attribute
+                              ,count    =NUM_PES_FCST                   &  !<-- Length of Attribute
                               ,valueList=wrt_int_state%LOCAL_JSTART     &  !<-- Extract local subdomain starting J's
                               ,rc=RC)
 !
         CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
                               ,name     ='LOCAL_JEND'                   &  !<-- Name of the Attribute to extract
-                              ,itemCount=NUM_PES_FCST                   &  !<-- Length of Attribute
+                              ,count    =NUM_PES_FCST                   &  !<-- Length of Attribute
                               ,valueList=wrt_int_state%LOCAL_JEND       &  !<-- Extract local subdomain ending J's
                               ,rc=RC)
-
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
+                              ,name     ='LOCAL_ISTART'                 &  !<-- Name of the Attribute to extract
+                              ,valueList=wrt_int_state%LOCAL_ISTART     &  !<-- Extract local subdomain starting I's
+                              ,rc=RC)
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
+                              ,name     ='LOCAL_IEND'                   &  !<-- Name of the Attribute to extract
+                              ,valueList=wrt_int_state%LOCAL_IEND       &  !<-- Extract local subdomain ending I's
+                              ,rc=RC)
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
+                              ,name     ='LOCAL_JSTART'                 &  !<-- Name of the Attribute to extract
+                              ,valueList=wrt_int_state%LOCAL_JSTART     &  !<-- Extract local subdomain starting J's
+                              ,rc=RC)
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
+                              ,name     ='LOCAL_JEND'                   &  !<-- Name of the Attribute to extract
+                              ,valueList=wrt_int_state%LOCAL_JEND       &  !<-- Extract local subdomain ending J's
+                              ,rc=RC)
+#endif
+!
       ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -708,35 +730,58 @@
       IONE = 1
 !
       IF(MYPE<=LAST_FCST_TASK)THEN
-
+!
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
                               ,name     ='IDS'                          &  !<-- Name of the Attribute to extract
-                              ,itemCount=IONE                           &  !<-- Length of Attribute
+                              ,count    =IONE                           &  !<-- Length of Attribute
                               ,valueList=wrt_int_state%IDS              &  !<-- Extract full subdomain starting I
                               ,rc=RC)
-        IDS=wrt_int_state%IDS(1)
 !
         CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
                               ,name     ='IDE'                          &  !<-- Name of the Attribute to extract
-                              ,itemCount=IONE                           &  !<-- Length of Attribute
+                              ,count    =IONE                           &  !<-- Length of Attribute
                               ,valueList=wrt_int_state%IDE              &  !<-- Extract full subdomain ending I
                               ,rc=RC)
-        IDE=wrt_int_state%IDE(1)
 !
         CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
                               ,name     ='JDS'                          &  !<-- Name of the Attribute to extract
-                              ,itemCount=IONE                           &  !<-- Length of Attribute
+                              ,count    =IONE                           &  !<-- Length of Attribute
                               ,valueList=wrt_int_state%JDS              &  !<-- Extract full subdomain starting J
                               ,rc=RC)
-        JDS=wrt_int_state%JDS(1)
 !
         CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
                               ,name     ='JDE'                          &  !<-- Name of the Attribute to extract
-                              ,itemCount=IONE                           &  !<-- Length of Attribute
+                              ,count    =IONE                           &  !<-- Length of Attribute
                               ,valueList=wrt_int_state%JDE              &  !<-- Extract full subdomain ending J
                               ,rc=RC)
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
+                              ,name     ='IDS'                          &  !<-- Name of the Attribute to extract
+                              ,valueList=wrt_int_state%IDS              &  !<-- Extract full subdomain starting I
+                              ,rc=RC)
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
+                              ,name     ='IDE'                          &  !<-- Name of the Attribute to extract
+                              ,valueList=wrt_int_state%IDE              &  !<-- Extract full subdomain ending I
+                              ,rc=RC)
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
+                              ,name     ='JDS'                          &  !<-- Name of the Attribute to extract
+                              ,valueList=wrt_int_state%JDS              &  !<-- Extract full subdomain starting J
+                              ,rc=RC)
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                &  !<-- The Write component's import state
+                              ,name     ='JDE'                          &  !<-- Name of the Attribute to extract
+                              ,valueList=wrt_int_state%JDE              &  !<-- Extract full subdomain ending J
+                              ,rc=RC)
+#endif
+!
+        IDS=wrt_int_state%IDS(1)
+        IDE=wrt_int_state%IDE(1)
+        JDS=wrt_int_state%JDS(1)
         JDE=wrt_int_state%JDE(1)
-
+!
       ENDIF
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -917,11 +962,18 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_AttributeGet(state=IMP_STATE_WRITE                  &  !<-- The Write component import state
-                                ,name ='LBND_4D'                        &  !<-- Name of the Attribute to extract
-                                ,itemCount=NVARS_BC_4D_H                &  !<-- # of 4-D boundary variables
+#ifdef ESMF_3
+          CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE              &  !<-- The Write component import state
+                                ,name     ='LBND_4D'                    &  !<-- Name of the Attribute to extract
+                                ,count    =NVARS_BC_4D_H                &  !<-- # of 4-D boundary variables         
                                 ,valueList=wrt_int_state%LBND_4D        &  !<-- Lower bounds of 3-D array count in each 4-D vbl
-                                ,rc   =RC)
+                                ,rc       =RC)
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE              &  !<-- The Write component import state
+                                ,name     ='LBND_4D'                    &  !<-- Name of the Attribute to extract
+                                ,valueList=wrt_int_state%LBND_4D        &  !<-- Lower bounds of 3-D array count in each 4-D vbl
+                                ,rc       =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -932,11 +984,18 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-          CALL ESMF_AttributeGet(state=IMP_STATE_WRITE                  &  !<-- The Write component import state
-                                ,name ='UBND_4D'                        &  !<-- Name of the Attribute to extract
-                                ,itemCount=NVARS_BC_4D_H                &  !<-- # of 4-D boundary variables
+#ifdef ESMF_3
+          CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE              &  !<-- The Write component import state
+                                ,name     ='UBND_4D'                    &  !<-- Name of the Attribute to extract
+                                ,count    =NVARS_BC_4D_H                &  !<-- # of 4-D boundary variables         
                                 ,valueList=wrt_int_state%UBND_4D        &  !<-- Upper bounds of 3-D array count in each 4-D vbl
-                                ,rc   =RC)
+                                ,rc       =RC)
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE              &  !<-- The Write component import state
+                                ,name     ='UBND_4D'                    &  !<-- Name of the Attribute to extract
+                                ,valueList=wrt_int_state%UBND_4D        &  !<-- Upper bounds of 3-D array count in each 4-D vbl
+                                ,rc       =RC)
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -2212,13 +2271,20 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         IF(wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE)>0)THEN                   !<-- Fcst tasks along south boundary
-
+!
+#ifdef ESMF_3
           CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                        &  !<-- The Write component import state
                                 ,name     ='RST_BC_DATA_SOUTH'                    &  !<-- Name of south BC data on this task
-                                ,itemCount=wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE) &  !<-- # of words in this south BC data
+                                ,count    =wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE) &  !<-- # of words in this south BC data
                                 ,valueList=wrt_int_state%RST_BC_DATA_SOUTH        &  !<-- Place the data here
                                 ,rc       =RC)
-
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
+                                ,name     ='RST_BC_DATA_SOUTH'              &  !<-- Name of south BC data on this task
+                                ,valueList=wrt_int_state%RST_BC_DATA_SOUTH  &  !<-- Place the data here
+                                ,rc       =RC)
+#endif
+!
           IF(MYPE/=0)THEN
             CALL MPI_SEND(wrt_int_state%RST_BC_DATA_SOUTH               &  !<-- Send this string of subdomain data 
                          ,wrt_int_state%NUM_WORDS_BC_SOUTH(MYPE)        &  !<-- Number of words sent
@@ -2245,13 +2311,20 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         IF(wrt_int_state%NUM_WORDS_BC_NORTH(MYPE)>0)THEN                   !<-- Fcst tasks along north boundary
-
+!
+#ifdef ESMF_3
           CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                        &  !<-- The Write component import state
                                 ,name     ='RST_BC_DATA_NORTH'                    &  !<-- Name of north BC data on this task
-                                ,itemCount=wrt_int_state%NUM_WORDS_BC_NORTH(MYPE) &  !<-- # of words in this north BC data
+                                ,count    =wrt_int_state%NUM_WORDS_BC_NORTH(MYPE) &  !<-- # of words in this north BC data
                                 ,valueList=wrt_int_state%RST_BC_DATA_NORTH        &  !<-- Place the data here
                                 ,rc       =RC)
-
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                  &  !<-- The Write component import state
+                                ,name     ='RST_BC_DATA_NORTH'              &  !<-- Name of north BC data on this task
+                                ,valueList=wrt_int_state%RST_BC_DATA_NORTH  &  !<-- Place the data here
+                                ,rc       =RC)
+#endif
+!
           IF(MYPE/=0)THEN
             CALL MPI_SEND(wrt_int_state%RST_BC_DATA_NORTH               &  !<-- Send this string of subdomain data 
                          ,wrt_int_state%NUM_WORDS_BC_NORTH(MYPE)        &  !<-- Number of words sent
@@ -2278,13 +2351,20 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         IF(wrt_int_state%NUM_WORDS_BC_WEST(MYPE)>0)THEN                    !<-- Fcst tasks along west boundary
-
+!
+#ifdef ESMF_3
           CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                       &  !<-- The Write component import state
                                 ,name     ='RST_BC_DATA_WEST'                    &  !<-- Name of west BC data on this task
-                                ,itemCount=wrt_int_state%NUM_WORDS_BC_WEST(MYPE) &  !<-- # of words in this west BC data
+                                ,count    =wrt_int_state%NUM_WORDS_BC_WEST(MYPE) &  !<-- # of words in this west BC data
                                 ,valueList=wrt_int_state%RST_BC_DATA_WEST        &  !<-- Place the data here
                                 ,rc       =RC)
-
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                 &  !<-- The Write component import state
+                                ,name     ='RST_BC_DATA_WEST'              &  !<-- Name of west BC data on this task
+                                ,valueList=wrt_int_state%RST_BC_DATA_WEST  &  !<-- Place the data here
+                                ,rc       =RC)
+#endif
+!
           IF(MYPE/=0)THEN
             CALL MPI_SEND(wrt_int_state%RST_BC_DATA_WEST                &  !<-- Send this string of subdomain data 
                          ,wrt_int_state%NUM_WORDS_BC_WEST(MYPE)         &  !<-- Number of words sent
@@ -2311,13 +2391,20 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         IF(wrt_int_state%NUM_WORDS_BC_EAST(MYPE)>0)THEN                    !<-- Fcst tasks along east boundary
-
+!
+#ifdef ESMF_3
           CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                       &  !<-- The Write component import state
                                 ,name     ='RST_BC_DATA_EAST'                    &  !<-- Name of west BC data on this task
-                                ,itemCount=wrt_int_state%NUM_WORDS_BC_EAST(MYPE) &  !<-- # of words in this east BC data
+                                ,count    =wrt_int_state%NUM_WORDS_BC_EAST(MYPE) &  !<-- # of words in this east BC data
                                 ,valueList=wrt_int_state%RST_BC_DATA_EAST        &  !<-- Place the data here
                                 ,rc       =RC)
-
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE_WRITE                 &  !<-- The Write component import state
+                                ,name     ='RST_BC_DATA_EAST'              &  !<-- Name of west BC data on this task
+                                ,valueList=wrt_int_state%RST_BC_DATA_EAST  &  !<-- Place the data here
+                                ,rc       =RC)
+#endif
+!
           IF(MYPE/=0)THEN
             CALL MPI_SEND(wrt_int_state%RST_BC_DATA_EAST                &  !<-- Send this string of subdomain data 
                          ,wrt_int_state%NUM_WORDS_BC_EAST(MYPE)         &  !<-- Number of words sent
@@ -5763,7 +5850,7 @@
 !-----------------------------------------------------------------------
 !***  Insert the Write components' import state into the
 !***  Solver export state since history data itself must 
-!***  from the Solver.
+!***  come from the Solver.
 !-----------------------------------------------------------------------
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -5778,59 +5865,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Insert the subdomain horizontal limits for all tasks into 
-!***  the Solver import states since they will be needed
-!***  for specifying output fields within the Solver
-!***  component.  This is only relevant to the fcst tasks
-!***  since only they enter the Solver.
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  NOTE!!!
-!-----------------------------------------------------------------------
-!***  The local domain limits need to have been inserted into the
-!***  DOMAIN component's internal state in the core-specific setup
-!***  routine called by DOMAIN_INITIALIZE.
-!-----------------------------------------------------------------------
-!
-      IF(MYPE<NUM_PES_FCST)THEN                                            !<-- This excludes I/O tasks.
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Insert Local Domain Limits in Solver Imp State"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Solver import state receives an attribute
-                              ,name     ='LOCAL_ISTART'                    &  !<-- The attribute's name
-                              ,itemCount=NUM_PES_FCST                      &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_ISTART     &  !<-- Insert this quantity as an attribute
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Solver import state receives an attribute
-                              ,name     ='LOCAL_IEND'                      &  !<-- The attribute's name
-                              ,itemCount=NUM_PES_FCST                      &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_IEND       &  !<-- Insert this quantity as an attribute
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Solver import state receives an attribute
-                              ,name     ='LOCAL_JSTART'                    &  !<-- The attribute's name
-                              ,itemCount=NUM_PES_FCST                      &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_JSTART     &  !<-- Insert this quantity as an attribute
-                              ,rc       =RC)
-!
-        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Solver import state receives an attribute
-                              ,name     ='LOCAL_JEND'                      &  !<-- The attribute's name
-                              ,itemCount=NUM_PES_FCST                      &  !<-- The attribute's length
-                              ,valueList=domain_int_state%LOCAL_JEND       &  !<-- Insert this quantity as an attribute
-                              ,rc       =RC)
-
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_SETUP)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      ENDIF
 !
 !-----------------------------------------------------------------------
 !

@@ -111,7 +111,7 @@ integer :: mpi_intra
 !
       subroutine setup_servers(mype,inpes,jnpes,npes                    &
                               ,ngroups_write,write_tasks_per_group      &
-                              ,mpi_intra)
+                              ,mpi_intra,quilting)
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -153,6 +153,9 @@ integer :: mpi_intra
 ,write_tasks_per_group &    ! number of groups of write tasks per group
 ,mpi_intra                  ! global communicator
 !
+      logical(kind=klog),intent(in) :: &
+quilting                    ! has output via quilting been specified?
+!
       integer(kind=kint),intent(inout) :: &
  npes                       ! total number of tasks provided
                             ! then converted to the number of fcst tasks
@@ -192,6 +195,10 @@ integer :: mpi_intra
 !!!   mype=mype_share
       npes_fcst=inpes*jnpes
       mpi_comm_comp=mpi_intra                                            !<-- Set mpi_comm_comp to the global communicator
+!
+      if(.not.quilting)then
+        return                                                           !<-- If no output then nothing else to do.
+      endif
 !
 !-----------------------------------------------------------------------
 !

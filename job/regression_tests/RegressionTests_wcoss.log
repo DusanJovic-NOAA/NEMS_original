@@ -1,11 +1,11 @@
-Thu Jun 26 16:42:31 UTC 2014
+Wed Jul  9 06:15:00 EDT 2014
 Start Regression test
 
 
 
-Thu Jun 26 16:42:31 UTC 2014
+Wed Jul  9 06:15:00 EDT 2014
 Compilation ALL
-Thu Jun 26 17:14:52 UTC 2014
+Wed Jul  9 06:43:05 EDT 2014
 Test 1
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 1 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  139.77
+ Original timing:  151.20  , test_glob timing:  140.17
 
 
 Test 2
@@ -128,7 +128,7 @@ Checking test 8 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  281.81
+ Original timing:  240.82  , test_reg timing:  281.54
 
 
 Test 9
@@ -799,7 +799,7 @@ Checking test 43 results ....
  Comparing flxf48.........OK
  Test 43 passed 
 Test 44
-GFS with NEMSIO
+WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting with NDSL (non-iteration dimension-split semi-Lagragian advection)
 GFS, 32 proc, 1 thread
 
 
@@ -826,62 +826,13 @@ Checking test 44 results ....
  Comparing flxf48.........OK
  Test 44 passed 
 Test 45
-Run Semi-lagrangian test
-GFS, 96 proc, 1 thread
-
-
-
-
-Checking test 45 results ....
- Comparing sigf00.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf18.........OK
- Comparing sigf24.........OK
- Test 45 passed 
-Test 46
-Run Semi-lagrangian test with digital filter
-GFS, 96 proc, 1 thread
-
-
-
-
-Checking test 46 results ....
- Comparing sigf00.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf18.........OK
- Comparing sigf24.........OK
- Test 46 passed 
-Fri Jun 27 00:17:43 UTC 2014
-Compilation with POST
-Fri Jun 27 00:38:19 UTC 2014
-Test 47
-NMMB-regional run with post on quilt
-
-
-Checking test 47 results ....
- Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
- Comparing nmmb_hst_01_nio_0048h_00m_00.00s.........OK
- Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
- Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
- Comparing BGDAWP.GrbF48.........OK
- Comparing BGRD3D.GrbF48.........OK
- Comparing BGRDSF.GrbF48.........OK
- Test 47 passed 
-
-
-
-Test 48
-GFS with POST
+GFS with NEMSIO
 GFS, 32 proc, 1 thread
 
 
 
 
-Checking test 48 results ....
+Checking test 45 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -900,12 +851,58 @@ Checking test 48 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
+ Test 45 passed 
+Test 46
+Run Semi-lagrangian test
+GFS, 96 proc, 1 thread
+
+
+
+
+Checking test 46 results ....
+ Comparing sigf00.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf18.........OK
+ Comparing sigf24.........OK
+ Test 46 passed 
+Test 47
+Run Semi-lagrangian test with digital filter
+GFS, 96 proc, 1 thread
+
+
+
+
+Checking test 47 results ....
+ Comparing sigf00.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf18.........OK
+ Comparing sigf24.........OK
+ Test 47 passed 
+Wed Jul  9 23:48:55 EDT 2014
+Compilation with POST
+Thu Jul 10 00:08:46 EDT 2014
+Test 48
+NMMB-regional run with post on quilt
+
+
+Checking test 48 results ....
+ Comparing nmmb_hst_01_bin_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_bin_0048h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0000h_00m_00.00s.........OK
+ Comparing nmmb_hst_01_nio_0048h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_bin_0024h_00m_00.00s.........OK
+ Comparing nmmb_rst_01_nio_0024h_00m_00.00s.........OK
+ Comparing BGDAWP.GrbF48.........OK
+ Comparing BGRD3D.GrbF48.........OK
+ Comparing BGRDSF.GrbF48.........OK
  Test 48 passed 
-Fri Jun 27 00:50:00 UTC 2014
-Compilation ESMF 6.3.0r API
-Fri Jun 27 01:05:59 UTC 2014
+
+
+
 Test 49
-Compare GFS results with previous trunk version ESMF6.3.0rAPI
+GFS with POST
 GFS, 32 proc, 1 thread
 
 
@@ -931,11 +928,11 @@ Checking test 49 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 49 passed 
-Fri Jun 27 01:10:15 UTC 2014
-Compilation only GFS
-Fri Jun 27 01:22:40 UTC 2014
+Thu Jul 10 00:26:37 EDT 2014
+Compilation ESMF 6.3.0r API
+Thu Jul 10 00:41:38 EDT 2014
 Test 50
-Compare GFS results with previous trunk version, only GFS compiled
+Compare GFS results with previous trunk version ESMF6.3.0rAPI
 GFS, 32 proc, 1 thread
 
 
@@ -961,5 +958,35 @@ Checking test 50 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 50 passed 
-Fri Jun 27 01:27:15 UTC 2014
+Thu Jul 10 00:53:55 EDT 2014
+Compilation only GFS
+Thu Jul 10 01:04:48 EDT 2014
+Test 51
+Compare GFS results with previous trunk version, only GFS compiled
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 51 results ....
+ Comparing sigf00.........OK
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
+ Test 51 passed 
+Thu Jul 10 01:11:40 EDT 2014
 REGRESSION TEST WAS SUCCESSFUL

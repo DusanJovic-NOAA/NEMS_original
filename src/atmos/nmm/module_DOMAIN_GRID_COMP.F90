@@ -138,6 +138,9 @@
 !
       REAL(kind=KFPT),SAVE :: SBD_1,TPH0D_1,TLM0D_1,WBD_1                  !<-- SW corner & center (degrees) of upper parent
 !
+#ifdef ESMF_3
+      TYPE(ESMF_Logical) :: QUILTING_ESMF
+#endif
       LOGICAL(kind=KLOG) :: QUILTING                                    &  !<-- Is asynchronous quilting specified?
                            ,WRITE_LAST_RESTART                          &  !<-- Write last restart file?
                            ,RESTARTED_RUN                                  !<-- Restarted run logical flag
@@ -223,7 +226,8 @@
                              ,TPH0_1,TLM0_1                             &  !<-- Central lat/lon of upper parent domain (radians, N/E)
                              ,WCOR
 !
-      LOGICAL(kind=KLOG),SAVE :: DOMAIN_MOVES                              !<-- Does my nested domain move?
+      LOGICAL(kind=KLOG),SAVE :: DOMAIN_MOVES                           &  !<-- Does my nested domain move?
+                                ,GLOBAL_TOP_PARENT                         !<-- Is the uppermost parent a global domain?
 !
 #ifdef ESMF_3
       TYPE(ESMF_Logical),SAVE :: I_AM_A_NEST                            &  !<-- Is the domain a nest?
@@ -1326,6 +1330,7 @@
 11110 format(' DOMAIN_SETUP my_domain_id=',i2)
       CALL DOMAIN_SETUP(MYPE                                            &
                        ,COMM_MY_DOMAIN                                  &
+                       ,QUILTING                                        &
                        ,CF(MY_DOMAIN_ID)                                &
                        ,DOMAIN_GRID_COMP                                &
                        ,DOMAIN_INT_STATE                                &
@@ -1658,6 +1663,26 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !------------------------------------------------------------------------
+!***  Is the uppermost parent on a global domain?  We must know this
+!***  for moving nests' reading the external surface files that span
+!***  that domain.
+!------------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="Is Domain #1 Global?"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      CALL ESMF_ConfigGetAttribute(config=CF(1)                         &  !<-- The config object of domain #1
+                                  ,value =GLOBAL_TOP_PARENT             &  !<-- The variable filled
+                                  ,label ='global:'                     &  !<-- True--> uppermost parent is on a global domain.
+                                  ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!------------------------------------------------------------------------
 !***  Add the transformed lat/lon (degrees) of the SW corner of domain #1
 !***  domain #1 and the geographic lat/lon of its center to the Solver
 !***  import state.  That information will be used if this is a restarted
@@ -1740,6 +1765,50 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+!------------------------------------------------------------------------
+!***  Add the local domain index limits to the Solver import state
+!***  on the compute tasks.
+!------------------------------------------------------------------------
+!
+      NUM_PES_FCST=INPES*JNPES
+!
+      IF(MYPE<NUM_PES_FCST)THEN
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Insert Local Domain Limits in Solver Imp State"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Solver import state receives an attribute
+                              ,name     ='LOCAL_ISTART'                    &  !<-- The attribute's name
+                              ,itemCount=NUM_PES_FCST                      &  !<-- The attribute's length
+                              ,valueList=domain_int_state%LOCAL_ISTART     &  !<-- Insert this quantity as an attribute
+                              ,rc       =RC)
+!
+        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Solver import state receives an attribute
+                              ,name     ='LOCAL_IEND'                      &  !<-- The attribute's name
+                              ,itemCount=NUM_PES_FCST                      &  !<-- The attribute's length
+                              ,valueList=domain_int_state%LOCAL_IEND       &  !<-- Insert this quantity as an attribute
+                              ,rc       =RC)
+!
+        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Solver import state receives an attribute
+                              ,name     ='LOCAL_JSTART'                    &  !<-- The attribute's name
+                              ,itemCount=NUM_PES_FCST                      &  !<-- The attribute's length
+                              ,valueList=domain_int_state%LOCAL_JSTART     &  !<-- Insert this quantity as an attribute
+                              ,rc       =RC)
+!
+        CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- Solver import state receives an attribute
+                              ,name     ='LOCAL_JEND'                      &  !<-- The attribute's name
+                              ,itemCount=NUM_PES_FCST                      &  !<-- The attribute's length
+                              ,valueList=domain_int_state%LOCAL_JEND       &  !<-- Insert this quantity as an attribute
+                              ,rc       =RC)
+
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)  
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+      ENDIF
 !
 !------------------------------------------------------------------------
 !***  If this is a nest domain then insert the Parent-Child timestep
@@ -1830,6 +1899,31 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      MESSAGE_CHECK="DOMAIN_INIT: Add Quilting Flag to the Solver Import State"
+!     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+      QUILTING_ESMF=ESMF_TRUE
+      IF(.NOT.QUILTING)THEN
+        QUILTING_ESMF=ESMF_FALSE
+      ENDIF
+      CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER  &  !<-- The Solver component import state
+                            ,name ='Quilting'                         &  !<-- Use this name inside the state
+                            ,value=QUILTING_ESMF                      &  !<-- Was quilting specified in the configure file?
+                            ,rc   =RC)
+#else
+      CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER  &  !<-- The Solver component import state
+                            ,name ='Quilting'                         &  !<-- Use this name inside the state
+                            ,value=QUILTING                           &  !<-- Was quilting specified in the configure file?
+                            ,rc   =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
       IF(QUILTING)THEN
 !
         CALL WRITE_SETUP(DOMAIN_GRID_COMP                               &
@@ -1915,8 +2009,6 @@
 !***  Extract the Solver internal state so we can access it.
 !-----------------------------------------------------------------------
 !
-      NUM_PES_FCST=INPES*JNPES
-!
       IF(MYPE<NUM_PES_FCST)THEN
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1939,6 +2031,9 @@
         LM=solver_int_state%LM                                             !<-- We need LM later in the routine.
 !
 !-----------------------------------------------------------------------
+!***  Tell the Solver whether quilting was selected.
+!-----------------------------------------------------------------------
+!
 !
       ENDIF
 !
@@ -2216,7 +2311,7 @@
 !***  the Write component.
 !-----------------------------------------------------------------------
 !
-      IF(MYPE<domain_int_state%NUM_PES_FCST)THEN                           !<-- Select the compute tasks.
+      IF(MYPE<domain_int_state%NUM_PES_FCST.AND.QUILTING)THEN              !<-- Select the compute tasks.
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Get Write Import State from Solver Export State"
@@ -4475,6 +4570,7 @@
 !
       SUBROUTINE DOMAIN_SETUP(MYPE_IN                                   &
                              ,MPI_INTRA                                 &
+                             ,QUILTING                                  &
                              ,CF                                        &
                              ,DOMAIN_GRID_COMP                          &
                              ,DOMAIN_INT_STATE                          &
@@ -4502,6 +4598,8 @@
 !
       INTEGER(kind=KINT),INTENT(IN) :: MYPE_IN                          &  !<-- Each MPI task's rank
                                       ,MPI_INTRA                           !<-- The communicator with the domain's fcst and quilt tasks.
+!
+      LOGICAL(kind=KLOG),INTENT(IN) :: QUILTING                            !<-- Has output via quilt tasks been specified?
 !
       TYPE(ESMF_Config),INTENT(INOUT) :: CF                                !<-- This domain's configure object
 !
@@ -4611,7 +4709,7 @@
 !
       CALL SETUP_SERVERS(MYPE,INPES,JNPES,NUM_PES                       &
                         ,WRITE_GROUPS,WRITE_TASKS_PER_GROUP             &
-                        ,MPI_INTRA_B)
+                        ,MPI_INTRA_B,QUILTING)
 !
 !***
 !***  NOTE: At this point, NUM_PES is the number of Forecast tasks only.
@@ -5386,6 +5484,14 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
       DOMAIN_INT_STATE=>wrap%DOMAIN_INT_STATE
+!
+!-----------------------------------------------------------------------
+!***  If quilting was not specified then exit.
+!-----------------------------------------------------------------------
+!
+      IF(.NOT.domain_int_state%QUILTING)THEN
+        RETURN
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !***  Is this a forecast task?
@@ -9562,7 +9668,7 @@
 !
       INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: IARRAY_2D=>NULL()
 !
-      REAL(kind=KFPT) :: REAL_I,REAL_J
+      REAL(kind=KFPT) :: GBL,REAL_I,REAL_J
 !
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ROW                   &
                                                  ,UPDATE_REAL_DATA
@@ -9909,19 +10015,26 @@
 !***  on uppermost parent.
 !----------------------------------------
 !
-                ICORNER=MAX(IMS,IDS)                                       !<-- Nest task halos are covered with data
-                JCORNER=MAX(JMS,JDS)                                       ! 
+                IF(GLOBAL_TOP_PARENT)THEN
+                  GBL=1.                                                   !<-- Account for the extra row that surrounds the global domain.
+                ELSE
+                  GBL=0.
+                ENDIF
+!
+                ICORNER=MAX(IMS,IDS)+GBL                                   !<-- Nest task halos are covered with data
+                JCORNER=MAX(JMS,JDS)+GBL                                   ! 
 !
                 CALL LATLON_TO_IJ(GLAT_H(I_START,J_START)               &  !<-- Geographic latitude of nest task's 1st update point
                                  ,GLON_H(I_START,J_START)               &  !<-- Geographic longitude of nest task's 1st update point
                                  ,TPH0_1,TLM0_1                         &  !<-- Central lat/lon (radians, N/E) of uppermost parent
                                  ,SB_1,WB_1                             &  !<-- Rotated lat/lon of upper parent's S/W bndry (radians, N/E)
                                  ,RECIP_DPH_1,RECIP_DLM_1               &  !<-- Reciprocal of I/J grid increments (radians) on upper parent
+                                 ,GLOBAL_TOP_PARENT                     &  !<-- Is the uppermost parent on a global grid?
                                  ,REAL_I                                &  !<-- Corresponding I index on uppermost parent grid
                                  ,REAL_J)                                  !<-- Corresponding J index on uppermost parent grid
 !
-                I_OFFSET=NINT((REAL_I-1.)*SFC_FILE_RATIO)                  !<-- Offset in I between sfc file index and nest index
-                J_OFFSET=NINT((REAL_J-1.)*SFC_FILE_RATIO)                  !<-- Offset in J between sfc file index and nest index
+                I_OFFSET=NINT((REAL_I-1.-GBL)*SFC_FILE_RATIO)              !<-- Offset in I between sfc file index and nest index
+                J_OFFSET=NINT((REAL_J-1.-GBL)*SFC_FILE_RATIO)              !<-- Offset in J between sfc file index and nest index
 !
                 DO J=1,J_OFFSET           
                   READ(INPUT_NEST)                                         !<-- Skip records up to this nest task's 1st update row
@@ -11507,7 +11620,7 @@
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: IROW
       INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: IARRAY_2D=>NULL()
 !
-      REAL(kind=KFPT) :: REAL_I,REAL_J
+      REAL(kind=KFPT) :: GBL,REAL_I,REAL_J
 !
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ROW
 !
@@ -11526,6 +11639,12 @@
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
+      IF(GLOBAL_TOP_PARENT)THEN
+        GBL=1.
+      ELSE
+        GBL=0.
+      ENDIF
+!
 !-----------------------------------------------------------------------
 !***  The nest uses its GLAT and GLON to determine exactly where it
 !***  lies on the uppermost parent grid and thus where its grid lies
@@ -11534,19 +11653,20 @@
 !***  of this nest task lies.
 !-----------------------------------------------------------------------
 !
-      I_CORNER=MAX(IMS,IDS)                                              !<-- Nest task halos are covered with data
-      J_CORNER=MAX(JMS,JDS)                                              !
+      I_CORNER=MAX(IMS,IDS)+GBL                                          !<-- Nest task halos are covered with data
+      J_CORNER=MAX(JMS,JDS)+GBL                                          !
 !
       CALL LATLON_TO_IJ(GLAT_H(I_CORNER,J_CORNER)                     &  !<-- Geographic latitude of nest task subdomain SW corner
                        ,GLON_H(I_CORNER,J_CORNER)                     &  !<-- Geographic longitude of nest task subdomain SW corner
                        ,TPH0_1,TLM0_1                                 &  !<-- Central lat/lon (radians, N/E) of uppermost parent
                        ,SB_1,WB_1                                     &  !<-- Rotated lat/lon of upper parent's S/W bndry (radians, N/E)
                        ,RECIP_DPH_1,RECIP_DLM_1                       &  !<-- Reciprocal of I/J grid increments (radians) on upper parent
+                       ,GLOBAL_TOP_PARENT                             &  !<-- Is the uppermost daomin on a global grid?
                        ,REAL_I                                        &  !<-- Corresponding I index on uppermost parent grid
                        ,REAL_J)
 !
-      I_OFFSET=NINT((REAL_I-1.)*SFC_FILE_RATIO)                          !<-- Offset in I between sfc file index and nest index
-      J_OFFSET=NINT((REAL_J-1.)*SFC_FILE_RATIO)                          !<-- Offset in J between sfc file index and nest index
+      I_OFFSET=NINT((REAL_I-1.-GBL)*SFC_FILE_RATIO)                      !<-- Offset in I between sfc file index and nest index
+      J_OFFSET=NINT((REAL_J-1.-GBL)*SFC_FILE_RATIO)                      !<-- Offset in J between sfc file index and nest index
 !
 !-----------------------------------------------------------------------
 !

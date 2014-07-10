@@ -128,6 +128,11 @@
 !
       INTEGER(kind=KINT) :: NUM_PES
 !
+#ifdef ESMF_3
+      TYPE(ESMF_Logical) :: QUILTING_ESMF
+#endif
+      LOGICAL(kind=KLOG),SAVE :: QUILTING                                  !<-- Was quilting specified by the user?
+!
       LOGICAL(kind=KLOG) :: I_AM_A_NEST                                    !<-- Flag indicating if DOMAIN Component is a nest
 !
 #ifdef ESMF_3
@@ -540,7 +545,6 @@
 #else
       CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The Solver import state
                             ,name     ='MY_NEB'                       &  !<-- Name of the attribute to extract
-                            ,itemCount=N8                             &  !<-- # of items in attribute
                             ,valueList=int_state%MY_NEB               &  !<-- Insert Attribute into Solver internal state
                             ,rc       =RC)
 #endif
@@ -874,6 +878,36 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         int_state%MY_DOMAIN_ID=MY_DOMAIN_ID_LOC
+!
+!-----------------------------------------------------------------------
+!***  Was quilting specified by the user?
+!-----------------------------------------------------------------------
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="Solver_Init: Was Quilting Specified?"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+#ifdef ESMF_3
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The Solver import state
+                              ,name ='Quilting'                         &  !<-- Name of variable to get from Solver import state
+                              ,value=QUILTING_ESMF                      &  !<-- Put extracted value here
+                              ,rc   =RC)
+!
+        QUILTING=.TRUE.
+        IF(QUILTING_ESMF==ESMF_FALSE)THEN
+          QUILTING=.FALSE.
+        ENDIF
+#else
+        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The Solver import state
+                              ,name ='Quilting'                         &  !<-- Name of variable to get from Solver import state
+                              ,value=QUILTING                           &  !<-- Put extracted value here
+                              ,rc   =RC)
+#endif
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
 !-----------------------------------------------------------------------
 !***  Initialize allocated arrays.
@@ -1264,30 +1298,52 @@
         MESSAGE_CHECK="Local Domain Limits to Solver Internal State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
+!
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The Solver import state
                               ,name     ='LOCAL_ISTART'                 &  !<-- Name of the attribute to extract
-                              ,itemCount=NUM_PES                        &  !<-- # of items in attribute
+                              ,count    =NUM_PES                        &  !<-- # of items in attribute
                               ,valueList=int_state%LOCAL_ISTART         &  !<-- Insert Attribute into Solver internal state
                               ,rc       =RC)
 !
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The Solver import state
                               ,name     ='LOCAL_IEND'                   &  !<-- Name of the attribute to extract
-                              ,itemCount=NUM_PES                        &  !<-- # of items in attribute
+                              ,count    =NUM_PES                        &  !<-- # of items in attribute
                               ,valueList=int_state%LOCAL_IEND           &  !<-- Insert Attribute into Solver internal state
                               ,rc       =RC)
 !
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The Solver import state
                               ,name     ='LOCAL_JSTART'                 &  !<-- Name of the attribute to extract
-                              ,itemCount=NUM_PES                        &  !<-- # of items in attribute
+                              ,count    =NUM_PES                        &  !<-- # of items in attribute
                               ,valueList=int_state%LOCAL_JSTART         &  !<-- Insert Attribute into Solver internal state
                               ,rc       =RC)
 !
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The Solver import state
                               ,name     ='LOCAL_JEND'                   &  !<-- Name of the attribute to extract
-                              ,itemCount=NUM_PES                        &  !<-- # of items in attribute
+                              ,count    =NUM_PES                        &  !<-- # of items in attribute
                               ,valueList=int_state%LOCAL_JEND           &  !<-- Insert Attribute into Solver internal state
                               ,rc       =RC)
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The Solver import state
+                              ,name     ='LOCAL_ISTART'                 &  !<-- Name of the attribute to extract
+                              ,valueList=int_state%LOCAL_ISTART         &  !<-- Insert Attribute into Solver internal state
+                              ,rc       =RC)
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The Solver import state
+                              ,name     ='LOCAL_IEND'                   &  !<-- Name of the attribute to extract
+                              ,valueList=int_state%LOCAL_IEND           &  !<-- Insert Attribute into Solver internal state
+                              ,rc       =RC)
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The Solver import state
+                              ,name     ='LOCAL_JSTART'                 &  !<-- Name of the attribute to extract
+                              ,valueList=int_state%LOCAL_JSTART         &  !<-- Insert Attribute into Solver internal state
+                              ,rc       =RC)
+!
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- The Solver import state
+                              ,name     ='LOCAL_JEND'                   &  !<-- Name of the attribute to extract
+                              ,valueList=int_state%LOCAL_JEND           &  !<-- Insert Attribute into Solver internal state
+                              ,rc       =RC)
+#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -3932,7 +3988,6 @@
 !
                 bc_flag: IF(WRITE_BC_FLAG==0)THEN
 !
-             if (MYPE .eq. 0) write(0,*) 'call READ_BC'
                   CALL READ_BC(LM,LNSH,LNSV,NTIMESTEP_BC,DT             &
                               ,RUNBC,IDATBC,IHRSTBC,TBOCO               &
 !
@@ -4099,26 +4154,28 @@
 !***  arrays for the restart files at this place in the runstream.
 !-----------------------------------------------------------------------
 !
-        IF(MOD(NTIMESTEP+1,int_state%NSTEPS_BC_RESTART)==0)THEN            !<-- Look ahead to the end of this timestep
-          CALL SAVE_BC_DATA                                             &
-            (LM,LNSH,LNSV                                               &
-            ,int_state%NVARS_BC_2D_H                                    &
-            ,int_state%NVARS_BC_3D_H                                    &
-            ,int_state%NVARS_BC_4D_H                                    &
-            ,int_state%NVARS_BC_2D_V                                    &
-            ,int_state%NVARS_BC_3D_V                                    &
-            ,int_state%BND_VARS_H                                       &
-            ,int_state%BND_VARS_V                                       &
-            ,int_state%NUM_WORDS_BC_SOUTH,int_state%RST_BC_DATA_SOUTH   &
-            ,int_state%NUM_WORDS_BC_NORTH,int_state%RST_BC_DATA_NORTH   &
-            ,int_state%NUM_WORDS_BC_WEST ,int_state%RST_BC_DATA_WEST    &
-            ,int_state%NUM_WORDS_BC_EAST ,int_state%RST_BC_DATA_EAST    &
-            ,EXP_STATE                                                  &
-            ,int_state%ITS,int_state%ITE,int_state%JTS,int_state%JTE    &
-            ,int_state%IMS,int_state%IME,int_state%JMS,int_state%JME    &
-            ,int_state%IDS,int_state%IDE,int_state%JDS,int_state%JDE    &
-              )
+        IF(QUILTING)THEN
+          IF(MOD(NTIMESTEP+1,int_state%NSTEPS_BC_RESTART)==0)THEN          !<-- Look ahead to the end of this timestep
+            CALL SAVE_BC_DATA                                           &
+              (LM,LNSH,LNSV                                             &
+              ,int_state%NVARS_BC_2D_H                                  &
+              ,int_state%NVARS_BC_3D_H                                  &
+              ,int_state%NVARS_BC_4D_H                                  &
+              ,int_state%NVARS_BC_2D_V                                  &
+              ,int_state%NVARS_BC_3D_V                                  &
+              ,int_state%BND_VARS_H                                     &
+              ,int_state%BND_VARS_V                                     &
+              ,int_state%NUM_WORDS_BC_SOUTH,int_state%RST_BC_DATA_SOUTH &
+              ,int_state%NUM_WORDS_BC_NORTH,int_state%RST_BC_DATA_NORTH &
+              ,int_state%NUM_WORDS_BC_WEST ,int_state%RST_BC_DATA_WEST  &
+              ,int_state%NUM_WORDS_BC_EAST ,int_state%RST_BC_DATA_EAST  &
+              ,EXP_STATE                                                &
+              ,int_state%ITS,int_state%ITE,int_state%JTS,int_state%JTE  &
+              ,int_state%IMS,int_state%IME,int_state%JMS,int_state%JME  &
+              ,int_state%IDS,int_state%IDE,int_state%JDS,int_state%JDE  &
+                )
 !
+          ENDIF
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -8105,11 +8162,18 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
           CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- Solver import state
                                 ,name     ='SOUTH_H_Current'            &  !<-- Name of south boundary H data at time N
-                                ,itemCount=KOUNT_S_H                    &  !<-- # of words in this boundary data
+                                ,count    =KOUNT_S_H                    &  !<-- # of words in this boundary data
                                 ,valueList=BND_DATA_S_H                 &  !<-- The south boundary H data at time N
                                 ,rc       =RC )
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- Solver import state
+                                ,name     ='SOUTH_H_Current'            &  !<-- Name of south boundary H data at time N
+                                ,valueList=BND_DATA_S_H                 &  !<-- The south boundary H data at time N
+                                ,rc       =RC )
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
@@ -8170,11 +8234,18 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Solver import state
                               ,name     ='SOUTH_H_Future'               &  !<-- Name of south boundary H data at time N+1
-                              ,itemCount=KOUNT_S_H                      &  !<-- # of words in this boundary data
+                              ,count    =KOUNT_S_H                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_S_H                   &  !<-- The boundary data
                               ,rc       =RC )
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Solver import state
+                              ,name     ='SOUTH_H_Future'               &  !<-- Name of south boundary H data at time N+1
+                              ,valueList=BND_DATA_S_H                   &  !<-- The boundary data
+                              ,rc       =RC )
+#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
@@ -8250,11 +8321,18 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
           CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- Solver import state
                                 ,name     ='SOUTH_V_Current'            &  !<-- Name of south boundary V data at time N
-                                ,itemCount=KOUNT_S_V                    &  !<-- # of words in this boundary data
+                                ,count    =KOUNT_S_V                    &  !<-- # of words in this boundary data
                                 ,valueList=BND_DATA_S_V                 &  !<-- The south boundary V data at time N
                                 ,rc       =RC )
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- Solver import state
+                                ,name     ='SOUTH_V_Current'            &  !<-- Name of south boundary V data at time N
+                                ,valueList=BND_DATA_S_V                 &  !<-- The south boundary V data at time N
+                                ,rc       =RC )
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
@@ -8298,12 +8376,19 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Solver import state
                               ,name     ='SOUTH_V_Future'               &  !<-- Name of south boundary V data at time N+1
-                              ,itemCount=KOUNT_S_V                      &  !<-- # of words in this boundary data
+                              ,count    =KOUNT_S_V                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_S_V                   &  !<-- The boundary data
                               ,rc       =RC )
-
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Solver import state
+                              ,name     ='SOUTH_V_Future'               &  !<-- Name of south boundary V data at time N+1
+                              ,valueList=BND_DATA_S_V                   &  !<-- The boundary data
+                              ,rc       =RC )
+#endif
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -8368,11 +8453,18 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
           CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- Solver import state
                                 ,name     ='NORTH_H_Current'            &  !<-- Name of north boundary H data at time N
-                                ,itemCount=KOUNT_N_H                    &  !<-- # of words in this boundary data
+                                ,count    =KOUNT_N_H                    &  !<-- # of words in this boundary data
                                 ,valueList=BND_DATA_N_H                 &  !<-- The north boundary H data at time N
                                 ,rc       =RC )
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- Solver import state
+                                ,name     ='NORTH_H_Current'            &  !<-- Name of north boundary H data at time N
+                                ,valueList=BND_DATA_N_H                 &  !<-- The north boundary H data at time N
+                                ,rc       =RC )
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
@@ -8432,13 +8524,20 @@
         MESSAGE_CHECK="Extract North Boundary H Data in UPDATE_BC_TENDS for time N+1"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
+!
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Solver import state
                               ,name     ='NORTH_H_Future'               &  !<-- Name of north boundary H data for time N+1
-                              ,itemCount=KOUNT_N_H                      &  !<-- # of words in this boundary data
+                              ,count    =KOUNT_N_H                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_N_H                   &  !<-- The boundary data
                               ,rc       =RC )
-
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Solver import state
+                              ,name     ='NORTH_H_Future'               &  !<-- Name of north boundary H data for time N+1
+                              ,valueList=BND_DATA_N_H                   &  !<-- The boundary data
+                              ,rc       =RC )
+#endif
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -8513,11 +8612,18 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
           CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- Solver import state
                                 ,name     ='NORTH_V_Current'            &  !<-- Name of north boundary V data at time N
-                                ,itemCount=KOUNT_N_V                    &  !<-- # of words in this boundary data
+                                ,count    =KOUNT_N_V                    &  !<-- # of words in this boundary data
                                 ,valueList=BND_DATA_N_V                 &  !<-- The north boundary V data at time N
                                 ,rc       =RC )
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- Solver import state
+                                ,name     ='NORTH_V_Current'            &  !<-- Name of north boundary V data at time N
+                                ,valueList=BND_DATA_N_V                 &  !<-- The north boundary V data at time N
+                                ,rc       =RC )
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
@@ -8561,12 +8667,19 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Solver import state
                               ,name     ='NORTH_V_Future'               &  !<-- Name of north boundary V data at time N+1
-                              ,itemCount=KOUNT_N_V                      &  !<-- # of words in this boundary data
+                              ,count    =KOUNT_N_V                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_N_V                   &  !<-- The boundary data
                               ,rc       =RC )
-
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Solver import state
+                              ,name     ='NORTH_V_Future'               &  !<-- Name of north boundary V data at time N+1
+                              ,valueList=BND_DATA_N_V                   &  !<-- The boundary data
+                              ,rc       =RC )
+#endif
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -8631,11 +8744,18 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
           CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- Solver import state
                                 ,name     ='WEST_H_Current'             &  !<-- Name of west boundary H data at time N
-                                ,itemCount=KOUNT_W_H                    &  !<-- # of words in this boundary data
+                                ,count    =KOUNT_W_H                    &  !<-- # of words in this boundary data
                                 ,valueList=BND_DATA_W_H                 &  !<-- The west boundary H data at time N
                                 ,rc       =RC )
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- Solver import state
+                                ,name     ='WEST_H_Current'             &  !<-- Name of west boundary H data at time N
+                                ,valueList=BND_DATA_W_H                 &  !<-- The west boundary H data at time N
+                                ,rc       =RC )
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
@@ -8695,13 +8815,20 @@
         MESSAGE_CHECK="Extract West Boundary H Data in UPDATE_BC_TENDS at Time N+1"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
+!
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Solver import state
                               ,name     ='WEST_H_Future'                &  !<-- Name of west boundary H data at time N+1
-                              ,itemCount=KOUNT_W_H                      &  !<-- # of words in this boundary data
+                              ,count    =KOUNT_W_H                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_W_H                   &  !<-- The boundary data
                               ,rc       =RC )
-
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Solver import state
+                              ,name     ='WEST_H_Future'                &  !<-- Name of west boundary H data at time N+1
+                              ,valueList=BND_DATA_W_H                   &  !<-- The boundary data
+                              ,rc       =RC )
+#endif
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -8776,11 +8903,18 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
           CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- Solver import state
                                 ,name     ='WEST_V_Current'             &  !<-- Name of west boundary V data at time N
-                                ,itemCount=KOUNT_W_V                    &  !<-- # of words in this boundary data
+                                ,count    =KOUNT_W_V                    &  !<-- # of words in this boundary data
                                 ,valueList=BND_DATA_W_V                 &  !<-- The west boundary V data at time N
                                 ,rc       =RC )
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- Solver import state
+                                ,name     ='WEST_V_Current'             &  !<-- Name of west boundary V data at time N
+                                ,valueList=BND_DATA_W_V                 &  !<-- The west boundary V data at time N
+                                ,rc       =RC )
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
@@ -8823,13 +8957,20 @@
         MESSAGE_CHECK="Extract West Boundary V Data in UPDATE_BC_TENDS at Time N+1"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
+!
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Solver import state
                               ,name     ='WEST_V_Future'                &  !<-- Name of west boundary V data at time N+1
-                              ,itemCount=KOUNT_W_V                      &  !<-- # of words in this boundary data
+                              ,count    =KOUNT_W_V                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_W_V                   &  !<-- The boundary data
                               ,rc       =RC )
-
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Solver import state
+                              ,name     ='WEST_V_Future'                &  !<-- Name of west boundary V data at time N+1
+                              ,valueList=BND_DATA_W_V                   &  !<-- The boundary data
+                              ,rc       =RC )
+#endif
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -8894,11 +9035,18 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
           CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- Solver import state
                                 ,name     ='EAST_H_Current'             &  !<-- Name of east boundary H data at time N
-                                ,itemCount=KOUNT_E_H                    &  !<-- # of words in this boundary data
+                                ,count    =KOUNT_E_H                    &  !<-- # of words in this boundary data
                                 ,valueList=BND_DATA_E_H                 &  !<-- The east boundary H data at time N
                                 ,rc       =RC )
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- Solver import state
+                                ,name     ='EAST_H_Current'             &  !<-- Name of east boundary H data at time N
+                                ,valueList=BND_DATA_E_H                 &  !<-- The east boundary H data at time N
+                                ,rc       =RC )
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
@@ -8958,13 +9106,20 @@
         MESSAGE_CHECK="Extract East Boundary H Data in UPDATE_BC_TENDS at Time N+1"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
+!
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Solver import state
                               ,name     ='EAST_H_Future'                &  !<-- Name of east boundary H data at time N+1
-                              ,itemCount=KOUNT_E_H                      &  !<-- # of words in this boundary data
+                              ,count    =KOUNT_E_H                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_E_H                   &  !<-- The boundary data
                               ,rc       =RC )
-
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Solver import state
+                              ,name     ='EAST_H_Future'                &  !<-- Name of east boundary H data at time N+1
+                              ,valueList=BND_DATA_E_H                   &  !<-- The boundary data
+                              ,rc       =RC )
+#endif
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -9039,11 +9194,18 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+#ifdef ESMF_3
           CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- Solver import state
                                 ,name     ='EAST_V_Current'             &  !<-- Name of esat boundary V data at time N
-                                ,itemCount=KOUNT_E_V                    &  !<-- # of words in this boundary data
+                                ,count    =KOUNT_E_V                    &  !<-- # of words in this boundary data
                                 ,valueList=BND_DATA_E_V                 &  !<-- The east boundary V data at time N
                                 ,rc       =RC )
+#else
+          CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- Solver import state
+                                ,name     ='EAST_V_Current'             &  !<-- Name of esat boundary V data at time N
+                                ,valueList=BND_DATA_E_V                 &  !<-- The east boundary V data at time N
+                                ,rc       =RC )
+#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
@@ -9086,13 +9248,20 @@
         MESSAGE_CHECK="Extract East Boundary V Data in UPDATE_BC_TENDS for Time N+1"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
+!
+#ifdef ESMF_3
         CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Solver import state
                               ,name     ='EAST_V_Future'                &  !<-- Name of east boundary V data at time N+1
-                              ,itemCount=KOUNT_E_V                      &  !<-- # of words in this boundary data
+                              ,count    =KOUNT_E_V                      &  !<-- # of words in this boundary data
                               ,valueList=BND_DATA_E_V                   &  !<-- The boundary data
                               ,rc       =RC )
-
+#else
+        CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Solver import state
+                              ,name     ='EAST_V_Future'                &  !<-- Name of east boundary V data at time N+1
+                              ,valueList=BND_DATA_E_V                   &  !<-- The boundary data
+                              ,rc       =RC )
+#endif
+!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BCT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

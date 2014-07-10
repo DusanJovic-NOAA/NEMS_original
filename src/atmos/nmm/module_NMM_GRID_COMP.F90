@@ -408,6 +408,7 @@
       INTEGER,DIMENSION(MPI_STATUS_SIZE) :: JSTAT
 !
       LOGICAL(kind=KLOG) :: CFILE_EXIST                                 &
+                           ,QUILTING,QUILTING_1                         &
                            ,USED_ALL_FCST_TASKS
 !
       CHARACTER(2) :: INT_TO_CHAR
@@ -638,6 +639,40 @@
                      ,rc             =RC)
 !
 !-----------------------------------------------------------------------
+!***  Check now if the user has specified quilt tasks.  If there
+!***  are multiple domains then either all or none must set quilting
+!***  to false.
+!-----------------------------------------------------------------------
+!
+      DO N=1,NUM_DOMAINS_TOTAL
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        MESSAGE_CHECK="NMM_INIT: Get Value of QUILTING from Config Files"
+!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        CALL ESMF_ConfigGetAttribute(config=CF(N)                   &  !<-- The config object of domain N
+                                    ,value =QUILTING                &  !<-- Has quilting been specified?
+                                    ,label ='quilting:'             &  !<-- Give this label's value to the previous variable
+                                    ,rc    =RC)
+!
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
+! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        IF(N==1)THEN
+          QUILTING_1=QUILTING
+        ELSE
+          IF(QUILTING.AND..NOT.QUILTING_1)THEN
+            WRITE(0,*)' Conflicting quilting settings in configure files!'
+            WRITE(0,*)' Aborting!!!'
+            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          ENDIF
+        ENDIF
+!
+      ENDDO
+!
+!-----------------------------------------------------------------------
 !***  Set the default for the mode of MPI task assignment.
 !-----------------------------------------------------------------------
 !
@@ -691,7 +726,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
               CALL ESMF_ConfigGetAttribute(config=CF(N)                   &  !<-- The config object of domain N
-                                          ,value =NEST_MODE              &  !<-- Domain N's nesting mode ('1-way' or '2-way')
+                                          ,value =NEST_MODE               &  !<-- Domain N's nesting mode ('1-way' or '2-way')
                                           ,label ='nest_mode:'            &  !<-- Give this label's value to the previous variable
                                           ,rc    =RC)
 !
@@ -905,6 +940,7 @@
                                ,RANK_TO_DOMAIN_ID                       &  !<-- Domain IDs for each configure file
                                ,CF                                      &  !<-- Configure objects for all domains (in)
                                ,TASK_MODE                               &  !<-- 1-way or 2-way nesting (in)
+                               ,QUILTING                                &  !<-- Was quilting specified in the configure files?
                                ,DOMAIN_GEN                              &  !<-- For 2-way nesting, the generation of each domain (in)
                                ,FULL_GEN                                &  !<-- For 2-way nesting, the generation using all tasks (in)
                                ,MY_DOMAIN_ID_N                          &  !<-- ID of domains on which this task resides (out)
@@ -1143,6 +1179,11 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        IF(.NOT.QUILTING)THEN
+          WRITE_GROUPS=0
+          WRITE_TASKS_PER_GROUP=0
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !

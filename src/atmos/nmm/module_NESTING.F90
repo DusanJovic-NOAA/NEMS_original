@@ -148,6 +148,7 @@
                                    ,RANK_TO_DOMAIN_ID                   &
                                    ,CF                                  &
                                    ,TASK_MODE                           &
+                                   ,QUILTING                            &
                                    ,DOMAIN_GEN                          &
                                    ,FULL_GEN                            &
                                    ,MY_DOMAIN_ID_N                      &
@@ -181,6 +182,8 @@
                                                    ,RANK_TO_DOMAIN_ID      !<-- Domain ID for each configure file
 !
       CHARACTER(len=12),INTENT(IN) :: TASK_MODE                            !<-- Unique or generational task assignment
+!
+      LOGICAL(kind=KLOG),INTENT(IN) :: QUILTING                            !<-- Was quilting specified in the configure files?
 !
       TYPE(ESMF_Config),DIMENSION(*),INTENT(INOUT) :: CF                   !<-- The config objects (one per domain)
 !
@@ -392,6 +395,11 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_COMMS)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+!
+        IF(.NOT.QUILTING)THEN
+          WRITE_GROUPS=0
+          WRITE_TASKS_PER_GROUP=0
+        ENDIF
 !
 !-----------------------------------------------------------------------
 !
@@ -11619,11 +11627,13 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE PARENT_READS_MOVING_CHILD_TOPO(NUM_MOVING_CHILDREN     &
+      SUBROUTINE PARENT_READS_MOVING_CHILD_TOPO(MY_DOMAIN_ID            &
+                                               ,NUM_MOVING_CHILDREN     &
                                                ,LINK_MRANK_RATIO        &
                                                ,LIST_OF_RATIOS          &
                                                ,M_NEST_RATIO            &
                                                ,KOUNT_RATIOS_MN         &
+                                               ,GLOBAL_TOP_PARENT       &
                                                ,IM_1,JM_1               &
                                                ,TPH0_1,TLM0_1           &
                                                ,SB_1,WB_1               &
@@ -11650,6 +11660,7 @@
                                       ,IMS,IME,JMS,JME                  &  !<-- This parent tasks's memory limits
                                       ,ITS,ITE,JTS,JTE                  &  !<-- This parent tasks's integration limits
                                       ,KOUNT_RATIOS_MN                  &  !<-- # of space ratios of children to upper parent
+                                      ,MY_DOMAIN_ID                     &  !<-- This parent domain's ID
                                       ,NUM_MOVING_CHILDREN                 !<-- # of moving children on this parent domain
 !
       INTEGER(kind=KINT),DIMENSION(1:NUM_MOVING_CHILDREN),INTENT(IN) :: &
@@ -11662,6 +11673,8 @@
                                    ,SB_1,WB_1                              !<-- Rotated lat/lon of south/west boundary (radians; north/east)
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: GLAT,GLON   !<-- Geographic lat/lon (radians) on parent grid
+!
+      LOGICAL(kind=KLOG),INTENT(IN) :: GLOBAL_TOP_PARENT                   !<-- Is the uppermost parent domain global?
 !
       TYPE(BNDS_2D),DIMENSION(1:KOUNT_RATIOS_MN),INTENT(OUT) ::         &
                                                NEST_FIS_ON_PARENT_BNDS     !<-- Parent subdomain index limits of nest-res topo data
@@ -11679,7 +11692,7 @@
 !
       INTEGER(kind=KINT) :: IERR,ISTAT
 !
-      REAL(kind=KFPT) :: REAL_I,REAL_J
+      REAL(kind=KFPT) :: GBL,REAL_I,REAL_J
 !
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ROW1,ROW2
 !
@@ -11719,6 +11732,12 @@
 !
         LOR=LIST_OF_RATIOS(N)
 !
+        IF(GLOBAL_TOP_PARENT)THEN
+          GBL=1.                                                           !<-- Account for the extra row that surrounds global domains.
+        ELSE
+          GBL=0.
+        ENDIF
+!
 !-----------------------------------------------------------------------
 !***  Each parent task obtains the real I,J on the uppermost parent
 !***  of the SW and NE corners of each of their subdomains.  Given
@@ -11734,16 +11753,27 @@
         ICORNER=MAX(IMS,IDS)                                               !<-- Parent task covers its halos with data too since
         JCORNER=MAX(JMS,JDS)                                               !    the moving nest boundaries can extend into them.
 !
+        IF(MY_DOMAIN_ID==1.AND.GLOBAL_TOP_PARENT)THEN                      !<-- The current parent domain is global.
+          IF(ITS==IDS)THEN
+            ICORNER=ICORNER+1.                                             !<-- Past buffer row to Intl Dateline
+          ENDIF
+          IF(JTS==JDS)THEN
+            JCORNER=JCORNER+1.
+!           JCORNER=JCORNER+2.                                             !<-- Avoid singularity; go one row N of S pole.
+          ENDIF
+        ENDIF
+!
         CALL LATLON_TO_IJ(GLAT(ICORNER,JCORNER)                         &  !<-- Geographic lat (radians) of parent task's SW corner
                          ,GLON(ICORNER,JCORNER)                         &  !<-- Geographic lon (radians) of parent task's SW corner
                          ,TPH0_1,TLM0_1                                 &  !<-- Geographic lat,lon of upper parent's central point
                          ,SB_1,WB_1                                     &  !<-- Rotated lat/lon of upper parent's SW corner
                          ,RECIP_DPH_1,RECIP_DLM_1                       &
-                         ,REAL_I                                        &  !<-- Upper parent I of this task's SW corner
-                         ,REAL_J)                                          !<-- Upper parent J of this task's SW corner
+                         ,GLOBAL_TOP_PARENT                             &  !<-- Is the uppermost parent domain global?
+                         ,REAL_I                                        &  !<-- Uppermost parent I of this task's SW corner
+                         ,REAL_J)                                          !<-- Uppermost parent J of this task's SW corner
 !
-        ISTART=NINT((REAL_I-1.)*LOR+1.)                                    !<-- I index in sfc data at W bndry of this parent task
-        JSTART=NINT((REAL_J-1.)*LOR+1.)                                    !<-- J index in sfc data at S bndry of this parent task
+        ISTART=NINT((REAL_I-1.-GBL)*LOR+1.)                                !<-- I index in sfc data at W bndry of this parent task
+        JSTART=NINT((REAL_J-1.-GBL)*LOR+1.)                                !<-- J index in sfc data at S bndry of this parent task
 !
 !----------------------------------------
 !***  NE corner of parent task subdomain
@@ -11752,16 +11782,27 @@
         ICORNER=MIN(IME,IDE)                                               !<-- Parent task covers its halos with data too since
         JCORNER=MIN(JME,JDE)                                               !    the moving nest boundaries can extend into them.
 !
+        IF(MY_DOMAIN_ID==1.AND.GLOBAL_TOP_PARENT)THEN                      !<-- The current parent domain is global.
+          IF(ITE==IDE)THEN
+            ICORNER=ICORNER-1.                                             !<-- Past buffer row to Intl Dateline
+          ENDIF
+          IF(JTE==JDE)THEN
+            JCORNER=JCORNER-1.
+!           JCORNER=JCORNER-2.                                             !<-- Avoid singularity; go one row S of N pole.
+          ENDIF
+        ENDIF
+!
         CALL LATLON_TO_IJ(GLAT(ICORNER,JCORNER)                         &
                          ,GLON(ICORNER,JCORNER)                         &
                          ,TPH0_1,TLM0_1                                 &
                          ,SB_1,WB_1                                     &
                          ,RECIP_DPH_1,RECIP_DLM_1                       &
+                         ,GLOBAL_TOP_PARENT                             &
                          ,REAL_I                                        &
                          ,REAL_J)
 !
-        IEND=NINT((REAL_I-1.)*LOR+1.)                                      !<-- I index in nest sfc data at E bndry (H) of this parent task
-        JEND=NINT((REAL_J-1.)*LOR+1.)                                      !<-- J index in nest sfc data at N bndry (H) of this parent task
+        IEND=NINT((REAL_I-1.-GBL)*LOR+1.)                                  !<-- I index in nest sfc data at E bndry (H) of this parent task
+        JEND=NINT((REAL_J-1.-GBL)*LOR+1.)                                  !<-- J index in nest sfc data at N bndry (H) of this parent task
 !
 !-----------------------------------------------------------------------
 !
@@ -11849,52 +11890,51 @@
         JSTOP=MIN(JEND+1,JDIM)
 !
         DO J=JSTART+1,JSTOP
-          IF(JEND<JDIM)THEN
-            READ(IUNIT_FIS_NEST)ROW2
+          READ(IUNIT_FIS_NEST)ROW2
 !
-            NEST_FIS_ON_PARENT(N)%DATA(IEND,J-1)=ROW1(IEND)
+          NEST_FIS_ON_PARENT(N)%DATA(IEND,J-1)=ROW1(IEND)
 !
-            DO I=ISTART,IEND-1
-              NEST_FIS_ON_PARENT(N)%DATA(I,J-1)=ROW1(I)
-              NEST_FIS_V_ON_PARENT(N)%DATA(I,J-1)=(ROW1(I)              &
-                                                  +ROW1(I+1)            &
-                                                  +ROW2(I)              &
-                                                  +ROW2(I+1))*0.25
+          DO I=ISTART,IEND-1
+            NEST_FIS_ON_PARENT(N)%DATA(I,J-1)=ROW1(I)
+            NEST_FIS_V_ON_PARENT(N)%DATA(I,J-1)=(ROW1(I)                &
+                                                +ROW1(I+1)              &
+                                                +ROW2(I)                &
+                                                +ROW2(I+1))*0.25
               ROW1(I)=ROW2(I)
-            ENDDO
+          ENDDO
 !
-            IF(ITE<IDE)THEN
-              NEST_FIS_V_ON_PARENT(N)%DATA(IEND,J-1)=(ROW1(IEND)        &
-                                                     +ROW1(IEND+1)      &
-                                                     +ROW2(IEND)        &
-                                                     +ROW2(IEND+1))     &
-                                                    *0.25
-              ROW1(IEND+1)=ROW2(IEND+1)
+          IF(ITE<IDE)THEN
+            NEST_FIS_V_ON_PARENT(N)%DATA(IEND,J-1)=(ROW1(IEND)          &
+                                                   +ROW1(IEND+1)        &
+                                                   +ROW2(IEND)          &
+                                                   +ROW2(IEND+1))       &
+                                                  *0.25
+            ROW1(IEND+1)=ROW2(IEND+1)
 !
-            ELSE
+          ELSE
 !
-              NEST_FIS_V_ON_PARENT(N)%DATA(IEND,J-1)=                   &  !<-- At eastern edge of the parent domain copy the
-                NEST_FIS_V_ON_PARENT(N)%DATA(IEND-1,J-1)                   !    V-pt value immediately to the west.
-!
-            ENDIF
-!
-            ROW1(IEND)=ROW2(IEND)
+            NEST_FIS_V_ON_PARENT(N)%DATA(IEND,J-1)=                     &  !<-- At eastern edge of the parent domain copy the
+              NEST_FIS_V_ON_PARENT(N)%DATA(IEND-1,J-1)                     !    V-pt value immediately to the west.
 !
           ENDIF
+!
+          ROW1(IEND)=ROW2(IEND)
 !
         ENDDO
 !
         IF(JSTOP==JDIM)THEN
           DO I=ISTART,IEND
-            NEST_FIS_ON_PARENT(N)%DATA(I,JEND)=ROW1(I)
+            NEST_FIS_ON_PARENT(N)%DATA(I,JEND)=ROW2(I)
+            NEST_FIS_V_ON_PARENT(N)%DATA(I,JEND)=NEST_FIS_V_ON_PARENT(N)%DATA(I,JEND-1)
           ENDDO
         ENDIF
 !
         DO J=JSTART,JEND
         DO I=ISTART,IEND
           IF(ABS(NEST_FIS_ON_PARENT(N)%DATA(I,J))<1.E-2)THEN
-            NEST_FIS_ON_PARENT(N)%DATA(i,j)=0.
+            NEST_FIS_ON_PARENT(N)%DATA(I,J)=0.
           ENDIF
+!
           IF(ABS(NEST_FIS_V_ON_PARENT(N)%DATA(I,J))<1.E-2)THEN
             NEST_FIS_V_ON_PARENT(N)%DATA(I,J)=0.
           ENDIF
@@ -11920,6 +11960,7 @@
                              ,TPH0_1,TLM0_1                             &
                              ,SB_1,WB_1                                 &
                              ,RECIP_DPH_1,RECIP_DLM_1                   &
+                             ,GLOBAL_TOP_PARENT                         &
                              ,REAL_I,REAL_J)
 ! 
 !-----------------------------------------------------------------------
@@ -11941,6 +11982,8 @@
                                    ,RECIP_DPH_1                         &  !<-- Reciprocal of upper parent's grid increment (radians) in J
                                    ,RECIP_DLM_1                            !<-- Reciprocal of upper parent's grid increment (radians) in I
 !
+      LOGICAL(kind=KLOG),INTENT(IN) :: GLOBAL_TOP_PARENT                   !<-- Is the uppermost parent domain global?
+!
       REAL(kind=KFPT),INTENT(OUT) :: REAL_I                             &  !<-- Real I on uppermost parent grid for GLAT,GLON
                                     ,REAL_J                                !<-- Real J on uppermost parent grid for GLAT,GLON
 !
@@ -11951,27 +11994,42 @@
       REAL(kind=KDBL),SAVE :: PI= 3.14159265359                         &
                              ,PI2=6.28318530718
 !
-      REAL(kind=KFPT) :: TLAT,TLON                                      &
-                        ,X,Y,Z
+      REAL(kind=KDBL) :: X,Y,Z
+!
+      REAL(kind=KFPT) :: SIN_DIFF,TLAT,TLON 
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
 !
-      X=COS(TPH0_1)*COS(GLAT)*COS(GLON-TLM0_1)+SIN(TPH0_1)*SIN(GLAT)
-      Y=COS(GLAT)*SIN(GLON-TLM0_1)
-      Z=COS(TPH0_1)*SIN(GLAT)-SIN(TPH0_1)*COS(GLAT)*COS(GLON-TLM0_1)
-      TLAT=ATAN(Z/SQRT(X*X+Y*Y))
-      TLON=ATAN(Y/X)
-      IF(X<0.)THEN
-        TLON=TLON+PI
-        IF(Y<0.)THEN
-          TLON=TLON-PI2
+      IF(GLOBAL_TOP_PARENT)THEN
+        TLAT=GLAT
+        TLON=GLON
+!
+      ELSE
+        X=COS(TPH0_1)*COS(GLAT)*COS(GLON-TLM0_1)+SIN(TPH0_1)*SIN(GLAT)
+        SIN_DIFF=SIN(GLON-TLM0_1)
+        IF(ABS(SIN_DIFF)<1.E-6)SIN_DIFF=0.
+        Y=COS(GLAT)*SIN_DIFF
+        Z=COS(TPH0_1)*SIN(GLAT)-SIN(TPH0_1)*COS(GLAT)*COS(GLON-TLM0_1)
+        TLAT=ATAN(Z/SQRT(X*X+Y*Y))
+        TLON=ATAN(Y/X)
+        IF(X<0.)THEN
+          TLON=TLON+PI
+          IF(Y<=0..AND.GLON<0.)THEN
+            TLON=TLON-PI2
+          ENDIF
         ENDIF
+!
       ENDIF
 !
       REAL_I=(TLON-WB_1)*RECIP_DLM_1+1
       REAL_J=(TLAT-SB_1)*RECIP_DPH_1+1
+!
+      IF(GLOBAL_TOP_PARENT)THEN
+        REAL_I=REAL_I+1.                                                   !<--  Account for the extra row that
+        REAL_J=REAL_J+1.                                                   !     surrounds global domains.
+      ENDIF
 !
 !-----------------------------------------------------------------------
 !
