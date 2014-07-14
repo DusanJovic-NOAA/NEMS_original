@@ -1,6 +1,8 @@
 SHELL       = /bin/sh
 
-include /usrx/local/esmf_5.2.0rp2/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
+#include /usrx/local/esmf-3.1.0rp5/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
+include /nems/save/Weiyu.Yang/ESMF_6_3_0r/esmf/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
+#
 ESMF_INC    = $(ESMF_F90COMPILEPATHS)
 ESMF_LIB    = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 
@@ -56,9 +58,7 @@ EXTLIBS_POST = $(NEMSIO_LIB) \
                $(NETCDF_LIB) \
                $(SYS_LIB)
 
-##FC          = mpiifort -g -traceback
-FC          = mpiifort -g -openmp  -mkl=sequential -align array32byte -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
-# FC          = mpiifort -g -openmp  -mkl=sequential
+FC          = mpiifort -g -openmp -mkl=sequential -align array32byte -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
 FREE        = -free
 FIXED       = -fixed
 R8          = -r8

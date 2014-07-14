@@ -31,9 +31,15 @@ elif [[ $1 = 5.2_wcoss ]]; then
      cp ESMFVersionDefine_ESMF_520rAPI.h ESMFVersionDefine.h
      set +x
      echo "Use the ESMF 5.2.0rp2 library"
-elif [[ $1 = 6.3r_wcoss ]]; then
+elif [[ $1 = 6.3r_wcoss_nmm ]]; then
      set -x
-     cp conf/configure.nems.Wcoss.intel_ESMF_630r conf/configure.nems
+     cp conf/configure.nems.Wcoss.intel_ESMF_630r_nmm conf/configure.nems
+     cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
+     set +x
+     echo "Use the ESMF 6.3.0r library"
+elif [[ $1 = 6.3r_wcoss_gsm ]]; then
+     set -x
+     cp conf/configure.nems.Wcoss.intel_ESMF_630r_gsm conf/configure.nems
      cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
      set +x
      echo "Use the ESMF 6.3.0r library"
