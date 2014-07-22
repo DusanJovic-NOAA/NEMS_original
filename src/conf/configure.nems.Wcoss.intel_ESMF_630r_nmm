@@ -1,4 +1,4 @@
-SHELL       = /bin/sh
+SHELL       = /bin/ksh
 
 #include /usrx/local/esmf-3.1.0rp5/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
 include /nems/save/Weiyu.Yang/ESMF_6_3_0r/esmf/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
@@ -13,12 +13,14 @@ gfsdir=atmos/$(gfs)
 #NETCDF_LIB  = /usrx/local/netcdf-3.6.3/lib/libnetcdff.a  /usrx/local/netcdf-3.6.3/lib/libnetcdf.a
 NETCDF_LIB  = /usrx/local/NetCDF/3.6.3/lib/libnetcdf.a
 
-NEMSIO_INC  = -I/nwprod/lib/incmod/nemsio
-NEMSIO_LIB  = -L/nwprod/lib -lnemsio
+#NEMSIO_INC  = -I/nwprod/lib/incmod/nemsio
+#NEMSIO_LIB  = -L/nwprod/lib -lnemsio
+NEMSIO_INC  = -I/nems/save/Jun.Wang/nceplibs/nemsio/nemsgfs_newrad/incmod
+NEMSIO_LIB  = -L/nems/save/Jun.Wang/nceplibs/nemsio/nemsgfs_newrad -lnemsio
 
-W3_LIB      = -L/nwprod/lib -lw3nco_4 -lw3emc_4
+W3_LIB      = -L/nwprod/lib -lw3nco_d -lw3emc_d
 BACIO_LIB   = -L/nwprod/lib -lbacio_4
-SP_LIB      = -L/nwprod/lib -lsp_4
+SP_LIB      = -L/nwprod/lib -lsp_d
 SYS_LIB     =
 
 POSTDIR     = /global/save/Hui-Ya.Chuang/nceppost/post_tag_2013_GFS_SummerSchool/lib
@@ -29,8 +31,8 @@ W3_POST_LIB = -L/nwprod/lib -lw3nco_4 -lw3emc_4
 CRTM_LIB    = -L/nwprod/lib -lcrtm_v2.0.6
 G2_LIB      = -L/nwprod/lib -lg2tmpl -lg2_4 -ljasper -lpng -lz
 XML_LIB     = -L/nwprod/lib -lxmlparse
-SIGIO_LIB   =  /global/save/Hui-Ya.Chuang/lib/libsigio_big_4.a	  
-SFCIO_LIB   = /nwprod/lib/libsfcio_4.a
+SIGIO_LIB   = -L/nwprod/lib -lsigio_4
+SFCIO_LIB   = -L/nwprod/lib -lsfcio_4
 
 ##FC          = mpiifort -g -traceback
 
@@ -44,10 +46,10 @@ EXTLIBS     = $(NEMSIO_LIB) \
               $(SYS_LIB)
 
 
-EXTLIBS_POST = $(NEMSIO_LIB) \
+EXTLIBS_POST = $(POST_LIB) \
+               $(NEMSIO_LIB) \
                $(W3_POST_LIB) \
                $(XML_LIB) \
-               $(POST_LIB) \
                $(G2_LIB) \
                $(BACIO_LIB) \
                $(SIGIO_LIB) \
@@ -58,7 +60,6 @@ EXTLIBS_POST = $(NEMSIO_LIB) \
                $(NETCDF_LIB) \
                $(SYS_LIB)
 
-##FC          = mpiifort -g -traceback
 FC          = mpiifort -g -openmp  -mkl=sequential
 FREE        = -free
 FIXED       = -fixed
@@ -72,7 +73,7 @@ TRAPS       =
 FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise -xAVX
 
 OPTS_NMM    = -O2
-OPTS_GFS    = -O2
+OPTS_GFS    = -O3
 OPTS_GEN    = -O2
 OPTS_FIM    = -O2
 
