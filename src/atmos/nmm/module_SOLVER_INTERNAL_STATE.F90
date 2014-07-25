@@ -271,7 +271,6 @@
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: OMGALF         => NULL()
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: O3             => NULL()
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: DIV            => NULL()
-        REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: RTOP           => NULL()
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TCU            => NULL()
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TCV            => NULL()
         REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: TCT            => NULL()
@@ -617,7 +616,7 @@
 !
         REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE :: DUDT,DVDT
 !
-        REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE :: PPTDAT
+        REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE :: PPTDAT,RTOP
 !
         REAL(kind=KFPT),DIMENSION(:,:,:),ALLOCATABLE :: W0AVG
 !
@@ -990,7 +989,6 @@
       CALL SET_VAR_PTR(int_state%VARS,NV,'OMGALF'    ,int_state%OMGALF  ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'O3'        ,int_state%O3      ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'DIV'       ,int_state%DIV     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
-      CALL SET_VAR_PTR(int_state%VARS,NV,'RTOP'      ,int_state%RTOP    ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'TCU'       ,int_state%TCU     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'TCV'       ,int_state%TCV     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
       CALL SET_VAR_PTR(int_state%VARS,NV,'TCT'       ,int_state%TCT     ,(/ IMS,JMS,1 /),(/ IME,JME,LM /) )
@@ -1414,6 +1412,8 @@
       ALLOCATE(int_state%DVDT(IMS:IME,JMS:JME,1:LM))       ;int_state%DVDT     = R4_IN ! V wind component tendency  (m s-2)
 !
       ALLOCATE(int_state%W0AVG(IMS:IME,1:LM+1,JMS:JME))    ;int_state%W0AVG    = R4_IN ! Time-averaged vertical velocity (for K-F)  (m s-1)
+!
+      ALLOCATE(int_state%RTOP(IMS:IME,JMS:JME,1:LM))       ;int_state%RTOP     = R4_IN ! RT/P, specific volume (m3 kg-1)
 !
       ALLOCATE(int_state%PPTDAT(IMS:IME,JMS:JME,1:int_state%PCPHR)) ;int_state%PPTDAT = R4_IN 
 !

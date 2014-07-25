@@ -5,10 +5,14 @@
 ##########################################
 
 #export ACCNR=null
-export ACCNR=nems
-. ./detect_machine.sh
-export MACHINE_ID
+#rv export ACCNR=nems
+#rv . ./detect_machine.sh
+#rv export MACHINE_ID
 
+#rv
+export ACCNR=rm
+export MACHINE_ID=zeus
+#rv
 if [ $MACHINE_ID = wcoss ]; then
  echo "#!/bin/ksh" > tmp.sh
  cat RT.sh_IN >> tmp.sh

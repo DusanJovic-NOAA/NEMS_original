@@ -234,7 +234,6 @@
 'OMGALF'           H       R       O      -      -   -  'Omega-alpha  (K)'
 'O3'               H       R       -      -      -   T  'Ozone'
 'DIV'              -       R       O      -      -   -  'Horizontal mass divergence'
-'RTOP'             -       R       O      -      -   -  'RT/P, specific volume  (m3 kg-1)'
 'TCU'              -       R       O      -      -   -  'Time change of T (K s-1)'
 'TCV'              -       R       O      -      -   -  'Time change of U (m s-2)'
 'TCT'              -       R       O      -      -   -  'Time change of V (m s-2)'

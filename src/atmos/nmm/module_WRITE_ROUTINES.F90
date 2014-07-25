@@ -4228,7 +4228,14 @@
         CALL NEMSIO_GETFILEHEAD(NEMSIOFILE,TLMETA=TLMETA,FILE_ENDIAN=FILE_ENDIAN)
         DXCTL=MAXVAL(DX)*180./(A*PI)
         DYCTL=MAXVAL(DY)*180./(A*PI)
-        CNT=INI1+(INI2/LM)+(INI3/(LM+1))+IND1+(IND2/LM)+(IND3/(LM+1))+(IND4/NSOIL)+1  !fact10 is calculated in write grid comp
+        CNT=INI1           & ! # of integer 1-layer fields
+           +(INI2/LM)      & ! # of integer lm-layer fields
+           +(INI3/(LM+1))  & ! # of integer lm+1-layer fields
+           +IND1           & ! # of real 1-layer fields
+           +(IND2/LM)      & ! # of real lm-layer fields
+           +(IND3/(LM+1))  & ! # of real lm+1-layer fields
+           +(IND4/NSOIL)   & ! # of real nsoil-layer fields
+           +1                ! fact10
 !
 !-----------------------------------------------------------------------
 !***  Write out NEMSIO ctl file.
@@ -4478,7 +4485,7 @@
       INTEGER :: I,J,N,N1,N2,NPOSN_1,NPOSN_2,LENGTH,MAXLENGTH
 !
       INTEGER :: FIELDSIZE,IM,JM,LM,IDATE(7),FCSTDATE(7)                &
-                ,INDX_2D,IRET,IND1,IND2,IND3,IND4,CNT                   &
+                ,INDX_2D,IRET,IND1,IND2,IND3,IND4,IND5,CNT              &
  		,INI1,INI2,INI3                                         &
                 ,N2ISCALAR,N2IARY,N2RSCALAR,N2RARY,N2LSCALAR            &
                 ,NMETA,NSOIL,TLMETA,VLEV    
@@ -4857,6 +4864,7 @@
       IND2=0                                                               !<-- # of total layers for vars with lm layers 
       IND3=0                                                               !<-- # of total layers for vars with lm+1 layers
       IND4=0                                                               !<-- # of total layers for vars with nsoil layers
+      IND5=0                                                               !<-- # of total layers for vars with lm-1 layers
 !
       DO NFIELD=1,wrt_int_state%RST_KOUNT_R2D(1)
 !
@@ -4883,6 +4891,13 @@
             RECLEVTYP(NREC-LM:NREC)='layer'
             IND3=IND3+LM+1
             IND2=IND2-(LM+1)
+          ENDIF
+          IF (RECNAME(NREC)=='PSGDT') THEN
+            RECLEVTYP(NREC)='layerm1'
+            IF (RECLEV(NREC)==LM-1) THEN
+              IND5=IND5+LM-1
+              IND2=IND2-(LM-1)
+            ENDIF
           ENDIF
           IF (RECNAME(NREC)=='PINT') THEN
             RECNAME(NREC)='pres'
@@ -4990,9 +5005,15 @@
         CALL NEMSIO_GETFILEHEAD(NEMSIOFILE,TLMETA=TLMETA,FILE_ENDIAN=FILE_ENDIAN)
         DXCTL=MAXVAL(DX)*180./(A*PI)
         DYCTL=MAXVAL(DY)*180./(A*PI)
-        CNT=INI1+(INI2/LM)+(INI3/(LM+1))+IND1+(IND2/LM)+(IND3/(LM+1))+(IND4/NSOIL)+2  !fact10 is calculated in write grid comp
-                                                                                      !hgt
-
+        CNT=INI1           & ! # of integer 1-layer fields
+           +(INI2/LM)      & ! # of integer lm-layer fields
+           +(INI3/(LM+1))  & ! # of integer lm+1-layer fields
+           +IND1           & ! # of real 1-layer fields
+           +(IND2/LM)      & ! # of real lm-layer fields
+           +(IND3/(LM+1))  & ! # of real lm+1-layer fields
+           +(IND4/NSOIL)   & ! # of real nsoil-layer fields
+           +(IND5/(LM-1))  & ! # of real lm-1-layer fields
+           +2                ! fact10 and hgt
 !
 !-----------------------------------------------------------------------
 !***  Write out NEMSIO ctl file.
@@ -5172,6 +5193,9 @@
         IF(RECLEVTYP(N)=='mid layer') THEN
           WRITE(IO_UNIT,'(A16,I3,A)')RECNAME(N),LM,' 99 mid layer'
           N=N+LM
+        ELSEIF(RECLEVTYP(N)=='layerm1') THEN
+          WRITE(IO_UNIT,'(A16,I3,A)')RECNAME(N),LM-1,' 99 layer'
+          N=N+LM-1
         ELSEIF(RECLEVTYP(N)=='layer') THEN
           WRITE(IO_UNIT,'(A16,I3,A)')RECNAME(N),LM+1,' 99 layer'
           N=N+LM+1

@@ -1632,7 +1632,7 @@ new_nlice: IF (NLICE<NLImin .OR. NLICE>NLImax) THEN
       REAL :: FI1Da,FI1Db,FI1D(2)
       REAL :: FS1Da,FS1Db,FS1D(2),DBZ1(2)
 
-      REAL :: CUPRATE, CUREFL, CUREFL_I, ZFRZ, DBZ1avg, FCTR, DELZ
+      REAL :: CUPRATE,CUREFL,CUREFL_I,ZFRZ,DBZ1avg,FCTR,DELZ,Z1KM,ZCTOP
       REAL :: T02, RH02, TERM
       REAL :: CAPPA_MOIST, VAPOR_PRESS, SAT_VAPOR_PRESS
       REAL, SAVE:: DTPHS, RDTPHS
@@ -1728,24 +1728,23 @@ new_nlice: IF (NLICE<NLImin .OR. NLICE>NLImax) THEN
           ENDDO vloop2
 !
           LCTOP=NINT(HTOP(I,J))
-          CUREFL_I=-2./MAX( 1000., Z(I,J,LCTOP)-ZFRZ )
+          ZCTOP=Z(I,J,LCTOP)
+          Z1KM=ZINTSFC(I,J)+1000.
+          FCTR=0.
+vloop3:   IF (ZCTOP >= Z1KM) THEN
+            DELZ=Z1KM-ZFRZ
+            IF (DELZ <= 0.) THEN
+              FCTR=1.        !-- Below the highest freezing level
+            ELSE
 !
- vloop3:  DO L=1,LM
-            FCTR=0.
-            IF (L >= LCTOP .and. L <= LM) THEN
-              DELZ=Z(I,J,L)-ZFRZ
-              IF (DELZ <= 0.) THEN
-                FCTR=1.        !-- Below the highest freezing level
-              ELSE
-       !
-       !--- Reduce convective radar reflectivity above freezing level
-       !
-                FCTR=10.**(CUREFL_I*DELZ)
-              ENDIF
+!--- Reduce convective radar reflectivity above freezing level
+!
+              CUREFL_I=-2./MAX(1000.,ZCTOP-ZFRZ)
+              FCTR=10.**(CUREFL_I*DELZ)
             ENDIF
-          ENDDO vloop3
+          ENDIF  vloop3
           CUREFL=FCTR*CUREFL
-         ENDIF culoop
+        ENDIF culoop
 !
          DO LL=1,2
           IF (C1D(LL) .GE. 1.e-12 .OR. CUREFL .GT. 0.) then
@@ -2224,7 +2223,7 @@ dbz_mix: IF (RQR>RQmix .AND. RQLICE>RQmix) THEN
       REAL :: FI1Da,FI1Db,FI1D(2)
       REAL :: FS1Da,FS1Db,FS1D(2),DBZ1(2)
 
-      REAL :: CUPRATE, CUREFL, CUREFL_I, ZFRZ, DBZ1avg, FCTR, DELZ
+      REAL :: CUPRATE,CUREFL,CUREFL_I,ZFRZ,DBZ1avg,FCTR,DELZ,Z1KM,ZCTOP
       REAL :: T02, RH02, TERM
       REAL,SAVE :: CAPPA_MOIST, VAPOR_PRESS, SAT_VAPOR_PRESS
       REAL, SAVE:: DTPHS, RDTPHS
@@ -2322,25 +2321,25 @@ dbz_mix: IF (RQR>RQmix .AND. RQLICE>RQmix) THEN
 !     if(i<lbound(htop,1).or.i>ubound(htop,1).or.j<lbound(htop,2).or.j>ubound(htop,2))then
 !       write(0,*)' MAX_FIELD i=',i,' j=',j,' lbound(htop)=',lbound(htop),' ubound=',ubound(htop)
 !     endif
-          LCTOP=NINT(HTOP(I,J))
-          CUREFL_I=-2./MAX( 1000., Z(I,J,LCTOP)-ZFRZ )
 !
- vloop3:  DO L=1,LM
-            FCTR=0.
-            IF (L >= LCTOP .and. L <= LM) THEN
-              DELZ=Z(I,J,L)-ZFRZ
-              IF (DELZ <= 0.) THEN
-                FCTR=1.        !-- Below the highest freezing level
-              ELSE
-       !
-       !--- Reduce convective radar reflectivity above freezing level
-       !
-                FCTR=10.**(CUREFL_I*DELZ)
-              ENDIF
+          LCTOP=NINT(HTOP(I,J))
+          ZCTOP=Z(I,J,LCTOP)
+          Z1KM=ZINTSFC(I,J)+1000.
+          FCTR=0.
+vloop3:   IF (ZCTOP >= Z1KM) THEN
+            DELZ=Z1KM-ZFRZ
+            IF (DELZ <= 0.) THEN
+              FCTR=1.        !-- Below the highest freezing level
+            ELSE
+!
+!--- Reduce convective radar reflectivity above freezing level
+!
+              CUREFL_I=-2./MAX(1000.,ZCTOP-ZFRZ)
+              FCTR=10.**(CUREFL_I*DELZ)
             ENDIF
-          ENDDO vloop3
+          ENDIF  vloop3
           CUREFL=FCTR*CUREFL
-         ENDIF culoop
+        ENDIF culoop
 !
          DO LL=1,2
           IF (C1D(LL) .GE. 1.e-12 .OR. CUREFL .GT. 0.) then

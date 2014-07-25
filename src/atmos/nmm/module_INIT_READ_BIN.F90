@@ -1941,16 +1941,6 @@ integer(kind=kint):: &
         CALL DSTRB(TEMP1,int_state%RSWTT,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
       ENDDO
 !-----------------------------------------------------------------------
-!***  RTOP
-!-----------------------------------------------------------------------
-      DO L=1,LM
-        IF(MYPE==0)THEN
-          READ(NFCST)TEMP1
-        ENDIF
-        CALL DSTRB(TEMP1,int_state%RTOP,1,1,1,LM,L,MYPE,MPI_COMM_COMP)
-      ENDDO
-      CALL HALO_EXCH(int_state%RTOP,LM,2,2)
-!-----------------------------------------------------------------------
 !***  SFCEVP
 !-----------------------------------------------------------------------
       IF(MYPE==0)THEN
@@ -3385,14 +3375,6 @@ integer(kind=kint):: &
           call dstrb(temp1,int_state%div,1,1,1,lm,l,mype,mpi_comm_comp)
         enddo
         call halo_exch(int_state%div,lm,2,2)
-!-----------------------------------------------------------------------
-        do l=1,lm
-          if(mype==0)then
-            read(nfcst)temp1
-          endif
-          call dstrb(temp1,int_state%rtop,1,1,1,lm,l,mype,mpi_comm_comp)
-        enddo
-        call halo_exch(int_state%rtop,lm,2,2)
 !-----------------------------------------------------------------------
         do l=1,lm
           if(mype==0)then

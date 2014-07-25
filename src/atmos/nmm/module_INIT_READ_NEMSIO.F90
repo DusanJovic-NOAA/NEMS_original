@@ -2985,22 +2985,6 @@ integer,allocatable       :: reclev(:)
       enddo
       call halo_exch(int_state%div,lm,2,2)
 !-----------------------------------------------------------------------
-!-- rtop
-      int_state%rtop=0.
-      do l=1,lm
-        call getrecn(recname,reclevtyp,reclev,nrec,'rtop','mid layer',l,recn)
-        if(recn/=0) then
-          fldst=(recn-1)*fldsize
-          do j=jts,jte
-            js=(j-jts)*(ite-its+1)
-            do i=its,ite
-              int_state%rtop(i,j,l)=tmp(i-its+1+js+fldst)
-            enddo
-          enddo
-        endif
-      enddo
-      call halo_exch(int_state%rtop,lm,2,2)
-!-----------------------------------------------------------------------
 !-- tcu
       int_state%tcu=0.
       do l=1,lm
