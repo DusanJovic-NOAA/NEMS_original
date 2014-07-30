@@ -1,25 +1,26 @@
-#!/bin/sh
+#! /bin/ksh --login
 
 # Moab options used on Gaea
 
-#MSUB -S /bin/ksh
-#MSUB -e _RUND_/err
-#MSUB -o _RUND_/out
-#MSUB -N _JBNME_
-#MSUB -l partition=c1ms
-#MSUB -l size=_TPN_
-#MSUB -l walltime=00:_WLCLK_:00
+#PBS -S /bin/ksh
+#PBS -e _RUND_/err
+#PBS -o _RUND_/out
+#PBS -N _JBNME_
+#PBS -A _ACCNR_
+#PBS -q _CLASS_
+#PBS -l partition=c1:c2
+#PBS -l size=_TASKS_
+#PBS -l walltime=00:_WLCLK_:00
 
 set -aeux
 
+cd _RUND_
+
 echo "Model started:  " `date`
 
-export TASKSIZE=_TPN_
-export SCHEDULER=moab
-export MACHINE_ID=gaea
-
-./gfs_fcst_run
+_RUND_/gfs_fcst_run
 
 echo "Model ended:    " `date`
 
 exit
+

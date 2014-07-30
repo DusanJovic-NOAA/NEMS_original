@@ -5,14 +5,19 @@
 ##########################################
 
 #export ACCNR=null
-#rv export ACCNR=nems
-#rv . ./detect_machine.sh
-#rv export MACHINE_ID
 
-#rv
-export ACCNR=rm
-export MACHINE_ID=zeus
-#rv
+#- good choice for NEMS people on Zeus:
+export ACCNR=nems
+
+#- good choice for EMC people on Gaea:
+#export ACCNR=cmp
+
+#- good choice for ESRL people on Gaea:
+#export ACCNR=esrl_bmcs
+
+. ./detect_machine.sh
+export MACHINE_ID
+
 if [ $MACHINE_ID = wcoss ]; then
  echo "#!/bin/ksh" > tmp.sh
  cat RT.sh_IN >> tmp.sh

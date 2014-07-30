@@ -97,6 +97,12 @@ module module_EARTH_GENERIC_COMP
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
     
+    ! register an internal initialization method
+    call NUOPC_CompSetInternalEntryPoint(driver, ESMF_METHOD_INITIALIZE, &
+      phaseLabelList=(/"IPDv04p2"/), userRoutine=ModifyCplLists, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
+    
   end subroutine
   
   !-----------------------------------------------------------------------------
@@ -116,6 +122,14 @@ module module_EARTH_GENERIC_COMP
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
     
     ! set the modelCount for ATM-OCN-ICE-MED coupling
+    !TODO: in the future this will be unnecessary to set here, and instead
+    !TODO: the modelCount will be a dynamic setting depending on how many
+    !TODO: models were added via NUOPC_DriverAddComp() calls.
+    ! The modelCount number set here is used for Driver internal allocation,
+    ! so it needs to be big enough to hold what may be coming via the
+    ! DriverAddComp() calls, but then the modelCount needs to be re-set to the
+    ! actual number of models (+mediators) in the run. This re-set happens at
+    ! the end of SetModelPetLists().
     call NUOPC_DriverSet(driver, modelCount=4, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
@@ -174,22 +188,31 @@ module module_EARTH_GENERIC_COMP
       line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
       
     ! set the petLists
-    i = 1 ! initialize model counter
+    i = 0 ! initialize model counter
     if (associated(is%wrap%atmPetList)) then
-      superIS%wrap%modelPetLists(i)%petList => is%wrap%atmPetList
       i = i+1
+      superIS%wrap%modelPetLists(i)%petList => is%wrap%atmPetList
     endif
     if (associated(is%wrap%ocnPetList)) then
-      superIS%wrap%modelPetLists(i)%petList => is%wrap%ocnPetList
       i = i+1
+      superIS%wrap%modelPetLists(i)%petList => is%wrap%ocnPetList
     endif
     if (associated(is%wrap%icePetList)) then
-      superIS%wrap%modelPetLists(i)%petList => is%wrap%icePetList
       i = i+1
+      superIS%wrap%modelPetLists(i)%petList => is%wrap%icePetList
     endif
     if (associated(is%wrap%medPetList)) then
+      i = i+1
       superIS%wrap%modelPetLists(i)%petList => is%wrap%medPetList
     endif
+    
+    ! re-set the modelCount to the actual number that is now known
+    !TODO: This is just another work-around while the modelCount is still 
+    !TODO: set explicitly. In the longer run it will be a Driver internal 
+    !TODO: variable that is automatically kept correct.
+    call NUOPC_DriverSet(driver, modelCount=i, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//__FILE__)) return  ! bail out
     
   end subroutine
   
@@ -449,5 +472,81 @@ module module_EARTH_GENERIC_COMP
       
   !-----------------------------------------------------------------------------
   
+  recursive subroutine ModifyCplLists(driver, importState, exportState, clock, &
+    rc)
+    type(ESMF_GridComp)  :: driver
+    type(ESMF_State)     :: importState, exportState
+    type(ESMF_Clock)     :: clock
+    integer, intent(out) :: rc
+
+    character(len=160)              :: msg    
+    type(ESMF_CplComp), pointer     :: connectorList(:)
+    integer                         :: i, j, cplListSize
+    character(len=160), allocatable :: cplList(:)
+    character(len=160)              :: tempString
+    
+    rc = ESMF_SUCCESS
+    
+    call ESMF_LogWrite("Driver is in ModifyCplLists()", ESMF_LOGMSG_INFO, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    nullify(connectorList)
+    call NUOPC_DriverGetComp(driver, compList=connectorList, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    
+    write (msg,*) "Found ", size(connectorList), " Connectors."// &
+      " Modifying CplList Attribute...."
+    call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+      
+    do i=1, size(connectorList)
+      ! query the cplList for connector i
+      call NUOPC_CplCompAttributeGet(connectorList(i), &
+        cplListSize=cplListSize, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
+      if (cplListSize>0) then
+        allocate(cplList(cplListSize))
+        call NUOPC_CplCompAttributeGet(connectorList(i), cplList=cplList, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+        ! go through all of the entries in the cplList and add options
+        do j=1, cplListSize
+          tempString = trim(cplList(j))//&
+            ":DumpWeights=true"//&
+            ":SrcTermProcessing=1:TermOrder=SrcSeq"
+          cplList(j) = trim(tempString)
+        enddo
+        ! store the modified cplList in CplList attribute of connector i
+        call ESMF_AttributeSet(connectorList(i), &
+          name="CplList", valueList=cplList, &
+          convention="NUOPC", purpose="General", rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+        deallocate(cplList)
+      endif
+    enddo
+      
+    deallocate(connectorList)
+    
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+
 end module
 #endif

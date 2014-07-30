@@ -15,6 +15,8 @@ export SIGIOOUT=${SIGIOOUT:-.true.}
 export SIGHDR=${SIGHDR:-/nwprod/exec/global_sighdr}
 export MACHINE_ID=${MACHINE_ID:-WCOSS}
 export SCHEDULER=${SCHEDULER:-lsf}
+export SHOWQ=${SHOWQ:-/opt/moab/default/bin/showq}
+export MSUB=${MSUB:-/opt/moab/default/bin/msub}
 
 export IEMS=0
 export ISOL=1
@@ -130,8 +132,15 @@ if [ $GEFS_ENSEMBLE = 0 ] ; then
  ###################################################
 
  ### for now copy MOM5 input files
- if [ $SCHEDULER = 'pbs' ]; then
-  /home/Fei.Liu/bin/setup_mom_input.sh ${RUNDIR}
+ if [ $SCHEDULER = 'pbs' -o $SCHEDULER = 'moab' ]; then
+   if [ $MACHINE_ID = zeus ] ; then
+     /home/Fei.Liu/bin/setup_mom_input.sh ${RUNDIR}
+   elif [ $MACHINE_ID = gaea ] ; then
+#    /autofs/na1_home1/Fei.Liu/bin/setup_mom_input.sh ${RUNDIR}
+     export ocn_input_dir=${ocn_input_dir:-/lustre/f1/unswept/ncep/Shrinivas.Moorthi/nems/NUOPC/OM_stuff/global_box1}
+     export ice_input_dir=${ocn_input_dir:-/lustre/f1/unswept/ncep/Shrinivas.Moorthi/nems/NUOPC/OM_stuff/lanl_cice}
+    ./setup_mom_input.sh $RUNDIR $ocn_input_dir $ice_input_dir
+   fi
  fi
  ###################################################
 
@@ -244,9 +253,14 @@ if [ $SCHEDULER = 'moab' ]; then
 
  export TPN=$((32/THRD))
  cat gfs_msub.IN     | sed s:_JBNME_:${JBNME}:g   \
+                     | sed s:_ACCNR_:${ACCNR}:g   \
+                     | sed s:_CLASS_:${CLASS}:g   \
                      | sed s:_WLCLK_:${WLCLK}:g   \
                      | sed s:_TPN_:${TPN}:g       \
+                     | sed s:_TASKS_:${TASKS}:g   \
+                     | sed s:_RUND_:${RUNDIR}:g   \
                      | sed s:_THRD_:${THRD}:g     >  gfs_msub
+
 
 elif [ $SCHEDULER = 'pbs' ]; then
 
@@ -280,7 +294,7 @@ export RUNDIR=${RUNDIR}
 cd $PATHRT
 
 if [ $SCHEDULER = 'moab' ]; then
-  msub gfs_msub > /dev/null
+  $MSUB gfs_msub > /dev/null
 elif [ $SCHEDULER = 'pbs' ]; then
   rm -f $PATHRT/err $PATHRT/out
   qsub $PATHRT/gfs_qsub > /dev/null
@@ -300,7 +314,7 @@ job_running=0
 until [ $job_running -eq 1 ] ; do
  echo "TEST is waiting to enter the queue"
  if [ $SCHEDULER = 'moab' ]; then
-  job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
+  job_running=`$SHOWQ -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
  elif [ $SCHEDULER = 'pbs' ]; then
   job_running=`qstat -u ${USER} -n | grep ${JBNME} | wc -l`;sleep 5
  elif [ $SCHEDULER = 'lsf' ]; then
@@ -318,7 +332,7 @@ until [ $job_running -eq 0 ] ; do
 
  if [ $SCHEDULER = 'moab' ]; then
 
-  status=`showq -u ${USER} -n | grep ${JBNME} | awk '{print $3}'` ; status=${status:--}
+  status=`$SHOWQ -u ${USER} -n | grep ${JBNME} | awk '{print $3}'` ; status=${status:--}
   if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $6 }'` ; fi
   FnshHrs=${FnshHrs:-0}
   if   [ $status = 'Idle' ];       then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
@@ -355,7 +369,7 @@ until [ $job_running -eq 0 ] ; do
  fi
 
  if [ $SCHEDULER = 'moab' ]; then
-  job_running=`showq -u ${USER} -n | grep ${JBNME} | wc -l`
+  job_running=`$SHOWQ -u ${USER} -n | grep ${JBNME} | wc -l`
  elif [ $SCHEDULER = 'lsf' ] ; then
   job_running=`bjobs -u ${USER} -J ${JBNME} 2>/dev/null | grep " dev " | wc -l`
  fi
@@ -372,6 +386,8 @@ sleep 60
 (echo;echo;echo "Checking test ${TEST_NR} results ....")>> ${REGRESSIONTEST_LOG}
  echo;echo;echo "Checking test ${TEST_NR} results ...."
 
+test_status='PASS'
+
 #
 if [ ${CREATE_BASELINE} = false ]; then
 #
@@ -382,25 +398,44 @@ if [ ${CREATE_BASELINE} = false ]; then
     printf %s " Comparing " $i "....." >> ${REGRESSIONTEST_LOG}
     printf %s " Comparing " $i "....."
 
-    if [ -f ${RUNDIR}/$i ] ; then
+    if [ ! -f ${RUNDIR}/$i ] ; then
+
+#     echo "Missing " ${RUNDIR}/$i " output file" >> ${REGRESSIONTEST_LOG}
+#     echo "Missing " ${RUNDIR}/$i " output file"
+#    (echo;echo " Test ${TEST_NR} failed ")>> ${REGRESSIONTEST_LOG}
+#     echo;echo " Test ${TEST_NR} failed "
+#     exit 2
+     echo ".......MISSING file" >> ${REGRESSIONTEST_LOG}
+     echo ".......MISSING file"
+
+    elif [ ! -f ${RTPWD}/${CNTL_DIR}/$i ] ; then
+
+     echo ".......MISSING baseline" >> ${REGRESSIONTEST_LOG}
+     echo ".......MISSING baseline"
+
+    else
+
+#tcx
+#     echo "compare ${RTPWD}/${CNTL_DIR}/$i ${RUNDIR}/$i"
 
      d=`cmp ${RTPWD}/${CNTL_DIR}/$i ${RUNDIR}/$i | wc -l`
 
      if [[ $d -ne 0 ]] ; then
-     (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> ${REGRESSIONTEST_LOG}
-      echo " ......NOT OK" ; echo ; echo "   $i differ!   " ; exit 2
+#     (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> ${REGRESSIONTEST_LOG}
+#      echo " ......NOT OK" ; echo ; echo "   $i differ!   " ; exit 2
+       echo ".......NOT OK" >> ${REGRESSIONTEST_LOG}
+       echo ".......NOT OK"
+       test_status='FAIL'
+       if [ ${BAIL_CONDITION} = FILE ]; then
+          echo "BAIL_CONDITION=FILE, Abort testing on failure"
+          exit 2
+       fi
+
+     else
+
+       echo "....OK" >> ${REGRESSIONTEST_LOG}
+       echo "....OK"
      fi
-
-     echo "....OK" >> ${REGRESSIONTEST_LOG}
-     echo "....OK"
-
-    else
-
-     echo "Missing " ${RUNDIR}/$i " output file" >> ${REGRESSIONTEST_LOG}
-     echo "Missing " ${RUNDIR}/$i " output file"
-    (echo;echo " Test ${TEST_NR} failed ")>> ${REGRESSIONTEST_LOG}
-     echo;echo " Test ${TEST_NR} failed "
-     exit 2
 
     fi
 
@@ -429,8 +464,15 @@ else
 fi
 # ---
 
-echo " Test ${TEST_NR} passed " >> ${REGRESSIONTEST_LOG}
-echo " Test ${TEST_NR} passed "
+echo " Test ${TEST_NR} ${test_status} " >> ${REGRESSIONTEST_LOG}
+echo " Test ${TEST_NR} ${test_status} "
+
+if [ ${BAIL_CONDITION} = TEST ]; then
+  if [ ${test_status} = FAIL ]; then
+     echo "BAIL_CONDITION=TEST, Abort testing on failure"
+     exit 2
+  fi
+fi
 
 sleep 4
 clear;echo;echo

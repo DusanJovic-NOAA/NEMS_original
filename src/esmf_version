@@ -56,7 +56,14 @@ elif [[ $1 = nuopc_zeus ]]; then
      cp conf/modules.nems.Zeus_ESMF_NUOPC conf/modules.nems.Zeus
      cp ESMFVersionDefine_ESMF_NUOPC.h ESMFVersionDefine.h
      set +x
-     echo "Use an ESMF library with reference NUOPC Layer (currently ESMF 6.2.0)"
+     echo "Use an ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot)"
+elif [[ $1 = nuopc_gaea ]]; then
+     set -x
+     cp conf/configure.nems.Gaea.intel conf/configure.nems
+     cp conf/modules.nems.Gaea_ESMF_NUOPC conf/modules.nems.Gaea
+     cp ESMFVersionDefine_ESMF_NUOPC.h ESMFVersionDefine.h
+     set +x
+     echo "Use an ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot)"
 else
      echo;echo "     Run ./esmf_version with one argument:"
      echo;
@@ -67,6 +74,8 @@ else
      echo " 'esmf_version 5.2_wcoss'          : ESMF 5.2.0rp2 library on wcoss"
      echo " 'esmf_version 6.3r_wcoss'         : ESMF 6.3.0r library on wcoss"
      echo " 'esmf_version 5.2.0rAPI_zeus'     : ESMF 5.2.0r API compatible library (i.e. ESMF >= 5.2.0r) on zeus"
-     echo " 'esmf_version nuopc_zeus'         : ESMF library with reference NUOPC Layer (currently ESMF 6.2.0) on zeus"
+     echo;
+     echo " 'esmf_version nuopc_zeus'         : ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot) on zeus"
+     echo " 'esmf_version nuopc_gaea'         : ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot) on gaea"
      echo;
 fi     

@@ -326,8 +326,10 @@ cd $RUNDIR
  export COMOUT=$RUNDIR
 #
 if [ $SCHEDULER = 'moab' ]; then
-   export FIXGLOBAL=${FIXGLOBAL}
-   export FCST_LAUNCHER=aprun
+   source _PATHTR_/src/conf/modules.nems.Gaea
+   module list
+   export FIXGLOBAL=${FIXGLOBAL:-/lustre/f1/unswept/ncep/Shrinivas.Moorthi/para/fix/fix_am}
+   export FCST_LAUNCHER='aprun -n _TASKS_'
 elif [ $SCHEDULER = 'pbs' ]; then
    source _PATHTR_/src/conf/modules.nems.Zeus
    module list

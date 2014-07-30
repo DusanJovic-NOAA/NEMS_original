@@ -282,27 +282,51 @@
 
     ! exportable fields:
     call NUOPC_StateAdvertiseFields(exportState, StandardNames=(/ &
-      "mean_zonal_moment_flx", &
-      "mean_merid_moment_flx", &
-      "mean_sensi_heat_flx", &
-      "mean_laten_heat_flx", &
-      "mean_down_lw_flx", &
-      "mean_down_sw_flx", &
-      "mean_prec_rate", &
-      "inst_zonal_moment_flx", &
-      "inst_merid_moment_flx", &
-      "inst_sensi_heat_flx", &
-      "inst_laten_heat_flx", &
-      "inst_down_lw_flx", &
-      "inst_down_sw_flx", &
-      "inst_temp_height2m", &
-      "inst_spec_humid_height2m", &
-      "inst_u_wind_height10m", &
-      "inst_v_wind_height10m", &
-      "inst_temp_height_surface", &
-      "inst_pres_height_surface", &
-      "inst_surface_height" &
-       /), rc=rc)
+      "mean_zonal_moment_flx      ", &
+      "mean_merid_moment_flx      ", &
+      "mean_sensi_heat_flx        ", &
+      "mean_laten_heat_flx        ", &
+      "mean_down_lw_flx           ", &
+      "mean_down_sw_flx           ", &
+      "mean_prec_rate             ", &
+      "inst_zonal_moment_flx      ", &
+      "inst_merid_moment_flx      ", &
+      "inst_sensi_heat_flx        ", &
+      "inst_laten_heat_flx        ", &
+      "inst_down_lw_flx           ", &
+      "inst_down_sw_flx           ", &
+      "inst_temp_height2m         ", &
+      "inst_spec_humid_height2m   ", &
+      "inst_u_wind_height10m      ", &
+      "inst_v_wind_height10m      ", &
+      "inst_temp_height_surface   ", &
+      "inst_pres_height_surface   ", &
+      "inst_surface_height        ", &
+      "mean_net_lw_flx            ", &
+      "mean_net_sw_flx            ", &
+      "inst_net_lw_flx            ", &
+      "inst_net_sw_flx            ", &
+      "mean_down_sw_ir_dir_flx    ", &
+      "mean_down_sw_ir_dif_flx    ", &
+      "mean_down_sw_vis_dir_flx   ", &
+      "mean_down_sw_vis_dif_flx   ", &
+      "inst_down_sw_ir_dir_flx    ", &
+      "inst_down_sw_ir_dif_flx    ", &
+      "inst_down_sw_vis_dir_flx   ", &
+      "inst_down_sw_vis_dif_flx   ", &
+      "mean_net_sw_ir_dir_flx     ", &
+      "mean_net_sw_ir_dif_flx     ", &
+      "mean_net_sw_vis_dir_flx    ", &
+      "mean_net_sw_vis_dif_flx    ", &
+      "inst_net_sw_ir_dir_flx     ", &
+      "inst_net_sw_ir_dif_flx     ", &
+      "inst_net_sw_vis_dir_flx    ", &
+      "inst_net_sw_vis_dif_flx    ", &
+      "inst_ir_dir_albedo         ", &
+      "inst_ir_dif_albedo         ", &
+      "inst_vis_dir_albedo        ", &
+      "inst_vis_dif_albedo        "  &
+      /), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -320,8 +344,6 @@
 
     type(ESMF_Grid)                 :: gridIn, gridOut
     character(160)                  :: itemNameList(1)
-    integer                         :: i, j
-    real(kind=ESMF_KIND_R8),pointer :: lonPtr(:,:), latPtr(:,:)
     type(ESMF_array)                :: array
 
     rc = ESMF_SUCCESS
@@ -391,7 +413,8 @@
  
     ! exportable field: mean_zonal_moment_flx
     call realizeConnectedInternCplField(exportState, &
-      field=mean_zonal_moment_flx, fieldName="mzmfx", grid=gridOut, rc=rc)
+      field=mean_zonal_moment_flx, standardName="mean_zonal_moment_flx", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -399,7 +422,8 @@
 
     ! exportable field: mean_merid_moment_flx
     call realizeConnectedInternCplField(exportState, &
-      field=mean_merid_moment_flx, fieldName="mmmfx", grid=gridOut, rc=rc)
+      field=mean_merid_moment_flx, standardName="mean_merid_moment_flx", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -407,7 +431,8 @@
     
     ! exportable field: mean_sensi_heat_flx
     call realizeConnectedInternCplField(exportState, &
-      field=mean_sensi_heat_flx, fieldName="mshfx", grid=gridOut, rc=rc)
+      field=mean_sensi_heat_flx, standardName="mean_sensi_heat_flx", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -415,7 +440,8 @@
     
     ! exportable field: mean_laten_heat_flx
     call realizeConnectedInternCplField(exportState, &
-      field=mean_laten_heat_flx, fieldName="mlhfx", grid=gridOut, rc=rc)
+      field=mean_laten_heat_flx, standardName="mean_laten_heat_flx", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -423,7 +449,8 @@
     
     ! exportable field: mean_down_lw_flx
     call realizeConnectedInternCplField(exportState, &
-      field=mean_down_lw_flx, fieldName="mdlwfx", grid=gridOut, rc=rc)
+      field=mean_down_lw_flx, standardName="mean_down_lw_flx", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -431,7 +458,8 @@
 
     ! exportable field: mean_down_sw_flx
     call realizeConnectedInternCplField(exportState, &
-      field=mean_down_sw_flx, fieldName="mdswfx", grid=gridOut, rc=rc)
+      field=mean_down_sw_flx, standardName="mean_down_sw_flx", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -439,7 +467,8 @@
 
     ! exportable field: mean_prec_rate
     call realizeConnectedInternCplField(exportState, &
-      field=mean_prec_rate, fieldName="mprt", grid=gridOut, rc=rc)
+      field=mean_prec_rate, standardName="mean_prec_rate", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -447,7 +476,8 @@
 
     ! exportable field: inst_zonal_moment_flx
     call realizeConnectedInternCplField(exportState, &
-      field=inst_zonal_moment_flx, fieldName="izmfx", grid=gridOut, rc=rc)
+      field=inst_zonal_moment_flx, standardName="inst_zonal_moment_flx", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -455,7 +485,8 @@
 
     ! exportable field: inst_merid_moment_flx
     call realizeConnectedInternCplField(exportState, &
-      field=inst_merid_moment_flx, fieldName="immfx", grid=gridOut, rc=rc)
+      field=inst_merid_moment_flx, standardName="inst_merid_moment_flx", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -463,7 +494,8 @@
 
     ! exportable field: inst_sensi_heat_flx
     call realizeConnectedInternCplField(exportState, &
-      field=inst_sensi_heat_flx, fieldName="ishfx", grid=gridOut, rc=rc)
+      field=inst_sensi_heat_flx, standardName="inst_sensi_heat_flx", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -471,7 +503,8 @@
 
     ! exportable field: inst_laten_heat_flx
     call realizeConnectedInternCplField(exportState, &
-      field=inst_laten_heat_flx, fieldName="ilhfx", grid=gridOut, rc=rc)
+      field=inst_laten_heat_flx, standardName="inst_laten_heat_flx", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -479,7 +512,8 @@
 
     ! exportable field: inst_down_lw_flx
     call realizeConnectedInternCplField(exportState, &
-      field=inst_down_lw_flx, fieldName="idlwfx", grid=gridOut, rc=rc)
+      field=inst_down_lw_flx, standardName="inst_down_lw_flx", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -487,7 +521,8 @@
 
     ! exportable field: inst_down_sw_flx
     call realizeConnectedInternCplField(exportState, &
-      field=inst_down_sw_flx, fieldName="idswfx", grid=gridOut, rc=rc)
+      field=inst_down_sw_flx, standardName="inst_down_sw_flx", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -495,7 +530,8 @@
 
     ! exportable field: inst_temp_height2m
     call realizeConnectedInternCplField(exportState, &
-      field=inst_temp_height2m, fieldName="ith2m", grid=gridOut, rc=rc)
+      field=inst_temp_height2m, standardName="inst_temp_height2m", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -503,7 +539,8 @@
 
     ! exportable field: inst_spec_humid_height2m
     call realizeConnectedInternCplField(exportState, &
-      field=inst_spec_humid_height2m, fieldName="ishh2m", grid=gridOut, rc=rc)
+      field=inst_spec_humid_height2m, standardName="inst_spec_humid_height2m", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -511,7 +548,8 @@
 
     ! exportable field: inst_u_wind_height10m
     call realizeConnectedInternCplField(exportState, &
-      field=inst_u_wind_height10m, fieldName="iuwh10m", grid=gridOut, rc=rc)
+      field=inst_u_wind_height10m, standardName="inst_u_wind_height10m", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -519,7 +557,8 @@
 
     ! exportable field: inst_v_wind_height10m
     call realizeConnectedInternCplField(exportState, &
-      field=inst_v_wind_height10m, fieldName="ivwh10m", grid=gridOut, rc=rc)
+      field=inst_v_wind_height10m, standardName="inst_v_wind_height10m", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -527,7 +566,8 @@
 
     ! exportable field: inst_temp_height_surface
     call realizeConnectedInternCplField(exportState, &
-      field=inst_temp_height_surface, fieldName="its", grid=gridOut, rc=rc)
+      field=inst_temp_height_surface, standardName="inst_temp_height_surface", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -535,7 +575,8 @@
 
     ! exportable field: inst_pres_height_surface
     call realizeConnectedInternCplField(exportState, &
-      field=inst_pres_height_surface, fieldName="ips", grid=gridOut, rc=rc)
+      field=inst_pres_height_surface, standardName="inst_pres_height_surface", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -543,7 +584,224 @@
 
     ! exportable field: inst_surface_height
     call realizeConnectedInternCplField(exportState, &
-      field=inst_surface_height, fieldName="ish", grid=gridOut, rc=rc)
+      field=inst_surface_height, standardName="inst_surface_height", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: mean_net_lw_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_net_lw_flx, standardName="mean_net_lw_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: mean_net_sw_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_net_sw_flx, standardName="mean_net_sw_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_net_lw_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_net_lw_flx, standardName="inst_net_lw_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_net_sw_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_net_sw_flx, standardName="inst_net_sw_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: mean_down_sw_ir_dir_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_down_sw_ir_dir_flx, standardName="mean_down_sw_ir_dir_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: mean_down_sw_ir_dif_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_down_sw_ir_dif_flx, standardName="mean_down_sw_ir_dif_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: mean_down_sw_vis_dir_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_down_sw_vis_dir_flx, standardName="mean_down_sw_vis_dir_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: mean_down_sw_vis_dif_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_down_sw_vis_dif_flx, standardName="mean_down_sw_vis_dif_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_down_sw_ir_dir_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_down_sw_ir_dir_flx, standardName="inst_down_sw_ir_dir_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_down_sw_ir_dif_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_down_sw_ir_dif_flx, standardName="inst_down_sw_ir_dif_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_down_sw_vis_dir_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_down_sw_vis_dir_flx, standardName="inst_down_sw_vis_dir_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_down_sw_vis_dif_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_down_sw_vis_dif_flx, standardName="inst_down_sw_vis_dif_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: mean_net_sw_ir_dir_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_net_sw_ir_dir_flx, standardName="mean_net_sw_ir_dir_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: mean_net_sw_ir_dif_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_net_sw_ir_dif_flx, standardName="mean_net_sw_ir_dif_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: mean_net_sw_vis_dir_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_net_sw_vis_dir_flx, standardName="mean_net_sw_vis_dir_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: mean_net_sw_vis_dif_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=mean_net_sw_vis_dif_flx, standardName="mean_net_sw_vis_dif_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_net_sw_ir_dir_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_net_sw_ir_dir_flx, standardName="inst_net_sw_ir_dir_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_net_sw_ir_dif_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_net_sw_ir_dif_flx, standardName="inst_net_sw_ir_dif_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_net_sw_vis_dir_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_net_sw_vis_dir_flx, standardName="inst_net_sw_vis_dir_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_net_sw_vis_dif_flx
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_net_sw_vis_dif_flx, standardName="inst_net_sw_vis_dif_flx", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_ir_dir_albedo
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_ir_dir_albedo, standardName="inst_ir_dir_albedo", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_ir_dif_albedo
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_ir_dif_albedo, standardName="inst_ir_dif_albedo", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_vis_dir_albedo
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_vis_dir_albedo, standardName="inst_vis_dir_albedo", &
+      grid=gridOut, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+    ! exportable field: inst_vis_dif_albedo
+    call realizeConnectedInternCplField(exportState, &
+      field=inst_vis_dif_albedo, standardName="inst_vis_dif_albedo", &
+      grid=gridOut, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
@@ -551,14 +809,25 @@
 
   contains  !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   
-    subroutine realizeConnectedInternCplField(state, field, fieldName, grid, rc)
+    subroutine realizeConnectedInternCplField(state, field, standardName, grid, rc)
       type(ESMF_State)                :: state
       type(ESMF_Field)                :: field
-      character(len=*)                :: fieldName
+      character(len=*)                :: standardName
       type(ESMF_Grid)                 :: grid
       integer, intent(out), optional  :: rc
       
+      ! local variables
+      character(len=80)               :: fieldName
+      
       if (present(rc)) rc = ESMF_SUCCESS
+      
+      ! determine shortName from field dictionary, to be used as fieldName
+      call NUOPC_FieldDictionaryGetEntry(standardName, &
+        defaultShortName=fieldName, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, &
+        file=__FILE__)) &
+        return  ! bail out
       
       if (NUOPC_StateIsFieldConnected(state, fieldName=fieldName)) then
         ! realize the connected Field pass back up for internal cpl fields
@@ -990,27 +1259,51 @@
     ! -> set Updated Field Attribute to "true", indicating to the IPDv02p5
     ! generic code to set the timestamp for this Field
     
-    call setFieldsUpdated(exportState, fieldNameList=(/ &
-      "mzmfx",    & ! mean_zonal_moment_flx
-      "mmmfx",    & ! mean_merid_moment_flx
-      "mshfx",    & ! mean_sensi_heat_flx
-      "mlhfx",    & ! mean_laten_heat_flx
-      "mdlwfx",   & ! mean_down_lw_flx
-      "mdswfx",   & ! mean_down_sw_flx
-      "mprt",     & ! mean_prec_rate
-      "izmfx",    & ! inst_zonal_moment_flx
-      "immfx",    & ! inst_merid_moment_flx
-      "ishfx",    & ! inst_sensi_heat_flx
-      "ilhfx",    & ! inst_laten_heat_flx
-      "idlwfx",   & ! inst_down_lw_flx
-      "idswfx",   & ! inst_down_sw_flx
-      "ith2m",    & ! inst_temp_height2m
-      "ishh2m",   & ! inst_spec_humid_height2m
-      "iuwh10m",  & ! inst_u_wind_height10m
-      "ivwh10m",  & ! inst_v_wind_height10m
-      "its",      & ! inst_temp_height_surface
-      "ips",      & ! inst_pres_height_surface
-      "ish"       & ! inst_surface_height
+    call setFieldsUpdated(exportState, standardNameList=(/ &
+      "mean_zonal_moment_flx    ", &
+      "mean_merid_moment_flx    ", &
+      "mean_sensi_heat_flx      ", &
+      "mean_laten_heat_flx      ", &
+      "mean_down_lw_flx         ", &
+      "mean_down_sw_flx         ", &
+      "mean_prec_rate           ", &
+      "inst_zonal_moment_flx    ", &
+      "inst_merid_moment_flx    ", &
+      "inst_sensi_heat_flx      ", &
+      "inst_laten_heat_flx      ", &
+      "inst_down_lw_flx         ", &
+      "inst_down_sw_flx         ", &
+      "inst_temp_height2m       ", &
+      "inst_spec_humid_height2m ", &
+      "inst_u_wind_height10m    ", &
+      "inst_v_wind_height10m    ", &
+      "inst_temp_height_surface ", &
+      "inst_pres_height_surface ", &
+      "inst_surface_height      ", &
+      "mean_net_lw_flx          ", &
+      "mean_net_sw_flx          ", &
+      "inst_net_lw_flx          ", &
+      "inst_net_sw_flx          ", &
+      "mean_down_sw_ir_dir_flx  ", &
+      "mean_down_sw_ir_dif_flx  ", &
+      "mean_down_sw_vis_dir_flx ", &
+      "mean_down_sw_vis_dif_flx ", &
+      "inst_down_sw_ir_dir_flx  ", &
+      "inst_down_sw_ir_dif_flx  ", &
+      "inst_down_sw_vis_dir_flx ", &
+      "inst_down_sw_vis_dif_flx ", &
+      "mean_net_sw_ir_dir_flx   ", &
+      "mean_net_sw_ir_dif_flx   ", &
+      "mean_net_sw_vis_dir_flx  ", &
+      "mean_net_sw_vis_dif_flx  ", &
+      "inst_net_sw_ir_dir_flx   ", &
+      "inst_net_sw_ir_dif_flx   ", &
+      "inst_net_sw_vis_dir_flx  ", &
+      "inst_net_sw_vis_dif_flx  ", &
+      "inst_ir_dir_albedo       ", &
+      "inst_ir_dif_albedo       ", &
+      "inst_vis_dir_albedo      ", &
+      "inst_vis_dif_albedo      "  &
       /), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
@@ -1029,28 +1322,33 @@
         
   contains  !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   
-    subroutine setFieldsUpdated(state, fieldNameList, rc)
+    subroutine setFieldsUpdated(state, standardNameList, rc)
       type(ESMF_State)                :: state
-      character(len=*)                :: fieldNameList(:)
+      character(len=*)                :: standardNameList(:)
       integer, intent(out), optional  :: rc
       
       integer                         :: i
+      character(len=80)               :: fieldName
       type(ESMF_Field)                :: field
       type(ESMF_StateItem_Flag)       :: itemType
 
       if (present(rc)) rc = ESMF_SUCCESS
       
-      do i=1, size(fieldNameList)
-        call ESMF_StateGet(state, itemName=fieldNameList(i), &
-          itemType=itemType, rc=rc)
+      do i=1, size(standardNameList)
+        call NUOPC_FieldDictionaryGetEntry(standardNameList(i), &
+          defaultShortName=fieldName, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, &
+          file=__FILE__)) &
+          return  ! bail out
+        call ESMF_StateGet(state, itemName=fieldName, itemType=itemType, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
           file=__FILE__)) &
           return  ! bail out
         if (itemType /= ESMF_STATEITEM_NOTFOUND) then
           ! item exists -> set "Updated"
-          call ESMF_StateGet(state, itemName=fieldNameList(i), field=field, &
-            rc=rc)
+          call ESMF_StateGet(state, itemName=fieldName, field=field, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, &
             file=__FILE__)) &
@@ -1204,8 +1502,6 @@
       type(ESMF_State)              :: importState, exportState
       type(ESMF_Field)              :: field
       type(ESMF_StateItem_Flag)     :: itemType
-      real(ESMF_KIND_R8), pointer   :: dataPtr(:,:)
-      integer                       :: i,j
       
       !TODO: move the slice counter into an internal state to be instance safe
       integer, save                 :: slice=1

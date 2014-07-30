@@ -34,10 +34,10 @@ gfsdir=atmos/$(gfs)
 ## NUOPC compliant OCN models supply a standard makefile fragment
 
 #ocndummy_mk   = /home/Gerhard.Theurich/OCN-INSTALLS/DummyOCN-head/ocn.mk
-ocndummy_mk   = /home/Gerhard.Theurich/OCN-INSTALLS/DummyOCN-rev38154-ESMF700bs06/ocn.mk
-hycom_mk      = /home/Gerhard.Theurich/OCN-INSTALLS/HYCOM-rtofs0.25cfsr__branches__NUOPC.rev32555-ESMF630r/hycom_nuopc.mk
+#ocndummy_mk   = /home/Gerhard.Theurich/OCN-INSTALLS/DummyOCN-rev38154-ESMF700bs06/ocn.mk
+#hycom_mk      = /home/Gerhard.Theurich/OCN-INSTALLS/HYCOM-rtofs0.25cfsr__branches__NUOPC.rev32555-ESMF630r/hycom_nuopc.mk
 #hycom_mk      = /scratch1/portfolios/NCEPDEV/ocean/noscrub/Gerhard.Theurich/HYCOM-NCEP/rtofs0.25cfsr__branches__NUOPC.working/sorc/hycom_nuopc.mk
-mom5_mk       = /home/Fei.Liu/OCN-INSTALLS/2014-03-25-17-12-56/mom5.mk
+mom5_mk       = /ncrc/home1/Fei.Liu/OCN-INSTALLS/2014-06-27-18-37-14/mom5.mk
 #mom5_mk       = /home/Fei.Liu/OCN-INSTALLS/head/mom5.mk
 
 ################################################################################
@@ -45,8 +45,8 @@ mom5_mk       = /home/Fei.Liu/OCN-INSTALLS/2014-03-25-17-12-56/mom5.mk
 ## NUOPC compliant SEAICE models supply a standard makefile fragment
 
 #icedummy_mk   = /home/Gerhard.Theurich/ICE-INSTALLS/DummyICE-head/ice.mk
-icedummy_mk   = /home/Gerhard.Theurich/ICE-INSTALLS/DummyICE-rev38708/ice.mk
-cice_mk       = /home/Fei.Liu/ICE-INSTALLS/2014-03-19-18-52-00/cice.mk
+#icedummy_mk   = /home/Gerhard.Theurich/ICE-INSTALLS/DummyICE-rev38708/ice.mk
+#cice_mk       = /home/Fei.Liu/ICE-INSTALLS/2014-03-19-18-52-00/cice.mk
 
 ################################################################################
 ## Other settings
@@ -54,7 +54,8 @@ cice_mk       = /home/Fei.Liu/ICE-INSTALLS/2014-03-19-18-52-00/cice.mk
 #NETCDF_LIB   = /apps/netcdf/3.6.3/intel/lib/libnetcdf.a
 NETCDF_LIB   = /opt/cray/netcdf/4.2.0/intel/120/lib/libnetcdf.a
 
-LIBDIR=/lustre/f1/unswept/ncep/Shrinivas.Moorthi/nceplibs/nwprod/lib
+#LIBDIR=/lustre/f1/unswept/ncep/Shrinivas.Moorthi/nceplibs/nwprod/lib
+LIBDIR=/ncrc/home1/Shrinivas.Moorthi/nceplibs/nwprod/lib
 PARADIR=${LIBDIR}
 POSTDIR=/scratch2/portfolios/NCEPDEV/global/save/Sarah.Lu/Summer_School_2013/lib
 
@@ -106,14 +107,16 @@ FIXED       = -fixed
 R8          = -r8
 
 FINCS       = $(ESMF_INC) $(NEMSIO_INC)
-TRAPS       =
+#TRAPS       =
+ TRAPS       = -check all -ftrapuv -fp-stack-check -fstack-protector -heap-arrays
+#TRAPS       = -check all -ftrapuv -fp-stack-check -fstack-protector -heap-arrays
 #TRAPS       = -check all -ftrapuv -fp-stack-check -fstack-protector -heap-arrays
 
-FFLAGS      = $(TRAPS) $(FINCS) -fp-model source
+FFLAGS      = $(TRAPS) $(FINCS) -fp-model source -g -O0 -traceback
 
 OPTS_NMM    = -O3
 #OPTS_GFS    = -O0 -g -traceback
-OPTS_GFS    = -O3
+#OPTS_GFS    = -O3
 OPTS_GEN    = -O3
 OPTS_FIM    = -O3
 

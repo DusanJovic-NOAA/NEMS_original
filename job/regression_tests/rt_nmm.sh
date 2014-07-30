@@ -220,25 +220,36 @@ do
 printf %s " Comparing " $i "....." >> ${REGRESSIONTEST_LOG}
 printf %s " Comparing " $i "....."
 
-if [ -f ${RUNDIR}/$i ] ; then
+if [ ! -f ${RUNDIR}/$i ] ; then
+  
+  echo ".......MISSING file" >> ${REGRESSIONTEST_LOG} 
+  echo ".......MISSING file" 
 
+elif [ ! -f ${RTPWD}/${CNTL_DIR}/$i ] ; then 
+
+  echo ".......MISSING baseline" >> ${REGRESSIONTEST_LOG} 
+  echo ".......MISSING baseline" 
+   
+else 
+   
   d=`cmp ${RTPWD}/${CNTL_DIR}/$i ${RUNDIR}/$i | wc -l`
 
   if [[ $d -ne 0 ]] ; then
-   (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> ${REGRESSIONTEST_LOG}
-    echo " ......NOT OK" ; echo ; echo "   $i differ!   " ; exit 2
+#   (echo " ......NOT OK" ; echo ; echo "   $i differ!   ")>> ${REGRESSIONTEST_LOG}
+#    echo " ......NOT OK" ; echo ; echo "   $i differ!   " ; exit 2
+    echo ".......NOT OK" >> ${REGRESSIONTEST_LOG} 
+    echo ".......NOT OK" 
+    test_status='FAIL' 
+    if [ ${BAIL_CONDITION} = FILE ]; then 
+      echo "BAIL_CONDITION=FILE, Abort testing on failure" 
+      exit 2 
+    fi
+     
+  else
+
+    echo "....OK" >> ${REGRESSIONTEST_LOG}
+    echo "....OK"
   fi
-
-  echo "....OK" >> ${REGRESSIONTEST_LOG}
-  echo "....OK"
-
-else
-
-  echo "Missing " ${RUNDIR}/$i " output file" >> ${REGRESSIONTEST_LOG}
-  echo "Missing " ${RUNDIR}/$i " output file"
- (echo;echo " Test ${TEST_NR} failed ")>> ${REGRESSIONTEST_LOG}
-  echo;echo " Test ${TEST_NR} failed "
-  exit 2
 
 fi
 
@@ -268,10 +279,17 @@ done
      fi
 # ---
 
-echo " Test ${TEST_NR} passed " >> ${REGRESSIONTEST_LOG}
+echo " Test ${TEST_NR} ${test_status} " >> ${REGRESSIONTEST_LOG}
 (echo;echo;echo)                >> ${REGRESSIONTEST_LOG}
-echo " Test ${TEST_NR} passed "
+echo " Test ${TEST_NR} ${test_status} "
 
+if [ ${BAIL_CONDITION} = TEST ]; then 
+  if [ ${test_status} = FAIL ]; then 
+    echo "BAIL_CONDITION=TEST, Abort testing on failure" 
+    exit 2 
+  fi 
+fi 
+                
 sleep 4
 clear;echo;echo
 

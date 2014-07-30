@@ -9,6 +9,7 @@ module module_CPLFIELDS
 
 #ifdef WITH_NUOPC
   use ESMF
+  use NUOPC
 #endif
   
   implicit none
@@ -41,7 +42,32 @@ module module_CPLFIELDS
                        inst_v_wind_height10m,       & ! 17
                        inst_temp_height_surface,    & ! 18
                        inst_pres_height_surface,    & ! 19
-                       inst_surface_height            ! 20
+                       inst_surface_height,         & ! 20
+                       mean_net_lw_flx,             & ! 21
+                       mean_net_sw_flx,             & ! 22
+                       inst_net_lw_flx,             & ! 23
+                       inst_net_sw_flx,             & ! 24
+                       mean_down_sw_ir_dir_flx,     & ! 25
+                       mean_down_sw_ir_dif_flx,     & ! 26
+                       mean_down_sw_vis_dir_flx,    & ! 27
+                       mean_down_sw_vis_dif_flx,    & ! 28
+                       inst_down_sw_ir_dir_flx,     & ! 29
+                       inst_down_sw_ir_dif_flx,     & ! 30
+                       inst_down_sw_vis_dir_flx,    & ! 31
+                       inst_down_sw_vis_dif_flx,    & ! 32
+                       mean_net_sw_ir_dir_flx,      & ! 33
+                       mean_net_sw_ir_dif_flx,      & ! 34
+                       mean_net_sw_vis_dir_flx,     & ! 35
+                       mean_net_sw_vis_dif_flx,     & ! 36
+                       inst_net_sw_ir_dir_flx,      & ! 37
+                       inst_net_sw_ir_dif_flx,      & ! 38
+                       inst_net_sw_vis_dir_flx,     & ! 39
+                       inst_net_sw_vis_dif_flx,     & ! 40
+                       inst_ir_dir_albedo,          & ! 41
+                       inst_ir_dif_albedo,          & ! 42
+                       inst_vis_dir_albedo,         & ! 43
+                       inst_vis_dif_albedo            ! 44
+                       
   type(ESMF_Field)  :: mean_zonal_moment_flx,       & !  1
                        mean_merid_moment_flx,       & !  2
                        mean_sensi_heat_flx,         & !  3
@@ -61,7 +87,31 @@ module module_CPLFIELDS
                        inst_v_wind_height10m,       & ! 17
                        inst_temp_height_surface,    & ! 18
                        inst_pres_height_surface,    & ! 19
-                       inst_surface_height            ! 20
+                       inst_surface_height,         & ! 20
+                       mean_net_lw_flx,             & ! 21
+                       mean_net_sw_flx,             & ! 22
+                       inst_net_lw_flx,             & ! 23
+                       inst_net_sw_flx,             & ! 24
+                       mean_down_sw_ir_dir_flx,     & ! 25
+                       mean_down_sw_ir_dif_flx,     & ! 26
+                       mean_down_sw_vis_dir_flx,    & ! 27
+                       mean_down_sw_vis_dif_flx,    & ! 28
+                       inst_down_sw_ir_dir_flx,     & ! 29
+                       inst_down_sw_ir_dif_flx,     & ! 30
+                       inst_down_sw_vis_dir_flx,    & ! 31
+                       inst_down_sw_vis_dif_flx,    & ! 32
+                       mean_net_sw_ir_dir_flx,      & ! 33
+                       mean_net_sw_ir_dif_flx,      & ! 34
+                       mean_net_sw_vis_dir_flx,     & ! 35
+                       mean_net_sw_vis_dif_flx,     & ! 36
+                       inst_net_sw_ir_dir_flx,      & ! 37
+                       inst_net_sw_ir_dif_flx,      & ! 38
+                       inst_net_sw_vis_dir_flx,     & ! 39
+                       inst_net_sw_vis_dif_flx,     & ! 40
+                       inst_ir_dir_albedo,          & ! 41
+                       inst_ir_dif_albedo,          & ! 42
+                       inst_vis_dir_albedo,         & ! 43
+                       inst_vis_dif_albedo            ! 44
   
   ! Import Fields ----------------------------------------
   public            :: inst_sea_surf_temp
@@ -94,107 +144,123 @@ module module_CPLFIELDS
     !-----
     
     if (present(rc)) rc=ESMF_SUCCESS
+    
+    call fillFields( &
+      fieldList=(/ &
+        mean_zonal_moment_flx,       & !  1
+        mean_merid_moment_flx,       & !  2
+        mean_sensi_heat_flx,         & !  3
+        mean_laten_heat_flx,         & !  4
+        mean_down_lw_flx,            & !  5
+        mean_down_sw_flx,            & !  6
+        mean_prec_rate,              & !  7
+        inst_zonal_moment_flx,       & !  8
+        inst_merid_moment_flx,       & !  9
+        inst_sensi_heat_flx,         & ! 10
+        inst_laten_heat_flx,         & ! 11
+        inst_down_lw_flx,            & ! 12
+        inst_down_sw_flx,            & ! 13
+        inst_temp_height2m,          & ! 14
+        inst_spec_humid_height2m,    & ! 15
+        inst_u_wind_height10m,       & ! 16
+        inst_v_wind_height10m,       & ! 17
+        inst_temp_height_surface,    & ! 18
+        inst_pres_height_surface,    & ! 19
+        inst_surface_height,         & ! 20
+        mean_net_lw_flx,             & ! 21
+        mean_net_sw_flx,             & ! 22
+        inst_net_lw_flx,             & ! 23
+        inst_net_sw_flx,             & ! 24
+        mean_down_sw_ir_dir_flx,     & ! 25
+        mean_down_sw_ir_dif_flx,     & ! 26
+        mean_down_sw_vis_dir_flx,    & ! 27
+        mean_down_sw_vis_dif_flx,    & ! 28
+        inst_down_sw_ir_dir_flx,     & ! 29
+        inst_down_sw_ir_dif_flx,     & ! 30
+        inst_down_sw_vis_dir_flx,    & ! 31
+        inst_down_sw_vis_dif_flx,    & ! 32
+        mean_net_sw_ir_dir_flx,      & ! 33
+        mean_net_sw_ir_dif_flx,      & ! 34
+        mean_net_sw_vis_dir_flx,     & ! 35
+        mean_net_sw_vis_dif_flx,     & ! 36
+        inst_net_sw_ir_dir_flx,      & ! 37
+        inst_net_sw_ir_dif_flx,      & ! 38
+        inst_net_sw_vis_dir_flx,     & ! 39
+        inst_net_sw_vis_dif_flx,     & ! 40
+        inst_ir_dir_albedo,          & ! 41
+        inst_ir_dif_albedo,          & ! 42
+        inst_vis_dir_albedo,         & ! 43
+        inst_vis_dif_albedo          & ! 44
+      /), &
+      idList=(/ &
+          1, &
+          2, &
+          3, &
+          4, &
+          5, &
+          6, &
+          7, &
+          8, &
+          9, &
+         10, &
+         11, &
+         12, &
+         13, &
+         14, &
+         15, &
+         16, &
+         17, &
+         18, &
+         19, &
+         20, &
+         21, &
+         22, &
+         23, &
+         24, &
+         25, &
+         26, &
+         27, &
+         28, &
+         29, &
+         30, &
+         31, &
+         32, &
+         33, &
+         34, &
+         35, &
+         36, &
+         37, &
+         38, &
+         39, &
+         40, &
+         41, &
+         42, &
+         43, &
+         44  &
+      /), rc=rc)
+    ESMF_ERR_RETURN(rc,rc)
 
-    ! mean_zonal_moment_flx
-    call ESMF_FieldScatter(mean_zonal_moment_flx, data_a2oi(:,:,1), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
+  contains
+  
+    subroutine fillFields(fieldList, idList, rc)
+      type(ESMF_Field)  :: fieldList(:)
+      integer           :: idList(:)
+      integer, optional :: rc
       
-    ! mean_merid_moment_flx
-    call ESMF_FieldScatter(mean_merid_moment_flx, data_a2oi(:,:,2), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
+      integer           :: i
       
-    ! mean_sensi_heat_flx
-    call ESMF_FieldScatter(mean_sensi_heat_flx, data_a2oi(:,:,3), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
+      if (present(rc)) rc=ESMF_SUCCESS
       
-    ! mean_laten_heat_flx
-    call ESMF_FieldScatter(mean_laten_heat_flx, data_a2oi(:,:,4), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
+      do i=1, size(fieldList)
+        if (NUOPC_IsCreated(fieldList(i))) then
+          call ESMF_FieldScatter(fieldList(i), data_a2oi(:,:,idList(i)), &
+            rootPet=rootPet, rc=rc)
+          ESMF_ERR_RETURN(rc,rc)
+        endif
+      enddo
       
-    ! mean_down_lw_flx
-    call ESMF_FieldScatter(mean_down_lw_flx, data_a2oi(:,:,5), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
-      
-    ! mean_down_sw_flx
-    call ESMF_FieldScatter(mean_down_sw_flx, data_a2oi(:,:,6), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
-      
-    ! mean_prec_rate
-    call ESMF_FieldScatter(mean_prec_rate, data_a2oi(:,:,7), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
-      
-    ! inst_zonal_moment_flx
-    call ESMF_FieldScatter(inst_zonal_moment_flx, data_a2oi(:,:,8), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
-      
-    ! inst_merid_moment_flx
-    call ESMF_FieldScatter(inst_merid_moment_flx, data_a2oi(:,:,9), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
-      
-    ! inst_sensi_heat_flx
-    call ESMF_FieldScatter(inst_sensi_heat_flx, data_a2oi(:,:,10), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
-      
-    ! inst_laten_heat_flx
-    call ESMF_FieldScatter(inst_laten_heat_flx, data_a2oi(:,:,11), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
-      
-    ! inst_down_lw_flx
-    call ESMF_FieldScatter(inst_down_lw_flx, data_a2oi(:,:,12), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
-      
-    ! inst_down_sw_flx
-    call ESMF_FieldScatter(inst_down_sw_flx, data_a2oi(:,:,13), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
-      
-    ! inst_temp_height2m
-    call ESMF_FieldScatter(inst_temp_height2m, data_a2oi(:,:,14), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
-      
-    ! inst_spec_humid_height2m
-    call ESMF_FieldScatter(inst_spec_humid_height2m, data_a2oi(:,:,15), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
-      
-    ! inst_u_wind_height10m
-    call ESMF_FieldScatter(inst_u_wind_height10m, data_a2oi(:,:,16), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
-      
-    ! inst_v_wind_height10m
-    call ESMF_FieldScatter(inst_v_wind_height10m, data_a2oi(:,:,17), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
-      
-    ! inst_temp_height_surface
-    call ESMF_FieldScatter(inst_temp_height_surface, data_a2oi(:,:,18), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
-      
-    ! inst_pres_height_surface
-    call ESMF_FieldScatter(inst_pres_height_surface, data_a2oi(:,:,19), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
-      
-    ! inst_surface_height
-    call ESMF_FieldScatter(inst_surface_height, data_a2oi(:,:,20), &
-      rootPet=rootPet, rc=rc)
-    ESMF_ERR_RETURN(rc,rc)
-      
+    end subroutine
+
   end subroutine
 #else
   subroutine fillExportFields(data_a2oi, lonr, latr, rootPet, rc)

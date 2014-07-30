@@ -26,6 +26,10 @@ COMPILE_SORC_NUOPC=YES          # recompile the NUOPC exec
 CLEAN_SORC=YES                  # clean the source after successful run
 CLEAN_RUNDIR=YES                # clean rundir after successful run
 
+export BAIL_CONDITION=FILE      # NONE=run all tests even with failures
+                                # TEST=stop testing if a test fails
+                                # FILE=stop testing when a file compare fails
+
 export dprefix1=""
 export dprefix2=""
 export MACHINE_ID=${MACHINE_ID:-wcoss}
@@ -37,10 +41,13 @@ if [ $MACHINE_ID = wcoss ]; then
   export PTMP=/ptmpp1
   export SCHEDULER=lsf
 elif [ $MACHINE_ID = gaea ]; then 
-  export DISKNM=/lustre/ltfs/scratch/Ratko.Vasic
-  export STMP=/lustre/fs/scratch
-  export PTMP=/lustre/fs/scratch
+  export CLASS=debug
+  export ACCNR
+  export DISKNM=/lustre/f1/Ratko.Vasic
+  export STMP=/lustre/f1/ncep/$LOGNAME/ptmp
+  export PTMP=/lustre/f1/ncep/$LOGNAME/ptmp
   export SCHEDULER=moab
+  export SIGHDR=/lustre/f1/unswept/ncep/Shrinivas.Moorthi/para_branch/para_new/sorc/global_sighdr.fd/global_sighdr
 elif [ $MACHINE_ID = zeus ]; then 
   export ACCNR
   export dprefix1=/scratch1/portfolios/NCEPDEV
@@ -441,7 +448,13 @@ fi
 
 if [ $RT_NUOPC = true ] ; then
   echo "Running the NEMS with NUOPC test suite"
-  export RTPWD=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/REGRESSION_TEST_NUOPC_mergeworx
+  if [ $MACHINE_ID = zeus ]; then
+    export IC_DIR=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/GSM_INITIAL_CONDITIONS
+    export RTPWD=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/REGRESSION_TEST_NUOPC_v0003
+  elif [ $MACHINE_ID = gaea ]; then
+    export IC_DIR=/lustre/f1/unswept/ncep/Gerhard.Theurich/GSM_INITIAL_CONDITIONS
+    export RTPWD=/lustre/f1/unswept/Fei.Liu/REGRESSION_TEST_NUOPC_v0003
+  fi
   
   if [ ${COMPILE_SORC_NUOPC:-YES} = YES ] ; then
   
@@ -462,7 +475,16 @@ if [ $RT_NUOPC = true ] ; then
       echo "NEMS with NUOPC not yet available on this machine"
       exit
 
-    elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
+    elif [ $MACHINE_ID = gaea ]; then
+
+      ./esmf_version nuopc_gaea              >> ${COMPILE_LOG} 2>&1
+      source ./conf/modules.nems.Gaea        >> ${COMPILE_LOG} 2>&1
+      module list                            >> ${COMPILE_LOG} 2>&1
+      gmake clean                            >> ${COMPILE_LOG} 2>&1
+      #gmake nmm_gsm OCN=mom5,hycom,dummy ICE=dummy,cice >> ${COMPILE_LOG} 2>&1
+      gmake nmm_gsm OCN=mom5 >> ${COMPILE_LOG} 2>&1
+
+    elif [ $MACHINE_ID = zeus ]; then
 
       ./esmf_version nuopc_zeus              >> ${COMPILE_LOG} 2>&1
       source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
@@ -492,7 +514,7 @@ if [ $RT_NUOPC = true ] ; then
   #
   ###############################################################################
 
-  if [ $MACHINE_ID = zeus ] ; then
+  if [ $MACHINE_ID = zeus -o $MACHINE_ID = gaeaOFF ] ; then
 
     export TEST_DESCR="NUOPC: NMM-B pure binary input"
 
@@ -539,7 +561,7 @@ if [ $RT_NUOPC = true ] ; then
   #
   ###############################################################################
 
-  if [ $MACHINE_ID = zeus ] ; then
+  if [ $MACHINE_ID = zeus -o $MACHINE_ID = gaea ] ; then
 
     export TEST_DESCR="NUOPC: GSM with stepable Run() driven in 12h intervals"
 
@@ -577,7 +599,7 @@ if [ $RT_NUOPC = true ] ; then
   #
   ###############################################################################
 
-  if [ $MACHINE_ID = zeus ] ; then
+  if [ $MACHINE_ID = zeus -o $MACHINE_ID = gaeaOFF ] ; then
 
     export TEST_DESCR="NUOPC: GSM + HYCOM side-by-side from data with 6h intervals"
 
@@ -585,7 +607,6 @@ if [ $RT_NUOPC = true ] ; then
     (( TEST_NR=TEST_NR+1 ))
     export RUNDIR=${RUNDIR_ROOT}/GSM_HYCOM_SIDEbySIDE
     export CNTL_DIR=GSM_HYCOM_2DAY_2009120100
-    export IC_DIR=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/GSM_INITIAL_CONDITIONS
     export LIST_FILES=" \
 	sigf00 sigf03 sigf06 sigf12 sigf18 sigf24 sigf30 sigf36 sigf42 sigf48 \
 	sfcf00 sfcf03 sfcf06 sfcf12 sfcf18 sfcf24 sfcf30 sfcf36 sfcf42 sfcf48 \
@@ -621,7 +642,7 @@ if [ $RT_NUOPC = true ] ; then
   #
   ###############################################################################
 
-  if [ $MACHINE_ID = zeusOFF ] ; then
+  if [ $MACHINE_ID = zeusOFF -o $MACHINE_ID = gaeaOFF ] ; then
 
     export TEST_DESCR="NUOPC: GSM + MOM5 side-by-side from data with 2h intervals"
 
@@ -629,7 +650,6 @@ if [ $RT_NUOPC = true ] ; then
     (( TEST_NR=TEST_NR+1 ))
     export RUNDIR=${RUNDIR_ROOT}/GSM_MOM5_SIDEbySIDE
     export CNTL_DIR=GFS_NODFI_2009120100
-    export IC_DIR=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/GSM_INITIAL_CONDITIONS
     export LIST_FILES=" \
 	sigf00 sigf03 sigf06 sigf12 sigf18 sigf24 sigf30 sigf36 sigf42 sigf48 \
 	sfcf00 sfcf03 sfcf06 sfcf12 sfcf18 sfcf24 sfcf30 sfcf36 sfcf42 sfcf48 \
@@ -665,28 +685,187 @@ if [ $RT_NUOPC = true ] ; then
   #
   ###############################################################################
 
-  if [ $MACHINE_ID = zeusOFF ] ; then
+  if [ $MACHINE_ID = zeus -o $MACHINE_ID = gaeaOFF ] ; then
 
     export TEST_DESCR="NUOPC: GSM <-3h-> Mediator <-6h-> DummyOCN ... 2 days"
 
     #---------------------
     (( TEST_NR=TEST_NR+1 ))
     export RUNDIR=${RUNDIR_ROOT}/GSM_MED_DummyOCN
-    export CNTL_DIR=GFS_NODFI_2009120100
-    export IC_DIR=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/GSM_INITIAL_CONDITIONS
+    export CNTL_DIR=GSM_MED_DummyOCN_2DAY_2009120100
     export LIST_FILES=" \
 	sigf00 sigf03 sigf06 sigf12 sigf18 sigf24 sigf30 sigf36 sigf42 sigf48 \
 	sfcf00 sfcf03 sfcf06 sfcf12 sfcf18 sfcf24 sfcf30 sfcf36 sfcf42 sfcf48 \
-	flxf00 flxf03 flxf06 flxf12 flxf18 flxf24 flxf30 flxf36 flxf42 flxf48"
+	flxf00 flxf03 flxf06 flxf12 flxf18 flxf24 flxf30 flxf36 flxf42 flxf48 \
+        weights_ATM-TO-MED_inst_down_lw_flx.nc \
+        weights_ATM-TO-MED_inst_down_sw_flx.nc \
+        weights_ATM-TO-MED_inst_down_sw_ir_dif_flx.nc \
+        weights_ATM-TO-MED_inst_down_sw_ir_dir_flx.nc \
+	weights_ATM-TO-MED_inst_down_sw_vis_dif_flx.nc \
+	weights_ATM-TO-MED_inst_down_sw_vis_dir_flx.nc \
+	weights_ATM-TO-MED_inst_ir_dif_albedo.nc \
+        weights_ATM-TO-MED_inst_ir_dir_albedo.nc \
+        weights_ATM-TO-MED_inst_laten_heat_flx.nc \
+        weights_ATM-TO-MED_inst_merid_moment_flx.nc \
+        weights_ATM-TO-MED_inst_net_lw_flx.nc \
+	weights_ATM-TO-MED_inst_net_sw_flx.nc \
+	weights_ATM-TO-MED_inst_net_sw_ir_dif_flx.nc \
+	weights_ATM-TO-MED_inst_net_sw_ir_dir_flx.nc \
+        weights_ATM-TO-MED_inst_net_sw_vis_dif_flx.nc \
+        weights_ATM-TO-MED_inst_net_sw_vis_dir_flx.nc \
+        weights_ATM-TO-MED_inst_pres_height_surface.nc \
+        weights_ATM-TO-MED_inst_sensi_heat_flx.nc \
+	weights_ATM-TO-MED_inst_spec_humid_height2m.nc \
+	weights_ATM-TO-MED_inst_surface_height.nc \
+	weights_ATM-TO-MED_inst_temp_height2m.nc \
+        weights_ATM-TO-MED_inst_temp_height_surface.nc \
+        weights_ATM-TO-MED_inst_u_wind_height10m.nc \
+        weights_ATM-TO-MED_inst_vis_dif_albedo.nc \
+        weights_ATM-TO-MED_inst_vis_dir_albedo.nc \
+	weights_ATM-TO-MED_inst_v_wind_height10m.nc \
+	weights_ATM-TO-MED_inst_zonal_moment_flx.nc \
+	weights_ATM-TO-MED_mean_down_lw_flx.nc \
+        weights_ATM-TO-MED_mean_down_sw_flx.nc \
+        weights_ATM-TO-MED_mean_down_sw_ir_dif_flx.nc \
+        weights_ATM-TO-MED_mean_down_sw_ir_dir_flx.nc \
+        weights_ATM-TO-MED_mean_down_sw_vis_dif_flx.nc \
+	weights_ATM-TO-MED_mean_down_sw_vis_dir_flx.nc \
+	weights_ATM-TO-MED_mean_laten_heat_flx.nc \
+	weights_ATM-TO-MED_mean_merid_moment_flx.nc \
+        weights_ATM-TO-MED_mean_net_lw_flx.nc \
+        weights_ATM-TO-MED_mean_net_sw_flx.nc \
+        weights_ATM-TO-MED_mean_net_sw_ir_dif_flx.nc \
+        weights_ATM-TO-MED_mean_net_sw_ir_dir_flx.nc \
+	weights_ATM-TO-MED_mean_net_sw_vis_dif_flx.nc \
+	weights_ATM-TO-MED_mean_net_sw_vis_dir_flx.nc \
+	weights_ATM-TO-MED_mean_prec_rate.nc \
+        weights_ATM-TO-MED_mean_sensi_heat_flx.nc \
+        weights_ATM-TO-MED_mean_zonal_moment_flx.nc \
+        weights_MED-TO-ATM_sea_surface_temperature.nc \
+        weights_MED-TO-OCN_inst_pres_height_surface.nc \
+	weights_MED-TO-OCN_mean_down_lw_flx.nc \
+	weights_MED-TO-OCN_mean_laten_heat_flx.nc \
+	weights_MED-TO-OCN_mean_merid_moment_flx.nc \
+        weights_MED-TO-OCN_mean_prec_rate.nc \
+        weights_MED-TO-OCN_mean_sensi_heat_flx.nc \
+        weights_MED-TO-OCN_mean_zonal_moment_flx.nc \
+        weights_OCN-TO-MED_sea_surface_temperature.nc \
+        field_atm_export_idlwfx.nc \
+        field_atm_export_idswfx.nc \
+        field_atm_export_iirdifa.nc \
+        field_atm_export_iirdira.nc \
+        field_atm_export_ilhfx.nc \
+        field_atm_export_immfx.nc \
+        field_atm_export_inlwfx.nc \
+        field_atm_export_inst_net_sw_flux_nir_dif.nc \
+        field_atm_export_inst_net_sw_flux_nir_dir.nc \
+        field_atm_export_inst_net_sw_flux_vis_dif.nc \
+        field_atm_export_inst_net_sw_flux_vis_dir.nc \
+        field_atm_export_inst_sw_flux_nir_dif.nc \
+        field_atm_export_inst_sw_flux_nir_dir.nc \
+        field_atm_export_inst_sw_flux_vis_dif.nc \
+        field_atm_export_inst_sw_flux_vis_dir.nc \
+        field_atm_export_inswfx.nc \
+        field_atm_export_ips.nc \
+        field_atm_export_ishfx.nc \
+        field_atm_export_ishh2m.nc \
+        field_atm_export_ish.nc \
+        field_atm_export_ith2m.nc \
+        field_atm_export_its.nc \
+        field_atm_export_iuwh10m.nc \
+        field_atm_export_ivisdifa.nc \
+        field_atm_export_ivisdira.nc \
+        field_atm_export_ivwh10m.nc \
+        field_atm_export_izmfx.nc \
+        field_atm_export_lprec.nc \
+        field_atm_export_mdlwfx.nc \
+        field_atm_export_mdswfx.nc \
+        field_atm_export_mlhfx.nc \
+        field_atm_export_mmmfx.nc \
+        field_atm_export_mnlwfx.nc \
+        field_atm_export_mnswfx.nc \
+        field_atm_export_mshfx.nc \
+        field_atm_export_mzmfx.nc \
+        field_atm_export_sw_flux_nir_dif.nc \
+        field_atm_export_sw_flux_nir_dir.nc \
+        field_atm_export_sw_flux_vis_dif.nc \
+        field_atm_export_sw_flux_vis_dir.nc \
+        field_atm_export_sw_net_flux_nir_dif.nc \
+        field_atm_export_sw_net_flux_nir_dir.nc \
+        field_atm_export_sw_net_flux_vis_dif.nc \
+        field_atm_export_sw_net_flux_vis_dir.nc \
+        field_atm_import_sst.nc \
+        field_med_from_atm_idlwfx.nc \
+        field_med_from_atm_idswfx.nc \
+        field_med_from_atm_iirdifa.nc \
+        field_med_from_atm_iirdira.nc \
+        field_med_from_atm_ilhfx.nc \
+        field_med_from_atm_immfx.nc \
+        field_med_from_atm_inlwfx.nc \
+        field_med_from_atm_inst_net_sw_flux_nir_dif.nc \
+        field_med_from_atm_inst_net_sw_flux_nir_dir.nc \
+        field_med_from_atm_inst_net_sw_flux_vis_dif.nc \
+        field_med_from_atm_inst_net_sw_flux_vis_dir.nc \
+        field_med_from_atm_inst_sw_flux_nir_dif.nc \
+        field_med_from_atm_inst_sw_flux_nir_dir.nc \
+        field_med_from_atm_inst_sw_flux_vis_dif.nc \
+        field_med_from_atm_inst_sw_flux_vis_dir.nc \
+        field_med_from_atm_inswfx.nc \
+        field_med_from_atm_ips.nc \
+        field_med_from_atm_ishfx.nc \
+        field_med_from_atm_ishh2m.nc \
+        field_med_from_atm_ish.nc \
+        field_med_from_atm_ith2m.nc \
+        field_med_from_atm_its.nc \
+        field_med_from_atm_iuwh10m.nc \
+        field_med_from_atm_ivisdifa.nc \
+        field_med_from_atm_ivisdira.nc \
+        field_med_from_atm_ivwh10m.nc \
+        field_med_from_atm_izmfx.nc \
+        field_med_from_atm_lprec.nc \
+        field_med_from_atm_mdlwfx.nc \
+        field_med_from_atm_mdswfx.nc \
+        field_med_from_atm_mlhfx.nc \
+        field_med_from_atm_mmmfx.nc \
+        field_med_from_atm_mnlwfx.nc \
+        field_med_from_atm_mnswfx.nc \
+        field_med_from_atm_mshfx.nc \
+        field_med_from_atm_mzmfx.nc \
+        field_med_from_atm_sw_flux_nir_dif.nc \
+        field_med_from_atm_sw_flux_nir_dir.nc \
+        field_med_from_atm_sw_flux_vis_dif.nc \
+        field_med_from_atm_sw_flux_vis_dir.nc \
+        field_med_from_atm_sw_net_flux_nir_dif.nc \
+        field_med_from_atm_sw_net_flux_nir_dir.nc \
+        field_med_from_atm_sw_net_flux_vis_dif.nc \
+        field_med_from_atm_sw_net_flux_vis_dir.nc \
+        field_med_from_ocn_sst.nc \
+        field_med_to_atm_sst.nc \
+        field_med_to_ocn_ips.nc \
+        field_med_to_ocn_lprec.nc \
+        field_med_to_ocn_mdlwfx.nc \
+        field_med_to_ocn_mlhfx.nc \
+        field_med_to_ocn_mmmfx.nc \
+        field_med_to_ocn_mshfx.nc \
+        field_med_to_ocn_mzmfx.nc \
+        field_ocn_export_sst.nc \
+        field_ocn_import_ips.nc \
+        field_ocn_import_lprec.nc \
+        field_ocn_import_mdlwfx.nc \
+        field_ocn_import_mlhfx.nc \
+        field_ocn_import_mmmfx.nc \
+        field_ocn_import_mshfx.nc \
+        field_ocn_import_mzmfx.nc "
     #---------------------
     export_gsm
     export TASKS=64
-    export WLCLK=30
+    export WLCLK=60
     export CDATE=2009120100
     export NDAYS=2
     export wave=126 ; export lm=64 ; export lsoil=4
     export CPLFLX=.true.
     export A2OI_OUT=.true.
+    export NGRID_A2OI=44
     # - nems.configure ---
     export_nems
     export atm_model=gsm
@@ -708,32 +887,212 @@ if [ $RT_NUOPC = true ] ; then
   # TEST   - GSM <-> Mediator <-> MOM5
   #        -      1h           2h    coupling interval
   #        - Exchanging Fields
-  #        - Starting at 2009120100, running for 4 days
+  #        - Starting at 2009120100, running for 1 day
   #
   ###############################################################################
 
-  if [ $MACHINE_ID = zeus ] ; then
+  if [ $MACHINE_ID = zeus -o $MACHINE_ID = gaeaOFF ] ; then
 
-    export TEST_DESCR="NUOPC: GSM <-1h-> Mediator <-2h-> MOM5 ... 4 days"
+    export TEST_DESCR="NUOPC: GSM <-1h-> Mediator <-2h-> MOM5 ... 1 day"
 
     #---------------------
     (( TEST_NR=TEST_NR+1 ))
-    export RUNDIR=${RUNDIR_ROOT}/GSM_MED_MOM5
-    export CNTL_DIR=GFS_NODFI_2009120100_1h
-    export IC_DIR=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/GSM_INITIAL_CONDITIONS
+    export RUNDIR=${RUNDIR_ROOT}/GSM_MED_MOM5_1day
+    export CNTL_DIR=GFS_NODFI_2009120100_1h_2Way20140424_1day
     export LIST_FILES=" \
-	sigf00 sigf01 sigf02 sigf24 sigf25 sigf26 sigf48 sigf72 sigf95 sigf96 \
-	sfcf00 sfcf01 sfcf02 sfcf24 sfcf25 sfcf26 sfcf48 sfcf72 sfcf95 sfcf96 \
-	flxf00 flxf01 flxf02 flxf24 flxf25 flxf26 flxf48 flxf72 flxf95 flxf96"
+	sigf00 sigf01 sigf02 sigf04 sigf06 sigf12 sigf24 \
+	sfcf00 sfcf01 sfcf02 sfcf04 sfcf06 sfcf12 sfcf24 \
+	flxf00 flxf01 flxf02 flxf04 flxf06 flxf12 flxf24 \
+        weights_ATM-TO-MED_inst_down_lw_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_ir_dif_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_ir_dir_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_vis_dif_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_vis_dir_flx.nc  \
+        weights_ATM-TO-MED_inst_ir_dif_albedo.nc  \
+        weights_ATM-TO-MED_inst_ir_dir_albedo.nc  \
+        weights_ATM-TO-MED_inst_laten_heat_flx.nc  \
+        weights_ATM-TO-MED_inst_merid_moment_flx.nc  \
+        weights_ATM-TO-MED_inst_net_lw_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_ir_dif_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_ir_dir_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_vis_dif_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_vis_dir_flx.nc  \
+        weights_ATM-TO-MED_inst_pres_height_surface.nc  \
+        weights_ATM-TO-MED_inst_sensi_heat_flx.nc  \
+        weights_ATM-TO-MED_inst_spec_humid_height2m.nc  \
+        weights_ATM-TO-MED_inst_surface_height.nc  \
+        weights_ATM-TO-MED_inst_temp_height2m.nc  \
+        weights_ATM-TO-MED_inst_temp_height_surface.nc  \
+        weights_ATM-TO-MED_inst_u_wind_height10m.nc  \
+        weights_ATM-TO-MED_inst_vis_dif_albedo.nc  \
+        weights_ATM-TO-MED_inst_vis_dir_albedo.nc  \
+        weights_ATM-TO-MED_inst_v_wind_height10m.nc  \
+        weights_ATM-TO-MED_inst_zonal_moment_flx.nc  \
+        weights_ATM-TO-MED_mean_down_lw_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_ir_dif_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_ir_dir_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_vis_dif_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_vis_dir_flx.nc  \
+        weights_ATM-TO-MED_mean_laten_heat_flx.nc  \
+        weights_ATM-TO-MED_mean_merid_moment_flx.nc  \
+        weights_ATM-TO-MED_mean_net_lw_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_ir_dif_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_ir_dir_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_vis_dif_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_vis_dir_flx.nc  \
+        weights_ATM-TO-MED_mean_prec_rate.nc  \
+        weights_ATM-TO-MED_mean_sensi_heat_flx.nc  \
+        weights_ATM-TO-MED_mean_zonal_moment_flx.nc  \
+        weights_MED-TO-ATM_sea_surface_temperature.nc  \
+        weights_MED-TO-OCN_inst_pres_height_surface.nc  \
+        weights_MED-TO-OCN_mean_evap_rate.nc  \
+        weights_MED-TO-OCN_mean_merid_moment_flx.nc  \
+        weights_MED-TO-OCN_mean_net_sw_ir_dif_flx.nc  \
+        weights_MED-TO-OCN_mean_net_sw_ir_dir_flx.nc  \
+        weights_MED-TO-OCN_mean_net_sw_vis_dif_flx.nc  \
+        weights_MED-TO-OCN_mean_net_sw_vis_dir_flx.nc  \
+        weights_MED-TO-OCN_mean_prec_rate.nc  \
+        weights_MED-TO-OCN_mean_sensi_heat_flx.nc  \
+        weights_MED-TO-OCN_mean_zonal_moment_flx.nc  \
+        weights_OCN-TO-MED_sea_lev.nc  \
+        weights_OCN-TO-MED_sea_surface_temperature.nc  \
+        weights_OCN-TO-MED_s_surf.nc  \
+        weights_OCN-TO-MED_u_surf.nc  \
+        weights_OCN-TO-MED_v_surf.nc  \
+        field_atm_export_idlwfx.nc \
+        field_atm_export_idswfx.nc \
+        field_atm_export_iirdifa.nc \
+        field_atm_export_iirdira.nc \
+        field_atm_export_ilhfx.nc \
+        field_atm_export_immfx.nc \
+        field_atm_export_inlwfx.nc \
+        field_atm_export_inst_net_sw_flux_nir_dif.nc \
+        field_atm_export_inst_net_sw_flux_nir_dir.nc \
+        field_atm_export_inst_net_sw_flux_vis_dif.nc \
+        field_atm_export_inst_net_sw_flux_vis_dir.nc \
+        field_atm_export_inst_sw_flux_nir_dif.nc \
+        field_atm_export_inst_sw_flux_nir_dir.nc \
+        field_atm_export_inst_sw_flux_vis_dif.nc \
+        field_atm_export_inst_sw_flux_vis_dir.nc \
+        field_atm_export_inswfx.nc \
+        field_atm_export_ips.nc \
+        field_atm_export_ishfx.nc \
+        field_atm_export_ishh2m.nc \
+        field_atm_export_ish.nc \
+        field_atm_export_ith2m.nc \
+        field_atm_export_its.nc \
+        field_atm_export_iuwh10m.nc \
+        field_atm_export_ivisdifa.nc \
+        field_atm_export_ivisdira.nc \
+        field_atm_export_ivwh10m.nc \
+        field_atm_export_izmfx.nc \
+        field_atm_export_lprec.nc \
+        field_atm_export_mdlwfx.nc \
+        field_atm_export_mdswfx.nc \
+        field_atm_export_mlhfx.nc \
+        field_atm_export_mmmfx.nc \
+        field_atm_export_mnlwfx.nc \
+        field_atm_export_mnswfx.nc \
+        field_atm_export_mshfx.nc \
+        field_atm_export_mzmfx.nc \
+        field_atm_export_sw_flux_nir_dif.nc \
+        field_atm_export_sw_flux_nir_dir.nc \
+        field_atm_export_sw_flux_vis_dif.nc \
+        field_atm_export_sw_flux_vis_dir.nc \
+        field_atm_export_sw_net_flux_nir_dif.nc \
+        field_atm_export_sw_net_flux_nir_dir.nc \
+        field_atm_export_sw_net_flux_vis_dif.nc \
+        field_atm_export_sw_net_flux_vis_dir.nc \
+        field_atm_import_sst.nc \
+        field_med_from_atm_idlwfx.nc \
+        field_med_from_atm_idswfx.nc \
+        field_med_from_atm_iirdifa.nc \
+        field_med_from_atm_iirdira.nc \
+        field_med_from_atm_ilhfx.nc \
+        field_med_from_atm_immfx.nc \
+        field_med_from_atm_inlwfx.nc \
+        field_med_from_atm_inst_net_sw_flux_nir_dif.nc \
+        field_med_from_atm_inst_net_sw_flux_nir_dir.nc \
+        field_med_from_atm_inst_net_sw_flux_vis_dif.nc \
+        field_med_from_atm_inst_net_sw_flux_vis_dir.nc \
+        field_med_from_atm_inst_sw_flux_nir_dif.nc \
+        field_med_from_atm_inst_sw_flux_nir_dir.nc \
+        field_med_from_atm_inst_sw_flux_vis_dif.nc \
+        field_med_from_atm_inst_sw_flux_vis_dir.nc \
+        field_med_from_atm_inswfx.nc \
+        field_med_from_atm_ips.nc \
+        field_med_from_atm_ishfx.nc \
+        field_med_from_atm_ishh2m.nc \
+        field_med_from_atm_ish.nc \
+        field_med_from_atm_ith2m.nc \
+        field_med_from_atm_its.nc \
+        field_med_from_atm_iuwh10m.nc \
+        field_med_from_atm_ivisdifa.nc \
+        field_med_from_atm_ivisdira.nc \
+        field_med_from_atm_ivwh10m.nc \
+        field_med_from_atm_izmfx.nc \
+        field_med_from_atm_lprec.nc \
+        field_med_from_atm_mdlwfx.nc \
+        field_med_from_atm_mdswfx.nc \
+        field_med_from_atm_mlhfx.nc \
+        field_med_from_atm_mmmfx.nc \
+        field_med_from_atm_mnlwfx.nc \
+        field_med_from_atm_mnswfx.nc \
+        field_med_from_atm_mshfx.nc \
+        field_med_from_atm_mzmfx.nc \
+        field_med_from_atm_sw_flux_nir_dif.nc \
+        field_med_from_atm_sw_flux_nir_dir.nc \
+        field_med_from_atm_sw_flux_vis_dif.nc \
+        field_med_from_atm_sw_flux_vis_dir.nc \
+        field_med_from_atm_sw_net_flux_nir_dif.nc \
+        field_med_from_atm_sw_net_flux_nir_dir.nc \
+        field_med_from_atm_sw_net_flux_vis_dif.nc \
+        field_med_from_atm_sw_net_flux_vis_dir.nc \
+        field_med_from_ocn_ssh.nc \
+        field_med_from_ocn_sss.nc \
+        field_med_from_ocn_sst.nc \
+        field_med_from_ocn_uocn.nc \
+        field_med_from_ocn_vocn.nc \
+        field_med_to_atm_sst.nc \
+        field_med_to_ocn_ips.nc \
+        field_med_to_ocn_lprec.nc \
+        field_med_to_ocn_mevap.nc \
+        field_med_to_ocn_mmmfx.nc \
+        field_med_to_ocn_mndifsfx.nc \
+        field_med_to_ocn_mndirsfx.nc \
+        field_med_to_ocn_mndvfsfx.nc \
+        field_med_to_ocn_mndvrsfx.nc \
+        field_med_to_ocn_mshfx.nc \
+        field_med_to_ocn_mzmfx.nc \
+        field_ocn_export_sea_lev.nc \
+        field_ocn_export_s_surf.nc \
+        field_ocn_export_t_surf.nc \
+        field_ocn_export_u_surf.nc \
+        field_ocn_export_v_surf.nc \
+        field_ocn_import_lprec.nc \
+        field_ocn_import_p.nc \
+        field_ocn_import_q_flux.nc \
+        field_ocn_import_sw_flux_nir_dif.nc \
+        field_ocn_import_sw_flux_nir_dir.nc \
+        field_ocn_import_sw_flux_vis_dif.nc \
+        field_ocn_import_sw_flux_vis_dir.nc \
+        field_ocn_import_t_flux.nc \
+        field_ocn_import_u_flux.nc \
+        field_ocn_import_v_flux.nc "
     #---------------------
     export_gsm
     export TASKS=64
     export WLCLK=60
     export CDATE=2009120100
-    export NDAYS=4
+    export NDAYS=1
     export wave=126 ; export lm=64 ; export lsoil=4
     export CPLFLX=.true.
     export A2OI_OUT=.true.
+    export NGRID_A2OI=44
     export FHZER=1
     export FHOUT=1
     # - nems.configure ---
@@ -753,6 +1112,464 @@ if [ $RT_NUOPC = true ] ; then
   fi # endif machine
   
   ###############################################################################
+  #
+  # TEST   - GSM <-> Mediator <-> MOM5 on 64P
+  #        -      1h           2h    coupling interval
+  #        - Exchanging Fields
+  #        - Starting at 2009120100, running for 8 days
+  #
+  ###############################################################################
+
+  if [ $MACHINE_ID = zeusOFF -o $MACHINE_ID = gaeaOFF ] ; then
+
+    export TEST_DESCR="NUOPC: GSM <-1h-> Mediator <-2h-> MOM5 ... 8 days on 64P"
+
+    #---------------------
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/GSM_MED_MOM5_8days64P
+    export CNTL_DIR=GFS_NODFI_2009120100_1h_2Way20140424_8days
+    export LIST_FILES=" \
+	sigf00 sigf01 sigf02 sigf04 sigf06 sigf12 sigf24 sigf48 sigf72 sigf96 \
+	sfcf00 sfcf01 sfcf02 sfcf04 sfcf06 sfcf12 sfcf24 sfcf48 sfcf72 sfcf96 \
+	flxf00 flxf01 flxf02 flxf04 flxf06 flxf12 flxf24 flxf48 flxf72 flxf96 \
+        weights_ATM-TO-MED_inst_down_lw_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_ir_dif_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_ir_dir_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_vis_dif_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_vis_dir_flx.nc  \
+        weights_ATM-TO-MED_inst_ir_dif_albedo.nc  \
+        weights_ATM-TO-MED_inst_ir_dir_albedo.nc  \
+        weights_ATM-TO-MED_inst_laten_heat_flx.nc  \
+        weights_ATM-TO-MED_inst_merid_moment_flx.nc  \
+        weights_ATM-TO-MED_inst_net_lw_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_ir_dif_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_ir_dir_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_vis_dif_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_vis_dir_flx.nc  \
+        weights_ATM-TO-MED_inst_pres_height_surface.nc  \
+        weights_ATM-TO-MED_inst_sensi_heat_flx.nc  \
+        weights_ATM-TO-MED_inst_spec_humid_height2m.nc  \
+        weights_ATM-TO-MED_inst_surface_height.nc  \
+        weights_ATM-TO-MED_inst_temp_height2m.nc  \
+        weights_ATM-TO-MED_inst_temp_height_surface.nc  \
+        weights_ATM-TO-MED_inst_u_wind_height10m.nc  \
+        weights_ATM-TO-MED_inst_vis_dif_albedo.nc  \
+        weights_ATM-TO-MED_inst_vis_dir_albedo.nc  \
+        weights_ATM-TO-MED_inst_v_wind_height10m.nc  \
+        weights_ATM-TO-MED_inst_zonal_moment_flx.nc  \
+        weights_ATM-TO-MED_mean_down_lw_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_ir_dif_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_ir_dir_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_vis_dif_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_vis_dir_flx.nc  \
+        weights_ATM-TO-MED_mean_laten_heat_flx.nc  \
+        weights_ATM-TO-MED_mean_merid_moment_flx.nc  \
+        weights_ATM-TO-MED_mean_net_lw_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_ir_dif_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_ir_dir_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_vis_dif_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_vis_dir_flx.nc  \
+        weights_ATM-TO-MED_mean_prec_rate.nc  \
+        weights_ATM-TO-MED_mean_sensi_heat_flx.nc  \
+        weights_ATM-TO-MED_mean_zonal_moment_flx.nc  \
+        weights_MED-TO-ATM_sea_surface_temperature.nc  \
+        weights_MED-TO-OCN_inst_pres_height_surface.nc  \
+        weights_MED-TO-OCN_mean_evap_rate.nc  \
+        weights_MED-TO-OCN_mean_merid_moment_flx.nc  \
+        weights_MED-TO-OCN_mean_net_sw_ir_dif_flx.nc  \
+        weights_MED-TO-OCN_mean_net_sw_ir_dir_flx.nc  \
+        weights_MED-TO-OCN_mean_net_sw_vis_dif_flx.nc  \
+        weights_MED-TO-OCN_mean_net_sw_vis_dir_flx.nc  \
+        weights_MED-TO-OCN_mean_prec_rate.nc  \
+        weights_MED-TO-OCN_mean_sensi_heat_flx.nc  \
+        weights_MED-TO-OCN_mean_zonal_moment_flx.nc  \
+        weights_OCN-TO-MED_sea_lev.nc  \
+        weights_OCN-TO-MED_sea_surface_temperature.nc  \
+        weights_OCN-TO-MED_s_surf.nc  \
+        weights_OCN-TO-MED_u_surf.nc  \
+        weights_OCN-TO-MED_v_surf.nc  \
+        field_atm_export_idlwfx.nc \
+        field_atm_export_idswfx.nc \
+        field_atm_export_iirdifa.nc \
+        field_atm_export_iirdira.nc \
+        field_atm_export_ilhfx.nc \
+        field_atm_export_immfx.nc \
+        field_atm_export_inlwfx.nc \
+        field_atm_export_inst_net_sw_flux_nir_dif.nc \
+        field_atm_export_inst_net_sw_flux_nir_dir.nc \
+        field_atm_export_inst_net_sw_flux_vis_dif.nc \
+        field_atm_export_inst_net_sw_flux_vis_dir.nc \
+        field_atm_export_inst_sw_flux_nir_dif.nc \
+        field_atm_export_inst_sw_flux_nir_dir.nc \
+        field_atm_export_inst_sw_flux_vis_dif.nc \
+        field_atm_export_inst_sw_flux_vis_dir.nc \
+        field_atm_export_inswfx.nc \
+        field_atm_export_ips.nc \
+        field_atm_export_ishfx.nc \
+        field_atm_export_ishh2m.nc \
+        field_atm_export_ish.nc \
+        field_atm_export_ith2m.nc \
+        field_atm_export_its.nc \
+        field_atm_export_iuwh10m.nc \
+        field_atm_export_ivisdifa.nc \
+        field_atm_export_ivisdira.nc \
+        field_atm_export_ivwh10m.nc \
+        field_atm_export_izmfx.nc \
+        field_atm_export_lprec.nc \
+        field_atm_export_mdlwfx.nc \
+        field_atm_export_mdswfx.nc \
+        field_atm_export_mlhfx.nc \
+        field_atm_export_mmmfx.nc \
+        field_atm_export_mnlwfx.nc \
+        field_atm_export_mnswfx.nc \
+        field_atm_export_mshfx.nc \
+        field_atm_export_mzmfx.nc \
+        field_atm_export_sw_flux_nir_dif.nc \
+        field_atm_export_sw_flux_nir_dir.nc \
+        field_atm_export_sw_flux_vis_dif.nc \
+        field_atm_export_sw_flux_vis_dir.nc \
+        field_atm_export_sw_net_flux_nir_dif.nc \
+        field_atm_export_sw_net_flux_nir_dir.nc \
+        field_atm_export_sw_net_flux_vis_dif.nc \
+        field_atm_export_sw_net_flux_vis_dir.nc \
+        field_atm_import_sst.nc \
+        field_med_from_atm_idlwfx.nc \
+        field_med_from_atm_idswfx.nc \
+        field_med_from_atm_iirdifa.nc \
+        field_med_from_atm_iirdira.nc \
+        field_med_from_atm_ilhfx.nc \
+        field_med_from_atm_immfx.nc \
+        field_med_from_atm_inlwfx.nc \
+        field_med_from_atm_inst_net_sw_flux_nir_dif.nc \
+        field_med_from_atm_inst_net_sw_flux_nir_dir.nc \
+        field_med_from_atm_inst_net_sw_flux_vis_dif.nc \
+        field_med_from_atm_inst_net_sw_flux_vis_dir.nc \
+        field_med_from_atm_inst_sw_flux_nir_dif.nc \
+        field_med_from_atm_inst_sw_flux_nir_dir.nc \
+        field_med_from_atm_inst_sw_flux_vis_dif.nc \
+        field_med_from_atm_inst_sw_flux_vis_dir.nc \
+        field_med_from_atm_inswfx.nc \
+        field_med_from_atm_ips.nc \
+        field_med_from_atm_ishfx.nc \
+        field_med_from_atm_ishh2m.nc \
+        field_med_from_atm_ish.nc \
+        field_med_from_atm_ith2m.nc \
+        field_med_from_atm_its.nc \
+        field_med_from_atm_iuwh10m.nc \
+        field_med_from_atm_ivisdifa.nc \
+        field_med_from_atm_ivisdira.nc \
+        field_med_from_atm_ivwh10m.nc \
+        field_med_from_atm_izmfx.nc \
+        field_med_from_atm_lprec.nc \
+        field_med_from_atm_mdlwfx.nc \
+        field_med_from_atm_mdswfx.nc \
+        field_med_from_atm_mlhfx.nc \
+        field_med_from_atm_mmmfx.nc \
+        field_med_from_atm_mnlwfx.nc \
+        field_med_from_atm_mnswfx.nc \
+        field_med_from_atm_mshfx.nc \
+        field_med_from_atm_mzmfx.nc \
+        field_med_from_atm_sw_flux_nir_dif.nc \
+        field_med_from_atm_sw_flux_nir_dir.nc \
+        field_med_from_atm_sw_flux_vis_dif.nc \
+        field_med_from_atm_sw_flux_vis_dir.nc \
+        field_med_from_atm_sw_net_flux_nir_dif.nc \
+        field_med_from_atm_sw_net_flux_nir_dir.nc \
+        field_med_from_atm_sw_net_flux_vis_dif.nc \
+        field_med_from_atm_sw_net_flux_vis_dir.nc \
+        field_med_from_ocn_ssh.nc \
+        field_med_from_ocn_sss.nc \
+        field_med_from_ocn_sst.nc \
+        field_med_from_ocn_uocn.nc \
+        field_med_from_ocn_vocn.nc \
+        field_med_to_atm_sst.nc \
+        field_med_to_ocn_ips.nc \
+        field_med_to_ocn_lprec.nc \
+        field_med_to_ocn_mevap.nc \
+        field_med_to_ocn_mmmfx.nc \
+        field_med_to_ocn_mndifsfx.nc \
+        field_med_to_ocn_mndirsfx.nc \
+        field_med_to_ocn_mndvfsfx.nc \
+        field_med_to_ocn_mndvrsfx.nc \
+        field_med_to_ocn_mshfx.nc \
+        field_med_to_ocn_mzmfx.nc \
+        field_ocn_export_sea_lev.nc \
+        field_ocn_export_s_surf.nc \
+        field_ocn_export_t_surf.nc \
+        field_ocn_export_u_surf.nc \
+        field_ocn_export_v_surf.nc \
+        field_ocn_import_lprec.nc \
+        field_ocn_import_p.nc \
+        field_ocn_import_q_flux.nc \
+        field_ocn_import_sw_flux_nir_dif.nc \
+        field_ocn_import_sw_flux_nir_dir.nc \
+        field_ocn_import_sw_flux_vis_dif.nc \
+        field_ocn_import_sw_flux_vis_dir.nc \
+        field_ocn_import_t_flux.nc \
+        field_ocn_import_u_flux.nc \
+        field_ocn_import_v_flux.nc "
+    #---------------------
+    export_gsm
+    export TASKS=64
+    export WLCLK=240
+    export CDATE=2009120100
+    export NDAYS=8
+    export wave=126 ; export lm=64 ; export lsoil=4
+    export CPLFLX=.true.
+    export A2OI_OUT=.true.
+    export NGRID_A2OI=44
+    export FHZER=1
+    export FHOUT=1
+    # - nems.configure ---
+    export_nems
+    export atm_model=gsm
+    export atm_petlist_bounds="0 31"
+    export ocn_model=mom5
+    export ocn_petlist_bounds="32 55"
+    export med_petlist_bounds="56 63"
+    export med_atm_coupling_interval_sec=3600.0
+    export med_ocn_coupling_interval_sec=7200.0
+    #---------------------
+    ./rt_gfs.sh
+    if [ $? = 2 ]; then exit ; fi
+    #---------------------
+
+  fi # endif machine
+  
+  ###############################################################################
+  #
+  # TEST   - GSM <-> Mediator <-> MOM5 on 96P
+  #        -      1h           2h    coupling interval
+  #        - Exchanging Fields
+  #        - Starting at 2009120100, running for 8 days
+  #
+  ###############################################################################
+
+  if [ $MACHINE_ID = zeus -o $MACHINE_ID = gaea ] ; then
+
+    export TEST_DESCR="NUOPC: GSM <-1h-> Mediator <-2h-> MOM5 ... 8 days on 96P"
+
+    #---------------------
+    (( TEST_NR=TEST_NR+1 ))
+    export RUNDIR=${RUNDIR_ROOT}/GSM_MED_MOM5_8days96P
+    export CNTL_DIR=GFS_NODFI_2009120100_1h_2Way20140424_8days96P
+    export LIST_FILES=" \
+	sigf00 sigf01 sigf02 sigf04 sigf06 sigf12 sigf24 sigf48 sigf72 sigf96 \
+	sfcf00 sfcf01 sfcf02 sfcf04 sfcf06 sfcf12 sfcf24 sfcf48 sfcf72 sfcf96 \
+	flxf00 flxf01 flxf02 flxf04 flxf06 flxf12 flxf24 flxf48 flxf72 flxf96 \
+        weights_ATM-TO-MED_inst_down_lw_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_ir_dif_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_ir_dir_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_vis_dif_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_vis_dir_flx.nc  \
+        weights_ATM-TO-MED_inst_ir_dif_albedo.nc  \
+        weights_ATM-TO-MED_inst_ir_dir_albedo.nc  \
+        weights_ATM-TO-MED_inst_laten_heat_flx.nc  \
+        weights_ATM-TO-MED_inst_merid_moment_flx.nc  \
+        weights_ATM-TO-MED_inst_net_lw_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_ir_dif_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_ir_dir_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_vis_dif_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_vis_dir_flx.nc  \
+        weights_ATM-TO-MED_inst_pres_height_surface.nc  \
+        weights_ATM-TO-MED_inst_sensi_heat_flx.nc  \
+        weights_ATM-TO-MED_inst_spec_humid_height2m.nc  \
+        weights_ATM-TO-MED_inst_surface_height.nc  \
+        weights_ATM-TO-MED_inst_temp_height2m.nc  \
+        weights_ATM-TO-MED_inst_temp_height_surface.nc  \
+        weights_ATM-TO-MED_inst_u_wind_height10m.nc  \
+        weights_ATM-TO-MED_inst_vis_dif_albedo.nc  \
+        weights_ATM-TO-MED_inst_vis_dir_albedo.nc  \
+        weights_ATM-TO-MED_inst_v_wind_height10m.nc  \
+        weights_ATM-TO-MED_inst_zonal_moment_flx.nc  \
+        weights_ATM-TO-MED_mean_down_lw_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_ir_dif_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_ir_dir_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_vis_dif_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_vis_dir_flx.nc  \
+        weights_ATM-TO-MED_mean_laten_heat_flx.nc  \
+        weights_ATM-TO-MED_mean_merid_moment_flx.nc  \
+        weights_ATM-TO-MED_mean_net_lw_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_ir_dif_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_ir_dir_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_vis_dif_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_vis_dir_flx.nc  \
+        weights_ATM-TO-MED_mean_prec_rate.nc  \
+        weights_ATM-TO-MED_mean_sensi_heat_flx.nc  \
+        weights_ATM-TO-MED_mean_zonal_moment_flx.nc  \
+        weights_MED-TO-ATM_sea_surface_temperature.nc  \
+        weights_MED-TO-OCN_inst_pres_height_surface.nc  \
+        weights_MED-TO-OCN_mean_evap_rate.nc  \
+        weights_MED-TO-OCN_mean_merid_moment_flx.nc  \
+        weights_MED-TO-OCN_mean_net_sw_ir_dif_flx.nc  \
+        weights_MED-TO-OCN_mean_net_sw_ir_dir_flx.nc  \
+        weights_MED-TO-OCN_mean_net_sw_vis_dif_flx.nc  \
+        weights_MED-TO-OCN_mean_net_sw_vis_dir_flx.nc  \
+        weights_MED-TO-OCN_mean_prec_rate.nc  \
+        weights_MED-TO-OCN_mean_sensi_heat_flx.nc  \
+        weights_MED-TO-OCN_mean_zonal_moment_flx.nc  \
+        weights_OCN-TO-MED_sea_lev.nc  \
+        weights_OCN-TO-MED_sea_surface_temperature.nc  \
+        weights_OCN-TO-MED_s_surf.nc  \
+        weights_OCN-TO-MED_u_surf.nc  \
+        weights_OCN-TO-MED_v_surf.nc  \
+        field_atm_export_idlwfx.nc \
+        field_atm_export_idswfx.nc \
+        field_atm_export_iirdifa.nc \
+        field_atm_export_iirdira.nc \
+        field_atm_export_ilhfx.nc \
+        field_atm_export_immfx.nc \
+        field_atm_export_inlwfx.nc \
+        field_atm_export_inst_net_sw_flux_nir_dif.nc \
+        field_atm_export_inst_net_sw_flux_nir_dir.nc \
+        field_atm_export_inst_net_sw_flux_vis_dif.nc \
+        field_atm_export_inst_net_sw_flux_vis_dir.nc \
+        field_atm_export_inst_sw_flux_nir_dif.nc \
+        field_atm_export_inst_sw_flux_nir_dir.nc \
+        field_atm_export_inst_sw_flux_vis_dif.nc \
+        field_atm_export_inst_sw_flux_vis_dir.nc \
+        field_atm_export_inswfx.nc \
+        field_atm_export_ips.nc \
+        field_atm_export_ishfx.nc \
+        field_atm_export_ishh2m.nc \
+        field_atm_export_ish.nc \
+        field_atm_export_ith2m.nc \
+        field_atm_export_its.nc \
+        field_atm_export_iuwh10m.nc \
+        field_atm_export_ivisdifa.nc \
+        field_atm_export_ivisdira.nc \
+        field_atm_export_ivwh10m.nc \
+        field_atm_export_izmfx.nc \
+        field_atm_export_lprec.nc \
+        field_atm_export_mdlwfx.nc \
+        field_atm_export_mdswfx.nc \
+        field_atm_export_mlhfx.nc \
+        field_atm_export_mmmfx.nc \
+        field_atm_export_mnlwfx.nc \
+        field_atm_export_mnswfx.nc \
+        field_atm_export_mshfx.nc \
+        field_atm_export_mzmfx.nc \
+        field_atm_export_sw_flux_nir_dif.nc \
+        field_atm_export_sw_flux_nir_dir.nc \
+        field_atm_export_sw_flux_vis_dif.nc \
+        field_atm_export_sw_flux_vis_dir.nc \
+        field_atm_export_sw_net_flux_nir_dif.nc \
+        field_atm_export_sw_net_flux_nir_dir.nc \
+        field_atm_export_sw_net_flux_vis_dif.nc \
+        field_atm_export_sw_net_flux_vis_dir.nc \
+        field_atm_import_sst.nc \
+        field_med_from_atm_idlwfx.nc \
+        field_med_from_atm_idswfx.nc \
+        field_med_from_atm_iirdifa.nc \
+        field_med_from_atm_iirdira.nc \
+        field_med_from_atm_ilhfx.nc \
+        field_med_from_atm_immfx.nc \
+        field_med_from_atm_inlwfx.nc \
+        field_med_from_atm_inst_net_sw_flux_nir_dif.nc \
+        field_med_from_atm_inst_net_sw_flux_nir_dir.nc \
+        field_med_from_atm_inst_net_sw_flux_vis_dif.nc \
+        field_med_from_atm_inst_net_sw_flux_vis_dir.nc \
+        field_med_from_atm_inst_sw_flux_nir_dif.nc \
+        field_med_from_atm_inst_sw_flux_nir_dir.nc \
+        field_med_from_atm_inst_sw_flux_vis_dif.nc \
+        field_med_from_atm_inst_sw_flux_vis_dir.nc \
+        field_med_from_atm_inswfx.nc \
+        field_med_from_atm_ips.nc \
+        field_med_from_atm_ishfx.nc \
+        field_med_from_atm_ishh2m.nc \
+        field_med_from_atm_ish.nc \
+        field_med_from_atm_ith2m.nc \
+        field_med_from_atm_its.nc \
+        field_med_from_atm_iuwh10m.nc \
+        field_med_from_atm_ivisdifa.nc \
+        field_med_from_atm_ivisdira.nc \
+        field_med_from_atm_ivwh10m.nc \
+        field_med_from_atm_izmfx.nc \
+        field_med_from_atm_lprec.nc \
+        field_med_from_atm_mdlwfx.nc \
+        field_med_from_atm_mdswfx.nc \
+        field_med_from_atm_mlhfx.nc \
+        field_med_from_atm_mmmfx.nc \
+        field_med_from_atm_mnlwfx.nc \
+        field_med_from_atm_mnswfx.nc \
+        field_med_from_atm_mshfx.nc \
+        field_med_from_atm_mzmfx.nc \
+        field_med_from_atm_sw_flux_nir_dif.nc \
+        field_med_from_atm_sw_flux_nir_dir.nc \
+        field_med_from_atm_sw_flux_vis_dif.nc \
+        field_med_from_atm_sw_flux_vis_dir.nc \
+        field_med_from_atm_sw_net_flux_nir_dif.nc \
+        field_med_from_atm_sw_net_flux_nir_dir.nc \
+        field_med_from_atm_sw_net_flux_vis_dif.nc \
+        field_med_from_atm_sw_net_flux_vis_dir.nc \
+        field_med_from_ocn_ssh.nc \
+        field_med_from_ocn_sss.nc \
+        field_med_from_ocn_sst.nc \
+        field_med_from_ocn_uocn.nc \
+        field_med_from_ocn_vocn.nc \
+        field_med_to_atm_sst.nc \
+        field_med_to_ocn_ips.nc \
+        field_med_to_ocn_lprec.nc \
+        field_med_to_ocn_mevap.nc \
+        field_med_to_ocn_mmmfx.nc \
+        field_med_to_ocn_mndifsfx.nc \
+        field_med_to_ocn_mndirsfx.nc \
+        field_med_to_ocn_mndvfsfx.nc \
+        field_med_to_ocn_mndvrsfx.nc \
+        field_med_to_ocn_mshfx.nc \
+        field_med_to_ocn_mzmfx.nc \
+        field_ocn_export_sea_lev.nc \
+        field_ocn_export_s_surf.nc \
+        field_ocn_export_t_surf.nc \
+        field_ocn_export_u_surf.nc \
+        field_ocn_export_v_surf.nc \
+        field_ocn_import_lprec.nc \
+        field_ocn_import_p.nc \
+        field_ocn_import_q_flux.nc \
+        field_ocn_import_sw_flux_nir_dif.nc \
+        field_ocn_import_sw_flux_nir_dir.nc \
+        field_ocn_import_sw_flux_vis_dif.nc \
+        field_ocn_import_sw_flux_vis_dir.nc \
+        field_ocn_import_t_flux.nc \
+        field_ocn_import_u_flux.nc \
+        field_ocn_import_v_flux.nc "
+    #---------------------
+    export_gsm
+    export TASKS=96
+    export WLCLK=240
+    export CDATE=2009120100
+    export NDAYS=8
+    export wave=126 ; export lm=64 ; export lsoil=4
+    export CPLFLX=.true.
+    export A2OI_OUT=.true.
+    export NGRID_A2OI=44
+    export FHZER=1
+    export FHOUT=1
+    # - nems.configure ---
+    export_nems
+    export atm_model=gsm
+    export atm_petlist_bounds="0 59"
+    export ocn_model=mom5
+    export ocn_petlist_bounds="60 83"
+    export med_petlist_bounds="84 95"
+    export med_atm_coupling_interval_sec=3600.0
+    export med_ocn_coupling_interval_sec=7200.0
+    #---------------------
+    ./rt_gfs.sh
+    if [ $? = 2 ]; then exit ; fi
+    #---------------------
+
+  fi # endif machine
+  
+  ###############################################################################
   #                  DummyICE  
   #                     | 1h 
   # TEST   - GSM <-> Mediator <-> MOM5
@@ -762,27 +1579,245 @@ if [ $RT_NUOPC = true ] ; then
   #
   ###############################################################################
 
-  if [ $MACHINE_ID = zeusOFF ] ; then
+  if [ $MACHINE_ID = zeusOFF -o $MACHINE_ID = gaeaOFF ] ; then
 
-    export TEST_DESCR="NUOPC: GSM <-1h-> MED <-1h-> DummyICE <-1h-> MED <-2h-> MOM5 ... 4 days"
+    export TEST_DESCR="NUOPC: GSM <-1h-> MED <-1h-> DummyICE <-1h-> MED <-2h-> MOM5 ... 1 day"
+#    export TEST_DESCR="NUOPC: GSM <-1h-> MED <-1h-> DummyICE <-1h-> MED <-2h-> MOM5 ... 4 days"
 
     #---------------------
     (( TEST_NR=TEST_NR+1 ))
     export RUNDIR=${RUNDIR_ROOT}/GSM_DummyICE_MOM5
-    export CNTL_DIR=GFS_NODFI_2009120100_1h
-    export IC_DIR=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/GSM_INITIAL_CONDITIONS
+    export CNTL_DIR=GFS_NODFI_2009120100_1h_2Way20140424
     export LIST_FILES=" \
-	sigf00 sigf01 sigf02 sigf24 sigf25 sigf26 sigf48 sigf72 sigf95 sigf96 \
-	sfcf00 sfcf01 sfcf02 sfcf24 sfcf25 sfcf26 sfcf48 sfcf72 sfcf95 sfcf96 \
-	flxf00 flxf01 flxf02 flxf24 flxf25 flxf26 flxf48 flxf72 flxf95 flxf96"
+	sigf00 sigf01 sigf02 sigf04 sigf06 sigf12 sigf24 sigf48 sigf72 sigf96 \
+	sfcf00 sfcf01 sfcf02 sfcf04 sfcf06 sfcf12 sfcf24 sfcf48 sfcf72 sfcf96 \
+	flxf00 flxf01 flxf02 flxf04 flxf06 flxf12 flxf24 flxf48 flxf72 flxf96 \
+        weights_ATM-TO-MED_inst_down_lw_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_ir_dif_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_ir_dir_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_vis_dif_flx.nc  \
+        weights_ATM-TO-MED_inst_down_sw_vis_dir_flx.nc  \
+        weights_ATM-TO-MED_inst_ir_dif_albedo.nc  \
+        weights_ATM-TO-MED_inst_ir_dir_albedo.nc  \
+        weights_ATM-TO-MED_inst_laten_heat_flx.nc  \
+        weights_ATM-TO-MED_inst_merid_moment_flx.nc  \
+        weights_ATM-TO-MED_inst_net_lw_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_ir_dif_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_ir_dir_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_vis_dif_flx.nc  \
+        weights_ATM-TO-MED_inst_net_sw_vis_dir_flx.nc  \
+        weights_ATM-TO-MED_inst_pres_height_surface.nc  \
+        weights_ATM-TO-MED_inst_sensi_heat_flx.nc  \
+        weights_ATM-TO-MED_inst_spec_humid_height2m.nc  \
+        weights_ATM-TO-MED_inst_surface_height.nc  \
+        weights_ATM-TO-MED_inst_temp_height2m.nc  \
+        weights_ATM-TO-MED_inst_temp_height_surface.nc  \
+        weights_ATM-TO-MED_inst_u_wind_height10m.nc  \
+        weights_ATM-TO-MED_inst_vis_dif_albedo.nc  \
+        weights_ATM-TO-MED_inst_vis_dir_albedo.nc  \
+        weights_ATM-TO-MED_inst_v_wind_height10m.nc  \
+        weights_ATM-TO-MED_inst_zonal_moment_flx.nc  \
+        weights_ATM-TO-MED_mean_down_lw_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_ir_dif_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_ir_dir_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_vis_dif_flx.nc  \
+        weights_ATM-TO-MED_mean_down_sw_vis_dir_flx.nc  \
+        weights_ATM-TO-MED_mean_laten_heat_flx.nc  \
+        weights_ATM-TO-MED_mean_merid_moment_flx.nc  \
+        weights_ATM-TO-MED_mean_net_lw_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_ir_dif_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_ir_dir_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_vis_dif_flx.nc  \
+        weights_ATM-TO-MED_mean_net_sw_vis_dir_flx.nc  \
+        weights_ATM-TO-MED_mean_prec_rate.nc  \
+        weights_ATM-TO-MED_mean_sensi_heat_flx.nc  \
+        weights_ATM-TO-MED_mean_zonal_moment_flx.nc  \
+        weights_ICE-TO-MED_stress_on_air_ice_x.nc  \
+        weights_ICE-TO-MED_stress_on_air_ice_y.nc  \
+        weights_ICE-TO-MED_stress_on_ocn_ice_x.nc  \
+        weights_ICE-TO-MED_stress_on_ocn_ice_y.nc  \
+        weights_MED-TO-ATM_sea_surface_temperature.nc  \
+        weights_MED-TO-ICE_ocn_current_x.nc  \
+        weights_MED-TO-ICE_ocn_current_y.nc  \
+        weights_MED-TO-ICE_sss_x.nc  \
+        weights_MED-TO-ICE_sss_y.nc  \
+        weights_MED-TO-ICE_wind_stress_x.nc  \
+        weights_MED-TO-ICE_wind_stress_y.nc  \
+        weights_MED-TO-OCN_inst_pres_height_surface.nc  \
+        weights_MED-TO-OCN_mean_evap_rate.nc  \
+        weights_MED-TO-OCN_mean_merid_moment_flx.nc  \
+        weights_MED-TO-OCN_mean_net_sw_ir_dif_flx.nc  \
+        weights_MED-TO-OCN_mean_net_sw_ir_dir_flx.nc  \
+        weights_MED-TO-OCN_mean_net_sw_vis_dif_flx.nc  \
+        weights_MED-TO-OCN_mean_net_sw_vis_dir_flx.nc  \
+        weights_MED-TO-OCN_mean_prec_rate.nc  \
+        weights_MED-TO-OCN_mean_sensi_heat_flx.nc  \
+        weights_MED-TO-OCN_mean_zonal_moment_flx.nc  \
+        weights_OCN-TO-MED_sea_lev.nc  \
+        weights_OCN-TO-MED_sea_surface_temperature.nc  \
+        weights_OCN-TO-MED_s_surf.nc  \
+        weights_OCN-TO-MED_u_surf.nc  \
+        weights_OCN-TO-MED_v_surf.nc  \
+        field_atm_export_idlwfx.nc  \
+        field_atm_export_idswfx.nc  \
+        field_atm_export_iirdifa.nc  \
+        field_atm_export_iirdira.nc  \
+        field_atm_export_ilhfx.nc  \
+        field_atm_export_immfx.nc  \
+        field_atm_export_inlwfx.nc  \
+        field_atm_export_inst_net_sw_flux_nir_dif.nc  \
+        field_atm_export_inst_net_sw_flux_nir_dir.nc  \
+        field_atm_export_inst_net_sw_flux_vis_dif.nc  \
+        field_atm_export_inst_net_sw_flux_vis_dir.nc  \
+        field_atm_export_inst_sw_flux_nir_dif.nc  \
+        field_atm_export_inst_sw_flux_nir_dir.nc  \
+        field_atm_export_inst_sw_flux_vis_dif.nc  \
+        field_atm_export_inst_sw_flux_vis_dir.nc  \
+        field_atm_export_inswfx.nc  \
+        field_atm_export_ips.nc  \
+        field_atm_export_ishfx.nc  \
+        field_atm_export_ishh2m.nc  \
+        field_atm_export_ish.nc  \
+        field_atm_export_ith2m.nc  \
+        field_atm_export_its.nc  \
+        field_atm_export_iuwh10m.nc  \
+        field_atm_export_ivisdifa.nc  \
+        field_atm_export_ivisdira.nc  \
+        field_atm_export_ivwh10m.nc  \
+        field_atm_export_izmfx.nc  \
+        field_atm_export_mdlwfx.nc  \
+        field_atm_export_mdswfx.nc  \
+        field_atm_export_mlhfx.nc  \
+        field_atm_export_mmmfx.nc  \
+        field_atm_export_mnlwfx.nc  \
+        field_atm_export_mnswfx.nc  \
+        field_atm_export_mprt.nc  \
+        field_atm_export_mshfx.nc  \
+        field_atm_export_mzmfx.nc  \
+        field_atm_export_sw_flux_nir_dif.nc  \
+        field_atm_export_sw_flux_nir_dir.nc  \
+        field_atm_export_sw_flux_vis_dif.nc  \
+        field_atm_export_sw_flux_vis_dir.nc  \
+        field_atm_export_sw_net_flux_nir_dif.nc  \
+        field_atm_export_sw_net_flux_nir_dir.nc  \
+        field_atm_export_sw_net_flux_vis_dif.nc  \
+        field_atm_export_sw_net_flux_vis_dir.nc  \
+        field_atm_import_sst.nc  \
+        field_ice_export_strairxT.nc  \
+        field_ice_export_strairyT.nc  \
+        field_ice_export_strocnxT.nc  \
+        field_ice_export_strocnyT.nc  \
+        field_ice_import_ss_tltx.nc  \
+        field_ice_import_ss_tlty.nc  \
+        field_ice_import_strax.nc  \
+        field_ice_import_stray.nc  \
+        field_ice_import_uocn.nc  \
+        field_ice_import_vocn.nc  \
+        field_med_from_atm_idlwfx.nc  \
+        field_med_from_atm_idswfx.nc  \
+        field_med_from_atm_iirdifa.nc  \
+        field_med_from_atm_iirdira.nc  \
+        field_med_from_atm_ilhfx.nc  \
+        field_med_from_atm_immfx.nc  \
+        field_med_from_atm_inlwfx.nc  \
+        field_med_from_atm_inst_net_sw_flux_nir_dif.nc  \
+        field_med_from_atm_inst_net_sw_flux_nir_dir.nc  \
+        field_med_from_atm_inst_net_sw_flux_vis_dif.nc  \
+        field_med_from_atm_inst_net_sw_flux_vis_dir.nc  \
+        field_med_from_atm_inst_sw_flux_nir_dif.nc  \
+        field_med_from_atm_inst_sw_flux_nir_dir.nc  \
+        field_med_from_atm_inst_sw_flux_vis_dif.nc  \
+        field_med_from_atm_inst_sw_flux_vis_dir.nc  \
+        field_med_from_atm_inswfx.nc  \
+        field_med_from_atm_ips.nc  \
+        field_med_from_atm_ishfx.nc  \
+        field_med_from_atm_ishh2m.nc  \
+        field_med_from_atm_ish.nc  \
+        field_med_from_atm_ith2m.nc  \
+        field_med_from_atm_its.nc  \
+        field_med_from_atm_iuwh10m.nc  \
+        field_med_from_atm_ivisdifa.nc  \
+        field_med_from_atm_ivisdira.nc  \
+        field_med_from_atm_ivwh10m.nc  \
+        field_med_from_atm_izmfx.nc  \
+        field_med_from_atm_lprec.nc  \
+        field_med_from_atm_mdlwfx.nc  \
+        field_med_from_atm_mdswfx.nc  \
+        field_med_from_atm_mlhfx.nc  \
+        field_med_from_atm_mmmfx.nc  \
+        field_med_from_atm_mnlwfx.nc  \
+        field_med_from_atm_mnswfx.nc  \
+        field_med_from_atm_mshfx.nc  \
+        field_med_from_atm_mzmfx.nc  \
+        field_med_from_atm_sw_flux_nir_dif.nc  \
+        field_med_from_atm_sw_flux_nir_dir.nc  \
+        field_med_from_atm_sw_flux_vis_dif.nc  \
+        field_med_from_atm_sw_flux_vis_dir.nc  \
+        field_med_from_atm_sw_net_flux_nir_dif.nc  \
+        field_med_from_atm_sw_net_flux_nir_dir.nc  \
+        field_med_from_atm_sw_net_flux_vis_dif.nc  \
+        field_med_from_atm_sw_net_flux_vis_dir.nc  \
+        field_med_from_ice_strairxT.nc  \
+        field_med_from_ice_strairyT.nc  \
+        field_med_from_ice_strocnxT.nc  \
+        field_med_from_ice_strocnyT.nc  \
+        field_med_from_ocn_ssh.nc  \
+        field_med_from_ocn_sss.nc  \
+        field_med_from_ocn_sst.nc  \
+        field_med_from_ocn_uocn.nc  \
+        field_med_from_ocn_vocn.nc  \
+        field_med_to_atm_sst.nc  \
+        field_med_to_ice_ss_tltx.nc  \
+        field_med_to_ice_ss_tlty.nc  \
+        field_med_to_ice_strax.nc  \
+        field_med_to_ice_stray.nc  \
+        field_med_to_ice_uocn.nc  \
+        field_med_to_ice_vocn.nc  \
+        field_med_to_ocn_ips.nc  \
+        field_med_to_ocn_lprec.nc  \
+        field_med_to_ocn_mdifsfx.nc  \
+        field_med_to_ocn_mdirsfx.nc  \
+        field_med_to_ocn_mdlwfx.nc  \
+        field_med_to_ocn_mdvfsfx.nc  \
+        field_med_to_ocn_mdvrsfx.nc  \
+        field_med_to_ocn_mlhfx.nc  \
+        field_med_to_ocn_mmmfx.nc  \
+        field_med_to_ocn_mshfx.nc  \
+        field_med_to_ocn_mzmfx.nc  \
+        field_ocn_export_sea_lev.nc  \
+        field_ocn_export_s_surf.nc  \
+        field_ocn_export_t_surf.nc  \
+        field_ocn_export_u_surf.nc  \
+        field_ocn_export_v_surf.nc  \
+        field_ocn_import_lprec.nc  \
+        field_ocn_import_lw_flux.nc  \
+        field_ocn_import_p.nc  \
+        field_ocn_import_q_flux.nc  \
+        field_ocn_import_sw_flux_nir_dif.nc  \
+        field_ocn_import_sw_flux_nir_dir.nc  \
+        field_ocn_import_sw_flux_vis_dif.nc  \
+        field_ocn_import_sw_flux_vis_dir.nc  \
+        field_ocn_import_t_flux.nc  \
+        field_ocn_import_u_flux.nc  \
+        field_ocn_import_v_flux.nc  "
+#    export LIST_FILES=" \
+#	sigf00 sigf01 sigf02 sigf24 sigf25 sigf26 sigf48 sigf72 sigf95 sigf96 \
+#	sfcf00 sfcf01 sfcf02 sfcf24 sfcf25 sfcf26 sfcf48 sfcf72 sfcf95 sfcf96 \
+#	flxf00 flxf01 flxf02 flxf24 flxf25 flxf26 flxf48 flxf72 flxf95 flxf96"
     #---------------------
     export_gsm
-    export TASKS=64
+    export TASKS=66
     export WLCLK=60
     export CDATE=2009120100
-    export NDAYS=4
+    export NDAYS=1
+#    export NDAYS=4
     export wave=126 ; export lm=64 ; export lsoil=4
     export A2OI_OUT=.true.
+    export NGRID_A2OI=44
     export FHZER=1
     export FHOUT=1
     # - nems.configure ---
@@ -792,8 +1827,8 @@ if [ $RT_NUOPC = true ] ; then
     export ocn_model=mom5
     export ocn_petlist_bounds="32 55"
     export ice_model=dummy
-    export ice_petlist_bounds="56 57"
-    export med_petlist_bounds="58 63"
+    export ice_petlist_bounds="64 65"
+    export med_petlist_bounds="56 63"
     export med_atm_coupling_interval_sec=3600.0
     export med_ocn_coupling_interval_sec=7200.0
     #---------------------
@@ -813,27 +1848,34 @@ if [ $RT_NUOPC = true ] ; then
   #
   ###############################################################################
 
-  if [ $MACHINE_ID = zeusOFF ] ; then
+  if [ $MACHINE_ID = zeusOFF -o $MACHINE_ID = gaeaOFF ] ; then
 
-    export TEST_DESCR="NUOPC: GSM <-1h-> MED <-1h-> CICE <-1h-> MED <-2h-> MOM5 ... 4 days"
+    export TEST_DESCR="NUOPC: GSM <-1h-> MED <-1h-> CICE <-1h-> MED <-2h-> MOM5 ... 1 day"
+#    export TEST_DESCR="NUOPC: GSM <-1h-> MED <-1h-> CICE <-1h-> MED <-2h-> MOM5 ... 4 days"
 
     #---------------------
     (( TEST_NR=TEST_NR+1 ))
     export RUNDIR=${RUNDIR_ROOT}/GSM_CICE_MOM5
-    export CNTL_DIR=GFS_NODFI_2009120100_1h
-    export IC_DIR=/scratch1/portfolios/NCEPDEV/nems/noscrub/Gerhard.Theurich/GSM_INITIAL_CONDITIONS
+    export CNTL_DIR=GFS_NODFI_2009120100_1h_2Way20140424
     export LIST_FILES=" \
-	sigf00 sigf01 sigf02 sigf24 sigf25 sigf26 sigf48 sigf72 sigf95 sigf96 \
-	sfcf00 sfcf01 sfcf02 sfcf24 sfcf25 sfcf26 sfcf48 sfcf72 sfcf95 sfcf96 \
-	flxf00 flxf01 flxf02 flxf24 flxf25 flxf26 flxf48 flxf72 flxf95 flxf96"
+	sigf00 sigf01 sigf02 sigf04 sigf06 sigf12 sigf24  \
+	sfcf00 sfcf01 sfcf02 sfcf04 sfcf06 sfcf12 sfcf24  \
+	flxf00 flxf01 flxf02 flxf04 flxf06 flxf12 flxf24 "
+#    export LIST_FILES=" \
+#	sigf00 sigf01 sigf02 sigf24 sigf25 sigf26 sigf48 sigf72 sigf95 sigf96 \
+#	sfcf00 sfcf01 sfcf02 sfcf24 sfcf25 sfcf26 sfcf48 sfcf72 sfcf95 sfcf96 \
+#	flxf00 flxf01 flxf02 flxf24 flxf25 flxf26 flxf48 flxf72 flxf95 flxf96"
     #---------------------
     export_gsm
     export TASKS=66
     export WLCLK=60
+#    export WLCLK=60
     export CDATE=2009120100
-    export NDAYS=4
+    export NDAYS=1
+#    export NDAYS=4
     export wave=126 ; export lm=64 ; export lsoil=4
     export A2OI_OUT=.true.
+    export NGRID_A2OI=44
     export FHZER=1
     export FHOUT=1
     # - nems.configure ---
@@ -854,6 +1896,26 @@ if [ $RT_NUOPC = true ] ; then
 
   fi # endif machine
   
+  #----------------------------------------------
+
+  echo "Finished the NEMS with NUOPC test suite"
+
+  rm -f err out configure_file* nmm_ll nmm_msub nmm_run gfs_fcst_run gfs_ll gen_fcst_run gen_ll fim_fcst_run fim_ll
+  if [ ${CLEAN_RUNDIR:-YES} = YES ] ; then
+    rm -rf ${RUNDIR_ROOT}
+  fi
+
+  date >> ${REGRESSIONTEST_LOG}
+
+  if [ $MACHINE_ID = zeus -o $MACHINE_ID = wcoss ]; then
+    echo REGRESSION TEST WAS SUCCESSFUL
+    echo REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
+  else
+    banner REGRESSION TEST WAS SUCCESSFUL
+    banner REGRESSION TEST WAS SUCCESSFUL >> ${REGRESSIONTEST_LOG}
+  fi
+
+  exit
   #----------------------------------------------
 
   echo "Finished the NEMS with NUOPC test suite"

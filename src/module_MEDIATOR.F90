@@ -279,11 +279,70 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
 
+#if (1 == 0)
+    !----- Ocn-Atm
+
+    call fld_list_add(fldsFrOcn,"sea_surface_temperature", "sst", "sea surface temperature on t-cell","K", "will provide")
+    call fld_list_add(fldsToAtm,"sea_surface_temperature", "sst", "sea surface temperature on t-cell","K", "will provide")
+
+    !----- Atm-Ocn, Atm-Ice
+
+    ! shortwave
+    call fld_list_add(fldsFrAtm,"mean_down_sw_ir_dir_flx" , "sw_flux_nir_dir" , "Mean infrared direct downward shortwave flux" , "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_down_sw_ir_dif_flx" , "sw_flux_nir_dif" , "Mean infrared diffuse downward shortwave flux", "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_down_sw_vis_dir_flx", "sw_flux_vis_dir" , "Mean visible direct downward shortwave flux"  , "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_down_sw_vis_dif_flx", "sw_flux_vis_dif" , "Mean visible diffuse downward shortwave flux" , "W m-2", "will provide")
+
+    ! other heat fluxes
+    call fld_list_add(fldsFrAtm,"mean_down_lw_flx"        , "mdlwfx" , "Mean Downward Long Wave Radiation Flux", "W m-2", "will provide")
+    call fld_list_add(fldsToOcn,"mean_down_lw_flx"        , "mdlwfx" , "Mean Downward Long Wave Radiation Flux", "W m-2", "will provide")
+
+    ! water
+    call fld_list_add(fldsFrAtm,"mean_prec_rate"          , "lprec"  , "Mean Liquid Precipitation Rate", "kg/m^2/s", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_fprec_rate"         , "fprec"  , "Mean Frozen Precipitation Rate", "kg/m^2/s", "will provide")
+    call fld_list_add(fldsToOcn,"mean_prec_rate"          , "lprec"  , "Mean Liquid Precipitation Rate", "kg/m^2/s", "will provide")
+!   call fld_list_add(fldsToOcn,"mean_fprec_rate"         , "fprec"  , "Mean Frozen Precipitation Rate", "kg/m^2/s", "will provide")
+
+    ! states
+    call fld_list_add(fldsFrAtm,"inst_pres_height_surface", "ips"    , "Pressure at surface defined by inst_surface_height","Pa", "will provide")
+    call fld_list_add(fldsToOcn,"inst_pres_height_surface", "ips"    , "Pressure at surface defined by inst_surface_height","Pa", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_spec_humid_height2m", "ishh2m" , "Instantaneous Specific Humidity 2m Above Ground","kg kg-1", "will provide")
+    call fld_list_add(fldsToOcn,"mean_laten_heat_flx"     , "mlhfx"  , "Mean Latent Heat Flux"                          ,"W m-2"  , "will provide")
+    call fld_list_add(fldsToOcn,"mean_evap_rate"          , "mevap"  , "Mean Evaporation Rate"                          ,"kg m-2 s-1"  , "will provide")
+
+    !----- Ice-Atm
+
+    ! momentum stress
+    call fld_list_add(fldsFrIce,"stress_on_air_ice_zonal", "strairxT", "stress on air by ice x component", "N m-2", "will provide")
+    call fld_list_add(fldsFrIce,"stress_on_air_ice_merid", "strairyT", "stress on air by ice y component", "N m-2", "will provide")
+    call fld_list_add(fldsToAtm,"stress_on_air_ice_zonal", "strairxT", "stress on air by ice x component", "N m-2", "will provide")
+    call fld_list_add(fldsToAtm,"stress_on_air_ice_merid", "strairyT", "stress on air by ice y component", "N m-2", "will provide")
+
+    !----- Ice-Ocn
+
+    ! momentum stress
+    call fld_list_add(fldsFrIce,"stress_on_ocn_ice_zonal", "strocnxT", "stress on ocn by ice x component", "N m-2", "will provide")
+    call fld_list_add(fldsFrIce,"stress_on_ocn_ice_merid", "strocnyT", "stress on ocn by ice y component", "N m-2", "will provide")
+    call fld_list_add(fldsToOcn,"stress_on_ocn_ice_zonal", "strocnxT", "stress on ocn by ice x component", "N m-2", "will provide")
+    call fld_list_add(fldsToOcn,"stress_on_ocn_ice_merid", "strocnyT", "stress on ocn by ice y component", "N m-2", "will provide")
+
+    ! ----- Ocn-Ice
+
+    ! states
+    call fld_list_add(fldsFrOcn,"ocn_current_zonal", "ocncx", "ocean current x component", "m s-1", "will provide")
+    call fld_list_add(fldsFrOcn,"ocn_current_merid", "ocncy", "ocean current y component", "m s-1", "will provide")
+    call fld_list_add(fldsToIce,"ocn_current_zonal", "ocncx", "ocean current x component", "m s-1", "will provide")
+    call fld_list_add(fldsToIce,"ocn_current_merid", "ocncy", "ocean current y component", "m s-1", "will provide")
+
+    call fld_list_add(fldsFrOcn,"s_surf", "sss", "sea surface salinity on t-cell", "psu", "will provide")
+    call fld_list_add(fldsToIce,"s_surf", "sss", "sea surface salinity on t-cell", "psu", "will provide")
+#endif
+
     ! Fields to ATM
     call fld_list_add(fldsToAtm,"sea_surface_temperature", "sst"     , "sea surface temperature on t-cell","K"    , "will provide")
-    call fld_list_add(fldsToAtm,"stress_on_air_ice_x"    , "strairxT", "stress on air by ice x component" ,"N m-2", "will provide")
-    call fld_list_add(fldsToAtm,"stress_on_air_ice_y"    , "strairyT", "stress on air by ice y component" ,"N m-2", "will provide")
-
+    call fld_list_add(fldsToAtm,"stress_on_air_ice_zonal"    , "strairxT", "stress on air by ice x component" ,"N m-2", "will provide")
+    call fld_list_add(fldsToAtm,"stress_on_air_ice_merid"    , "strairyT", "stress on air by ice y component" ,"N m-2", "will provide")
+ 
     ! Fields from ATM
     call fld_list_add(fldsFrAtm,"mean_zonal_moment_flx"   , "mzmfx"  , "Mean Zonal Component of Momentum Flux",               "Pa", "will provide")
     call fld_list_add(fldsFrAtm,"mean_merid_moment_flx"   , "mmmfx"  , "Mean Merid Component of Momentum Flux",               "Pa", "will provide")
@@ -306,6 +365,35 @@ module module_MEDIATOR
     call fld_list_add(fldsFrAtm,"inst_temp_height_surface", "its"    , "Instantaneous Temperature Surface",                    "K", "will provide")
     call fld_list_add(fldsFrAtm,"inst_pres_height_surface", "ips"    , "Instantaneous Pressure Surface",                      "Pa", "will provide")
     call fld_list_add(fldsFrAtm,"inst_surface_height"     , "ish"    , "Instantaneous Surface Height",                         "m", "will provide")
+    ! new imports from GSM added 04/23/14:
+    call fld_list_add(fldsFrAtm,"mean_net_lw_flx"         , "mnlwfx" , "Mean Net Long Wave Radiation Flux",                "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_net_sw_flx"         , "mnswfx" , "Mean Net Short Wave Radiation Flux",               "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_net_lw_flx"         , "inlwfx" , "Instantaneous Net Long Wave Radiation Flux",       "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_net_sw_flx"         , "inswfx" , "Instantaneous Net Short Wave Radiation Flux",      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_down_sw_ir_dir_flx" , "sw_flux_nir_dir" , ""                                  ,      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_down_sw_ir_dif_flx" , "sw_flux_nir_dif" , ""                                  ,      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_down_sw_vis_dir_flx", "sw_flux_vis_dir" , ""                                  ,      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_down_sw_vis_dif_flx", "sw_flux_vis_dif" , ""                                  ,      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_down_sw_ir_dir_flx" , "inst_sw_flux_nir_dir" , ""                             ,      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_down_sw_ir_dif_flx" , "inst_sw_flux_nir_dif" , ""                             ,      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_down_sw_vis_dir_flx", "inst_sw_flux_vis_dir" , ""                             ,      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_down_sw_vis_dif_flx", "inst_sw_flux_vis_dif" , ""                             ,      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_net_sw_ir_dir_flx"  , "sw_net_flux_nir_dir"  , ""                             ,      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_net_sw_ir_dif_flx"  , "sw_net_flux_nir_dif"  , ""                             ,      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_net_sw_vis_dir_flx" , "sw_net_flux_vis_dir"  , ""                             ,      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"mean_net_sw_vis_dif_flx" , "sw_net_flux_vis_dif"  , ""                             ,      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_net_sw_ir_dir_flx"  , "inst_net_sw_flux_nir_dir" , ""                         ,      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_net_sw_ir_dif_flx"  , "inst_net_sw_flux_nir_dif" , ""                         ,      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_net_sw_vis_dir_flx" , "inst_net_sw_flux_vis_dir" , ""                         ,      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_net_sw_vis_dif_flx" , "inst_net_sw_flux_vis_dif" , ""                         ,      "W m-2", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_ir_dir_albedo"      , "iirdira" , ""                                          ,          "1", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_ir_dif_albedo"      , "iirdifa" , ""                                          ,          "1", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_vis_dir_albedo"     , "ivisdira", ""                                          ,          "1", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_vis_dif_albedo"     , "ivisdifa", ""                                          ,          "1", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_ocn_ir_dir_albedo"  , "ioirdira" , "Ocean infrared band direct albedo"        ,          "1", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_ocn_ir_dif_albedo"  , "ioirdifa" , "Ocean infrared band diffuse albedo"       ,          "1", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_ocn_vis_dir_albedo" , "iovisdira", "Ocean visible band direct albedo"         ,          "1", "will provide")
+    call fld_list_add(fldsFrAtm,"inst_ocn_vis_dif_albedo" , "iovisdifa", "Ocean visible band diffuse albedo"        ,          "1", "will provide")
 
     ! Fields to OCN
     call fld_list_add(fldsToOcn,"mean_zonal_moment_flx"   , "mzmfx"   , "Mean Zonal Component of Momentum Flux"                         ,"Pa", "will provide")
@@ -317,17 +405,22 @@ module module_MEDIATOR
     call fld_list_add(fldsToOcn,"mean_down_sw_vis_dif_flx", "mdvfsfx" , "Mean Downward visible diffuse Shortwave Radiation Flux"     ,"W m-2", "will provide")
     call fld_list_add(fldsToOcn,"mean_down_sw_ir_dir_flx" , "mdirsfx" , "Mean Downward nearinfrared direct Shortwave Radiation Flux" ,"W m-2", "will provide")
     call fld_list_add(fldsToOcn,"mean_down_sw_ir_dif_flx" , "mdifsfx" , "Mean Downward nearinfrared diffuse Shortwave Radiation Flux","W m-2", "will provide")
+    call fld_list_add(fldsToOcn,"mean_net_sw_vis_dir_flx" , "mndvrsfx"         , "Mean Downward visible direct Shortwave Radiation Flux"      ,"W m-2", "will provide")
+    call fld_list_add(fldsToOcn,"mean_net_sw_vis_dif_flx" , "mndvfsfx"         , "Mean Downward visible diffuse Shortwave Radiation Flux"     ,"W m-2", "will provide")
+    call fld_list_add(fldsToOcn,"mean_net_sw_ir_dir_flx"  , "mndirsfx"         , "Mean Downward nearinfrared direct Shortwave Radiation Flux" ,"W m-2", "will provide")
+    call fld_list_add(fldsToOcn,"mean_net_sw_ir_dif_flx"  , "mndifsfx"         , "Mean Downward nearinfrared diffuse Shortwave Radiation Flux","W m-2", "will provide")
 !   call fld_list_add(fldsToOcn,"mean_salt_flx"           , "saltflx" , "salt flux into ocean"                                    ,"kg/m^2/s", "will provide")
     call fld_list_add(fldsToOcn,"mean_prec_rate"          , "lprec"   , "Mean Liquid Precipitation Rate"                          ,"kg/m^2/s", "will provide")
 !   call fld_list_add(fldsToOcn,"mean_fprec_rate"         , "fprec"   , "Mean Frozen Precipitation Rate"                          ,"kg/m^2/s", "will provide")
+    call fld_list_add(fldsToOcn,"mean_evap_rate"          , "mevap"   , "Mean Evaporation Rate"                                   ,"kg/m^2/s", "will provide")
 !   call fld_list_add(fldsToOcn,"mean_runoff_rate"        , "runoff"  , "mass flux of liquid runoff"                              ,"kg/m^2/s", "will provide")
 !   call fld_list_add(fldsToOcn,"mean_calving_rate"       , "calving" , "mass flux of frozen runoff"                              ,"kg/m^2/s", "will provide")
 !   call fld_list_add(fldsToOcn,"mean_runoff_flx"         , "rofhfx"  , "heat flux, relative to 0C, of liquid land water into ocean" ,"W m-2", "will provide")
 !   call fld_list_add(fldsToOcn,"mean_calving_flx"        , "cahflx"  , "heat flux, relative to 0C, of frozen land water into ocean" ,"W m-2", "will provide")
     call fld_list_add(fldsToOcn,"inst_pres_height_surface", "ips"     , "pressure of overlying sea ice and atmosphere"                  ,"Pa", "will provide")
 !   call fld_list_add(fldsToOcn,"mass_of_overlying_sea_ice, "massice" , "mass of overlying sea ice"                                     ,"kg", "will provide")
-    call fld_list_add(fldsToOcn,"stress_on_ocn_ice_x"     , "strocnxT", "stress on ocn by ice x component"                           ,"N m-2", "will provide")
-    call fld_list_add(fldsToOcn,"stress_on_ocn_ice_y"     , "strocnyT", "stress on ocn by ice y component"                           ,"N m-2", "will provide")
+    call fld_list_add(fldsToOcn,"stress_on_ocn_ice_zonal"     , "strocnxT", "stress on ocn by ice x component"                           ,"N m-2", "will provide")
+    call fld_list_add(fldsToOcn,"stress_on_ocn_ice_merid"     , "strocnyT", "stress on ocn by ice y component"                           ,"N m-2", "will provide")
 
     ! Fields from OCN
     call fld_list_add(fldsFrOcn,"sea_surface_temperature" , "sst" , "sea surface temperature on t-cell","K", "will provide")
@@ -337,19 +430,19 @@ module module_MEDIATOR
     call fld_list_add(fldsFrOcn,"sea_lev"                 , "ssh" , "Sea Level Height"                 ,"m", "will provide")
 
     ! Fields to ICE
-    call fld_list_add(fldsToIce,"sss_x"        , "ss_tltx", "sea surface slope x component" ,"m m-1", "will provide")
-    call fld_list_add(fldsToIce,"sss_y"        , "ss_tlty", "sea surface slope y component" ,"m m-1", "will provide")
-    call fld_list_add(fldsToIce,"wind_stress_x", "strax"  , "wind stress x component"       ,"N m-2", "will provide")
-    call fld_list_add(fldsToIce,"wind_stress_y", "stray"  , "wind stress y component"       ,"N m-2", "will provide")
-    call fld_list_add(fldsToIce,"ocn_current_x", "uocn"   , "ocean current x component"     ,"m s-1", "will provide")
-    call fld_list_add(fldsToIce,"ocn_current_y", "vocn"   , "ocean current y component"     ,"m s-1", "will provide")
+    call fld_list_add(fldsToIce,"sss_zonal"        , "ss_tltx", "sea surface slope x component" ,"m m-1", "will provide")
+    call fld_list_add(fldsToIce,"sss_merid"        , "ss_tlty", "sea surface slope y component" ,"m m-1", "will provide")
+    call fld_list_add(fldsToIce,"wind_stress_zonal", "strax"  , "wind stress x component"       ,"N m-2", "will provide")
+    call fld_list_add(fldsToIce,"wind_stress_merid", "stray"  , "wind stress y component"       ,"N m-2", "will provide")
+    call fld_list_add(fldsToIce,"ocn_current_zonal", "uocn"   , "ocean current x component"     ,"m s-1", "will provide")
+    call fld_list_add(fldsToIce,"ocn_current_merid", "vocn"   , "ocean current y component"     ,"m s-1", "will provide")
 
     ! Fields from ICE
-    call fld_list_add(fldsFrIce,"stress_on_air_ice_x", "strairxT", "stress on air by ice x component","N m-2", "will provide")
-    call fld_list_add(fldsFrIce,"stress_on_air_ice_y", "strairyT", "stress on air by ice y component","N m-2", "will provide")
-    call fld_list_add(fldsFrIce,"stress_on_ocn_ice_x", "strocnxT", "stress on ocn by ice x component","N m-2", "will provide")
-    call fld_list_add(fldsFrIce,"stress_on_ocn_ice_y", "strocnyT", "stress on ocn by ice y component","N m-2", "will provide")
-
+    call fld_list_add(fldsFrIce,"stress_on_air_ice_zonal", "strairxT", "stress on air by ice x component","N m-2", "will provide")
+    call fld_list_add(fldsFrIce,"stress_on_air_ice_merid", "strairyT", "stress on air by ice y component","N m-2", "will provide")
+    call fld_list_add(fldsFrIce,"stress_on_ocn_ice_zonal", "strocnxT", "stress on ocn by ice x component","N m-2", "will provide")
+    call fld_list_add(fldsFrIce,"stress_on_ocn_ice_merid", "strocnyT", "stress on ocn by ice y component","N m-2", "will provide")
+ 
     if (dbug_flag > 1) then
       call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
     endif
@@ -526,6 +619,7 @@ module module_MEDIATOR
     
     ! local variables    
     type(ESMF_Grid)             :: gridAtm, gridOcn, gridIce
+    type(ESMF_Array)            :: array
     integer                     :: i, j
     real(kind=ESMF_KIND_R8),pointer :: lonPtr(:,:), latPtr(:,:)
     type(InternalState)         :: is
@@ -584,6 +678,72 @@ module module_MEDIATOR
       file=__FILE__)) &
       return  ! bail out
 
+#if 1
+    ! dump the ATM Grid coordinate arrays for reference      
+    call ESMF_GridGetCoord(gridAtm, coordDim=1, array=array, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call ESMF_ArrayWrite(array, file="array_med_atm_grid_coord1.nc", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    call ESMF_GridGetCoord(gridAtm, coordDim=2, array=array, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call ESMF_ArrayWrite(array, file="array_med_atm_grid_coord2.nc", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    ! dump the OCN Grid coordinate arrays for reference      
+    call ESMF_GridGetCoord(gridOcn, coordDim=1, array=array, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call ESMF_ArrayWrite(array, file="array_med_ocn_grid_coord1.nc", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    call ESMF_GridGetCoord(gridOcn, coordDim=2, array=array, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call ESMF_ArrayWrite(array, file="array_med_ocn_grid_coord2.nc", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    ! dump the ICE Grid coordinate arrays for reference      
+    call ESMF_GridGetCoord(gridIce, coordDim=1, array=array, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call ESMF_ArrayWrite(array, file="array_med_ice_grid_coord1.nc", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    call ESMF_GridGetCoord(gridIce, coordDim=2, array=array, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+    call ESMF_ArrayWrite(array, file="array_med_ice_grid_coord2.nc", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      call ESMF_Finalize(endflag=ESMF_END_ABORT)
+#endif
+        
     !--- Generate RouteHandles
 ! tcx Xgrid
 ! what needs to be in the grids to create an XGrid (corners?)
@@ -1908,13 +2068,11 @@ module module_MEDIATOR
     character(len=64)           :: timestr
     type(ESMF_State)            :: importState, exportState
     type(ESMF_StateItem_Flag)   :: itemType
-    type(ESMF_Field)            :: field
     type(InternalState)         :: is
     integer                     :: i,j,n
-    character(len=64)           :: fieldname(10)
-    type(ESMF_Field)            :: field1,field2
-    real(ESMF_KIND_R8), pointer :: dataPtr1(:,:),dataPtr2(:,:)
-    logical                     :: isPresent, checkOK
+    character(len=64)           :: fieldname1(10),fieldname2(10),fieldname3(10)
+    real(ESMF_KIND_R8), pointer :: dataPtr1(:,:),dataPtr2(:,:),dataPtr3(:,:)
+    logical                     :: isPresent, checkOK, checkOK1, checkOK2
     character(len=*),parameter  :: subname='(module_MEDIATOR:Advance_slow)'
 
     if (dbug_flag > 1) then
@@ -1936,7 +2094,7 @@ module module_MEDIATOR
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, &
       file=__FILE__)) &
-      return  ! bail out
+     return  ! bail out
 
     ! HERE THE MEDIATOR does the mediation of Fields that come in on the
     ! importState with a timestamp consistent to the currTime of the 
@@ -2033,93 +2191,205 @@ module module_MEDIATOR
     !--- custom calculations to ocn
     !---------------------------------------
 
-    !--- split total solar into 4 terms
+    !--- split total solar into 4 terms and compute net shortwave
 
-    fieldname(1) = 'mdswfx'
-    fieldname(2) = 'mdvrsfx'
-    fieldname(3) = 'mdvfsfx'
-    fieldname(4) = 'mdirsfx'
-    fieldname(5) = 'mdifsfx'
+    !--- atm downward sw
+
+    fieldname1(1) = 'sw_flux_vis_dir'
+    fieldname1(2) = 'sw_flux_vis_dif'
+    fieldname1(3) = 'sw_flux_nir_dir'
+    fieldname1(4) = 'sw_flux_nir_dif'
+
+    ! check fields exist
     checkOK = .true.
-    do n = 1,5
-      if (n == 1) then
-        call ESMF_FieldBundleGet(is%wrap%FBaccumAtm, fieldName=trim(fieldname(n)), isPresent=isPresent, rc=rc)
-      else
-        call ESMF_FieldBundleGet(is%wrap%FBforOcn  , fieldName=trim(fieldname(n)), isPresent=isPresent, rc=rc)
-      endif
+    do n = 1,4
+      checkOK = checkOK .and. FieldBundle_FldChk(is%wrap%FBaccumAtm, trim(fieldname1(n)), rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-      if (.not. isPresent) checkOK = .false.
     enddo
 
+    if (dbug_flag > 1) then
+      if (checkOK) then
+        call ESMF_LogWrite(trim(subname)//' swd:found 4 sw down terms from atm', ESMF_LOGMSG_INFO, rc=dbrc)
+      else
+        call ESMF_LogWrite(trim(subname)//' swd:did not find 4 sw down terms from atm', ESMF_LOGMSG_INFO, rc=dbrc)
+      endif
+    endif
+
+! tcraig old single downward sw field
+!    if (.not. checkOK) then
+!      fieldname1(1) = 'mdswfx'
+!      ! check field exists
+!      checkOK = FieldBundle_FldChk(is%wrap%FBaccumAtm, trim(fieldname1(1)), rc=rc)
+!      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+!      if (dbug_flag > 1) then
+!        if (checkOK) then
+!          call ESMF_LogWrite(trim(subname)//' swd:found mdswfx from atm', ESMF_LOGMSG_INFO, rc=dbrc)
+!        else
+!          call ESMF_LogWrite(trim(subname)//' swd:did not find mdswfx from atm', ESMF_LOGMSG_INFO, rc=dbrc)
+!        endif
+!      endif
+!    endif
+
     if (checkOK) then
-      call ESMF_FieldBundleGet(is%wrap%FBaccumAtm, fieldName=trim(fieldname(1)), field=field1, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-      call ESMF_FieldGet(field1, farrayPtr=dataPtr1, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      !--- ocn net sw
+      fieldname2(1) = 'mndvrsfx'
+      fieldname2(2) = 'mndvfsfx'
+      fieldname2(3) = 'mndirsfx'
+      fieldname2(4) = 'mndifsfx'
 
-      do n = 2,5
-        call ESMF_FieldBundleGet(is%wrap%FBforOcn, fieldName=trim(fieldname(n)), field=field2, rc=rc)
+      ! check fields exist
+      checkOK1 = .true.
+      do n = 1,4
+        checkOK1 = checkOK1 .and. FieldBundle_FldChk(is%wrap%FBforOcn, trim(fieldname2(n)), rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-        call ESMF_FieldGet(field2, farrayPtr=dataPtr2, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      enddo
 
-        if (lbound(dataPtr2,2) /= lbound(dataPtr1,2) .or. &
-            lbound(dataPtr2,1) /= lbound(dataPtr1,1) .or. &
-            ubound(dataPtr2,2) /= ubound(dataPtr1,2) .or. &
-            ubound(dataPtr2,1) /= ubound(dataPtr1,1)) then
-          call ESMF_LogWrite(trim(subname)//": ERROR in data size "//trim(fieldname(n)), ESMF_LOGMSG_ERROR, rc=rc)
-          write(tmpstr,*) trim(subname)//': dataPtr2 ',lbound(dataPtr2),ubound(dataPtr2)
-          call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
-          write(tmpstr,*) trim(subname)//': dataPtr1 ',lbound(dataPtr1),ubound(dataPtr1)
-          call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+      if (dbug_flag > 1) then
+        if (checkOK1) then
+          call ESMF_LogWrite(trim(subname)//' swd:found 4 net sw for ocn', ESMF_LOGMSG_INFO, rc=dbrc)
+        else
+          call ESMF_LogWrite(trim(subname)//' swd:did not find 4 net sw for ocn', ESMF_LOGMSG_INFO, rc=dbrc)
+        endif
+      endif
+
+      !--- ocn down sw
+      if (.not. checkOK1) then
+        fieldname2(1) = 'mdvrsfx'
+        fieldname2(2) = 'mdvfsfx'
+        fieldname2(3) = 'mdirsfx'
+        fieldname2(4) = 'mdifsfx'
+
+        checkOK1 = .true.
+        do n = 1,4
+          checkOK1 = checkOK1 .and. FieldBundle_FldChk(is%wrap%FBforOcn, trim(fieldname2(n)), rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        enddo
+
+        if (dbug_flag > 1) then
+          if (checkOK1) then
+            call ESMF_LogWrite(trim(subname)//' swd:found 4 down sw for ocn', ESMF_LOGMSG_INFO, rc=dbrc)
+          else
+            call ESMF_LogWrite(trim(subname)//' swd:did not find 4 down sw for ocn', ESMF_LOGMSG_INFO, rc=dbrc)
+          endif
+        endif
+      endif
+    endif
+
+    if (checkOK .and. checkOK1) then
+      !--- ocean albedo from atm
+      fieldname3(1) = 'iovisdira'
+      fieldname3(2) = 'iovisdifa'
+      fieldname3(3) = 'ioirdira'
+      fieldname3(4) = 'ioirdifa'
+      checkOK2 = .true.
+      do n = 1,4
+        checkOK2 = checkOK2 .and. FieldBundle_FldChk(is%wrap%FBaccumAtm, trim(fieldname3(n)), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      enddo
+
+      if (dbug_flag > 1) then
+        if (checkOK2) then
+          call ESMF_LogWrite(trim(subname)//' swd:found 4 ocn albedos from atm', ESMF_LOGMSG_INFO, rc=dbrc)
+        else
+          call ESMF_LogWrite(trim(subname)//' swd:did not find 4 ocn albedos from atm', ESMF_LOGMSG_INFO, rc=dbrc)
+        endif
+      endif
+
+      if (.not.checkOK2) then
+        !--- use merged albedo from atm
+        fieldname3(1) = 'ivisdira'
+        fieldname3(2) = 'ivisdifa'
+        fieldname3(3) = 'iirdira'
+        fieldname3(4) = 'iirdifa'
+        checkOK2 = .true.
+        do n = 1,4
+          checkOK2 = checkOK2 .and. FieldBundle_FldChk(is%wrap%FBaccumAtm, trim(fieldname3(n)), rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        enddo
+
+        if (dbug_flag > 1) then
+          if (checkOK2) then
+            call ESMF_LogWrite(trim(subname)//' swd:found 4 avg albedos from atm', ESMF_LOGMSG_INFO, rc=dbrc)
+          else
+            call ESMF_LogWrite(trim(subname)//' swd:did not find 4 avg albedos from atm', ESMF_LOGMSG_INFO, rc=dbrc)
+            call ESMF_LogWrite(trim(subname)//' swd:use ocean albedo 0.06', ESMF_LOGMSG_INFO, rc=dbrc)
+          endif
+        endif
+
+      endif
+    endif
+
+    if (checkOK .and. checkOK1) then
+! tcraig old single downward sw field
+!      call FieldBundle_GetFldPtr(is%wrap%FBaccumAtm, trim(fieldname1(1)), dataPtr1, rc=rc)
+!      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      do n = 1,4
+        call FieldBundle_GetFldPtr(is%wrap%FBaccumAtm, trim(fieldname1(n)), dataPtr1, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+        call FieldBundle_GetFldPtr(is%wrap%FBforOcn, trim(fieldname2(n)), dataPtr2, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+        if (.not.FldPtr_SameCheck(dataPtr1, dataPtr2, 'swnet', rc)) then
+          call ESMF_LogWrite(trim(subname)//": ERROR in dataPtr size ", ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__, rc=rc)
+          return
+        endif
+
+        if (checkOK2) then
+          call FieldBundle_GetFldPtr(is%wrap%FBaccumAtm, trim(fieldname3(n)), dataPtr3, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+          if (.not.FldPtr_SameCheck(dataPtr1, dataPtr3, 'swnet-albedo', rc)) then
+            call ESMF_LogWrite(trim(subname)//": ERROR in dataPtr size ", ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__, rc=rc)
+            return
+          endif
         endif
 
         do j=lbound(dataPtr2,2),ubound(dataPtr2,2)
         do i=lbound(dataPtr2,1),ubound(dataPtr2,1)
-          dataPtr2(i,j) = dataPtr1(i,j) * 0.25_ESMF_KIND_R8
+          if (checkOK2) then
+! tcraig old single downward sw field
+!            dataPtr2(i,j) = dataPtr1(i,j) * (1.0 - dataPtr3(i,j)) * 0.25_ESMF_KIND_R8
+            dataPtr2(i,j) = dataPtr1(i,j) * (1.0 - dataPtr3(i,j))
+          else
+            !--- hardwire 0.06 ocean albedo
+! tcraig old single downward sw field
+!            dataPtr2(i,j) = dataPtr1(i,j) * (1.0 - 0.06)          * 0.25_ESMF_KIND_R8
+            dataPtr2(i,j) = dataPtr1(i,j) * (1.0 - 0.06)
+          endif
         enddo
         enddo
       enddo
+    else
+      if (dbug_flag > 1) then
+        call ESMF_LogWrite(trim(subname)//' swd:failed', ESMF_LOGMSG_INFO, rc=dbrc)
+      endif
     endif
 
-    !--- compute specific humidity from latent heat
+    !--- compute specific humidity flux from latent heat flux
 
-    fieldname(1) = 'ishh2m'
-    fieldname(2) = 'mlhfx'
-    checkOK = .true.
-    do n = 1,2
-      if (n == 1) then
-        call ESMF_FieldBundleGet(is%wrap%FBaccumAtm, fieldName=trim(fieldname(n)), isPresent=isPresent, rc=rc)
-      else
-        call ESMF_FieldBundleGet(is%wrap%FBforOcn  , fieldName=trim(fieldname(n)), isPresent=isPresent, rc=rc)
-      endif
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-      write(tmpstr,*) subname,'tcx check ',trim(fieldname(n)),isPresent,checkOK
-      if (.not. isPresent) checkOK = .false.
-    enddo
+    fieldname1(1) = 'mlhfx'
+    fieldname2(1) = 'mevap'
+
+    ! check fields exist
+    checkOK = FieldBundle_FldChk(is%wrap%FBaccumAtm, trim(fieldname1(1)), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    checkOK = checkOK .and. FieldBundle_FldChk(is%wrap%FBforOcn, trim(fieldname2(1)), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
     if (checkOK) then
-      call ESMF_FieldBundleGet(is%wrap%FBaccumAtm, fieldName=trim(fieldname(1)), field=field1, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-      call ESMF_FieldGet(field1, farrayPtr=dataPtr1, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-
-      call ESMF_FieldBundleGet(is%wrap%FBforOcn, fieldName=trim(fieldname(2)), field=field2, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-      call ESMF_FieldGet(field2, farrayPtr=dataPtr2, rc=rc)
+      if (dbug_flag > 1) then
+        call ESMF_LogWrite(trim(subname)//' evap:compute mevap from mlhfx', ESMF_LOGMSG_INFO, rc=dbrc)
+      endif
+      call FieldBundle_GetFldPtr(is%wrap%FBaccumAtm, trim(fieldname1(1)), dataPtr1, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
-      if (lbound(dataPtr2,2) /= lbound(dataPtr1,2) .or. &
-          lbound(dataPtr2,1) /= lbound(dataPtr1,1) .or. &
-          ubound(dataPtr2,2) /= ubound(dataPtr1,2) .or. &
-          ubound(dataPtr2,1) /= ubound(dataPtr1,1)) then
-        call ESMF_LogWrite(trim(subname)//": ERROR in data size "//trim(fieldname(2)), ESMF_LOGMSG_ERROR, rc=rc)
-        write(tmpstr,*) trim(subname)//': dataPtr2 ',lbound(dataPtr2),ubound(dataPtr2)
-        call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
-        write(tmpstr,*) trim(subname)//': dataPtr1 ',lbound(dataPtr1),ubound(dataPtr1)
-        call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      call FieldBundle_GetFldPtr(is%wrap%FBforOcn, trim(fieldname2(1)), dataPtr2, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+      if (.not.FldPtr_SameCheck(dataPtr1, dataPtr2, 'evap_from_mlhfx', rc)) then
+         call ESMF_LogWrite(trim(subname)//": ERROR in dataPtr size ", ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__, rc=rc)
+         return
       endif
 
       do j=lbound(dataPtr2,2),ubound(dataPtr2,2)
@@ -2127,6 +2397,10 @@ module module_MEDIATOR
         dataPtr2(i,j) = dataPtr1(i,j) / const_lhvap !Lw is temperature dependent so more accurate calc can be done here.
       enddo
       enddo
+    else
+      if (dbug_flag > 1) then
+        call ESMF_LogWrite(trim(subname)//' evap:failed', ESMF_LOGMSG_INFO, rc=dbrc)
+      endif
     endif
 
     if (dbug_flag > 1) then
@@ -2463,7 +2737,6 @@ module module_MEDIATOR
     integer                     :: fieldCount
     character(len=64) ,pointer  :: fieldNameList(:)
     real(ESMF_KIND_R8)          :: lvalue
-    type(ESMF_Field)            :: field
     real(ESMF_KIND_R8), pointer :: dataPtr(:,:)
     character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_reset)'
 
@@ -2483,9 +2756,7 @@ module module_MEDIATOR
     call ESMF_FieldBundleGet(FieldBundle, fieldNameList=fieldNameList, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
     do n = 1, fieldCount
-      call ESMF_FieldBundleGet(FieldBundle, fieldName=fieldNameList(n), field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-      call ESMF_FieldGet(field, farrayPtr=dataPtr, rc=rc)
+      call FieldBundle_GetFldPtr(FieldBundle, fieldNameList(n), dataPtr, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
       do j=lbound(dataPtr,2),ubound(dataPtr,2)
@@ -2519,7 +2790,6 @@ module module_MEDIATOR
     integer                     :: fieldCount
     character(len=64) ,pointer  :: fieldNameList(:)
     real(ESMF_KIND_R8)          :: lvalue
-    type(ESMF_Field)            :: field
     real(ESMF_KIND_R8), pointer :: dataPtr(:,:)
     character(len=*),parameter :: subname='(module_MEDIATOR:state_reset)'
 
@@ -2539,9 +2809,7 @@ module module_MEDIATOR
     call ESMF_StateGet(State, itemNameList=fieldNameList, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
     do n = 1, fieldCount
-      call ESMF_StateGet(State, itemName=fieldNameList(n), field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-      call ESMF_FieldGet(field, farrayPtr=dataPtr, rc=rc)
+      call State_GetFldPtr(State, fieldNameList(n), dataPtr, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
       do j=lbound(dataPtr,2),ubound(dataPtr,2)
@@ -2573,7 +2841,6 @@ module module_MEDIATOR
     integer                     :: i,j,n
     integer                     :: fieldCount
     character(len=64) ,pointer  :: fieldNameList(:)
-    type(ESMF_Field)            :: field
     real(ESMF_KIND_R8), pointer :: dataPtr(:,:)
     character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_average)'
 
@@ -2594,10 +2861,9 @@ module module_MEDIATOR
       call ESMF_FieldBundleGet(FieldBundle, fieldNameList=fieldNameList, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
       do n = 1, fieldCount
-        call ESMF_FieldBundleGet(FieldBundle, fieldName=fieldNameList(n), field=field, rc=rc)
+        call FieldBundle_GetFldPtr(FieldBundle, fieldNameList(n), dataPtr, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-        call ESMF_FieldGet(field, farrayPtr=dataPtr, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
         do j=lbound(dataPtr,2),ubound(dataPtr,2)
         do i=lbound(dataPtr,1),ubound(dataPtr,1)
           dataPtr(i,j) = dataPtr(i,j) / real(count, ESMF_KIND_R8)
@@ -2629,7 +2895,6 @@ module module_MEDIATOR
     integer                     :: fieldCount
     character(len=64) ,pointer  :: fieldNameList(:)
     character(len=64)           :: lstring
-    type(ESMF_Field)            :: field
     real(ESMF_KIND_R8), pointer :: dataPtr(:,:)
     character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_diagnose)'
 
@@ -2649,9 +2914,7 @@ module module_MEDIATOR
     call ESMF_FieldBundleGet(FieldBundle, fieldNameList=fieldNameList, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
     do n = 1, fieldCount
-      call ESMF_FieldBundleGet(FieldBundle, fieldName=fieldNameList(n), field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-      call ESMF_FieldGet(field, farrayPtr=dataPtr, rc=rc)
+      call FieldBundle_GetFldPtr(FieldBundle, fieldNameList(n), dataPtr, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
       write(tmpstr,'(A,3g14.7)') trim(subname)//' '//trim(lstring)//':'//trim(fieldNameList(n)), &
         minval(dataPtr),maxval(dataPtr),sum(dataPtr)
@@ -2680,7 +2943,6 @@ module module_MEDIATOR
     integer                     :: fieldCount
     character(len=64) ,pointer  :: fieldNameList(:)
     character(len=64)           :: lstring
-    type(ESMF_Field)            :: field
     real(ESMF_KIND_R8), pointer :: dataPtr(:,:)
     character(len=*),parameter :: subname='(module_MEDIATOR:state_diagnose)'
 
@@ -2700,9 +2962,7 @@ module module_MEDIATOR
     call ESMF_StateGet(State, itemNameList=fieldNameList, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
     do n = 1, fieldCount
-      call ESMF_StateGet(State, itemName=fieldNameList(n), field=field, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-      call ESMF_FieldGet(field, farrayPtr=dataPtr, rc=rc)
+      call State_GetFldPtr(State, fieldNameList(n), dataPtr, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
       write(tmpstr,'(A,3g14.7)') trim(subname)//' '//trim(lstring)//':'//trim(fieldNameList(n)), &
         minval(dataPtr),maxval(dataPtr),sum(dataPtr)
@@ -2812,7 +3072,6 @@ module module_MEDIATOR
     character(len=64) ,pointer  :: fieldNameList(:)
     logical                     :: exists
     logical                     :: lcopy
-    type(ESMF_Field)            :: fieldi, fieldo
     type(ESMF_StateItem_Flag)   :: itemType
     real(ESMF_KIND_R8), pointer :: dataPtri(:,:), dataPtro(:,:)
     character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_accumFB2FB)'
@@ -2837,26 +3096,14 @@ module module_MEDIATOR
       call ESMF_FieldBundleGet(FBin, fieldName=fieldNameList(n), isPresent=exists, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
       if (exists) then
+        call FieldBundle_GetFldPtr(FBin,  fieldNameList(n), dataPtri, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-        call ESMF_FieldBundleGet(FBin , fieldName=fieldNameList(n), field=fieldi, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-        call ESMF_FieldBundleGet(FBout, fieldName=fieldNameList(n), field=fieldo, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-        call ESMF_FieldGet(fieldi, farrayPtr=dataPtri, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-        call ESMF_FieldGet(fieldo, farrayPtr=dataPtro, rc=rc)
+        call FieldBundle_GetFldPtr(FBout, fieldNameList(n), dataPtro, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
-        if (lbound(dataPtri,2) /= lbound(dataPtro,2) .or. &
-            lbound(dataPtri,1) /= lbound(dataPtro,1) .or. &
-            ubound(dataPtri,2) /= ubound(dataPtro,2) .or. &
-            ubound(dataPtri,1) /= ubound(dataPtro,1)) then
-          call ESMF_LogWrite(trim(subname)//": ERROR in data size "//trim(fieldNameList(n)), ESMF_LOGMSG_ERROR, rc=rc)
-          write(tmpstr,*) trim(subname)//': dataPtri ',lbound(dataPtri),ubound(dataPtri)
-          call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
-          write(tmpstr,*) trim(subname)//': dataPtro ',lbound(dataPtro),ubound(dataPtro)
-          call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        if (.not.FldPtr_SameCheck(dataPtro, dataPtri, subname, rc)) then
+           call ESMF_LogWrite(trim(subname)//": ERROR in dataPtr size ", ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__, rc=rc)
+           return
         endif
 
         if (lcopy) then
@@ -2900,7 +3147,6 @@ module module_MEDIATOR
     integer                     :: fieldCount
     logical                     :: lcopy
     character(len=64) ,pointer  :: fieldNameList(:)
-    type(ESMF_Field)            :: fieldS, fieldB
     type(ESMF_StateItem_Flag)   :: itemType
     real(ESMF_KIND_R8), pointer :: dataPtrS(:,:), dataPtrB(:,:)
     character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_accumST2FB)'
@@ -2922,25 +3168,15 @@ module module_MEDIATOR
       call ESMF_StateGet(STin, itemName=fieldNameList(n), itemType=itemType, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
       if (itemType /= ESMF_STATEITEM_NOTFOUND) then
-        call ESMF_FieldBundleGet(FBout, fieldName=fieldNameList(n), field=fieldB, rc=rc)
+
+        call State_GetFldPtr(STin, fieldNameList(n), dataPtrS, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-        call ESMF_FieldGet(fieldB, farrayPtr=dataPtrB, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-        call ESMF_StateGet(STin, itemName=fieldNameList(n), field=fieldS, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-        call ESMF_FieldGet(fieldS, farrayPtr=dataPtrS, rc=rc)
+        call FieldBundle_GetFldPtr(FBout, fieldNameList(n), dataPtrB, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
-        if (lbound(dataPtrB,2) /= lbound(dataPtrS,2) .or. &
-            lbound(dataPtrB,1) /= lbound(dataPtrS,1) .or. &
-            ubound(dataPtrB,2) /= ubound(dataPtrS,2) .or. &
-            ubound(dataPtrB,1) /= ubound(dataPtrS,1)) then
-          call ESMF_LogWrite(trim(subname)//": ERROR in data size "//trim(fieldNameList(n)), ESMF_LOGMSG_ERROR, rc=rc)
-          write(tmpstr,*) trim(subname)//': dataPtrB ',lbound(dataPtrB),ubound(dataPtrB)
-          call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
-          write(tmpstr,*) trim(subname)//': dataPtrS ',lbound(dataPtrS),ubound(dataPtrS)
-          call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        if (.not.FldPtr_SameCheck(dataPtrS, dataPtrB, subname, rc)) then
+           call ESMF_LogWrite(trim(subname)//": ERROR in dataPtr size ", ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__, rc=rc)
+           return
         endif
 
         if (lcopy) then
@@ -2985,7 +3221,6 @@ module module_MEDIATOR
     integer                     :: fieldCount
     logical                     :: lcopy
     character(len=64) ,pointer  :: fieldNameList(:)
-    type(ESMF_Field)            :: fieldS, fieldB
     type(ESMF_StateItem_Flag)   :: itemType
     real(ESMF_KIND_R8), pointer :: dataPtrS(:,:), dataPtrB(:,:)
     character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_accumFB2ST)'
@@ -3007,25 +3242,15 @@ module module_MEDIATOR
       call ESMF_StateGet(STout, itemName=fieldNameList(n), itemType=itemType, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
       if (itemType /= ESMF_STATEITEM_NOTFOUND) then
-        call ESMF_FieldBundleGet(FBin, fieldName=fieldNameList(n), field=fieldB, rc=rc)
+
+        call FieldBundle_GetFldPtr(FBin, fieldNameList(n), dataPtrB, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-        call ESMF_FieldGet(fieldB, farrayPtr=dataPtrB, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-        call ESMF_StateGet(STout, itemName=fieldNameList(n), field=fieldS, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-        call ESMF_FieldGet(fieldS, farrayPtr=dataPtrS, rc=rc)
+        call State_GetFldPtr(STout, fieldNameList(n), dataPtrS, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
-        if (lbound(dataPtrB,2) /= lbound(dataPtrS,2) .or. &
-            lbound(dataPtrB,1) /= lbound(dataPtrS,1) .or. &
-            ubound(dataPtrB,2) /= ubound(dataPtrS,2) .or. &
-            ubound(dataPtrB,1) /= ubound(dataPtrS,1)) then
-          call ESMF_LogWrite(trim(subname)//": ERROR in data size "//trim(fieldNameList(n)), ESMF_LOGMSG_ERROR, rc=rc)
-          write(tmpstr,*) trim(subname)//': dataPtrB ',lbound(dataPtrB),ubound(dataPtrB)
-          call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
-          write(tmpstr,*) trim(subname)//': dataPtrS ',lbound(dataPtrS),ubound(dataPtrS)
-          call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        if (.not.FldPtr_SameCheck(dataPtrS, dataPtrB, subname, rc)) then
+           call ESMF_LogWrite(trim(subname)//": ERROR in dataPtr size ", ESMF_LOGMSG_ERROR, line=__LINE__, file=__FILE__, rc=rc)
+           return
         endif
 
         if (lcopy) then
@@ -3055,6 +3280,141 @@ module module_MEDIATOR
 
   !-----------------------------------------------------------------------------
 
+  logical function FieldBundle_FldChk(FB, fldname, rc)
+    type(ESMF_FieldBundle), intent(in) :: FB
+    character(len=*)      ,intent(in) :: fldname
+    integer, intent(out), optional :: rc
+
+    ! local variables
+    logical :: isPresent
+    integer :: lrc
+    character(len=*),parameter :: subname='(module_MEDIATOR:FieldBundle_FldChk)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    FieldBundle_FldChk = .false.
+
+    call ESMF_FieldBundleGet(FB, fieldName=trim(fldname), isPresent=isPresent, rc=lrc)
+    if (present(rc)) rc = lrc
+    if (ESMF_LogFoundError(rcToCheck=lrc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    if (isPresent) then
+       FieldBundle_FldChk = .true.
+    endif
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end function FieldBundle_FldChk
+
+  !-----------------------------------------------------------------------------
+
+  subroutine FieldBundle_GetFldPtr(FB, fldname, fldptr, rc)
+    type(ESMF_FieldBundle), intent(in) :: FB
+    character(len=*)      , intent(in) :: fldname
+    real(ESMF_KIND_R8), pointer, intent(in) :: fldptr(:,:)
+    integer, intent(out), optional :: rc
+
+    ! local variables
+    type(ESMF_Field) :: lfield
+    integer :: lrc
+    character(len=*),parameter :: subname='(module_MEDIATOR:FieldBundle_GetFldPtr)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    call ESMF_FieldBundleGet(FB, fieldName=trim(fldname), field=lfield, rc=lrc)
+    if (ESMF_LogFoundError(rcToCheck=lrc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    call ESMF_FieldGet(lfield, farrayPtr=fldptr, rc=lrc)
+    if (ESMF_LogFoundError(rcToCheck=lrc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+    if (present(rc)) rc = lrc
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine FieldBundle_GetFldPtr
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+
+  subroutine State_GetFldPtr(ST, fldname, fldptr, rc)
+    type(ESMF_State), intent(in) :: ST
+    character(len=*), intent(in) :: fldname
+    real(ESMF_KIND_R8), pointer, intent(in) :: fldptr(:,:)
+    integer, intent(out), optional :: rc
+
+    ! local variables
+    type(ESMF_Field) :: lfield
+    integer :: lrc
+    character(len=*),parameter :: subname='(module_MEDIATOR:State_GetFldPtr)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    call ESMF_StateGet(ST, itemName=trim(fldname), field=lfield, rc=lrc)
+    if (ESMF_LogFoundError(rcToCheck=lrc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    call ESMF_FieldGet(lfield, farrayPtr=fldptr, rc=lrc)
+    if (ESMF_LogFoundError(rcToCheck=lrc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+
+    if (present(rc)) rc = lrc
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end subroutine State_GetFldPtr
+
+  !-----------------------------------------------------------------------------
+
+  logical function FldPtr_SameCheck(fldptr1, fldptr2, cstring, rc)
+    real(ESMF_KIND_R8), pointer, intent(in) :: fldptr1(:,:)
+    real(ESMF_KIND_R8), pointer, intent(in) :: fldptr2(:,:)
+    character(len=*), intent(in) :: cstring
+    integer, intent(out), optional :: rc
+
+    ! local variables
+    integer :: lrc
+    character(len=*),parameter :: subname='(module_MEDIATOR:FldPtr_SameCheck)'
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    FldPtr_SameCheck = .false.
+    if (lbound(fldptr2,2) /= lbound(fldptr1,2) .or. &
+        lbound(fldptr2,1) /= lbound(fldptr1,1) .or. &
+        ubound(fldptr2,2) /= ubound(fldptr1,2) .or. &
+        ubound(fldptr2,1) /= ubound(fldptr1,1)) then
+      call ESMF_LogWrite(trim(subname)//": ERROR in data size "//trim(cstring), ESMF_LOGMSG_ERROR, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+      write(tmpstr,*) trim(subname)//': fldptr2 ',lbound(fldptr2),ubound(fldptr2)
+      call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+      write(tmpstr,*) trim(subname)//': fldptr1 ',lbound(fldptr1),ubound(fldptr1)
+      call ESMF_LogWrite(trim(tmpstr), ESMF_LOGMSG_INFO, rc=dbrc)
+    else
+      FldPtr_SameCheck = .true.
+    endif
+
+    if (present(rc)) rc = lrc
+
+    if (dbug_flag > 1) then
+      call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
+    endif
+
+  end function FldPtr_SameCheck
+
+  !-----------------------------------------------------------------------------
+
   subroutine fld_list_add(fldlist, stdname, shortname, longname, units, &
     transferOffer)
     ! ----------------------------------------------
@@ -3073,7 +3433,7 @@ module module_MEDIATOR
     integer :: nnum    ! new size of array
     integer :: rc
     character(len=256), pointer :: tmpstr(:)
-    character(len=*),parameter :: subname='(module_MEDIATOR:fieldBundle_accumFB2ST)'
+    character(len=*),parameter :: subname='(module_MEDIATOR:fld_list_add)'
 
     if (dbug_flag > 1) then
       call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO, rc=dbrc)
@@ -3126,6 +3486,22 @@ module module_MEDIATOR
     fldlist%longname      (fldlist%num) = trim(longname)
     fldlist%units         (fldlist%num) = trim(units)
     fldlist%transferOffer (fldlist%num) = trim(transferOffer)
+
+!--------------------------------------------------
+! This automatically adds dictionary entries
+! Want fields to be defined in the global dictionary
+!--------------------------------------------------
+!    if (.not.NUOPC_FieldDictionaryHasEntry(trim(stdname))) then
+!       call NUOPC_FieldDictionaryAddEntry( &
+!          standardName     = trim(stdname)   , &
+!          canonicalUnits   = trim(units)     , &
+!          defaultLongName  = trim(longname)  , &
+!          defaultShortName = trim(shortname) , rc=rc);
+!       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+!          line=__LINE__, &
+!          file=__FILE__)) &
+!          return  ! bail out
+!    endif
 
     if (dbug_flag > 1) then
       call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO, rc=dbrc)
