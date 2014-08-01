@@ -9,9 +9,8 @@ ESMF_LIB    = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 gfs=gsm
 gfsdir=atmos/$(gfs)
 
-##NETCDF_LIB  = /usrx/local/netcdf-4.2.1.1/lib/libnetcdf.a
-#NETCDF_LIB  = /usrx/local/netcdf-3.6.3/lib/libnetcdff.a  /usrx/local/netcdf-3.6.3/lib/libnetcdf.a
-NETCDF_LIB  = /usrx/local/NetCDF/3.6.3/lib/libnetcdf.a
+NETCDF_INC  = $(NETCDF_INCLUDE)
+NETCDF_LIB  = $(NETCDF_LDFLAGS)
 
 #NEMSIO_INC  = -I/nwprod/lib/incmod/nemsio
 #NEMSIO_LIB  = -L/nwprod/lib -lnemsio
@@ -65,10 +64,9 @@ FREE        = -free
 FIXED       = -fixed
 R8          = -r8
 
-FINCS       = $(ESMF_INC) $(NEMSIO_INC)
+FINCS       = $(ESMF_INC) $(NEMSIO_INC) $(NETCDF_INC)
 TRAPS       =
-#TRAPS       = -ftrapuv -check all -fp-stack-check
-#TRAPS       = -ftrapuv -check bounds -check format -check output_conversion -check pointers -check uninit -fp-stack-check
+#TRAPS       = -ftrapuv -fno-inline -no-ip -traceback -fpe0 -ftz -check all -check noarg_temp_created -fp-stack-check
 
 FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise -xAVX
 

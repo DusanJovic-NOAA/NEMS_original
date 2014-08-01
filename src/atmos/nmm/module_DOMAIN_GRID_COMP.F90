@@ -49,6 +49,8 @@
 !-----------------------------------------------------------------------
 !
       USE esmf_mod
+      USE netcdf
+!
       USE MODULE_INCLUDE
 !
       USE MODULE_CONSTANTS,ONLY : A,CP,G,P608,PI,TWOM 
@@ -88,7 +90,8 @@
       USE module_SOLVER_INTERNAL_STATE,ONLY: SOLVER_INTERNAL_STATE      &
                                             ,WRAP_SOLVER_INT_STATE
 !
-      USE MODULE_NESTING,ONLY: LATLON_TO_IJ                             &
+      USE MODULE_NESTING,ONLY: CHECK                                    &
+                              ,LATLON_TO_IJ                             &
                               ,INTERNAL_DATA_TO_DOMAIN                  &
                               ,PARENT_TO_CHILD_INIT_NMM                 &
                               ,SUFFIX_MOVE                              &
@@ -9640,8 +9643,8 @@
 !---------------------
 !
       INTEGER(kind=KINT) :: I,I_END,I_OFFSET,I_START                    &
-                           ,ICORNER,IDIM,IHI,ILO,INPUT_NEST             &
-                           ,J,J_END,J_OFFSET,J_START,JCORNER,JDIM       &
+                           ,IHI,ILO,INPUT_NEST                          &
+                           ,J,J_END,J_OFFSET,J_START                    &
                            ,JHI,JLO,KHI,KLO                             &
                            ,KOUNT_INTEGER,KOUNT_REAL                    &
                            ,N,N_FIELD,N_ITER,N_REMOVE,NI,NL,NN          &
@@ -9650,28 +9653,34 @@
                            ,NUM_PTASK_UPDATE,NUM_REAL_WORDS             &
                            ,UPDATE_TYPE_INT
 !
+      INTEGER(kind=KINT) :: I_COUNT_DATA,I_START_DATA                   &
+                           ,J_COUNT_DATA,J_START_DATA                   &
+                           ,NCID,NCTYPE,NDIMS,NX,NY,VAR_ID
+!
       INTEGER(kind=KINT) :: N_FIELD_T,N_FIELD_TP                        &
                            ,N_FIELD_U,N_FIELD_UP                        &
                            ,N_FIELD_V,N_FIELD_VP
 !
       INTEGER(kind=KINT) :: IERR,RC,RC_UPDATE
 !
-      INTEGER(kind=KINT),DIMENSION(1:2) :: LBND,UBND
+      INTEGER(kind=KINT),DIMENSION(1:2) :: DIM_IDS,LBND,UBND
 !
       INTEGER(kind=KINT),DIMENSION(1:3) :: LIMITS_HI                    &
                                           ,LIMITS_LO
 !
       INTEGER(kind=KINT),DIMENSION(1:8) :: INDICES_H,INDICES_V
 !
-      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: IROW               &
-                                                    ,UPDATE_INTEGER_DATA
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: UPDATE_INTEGER_DATA
+!
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: I_INDX,J_INDX
+!
+      INTEGER(kind=KINT),DIMENSION(:,:),ALLOCATABLE :: SFC_IDATA
 !
       INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: IARRAY_2D=>NULL()
 !
       REAL(kind=KFPT) :: GBL,REAL_I,REAL_J
 !
-      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ROW                   &
-                                                 ,UPDATE_REAL_DATA
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: UPDATE_REAL_DATA
 !
       REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ARRAY_2D=>NULL()        &
 !
@@ -9686,6 +9695,7 @@
                           ,UPDATE_TYPE_CHAR
       CHARACTER(len=2)  :: ID_SFC_FILE
       CHARACTER(len=12) :: NAME
+      CHARACTER(len=15) :: VNAME
       CHARACTER(len=17) :: NAME_REAL
       CHARACTER(len=20) :: NAME_INTEGER
       CHARACTER(len=99) :: FIELD_NAME                                   &
@@ -9881,6 +9891,35 @@
           ENDIF
 !
 !-----------------------------------------------------------------------
+!***  For those 2-D surface variables that must be read from
+!***  external files after nests shift we will need the regions
+!***  within each relevant nest task that must be updated.
+!-----------------------------------------------------------------------
+!
+          IF(GLOBAL_TOP_PARENT)THEN
+            GBL=1.                                                         !<-- Account for the extra row that surrounds the global domain.
+          ELSE
+            GBL=0.
+          ENDIF
+!
+          CALL LATLON_TO_IJ(GLAT_H(I_START,J_START)                     &  !<-- Geographic latitude of nest task's 1st update point
+                           ,GLON_H(I_START,J_START)                     &  !<-- Geographic longitude of nest task's 1st update point
+                           ,TPH0_1,TLM0_1                               &  !<-- Central lat/lon (radians, N/E) of uppermost parent
+                           ,SB_1,WB_1                                   &  !<-- Rotated lat/lon of upper parent's S/W bndry (radians, N/E)
+                           ,RECIP_DPH_1,RECIP_DLM_1                     &  !<-- Reciprocal of I/J grid increments (radians) on upper parent
+                           ,GLOBAL_TOP_PARENT                           &  !<-- Is the uppermost parent on a global grid?
+                           ,REAL_I                                      &  !<-- Corresponding I index on uppermost parent grid
+                           ,REAL_J)                                        !<-- Corresponding J index on uppermost parent grid
+!
+          I_OFFSET=NINT((REAL_I-1.-GBL)*SFC_FILE_RATIO)                    !<-- Offset in I between sfc file index and nest index
+          J_OFFSET=NINT((REAL_J-1.-GBL)*SFC_FILE_RATIO)                    !<-- Offset in J between sfc file index and nest index
+!
+          I_START_DATA=I_OFFSET+1                                          !<-- Start reading at this I in the external file array
+          I_COUNT_DATA=I_END-I_START+1                                     !<-- Read this many points in I
+          J_START_DATA=J_OFFSET+1                                          !<-- Start reading at this J in the external file array
+          J_COUNT_DATA=J_END-J_START+1                                     !<-- Read this many points in J
+!
+!-----------------------------------------------------------------------
 !***  Now proceed with the updating of all H-pt variables with data
 !***  sent from the parent.  All Fields in the Move Bundles have names
 !***  containing the suffix '-move' to distinguish them from the same
@@ -9984,68 +10023,17 @@
                   WRITE(ID_SFC_FILE,'(I2.2)')SFC_FILE_RATIO
                 ENDIF
 !
-                FILENAME=TRIM(FIELD_NAME)//'_ij_'//ID_SFC_FILE
+                FILENAME=TRIM(FIELD_NAME)//'_'//TRIM(ID_SFC_FILE)//'.nc'
 !
-                DO NN=51,99
-                 INQUIRE(NN,opened=OPENED)
-                 IF(.NOT.OPENED)THEN
-                   INPUT_NEST=NN
-                   EXIT
-                 ENDIF
-                ENDDO
+                CALL CHECK(NF90_OPEN(FILENAME,NF90_NOWRITE,NCID))          !<-- Open the current field's external netCDF file.
 !
-                OPEN(unit  =INPUT_NEST                                  &
-                    ,file  =TRIM(FILENAME)                              &
-                    ,form  ='unformatted'                               &
-                    ,status='old'                                       &
-                    ,iostat=IERR)
-!
-                IF(IERR/=0)THEN
-                  WRITE(0,*)' Failed to open external nest-resolution'  &
-                           ,' file ',TRIM(FILENAME)
-                  WRITE(0,*)' Aborting!'
-                  CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-                ENDIF
-!
-                IDIM=(IM_1-1)*SFC_FILE_RATIO+1                             !<-- # of points in I on full parent grid for nest space ratio
-                JDIM=(JM_1-1)*SFC_FILE_RATIO+1                             !<-- # of points in J on full parent grid for nest space ratio
-!
-!----------------------------------------
-!***  SW corner of nest task subdomain
-!***  on uppermost parent.
-!----------------------------------------
-!
-                IF(GLOBAL_TOP_PARENT)THEN
-                  GBL=1.                                                   !<-- Account for the extra row that surrounds the global domain.
-                ELSE
-                  GBL=0.
-                ENDIF
-!
-                ICORNER=MAX(IMS,IDS)+GBL                                   !<-- Nest task halos are covered with data
-                JCORNER=MAX(JMS,JDS)+GBL                                   ! 
-!
-                CALL LATLON_TO_IJ(GLAT_H(I_START,J_START)               &  !<-- Geographic latitude of nest task's 1st update point
-                                 ,GLON_H(I_START,J_START)               &  !<-- Geographic longitude of nest task's 1st update point
-                                 ,TPH0_1,TLM0_1                         &  !<-- Central lat/lon (radians, N/E) of uppermost parent
-                                 ,SB_1,WB_1                             &  !<-- Rotated lat/lon of upper parent's S/W bndry (radians, N/E)
-                                 ,RECIP_DPH_1,RECIP_DLM_1               &  !<-- Reciprocal of I/J grid increments (radians) on upper parent
-                                 ,GLOBAL_TOP_PARENT                     &  !<-- Is the uppermost parent on a global grid?
-                                 ,REAL_I                                &  !<-- Corresponding I index on uppermost parent grid
-                                 ,REAL_J)                                  !<-- Corresponding J index on uppermost parent grid
-!
-                I_OFFSET=NINT((REAL_I-1.-GBL)*SFC_FILE_RATIO)              !<-- Offset in I between sfc file index and nest index
-                J_OFFSET=NINT((REAL_J-1.-GBL)*SFC_FILE_RATIO)              !<-- Offset in J between sfc file index and nest index
-!
-                DO J=1,J_OFFSET           
-                  READ(INPUT_NEST)                                         !<-- Skip records up to this nest task's 1st update row
-                ENDDO
+!-----------------------------------------------------------------------
 !
 !----------
 !***  Real
 !----------
 !
                 IF(DATATYPE==ESMF_TYPEKIND_R4)THEN                         !<-- The 2-D H-point external file data is Real
-                  ALLOCATE(ROW(1:IDIM))
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
                   MESSAGE_CHECK="Extract 2-D Real Array for Type F"
@@ -10061,14 +10049,14 @@
                   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-                  DO J=J_START,J_END 
-                    READ(INPUT_NEST)ROW
-                    DO I=I_START,I_END
-                      ARRAY_2D(I,J)=ROW(I-I_START+1+I_OFFSET)              !<-- Update the nest variable with external file data
-                    ENDDO
-                  ENDDO
+                  CALL CHECK(NF90_INQUIRE_VARIABLE(NCID,3,VNAME,NCTYPE  &
+                                                  ,NDIMS,DIM_IDS))
+                  CALL CHECK(NF90_INQ_VARID(NCID,VNAME,VAR_ID))
 !
-                  DEALLOCATE(ROW)
+                  CALL CHECK(NF90_GET_VAR(NCID,VAR_ID                           &  !<-- Extract the desired real values from the
+                                         ,ARRAY_2D(I_START:I_END,J_START:J_END) &  !    current field's external file.
+                                         ,start=(/I_START_DATA,J_START_DATA/)   &  !    Nest points that have moved beyond the
+                                         ,count=(/I_COUNT_DATA,J_COUNT_DATA/)))    !    pre-move footprint are updated.
 !
 !-----------------------------------------------------------------------
 !***  Save the base albedo to provide values for the dynamic albedo
@@ -10096,8 +10084,6 @@
 !
                 ELSEIF(DATATYPE==ESMF_TYPEKIND_I4)THEN                     !<-- The 2-D H-point external file data is Integer
 !
-                  ALLOCATE(IROW(1:IDIM))
-!
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
                   MESSAGE_CHECK="Extract 2-D Integer Array for Type F"
 !                 CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
@@ -10112,17 +10098,19 @@
                   CALL ERR_MSG(RC,MESSAGE_CHECK,RC_UPDATE)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-                  DO J=J_START,J_END 
-                    READ(INPUT_NEST)IROW
-                    DO I=I_START,I_END
-                      IARRAY_2D(I,J)=IROW(I-I_START+1+I_OFFSET)            !<-- Update the nest variable with external file data
-                    ENDDO
-                  ENDDO
-                  DEALLOCATE(IROW)
+                  CALL CHECK(NF90_INQUIRE_VARIABLE(NCID,3,VNAME,NCTYPE  &
+                                                  ,NDIMS,DIM_IDS))
+                  CALL CHECK(NF90_INQ_VARID(NCID,VNAME,VAR_ID))
+!
+                  CALL CHECK(NF90_GET_VAR(NCID,VAR_ID                            &  !<-- Extract the desired integer values from the
+                                         ,IARRAY_2D(I_START:I_END,J_START:J_END) &  !    current field's external file.
+                                         ,start=(/I_START_DATA,J_START_DATA/)    &  !    Nest points that have moved beyond the
+                                         ,count=(/I_COUNT_DATA,J_COUNT_DATA/)))     !    pre-move footprint are updated.
 !
                 ENDIF
 !
-                CLOSE(INPUT_NEST)
+                CALL CHECK(NF90_CLOSE(NCID))                               !<-- Close the external netCDF file.
+!
                 CYCLE fields_h
 !
 !-----------------------------------------------------------------------
@@ -11609,24 +11597,28 @@
 !
       INTEGER(kind=KINT),SAVE :: I_OFFSET,J_OFFSET
 !
-      INTEGER(kind=KINT) :: I,I_CORNER,IDIM,IEND,ILOC                    &
-                           ,INPUT_NEST,ISTART,ITE_Y                      &
-                           ,J,J_CORNER,JDIM,JEND,JSTART,JTE_Y            &
+      INTEGER(kind=KINT) :: I,I_CORNER,IEND,ILOC                         &
+                           ,INPUT_NEST,ISTART,ITE_X                      &
+                           ,J,J_CORNER,JEND,JSTART,JTE_Y                 &
                            ,N_FIELD,N_REMOVE,NN,NUM_FIELDS               &
                            ,UPDATE_TYPE_INT
 !
+      INTEGER(kind=KINT) :: I_COUNT_DATA,I_START_DATA                   &
+                           ,J_COUNT_DATA,J_START_DATA                   &
+                           ,NCID,NCTYPE,NDIMS,VAR_ID
+!
       INTEGER(kind=KINT) :: IERR,RC,RC_RES
 !
-      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: IROW
       INTEGER(kind=KINT),DIMENSION(:,:),POINTER :: IARRAY_2D=>NULL()
 !
-      REAL(kind=KFPT) :: GBL,REAL_I,REAL_J
+      INTEGER(kind=KINT),DIMENSION(1:2) :: DIM_IDS
 !
-      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ROW
+      REAL(kind=KFPT) :: GBL,REAL_I,REAL_J
 !
       REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ARRAY_2D=>NULL()
 !
       CHARACTER(len=2)  :: ID_SFC_FILE
+      CHARACTER(len=15) :: VNAME
       CHARACTER(len=99) :: FIELD_NAME,FILENAME
 !
       LOGICAL(kind=KLOG),SAVE :: FIRST=.TRUE.
@@ -11667,6 +11659,14 @@
 !
       I_OFFSET=NINT((REAL_I-1.-GBL)*SFC_FILE_RATIO)                      !<-- Offset in I between sfc file index and nest index
       J_OFFSET=NINT((REAL_J-1.-GBL)*SFC_FILE_RATIO)                      !<-- Offset in J between sfc file index and nest index
+!
+      ITE_X =MIN(IME,IDE)                                                !<-- Last task point to update in I
+      I_START_DATA=I_OFFSET+1                                            !<-- Start reading at this I in external data array
+      I_COUNT_DATA=ITE_X-I_CORNER+1                                      !<-- # of points to read in I
+!
+      JTE_Y =MIN(JME,JDE)                                                !<-- Last task point to update in J
+      J_START_DATA=J_OFFSET+1                                            !<-- Start reading at this J in external data array
+      J_COUNT_DATA=JTE_Y-J_CORNER+1                                      !<-- # of points to read in J
 !
 !-----------------------------------------------------------------------
 !
@@ -11738,41 +11738,17 @@
             WRITE(ID_SFC_FILE,'(I2.2)')SFC_FILE_RATIO
           ENDIF
 !
-          FILENAME=TRIM(FIELD_NAME)//'_ij_'//ID_SFC_FILE
+          FILENAME=TRIM(FIELD_NAME)//'_'//TRIM(ID_SFC_FILE)//'.nc'
 !
-          DO NN=51,99
-           INQUIRE(NN,opened=OPENED)
-           IF(.NOT.OPENED)THEN
-             INPUT_NEST=NN
-             EXIT
-           ENDIF
-          ENDDO
-!
-          OPEN(unit  =INPUT_NEST                                        &
-              ,file  =TRIM(FILENAME)                                    &
-              ,form  ='unformatted'                                     &
-              ,status='old'                                             &
-              ,iostat=IERR)
-!
-          IF(IERR/=0)THEN
-            WRITE(0,*)' Failed to open external nest-resolution'        &
-                     ,' file ',TRIM(FILENAME)
-            WRITE(0,*)' Aborting!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-          ENDIF
-!
-          IDIM=(IM_1-1)*SFC_FILE_RATIO+1                                   !<-- # of points in I on full parent grid for nest space ratio
-          JDIM=(JM_1-1)*SFC_FILE_RATIO+1                                   !<-- # of points in J on full parent grid for nest space ratio
-!
-          IF(DATATYPE==ESMF_TYPEKIND_R4)THEN
-            ALLOCATE(ROW(1:IDIM))                                          !<-- Will hold rows of the external file data
-          ELSEIF(DATATYPE==ESMF_TYPEKIND_I4)THEN
-            ALLOCATE(IROW(1:IDIM))
-          ENDIF
+          CALL CHECK(NF90_OPEN(FILENAME,NF90_NOWRITE,NCID))                !<-- Open the current field's external netCDF file.
 !
 !-----------------------------------------------------------------------
 !***  Extract the array from the Field.
 !-----------------------------------------------------------------------
+!
+!----------
+!***  Real
+!----------
 !
           IF(DATATYPE==ESMF_TYPEKIND_R4)THEN
 !
@@ -11790,6 +11766,19 @@
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RES)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+            CALL CHECK(NF90_INQUIRE_VARIABLE(NCID,3,VNAME,NCTYPE  &
+                                            ,NDIMS,DIM_IDS))
+            CALL CHECK(NF90_INQ_VARID(NCID,VNAME,VAR_ID))
+!
+            CALL CHECK(NF90_GET_VAR(NCID,VAR_ID                             &  !<-- Extract the desired real values from the
+                                   ,ARRAY_2D(I_CORNER:ITE_X,J_CORNER:JTE_Y) &  !    current field's external file.
+                                   ,start=(/I_START_DATA,J_START_DATA/)     &  !    Nest points that have moved beyond the
+                                   ,count=(/I_COUNT_DATA,J_COUNT_DATA/)))      !    pre-move footprint are updated.
+!
+!-------------
+!***  Integer
+!-------------
+!
           ELSEIF(DATATYPE==ESMF_TYPEKIND_I4)THEN
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -11806,6 +11795,15 @@
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RES)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
+            CALL CHECK(NF90_INQUIRE_VARIABLE(NCID,3,VNAME,NCTYPE  &
+                                            ,NDIMS,DIM_IDS))
+            CALL CHECK(NF90_INQ_VARID(NCID,VNAME,VAR_ID))
+!
+            CALL CHECK(NF90_GET_VAR(NCID,VAR_ID                              &  !<-- Extract the desired integer values from the
+                                   ,IARRAY_2D(I_CORNER:ITE_X,J_CORNER:JTE_Y) &  !    current field's external file.
+                                   ,start=(/I_START_DATA,J_START_DATA/)      &  !    Nest points that have moved beyond the
+                                   ,count=(/I_COUNT_DATA,J_COUNT_DATA/)))       !    pre-move footprint are updated.
+!
           ENDIF
 !
 !-----------------------------------------------------------------------
@@ -11814,43 +11812,13 @@
 !***  interpolated from the parent.
 !-----------------------------------------------------------------------
 !
-          DO J=1,J_OFFSET
-            READ(INPUT_NEST)                                               !<-- Skip records up to this nest task's 1st update row
-          ENDDO
+          CALL CHECK(NF90_CLOSE(NCID))                                     !<-- Close the external netCDF file.
 !
-          ITE_Y =MIN(IME,IDE)
-          ISTART=I_OFFSET+1
-          IEND  =ISTART+ITE_Y-I_CORNER
-!
-          JTE_Y =MIN(JME,JDE)
-          JSTART=J_OFFSET+1
-          JEND  =JSTART+JTE_Y-J_CORNER
-!
-          IF(DATATYPE==ESMF_TYPEKIND_R4)THEN
-            DO J=J_CORNER,JTE_Y
-              READ(INPUT_NEST)ROW
-              DO I=I_CORNER,ITE_Y
-                ARRAY_2D(I,J)=ROW(I-I_CORNER+1+I_OFFSET)                   !<-- Fill the nest array with file data
-              ENDDO
-            ENDDO
-!
-          ELSEIF(DATATYPE==ESMF_TYPEKIND_I4)THEN
-            DO J=J_CORNER,JTE_Y
-              READ(INPUT_NEST)IROW
-              DO I=I_CORNER,ITE_Y
-                ILOC=I-I_CORNER+1+I_OFFSET
-                IARRAY_2D(I,J)=IROW(ILOC)                                  !<-- Fill the nest array with file data
-              ENDDO
-            ENDDO
-          ENDIF
-!
-          CLOSE(INPUT_NEST)                                                !<-- Close this variable's external file
-!
-          IF(ALLOCATED(ROW))DEALLOCATE(ROW)
-          IF(ALLOCATED(IROW))DEALLOCATE(IROW)
 !-----------------------------------------------------------------------
 !
         ENDIF  filedata
+!
+        CALL CHECK(NF90_CLOSE(NCID))                                       !<-- Close the external netCDF file.
 !
 !-----------------------------------------------------------------------
 !

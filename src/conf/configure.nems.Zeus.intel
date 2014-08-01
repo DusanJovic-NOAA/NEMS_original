@@ -47,7 +47,8 @@ cice_mk       = /home/Fei.Liu/ICE-INSTALLS/2014-03-19-18-52-00/cice.mk
 ################################################################################
 ## Other settings
 
-NETCDF_LIB   = /apps/netcdf/3.6.3/intel/lib/libnetcdf.a
+NETCDF_INC   = -I$(NETCDF)/include
+NETCDF_LIB   = -L$(NETCDF)/lib -lnetcdf
 
 LIBDIR=/contrib/nceplibs/nwprod/lib
 PARADIR=/contrib/nceplibs_ext/lib
@@ -102,7 +103,7 @@ FREE         = -free
 FIXED        = -fixed
 R8           = -r8
 
-FINCS        = $(ESMF_INC) $(NEMSIO_INC)
+FINCS        = $(ESMF_INC) $(NEMSIO_INC) $(NETCDF_INC)
 TRAPS        =
 #TRAPS        = -g -fno-inline -no-ip -traceback -ftrapuv -fpe0 -ftz -check all -check noarg_temp_created -fp-stack-check
 

@@ -39,6 +39,7 @@
 !-----------------------------------------------------------------------
 !
       USE esmf_mod
+      USE netcdf
 !
       USE module_INCLUDE
 !
@@ -72,6 +73,7 @@
       PRIVATE
 !
       PUBLIC :: BOUNDARY_DATA_STATE_TO_STATE                            &
+               ,CHECK                                                   &
                ,CHECK_REAL                                              &
                ,CHILD_2WAY_BOOKKEEPING                                  &
                ,CHILD_RANKS                                             &
@@ -4015,8 +4017,6 @@
 !
       SW_LAT=SW_CORNER_LATD*DEG_RAD
       SW_LON=SW_CORNER_LOND*DEG_RAD
-!     write(0,*)' CENTER_NEST SBD_DOMAIN=',SBD_DOMAIN,' WBD_DOMAIN=',WBD_DOMAIN &
-!              ,' SW_CORNER_LATD=',SW_CORNER_LATD,' SW_CORNER_LOND=',SW_CORNER_LOND
 !
 !-----------------------------------------------------------------------
 !***  SIDE1 is the arc from the southwest corner to the center 
@@ -4098,7 +4098,6 @@
 !
       TPH0D_DOMAIN=CENTRAL_LAT/DEG_RAD
       TLM0D_DOMAIN=CENTRAL_LON/DEG_RAD
-!     write(0,*)' CENTER_NEST CENTRAL_LAT=',CENTRAL_LAT,' CENTRAL_LON=',CENTRAL_LON,' DEG_RAD=',DEG_RAD
 !
 !-----------------------------------------------------------------------
 !
@@ -11690,14 +11689,22 @@
       INTEGER(kind=KINT) :: I,ICORNER,IDIM,IEND,ISTART,IUNIT_FIS_NEST   &
                            ,J,JCORNER,JDIM,JEND,JSTART,JSTOP,LOR,N,NN
 !
+      INTEGER(kind=KINT) :: I_COUNT_DATA,J_COUNT_DATA                   &
+                           ,I_EXTRA_DATA,J_EXTRA_DATA                   &
+                           ,NCID,NCTYPE,NDIMS,VAR_ID
+!
       INTEGER(kind=KINT) :: IERR,ISTAT
 !
-      REAL(kind=KFPT) :: GBL,REAL_I,REAL_J
+      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: COL,ROW
 !
-      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: ROW1,ROW2
+      INTEGER(kind=KINT),DIMENSION(1:2) :: DIM_IDS
+!
+      REAL(kind=KFPT) :: GBL,REAL_I_NE,REAL_I_SW,REAL_J_NE,REAL_J_SW    &
+                        ,VAL_NE
 !
       CHARACTER(len=2) :: ID_TOPO_FILE
       CHARACTER(len=9) :: FILENAME
+      CHARACTER(len=15) :: VNAME
 !
       LOGICAL(kind=KLOG) :: OPENED
 !
@@ -11727,18 +11734,6 @@
 !-----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
-      nr_loop: DO N=1,KOUNT_RATIOS_MN                                      !<-- Loop through the different parent-child space ratios
-!-----------------------------------------------------------------------
-!
-        LOR=LIST_OF_RATIOS(N)
-!
-        IF(GLOBAL_TOP_PARENT)THEN
-          GBL=1.                                                           !<-- Account for the extra row that surrounds global domains.
-        ELSE
-          GBL=0.
-        ENDIF
-!
-!-----------------------------------------------------------------------
 !***  Each parent task obtains the real I,J on the uppermost parent
 !***  of the SW and NE corners of each of their subdomains.  Given
 !***  the known resolution of the nest topography data the parent
@@ -11750,59 +11745,72 @@
 !***  SW corner of parent task subdomain
 !----------------------------------------
 !
-        ICORNER=MAX(IMS,IDS)                                               !<-- Parent task covers its halos with data too since
-        JCORNER=MAX(JMS,JDS)                                               !    the moving nest boundaries can extend into them.
+      ICORNER=MAX(IMS,IDS)                                                 !<-- Parent task covers its halos with data too since
+      JCORNER=MAX(JMS,JDS)                                                 !    the moving nest boundaries can extend into them.
 !
-        IF(MY_DOMAIN_ID==1.AND.GLOBAL_TOP_PARENT)THEN                      !<-- The current parent domain is global.
-          IF(ITS==IDS)THEN
-            ICORNER=ICORNER+1.                                             !<-- Past buffer row to Intl Dateline
-          ENDIF
-          IF(JTS==JDS)THEN
-            JCORNER=JCORNER+1.
-!           JCORNER=JCORNER+2.                                             !<-- Avoid singularity; go one row N of S pole.
-          ENDIF
+      IF(MY_DOMAIN_ID==1.AND.GLOBAL_TOP_PARENT)THEN                        !<-- The current parent domain is global.
+        IF(ITS==IDS)THEN
+          ICORNER=ICORNER+1.                                               !<-- Past buffer row to Intl Dateline
         ENDIF
+        IF(JTS==JDS)THEN
+          JCORNER=JCORNER+1.
+        ENDIF
+      ENDIF
 !
-        CALL LATLON_TO_IJ(GLAT(ICORNER,JCORNER)                         &  !<-- Geographic lat (radians) of parent task's SW corner
-                         ,GLON(ICORNER,JCORNER)                         &  !<-- Geographic lon (radians) of parent task's SW corner
-                         ,TPH0_1,TLM0_1                                 &  !<-- Geographic lat,lon of upper parent's central point
-                         ,SB_1,WB_1                                     &  !<-- Rotated lat/lon of upper parent's SW corner
-                         ,RECIP_DPH_1,RECIP_DLM_1                       &
-                         ,GLOBAL_TOP_PARENT                             &  !<-- Is the uppermost parent domain global?
-                         ,REAL_I                                        &  !<-- Uppermost parent I of this task's SW corner
-                         ,REAL_J)                                          !<-- Uppermost parent J of this task's SW corner
-!
-        ISTART=NINT((REAL_I-1.-GBL)*LOR+1.)                                !<-- I index in sfc data at W bndry of this parent task
-        JSTART=NINT((REAL_J-1.-GBL)*LOR+1.)                                !<-- J index in sfc data at S bndry of this parent task
+      CALL LATLON_TO_IJ(GLAT(ICORNER,JCORNER)                           &  !<-- Geographic lat (radians) of parent task's SW corner
+                       ,GLON(ICORNER,JCORNER)                           &  !<-- Geographic lon (radians) of parent task's SW corner
+                       ,TPH0_1,TLM0_1                                   &  !<-- Geographic lat,lon of upper parent's central point
+                       ,SB_1,WB_1                                       &  !<-- Rotated lat/lon of upper parent's SW corner
+                       ,RECIP_DPH_1,RECIP_DLM_1                         &
+                       ,GLOBAL_TOP_PARENT                               &  !<-- Is the uppermost parent domain global?
+                       ,REAL_I_SW                                       &  !<-- Uppermost parent I of this task's SW corner
+                       ,REAL_J_SW)                                         !<-- Uppermost parent J of this task's SW corner
 !
 !----------------------------------------
 !***  NE corner of parent task subdomain
 !----------------------------------------
 !
-        ICORNER=MIN(IME,IDE)                                               !<-- Parent task covers its halos with data too since
-        JCORNER=MIN(JME,JDE)                                               !    the moving nest boundaries can extend into them.
+      ICORNER=MIN(IME,IDE)                                                 !<-- Parent task covers its halos with data too since
+      JCORNER=MIN(JME,JDE)                                                 !    the moving nest boundaries can extend into them.
 !
-        IF(MY_DOMAIN_ID==1.AND.GLOBAL_TOP_PARENT)THEN                      !<-- The current parent domain is global.
-          IF(ITE==IDE)THEN
-            ICORNER=ICORNER-1.                                             !<-- Past buffer row to Intl Dateline
-          ENDIF
-          IF(JTE==JDE)THEN
-            JCORNER=JCORNER-1.
-!           JCORNER=JCORNER-2.                                             !<-- Avoid singularity; go one row S of N pole.
-          ENDIF
+      IF(MY_DOMAIN_ID==1.AND.GLOBAL_TOP_PARENT)THEN                        !<-- The current parent domain is global.
+        IF(ITE==IDE)THEN
+          ICORNER=ICORNER-1.                                               !<-- Past buffer row to Intl Dateline
+        ENDIF
+        IF(JTE==JDE)THEN
+          JCORNER=JCORNER-1.
+        ENDIF
+      ENDIF
+!
+      CALL LATLON_TO_IJ(GLAT(ICORNER,JCORNER)                           &
+                       ,GLON(ICORNER,JCORNER)                           &
+                       ,TPH0_1,TLM0_1                                   &
+                       ,SB_1,WB_1                                       &
+                       ,RECIP_DPH_1,RECIP_DLM_1                         &
+                       ,GLOBAL_TOP_PARENT                               &
+                       ,REAL_I_NE                                       &
+                       ,REAL_J_NE)
+!
+!-----------------------------------------------------------------------
+      nr_loop: DO N=1,KOUNT_RATIOS_MN                                      !<-- Loop through the different parent-child space ratios
+!-----------------------------------------------------------------------
+!
+        LOR=LIST_OF_RATIOS(N)
+!
+        IF(GLOBAL_TOP_PARENT)THEN
+          GBL=1.                                                           !<-- Account for the extra row that surrounds global domains.
+        ELSE
+          GBL=0.
         ENDIF
 !
-        CALL LATLON_TO_IJ(GLAT(ICORNER,JCORNER)                         &
-                         ,GLON(ICORNER,JCORNER)                         &
-                         ,TPH0_1,TLM0_1                                 &
-                         ,SB_1,WB_1                                     &
-                         ,RECIP_DPH_1,RECIP_DLM_1                       &
-                         ,GLOBAL_TOP_PARENT                             &
-                         ,REAL_I                                        &
-                         ,REAL_J)
+        ISTART=NINT((REAL_I_SW-1.-GBL)*LOR+1.)                             !<-- I index in sfc data at W bndry of this parent task
+        JSTART=NINT((REAL_J_SW-1.-GBL)*LOR+1.)                             !<-- J index in sfc data at S bndry of this parent task
 !
-        IEND=NINT((REAL_I-1.-GBL)*LOR+1.)                                  !<-- I index in nest sfc data at E bndry (H) of this parent task
-        JEND=NINT((REAL_J-1.-GBL)*LOR+1.)                                  !<-- J index in nest sfc data at N bndry (H) of this parent task
+        IEND=NINT((REAL_I_NE-1.-GBL)*LOR+1.)                               !<-- I index in nest sfc data at E bndry (H) of this parent task
+        JEND=NINT((REAL_J_NE-1.-GBL)*LOR+1.)                               !<-- J index in nest sfc data at N bndry (H) of this parent task
+!
+        I_COUNT_DATA=IEND-ISTART+1
+        J_COUNT_DATA=JEND-JSTART+1
 !
 !-----------------------------------------------------------------------
 !
@@ -11823,36 +11831,15 @@
             WRITE(ID_TOPO_FILE,'(I2.2)')NN
           ENDIF
         ELSE
-          WRITE(0,*)' USER SPECIFIED MORE THAN 9 DIFFERENT'            &
-                   ,' MOVING NEST RESOLUTIONS!!!'
+          WRITE(0,*)' User specified more than 9 different'            &
+                   ,' moving nest resolutions!!!'
           WRITE(0,*)' ABORTING'
           CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
         ENDIF
 !
-        FILENAME='FIS_ij_'//ID_TOPO_FILE
+        FILENAME='FIS_'//TRIM(ID_TOPO_FILE)//'.nc'
 !
-        DO NN=51,99
-          INQUIRE(NN,opened=OPENED)
-          IF(.NOT.OPENED)THEN
-            IUNIT_FIS_NEST=NN
-            EXIT
-          ENDIF
-        ENDDO
-!
-        OPEN(unit  =IUNIT_FIS_NEST                                        &
-            ,file  =TRIM(FILENAME)                                        &
-            ,form  ='unformatted'                                         &
-            ,status='old'                                                 &
-            ,iostat=IERR)
-!
-        IF(IERR/=0)THEN
-          WRITE(0,*)' There is no file named ',TRIM(FILENAME)
-          WRITE(0,*)' User did not properly provide an external file'    &
-                   ,' with sfc geopotential of moving nest with ratio '  &
-                   ,LOR,' on the uppermost parent domain.'
-          WRITE(0,*)' ABORTING!!!'
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-        ENDIF
+        CALL CHECK(NF90_OPEN(FILENAME,NF90_NOWRITE,NCID))                  !<-- Open the FIS external netCDF file for Nth space ratio.
 !
 !-----------------------------------------------------------------------
 !***  Each task allocates its space for holding its moving children's
@@ -11871,63 +11858,115 @@
 !
 !-----------------------------------------------------------------------
 !***  Save only those points in the topography data for resolution N
-!***  that cover this parent task's subdomain.  Data is read row-by-row
-!***  from the external file.
+!***  that cover this parent task's subdomain.
+!***  Begin with the nest-resolution topography at H points.
 !-----------------------------------------------------------------------
 !
-        IDIM=(IM_1-1)*LOR+1                                                !<-- # of points in I on full upper parent grid for space ratio N
-        JDIM=(JM_1-1)*LOR+1                                                !<-- # of points in J on full upper parent grid for space ratio N
+        CALL CHECK(NF90_INQUIRE_VARIABLE(NCID,3,VNAME,NCTYPE  &            !<-- Topography is the 3rd variable in the file.
+                                        ,NDIMS,DIM_IDS))
+        CALL CHECK(NF90_INQ_VARID(NCID,VNAME,VAR_ID))
 !
-        ALLOCATE(ROW1(1:IDIM))
-        ALLOCATE(ROW2(1:IDIM))
+        CALL CHECK(NF90_GET_VAR(NCID,VAR_ID                                         &  !<-- Extract the values
+                               ,NEST_FIS_ON_PARENT(N)%DATA(ISTART:IEND,JSTART:JEND) &  !    of nest-resolution
+                               ,start=(/ISTART,JSTART/)                             &  !    topography from the
+                               ,count=(/I_COUNT_DATA,J_COUNT_DATA/)))                  !    external file.
 !
-        DO J=1,JSTART-1
-          READ(IUNIT_FIS_NEST)
+!-----------------------------------------------------------------------
+!***  For the nest topography values at V points we can begin by
+!***  averaging the values at H points.
+!-----------------------------------------------------------------------
+!
+        DO J=JSTART,JEND-1
+        DO I=ISTART,IEND-1
+          NEST_FIS_V_ON_PARENT(N)%DATA(I,J)=(NEST_FIS_ON_PARENT(N)%DATA(I,J)   &
+                                            +NEST_FIS_ON_PARENT(N)%DATA(I+1,J) &
+                                            +NEST_FIS_ON_PARENT(N)%DATA(I,J+1) &
+                                            +NEST_FIS_ON_PARENT(N)%DATA(I,J+1) &
+                                            )*0.25
         ENDDO
+        ENDDO
+!                
+!-----------------------------------------------------------------------
+!***  The V row at J=J_END is north of the H row at J=J_END.  
+!***  The V column at I=I_END is east of the H row at I=I_END.
+!***  This means we need to read in extra values to get those 
+!***  V points on the north and east edges of the parent tasks.
+!-----------------------------------------------------------------------
 !
-        READ(IUNIT_FIS_NEST)ROW1
+        ALLOCATE(ROW(ISTART:IEND))
+        ALLOCATE(COL(JSTART:JEND))
 !
-        JSTOP=MIN(JEND+1,JDIM)
+        I_EXTRA_DATA=ISTART+I_COUNT_DATA                                   !<-- 1 column east of task's saved H data
+        J_EXTRA_DATA=JSTART+J_COUNT_DATA                                   !<-- 1 row north of task's saved H data
 !
-        DO J=JSTART+1,JSTOP
-          READ(IUNIT_FIS_NEST)ROW2
+!-----------------------------------------------------------------------
+!***  Fill in values of nest topography on V points one row north
+!***  of the northern limit of the H-point topography saved on
+!***  this parent task.
+!-----------------------------------------------------------------------
 !
-          NEST_FIS_ON_PARENT(N)%DATA(IEND,J-1)=ROW1(IEND)
+        IF(JTE<JDE)THEN
+          CALL CHECK(NF90_GET_VAR(NCID,VAR_ID                           &  !<-- Extract the values
+                                 ,ROW(ISTART:IEND)                      &  !    1 row north of the
+                                 ,start=(/ISTART,J_EXTRA_DATA/)         &  !    northernmost H pts
+                                 ,count=(/I_COUNT_DATA,1/)))               !    on this parent task.
 !
           DO I=ISTART,IEND-1
-            NEST_FIS_ON_PARENT(N)%DATA(I,J-1)=ROW1(I)
-            NEST_FIS_V_ON_PARENT(N)%DATA(I,J-1)=(ROW1(I)                &
-                                                +ROW1(I+1)              &
-                                                +ROW2(I)                &
-                                                +ROW2(I+1))*0.25
-              ROW1(I)=ROW2(I)
+            NEST_FIS_V_ON_PARENT(N)%DATA(I,JEND)=(NEST_FIS_ON_PARENT(N)%DATA(I,JEND-1)    &
+                                                  +NEST_FIS_ON_PARENT(N)%DATA(I+1,JEND-1) &
+                                                  +ROW(I)+ROW(I+1) )*0.25
           ENDDO
 !
-          IF(ITE<IDE)THEN
-            NEST_FIS_V_ON_PARENT(N)%DATA(IEND,J-1)=(ROW1(IEND)          &
-                                                   +ROW1(IEND+1)        &
-                                                   +ROW2(IEND)          &
-                                                   +ROW2(IEND+1))       &
-                                                  *0.25
-            ROW1(IEND+1)=ROW2(IEND+1)
+        ELSE
 !
-          ELSE
-!
-            NEST_FIS_V_ON_PARENT(N)%DATA(IEND,J-1)=                     &  !<-- At eastern edge of the parent domain copy the
-              NEST_FIS_V_ON_PARENT(N)%DATA(IEND-1,J-1)                     !    V-pt value immediately to the west.
-!
-          ENDIF
-!
-          ROW1(IEND)=ROW2(IEND)
-!
-        ENDDO
-!
-        IF(JSTOP==JDIM)THEN
-          DO I=ISTART,IEND
-            NEST_FIS_ON_PARENT(N)%DATA(I,JEND)=ROW2(I)
+          DO I=ISTART,IEND-1
             NEST_FIS_V_ON_PARENT(N)%DATA(I,JEND)=NEST_FIS_V_ON_PARENT(N)%DATA(I,JEND-1)
           ENDDO
+!
         ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Fill in values of nest topography on V points one column east
+!***  of the eastern limit of the H-point topography saved on this
+!***  parent task.
+!-----------------------------------------------------------------------
+!
+        IF(ITE<IDE)THEN
+          CALL CHECK(NF90_GET_VAR(NCID,VAR_ID                           &  !<-- Extract the values
+                                 ,COL(JSTART:JEND)                      &  !    1 column east of the
+                                 ,start=(/I_EXTRA_DATA,JSTART/)         &  !    easternmost H pts
+                                 ,count=(/1,J_COUNT_DATA/)))               !    on this parent task.
+!
+          DO J=JSTART,JEND-1
+            NEST_FIS_V_ON_PARENT(N)%DATA(IEND,J)=(NEST_FIS_ON_PARENT(N)%DATA(IEND,J) &
+                                                  +NEST_FIS_ON_PARENT(N)%DATA(I,J+1) &
+                                                  +COL(J)+COL(J+1) )*0.25
+          ENDDO
+!
+        ELSE
+!          
+          DO J=JSTART,JEND-1
+            NEST_FIS_V_ON_PARENT(N)%DATA(IEND,J)=NEST_FIS_V_ON_PARENT(N)%DATA(IEND-1,J)
+          ENDDO
+!
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Finally the extreme northeast parent task V point.
+!-----------------------------------------------------------------------
+!
+        IF(ITE<IDE.AND.JTE<JDE)THEN
+          CALL CHECK(NF90_GET_VAR(NCID,VAR_ID                            & 
+                                 ,VAL_NE                                 &
+                                 ,start=(/I_EXTRA_DATA,J_EXTRA_DATA/))) 
+!
+          NEST_FIS_V_ON_PARENT(N)%DATA(IEND,JEND)=(NEST_FIS_ON_PARENT(N)%DATA(IEND,JEND) &
+                                                    +ROW(IEND)+COL(JEND)+VAL_NE)*0.25
+        ENDIF
+!
+!-----------------------------------------------------------------------
+!***  Set all tiny values identically to zero.
+!-----------------------------------------------------------------------
 !
         DO J=JSTART,JEND
         DO I=ISTART,IEND
@@ -11941,8 +11980,9 @@
         ENDDO
         ENDDO
 !
-        DEALLOCATE(ROW1,ROW2)
-        CLOSE(IUNIT_FIS_NEST)
+        DEALLOCATE(ROW,COL)
+!
+        CALL CHECK(NF90_CLOSE(NCID))                                       !<-- Close the external netCDF file.
 !
 !-----------------------------------------------------------------------
 !
@@ -13131,6 +13171,28 @@
 !-----------------------------------------------------------------------
 !
       END SUBROUTINE CHECK_REAL
+!
+!-----------------------------------------------------------------------
+!#######################################################################
+!-----------------------------------------------------------------------
+!
+      SUBROUTINE CHECK(RC)
+!
+      IMPLICIT NONE
+!
+      INTEGER,INTENT(IN) :: RC
+!
+!-----------------------------------------------------------------------
+!***********************************************************************
+!-----------------------------------------------------------------------
+!
+      IF(RC/=NF90_NOERR)THEN
+        WRITE(*,*)TRIM(ADJUSTL(NF90_STRERROR(RC)))
+!       WRITE(0,11101)RC
+11101   FORMAT(' ERROR: RC=',I5)
+      ENDIF
+!
+      END SUBROUTINE CHECK
 !
 !-----------------------------------------------------------------------
 !

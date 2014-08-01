@@ -23,8 +23,8 @@ cp _RTPWD_/NMMB_mvg_nests/nmmb_rst_04_nio_0012h_00m_00.00s  restart_file_04_nems
 cp _RTPWD_/NMMB_mvg_nests/boco.* .
 cp _RTPWD_/data/* .
 cp _RTPWD_/NMMB_mvg_nests/GWD_bin_* .
-cp _RTPWD_/NMMB_mvg_nests/*_3 .
-cp _RTPWD_/NMMB_mvg_nests/*_9 .
+cp _RTPWD_/NMMB_mvg_nests/*_3.nc .
+cp _RTPWD_/NMMB_mvg_nests/*_9.nc .
 cp IGBP_VEGPARM.TBL VEGPARM.TBL
 cp IGBP_LANDUSE.TBL LANDUSE.TBL
 cp ETAMPNEW_DATA.expanded_rain ETAMPNEW_DATA

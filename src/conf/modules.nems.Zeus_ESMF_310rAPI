@@ -5,4 +5,4 @@
 # 3.1.0rp2, ...) are compatible with this API.
 
 module purge
-module load mpt intel esmf/3.1.0rp5
+module load mpt intel esmf/3.1.0rp5 netcdf

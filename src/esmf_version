@@ -72,7 +72,8 @@ else
      echo " 'esmf_version 3_yellowstone'      : ESMF 3.1.0rp2 library on yellowstone"
      echo;
      echo " 'esmf_version 5.2_wcoss'          : ESMF 5.2.0rp2 library on wcoss"
-     echo " 'esmf_version 6.3r_wcoss'         : ESMF 6.3.0r library on wcoss"
+     echo " 'esmf_version 6.3r_wcoss_gsm'     : ESMF 6.3.0r library on wcoss for gsm"
+     echo " 'esmf_version 6.3r_wcoss_nmm'     : ESMF 6.3.0r library on wcoss for nmm"
      echo " 'esmf_version 5.2.0rAPI_zeus'     : ESMF 5.2.0r API compatible library (i.e. ESMF >= 5.2.0r) on zeus"
      echo;
      echo " 'esmf_version nuopc_zeus'         : ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot) on zeus"

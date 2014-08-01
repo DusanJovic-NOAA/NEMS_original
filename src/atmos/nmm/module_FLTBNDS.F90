@@ -465,6 +465,19 @@ real(kind=kfpt) :: &
       call rffti(icycle,wfftrh,nfftrh)
       call rffti(icycle,wfftrw,nfftrw)
 !
+!-----------------------------------------------------------------------
+!***  Much preparation is needed for setting up the sharing of
+!***  FFT computations by all compute tasks.  If only a single
+!***  compute task has been designated for the domain then
+!***  no prep is needed.
+!-----------------------------------------------------------------------
+!
+      if(inpes==1.and.jnpes==1)then
+        return
+      endif
+!
+!-----------------------------------------------------------------------
+!
       if(jh_start_fft_south==jds+2)jh_start_fft_south=jds+1
       if(jh_end_fft_north==jde-2)jh_end_fft_north=jde-1
 !
@@ -1098,6 +1111,76 @@ integer :: ierr,ixx,jxx,kxx
       icycle=ide-3
       rcycle=1./icycle
 !-----------------------------------------------------------------------
+!***  First take care of the special case in which only a single
+!***  MPI task has been designated for the entire domain.
+!-----------------------------------------------------------------------
+!
+      if(npes==1)then
+!
+!-----------------------------------------------------------------------
+!
+        as=0.
+        an=0.
+!
+        do l=1,km
+!
+          do i=ids+1,ide-2
+            as=field_h(i,jds+1,l)+as
+            an=field_h(i,jde-1,l)+an
+          enddo
+!
+          as=as*rcycle
+          an=an*rcycle
+!
+          do i=ids,ide
+            field_h(i,jds+1,l)=as
+            field_h(i,jde-1,l)=an
+          enddo
+!
+          do j=jds+2,jde-2
+!
+            if(khfilt(j)<=icycle) then
+!
+              do i=ids+1,ide-2
+                buff(i-1)=field_h(i,j,l)
+              enddo
+!
+              call rfftf(icycle,buff,wfftrh,nfftrh)
+!
+              do i=1,khfilt(j)-1
+                buff(i)=buff(i)*hfilt(i,j)
+              enddo
+!
+              do i=khfilt(j),icycle
+                buff(i)=0.
+              enddo
+!
+              call rfftb(icycle,buff,wfftrh,nfftrh)
+!
+              do i=ids+1,ide-2
+                field_h(i,j,l)=buff(i-1)
+              enddo
+!
+              field_h(ide-1,j,l)=buff(1)
+!
+            endif
+!
+          enddo
+!
+        enddo
+!
+        return
+!
+!-----------------------------------------------------------------------
+!
+      endif
+!
+!-----------------------------------------------------------------------
+!***  The remainder of this subroutine is relevant when more than 
+!***  a single task has been specified.
+!-----------------------------------------------------------------------
+!
+!-----------------------------------------------------------------------
 !***  k1 and k2 are starting/ending vertical indices of model layers
 !***  that this task will use in applying FFTs.
 !-----------------------------------------------------------------------
@@ -1507,6 +1590,66 @@ real(kind=kfpt),dimension(1:2*(ide-3)):: &
 !-----------------------------------------------------------------------
       icycle=ide-3
       rcycle=1./icycle
+!-----------------------------------------------------------------------
+!***  First take care of the special case in which only a single
+!***  MPI task has been designated for the entire domain.
+!-----------------------------------------------------------------------
+!
+      if(npes==1)then
+!
+!-----------------------------------------------------------------------
+!
+        do l=1,km
+!
+          do j=jds+1,jde-2
+!
+            if(kvfilt(j)<=icycle) then
+!
+              do i=ids+1,ide-2
+                buffu(i-1)=u(i,j,l)
+                buffv(i-1)=v(i,j,l)
+              enddo
+!
+              call rfftf(icycle,buffu,wfftrw,nfftrw)
+              call rfftf(icycle,buffv,wfftrw,nfftrw)
+!
+              do i=1,kvfilt(j)-1
+                buffu(i)=buffu(i)*vfilt(i,j)
+                buffv(i)=buffv(i)*vfilt(i,j)
+              enddo
+              do i=kvfilt(j),icycle
+                buffu(i)=0.
+                buffv(i)=0.
+              enddo
+!
+              call rfftb(icycle,buffu,wfftrw,nfftrw)
+              call rfftb(icycle,buffv,wfftrw,nfftrw)
+!
+              do i=ids+1,ide-2
+                u(i,j,l)=buffu(i-1)
+                v(i,j,l)=buffv(i-1)
+              enddo
+!
+              u(ide-1,j,l)=buffu(1)
+              v(ide-1,j,l)=buffv(1)
+!
+            endif
+!
+          enddo
+!
+        enddo
+!
+        return
+!
+!-----------------------------------------------------------------------
+!
+      endif
+!
+!-----------------------------------------------------------------------
+!***  The remainder of this routine is relevant for the use of 
+!***  multiple MPI tasks on the domain.
+!-----------------------------------------------------------------------
+!
 !-----------------------------------------------------------------------
 !***  k1 and k2 are starting/ending vertical indices of model layers
 !***  that this task will use in applying FFTs.
@@ -3104,20 +3247,9 @@ real(kind=kfpt),dimension(2,jts_h1:jte_h1,km) :: &
         ntask=mype-inpes+1
         call mpi_send(eastx,length,mpi_real,ntask,mype &
                      ,mpi_comm_comp,isend)
+      endif
 !
-        call mpi_recv(westx,length,mpi_real,ntask,ntask &
-                     ,mpi_comm_comp,jstat,irecv)
-!
-        do l=1,km
-        do j=jts_h1,jte_h1
-          ave=(westx(1,j,l)+hn(ite-1,j,l))*0.5
-          hn(ite-1,j,l)=ave
-          hn(ite,j,l)=westx(2,j,l) 
-        enddo
-        enddo
-!-----------------------------------------------------------------------
-      elseif(w_bdy)then
-!
+      if(w_bdy)then
         ntask=mype+inpes-1  
         call mpi_recv(eastx,length,mpi_real,ntask,ntask &
                      ,mpi_comm_comp,jstat,irecv)
@@ -3139,9 +3271,21 @@ real(kind=kfpt),dimension(2,jts_h1:jte_h1,km) :: &
           hn(its+1,j,l)=ave
         enddo
         enddo
-!
-!-----------------------------------------------------------------------
       endif
+!
+      if(e_bdy)then
+        call mpi_recv(westx,length,mpi_real,ntask,ntask &
+                     ,mpi_comm_comp,jstat,irecv)
+!
+        do l=1,km
+        do j=jts_h1,jte_h1
+          ave=(westx(1,j,l)+hn(ite-1,j,l))*0.5
+          hn(ite-1,j,l)=ave
+          hn(ite,j,l)=westx(2,j,l) 
+        enddo
+        enddo
+      endif
+!
 !-----------------------------------------------------------------------
 !
                         endsubroutine swaphn
@@ -3517,19 +3661,9 @@ real(kind=kfpt),dimension(2,jts_h1:jte_h1,km) :: &
         ntask=mype-inpes+1
         call mpi_send(eastx,length_e,mpi_real,ntask,mype &
                      ,mpi_comm_comp,isend)
+      endif
 !
-        call mpi_recv(westx,length_w,mpi_real,ntask,ntask &
-                     ,mpi_comm_comp,jstat,irecv)
-!
-        do l=1,km
-        do j=jts_h1,jte_h1
-          wn(ite-1,j,l)=westx(1,j,l)
-          wn(ite,j,l)=westx(2,j,l)
-        enddo
-        enddo
-!-----------------------------------------------------------------------
-      elseif(w_bdy)then
-!
+      if(w_bdy)then
         ntask=mype+inpes-1
         call mpi_recv(eastx,length_e,mpi_real,ntask,ntask &
                      ,mpi_comm_comp,jstat,irecv)
@@ -3549,9 +3683,20 @@ real(kind=kfpt),dimension(2,jts_h1:jte_h1,km) :: &
 !
         call mpi_send(westx,length_w,mpi_real,ntask,mype &
                      ,mpi_comm_comp,isend)
-!
-!-----------------------------------------------------------------------
       endif
+!
+      if(e_bdy)then
+        call mpi_recv(westx,length_w,mpi_real,ntask,ntask &
+                     ,mpi_comm_comp,jstat,irecv)
+!
+        do l=1,km
+        do j=jts_h1,jte_h1
+          wn(ite-1,j,l)=westx(1,j,l)
+          wn(ite,j,l)=westx(2,j,l)
+        enddo
+        enddo
+      endif
+!
 !-----------------------------------------------------------------------
 !
                         endsubroutine swapwn

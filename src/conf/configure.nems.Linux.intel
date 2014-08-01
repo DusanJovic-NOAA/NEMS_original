@@ -8,7 +8,8 @@ gfsdir=atmos/$(gfs)
 
 NWPROD_LIB ?= $(TOP)/../../lib
 
-NETCDF_LIB  =   $(NWPROD_LIB)/netcdf/lib/libnetcdf.a
+NETCDF_INC  = -I$(NETCDF)/include
+NETCDF_LIB  = -L$(NETCDF)/lib -lnetcdf
 
 NEMSIO_INC  = -I$(NWPROD_LIB)/incmod/nemsio
 NEMSIO_LIB  = -L$(NWPROD_LIB) -lnemsio
@@ -31,7 +32,7 @@ FREE        = -free
 FIXED       = -fixed
 R8          = -r8
 
-FINCS       = $(ESMF_INC) $(NEMSIO_INC)
+FINCS       = $(ESMF_INC) $(NEMSIO_INC) $(NETCDF_INC)
 TRAPS       =
 #TRAPS       = -ftrapuv -check all -fp-stack-check
 #TRAPS       = -ftrapuv -check bounds -check format -check output_conversion -check pointers -check uninit -fp-stack-check

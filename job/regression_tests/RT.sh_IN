@@ -1991,6 +1991,8 @@ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB
     . /usrx/local/Modules/3.2.9/init/ksh
     module unload ics
     module load ics/12.1
+    module unload NetCDF
+    module load NetCDF
     module list
     ./esmf_version 6.3r_wcoss_nmm          >> ${COMPILE_LOG} 2>&1
     gmake clean                            >> ${COMPILE_LOG} 2>&1
