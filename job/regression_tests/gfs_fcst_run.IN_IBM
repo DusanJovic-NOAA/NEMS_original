@@ -31,8 +31,8 @@ set -x
  export SLG=_SLG_
  echo SLG=$SLG
 
- export NGRID_A2OI=32
- export NGRID_A2OI=${NGRID_A2OI:-32}
+ export NGRID_A2OI=41
+ export NGRID_A2OI=${NGRID_A2OI:-41}
 #export A2OI_OUT=.true.
  export A2OI_OUT=${A2OI_OUT:-.false.}
  export CPLFLX=.true.

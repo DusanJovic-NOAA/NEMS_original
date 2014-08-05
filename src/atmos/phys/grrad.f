@@ -31,9 +31,8 @@
 !            dtlw,dtsw, lsswr,lslwr,lssav,                             !
 !            IX, IM, LM, me, lprnt, ipt, kdt,                          !
 !         output:                                                      !
-!            htrsw,topfsw,sfcfsw,scmpsw,sfalb,coszen,coszdg,           !
+!            htrsw,topfsw,sfcfsw,dswcmp,uswcmp,sfalb,coszen,coszdg,    !
 !            htrlw,topflw,sfcflw,tsflw,semis,cldcov,                   !
-!            albnbm,albndf,albvbm,albvdf,                              !
 !         input/output:                                                !
 !            fluxr                                                     !
 !         optional output:                                             !
@@ -163,6 +162,8 @@
 !     13Feb2014   sarah lu - add aerodp to fluxr                       !
 !     Apr 2014    Xingren Wu - add sfc SW downward fluxes nir/vis and  !
 !                    sfcalb to export for A/O/I coupling               !
+!     jun 2014    y-t hou    - revised code to include surface up and  !
+!                    down spectral components sw fluxes as output.     !
 !                                                                      !
 !!!!!  ==========================================================  !!!!!
 !!!!!                       end descriptions                       !!!!!
@@ -632,9 +633,8 @@
      &       dtlw,dtsw, lsswr,lslwr,lssav,                              &
      &       IX, IM, LM, me, lprnt, ipt, kdt,                           &
 !  ---  outputs:
-     &       htrsw,topfsw,sfcfsw,scmpsw,sfalb,coszen,coszdg,            &
+     &       htrsw,topfsw,sfcfsw,dswcmp,uswcmp,sfalb,coszen,coszdg,     &
      &       htrlw,topflw,sfcflw,tsflw,semis,cldcov,                    &
-     &       albnbm,albndf,albvbm,albvdf,                               &
 !  ---  input/output:
      &       fluxr                                                      &
 !! ---  optional outputs:
@@ -735,6 +735,16 @@
 !       %dnfxc           - total sky downward sw flux at sfc (w/m**2)   !
 !       %upfx0           - clear sky upward sw flux at sfc (w/m**2)     !
 !       %dnfx0           - clear sky downward sw flux at sfc (w/m**2)   !
+!      dswcmp(IX,4)    : dn sfc sw spectral components:                 !
+!       ( :, 1)          -  total sky sfc downward nir direct flux      !
+!       ( :, 2)          -  total sky sfc downward nir diffused flux    !
+!       ( :, 3)          -  total sky sfc downward uv+vis direct flux   !
+!       ( :, 4)          -  total sky sfc downward uv+vis diff flux     !
+!      uswcmp(IX,4)    : up sfc sw spectral components:                 !
+!       ( :, 1)          -  total sky sfc upward nir direct flux        !
+!       ( :, 2)          -  total sky sfc upward nir diffused flux      !
+!       ( :, 3)          -  total sky sfc upward uv+vis direct flux     !
+!       ( :, 4)          -  total sky sfc upward uv+vis diff flux       !
 !      sfalb (IM)      : mean surface diffused sw albedo                !
 !      coszen(IM)      : mean cos of zenith angle over rad call period  !
 !      coszdg(IM)      : daytime mean cosz over rad call period         !
@@ -910,12 +920,6 @@
 !
       implicit none
 
-!  ---  constant parameter
-!       The following need to be commented out after the newer version
-!       (Hsin-mu Lin, 2011-04-25)   ????? Is this true???? - Moorthi
-
-      integer, parameter :: NSPC = 6
-
 !  ---  inputs: (for rank>1 arrays, horizontal dimensioned by IX)
       integer,  intent(in) :: IX,IM, LM, NTRAC, NFXR, me,               &
      &                        ntoz, ntcw, ncld, ipt, kdt
@@ -940,12 +944,11 @@
 !  ---  outputs: (horizontal dimensioned by IX)
       real (kind=kind_phys), dimension(IX,LM),intent(out):: htrsw,htrlw,&
      &       cldcov
+      real (kind=kind_phys), dimension(IX,4), intent(out) :: dswcmp,    &
+     &       uswcmp
 
       real (kind=kind_phys), dimension(IM),   intent(out):: tsflw,      &
      &       sfalb, semis, coszen, coszdg
-
-      real (kind=kind_phys), dimension(IM), intent(out):: albnbm,       &
-     &       albndf, albvbm, albvdf
 
       type (topfsw_type), dimension(IM), intent(out) :: topfsw
       type (sfcfsw_type), dimension(IM), intent(out) :: sfcfsw
@@ -1418,21 +1421,10 @@
      &       sfcalb                                                     &
      &     )
 
-!  --- lu [+4L]: derive SFALB from vis- and nir- diffuse surface albedo
+!  ---  approximate mean surface albedo from vis- and nir- diffuse values
+
         do i = 1, IM
           sfalb(i) = max(0.01, 0.5 * (sfcalb(i,2) + sfcalb(i,4)))
-!  --- Xingren Wu: Add for A/O/I coupling
-          if (coszen(i) >= 0.0001) then
-            albnbm(i) = min(1.0, sfcalb(i,1))
-            albndf(i) = sfcalb(i,2)
-            albvbm(i) = min(1.0, sfcalb(i,3))
-            albvdf(i) = sfcalb(i,4)
-          else
-            albnbm(i) = 0.
-            albndf(i) = 0.
-            albvbm(i) = 0.
-            albvdf(i) = 0.
-          endif
         enddo
 
         if (nday > 0) then
@@ -1489,6 +1481,20 @@
             enddo
           enddo
 
+!  --- surface down and up spectral component fluxes
+
+          do i = 1, IM
+            dswcmp(i,1) = scmpsw(i)%nirbm
+            dswcmp(i,2) = scmpsw(i)%nirdf
+            dswcmp(i,3) = scmpsw(i)%visbm
+            dswcmp(i,4) = scmpsw(i)%visdf
+
+            uswcmp(i,1) = scmpsw(i)%nirbm * sfcalb(i,1)
+            uswcmp(i,2) = scmpsw(i)%nirdf * sfcalb(i,2)
+            uswcmp(i,3) = scmpsw(i)%visbm * sfcalb(i,3)
+            uswcmp(i,4) = scmpsw(i)%visdf * sfcalb(i,4)
+          enddo
+
         else                   ! if_nday_block
 
           do k = 1, LM
@@ -1500,6 +1506,13 @@
           sfcfsw = sfcfsw_type( 0.0, 0.0, 0.0, 0.0 )
           topfsw = topfsw_type( 0.0, 0.0, 0.0 )
           scmpsw = cmpfsw_type( 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 )
+
+          do k = 1, 4
+          do i = 1, IM
+            dswcmp(i,k) = 0.0
+            uswcmp(i,k) = 0.0
+          enddo
+          enddo
 
 !! ---  optional:
 !!        fswprf= profsw_type( 0.0, 0.0, 0.0, 0.0 )

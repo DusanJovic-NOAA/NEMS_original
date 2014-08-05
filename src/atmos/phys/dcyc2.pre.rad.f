@@ -16,13 +16,15 @@
 !          ( solhr,slag,sdec,cdec,sinlat,coslat,                        !
 !            xlon,coszen,tsea,tf,tsflw,                                 !
 !            sfcdsw,sfcnsw,sfcdlw,swh,hlw,                              !
-!            sfcnirbm,sfcnirdf,sfcvisbm,sfcvisdf,                       !
+!            sfcnirbmu,sfcnirdfu,sfcvisbmu,sfcvisdfu,                   !
+!            sfcnirbmd,sfcnirdfd,sfcvisbmd,sfcvisdfd,                   !
 !            ix, im, levs,                                              !
 !      input/output:                                                    !
 !            dtdt,                                                      !
 !      outputs:                                                         !
 !            adjsfcdsw,adjsfcnsw,adjsfcdlw,adjsfculw,xmu,xcosz,         !
-!            adjnirbm,adjnirdf,adjvisbm,adjvisdf)                       !
+!            adjnirbmu,adjnirdfu,adjvisbmu,adjvisdfu,                   !
+!            adjnirbmd,adjnirdfd,adjvisbmd,adjvisdfd)                   !
 !                                                                       !
 !                                                                       !
 !  program history:                                                     !
@@ -44,6 +46,8 @@
 !                 argument names to be consistent with calling subr.    !
 !     mar  2014  x. wu      - add sfc nir/vis bm/df to the variable     !
 !                             list for the coupled model input          !
+!     jun  2014  y. hou     - revised to include both up and down sw    !
+!                 spectral component fluxes                             !
 !                                                                       !
 !                                                                       !
 !  subprograms called:  none                                            !
@@ -67,6 +71,14 @@
 !     sfcdlw (im)  - real, total sky sfc downward lw flux (w/m**2)      !
 !     swh(ix,levs) - real, total sky sw heating rates ( k/s )           !
 !     hlw(ix,levs) - real, total sky lw heating rates ( k/s )           !
+!     sfcnirbmu(im)- real, tot sky sfc nir-beam sw upward flux (w/m2)   !
+!     sfcnirdfu(im)- real, tot sky sfc nir-diff sw upward flux (w/m2)   !
+!     sfcvisbmu(im)- real, tot sky sfc uv+vis-beam sw upward flux (w/m2)!
+!     sfcvisdfu(im)- real, tot sky sfc uv+vis-diff sw upward flux (w/m2)!
+!     sfcnirbmd(im)- real, tot sky sfc nir-beam sw downward flux (w/m2) !
+!     sfcnirdfd(im)- real, tot sky sfc nir-diff sw downward flux (w/m2) !
+!     sfcvisbmd(im)- real, tot sky sfc uv+vis-beam sw dnward flux (w/m2)!
+!     sfcvisdfd(im)- real, tot sky sfc uv+vis-diff sw dnward flux (w/m2)!
 !     ix, im       - integer, horiz. dimention and num of used points   !
 !     levs         - integer, vertical layer dimension                  !
 !                                                                       !
@@ -79,6 +91,14 @@
 !     adjsfcnsw(im)- real, time step adj sfc net sw into ground (w/m**2)!
 !     adjsfcdlw(im)- real, time step adjusted sfc dn lw flux (w/m**2)   !
 !     adjsfculw(im)- real, sfc upward lw flux at current time (w/m**2)  !
+!     adjnirbmu(im)- real, t adj sfc nir-beam sw upward flux (w/m2)     !
+!     adjnirdfu(im)- real, t adj sfc nir-diff sw upward flux (w/m2)     !
+!     adjvisbmu(im)- real, t adj sfc uv+vis-beam sw upward flux (w/m2)  !
+!     adjvisdfu(im)- real, t adj sfc uv+vis-diff sw upward flux (w/m2)  !
+!     adjnirbmd(im)- real, t adj sfc nir-beam sw downward flux (w/m2)   !
+!     adjnirdfd(im)- real, t adj sfc nir-diff sw downward flux (w/m2)   !
+!     adjvisbmd(im)- real, t adj sfc uv+vis-beam sw dnward flux (w/m2)  !
+!     adjvisdfd(im)- real, t adj sfc uv+vis-diff sw dnward flux (w/m2)  !
 !     xmu    (im)  - real, time step zenith angle adjust factor for sw  !
 !     xcosz  (im)  - real, cosine of zenith angle at current time step  !
 !                                                                       !
@@ -87,18 +107,19 @@
 !-----------------------------------
       subroutine dcyc2t3_pre_rad                                        &
 !...................................
-
 !  ---  inputs:
      &     ( solhr,slag,sdec,cdec,sinlat,coslat,                        &
      &       xlon,coszen,tsea,tf,tsflw,                                 &
      &       sfcdsw,sfcnsw,sfcdlw,swh,hlw,                              &
-     &       sfcnirbm,sfcnirdf,sfcvisbm,sfcvisdf,                       &
+     &       sfcnirbmu,sfcnirdfu,sfcvisbmu,sfcvisdfu,                   &
+     &       sfcnirbmd,sfcnirdfd,sfcvisbmd,sfcvisdfd,                   &
      &       ix, im, levs,                                              &
 !  ---  input/output:
      &       dtdt,                                                      &
 !  ---  outputs:
      &       adjsfcdsw,adjsfcnsw,adjsfcdlw,adjsfculw,xmu,xcosz,         &
-     &       adjnirbm,adjnirdf,adjvisbm,adjvisdf                        &
+     &       adjnirbmu,adjnirdfu,adjvisbmu,adjvisdfu,                   &
+     &       adjnirbmd,adjnirdfd,adjvisbmd,adjvisdfd                    &
      &     )
 !
       use machine,      only : kind_phys
@@ -116,7 +137,10 @@
 
       real(kind=kind_phys), dimension(im), intent(in) ::                &
      &      sinlat, coslat, xlon, coszen, tsea, tf, tsflw, sfcdlw,      &
-     &      sfcdsw, sfcnsw, sfcnirbm,sfcnirdf,sfcvisbm,sfcvisdf
+     &      sfcdsw, sfcnsw
+      real(kind=kind_phys), dimension(im), intent(in) ::                &
+     &      sfcnirbmu, sfcnirdfu, sfcvisbmu, sfcvisdfu,                 &
+     &      sfcnirbmd, sfcnirdfd, sfcvisbmd, sfcvisdfd
 
       real(kind=kind_phys), dimension(ix,levs), intent(in) :: swh, hlw
 
@@ -126,7 +150,8 @@
 !  ---  outputs:
       real(kind=kind_phys), dimension(im), intent(out) ::               &
      &      adjsfcdsw, adjsfcnsw, adjsfcdlw, adjsfculw, xmu, xcosz,     &
-     &      adjnirbm,adjnirdf,adjvisbm,adjvisdf
+     &      adjnirbmu,adjnirdfu,adjvisbmu,adjvisdfu,                    &
+     &      adjnirbmd,adjnirdfd,adjvisbmd,adjvisdfd
 
 !  ---  locals:
       integer :: i, k
@@ -149,10 +174,16 @@
 
         adjsfcdsw(i) = sfcdsw(i) * xmu(i)
         adjsfcnsw(i) = ss * xmu(i)
-        adjnirbm(i)  = sfcnirbm(i) * xmu(i)
-        adjnirdf(i)  = sfcnirdf(i) * xmu(i)
-        adjvisbm(i)  = sfcvisbm(i) * xmu(i)
-        adjvisdf(i)  = sfcvisdf(i) * xmu(i)
+
+        adjnirbmu(i)  = sfcnirbmd(i) * xmu(i)
+        adjnirdfu(i)  = sfcnirdfd(i) * xmu(i)
+        adjvisbmu(i)  = sfcvisbmd(i) * xmu(i)
+        adjvisdfu(i)  = sfcvisdfd(i) * xmu(i)
+
+        adjnirbmd(i)  = sfcnirbmd(i) * xmu(i)
+        adjnirdfd(i)  = sfcnirdfd(i) * xmu(i)
+        adjvisbmd(i)  = sfcvisbmd(i) * xmu(i)
+        adjvisdfd(i)  = sfcvisdfd(i) * xmu(i)
 
         tem       = tf(i) / tsflw(i)
         tem       = tem * tem

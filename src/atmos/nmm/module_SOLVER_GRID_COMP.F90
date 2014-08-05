@@ -2782,8 +2782,9 @@
       REAL (kind=KDBL) ,DIMENSION(:,:,:),ALLOCATABLE :: GR1
 !
       REAL (kind=KDBL) ,DIMENSION(1)               :: SFALB,TSFLW,SEMIS,SFCDLW,SFCDSW,SFCNSW
-      REAL (kind=KDBL) ,DIMENSION(1)               :: ALBNBM_CPL,ALBNDF_CPL,ALBVBM_CPL,ALBVDF_CPL
-      REAL (kind=KDBL) ,DIMENSION(1)               :: NIRBMI_CPL,NIRDFI_CPL,VISBMI_CPL,VISDFI_CPL
+      REAL (kind=KDBL) ,DIMENSION(1)               :: NIRBMD_CPL,NIRDFD_CPL,VISBMD_CPL,VISDFD_CPL
+      REAL (kind=KDBL) ,DIMENSION(1)               :: NIRBMU_CPL,NIRDFU_CPL,VISBMU_CPL,VISDFU_CPL
+
 
       type (topfsw_type), dimension(1) :: topfsw
       type (sfcfsw_type), dimension(1) :: sfcfsw
@@ -2841,6 +2842,7 @@
       REAL (kind=KDBL) ,DIMENSION(1)               :: NLWSFCI_CPL,NSWSFCI_CPL,NNIRBMI_CPL,NNIRDFI_CPL
       REAL (kind=KDBL) ,DIMENSION(1)               :: NVISBMI_CPL,NVISDFI_CPL,T2MI_CPL,Q2MI_CPL
       REAL (kind=KDBL) ,DIMENSION(1)               :: U10MI_CPL,V10MI_CPL,TSEAI_CPL,PSURFI_CPL,ORO_CPL
+      REAL (kind=KDBL) ,DIMENSION(1)               :: SLMSK_CPL
       REAL (kind=KDBL) ,DIMENSION(1)               :: Z_C, C_0, C_D, W_0, W_D, RQTK
       REAL (kind=KDBL) ,DIMENSION(1)               :: HLWD
       REAL (kind=KDBL) ,DIMENSION(LM)              :: DTDT
@@ -6381,6 +6383,7 @@
               TSEAI_CPL(1)    = 0.0D0
               PSURFI_CPL(1)   = 0.0D0
               ORO_CPL(1)      = 0.0D0
+              SLMSK_CPL(1)    = 0.0D0
               TREF(1)         = 0.0D0
               Z_C(1)          = 0.0D0
               C_0(1)          = 0.0D0
@@ -6592,14 +6595,14 @@
           SEMIS(1)    = int_state%SEMIS(I,J)
         ENDIF
 !---
-          ALBNBM_CPL(1) = SFALB(1)    
-          ALBNDF_CPL(1) = SFALB(1)    
-          ALBVBM_CPL(1) = SFALB(1)    
-          ALBVDF_CPL(1) = SFALB(1)    
-          NIRBMI_CPL(1) = 0.25 * SFCDSW(1)
-          NIRDFI_CPL(1) = 0.26 * SFCDSW(1)
-          VISBMI_CPL(1) = 0.16 * SFCDSW(1)
-          VISDFI_CPL(1) = 0.33 * SFCDSW(1)
+          NIRBMD_CPL(1) = 0.25 * SFCDSW(1)
+          NIRDFD_CPL(1) = 0.26 * SFCDSW(1)
+          VISBMD_CPL(1) = 0.16 * SFCDSW(1)
+          VISDFD_CPL(1) = 0.33 * SFCDSW(1)
+          NIRBMU_CPL(1) = NIRBMD_CPL(1) - 0.25 * SFCNSW(1)
+          NIRDFU_CPL(1) = NIRDFD_CPL(1) - 0.26 * SFCNSW(1)
+          VISBMU_CPL(1) = VISBMD_CPL(1) - 0.16 * SFCNSW(1)
+          VISDFU_CPL(1) = VISDFD_CPL(1) - 0.33 * SFCNSW(1)
 !---
           DPSHC(1)    = 0.3 * PRSI(1)
           GQ(1)       = PRSI(1)
@@ -6671,8 +6674,8 @@
            RANN, OZPLOUT_V, PL_PRES, DPSHC, HPRIME, XLON(I,J), XLAT,        &
            XSLPFCS, SHDMIN, SHDMAX, SNOALB, XTG3FCS, SLMSK, XVEGFCS,        &
            XVETFCS, XSOTFCS, UUSTAR, ORO, oro, COSZEN(I,J), SFCDSW, SFCNSW, &
-           NIRBMI_CPL,       NIRDFI_CPL,  VISBMI_CPL,       VISDFI_CPL,     &
-           ALBNBM_CPL,       ALBNDF_CPL,  ALBVBM_CPL,       ALBVDF_CPL,     &
+           NIRBMD_CPL,       NIRDFD_CPL,  VISBMD_CPL,       VISDFD_CPL,     &
+           NIRBMU_CPL,       NIRDFU_CPL,  VISBMU_CPL,       VISDFU_CPL,     &
            SFCDLW, TSFLW, SEMIS, SFALB, SWH, HLW, RAS, PRE_RAD,             &
            LDIAG3D, LGGFS3D, LGOCART, LSSAV, LSSAV_CC, LSSAV_CPL,           &
            BKGD_VDIF_M, BKGD_VDIF_H, BKGD_VDIF_S, PSAUTCO, PRAUTCO, EVPCO,  &
@@ -6711,7 +6714,7 @@
            DVISBMI_CPL,DVISDFI_CPL,                                         &
            NLWSFCI_CPL,NSWSFCI_CPL,NNIRBMI_CPL,NNIRDFI_CPL,                 &
            NVISBMI_CPL,NVISDFI_CPL,T2MI_CPL,Q2MI_CPL,                       &
-           U10MI_CPL,V10MI_CPL,TSEAI_CPL,PSURFI_CPL,ORO_CPL,                &
+           U10MI_CPL,V10MI_CPL,TSEAI_CPL,PSURFI_CPL,ORO_CPL,SLMSK_CPL,      &
            TREF, Z_C, C_0, C_D, W_0, W_D, RQTK, HLWD, LSIDEA,               &
            DTDT, TRIGGERPERTS)
 !-----------------------------------------------------------------------

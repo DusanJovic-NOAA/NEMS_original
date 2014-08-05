@@ -1,4 +1,4 @@
-!===================================================================== !
+!at tune step========================================================= !
 !  description:                                                         !
 !                                                                       !
 !     gbphys is the driver subroutine to invoke GFS AM physics          !
@@ -18,8 +18,8 @@
 !           rann,prdout,poz,dpshc,hprime,xlon,xlat,                     !
 !           slope,shdmin,shdmax,snoalb,tg3,slmsk,vfrac,                 !
 !           vtype,stype,uustar,oro,oro_uf,coszen,sfcdsw,sfcnsw,         !
-!           sfcnirbmi,sfcnirdfi,sfcvisbmi,sfcvisdfi,                    !
-!           albnbm,albndf,albvbm,albvdf,                                !
+!           sfcnirbmd,sfcnirdfd,sfcvisbmd,sfcvisdfd,                    !
+!           sfcnirbmu,sfcnirdfu,sfcvisbmu,sfcvisdfu,                    !
 !           sfcdlw,tsflw,sfcemis,sfalb,swh,hlw,ras,pre_rad,             !
 !           ldiag3d,lggfs3d,lgocart,lssav,lssav_cc,lssav_cpl            !
 !           xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,wminco,          !
@@ -57,7 +57,7 @@
 !           nlwsfci_cpl,nswsfci_cpl,                                    !
 !           nnirbmi_cpl,nnirdfi_cpl,nvisbmi_cpl,nvisdfi_cpl,            !
 !           t2mi_cpl,q2mi_cpl,                                          !
-!           u10mi_cpl,v10mi_cpl,tseai_cpl,psurfi_cpl,oro_cpl,           !
+!           u10mi_cpl,v10mi_cpl,tseai_cpl,psurfi_cpl,oro_cpl,slmsk_cpl, !
 !           tref, z_c, c_0, c_d, w_0, w_d, rqtk,                        !
 !           hlwd,lsidea                         )                       !
 !                                                                       !
@@ -123,7 +123,12 @@
 !      Apr  2014  - Xingren Wu  add "NET LW/SW including nir/vis"       !
 !      Jan  2014  - Jun Wang    merge Moorthi's gwdc change and H.Juang !
 !                               and F. Yang's energy conversion from GWD!
-!                                                                       !
+!      jan  2014  - y-t hou     revised sw sfc spectral component fluxes!
+!                     for coupled mdl, added estimation of ocean albedo !
+!                     without ice contamination.                        !
+!      Jun  2014  - Xingren Wu  update net SW fluxes over the ocean     !
+!                               (no ice contamination)                  !
+!      Jul  2014  - Xingren Wu  add Sea/Land/Ice Mask - slmsk_cpl       !
 !                                                                       !
 !  ====================  defination of variables  ====================  !
 !                                                                       !
@@ -218,10 +223,14 @@
 !     tsflw    - real, sfc air (layer 1) temp over lw interval (k) im   !
 !     sfcemis  - real, sfc lw emissivity ( fraction )              im   !
 !     sfalb    - real, mean sfc diffused sw albedo                 im   !
-!     albnbm   - real, near ir direct beam albedo                  im   !
-!     albndf   - real, near ir diffused albedo                     im   !
-!     albvbm   - real, uv+vis direct beam albedo                   im   !
-!     albvdf   - real, uv+vis diffused albedo                      im   !
+!     sfcnirbmu- real, sfc nir-beam sw upward flux (w/m2)          im   !
+!     sfcnirdfu- real, sfc nir-diff sw upward flux (w/m2)          im   !
+!     sfcvisbmu- real, sfc uv+vis-beam sw upward flux (w/m2)       im   !
+!     sfcvisdfu- real, sfc uv+vis-diff sw upward flux (w/m2)       im   !
+!     sfcnirbmd- real, sfc nir-beam sw downward flux (w/m2)        im   !
+!     sfcnirdfd- real, sfc nir-diff sw downward flux (w/m2)        im   !
+!     sfcvisbmd- real, sfc uv+vis-beam sw downward flux (w/m2)     im   !
+!     sfcvisdfd- real, sfc uv+vis-diff sw downward flux (w/m2)     im   !
 !     swh      - real, total sky sw heating rates ( k/s )       ix,levs !
 !     hlw      - real, total sky lw heating rates ( k/s )       ix,levs !
 !     hlwd     - real, idea  sky lw heating rates ( k/s )       ix,levs !
@@ -426,6 +435,10 @@
 !     nnirdfi_cpl - real, net nir diff dnwd sw flx rad at time step im  !
 !     nvisbmi_cpl - real, net uv+vis beam dnwd sw flx at time step  im  !
 !     nvisdfi_cpl - real, net uv+vis diff dnwd sw flx at time step  im  !
+!     ocalnirbm_cpl- real, ocean alb nir beam (no ice) at time step im  !
+!     ocalnirdf_cpl- real, ocean alb nir diff (no ice) at time step im  !
+!     ocalvisbm_cpl- real, ocean alb vis beam (no ice) at time step im  !
+!     ocalvisdf_cpl- real, ocean alb vis diff (no ice) at time step im  !
 !     t2mi_cpl    - real, T2m at time step AOI cpl                  im  !
 !     q2mi_cpl    - real, Q2m at time step AOI cpl                  im  !
 !     u10mi_cpl   - real, U10m at time step AOI cpl                 im  !
@@ -433,6 +446,7 @@
 !     tseai_cpl   - real, sfc temp at time step AOI cpl             im  !
 !     psurfi_cpl  - real, sfc pressure at time step AOI cpl         im  !
 !     oro_cpl     - real, orography AOI cpl                         im  !
+!     slmsk_cpl   - real, Land/Sea/Ice AOI cpl                      im  !
 
 !     tref     - real, Reference Temperature                       im   !
 !     z_c      - real, Sub-layer cooling thickness                 im   !
@@ -459,8 +473,8 @@
      &      rann,prdout,poz,dpshc,hprime,xlon,xlat,                     &
      &      slope,shdmin,shdmax,snoalb,tg3,slmsk,vfrac,                 &
      &      vtype,stype,uustar,oro,oro_uf,coszen,sfcdsw,sfcnsw,         &
-     &      sfcnirbmi,sfcnirdfi,sfcvisbmi,sfcvisdfi,                    &
-     &      albnbm,albndf,albvbm,albvdf,                                &
+     &      sfcnirbmd,sfcnirdfd,sfcvisbmd,sfcvisdfd,                    &
+     &      sfcnirbmu,sfcnirdfu,sfcvisbmu,sfcvisdfu,                    &
      &      sfcdlw,tsflw,sfcemis,sfalb,swh,hlw,ras,pre_rad,             &
      &      ldiag3d,lggfs3d,lgocart,lssav,lssav_cc,lssav_cpl,           &
      &      xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,wminco,          &
@@ -497,7 +511,7 @@
      &      nlwsfci_cpl,nswsfci_cpl,                                    &
      &      nnirbmi_cpl,nnirdfi_cpl,nvisbmi_cpl,nvisdfi_cpl,            &
      &      t2mi_cpl,q2mi_cpl,                                          &
-     &      u10mi_cpl,v10mi_cpl,tseai_cpl,psurfi_cpl,oro_cpl,           &
+     &      u10mi_cpl,v10mi_cpl,tseai_cpl,psurfi_cpl,oro_cpl,slmsk_cpl, &
      &      tref, z_c, c_0, c_d, w_0, w_d,                              &
      &      rqtk,                                                       &
 !
@@ -566,8 +580,8 @@
      &      sinlat, coslat, pgr,    dpshc,  xlon,   xlat,               &
      &      slope,  shdmin, shdmax, snoalb, tg3,    slmsk,  vfrac,      &
      &      vtype,  stype,  uustar, oro,    coszen, sfcnsw, sfcdsw,     &
-     &      albnbm,         albndf,         albvbm,         albvdf,     &
-     &      sfcnirbmi,      sfcnirdfi,      sfcvisbmi,      sfcvisdfi,  &
+     &      sfcnirbmu,      sfcnirdfu,      sfcvisbmu,      sfcvisdfu,  &
+     &      sfcnirbmd,      sfcnirdfd,      sfcvisbmd,      sfcvisdfd,  &
      &      sfcdlw, tsflw,  sfalb,  sfcemis, oro_uf
 
       real(kind=kind_phys), dimension(ix,levs),       intent(in) ::     &
@@ -650,7 +664,7 @@
      &      nlwsfci_cpl,nswsfci_cpl,                                    &
      &      nnirbmi_cpl,nnirdfi_cpl,nvisbmi_cpl,nvisdfi_cpl,            &
      &      t2mi_cpl,q2mi_cpl,                                          &
-     &      u10mi_cpl,v10mi_cpl,tseai_cpl,psurfi_cpl,oro_cpl,           &
+     &      u10mi_cpl,v10mi_cpl,tseai_cpl,psurfi_cpl,oro_cpl,slmsk_cpl, &
      &      tref,    z_c,     c_0,     c_d,     w_0,   w_d, rqtk,       &
      &      triggerperts,sr
 
@@ -673,10 +687,13 @@
      &      fm10,    fh2,    tsurf,  tx1,    tx2,     ctei_r, flgmin_l, &
      &      evbs,    evcw,   trans,  sbsno,  snowc,   adjsfcdsw,        &
      &      adjsfcnsw, adjsfcdlw, adjsfculw, asfcdlw, asfculw, gsfcdlw, &
-     &      adjnirbm,  adjnirdf,  adjvisbm,  adjvisdf,                  &
+     &      adjnirbmu, adjnirdfu, adjvisbmu, adjvisdfu,                 &
+     &      adjnirbmd, adjnirdfd, adjvisbmd, adjvisdfd,                 &
      &      gsfculw, xcosz,  tseal,  snohf,  dlqfac,  work3,            &
      &      domr,    domzr,  domip,  doms,   psautco_l, prautco_l,      &
      &      ctei_rml,cldf
+      real(kind=kind_phys), dimension(im)          :: ocalnirbm_cpl,    &
+     &      ocalnirdf_cpl,ocalvisbm_cpl,ocalvisdf_cpl
 
 !    &      dswsfc, radsl,                                              &
 !    &      dlwsf1,  ulwsf1, xcosz,  tseal,  snohf,   dlqfac,           &
@@ -696,7 +713,9 @@
 
       real(kind=kind_phys) :: rhbbot, rhbtop, rhpbl, frain, f_rain,     &
      &      f_ice, qi, qw, qr, wc, tem, tem1, tem2,  sume,  sumr, sumq, &
-     &      dqdt(im,levs,ntrac), oa4(im,4), clx(im,4)
+     &      dqdt(im,levs,ntrac), oa4(im,4), clx(im,4), albbm, albdf,    &
+     &      xcosz_loc
+
 
 !           in clw, the first two varaibles are cloud water and ice. 
 !           from third to ntrac are convective transportable tracers,
@@ -949,14 +968,15 @@
      &     ( solhr,slag,sdec,cdec,sinlat,coslat,                        &
      &       xlon,coszen,tsea,tgrs(1,1),tgrs(1,1),                      &
      &       sfcdsw,sfcnsw,sfcdlw,swh,hlw,                              &
-     &       sfcnirbmi,sfcnirdfi,sfcvisbmi,sfcvisdfi,                   &
+     &       sfcnirbmu,sfcnirdfu,sfcvisbmu,sfcvisdfu,                   &
+     &       sfcnirbmd,sfcnirdfd,sfcvisbmd,sfcvisdfd,                   &
      &       ix, im, levs,                                              &
 !  ---  input/output:
      &       dtdt,                                                      &
 !  ---  outputs:
      &       adjsfcdsw,adjsfcnsw,adjsfcdlw,adjsfculw,xmu,xcosz,         &
-!old vars   ( dswsfc,    -radsl,  dlwsf1,   ulwsf1,  xmu,xcosz )
-     &       adjnirbm,adjnirdf,adjvisbm,adjvisdf                        &
+     &       adjnirbmu,adjnirdfu,adjvisbmu,adjvisdfu,                   &
+     &       adjnirbmd,adjnirdfd,adjvisbmd,adjvisdfd                    &
      &     )
 
       else
@@ -966,14 +986,15 @@
      &     ( solhr,slag,sdec,cdec,sinlat,coslat,                        &
      &       xlon,coszen,tsea,tgrs(1,1),tsflw,                          &
      &       sfcdsw,sfcnsw,sfcdlw,swh,hlw,                              &
-     &       sfcnirbmi,sfcnirdfi,sfcvisbmi,sfcvisdfi,                   &
+     &       sfcnirbmu,sfcnirdfu,sfcvisbmu,sfcvisdfu,                   &
+     &       sfcnirbmd,sfcnirdfd,sfcvisbmd,sfcvisdfd,                   &
      &       ix, im, levs,                                              &
 !  ---  input/output:
      &       dtdt,                                                      &
 !  ---  outputs:
      &       adjsfcdsw,adjsfcnsw,adjsfcdlw,adjsfculw,xmu,xcosz,         &
-!old vars   ( dswsfc,    -radsl,  dlwsf1,   ulwsf1,  xmu,xcosz )
-     &       adjnirbm,adjnirdf,adjvisbm,adjvisdf                        &
+     &       adjnirbmu,adjnirdfu,adjvisbmu,adjvisdfu,                   &
+     &       adjnirbmd,adjnirdfd,adjvisbmd,adjvisdfd                    &
      &     )
 
 !
@@ -1010,11 +1031,15 @@
 !   - flux to/from lnd/oc/ice:  gsfcdlw=emis*adjsfcdlw; gsfculw=emis*adjsfculw
 !   - flux to/from atmos mdl: asfcdlw=adjsfcdlw; asfculw=emis*adjsfculw+(1-emis)*adjsfcdlw
         do i = 1, im
-          gsfcdlw(i) = sfcemis(i) * adjsfcdlw(i)                  ! for lnd/ocn/sice
-          gsfculw(i) = sfcemis(i) * adjsfculw(i)                  ! for lnd/ocn/sice
-          asfcdlw(i) = adjsfcdlw(i)                               ! for atmos output
-          asfculw(i) = gsfculw(i) + adjsfcdlw(i) - gsfcdlw(i)     ! for atmos output
-!org      asfculw(i) = gsfculw(i) + (1.0-sfcemis(i))*adjsfcdlw(i) ! for atmos output
+! Suggestion from Yu-Tai to remove sfcemis (but sfcemis=1)???
+!         gsfcdlw(i) = sfcemis(i) * adjsfcdlw(i)                  ! for lnd/ocn/sice
+!         gsfculw(i) = sfcemis(i) * adjsfculw(i)                  ! for lnd/ocn/sice
+!         asfcdlw(i) = adjsfcdlw(i)                               ! for atmos output
+!         asfculw(i) = gsfculw(i) + adjsfcdlw(i) - gsfcdlw(i)     ! for atmos output
+          gsfcdlw(i) = adjsfcdlw(i)                  ! for lnd/ocn/sice
+          gsfculw(i) = adjsfculw(i)                  ! for lnd/ocn/sice
+          asfcdlw(i) = adjsfcdlw(i)                  ! for atmos output
+          asfculw(i) = adjsfculw(i)                    ! for atmos output
         enddo
 
 !  --- ...  coupling insertion
@@ -1411,26 +1436,16 @@
           dswsfci_cpl(i)   = adjsfcdsw(i)
           dlwsfc_cpl(i)    = dlwsfc_cpl(i) + gsfcdlw(i)
           dswsfc_cpl(i)    = dswsfc_cpl(i) + adjsfcdsw(i)
-          dnirbmi_cpl(i)   = adjnirbm(i)
-          dnirdfi_cpl(i)   = adjnirdf(i)
-          dvisbmi_cpl(i)   = adjvisbm(i)
-          dvisdfi_cpl(i)   = adjvisdf(i)
-          dnirbm_cpl(i)    = dnirbm_cpl(i) + adjnirbm(i)
-          dnirdf_cpl(i)    = dnirdf_cpl(i) + adjnirdf(i)
-          dvisbm_cpl(i)    = dvisbm_cpl(i) + adjvisbm(i)
-          dvisdf_cpl(i)    = dvisdf_cpl(i) + adjvisdf(i)
+          dnirbmi_cpl(i)   = adjnirbmd(i)
+          dnirdfi_cpl(i)   = adjnirdfd(i)
+          dvisbmi_cpl(i)   = adjvisbmd(i)
+          dvisdfi_cpl(i)   = adjvisdfd(i)
+          dnirbm_cpl(i)    = dnirbm_cpl(i) + adjnirbmd(i)
+          dnirdf_cpl(i)    = dnirdf_cpl(i) + adjnirdfd(i)
+          dvisbm_cpl(i)    = dvisbm_cpl(i) + adjvisbmd(i)
+          dvisdf_cpl(i)    = dvisdf_cpl(i) + adjvisdfd(i)
           nlwsfci_cpl(i)   = gsfcdlw(i) - gsfculw(i)
-          nswsfci_cpl(i)   = adjsfcnsw(i)
           nlwsfc_cpl(i)    = nlwsfc_cpl(i) + nlwsfci_cpl(i)
-          nswsfc_cpl(i)    = nswsfc_cpl(i) + nswsfci_cpl(i)
-          nnirbmi_cpl(i)   = adjnirbm(i) * (1. - albnbm(i) )
-          nnirdfi_cpl(i)   = adjnirdf(i) * (1. - albndf(i) )
-          nvisbmi_cpl(i)   = adjvisbm(i) * (1. - albvbm(i) )
-          nvisdfi_cpl(i)   = adjvisdf(i) * (1. - albvdf(i) )
-          nnirbm_cpl(i)    = nnirbm_cpl(i) + nnirbmi_cpl(i)
-          nnirdf_cpl(i)    = nnirdf_cpl(i) + nnirdfi_cpl(i)
-          nvisbm_cpl(i)    = nvisbm_cpl(i) + nvisbmi_cpl(i)
-          nvisdf_cpl(i)    = nvisdf_cpl(i) + nvisdfi_cpl(i)
           t2mi_cpl(i)      = t2m(i)
           q2mi_cpl(i)      = q2m(i)
           u10mi_cpl(i)     = u10m(i)
@@ -1438,6 +1453,40 @@
           tseai_cpl(i)     = tsea(i)
           psurfi_cpl(i)    = pgr(i)
           oro_cpl(i)       = oro(i)
+          slmsk_cpl(i)     = slmsk(i)
+        enddo
+
+!  ---  estimate mean albedo for ocean point without ice cover and apply
+!       them to net SW heat fluxes
+
+        albdf = 0.06
+        do i = 1, im
+          if (nint(slmsk(i)) /= 1) then  ! not a land point
+!  ---  compute open water albedo
+            xcosz_loc = max( 0.0, min( 1.0, xcosz(i) ))
+            ocalnirdf_cpl(i) = 0.06
+            ocalnirbm_cpl(i) = max(albdf, 0.026/(xcosz_loc**1.7+0.065)  &
+     &                       + 0.15 * (xcosz_loc-0.1) * (xcosz_loc-0.5) &
+     &                       * (xcosz_loc-1.0))
+            ocalvisdf_cpl(i) = 0.06
+            ocalvisbm_cpl(i) = ocalnirbm_cpl(i)
+            nnirbmi_cpl(i)=adjnirbmd(i)-adjnirbmd(i)*ocalnirbm_cpl(i)
+            nnirdfi_cpl(i)=adjnirdfd(i)-adjnirdfd(i)*ocalnirdf_cpl(i)
+            nvisbmi_cpl(i)=adjvisbmd(i)-adjvisbmd(i)*ocalvisbm_cpl(i)
+            nvisdfi_cpl(i)=adjvisdfd(i)-adjvisdfd(i)*ocalvisdf_cpl(i)
+          else
+            nnirbmi_cpl(i)=adjnirbmd(i) - adjnirbmu(i)
+            nnirdfi_cpl(i)=adjnirdfd(i) - adjnirdfu(i)
+            nvisbmi_cpl(i)=adjvisbmd(i) - adjvisbmu(i)
+            nvisdfi_cpl(i)=adjvisdfd(i) - adjvisdfu(i)
+          endif
+          nswsfci_cpl(i) = nnirbmi_cpl(i) + nnirdfi_cpl(i)              &
+     &                   + nvisbmi_cpl(i) + nvisdfi_cpl(i)
+          nswsfc_cpl(i)  = nswsfc_cpl(i) + nswsfci_cpl(i)
+          nnirbm_cpl(i)  = nnirbm_cpl(i) + nnirbmi_cpl(i)
+          nnirdf_cpl(i)  = nnirdf_cpl(i) + nnirdfi_cpl(i)
+          nvisbm_cpl(i)  = nvisbm_cpl(i) + nvisbmi_cpl(i)
+          nvisdf_cpl(i)  = nvisdf_cpl(i) + nvisdfi_cpl(i)
         enddo
       endif
 

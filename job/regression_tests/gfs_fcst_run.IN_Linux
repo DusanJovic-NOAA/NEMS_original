@@ -33,7 +33,7 @@ set -x
 
 # GSM export fields
  export NGRID_A2OI=_NGRID_A2OI_
- export NGRID_A2OI=${NGRID_A2OI:-32}
+ export NGRID_A2OI=${NGRID_A2OI:-41}
  export A2OI_OUT=_A2OI_OUT_
  export A2OI_OUT=${A2OI_OUT:-.false.}
  export CPLFLX=.true.
