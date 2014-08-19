@@ -183,8 +183,11 @@
 !
 !.......................................................................
       INTEGER :: IQS,IQE,JQS,JQE   ! Same as ITS,ITE,JTS,JTE - Changed in looplimits
+      INTEGER :: I_S,I_E,J_S,J_E   ! Also represent ITS,ITE,JTS,JTE
 #ifdef ENABLE_SMP
-      INTEGER :: NTH,OMP_GET_NUM_THREADS,OMP_GET_THREAD_NUM,TID
+      INTEGER :: NTH,TID
+      INTEGER,EXTERNAL :: OMP_GET_NUM_THREADS,OMP_GET_THREAD_NUM
+      INTEGER,EXTERNAL :: OMP_GET_MAX_THREADS
 #endif
 !.......................................................................
       INTEGER :: I,II,J,IJ,JDAY,JMONTH                                  &
@@ -214,6 +217,14 @@
                                              ,THRATENSW
 !
       LOGICAL :: GFDL_LW, GFDL_SW, LSSWR
+#ifdef THREAD_2D
+      INTEGER :: jj, ip  ! used for 2D threading around RRTM
+#endif
+
+      integer(4) :: ic1, crate1, cmax1
+      integer(4) :: ic2, crate2, cmax2
+
+      call system_clock(count=ic1, count_rate=crate1, count_max=cmax1)
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -457,7 +468,48 @@
 !-----------------------------------------------------------------------
         CASE (RRTMLWSCHEME)
 
-          CALL RRTM(ITIMESTEP,DT,JDAT                               &
+#ifdef THREAD_2D
+!
+! The purpose of this logic is to divide the domain into tiles that
+! are CHNK_RRTM elements in I and 1 element in J, giving potentially
+! many more (greater concurrency) and smaller sized (better cache
+! locality) tiles that may also be the width of the vector unit
+! depending on the value of CHNK_RRTM (defined via CPP).  Dynamic
+! thread scheduling is specified to help with load imbalance in 
+! RRTM radiation.  The outer loop, chunk_loop_rrtm, is over the
+! total number of tiles in the 2D subdomain. For each tile, ip,
+! the J index (jj) by dividing the tile index by the number of tiles 
+! in a row. That index is checked to make sure it falls within the
+! extent of the subdomain in J, then the starting I index (ii) 
+! of the tile is computed by taking the integer modulus of the tile
+! index and the number of tiles in a row.  Finally, to avoid having
+! more than one J-row at the start or end of the J-extent (which can
+! happen because we're skipping the first and last J-row), which check
+! to make sure that the start and end of this J-iteration (J_S and J_E)
+! are identical (that is, we're only doing one row in each tile).
+!
+!$OMP DO PRIVATE (ip,ii,jj,i_s,i_e,j_s,j_e) schedule(dynamic)
+          chunk_loop_rrtm:                                          &
+          DO ip=1,((1+(ite-its+1)/CHNK_RRTM)*CHNK_RRTM)*(jte-jts+1) &
+                                                         ,CHNK_RRTM
+            jj=jts+(ip-1)/((1+(ite-its+1)/CHNK_RRTM)*CHNK_RRTM)
+            j_in_range_rrtm:                                        &
+            IF ((jj.ge.jts.and.jj.le.jte)         .AND.             &
+                 ((JDS+1).LE.jj .AND. jj.LE.(JDE-1))) THEN
+                ii=its+mod((ip-1),((1+(ite-its+1)/CHNK_RRTM)*       &
+                                                       CHNK_RRTM))
+              I_S = MAX(MAX(ii,ITS),IDS)
+              I_E = MIN(MIN(ii+CHNK_RRTM-1,ITE),IDE)
+              J_S = jj
+              J_E = jj
+#else           
+              I_S = ITS
+              I_E = ITE
+              J_S = JQS
+              J_E = JQE
+#endif
+              IF ( I_S .LE. I_E ) THEN
+                CALL RRTM(ITIMESTEP,DT,JDAT                         &
                    ,NPHS,GLAT,GLON                                  &
                    ,NRADS,NRADL                                     &
                    ,DSG2,SGML2,PDSG1,PSGML1                         &
@@ -479,11 +531,17 @@
                    ,HTOP,HBOT                                       &
                    ,TSKIN,Z0,SICE,F_RIMEF,MXSNAL,SGM,STDH,OMGALF    &
                    ,IMS,IME,JMS,JME                                 &
-                !   ,ITS,ITE,JTS,JTE                                 &
-                   ,ITS,ITE,jqs,jqe                                 &
+                   ,I_S,I_E,J_S,J_E                                 &
                    ,LM                                              &
                    ,SOLCON                                          &
                    ,MYPE )
+              ENDIF
+#ifdef THREAD_2D
+            ENDIF j_in_range_rrtm
+          ENDDO chunk_loop_rrtm
+!$OMP END DO
+#endif
+
 
         CASE (GFDLLWSCHEME)
 
@@ -590,10 +648,124 @@
 #endif
 !.......................................................................
 !
+
+#if 0
+     JQS = JTS_B1
+     JQE = JTE_B1
+
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'acfrcv'
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)acfrcv(i,j)
+     enddo
+     enddo
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'acfrst'    ! ***
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)acfrst(i,j)
+     enddo
+     enddo
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'rlwin'
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)rlwin(i,j)
+     enddo
+     enddo
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'rlwtoa'
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)rlwtoa(i,j)
+     enddo
+     enddo
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'rswin'
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)rswin(i,j)
+     enddo
+     enddo
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'rswout'
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)rswout(i,j)
+     enddo
+     enddo
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'hbot'
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)hbot(i,j)
+     enddo
+     enddo
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'htop'
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)htop(i,j)
+     enddo
+     enddo
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'rswinc'
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)rswinc(i,j)
+     enddo
+     enddo
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'rswtoa'
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)rswtoa(i,j)
+     enddo
+     enddo
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'rlwtt'
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)rlwtt(i,j,1)
+     enddo
+     enddo
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'rswtt'
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)rswtt(i,j,1)
+     enddo
+     enddo
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'cfrach'    ! ***
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)cfrach(i,j)
+     enddo
+     enddo
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'cfracl'    ! ***
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)cfracl(i,j)
+     enddo
+     enddo
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'cfracm'    ! ***
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)cfracm(i,j)
+     enddo
+     enddo
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'czmean'
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)czmean(i,j)
+     enddo
+     enddo
+     write(50+mype,*)iqe-iqs+1,jqe-jqs+1,'sigt4'
+     do j=jqs,jqe
+     do i=iqs,iqe
+       write(50+mype,*)sigt4(i,j)
+     enddo
+     enddo
+#endif
+
+!     CALL NMMB_FINALIZE
+
    ENDIF
+
 !-----------------------------------------------------------------------
 !
         IF(TRIM(SHORTWAVE)=='rrtm')THEN
+      call system_clock(count=ic2, count_rate=crate2, count_max=cmax2)
+      write(0,*)'RADIATION: ',ic2-ic1
 !--- RRTM already calculated variables below
           RETURN
         ENDIF
@@ -723,6 +895,10 @@
 !.......................................................................
 !
       ENDIF
+
+      call system_clock(count=ic2, count_rate=crate2, count_max=cmax2)
+      write(0,*)'RADIATION: ',ic2-ic1
+
 !
 !-----------------------------------------------------------------------
 !

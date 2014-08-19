@@ -1,4 +1,3 @@
-
 !
       MODULE MODULE_RA_RRTM
 !
@@ -17,10 +16,12 @@
 !      USE MODULE_MP_ETANEW, ONLY : RHgrd,T_ICE,FPVS
       USE MODULE_MP_FER_HIRES, ONLY : RHgrd,T_ICE,FPVS
 
-      use module_radiation_driver_nmmb,  only : grrad_nmmb
+      use module_radiation_driver_nmmb,  only : grrad_nmmb,dayparts
 
       use module_radsw_parameters,  only : topfsw_type, sfcfsw_type
       use module_radlw_parameters,  only : topflw_type, sfcflw_type
+
+      use module_radsw_main_nmmb, only : buggal, buggaloff, buggalon
 
 !-----------------------------------------------------------------------
 !
@@ -36,6 +37,12 @@
 !
 !--- Used for Gaussian look up tables
 !
+
+!Moved to here from out of the RRTM routine to fix races found by Intel Inspector, jm 20131222,20131226
+      LOGICAL       :: CNCLD=.TRUE.
+      LOGICAL       :: OPER=.TRUE.
+!$OMP THREADPRIVATE(CNCLD,OPER)
+
       REAL, PRIVATE,PARAMETER :: XSDmax=3.1, DXSD=.01
       INTEGER, PRIVATE,PARAMETER :: NXSD=XSDmax/DXSD
       REAL, DIMENSION(NXSD),PRIVATE,SAVE :: AXSD
@@ -165,19 +172,21 @@
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: CLDFRA
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: TSKIN,Z0,SICE       &
+       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: TSKIN,Z0,SICE      &
                                                     ,MXSNAL,STDH        
 !
-      REAL,DIMENSION(1:LM+1),INTENT(IN) :: SGM
+       REAL,DIMENSION(1:LM+1),INTENT(IN) :: SGM
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: F_RIMEF,OMGALF
+       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(IN) :: F_RIMEF,OMGALF
 !
-      REAL*8,DIMENSION(IMS:IME,JMS:JME) :: COSZDG    ! future output
+       real(kind=kind_phys),DIMENSION(IMS:IME,JMS:JME) :: COSZDG    ! future output
 !
 !-----------------------------------------------------------------------
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
 !
+#define LENIVEC (ITE-ITS+1)
+
 !
       LOGICAL ::  LSSAV=.TRUE.
                 ! logical flag for store 3-d cloud field
@@ -198,9 +207,11 @@
 
       INTEGER :: ICWP, NTOZ
 !
-      REAL*8 :: FHSWR, FHLWR, DTSW, DTLW, RTvR, ARG_CW
+      real(kind=kind_phys),DIMENSION(LENIVEC) :: RTvR
+      real(kind=kind_phys) ::  DTSW, DTLW, FHSWR, FHLWR, ARG_CW
 !
-      REAL*8,DIMENSION(1) :: FLGMIN_L, CV, CVB, CVT, HPRIME_V, TSEA,      &
+      real(kind=kind_phys),DIMENSION(LENIVEC) ::                                    &
+                             FLGMIN_L, CV, CVB, CVT, HPRIME_V, TSEA,      &
                              TISFC, FICE, ZORL, SLMSK, SNWDPH, SNCOVR,    &
                              SNOALB, ALVSF1, ALNSF1, ALVWF1, ALNWF1,      &
                              FACSF1, FACWF1, SFCNSW, SFCDSW, SFALB,       &
@@ -214,35 +225,34 @@
                            !        ** not NMMB in RRTM driver
                            !===================================
 
-      INTEGER, DIMENSION(1) :: ICSDSW, ICSDLW
+      INTEGER, DIMENSION(LENIVEC) :: ICSDSW, ICSDLW
 
 !---  variables of instantaneous calculated toa/sfc radiation fluxes
 !      ** IM=1 for the dimension
 !
-      type (topfsw_type), dimension(1) :: TOPFSW
-      type (sfcfsw_type), dimension(1) :: SFCFSW
+      type (topfsw_type), dimension(LENIVEC) :: TOPFSW
+      type (sfcfsw_type), dimension(LENIVEC) :: SFCFSW
 
-      type (topflw_type), dimension(1) :: TOPFLW
-      type (sfcflw_type), dimension(1) :: SFCFLW
+      type (topflw_type), dimension(LENIVEC) :: TOPFLW
+      type (sfcflw_type), dimension(LENIVEC) :: SFCFLW
 
-
-!
-      REAL*8,DIMENSION(LM) :: CLDCOV_V,PRSL,PRSLK,GT,GQ, VVEL,F_ICEC,     &
+      real(kind=kind_phys),DIMENSION(LENIVEC,LM) ::                               &
+     &                      CLDCOV_V,PRSL,PRSLK,GT,GQ, VVEL,F_ICEC,     &
                                F_RAINC,R_RIME,TAUCLOUDS,CLDF
 
-      REAL*8,DIMENSION(LM+1) :: PRSI
+      real(kind=kind_phys),DIMENSION(LENIVEC,LM+1) :: PRSI
 !
-      REAL*8,DIMENSION(5)  :: CLDSA_V
+      real(kind=kind_phys),DIMENSION(LENIVEC,5)  :: CLDSA_V
 !
-      REAL*8,DIMENSION(NFLUXR) :: FLUXR_V
+      real(kind=kind_phys),DIMENSION(LENIVEC,NFLUXR) :: FLUXR_V
 !
-      REAL*8,DIMENSION(1,LM,NTRAC) :: GR1   
+      real(kind=kind_phys),DIMENSION(LENIVEC,LM,3) :: GR1   
 !
-      REAL*8,DIMENSION(LM) :: SWH, HLW
+      real(kind=kind_phys),DIMENSION(LENIVEC,LM) :: SWH, HLW
 !
-      REAL,DIMENSION(ITS:ITE,JTS:JTE,1:LM+1) :: P8W
+      REAL,DIMENSION(ITS:ITE,1:LM+1) :: P8W   !j dim removed, assume this is only called for 1 j at a time
 !
-      REAL,DIMENSION(ITS:ITE,JTS:JTE,1:LM)   :: P_PHY
+      REAL,DIMENSION(ITS:ITE,1:LM)   :: P_PHY   !j dim removed, assume this is only called for 1 j at a time
 !
       INTEGER :: JDOY, JDAY, JDOW, MMM, MMP, MM, IRET, MONEND, &
                  MON1, IS2, ISX, KPD9, IS1, NN, MON2, MON, IS, &  
@@ -263,8 +273,10 @@
                          CVSDM=.04,DXSD2=HALF*DXSD,DXSD2N=-DXSD2,PCLDY=0.25
 !
       REAL,DIMENSION(10),SAVE :: CC,PPT
-      LOGICAL, SAVE :: CNCLD=.TRUE.
-      LOGICAL, SAVE :: OPER=.TRUE.
+
+! moved out of routine into module and made threadprivate (jm 20131226, see above)
+!jm      LOGICAL, SAVE :: CNCLD=.TRUE.
+!jm      LOGICAL, SAVE :: OPER=.TRUE.
 
 !
       DATA CC/0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0/
@@ -272,7 +284,7 @@
 !
       REAL,DIMENSION(0:LM)  :: CLDAMT
 !
-      LOGICAL :: BITX,BITY,BITZ,BITW,BIT1,BIT2,NEW_CLOUD,CU_cloud
+      LOGICAL :: BITX,BITY,BITZ,BITW,BIT1,BIT2,NEW_CLOUD,CU_cloud(LENIVEC)
 !
       REAL :: CTHK(3)
       DATA CTHK/20000.0,20000.0,20000.0/
@@ -298,8 +310,14 @@
 
       
       real (kind=kind_phys), parameter :: f24 = 24.0     ! hours/day
-      real (kind=kind_phys) :: fhr, solhr, SFCALBEDO, SMX
+      real (kind=kind_phys) :: fhr, solhr, SFCALBEDO(LENIVEC), SMX(LENIVEC)
 
+      integer, dimension(CHNK_RRTM) :: dp_start,dp_len
+      logical, dimension(CHNK_RRTM) :: dp_day
+      integer                       :: ndayparts, idaypart,dps,dpl
+      logical                       :: dpd
+      integer im, ii,tid
+      integer,external :: omp_get_thread_num
 !--------------------------------------------------------------------------------------------------
 !
 !***THIS SUBROUTINE SELECTS AND PREPARES THE NECESSARY INPUTS FOR GRRAD (GFS RRTM DRIVER)
@@ -431,11 +449,11 @@
       DO J=JTS,JTE
       DO I=ITS,ITE
 !
-        P8W(I,J,1)=PT
+        P8W(I,1)=PT
 !
         DO K=1,LM
-          P8W(I,J,K+1)=P8W(I,J,K)+PDSG1(K)+DSG2(K)*PD(I,J)
-          P_PHY(I,J,K)=SGML2(K)*PD(I,J)+PSGML1(K)
+          P8W(I,K+1)=P8W(I,K)+PDSG1(K)+DSG2(K)*PD(I,J)
+          P_PHY(I,K)=SGML2(K)*PD(I,J)+PSGML1(K)
           CCMID(I,J,K)=0.
           CSMID(I,J,K)=0.
         ENDDO
@@ -527,7 +545,7 @@
 !--- Saturation vapor pressure w/r/t water ( >=0C ) or ice ( <0C )
 !
             ESAT=1000.*FPVS(T(I,J,L))                                   !--- Saturation vapor pressure (Pa)
-            QSAT=EP_2*ESAT/(P_PHY(I,J,L)-ESAT)                          !--- Saturation mixing ratio
+            QSAT=EP_2*ESAT/(P_PHY(I,L)-ESAT)                          !--- Saturation mixing ratio
 !
             RHUM=WV/QSAT                                                !--- Relative humidity
 !
@@ -737,8 +755,8 @@
         DO LL=NKTP,NBTM
           L=NBTM-LL+NKTP 
           IF(LL.GE.KTOP(I,J,NC).AND.LL.LE.KBTM(I,J,NC).AND.BITX)THEN
-            PRS1=P8W(I,J,L)*0.01 
-            PRS2=P8W(I,J,L+1)*0.01
+            PRS1=P8W(I,L)*0.01 
+            PRS2=P8W(I,L+1)*0.01
             DELP=PRS2-PRS1
             TCLD=T(I,J,L)-T0C 
             QSUM=QSUM+Q(I,J,L)*DELP*(PRS1+PRS2)      & 
@@ -816,79 +834,109 @@
 ! Main domain loop: calling grrad
 !==========================================================================
 !     
+
       DO J=JTS,JTE  !start grrad loop column by column
-      DO I=ITS,ITE
+
+      XLON(1:LENIVEC) = GLON(its:ite,J)
+      XLAT(1:LENIVEC)=GLAT(its:ite,J)
+
+      SINLAT(1:LENIVEC) = SIN ( XLAT(1:LENIVEC) )
+      COSLAT(1:LENIVEC) = COS ( XLAT(1:LENIVEC) )
+
+      call dayparts( XLON,SINLAT,COSLAT,SOLHR,MYPE,FHSWR,NRADS,         &
+                     LENIVEC,                                           &
+                     dp_start,dp_len,dp_day,ndayparts )
+
+      dayparts: DO idaypart=1,ndayparts
+        dps = dp_start(idaypart)
+        dpl = dp_len(idaypart)
+        dpd = dp_day(idaypart)  !logical
+        im = dpl
+
+#define IBEG (its+dps-1)
+#define IDEX (its+dps-1+I-1)
+#define IEND (its+dps-1+im-1)
+#define IRANGE IBEG:IEND 
+#define IITER  IBEG,IEND
 
        ! if ( GLON(I,J) >= 0.0 ) then
-           XLON(1) = GLON(I,J)
+           XLON(1:im) = GLON(IRANGE,J)
        ! else
        !    XLON(1) = GLON(I,J) + PI        ! if in -pi->+pi convert to 0->2pi
        ! endif
+       XLAT(1:im)=GLAT(IRANGE,J)
+       SINLAT(1:im) = SIN ( XLAT(1:im) )
+       COSLAT(1:im) = COS ( XLAT(1:im) )
 
-       XLAT(1)=GLAT(I,J)
-       TSEA(1)=TSKIN(I,J)
-       TISFC(1)=TSKIN(I,J)                  ! change later if necessary
-       ZORL(1)=Z0(I,J)*100.d0
-       SNWDPH(1)=SI(I,J)                    ! snwdph[mm]
-       SNCOVR(1)=SNOWC(I,J)                 ! fractional snow cover from LSM
-       SNOALB(1)=MXSNAL(I,J)
-       HPRIME_V(1)=STDH(I,J)
+       TSEA(1:im)=TSKIN(IRANGE,J)
+       TISFC(1:im)=TSKIN(IRANGE,J)                  ! change later if necessary
+       ZORL(1:im)=Z0(IRANGE,J)*100.d0
+       SNWDPH(1:im)=SI(IRANGE,J)                    ! snwdph[mm]
+       SNCOVR(1:im)=SNOWC(IRANGE,J)
+       SNOALB(1:im)=MXSNAL(IRANGE,J)
+       HPRIME_V(1:im)=STDH(IRANGE,J)
 
-       IF(SICE(I,J).GT.0.5) THEN            ! slmsk - ocean  - 0
-         SLMSK(1)= 2.0d0                    !         land   - 1
-         FICE(1)=SICE(I,J)                  ! change this later
-       ELSE                                 !         seaice - 2
-         SLMSK(1)= 1.0d0-SM(I,J)            !
-         FICE(1)= 0.0d0                     ! change this later
-       ENDIF
+       WHERE (SICE(IRANGE,J).GT.0.5)                 ! slmsk - ocean  - 0
+         SLMSK(1:im)= 2.0d0                    !         land   - 1
+         FICE(1:im)=SICE(IRANGE,J)                  ! change this later
+       ELSEWHERE                            !         seaice - 2
+         SLMSK(1:im)= 1.0d0-SM(IRANGE,J)            !
+         FICE(1:im)= 0.0d0                     ! change this later
+       ENDWHERE
 !
 !---
-      PRSI(1)=P8W(I,J,1)/1000.                                ! [kPa]
+      PRSI(1:im,1)=P8W(IRANGE,1)/1000.                                ! [kPa]
 !
       DO L=1,LM
-        PRSI(L+1)=P8W(I,J,L+1)/1000.                          ! (pressure on interface) [kPa]
-        PRSL(L)=P_PHY(I,J,L)/1000.                            ! (pressure on mid-layer) [kPa] 
-        PRSLK(L)=(PRSL(L)*0.01d0)**(R/CP)
-        RTvR=1./(R*(Q(I,J,L)*0.608+1.-CW(I,J,L))*T(I,J,L))
-        VVEL(L)=OMGALF(I,J,L)*1000.d0*PRSL(L)*RTvR            !not used
-        GT(L)=T(I,J,L)
-        GQ(L)=Q(I,J,L)
+        PRSI(1:im,L+1)=P8W(IRANGE,L+1)/1000.                          ! (pressure on interface) [kPa]
+        PRSL(1:im,L)=P_PHY(IRANGE,L)/1000.                            ! (pressure on mid-layer) [kPa] 
+        PRSLK(1:im,L)=(PRSL(1:im,L)*0.01d0)**(R/CP)
+        RTvR(1:im)=1./(R*(Q(IRANGE,J,L)*0.608+1.- &
+                   CW(IRANGE,J,L))*T(IRANGE,J,L))
+        VVEL(1:im,L)=OMGALF(IRANGE,J,L)*1000.d0   &
+                   *PRSL(1:im,L)*RTvR(1:im)            !not used
+        GT(1:im,L)=T(IRANGE,J,L)
+        GQ(1:im,L)=Q(IRANGE,J,L)
 !
-        if(ntoz.le.0) then
-          gr1(1,l,1)=0.d0
+        if (ntoz.le.0) then
+          gr1(1:im,l,1)=0.d0
         else
-          gr1(1,l,1)=max(o3(i,j,l),epso3)
+          gr1(1:im,l,1)=max(o3(IRANGE,j,l),epso3)
         endif
 !
-        GR1(1,L,2)=0.d0
-        GR1(1,L,3)=CW(I,J,L)
-        CLDCOV_V(L)=0.d0                !used for prognostic cloud
-        F_ICEC(L)=F_ICE(I,J,L)
-        F_RAINC(L)=F_RAIN(I,J,L)
-        R_RIME(L)=F_RIMEF(I,J,L)
+        GR1(1:im,L,2)=0.d0
+        GR1(1:im,L,3)=CW(IRANGE,J,L)
+        CLDCOV_V(1:im,L)=0.d0                !used for prognostic cloud
+        F_ICEC(1:im,L)=F_ICE(IRANGE,J,L)
+        F_RAINC(1:im,L)=F_RAIN(IRANGE,J,L)
+        R_RIME(1:im,L)=F_RIMEF(IRANGE,J,L)
+        TAUCLOUDS(1:im,L)=TAUTOTAL(IRANGE,J,L)    !CLOUD OPTICAL DEPTH (ICWP==-1)
+        CLDF(1:im,L)=CLDFRA(IRANGE,J,L)           !CLOUD FRACTION (ICWP==-1)
 
- !-- Build in tiny amounts of subgrid-scale cloud when no cloud is
- !   present and RH > 95%
+!-- Build in tiny amounts of subgrid-scale cloud when no cloud is
+!   present and RH > 95%
 
-        WV=GQ(L)/(1.-GQ(L))                   !-- Water vapor mixing ratio
-        ESAT=FPVS(T(I,J,L))                   !-- Saturation vapor pressure (kPa)
-        QSAT=EP_2*ESAT/(PRSL(L)-ESAT)         !-- Saturation mixing ratio
-        RHUM=WV/QSAT                          !-- Relative humidity
-        IF (GR1(1,L,3)<EPSQ .AND. RHUM>0.95) THEN
-           ARG=MIN(0.01, RHUM-0.95)*QSAT
-           GR1(1,L,3)=MIN(0.01E-3, ARG)
-           TCLD=T(I,J,L)-T0C
-           IF (TCLD>TRAD_ICE) THEN
-              F_ICEC(L)=0.
-           ELSE
-              F_ICEC(L)=1.
-           ENDIF
-           F_RAINC(L)=0.
-           R_RIME(L)=1.
-        ENDIF
+        DO I=1,IM
+          WV=GQ(I,L)/(1.-GQ(I,L))                   !-- Water vapor mixing ratio
+          ESAT=FPVS(T(IDEX,J,L))                   !-- Saturation vapor pressure (kPa)
+          QSAT=EP_2*ESAT/(PRSL(I,L)-ESAT)         !-- Saturation mixing ratio
+          RHUM=WV/QSAT                          !-- Relative humidity
+          IF (GR1(I,L,3)<EPSQ .AND. RHUM>0.95) THEN
+             ARG=MIN(0.01, RHUM-0.95)*QSAT
+             GR1(I,L,3)=MIN(0.01E-3, ARG)
+             TCLD=T(IDEX,J,L)-T0C
+             IF (TCLD>TRAD_ICE) THEN
+                F_ICEC(I,L)=0.
+             ELSE
+                F_ICEC(I,L)=1.
+             ENDIF
+             F_RAINC(I,L)=0.
+             R_RIME(I,L)=1.
+          ENDIF
+        ENDDO
 
-        TAUCLOUDS(L)=TAUTOTAL(I,J,L)    !CLOUD OPTICAL DEPTH (ICWP==-1)
-        CLDF(L)=CLDFRA(I,J,L)           !CLOUD FRACTION (ICWP==-1)
+        TAUCLOUDS(1:im,L)=TAUTOTAL(IRANGE,J,L)    !CLOUD OPTICAL DEPTH (ICWP==-1)
+        CLDF(1:im,L)=CLDFRA(IRANGE,J,L)           !CLOUD FRACTION (ICWP==-1)
       ENDDO
 !
 !-- Bogus in tiny amounts of shallow convection, but only if there are no
@@ -899,41 +947,42 @@
 !
       CU_cloud=.FALSE.
       CU_Bogus1: IF (CUCLD) THEN
+       DO i=IBEG,IEND
+         ii = i-(IBEG)+1
          LCNVT=MIN(LM, NINT(CUTOP(I,J)) )   !-- Convective cloud top
          LCNVB=MIN(LM, NINT(CUBOT(I,J)) )   !-- Convective cloud base
          CU_DEPTH=0.
          CU_Index: IF (LCNVB-LCNVT>1) THEN
-            CU_DEPTH=1000.*(PRSL(LCNVB)-PRSL(LCNVT))   !- Pa
+            CU_DEPTH=1000.*(PRSL(ii,LCNVB)-PRSL(ii,LCNVT))   !- Pa
             CU_Deep: IF (CU_DEPTH>=CU_DEEP_MIN .AND. CU_DEPTH<=CU_DEEP_MAX) THEN
-               QCLD=MAXVAL( GR1(1,1:LM,3) )       !-- Maximum condensate
+               QCLD=MAXVAL( GR1(ii,1:LM,3) )       !-- Maximum condensate
                PMOD=CUPPT(I,J)*CONVPRATE
                CU_Clds: IF (QCLD<QWmax .AND. PMOD<=CUPPT_min) THEN
-                  CU_cloud=.TRUE.
+                  CU_cloud(ii)=.TRUE.
                   DO L=LCNVT,LCNVB
-                     GR1(1,L,3)=GR1(1,L,3)+QW_Cu
+                     GR1(ii,L,3)=GR1(ii,L,3)+QW_Cu
                   ENDDO
                ENDIF CU_Clds
             ENDIF CU_Deep
          ENDIF CU_Index
+       ENDDO
       ENDIF CU_Bogus1
 !
       DO NC=1,5
-        CLDSA_V(NC)=0.d0                 !used for prognostic cloud
+        CLDSA_V(1:im,NC)=0.d0                 !used for prognostic cloud
       ENDDO
       DO NC=1,NFLUXR
-        FLUXR_V(NC)=0.d0                 !used for prognostic cloud
+        FLUXR_V(1:im,NC)=0.d0                 !used for prognostic cloud
       ENDDO
 !
 !---
 
-      SINLAT(1) = SIN ( XLAT(1) )
-      COSLAT(1) = COS ( XLAT(1) )
-
-      SFCALBEDO = ALBEDO(I,J)
-      SMX = SM(I,J)
+      SFCALBEDO(1:im) = ALBEDO(IRANGE,J)
+      SMX(1:im) = SM(IRANGE,J)
 
 !  --- ...  calling radiation driver
 
+!      write(0,'("ibeg,jts,LENIVEC,im,dpd ",5i7)')IBEG,jts,LENIVEC,im,dpd 
       call grrad_nmmb                                                   &
 !!  ---  inputs:
            ( PRSI,PRSL,PRSLK,GT,GQ,GR1,VVEL,SLMSK,                      &
@@ -946,7 +995,7 @@
              CV,CVT,CVB, F_ICEC, F_RAINC, R_RIME, FLGMIN_L,             &
              ICSDSW,ICSDLW,NTCW,NCLDX,NTOZ,NTRAC,NFXR,                  &
              DTLW,DTSW,LSSWR,LSLWR,LSSAV,                               &
-             1, 1, LM, MYPE, LPRNT, 0, 0,                               &
+             IBEG,jts, LENIVEC, im, LM, dpd, MYPE, LPRNT, 0, 0,         &  ! jm dpd is true for day, false for night
 !  ---  additional inputs:                                                 ! GFDL type
              TAUCLOUDS,CLDF,                                            &  ! GFDL type
 !!  ---  outputs:
@@ -957,13 +1006,16 @@
 !! ---  optional outputs:
  !           ,HTRSWB,HTRLWB                                              &
            )
+!      do i=1,im
+!      write(0,'("zap,i,j,hlw ",2i7,e25.15)')IDEX,jts,HLW(i,1)
+!      enddo
 
-      COSZDG(I,J) = COSZDG_V (1)
-      CZMEAN(I,J) = COSZEN_V (1)
+      COSZDG(IRANGE,J) = COSZDG_V (1:im)
+      CZMEAN(IRANGE,J) = COSZEN_V (1:im)
 
       DO L=1,LM
-        RLWTT(I,J,L)=HLW(L)
-        RSWTT(I,J,L)=SWH(L)
+        RLWTT(IRANGE,J,L)=HLW(1:im,L)
+        RSWTT(IRANGE,J,L)=SWH(1:im,L)
       ENDDO
 
 !=========================================================
@@ -980,13 +1032,13 @@
 
       ! RSWOUT(I,J)=RSWIN(I,J)*SFALB(1)
 
-      RLWIN(I,J) =SFCFLW(1)%dnfxc
-      RSWIN(I,J) =SFCFSW(1)%dnfxc
-      RSWOUT(I,J)=SFCFSW(1)%upfxc
-      RSWINC(I,J)=SFCFSW(1)%dnfx0
+      RLWIN(IRANGE,J) =SFCFLW(1:im)%dnfxc
+      RSWIN(IRANGE,J) =SFCFSW(1:im)%dnfxc
+      RSWOUT(IRANGE,J)=SFCFSW(1:im)%upfxc
+      RSWINC(IRANGE,J)=SFCFSW(1:im)%dnfx0
 
-      RLWTOA(I,J)=TOPFLW(1)%upfxc
-      RSWTOA(I,J)=TOPFSW(1)%upfxc
+      RLWTOA(IRANGE,J)=TOPFLW(1:im)%upfxc
+      RSWTOA(IRANGE,J)=TOPFSW(1:im)%upfxc
 
 !=================================================================
 ! For non GFDL type cloud (use cloud fields from outputs of GRRAD)
@@ -998,36 +1050,38 @@
          ! Eliminate cloud fraction form GR1 & RH<95% (20140334, Lin)
          ! EPSQ2=1.e-8 (and not EPSQ=1.e-12) based on multiple tests
          !===========================================================
-            ARG_CW = MAXVAL( CW(I,J,1:LM) )
-            IF (ARG_CW<EPSQ2) THEN  
-               DO L=1,LM
-                  CLDCOV_V(L) = 0.d0
-               ENDDO
-               DO NC=1,5
-                  CLDSA_V(NC) = 0.d0
-               ENDDO
-            ENDIF
+            DO I=1,IM
+              ARG_CW = MAXVAL( CW(IDEX,J,1:LM) )
+              IF (ARG_CW<EPSQ2) THEN  
+                 DO L=1,LM
+                    CLDCOV_V(I,L) = 0.d0
+                 ENDDO
+                 DO NC=1,5
+                    CLDSA_V(I,NC) = 0.d0
+                 ENDDO
+              ENDIF
+            ENDDO
          !===== end of eliminating extra cloud fraction =====
          !=========================================================
 
             DO L=1,LM
-               CLDFRA(I,J,L)=CLDCOV_V(L)
-               CSMID(I,J,L)=CLDCOV_V(L)
+               CLDFRA(IRANGE,J,L)=CLDCOV_V(1:im,L)
+               CSMID(IRANGE,J,L)=CLDCOV_V(1:im,L)
             ENDDO
 
-            CFRACL(I,J)=CLDSA_V(1)
-            CFRACM(I,J)=CLDSA_V(2)
-            CFRACH(I,J)=CLDSA_V(3)
+            CFRACL(IRANGE,J)=CLDSA_V(1:im,1)
+            CFRACM(IRANGE,J)=CLDSA_V(1:im,2)
+            CFRACH(IRANGE,J)=CLDSA_V(1:im,3)
 !
 !@@@ To Do:  @@@
 !@@@ Add CFRACT array to calculate the total cloud fraction, replace
 !    the instantaneous cloud fraction in the post
 !
-            ACFRST(I,J)=ACFRST(I,J) + CLDSA_V(4)
-            NCFRST(I,J)=NCFRST(I,J) + 1
+            ACFRST(IRANGE,J)=ACFRST(IRANGE,J) + CLDSA_V(1:im,4)
+            NCFRST(IRANGE,J)=NCFRST(IRANGE,J) + 1
 !-- Added a time-averaged convective cloud fraction calculation
-            IF (CU_cloud) ACFRCV(I,J)=ACFRCV(I,J)+CLDSA_V(4)
-            NCFRCV(I,J)=NCFRCV(I,J)+1
+            WHERE (CU_cloud) ACFRCV(IRANGE,J)=ACFRCV(IRANGE,J)+CLDSA_V(1:im,4)
+            NCFRCV(IRANGE,J)=NCFRCV(IRANGE,J)+1
          ELSE
             PRINT *, '*** CLDFRA=0, need to set LSSAV=TRUE'
             STOP
@@ -1036,7 +1090,7 @@
 
 !-----------------------------------------------------------------------
 !
-      ENDDO     ! --- END I LOOP for grrad
+      ENDDO  dayparts
       ENDDO     ! --- END J LOOP for grrad
 
 
@@ -1046,10 +1100,6 @@
 !-----------------------------------------------------------------------
 !
       IF(MOD(NTIMESTEP,NRADL)==0)THEN
-!.......................................................................
-!$omp parallel do                                                       &
-!$omp& private(i,j,k,kflip,tdum)
-!.......................................................................
         DO J=JTS,JTE
           DO I=ITS,ITE
 !
@@ -1058,10 +1108,6 @@
 !
           ENDDO
         ENDDO
-!.......................................................................
-!$omp end parallel do
-!.......................................................................
-
       ENDIF 
 !-----------------------------------------------------------------------
 
@@ -1131,8 +1177,8 @@
        L=LLBOT-LL+LLTOP
        BIT1=.FALSE.
        CR1=CLDAMT(L)
-       BITX=(P8W(I,J,L).GE.PTOPC(NLVL+1)).AND.                           &
-      &     (P8W(I,J,L).LT.PTOPC(NLVL)).AND.                             &
+       BITX=(P8W(I,L).GE.PTOPC(NLVL+1)).AND.                           &
+      &     (P8W(I,L).LT.PTOPC(NLVL)).AND.                             &
       &     (CLDAMT(L).GT.0.0)
        BIT1=BIT1.OR.BITX
        IF(.NOT.BIT1)GO TO 450
@@ -1154,7 +1200,7 @@
 !!
        IF(BITZ)THEN
          KTOP1=KBT2-KTH2+1
-         DPCL=P_PHY(I,J,KBT2)-P_PHY(I,J,KTOP1)
+         DPCL=P_PHY(I,KBT2)-P_PHY(I,KTOP1)
          IF(DPCL.LT.CTHK(NLVL))THEN
            KTH2=KTH2+1
          ELSE
@@ -1169,7 +1215,7 @@
 !!***
        BIT2=.FALSE.
        BITY=BITX.AND.(CLDAMT(L-1).LE.0.0.OR. &
-            P8W(I,J,L-1).LT.PTOPC(NLVL+1))
+            P8W(I,L-1).LT.PTOPC(NLVL+1))
        BITZ=BITY.AND.CL1.GT.0.0
        BITW=BITY.AND.CL1.LE.0.0
        BIT2=BIT2.OR.BITY

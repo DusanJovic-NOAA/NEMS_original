@@ -94,6 +94,8 @@ OBJS = module_MEDIATOR.o \
        module_NEMS_INTERNAL_STATE.o \
        module_NEMS_GRID_COMP.o
 
+COBJS = # c_code.o
+
 LIBS = atmos/libatmos.a                 \
        atmos/nmm/libnmm.a               \
        $(gfsdir)/libgfs.a               \
@@ -183,8 +185,8 @@ export GOCART_MODE
 #
 WHOAMI  := $(shell whoami)
 CMP_DATE := $(shell date)
-SVN_REV := $(shell svnversion -n .)
-SVN_URL := $(shell svn info | grep URL | cut -f 2 -d ' ')
+#SVN_REV := $(shell svnversion -n .)
+#SVN_URL := $(shell svn info | grep URL | cut -f 2 -d ' ')
 CMP_YEAR := $(shell date +"%Y" )
 CMP_JD := $(shell date +"%j" )
 
@@ -232,8 +234,8 @@ all:
 #
 ################################################################################
 
-nmm: nmm_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_NMM) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_NMM) $(EXTLIBS) 
+nmm: nmm_libs $(OBJS) $(COBJS) $(MAIN)
+	$(FC) $(FFLAGS_NMM) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS_NMM) $(EXTLIBS) 
 	@echo "$(TARGET) is created for NMM core."
 
 nmm_libs:
@@ -253,8 +255,8 @@ nmm_libs:
 #
 ################################################################################
 
-nmm_post: nmm_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_NMM) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_NMM) $(EXTLIBS_POST) 
+nmm_post: nmm_post_libs $(OBJS) $(COBJS) $(MAIN)
+	$(FC) $(FFLAGS_NMM) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS_NMM) $(EXTLIBS_POST) 
 	@echo "$(TARGET) is created for NMM core."
 
 nmm_post_libs:
@@ -274,8 +276,8 @@ nmm_post_libs:
 #
 ################################################################################
 
-gsm: gsm_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
+gsm: gsm_libs $(OBJS) $(COBJS) $(MAIN)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
 	@echo "nems.x is created for GSM core."
 
 gsm_libs:
@@ -299,8 +301,8 @@ endif
 #
 ################################################################################
 
-gsm_post: gsm_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS_POST)
+gsm_post: gsm_post_libs $(OBJS) $(COBJS) $(MAIN)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS_POST)
 	@echo "nems.x is created for GSM core."
 
 gsm_post_libs:
@@ -324,8 +326,8 @@ endif
 #
 ################################################################################
 
-gen: gen_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS_GEN) $(EXTLIBS)
+gen: gen_libs $(OBJS) $(COBJS) $(MAIN)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(COBJS) $(OBJS) $(LIBS_GEN) $(EXTLIBS)
 	@echo "nems.x is created for GEN core."
 
 gen_libs:
@@ -346,8 +348,8 @@ gen_libs:
 #
 ################################################################################
 
-nmm_gsm_gen: nmm_gsm_gen_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
+nmm_gsm_gen: nmm_gsm_gen_libs $(OBJS) $(COBJS) $(MAIN)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
 	@echo "nems.x is created for GEN, NMM and GSM core."
 
 nmm_gsm_gen_libs:
@@ -371,8 +373,8 @@ endif
 #
 ################################################################################
 
-nmm_gsm_gen_post: nmm_gsm_gen_post_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS_POST)
+nmm_gsm_gen_post: nmm_gsm_gen_post_libs $(OBJS) $(COBJS) $(MAIN)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS_POST)
 	@echo "nems.x is created for GEN, NMM and GSM core."
 
 nmm_gsm_gen_post_libs:
@@ -396,8 +398,8 @@ endif
 #
 ################################################################################
 
-nmm_gsm: nmm_gsm_libs $(OBJS) $(MAIN)
-	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
+nmm_gsm: nmm_gsm_libs $(OBJS) $(COBJS) $(MAIN)
+	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(COBJS) $(OBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS)
 	@echo "nems.x is created for NMM and GSM core."
 
 nmm_gsm_libs:
@@ -478,6 +480,9 @@ clean:
 
 .F90.f90:
 	$(CPP) $(CPPFLAGS) $< > $*.f90
+
+$(COBJS) : %.o: %.c 
+	$(CC) -c $*.c
 
 $(OBJS): %.o: %.f90
 	$(FC) $(FFLAGS) $(INCS) -c $*.f90

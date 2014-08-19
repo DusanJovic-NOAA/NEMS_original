@@ -7,6 +7,7 @@ ESMF_LIBS = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 EXTLIBS   = $(ESMF_LIBS) -L/export/lnx280/wd20dj/nwprod/lib -lw3_4 -lbacio_4 -lsp_4
 
 FC        = mpif90 -g -C -ftrace=full -Wno=155
+FPP       = -fpp
 FREE      = -ffree-form
 FIXED     = -ffixed-form
 R8        = -r8
@@ -25,7 +26,7 @@ FFLAGS_GFS= $(OPTS_GFS) $(FFLAGS)
 FFLAGS_FIM= $(OPTS_FIM) $(FFLAGS)
 
 CPP       = /lib/cpp -P -traditional
-CPPFLAGS  =
+CPPFLAGS  = -DCHNK_RRTM=8
 
 AR        = ar
 ARFLAGS   = -r

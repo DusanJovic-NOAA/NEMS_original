@@ -2610,8 +2610,8 @@
                                             ,LATS_NODE_R
 !
       USE DATE_DEF,                   ONLY : FHOUR
-      USE MODULE_RADIATION_DRIVER_gfs,    ONLY : GRRAD_gfs,RADINIT_gfs
-      USE MODULE_RADIATION_ASTRONOMY_gfs, ONLY : ASTRONOMY
+!jm      USE MODULE_RADIATION_DRIVER_gfs,    ONLY : GRRAD_gfs,RADINIT_gfs
+!jm      USE MODULE_RADIATION_ASTRONOMY_gfs, ONLY : ASTRONOMY
       USE MERSENNE_TWISTER
       USE N_RESOL_DEF,                ONLY : LATR,LONR,LEVR             &
                                             ,NCLD,NFXR,NMTVR            &
@@ -5944,6 +5944,11 @@
 !-----------------------------------------------------------------------
 !
       ELSE gfs_phys_test                                                   !<-- Use GFS physics package
+#if 1
+        WRITE(0,*)'Init of GFS phys in NMMB disabled, 20140812, jm'
+        CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                          ,rc             =RC)
+#else
 !
 !-----------------------------------------------------------------------
 !
@@ -6263,6 +6268,11 @@
 !
 !-----------------------------------------------------------------------
         gfs_physics: IF(CALL_GFS_PHY)THEN
+#if 1
+        WRITE(0,*)' GFS physics option in NMMB disabled, 20140812, jm'
+        CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                          ,rc             =RC)
+#else
 !-----------------------------------------------------------------------
 !
           DTLW     = FLOAT(int_state%NRADL)*int_state%DT   ! [s]
@@ -6915,6 +6925,7 @@
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
+#endif
         ENDIF gfs_physics
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -6971,6 +6982,7 @@
 !#######################################################################
 !-----------------------------------------------------------------------
 !
+#endif
       ENDIF  gfs_phys_test 
 !
 !-----------------------------------------------------------------------

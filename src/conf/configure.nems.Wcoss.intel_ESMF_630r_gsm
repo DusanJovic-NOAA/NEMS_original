@@ -61,6 +61,7 @@ EXTLIBS_POST = $(POST_LIB) \
                $(SYS_LIB)
 
 FC          = mpiifort -g -openmp -mkl=sequential -align array32byte -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
+FPP         = -fpp
 FREE        = -free
 FIXED       = -fixed
 R8          = -r8
@@ -84,7 +85,7 @@ FFLAGS_GEN  = $(OPTS_GEN) $(FFLAGS)
 FFLAGS_FIM  = $(OPTS_FIM) $(FFLAGS)
 
 CPP         = /lib/cpp -P -traditional
-CPPFLAGS    =
+CPPFLAGS    = -DENABLE_SMP -DTHREAD_2D -DCHNK_RRTM=8
 
 AR          = ar
 ARFLAGS     = -r

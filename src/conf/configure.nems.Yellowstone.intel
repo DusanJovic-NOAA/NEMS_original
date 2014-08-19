@@ -54,6 +54,7 @@ EXTLIBS_POST = $(POST_LIB) \
                $(SYS_LIB)
 
 FC          = mpif90 -g -openmp 
+FPP         = -fpp
 CC          = mpcc
 FREE        = -free
 FIXED       = -fixed
@@ -78,7 +79,7 @@ FFLAGS_GEN  = $(OPTS_GEN) $(FFLAGS)
 FFLAGS_FIM  = $(OPTS_FIM) $(FFLAGS)
 
 CPP         = /lib/cpp -P -traditional
-CPPFLAGS    = -DENABLE_SMP
+CPPFLAGS    = -DCHNK_RRTM=8 -DENABLE_SMP -DTHREAD_2D
 
 AR          = ar
 ARFLAGS     = -r

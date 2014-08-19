@@ -1,5 +1,8 @@
 include ../../conf/configure.nems
 
+# consider setting this in configure.nems* (JM 20140616)
+CHNK_RRTM=8
+
 MAKEFILE = makefile
 
 UTILINCS = -I../share
@@ -43,8 +46,9 @@ MODULES_NMM_RRTM = grrad_nmmb.o                   \
                    radiation_gases_gfs.o     \
                    radiation_clouds_gfs.o    \
                    radiation_surface_gfs.o   \
-                   grrad_gfs.o               \
                    precpd_nmmb.o
+
+#                   grrad_gfs.o               \
 
 MODULE_FGFS =                                \
 	           num_parthds.o
@@ -169,13 +173,13 @@ $(MODULES_NMM): %.o: %.f90
 	$(FC) $(FFLAGS_NMM) $(UTILINCS) -c $*.f90
 
 $(MODULES_NMM_RRTM): %.o: %.f
-	$(FC) $(FREE) $(FFLAGS_NMM) $(UTILINCS) $(R8) -c $*.f
+	$(FC) $(FREE) $(FFLAGS_NMM) $(UTILINCS) $(FPP) $(CPPFLAGS) $(R8) -c $*.f
 
 $(MODULE_FGFS): %.o: %.F
 	$(FC) $(FFLAGS_GFS) $(UTILINCS) $(R8) $(SUFFIX_FLAG) -c $*.F
 
 $(MODULES_GFS): %.o: %.f
-	$(FC) $(FFLAGS_GFS) $(UTILINCS) $(R8) -c $*.f
+	$(FC) $(FFLAGS_GFS) $(UTILINCS) $(FPP) $(CPPFLAGS) $(R8) -c $*.f
 
 $(MODULES_IDEA): %.o: %.f
 	$(FC) $(FFLAGS_GFSF) $(UTILINCS) $(R8) -c $*.f
@@ -187,7 +191,7 @@ $(MODULES_TRAC_stub): %.o: %.f
 	$(FC) $(FFLAGS_GFSF) $(UTILINCS) $(R8) -c $*.f
 
 $(MODULES_GFSF): %.o: %.f
-	$(FC) $(FFLAGS_GFSF) $(UTILINCS) $(R8) -c $*.f
+	$(FC) $(FFLAGS_GFSF) $(UTILINCS) $(FPP) $(CPPFLAGS) $(R8) -c $*.f
 
 clean:
 	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map depend

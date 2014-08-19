@@ -1,324 +1,374 @@
-!!!!!  ==========================================================  !!!!!
-!!!!!            sw-rrtm2 radiation package description            !!!!!
-!!!!!  ==========================================================  !!!!!
-!                                                                      !
-!   the sw-rrtm2 package includes these parts:                         !
-!                                                                      !
-!      'radsw_rrtm2_param.f'                                           !
-!      'radsw_rrtm2_datatb.f'                                          !
-!      'radsw_rrtm2_main.f'                                            !
-!                                                                      !
-!   the 'radsw_rrtm2_param.f' contains:                                !
-!                                                                      !
-!      'module_radsw_parameters'  -- band parameters set up            !
-!      'module_radsw_cntr_para'   -- control parameters set up         !
-!                                                                      !
-!   the 'radsw_rrtm2_datatb.f' contains:                               !
-!                                                                      !
-!      'module_radsw_cldprtb'     -- cloud property coefficients table !
-!      'module_radsw_kgbnn'       -- absorption coeffients for 14      !
-!                                    bands, where nn = 16-29           !
-!                                                                      !
-!   the 'radsw_rrtm2_main.f' contains:                                 !
-!                                                                      !
-!      'module_radsw_main'        -- main sw radiation transfer        !
-!                                                                      !
-!   in the main module 'module_radsw_main' there are only two          !
-!   externally callable subroutines:                                   !
-!                                                                      !
-!      'swrad'      -- main rrtm2 sw radiation routine                 !
-!         inputs:                                                      !
-!           (plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                     !
-!            clouds,iauxil,aerosols,sfcalb,                            !
-!            cosz,solcon,NDAY,idxday,                                  !
-!            IMAX, NLAY, NLP1, iflip, lprnt,                           !
-!         outputs:                                                     !
-!            hswc,topflx,sfcflx,                                       !
-!!        optional outputs:                                            !
-!            HSW0,HSWB,FLXPRF,FDNCMP                                   !
-!           )                                                          !
-!                                                                      !
-!      'rswinit'    -- initialization routine                          !
-!         inputs:                                                      !
-!           ( icwp, me, NLAY, IOVR, ISUBC )                            !
-!         outputs:                                                     !
-!           (none)                                                     !
-!                                                                      !
-!   all the sw radiation subprograms become contained subprograms      !
-!   in module 'module_radsw_main' and many of them are not directly    !
-!   accessable from places outside the module.                         !
-!                                                                      !
-!    derived data type constructs used:                                !
-!                                                                      !
-!     1. radiation flux at toa: (from module 'module_radsw_parameters')!
-!          topfsw_type   -  derived data type for toa rad fluxes       !
-!            upfxc              total sky upward flux at toa           !
-!            dnfxc              total sky downward flux at toa         !
-!            upfx0              clear sky upward flux at toa           !
-!                                                                      !
-!     2. radiation flux at sfc: (from module 'module_radsw_parameters')!
-!          sfcfsw_type   -  derived data type for sfc rad fluxes       !
-!            upfxc              total sky upward flux at sfc           !
-!            dnfxc              total sky downward flux at sfc         !
-!            upfx0              clear sky upward flux at sfc           !
-!            dnfx0              clear sky downward flux at sfc         !
-!                                                                      !
-!     3. radiation flux profiles(from module 'module_radsw_parameters')!
-!          profsw_type    -  derived data type for rad vertical prof   !
-!            upfxc              total sky level upward flux            !
-!            dnfxc              total sky level downward flux          !
-!            upfx0              clear sky level upward flux            !
-!            dnfx0              clear sky level downward flux          !
-!                                                                      !
-!     4. surface component fluxes(from module 'module_radsw_parameters'!
-!          cmpfsw_type    -  derived data type for component sfc flux  !
-!            uvbfc              total sky downward uv-b flux at sfc    !
-!            uvbf0              clear sky downward uv-b flux at sfc    !
-!            nirbm              surface downward nir direct beam flux  !
-!            nirdf              surface downward nir diffused flux     !
-!            visbm              surface downward uv+vis direct beam flx!
-!            visdf              surface downward uv+vis diffused flux  !
-!                                                                      !
-!                                                                      !
-!   external modules referenced:                                       !
-!                                                                      !
-!       'module machine'                                               !
-!       'module physcons'                                              !
-!                                                                      !
-!   compilation sequence is:                                           !
-!                                                                      !
-!      'radsw_rrtm2_param.f'                                           !
-!      'radsw_rrtm2_datatb.f'                                          !
-!      'radsw_rrtm2_main.f'                                            !
-!                                                                      !
-!   and all should be put in front of routines that use sw modules     !
-!                                                                      !
-!                                                                      !
-!                                                                      !
-!                                                                      !
-!   the original program declarations:                                 !
-!                                                                      !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!                                                                      !
-! Copyright 2002, 2003, 2004, Atmospheric & Environmental Research, Inc!
-! (AER). This software may be used, copied, or redistributed as long as!
-! it is not sold and this copyright notice is reproduced on each copy  !
-! made. This model is provided as is without any express or implied    !
-! warranties.                                                          !
-!                      (http://www.rtweb.aer.com/)                     !
-!                                                                      !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!                                                                      !
-!                               rrtm_sw                                !
-!                                                                      !
-!                   a rapid radiative transfer model                   !
-!                    for the solar spectral region                     !
-!                                                                      !
-!            atmospheric and environmental research, inc.              !
-!                        840 memorial drive                            !
-!                        cambridge, ma 02139                           !
-!                                                                      !
-!                           eli j. mlawer                              !
-!                         jennifer delamere                            !
-!                         steven j. taubman~                           !
-!                         shepard a. clough                            !
-!                                                                      !
-!                         ~currently at gfdl                           !
-!                                                                      !
-!                       email:  mlawer@aer.com                         !
-!                                                                      !
-!        the authors wish to acknowledge the contributions of the      !
-!        following people:  patrick d. brown, michael j. iacono,       !
-!        ronald e. farren, luke chen, robert bergstrom.                !
-!                                                                      !
-!                                                                      !
-!    references:                                                       !
-!      mlawer, e.j., s.j.taubman, p.d. brown, m.j. iacono, and         !
-!      s.a. clough (1997): radiative transfer for inhomogeneous        !
-!      atmospheres: rrtm, a validated correlated-k model for the       !
-!      longwave.                                                       !
-!                                                                      !
-!                                                                      !
-!                                                                      !
-!   ncep modifications history log:                                    !
-!                                                                      !
-!       sep 2003,  yu-tai hou    -- received aer's rrtm-sw gcm version !
-!                    code (v224)                                       !
-!       nov 2003,  yu-tai hou    -- corrected errors in direct/diffuse !
-!                    surface alabedo components.                       !
-!       jan 2004,  yu-tai hou    -- modified code into standard modular!
-!                    f9x code for ncep models. the original three cloud!
-!                    control flags are simplified into two: iflagliq and
-!                    iflagice. combined the org subr sw_224 and setcoef!
-!                    into radsw (the main program); put all kgb##      !
-!                    together and reformat into a separated data module!
-!                    combined reftra and vrtqdr as swflux; optimized   !
-!                    taumol and all taubgs into contained subroutines. !
-!       jun 2004,  yu-tai hou    -- modified code based on aer's faster!
-!                    version rrtmg_sw (v2.0) with 112 g-points.        !
-!       mar 2005,  yu-tai hou    -- modified to aer v2.3, correct cloud!
-!                    scaling error, total sky prop. are delta scaled   !
-!                    after combining clear and cloudy parts. testing   !
-!                    criterion of ssa is saved before scaling. added   !
-!                    cloud layer rain and snow contributions. all cloud!
-!                    water partical contents are treated the same way  !
-!                    as other atmos particles.                         !
-!       apr 2005,  yu-tai hou    -- modified on module structures (this!
-!                    version of code was given back to aer in jun 2006)!
-!       nov 2006,  yu-tai hou    -- modified code to include the       !
-!                    generallized aerosol optical property scheme.     !
-!       apr 2007,  yu-tai hou    -- added spectral band heating as an  !
-!                    optional output to support the 500km model's upper!
-!                    stratospheric radiation calculations. restructure !
-!                    optional outputs for easy access by diff models.  !
-!       mar 2009,  yu-tai hou   -- modified the program interface that !
-!                    is consistant with newer radiation code structure.!
-!                                                                      !
-!                                                                      !
-!                                                                      !
-!!!!!  ==========================================================  !!!!!
-!!!!!                       end descriptions                       !!!!!
-!!!!!  ==========================================================  !!!!!
-
+!!!!!  ==============================================================  !!!!!
+!!!!!              sw-rrtm3 radiation package description              !!!!!
+!!!!!  ==============================================================  !!!!!
+!                                                                          !
+!   this package includes ncep's modifications of the rrtm-sw radiation    !
+!   code from aer inc.                                                     !
+!                                                                          !
+!   the sw-rrtm3 package includes these parts:                             !
+!                                                                          !
+!      'radsw_rrtm3_param.f'                                               !
+!      'radsw_rrtm3_datatb.f'                                              !
+!      'radsw_rrtm3_main.f'                                                !
+!                                                                          !
+!   the 'radsw_rrtm3_param.f' contains:                                    !
+!                                                                          !
+!      'module_radsw_parameters'  -- band parameters set up                !
+!                                                                          !
+!   the 'radsw_rrtm3_datatb.f' contains:                                   !
+!                                                                          !
+!      'module_radsw_ref'         -- reference temperature and pressure    !
+!      'module_radsw_cldprtb'     -- cloud property coefficients table     !
+!      'module_radsw_sflux'       -- spectral distribution of solar flux   !
+!      'module_radsw_kgbnn'       -- absorption coeffients for 14          !
+!                                    bands, where nn = 16-29               !
+!                                                                          !
+!   the 'radsw_rrtm3_main.f' contains:                                     !
+!                                                                          !
+!      'module_radsw_main'        -- main sw radiation transfer            !
+!                                                                          !
+!   in the main module 'module_radsw_main' there are only two              !
+!   externally callable subroutines:                                       !
+!                                                                          !
+!      'swrad'      -- main sw radiation routine                           !
+!         inputs:                                                          !
+!           (plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                         !
+!            clouds,icseed,aerosols,sfcalb,                                !
+!            cosz,solcon,NDAY,idxday,                                      !
+!            npts, nlay, nlp1, lprnt,                                      !
+!         outputs:                                                         !
+!            hswc,topflx,sfcflx,                                           !
+!!        optional outputs:                                                !
+!            HSW0,HSWB,FLXPRF,FDNCMP)                                      !
+!           )                                                              !
+!                                                                          !
+!      'rswinit'    -- initialization routine                              !
+!         inputs:                                                          !
+!           ( me )                                                         !
+!         outputs:                                                         !
+!           (none)                                                         !
+!                                                                          !
+!   all the sw radiation subprograms become contained subprograms          !
+!   in module 'module_radsw_main' and many of them are not directly        !
+!   accessable from places outside the module.                             !
+!                                                                          !
+!    derived data type constructs used:                                    !
+!                                                                          !
+!     1. radiation flux at toa: (from module 'module_radsw_parameters')    !
+!          topfsw_type   -  derived data type for toa rad fluxes           !
+!            upfxc              total sky upward flux at toa               !
+!            dnfxc              total sky downward flux at toa             !
+!            upfx0              clear sky upward flux at toa               !
+!                                                                          !
+!     2. radiation flux at sfc: (from module 'module_radsw_parameters')    !
+!          sfcfsw_type   -  derived data type for sfc rad fluxes           !
+!            upfxc              total sky upward flux at sfc               !
+!            dnfxc              total sky downward flux at sfc             !
+!            upfx0              clear sky upward flux at sfc               !
+!            dnfx0              clear sky downward flux at sfc             !
+!                                                                          !
+!     3. radiation flux profiles(from module 'module_radsw_parameters')    !
+!          profsw_type    -  derived data type for rad vertical prof       !
+!            upfxc              level upward flux for total sky            !
+!            dnfxc              level downward flux for total sky          !
+!            upfx0              level upward flux for clear sky            !
+!            dnfx0              level downward flux for clear sky          !
+!                                                                          !
+!     4. surface component fluxes(from module 'module_radsw_parameters'    !
+!          cmpfsw_type    -  derived data type for component sfc flux      !
+!            uvbfc              total sky downward uv-b flux at sfc        !
+!            uvbf0              clear sky downward uv-b flux at sfc        !
+!            nirbm              surface downward nir direct beam flux      !
+!            nirdf              surface downward nir diffused flux         !
+!            visbm              surface downward uv+vis direct beam flx    !
+!            visdf              surface downward uv+vis diffused flux      !
+!                                                                          !
+!   external modules referenced:                                           !
+!                                                                          !
+!       'module physparam'                                                 !
+!       'module physcons'                                                  !
+!       'mersenne_twister'                                                 !
+!                                                                          !
+!   compilation sequence is:                                               !
+!                                                                          !
+!      'radsw_rrtm3_param.f'                                               !
+!      'radsw_rrtm3_datatb.f'                                              !
+!      'radsw_rrtm3_main.f'                                                !
+!                                                                          !
+!   and all should be put in front of routines that use sw modules         !
+!                                                                          !
+!==========================================================================!
+!                                                                          !
+!   the original program declarations:                                     !
+!                                                                          !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                          !
+!  Copyright 2002-2007, Atmospheric & Environmental Research, Inc. (AER).  !
+!  This software may be used, copied, or redistributed as long as it is    !
+!  not sold and this copyright notice is reproduced on each copy made.     !
+!  This model is provided as is without any express or implied warranties. !
+!                       (http://www.rtweb.aer.com/)                        !
+!                                                                          !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                          !
+! ************************************************************************ !
+!                                                                          !
+!                              rrtmg_sw                                    !
+!                                                                          !
+!                                                                          !
+!                   a rapid radiative transfer model                       !
+!                    for the solar spectral region                         !
+!            atmospheric and environmental research, inc.                  !
+!                        131 hartwell avenue                               !
+!                        lexington, ma 02421                               !
+!                                                                          !
+!                           eli j. mlawer                                  !
+!                        jennifer s. delamere                              !
+!                         michael j. iacono                                !
+!                         shepard a. clough                                !
+!                                                                          !
+!                                                                          !
+!                       email:  miacono@aer.com                            !
+!                       email:  emlawer@aer.com                            !
+!                       email:  jdelamer@aer.com                           !
+!                                                                          !
+!        the authors wish to acknowledge the contributions of the          !
+!        following people:  steven j. taubman, patrick d. brown,           !
+!        ronald e. farren, luke chen, robert bergstrom.                    !
+!                                                                          !
+! ************************************************************************ !
+!                                                                          !
+!    references:                                                           !
+!    (rrtm_sw/rrtmg_sw):                                                   !
+!      clough, s.a., m.w. shephard, e.j. mlawer, j.s. delamere,            !
+!      m.j. iacono, k. cady-pereira, s. boukabara, and p.d. brown:         !
+!      atmospheric radiative transfer modeling: a summary of the aer       !
+!      codes, j. quant. spectrosc. radiat. transfer, 91, 233-244, 2005.    !
+!                                                                          !
+!    (mcica):                                                              !
+!      pincus, r., h. w. barker, and j.-j. morcrette: a fast, flexible,    !
+!      approximation technique for computing radiative transfer in         !
+!      inhomogeneous cloud fields, j. geophys. res., 108(d13), 4376,       !
+!      doi:10.1029/2002jd003322, 2003.                                     !
+!                                                                          !
+! ************************************************************************ !
+!                                                                          !
+!    aer's revision history:                                               !
+!     this version of rrtmg_sw has been modified from rrtm_sw to use a     !
+!     reduced set of g-point intervals and a two-stream model for          !
+!     application to gcms.                                                 !
+!                                                                          !
+! --  original version (derived from rrtm_sw)                              !
+!        2002: aer. inc.                                                   !
+! --  conversion to f90 formatting; addition of 2-stream radiative transfer!
+!        feb 2003: j.-j. morcrette, ecmwf                                  !
+! --  additional modifications for gcm application                         !
+!        aug 2003: m. j. iacono, aer inc.                                  !
+! --  total number of g-points reduced from 224 to 112.  original          !
+!     set of 224 can be restored by exchanging code in module parrrsw.f90  !
+!     and in file rrtmg_sw_init.f90.                                       !
+!        apr 2004: m. j. iacono, aer, inc.                                 !
+! --  modifications to include output for direct and diffuse               !
+!     downward fluxes.  there are output as "true" fluxes without          !
+!     any delta scaling applied.  code can be commented to exclude         !
+!     this calculation in source file rrtmg_sw_spcvrt.f90.                 !
+!        jan 2005: e. j. mlawer, m. j. iacono, aer, inc.                   !
+! --  revised to add mcica capability.                                     !
+!        nov 2005: m. j. iacono, aer, inc.                                 !
+! --  reformatted for consistency with rrtmg_lw.                           !
+!        feb 2007: m. j. iacono, aer, inc.                                 !
+! --  modifications to formatting to use assumed-shape arrays.             !
+!        aug 2007: m. j. iacono, aer, inc.                                 !
+!                                                                          !
+! ************************************************************************ !
+!                                                                          !
+!   ncep modifications history log:                                        !
+!                                                                          !
+!       sep 2003,  yu-tai hou        -- received aer's rrtm-sw gcm version !
+!                    code (v224)                                           !
+!       nov 2003,  yu-tai hou        -- corrected errors in direct/diffuse !
+!                    surface alabedo components.                           !
+!       jan 2004,  yu-tai hou        -- modified code into standard modular!
+!                    f9x code for ncep models. the original three cloud    !
+!                    control flags are simplified into two: iflagliq and   !
+!                    iflagice. combined the org subr sw_224 and setcoef    !
+!                    into radsw (the main program); put all kgb##together  !
+!                    and reformat into a separated data module; combine    !
+!                    reftra and vrtqdr as swflux; optimized taumol and all !
+!                    taubgs to form a contained subroutines.               !
+!       jun 2004,  yu-tai hou        -- modified code based on aer's faster!
+!                    version rrtmg_sw (v2.0) with 112 g-points.            !
+!       mar 2005,  yu-tai hou        -- modified to aer v2.3, correct cloud!
+!                    scaling error, total sky properties are delta scaled  !
+!                    after combining clear and cloudy parts. the testing   !
+!                    criterion of ssa is saved before scaling. added cloud !
+!                    layer rain and snow contributions. all cloud water    !
+!                    partical contents are treated the same way as other   !
+!                    atmos particles.                                      !
+!       apr 2005,  yu-tai hou        -- modified on module structures (this!
+!                    version of code was given back to aer in jun 2006)    !
+!       nov 2006,  yu-tai hou        -- modified code to include the       !
+!                    generallized aerosol optical property scheme for gcms.!
+!       apr 2007,  yu-tai hou        -- added spectral band heating as an  !
+!                    optional output to support the 500km model's upper    !
+!                    stratospheric radiation calculations. restructure     !
+!                    optional outputs for easy access by different models. !
+!       oct 2008,  yu-tai hou        -- modified to include new features   !
+!                    from aer's newer release v3.5-v3.61, including mcica  !
+!                    sub-grid cloud option and true direct/diffuse fluxes  !
+!                    without delta scaling. added rain/snow opt properties !
+!                    support to cloudy sky calculations. simplified and    !
+!                    unified sw and lw sub-column cloud subroutines into   !
+!                    one module by using optional parameters.              !
+!       mar 2009,  yu-tai hou        -- replaced the original random number!
+!                    generator coming with the original code with ncep w3  !
+!                    library to simplify the program and moved sub-column  !
+!                    cloud subroutines inside the main module. added       !
+!                    option of user provided permutation seeds that could  !
+!                    be randomly generated from forecast time stamp.       !
+!       mar 2009,  yu-tai hou        -- replaced random number generator   !
+!                    programs coming from the original code with the ncep  !
+!                    w3 library to simplify the program and moved sub-col  !
+!                    cloud subroutines inside the main module. added       !
+!                    option of user provided permutation seeds that could  !
+!                    be randomly generated from forecast time stamp.       !
+!       nov 2009,  yu-tai hou        -- updated to aer v3.7-v3.8 version.  !
+!                    notice the input cloud ice/liquid are assumed as      !
+!                    in-cloud quantities, not grid average quantities.     !
+!       aug 2010,  yu-tai hou        -- uptimized code to improve efficiency
+!                    splited subroutine spcvrt into two subs, spcvrc and   !
+!                    spcvrm, to handling non-mcica and mcica type of calls.!
+!       apr 2012,  b. ferrier and y. hou -- added conversion factor to fu's!
+!                    cloud-snow optical property scheme.                   !
+!       jul 2012,  s. moorthi and Y. hou  -- eliminated the pointer array  !
+!                     in subr 'spcvrt' for multi-threading issue running   !
+!                     under intel's fortran compiler.                      !
+!       nov 2012,  yu-tai hou        -- modified control parameters thru   !
+!                     module 'physparam'.                                  !
+!       jun 2013,  yu-tai hou        -- moving band 9 surface treatment    !
+!                     back as in the rrtm2 version, spliting surface flux  !
+!                     into two spectral regions (vis & nir), instead of    !
+!                     designated it in nir region only.                    !
+!                                                                          !
+!!!!!  ==============================================================  !!!!!
+!!!!!                         end descriptions                         !!!!!
+!!!!!  ==============================================================  !!!!!
 
 
 !========================================!
       module module_radsw_main_nmmb      !
 !........................................!
 !
-      use machine,          only : kind_phys
+      use physparam,        only : iswrate, iswrgas, iswcliq, iswcice,  &
+     &                             isubcsw, icldflg, iovrsw,  ivflip,   &
+     &                             iswmode, kind_phys, kind_taum
       use physcons,         only : con_g, con_cp, con_avgd, con_amd,    &
      &                             con_amw, con_amo3
 
-      use module_radsw_parameters_nmmb
-      use module_radsw_cntr_para_nmmb
+      use module_radsw_parameters
+      use mersenne_twister, only : random_setseed, random_number,       &
+     &                             random_stat
+      use module_radsw_ref, only : preflog, tref
+      use module_radsw_sflux
 !
       implicit none
 !
       private
 !
-!  ...  version tag and last revision date
-!
-!     character(24), parameter :: VTAGSW='RRTM-SW 112v2.0 jul 2004'
-!     character(24), parameter :: VTAGSW='RRTM-SW 112v2.3 mar 2005'
-      character(24), parameter :: VTAGSW='RRTM-SW 112v2.3 Apr 2007'
+!  ---  version tag and last revision date
+      character(40), parameter ::                                       &
+     &   VTAGSW='NCEP SW v5.1  Nov 2012 -RRTMG-SW v3.8   '
+!    &   VTAGSW='NCEP SW v5.0  Aug 2012 -RRTMG-SW v3.8   '
+!    &   VTAGSW='RRTMG-SW v3.8   Nov 2009'
+!    &   VTAGSW='RRTMG-SW v3.7   Nov 2009'
+!    &   VTAGSW='RRTMG-SW v3.61  Oct 2008'
+!    &   VTAGSW='RRTMG-SW v3.5   Oct 2008'
+!    &   VTAGSW='RRTM-SW 112v2.3 Apr 2007'
+!    &   VTAGSW='RRTM-SW 112v2.3 Mar 2005'
+!    &   VTAGSW='RRTM-SW 112v2.0 Jul 2004'
 
 !  ---  constant values
       real (kind=kind_phys), parameter :: eps     = 1.0e-6
       real (kind=kind_phys), parameter :: oneminus= 1.0 - eps
-      real (kind=kind_phys), parameter :: ftiny   = 1.0e-12
+      real (kind=kind_phys), parameter :: bpade   = 1.0/0.278  ! pade approx constant
       real (kind=kind_phys), parameter :: stpfac  = 296.0/1013.0
-      real (kind=kind_phys), parameter :: s0      = 1368.22  ! solar const hard coded in freq bands
-      real (kind=kind_phys), parameter :: zero    = 0.0
-      real (kind=kind_phys), parameter :: one     = 1.0
+      real (kind=kind_phys), parameter :: ftiny   = 1.0e-12
+      real (kind=kind_phys), parameter :: s0      = 1368.22    ! internal solar const
+                                                               ! adj through input
+      real (kind=kind_phys), parameter :: f_zero  = 0.0
+      real (kind=kind_phys), parameter :: f_one   = 1.0
 
-!  ...  atomic weights for conversion from mass to volume mixing ratios
+!  ---  atomic weights for conversion from mass to volume mixing ratios
       real (kind=kind_phys), parameter :: amdw    = con_amd/con_amw
       real (kind=kind_phys), parameter :: amdo3   = con_amd/con_amo3
 
-!  ...  band indices
-      integer, dimension(NBLOW:NBHGH) :: NSPA, NSPB, IDXALB, IDXSFC
+!  ---  band indices
+      integer, dimension(nblow:nbhgh) :: nspa, nspb, idxebc, idxsfc
 
-      data NSPA(:) /  9, 9, 9, 9, 1, 9, 9, 1, 9, 1, 0, 1, 9, 1 /
-      data NSPB(:) /  1, 5, 1, 1, 1, 5, 1, 0, 1, 0, 0, 1, 5, 1 /
+      data nspa(:) /  9, 9, 9, 9, 1, 9, 9, 1, 9, 1, 0, 1, 9, 1 /
+      data nspb(:) /  1, 5, 1, 1, 1, 5, 1, 0, 1, 0, 0, 1, 5, 1 /
 
-      data IDXALB(:) /  1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1 /
-      data IDXSFC(:) /  1, 1, 1, 1, 1, 1, 1, 1, 0, 2, 2, 2, 2, 1 /
+!     data idxsfc(:) / 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 1 /  ! band index for sfc flux
+      data idxsfc(:) / 1, 1, 1, 1, 1, 1, 1, 1, 0, 2, 2, 2, 2, 1 /  ! band index for sfc flux
+      data idxebc(:) / 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 1, 1, 1, 5 /  ! band index for cld prop
 
-!  ...  band wavenumber intervals
-!     real (kind=kind_phys), dimension(NBLOW:NBHGH):: wavenum1,wavenum2
+!  ---  band wavenumber intervals
+!     real (kind=kind_phys), dimension(nblow:nbhgh):: wavenum1,wavenum2
 !     data wavenum1(:)  /                                               &
 !    &         2600.0, 3250.0, 4000.0, 4650.0, 5150.0, 6150.0, 7700.0,  &
 !    &         8050.0,12850.0,16000.0,22650.0,29000.0,38000.0,  820.0 /
 !     data wavenum2(:)  /                                               &
 !              3250.0, 4000.0, 4650.0, 5150.0, 6150.0, 7700.0, 8050.0,  &
 !    &        12850.0,16000.0,22650.0,29000.0,38000.0,50000.0, 2600.0 /
-!     real (kind=kind_phys), dimension(NBLOW:NBHGH) :: delwave
+!     real (kind=kind_phys), dimension(nblow:nbhgh) :: delwave
 !     data delwave(:)   /                                               &
 !    &          650.0,  750.0,  650.0,  500.0, 1000.0, 1550.0,  350.0,  &
 !    &         4800.0, 3150.0, 6650.0, 6350.0, 9000.0,12000.0, 1780.0 /
 
       integer, parameter :: nuvb = 27            !uv-b band index
 
-!  ---  reference pressure and temperature
-!     real (kind=kind_phys), dimension(59) :: pref, preflog, tref
-      real (kind=kind_phys), dimension(59) :: preflog, tref
-
-!  ...  these pressures are chosen such that the ln of the first pressure
-!       has only a few non-zero digits (i.e. ln(pref(1)) = 6.96000) and
-!       each subsequent ln(pressure) differs from the previous one by 0.2.
-
-!     data  pref(:)  /                                                  &
-!    &     1.05363e+03,8.62642e+02,7.06272e+02,5.78246e+02,4.73428e+02, &
-!    &     3.87610e+02,3.17348e+02,2.59823e+02,2.12725e+02,1.74164e+02, &
-!    &     1.42594e+02,1.16746e+02,9.55835e+01,7.82571e+01,6.40715e+01, &
-!    &     5.24573e+01,4.29484e+01,3.51632e+01,2.87892e+01,2.35706e+01, &
-!    &     1.92980e+01,1.57998e+01,1.29358e+01,1.05910e+01,8.67114e+00, &
-!    &     7.09933e+00,5.81244e+00,4.75882e+00,3.89619e+00,3.18993e+00, &
-!    &     2.61170e+00,2.13828e+00,1.75067e+00,1.43333e+00,1.17351e+00, &
-!    &     9.60789e-01,7.86628e-01,6.44036e-01,5.27292e-01,4.31710e-01, &
-!    &     3.53455e-01,2.89384e-01,2.36928e-01,1.93980e-01,1.58817e-01, &
-!    &     1.30029e-01,1.06458e-01,8.71608e-02,7.13612e-02,5.84256e-02, &
-!    &     4.78349e-02,3.91639e-02,3.20647e-02,2.62523e-02,2.14936e-02, &
-!    &     1.75975e-02,1.44076e-02,1.17959e-02,9.65769e-03 /
-
-      data  preflog(:)  /                                               &
-     &      6.9600e+00, 6.7600e+00, 6.5600e+00, 6.3600e+00, 6.1600e+00, &
-     &      5.9600e+00, 5.7600e+00, 5.5600e+00, 5.3600e+00, 5.1600e+00, &
-     &      4.9600e+00, 4.7600e+00, 4.5600e+00, 4.3600e+00, 4.1600e+00, &
-     &      3.9600e+00, 3.7600e+00, 3.5600e+00, 3.3600e+00, 3.1600e+00, &
-     &      2.9600e+00, 2.7600e+00, 2.5600e+00, 2.3600e+00, 2.1600e+00, &
-     &      1.9600e+00, 1.7600e+00, 1.5600e+00, 1.3600e+00, 1.1600e+00, &
-     &      9.6000e-01, 7.6000e-01, 5.6000e-01, 3.6000e-01, 1.6000e-01, &
-     &     -4.0000e-02,-2.4000e-01,-4.4000e-01,-6.4000e-01,-8.4000e-01, &
-     &     -1.0400e+00,-1.2400e+00,-1.4400e+00,-1.6400e+00,-1.8400e+00, &
-     &     -2.0400e+00,-2.2400e+00,-2.4400e+00,-2.6400e+00,-2.8400e+00, &
-     &     -3.0400e+00,-3.2400e+00,-3.4400e+00,-3.6400e+00,-3.8400e+00, &
-     &     -4.0400e+00,-4.2400e+00,-4.4400e+00,-4.6400e+00 /
-
-!  ...  these are the temperatures associated with the respective
-!       pressures for the MLS standard atmosphere.
-      data  tref(:)  /                                                  &
-     &      2.9420e+02, 2.8799e+02, 2.7894e+02, 2.6925e+02, 2.5983e+02, &
-     &      2.5017e+02, 2.4077e+02, 2.3179e+02, 2.2306e+02, 2.1578e+02, &
-     &      2.1570e+02, 2.1570e+02, 2.1570e+02, 2.1706e+02, 2.1858e+02, &
-     &      2.2018e+02, 2.2174e+02, 2.2328e+02, 2.2479e+02, 2.2655e+02, &
-     &      2.2834e+02, 2.3113e+02, 2.3401e+02, 2.3703e+02, 2.4022e+02, &
-     &      2.4371e+02, 2.4726e+02, 2.5085e+02, 2.5457e+02, 2.5832e+02, &
-     &      2.6216e+02, 2.6606e+02, 2.6999e+02, 2.7340e+02, 2.7536e+02, &
-     &      2.7568e+02, 2.7372e+02, 2.7163e+02, 2.6955e+02, 2.6593e+02, &
-     &      2.6211e+02, 2.5828e+02, 2.5360e+02, 2.4854e+02, 2.4348e+02, &
-     &      2.3809e+02, 2.3206e+02, 2.2603e+02, 2.2000e+02, 2.1435e+02, &
-     &      2.0887e+02, 2.0340e+02, 1.9792e+02, 1.9290e+02, 1.8809e+02, &
-     &      1.8329e+02, 1.7849e+02, 1.7394e+02, 1.7212e+02 /
-
-!! ...  logical flags for optional output fields
+!! ---  logical flags for optional output fields
 
       logical :: lhswb  = .false.
       logical :: lhsw0  = .false.
       logical :: lflxprf= .false.
       logical :: lfdncmp= .false.
+!$omp threadprivate(lhswb,lhsw0,lflxprf,lfdncmp)
 
 !  ---  those data will be set up only once by "rswinit"
 
+      real (kind=kind_phys) :: exp_tbl(0:NTBMX)
+
 !  ...  heatfac is the factor for heating rates
-!       (in k/day, or k/sec set by subroutine 'rlwinit')
+!       (in k/day, or k/sec set by subroutine 'rswinit')
 
       real (kind=kind_phys) :: heatfac
 
-!  ...  iovrsw  is the clouds overlapping control flag
-!        =0: random overlapping clouds
-!        =1: maximum/random overlapping clouds
-!        =2: maximum overlapping clouds
+!  ---  the following variables are used for sub-column cloud scheme
 
-      integer :: iovrsw
+      integer, parameter :: ipsdsw0 = 1          ! initial permutation seed
+!
+      integer, parameter :: CHK= CHNK_RRTM      ! CHNK_RRTM is macro defined in configure.nems
+
+
+        logical buggal
+
+!  ---  public accessible subprograms
 
       public swrad, rswinit
-
+      public buggal, buggalon, buggaloff, CHK
 
 ! =================
       contains
 ! =================
+
+      subroutine buggalon
+          buggal=.true.
+      end subroutine buggalon
+      subroutine buggaloff
+          buggal=.false.
+      end subroutine buggaloff
+
 
 !-----------------------------------
       subroutine swrad                                                  &
@@ -326,26 +376,26 @@
 
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
-     &       clouds,iauxil,aerosols,sfcalb,                             &
+     &       clouds,icseed,aerosols,sfcalb,                             &
      &       cosz,solcon,NDAY,idxday,                                   &
-     &       IMAX, NLAY, NLP1, iflip, lprnt,                            &
-!    &       IMAX, NLAY, NLP1, iflip, lprnt,dbgu,                       &
+     &       npts, nlay, nlp1, lprnt,                                   &
 !  ---  outputs:
      &       hswc,topflx,sfcflx                                         &
 !! ---  optional:
      &,      HSW0,HSWB,FLXPRF,FDNCMP                                    &
+     &,      ITS,JTS                                                    &
      &     )
 
 !  ====================  defination of variables  ====================  !
 !                                                                       !
 !  input variables:                                                     !
-!   plyr (IMAX,NLAY) : model layer mean pressure in mb                  !
-!   plvl (IMAX,NLP1) : model level pressure in mb                       !
-!   tlyr (IMAX,NLAY) : model layer mean temperature in k                !
-!   tlvl (IMAX,NLP1) : model level temperature in k    (not in use)     !
-!   qlyr (IMAX,NLAY) : layer specific humidity in gm/gm   *see inside   !
-!   olyr (IMAX,NLAY) : layer ozone concentration in gm/gm               !
-!   gasvmr(IMAX,NLAY,:): atmospheric constent gases:                    !
+!   plyr (npts,nlay) : model layer mean pressure in mb                  !
+!   plvl (npts,nlp1) : model level pressure in mb                       !
+!   tlyr (npts,nlay) : model layer mean temperature in k                !
+!   tlvl (npts,nlp1) : model level temperature in k    (not in use)     !
+!   qlyr (npts,nlay) : layer specific humidity in gm/gm   *see inside   !
+!   olyr (npts,nlay) : layer ozone concentration in gm/gm               !
+!   gasvmr(npts,nlay,:): atmospheric constent gases:                    !
 !                      (check module_radiation_gases for definition)    !
 !      gasvmr(:,:,1)  - co2 volume mixing ratio                         !
 !      gasvmr(:,:,2)  - n2o volume mixing ratio                         !
@@ -356,96 +406,71 @@
 !      gasvmr(:,:,7)  - cfc12 volume mixing ratio      (not used)       !
 !      gasvmr(:,:,8)  - cfc22 volume mixing ratio      (not used)       !
 !      gasvmr(:,:,9)  - ccl4  volume mixing ratio      (not used)       !
-!   clouds(IMAX,NLAY,:): cloud profile                                  !
+!   clouds(npts,nlay,:): cloud profile                                  !
 !                      (check module_radiation_clouds for definition)   !
-!                ---  for  iflagliq > 0  ---                            !
+!                ---  for  iswcliq > 0  ---                             !
 !       clouds(:,:,1)  -   layer total cloud fraction                   !
-!       clouds(:,:,2)  -   layer cloud liq water path      (g/m**2)     !
+!       clouds(:,:,2)  -   layer in-cloud liq water path   (g/m**2)     !
 !       clouds(:,:,3)  -   mean eff radius for liq cloud   (micron)     !
-!       clouds(:,:,4)  -   layer cloud ice water path      (g/m**2)     !
+!       clouds(:,:,4)  -   layer in-cloud ice water path   (g/m**2)     !
 !       clouds(:,:,5)  -   mean eff radius for ice cloud   (micron)     !
 !       clouds(:,:,6)  -   layer rain drop water path      (g/m**2)     !
 !       clouds(:,:,7)  -   mean eff radius for rain drop   (micron)     !
 !       clouds(:,:,8)  -   layer snow flake water path     (g/m**2)     !
-!   ** fu's scheme need to be normalized by snow density (g/m**3/1.0e6) !
 !       clouds(:,:,9)  -   mean eff radius for snow flake  (micron)     !
-!                ---  for  iflagliq = 0  ---                            !
+!                ---  for  iswcliq = 0  ---                             !
 !       clouds(:,:,1)  -   layer total cloud fraction                   !
 !       clouds(:,:,2)  -   layer cloud optical depth                    !
 !       clouds(:,:,3)  -   layer cloud single scattering albedo         !
 !       clouds(:,:,4)  -   layer cloud asymmetry factor                 !
-!   iauxil(:)        : auxiliary special cloud related array            !
-!                      *** not used in this version of code ***         !
-!   aerosols(IMAX,NLAY,NBDSW,:) : aerosol optical properties            !
+!     icseed(npts)   : auxiliary special cloud related array            !
+!                      when module variable isubcsw=2, it provides      !
+!                      permutation seed for each column profile that    !
+!                      are used for generating random numbers.          !
+!                      when isubcsw /=2, it will not be used.           !
+!   aerosols(npts,nlay,nbdsw,:) : aerosol optical properties            !
 !                      (check module_radiation_aerosols for definition) !
 !         (:,:,:,1)   - optical depth                                   !
 !         (:,:,:,2)   - single scattering albedo                        !
 !         (:,:,:,3)   - asymmetry parameter                             !
-!   sfcalb(IMAX, : ) : surface albedo in fraction                       !
+!   sfcalb(npts, : ) : surface albedo in fraction                       !
 !                      (check module_radiation_surface for definition)  !
 !         ( :, 1 )    - near ir direct beam albedo                      !
 !         ( :, 2 )    - near ir diffused albedo                         !
 !         ( :, 3 )    - uv+vis direct beam albedo                       !
 !         ( :, 4 )    - uv+vis diffused albedo                          !
-!   cosz  (IMAX)     : cosine of solar zenith angle                     !
+!   cosz  (npts)     : cosine of solar zenith angle                     !
 !   solcon           : solar constant                      (w/m**2)     !
 !   NDAY             : num of daytime points                            !
-!   idxday(IMAX)     : index array for daytime points                   !
-!   IMAX             : number of horizontal points                      !
-!   NLAY,NLP1        : vertical layer/lavel numbers                     !
-!   iflip            : control flag for direction of vertical index     !
-!                     =0: index from toa to surface                     !
-!                     =1: index from surface to toa                     !
+!   idxday(npts)     : index array for daytime points                   !
+!   npts             : number of horizontal points                      !
+!   nlay,nlp1        : vertical layer/lavel numbers                     !
 !   lprnt            : logical check print flag                         !
 !                                                                       !
-!  control parameters in module "module_radsw_cntr_para":               !
-!   iswrate: heating rate unit selections                               !
-!            =1: output in k/day                                        !
-!            =2: output in k/second                                     !
-!   iaersw : flags for aerosols effect                                  !
-!            =0: without aerosol effect                                 !
-!            >0: include aerosol effect                                 !
-!   imodsw : control flag for 2-stream transfer scheme                  !
-!            =1; delta-eddington    (joseph et al., 1976)               !
-!            =2: pifm               (zdunkowski et al., 1980)           !
-!            =3: discrete ordinates (liou, 1973)                        !
-!   irgassw: control flag for rare gases (ch4,n2o,o2, etc.)             !
-!            =0: do not include rare gases                              !
-!            =1: include all rare gases                                 !
-!   iflagliq:control flag for liq-cloud optical properties              !
-!            =0: input cloud optical depth, fixed ssa, asy              !
-!            =1: use hu and stamnes(1993) method for liq cld            !
-!            =2: not used                                               !
-!   iflagice:control flag for ice-cloud optical properties              !
-!            =0: not used                                               !
-!            =1: not used                                               !
-!            =2: not used                                               !
-!            =3: use fu's method (1996) for ice clouds                  !
-!                                                                       !
 !  output variables:                                                    !
-!   hswc  (IMAX,NLAY): total sky heating rates (k/sec or k/day)         !
-!   topflx(IMAX)     : radiation fluxes at toa (w/m**2), components:    !
+!   hswc  (npts,nlay): total sky heating rates (k/sec or k/day)         !
+!   topflx(npts)     : radiation fluxes at toa (w/m**2), components:    !
 !                      (check module_radsw_parameters for definition)   !
 !     upfxc            - total sky upward flux at toa                   !
 !     dnflx            - total sky downward flux at toa                 !
 !     upfx0            - clear sky upward flux at toa                   !
-!   sfcflx(IMAX)     : radiation fluxes at sfc (w/m**2), components:    !
+!   sfcflx(npts)     : radiation fluxes at sfc (w/m**2), components:    !
 !                      (check module_radsw_parameters for definition)   !
 !     upfxc            - total sky upward flux at sfc                   !
 !     dnfxc            - total sky downward flux at sfc                 !
 !     upfx0            - clear sky upward flux at sfc                   !
 !     dnfx0            - clear sky downward flux at sfc                 !
 !                                                                       !
-!!optional outputs:                                                     !
-!   hswb(IMAX,NLAY,NBDSW): spectral band total sky heating rates        !
-!   hsw0  (IMAX,NLAY): clear sky heating rates (k/sec or k/day)         !
-!   flxprf(IMAX,NLP1): level radiation fluxes (w/m**2), components:     !
+!!optional outputs variables:                                           !
+!   hswb(npts,nlay,nbdsw): spectral band total sky heating rates        !
+!   hsw0  (npts,nlay): clear sky heating rates (k/sec or k/day)         !
+!   flxprf(npts,nlp1): level radiation fluxes (w/m**2), components:     !
 !                      (check module_radsw_parameters for definition)   !
 !     dnfxc            - total sky downward flux at interface           !
 !     upfxc            - total sky upward flux at interface             !
 !     dnfx0            - clear sky downward flux at interface           !
 !     upfx0            - clear sky upward flux at interface             !
-!   fdncmp(IMAX)     : component surface downward fluxes (w/m**2):      !
+!   fdncmp(npts)     : component surface downward fluxes (w/m**2):      !
 !                      (check module_radsw_parameters for definition)   !
 !     uvbfc            - total sky downward uv-b flux at sfc            !
 !     uvbf0            - clear sky downward uv-b flux at sfc            !
@@ -454,685 +479,822 @@
 !     visbm            - downward surface uv+vis direct beam flux       !
 !     visdf            - downward surface uv+vis diffused flux          !
 !                                                                       !
-!  module parameters, control and local variables:                      !
-!     NBLOW,NBHGH           - lower and upper limits of spectral bands  !
-!     MAXGAS                - maximum number of absorbing gaseous       !
-!     NGPT                  - total number of g-point subintervals      !
-!     NGnn   (nn=16-29)     - number of g-points in band nn             !
-!     NSPA,NSPB(NBLOW:NBHGH)- number of lower/upper ref atm's per band  !
-!     iovrlw                - cloud overlapping control flag            !
-!                             =0: random overlapping clouds             !
-!                             =1: maximum/random overlapping clouds     !
-!                             =2: maximum overlapping clouds            !
-!     pavel  (NLAY)         - layer pressures (mb)                      !
-!     delp   (NLAY)         - layer pressure thickness (mb)             !
-!     tavel  (NLAY)         - layer temperatures (k)                    !
-!     coldry (NLAY)         - dry air column amount                     !
+!  external module variables:  (in physparam)                           !
+!   iswrgas - control flag for rare gases (ch4,n2o,o2, etc.)            !
+!           =0: do not include rare gases                               !
+!           >0: include all rare gases                                  !
+!   iswcliq - control flag for liq-cloud optical properties             !
+!           =0: input cloud optical depth, fixed ssa, asy               !
+!           =1: use hu and stamnes(1993) method for liq cld             !
+!           =2: not used                                                !
+!   iswcice - control flag for ice-cloud optical properties             !
+!           *** if iswcliq==0, iswcice is ignored                       !
+!           =1: use ebert and curry (1992) scheme for ice clouds        !
+!           =2: use streamer v3.0 (2001) method for ice clouds          !
+!           =3: use fu's method (1996) for ice clouds                   !
+!   iswmode - control flag for 2-stream transfer scheme                 !
+!           =1; delta-eddington    (joseph et al., 1976)                !
+!           =2: pifm               (zdunkowski et al., 1980)            !
+!           =3: discrete ordinates (liou, 1973)                         !
+!   isubcsw - sub-column cloud approximation control flag               !
+!           =0: no sub-col cld treatment, use grid-mean cld quantities  !
+!           =1: mcica sub-col, prescribed seeds to get random numbers   !
+!           =2: mcica sub-col, providing array icseed for random numbers!
+!   iovrsw  - cloud overlapping control flag                            !
+!           =0: random overlapping clouds                               !
+!           =1: maximum/random overlapping clouds                       !
+!           =2: maximum overlap cloud                                   !
+!   ivflip  - control flg for direction of vertical index               !
+!           =0: index from toa to surface                               !
+!           =1: index from surface to toa                               !
+!                                                                       !
+!  module parameters, control variables:                                !
+!     nblow,nbhgh      - lower and upper limits of spectral bands       !
+!     maxgas           - maximum number of absorbing gaseous            !
+!     ngptsw           - total number of g-point subintervals           !
+!     ng##             - number of g-points in band (##=16-29)          !
+!     ngb(ngptsw)      - band indices for each g-point                  !
+!     bpade            - pade approximation constant (1/0.278)          !
+!     nspa,nspb(nblow:nbhgh)                                            !
+!                      - number of lower/upper ref atm's per band       !
+!     ipsdsw0          - permutation seed for mcica sub-col clds        !
+!                                                                       !
+!  major local variables:                                               !
+!     pavel  (nlay)         - layer pressures (mb)                      !
+!     delp   (nlay)         - layer pressure thickness (mb)             !
+!     tavel  (nlay)         - layer temperatures (k)                    !
+!     coldry (nlay)         - dry air column amount                     !
 !                                   (1.e-20*molecules/cm**2)            !
-!     colamt (NLAY,MAXGAS)  - column amounts of absorbing gases         !
-!                             1-MAXGAS are for watervapor, carbon       !
-!                             dioxide, ozone, nitrous oxide, methane,   !
-!                             oxigen, respectively (molecules/cm**2)    !
-!     facij  (NLAY)         - indicator of interpolation factors        !
+!     cldfrc (nlay)         - layer cloud fraction (norm by tot cld)    !
+!     cldfmc (nlay,ngptsw)  - layer cloud fraction for g-point          !
+!     taucw  (nlay,nbdsw)   - cloud optical depth                       !
+!     ssacw  (nlay,nbdsw)   - cloud single scattering albedo (weighted) !
+!     asycw  (nlay,nbdsw)   - cloud asymmetry factor         (weighted) !
+!     tauaer (nlay,nbdsw)   - aerosol optical depths                    !
+!     ssaaer (nlay,nbdsw)   - aerosol single scattering albedo          !
+!     asyaer (nlay,nbdsw)   - aerosol asymmetry factor                  !
+!     colamt (nlay,maxgas)  - column amounts of absorbing gases         !
+!                             1 to maxgas are for h2o, co2, o3, n2o,    !
+!                             ch4, o2, co, respectively (mol/cm**2)     !
+!     facij  (nlay)         - indicator of interpolation factors        !
 !                             =0/1: indicate lower/higher temp & height !
-!     selffac(NLAY)         - scale factor for self-continuum, equals   !
+!     selffac(nlay)         - scale factor for self-continuum, equals   !
 !                          (w.v. density)/(atm density at 296K,1013 mb) !
-!     selffrac(NLAY)        - factor for temp interpolation of ref      !
+!     selffrac(nlay)        - factor for temp interpolation of ref      !
 !                             self-continuum data                       !
-!     indself(NLAY)         - index of the lower two appropriate ref    !
+!     indself(nlay)         - index of the lower two appropriate ref    !
 !                             temp for the self-continuum interpolation !
-!     laytrop                                                           !
-!                           - layer at which switch is made from one    !
+!     forfac (nlay)         - scale factor for w.v. foreign-continuum   !
+!     forfrac(nlay)         - factor for temp interpolation of ref      !
+!                             w.v. foreign-continuum data               !
+!     indfor (nlay)         - index of the lower two appropriate ref    !
+!                             temp for the foreign-continuum interp     !
+!     laytrop               - layer at which switch is made from one    !
 !                             combination of key species to another     !
-!     pfup  (IMAX,NLP1)     - total sky upward flux (w/m2)              !
-!     pcup  (IMAX,NLP1)     - clear sky upward flux (w/m2)              !
-!     pfdown(IMAX,NLP1)     - total sky downward flux (w/m2)            !
-!     pcdown(IMAX,NLP1)     - clear sky downward flux (w/m2)            !
-!     pheat (IMAX,NLP1)     - total sky heating rate (k/day or k/sec)   !
-!     pheac (IMAX,NLP1)     - clear sky heating rate (k/day or k/sec)   !
+!     jp(nlay),jt(nlay),jt1(nlay)                                       !
+!                           - lookup table indexes                      !
+!     flxucb(nlp1,nbdsw)    - spectral bnd total-sky upward flx (w/m2)  !
+!     flxdcb(nlp1,nbdsw)    - spectral bnd total-sky downward flx (w/m2)!
+!     flxu0b(nlp1,nbdsw)    - spectral bnd clear-sky upward flx (w/m2)  !
+!     flxd0b(nlp1,nbdsw)    - spectral b d clear-sky downward flx (w/m2)!
 !                                                                       !
-!                                                                       !
-!  program history:                                                     !
-!    2003-02-25   j.-j. morcrette, ecmwf, interface to rrtm_sw;         !
-!                  conversion to f90 formatting; addition of 2-stream   !
-!                  radiative transfer.                                  !
-!    2003-08-xx   m. j. iacono, aer inc., additional modifications      !
-!                  for gcm application.                                 !
-!    2004-01-20   y.-t. hou, ncep,        modified for ncep gfs models, !
-!                  recode into standard modular format.                 !
-!    2004-06-28   y.-t. hou, ncep,        modified to use aer's rrtmg-sw!
-!                  v2.0 reduced g-point code (112 points).              !
-!    2005-03-10   y.-t. hou, ncep,        modified to use aer's rrtmg-sw!
-!                  v2.3 to correct double scaling in early version      !
 !                                                                       !
 !  =====================    end of definitions    ====================  !
-!
-      implicit none
 
 !  ---  inputs:
-      integer, intent(in) :: IMAX, NLAY, NLP1, iflip, NDAY, iauxil(:)
+      integer, intent(in) :: npts, nlay, nlp1, NDAY
 
-      integer, intent(in) :: idxday(:)
-!     integer, intent(in) :: idxday(:), dbgu
-      integer  dbgu
+      integer, dimension(:), intent(in) :: idxday, icseed
 
       logical, intent(in) :: lprnt
 
-      real (kind=kind_phys), dimension(:,:), intent(in) :: plvl, tlvl,  &
-     &       plyr, tlyr, qlyr, olyr, sfcalb
+      real (kind=kind_phys), dimension(CHK ,nlp1), intent(in) ::        &
+     &       plvl, tlvl
+      real (kind=kind_phys), dimension(CHK ,nlay), intent(in) ::        &
+     &       plyr, tlyr, qlyr, olyr
+      real (kind=kind_phys), dimension(CHK ,4),    intent(in) :: sfcalb
 
-      real (kind=kind_phys), dimension(:,:,:),   intent(in) :: gasvmr,  &
-     &       clouds
-      real (kind=kind_phys), dimension(:,:,:,:), intent(in) :: aerosols
+      real (kind=kind_phys), dimension(CHK ,nlay,9),intent(in):: gasvmr
+      real (kind=kind_phys), dimension(CHK ,nlay,9),intent(in):: clouds
+      real (kind=kind_phys), dimension(CHK ,nlay,nbdsw,3),intent(in)::  &
+     &       aerosols
 
-      real (kind=kind_phys), intent(in) :: cosz(:), solcon
+      real (kind=kind_phys), intent(in) :: cosz(CHK ), solcon
+
 
 !  ---  outputs:
-      real (kind=kind_phys), dimension(:,:), intent(out) :: hswc
+      real (kind=kind_phys), dimension(CHK ,nlay), intent(out) :: hswc
 
-      type (topfsw_type),    dimension(:),   intent(out) :: topflx
-      type (sfcfsw_type),    dimension(:),   intent(out) :: sfcflx
+      type (topfsw_type),    dimension(CHK ), intent(out) :: topflx
+      type (sfcfsw_type),    dimension(CHK ), intent(out) :: sfcflx
 
 !! ---  optional outputs:
-      real (kind=kind_phys),dimension(:,:,:),optional,intent(out):: hswb
-      real (kind=kind_phys),dimension(:,:),  optional,intent(out):: hsw0
-      type (profsw_type), dimension(:,:),optional, intent(out) :: flxprf
-      type (cmpfsw_type), dimension(:),  optional, intent(out) :: fdncmp
+      real (kind=kind_phys), dimension(CHK ,nlay,nbdsw), optional,      &
+     &       intent(out) :: hswb
+
+      real (kind=kind_phys), dimension(CHK ,nlay),       optional,      &
+     &       intent(out) :: hsw0
+      type (profsw_type),    dimension(CHK ,nlp1),       optional,      &
+     &       intent(out) :: flxprf
+      type (cmpfsw_type),    dimension(CHK ),            optional,      &
+     &       intent(out) :: fdncmp
+      integer, optional, intent(in) :: its,jts
 
 !  ---  locals:
-      real (kind=kind_phys), dimension(NLAY) :: pavel, tavel, delp,     &
-     &       coldry, colmol, h2ovmr, o3vmr, temcol
+      real (kind=kind_phys), dimension( CHK     ,nlay,ngptsw) ::        &
+     &       cldfmc,                                                    &
+     &       taug, taur
+      real (kind=kind_phys), dimension( CHK     ,nlp1,nbdsw)::          &
+     &       fxupc, fxdnc,                                              &
+     &       fxup0, fxdn0
 
-      real (kind=kind_phys), dimension(NLAY) :: cfrac, cliqp, reliq,    &
-     &       cicep, reice, cdat1, cdat2, cdat3, cdat4, zclfr
+      real (kind=kind_phys), dimension( CHK     ,nlay,nbdsw)  ::        &
+     &       tauae, ssaae, asyae, taucw, ssacw, asycw
 
-      real (kind=kind_phys), dimension(NLAY) :: plog, forfac, forfrac,  &
-     &       selffac, selffrac, fac00, fac01, fac10, fac11
+      real (kind=kind_phys), dimension( CHK     ,ngptsw) :: sfluxzen
 
-      real (kind=kind_phys), dimension(NLAY,NBLOW:NBHGH) ::             &
-     &       taucw, ssacw, asycw, tauae, ssaae, asyae
+      real (kind=kind_phys), dimension( CHK     ,nlay) :: cldfrc,delp,  &
+     &       pavel, tavel, coldry, colmol, h2ovmr, o3vmr, temcol,       &
+     &       cliqp, reliq, cicep, reice, cdat1, cdat2, cdat3, cdat4,    &
+     &       cfrac, fac00, fac01, fac10, fac11, forfac, forfrac,        &
+     &       selffac, selffrac, rfdelp
 
-      real (kind=kind_phys), dimension(2) :: albbm, albdf
-
-      real (kind=kind_phys) ::  colamt(NLAY,MAXGAS)
-
-      real (kind=kind_phys), dimension(NLP1) :: fnetc, flxdc, flxuc,    &
+      real (kind=kind_phys), dimension(CHK,nlp1) ::                     &
+     &       fnet, flxdc, flxuc,                                        &
      &       flxd0, flxu0
-      real (kind=kind_phys), dimension(NLP1,NBDSW) :: flxdcb, flxucb,   &
-     &       flxd0b, flxu0b
 
-      real (kind=kind_phys) :: cosz1, sntz1, tem0, tem1, tem2, s0fac,   &
-     &       fp, fp1, ft, ft1, ssolar, zdpgcp, zcf0, zcf1
+      real (kind=kind_phys), dimension(CHK,2) ::                        &
+     &       albbm, albdf, sfbmc,                                       &
+     &       sfbm0, sfdfc, sfdf0
 
-!! ---  for optional outputs
-      real (kind=kind_phys), dimension(2) :: sfbmc, sfbm0, sfdfc, sfdf0
-      real (kind=kind_phys) :: suvbf0, suvbfc
-      real (kind=kind_phys) :: fnet0(NLP1), fnetb(NLP1,NBDSW)
+      real (kind=kind_phys),DIMENSION(CHK) ::                           &
+     &       cosz1, sntz1,                                              &
+     &       ssolar, zcf0, zcf1, ftoau0, ftoauc, ftoadc,                &
+     &       fsfcu0, fsfcuc, fsfcd0, fsfcdc, suvbfc, suvbf0
+      real (kind=kind_phys) :: tem0, tem1, tem2, s0fac,                 &
+     &       fp, fp1, ft, ft1, zdpgcp
 
-      integer, dimension(NLAY) :: indfor, indself, jp, jt, jt1
 
-      integer :: i, ib, ipts, j1, j2, k, kk, jp1, laytrop, mb
+!  ---  column amount of absorbing gases:
+!       (:,m) m = 1-h2o, 2-co2, 3-o3, 4-n2o, 5-ch4, 6-o2, 7-co
+      real (kind=kind_phys) ::  colamt(CHK       ,nlay,maxgas)
 
-      dbgu = 0
+      integer, dimension(CHK) :: ipseed
+      integer, dimension(CHK       ,nlay) :: indfor,indself,jp,jt,jt1
+
+      integer, dimension(CHK       ) :: laytrop
+      integer :: i, ib, ipt, j1, k, kk, mb
 !
 !===> ... begin here
+
+#if 0
+      write(0,*)__LINE__,'nday NDAY ',nday,NDAY
+      SHOWSHAPE(__LINE__,plyr)
+      SHOWSHAPE(__LINE__,plvl)
+      SHOWSHAPE(__LINE__,tlyr)
+      SHOWSHAPE(__LINE__,tlvl)
+      SHOWSHAPE(__LINE__,qlyr)
+      SHOWSHAPE(__LINE__,olyr)
+      SHOWSHAPE(__LINE__,gasvmr)
+      SHOWSHAPE(__LINE__,clouds)
+      SHOWSHAPE(__LINE__,icseed)
+      SHOWSHAPE(__LINE__,aerosols)
+      SHOWSHAPE(__LINE__,sfcalb)
+      SHOWSHAPE(__LINE__,cosz)
+      SHOWSHAPE(__LINE__,solcon)
+      SHOWSHAPE(__LINE__,hswc)
+      SHOWSHAPE(__LINE__,topflx)
+      SHOWSHAPE(__LINE__,sfcflx)
+      SHOWSHAPE(__LINE__,fdncmp)
+#endif
+
 !
+      IF ( NDAY .GT.  CHK      ) THEN
+        write(0,*)'radsw_main: swrad aborting NDAY ',NDAY,             &
+     &            '  > CHK      ', CHK     
+        CALL abort
+      ENDIF
 
       lhswb  = present ( hswb )
       lhsw0  = present ( hsw0 )
       lflxprf= present ( flxprf )
       lfdncmp= present ( fdncmp )
 
-!  ---  s0, the solar constant at toa in w/m**2, is hard-coded with
-!       each spectra band, the total flux is about 1368.22 w/m**2.
+!  --- ...  compute solar constant adjustment factor according to solcon.
+!      ***  s0, the solar constant at toa in w/m**2, is hard-coded with
+!           each spectra band, the total flux is about 1368.22 w/m**2.
 
       s0fac = solcon / s0
 
-!  ---  initial output arrays
+!  --- ...  initial output arrays
 
-      hswc(:,:) = zero
-      topflx = topfsw_type ( zero, zero, zero )
-      sfcflx = sfcfsw_type ( zero, zero, zero, zero )
+      hswc(:,:) = f_zero
+      topflx = topfsw_type ( f_zero, f_zero, f_zero )
+      sfcflx = sfcfsw_type ( f_zero, f_zero, f_zero, f_zero )
 
-!! ---  initial optional outputs
+!! --- ...  initial optional outputs
       if ( lflxprf ) then
-        flxprf = profsw_type ( zero, zero, zero, zero )
+        flxprf = profsw_type ( f_zero, f_zero, f_zero, f_zero )
       endif
 
       if ( lfdncmp ) then
-        fdncmp = cmpfsw_type ( zero, zero, zero, zero, zero, zero )
+        fdncmp = cmpfsw_type (f_zero,f_zero,f_zero,f_zero,f_zero,f_zero)
       endif
 
       if ( lhsw0 ) then
-        hsw0(:,:) = zero
+        hsw0(:,:) = f_zero
       endif
 
       if ( lhswb ) then
-        hswb(:,:,:) = zero
+        hswb(:,:,:) = f_zero
       endif
 
-!  ---  loop over each daytime grid point
+!  --- ...  change random number seed value for each radiation invocation
 
-      lab_do_ipts : do ipts = 1, NDAY
+      if     ( isubcsw == 1 ) then     ! advance prescribed permutation seed
+        do i = 1, npts
+          ipseed(i) = ipsdsw0 + i
+        enddo
+      elseif ( isubcsw == 2 ) then     ! use input array of permutaion seeds
+        do i = 1, npts
+          ipseed(i) = icseed(i)
+        enddo
+      endif
 
-        j1 = idxday(ipts)
+      if ( lprnt ) then
+        write(0,*)'  In radsw, isubcsw, ipsdsw0,ipseed =',              &
+     &           isubcsw, ipsdsw0, ipseed
+      endif
 
-        cosz1  = cosz(j1)
-        sntz1  = one / cosz(j1)
-        ssolar = s0fac * cosz(j1)
-        zcf0   = one
-        zcf1   = one
-        laytrop= NLAY
+!  --- ...  loop over each daytime grid point  (this loop has been demoted to inner)
 
-!  ---  surface albedo
-        albbm(1) = sfcalb(j1,1)
-        albdf(1) = sfcalb(j1,2)
-        albbm(2) = sfcalb(j1,3)
-        albdf(2) = sfcalb(j1,4)
+!jm      lab_do_ipt : do ipt = 1, NDAY
+!jm        j1 = idxday(ipt)
+!#define RUNTIME_CHECKING
+#ifndef RUNTIME_CHECKING
+# define NDAY CHK
+#endif
 
-!  ---  prepare atmospheric profile for use in rrtm
-!       the vertical index of internal array is from surface to top
+      DO j1 = 1,nday
+        cosz1(j1)  = cosz(j1)
+        sntz1(j1)  = f_one / cosz(j1)
+        ssolar(j1) = s0fac * cosz(j1)
 
-        if (iflip == 0) then        ! input from toa to sfc
+!  --- ...  surface albedo: bm,df - dir,dif;  1,2 - nir,uvv
+        albbm(j1,1) = sfcalb(j1,1)
+        albdf(j1,1) = sfcalb(j1,2)
+        albbm(j1,2) = sfcalb(j1,3)
+        albdf(j1,2) = sfcalb(j1,4)
+      ENDDO
+
+!  --- ...  prepare atmospheric profile for use in rrtm
+!           the vertical index of internal array is from surface to top
+
+        if (ivflip == 0) then       ! input from toa to sfc
 
           tem1 = 100.0 * con_g
           tem2 = 1.0e-20 * 1.0e3 * con_avgd
 
-          do k = 1, NLAY
-            kk = NLP1 - k
-            pavel(k) = plyr(j1,kk)
-            tavel(k) = tlyr(j1,kk)
-            delp (k) = plvl(j1,kk+1) - plvl(j1,kk)
+          do k = 1, nlay
+            kk = nlp1 - k
+      DO j1 = 1,nday
+            pavel(j1,k) = plyr(j1,kk)
+            tavel(j1,k) = tlyr(j1,kk)
+            delp (j1,k) = plvl(j1,kk+1) - plvl(j1,kk)
 
-!     if (ipts == 1) then
-!       write(dbgu,*)' pavel=',pavel(k),' tavel=',tavel(k),' k=',k
-!     endif
-
-!  ---  set absorber amount
+!  --- ...  set absorber amount
 !test use
-!           h2ovmr(k)= max(zero,qlyr(j1,kk)*amdw)                   ! input mass mixing ratio
-!           h2ovmr(k)= max(zero,qlyr(j1,kk))                        ! input vol mixing ratio
+!           h2ovmr(k)= max(f_zero,qlyr(j1,kk)*amdw)                     ! input mass mixing ratio
+!           h2ovmr(k)= max(f_zero,qlyr(j1,kk))                          ! input vol mixing ratio
+!           o3vmr (k)= max(f_zero,olyr(j1,kk))                          ! input vol mixing ratio
 !ncep model use
-            h2ovmr(k)= max(zero,qlyr(j1,kk)*amdw/(1.0-qlyr(j1,kk))) ! input specific humidity
-            o3vmr (k)= max(zero,olyr(j1,kk)*amdo3)                  ! input mass mixing ratio
-!test use   o3vmr (k)= max(zero,olyr(j1,kk))                        ! input vol mixing ratio
+            h2ovmr(j1,k)=                                               &
+     &                max(f_zero,qlyr(j1,kk)*amdw/(f_one-qlyr(j1,kk))) ! input specific humidity
+            o3vmr (j1,k)=max(f_zero,olyr(j1,kk)*amdo3)                    ! input mass mixing ratio
 
-            tem0 = (one - h2ovmr(k))*con_amd + h2ovmr(k)*con_amw
-            coldry(k) = tem2 * delp(k) / (tem1*tem0*(one + h2ovmr(k)))
-            temcol(k) = 1.0e-12 * coldry(k)
+            tem0 = (f_one - h2ovmr(j1,k))*con_amd + h2ovmr(j1,k)*con_amw
+            coldry(j1,k) = tem2*delp(j1,k)/(tem1*tem0*(f_one            &
+     &                      + h2ovmr(j1,k)))
+            temcol(j1,k) = 1.0e-12 * coldry(j1,k)
 
-            colamt(k,1) =                coldry(k)*h2ovmr(k)          ! h2o
-            colamt(k,2) = max(temcol(k), coldry(k)*gasvmr(j1,kk,1))   ! co2
-            colamt(k,3) =                coldry(k)*o3vmr(k)           ! o3
+            colamt(j1,k,1) = max(f_zero,    coldry(j1,k)*h2ovmr(j1,k))         ! h2o
+            colamt(j1,k,2) =                                            &
+     &                   max(temcol(j1,k), coldry(j1,k)*gasvmr(j1,kk,1))    ! co2
+            colamt(j1,k,3) = max(f_zero,    coldry(j1,k)*o3vmr(j1,k))          ! o3
+            colmol(j1,k)   = coldry(j1,k) + colamt(j1,k,1)
+      ENDDO
           enddo
 
-!  ---  set aerosol optical properties
+!  --- ...  set up gas column amount, convert from volume mixing ratio
+!           to molec/cm2 based on coldry (scaled to 1.0e-20)
 
-          if (iaersw > 0) then
-            do ib = 1, NBDSW
-              j2 = NBLOW + ib -1
-
-              do k = 1, NLAY
-                kk = NLP1 - k
-
-                tauae(k,j2) = aerosols(j1,kk,ib,1)
-                ssaae(k,j2) = aerosols(j1,kk,ib,2)
-                asyae(k,j2) = aerosols(j1,kk,ib,3)
-              enddo
+          if (iswrgas > 0) then
+            do k = 1, nlay
+              kk = nlp1 - k
+      DO j1 = 1,nday
+              colamt(j1,k,4)=                                           &
+     &           max(temcol(j1,k),coldry(j1,k)*gasvmr(j1,kk,2))  ! n2o
+              colamt(j1,k,5)=                                           &
+     &           max(temcol(j1,k),coldry(j1,k)*gasvmr(j1,kk,3))  ! ch4
+              colamt(j1,k,6)=                                           &
+     &           max(temcol(j1,k),coldry(j1,k)*gasvmr(j1,kk,4))  ! o2
+!             colamt(j1,k,7)=                                           &
+!    &           max(temcol(j1,k),coldry(j1,k)*gasvmr(j1,kk,5))  ! co - notused
+      ENDDO
             enddo
           else
-            tauae(:,:) = zero
-            ssaae(:,:) = zero
-            asyae(:,:) = zero
+            do k = 1, nlay
+      DO j1 = 1,nday
+              colamt(j1,k,4) = temcol(j1,k)                                  ! n2o
+              colamt(j1,k,5) = temcol(j1,k)                                  ! ch4
+              colamt(j1,k,6) = temcol(j1,k)                                  ! o2
+!             colamt(j1,k,7) = temcol(j1,k)                                  ! co - notused
+      ENDDO
+            enddo
           endif
 
-          if (iflagliq > 0) then   ! use prognostic cloud method
-            do k = 1, NLAY
-              kk = NLP1 - k
-              cfrac(k) = clouds(j1,kk,1)
-              cliqp(k) = clouds(j1,kk,2)
-              reliq(k) = clouds(j1,kk,3)
-              cicep(k) = clouds(j1,kk,4)
-              reice(k) = clouds(j1,kk,5)
-              cdat1(k) = clouds(j1,kk,6)
-              cdat2(k) = clouds(j1,kk,7)
-              cdat3(k) = clouds(j1,kk,8)
-              cdat4(k) = clouds(j1,kk,9)
+!  --- ...  set aerosol optical properties
+
+          do k = 1, nlay
+            kk = nlp1 - k
+            do ib = 1, nbdsw
+      DO j1 = 1,nday
+              tauae(j1,k,ib) = aerosols(j1,kk,ib,1)
+              ssaae(j1,k,ib) = aerosols(j1,kk,ib,2)
+              asyae(j1,k,ib) = aerosols(j1,kk,ib,3)
+      ENDDO
+            enddo
+          enddo
+
+          if (iswcliq > 0) then    ! use prognostic cloud method
+            do k = 1, nlay
+              kk = nlp1 - k
+      DO j1 = 1,nday
+              cfrac(j1,k) = clouds(j1,kk,1)      ! cloud fraction
+              cliqp(j1,k) = clouds(j1,kk,2)      ! cloud liq path
+              reliq(j1,k) = clouds(j1,kk,3)      ! liq partical effctive radius
+              cicep(j1,k) = clouds(j1,kk,4)      ! cloud ice path
+              reice(j1,k) = clouds(j1,kk,5)      ! ice partical effctive radius
+              cdat1(j1,k) = clouds(j1,kk,6)      ! cloud rain drop path
+              cdat2(j1,k) = clouds(j1,kk,7)      ! rain partical effctive radius
+              cdat3(j1,k) = clouds(j1,kk,8)      ! cloud snow path
+              cdat4(j1,k) = clouds(j1,kk,9)      ! snow partical effctive radius
+      ENDDO
             enddo
           else                     ! use diagnostic cloud method
-            do k = 1, NLAY
-              kk = NLP1 - k
-              cfrac(k) = clouds(j1,kk,1)
-              cdat1(k) = clouds(j1,kk,2)
-              cdat2(k) = clouds(j1,kk,3)
-              cdat3(k) = clouds(j1,kk,4)
+            do k = 1, nlay
+              kk = nlp1 - k
+      DO j1 = 1,nday
+              cfrac(j1,k) = clouds(j1,kk,1)      ! cloud fraction
+              cdat1(j1,k) = clouds(j1,kk,2)      ! cloud optical depth
+              cdat2(j1,k) = clouds(j1,kk,3)      ! cloud single scattering albedo
+              cdat3(j1,k) = clouds(j1,kk,4)      ! cloud asymmetry factor
+      ENDDO
             enddo
-          endif                    ! end if_iflagliq
+          endif                    ! end if_iswcliq
 
         else                        ! input from sfc to toa
 
           tem1 = 100.0 * con_g
           tem2 = 1.0e-20 * 1.0e3 * con_avgd
 
-          do k = 1, NLAY
-            pavel(k) = plyr(j1,k)
-            tavel(k) = tlyr(j1,k)
-            delp (k) = plvl(j1,k) - plvl(j1,k+1)
+          do k = 1, nlay
+      DO j1 = 1,nday
+            pavel(j1,k) = plyr(j1,k)
+            tavel(j1,k) = tlyr(j1,k)
+            delp (j1,k) = plvl(j1,k) - plvl(j1,k+1)
 
-!  ---  set absorber amount
+
+!  --- ...  set absorber amount
 !test use
-!           h2ovmr(k)= max(zero,qlyr(j1,k)*amdw)                    ! input mass mixing ratio
-!           h2ovmr(k)= max(zero,qlyr(j1,k))                         ! input vol mixing ratio
+!           h2ovmr(k)= max(f_zero,qlyr(j1,k)*amdw)                    ! input mass mixing ratio
+!           h2ovmr(k)= max(f_zero,qlyr(j1,k))                         ! input vol mixing ratio
+!           o3vmr (k)= max(f_zero,olyr(j1,k))                         ! input vol mixing ratio
 !ncep model use
-            h2ovmr(k)= max(zero,qlyr(j1,k)*amdw/(1.0-qlyr(j1,k)))   ! input specific humidity
-            o3vmr (k)= max(zero,olyr(j1,k)*amdo3)                   ! input mass mixing ratio
-!test use   o3vmr (k)= max(zero,olyr(j1,k))                         ! input vol mixing ratio
+            h2ovmr(j1,k)= max(f_zero,qlyr(j1,k)*amdw/(f_one-qlyr(j1,k))) ! input specific humidity
+            o3vmr (j1,k)= max(f_zero,olyr(j1,k)*amdo3)                   ! input mass mixing ratio
 
-            tem0 = (one - h2ovmr(k))*con_amd + h2ovmr(k)*con_amw
-            coldry(k) = tem2 * delp(k) / (tem1*tem0*(one + h2ovmr(k)))
-            temcol(k) = 1.0e-12 * coldry(k)
+            tem0=(f_one - h2ovmr(j1,k))*con_amd + h2ovmr(j1,k)*con_amw
+            coldry(j1,k) = tem2 * delp(j1,k) /                          &
+     &                              (tem1*tem0*(f_one + h2ovmr(j1,k)))
+            temcol(j1,k) = 1.0e-12 * coldry(j1,k)
 
-            colamt(k,1) =                coldry(k)*h2ovmr(k)          ! h2o
-            colamt(k,2) = max(temcol(k), coldry(k)*gasvmr(j1,k,1))    ! co2
-            colamt(k,3) =                coldry(k)*o3vmr(k)           ! o3
-
-!           if (ipts == 1) then
-!             write(dbgu,*)' pavel=',pavel(k),' tavel=',tavel(k),' k=',k
-!           endif
-
+            colamt(j1,k,1) =                                            &
+     &                  max(f_zero,    coldry(j1,k)*h2ovmr(j1,k))         ! h2o
+            colamt(j1,k,2) =                                            &
+     &                  max(temcol(j1,k), coldry(j1,k)*gasvmr(j1,k,1))    ! co2
+            colamt(j1,k,3) =                                            &
+     &                  max(f_zero,    coldry(j1,k)*o3vmr(j1,k))             ! o3
+            colmol(j1,k)   = coldry(j1,k) + colamt(j1,k,1)
+      ENDDO
           enddo
-!  ---  set aerosol optical properties
 
-          if (iaersw > 0) then
-            do ib = 1, NBDSW
-              j2 = NBLOW + ib -1
 
-              do k = 1, NLAY
-                tauae(k,j2) = aerosols(j1,k,ib,1)
-                ssaae(k,j2) = aerosols(j1,k,ib,2)
-                asyae(k,j2) = aerosols(j1,k,ib,3)
-              enddo
+       if (lprnt) then
+         write(0,*)' pavel=',pavel(1,:)
+         write(0,*)' tavel=',tavel(1,:)
+         write(0,*)' delp=',delp(1,:)
+         write(0,*)' h2ovmr=',h2ovmr(1,:)*1000
+         write(0,*)' o3vmr=',o3vmr(1,:)*1000000
+       endif
+
+!  --- ...  set up gas column amount, convert from volume mixing ratio
+!           to molec/cm2 based on coldry (scaled to 1.0e-20)
+
+          if (iswrgas > 0) then
+            do k = 1, nlay
+      DO j1 = 1,nday
+              colamt(j1,k,4) =                                          &
+     &            max(temcol(j1,k), coldry(j1,k)*gasvmr(j1,k,2))  ! n2o
+              colamt(j1,k,5) =                                          &
+     &            max(temcol(j1,k), coldry(j1,k)*gasvmr(j1,k,3))  ! ch4
+              colamt(j1,k,6) =                                          &
+     &            max(temcol(j1,k), coldry(j1,k)*gasvmr(j1,k,4))  ! o2
+!             colamt(j1,k,7) =                                          &
+!    &            max(temcol(j1,k), coldry(j1,k)*gasvmr(j1,k,5))  ! co - notused
             enddo
+      ENDDO
           else
-            tauae(:,:) = zero
-            ssaae(:,:) = zero
-            asyae(:,:) = zero
+            do k = 1, nlay
+      DO j1 = 1,nday
+              colamt(j1,k,4) = temcol(j1,k)                                 ! n2o
+              colamt(j1,k,5) = temcol(j1,k)                                 ! ch4
+              colamt(j1,k,6) = temcol(j1,k)                                 ! o2
+!             colamt(j1,k,7) = temcol(j1,k)                                 ! co - notused
+      ENDDO
+            enddo
           endif
 
-          if (iflagliq > 0) then   ! use prognostic cloud method
-            do k = 1, NLAY
-              cfrac(k) = clouds(j1,k,1)
-              cliqp(k) = clouds(j1,k,2)
-              reliq(k) = clouds(j1,k,3)
-              cicep(k) = clouds(j1,k,4)
-              reice(k) = clouds(j1,k,5)
-              cdat1(k) = clouds(j1,k,6)
-              cdat2(k) = clouds(j1,k,7)
-              cdat3(k) = clouds(j1,k,8)
-              cdat4(k) = clouds(j1,k,9)
+!  --- ...  set aerosol optical properties
+
+          do ib = 1, nbdsw
+            do k = 1, nlay
+      DO j1 = 1,nday
+              tauae(j1,k,ib) = aerosols(j1,k,ib,1)
+              ssaae(j1,k,ib) = aerosols(j1,k,ib,2)
+              asyae(j1,k,ib) = aerosols(j1,k,ib,3)
+      ENDDO
+            enddo
+          enddo
+
+          if (iswcliq > 0) then    ! use prognostic cloud method
+            do k = 1, nlay
+      DO j1 = 1,nday
+              cfrac(j1,k) = clouds(j1,k,1)       ! cloud fraction
+              cliqp(j1,k) = clouds(j1,k,2)       ! cloud liq path
+              reliq(j1,k) = clouds(j1,k,3)       ! liq partical effctive radius
+              cicep(j1,k) = clouds(j1,k,4)       ! cloud ice path
+              reice(j1,k) = clouds(j1,k,5)       ! ice partical effctive radius
+              cdat1(j1,k) = clouds(j1,k,6)       ! cloud rain drop path
+              cdat2(j1,k) = clouds(j1,k,7)       ! rain partical effctive radius
+              cdat3(j1,k) = clouds(j1,k,8)       ! cloud snow path
+              cdat4(j1,k) = clouds(j1,k,9)       ! snow partical effctive radius
+      ENDDO
             enddo
           else                     ! use diagnostic cloud method
-            do k = 1, NLAY
-              cfrac(k) = clouds(j1,k,1)
-              cdat1(k) = clouds(j1,k,2)
-              cdat2(k) = clouds(j1,k,3)
-              cdat3(k) = clouds(j1,k,4)
+            do k = 1, nlay
+      DO j1 = 1,nday
+              cfrac(j1,k) = clouds(j1,k,1)       ! cloud fraction
+              cdat1(j1,k) = clouds(j1,k,2)       ! cloud optical depth
+              cdat2(j1,k) = clouds(j1,k,3)       ! cloud single scattering albedo
+              cdat3(j1,k) = clouds(j1,k,4)       ! cloud asymmetry factor
+      ENDDO
             enddo
-          endif                    ! end if_iflagliq
+          endif                    ! end if_iswcliq
 
-        endif                       ! if_iflip
+        endif                       ! if_ivflip
 
-!  ---  set up gas column amount, convert from volume mixing ratio to
-!       molec/cm2 based on coldry (scaled to 1.0e-20)
+!  --- ...  compute fractions of clear sky view
 
-        if (iflip == 0) then        ! input from toa to sfc
-
-          if (irgassw == 1) then
-            do k = 1, NLAY
-              kk = NLP1 - k
-              colamt(k,4) = max(temcol(k), coldry(k)*gasvmr(j1,kk,2))  ! n2o
-              colamt(k,5) = max(temcol(k), coldry(k)*gasvmr(j1,kk,3))  ! ch4
-              colamt(k,6) = max(temcol(k), coldry(k)*gasvmr(j1,kk,4))  ! o2
-!             colamt(k,7) = max(temcol(k), coldry(k)*gasvmr(j1,kk,5))  ! co - notused
-            enddo
-          else
-            do k = 1, NLAY
-              colamt(k,4) = temcol(k)                                  ! n2o
-              colamt(k,5) = temcol(k)                                  ! ch4
-              colamt(k,6) = temcol(k)                                  ! o2
-!             colamt(k,7) = temcol(k)                                  ! co - notused
-            enddo
-          endif
-
-        else                        ! input from sfc to toa
-
-          if (irgassw == 1) then
-            do k = 1, NLAY
-              colamt(k,4) = max(temcol(k), coldry(k)*gasvmr(j1,k,2))   ! n2o
-              colamt(k,5) = max(temcol(k), coldry(k)*gasvmr(j1,k,3))   ! ch4
-              colamt(k,6) = max(temcol(k), coldry(k)*gasvmr(j1,k,4))   ! o2
-!             colamt(k,7) = max(temcol(k), coldry(k)*gasvmr(j1,k,5))   ! co - notused
-            enddo
-          else
-            do k = 1, NLAY
-              colamt(k,4) = temcol(k)                                  ! n2o
-              colamt(k,5) = temcol(k)                                  ! ch4
-              colamt(k,6) = temcol(k)                                  ! o2
-!             colamt(k,7) = temcol(k)                                  ! co - notused
-            enddo
-          endif
-
-        endif                       ! if_iflip
-
-!  ---  compute fractions of clear sky view
+        zcf0   = f_one
+        zcf1   = f_one
 
         if (iovrsw == 0) then                    ! random overlapping
-          do k = 1, NLAY
-            zcf0 = zcf0 * (one - cfrac(k))
+          do k = 1, nlay
+      DO j1 = 1,nday
+            zcf0(j1) = zcf0(j1) * (f_one - cfrac(j1,k))
+      ENDDO
           enddo
         else if (iovrsw == 1) then               ! max/ran overlapping
-          do k = 1, NLAY
-            if (cfrac(k) > eps) then                  ! cloudy layer
-              zcf1 = min ( zcf1, one-cfrac(k) )
-            elseif (zcf1 < one) then                  ! clear layer
-              zcf0 = zcf0 * zcf1
-              zcf1 = one
+          do k = 1, nlay
+       if (buggal) write(0,*)'cfrac ',k,cfrac(1,k)
+      DO j1 = 1,NDAY
+            if (cfrac(j1,k) > ftiny) then                ! cloudy layer
+              zcf1(j1) = min ( zcf1(j1), f_one-cfrac(j1,k) )
+            elseif (zcf1(j1) < f_one) then                ! clear layer
+              zcf0(j1) = zcf0(j1) * zcf1(j1)
+              zcf1(j1) = f_one
             endif
+      ENDDO
           enddo
           zcf0 = zcf0 * zcf1
         else if (iovrsw == 2) then               ! maximum overlapping
-          do k = 1, NLAY
-            zcf0 = min ( zcf0, one-cfrac(k) )
+          do k = 1, nlay
+      DO j1 = 1,NDAY
+            zcf0(j1) = min ( zcf0(j1), f_one-cfrac(j1,k) )
+      ENDDO
           enddo
         endif
 
-        if (zcf0 <= eps) zcf0 = zero
-        if (zcf0 > oneminus) zcf0 = one
-        zcf1 = one - zcf0
+        WHERE (zcf0 <= ftiny) zcf0 = f_zero
+        WHERE (zcf0 > oneminus) zcf0 = f_one
+        zcf1 = f_one - zcf0
 
-        if (zcf1 <= eps) then
-          do k=1, NLAY
-            zclfr(k) = zero
-          enddo
-        else
-          do k=1, NLAY
-            zclfr(k) = cfrac(k) / zcf1
-          enddo
-        endif
-!
-!===> ...  compute cloud optical properties
-!
+!  --- ...  compute cloud optical properties
 
-        call cldprop                                                    &
+      DO j1 = 1,NDAY
+        if (zcf1(j1) > f_zero) then     ! cloudy sky column
+! the copy and transpose implied here is not good but will fix later.... JM
+          call cldprop                                                  &
 !  ---  inputs:
-     &     ( cfrac,cliqp,reliq,cicep,reice,cdat1,cdat2,cdat3,cdat4,     &
-     &       NLAY,                                                      &
-!  ---  output:
-     &       taucw, ssacw, asycw                                        &
+     &     ( cfrac(j1,:),cliqp(j1,:),reliq(j1,:),cicep(j1,:),           &
+     &       reice(j1,:),cdat1(j1,:),cdat2(j1,:),cdat3(j1,:),           &
+     &       cdat4(j1,:),                                               &
+     &       zcf1(j1), nlay, ipseed(j1),                                &
+!  ---  outputs:
+     &       taucw(j1,:,:), ssacw(j1,:,:), asycw(j1,:,:),               &
+     &       cldfrc(j1,:), cldfmc(j1,:,:)                               &
+     &     )
+        else                        ! clear sky column
+          cldfrc(j1,:)  = f_zero
+          cldfmc(j1,:,:)= f_zero
+          taucw(j1,:,:) = f_zero
+          ssacw(j1,:,:) = f_zero
+          asycw(j1,:,:) = f_zero
+        endif   ! end if_zcf1_block
+
+        call setcoef                                                    &
+!  ---  inputs:
+     &     ( pavel(j1,:),tavel(j1,:),h2ovmr(j1,:), nlay,nlp1,           &
+!  ---  outputs:
+     &       laytrop(j1),jp(j1,:),jt(j1,:),jt1(j1,:),                   &
+     &       fac00(j1,:),fac01(j1,:),fac10(j1,:),fac11(j1,:),           &
+     &       selffac(j1,:),selffrac(j1,:),indself(j1,:),                &
+     &       forfac(j1,:),forfrac(j1,:),indfor(j1,:)                    &
      &     )
 
-!  ---  calculate needed column amounts. using e = 1334.2 cm-1.
+      ENDDO
 
-        do k = 1, NLAY
-          colmol(k) = coldry(k) + colamt(k,1)
-          forfac(k) = pavel(k)*stpfac / (tavel(k)*(one + h2ovmr(k)))
+!  --- ...  calculate optical depths for gaseous absorption and Rayleigh
+!           scattering
+
+#if 0
+      write(0,*)__LINE__,'nday NDAY ',nday,NDAY
+      SHOWSHAPE(__LINE__,colamt)
+      SHOWSHAPE(__LINE__,colmol)
+      SHOWSHAPE(__LINE__,fac00)
+      SHOWSHAPE(__LINE__,fac01)
+      SHOWSHAPE(__LINE__,fac10)
+      SHOWSHAPE(__LINE__,fac11)
+      SHOWSHAPE(__LINE__,jp)
+      SHOWSHAPE(__LINE__,jt)
+      SHOWSHAPE(__LINE__,jt1)
+      SHOWSHAPE(__LINE__,laytrop)
+      SHOWSHAPE(__LINE__,forfac)
+      SHOWSHAPE(__LINE__,forfrac)
+      SHOWSHAPE(__LINE__,indfor)
+      SHOWSHAPE(__LINE__,selffrac)
+      SHOWSHAPE(__LINE__,selffrac)
+      SHOWSHAPE(__LINE__,indself)
+#endif
+
+        call taumol                                                     &
+!  ---  inputs:
+     &     ( colamt,colmol,fac00,fac01,fac10,fac11,jp,jt,jt1,laytrop,   &
+     &       forfac,forfrac,indfor,selffac,selffrac,indself,NLAY,nday,  &
+!  ---  outputs:
+     &       sfluxzen, taug, taur                                       &
+     &     )
+
+!  --- ...  call the 2-stream radiation transfer model
+
+#if 0
+      write(0,*)__LINE__,'nday NDAY ',nday,NDAY
+      SHOWSHAPE(__LINE__,cosz1)
+      SHOWSHAPE(__LINE__,sntz1)
+      SHOWSHAPE(__LINE__,zcf1)
+      SHOWSHAPE(__LINE__,zcf0)
+      SHOWSHAPE(__LINE__,albbm)
+      SHOWSHAPE(__LINE__,albdf)
+      SHOWSHAPE(__LINE__,ssolar)
+      SHOWSHAPE(__LINE__,cldfrc)
+      SHOWSHAPE(__LINE__,sfluxzen)
+      SHOWSHAPE(__LINE__,taug)
+      SHOWSHAPE(__LINE__,taur)
+      SHOWSHAPE(__LINE__,taucw)
+      SHOWSHAPE(__LINE__,ssacw)
+      SHOWSHAPE(__LINE__,asycw)
+      SHOWSHAPE(__LINE__,tauae)
+      SHOWSHAPE(__LINE__,ssaae)
+      SHOWSHAPE(__LINE__,asyae)
+#endif
+
+        if ( isubcsw <= 0 ) then     ! use standard cloud scheme
+          call spcvrtc                                                  &
+!  ---  inputs:
+     &     ( ssolar,cosz1,sntz1,albbm,albdf,sfluxzen,cldfrc,            &
+     &       zcf1,zcf0,taug,taur,tauae,ssaae,asyae,taucw,ssacw,asycw,   &
+     &       nlay, nlp1,nday,                                           &
+!  ---  outputs:
+     &       fxupc,fxdnc,fxup0,fxdn0,                                   &
+     &       ftoauc,ftoau0,ftoadc,fsfcuc,fsfcu0,fsfcdc,fsfcd0,          &
+     &       sfbmc,sfdfc,sfbm0,sfdf0,suvbfc,suvbf0                      &
+     &     )
+
+#ifdef TODO
+        else                         ! use mcica cloud scheme
+
+          call spcvrtm                                                  &
+!  ---  inputs:
+     &     ( ssolar,cosz1,sntz1,albbm,albdf,sfluxzen,cldfmc,            &
+     &       zcf1,zcf0,taug,taur,tauae,ssaae,asyae,taucw,ssacw,asycw,   &
+     &       nlay, nlp1,                                                &
+!  ---  outputs:
+     &       fxupc,fxdnc,fxup0,fxdn0,                                   &
+     &       ftoauc,ftoau0,ftoadc,fsfcuc,fsfcu0,fsfcdc,fsfcd0,          &
+     &       sfbmc,sfdfc,sfbm0,sfdf0,suvbfc,suvbf0                      &
+     &     )
+#endif
+
+        endif
+
+!  --- ...  sum up total spectral fluxes for total-sky
+
+        do k = 1, nlp1
+          flxuc(1:NDAY,k) = f_zero
+          flxdc(1:NDAY,k) = f_zero
+
+          do ib = 1, nbdsw
+            flxuc(1:NDAY,k) = flxuc(1:NDAY,k) + fxupc(1:NDAY,k,ib)
+            flxdc(1:NDAY,k) = flxdc(1:NDAY,k) + fxdnc(1:NDAY,k,ib)
+          enddo
         enddo
 
-        do k = 1, NLAY
+!! --- ...  optional clear sky fluxes
 
-!  ---  find the two reference pressures on either side of the
-!       layer pressure.  store them in jp and jp1.  store in fp the
-!       fraction of the difference (in ln(pressure)) between these
-!       two values that the layer pressure lies.
+        if ( lhsw0 .or. lflxprf ) then
+          do k = 1, nlp1
+            flxu0(1:NDAY,k) = f_zero
+            flxd0(1:NDAY,k) = f_zero
 
-          plog(k) = log(pavel(k))
-          jp(k) = max(1, min(58, int(36.0 - 5.0*(plog(k)+0.04)) ))
-          jp1   = jp(k) + 1
-          fp    = 5.0 * (preflog(jp(k)) - plog(k))
+            do ib = 1, nbdsw
+              flxu0(1:NDAY,k) = flxu0(1:NDAY,k) + fxup0(1:NDAY,k,ib)
+              flxd0(1:NDAY,k) = flxd0(1:NDAY,k) + fxdn0(1:NDAY,k,ib)
+            enddo
+          enddo
+        endif
 
-!  ---  determine, for each reference pressure (jp and jp1), which
-!       reference temperature (these are different for each
-!       reference pressure) is nearest the layer temperature but does
-!       not exceed it.  store these indices in jt and jt1, resp.
-!       store in ft (resp. ft1) the fraction of the way between jt
-!       (jt1) and the next highest reference temperature that the
-!       layer temperature falls.
+!  --- ...  prepare for final outputs
 
-          tem1 = (tavel(k) - tref(jp(k))) / 15.0
-          tem2 = (tavel(k) - tref(jp1  )) / 15.0
-          jt (k) = max(1, min(4, int(3.0 + tem1) ))
-          jt1(k) = max(1, min(4, int(3.0 + tem2) ))
-          ft  = tem1 - float(jt (k) - 3)
-          ft1 = tem2 - float(jt1(k) - 3)
+        do k = 1, nlay
+          rfdelp(1:NDAY,k) = heatfac / delp(1:NDAY,k)
+        enddo
 
-!  ---  we have now isolated the layer ln pressure and temperature,
-!       between two reference pressures and two reference temperatures
-!       (for each reference pressure).  we multiply the pressure
-!       fraction fp with the appropriate temperature fractions to get
-!       the factors that will be needed for the interpolation that yields
-!       the optical depths (performed in routines taugbn for band n).
-
-          fp1 = one - fp
-          fac10(k) = fp1 * ft
-          fac00(k) = fp1 * (one - ft)
-          fac11(k) = fp  * ft1
-          fac01(k) = fp  * (one - ft1)
-
-        enddo    ! end_do_k_loop
-
-        do k = 1, NLAY
-
-!  ---  if the pressure is less than ~100mb, perform a different
-!       set of species interpolations.
-
-          if (plog(k) > 4.56) then
-            laytrop = k
-
-!  ---  set up factors needed to separately include the water vapor
-!       foreign-continuum in the calculation of absorption coefficient.
-
-            tem1 = (332.0 - tavel(k)) / 36.0
-            indfor (k) = min(2, max(1, int(tem1)))
-            forfrac(k) = tem1 - float(indfor(k))
-
-!  ---  set up factors needed to separately include the water vapor
-!       self-continuum in the calculation of absorption coefficient.
-
-            tem2 = (tavel(k) - 188.0) / 7.2
-            indself (k) = min(9, max(1, int(tem2)-7))
-            selffrac(k) = tem2 - float(indself(k) + 7)
-            selffac (k) = h2ovmr(k) * forfac(k)
-          else
-!  ---  set up factors needed to separately include the water vapor
-!       foreign-continuum in the calculation of absorption coefficient.
-
-            tem1 = (tavel(k) - 188.0) / 36.0
-            indfor (k) = 3
-            forfrac(k) = tem1 - one
-
-            indself (k) = 0
-            selffrac(k) = zero
-            selffac (k) = zero
-          endif
-
-        enddo    ! end_do_k_loop
-
-!       write(dbgu,*)' lfdncmp=',lfdncmp
         if ( lfdncmp ) then
+!! --- ...  optional uv-b surface downward flux
+      DO j1 = 1,NDAY
+          fdncmp(j1)%uvbf0 = suvbf0(j1)
+          fdncmp(j1)%uvbfc = suvbfc(j1)
 
-!     write(dbgu,*)' colamt=',colamt(:,1),' ipts=',ipts
-
-          call spcvrt                                                   &
-!  ---  inputs:
-     &     ( colamt, colmol, coldry, cosz1, sntz1, albbm, albdf,        &
-     &       zcf1, zclfr, taucw, ssacw, asycw, tauae, ssaae, asyae,     &
-     &       forfac, forfrac, indfor, selffac, selffrac, indself,       &
-     &       fac00, fac01, fac10, fac11, jp, jt, jt1, laytrop,          &
-     &       NLAY, NLP1,                                                &
-!    &       NLAY, NLP1, dbgu,                                          &
-!  ---  outputs:
-     &       flxdcb, flxucb, flxd0b, flxu0b                             &
-!! ---  optional outputs:
-     &,      SFBMC=sfbmc,SFDFC=sfdfc,SFBM0=sfbm0,SFDF0=sfdf0            &
-     &,      SUVBF0=suvbf0,SUVBFC=suvbfc                                &
-     &     )
-
-!! ---  optional uv-b surface downward flux
-          fdncmp(j1)%uvbf0 = ssolar * suvbf0
-          fdncmp(j1)%uvbfc = ssolar * (zcf1*suvbfc + zcf0*suvbf0)
-
-!! ---  optional beam and diffuse sfc fluxes
-          fdncmp(j1)%nirbm = ssolar * (zcf1*sfbmc(1) + zcf0*sfbm0(1))
-          fdncmp(j1)%nirdf = ssolar * (zcf1*sfdfc(1) + zcf0*sfdf0(1))
-          fdncmp(j1)%visbm = ssolar * (zcf1*sfbmc(2) + zcf0*sfbm0(2))
-          fdncmp(j1)%visdf = ssolar * (zcf1*sfdfc(2) + zcf0*sfdf0(2))
-
-        else
-
-          call spcvrt                                                   &
-!  ---  inputs:
-     &     ( colamt, colmol, coldry, cosz1, sntz1, albbm, albdf,        &
-     &       zcf1, zclfr, taucw, ssacw, asycw, tauae, ssaae, asyae,     &
-     &       forfac, forfrac, indfor, selffac, selffrac, indself,       &
-     &       fac00, fac01, fac10, fac11, jp, jt, jt1, laytrop,          &
-     &       NLAY, NLP1,                                                &
-!    &       NLAY, NLP1, dbgu,                                          &
-!  ---  outputs:
-     &       flxdcb, flxucb, flxd0b, flxu0b                             &
-     &     )
-
+!! --- ...  optional beam and diffuse sfc fluxes
+          fdncmp(j1)%nirbm = sfbmc(j1,1)
+          fdncmp(j1)%nirdf = sfdfc(j1,1)
+          fdncmp(j1)%visbm = sfbmc(j1,2)
+          fdncmp(j1)%visdf = sfdfc(j1,2)
+       ENDDO
         endif    ! end if_lfdncmp
 
-        do mb = 1, NBDSW
-          do k = 1, NLP1
-!          if (j1 == 1) write(dbgu,*)' k=',k,' mb=',mb,' zcf1=',zcf1,
-!    &' zcf0=',zcf0,' flxucb=',flxucb(k,mb),flxu0b(k,mb)
-            flxucb(k,mb) = zcf1*flxucb(k,mb) + zcf0*flxu0b(k,mb)
-            flxdcb(k,mb) = zcf1*flxdcb(k,mb) + zcf0*flxd0b(k,mb)
-          enddo
-        enddo
+!  --- ...  toa and sfc fluxes
 
-        do k = 1, NLP1
-          flxuc(k) = zero
-          flxdc(k) = zero
-          flxu0(k) = zero
-          flxd0(k) = zero
-        enddo
+      DO j1 = 1,NDAY
+        topflx(j1)%upfxc = ftoauc(j1)
+        topflx(j1)%dnfxc = ftoadc(j1)
+        topflx(j1)%upfx0 = ftoau0(j1)
 
-        do k = 1, NLP1
-          do mb = 1, NBDSW
-            flxuc(k) = flxuc(k) + flxucb(k,mb)
-            flxdc(k) = flxdc(k) + flxdcb(k,mb)
-            flxu0(k) = flxu0(k) + flxu0b(k,mb)
-            flxd0(k) = flxd0(k) + flxd0b(k,mb)
-          enddo
-        enddo
+        sfcflx(j1)%upfxc = fsfcuc(j1)
+        sfcflx(j1)%dnfxc = fsfcdc(j1)
+        sfcflx(j1)%upfx0 = fsfcu0(j1)
+        sfcflx(j1)%dnfx0 = fsfcd0(j1)
+      ENDDO
 
-        do k = 1, NLP1
-          flxuc(k) = ssolar * flxuc(k)
-          flxdc(k) = ssolar * flxdc(k)
-          flxu0(k) = ssolar * flxu0(k)
-          flxd0(k) = ssolar * flxd0(k)
-          fnetc(k) = flxdc(k) - flxuc(k)
-        enddo
+        if (ivflip == 0) then       ! output from toa to sfc
 
-!  ---  toa and sfc fluxes
-        topflx(j1)%upfxc = flxuc(NLP1)
-        topflx(j1)%dnfxc = flxdc(NLP1)
-        topflx(j1)%upfx0 = flxu0(NLP1)
+!  --- ...  compute heating rates
 
-        sfcflx(j1)%upfxc = flxuc(1)
-        sfcflx(j1)%dnfxc = flxdc(1)
-        sfcflx(j1)%upfx0 = flxu0(1)
-        sfcflx(j1)%dnfx0 = flxd0(1)
+          fnet(1:NDAY,1) = flxdc(1:NDAY,1) - flxuc(1:NDAY,1)
 
-        if (iflip == 0) then        ! output from toa to sfc
-
-!  ---  compute heating rates
-          do k = 1, NLAY
-            kk = NLP1 - k
-            hswc(j1,kk) = (fnetc(k+1) - fnetc(k)) * heatfac / delp(k)
+          do k = 2, nlp1
+            kk = nlp1 - k + 1
+!DEC$ VECTOR ALWAYS
+      DO j1 = 1,NDAY
+            fnet(j1,k) = flxdc(j1,k) - flxuc(j1,k)
+            hswc(j1,kk) = (fnet(j1,k)-fnet(j1,k-1)) * rfdelp(j1,k-1)
+      ENDDO
           enddo
 
-!! ---  optional flux profiles
+!! --- ...  optional flux profiles
+
           if ( lflxprf ) then
-            do k = 1, NLP1
-              kk = NLP1 - k + 1
-              flxprf(j1,kk)%upfxc = flxuc(k)
-              flxprf(j1,kk)%dnfxc = flxdc(k)
-              flxprf(j1,kk)%upfx0 = flxu0(k)
-              flxprf(j1,kk)%dnfx0 = flxd0(k)
+            do k = 1, nlp1
+              kk = nlp1 - k + 1
+!DEC$ VECTOR ALWAYS
+      DO j1 = 1,NDAY
+              flxprf(j1,kk)%upfxc = flxuc(j1,k)
+              flxprf(j1,kk)%dnfxc = flxdc(j1,k)
+              flxprf(j1,kk)%upfx0 = flxu0(j1,k)
+              flxprf(j1,kk)%dnfx0 = flxd0(j1,k)
+      ENDDO
             enddo
           endif
 
-!! ---  optional clear sky heating rates
+!! --- ...  optional clear sky heating rates
+
           if ( lhsw0 ) then
-            fnet0(:) = flxd0(:) - flxu0(:)
+            fnet(1:NDAY,1) = flxd0(1:NDAY,1) - flxu0(1:NDAY,1)
 
-            do k = 1, NLAY
-              kk = NLP1 - k
-              hsw0(j1,kk) = (fnet0(k+1) - fnet0(k)) * heatfac / delp(k)
+            do k = 2, nlp1
+              kk = nlp1 - k + 1
+!DEC$ VECTOR ALWAYS
+      DO j1 = 1,NDAY
+              fnet(j1,k) = flxd0(j1,k) - flxu0(j1,k)
+              hsw0(j1,kk) = (fnet(j1,k)-fnet(j1,k-1)) * rfdelp(j1,k-1)
+      ENDDO
             enddo
           endif
 
-!! ---  optional spectral band heating rates
-          if ( lhswb ) then
-            fnetb(:,:) = ssolar * (flxdcb(:,:) - flxucb(:,:))
+!! --- ...  optional spectral band heating rates
 
-            do k = 1, NLAY
-              kk = NLP1 - k
-              do mb = 1, NBDSW
-                hswb(j1,kk,mb) = (fnetb(k+1,mb) - fnetb(k,mb))          &
-     &                         * heatfac / delp(k)
+          if ( lhswb ) then
+            do mb = 1, nbdsw
+              fnet(1:NDAY,1) = fxdnc(1:NDAY,1,mb) - fxupc(1:NDAY,1,mb)
+
+              do k = 2, nlp1
+                kk = nlp1 - k + 1
+!DEC$ VECTOR ALWAYS
+      DO j1 = 1,NDAY
+                fnet(j1,k) = fxdnc(j1,k,mb) - fxupc(j1,k,mb)
+                hswb(j1,kk,mb)=(fnet(j1,k)-fnet(j1,k-1))*rfdelp(j1,k-1)
+      ENDDO
               enddo
             enddo
           endif
 
         else                        ! output from sfc to toa
 
-!          write(dbgu,*)' fnetc=',fnetc(1:5)
-!  ---  compute heating rates
-          do k = 1, NLAY
-!        if (ipts == 1) write(dbgu,*)' fnetc=',fnetc(k),fnetc(k+1),heatfac
-!    &,' delp=',delp(k)
-            hswc(j1,k) = (fnetc(k+1) - fnetc(k)) * heatfac / delp(k)
+!  --- ...  compute heating rates
+
+          fnet(1:NDAY,1) = flxdc(1:NDAY,1) - flxuc(1:NDAY,1)
+
+          do k = 2, nlp1
+            fnet(1:NDAY,k) = flxdc(1:NDAY,k) - flxuc(1:NDAY,k)
+            hswc(1:NDAY,k-1) =                                          &
+     &             (fnet(1:NDAY,k)-fnet(1:NDAY,k-1))*rfdelp(1:NDAY,k-1)
           enddo
-!      write(dbgu,*)' j1=',j1,' hswc=',hswc(j1,:)
 
-!! ---  optional flux profiles
+!! --- ...  optional flux profiles
+
           if ( lflxprf ) then
-            do k = 1, NLP1
-              flxprf(j1,k)%upfxc = flxuc(k)
-              flxprf(j1,k)%dnfxc = flxdc(k)
-              flxprf(j1,k)%upfx0 = flxu0(k)
-              flxprf(j1,k)%dnfx0 = flxd0(k)
+            do k = 1, nlp1
+!DEC$ VECTOR ALWAYS
+      DO j1 = 1,NDAY
+              flxprf(j1,k)%upfxc = flxuc(j1,k)
+              flxprf(j1,k)%dnfxc = flxdc(j1,k)
+              flxprf(j1,k)%upfx0 = flxu0(j1,k)
+              flxprf(j1,k)%dnfx0 = flxd0(j1,k)
+      ENDDO
             enddo
           endif
 
-!! ---  optional clear sky heating rates
+!! --- ...  optional clear sky heating rates
+
           if ( lhsw0 ) then
-            fnet0(:) = flxd0(:) - flxu0(:)
+            fnet(1:NDAY,1) = flxd0(1:NDAY,1) - flxu0(1:NDAY,1)
 
-            do k = 1, NLAY
-              hsw0(j1,k) = (fnet0(k+1) - fnet0(k)) * heatfac / delp(k)
+            do k = 2, nlp1
+              fnet(1:NDAY,k) = flxd0(1:NDAY,k) - flxu0(1:NDAY,k)
+              hsw0(1:NDAY,k-1) =                                        &
+     &            (fnet(1:NDAY,k)-fnet(1:NDAY,k-1)) * rfdelp(1:NDAY,k-1)
             enddo
           endif
 
-!! ---  optional spectral band heating rates
-          if ( lhswb ) then
-            fnetb(:,:) = ssolar * (flxdcb(:,:) - flxucb(:,:))
+!! --- ...  optional spectral band heating rates
 
-            do k = 1, NLAY
-              do mb = 1, NBDSW
-                hswb(j1,k,mb) = (fnetb(k+1,mb) - fnetb(k,mb))           &
-     &                        * heatfac / delp(k)
+          if ( lhswb ) then
+            do mb = 1, nbdsw
+              fnet(1:NDAY,1) = fxdnc(1:NDAY,1,mb) - fxupc(1:NDAY,1,mb)
+
+              do k = 1, nlay
+                fnet(1:NDAY,k+1) =                                      &
+     &              fxdnc(1:NDAY,k+1,mb) - fxupc(1:NDAY,k+1,mb)
+                hswb(1:NDAY,k,mb) =                                     &
+     &              (fnet(1:NDAY,k+1)-fnet(1:NDAY,k)) * rfdelp(1:NDAY,k)
               enddo
             enddo
           endif
 
-        endif                       ! if_iflip
+        endif                       ! if_ivflip
 
-      enddo   lab_do_ipts
+!jm      enddo   lab_do_ipt
 
       return
 !...................................
@@ -1140,67 +1302,80 @@
 !-----------------------------------
 
 
-
 !-----------------------------------
       subroutine rswinit                                                &
 !...................................
 
 !  ---  inputs:
-     &     ( icwp, me, NLAY, IOVR, ISUBC )
+     &     ( me )
 !  ---  outputs: (none)
 
-!  *******************************************************************  !
+!  ===================  program usage description  ===================  !
+!                                                                       !
+! purpose:  initialize non-varying module variables, conversion factors,!
+! and look-up tables.                                                   !
+!                                                                       !
+! subprograms called:  none                                             !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
 !                                                                       !
 !  inputs:                                                              !
-!    icwp     -  flag of cloud schemes used by model                    !
-!                =0: diagnostic scheme gives cloud tau, omiga, and g    !
-!                =1: prognostic scheme gives cloud liq/ice path, etc.   !
 !    me       - print control for parallel process                      !
-!    NLAY     - number of vertical layers                               !
-!    iovr     - cloud overlapping control flag                          !
-!                =0: random overlapping clouds                          !
-!                =1: maximum/random overlapping clouds                  !
-!                =2: maximum overlap cloud                              !
-!    isubc    - mcica sub-column cloud approximation control flag       !
-!                *** not used in this version of code                   !
 !                                                                       !
 !  outputs: (none)                                                      !
 !                                                                       !
-!  control flags in module "module_radsw_cntr_para":                    !
-!     iswrate - heating rate unit selections                            !
-!               =1: output in k/day                                     !
-!               =2: output in k/second                                  !
-!     iaersw  - flags for aerosols effect                               !
-!               =0: without aerosol effect                              !
-!               >0: include aerosol effect                              !
-!     imodsw  - control flag for 2-stream transfer scheme               !
-!               =1; delta-eddington    (joseph et al., 1976)            !
-!               =2: pifm               (zdunkowski et al., 1980)        !
-!               =3: discrete ordinates (liou, 1973)                     !
-!     irgassw - control flag for rare gases (ch4,n2o,o2, etc.)          !
-!               =0: do not include rare gases                           !
-!               =1: include all rare gases                              !
-!     iflagliq- cloud optical properties contrl flag                    !
-!               =0: input cloud opt depth from diagnostic scheme        !
-!               >0: input cwp,cip, and other cloud content parameters   !
+!  external module variables:  (in physparam)                           !
+!   iswrate - heating rate unit selections                              !
+!           =1: output in k/day                                         !
+!           =2: output in k/second                                      !
+!   iswrgas - control flag for rare gases (ch4,n2o,o2, etc.)            !
+!           =0: do not include rare gases                               !
+!           >0: include all rare gases                                  !
+!   iswcliq - liquid cloud optical properties contrl flag               !
+!           =0: input cloud opt depth from diagnostic scheme            !
+!           >0: input cwp,rew, and other cloud content parameters       !
+!   isubcsw - sub-column cloud approximation control flag               !
+!           =0: no sub-col cld treatment, use grid-mean cld quantities  !
+!           =1: mcica sub-col, prescribed seeds to get random numbers   !
+!           =2: mcica sub-col, providing array icseed for random numbers!
+!   icldflg - cloud scheme control flag                                 !
+!           =0: diagnostic scheme gives cloud tau, omiga, and g.        !
+!           =1: prognostic scheme gives cloud liq/ice path, etc.        !
+!   iovrsw  - clouds vertical overlapping control flag                  !
+!           =0: random overlapping clouds                               !
+!           =1: maximum/random overlapping clouds                       !
+!           =2: maximum overlap cloud                                   !
+!   iswmode - control flag for 2-stream transfer scheme                 !
+!           =1; delta-eddington    (joseph et al., 1976)                !
+!           =2: pifm               (zdunkowski et al., 1980)            !
+!           =3: discrete ordinates (liou, 1973)                         !
 !                                                                       !
 !  *******************************************************************  !
-!
-      implicit none
-!
+!                                                                       !
+! definitions:                                                          !
+!     arrays for 10000-point look-up tables:                            !
+!     tau_tbl  clear-sky optical depth                                  !
+!     exp_tbl  exponential lookup table for transmittance               !
+!                                                                       !
+!  *******************************************************************  !
+!                                                                       !
+!  ======================  end of description block  =================  !
+
 !  ---  inputs:
-      integer, intent(in) :: icwp, me, NLAY, IOVR, ISUBC
+      integer, intent(in) :: me
 
 !  ---  outputs: none
 
-
 !  ---  locals:
+      real (kind=kind_phys), parameter :: expeps = 1.e-20
+
+      integer :: i
+
+      real (kind=kind_phys) :: tfn, tau
 
 !
 !===> ... begin here
 !
-      iovrsw  = iovr     ! assign module variable of overlap flag
-
       if ( iovrsw<0 .or. iovrsw>2 ) then
         print *,'  *** Error in specification of cloud overlap flag',   &
      &          ' IOVRSW=',iovrsw,' in RSWINIT !!'
@@ -1210,44 +1385,43 @@
       if (me == 0) then
         print *,' - Using AER Shortwave Radiation, Version: ',VTAGSW
 
-        if (imodsw == 1) then
+        if (iswmode == 1) then
           print *,'   --- Delta-eddington 2-stream transfer scheme'
-        else if (imodsw == 2) then
+        else if (iswmode == 2) then
           print *,'   --- PIFM 2-stream transfer scheme'
-        else if (imodsw == 3) then
+        else if (iswmode == 3) then
           print *,'   --- Discrete ordinates 2-stream transfer scheme'
         endif
 
-        if (iaersw == 0) then
-          print *,'   --- Aerosol effect is NOT included in SW, all'    &
-     &           ,' internal aerosol parameters are reset to zeros'
-        else
-          print *,'   --- Using input aerosol parameters for SW'
-        endif
-
-        if (irgassw == 0) then
+        if (iswrgas <= 0) then
           print *,'   --- Rare gases absorption is NOT included in SW'
         else
           print *,'   --- Include rare gases N2O, CH4, O2, absorptions',&
      &            ' in SW'
         endif
 
-        if ( isubc == 0 ) then
-          print *,'   --- Using standard grid average clouds, no sub-', &
-     &            'column clouds approximation'
+        if ( isubcsw == 0 ) then
+          print *,'   --- Using standard grid average clouds, no ',     &
+     &            'sub-column clouds approximation applied'
+        elseif ( isubcsw == 1 ) then
+          print *,'   --- Using MCICA sub-colum clouds approximation ', &
+     &            'with a prescribed sequence of permutation seeds'
+        elseif ( isubcsw == 2 ) then
+          print *,'   --- Using MCICA sub-colum clouds approximation ', &
+     &            'with provided input array of permutation seeds'
         else
-          print *,'   --- Sub-column cloud scheme is not available in', &
-     &            ' this version of code.  Using standard grid',        &
-     &            ' average of clouds'
+          print *,'  *** Error in specification of sub-column cloud ',  &
+     &            ' control flag isubcsw =',isubcsw,' !!'
+          stop
         endif
       endif
 
 !  --- ...  check cloud flags for consistency
 
-      if ((icwp == 0 .and. iflagliq /= 0) .or.                          &
-     &    (icwp == 1 .and. iflagliq == 0)) then
-        print *, ' *** Model cloud scheme inconsistent with SW',        &
-     &           ' radiation cloud radiative property setup !!'
+      if ((icldflg == 0 .and. iswcliq /= 0) .or.                        &
+     &    (icldflg == 1 .and. iswcliq == 0)) then
+        print *,'  *** Model cloud scheme inconsistent with SW',        &
+     &          ' radiation cloud radiative property setup !!'
         stop
       endif
 
@@ -1255,12 +1429,28 @@
 !           the 1.0e-2 is to convert pressure from mb to N/m**2
 
       if (iswrate == 1) then
+!       heatfac = 8.4391
 !       heatfac = con_g * 86400. * 1.0e-2 / con_cp  !   (in k/day)
         heatfac = con_g * 864.0 / con_cp            !   (in k/day)
-!       heatfac = 8.4391
       else
         heatfac = con_g * 1.0e-2 / con_cp           !   (in k/second)
       endif
+
+!  --- ...  define exponential lookup tables for transmittance. tau is
+!           computed as a function of the tau transition function, and
+!           transmittance is calculated as a function of tau.  all tables
+!           are computed at intervals of 0.0001.  the inverse of the
+!           constant used in the Pade approximation to the tau transition
+!           function is set to bpade.
+
+      exp_tbl(0) = 1.0
+      exp_tbl(NTBMX) = expeps
+
+      do i = 1, NTBMX-1
+        tfn = float(i) / float(NTBMX-i)
+        tau = bpade * tfn
+        exp_tbl(i) = exp( -tau )
+      enddo
 
       return
 !...................................
@@ -1268,273 +1458,344 @@
 !-----------------------------------
 
 
-
 !-----------------------------------
       subroutine cldprop                                                &
 !...................................
-
 !  ---  inputs:
      &     ( cfrac,cliqp,reliq,cicep,reice,cdat1,cdat2,cdat3,cdat4,     &
-     &       NLAY,                                                      &
+     &       cf1, nlay, ipseed,                                         &
 !  ---  output:
-     &       taucw, ssacw, asycw                                        &
+     &       taucw, ssacw, asycw, cldfrc, cldfmc                        &
      &     )
 
-!  *******************************************************************  !
+!  ===================  program usage description  ===================  !
 !                                                                       !
-!  compute the cloud optical property functions for each cloudy layer   !
+! Purpose: Compute the cloud optical properties for each cloudy layer   !
+! and g-point interval.                                                 !
 !                                                                       !
+! subprograms called:  none                                             !
 !                                                                       !
-!  inputs:                                                              !
-!     cfrac(NLAY)  - layer cloud fraction                               !
-!                ---  for  iflagliq > 0  ---                            !
-!     cliqp(NLAY)  - layer cloud liq water path (g/m**2)                !
-!     reliq(NLAY)  - mean effective radius for liq cloud (micron)       !
-!     cicep(NLAY)  - layer cloud ice water path (g/m**2)                !
-!     reice(NLAY)  - mean effective radius for ice cloud (micron)       !
-!     cdat1(NLAY)  - layer rain drop water path (g/m**2)    -not used-  !
-!     cdat2(NLAY)  - mean eff radius for rain drop (micron) -not used-  !
-!     cdat3(NLAY)  - layer snow flake water path(g/m**2)    -not used-  !
-!   ** fu's scheme need to be normalized by snow density (g/m**3/1.0e6) !
-!     cdat4(NLAY)  - mean effective radius for snow flake(micron)       !
-!                ---  for  iflagliq = 0  ---                            !
-!     cdat1(NLAY)  - layer cloud optical depth                          !
-!     cdat2(NLAY)  - layer cloud single scattering albedo               !
-!     cdat3(NLAY)  - layer cloud asymmetry factor                       !
-!     cdat4(NLAY)  -     optional use                                   !
-!     cliqp(NLAY)  -     not used                                       !
-!     reliq(NLAY)  -     not used                                       !
-!     cicep(NLAY)  -     not used                                       !
-!     reice(NLAY)  -     not used                                       !
+!  ====================  defination of variables  ====================  !
 !                                                                       !
-!     NLAY         - vertical layer number                              !
+!  inputs:                                                        size  !
+!    cfrac - real, layer cloud fraction                            nlay !
+!        .....  for  iswcliq > 0 (prognostic cloud sckeme)  - - -       !
+!    cliqp - real, layer in-cloud liq water path (g/m**2)          nlay !
+!    reliq - real, mean eff radius for liq cloud (micron)          nlay !
+!    cicep - real, layer in-cloud ice water path (g/m**2)          nlay !
+!    reice - real, mean eff radius for ice cloud (micron)          nlay !
+!    cdat1 - real, layer rain drop water path (g/m**2)             nlay !
+!    cdat2 - real, effective radius for rain drop (micron)         nlay !
+!    cdat3 - real, layer snow flake water path(g/m**2)             nlay !
+!    cdat4 - real, mean eff radius for snow flake(micron)          nlay !
+!        .....  for iswcliq = 0  (diagnostic cloud sckeme)  - - -       !
+!    cdat1 - real, layer cloud optical depth                       nlay !
+!    cdat2 - real, layer cloud single scattering albedo            nlay !
+!    cdat3 - real, layer cloud asymmetry factor                    nlay !
+!    cdat4 - real, optional use                                    nlay !
+!    cliqp - real, not used                                        nlay !
+!    cicep - real, not used                                        nlay !
+!    reliq - real, not used                                        nlay !
+!    reice - real, not used                                        nlay !
+!                                                                       !
+!    cf1   - real, effective total cloud cover at surface           1   !
+!    nlay  - integer, vertical layer number                         1   !
+!    ipseed- permutation seed for generating random numbers (isubcsw>0) !
 !                                                                       !
 !  outputs:                                                             !
-!     taucw(NLAY,NBLOW:NBHGH) - cloud optical depth                     !
-!     ssacw(NLAY,NBLOW:NBHGH) - weighted cloud single scattering albedo !
-!                               (ssa = ssacw / taucw)                   !
-!     asycw(NLAY,NBLOW:NBHGH) - weighted cloud asymmetry factor         !
-!                               (asy = asycw / ssacw)                   !
+!    taucw  - real, cloud optical depth, w/o delta scaled    nlay*nbdsw !
+!    ssacw  - real, weighted cloud single scattering albedo  nlay*nbdsw !
+!                             (ssa = ssacw / taucw)                     !
+!    asycw  - real, weighted cloud asymmetry factor          nlay*nbdsw !
+!                             (asy = asycw / ssacw)                     !
+!    cldfrc - real, cloud fraction of grid mean value              nlay !
+!    cldfmc - real, cloud fraction for each sub-column       nlay*ngptsw!
 !                                                                       !
-!  *******************************************************************  !
 !                                                                       !
-!    explanation of the method for each value of iflagliq, and iflagice.!
-!    set up in module "module_radlw_cntr_para"                          !
+!  explanation of the method for each value of iswcliq, and iswcice.    !
+!  set up in module "physparam"                                         !
 !                                                                       !
-!     iflagliq=0 : input cloud optical property (tau, ssa, asy).        !
+!     iswcliq=0  : input cloud optical property (tau, ssa, asy).        !
 !                  (used for diagnostic cloud method)                   !
-!     iflagliq>0 : input cloud liq/ice path and effective radius, also  !
-!                  require the user of 'iflagice' to specify the method !
+!     iswcliq>0  : input cloud liq/ice path and effective radius, also  !
+!                  require the user of 'iswcice' to specify the method  !
 !                  used to compute aborption due to water/ice parts.    !
 !  ...................................................................  !
 !                                                                       !
-!     iflagliq=0:  for each cloudy layer, the cloud fraction and (gray) !
-!                  optical depth, single scattring albedo, and asymmetry!
-!                  factor are inputs.                                   !
-!     iflagliq=1:  for each cloudy layer, the cloud liquid path, eff.   !
-!                  radius for water cloud are inputs, use method by     !
-!                  hu and stamnes, 1993, j., clim.                      !
+!     iswcliq=1  : liquid water cloud optical properties are computed   !
+!                  as in hu and stamnes (1993), j. clim., 6, 728-742.   !
 !                                                                       !
-!     iflagice used only when iglagliq >= 1                             !
+!     iswcice used only when iswcliq > 0                                !
+!                  the cloud ice path (g/m2) and ice effective radius   !
+!                  (microns) are inputs.                                !
+!     iswcice=1  : ice cloud optical properties are computed as in      !
+!                  ebert and curry (1992), jgr, 97, 3831-3836.          !
+!     iswcice=2  : ice cloud optical properties are computed as in      !
+!                  streamer v3.0 (2001), key, streamer user's guide,    !
+!                  cooperative institude for meteorological studies,95pp!
+!     iswcice=3  : ice cloud optical properties are computed as in      !
+!                  fu (1996), j. clim., 9.                              !
 !                                                                       !
-!     iflagice=3:  the cloud ice path (g/m2) and ice effective radius   !
-!                  (microns) are input and the optical depths due to ice!
-!                  clouds are computed as in fu, 1996, j. clim.         !
+!  other cloud control module variables:                                !
+!     isubcsw =0: standard cloud scheme, no sub-col cloud approximation !
+!             >0: mcica sub-col cloud scheme using ipseed as permutation!
+!                 seed for generating rundom numbers                    !
 !                                                                       !
-!                                                                       !
-!  *******************************************************************  !
-!                       original description:                           !
-!                                                                       !
-!  path:      $source: /storm/rc1/cvsroot/rc/rrtm_sw/src/cldprop_sw.f,v !
-!  author:    $author: jdelamer                                         !
-!  revision:  $revision: 2.6                                            !
-!  created:   $date: 2002/04/04 18:29:47                                !
-!                                                                       !
-!  purpose:  compute the cloud optical depth(s) for each cloudy         !
-!  layer.  note:  only inflag = 0 and inflag=2/liqflag=1/iceflag=3      !
-!  (hu & stamnes, q. fu) are implemented.                               !
-!                                                                       !
-!  *******************************************************************  !
+!  ======================  end of description block  =================  !
 !
-      use module_radsw_cldprtb_nmmb
-!
-      implicit none
+      use module_radsw_cldprtb
 
 !  ---  inputs:
-      integer, intent(in) :: NLAY
+      integer, intent(in) :: nlay, ipseed
+      real (kind=kind_phys), intent(in) :: cf1
 
-      real (kind=kind_phys), dimension(:), intent(in) :: cfrac,         &
-     &       cliqp, reliq, cicep, reice, cdat1, cdat2, cdat3, cdat4
+      real (kind=kind_phys), dimension(nlay), intent(in) :: cliqp,      &
+     &       reliq, cicep, reice, cdat1, cdat2, cdat3, cdat4, cfrac
 
 !  ---  outputs:
-      real (kind=kind_phys), dimension(:,NBLOW:), intent(out) ::        &
+      real (kind=kind_phys), dimension(nlay,ngptsw), intent(out) ::     &
+     &       cldfmc
+      real (kind=kind_phys), dimension(nlay,nbdsw),  intent(out) ::     &
      &       taucw, ssacw, asycw
+      real (kind=kind_phys), dimension(nlay), intent(out) :: cldfrc
 
 !  ---  locals:
-      real (kind=kind_phys), dimension(NBLOW:NBHGH) ::  fdelta,         &
-     &       extcoice, ssacoice, asycoice, forcoice,                    &
-     &       extcoliq, ssacoliq, asycoliq, forcoliq
+      real (kind=kind_phys), dimension(nblow:nbhgh) :: tauliq, tauice,  &
+     &       ssaliq, ssaice, ssaran, ssasnw, asyliq, asyice,            &
+     &       asyran, asysnw
+      real (kind=kind_phys), dimension(nlay)       :: cldf
 
-      real (kind=kind_phys) :: ffliq0, ffliq1, ffice0, ffice1,          &
-     &       cldliq, refliq, tauliq, ssaliq, asyliq, factor, fint,      &
-     &       cldice, refice, tauice, ssaice, asyice,                    &
-     &       cldrain, refrain, taurain, ssarain, asyrain,               &
-     &       cldsnow, refsnow, tausnow, ssasnow, asysnow
+      real (kind=kind_phys) :: dgeice, factor, fint, tauran, tausnw,    &
+     &       cldliq, refliq, cldice, refice, cldran, cldsnw, refsnw,    &
+     &       extcoliq, ssacoliq, asycoliq, extcoice, ssacoice, asycoice,&
+     &       dgesnw
 
-      integer :: ib, k, index
- 
+      logical :: lcloudy(nlay,ngptsw)
+      integer :: ia, ib, ig, jb, k, index
+
 !
 !===> ...  begin here
 !
-      do ib = NBLOW, NBHGH
-        do k = 1, NLAY
-          taucw(k,ib) = zero
-          ssacw(k,ib) = zero
-          asycw(k,ib) = zero
+      do ib = 1, nbdsw
+        do k = 1, nlay
+          taucw (k,ib) = f_zero
+          ssacw (k,ib) = f_one
+          asycw (k,ib) = f_zero
         enddo
       enddo
 
-      lab_do_k : do k = 1, NLAY
+!  --- ...  compute cloud radiative properties for a cloudy column
 
-        lab_if_cfrac : if (cfrac(k) >= eps) then
+      lab_if_iswcliq : if (iswcliq > 0) then
 
-!  --- ...  ice clouds and water clouds combined.
-          lab_if_liq : if (iflagliq == 0) then
+        lab_do_k : do k = 1, nlay
+          lab_if_cld : if (cfrac(k) > ftiny) then
 
-            do ib = NBLOW, NBHGH
-              taucw(k,ib) = cdat1(k)
-              ssacw(k,ib) = cdat2(k) * cdat1(k)
-              asycw(k,ib) = cdat3(k) * ssacw(k,ib)
-            enddo
+!  --- ...  optical properties for rain and snow
+            cldran = cdat1(k)
+!           refran = cdat2(k)
+            cldsnw = cdat3(k)
+            refsnw = cdat4(k)
+            dgesnw = 1.0315 * refsnw        ! for fu's snow formula
 
-!  --- ...  separate treatement of ice clouds and water clouds.
-          else   lab_if_liq
-
-            cldliq = cliqp(k)
-            refliq = max(2.5e0, min(59.5e0, real(reliq(k)) ))
-!error      refliq = max(1.5e0, min(60.0e0, real(reliq(k)) ))
-
-            cldice = cicep(k)
-!  --- ...  based on FU, factor 1.5396=8/(3*sqrt(3)) converts
-!           effective radius to generalized ice particle size
-            refice = max(10.e0, min(140.e0, 1.5396*reice(k) ))
-
-            cldrain = cdat1(k)
-            refrain = cdat2(k)
-            cldsnow = cdat3(k)
-            refsnow = cdat4(k)
-
-!  --- ...  calculation of absorption coefficients due to water clouds.
-            if (cldliq <= zero) then
-              do ib = NBLOW, NBHGH
-                extcoliq(ib) = zero
-                ssacoliq(ib) = one
-                asycoliq(ib) = one
-                forcoliq(ib) = zero
-              enddo
+            tauran = cldran * a0r
+!  ---  if use fu's formula it needs to be normalized by snow/ice density
+!       !not use snow density = 0.1 g/cm**3 = 0.1 g/(mu * m**2)
+!       use ice density = 0.9167 g/cm**3 = 0.9167 g/(mu * m**2)
+!       1/0.9167 = 1.09087
+!       factor 1.5396=8/(3*sqrt(3)) converts reff to generalized ice particle size
+!       use newer factor value 1.0315
+            if (cldsnw>f_zero .and. refsnw>10.0_kind_phys) then
+!             tausnw = cldsnw * (a0s + a1s/refsnw)
+              tausnw = cldsnw*1.09087*(a0s + a1s/dgesnw)     ! fu's formula
             else
-              if (iflagliq == 1) then
-                factor = refliq - 1.5
-                index = max(1, min(57, int(factor) ))
-                fint  = factor - index
-
-                do ib = NBLOW, NBHGH
-                  extcoliq(ib) = extdatliq1(index,ib) + fint            &
-     &                 * (extdatliq1(index+1,ib) - extdatliq1(index,ib))
-                  ssacoliq(ib) = ssadatliq1(index,ib) + fint            &
-     &                 * (ssadatliq1(index+1,ib) - ssadatliq1(index,ib))
-                  asycoliq(ib) = asydatliq1(index,ib) + fint            &
-     &                 * (asydatliq1(index+1,ib) - asydatliq1(index,ib))
-                  forcoliq(ib) = asycoliq(ib) * asycoliq(ib)
-                enddo
-              else
-                print *,'  Undefined selection of iflagliq =',iflagliq
-                stop
-              endif
-            endif   ! end if_cldliq
-
-!  --- ...  calculation of absorption coefficients due to ice clouds.
-            if (cldice <= zero) then
-              do ib = NBLOW, NBHGH
-                extcoice(ib) = zero
-                ssacoice(ib) = one
-                asycoice(ib) = one
-                forcoice(ib) = zero
-              enddo
-            else
-              if (iflagice == 3) then
-                factor = (refice - 5.0) / 5.0
-                index  = max(1, min(26, int(factor) ))
-                fint   = factor - index
-
-                do ib = NBLOW, NBHGH
-                  extcoice(ib) = extdatice3(index,ib) + fint            &
-     &               * (extdatice3(index+1,ib) - extdatice3(index,ib))
-                  ssacoice(ib) = ssadatice3(index,ib) + fint            &
-     &               * (ssadatice3(index+1,ib) - ssadatice3(index,ib))
-                  asycoice(ib) = asydatice3(index,ib) + fint            &
-     &               * (asydatice3(index+1,ib) - asydatice3(index,ib))
-                  fdelta  (ib) = min(one, max(zero,                     &
-     &                           fdldatice3(index,ib) + fint            &
-     &               * (fdldatice3(index+1,ib) - fdldatice3(index,ib))))
-
-                  forcoice(ib) = min(asycoice(ib),                      &
-     &                              fdelta(ib) + 0.5/ssacoice(ib) )   ! see fu 1996 p. 2067 
-                enddo
-              else
-                print *,'  Undefined selection of iflagice =',iflagice
-                stop
-              endif
-            endif   ! end if_cldice
-
-!  --- ...  optical depth for rain and snow
-
-            taurain = cldrain * a0r
-            if (cldsnow>zero .and. refsnow>10.0) then
-              tausnow = cldsnow * (a0s + a1s/refsnow)
-            else
-              tausnow = zero
+              tausnw = f_zero
             endif
 
-            do ib = NBLOW, NBHGH
-              tauliq = cldliq * extcoliq(ib)
-              ssaliq = tauliq * ssacoliq(ib)
-              asyliq = ssaliq * asycoliq(ib)
-
-              tauice = cldice * extcoice(ib)
-              ssaice = tauice * ssacoice(ib)
-              asyice = ssaice * asycoice(ib)
-
-              ssarain = taurain * (one - b0r(ib))
-              asyrain = ssarain * c0r(ib)
-
-              ssasnow = tausnow * (one - (b0s(ib)+b1s(ib)*refsnow))
-              asysnow = ssasnow * c0s(ib)
-
-              taucw(k,ib) = tauliq + tauice + taurain + tausnow
-              ssacw(k,ib) = ssaliq + ssaice + ssarain + ssasnow
-              asycw(k,ib) = asyliq + asyice + asyrain + asysnow
-
-!             do istr = 1, nstr
-!  --- ...  this commented code is the standard method for delta-m scaling.
-!           in accordance with the 1996 fu paper, equation a.3, the moments
-!           for ice were calculated as in the uncommented code.
-!               xmom(istr,k,ib) =                                       &
-!    &                (ssaliq*(asycoliq(ib)**istr-forcoliq(ib))/ffliq0  &
-!    &               + ssaice*(asycoice(ib)**istr-forcoice(ib))/ffice0) &
-!    &               / (ssaliq + ssaice)
-!  --- ...  the following commented code is used by the original rrtm_sw
-!               xmom(istr,k,ib) = (one / (ssaliq+ssaice))               &
-!    &             * (ssaliq*(asycoliq(ib)**istr-forcoliq(ib))/ffliq0   &
-!    &             +  ssaice*((asycoice(ib)-forcoice(ib))/ffice0)**istr)
-!             enddo
+            do ib = nblow, nbhgh
+              ssaran(ib) = tauran * (f_one - b0r(ib))
+              ssasnw(ib) = tausnw * (f_one - (b0s(ib)+b1s(ib)*dgesnw))
+              asyran(ib) = ssaran(ib) * c0r(ib)
+              asysnw(ib) = ssasnw(ib) * c0s(ib)
             enddo
 
-          endif  lab_if_liq
+            cldliq = cliqp(k)
+            cldice = cicep(k)
+            refliq = reliq(k)
+            refice = reice(k)
 
-        endif  lab_if_cfrac
+!  --- ...  calculation of absorption coefficients due to water clouds.
 
-      enddo  lab_do_k
+            if ( cldliq <= f_zero ) then
+              do ib = nblow, nbhgh
+                tauliq(ib) = f_zero
+                ssaliq(ib) = f_zero
+                asyliq(ib) = f_zero
+              enddo
+            else
+              if ( iswcliq == 1 ) then
+                factor = refliq - 1.5
+                index  = max( 1, min( 57, int( factor ) ))
+                fint   = factor - float(index)
+
+                do ib = nblow, nbhgh
+                  extcoliq = max(f_zero,            extliq1(index,ib)   &
+     &              + fint*(extliq1(index+1,ib)-extliq1(index,ib)) )
+                  ssacoliq = max(f_zero, min(f_one, ssaliq1(index,ib)   &
+     &              + fint*(ssaliq1(index+1,ib)-ssaliq1(index,ib)) ))
+
+                  asycoliq = max(f_zero, min(f_one, asyliq1(index,ib)   &
+     &              + fint*(asyliq1(index+1,ib)-asyliq1(index,ib)) ))
+!                 forcoliq = asycoliq * asycoliq
+
+                  tauliq(ib) = cldliq     * extcoliq
+                  ssaliq(ib) = tauliq(ib) * ssacoliq
+                  asyliq(ib) = ssaliq(ib) * asycoliq
+                enddo
+              endif   ! end if_iswcliq_block
+            endif   ! end if_cldliq_block
+
+!  --- ...  calculation of absorption coefficients due to ice clouds.
+
+            if ( cldice <= f_zero ) then
+              do ib = nblow, nbhgh
+                tauice(ib) = f_zero
+                ssaice(ib) = f_zero
+                asyice(ib) = f_zero
+              enddo
+            else
+
+!  --- ...  ebert and curry approach for all particle sizes though somewhat
+!           unjustified for large ice particles
+
+              if ( iswcice == 1 ) then
+                refice = min(130.0_kind_phys,max(13.0_kind_phys,refice))
+
+                do ib = nblow, nbhgh
+                  ia = idxebc(ib)           ! eb_&_c band index for ice cloud coeff
+
+                  extcoice = max(f_zero, abari(ia)+bbari(ia)/refice )
+                  ssacoice = max(f_zero, min(f_one,                     &
+     &                             f_one-cbari(ia)-dbari(ia)*refice ))
+                  asycoice = max(f_zero, min(f_one,                     &
+     &                                   ebari(ia)+fbari(ia)*refice ))
+!                 forcoice = asycoice * asycoice
+
+                  tauice(ib) = cldice     * extcoice
+                  ssaice(ib) = tauice(ib) * ssacoice
+                  asyice(ib) = ssaice(ib) * asycoice
+                enddo
+
+!  --- ...  streamer approach for ice effective radius between 5.0 and 131.0 microns
+
+              elseif ( iswcice == 2 ) then
+                refice = min(131.0_kind_phys,max(5.0_kind_phys,refice))
+
+                factor = (refice - 2.0) / 3.0
+                index  = max( 1, min( 42, int( factor ) ))
+                fint   = factor - float(index)
+
+                do ib = nblow, nbhgh
+                  extcoice = max(f_zero,            extice2(index,ib)   &
+     &                + fint*(extice2(index+1,ib)-extice2(index,ib)) )
+                  ssacoice = max(f_zero, min(f_one, ssaice2(index,ib)   &
+     &                + fint*(ssaice2(index+1,ib)-ssaice2(index,ib)) ))
+                  asycoice = max(f_zero, min(f_one, asyice2(index,ib)   &
+     &                + fint*(asyice2(index+1,ib)-asyice2(index,ib)) ))
+!                 forcoice = asycoice * asycoice
+
+                  tauice(ib) = cldice     * extcoice
+                  ssaice(ib) = tauice(ib) * ssacoice
+                  asyice(ib) = ssaice(ib) * asycoice
+                enddo
+
+!  --- ...  fu's approach for ice effective radius between 4.8 and 135 microns
+!           (generalized effective size from 5 to 140 microns)
+
+              elseif ( iswcice == 3 ) then
+                dgeice = max( 5.0, min( 140.0, 1.0315*refice ))
+
+                factor = (dgeice - 2.0) / 3.0
+                index  = max( 1, min( 45, int( factor ) ))
+                fint   = factor - float(index)
+
+                do ib = nblow, nbhgh
+                  extcoice = max(f_zero,            extice3(index,ib)   &
+     &                + fint*(extice3(index+1,ib)-extice3(index,ib)) )
+                  ssacoice = max(f_zero, min(f_one, ssaice3(index,ib)   &
+     &                + fint*(ssaice3(index+1,ib)-ssaice3(index,ib)) ))
+                  asycoice = max(f_zero, min(f_one, asyice3(index,ib)   &
+     &                + fint*(asyice3(index+1,ib)-asyice3(index,ib)) ))
+!                 fdelta   = max(f_zero, min(f_one, fdlice3(index,ib)   &
+!    &                + fint*(fdlice3(index+1,ib)-fdlice3(index,ib)) ))
+!                 forcoice = min( asycoice, fdelta+0.5/ssacoice )           ! see fu 1996 p. 2067
+
+                  tauice(ib) = cldice     * extcoice
+                  ssaice(ib) = tauice(ib) * ssacoice
+                  asyice(ib) = ssaice(ib) * asycoice
+                enddo
+
+              endif   ! end if_iswcice_block
+            endif   ! end if_cldice_block
+
+            do ib = 1, nbdsw
+              jb = nblow + ib - 1
+              taucw(k,ib) = tauliq(jb)+tauice(jb)+tauran+tausnw
+              ssacw(k,ib) = ssaliq(jb)+ssaice(jb)+ssaran(jb)+ssasnw(jb)
+              asycw(k,ib) = asyliq(jb)+asyice(jb)+asyran(jb)+asysnw(jb)
+            enddo
+
+          endif  lab_if_cld
+        enddo  lab_do_k
+
+      else  lab_if_iswcliq
+
+        do k = 1, nlay
+          if (cfrac(k) > ftiny) then
+            do ib = 1, nbdsw
+              taucw(k,ib) = cdat1(k)
+              ssacw(k,ib) = cdat1(k)    * cdat2(k)
+              asycw(k,ib) = ssacw(k,ib) * cdat3(k)
+            enddo
+          endif
+        enddo
+
+      endif  lab_if_iswcliq
+
+!  ---  distribute cloud properties to each g-point
+
+      if ( isubcsw > 0 ) then      ! mcica sub-col clouds approx
+
+        cldf(:) = cfrac(:)
+        where (cldf(:) < ftiny)
+          cldf(:) = f_zero
+        end where
+
+!  --- ...  call sub-column cloud generator
+
+        call mcica_subcol                                               &
+!  ---  inputs:
+     &     ( cldf, nlay, ipseed,                                        &
+!  ---  outputs:
+     &       lcloudy                                                    &
+     &     )
+
+        do ig = 1, ngptsw
+          do k = 1, nlay
+            if ( lcloudy(k,ig) ) then
+              cldfmc(k,ig) = f_one
+            else
+              cldfmc(k,ig) = f_zero
+            endif
+          enddo
+        enddo
+
+      else                         ! non-mcica, normalize cloud
+
+        do k = 1, nlay
+          cldfrc(k) = cfrac(k) / cf1
+        enddo
+      endif   ! end if_isubcsw_block
 
       return
 !...................................
@@ -1542,943 +1803,1659 @@
 !-----------------------------------
 
 
-
-!-----------------------------------
-      subroutine spcvrt                                                 &
-!...................................
-
+! ----------------------------------
+      subroutine mcica_subcol                                           &
+! ..................................
 !  ---  inputs:
-     &     ( colamt, colmol, coldry, cosz, sntz, albbm, albdf,          &
-     &       cf1, pclfr, taucw, ssacw, asycw, tauae, ssaae, asyae,      &
-     &       forfac, forfrac, indfor, selffac, selffrac, indself,       &
-     &       fac00, fac01, fac10, fac11, jp, jt, jt1, laytrop,          &
-     &       NLAY, NLP1,                                                &
-!    &       NLAY, NLP1,dbgu,                                           &
-!  ---  outputs: 
-     &       flxdc, flxuc, flxd0, flxu0                                 &
-!! ---  optional outputs:
-     &,      sfbmc, sfdfc, sfbm0, sfdf0                                 &
-     &,      suvbf0, suvbfc                                             &
-     &     )
+     &    ( cldf, nlay, ipseed,                                         &
+!  ---  outputs:
+     &      lcloudy                                                     &
+     &    )
 
-!  *******************************************************************  !
+!  ====================  defination of variables  ====================  !
 !                                                                       !
-!   purpose:  computes the shortwave radiation fluxes using two-stream  !
-!             method of howard barker                                   !
-!                                                                       !
-!   interface:  "spcvrt" is called by "swrad"                           !
-!                                                                       !
-!  *******************************************************************  !
-!                                                                       !
-!  input variables:                                                     !
-!     colamt(NLAY,MAXGAS)- column amounts of absorbing gases the index  !
-!                          1-MAXGAS are for water vapor, carbon diozide,!
-!                          ozone, nitrous oxide, methane, and oxigen,   !
-!                          respectively (molecules/cm**2)               !
-!     coldry(NLAY)       - dry air column amount(1.e-20*molecules/cm**2)!
-!     colmol(NLAY)       - total column amount (dry air+water vapor)    !
-!     cosz               - cosine of solar zenith angle                 !
-!     sntz               - secant of solar zenith angle                 !
-!     albbm (2)          - direct beam surface albedo for nir and uv+vis!
-!     albdf (2)          - diffuse surface albedo for nir and uv+vis    !
-!     cf1                - effective total cloud cover at surface       !
-!     pclfr (NLAY)       - layer cloud fraction                         !
-!     taucw,ssacw,asycw (NLAY,NBLOW:NBHGH)                              !
-!                        - layer cloud optical depth, single scattering !
-!                          albedo, and asymmetry factor (weighted value)!
-!     tauae,ssaae,asyae (NLAY,NBLOW:NBHGH)                              !
-!                        - layer aerosols optical depth, single scatt.  !
-!                          albedo, and asymmetry factor                 !
-!     forfac (NLAY)      - scale factor needed to foreign-continuum.    !
-!     forfrac(NLAY)      - factor needed for temperature interpolation  !
-!     indfor (NLAY)      - index of the lower of the two appropriate    !
-!                          reference temperatures needed for foreign-   !
-!                          continuum interpolation                      !
-!     selffac(NLAY)      - scale factor needed to h2o self-continuum.   !
-!     selffrac(NLAY)     - factor needed for temperature interpolation  !
-!                          of reference h2o self-continuum data         !
-!     indself(NLAY)      - index of the lower of the two appropriate    !
-!                          reference temperatures needed for the self-  !
-!                          continuum interpolation                      !
-!     facij  (NLAY)      - for each layer, these are factors that are   !
-!                          needed to compute the interpolation factors  !
-!                          that multiply the appropriate reference k-   !
-!                          values.  a value of 0/1 for i,j indicates    !
-!                          that the corresponding factor multiplies     !
-!                          reference k-value for the lower/higher of the!
-!                          two appropriate temperatures, and altitudes, !
-!                          respectively.                                !
-!     jp     (NLAY)      - the index of the lower (in altitude) of the  !
-!                          two appropriate ref pressure levels needed   !
-!                          for interpolation.                           !
-!     jt, jt1(NLAY)      - the indices of the lower of the two approp   !
-!                          ref temperatures needed for interpolation    !
-!                        (for pressure levels jp and jp+1, respectively)!
-!     laytrop            - layer at which switch is made from one       !
-!                          combination of key species to another        !
-!     NLAY, NLP1         - number of layers/levels                      !
+!  input variables:                                                size !
+!   cldf    - real, layer cloud fraction                           nlay !
+!   nlay    - integer, number of model vertical layers               1  !
+!   ipseed  - integer, permute seed for random num generator         1  !
+!    ** note : if the cloud generator is called multiple times, need    !
+!              to permute the seed between each call; if between calls  !
+!              for lw and sw, use values differ by the number of g-pts. !
 !                                                                       !
 !  output variables:                                                    !
-!     flxdc (NLP1,NBDSW) - downward flux for cloudy sky                 !
-!     flxuc (NLP1,NBDSW) - upward flux for cloudy sky                   !
-!     flxd0 (NLP1,NBDSW) - downward flux for clear sky                  !
-!     flxu0 (NLP1,NBDSW) - upward flux for clear sky                    !
+!   lcloudy - logical, sub-colum cloud profile flag array    nlay*ngptsw!
 !                                                                       !
-!! optional output variables:                                           !
-!     sfbmc (2)          - cloudy sky sfc down beam fluxes (nir,uv+vis) !
-!     sfdfc (2)          - clousy sky sfc down diff fluxes (nir,uv+vis) !
-!     sfbm0 (2)          - clear sky sfc  down beam fluxes (nir,uv+vis) !
-!     sfdf0 (2)          - clear sky sfc  down diff fluxes (nir,uv+vis) !
-!     suvbfc             - cloudy sky sfc  down uv-b fluxes             !
-!     suvbf0             - clear sky sfc  down uv-b fluxes              !
-!                                                                       !
-!  internal subroutines called:  taumol16-29, swflux                    !
-!  external subroutines called:  none                                   !
-!                                                                       !
-!  reference:  see radiation's part of the ecmwf research department    !
-!              documentation                                            !
-!                                                                       !
-!  program history:                                                     !
-!    2003-02-27  jean-jacques morcrette, ecmwf   original author        !
-!    2004-01-20  yu-tai hou    modified for ncep models                 !
+!  other control flags from module variables:                           !
+!     iovrsw    : control flag for cloud overlapping method             !
+!                 =0:random; =1:maximum/random; =2:maximum              !
 !                                                                       !
 !                                                                       !
-!  *******************************************************************  !
-!
-      use module_radsw_sflux_nmmb, only : sfluxref01, sfluxref02,       &
-     &                                    sfluxref03, strrat, specwt,   &
-     &                                    scalekur, layreffr, ix1, ix2, &
-     &                                    ibx, mfs01, mfs02, mfs03
-      use module_radsw_parameters_nmmb, only : NGMAX
-!
+!  =====================    end of definitions    ====================  !
+
       implicit none
 
 !  ---  inputs:
-      integer,               intent(in) :: NLAY, NLP1, laytrop
-!     integer,               intent(in) :: NLAY, NLP1, laytrop, dbgu
+      integer, intent(in) :: nlay, ipseed
 
-      integer, dimension(:), intent(in) :: indfor, indself, jp, jt, jt1
-
-      real (kind=kind_phys), dimension(:),  intent(in) :: pclfr,        &
-     &       coldry, colmol, forfac, forfrac, selffac, selffrac,        &
-     &       fac00, fac01, fac10, fac11, albbm, albdf
-
-      real (kind=kind_phys), dimension(:,:),intent(in) :: colamt
-
-      real (kind=kind_phys), dimension(:,NBLOW:),intent(in)::           &
-     &       taucw, ssacw, asycw, tauae, ssaae, asyae
-
-      real (kind=kind_phys), intent(in) :: cosz, sntz, cf1
+      real (kind=kind_phys), dimension(nlay), intent(in) :: cldf
 
 !  ---  outputs:
-      real (kind=kind_phys), dimension(:,:), intent(out) :: flxdc,      &
-     &       flxuc, flxd0, flxu0
-
-!! ---  optional outputs:
-      real (kind=kind_phys), dimension(:), optional, intent(out) ::     &
-     &       sfbmc, sfdfc, sfbm0, sfdf0
-      real (kind=kind_phys), optional, intent(out) :: suvbfc, suvbf0
+      logical, dimension(nlay,ngptsw), intent(out):: lcloudy
 
 !  ---  locals:
-      real (kind=kind_phys) :: fs, speccomb, specmult, colm1, colm2
+      real (kind=kind_phys) :: cdfunc(nlay,ngptsw), tem1,               &
+     &       rand2d(nlay*ngptsw), rand1d(ngptsw)
 
-!     real (kind=kind_phys), dimension(:,:), pointer :: sflxptr=>null()
-      real (kind=kind_phys), allocatable :: sflxptr(:,:)
+      type (random_stat) :: stat          ! for thread safe random generator
 
-      integer, dimension(NLAY,NBLOW:NBHGH) :: id0, id1
-      integer :: ibd, ifb, j, jb, js, k, klow, khgh, klim, ks, njb
-
-!  ---  direct outputs from "taumol##":
-      real (kind=kind_phys), dimension(NLAY,NGMAX) :: taug, taur
-      real (kind=kind_phys), dimension(NGMAX)      :: sfluxzen
-
-!  ---  direct outputs from "swflux":
-      real (kind=kind_phys), dimension(NLP1,2)     :: fxdn, fxup
-
-!! ---  for optional output from "swflux":
-      real (kind=kind_phys) :: sflxbc,sflxdc,sflxb0,sflxd0
-
+      integer :: k, n, k1
 !
 !===> ...  begin here
 !
-!  --- initialization of output fluxes
-      do ibd = 1, NBDSW
-        do k = 1, NLP1
-          flxdc(k,ibd) = zero
-          flxuc(k,ibd) = zero
-          flxd0(k,ibd) = zero
-          flxu0(k,ibd) = zero
-        enddo
-      enddo
+!  --- ...  advance randum number generator by ipseed values
 
-      if ( lfdncmp ) then
-!! ---  optional uv-b surface downward flux
-        suvbfc  = zero
-        suvbf0  = zero
+      call random_setseed                                               &
+!  ---  inputs:
+     &    ( ipseed,                                                     &
+!  ---  outputs:
+     &      stat                                                        &
+     &    )
 
-!! ---  optional output surface fluxes
-        sfbmc(1) = zero
-        sfbmc(2) = zero
-        sfdfc(1) = zero
-        sfdfc(2) = zero
-        sfbm0(1) = zero
-        sfbm0(2) = zero
-        sfdf0(1) = zero
-        sfdf0(2) = zero
-      endif
+!  --- ...  sub-column set up according to overlapping assumption
 
-      do jb = NBLOW, NBHGH
+      select case ( iovrsw )
 
-!  ---  indices for layer optical depth
-        do k = 1, laytrop
-          id0(k,jb) = ((jp(k)-1)*5 + (jt (k)-1)) * NSPA(jb)
-          id1(k,jb) = ( jp(k)   *5 + (jt1(k)-1)) * NSPA(jb)
-        enddo
+        case( 0 )        ! random overlap, pick a random value at every level
 
-        do k = laytrop+1, NLAY
-          id0(k,jb) = ((jp(k)-13)*5 + (jt (k)-1)) * NSPB(jb)
-          id1(k,jb) = ((jp(k)-12)*5 + (jt1(k)-1)) * NSPB(jb)
-        enddo
+          call random_number                                            &
+!  ---  inputs: ( none )
+!  ---  outputs:
+     &     ( rand2d, stat )
 
-      enddo
-
-!  ---  loop over each spectral band
-
-      lab_do_jb : do jb = NBLOW, NBHGH
-
-!  ---  calculate spectral flux at toa
-
-        ibd = ibx(jb)
-        njb = NG(jb)
-
-!       NULLIFY (sflxptr)
-
-!       write(dbgu,*)' jb=',jb
-!    &,' mfs01=',mfs01,' mfs02=',mfs02,' mfs03=',mfs03
-
-        if (allocated(sflxptr)) deallocate (sflxptr)
-        select case (jb)
-
-          case (16, 20, 23, 25, 26, 29)
-            
-            if (.not. allocated(sflxptr)) allocate(sflxptr(ngmax,mfs01))
-            sflxptr = sfluxref01(:,:,ibd)
-!           sflxptr => sfluxref01(:,:,ibd)
-
-            do j = 1, njb
-              sfluxzen(j) = sflxptr(j,1)
+          k1 = 0
+          do n = 1, ngptsw
+            do k = 1, nlay
+              k1 = k1 + 1
+              cdfunc(k,n) = rand2d(k1)
             enddo
+          enddo
 
-          case (27)
-            
-                        allocate(sflxptr(ngmax,mfs01))
-!           if (.not. allocated(sflxptr)) allocate(sflxptr(ngmax,mfs01))
-            sflxptr = sfluxref01(:,:,ibd)
-!           sflxptr => sfluxref01(:,:,ibd)
+        case( 1 )        ! max-ran overlap
 
-            do j = 1, njb
-              sfluxzen(j) = scalekur * sflxptr(j,1)
+          call random_number                                            &
+!  ---  inputs: ( none )
+!  ---  outputs:
+     &     ( rand2d, stat )
+
+          k1 = 0
+          do n = 1, ngptsw
+            do k = 1, nlay
+              k1 = k1 + 1
+              cdfunc(k,n) = rand2d(k1)
             enddo
+          enddo
 
-          case default
+!  ---  first pick a random number for bottom/top layer.
+!       then walk up the column: (aer's code)
+!       if layer below is cloudy, use the same rand num in the layer below
+!       if layer below is clear,  use a new random number
 
-            if (jb==17 .or. jb==28) then
-                        allocate(sflxptr(ngmax,mfs02))
-!             if (.not. allocated(sflxptr))                             &
-!    &                  allocate(sflxptr(ngmax,mfs02))
-              sflxptr = sfluxref02(:,:,ibd)
-!             sflxptr => sfluxref02(:,:,ibd)
-              klow = laytrop
-              khgh = NLAY - 1
-              klim = NLAY
-            else
-                        allocate(sflxptr(ngmax,mfs03))
-!             if (.not. allocated(sflxptr))                             &
-!    &                  allocate(sflxptr(ngmax,mfs03))
-              sflxptr = sfluxref03(:,:,ibd)
-!             sflxptr => sfluxref03(:,:,ibd)
-              klow = 1
-              khgh = laytrop - 1
-              klim = laytrop
-            endif
+!  ---  from bottom up
+          do k = 2, nlay
+            k1 = k - 1
+            tem1 = f_one - cldf(k1)
 
-            ks = klim
-            lab_do_k : do k = klow, khgh
-              if (jp(k)<layreffr(jb) .and. jp(k+1) >= layreffr(jb)) then
-                ks = k + 1
-                exit lab_do_k
+            do n = 1, ngptsw
+              if ( cdfunc(k1,n) > tem1 ) then
+                cdfunc(k,n) = cdfunc(k1,n)
+              else
+                cdfunc(k,n) = cdfunc(k,n) * tem1
               endif
-            enddo  lab_do_k
-
-            colm1 = colamt(ks,ix1(jb))
-            colm2 = colamt(ks,ix2(jb))
-            speccomb = colm1 + strrat(jb)*colm2
-            specmult = specwt(jb) * min( oneminus, colm1/speccomb )
-            js = 1 + int( specmult )
-            fs = mod(specmult, one)
-
-!       write(dbgu,*)' js=',js,' specmult=',specmult
-            do j = 1, njb
-!       write(dbgu,*)' j=',j,' js=',js,' specmult=',specmult
-              sfluxzen(j) = sflxptr(j,js)                               &
-     &                    + fs * (sflxptr(j,js+1) - sflxptr(j,js))
             enddo
-!           if (allocated(sflxptr)) deallocate (sflxptr)
+          enddo
 
-        end select
+!  ---  then walk down the column: (if use original author's method)
+!       if layer above is cloudy, use the same rand num in the layer above
+!       if layer above is clear,  use a new random number
 
-!  ---  call taumol## to calculate layer optical depth
+!  ---  from top down
+!         do k = nlay-1, 1, -1
+!           k1 = k + 1
+!           tem1 = f_one - cldf(k1)
 
-        if (jb == 16) then
+!           do n = 1, ngptsw
+!             if ( cdfunc(k1,n) > tem1 ) then
+!               cdfunc(k,n) = cdfunc(k1,n)
+!             else
+!               cdfunc(k,n) = cdfunc(k,n) * tem1
+!             endif
+!           enddo
+!         enddo
 
-          call taumol16
+        case( 2 )        ! maximum overlap, pick same random numebr at every level
 
-        else if (jb == 17) then
+          call random_number                                            &
+!  ---  inputs: ( none )
+!  ---  outputs:
+     &     ( rand1d, stat )
 
-          call taumol17
+          do n = 1, ngptsw
+            tem1 = rand1d(n)
 
-        else if (jb == 18) then
+            do k = 1, nlay
+              cdfunc(k,n) = tem1
+            enddo
+          enddo
 
-          call taumol18
+      end select
 
-        else if (jb == 19) then
+!  --- ...  generate subcolumns for homogeneous clouds
 
-          call taumol19
+      do k = 1, nlay
+        tem1 = f_one - cldf(k)
 
-        else if (jb == 20) then
-
-          call taumol20
-
-        else if (jb == 21) then
-
-          call taumol21
-
-        else if (jb == 22) then
-
-          call taumol22
-
-        else if (jb == 23) then
-
-          call taumol23
-
-        else if (jb == 24) then
-
-          call taumol24
-
-        else if (jb == 25) then
-
-!--- visible 16000-22650 cm-1   0.4415 - 0.6250 um
-
-          call taumol25
-
-        else if (jb == 26) then
-
-!--- uv-a 22650-29000 cm-1   0.3448 - 0.4415 um
-
-          call taumol26
-
-        else if (jb == 27) then
-
-!--- uv-b 29000-38000 cm-1   0.2632 - 0.3448 um
-
-          call taumol27
-
-        else if (jb == 28) then
-
-!--- uv-c 38000-50000 cm-1   0.2000 - 0.2632 um
-
-          call taumol28
-
-        else if (jb == 29) then
-
-          call taumol29
-
-        endif
-
-!  ---  compute radiation fluxes
-
-        call swflux ( jb )
-
-!  ---  accumulation of spectral fluxes over whole spectrum
-
-        ifb = jb - NBLOW + 1
-        do k = 1, NLP1
-          flxuc(k,ifb) = fxup(k,2)
-          flxdc(k,ifb) = fxdn(k,2)
-          flxu0(k,ifb) = fxup(k,1)
-          flxd0(k,ifb) = fxdn(k,1)
+        do n = 1, ngptsw
+          lcloudy(k,n) = cdfunc(k,n) >= tem1
         enddo
-!       write(dbgu,*)' ifb=',ifb,' fxup=',fxup(1:5,:),
-!    &' fxdn=',fxdn(1:5,:)
+      enddo
 
-        if ( lfdncmp ) then
-!! ---  optional uv-b surface downward flux
-          if (jb == nuvb) then
-            suvbf0 = suvbf0 + fxdn(1,1)
-            suvbfc = suvbfc + fxdn(1,2)
-          endif
-
-!! ---  optional surface downward flux components
-          ifb = IDXSFC(jb)
-          if (ifb == 0) then
-            sfbmc(1) = sfbmc(1) + 0.5*sflxbc
-            sfdfc(1) = sfdfc(1) + 0.5*sflxdc
-            sfbm0(1) = sfbm0(1) + 0.5*sflxb0
-            sfdf0(1) = sfdf0(1) + 0.5*sflxd0
-            sfbmc(2) = sfbmc(2) + 0.5*sflxbc
-            sfdfc(2) = sfdfc(2) + 0.5*sflxdc
-            sfbm0(2) = sfbm0(2) + 0.5*sflxb0
-            sfdf0(2) = sfdf0(2) + 0.5*sflxd0
-          else
-            sfbmc(ifb) = sfbmc(ifb) + sflxbc
-            sfdfc(ifb) = sfdfc(ifb) + sflxdc
-            sfbm0(ifb) = sfbm0(ifb) + sflxb0
-            sfdf0(ifb) = sfdf0(ifb) + sflxd0
-          endif
-        endif    ! end if_lfdncmp
-
-      enddo  lab_do_jb
+      return
+! ..................................
+      end subroutine mcica_subcol
+! ----------------------------------
 
 
-! =================
-      contains
-! =================
+! ----------------------------------
+      subroutine setcoef                                                &
+! ..................................
+!  ---  inputs:
+     &     ( pavel,tavel,h2ovmr, nlay,nlp1,                             &
+!  ---  outputs:
+     &       laytrop,jp,jt,jt1,fac00,fac01,fac10,fac11,                 &
+     &       selffac,selffrac,indself,forfac,forfrac,indfor             &
+     &     )
 
-!-----------------------------------
-      subroutine swflux ( ib )
-!...................................
-
-!  *******************************************************************  !
+!  ===================  program usage description  ===================  !
 !                                                                       !
-!   purpose:  computes the upward and downward radiation fluxes         !
-!             this program combines the original "reftra" and "vrtqdr"  !
+! purpose:  compute various coefficients needed in radiative transfer   !
+!    calculations.                                                      !
 !                                                                       !
-!             first (reftra) it computes the reflectivity and           !
-!             transmissivity of a clear or cloudy layer using a choice  !
-!             of various approximations.                                !
+! subprograms called:  none                                             !
 !                                                                       !
-!             then (vrtqdr) performs the vertical quadrature            !
-!             integration to obtain level fluxes.                       !
+!  ====================  defination of variables  ====================  !
 !                                                                       !
-!   interface:  "swflux" is called by "spcvrt"                          !
+!  inputs:                                                       -size- !
+!   pavel     - real, layer pressures (mb)                         nlay !
+!   tavel     - real, layer temperatures (k)                       nlay !
+!   h2ovmr    - real, layer w.v. volum mixing ratio (kg/kg)        nlay !
+!   nlay/nlp1 - integer, total number of vertical layers, levels    1   !
 !                                                                       !
-!  *******************************************************************  !
+!  outputs:                                                             !
+!   laytrop   - integer, tropopause layer index (unitless)          1   !
+!   jp        - real, indices of lower reference pressure          nlay !
+!   jt, jt1   - real, indices of lower reference temperatures      nlay !
+!                 at levels of jp and jp+1                              !
+!   facij     - real, factors multiply the reference ks,           nlay !
+!                 i,j=0/1 for lower/higher of the 2 appropriate         !
+!                 temperatures and altitudes.                           !
+!   selffac   - real, scale factor for w. v. self-continuum        nlay !
+!                 equals (w. v. density)/(atmospheric density           !
+!                 at 296k and 1013 mb)                                  !
+!   selffrac  - real, factor for temperature interpolation of      nlay !
+!                 reference w. v. self-continuum data                   !
+!   indself   - integer, index of lower ref temp for selffac       nlay !
+!   forfac    - real, scale factor for w. v. foreign-continuum     nlay !
+!   forfrac   - real, factor for temperature interpolation of      nlay !
+!                 reference w.v. foreign-continuum data                 !
+!   indfor    - integer, index of lower ref temp for forfac        nlay !
 !                                                                       !
-!  input variables:                                                     !
-!    ib               - spectral band index                             !
-!  input variables (direct from "spcvrt"):                              !
-!    taug (NLAY,NGMAX)- spectral optical depth for gases                !
-!    taur (NLAY,NGMAX)- spectral optical depth for rayleigh scattering  !
-!    sfluxzen  (NGMAX)- spectral distribution of incoming solar flux    !
-!    taucw(NLAY,NBLOW:NBHGH) - weighted cloud optical depth             !
-!    ssacw(NLAY,NBLOW:NBHGH) - weighted cloud single scattering albedo  !
-!    asycw(NLAY,NBLOW:NBHGH) - weighted cloud asymmetry factor          !
-!    tauae(NLAY,NBLOW:NBHGH) - aerosols optical depth                   !
-!    ssaae(NLAY,NBLOW:NBHGH) - aerosols single scattering albedo        !
-!    asyae(NLAY,NBLOW:NBHGH) - aerosols asymmetry factor                !
-!    cf1              - >0: cloudy sky, otherwise: clear sky            !
-!    pclfr(NLAY)      - layer cloud fraction                            !
-!    cosz             - cosine solar zenith angle                       !
-!    sntz             - secant solar zenith angle                       !
-!    albbm(2)         - surface albedo for direct beam radiation        !
-!    albdf(2)         - surface albedo for diffused radiation           !
-!    NLAY, NLP1    - number of layers/levels                            !
-!                                                                       !
-!  control parameters in module "module_radsw_cntr_para":               !
-!    imodsw        - control flag for 2-stream transfer schemes         !
-!                    = 1 delta-eddington    (joseph et al., 1976)       !
-!                    = 2 pifm               (zdunkowski et al., 1980)   !
-!                    = 3 discrete ordinates (liou, 1973)                !
-!                                                                       !
-!  output variables (direct to "spcvrt"):                               !
-!    fxdn (NLP1,2)   - downward flux, 1: clear sky, 2: cloudy sky       !
-!    fzup (NLP1,2)   - upward flux,   1: clear sky, 2: cloudy sky       !
-!                                                                       !
-!! optional output variables (direct to "spcvrt"):                      !
-!    sflxbc        - cloudy sky sfc downward beam flux                  !
-!    sflxdc        - cloudy sky sfc downward diff flux                  !
-!    sflxb0        - clear sky sfc downward beam flux                   !
-!    sflxd0        - clear sky sfc downward diff flux                   !
-!                                                                       !
-!  internal variables:                                                  !
-!    zrefb(NLP1,2) - direct beam reflectivity for clear and cloudy      !
-!    zrefd(NLP1,2) - diffuse reflectivity for clear and cloudy          !
-!    ztrab(NLP1,2) - direct beam transmissivity for clear and cloudy    !
-!    ztrad(NLP1,2) - diffuse transmissivity for clear and cloudy        !
-!    zldbt(NLP1,2) - layer mean beam transmittance for clear and cloudy !
-!    ztdbt(NLP1,2) - total beam transmittance at levels for clr and cld !
-!    jg               - g-point index                                   !
-!                                                                       !
-!  external subroutines called:  none                                   !
-!                                                                       !
-!  program history:                                                     !
-!    2003-02-27  jean-jacques morcrette, ecmwf   original author        !
-!    2004-01-20  yu-tai hou    modified for ncep models                 !
-!    2005-03-10  yu-tai hou    modified delta scaling                   !
-!                                                                       !
-!  *******************************************************************  !
-!
-      implicit none
-
-      real (kind=kind_phys), parameter :: zcrit = 0.9995   ! thresold for conservative scattering
-      real (kind=kind_phys), parameter :: zsr3  = sqrt(3.0)
+!  ======================    end of definitions    ===================  !
 
 !  ---  inputs:
-      integer, intent(in) :: ib
+      integer, intent(in) :: nlay, nlp1
+
+      real (kind=kind_phys), dimension(:), intent(in) :: pavel, tavel,  &
+     &       h2ovmr
+
+!  ---  outputs:
+      integer, dimension(nlay), intent(out) :: indself, indfor,         &
+     &       jp, jt, jt1
+      integer, intent(out) :: laytrop
+
+      real (kind=kind_phys), dimension(nlay), intent(out) :: fac00,     &
+     &       fac01, fac10, fac11, selffac, selffrac, forfac, forfrac
 
 !  ---  locals:
-      real (kind=kind_phys), dimension(NLAY,2) :: ztau, zssa, zasy,     &
-     &       zssa0, zexpt
+      real (kind=kind_phys) :: plog, fp, fp1, ft, ft1, tem1, tem2
 
-      real (kind=kind_phys), dimension(NLP1,2) :: zrefb, zrefd, ztrab,  &
-     &       ztrad, zldbt, ztdbt
-
-      real (kind=kind_phys), dimension(NLAY) :: ztaus, zssas, zasys
-
-      real (kind=kind_phys), dimension(NLP1) :: zrupb, zrupd, zrdnd,    &
-     &       ztdn, zfd, zfu
-
-      real (kind=kind_phys) :: ztau1, zssa1, zasy1, zasy3, zwo,         &
-     &       zgam1, zgam2, zgam3, zgam4, zc0, zc1, za1, za2, zrk, zrk2, &
-     &       zrp, zrp1, zrm1, zrpp, zrkg1, zrkg3, zrkg4, zexp1, zexm1,  &
-     &       zexp2, zexm2, zden1, ze1r45
-
-      real (kind=kind_phys) :: zr1, zr2, zr3, zr4, zr5, zt1, zt2, zt3
-
-!! ---  for optional surface fluxes
-      real (kind=kind_phys), dimension(2) :: sfxbm, sfxdf
-
-      integer :: k, kp, jg, ngt, ipa, iab
+      integer :: i, k, jp1
 !
 !===> ... begin here
 !
-      ngt = NG(ib)             ! number of g-point in each band
-      iab = IDXALB(ib)         ! surface albedo spectral index
+      laytrop= nlay
 
-      do k = 1, NLP1
-        fxdn(k,1) = zero
-        fxdn(k,2) = zero
-        fxup(k,1) = zero
-        fxup(k,2) = zero
-      enddo
+      do k = 1, nlay
 
-!! ---  optional surface fluxes
-      if ( lfdncmp ) then
-        sfxbm(1) = zero
-        sfxbm(2) = zero
-        sfxdf(1) = zero
-        sfxdf(2) = zero
-      endif
+        forfac(k) = pavel(k)*stpfac / (tavel(k)*(f_one + h2ovmr(k)))
 
-!  ---  loop over all g-points in each band
+!  --- ...  find the two reference pressures on either side of the
+!           layer pressure.  store them in jp and jp1.  store in fp the
+!           fraction of the difference (in ln(pressure)) between these
+!           two values that the layer pressure lies.
 
-      lab_do_jg : do jg = 1, ngt
+        plog  = log(pavel(k))
+        jp(k) = max(1, min(58, int(36.0 - 5.0*(plog+0.04)) ))
+        jp1   = jp(k) + 1
+        fp    = 5.0 * (preflog(jp(k)) - plog)
 
-!  ---  compute clear-sky optical parameters
+!  --- ...  determine, for each reference pressure (jp and jp1), which
+!          reference temperature (these are different for each reference
+!          pressure) is nearest the layer temperature but does not exceed it.
+!          store these indices in jt and jt1, resp. store in ft (resp. ft1)
+!          the fraction of the way between jt (jt1) and the next highest
+!          reference temperature that the layer temperature falls.
 
-        do k = 1, NLAY
-          ztaus(k) = max(ftiny, taur(k,jg) + taug(k,jg) + tauae(k,ib))
-          zssas(k) = taur(k,jg) + tauae(k,ib)*ssaae(k,ib)
-          zasys(k) = asyae(k,ib)*ssaae(k,ib)*tauae(k,ib)
-          zssa1 = min(oneminus, zssas(k) / ztaus(k))
-          zasy1 = zasys(k) / max(ftiny, zssas(k))
-          zssa0(k,1) = zssa1
+        tem1 = (tavel(k) - tref(jp(k))) / 15.0
+        tem2 = (tavel(k) - tref(jp1  )) / 15.0
+        jt (k) = max(1, min(4, int(3.0 + tem1) ))
+        jt1(k) = max(1, min(4, int(3.0 + tem2) ))
+        ft  = tem1 - float(jt (k) - 3)
+        ft1 = tem2 - float(jt1(k) - 3)
 
-!  ---  delta scaling
-          za1 = zasy1 * zasy1
-          za2 = zssa1 * za1
+!  --- ...  we have now isolated the layer ln pressure and temperature,
+!           between two reference pressures and two reference temperatures
+!           (for each reference pressure).  we multiply the pressure
+!           fraction fp with the appropriate temperature fractions to get
+!           the factors that will be needed for the interpolation that yields
+!           the optical depths (performed in routines taugbn for band n).
 
-          ztau (k,1) = (one - za2) * ztaus(k)
-          zssa (k,1) = (zssa1 - za2) / (one - za2)
-          zasy (k,1) = (zasy1 - za1) / (one - za1)
-          zexpt(k,1) = exp ( - min( ztau(k,1)*sntz, 200.0) )
-        enddo
+        fp1 = f_one - fp
+        fac10(k) = fp1 * ft
+        fac00(k) = fp1 * (f_one - ft)
+        fac11(k) = fp  * ft1
+        fac01(k) = fp  * (f_one - ft1)
 
-!  ---  compute total sky optical parameters
+!  --- ...  if the pressure is less than ~100mb, perform a different
+!           set of species interpolations.
 
-        if (cf1 > eps) then
+        if ( plog > 4.56 ) then
 
-          do k = 1, NLAY
-            if (pclfr(k) > eps) then
-              ztau1 = ztaus(k) + taucw(k,ib)
-              zc0   = zssas(k) + ssacw(k,ib)
-              zc1   = zasys(k) + asycw(k,ib)
-              zssa1 = min(oneminus, zc0 / ztau1)
-              zasy1 = zc1 / max(ftiny, zc0)
-              zssa0(k,2) = zssa1
+          laytrop =  k
 
-!  ---  delta scaling
-              za1 = zasy1 * zasy1
-              za2 = zssa1 * za1
+!  --- ...  set up factors needed to separately include the water vapor
+!           foreign-continuum in the calculation of absorption coefficient.
 
-              ztau (k,2) = (one - za2) * ztau1
-              zssa (k,2) = (zssa1 - za2) / (one - za2)
-              zasy (k,2) = (zasy1 - za1) / (one - za1)
-              zexpt(k,2) = exp ( - min( ztau(k,2)*sntz, 200.0) )
-            else
-              ztau (k,2) = ztau (k,1)
-              zssa (k,2) = zssa (k,1)
-              zasy (k,2) = zasy (k,1)
-              zssa0(k,2) = zssa0(k,1)
-              zexpt(k,2) = zexpt(k,1)
-            endif
-          enddo
+          tem1 = (332.0 - tavel(k)) / 36.0
+          indfor (k) = min(2, max(1, int(tem1)))
+          forfrac(k) = tem1 - float(indfor(k))
+
+!  --- ...  set up factors needed to separately include the water vapor
+!           self-continuum in the calculation of absorption coefficient.
+
+          tem2 = (tavel(k) - 188.0) / 7.2
+          indself (k) = min(9, max(1, int(tem2)-7))
+          selffrac(k) = tem2 - float(indself(k) + 7)
+          selffac (k) = h2ovmr(k) * forfac(k)
 
         else
 
-          do k = 1, NLAY
-            ztau (k,2) = ztau (k,1)
-            zssa (k,2) = zssa (k,1)
-            zasy (k,2) = zasy (k,1)
-            zssa0(k,2) = zssa0(k,1)
-            zexpt(k,2) = zexpt(k,1)
+!  --- ...  set up factors needed to separately include the water vapor
+!           foreign-continuum in the calculation of absorption coefficient.
+
+          tem1 = (tavel(k) - 188.0) / 36.0
+          indfor (k) = 3
+          forfrac(k) = tem1 - f_one
+
+          indself (k) = 0
+          selffrac(k) = f_zero
+          selffac (k) = f_zero
+
+        endif
+
+      enddo    ! end_do_k_loop
+
+      return
+! ..................................
+      end subroutine setcoef
+! ----------------------------------
+
+
+!-----------------------------------
+      subroutine spcvrtc                                                &
+!...................................
+!  ---  inputs:
+     &     ( ssolar,cosz,sntz,albbm,albdf,sfluxzen,cldfrc,              &
+     &       cf1,cf0,taug,taur,tauae,ssaae,asyae,taucw,ssacw,asycw,     &
+     &       nlay, nlp1, nday,                                          &
+!  ---  outputs:
+     &       fxupc,fxdnc,fxup0,fxdn0,                                   &
+     &       ftoauc,ftoau0,ftoadc,fsfcuc,fsfcu0,fsfcdc,fsfcd0,          &
+     &       sfbmc,sfdfc,sfbm0,sfdf0,suvbfc,suvbf0                      &
+     &     )
+
+!  ===================  program usage description  ===================  !
+!                                                                       !
+!   purpose:  computes the shortwave radiative fluxes using two-stream  !
+!             method                                                    !
+!                                                                       !
+!   subprograms called:  swflux                                         !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                        size  !
+!    ssolar  - real, incoming solar flux at top                    1    !
+!    cosz    - real, cosine solar zenith angle                     1    !
+!    sntz    - real, secant solar zenith angle                     1    !
+!    albbm   - real, surface albedo for direct beam radiation      2    !
+!    albdf   - real, surface albedo for diffused radiation         2    !
+!    sfluxzen- real, spectral distribution of incoming solar flux ngptsw!
+!    cldfrc  - real, layer cloud fraction                         nlay  !
+!    cf1     - real, >0: cloudy sky, otherwise: clear sky          1    !
+!    cf0     - real, =1-cf1                                        1    !
+!    taug    - real, spectral optical depth for gases        nlay*ngptsw!
+!    taur    - real, optical depth for rayleigh scattering   nlay*ngptsw!
+!    tauae   - real, aerosols optical depth                  nlay*nbdsw !
+!    ssaae   - real, aerosols single scattering albedo       nlay*nbdsw !
+!    asyae   - real, aerosols asymmetry factor               nlay*nbdsw !
+!    taucw   - real, weighted cloud optical depth            nlay*nbdsw !
+!    ssacw   - real, weighted cloud single scat albedo       nlay*nbdsw !
+!    asycw   - real, weighted cloud asymmetry factor         nlay*nbdsw !
+!    nlay,nlp1 - integer,  number of layers/levels                 1    !
+!                                                                       !
+!  output variables:                                                    !
+!    fxupc   - real, tot sky upward flux                     nlp1*nbdsw !
+!    fxdnc   - real, tot sky downward flux                   nlp1*nbdsw !
+!    fxup0   - real, clr sky upward flux                     nlp1*nbdsw !
+!    fxdn0   - real, clr sky downward flux                   nlp1*nbdsw !
+!    ftoauc  - real, tot sky toa upwd flux                         1    !
+!    ftoau0  - real, clr sky toa upwd flux                         1    !
+!    ftoadc  - real, toa downward (incoming) solar flux            1    !
+!    fsfcuc  - real, tot sky sfc upwd flux                         1    !
+!    fsfcu0  - real, clr sky sfc upwd flux                         1    !
+!    fsfcdc  - real, tot sky sfc dnwd flux                         1    !
+!    fsfcd0  - real, clr sky sfc dnwd flux                         1    !
+!    sfbmc   - real, tot sky sfc dnwd beam flux (nir/uv+vis)       2    !
+!    sfdfc   - real, tot sky sfc dnwd diff flux (nir/uv+vis)       2    !
+!    sfbm0   - real, clr sky sfc dnwd beam flux (nir/uv+vis)       2    !
+!    sfdf0   - real, clr sky sfc dnwd diff flux (nir/uv+vis)       2    !
+!    suvbfc  - real, tot sky sfc dnwd uv-b flux                    1    !
+!    suvbf0  - real, clr sky sfc dnwd uv-b flux                    1    !
+!                                                                       !
+!  internal variables:                                                  !
+!    zrefb   - real, direct beam reflectivity for clear/cloudy    nlp1  !
+!    zrefd   - real, diffuse reflectivity for clear/cloudy        nlp1  !
+!    ztrab   - real, direct beam transmissivity for clear/cloudy  nlp1  !
+!    ztrad   - real, diffuse transmissivity for clear/cloudy      nlp1  !
+!    zldbt   - real, layer beam transmittance for clear/cloudy    nlp1  !
+!    ztdbt   - real, lev total beam transmittance for clr/cld     nlp1  !
+!                                                                       !
+!  control parameters in module "physparam"                             !
+!    iswmode - control flag for 2-stream transfer schemes               !
+!              = 1 delta-eddington    (joseph et al., 1976)             !
+!              = 2 pifm               (zdunkowski et al., 1980)         !
+!              = 3 discrete ordinates (liou, 1973)                      !
+!                                                                       !
+!  *******************************************************************  !
+!  original code description                                            !
+!                                                                       !
+!  method:                                                              !
+!  -------                                                              !
+!     standard delta-eddington, p.i.f.m., or d.o.m. layer calculations. !
+!     kmodts  = 1 eddington (joseph et al., 1976)                       !
+!             = 2 pifm (zdunkowski et al., 1980)                        !
+!             = 3 discrete ordinates (liou, 1973)                       !
+!                                                                       !
+!  modifications:                                                       !
+!  --------------                                                       !
+!   original: h. barker                                                 !
+!   revision: merge with rrtmg_sw: j.-j.morcrette, ecmwf, feb 2003      !
+!   revision: add adjustment for earth/sun distance:mjiacono,aer,oct2003!
+!   revision: bug fix for use of palbp and palbd: mjiacono, aer, nov2003!
+!   revision: bug fix to apply delta scaling to clear sky: aer, dec2004 !
+!   revision: code modified so that delta scaling is not done in cloudy !
+!             profiles if routine cldprop is used; delta scaling can be !
+!             applied by swithcing code below if cldprop is not used to !
+!             get cloud properties. aer, jan 2005                       !
+!   revision: uniform formatting for rrtmg: mjiacono, aer, jul 2006     !
+!   revision: use exponential lookup table for transmittance: mjiacono, !
+!             aer, aug 2007                                             !
+!                                                                       !
+!  *******************************************************************  !
+!  ======================  end of description block  =================  !
+
+!  ---  constant parameters:
+      real (kind=kind_phys), parameter :: zcrit = 0.9999995 ! thresold for conservative scattering
+      real (kind=kind_phys), parameter :: zsr3  = sqrt(3.0)
+      real (kind=kind_phys), parameter :: od_lo = 0.06
+      real (kind=kind_phys), parameter :: eps1  = 1.0e-8
+
+
+!  ---  inputs:
+      integer, intent(in) :: nlay, nlp1, nday
+
+      real (kind=kind_phys),dimension(CHK,nlay,ngptsw),intent(inout) ::      &
+     &       taug, taur
+      real (kind=kind_phys),dimension(CHK,nlay,nbdsw), intent(inout) ::      &
+     &       taucw, ssacw, asycw, tauae, ssaae, asyae
+
+      real (kind=kind_phys),dimension(CHK,ngptsw),intent(inout)::       &
+     &       sfluxzen
+      real (kind=kind_phys),dimension(CHK,nlay),  intent(inout)::cldfrc
+
+      real (kind=kind_phys),dimension(CHK,2), intent(inout)::albbm,albdf
+
+      real (kind=kind_phys), dimension(CHK), intent(inout) ::           &
+     &       cosz, sntz, cf1, cf0, ssolar
+
+
+!  ---  outputs:
+      real (kind=kind_phys), dimension(CHK,nlp1,nbdsw), intent(out) ::      &
+     &       fxupc, fxdnc, fxup0, fxdn0
+
+      real (kind=kind_phys),dimension(CHK,2),intent(out):: sfbmc, sfdfc, &
+     &       sfbm0, sfdf0
+
+      real (kind=kind_phys), dimension(CHK), intent(out) ::             &
+     &       suvbfc, suvbf0, ftoadc,                                    &
+     &       ftoauc, ftoau0, fsfcuc, fsfcu0, fsfcdc, fsfcd0
+
+!  ---  locals:
+      real (kind=kind_phys), dimension(CHK,nlay) :: ztaus, zssas, zasys,    &
+     &       zldbt0
+
+      real (kind=kind_phys), dimension(CHK,nlp1) :: zrefb, zrefd, ztrab,    &
+     &       ztrad, ztdbt, zldbt, zfu, zfd
+
+      real (kind=kind_phys),dimension(CHK) ::                           &
+     &       zsolar, ztdbt0
+      real (kind=kind_phys) :: ztau1, zssa1, zasy1, ztau0, zssa0,       &
+     &       zasy0, zasy3, zssaw, zasyw, zgam1, zgam2, zgam3, zgam4,    &
+     &       zc0, zc1, za1, za2, zb1, zb2, zrk, zrk2, zrp, zrp1, zrm1,  &
+     &       zrpp, zrkg1, zrkg3, zrkg4, zexp1, zexm1, zexp2, zexm2,     &
+     &       zexp3, zexp4, zden1, ze1r45, ftind,         zrefb1,        &
+     &       zrefd1, ztrab1, ztrad1,         zr1, zr2, zr3, zr4, zr5,   &
+     &       zt1, zt2, zt3, zf1, zf2
+
+      integer :: ib, ibd, jb, jg, k, kp, itind, j1, i, j
+      logical, dimension(CHK) :: lmask
+!
+!===> ...  begin here
+#if 0
+      write(0,*)__LINE__,'nday NDAY ',nday,NDAY
+      SHOWSHAPE(__LINE__,cosz)
+      SHOWSHAPE(__LINE__,sntz)
+      SHOWSHAPE(__LINE__,cf1)
+      SHOWSHAPE(__LINE__,cf0)
+      SHOWSHAPE(__LINE__,albbm)
+      SHOWSHAPE(__LINE__,albdf)
+      SHOWSHAPE(__LINE__,ssolar)
+      SHOWSHAPE(__LINE__,cldfrc)
+      SHOWSHAPE(__LINE__,sfluxzen)
+      SHOWSHAPE(__LINE__,taug)
+      SHOWSHAPE(__LINE__,taur)
+      SHOWSHAPE(__LINE__,taucw)
+      SHOWSHAPE(__LINE__,ssacw)
+      SHOWSHAPE(__LINE__,asycw)
+      SHOWSHAPE(__LINE__,tauae)
+      SHOWSHAPE(__LINE__,ssaae)
+      SHOWSHAPE(__LINE__,asyae)
+#endif
+#if 1
+      if ( nday < CHK ) then
+!jm      write(0,*)__LINE__,'nday+1:CHK ',nday+1,CHK
+        cosz  (nday+1:CHK)    = cosz (nday)
+        sntz  (nday+1:CHK)    = sntz (nday)
+        cf1   (nday+1:CHK)    = cf1 (nday)
+        cf0   (nday+1:CHK)    = cf0 (nday)
+        ssolar   (nday+1:CHK) = ssolar (nday)
+        albbm   (nday+1:CHK,1) = albbm (nday,1)
+        albdf   (nday+1:CHK,1) = albdf (nday,1)
+        albbm   (nday+1:CHK,2) = albbm (nday,2)
+        albdf   (nday+1:CHK,2) = albdf (nday,2)
+        do k = 1,nlay
+          cldfrc   (nday+1:CHK,k)  = cldfrc  (nday,k)
+        enddo
+        do j = 1,ngptsw
+          sfluxzen   (nday+1:CHK,j)= sfluxzen  (nday,j)
+          do k = 1,nlay
+            taug   (nday+1:CHK,k,j)= taug  (nday,k,j)
+            taur   (nday+1:CHK,k,j)= taur  (nday,k,j)
           enddo
+        enddo
+        do j = 1,nbdsw
+          do k = 1,nlay
+            taucw   (nday+1:CHK,k,j)= taucw  (nday,k,j)
+            ssacw   (nday+1:CHK,k,j)= ssacw  (nday,k,j)
+            asycw   (nday+1:CHK,k,j)= asycw  (nday,k,j)
+            tauae   (nday+1:CHK,k,j)= tauae  (nday,k,j)
+            ssaae   (nday+1:CHK,k,j)= ssaae  (nday,k,j)
+            asyae   (nday+1:CHK,k,j)= asyae  (nday,k,j)
+          enddo
+        enddo
+      endif
+#endif
 
-        endif  ! end_if_cf1
+!
+!  --- ... initialization of output fluxes
 
-!  ---  compute layer reflectance and transmittance
+      do ib = 1, nbdsw
+        do k = 1, nlp1
+          fxdnc(:,k,ib) = f_zero
+          fxupc(:,k,ib) = f_zero
+          fxdn0(:,k,ib) = f_zero
+          fxup0(:,k,ib) = f_zero
+        enddo
+      enddo
 
-        lab_do_ipa1 : do ipa = 1, 2             ! 1: clear-sky,  2, cloudy-sky
+      ftoadc = f_zero
+      ftoauc = f_zero
+      ftoau0 = f_zero
+      fsfcuc = f_zero
+      fsfcu0 = f_zero
+      fsfcdc = f_zero
+      fsfcd0 = f_zero
 
-          do k = 1, NLAY
+!! --- ...  uv-b surface downward fluxes
+      suvbfc  = f_zero
+      suvbf0  = f_zero
+
+!! --- ...  output surface flux components
+      sfbmc = f_zero
+      sfdfc = f_zero
+      sfbm0 = f_zero
+      sfdf0 = f_zero
+
+!  --- ...  loop over all g-points in each band
+
+      lab_do_jg : do jg = 1, ngptsw
+
+        jb = NGB(jg)
+        ib = jb + 1 - nblow
+        ibd = idxsfc(jb)
+
+        zsolar = ssolar * sfluxzen(:,jg)
+
+!  --- ...  set up toa direct beam and surface values (beam and diff)
+
+        ztdbt(:,nlp1) = f_one
+        ztdbt0   = f_one
+
+        zldbt(:,1) = f_zero
+        if (ibd /= 0) then
+          zrefb(:,1) = albbm(:,ibd)
+          zrefd(:,1) = albdf(:,ibd)
+        else
+          zrefb(:,1) = 0.5 * (albbm(:,1) + albbm(:,2))
+          zrefd(:,1) = 0.5 * (albdf(:,1) + albdf(:,2))
+        endif
+        ztrab(:,1) = f_zero
+        ztrad(:,1) = f_zero
+
+!  --- ...  compute clear-sky optical parameters, layer reflectance and transmittance
+
+        do k = nlay, 1, -1
+          kp = k + 1
+         DO j1=1,NDAY
+          ztau0 = max(ftiny, taur(j1,k,jg)+taug(j1,k,jg)+tauae(j1,k,ib))
+          zssa0 = taur(j1,k,jg) + tauae(j1,k,ib)*ssaae(j1,k,ib)
+          zasy0 = asyae(j1,k,ib)*ssaae(j1,k,ib)*tauae(j1,k,ib)
+          zssaw = min( oneminus, zssa0 / ztau0 )
+          zasyw = zasy0 / max( ftiny, zssa0 )
+
+!  --- ...  saving clear-sky quantities for later total-sky usage
+          ztaus(j1,k) = ztau0
+          zssas(j1,k) = zssa0
+          zasys(j1,k) = zasy0
+
+!  --- ...  delta scaling for clear-sky condition
+          za1 = zasyw * zasyw
+          za2 = zssaw * za1
+
+          ztau1 = (f_one - za2) * ztau0
+          zssa1 = (zssaw - za2) / (f_one - za2)
+!org      zasy1 = (zasyw - za1) / (f_one - za1)   ! this line is replaced by the next
+          zasy1 = zasyw / (f_one + zasyw)         ! to reduce truncation error
+          zasy3 = 0.75 * zasy1
+
+!  --- ...  general two-stream expressions
+          if ( iswmode == 1 ) then
+            zgam1 = 1.75 - zssa1 * (f_one + zasy3)
+            zgam2 =-0.25 - zssa1 * (f_one - zasy3)
+            zgam3 = 0.5  - zasy3 * cosz(j1)
+          elseif ( iswmode == 2 ) then               ! pifm
+            zgam1 = 2.0 - zssa1 * (1.25 + zasy3)
+            zgam2 = 0.75* zssa1 * (f_one- zasy1)
+            zgam3 = 0.5 - zasy3 * cosz(j1)
+          elseif ( iswmode == 3 ) then               ! discrete ordinates
+            zgam1 = zsr3 * (2.0 - zssa1 * (1.0 + zasy1)) * 0.5
+            zgam2 = zsr3 * zssa1 * (1.0 - zasy1) * 0.5
+            zgam3 = (1.0 - zsr3 * zasy1 * cosz(j1)) * 0.5
+          endif
+          zgam4 = f_one - zgam3
+
+!  --- ...  compute homogeneous reflectance and transmittance
+
+          if ( zssaw >= zcrit ) then    ! for conservative scattering
+            za1 = zgam1 * cosz(j1) - zgam3
+            za2 = zgam1 * ztau1
+
+!  --- ...  use exponential lookup table for transmittance, or expansion
+!           of exponential for low optical depth
+
+            zb1 = min ( ztau1*sntz(j1) , 500.0 )
+            if ( zb1 <= od_lo ) then
+              zb2 = f_one - zb1 + 0.5*zb1*zb1
+            else
+              ftind = zb1 / (bpade + zb1)
+              itind = ftind*NTBMX + 0.5
+              zb2 = exp_tbl(itind)
+            endif
+
+!      ...  collimated beam
+            zrefb(j1,kp) = max(f_zero, min(f_one,                          &
+     &                  (za2 - za1*(f_one - zb2))/(f_one + za2) ))
+            ztrab(j1,kp) = max(f_zero, min(f_one, f_one-zrefb(j1,kp) ))
+
+!      ...  isotropic incidence
+            zrefd(j1,kp) = max(f_zero, min(f_one, za2/(f_one + za2) ))
+            ztrad(j1,kp) = max(f_zero, min(f_one, f_one-zrefd(j1,kp) ))
+
+          else                          ! for non-conservative scattering
+            za1 = zgam1*zgam4 + zgam2*zgam3
+            za2 = zgam1*zgam3 + zgam2*zgam4
+            zrk = sqrt ( (zgam1 - zgam2) * (zgam1 + zgam2) )
+            zrk2= 2.0 * zrk
+
+            zrp  = zrk * cosz(j1)
+            zrp1 = f_one + zrp
+            zrm1 = f_one - zrp
+            zrpp = f_one - zrp*zrp
+            zrkg1= zrk + zgam1
+            zrkg3= zrk * zgam3
+            zrkg4= zrk * zgam4
+
+            zr1  = zrm1 * (za2 + zrkg3)
+            zr2  = zrp1 * (za2 - zrkg3)
+            zr3  = zrk2 * (zgam3 - za2*cosz(j1))
+            zr4  = zrpp * zrkg1
+            zr5  = zrpp * (zrk - zgam1)
+
+            zt1  = zrp1 * (za1 + zrkg4)
+            zt2  = zrm1 * (za1 - zrkg4)
+            zt3  = zrk2 * (zgam4 + za1*cosz(j1))
+
+!  --- ...  use exponential lookup table for transmittance, or expansion
+!           of exponential for low optical depth
+
+            zb1 = min ( zrk*ztau1, 500.0 )
+            if ( zb1 <= od_lo ) then
+              zexm1 = f_one - zb1 + 0.5*zb1*zb1
+            else
+              ftind = zb1 / (bpade + zb1)
+              itind = ftind*NTBMX + 0.5
+              zexm1 = exp_tbl(itind)
+            endif
+            zexp1 = f_one / zexm1
+
+            zb2 = min ( sntz(j1)*ztau1, 500.0 )
+            if ( zb2 <= od_lo ) then
+              zexm2 = f_one - zb2 + 0.5*zb2*zb2
+            else
+              ftind = zb2 / (bpade + zb2)
+              itind = ftind*NTBMX + 0.5
+              zexm2 = exp_tbl(itind)
+            endif
+            zexp2 = f_one / zexm2
+            ze1r45 = zr4*zexp1 + zr5*zexm1
+
+!      ...  collimated beam
+            if (ze1r45>=-eps1 .and. ze1r45<=eps1) then
+              zrefb(j1,kp) = eps1
+              ztrab(j1,kp) = zexm2
+            else
+              zden1 = zssa1 / ze1r45
+              zrefb(j1,kp) = max(f_zero, min(f_one,                        &
+     &                    (zr1*zexp1 - zr2*zexm1 - zr3*zexm2)*zden1 ))
+              ztrab(j1,kp) = max(f_zero, min(f_one, zexm2*(f_one           &
+     &                  - (zt1*zexp1 - zt2*zexm1 - zt3*zexp2)*zden1) ))
+            endif
+
+!      ...  diffuse beam
+            zden1 = zr4 / (ze1r45 * zrkg1)
+            zrefd(j1,kp) = max(f_zero, min(f_one,                          &
+     &                  zgam2*(zexp1 - zexm1)*zden1 ))
+            ztrad(j1,kp) = max(f_zero, min(f_one, zrk2*zden1 ))
+          endif    ! end if_zssaw_block
+
+!  --- ...  direct beam transmittance. use exponential lookup table
+!           for transmittance, or expansion of exponential for low
+!           optical depth
+
+          zr1 = ztau1 * sntz(j1)
+!        if(j1.eq.1)write(0,*)"zap zr1 ",kp,zr1
+!        if(j1.eq.1)write(0,*)"zap ztau1 ",kp,ztau1
+!        if(j1.eq.1)write(0,*)"zap sntz ",kp,sntz(j1)
+          if ( zr1 <= od_lo ) then
+            zexp3 = f_one - zr1 + 0.5*zr1*zr1
+!        if(j1.eq.1)write(0,*)"zap 1 zexp3",kp,zexp3
+          else
+            ftind = zr1 / (bpade + zr1)
+            itind = max(0, min(NTBMX, int(0.5+NTBMX*ftind) ))
+            zexp3 = exp_tbl(itind)
+!        if(j1.eq.1)write(0,*)"zap 2 zexp3",kp,zexp3
+          endif
+
+!        if(j1.eq.1)write(0,*)"zap ztdbt",kp,ztdbt(j1,kp)
+          ztdbt(j1,k)  = zexp3 * ztdbt(j1,kp)
+          zldbt(j1,kp) = zexp3
+
+!  --- ...  pre-delta-scaling clear and cloudy direct beam transmittance
+!           (must use 'orig', unscaled cloud optical depth)
+
+          zr1 = ztau0 * sntz(j1)
+          if ( zr1 <= od_lo ) then
+            zexp4 = f_one - zr1 + 0.5*zr1*zr1
+          else
+            ftind = zr1 / (bpade + zr1)
+            itind = max(0, min(NTBMX, int(0.5+NTBMX*ftind) ))
+            zexp4 = exp_tbl(itind)
+          endif
+
+          zldbt0(j1,k) = zexp4
+          ztdbt0(j1) = zexp4 * ztdbt0(j1)
+       ENDDO  ! end of j1 loop
+        enddo    ! end do_k_loop
+
+        lmask = .true.
+        call swflux                                                     &
+!  ---  inputs:
+     &     ( zrefb,zrefd,ztrab,ztrad,zldbt,ztdbt,                       &
+     &       nlay, nlp1, nday, lmask,                                         &
+!  ---  outputs:
+     &       zfu, zfd                                                   &
+     &     )
+
+!  --- ...  compute upward and downward fluxes at levels
+        do k = 1, nlp1
+          fxup0(:,k,ib) = fxup0(:,k,ib) + zsolar*zfu(:,k)
+          fxdn0(:,k,ib) = fxdn0(:,k,ib) + zsolar*zfd(:,k)
+        enddo
+
+!! --- ...  surface downward beam/diffused flux components
+         DO j1=1,NDAY
+        zb1 = zsolar(j1)*ztdbt0(j1)
+        zb2 = zsolar(j1)*(zfd(j1,1) - ztdbt0(j1))
+
+        if (ibd /= 0) then
+          sfbm0(j1,ibd) = sfbm0(j1,ibd) + zb1
+          sfdf0(j1,ibd) = sfdf0(j1,ibd) + zb2
+        else
+          zf1 = 0.5 * zb1
+          zf2 = 0.5 * zb2
+          sfbm0(j1,1) = sfbm0(j1,1) + zf1
+          sfdf0(j1,1) = sfdf0(j1,1) + zf2
+          sfbm0(j1,2) = sfbm0(j1,2) + zf1
+          sfdf0(j1,2) = sfdf0(j1,2) + zf2
+        endif
+!       sfbm0(ibd) = sfbm0(ibd) + zsolar*ztdbt0
+!       sfdf0(ibd) = sfdf0(ibd) + zsolar*(zfd(1) - ztdbt0)
+         ENDDO
+
+!  --- ...  compute total sky optical parameters, layer reflectance and transmittance
+
+        lmask = ( cf1 > eps )
+        if ( ANY(lmask) ) then
+
+!  --- ...  set up toa direct beam and surface values (beam and diff)
+!          WHERE(lmask)
+          ztdbt0 = f_one
+          zldbt(:,1) = f_zero
+!          ENDWHERE
+
+          do k = nlay, 1, -1
             kp = k + 1
+!DEC$ VECTOR ALWAYS
+          DO j1=1,NDAY
+!            IF ( lmask(j1) ) THEN
+            zc0 = f_one - cldfrc(j1,k)
+            zc1 = cldfrc(j1,k)
+            if ( zc1 > ftiny ) then          ! it is a cloudy-layer
 
-            lab_if_pclfr : if (ipa==1 .or. pclfr(k)>eps) then   ! cloudy-layer
-!  ---  save original ssa to test for conservative solution
-              zwo   = zssa0(k,ipa)
+              ztau0 = ztaus(j1,k) + taucw(j1,k,ib)
+              zssa0 = zssas(j1,k) + ssacw(j1,k,ib)
+              zasy0 = zasys(j1,k) + asycw(j1,k,ib)
+              zssaw = min(oneminus, zssa0 / ztau0)
+              zasyw = zasy0 / max(ftiny, zssa0)
 
-              ztau1 = ztau(k,ipa)
-              zssa1 = zssa(k,ipa)
-              zasy1 = zasy(k,ipa)
-              zasy3 = 3.0 * zasy1
+!  --- ...  delta scaling for total-sky condition
+              za1 = zasyw * zasyw
+              za2 = zssaw * za1
 
-!  ---  general two-stream expressions
-              if (imodsw == 1) then                      ! delta-eddington
-                zgam1 = (7.0 - zssa1 * (4.0 + zasy3)) * 0.25
-                zgam2 =-(1.0 - zssa1 * (4.0 - zasy3)) * 0.25
-                zgam3 = (2.0 - zasy3 * cosz) * 0.25
-              else if (imodsw == 2) then                 ! pifm
-                zgam1 = (8.0 - zssa1 * (5.0 + zasy3)) * 0.25
-                zgam2 = 3.0 * (zssa1 * (1.0 - zasy1)) * 0.25
-                zgam3 = (2.0 - zasy3 * cosz) * 0.25
-              else if (imodsw == 3) then                 ! discrete ordinates
+              ztau1 = (f_one - za2) * ztau0
+              zssa1 = (zssaw - za2) / (f_one - za2)
+!org          zasy1 = (zasyw - za1) / (f_one - za1)
+              zasy1 = zasyw / (f_one + zasyw)
+              zasy3 = 0.75 * zasy1
+
+!  --- ...  general two-stream expressions
+              if ( iswmode == 1 ) then
+                zgam1 = 1.75 - zssa1 * (f_one + zasy3)
+                zgam2 =-0.25 - zssa1 * (f_one - zasy3)
+                zgam3 = 0.5  - zasy3 * cosz(j1)
+              elseif ( iswmode == 2 ) then               ! pifm
+                zgam1 = 2.0 - zssa1 * (1.25 + zasy3)
+                zgam2 = 0.75* zssa1 * (f_one- zasy1)
+                zgam3 = 0.5 - zasy3 * cosz(j1)
+              elseif ( iswmode == 3 ) then               ! discrete ordinates
                 zgam1 = zsr3 * (2.0 - zssa1 * (1.0 + zasy1)) * 0.5
                 zgam2 = zsr3 * zssa1 * (1.0 - zasy1) * 0.5
-                zgam3 = (1.0 - zsr3 * zasy1 * cosz) * 0.5
+                zgam3 = (1.0 - zsr3 * zasy1 * cosz(j1)) * 0.5
               endif
-              zgam4 = one - zgam3
+              zgam4 = f_one - zgam3
 
-!  ---  for conservative scattering
+              zrefb1 = zrefb(j1,kp)
+              zrefd1 = zrefd(j1,kp)
+              ztrab1 = ztrab(j1,kp)
+              ztrad1 = ztrad(j1,kp)
 
-              lab_if_zwo : if (zwo >= zcrit) then
-                za1 = zgam1 * cosz - zgam3
+!  --- ...  compute homogeneous reflectance and transmittance
+
+              if ( zssaw >= zcrit ) then    ! for conservative scattering
+                za1 = zgam1 * cosz(j1) - zgam3
                 za2 = zgam1 * ztau1
 
-!  ---  compute homogeneous reflectance and transmittance
-                zexm1 = zexpt(k,ipa)
-  
-!       ...  collimated beam
-                zrefb(kp,ipa) = max(zero,                               &
-     &                          (za2 - za1*(one - zexm1))/(one + za2))
-                ztrab(kp,ipa) = max(zero, one - zrefb(kp,ipa))
+!  --- ...  use exponential lookup table for transmittance, or expansion
+!           of exponential for low optical depth
 
-!       ...  isotropic incidence
-                zrefd(kp,ipa) = max(zero, za2 / (one + za2))
-                ztrad(kp,ipa) = max(zero, one - zrefd(kp,ipa))
+                zb1 = min ( ztau1*sntz(j1) , 500.0 )
+                if ( zb1 <= od_lo ) then
+                  zb2 = f_one - zb1 + 0.5*zb1*zb1
+                else
+                  ftind = zb1 / (bpade + zb1)
+                  itind = ftind*NTBMX + 0.5
+                  zb2 = exp_tbl(itind)
+                endif
 
-!  ---  for non-conservative scattering
-              else  lab_if_zwo
+!      ...  collimated beam
+                zrefb(j1,kp)=max(f_zero, min(f_one,                      &
+     &                      (za2 - za1*(f_one - zb2))/(f_one + za2) ))
+                ztrab(j1,kp)=max(f_zero, min(f_one, f_one-zrefb(j1,kp)))
 
+!      ...  isotropic incidence
+                zrefd(j1,kp)=max(f_zero,min(f_one,za2 / (f_one+za2) ))
+                ztrad(j1,kp)=max(f_zero,min(f_one,f_one - zrefd(j1,kp)))
+
+              else                          ! for non-conservative scattering
                 za1 = zgam1*zgam4 + zgam2*zgam3
                 za2 = zgam1*zgam3 + zgam2*zgam4
-!               zrk = sqrt (zgam1**2 - zgam2**2)
                 zrk = sqrt ( (zgam1 - zgam2) * (zgam1 + zgam2) )
                 zrk2= 2.0 * zrk
 
-                zrp  = zrk * cosz
-                zrp1 = one + zrp
-                zrm1 = one - zrp
-                zrpp = one - zrp*zrp
+                zrp  = zrk * cosz(j1)
+                zrp1 = f_one + zrp
+                zrm1 = f_one - zrp
+                zrpp = f_one - zrp*zrp
                 zrkg1= zrk + zgam1
                 zrkg3= zrk * zgam3
                 zrkg4= zrk * zgam4
 
                 zr1  = zrm1 * (za2 + zrkg3)
                 zr2  = zrp1 * (za2 - zrkg3)
-                zr3  = zrk2 * (zgam3 - za2*cosz)
+                zr3  = zrk2 * (zgam3 - za2*cosz(j1))
                 zr4  = zrpp * zrkg1
                 zr5  = zrpp * (zrk - zgam1)
 
                 zt1  = zrp1 * (za1 + zrkg4)
                 zt2  = zrm1 * (za1 - zrkg4)
-                zt3  = zrk2 * (zgam4 + za1*cosz)
+                zt3  = zrk2 * (zgam4 + za1*cosz(j1))
 
-!  ---  compute homogeneous reflectance and transmittance
-                zexp1 = exp( min(200.0, zrk*ztau1) )
-                zexm1 = one / zexp1
-                zexm2 = zexpt(k,ipa)
-                zexp2 = one / zexm2
+!  --- ...  use exponential lookup table for transmittance, or expansion
+!           of exponential for low optical depth
+
+                zb1 = min ( zrk*ztau1, 500.0 )
+                if ( zb1 <= od_lo ) then
+                  zexm1 = f_one - zb1 + 0.5*zb1*zb1
+                else
+                  ftind = zb1 / (bpade + zb1)
+                  itind = ftind*NTBMX + 0.5
+                  zexm1 = exp_tbl(itind)
+                endif
+                zexp1 = f_one / zexm1
+
+                zb2 = min ( ztau1*sntz(j1), 500.0 )
+                if ( zb2 <= od_lo ) then
+                  zexm2 = f_one - zb2 + 0.5*zb2*zb2
+                else
+                  ftind = zb2 / (bpade + zb2)
+                  itind = ftind*NTBMX + 0.5
+                  zexm2 = exp_tbl(itind)
+                endif
+                zexp2 = f_one / zexm2
                 ze1r45 = zr4*zexp1 + zr5*zexm1
 
-!       ...  collimated beam
-                zden1 = zssa1 / ze1r45
-                zrefb(kp,ipa) = max(zero,                               &
-     &                          (zr1*zexp1-zr2*zexm1-zr3*zexm2)*zden1 )
-                ztrab(kp,ipa) = max(zero, zexm2*(one                    &
-     &                        - (zt1*zexp1-zt2*zexm1-zt3*zexp2)*zden1))
+!      ...  collimated beam
+                if ( ze1r45>=-eps1 .and. ze1r45<=eps1 ) then
+                  zrefb(j1,kp) = eps1
+                  ztrab(j1,kp) = zexm2
+                else
+                  zden1 = zssa1 / ze1r45
+                  zrefb(j1,kp) = max(f_zero, min(f_one,                    &
+     &                        (zr1*zexp1-zr2*zexm1-zr3*zexm2)*zden1 ))
+                  ztrab(j1,kp) = max(f_zero, min(f_one, zexm2*(f_one -     &
+     &                        (zt1*zexp1-zt2*zexm1-zt3*zexp2)*zden1) ))
+                endif
 
-!       ...  diffuse beam
+!      ...  diffuse beam
                 zden1 = zr4 / (ze1r45 * zrkg1)
-                zrefd(kp,ipa) = max(zero, zgam2*(zexp1-zexm1)*zden1)
-                ztrad(kp,ipa) = max(zero, zrk2*zden1)
-              endif  lab_if_zwo
+                zrefd(j1,kp) = max(f_zero, min(f_one,                      &
+     &                      zgam2*(zexp1 - zexm1)*zden1 ))
+                ztrad(j1,kp) = max(f_zero, min(f_one, zrk2*zden1 ))
+              endif    ! end if_zssaw_block
 
-            else   lab_if_pclfr                                 ! clear-layer
+!  --- ...  combine clear and cloudy contributions for total sky
+!           and calculate direct beam transmittances
 
-              zrefb(kp,2) = zrefb(kp,1)
-              ztrab(kp,2) = ztrab(kp,1)
-              zrefd(kp,2) = zrefd(kp,1)
-              ztrad(kp,2) = ztrad(kp,1)
+              zrefb(j1,kp) = zc0*zrefb1 + zc1*zrefb(j1,kp)
+              zrefd(j1,kp) = zc0*zrefd1 + zc1*zrefd(j1,kp)
+              ztrab(j1,kp) = zc0*ztrab1 + zc1*ztrab(j1,kp)
+              ztrad(j1,kp) = zc0*ztrad1 + zc1*ztrad(j1,kp)
 
-            endif  lab_if_pclfr
-          enddo    ! end do_k_loop
+!  --- ...  direct beam transmittance. use exponential lookup table
+!           for transmittance, or expansion of exponential for low
+!           optical depth
 
-          if (ipa==1 .and. cf1<=eps) then
-            do k = 2, NLP1
-              zrefb(k,2) = zrefb(k,1)
-              ztrab(k,2) = ztrab(k,1)
-              zrefd(k,2) = zrefd(k,1)
-              ztrad(k,2) = ztrad(k,1)
-            enddo
+              zr1 = ztau1 * sntz(j1)
+              if ( zr1 <= od_lo ) then
+                zexp3 = f_one - zr1 + 0.5*zr1*zr1
+              else
+                ftind = zr1 / (bpade + zr1)
+                itind = max(0, min(NTBMX, int(0.5+NTBMX*ftind) ))
+                zexp3 = exp_tbl(itind)
+              endif
 
-            exit lab_do_ipa1
+              zldbt(j1,kp) = zc0*zldbt(j1,kp) + zc1*zexp3
+              ztdbt(j1,k) = zldbt(j1,kp) * ztdbt(j1,kp)
+
+!  --- ...  pre-delta-scaling clear and cloudy direct beam transmittance
+!           (must use 'orig', unscaled cloud optical depth)
+
+              zr1 = ztau0 * sntz(j1)
+              if ( zr1 <= od_lo ) then
+                zexp4 = f_one - zr1 + 0.5*zr1*zr1
+              else
+                ftind = zr1 / (bpade + zr1)
+                itind = max(0, min(NTBMX, int(0.5+NTBMX*ftind) ))
+                zexp4 = exp_tbl(itind)
+              endif
+
+              ztdbt0(j1) = (zc0*zldbt0(j1,k) + zc1*zexp4) * ztdbt0(j1)
+
+            else     ! if_zc1_block  ---  it is a clear layer
+
+!  --- ...  direct beam transmittance
+              ztdbt(j1,k) = zldbt(j1,kp) * ztdbt(j1,kp)
+
+!  --- ...  pre-delta-scaling clear and cloudy direct beam transmittance
+              ztdbt0(j1) = zldbt0(j1,k) * ztdbt0(j1)
+
+            endif    ! end if_zc1_block
+!            endif    ! mask
+           enddo  ! j1=1,nday
+          enddo   ! end do_k_loop
+
+!  --- ...  perform vertical quadrature
+
+          call swflux                                                   &
+!  ---  inputs:
+     &     ( zrefb,zrefd,ztrab,ztrad,zldbt,ztdbt,                       &
+     &       nlay, nlp1,nday,lmask,                                     &
+!  ---  outputs:
+     &       zfu, zfd                                                   &
+     &     )
+
+!  --- ...  compute upward and downward fluxes at levels
+          do k = 1, nlp1
+           WHERE (lmask)
+            fxupc(:,k,ib) = fxupc(:,k,ib) + zsolar*zfu(:,k)
+            fxdnc(:,k,ib) = fxdnc(:,k,ib) + zsolar*zfd(:,k)
+           ENDWHERE
+          enddo
+
+!! --- ...  surface downward beam/diffused flux components
+
+           DO j1 = 1,NDAY
+            if ( lmask(j1) ) then
+          zb1 = zsolar(j1)*ztdbt0(j1)
+          zb2 = zsolar(j1)*(zfd(j1,1) - ztdbt0(j1))
+
+          if (ibd /= 0) then
+            sfbmc(j1,ibd) = sfbmc(j1,ibd) + zb1
+            sfdfc(j1,ibd) = sfdfc(j1,ibd) + zb2
+          else
+            zf1 = 0.5 * zb1
+            zf2 = 0.5 * zb2
+            sfbmc(j1,1) = sfbmc(j1,1) + zf1
+            sfdfc(j1,1) = sfdfc(j1,1) + zf2
+            sfbmc(j1,2) = sfbmc(j1,2) + zf1
+            sfdfc(j1,2) = sfdfc(j1,2) + zf2
           endif
+!         sfbmc(ibd) = sfbmc(ibd) + zsolar*ztdbt0
+!         sfdfc(ibd) = sfdfc(ibd) + zsolar*(zfd(1) - ztdbt0)
+            endif
+           ENDDO
 
-        enddo  lab_do_ipa1                    ! end do_ipa_loop
-
-!  ---  set up toa direct beam for clear-sky and cloudy-sky
-        ztdbt(NLP1,1) = one
-        ztdbt(NLP1,2) = one
-
-!  ---  combine clear and cloudy contributions for total sky
-
-        do k = NLAY, 1, -1
-          kp = k + 1
-
-          zc0 = one - pclfr(k)
-          zc1 = pclfr(k)
-
-          zrefb(kp,2) = zc0*zrefb(kp,1) + zc1*zrefb(kp,2)
-          zrefd(kp,2) = zc0*zrefd(kp,1) + zc1*zrefd(kp,2)
-          ztrab(kp,2) = zc0*ztrab(kp,1) + zc1*ztrab(kp,2)
-          ztrad(kp,2) = zc0*ztrad(kp,1) + zc1*ztrad(kp,2)
-
-!  ---  direct beam transmittance
-          zldbt(kp,1) = max(zero, zexpt(k,1))
-          zldbt(kp,2) = zc0*zexpt(k,1) + zc1*zexpt(k,2)
-
-          ztdbt(k,1) = max(zero, zldbt(kp,1) * ztdbt(kp,1))
-          ztdbt(k,2) = max(zero, zldbt(kp,2) * ztdbt(kp,2))
-        enddo
-
-!  ---  set up surface values (beam and diffused) for clear-sky and cloudy-sky
-        zldbt(1,1) = zero
-        zldbt(1,2) = zero
-
-        zrefb(1,1) = albbm(iab)
-        zrefb(1,2) = albbm(iab)
-        zrefd(1,1) = albdf(iab)
-        zrefd(1,2) = albdf(iab)
-
-        ztrab(1,1) = zero
-        ztrab(1,2) = zero
-        ztrad(1,1) = zero
-        ztrad(1,2) = zero
-
-!  ---  perform vertical quadrature
-
-        lab_do_ipa2 : do ipa = 1, 2            ! 1=clear-sky, 2=cloudy-sky
-
-!  ---  link lowest layer with surface
-          zrupb(1) = zrefb(1,ipa)        ! direct beam
-          zrupd(1) = zrefd(1,ipa)        ! diffused
-
-!  ---  pass from bottom to top
-          do k = 1, NLAY
-            kp = k + 1
-
-            zden1 = one / ( one - zrupd(k)*zrefd(kp,ipa) )
-            zrupb(kp) = zrefb(kp,ipa) + ( ztrad(kp,ipa)                 &
-     &                * ( (ztrab(kp,ipa) - zldbt(kp,ipa) )*zrupd(k)     &
-     &                + zldbt(kp,ipa)*zrupb(k) ) )*zden1
-            zrupd(kp) = zrefd(kp,ipa) + ztrad(kp,ipa)                   &
-     &                * ztrad(kp,ipa)*zrupd(k)*zden1
-          enddo
-
-!  ---  upper boundary conditions
-          ztdn (NLP1) = one
-          zrdnd(NLP1) = zero
-          ztdn (NLAY) = ztrab(NLP1,ipa)
-          zrdnd(NLAY) = zrefd(NLP1,ipa)
-
-!  ---  pass from top to bottom
-          do k = NLAY, 2, -1
-            zden1 = one / (one - zrefd(k,ipa)*zrdnd(k))
-            ztdn (k-1) = ztdbt(k,ipa)*ztrab(k,ipa)                      &
-     &                 + ( ztrad(k,ipa)*( ( ztdn(k) - ztdbt(k,ipa) )    &
-     &                 + ztdbt(k,ipa)*zrefb(k,ipa)*zrdnd(k) ) )*zden1
-            zrdnd(k-1) = zrefd(k,ipa) + ztrad(k,ipa)*ztrad(k,ipa)       &
-     &                 * zrdnd(k)*zden1
-          enddo
-
-!  ---  up and down-welling fluxes at levels
-          do k = 1, NLP1
-            zden1 = one / (one - zrdnd(k)*zrupd(k))
-            zfu(k) = ( ztdbt(k,ipa)*zrupb(k)                            &
-     &             + ( ztdn(k) - ztdbt(k,ipa) )*zrupd(k) )*zden1
-            zfd(k) = ztdbt(k,ipa) + (ztdn(k) - ztdbt(k,ipa)             &
-     &             + ztdbt(k,ipa)*zrupb(k)*zrdnd(k))*zden1
-          enddo
-
-!  ---  compute upward and downward fluxes at levels
-          do k = 1, NLP1
-            fxup(k,ipa) = fxup(k,ipa) + sfluxzen(jg)*zfu(k)
-            fxdn(k,ipa) = fxdn(k,ipa) + sfluxzen(jg)*zfd(k)
-          enddo
-
-!! ---  optional surface downward flux components
-          if ( lfdncmp ) then
-            sfxbm(ipa) = sfxbm(ipa)+sfluxzen(jg)*ztdbt(1,ipa)
-            sfxdf(ipa) = sfxdf(ipa)+sfluxzen(jg)*(zfd(1)-ztdbt(1,ipa))
-          endif
-
-          if (ipa==1 .and. cf1<=eps) then
-            exit lab_do_ipa2
-          endif
-        enddo  lab_do_ipa2       ! end do_ipa_loop
+        endif      ! end if_cf1_block
 
       enddo  lab_do_jg
 
-      if (cf1 <= eps) then
-        do k = 1, NLP1
-          fxup(k,2) = fxup(k,1)
-          fxdn(k,2) = fxdn(k,1)
+!  --- ...  end of g-point loop
+
+      do ib = 1, nbdsw
+!DEC$ VECTOR ALWAYS
+      DO i=1,CHK
+        ftoadc(i) = ftoadc(i) + fxdn0(i,nlp1,ib)
+        ftoau0(i) = ftoau0(i) + fxup0(i,nlp1,ib)
+        fsfcu0(i) = fsfcu0(i) + fxup0(i,1,ib)
+        fsfcd0(i) = fsfcd0(i) + fxdn0(i,1,ib)
+      ENDDO
+      enddo
+
+!! --- ...  uv-b surface downward flux
+      ibd = nuvb - nblow + 1
+      suvbf0 = fxdn0(:,1,ibd)
+
+!      if ( cf1 <= eps ) then       ! clear column, set total-sky=clear-sky fluxes
+        do ib = 1, nbdsw
+          do k = 1, nlp1
+!DEC$ VECTOR ALWAYS
+      DO i=1,CHK
+        IF ( cf1(i) <= eps ) THEN
+             fxupc(i,k,ib) = fxup0(i,k,ib)
+             fxdnc(i,k,ib) = fxdn0(i,k,ib)
+        ENDIF
+      ENDDO
+          enddo
         enddo
-      endif
 
-      if ( lfdncmp ) then
-!! ---  optional surface downward flux components
-        if (cf1 <= eps) then
-          sfxbm(2) = sfxbm(1)
-          sfxdf(2) = sfxdf(1)
-        endif
+!DEC$ VECTOR ALWAYS
+      DO i=1,CHK
+        IF ( cf1(i) <= eps ) THEN
+        ftoauc(i) = ftoau0(i)
+        fsfcuc(i) = fsfcu0(i)
+        fsfcdc(i) = fsfcd0(i)
 
-!! ---  optional surface downward flux components
-        sflxb0 = sfxbm(1)
-        sflxd0 = sfxdf(1)
-        sflxbc = sfxbm(2)
-        sflxdc = sfxdf(2)
-      endif
+!! --- ...  surface downward beam/diffused flux components
+        sfbmc(i,1) = sfbm0(i,1)
+        sfdfc(i,1) = sfdf0(i,1)
+        sfbmc(i,2) = sfbm0(i,2)
+        sfdfc(i,2) = sfdf0(i,2)
+        ENDIF
+      ENDDO
+
+!! --- ...  uv-b surface downward flux
+        suvbfc = suvbf0
+!      else                        ! cloudy column, compute total-sky fluxes
+        do ib = 1, nbdsw
+          do k = 1, nlp1
+!DEC$ VECTOR ALWAYS
+      DO i=1,CHK
+        IF ( cf1(i) > eps ) THEN
+            fxupc(i,k,ib) = cf1(i)*fxupc(i,k,ib) + cf0(i)*fxup0(i,k,ib)
+            fxdnc(i,k,ib) = cf1(i)*fxdnc(i,k,ib) + cf0(i)*fxdn0(i,k,ib)
+        ENDIF
+      ENDDO
+          enddo
+        enddo
+
+        do ib = 1, nbdsw
+!DEC$ VECTOR ALWAYS
+      DO i=1,CHK
+        IF ( cf1(i) > eps ) THEN
+          ftoauc(i) = ftoauc(i) + fxupc(i,nlp1,ib)
+          fsfcuc(i) = fsfcuc(i) + fxupc(i,1,ib)
+          fsfcdc(i) = fsfcdc(i) + fxdnc(i,1,ib)
+        ENDIF
+      ENDDO
+        enddo
+
+!! --- ...  uv-b surface downward flux
+!DEC$ VECTOR ALWAYS
+      DO i=1,CHK
+        IF ( cf1(i) > eps ) THEN
+        suvbfc(i) = fxdnc(i,1,ibd)
+
+!! --- ...  surface downward beam/diffused flux components
+        sfbmc(i,1) = cf1(i)*sfbmc(i,1) + cf0(i)*sfbm0(i,1)
+        sfbmc(i,2) = cf1(i)*sfbmc(i,2) + cf0(i)*sfbm0(i,2)
+        sfdfc(i,1) = cf1(i)*sfdfc(i,1) + cf0(i)*sfdf0(i,1)
+        sfdfc(i,2) = cf1(i)*sfdfc(i,2) + cf0(i)*sfdf0(i,2)
+        ENDIF
+      ENDDO
+!      endif    ! end if_cf1_block
 
       return
 !...................................
-      end subroutine swflux     
+      end subroutine spcvrtc
 !-----------------------------------
 
 
+#ifdef TODO
+!-----------------------------------
+      subroutine spcvrtm
+      end subroutine spcvrtm
+!-----------------------------------
+#endif
+
+
+!-----------------------------------
+      subroutine swflux                                                 &
+!...................................
+!  ---  inputs:
+     &     ( zrefb,zrefd,ztrab,ztrad,zldbt,ztdbt,                       &
+     &       NLAY, NLP1, nday,lmask,                                    &
+!  ---  outputs:
+     &       zfu, zfd                                                   &
+     &     )
+
+!  ===================  program usage description  ===================  !
+!                                                                       !
+!   purpose:  computes the upward and downward radiation fluxes         !
+!                                                                       !
+!   interface:  "swflux" is called by "spcvrc" and "spcvrm"             !
+!                                                                       !
+!   subroutines called : none                                           !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  input variables:                                                     !
+!    zrefb(NLP1)     - layer direct beam reflectivity                   !
+!    zrefd(NLP1)     - layer diffuse reflectivity                       !
+!    ztrab(NLP1)     - layer direct beam transmissivity                 !
+!    ztrad(NLP1)     - layer diffuse transmissivity                     !
+!    zldbt(NLP1)     - layer mean beam transmittance                    !
+!    ztdbt(NLP1)     - total beam transmittance at levels               !
+!    NLAY, NLP1      - number of layers/levels                          !
+!                                                                       !
+!  output variables:                                                    !
+!    zfu  (NLP1)     - upward flux at layer interface                   !
+!    zfd  (NLP1)     - downward flux at layer interface                 !
+!                                                                       !
+!  *******************************************************************  !
+!  ======================  end of description block  =================  !
+
+!  ---  inputs:
+      integer, intent(in) :: nlay, nlp1,nday
+      logical, dimension(CHK), intent(in) :: lmask
+
+      real (kind=kind_phys), dimension(CHK,nlp1), intent(in) :: zrefb,      &
+     &       zrefd, ztrab, ztrad, ztdbt, zldbt
+
+!  ---  outputs:
+      real (kind=kind_phys), dimension(CHK,nlp1),intent(out) :: zfu, zfd
+
+!  ---  locals:
+      real (kind=kind_phys), dimension(CHK,nlp1)::zrupb,zrupd,zrdnd,ztdn
+
+      real (kind=kind_phys)                 :: zden1
+
+      integer :: k, kp, i
+!
+!===> ... begin here
+!
+
+!  --- ...  link lowest layer with surface
+
+#ifdef RUNTIME_CHECKING
+# define CHK nday
+#endif
+
+
+!DEC$ VECTOR ALWAYS
+      DO i=1,CHK
+        zrupb(i,1) = zrefb(i,1)        ! direct beam
+        zrupd(i,1) = zrefd(i,1)        ! diffused
+      ENDDO
+
+!  --- ...  pass from bottom to top
+
+        do k = 1, nlay
+          kp = k + 1
+
+!DEC$ VECTOR ALWAYS
+      DO i=1,CHK
+          zden1 = f_one / ( f_one - zrupd(i,k)*zrefd(i,kp) )
+          zrupb(i,kp) = zrefb(i,kp) + ( ztrad(i,kp) *                         &
+     &                ( (ztrab(i,kp) - zldbt(i,kp))*zrupd(i,k) +              &
+     &                zldbt(i,kp)*zrupb(i,k)) ) * zden1
+          zrupd(i,kp)=zrefd(i,kp)+ztrad(i,kp)*ztrad(i,kp)*zrupd(i,k)    &
+     &                *zden1
+      ENDDO
+        enddo
+
+!  --- ...  upper boundary conditions
+
+!DEC$ VECTOR ALWAYS
+      DO i=1,CHK
+        ztdn (i,nlp1) = f_one
+        zrdnd(i,nlp1) = f_zero
+        ztdn (i,nlay) = ztrab(i,nlp1)
+        zrdnd(i,nlay) = zrefd(i,nlp1)
+      ENDDO
+
+!  --- ...  pass from top to bottom
+
+        do k = nlay, 2, -1
+!DEC$ VECTOR ALWAYS
+      DO i=1,CHK
+          zden1 = f_one / (f_one - zrefd(i,k)*zrdnd(i,k))
+          ztdn (i,k-1) = ztdbt(i,k)*ztrab(i,k) + ( ztrad(i,k) *                 &
+     &                 ( (ztdn(i,k) - ztdbt(i,k)) + ztdbt(i,k) *              &
+     &                 zrefb(i,k)*zrdnd(i,k) )) * zden1
+          zrdnd(i,k-1)=zrefd(i,k)+ztrad(i,k)*ztrad(i,k)*zrdnd(i,k)*zden1
+      ENDDO
+        enddo
+
+!  --- ...  up and down-welling fluxes at levels
+
+        do k = 1, nlp1
+!DEC$ VECTOR ALWAYS
+      DO i=1,CHK
+          zden1 = f_one / (f_one - zrdnd(i,k)*zrupd(i,k))
+          zfu(i,k) = ( ztdbt(i,k)*zrupb(i,k) +                                &
+     &             (ztdn(i,k) - ztdbt(i,k))*zrupd(i,k) ) * zden1
+          zfd(i,k) = ztdbt(i,k) + ( ztdn(i,k) - ztdbt(i,k) +                    &
+     &             ztdbt(i,k)*zrupb(i,k)*zrdnd(i,k) ) * zden1
+      ENDDO
+        enddo
+
+#ifdef RUNTIME_CHECKING
+# undef CHK
+#endif
+      return
+!...................................
+      end subroutine swflux
+!-----------------------------------
+
+
+!-----------------------------------
+      subroutine taumol                                                 &
+!...................................
+!  ---  inputs:
+     &     ( colamt,colmol,fac00,fac01,fac10,fac11,jp,jt,jt1,laytrop,   &
+     &       forfac,forfrac,indfor,selffac,selffrac,indself, nlay,nday, &
+!  ---  outputs:
+     &       sfluxzen, taug, taur                                       &
+     &     )
+
+!  ==================   program usage description   ==================  !
+!                                                                       !
+!  description:                                                         !
+!    calculate optical depths for gaseous absorption and rayleigh       !
+!    scattering.                                                        !
+!                                                                       !
+!  subroutines called: taugb## (## = 16 - 29)                           !
+!                                                                       !
+!  ====================  defination of variables  ====================  !
+!                                                                       !
+!  inputs:                                                         size !
+!    colamt  - real, column amounts of absorbing gases the index        !
+!                    are for h2o, co2, o3, n2o, ch4, and o2,            !
+!                    respectively (molecules/cm**2)          nlay*maxgas!
+!    colmol  - real, total column amount (dry air+water vapor)     nlay !
+!    facij   - real, for each layer, these are factors that are         !
+!                    needed to compute the interpolation factors        !
+!                    that multiply the appropriate reference k-         !
+!                    values.  a value of 0/1 for i,j indicates          !
+!                    that the corresponding factor multiplies           !
+!                    reference k-value for the lower/higher of the      !
+!                    two appropriate temperatures, and altitudes,       !
+!                    respectively.                                 naly !
+!    jp      - real, the index of the lower (in altitude) of the        !
+!                    two appropriate ref pressure levels needed         !
+!                    for interpolation.                            nlay !
+!    jt, jt1 - integer, the indices of the lower of the two approp      !
+!                    ref temperatures needed for interpolation (for     !
+!                    pressure levels jp and jp+1, respectively)    nlay !
+!    laytrop - integer, tropopause layer index                       1  !
+!    forfac  - real, scale factor needed to foreign-continuum.     nlay !
+!    forfrac - real, factor needed for temperature interpolation   nlay !
+!    indfor  - integer, index of the lower of the two appropriate       !
+!                    reference temperatures needed for foreign-         !
+!                    continuum interpolation                       nlay !
+!    selffac - real, scale factor needed to h2o self-continuum.    nlay !
+!    selffrac- real, factor needed for temperature interpolation        !
+!                    of reference h2o self-continuum data          nlay !
+!    indself - integer, index of the lower of the two appropriate       !
+!                    reference temperatures needed for the self-        !
+!                    continuum interpolation                       nlay !
+!    nlay    - integer, number of vertical layers                    1  !
+!                                                                       !
+!  output:                                                              !
+!    sfluxzen- real, spectral distribution of incoming solar flux ngptsw!
+!    taug    - real, spectral optical depth for gases        nlay*ngptsw!
+!    taur    - real, opt depth for rayleigh scattering       nlay*ngptsw!
+!                                                                       !
+!  ===================================================================  !
+!  ************     original subprogram description    ***************  !
+!                                                                       !
+!                  optical depths developed for the                     !
+!                                                                       !
+!                rapid radiative transfer model (rrtm)                  !
+!                                                                       !
+!            atmospheric and environmental research, inc.               !
+!                        131 hartwell avenue                            !
+!                        lexington, ma 02421                            !
+!                                                                       !
+!                                                                       !
+!                           eli j. mlawer                               !
+!                         jennifer delamere                             !
+!                         steven j. taubman                             !
+!                         shepard a. clough                             !
+!                                                                       !
+!                                                                       !
+!                                                                       !
+!                       email:  mlawer@aer.com                          !
+!                       email:  jdelamer@aer.com                        !
+!                                                                       !
+!        the authors wish to acknowledge the contributions of the       !
+!        following people:  patrick d. brown, michael j. iacono,        !
+!        ronald e. farren, luke chen, robert bergstrom.                 !
+!                                                                       !
+!  *******************************************************************  !
+!                                                                       !
+!  taumol                                                               !
+!                                                                       !
+!    this file contains the subroutines taugbn (where n goes from       !
+!    16 to 29).  taugbn calculates the optical depths and Planck        !
+!    fractions per g-value and layer for band n.                        !
+!                                                                       !
+!  output:  optical depths (unitless)                                   !
+!           fractions needed to compute planck functions at every layer !
+!           and g-value                                                 !
+!                                                                       !
+!  modifications:                                                       !
+!                                                                       !
+! revised: adapted to f90 coding, j.-j.morcrette, ecmwf, feb 2003       !
+! revised: modified for g-point reduction, mjiacono, aer, dec 2003      !
+! revised: reformatted for consistency with rrtmg_lw, mjiacono, aer,    !
+!          jul 2006                                                     !
+!                                                                       !
+!  *******************************************************************  !
+!  ======================  end of description block  =================  !
+
+!  ---  inputs:
+      integer, intent(in) :: nlay, nday
+      integer, intent(inout) :: laytrop( CHK     )
+
+      integer, dimension(CHK    ,nlay), intent(inout):: indfor, indself,&
+     &       jp, jt, jt1
+
+      real (kind=kind_phys),dimension( CHK     ,nlay),intent(inout) ::  &
+     &       colmol, fac00, fac01, fac10, fac11, forfac, forfrac,       &
+     &       selffac, selffrac
+
+      real (kind=kind_phys), dimension( CHK     ,nlay,maxgas),          &
+     &      intent(inout) :: colamt
+
+!  ---  outputs:
+      real (kind=kind_phys), dimension( CHK     ,ngptsw),intent(out) :: &
+     &         sfluxzen
+
+      real (kind=kind_phys), dimension( CHK     ,nlay,ngptsw),          &
+     &      intent(out) :: taug, taur
+
+!  ---  locals:
+      real (kind=kind_phys) :: fs, speccomb, specmult, colm1, colm2
+
+      integer, dimension(CHK,nlay,nblow:nbhgh) :: id0, id1
+
+      integer :: ibd, j, jb, js, k, klow, khgh, klim, ks, njb, ns, j1
+!
+!===> ... begin here
+
+!
+!  --- ...  loop over each spectral band
+
+      do jb = nblow, nbhgh
+
+!  --- ...  indices for layer optical depth
+
+      do k = 1, nlay
+       WHERE( k .LE. laytrop(1: nday     ) )
+          id0(:,k,jb) = ((jp(:,k)-1)*5 + (jt (:,k)-1)) * nspa(jb)
+          id1(:,k,jb) = ( jp(:,k)   *5 + (jt1(:,k)-1)) * nspa(jb)
+       ENDWHERE
+
+       WHERE( k .GT. laytrop(1: nday     ) )
+          id0(:,k,jb) = ((jp(:,k)-13)*5 + (jt (:,k)-1)) * nspb(jb)
+          id1(:,k,jb) = ((jp(:,k)-12)*5 + (jt1(:,k)-1)) * nspb(jb)
+       ENDWHERE
+      ENDDO
+
+!  --- ...  calculate spectral flux at toa
+
+        ibd = ibx(jb)
+        njb = ng (jb)
+        ns  = ngs(jb)
+
+        select case (jb)
+
+          case (16, 20, 23, 25, 26, 29)
+
+            do j = 1, njb
+              sfluxzen(:,ns+j) = sfluxref01(j,1,ibd)
+            enddo
+
+          case (27)
+
+            do j = 1, njb
+              sfluxzen(:,ns+j) = scalekur * sfluxref01(j,1,ibd)
+            enddo
+
+          case default
+
+      DO j1 = 1,nday
+            if (jb==17 .or. jb==28) then
+
+              ks = nlay
+              lab_do_k1 : do k = laytrop(j1), nlay-1
+                if (jp(j1,k)<layreffr(jb)                               &
+     &                          .and.jp(j1,k+1)>=layreffr(jb)) then
+                  ks = k + 1
+                  exit lab_do_k1
+                endif
+              enddo  lab_do_k1
+
+              colm1 = colamt(j1,ks,ix1(jb))
+              colm2 = colamt(j1,ks,ix2(jb))
+              speccomb = colm1 + strrat(jb)*colm2
+              specmult = specwt(jb) * min( oneminus, colm1/speccomb )
+              js = 1 + int( specmult )
+              fs = mod(specmult, f_one)
+
+              do j = 1, njb
+                sfluxzen(j1,ns+j) = sfluxref02(j,js,ibd)                   &
+     &           + fs * (sfluxref02(j,js+1,ibd) - sfluxref02(j,js,ibd))
+              enddo
+
+            else
+
+              ks = laytrop(j1)
+              lab_do_k2 : do k = 1, laytrop(j1)-1
+                if (jp(j1,k)<layreffr(jb)                               &
+     &                          .and. jp(j1,k+1)>=layreffr(jb)) then
+                  ks = k + 1
+                  exit lab_do_k2
+                endif
+              enddo  lab_do_k2
+
+              colm1 = colamt(j1,ks,ix1(jb))
+              colm2 = colamt(j1,ks,ix2(jb))
+              speccomb = colm1 + strrat(jb)*colm2
+              specmult = specwt(jb) * min( oneminus, colm1/speccomb )
+              js = 1 + int( specmult )
+              fs = mod(specmult, f_one)
+
+              do j = 1, njb
+                sfluxzen(j1,ns+j) = sfluxref03(j,js,ibd)                   &
+     &           + fs * (sfluxref03(j,js+1,ibd) - sfluxref03(j,js,ibd))
+              enddo
+
+            endif
+      ENDDO
+
+        end select
+
+      enddo
+
+!  --- ...  call taumol## to calculate layer optical depth
+
+      if ( nday < CHK ) then
+        laytrop  (nday+1:CHK)    = laytrop (nday)
+        do k = 1,nlay
+          indfor   (nday+1:CHK,k)  = indfor  (nday,k)
+          indself  (nday+1:CHK,k)  = indself (nday,k)
+          jp       (nday+1:CHK,k)  = jp      (nday,k)
+          jt       (nday+1:CHK,k)  = jt      (nday,k)
+          jt1      (nday+1:CHK,k)  = jt1     (nday,k)
+          colmol   (nday+1:CHK,k)  = colmol  (nday,k)
+          fac00    (nday+1:CHK,k)  = fac00   (nday,k)
+          fac01    (nday+1:CHK,k)  = fac01   (nday,k)
+          fac10    (nday+1:CHK,k)  = fac10   (nday,k)
+          fac11    (nday+1:CHK,k)  = fac11   (nday,k)
+          forfac   (nday+1:CHK,k)  = forfac  (nday,k)
+          forfrac  (nday+1:CHK,k)  = forfrac (nday,k)
+          selffac  (nday+1:CHK,k)  = selffac (nday,k)
+          selffrac (nday+1:CHK,k)  = selffrac(nday,k)
+        enddo
+        do j = 1,maxgas
+        do k = 1,nlay
+          colamt   (nday+1:CHK,k,j)= colamt  (nday,k,j)
+        enddo
+        enddo
+      endif
+
+      call taumol16
+      call taumol17
+      call taumol18
+      call taumol19
+      call taumol20
+      call taumol21
+      call taumol22
+      call taumol23
+      call taumol24
+      call taumol25
+      call taumol26
+      call taumol27
+      call taumol28
+      call taumol29
+
+! =================
+      contains
+! =================
 
 !-----------------------------------
       subroutine taumol16
 !...................................
 
 !  ------------------------------------------------------------------  !
-!     written by eli j. mlawer, atmospheric & environmental research.  !
-!                                                                      !
 !     band 16:  2600-3250 cm-1 (low - h2o,ch4; high - ch4)             !
-!                                                                      !
-! modifications                                                        !
-!                                                                      !
-!     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
-!                                                                      !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb16_nmmb
-!
-      implicit none
+      use module_radsw_kgb16
 
 !  ---  locals:
-      real (kind=kind_phys) :: speccomb, specmult, tauray, fs, fs1,     &
+
+      real (kind=kind_taum),dimension( CHK     ) ::                     &
+     &       speccomb, specmult, tauray, fs, fs1,                       &
      &       fac000,fac001,fac010,fac011, fac100,fac101,fac110,fac111
 
-      integer :: ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14
-      integer :: inds, indf, j, js, k
+      integer,dimension( CHK     ) ::                                   &
+     & ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14,          &
+     & inds, indf, indsp, indfp, js
+      integer :: j, k, j1
 
 !
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
-!       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!  --- ... compute the optical depth by interpolating in ln(pressure),
+!          temperature, and appropriate species.  below laytrop, the water
+!          vapor self-continuum is interpolated (in temperature) separately.
 
-      do k = 1, NLAY
-        tauray = colmol(k) * rayl
+      do k = 1, nlay
+!NOP$ SIMD
+        tauray(1: CHK     ) = colmol(1: CHK     ,k) * rayl
 
         do j = 1, NG16
-          taur(k,j) = tauray
+          taur(1: CHK     ,k,NS16+j) = tauray(1: CHK     )
         enddo
       enddo
 
-      do k = 1, laytrop
-        speccomb = colamt(k,1) + strrat(16)*colamt(k,5)
-        specmult = 8.0 * min( oneminus, colamt(k,1)/speccomb )
+      do k = 1, MAXVAL(laytrop(1: CHK     ))
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1: CHK     ) )
+        speccomb = colamt(1:CHK,k,1) + strrat(16)*colamt(1:CHK,k,5)
+        specmult = 8.0 * min( oneminus, colamt(1:CHK,k,1)/speccomb )
 
         js = 1 + int( specmult )
-        fs = mod( specmult, one )
-        fs1= one - fs
-        fac000 = fs1 * fac00(k)
-        fac010 = fs1 * fac10(k)
-        fac100 = fs  * fac00(k)
-        fac110 = fs  * fac10(k)
-        fac001 = fs1 * fac01(k)
-        fac011 = fs1 * fac11(k)
-        fac101 = fs  * fac01(k)
-        fac111 = fs  * fac11(k)
+        fs = mod( specmult, f_one )
+        fs1= f_one - fs
+        fac000 = fs1 * fac00(1:CHK,k)
+        fac010 = fs1 * fac10(1:CHK,k)
+        fac100 = fs  * fac00(1:CHK,k)
+        fac110 = fs  * fac10(1:CHK,k)
+        fac001 = fs1 * fac01(1:CHK,k)
+        fac011 = fs1 * fac11(1:CHK,k)
+        fac101 = fs  * fac01(1:CHK,k)
+        fac111 = fs  * fac11(1:CHK,k)
 
-        ind01 = id0(k,16) + js
-        ind02 = ind01 + 1
-        ind03 = ind01 + 9
-        ind04 = ind01 + 10
-        ind11 = id1(k,16) + js
-        ind12 = ind11 + 1
-        ind13 = ind11 + 9
-        ind14 = ind11 + 10
-        inds = indself(k)
-        indf = indfor (k)
+        ind01 = MAX(1,MIN(MSA16,id0(1:CHK,k,16) + js))
+        ind02 =       MIN(MSA16,ind01 + 1)
+        ind03 =       MIN(MSA16,ind01 + 9)
+        ind04 =       MIN(MSA16,ind01 + 10)
+        ind11 = MAX(1,MIN(MSA16,id1(1:CHK,k,16) + js))
+        ind12 =       MIN(MSA16,ind11 + 1)
+        ind13 =       MIN(MSA16,ind11 + 9)
+        ind14 =       MIN(MSA16,ind11 + 10)
+        inds = indself(1:CHK,k)
+        indf = indfor (1:CHK,k)
+        indsp= inds + 1
+        indfp= indf + 1
+       ENDWHERE
 
         do j = 1, NG16
-          taug(k,j) = speccomb                                          &
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK))
+          taug(1:CHK,k,NS16+j) = speccomb                               &
      &        *( fac000 * absa(ind01,j) + fac100 * absa(ind02,j)        &
      &        +  fac010 * absa(ind03,j) + fac110 * absa(ind04,j)        &
      &        +  fac001 * absa(ind11,j) + fac101 * absa(ind12,j)        &
      &        +  fac011 * absa(ind13,j) + fac111 * absa(ind14,j) )      &
-     &        + colamt(k,1) * (selffac(k) * (selfref(inds,j)            &
-     &        + selffrac(k) * (selfref(inds+1,j)-selfref(inds,j)))      &
-     &        + forfac(k) * (forref(indf,j) + forfrac(k)                &
-     &        * (forref(indf+1,j) - forref(indf,j))))
+     &  + colamt(1:CHK,k,1) * (selffac(1:CHK,k) * (selfref(inds,j)      &
+     &  + selffrac(1:CHK,k) * (selfref(indsp,j)-selfref(inds,j)))       &
+     &  + forfac(1:CHK,k) * (forref(indf,j) + forfrac(1:CHK,k)          &
+     &        * (forref(indfp,j) - forref(indf,j))))
+       ENDWHERE
         enddo
       enddo
 
-      do k = laytrop+1, NLAY
-        ind01 = id0(k,16) + 1
-        ind02 = ind01 + 1
-        ind11 = id1(k,16) + 1
-        ind12 = ind11 + 1
+      do k = MINVAL(laytrop(1:CHK))+1,nlay
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+        ind01 = MAX(1,MIN(MSB16,id0(1:CHK,k,16) + 1))
+        ind02 =       MIN(MSB16,ind01 + 1)
+        ind11 = MAX(1,MIN(MSB16,id1(1:CHK,k,16) + 1))
+        ind12 =       MIN(MSB16,ind11 + 1)
+       ENDWHERE
 
         do j = 1, NG16
-          taug(k,j) = colamt(k,5)                                       &
-     &      * ( fac00(k)*absb(ind01,j) + fac10(k)*absb(ind02,j)         &
-     &      +   fac01(k)*absb(ind11,j) + fac11(k)*absb(ind12,j) )
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS16+j) = colamt(1:CHK,k,5)                      &
+     &      *(fac00(1:CHK,k)*absb(ind01,j)+fac10(1:CHK,k)*absb(ind02,j) &
+     &      + fac01(1:CHK,k)*absb(ind11,j)+fac11(1:CHK,k)*absb(ind12,j))
+       ENDWHERE
         enddo
       enddo
 
@@ -2488,122 +3465,134 @@
 !-----------------------------------
 
 
-
 !-----------------------------------
       subroutine taumol17
 !...................................
 
 !  ------------------------------------------------------------------  !
-!     written by eli j. mlawer, atmospheric & environmental research.  !
-!                                                                      !
 !     band 17:  3250-4000 cm-1 (low - h2o,co2; high - h2o,co2)         !
-!                                                                      !
-! modifications                                                        !
-!                                                                      !
-!     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb17_nmmb
-!
-      implicit none
+      use module_radsw_kgb17
 
 !  ---  locals:
-      real (kind=kind_phys) :: speccomb, specmult, tauray, fs, fs1,     &
+
+      real (kind=kind_taum),dimension(CHK) ::                           &
+     &       speccomb, specmult, tauray, fs, fs1,                       &
      &       fac000,fac001,fac010,fac011, fac100,fac101,fac110,fac111
 
-      integer :: ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14
-      integer :: inds, indf, j, js, k, ks
+      integer,dimension(CHK) ::                                         &
+     & ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14,          &
+     & inds, indf, indsp, indfp, js
+      integer :: j, k, j1
 
-!
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
-!       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!  --- ...  compute the optical depth by interpolating in ln(pressure),
+!           temperature, and appropriate species.  below laytrop, the water
+!           vapor self-continuum is interpolated (in temperature) separately.
 
-      do k = 1, NLAY
-        tauray = colmol(k) * rayl
+      do k = 1, nlay
+!NOP$ SIMD
+        tauray(1:CHK) = colmol(1:CHK,k) * rayl
 
         do j = 1, NG17
-          taur(k,j) = tauray
+          taur(1:CHK,k,NS17+j) = tauray(1:CHK)
         enddo
       enddo
 
-      do k = 1, laytrop
-        speccomb = colamt(k,1) + strrat(17)*colamt(k,2)
-        specmult = 8.0 * min(oneminus, colamt(k,1) / speccomb)
+      do k = 1, MAXVAL(laytrop(1:CHK))
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+        speccomb = colamt(1:CHK,k,1) + strrat(17)*colamt(1:CHK,k,2)
+        specmult = 8.0 * min(oneminus, colamt(1:CHK,k,1) / speccomb)
 
-        js = 1 +int(specmult)
-        fs = mod(specmult, one)
-        fs1= one - fs
-        fac000 = fs1 * fac00(k)
-        fac010 = fs1 * fac10(k)
-        fac100 = fs  * fac00(k)
-        fac110 = fs  * fac10(k)
-        fac001 = fs1 * fac01(k)
-        fac011 = fs1 * fac11(k)
-        fac101 = fs  * fac01(k)
-        fac111 = fs  * fac11(k)
+        js = 1 + int(specmult)
+        fs = mod(specmult, f_one)
+        fs1= f_one - fs
+        fac000 = fs1 * fac00(1:CHK,k)
+        fac010 = fs1 * fac10(1:CHK,k)
+        fac100 = fs  * fac00(1:CHK,k)
+        fac110 = fs  * fac10(1:CHK,k)
+        fac001 = fs1 * fac01(1:CHK,k)
+        fac011 = fs1 * fac11(1:CHK,k)
+        fac101 = fs  * fac01(1:CHK,k)
+        fac111 = fs  * fac11(1:CHK,k)
 
-        ind01 = id0(k,17) + js
-        ind02 = ind01 + 1
-        ind03 = ind01 + 9
-        ind04 = ind01 + 10
-        ind11 = id1(k,17) + js
-        ind12 = ind11 + 1
-        ind13 = ind11 + 9
-        ind14 = ind11 + 10
-        inds = indself(k)
-        indf = indfor (k)
+        ind01 = MAX(1,MIN(MSA17,id0(1:CHK,k,17) + js))
+        ind02 =       MIN(MSA17,ind01 + 1)
+        ind03 =       MIN(MSA17,ind01 + 9)
+        ind04 =       MIN(MSA17,ind01 + 10)
+        ind11 = MAX(1,MIN(MSA17,id1(1:CHK,k,17) + js))
+        ind12 =       MIN(MSA17,ind11 + 1)
+        ind13 =       MIN(MSA17,ind11 + 9)
+        ind14 =       MIN(MSA17,ind11 + 10)
+
+        inds = indself(1:CHK,k)
+        indf = indfor (1:CHK,k)
+        indsp= inds + 1
+        indfp= indf + 1
+       ENDWHERE
 
         do j = 1, NG17
-          taug(k,j) = speccomb                                          &
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS17+j) = speccomb                                     &
      &        * ( fac000 * absa(ind01,j) + fac100 * absa(ind02,j)       &
      &        +   fac010 * absa(ind03,j) + fac110 * absa(ind04,j)       &
      &        +   fac001 * absa(ind11,j) + fac101 * absa(ind12,j)       &
      &        +   fac011 * absa(ind13,j) + fac111 * absa(ind14,j) )     &
-     &        + colamt(k,1) * (selffac(k) * (selfref(inds,j)            &
-     &        + selffrac(k) * (selfref(inds+1,j)-selfref(inds,j)))      &
-     &        + forfac(k) * (forref(indf,j) + forfrac(k)                &
-     &        * (forref(indf+1,j) - forref(indf,j)))) 
+     &  + colamt(1:CHK,k,1) * (selffac(1:CHK,k) * (selfref(inds,j)      &
+     &  + selffrac(1:CHK,k) * (selfref(indsp,j)-selfref(inds,j)))       &
+     &  + forfac(1:CHK,k) * (forref(indf,j) + forfrac(1:CHK,k)          &
+     &        * (forref(indfp,j) - forref(indf,j))))
+       ENDWHERE
         enddo
       enddo
 
-      do k = laytrop+1, NLAY
-        speccomb = colamt(k,1) + strrat(17)*colamt(k,2)
-        specmult = 4.0 * min(oneminus, colamt(k,1) / speccomb)
+      do k = MINVAL(laytrop(1:CHK))+1, NLAY
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+        speccomb = colamt(1:CHK,k,1) + strrat(17)*colamt(1:CHK,k,2)
+        specmult = 4.0 * min(oneminus, colamt(1:CHK,k,1) / speccomb)
 
         js = 1 + int(specmult)
-        fs = mod(specmult, one)
-        fs1= one - fs
-        fac000 = fs1 * fac00(k)
-        fac010 = fs1 * fac10(k)
-        fac100 = fs  * fac00(k)
-        fac110 = fs  * fac10(k)
-        fac001 = fs1 * fac01(k)
-        fac011 = fs1 * fac11(k)
-        fac101 = fs  * fac01(k)
-        fac111 = fs  * fac11(k)
+        fs = mod(specmult, f_one)
+        fs1= f_one - fs
+        fac000 = fs1 * fac00(1:CHK,k)
+        fac010 = fs1 * fac10(1:CHK,k)
+        fac100 = fs  * fac00(1:CHK,k)
+        fac110 = fs  * fac10(1:CHK,k)
+        fac001 = fs1 * fac01(1:CHK,k)
+        fac011 = fs1 * fac11(1:CHK,k)
+        fac101 = fs  * fac01(1:CHK,k)
+        fac111 = fs  * fac11(1:CHK,k)
 
-        ind01 = id0(k,17) + js
-        ind02 = ind01 + 1
-        ind03 = ind01 + 5
-        ind04 = ind01 + 6
-        ind11 = id1(k,17) + js
-        ind12 = ind11 + 1
-        ind13 = ind11 + 5
-        ind14 = ind11 + 6
-        indf = indfor(k)
+        ind01 = MAX(1,MIN(MSB17,id0(1:CHK,k,17) + js))
+        ind02 =       MIN(MSB17,ind01 + 1)
+        ind03 =       MIN(MSB17,ind01 + 5)
+        ind04 =       MIN(MSB17,ind01 + 6)
+        ind11 = MAX(1,MIN(MSB17,id1(1:CHK,k,17) + js))
+        ind12 =       MIN(MSB17,ind11 + 1)
+        ind13 =       MIN(MSB17,ind11 + 5)
+        ind14 =       MIN(MSB17,ind11 + 6)
+
+        indf = indfor(1:CHK,k)
+        indfp= indf + 1
+       ENDWHERE
 
         do j = 1, NG17
-          taug(k,j) = speccomb                                          &
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS17+j) = speccomb                                     &
      &        * ( fac000 * absb(ind01,j) + fac100 * absb(ind02,j)       &
      &        +   fac010 * absb(ind03,j) + fac110 * absb(ind04,j)       &
      &        +   fac001 * absb(ind11,j) + fac101 * absb(ind12,j)       &
      &        +   fac011 * absb(ind13,j) + fac111 * absb(ind14,j) )     &
-     &        + colamt(k,1) * forfac(k) * (forref(indf,j)               &
-     &        + forfrac(k) * (forref(indf+1,j) - forref(indf,j))) 
+     &  + colamt(1:CHK,k,1) * forfac(1:CHK,k) * (forref(indf,j)         &
+     &  + forfrac(1:CHK,k) * (forref(indfp,j) - forref(indf,j)))
+       ENDWHERE
         enddo
       enddo
 
@@ -2618,88 +3607,103 @@
 !...................................
 
 !  ------------------------------------------------------------------  !
-!     written by eli j. mlawer, atmospheric & environmental research.  !
-!                                                                      !
 !     band 18:  4000-4650 cm-1 (low - h2o,ch4; high - ch4)             !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb18_nmmb
-!
-      implicit none
+      use module_radsw_kgb18
 
 !  ---  locals:
-      real (kind=kind_phys) :: speccomb, specmult, tauray, fs, fs1,     &
+      real (kind=kind_taum),dimension(CHK) ::                           &
+     &       speccomb, specmult, tauray, fs, fs1,                       &
      &       fac000,fac001,fac010,fac011, fac100,fac101,fac110,fac111
 
-      integer :: ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14
-      integer :: inds, indf, j, js, k, ks
-
+      integer,dimension(CHK) ::                                         &
+     & ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14,          &
+     & inds, indf, indsp, indfp, js
+      integer :: j, k, j1
 !
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
-!       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!  --- ...  compute the optical depth by interpolating in ln(pressure),
+!           temperature, and appropriate species.  below laytrop, the water
+!           vapor self-continuum is interpolated (in temperature) separately.
 
-      do k = 1, NLAY
-        tauray = colmol(k) * rayl
+      do k = 1, nlay
+!NOP$ SIMD
+        tauray(1:CHK) = colmol(1:CHK,k) * rayl
 
         do j = 1, NG18
-          taur(k,j) = tauray
+          taur(1:CHK,k,NS18+j) = tauray(1:CHK)
         enddo
       enddo
 
-      do k = 1, laytrop
-        speccomb = colamt(k,1) + strrat(18)*colamt(k,5)
-        specmult = 8.0 * min(oneminus, colamt(k,1) / speccomb)
+      do k = 1, MAXVAL(laytrop(1:CHK))
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+        speccomb = colamt(1:CHK,k,1) + strrat(18)*colamt(1:CHK,k,5)
+        specmult = 8.0 * min(oneminus, colamt(1:CHK,k,1) / speccomb)
 
         js = 1 + int(specmult)
-        fs = mod(specmult, one)
-        fs1= one - fs
-        fac000 = fs1 * fac00(k)
-        fac010 = fs1 * fac10(k)
-        fac100 = fs  * fac00(k)
-        fac110 = fs  * fac10(k)
-        fac001 = fs1 * fac01(k)
-        fac011 = fs1 * fac11(k)
-        fac101 = fs  * fac01(k)
-        fac111 = fs  * fac11(k)
+        fs = mod(specmult, f_one)
+        fs1= f_one - fs
+        fac000 = fs1 * fac00(1:CHK,k)
+        fac010 = fs1 * fac10(1:CHK,k)
+        fac100 = fs  * fac00(1:CHK,k)
+        fac110 = fs  * fac10(1:CHK,k)
+        fac001 = fs1 * fac01(1:CHK,k)
+        fac011 = fs1 * fac11(1:CHK,k)
+        fac101 = fs  * fac01(1:CHK,k)
+        fac111 = fs  * fac11(1:CHK,k)
 
-        ind01 = id0(k,18) + js
-        ind02 = ind01 + 1
-        ind03 = ind01 + 9
-        ind04 = ind01 + 10
-        ind11 = id1(k,18) + js
-        ind12 = ind11 + 1
-        ind13 = ind11 + 9
-        ind14 = ind11 + 10
-        inds = indself(k)
-        indf = indfor (k)
+        ind01 = MAX(1,MIN(MSA18,id0(1:CHK,k,18) + js))
+        ind02 =       MIN(MSA18,ind01 + 1)
+        ind03 =       MIN(MSA18,ind01 + 9)
+        ind04 =       MIN(MSA18,ind01 + 10)
+        ind11 = MAX(1,MIN(MSA18,id1(1:CHK,k,18) + js))
+        ind12 =       MIN(MSA18,ind11 + 1)
+        ind13 =       MIN(MSA18,ind11 + 9)
+        ind14 =       MIN(MSA18,ind11 + 10)
+
+        inds = indself(1:CHK,k)
+        indf = indfor (1:CHK,k)
+        indsp= inds + 1
+        indfp= indf + 1
+       ENDWHERE
 
         do j = 1, NG18
-          taug(k,j) = speccomb                                          &
+!!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+!!NOP$ IVDEP
+          taug(1:CHK,k,NS18+j) = speccomb                               &
      &        * ( fac000 * absa(ind01,j) + fac100 * absa(ind02,j)       &
      &        +   fac010 * absa(ind03,j) + fac110 * absa(ind04,j)       &
      &        +   fac001 * absa(ind11,j) + fac101 * absa(ind12,j)       &
      &        +   fac011 * absa(ind13,j) + fac111 * absa(ind14,j) )     &
-     &        + colamt(k,1) * (selffac(k) * (selfref(inds,j)            &
-     &        + selffrac(k) * (selfref(inds+1,j)-selfref(inds,j)))      &
-     &        + forfac(k) * (forref(indf,j) + forfrac(k)                &
-     &        * (forref(indf+1,j) - forref(indf,j)))) 
+     &  + colamt(1:CHK,k,1) * (selffac(1:CHK,k) * (selfref(inds,j)      &
+     &  + selffrac(1:CHK,k) * (selfref(indsp,j)-selfref(inds,j)))       &
+     &  + forfac(1:CHK,k) * (forref(indf,j) + forfrac(1:CHK,k)          &
+     &        * (forref(indfp,j) - forref(indf,j))))
+       ENDWHERE
         enddo
       enddo
 
-      do k = laytrop+1, NLAY
-        ind01 = id0(k,18) + 1
-        ind02 = ind01 + 1
-        ind11 = id1(k,18) + 1
-        ind12 = ind11 + 1
+      do k = MINVAL(laytrop(1:CHK))+1, NLAY
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+        ind01 = MAX(1,MIN(MSB18,id0(:,k,18) + 1))
+        ind02 =       MIN(MSB18,ind01 + 1)
+        ind11 = MAX(1,MIN(MSB18,id1(:,k,18) + 1))
+        ind12 =       MIN(MSB18,ind11 + 1)
+       ENDWHERE
 
         do j = 1, NG18
-          taug(k,j) = colamt(k,5)                                       &
-     &        * ( fac00(k)*absb(ind01,j) + fac10(k)*absb(ind02,j)       &
-     &        +   fac01(k)*absb(ind11,j) + fac11(k)*absb(ind12,j) )
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS18+j) = colamt(1:CHK,k,5)                      &
+     &   * (fac00(1:CHK,k)*absb(ind01,j)+fac10(1:CHK,k)*absb(ind02,j)   &
+     &   +  fac01(1:CHK,k)*absb(ind11,j)+fac11(1:CHK,k)*absb(ind12,j) )
+       ENDWHERE
         enddo
       enddo
 
@@ -2714,96 +3718,105 @@
 !...................................
 
 !  ------------------------------------------------------------------  !
-!     written by eli j. mlawer, atmospheric & environmental research.  !
-!                                                                      !
 !     band 19:  4650-5150 cm-1 (low - h2o,co2; high - co2)             !
-!                                                                      !
-! modifications                                                        !
-!                                                                      !
-!     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb19_nmmb
-!
-      implicit none
+      use module_radsw_kgb19
 
 !  ---  locals:
-      real (kind=kind_phys) :: speccomb, specmult, tauray, fs, fs1,     &
+      real (kind=kind_taum),dimension(CHK) ::                           &
+     &       speccomb, specmult, tauray, fs, fs1,                       &
      &       fac000,fac001,fac010,fac011, fac100,fac101,fac110,fac111
 
-      integer :: ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14
-      integer :: inds, indf, j, js, k, ks
+      integer,dimension(CHK) ::                                         &
+     & ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14,          &
+     & inds, indf, indsp, indfp, js
+      integer :: j, k, j1
 
 !
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
-!       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
-
-      do k = 1, NLAY
-        tauray = colmol(k) * rayl
+!  --- ...  compute the optical depth by interpolating in ln(pressure),
+!           temperature, and appropriate species.  below laytrop, the water
+!           vapor self-continuum is interpolated (in temperature) separately.
+      do k = 1, nlay
+!NOP$ SIMD
+        tauray(1:CHK) = colmol(1:CHK,k) * rayl
 
         do j = 1, NG19
-          taur(k,j) = tauray
+          taur(1:CHK,k,NS19+j) = tauray(1:CHK)
         enddo
       enddo
 
-      do k = 1, laytrop
-        speccomb = colamt(k,1) + strrat(19)*colamt(k,2)
-        specmult = 8.0 * min(oneminus, colamt(k,1) / speccomb)
+      do k = 1, MAXVAL(laytrop(1:CHK))
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+        speccomb = colamt(1:CHK,k,1) + strrat(19)*colamt(1:CHK,k,2)
+        specmult = 8.0 * min(oneminus, colamt(1:CHK,k,1) / speccomb)
 
         js = 1 + int(specmult)
-        fs = mod(specmult, one)
-        fs1= one - fs
-        fac000 = fs1 * fac00(k)
-        fac010 = fs1 * fac10(k)
-        fac100 = fs  * fac00(k)
-        fac110 = fs  * fac10(k)
-        fac001 = fs1 * fac01(k)
-        fac011 = fs1 * fac11(k)
-        fac101 = fs  * fac01(k)
-        fac111 = fs  * fac11(k)
+        fs = mod(specmult, f_one)
+        fs1= f_one - fs
+        fac000 = fs1 * fac00(1:CHK,k)
+        fac010 = fs1 * fac10(1:CHK,k)
+        fac100 = fs  * fac00(1:CHK,k)
+        fac110 = fs  * fac10(1:CHK,k)
+        fac001 = fs1 * fac01(1:CHK,k)
+        fac011 = fs1 * fac11(1:CHK,k)
+        fac101 = fs  * fac01(1:CHK,k)
+        fac111 = fs  * fac11(1:CHK,k)
 
-        ind01 = id0(k,19) + js
-        ind02 = ind01 + 1
-        ind03 = ind01 + 9
-        ind04 = ind01 + 10
-        ind11 = id1(k,19) + js
-        ind12 = ind11 + 1
-        ind13 = ind11 + 9
-        ind14 = ind11 + 10
-        inds = indself(k)
-        indf = indfor (k)
+        ind01 = MAX(1,MIN(MSA19,id0(1:CHK,k,19) + js))
+        ind02 =       MIN(MSA19,ind01 + 1)
+        ind03 =       MIN(MSA19,ind01 + 9)
+        ind04 =       MIN(MSA19,ind01 + 10)
+        ind11 = MAX(1,MIN(MSA19,id1(1:CHK,k,19) + js))
+        ind12 =       MIN(MSA19,ind11 + 1)
+        ind13 =       MIN(MSA19,ind11 + 9)
+        ind14 =       MIN(MSA19,ind11 + 10)
+
+        inds = indself(1:CHK,k)
+        indf = indfor (1:CHK,k)
+        indsp= inds + 1
+        indfp= indf + 1
+       ENDWHERE
 
         do j = 1, NG19
-          taug(k,j) = speccomb                                          &
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS19+j) = speccomb                               &
      &        * ( fac000 * absa(ind01,j) + fac100 * absa(ind02,j)       &
      &        +   fac010 * absa(ind03,j) + fac110 * absa(ind04,j)       &
      &        +   fac001 * absa(ind11,j) + fac101 * absa(ind12,j)       &
      &        +   fac011 * absa(ind13,j) + fac111 * absa(ind14,j) )     &
-     &        + colamt(k,1) * (selffac(k) * (selfref(inds,j)            &
-     &        + selffrac(k) * (selfref(inds+1,j)-selfref(inds,j)))      &
-     &        + forfac(k) * (forref(indf,j) + forfrac(k)                &
-     &        * (forref(indf+1,j) - forref(indf,j)))) 
+     & + colamt(1:CHK,k,1) * (selffac(1:CHK,k) * (selfref(inds,j)       &
+     & + selffrac(1:CHK,k) * (selfref(indsp,j)-selfref(inds,j)))        &
+     & + forfac(1:CHK,k) * (forref(indf,j) + forfrac(1:CHK,k)           &
+     &        * (forref(indfp,j) - forref(indf,j))))
+       ENDWHERE
         enddo
       enddo
 
-      do k = laytrop+1, NLAY
-        ind01 = id0(k,19) + 1
-        ind02 = ind01 + 1
-        ind11 = id1(k,19) + 1
-        ind12 = ind11 + 1
+      do k = MINVAL(laytrop(1:CHK))+1, NLAY
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+        ind01 = MAX(1,MIN(MSB19,id0(1:CHK,k,19) + 1))
+        ind02 =       MIN(MSB19,ind01 + 1)
+        ind11 = MAX(1,MIN(MSB19,id1(1:CHK,k,19) + 1))
+        ind12 =       MIN(MSB19,ind11 + 1)
+       ENDWHERE
 
         do j = 1, NG19
-          taug(k,j) = colamt(k,2)                                       &
-     &        * ( fac00(k)*absb(ind01,j) + fac10(k)*absb(ind02,j)       &
-     &        +   fac01(k)*absb(ind11,j) + fac11(k)*absb(ind12,j) ) 
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS19+j) = colamt(1:CHK,k,2)                      &
+     & * ( fac00(1:CHK,k)*absb(ind01,j) + fac10(1:CHK,k)*absb(ind02,j)  &
+     & +   fac01(1:CHK,k)*absb(ind11,j) + fac11(1:CHK,k)*absb(ind12,j) ) 
+       ENDWHERE
         enddo
       enddo
 
-      return
 !...................................
       end subroutine taumol19
 !-----------------------------------
@@ -2814,75 +3827,88 @@
 !...................................
 
 !  ------------------------------------------------------------------  !
-!     written by eli j. mlawer, atmospheric & environmental research.  !
-!                                                                      !
 !     band 20:  5150-6150 cm-1 (low - h2o; high - h2o)                 !
-!                                                                      !
-! modifications                                                        !
-!                                                                      !
-!     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb20_nmmb
-!
-      implicit none
+      use module_radsw_kgb20
 
 !  ---  locals:
-      real (kind=kind_phys) :: tauray
 
-      integer :: ind01, ind02, ind11, ind12
-      integer :: inds, indf, j, k
+      real (kind=kind_taum),dimension(CHK) :: tauray
+
+      integer,dimension(CHK) ::                                         &
+     & ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14,          &
+     & inds, indf, indsp, indfp, js
+      integer :: j, k, j1
 
 !
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
-!       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!  --- ...  compute the optical depth by interpolating in ln(pressure),
+!           temperature, and appropriate species.  below laytrop, the water
+!           vapor self-continuum is interpolated (in temperature) separately.
 
-      do k = 1, NLAY
-        tauray = colmol(k) * rayl
+      do k = 1, nlay
+!NOP$ SIMD
+        tauray(1:CHK) = colmol(1:CHK,k) * rayl
 
         do j = 1, NG20
-          taur(k,j) = tauray
+          taur(1:CHK,k,NS20+j) = tauray(1:CHK)
         enddo
       enddo
 
-      do k = 1, laytrop
-        ind01 = id0(k,20) + 1
-        ind02 = ind01 + 1
-        ind11 = id1(k,20) + 1
-        ind12 = ind11 + 1
-        inds = indself(k)
-        indf = indfor (k)
+      do k = 1, MAXVAL(laytrop(1:CHK))
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+        ind01 = MAX(1,MIN(MSA20,id0(1:CHK,k,20) + 1))
+        ind02 =       MIN(MSA20,ind01 + 1)
+        ind11 = MAX(1,MIN(MSA20,id1(1:CHK,k,20) + 1))
+        ind12 =       MIN(MSA20,ind11 + 1)
+
+        inds = indself(1:CHK,k)
+        indf = indfor (1:CHK,k)
+        indsp= inds + 1
+        indfp= indf + 1
+       ENDWHERE
 
         do j = 1, NG20
-          taug(k,j) = colamt(k,1)                                       &
-     &        * ( (fac00(k)*absa(ind01,j) + fac10(k)*absa(ind02,j)      &
-     &        +    fac01(k)*absa(ind11,j) + fac11(k)*absa(ind12,j))     &
-     &        +   selffac(k) * (selfref(inds,j) + selffrac(k)           &
-     &        *   (selfref(inds+1,j) - selfref(inds,j)))                &
-     &        +   forfac(k) * (forref(indf,j) + forfrac(k)              &
-     &        *   (forref(indf+1,j) - forref(indf,j))) )                &
-     &        + colamt(k,5) * absch4(j)
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS20+j) = colamt(1:CHK,k,1)                      &
+     & * ( (fac00(1:CHK,k)*absa(ind01,j) + fac10(1:CHK,k)*absa(ind02,j) &
+     & +    fac01(1:CHK,k)*absa(ind11,j) + fac11(1:CHK,k)*absa(ind12,j))&
+     & +   selffac(1:CHK,k) * (selfref(inds,j) + selffrac(1:CHK,k)      &
+     & *   (selfref(indsp,j) - selfref(inds,j)))                        &
+     & +   forfac(1:CHK,k) * (forref(indf,j) + forfrac(1:CHK,k)         &
+     & *   (forref(indfp,j) - forref(indf,j))) )                        &
+     & + colamt(1:CHK,k,5) * absch4(j)
+       ENDWHERE
         enddo
       enddo
 
-      do k = laytrop+1, NLAY
-        ind01 = id0(k,20) + 1
-        ind02 = ind01 + 1
-        ind11 = id1(k,20) + 1
-        ind12 = ind11 + 1
-        indf = indfor(k)
+      do k = MINVAL(laytrop(1:CHK))+1, NLAY
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+        ind01 = MAX(1,MIN(MSB20,id0(1:CHK,k,20) + 1))
+        ind02 =       MIN(MSB20,ind01 + 1)
+        ind11 = MAX(1,MIN(MSB20,id1(1:CHK,k,20) + 1))
+        ind12 =       MIN(MSB20,ind11 + 1)
+
+        indf = indfor(1:CHK,k)
+        indfp= indf + 1
+       ENDWHERE
 
         do j = 1, NG20
-          taug(k,j) = colamt(k,1)                                       &
-     &        * ( fac00(k)*absb(ind01,j) + fac10(k)*absb(ind02,j)       &
-     &        +   fac01(k)*absb(ind11,j) + fac11(k)*absb(ind12,j)       &
-     &        +   forfac(k) * (forref(indf,j) + forfrac(k)              &
-     &        *   (forref(indf+1,j) - forref(indf,j))) )                &
-     &        + colamt(k,5) * absch4(j)
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS20+j) = colamt(1:CHK,k,1)                      &
+     & * ( fac00(1:CHK,k)*absb(ind01,j) + fac10(1:CHK,k)*absb(ind02,j)  &
+     & +   fac01(1:CHK,k)*absb(ind11,j) + fac11(1:CHK,k)*absb(ind12,j)  &
+     & +   forfac(1:CHK,k) * (forref(indf,j) + forfrac(1:CHK,k)         &
+     & *   (forref(indfp,j) - forref(indf,j))) )                        &
+     & + colamt(1:CHK,k,5) * absch4(j)
+       ENDWHERE
         enddo
       enddo
 
@@ -2897,120 +3923,133 @@
 !...................................
 
 !  ------------------------------------------------------------------  !
-!     written by eli j. mlawer, atmospheric & environmental research.  !
-!                                                                      !
 !     band 21:  6150-7700 cm-1 (low - h2o,co2; high - h2o,co2)         !
-!                                                                      !
-! modifications                                                        !
-!                                                                      !
-!     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb21_nmmb
-!
-      implicit none
+      use module_radsw_kgb21
 
 !  ---  locals:
-      real (kind=kind_phys) :: speccomb, specmult, tauray, fs, fs1,     &
+
+      real (kind=kind_taum),dimension(CHK) ::                           &
+     &       speccomb, specmult, tauray, fs, fs1,                       &
      &       fac000,fac001,fac010,fac011, fac100,fac101,fac110,fac111
 
-      integer :: ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14
-      integer :: inds, indf, j, js, k, ks
+      integer,dimension(CHK) ::                                         &
+     & ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14,          &
+     & inds, indf, indsp, indfp, js
+      integer :: j, k, j1
 
 !
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
-!       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!  --- ...  compute the optical depth by interpolating in ln(pressure),
+!           temperature, and appropriate species.  below laytrop, the water
+!           vapor self-continuum is interpolated (in temperature) separately.
 
-      do k = 1, NLAY
-        tauray = colmol(k) * rayl
+      do k = 1, nlay
+!NOP$ SIMD
+        tauray(1:CHK) = colmol(1:CHK,k) * rayl
 
         do j = 1, NG21
-          taur(k,j) = tauray
+          taur(1:CHK,k,NS21+j) = tauray(1:CHK)
         enddo
       enddo
 
-      do k = 1, laytrop
-        speccomb = colamt(k,1) + strrat(21)*colamt(k,2)
-        specmult = 8.0 * min(oneminus, colamt(k,1) / speccomb)
+      do k = 1, MAXVAL(laytrop(1:CHK))
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+        speccomb = colamt(1:CHK,k,1) + strrat(21)*colamt(1:CHK,k,2)
+        specmult = 8.0 * min(oneminus, colamt(1:CHK,k,1) / speccomb)
 
         js = 1 + int(specmult)
-        fs = mod(specmult, one)
-        fs1= one - fs
-        fac000 = fs1 * fac00(k)
-        fac010 = fs1 * fac10(k)
-        fac100 = fs  * fac00(k)
-        fac110 = fs  * fac10(k)
-        fac001 = fs1 * fac01(k)
-        fac011 = fs1 * fac11(k)
-        fac101 = fs  * fac01(k)
-        fac111 = fs  * fac11(k)
+        fs = mod(specmult, f_one)
+        fs1= f_one - fs
+        fac000 = fs1 * fac00(1:CHK,k)
+        fac010 = fs1 * fac10(1:CHK,k)
+        fac100 = fs  * fac00(1:CHK,k)
+        fac110 = fs  * fac10(1:CHK,k)
+        fac001 = fs1 * fac01(1:CHK,k)
+        fac011 = fs1 * fac11(1:CHK,k)
+        fac101 = fs  * fac01(1:CHK,k)
+        fac111 = fs  * fac11(1:CHK,k)
 
-        ind01 = id0(k,21) + js
-        ind02 = ind01 + 1
-        ind03 = ind01 + 9
-        ind04 = ind01 + 10
-        ind11 = id1(k,21) + js
-        ind12 = ind11 + 1
-        ind13 = ind11 + 9
-        ind14 = ind11 + 10
-        inds = indself(k)
-        indf = indfor (k)
+        ind01 = MAX(1,MIN(MSA21,id0(1:CHK,k,21) + js))
+        ind02 =       MIN(MSA21,ind01 + 1)
+        ind03 =       MIN(MSA21,ind01 + 9)
+        ind04 =       MIN(MSA21,ind01 + 10)
+        ind11 = MAX(1,MIN(MSA21,id1(1:CHK,k,21) + js))
+        ind12 =       MIN(MSA21,ind11 + 1)
+        ind13 =       MIN(MSA21,ind11 + 9)
+        ind14 =       MIN(MSA21,ind11 + 10)
+
+        inds = indself(1:CHK,k)
+        indf = indfor (1:CHK,k)
+        indsp= inds + 1
+        indfp= indf + 1
+       ENDWHERE
 
         do j = 1, NG21
-          taug(k,j) = speccomb                                          &
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS21+j) = speccomb                               &
      &        * ( fac000 * absa(ind01,j) + fac100 * absa(ind02,j)       &
      &        +   fac010 * absa(ind03,j) + fac110 * absa(ind04,j)       &
      &        +   fac001 * absa(ind11,j) + fac101 * absa(ind12,j)       &
      &        +   fac011 * absa(ind13,j) + fac111 * absa(ind14,j) )     &
-     &        + colamt(k,1) * (selffac(k) * (selfref(inds,j)            &
-     &        + selffrac(k) * (selfref(inds+1,j)-selfref(inds,j)))      &
-     &        + forfac(k) * (forref(indf,j) + forfrac(k)                &
-     &        * (forref(indf+1,j) - forref(indf,j))))
+     & + colamt(1:CHK,k,1) * (selffac(1:CHK,k) * (selfref(inds,j)       &
+     & + selffrac(1:CHK,k) * (selfref(indsp,j) - selfref(inds,j)))      &
+     & + forfac(1:CHK,k) * (forref(indf,j) + forfrac(1:CHK,k)           &
+     & * (forref(indfp,j) - forref(indf,j))))
+       ENDWHERE
         enddo
       enddo
 
-      do k = laytrop+1, NLAY
-        speccomb = colamt(k,1) + strrat(21)*colamt(k,2)
-        specmult = 4.0 * min(oneminus, colamt(k,1) / speccomb)
-
+      do k = MINVAL(laytrop(1:CHK))+1, NLAY
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+	speccomb = colamt(1:CHK,k,1) + strrat(21)*colamt(1:CHK,k,2)
+        specmult = 4.0 * min(oneminus, colamt(1:CHK,k,1) / speccomb)
         js = 1 + int(specmult)
-        fs = mod(specmult, one)
-        fs1= one - fs
-        fac000 = fs1 * fac00(k)
-        fac010 = fs1 * fac10(k)
-        fac100 = fs  * fac00(k)
-        fac110 = fs  * fac10(k)
-        fac001 = fs1 * fac01(k)
-        fac011 = fs1 * fac11(k)
-        fac101 = fs  * fac01(k)
-        fac111 = fs  * fac11(k)
+        fs = mod(specmult, f_one)
+        fs1= f_one - fs
+        fac000 = fs1 * fac00(1:CHK,k)
+        fac010 = fs1 * fac10(1:CHK,k)
+        fac100 = fs  * fac00(1:CHK,k)
+        fac110 = fs  * fac10(1:CHK,k)
+        fac001 = fs1 * fac01(1:CHK,k)
+        fac011 = fs1 * fac11(1:CHK,k)
+        fac101 = fs  * fac01(1:CHK,k)
+        fac111 = fs  * fac11(1:CHK,k)
 
-        ind01 = id0(k,21) + js
-        ind02 = ind01 + 1
-        ind03 = ind01 + 5
-        ind04 = ind01 + 6
-        ind11 = id1(k,21) + js
-        ind12 = ind11 + 1
-        ind13 = ind11 + 5
-        ind14 = ind11 + 6
-        indf = indfor(k)
+        ind01 = MAX(1,MIN(MSB21,id0(:,k,21) + js))
+        ind02 =       MIN(MSB21,ind01 + 1)
+        ind03 =       MIN(MSB21,ind01 + 5)
+        ind04 =       MIN(MSB21,ind01 + 6)
+        ind11 = MAX(1,MIN(MSB21,id1(:,k,21) + js))
+        ind12 =       MIN(MSB21,ind11 + 1)
+        ind13 =       MIN(MSB21,ind11 + 5)
+        ind14 =       MIN(MSB21,ind11 + 6)
+
+        indf = indfor(1:CHK,k)
+        indfp= indf + 1
+       ENDWHERE
 
         do j = 1, NG21
-          taug(k,j) = speccomb                                          &
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS21+j) = speccomb                                     &
      &        * ( fac000 * absb(ind01,j) + fac100 * absb(ind02,j)       &
      &        +   fac010 * absb(ind03,j) + fac110 * absb(ind04,j)       &
      &        +   fac001 * absb(ind11,j) + fac101 * absb(ind12,j)       &
      &        +   fac011 * absb(ind13,j) + fac111 * absb(ind14,j) )     &
-     &        + colamt(k,1) * forfac(k) * (forref(indf,j)               &
-     &        + forfrac(k) * (forref(indf+1,j) - forref(indf,j)))
+     &        + colamt(1:CHK,k,1) * forfac(1:CHK,k) * (forref(indf,j)               &
+     &        + forfrac(1:CHK,k) * (forref(indfp,j) - forref(indf,j)))
+       ENDWHERE
         enddo
       enddo
 
-      return
+
 !...................................
       end subroutine taumol21
 !-----------------------------------
@@ -3021,103 +4060,113 @@
 !...................................
 
 !  ------------------------------------------------------------------  !
-!     written by eli j. mlawer, atmospheric & environmental research.  !
-!                                                                      !
 !     band 22:  7700-8050 cm-1 (low - h2o,o2; high - o2)               !
-!                                                                      !
-! modifications                                                        !
-!                                                                      !
-!     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb22_nmmb
-!
-      implicit none
+      use module_radsw_kgb22
 
 !  ---  locals:
-      real (kind=kind_phys) :: speccomb, specmult, tauray, fs, fs1,     &
-     &       fac000,fac001,fac010,fac011, fac100,fac101,fac110,fac111,  &
-     &       o2adj, o2cont, o2tem
+      real (kind=kind_taum),dimension(CHK) ::                           &
+     &       speccomb, specmult, tauray, fs, fs1,                       &
+     &       fac000,fac001,fac010,fac011, fac100,fac101,fac110,fac111
 
-      integer :: ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14
-      integer :: inds, indf, j, js, k, ks
+      integer,dimension(CHK) ::                                         &
+     & ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14,          &
+     & inds, indf, indsp, indfp, js
+      integer :: j, k, j1
+      real (kind=kind_taum) :: o2adj, o2tem,o2cont(CHK)
 
 !
 !===> ... begin here
 !
-!  ---  the following factor is the ratio of total o2 band intensity (lines
-!       and mate continuum) to o2 band intensity (line only). it is needed
-!       to adjust the optical depths since the k's include only lines.
+!  --- ...  the following factor is the ratio of total o2 band intensity (lines
+!           and mate continuum) to o2 band intensity (line only). it is needed
+!           to adjust the optical depths since the k's include only lines.
 
       o2adj = 1.6
       o2tem = 4.35e-4 / (350.0*2.0)
       
-!  ---  compute the optical depth by interpolating in ln(pressure),
-!       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!  --- ...  compute the optical depth by interpolating in ln(pressure),
+!           temperature, and appropriate species.  below laytrop, the water
+!           vapor self-continuum is interpolated (in temperature) separately.
 
-      do k = 1, NLAY
-        tauray = colmol(k) * rayl
+      do k = 1, nlay
+!NOP$ SIMD
+        tauray(1:CHK) = colmol(1:CHK,k) * rayl
 
         do j = 1, NG22
-          taur(k,j) = tauray
+          taur(1:CHK,k,NS22+j) = tauray(1:CHK)
         enddo
       enddo
 
-      do k = 1, laytrop
-        o2cont   = o2tem * colamt(k,6)
-        speccomb = colamt(k,1) + strrat(22)*colamt(k,6)
-        specmult = 8.0 * min(oneminus, colamt(k,1) / speccomb)
+      do k = 1, MAXVAL(laytrop(1:CHK))
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+        o2cont   = o2tem * colamt(:,k,6)
+        speccomb = colamt(1:CHK,k,1) + strrat(22)*colamt(1:CHK,k,6)
+        specmult = 8.0 * min(oneminus, colamt(1:CHK,k,1) / speccomb)
 
         js = 1 + int(specmult)
-        fs = mod(specmult, one)
-        fs1= one - fs
-        fac000 = fs1 * fac00(k)
-        fac010 = fs1 * fac10(k)
-        fac100 = fs  * fac00(k)
-        fac110 = fs  * fac10(k)
-        fac001 = fs1 * fac01(k)
-        fac011 = fs1 * fac11(k)
-        fac101 = fs  * fac01(k)
-        fac111 = fs  * fac11(k)
+        fs = mod(specmult, f_one)
+        fs1= f_one - fs
+        fac000 = fs1 * fac00(1:CHK,k)
+        fac010 = fs1 * fac10(1:CHK,k)
+        fac100 = fs  * fac00(1:CHK,k)
+        fac110 = fs  * fac10(1:CHK,k)
+        fac001 = fs1 * fac01(1:CHK,k)
+        fac011 = fs1 * fac11(1:CHK,k)
+        fac101 = fs  * fac01(1:CHK,k)
+        fac111 = fs  * fac11(1:CHK,k)
 
-        ind01 = id0(k,22) + js
-        ind02 = ind01 + 1
-        ind03 = ind01 + 9
-        ind04 = ind01 + 10
-        ind11 = id1(k,22) + js
-        ind12 = ind11 + 1
-        ind13 = ind11 + 9
-        ind14 = ind11 + 10
-        inds = indself(k)
-        indf = indfor (k)
+        ind01 = MAX(1,MIN(MSA22,id0(1:CHK,k,22) + js))
+        ind02 =       MIN(MSA22,ind01 + 1)
+        ind03 =       MIN(MSA22,ind01 + 9)
+        ind04 =       MIN(MSA22,ind01 + 10)
+        ind11 = MAX(1,MIN(MSA22,id1(1:CHK,k,22) + js))
+        ind12 =       MIN(MSA22,ind11 + 1)
+        ind13 =       MIN(MSA22,ind11 + 9)
+        ind14 =       MIN(MSA22,ind11 + 10)
+
+        inds = indself(1:CHK,k)
+        indf = indfor (1:CHK,k)
+        indsp= inds + 1
+        indfp= indf + 1
+       ENDWHERE
 
         do j = 1, NG22
-          taug(k,j) = speccomb                                          &
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS22+j) = speccomb                               &
      &        * ( fac000 * absa(ind01,j) + fac100 * absa(ind02,j)       &
      &        +   fac010 * absa(ind03,j) + fac110 * absa(ind04,j)       &
      &        +   fac001 * absa(ind11,j) + fac101 * absa(ind12,j)       &
      &        +   fac011 * absa(ind13,j) + fac111 * absa(ind14,j) )     &
-     &        + colamt(k,1) * (selffac(k) * (selfref(inds,j)            &
-     &        + selffrac(k) * (selfref(inds+1,j)-selfref(inds,j)))      &
-     &        + forfac(k) * (forref(indf,j) + forfrac(k)                &
-     &        * (forref(indf+1,j) - forref(indf,j)))) + o2cont
+     &        + colamt(1:CHK,k,1) * (selffac(1:CHK,k) * (selfref(inds,j)&
+     &        + selffrac(1:CHK,k) * (selfref(indsp,j)-selfref(inds,j))) &
+     &        + forfac(1:CHK,k) * (forref(indf,j) + forfrac(1:CHK,k)    &
+     &        * (forref(indfp,j) - forref(indf,j)))) + o2cont
+       ENDWHERE
         enddo
       enddo
 
-      do k = laytrop+1, NLAY
-        o2cont = o2tem * colamt(k,6)
-
-        ind01 = id0(k,22) + 1
-        ind02 = ind01 + 1
-        ind11 = id1(k,22) + 1
-        ind12 = ind11 + 1
+      do k = MINVAL(laytrop(1:CHK))+1, NLAY
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+        ind01 = MAX(1,MIN(MSB22,id0(1:CHK,k,22) + 1))
+        ind02 =       MIN(MSB22,ind01 + 1)
+        ind11 = MAX(1,MIN(MSB22,id1(1:CHK,k,22) + 1))
+        ind12 =       MIN(MSB22,ind11 + 1)
+       ENDWHERE
 
         do j = 1, NG22
-          taug(k,j) = colamt(k,6) * o2adj                               &
-     &        * ( fac00(k)*absb(ind01,j) + fac10(k)*absb(ind02,j)       &
-     &        +   fac01(k)*absb(ind11,j) + fac11(k)*absb(ind12,j) )     &
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+          o2cont = o2tem * colamt(:,k,6)
+          taug(:,k,NS22+j) = colamt(:,k,6) * o2adj                          &
+     &        * ( fac00(:,k)*absb(ind01,j) + fac10(:,k)*absb(ind02,j)       &
+     &        +   fac01(:,k)*absb(ind11,j) + fac11(:,k)*absb(ind12,j) )     &
      &        + o2cont
+       ENDWHERE
         enddo
       enddo
 
@@ -3132,63 +4181,67 @@
 !...................................
 
 !  ------------------------------------------------------------------  !
-!     written by eli j. mlawer, atmospheric & environmental research.  !
-!                                                                      !
 !     band 23:  8050-12850 cm-1 (low - h2o; high - nothing)            !
-!                                                                      !
-! modifications                                                        !
-!                                                                      !
-!     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb23_nmmb
-!
-      implicit none
+      use module_radsw_kgb23
 
 !  ---  locals:
-      integer :: ind01, ind02, ind11, ind12
-      integer :: inds, indf, j, k
+      integer, dimension(1:CHK) :: ind01, ind02, ind11, ind12
+      integer, dimension(1:CHK) :: inds, indf, indsp, indfp
+      integer ::  j, k
 
 !
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
-!       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!  --- ...  compute the optical depth by interpolating in ln(pressure),
+!           temperature, and appropriate species.  below laytrop, the water
+!           vapor self-continuum is interpolated (in temperature) separately.
 
-      do k = 1, NLAY
+      do k = 1, nlay
         do j = 1, NG23
-          taur(k,j) = colmol(k) * rayl(j) 
+          taur(1:CHK,k,NS23+j) = colmol(1:CHK,k) * rayl(j)
         enddo
       enddo
 
-      do k = 1, laytrop
-        ind01 = id0(k,23) + 1
-        ind02 = ind01 + 1
-        ind11 = id1(k,23) + 1
-        ind12 = ind11 + 1
-        inds = indself(k)
-        indf = indfor (k)
+      do k = 1, MAXVAL(laytrop(1:CHK))
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+        ind01 = MAX(1,MIN(MSA23,id0(1:CHK,k,23) + 1))
+        ind02 =       MIN(MSA23,ind01 + 1)
+        ind11 = MAX(1,MIN(MSA23,id1(1:CHK,k,23) + 1))
+        ind12 =       MIN(MSA23,ind11 + 1)
+
+        inds = indself(1:CHK,k)
+        indf = indfor (1:CHK,k)
+        indsp= inds + 1
+        indfp= indf + 1
+       ENDWHERE
 
         do j = 1, NG23
-          taug(k,j) = colamt(k,1) * (givfac                             &
-     &        * ( fac00(k)*absa(ind01,j) + fac10(k)*absa(ind02,j)       &
-     &        +   fac01(k)*absa(ind11,j) + fac11(k)*absa(ind12,j) )     &
-     &        + selffac(k) * (selfref(inds,j) + selffrac(k)             &
-     &        * (selfref(inds+1,j) - selfref(inds,j)))                  &
-     &        + forfac(k) * (forref(indf,j) + forfrac(k)                &
-     &        * (forref(indf+1,j) - forref(indf,j)))) 
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS23+j) = colamt(1:CHK,k,1) * (givfac            &
+     & * ( fac00(1:CHK,k)*absa(ind01,j) + fac10(1:CHK,k)*absa(ind02,j)  &
+     & +   fac01(1:CHK,k)*absa(ind11,j) + fac11(1:CHK,k)*absa(ind12,j) )&
+     & + selffac(1:CHK,k) * (selfref(inds,j) + selffrac(1:CHK,k)        &
+     & * (selfref(indsp,j) - selfref(inds,j)))                          &
+     & + forfac(1:CHK,k) * (forref(indf,j) + forfrac(1:CHK,k)           &
+     & * (forref(indfp,j) - forref(indf,j))))
+       ENDWHERE
         enddo
       enddo
 
-      do k = laytrop+1, NLAY
-        do j = 1 , NG23
-          taug(k,j) = zero
+      do k = MINVAL(laytrop(1:CHK))+1, NLAY
+        do j = 1, NG23
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+          taug(:,k,NS23+j) = f_zero
+       ENDWHERE
         enddo
       enddo
 
-      return
 !...................................
       end subroutine taumol23
 !-----------------------------------
@@ -3199,91 +4252,101 @@
 !...................................
 
 !  ------------------------------------------------------------------  !
-!     written by eli j. mlawer, atmospheric & environmental research.  !
-!                                                                      !
 !     band 24:  12850-16000 cm-1 (low - h2o,o2; high - o2)             !
-!                                                                      !
-! modifications                                                        !
-!                                                                      !
-!     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb24_nmmb
-!
-      implicit none
+      use module_radsw_kgb24
 
 !  ---  locals:
-      real (kind=kind_phys) :: speccomb, specmult, fs, fs1,             &
+      real (kind=kind_taum),dimension(CHK) ::                           &
+     &       speccomb, specmult, tauray, fs, fs1,                       &
      &       fac000,fac001,fac010,fac011, fac100,fac101,fac110,fac111
 
-      integer :: ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14
-      integer :: inds, indf, j, js, k, ks
+      integer,dimension(CHK) ::                                         &
+     & ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14,          &
+     & inds, indf, indsp, indfp, js
+      integer :: j, k, j1
 
 !
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
-!       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!  --- ...  compute the optical depth by interpolating in ln(pressure),
+!           temperature, and appropriate species.  below laytrop, the water
+!           vapor self-continuum is interpolated (in temperature) separately.
 
-      do k = 1, laytrop
-        speccomb = colamt(k,1) + strrat(24)*colamt(k,6)
-        specmult = 8.0 * min(oneminus, colamt(k,1) / speccomb)
+      do k = 1, MAXVAL(laytrop(1:CHK))
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+        speccomb = colamt(1:CHK,k,1) + strrat(24)*colamt(1:CHK,k,6)
+        specmult = 8.0 * min(oneminus, colamt(1:CHK,k,1) / speccomb)
 
         js = 1 + int(specmult)
-        fs = mod(specmult, one)
-        fs1= one - fs
-        fac000 = fs1 * fac00(k)
-        fac010 = fs1 * fac10(k)
-        fac100 = fs  * fac00(k)
-        fac110 = fs  * fac10(k)
-        fac001 = fs1 * fac01(k)
-        fac011 = fs1 * fac11(k)
-        fac101 = fs  * fac01(k)
-        fac111 = fs  * fac11(k)
+        fs = mod(specmult, f_one)
+        fs1= f_one - fs
+        fac000 = fs1 * fac00(1:CHK,k)
+        fac010 = fs1 * fac10(1:CHK,k)
+        fac100 = fs  * fac00(1:CHK,k)
+        fac110 = fs  * fac10(1:CHK,k)
+        fac001 = fs1 * fac01(1:CHK,k)
+        fac011 = fs1 * fac11(1:CHK,k)
+        fac101 = fs  * fac01(1:CHK,k)
+        fac111 = fs  * fac11(1:CHK,k)
 
-        ind01 = id0(k,24) + js
-        ind02 = ind01 + 1
-        ind03 = ind01 + 9
-        ind04 = ind01 + 10
-        ind11 = id1(k,24) + js
-        ind12 = ind11 + 1
-        ind13 = ind11 + 9
-        ind14 = ind11 + 10
-        inds = indself(k)
-        indf = indfor (k)
+        ind01 = MAX(1,MIN(MSA24,id0(1:CHK,k,24) + js))
+        ind02 =       MIN(MSA24,ind01 + 1)
+        ind03 =       MIN(MSA24,ind01 + 9)
+        ind04 =       MIN(MSA24,ind01 + 10)
+        ind11 = MAX(1,MIN(MSA24,id1(1:CHK,k,24) + js))
+        ind12 =       MIN(MSA24,ind11 + 1)
+        ind13 =       MIN(MSA24,ind11 + 9)
+        ind14 =       MIN(MSA24,ind11 + 10)
+
+        inds = indself(1:CHK,k)
+        indf = indfor (1:CHK,k)
+        indsp= inds + 1
+        indfp= indf + 1
+       ENDWHERE
 
         do j = 1, NG24
-          taug(k,j) = speccomb                                          &
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS24+j) = speccomb                               &
      &        * ( fac000 * absa(ind01,j) + fac100 * absa(ind02,j)       &
      &        +   fac010 * absa(ind03,j) + fac110 * absa(ind04,j)       &
      &        +   fac001 * absa(ind11,j) + fac101 * absa(ind12,j)       &
      &        +   fac011 * absa(ind13,j) + fac111 * absa(ind14,j) )     &
-     &        + colamt(k,3) * abso3a(j) + colamt(k,1)                   &
-     &        * (selffac(k) * (selfref(inds,j) + selffrac(k)            &
-     &        * (selfref(inds+1,j) - selfref(inds,j)))                  &
-     &        + forfac(k) * (forref(indf,j) + forfrac(k)                &
-     &        * (forref(indf+1,j) - forref(indf,j))))
+     &        + colamt(1:CHK,k,3) * abso3a(j) + colamt(1:CHK,k,1)       &
+     &        * (selffac(1:CHK,k) * (selfref(inds,j) + selffrac(1:CHK,k)&
+     &        * (selfref(indsp,j) - selfref(inds,j)))                   &
+     &        + forfac(1:CHK,k) * (forref(indf,j) + forfrac(1:CHK,k)    &
+     &        * (forref(indfp,j) - forref(indf,j))))
 
-          taur(k,j) =  colmol(k)                                        &
+          taur(1:CHK,k,NS24+j) = colmol(1:CHK,k)                        &
      &           * (rayla(j,js) + fs*(rayla(j,js+1) - rayla(j,js)))
+       ENDWHERE
         enddo
       enddo
 
-      do k = laytrop+1, NLAY
-        ind01 = id0(k,24) + 1
-        ind02 = ind01 + 1
-        ind11 = id1(k,24) + 1
-        ind12 = ind11 + 1
+      do k = MINVAL(laytrop(1:CHK))+1, NLAY
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+        ind01 = MAX(1,MIN(MSB24,id0(1:CHK,k,24) + 1))
+        ind02 =       MIN(MSB24,ind01 + 1)
+        ind11 = MAX(1,MIN(MSB24,id1(1:CHK,k,24) + 1))
+        ind12 =       MIN(MSB24,ind11 + 1)
+       ENDWHERE
 
         do j = 1, NG24
-          taug(k,j) = colamt(k,6)                                       &
-     &        * ( fac00(k)*absb(ind01,j) + fac10(k)*absb(ind02,j)       &
-     &        +   fac01(k)*absb(ind11,j) + fac11(k)*absb(ind12,j) )     &
-     &        + colamt(k,3) * abso3b(j)
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS24+j) = colamt(1:CHK,k,6)                      &
+     & * ( fac00(1:CHK,k)*absb(ind01,j) + fac10(1:CHK,k)*absb(ind02,j)  &
+     & +   fac01(1:CHK,k)*absb(ind11,j) + fac11(1:CHK,k)*absb(ind12,j) )&
+     &        + colamt(1:CHK,k,3) * abso3b(j)
 
-          taur(k,j) = colmol(k) * raylb(j)
+          taur(1:CHK,k,NS24+j) = colmol(1:CHK,k) * raylb(j)
+       ENDWHERE
         enddo
       enddo
 
@@ -3298,54 +4361,56 @@
 !...................................
 
 !  ------------------------------------------------------------------  !
-!     written by eli j. mlawer, atmospheric & environmental research.  !
-!                                                                      !
 !     band 25:  16000-22650 cm-1 (low - h2o; high - nothing)           !
-!                                                                      !
-! modifications                                                        !
-!                                                                      !
-!     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb25_nmmb
-!
-      implicit none
+      use module_radsw_kgb25
 
 !  ---  locals:
-      integer :: ind01, ind02, ind11, ind12
+      integer, dimension(1:CHK) :: ind01, ind02, ind11, ind12
       integer :: j, k
 
 !
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
-!       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!  --- ...  compute the optical depth by interpolating in ln(pressure),
+!           temperature, and appropriate species.  below laytrop, the water
+!           vapor self-continuum is interpolated (in temperature) separately.
 
-      do k = 1, NLAY
+      do k = 1, nlay
         do j = 1, NG25
-          taur(k,j) = colmol(k) * rayl(j)
+!NOP$ SIMD
+          taur(1:CHK,k,NS25+j) = colmol(1:CHK,k) * rayl(j)
         enddo
       enddo
 
-      do k = 1, laytrop
-        ind01 = id0(k,25) + 1
-        ind02 = ind01 + 1
-        ind11 = id1(k,25) + 1
-        ind12 = ind11 + 1
+      do k = 1, MAXVAL(laytrop(1:CHK))
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+        ind01 = MAX(1,MIN(MSA25,id0(1:CHK,k,25) + 1))
+        ind02 =       MIN(MSA25,ind01 + 1)
+        ind11 = MAX(1,MIN(MSA25,id1(1:CHK,k,25) + 1))
+        ind12 =       MIN(MSA25,ind11 + 1)
+       ENDWHERE
 
         do j = 1, NG25
-          taug(k,j) = colamt(k,1)                                       &
-     &        * ( fac00(k)*absa(ind01,j) + fac10(k)*absa(ind02,j)       &
-     &        +   fac01(k)*absa(ind11,j) + fac11(k)*absa(ind12,j) )     &
-     &        + colamt(k,3) * abso3a(j) 
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS25+j) = colamt(1:CHK,k,1)                      &
+     & * ( fac00(1:CHK,k)*absa(ind01,j) + fac10(1:CHK,k)*absa(ind02,j)  &
+     & +   fac01(1:CHK,k)*absa(ind11,j) + fac11(1:CHK,k)*absa(ind12,j) )&
+     &        + colamt(1:CHK,k,3) * abso3a(j) 
+       ENDWHERE
         enddo
       enddo
 
-      do k = laytrop+1, NLAY
+      do k = MINVAL(laytrop(1:CHK))+1, NLAY
         do j = 1, NG25
-          taug(k,j) = colamt(k,3) * abso3b(j) 
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS25+j) = colamt(1:CHK,k,3) * abso3b(j) 
+       ENDWHERE
         enddo
       enddo
 
@@ -3360,18 +4425,10 @@
 !...................................
 
 !  ------------------------------------------------------------------  !
-!     written by eli j. mlawer, atmospheric & environmental research.  !
-!                                                                      !
 !     band 26:  22650-29000 cm-1 (low - nothing; high - nothing)       !
-!                                                                      !
-! modifications                                                        !
-!                                                                      !
-!     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb26_nmmb
-!
-      implicit none
+      use module_radsw_kgb26
 
 !  ---  locals:
       integer :: j, k
@@ -3380,14 +4437,16 @@
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
-!       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!  --- ...  compute the optical depth by interpolating in ln(pressure),
+!           temperature, and appropriate species.  below laytrop, the water
+!           vapor self-continuum is interpolated (in temperature) separately.
 
-      do k = 1, NLAY
-        do j = 1, NG26 
-          taug(k,j) = zero
-          taur(k,j) = colmol(k) * rayl(j) 
+      do k = 1, nlay
+        do j = 1, NG26
+!NOP$ SIMD
+          taug(1:CHK,k,NS26+j) = f_zero
+!NOP$ SIMD
+          taur(1:CHK,k,NS26+j) = colmol(1:CHK,k) * rayl(j) 
         enddo
       enddo
 
@@ -3402,60 +4461,65 @@
 !...................................
 
 !  ------------------------------------------------------------------  !
-!     written by eli j. mlawer, atmospheric & environmental research.  !
-!                                                                      !
 !     band 27:  29000-38000 cm-1 (low - o3; high - o3)                 !
-!                                                                      !
-! modifications                                                        !
-!                                                                      !
-!     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb27_nmmb
+      use module_radsw_kgb27
 !
-      implicit none
-
 !  ---  locals:
-      integer :: ind01, ind02, ind11, ind12
+      integer, dimension(1:CHK) :: ind01, ind02, ind11, ind12
       integer :: j, k
 
 !
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
-!       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!  --- ...  compute the optical depth by interpolating in ln(pressure),
+!           temperature, and appropriate species.  below laytrop, the water
+!           vapor self-continuum is interpolated (in temperature) separately.
 
-      do k = 1, NLAY
+      do k = 1, nlay
         do j = 1, NG27
-          taur(k,j) = colmol(k) * rayl(j)
+!NOP$ SIMD
+          taur(1:CHK,k,NS27+j) = colmol(1:CHK,k) * rayl(j)
         enddo
       enddo
 
-      do k = 1, laytrop
-        ind01 = id0(k,27) + 1
-        ind02 = ind01 + 1
-        ind11 = id1(k,27) + 1
-        ind12 = ind11 + 1
+      do k = 1, MAXVAL(laytrop(1:CHK))
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+        ind01 = MAX(1,MIN(MSA27,id0(1:CHK,k,27) + 1))
+        ind02 =       MIN(MSA27,ind01 + 1)
+        ind11 = MAX(1,MIN(MSA27,id1(1:CHK,k,27) + 1))
+        ind12 =       MIN(MSA27,ind11 + 1)
+       ENDWHERE
 
         do j = 1, NG27
-          taug(k,j) = colamt(k,3)                                       &
-     &        * ( fac00(k)*absa(ind01,j) + fac10(k)*absa(ind02,j)       &
-     &        +   fac01(k)*absa(ind11,j) + fac11(k)*absa(ind12,j) )
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS27+j) = colamt(1:CHK,k,3)                                  &
+     & * ( fac00(1:CHK,k)*absa(ind01,j) + fac10(1:CHK,k)*absa(ind02,j)       &
+     & +   fac01(1:CHK,k)*absa(ind11,j) + fac11(1:CHK,k)*absa(ind12,j) )
+       ENDWHERE
         enddo
       enddo
 
-      do k = laytrop+1, NLAY
-        ind01 = id0(k,27) + 1
-        ind02 = ind01 + 1
-        ind11 = id1(k,27) + 1
-        ind12 = ind11 + 1
+      do k = MINVAL(laytrop(1:CHK))+1, NLAY
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+        ind01 = MAX(1,MIN(MSB27,id0(1:CHK,k,27) + 1))
+        ind02 =       MIN(MSB27,ind01 + 1)
+        ind11 = MAX(1,MIN(MSB27,id1(1:CHK,k,27) + 1))
+        ind12 =       MIN(MSB27,ind11 + 1)
+       ENDWHERE
 
         do j = 1, NG27
-          taug(k,j) = colamt(k,3)                                       &
-     &        * ( fac00(k)*absb(ind01,j) + fac10(k)*absb(ind02,j)       &
-     &        +   fac01(k)*absb(ind11,j) + fac11(k)*absb(ind12,j) )
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS27+j) = colamt(1:CHK,k,3)                                  &
+     & * ( fac00(1:CHK,k)*absb(ind01,j) + fac10(1:CHK,k)*absb(ind02,j)       &
+     & +   fac01(1:CHK,k)*absb(ind11,j) + fac11(1:CHK,k)*absb(ind12,j) )
+       ENDWHERE
         enddo
       enddo
 
@@ -3470,107 +4534,116 @@
 !...................................
 
 !  ------------------------------------------------------------------  !
-!     written by eli j. mlawer, atmospheric & environmental research.  !
-!                                                                      !
 !     band 28:  38000-50000 cm-1 (low - o3,o2; high - o3,o2)           !
-!                                                                      !
-! modifications                                                        !
-!                                                                      !
-!     jjmorcrette 2003-02-24 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb28_nmmb
-!
-      implicit none
+      use module_radsw_kgb28
 
 !  ---  locals:
-      real (kind=kind_phys) :: speccomb, specmult, tauray, fs, fs1,     &
+
+      real (kind=kind_taum),dimension(CHK) ::                           &
+     &       speccomb, specmult, tauray, fs, fs1,                       &
      &       fac000,fac001,fac010,fac011, fac100,fac101,fac110,fac111
 
-      integer :: ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14
-      integer :: inds, indf, j, js, k, ks
+      integer,dimension(CHK) ::                                         &
+     & ind01, ind02, ind03, ind04, ind11, ind12, ind13, ind14,          &
+     & inds, indf, indsp, indfp, js
+      integer :: j, k, j1
 
 !
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
-!       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!  --- ...  compute the optical depth by interpolating in ln(pressure),
+!           temperature, and appropriate species.  below laytrop, the water
+!           vapor self-continuum is interpolated (in temperature) separately.
 
-      do k = 1, NLAY
-        tauray = colmol(k) * rayl
+      do k = 1, nlay
+!NOP$ SIMD
+        tauray(1:CHK) = colmol(1:CHK,k) * rayl
 
         do j = 1, NG28
-          taur(k,j) = tauray
+          taur(1:CHK,k,NS28+j) = tauray(1:CHK)
         enddo
       enddo
 
-      do k = 1, laytrop
-        speccomb = colamt(k,3) + strrat(28)*colamt(k,6)
-        specmult = 8.0 * min(oneminus, colamt(k,3) / speccomb)
+      do k = 1, MAXVAL(laytrop(1:CHK))
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+        speccomb = colamt(1:CHK,k,3) + strrat(28)*colamt(1:CHK,k,6)
+        specmult = 8.0 * min(oneminus, colamt(1:CHK,k,3) / speccomb)
 
         js = 1 + int(specmult)
-        fs = mod(specmult, one)
-        fs1= one - fs
-        fac000 = fs1 * fac00(k)
-        fac010 = fs1 * fac10(k)
-        fac100 = fs  * fac00(k)
-        fac110 = fs  * fac10(k)
-        fac001 = fs1 * fac01(k)
-        fac011 = fs1 * fac11(k)
-        fac101 = fs  * fac01(k)
-        fac111 = fs  * fac11(k)
+        fs = mod(specmult, f_one)
+        fs1= f_one - fs
+        fac000 = fs1 * fac00(1:CHK,k)
+        fac010 = fs1 * fac10(1:CHK,k)
+        fac100 = fs  * fac00(1:CHK,k)
+        fac110 = fs  * fac10(1:CHK,k)
+        fac001 = fs1 * fac01(1:CHK,k)
+        fac011 = fs1 * fac11(1:CHK,k)
+        fac101 = fs  * fac01(1:CHK,k)
+        fac111 = fs  * fac11(1:CHK,k)
 
-        ind01 = id0(k,28) + js
-        ind02 = ind01 + 1
-        ind03 = ind01 + 9
-        ind04 = ind01 + 10
-        ind11 = id1(k,28) + js
-        ind12 = ind11 + 1
-        ind13 = ind11 + 9
-        ind14 = ind11 + 10
+        ind01 = MAX(1,MIN(MSA28,id0(1:CHK,k,28) + js))
+        ind02 =       MIN(MSA28,ind01 + 1)
+        ind03 =       MIN(MSA28,ind01 + 9)
+        ind04 =       MIN(MSA28,ind01 + 10)
+        ind11 = MAX(1,MIN(MSA28,id1(1:CHK,k,28) + js))
+        ind12 =       MIN(MSA28,ind11 + 1)
+        ind13 =       MIN(MSA28,ind11 + 9)
+        ind14 =       MIN(MSA28,ind11 + 10)
+       ENDWHERE
 
         do j = 1, NG28
-          taug(k,j) = speccomb                                          &
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS28+j) = speccomb                               &
      &        * ( fac000 * absa(ind01,j) + fac100 * absa(ind02,j)       &
      &        +   fac010 * absa(ind03,j) + fac110 * absa(ind04,j)       &
      &        +   fac001 * absa(ind11,j) + fac101 * absa(ind12,j)       &
      &        +   fac011 * absa(ind13,j) + fac111 * absa(ind14,j) )
+       ENDWHERE
         enddo
       enddo
 
-      do k = laytrop+1, NLAY
-        speccomb = colamt(k,3) + strrat(28)*colamt(k,6)
-        specmult = 4.0 * min(oneminus, colamt(k,3) / speccomb)
+      do k = MINVAL(laytrop(1:CHK))+1, NLAY
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+        speccomb = colamt(1:CHK,k,3) + strrat(28)*colamt(1:CHK,k,6)
+        specmult = 4.0 * min(oneminus, colamt(1:CHK,k,3) / speccomb)
 
         js = 1 + int(specmult)
-        fs = mod(specmult, one)
-        fs1= one - fs
-        fac000 = fs1 * fac00(k)
-        fac010 = fs1 * fac10(k)
-        fac100 = fs  * fac00(k)
-        fac110 = fs  * fac10(k)
-        fac001 = fs1 * fac01(k)
-        fac011 = fs1 * fac11(k)
-        fac101 = fs  * fac01(k)
-        fac111 = fs  * fac11(k)
+        fs = mod(specmult, f_one)
+        fs1= f_one - fs
+        fac000 = fs1 * fac00(1:CHK,k)
+        fac010 = fs1 * fac10(1:CHK,k)
+        fac100 = fs  * fac00(1:CHK,k)
+        fac110 = fs  * fac10(1:CHK,k)
+        fac001 = fs1 * fac01(1:CHK,k)
+        fac011 = fs1 * fac11(1:CHK,k)
+        fac101 = fs  * fac01(1:CHK,k)
+        fac111 = fs  * fac11(1:CHK,k)
 
-        ind01 = id0(k,28) + js
-        ind02 = ind01 + 1
-        ind03 = ind01 + 5
-        ind04 = ind01 + 6
-        ind11 = id1(k,28) + js
-        ind12 = ind11 + 1
-        ind13 = ind11 + 5
-        ind14 = ind11 + 6
+        ind01 = MAX(1,MIN(MSB28,id0(1:CHK,k,28) + js))
+        ind02 =       MIN(MSB28,ind01 + 1)
+        ind03 =       MIN(MSB28,ind01 + 5)
+        ind04 =       MIN(MSB28,ind01 + 6)
+        ind11 = MAX(1,MIN(MSB28,id1(1:CHK,k,28) + js))
+        ind12 =       MIN(MSB28,ind11 + 1)
+        ind13 =       MIN(MSB28,ind11 + 5)
+        ind14 =       MIN(MSB28,ind11 + 6)
+       ENDWHERE
 
         do j = 1, NG28
-          taug(k,j) = speccomb                                          &
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS28+j) = speccomb                                     &
      &        * ( fac000 * absb(ind01,j) + fac100 * absb(ind02,j)       &
      &        +   fac010 * absb(ind03,j) + fac110 * absb(ind04,j)       &
      &        +   fac001 * absb(ind11,j) + fac101 * absb(ind12,j)       &
      &        +   fac011 * absb(ind13,j) + fac111 * absb(ind14,j) )
+       ENDWHERE
         enddo
       enddo
 
@@ -3585,72 +4658,81 @@
 !...................................
 
 !  ------------------------------------------------------------------  !
-!     written by eli j. mlawer, atmospheric & environmental research.  !
-!                                                                      !
 !     band 29:  820-2600 cm-1 (low - h2o; high - co2)                  !
-!                                                                      !
-! modifications                                                        !
-!                                                                      !
-!     jjmorcrette 2002-10-03 adapted to ecmwf environment              !
 !  ------------------------------------------------------------------  !
 !
-      use module_radsw_kgb29_nmmb
-
-      implicit none
+      use module_radsw_kgb29
 
 !  ---  locals:
-      real (kind=kind_phys) :: tauray
+      real (kind=kind_taum), dimension(1:CHK) :: tauray
 
-      integer :: ind01, ind02, ind11, ind12
-      integer :: inds, indf, j, k
+      integer, dimension(1:CHK) :: ind01, ind02, ind11, ind12
+      integer, dimension(1:CHK) :: inds, indf, indsp, indfp
+      integer :: j, k
 
 !
 !===> ... begin here
 !
 
-!  ---  compute the optical depth by interpolating in ln(pressure),
-!       temperature, and appropriate species.  below laytrop, the water
-!       vapor self-continuum is interpolated (in temperature) separately.
+!  --- ...  compute the optical depth by interpolating in ln(pressure),
+!           temperature, and appropriate species.  below laytrop, the water
+!           vapor self-continuum is interpolated (in temperature) separately.
 
-      do k = 1, NLAY
-        tauray = colmol(k) * rayl
+      do k = 1, nlay
+!NOP$ SIMD
+        tauray(1:CHK) = colmol(1:CHK,k) * rayl
 
         do j = 1, NG29
-          taur(k,j) = tauray
+          taur(1:CHK,k,NS29+j) = tauray(1:CHK)
         enddo
       enddo
 
-      do k = 1, laytrop
-        ind01 = id0(k,29) + 1
-        ind02 = ind01 + 1
-        ind11 = id1(k,29) + 1
-        ind12 = ind11 + 1
-        inds = indself(k)
-        indf = indfor (k)
+      do k = 1, MAXVAL(laytrop(1:CHK))
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+        ind01 = MAX(1,MIN(MSA29,id0(1:CHK,k,29) + 1))
+        ind02 =       MIN(MSA29,ind01 + 1)
+        ind11 = MAX(1,MIN(MSA29,id1(1:CHK,k,29) + 1))
+        ind12 =       MIN(MSA29,ind11 + 1)
+
+        inds = indself(1:CHK,k)
+        indf = indfor (1:CHK,k)
+        indsp= inds + 1
+        indfp= indf + 1
+       ENDWHERE
 
         do j = 1, NG29
-          taug(k,j) = colamt(k,1)                                       &
-     &        * ( (fac00(k)*absa(ind01,j) + fac10(k)*absa(ind02,j)      &
-     &        +    fac01(k)*absa(ind11,j) + fac11(k)*absa(ind12,j) )    &
-     &        +  selffac(k) * (selfref(inds,j) + selffrac(k)            &
-     &        *  (selfref(inds+1,j) - selfref(inds,j)))                 &
-     &        +  forfac(k) * (forref(indf,j) + forfrac(k)               &
-     &        *  (forref(indf+1,j) - forref(indf,j))))                  &
-     &        +  colamt(k,2) * absco2(j) 
+!NOP$ SIMD
+       WHERE( k .LE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS29+j) = colamt(1:CHK,k,1)                      &
+     & * ( (fac00(1:CHK,k)*absa(ind01,j) + fac10(1:CHK,k)*absa(ind02,j) &
+     & +    fac01(1:CHK,k)*absa(ind11,j) + fac11(1:CHK,k)*absa(ind12,j))&
+     & +  selffac(1:CHK,k) * (selfref(inds,j) + selffrac(1:CHK,k)       &
+     & *  (selfref(indsp,j) - selfref(inds,j)))                         &
+     & +  forfac(1:CHK,k) * (forref(indf,j) + forfrac(1:CHK,k)          &
+     & *  (forref(indfp,j) - forref(indf,j))))                          &
+     & +  colamt(1:CHK,k,2) * absco2(j)
+       ENDWHERE
         enddo
       enddo
 
-      do k = laytrop+1, NLAY
-        ind01 = id0(k,29) + 1
-        ind02 = ind01 + 1
-        ind11 = id1(k,29) + 1
-        ind12 = ind11 + 1
+      do k = MINVAL(laytrop(1:CHK))+1, NLAY
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+        ind01 = MAX(1,MIN(MSB29,id0(1:CHK,k,29) + 1))
+        ind02 =       MIN(MSB29,ind01 + 1)
+        ind11 = MAX(1,MIN(MSB29,id1(1:CHK,k,29) + 1))
+        ind12 =       MIN(MSB29,ind11 + 1)
+       ENDWHERE
 
         do j = 1, NG29
-          taug(k,j) = colamt(k,2)                                       &
-     &        * ( fac00(k)*absb(ind01,j) + fac10(k)*absb(ind02,j)       &
-     &        +   fac01(k)*absb(ind11,j) + fac11(k)*absb(ind12,j) )     &
-     &        + colamt(k,1) * absh2o(j) 
+!NOP$ SIMD
+       WHERE( k .GE. laytrop(1:CHK) )
+          taug(1:CHK,k,NS29+j) = colamt(1:CHK,k,2)                      &
+     & * ( fac00(1:CHK,k)*absb(ind01,j) + fac10(1:CHK,k)*absb(ind02,j)  &
+     & +   fac01(1:CHK,k)*absb(ind11,j) + fac11(1:CHK,k)*absb(ind12,j) )&
+     & + colamt(1:CHK,k,1) * absh2o(j) 
+       ENDWHERE
         enddo
       enddo
 
@@ -3660,11 +4742,11 @@
 !-----------------------------------
 
 !...................................
-      end subroutine spcvrt
+      end subroutine taumol
 !-----------------------------------
 
 !
 !........................................!
-      end module module_radsw_main_nmmb       !
+      end module module_radsw_main_nmmb  !
 !========================================!
 

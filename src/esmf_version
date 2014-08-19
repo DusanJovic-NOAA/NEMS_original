@@ -64,6 +64,40 @@ elif [[ $1 = nuopc_gaea ]]; then
      cp ESMFVersionDefine_ESMF_NUOPC.h ESMFVersionDefine.h
      set +x
      echo "Use an ESMF library with reference NUOPC Layer (currently ESMF 7.0.0 beta snapshot)"
+
+elif [[ $1 = tacc ]]; then
+     set -x
+     cp conf/configure.nems.tacc.ifort conf/configure.nems
+     cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
+     set +x
+     echo "Use an ESMF 3.1.0rp5 series library"
+elif [[ $1 = savoy ]]; then
+     set -x
+     cp conf/configure.nems.savoy.ifort conf/configure.nems
+#     cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
+     cp ESMFVersionDefine_ESMF_630rAPI.h ESMFVersionDefine.h
+     set +x
+     echo "Use an ESMF 630r series library"
+elif [[ $1 = savoy-mic ]]; then
+     set -x
+     cp conf/configure.nems.savoy.ifort-mic conf/configure.nems
+     cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
+     set +x
+     echo "Use an ESMF 3.1.0rp5 series library"
+elif [[ $1 = savoy-mic-esmf-7 ]]; then
+     set -x
+     cp conf/configure.nems.savoy.ifort-mic.esmf7 conf/configure.nems
+     cp ESMFVersionDefine_ESMF_520rAPI.h ESMFVersionDefine.h
+     set +x
+     echo "Use an ESMF 7.0.0 series library"
+
+elif [[ $1 = tacc-mic ]]; then
+     set -x
+     cp conf/configure.nems.tacc.ifort-mic conf/configure.nems
+     cp ESMFVersionDefine_ESMF_3.h ESMFVersionDefine.h
+     set +x
+     echo "Use an ESMF 3.1.0rp5 series library"
+
 else
      echo;echo "     Run ./esmf_version with one argument:"
      echo;

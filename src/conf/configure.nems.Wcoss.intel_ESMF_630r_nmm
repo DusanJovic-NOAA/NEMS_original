@@ -60,6 +60,7 @@ EXTLIBS_POST = $(POST_LIB) \
                $(SYS_LIB)
 
 FC          = mpiifort -g -openmp  -mkl=sequential
+FPP         = -fpp
 FREE        = -free
 FIXED       = -fixed
 R8          = -r8
@@ -70,7 +71,7 @@ TRAPS       =
 
 FFLAGS      = $(TRAPS) $(FINCS) -convert big_endian -assume byterecl -fp-model precise -xAVX
 
-OPTS_NMM    = -O2
+OPTS_NMM    = -O2 
 OPTS_GFS    = -O3
 OPTS_GEN    = -O2
 OPTS_FIM    = -O2
@@ -82,7 +83,7 @@ FFLAGS_GEN  = $(OPTS_GEN) $(FFLAGS)
 FFLAGS_FIM  = $(OPTS_FIM) $(FFLAGS)
 
 CPP         = /lib/cpp -P -traditional
-CPPFLAGS    =
+CPPFLAGS    = -DENABLE_SMP -DTHREAD_2D -DCHNK_RRTM=8
 
 AR          = ar
 ARFLAGS     = -r

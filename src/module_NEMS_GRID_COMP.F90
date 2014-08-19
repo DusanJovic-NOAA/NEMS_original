@@ -277,6 +277,11 @@
                      ,localpet = MYPE_GLOBAL                            &  !<-- This task's global rank
                      ,rc       = RC)
       ESMF_ERR_RETURN(RC,RC_INIT)
+
+!jm 20140818
+!jm   call rsl_lite_error_dup1( mype_global )                              !<-- Enable this for per-MPI task output
+!jm                                                                        !<-- obtain other bits from JM
+
 !
 !-----------------------------------------------------------------------
 !***  Create and load the Configure object which will hold the contents

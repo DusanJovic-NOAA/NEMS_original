@@ -27,6 +27,7 @@ EXTLIBS     = $(NEMSIO_LIB) \
               $(SYS_LIB)
 
 FC          = mpif90
+FPP         = -cpp
 FREE        = -ffree-form
 FIXED       = -ffixed-form
 R8          = -fdefault-real-8
@@ -48,7 +49,7 @@ FFLAGS_GEN  = $(OPTS_GEN) $(FFLAGS)
 FFLAGS_FIM  = $(OPTS_FIM) $(FFLAGS)
 
 CPP         = /lib/cpp -P -traditional
-CPPFLAGS    =
+CPPFLAGS    = -DCHNK_RRTM=8
 
 AR          = ar
 ARFLAGS     = -r

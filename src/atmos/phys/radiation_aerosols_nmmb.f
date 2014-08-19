@@ -1938,7 +1938,7 @@
 
       logical               :: laddsw=.false.,  laersw=.false.
       logical               :: laddlw=.false.,  laerlw=.false.
-
+!$omp threadprivate(laddsw,laersw,laddlw,laerlw)
 !  ---  conversion constants
       real (kind=kind_phys), parameter :: rdg  = 180.0 / con_pi
       real (kind=kind_phys), parameter :: rovg = 0.001 * con_rd / con_g

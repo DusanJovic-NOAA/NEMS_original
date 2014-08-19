@@ -2777,8 +2777,8 @@
           if ( prsi(i,1) > 100.0 ) then
             rps = f_one / prsi(i,1)
           else
-            print *,' !!! Error in subr radiation_aerosols:',           &
-     &              ' unrealistic surface pressure =', prsi(i,1)
+            print *,' !!! (1) Error in subr radiation_aerosols:',       &
+     &              ' unrealistic surface pressure =', i,prsi(i,1)
             stop
           endif
 
@@ -2811,9 +2811,8 @@
           if ( prsi(i,NLP1) > 100.0 ) then
             rps =  1.0 / prsi(i,NLP1)
           else
-            print *,' !!! Error in subr radiation_aerosols:',           &
-     &              ' unrealistic surface pressure =', prsi(i,NLP1)
-            stop
+            print *,' !!! (2) Error in subr radiation_aerosols:',       &
+     &              ' unrealistic surface pressure =', i,prsi(i,NLP1)
           endif
 
           ii = 1

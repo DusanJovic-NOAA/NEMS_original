@@ -9,6 +9,7 @@ EXTLIBS     = $(ESMF_LIBS) -L/lfs1/projects/sepp/djovic/nwprod_intel_gaea/libint
 NEMSIO_INC  = -I/lfs1/projects/sepp/djovic/nwprod_intel_gaea/libintel/incmod/nemsio
 
 FC          = mpif90 -openmp -heap-arrays -convert big_endian -assume byterecl
+FPP         = -fpp
 FREE        = -free
 FIXED       = -fixed
 R8          = -r8
@@ -31,7 +32,7 @@ FFLAGS_GEN  = $(OPTS_GEN) $(FFLAGS)
 FFLAGS_FIM  = $(OPTS_FIM) $(FFLAGS)
 
 CPP         = /lib/cpp -P -traditional
-CPPFLAGS    =
+CPPFLAGS    = -DCHNK_RRTM=8 -DENABLE_SMP -DTHREAD_2D
 
 AR          = ar
 ARFLAGS     = -r

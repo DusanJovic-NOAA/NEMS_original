@@ -173,11 +173,12 @@
 
       use module_radsw_parameters,  only : topfsw_type, sfcfsw_type,    &
      &                                     profsw_type,cmpfsw_type,NBDSW
-      use module_radsw_main,        only : rswinit,  swrad
+      use module_radsw_main_nmmb,   only : rswinit,  swrad
 
       use module_radlw_parameters,  only : topflw_type, sfcflw_type,    &
      &                                     proflw_type, NBDLW
-      use module_radlw_main,        only : rlwinit,  lwrad
+      use module_radlw_main_nmmb,   only : rlwinit,  lwrad
+
 !
       implicit   none
 !
@@ -207,10 +208,12 @@
 !     integer, parameter :: LTP = 0   ! do no add an extra top layer
       integer, parameter :: LTP = 1   ! add an extra top layer
       logical :: lextop = (LTP > 0)
+!
+      integer, parameter :: CHK= CHNK_RRTM      ! CHNK_RRTM is macro defined in configure.nems
 
 !  ---  publicly accessible module programs:
 
-      public radinit_nmmb, radupdate_nmmb, grrad_nmmb
+      public radinit_nmmb, radupdate_nmmb, grrad_nmmb, dayparts
 
 
 ! =================
@@ -588,6 +591,59 @@
       end subroutine radupdate_nmmb
 !-----------------------------------
 
+!-----------------------------------
+      subroutine dayparts                                               &
+!...................................
+!  ---  inputs:
+     &     (         XLON,SINLAT,COSLAT,SOLHR,MYPE,dtswav,nrads,        &
+     &               veclen ,                                           &
+!  ---  outputs:
+     &               dp_start,dp_len,dp_day,ndayparts                   &
+     &     )
+
+      implicit none
+      integer, intent(in) ::  veclen,mype,nrads
+      real (kind=kind_phys), intent(in) :: dtswav, solhr
+      real (kind=kind_phys), dimension(veclen), intent(in) ::           &
+     &       sinlat, coslat, xlon
+      integer, intent(out), dimension(veclen) :: dp_start,dp_len
+      logical, intent(out), dimension(veclen) :: dp_day
+      integer, intent(out) :: ndayparts
+! local
+      logical isday
+      integer i
+      real (kind=kind_phys), dimension(veclen) :: coszen_loc, coszdg
+
+      call coszmn_nmmb                                                  &
+!  ---  inputs:
+     &     ( xlon,sinlat,coslat,solhr,veclen,mype,                      &
+     &       dtswav,nrads ,                                             &  ! Extra input
+!  ---  outputs:
+     &       coszen_loc, coszdg                                         &  !jm
+     &      )
+
+      if ( veclen < 1 ) then
+        ndayparts = 0
+      else
+        ndayparts = 1
+        dp_day(ndayparts) = (coszen_loc(1) >= 0.0001)
+        dp_start(ndayparts) = 1
+        dp_len(ndayparts) = 1
+        do i = 2, veclen
+          isday = (coszen_loc(i) >= 0.0001)
+          if ( dp_day(ndayparts) .NEQV. isday ) THEN
+              ndayparts=ndayparts+1
+              dp_start(ndayparts) = i
+              dp_day(ndayparts) = isday
+              dp_len(ndayparts) = 1
+          else
+              dp_len(ndayparts) = dp_len(ndayparts) + 1
+          endif
+        enddo
+      endif
+!...................................
+      end subroutine dayparts
+!-----------------------------------
 
 !-----------------------------------
       subroutine grrad_nmmb                                             &
@@ -604,7 +660,7 @@
      &       cv,cvt,cvb,fcice,frain,rrime,flgmin,                       &
      &       icsdsw,icsdlw, ntcw,ncld,ntoz, NTRAC,NFXR,                 &
      &       dtlw,dtsw, lsswr,lslwr,lssav,                              &
-     &       IX, IM, LM, me, lprnt, ipt, kdt,                           &
+     &       its,jts, IX, IM, LM, isday, me, lprnt, ipt, kdt,           &
 !  ---  additional inputs:                                                 ! GFDL type
      &       tauclouds,cldf,                                            &  ! GFDL type
 !  ---  outputs:
@@ -888,97 +944,107 @@
       integer,  intent(in) :: IX,IM, LM, NTRAC, NFXR, me,               &
      &                        ntoz, ntcw, ncld, ipt, kdt,               &
      &                        nrads
-      integer,  intent(in) :: icsdsw(IM), icsdlw(IM), jdate(8)
+      integer,  intent(in) :: its,jts  
+      logical,  intent(in) :: isday  ! true = day, false = night
+      integer,  intent(in) :: icsdsw(IX), icsdlw(IX), jdate(8)
 
       logical,  intent(in) :: lsswr, lslwr, lssav, lprnt
 
-      real (kind=kind_phys), dimension(IX,LM+1), intent(in) ::  prsi
+      real (kind=kind_phys), dimension(IX,LM+1), intent(in) :: prsi
 
-      real (kind=kind_phys), dimension(IX,LM),   intent(in) ::  prsl,   &
+      real (kind=kind_phys), dimension(IX,LM), intent(in) :: prsl, &
      &       prslk, tgrs, qgrs, vvl, fcice, frain, rrime
-      real (kind=kind_phys), dimension(IM), intent(in) :: flgmin
+      real (kind=kind_phys), dimension(IX), intent(in) :: flgmin
 
-      real (kind=kind_phys), dimension(IM),      intent(in) ::  slmsk,  &
+      real (kind=kind_phys), dimension(IX),      intent(in) ::  slmsk,  &
      &       xlon, xlat, tsfc, snowd, zorl, hprim,                      &
  !    & alvsf, alnsf, alvwf, alnwf, facsf, facwf,                       &
      &       cv, cvt, cvb, fice, tisfc,                                 &
      &       sncovr, snoalb, sinlat, coslat
 
       real (kind=kind_phys), intent(in) :: solcon, dtlw, dtsw, solhr,   &
-     &       tracer(IX,LM,NTRAC)                                        &
-     &     , dtswav, SALBEDO, SM                                           ! extra input
+     & tracer(IX,LM,NTRAC) &
+     & , dtswav, SALBEDO(IX), SM(IX) ! extra input
 
-      real (kind=kind_phys), dimension(IX,LM), intent(in) :: tauclouds, &  ! GFDL type
+      real (kind=kind_phys), dimension(IX,LM), intent(in) :: tauclouds, & ! GFDL type
      &       cldf                                                          ! GFDL type
 
-!  ---  outputs: (horizontal dimensioned by IX)
+! --- outputs: (horizontal dimensioned by IX)
       real (kind=kind_phys), dimension(IX,LM),intent(out):: htrsw,htrlw,&
      &       cldcov
+      real (kind=kind_phys), dimension(IX,5),intent(out):: cldsa    
 
-      real (kind=kind_phys), dimension(IM),   intent(out):: tsflw,      &
+      real (kind=kind_phys), dimension(IX),   intent(out):: tsflw,      &
      &       sfalb, semis, coszen, coszdg
 
-      type (topfsw_type), dimension(IM), intent(out) :: topfsw
-      type (sfcfsw_type), dimension(IM), intent(out) :: sfcfsw
-
-      type (topflw_type), dimension(IM), intent(out) :: topflw
-      type (sfcflw_type), dimension(IM), intent(out) :: sfcflw
+      type (topfsw_type), dimension(IX), intent(out) :: topfsw
+      type (sfcfsw_type), dimension(IX), intent(out) :: sfcfsw
+      type (topflw_type), dimension(IX), intent(out) :: topflw
+      type (sfcflw_type), dimension(IX), intent(out) :: sfcflw
 
 !  ---  variables are for both input and output:
       real (kind=kind_phys), intent(inout) :: fluxr(IX,NFXR)
 
 !! ---  optional outputs:
-      real (kind=kind_phys), dimension(IX,LM,NBDSW), optional,          &
+      real (kind=kind_phys), dimension(IX,LM,NBDSW), optional, &
      &                       intent(out) :: htrswb
-      real (kind=kind_phys), dimension(IX,LM,NBDLW), optional,          &
+      real (kind=kind_phys), dimension(IX,LM,NBDLW), optional, &
      &                       intent(out) :: htrlwb
 
-!  ---  local variables: (horizontal dimensioned by IM)
-      real (kind=kind_phys), dimension(IM,LM+1+LTP):: plvl, tlvl
+!  ---  local variables: (horizontal dimensioned by CHK)
+      type (topfsw_type), dimension(CHK)     :: topfsw_loc
+      type (sfcfsw_type), dimension(CHK)     :: sfcfsw_loc
+      real (kind=kind_phys), dimension(CHK)  :: coszen_loc    !jm
+      integer, dimension(CHK)                :: icsdsw_loc    !jm
 
-      real (kind=kind_phys), dimension(IM,LM+LTP)  :: plyr, tlyr, qlyr, &
+      real (kind=kind_phys), dimension(CHK,LM+1+LTP)::plvl, tlvl
+
+      real (kind=kind_phys), dimension(CHK,LM+LTP)  ::          &
+     &       plyr, tlyr, qlyr,                                          &
      &       olyr, rhly, qstl, vvel, clw, prslk1, tem2da, tem2db, tvly
 
-      real (kind=kind_phys), dimension(IM) :: tsfa, cvt1, cvb1, tem1d,  &
+      real (kind=kind_phys), dimension(CHK) :: tsfa, cvt1, cvb1, tem1d,  &
      &       sfcemis, tsfg, tskn
 
-      real (kind=kind_phys), dimension(IM) ::                           &
+      real (kind=kind_phys), dimension(CHK) ::                           &
      &                       alvsf, alnsf, alvwf, alnwf, facsf, facwf,  &
      &                       CZMEAN
 
-      real (kind=kind_phys), dimension(IM,LM+LTP,NF_CLDS) :: clouds
-      real (kind=kind_phys), dimension(IM,LM+LTP,NF_CLDS) :: dummys
-      real (kind=kind_phys), dimension(IM,LM+LTP,NF_VGAS) :: gasvmr
-      real (kind=kind_phys), dimension(IM,       NF_ALBD) :: sfcalb
-!     real (kind=kind_phys), dimension(IM,       NSPC1)   :: aerodp      ! optn for aod output
-      real (kind=kind_phys), dimension(IM,LM+LTP,NTRAC)   :: tracer1
+      real (kind=kind_phys), dimension(CHK,LM+LTP,NF_CLDS) :: clouds
+      real (kind=kind_phys), dimension(CHK,LM+LTP,NF_CLDS) :: dummys
+      real (kind=kind_phys), dimension(CHK,LM+LTP,NF_VGAS) :: gasvmr
+      real (kind=kind_phys), dimension(CHK,       NF_ALBD) :: sfcalb
+!     real (kind=kind_phys), dimension(CHK,       NSPC1)   :: aerodp      ! optn for aod output
+      real (kind=kind_phys), dimension(CHK,LM+LTP,NTRAC)   :: tracer1
 
-      real (kind=kind_phys), dimension(IM,LM+LTP,NBDSW,NF_AESW):: faersw
-      real (kind=kind_phys), dimension(IM,LM+LTP,NBDLW,NF_AELW):: faerlw
+      real (kind=kind_phys), dimension(CHK,LM+LTP,NBDSW,NF_AESW):: faersw
+      real (kind=kind_phys), dimension(CHK,LM+LTP,NBDLW,NF_AELW):: faerlw
 
- !     real (kind=kind_phys), dimension(IM,LM+LTP,NSPC-1) :: tau_gocart
+ !     real (kind=kind_phys), dimension(CHK,LM+LTP,NSPC-1) :: tau_gocart
 
-      real (kind=kind_phys), dimension(IM,LM+LTP) :: htswc
-      real (kind=kind_phys), dimension(IM,LM+LTP) :: htlwc
+      real (kind=kind_phys), dimension(CHK,LM+LTP) :: htswc
+      real (kind=kind_phys), dimension(CHK,LM+LTP) :: htlwc
 
-      real (kind=kind_phys), dimension(IM,LM+LTP) :: gcice, grain, grime
+      real (kind=kind_phys), dimension(CHK,LM+LTP) :: gcice, grain, grime
 
 !! ---  may be used for optional sw/lw outputs:
 !!      take out "!!" as needed
-!!    real (kind=kind_phys), dimension(IM,LM+LTP)   :: htsw0
-!!    type (profsw_type),    dimension(IM,LM+1+LTP) :: fswprf
-      type (cmpfsw_type),    dimension(IM)          :: scmpsw
-      real (kind=kind_phys), dimension(IM,LM+LTP,NBDSW) :: htswb
+!!    real (kind=kind_phys), dimension(CHK,LM+LTP)   :: htsw0
+!!    type (profsw_type),    dimension(CHK,LM+1+LTP) :: fswprf
+      type (cmpfsw_type),    dimension(CHK)          :: scmpsw
+      real (kind=kind_phys), dimension(CHK,LM+LTP,NBDSW) :: htswb
 
-!!    real (kind=kind_phys), dimension(IM,LM+LTP)   :: htlw0
-!!    type (proflw_type),    dimension(IM,LM+1+LTP) :: flwprf
-      real (kind=kind_phys), dimension(IM,LM+LTP,NBDLW) :: htlwb
+!!    real (kind=kind_phys), dimension(CHK,LM+LTP)   :: htlw0
+!!    type (proflw_type),    dimension(CHK,LM+1+LTP) :: flwprf
+      real (kind=kind_phys), dimension(CHK,LM+LTP,NBDLW) :: htlwb
 
-      real (kind=kind_phys) :: raddt, es, qs, delt, tem0d, cldsa(IM,5)  &
-     &                        ,SFCALBEDO, SMX 
+!jm      real (kind=kind_phys)::raddt,es(CHK),qs, delt, tem0d, cldsa(CHK,5)&
+!jm     & ,SFCALBEDO(CHK), SMX(CHK)
+      real (kind=kind_phys)::raddt,es(CHK),qs, delt, tem0d              &
+     & ,SFCALBEDO(CHK), SMX(CHK)
 
-      integer :: i, j, k, k1, lv, icec, itop, ibtc, nday, idxday(IM),   &
-     &       mbota(IM,3), mtopa(IM,3), LP1, nb, LMK, LMP, kd, lla, llb, &
+      integer :: i, j, k, k1, lv, icec, itop, ibtc, nday, idxday(CHK),   &
+     &       mbota(CHK,3), mtopa(CHK,3), LP1, nb, LMK, LMP, kd, lla, llb, &
      &       lya, lyb, kt, kb, np3d
 
 !  ---  for debug test use
@@ -986,10 +1052,14 @@
 !     integer :: ipt
 !     logical :: lprnt1
 
+      integer ipass,iorder  !jm
+
 !!==========================================================================
 !  --- Albedo (ETA era) calculation from 2012 RRTM  (Lin, 20130225)
 !
-      INTEGER :: IQ,JX
+      INTEGER :: IQ,JX(CHK)
+
+integer,external :: omp_get_thread_num
 
  !     REAL (kind=kind_phys) :: ALBD0, ALVD1, ALND1
       REAL (kind=kind_phys) :: ZEN, DZEN, ALB1, ALB2
@@ -1059,7 +1129,6 @@
 !
 !  --- end of Albedo (ETA era) calculation from 2012 RRTM
 !!==========================================================================
-
 
 !
 !===> ...  begin here
@@ -1158,6 +1227,7 @@
       do k = 1, LM
         k1 = k + kd      ! kd: index diff between in/out and local
 
+!DEC$ SIMD
         do i = 1, IM
           plvl(i,k1) = 10.0 * prsi(i,k)   ! cb to mb
           plyr(i,k1) = 10.0 * prsl(i,k)   ! cb to mb
@@ -1173,9 +1243,14 @@
           !   it can be done in es (**Saturation vapor pressure) for 0.001*fpvs
           !   or multiple every prsl by 1000
           !   (Hsin-mu Lin, 20110927)
-
-          es  = min( prsl(i,k), 0.001 * fpvs( tgrs(i,k) ) )   ! fpvs in pa
-          qs  = max( QMIN, con_eps * es / (prsl(i,k) + con_epsm1*es) )
+        ENDDO
+! note this loop won't vectorize because of the call to fpvs
+        DO i = 1, IM
+          es(i) = min( prsl(i,k), 0.001 * fpvs( tgrs(i,k) ) ) ! fpvs in pa
+        ENDDO
+!DEC$ SIMD
+        DO i = 1, IM
+          qs = max( QMIN,con_eps*es(i)/(prsl(i,k) + con_epsm1*es(i)) )
           rhly(i,k1) = max( 0.0, min( 1.0, max(QMIN, qgrs(i,k))/qs ) )
           qstl(i,k1) = qs
         enddo
@@ -1196,18 +1271,22 @@
 !  --- ...  values for extra top layer
 
       if ( lextop ) then                 ! values for extra top layer
+!DEC$ SIMD
         do i = 1, IM
           plvl(i,llb) = prsmin
           if ( plvl(i,lla)<=prsmin ) plvl(i,lla) = 2.0*prsmin
           plyr(i,lyb) = 0.5 * plvl(i,lla)
           tlyr(i,lyb) = tlyr(i,lya)
-          prslk1(i,lyb) = fpkapx(plyr(i,lyb)*100.0)    ! fpkapx in pa
-
           rhly(i,lyb) = rhly(i,lya)
           qstl(i,lyb) = qstl(i,lya)
         enddo
 
-       ! do j = 1, NTRAC     ! NTRAC=3 as defined in physparam_nmmb.f
+! loop won't vectorize because of call to fpkapx
+        do i = 1, IM
+          prslk1(i,lyb) = fpkapx(plyr(i,lyb)*100.0) ! fpkapx in pa
+        enddo
+
+       ! do j = 1, NTRAC     ! NTRAC=3 as defined in physpara_nmmb.f
           do i = 1, IM
 !  ---  note: may need to take care the top layer mount
             tracer1(i,lyb,1) = tracer1(i,lya,1)   ! ozone
@@ -1279,7 +1358,7 @@
      &     ( xlon,sinlat,coslat,solhr,IM, me,                           &
      &       dtswav,nrads ,                                             &  ! Extra input
 !  ---  outputs:
-     &       coszen, coszdg                                             &
+     &       coszen_loc, coszdg                                         &  !jm
      &      )
 
 !  --- ...  set up non-prognostic gas volume mixing ratioes
@@ -1396,14 +1475,10 @@
       endif                              ! end_if_ivflip
 
 !  ---  check for daytime points
-
-      nday = 0
-      do i = 1, IM
-        if (coszen(i) >= 0.0001) then
-          nday = nday + 1
-          idxday(nday) = i
-        endif
-      enddo
+!jm with modification in RA_RRTM, the grrad_nmm routine will 
+!jm only be called for all day or all night points, the number
+!jm of which is passed in as IM.  
+      nday = im
 
 !  --- ...  setup aerosols property profile for radiation
 
@@ -1466,7 +1541,6 @@
 !  ---  outputs:
      &       clouds,cldsa,mtopa,mbota                                   &
      &      )
-
         elseif (np3d == 5) then         ! nmmb ferrier+bmj  (GFDL type diagnostic)
 !
 ! ======================================================================
@@ -1555,12 +1629,12 @@
      &       clouds,cldsa,mtopa,mbota                                   &
      &      )
 
+
       endif                                ! end_if_ntcw
 
 !==========================================================================
 !  Albedo (ETA era) calculation from 2012 RRTM  (Lin, 20130225)
 !==========================================================================
-
       IF (ialbflg == 2) THEN
 
          SMX = SM
@@ -1572,31 +1646,33 @@
 !         1) OPEN SEA POINT (SLMSK=1);  2) KALB=0
 
             IQ=INT(TWENTY*HP537+ONE)
-            CZMEAN(i)=coszen(i)
+            CZMEAN(i)=coszen_loc(i)   !jm
 
-            IF(CZMEAN(i).GT.0.0 .AND. SMX.GT.0.5) THEN
+            IF(CZMEAN(i).GT.0.0 .AND. SMX(i).GT.0.5) THEN
                ZEN=DEGRAD1*ACOS(MAX(CZMEAN(i),0.0))
 
-               IF(ZEN.GE.H74E1) JX=INT(HAF*(HNINETY-ZEN)+ONE)
+               IF(ZEN.GE.H74E1) JX(I)=INT(HAF*(HNINETY-ZEN)+ONE)
                IF(ZEN.LT.H74E1 .AND. ZEN.GE.FIFTY) &
-                 JX=INT(QUARTR*(H74E1-ZEN)+HNINE)
-               IF(ZEN .LT. FIFTY) JX=INT(HP1*(FIFTY-ZEN)+H15E1)
+                 JX(I)=INT(QUARTR*(H74E1-ZEN)+HNINE)
+               IF(ZEN .LT. FIFTY) JX(I)=INT(HP1*(FIFTY-ZEN)+H15E1)
 
-               DZEN=-(ZEN-ZA(JX))/DZA(JX)
+               DZEN=-(ZEN-ZA(JX(I)))/DZA(JX(I))
 
-               ALB1=ALBD(IQ,JX)+DZEN*(ALBD(IQ,JX+1)-ALBD(IQ,JX))
-               ALB2=ALBD(IQ+1,JX)+DZEN*(ALBD(IQ+1,JX+1)-ALBD(IQ+1,JX))
+               ALB1=ALBD(IQ,JX(I))+DZEN*(ALBD(IQ,JX(I)+1)&
+                     -ALBD(IQ,JX(I)))
+               ALB2=ALBD(IQ+1,JX(I))+DZEN*(ALBD(IQ+1,JX(I)+1)&
+                     -ALBD(IQ+1,JX(I)))
 
-               SFCALBEDO=ALB1+TWENTY*(ALB2-ALB1)*(HP537-TRN(IQ))    ! BSF
+               SFCALBEDO(I)=ALB1+TWENTY*(ALB2-ALB1)*(HP537-TRN(IQ)) ! BSF
             ENDIF
 
 !.....     VISIBLE AND NEAR IR DIFFUSE ALBEDO
-            ALVD(I) = SFCALBEDO    ! BSF
-            ALND(I) = SFCALBEDO    ! BSF
+            ALVD(I) = SFCALBEDO(I) ! BSF
+            ALND(I) = SFCALBEDO(I) ! BSF
 
 !.....     VISIBLE AND NEAR IR DIRECT BEAM ALBEDO
-            ALVB(I) = SFCALBEDO    ! BSF
-            ALNB(I) = SFCALBEDO    ! BSF
+            ALVB(I) = SFCALBEDO(I) ! BSF
+            ALNB(I) = SFCALBEDO(I) ! BSF
 !
 !--- Remove diurnal variation of land surface albedos (Ferrier, 6/28/05)
 !--- Turn back on to mimic NAM 8/17/05
@@ -1642,13 +1718,22 @@
 !  --- ...  start radiation calculations 
 !           remember to set heating rate unit to k/sec!
 
+#ifdef ORIG_LWSW_ORDERING
+      iorder = 0
+#else
+      iorder = mod(omp_get_thread_num(),2)   ! every other thread
+!      iorder = mod(omp_get_thread_num()/2,2)    ! alternate by groups of 4
+#endif
+      DO ipass=0,1
+      IF( ipass .eq. iorder ) then
+
       if (lsswr) then
 
 !  ---  setup surface albedo for sw radiation, incl xw (nov04) sea-ice
 
         call setalb                                                     &
 !  ---  inputs:
-     &     ( slmsk,snowd,sncovr,snoalb,zorl,coszen,tsfg,tsfa,hprim,     &
+     &     ( slmsk,snowd,sncovr,snoalb,zorl,coszen_loc,tsfg,tsfa,hprim, &  !jm
      &       alvsf,alnsf,alvwf,alnwf,facsf,facwf,fice,tisfc,            &
      &       IM,                                                        &
 !  ---  outputs:
@@ -1661,7 +1746,8 @@
           sfalb(i) = max(0.01, 0.5 * (sfcalb(i,2) + sfcalb(i,4)))
         enddo
 
-        if (nday > 0) then
+!        if (nday > 0) then
+        if (isday) then
 
 !     print *,' in grrad : calling swrad'
 
@@ -1670,14 +1756,15 @@
             call swrad                                                  &
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
-     &       clouds,icsdsw,faersw,sfcalb,                               &
-     &       coszen,solcon, nday,idxday,                                &
+     &       clouds,icsdsw_loc,faersw,sfcalb,                           &
+     &       coszen_loc,solcon, nday,idxday,                            &
      &       IM, LMK, LMP, lprnt,                                       &
 !  ---  outputs:
-     &       htswc,topfsw,sfcfsw                                        &
+     &       htswc,topfsw_loc,sfcfsw_loc                                &
 !! ---  optional:
 !!   &,      HSW0=htsw0,FLXPRF=fswprf                                   &
      &,      HSWB=htswb,FDNCMP=scmpsw                                   &
+     &,      ITS=its,JTS=jts                                            &
      &     )
 
             do k = 1, LM
@@ -1695,17 +1782,19 @@
             call swrad                                                  &
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
-     &       clouds,icsdsw,faersw,sfcalb,                               &
-     &       coszen,solcon, nday,idxday,                                &
+     &       clouds,icsdsw_loc,faersw,sfcalb,                           &
+     &       coszen_loc,solcon, nday,idxday,                            &
      &       IM, LMK, LMP, lprnt,                                       &
 !  ---  outputs:
-     &       htswc,topfsw,sfcfsw                                        &
+     &       htswc,topfsw_loc,sfcfsw_loc                                &
 !! ---  optional:
 !!   &,      HSW0=htsw0,FLXPRF=fswprf,HSWB=htswb                        &
      &,      FDNCMP=scmpsw                                              &
+     &,      ITS=its,JTS=jts                                            &
      &     )
 
           endif
+
 
           do k = 1, LM
             k1 = k + kd      ! kd: index diff between in/out and local
@@ -1723,8 +1812,8 @@
             enddo
           enddo
 
-          sfcfsw = sfcfsw_type( 0.0, 0.0, 0.0, 0.0 )
-          topfsw = topfsw_type( 0.0, 0.0, 0.0 )
+          sfcfsw_loc = sfcfsw_type( 0.0, 0.0, 0.0, 0.0 )
+          topfsw_loc = topfsw_type( 0.0, 0.0, 0.0 )
           scmpsw = cmpfsw_type( 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 )
 
 !! ---  optional:
@@ -1742,9 +1831,12 @@
 
         endif                  ! end_if_nday
 
+        topfsw(1:IM) = topfsw_loc(1:IM)
+        sfcfsw(1:IM) = sfcfsw_loc(1:IM)
+
       endif                                ! end_if_lsswr
 
-
+      ELSE  ! ipass == iorder
 
       if (lslwr) then
 
@@ -1779,7 +1871,6 @@
 !==========================================================================
 
         if ( present(htrlwb) ) then
-
           call lwrad                                                    &
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
@@ -1790,6 +1881,7 @@
 !! ---  optional:
 !!   &,      HLW0=htlw0,FLXPRF=flwprf                                   &
      &,      HLWB=htlwb                                                 &
+     &,      ITS=its,JTS=jts                                            &
      &     )
 
           do k = 1, LM
@@ -1804,6 +1896,20 @@
 
         else
 
+!          do i = 1, IM
+!      if (its+i-1.eq.140.and.jts.eq.47)write(0,'("two i,j,k sfcemis",3i7,e25.15)')its+i-1,jts,k,sfcemis(i)
+!      if (its+i-1.eq.140.and.jts.eq.47)write(0,'("two i,j,k tsfg",3i7,e25.15)')its+i-1,jts,k,tsfg(i)
+!      if (its+i-1.eq.140.and.jts.eq.47)write(0,'("two i,j,k icsdlw",4i7)')its+i-1,jts,k,icsdlw(i)
+!        do k = 1, LM
+!      if (its+i-1.eq.140.and.jts.eq.47)write(0,'("two i,j,k plyr",3i7,e25.15)')its+i-1,jts,k,plyr(i,k)
+!      if (its+i-1.eq.140.and.jts.eq.47)write(0,'("two i,j,k plvl",3i7,e25.15)')its+i-1,jts,k,plvl(i,k)
+!      if (its+i-1.eq.140.and.jts.eq.47)write(0,'("two i,j,k tlyr",3i7,e25.15)')its+i-1,jts,k,tlyr(i,k)
+!      if (its+i-1.eq.140.and.jts.eq.47)write(0,'("two i,j,k tlvl",3i7,e25.15)')its+i-1,jts,k,tlvl(i,k)
+!      if (its+i-1.eq.140.and.jts.eq.47)write(0,'("two i,j,k qlyr",3i7,e25.15)')its+i-1,jts,k,qlyr(i,k)
+!      if (its+i-1.eq.140.and.jts.eq.47)write(0,'("two i,j,k olyr",3i7,e25.15)')its+i-1,jts,k,olyr(i,k)
+!        enddo
+!          enddo
+
           call lwrad                                                    &
 !  ---  inputs:
      &     ( plyr,plvl,tlyr,tlvl,qlyr,olyr,gasvmr,                      &
@@ -1813,6 +1919,7 @@
      &       htlwc,topflw,sfcflw                                        &
 !! ---  optional:
 !!   &,      HLW0=htlw0,FLXPRF=flwprf,HLWB=htlwb                        &
+     &,      ITS=its,JTS=jts                                            &
      &     )
 
         endif
@@ -1828,6 +1935,7 @@
 
           do i = 1, IM
             htrlw(i,k) = htlwc(i,k1)
+!      if (k.eq.1.and.its+i-1.eq.140.and.jts.eq.47)write(0,'("two IM,its,jts",2i7,e25.15)')its+i-1,jts,htrlw(i,1)
           enddo
         enddo
 
@@ -1847,6 +1955,9 @@
 !==========================================================================
 
       endif                                ! end_if_lslwr
+
+      ENDIF  ! iorder
+      ENDDO  ! jm ipass
 
 !  --- ...  collect the fluxr data for wrtsfc
 
@@ -1872,9 +1983,9 @@
 
         if (lsswr) then
           do i = 1, IM
-            if (coszen(i) > 0.) then
+            if (coszen_loc(i) > 0.) then
 !  ---  sw total-sky fluxes
-              tem0d = dtsw * coszdg(i) / coszen(i)
+              tem0d = dtsw * coszdg(i) / coszen_loc(i)
               fluxr(i,2 ) = fluxr(i,2)  + topfsw(i)%upfxc * tem0d  ! total sky top sw up
               fluxr(i,3 ) = fluxr(i,3)  + sfcfsw(i)%upfxc * tem0d  ! total sky sfc sw up
               fluxr(i,4 ) = fluxr(i,4)  + sfcfsw(i)%dnfxc * tem0d  ! total sky sfc sw dn
@@ -1956,6 +2067,11 @@
 !       endif       ! end_if_laswflg
 
       endif                                ! end_if_lssav
+
+      do i = 1, IM
+        coszen(i) = coszen_loc(i)   ! jm
+      enddo
+
 !
       return
 !...................................
