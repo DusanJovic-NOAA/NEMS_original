@@ -5,4 +5,4 @@
 # with this API.
 
 module purge
-module load mpt intel esmf/5.2.0rp2 netcdf
+module load mpt intel/13.0.079 esmf/5.2.0rp2 netcdf

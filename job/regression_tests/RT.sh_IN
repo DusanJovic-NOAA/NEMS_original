@@ -1965,6 +1965,13 @@ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB
   printf %s "Using an ESMF 3.1.0r series library for GSM which related to the GOCART.  "
   printf %s "Using an ESMF 6.3.0r series library and ics/12.1 compiler for NMM tests"
   printf %s "Using an ESMF 6.3.0r series library and ics/14.0.1 compiler for all other GSM tests"
+  elif [ $MACHINE_ID = zeus ]; then
+  echo "Using an ESMF 3.1.0r series library and intel 12 compiler for NMM and GSM which related to the GOCART"
+  echo "    "
+  echo "Using an ESMF 6.3.0r series library and intel 13 compiler for all other GSM tests"
+  printf %s "Using an ESMF 3.1.0r series library and intel 12 compiler for NMM and GSM which related to the GOCART"
+  printf %s "    "
+  printf %s "Using an ESMF 6.3.0r series library and intel 13 compiler for all other GSM tests"
   else
   echo "Using an ESMF 3.1.0r series library"
   printf %s "Using an ESMF 3.1.0r series library.   "
@@ -2018,7 +2025,7 @@ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB
     mv ../exe/NEMS.x ../exe/NEMS.x_630r_gsm
     export MP_MPILIB=pempi
 
-  elif [ $MACHINE_ID = gaea -o $MACHINE_ID = zeus ]; then
+  elif [ $MACHINE_ID = gaea ]; then
 
     ./esmf_version 3_zeus                  >> ${COMPILE_LOG} 2>&1
     source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
@@ -2026,7 +2033,28 @@ if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = gfs -o $CB
     gmake clean                            >> ${COMPILE_LOG} 2>&1
     gmake nmm_gsm_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
 
-  fi
+  elif [ $MACHINE_ID = zeus ]; then
+# Compiling NMMB model and the GFS GOCART test with the default 
+# intel/12-12.0.4.191 compiler and the ESMF 3.1.0rp5 library.
+#--------------------------------------------------------------
+    ./esmf_version 3_zeus                  >> ${COMPILE_LOG} 2>&1
+    source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
+    module list                            >> ${COMPILE_LOG} 2>&1
+    gmake clean                            >> ${COMPILE_LOG} 2>&1
+    gmake nmm_gsm_gen GOCART_MODE=full     >> ${COMPILE_LOG} 2>&1
+    mv ../exe/NEMS.x ../exe/NEMS.x_310r_nmm
+
+# Compiling GSM model with the new intel/13.0.079 compiler 
+# and the ESMF 6.3.0r library.
+#---------------------------------------------------------
+    ./esmf_version 6_zeus                  >> ${COMPILE_LOG} 2>&1
+    source ./conf/modules.nems.Zeus        >> ${COMPILE_LOG} 2>&1
+    module list                            >> ${COMPILE_LOG} 2>&1
+    gmake clean                            >> ${COMPILE_LOG} 2>&1
+    gmake gsm                              >> ${COMPILE_LOG} 2>&1
+    mv ../exe/NEMS.x ../exe/NEMS.x_630r_gsm
+ fi
+
  else
   cd ${PATHTR}/src
   echo ' Compilation bypassed'
@@ -2050,6 +2078,10 @@ else
 
  if [ $MACHINE_ID = wcoss ]; then
   cp ../../exe/NEMS.x_630r_nmm ../../exe/NEMS.x
+ fi
+
+ if [ $MACHINE_ID = zeus ]; then
+  cp ../../exe/NEMS.x_310r_nmm ../../exe/NEMS.x
  fi
 
  if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
@@ -3057,8 +3089,8 @@ if [ ${SKIP_GFS:-NO} = YES ] ; then
  echo "Skipping GFS tests"
 else
 
-  if [ $MACHINE_ID = wcoss ]; then
-  cp ../../exe/NEMS.x_630r_gsm ../../exe/NEMS.x
+  if [ $MACHINE_ID = wcoss -o $MACHINE_ID = zeus ]; then
+   cp ../../exe/NEMS.x_630r_gsm ../../exe/NEMS.x
   fi
 
  ###############################################################################
@@ -3764,6 +3796,9 @@ else
 # if [ $MACHINE_ID = wcoss -o $MACHINE_ID = zeus ] ; then
    if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = gfs -o $CB_arg = all ] ; then
 
+  if [ $MACHINE_ID = zeus ]; then
+   cp ../../exe/NEMS.x_310r_nmm ../../exe/NEMS.x
+  fi
     export TEST_DESCR="GFS_GOCART with NEMSIO"
 
 #---------------------
@@ -3788,10 +3823,13 @@ else
     ./rt_gocart.sh
     if [ $? = 2 ]; then exit ; fi
 #---------------------
+  if [ $MACHINE_ID = zeus ]; then
+   cp ../../exe/NEMS.x_630r_gsm ../../exe/NEMS.x
+  fi
 
    fi # endif test
  fi  # endif machine
-
+ 
 ###############################################################################
 #
 # TEST   - GFS Semi-Lagrangian model
@@ -4483,8 +4521,8 @@ if [ ${SKIP_SINGLECORE:-NO} = YES ] ; then
 else
 
 # Since nmm and gsm are already compiled separately and tested 
-# before on wcoss, only test on zeus.
-#-------------------------------------------------------------
+# before on wcoss and gsm tested before on zeus, only test nmm on zeus.
+#----------------------------------------------------------------------
 if [ $MACHINE_ID = zeus ] ; then
 
 #########################################################################
@@ -4553,9 +4591,14 @@ if [ $RT_FULL = true ] ; then
 
 fi # endif test
 
+fi # only on zeus.
+
 #########################################################################
 # Clean and compile only GFS core
 #########################################################################
+# gsm already tested, skip.
+# -------------------------
+if [ 2 = 1 ]; then
 
 if [ $RT_FULL = true ] ; then
 
@@ -4620,14 +4663,13 @@ if [ ${RT_FULL} = true ]; then
 
 fi # endif test
 
-fi  # only on zeus machine.
+fi  # for 2 = 1.
 
 fi # SKIP_SINGLECORE tests
 
 ################################################################################
 # Finalize
 ################################################################################
-
 
 rm -f err out configure_file* nmm_ll nmm_msub nmm_run gfs_fcst_run gfs_ll gen_fcst_run gen_ll fim_fcst_run fim_ll
 
