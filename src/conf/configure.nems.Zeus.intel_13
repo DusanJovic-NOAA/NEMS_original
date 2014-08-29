@@ -122,8 +122,9 @@ FFLAGS_GFSF  = $(OPTS_GFS) $(FFLAGS) $(FIXED)
 FFLAGS_GEN   = $(OPTS_GEN) $(FFLAGS)
 FFLAGS_FIM   = $(OPTS_FIM) $(FFLAGS)
 
+FPP          = -fpp
 CPP          = /lib/cpp -P -traditional
-CPPFLAGS     =
+CPPFLAGS     = -DCHNK_RRTM=8  -DENABLE_SMP -DTHREAD_2D
 
 AR           = ar
 ARFLAGS      = -r
