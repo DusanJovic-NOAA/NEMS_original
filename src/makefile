@@ -185,8 +185,8 @@ export GOCART_MODE
 #
 WHOAMI  := $(shell whoami)
 CMP_DATE := $(shell date)
-#SVN_REV := $(shell svnversion -n .)
-#SVN_URL := $(shell svn info | grep URL | cut -f 2 -d ' ')
+SVN_REV := $(shell svnversion -n .)
+SVN_URL := $(shell svn info | grep URL | cut -f 2 -d ' ')
 CMP_YEAR := $(shell date +"%Y" )
 CMP_JD := $(shell date +"%j" )
 

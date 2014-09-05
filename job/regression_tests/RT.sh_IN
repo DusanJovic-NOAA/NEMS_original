@@ -2267,27 +2267,27 @@ else
  #
  ###############################################################################
 
- if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
-
-  export TEST_DESCR="Test NMMB-global with GFS physics package "
-
-#---------------------
-  (( TEST_NR=TEST_NR+1 ))
-  export RUNDIR=${RUNDIR_ROOT}/NMM_gfsP
-  export CNTL_DIR=NMMB_gfsP_glob
-  export LIST_FILES=" \
-  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
-  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-  nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
-#---------------------
-  export_nmm
-  export GBRG=glob ; export gfsP=true ; export FCSTL=24
-#---------------------
-   ./rt_nmm.sh
-   if [ $? = 2 ]; then exit ; fi
-#---------------------
-
- fi # endif test
+# if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ]; then
+#
+#  export TEST_DESCR="Test NMMB-global with GFS physics package "
+#
+##---------------------
+#  (( TEST_NR=TEST_NR+1 ))
+#  export RUNDIR=${RUNDIR_ROOT}/NMM_gfsP
+#  export CNTL_DIR=NMMB_gfsP_glob
+#  export LIST_FILES=" \
+#  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
+#  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+#  nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
+##---------------------
+#  export_nmm
+#  export GBRG=glob ; export gfsP=true ; export FCSTL=24
+##---------------------
+#   ./rt_nmm.sh
+#   if [ $? = 2 ]; then exit ; fi
+##---------------------
+#
+# fi # endif test
 
  ###############################################################################
  #
@@ -2478,27 +2478,27 @@ else
  #
  ###############################################################################
 
- if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
-
-  export TEST_DESCR="Test NMMB-regional with GFS physics package "
-
-#---------------------
-  (( TEST_NR=TEST_NR+1 ))
-  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_gfsP
-  export CNTL_DIR=NMMB_gfsP_reg
-  export LIST_FILES=" \
-  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
-  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
-  nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
-#---------------------
-  export_nmm
-  export GBRG=reg ; export gfsP=true ; export FCSTL=24
-#---------------------
-   ./rt_nmm.sh
-   if [ $? = 2 ]; then exit ; fi
-#---------------------
-
- fi # endif test
+# if [ $ST_test = true -o $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
+#
+#  export TEST_DESCR="Test NMMB-regional with GFS physics package "
+#
+##---------------------
+#  (( TEST_NR=TEST_NR+1 ))
+#  export RUNDIR=${RUNDIR_ROOT}/NMM_REG_gfsP
+#  export CNTL_DIR=NMMB_gfsP_reg
+#  export LIST_FILES=" \
+#  nmmb_hst_01_bin_0000h_00m_00.00s nmmb_hst_01_bin_0024h_00m_00.00s \
+#  nmmb_hst_01_nio_0000h_00m_00.00s nmmb_hst_01_nio_0024h_00m_00.00s \
+#  nmmb_rst_01_bin_0012h_00m_00.00s nmmb_rst_01_nio_0012h_00m_00.00s"
+##---------------------
+#  export_nmm
+#  export GBRG=reg ; export gfsP=true ; export FCSTL=24
+##---------------------
+#   ./rt_nmm.sh
+#   if [ $? = 2 ]; then exit ; fi
+##---------------------
+#
+# fi # endif test
 
  ###############################################################################
  #

@@ -8,7 +8,8 @@ gfsdir=atmos/$(gfs)
 
 NWPROD_LIB ?= $(TOP)/../../lib
 
-NETCDF_LIB  =   $(NWPROD_LIB)/netcdf/lib/libnetcdf.a
+NETCDF_INC  = -I$(NWPROD_LIB)/netcdf/include
+NETCDF_LIB  = -L$(NWPROD_LIB)/netcdf/lib -lnetcdff -lnetcdf
 
 NEMSIO_INC  = -I$(NWPROD_LIB)/incmod/nemsio
 NEMSIO_LIB  = -L$(NWPROD_LIB) -lnemsio
@@ -32,10 +33,10 @@ FREE        = -ffree-form
 FIXED       = -ffixed-form
 R8          = -fdefault-real-8
 
-FINCS       = $(ESMF_INC) $(NEMSIO_INC)
+FINCS       = $(ESMF_INC) $(NEMSIO_INC) $(NETCDF_INC)
 TRAPS       =
 
-FFLAGS      = $(TRAPS) $(FINCS) -fconvert=big-endian -fno-range-check -ffree-line-length-256
+FFLAGS      = $(TRAPS) $(FINCS) -fopenmp -fconvert=big-endian -fno-range-check -ffree-line-length-256
 
 OPTS_NMM    = -O3
 OPTS_GFS    = -O3

@@ -81,7 +81,7 @@ logical(kind=klog),allocatable,dimension(:) :: &
 
 real(kind=kfpt),parameter :: &
  cxnc=0.0 &
-,rwind=1./3.0 &
+,rwind=1./2.6 &
 ,cfilt=1.
 
 integer(kind=kint),intent(in) :: &

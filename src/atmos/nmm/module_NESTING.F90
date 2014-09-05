@@ -11695,12 +11695,12 @@
 !
       INTEGER(kind=KINT) :: IERR,ISTAT
 !
-      INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: COL,ROW
-!
       INTEGER(kind=KINT),DIMENSION(1:2) :: DIM_IDS
 !
       REAL(kind=KFPT) :: GBL,REAL_I_NE,REAL_I_SW,REAL_J_NE,REAL_J_SW    &
                         ,VAL_NE
+!
+      REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: COL,ROW
 !
       CHARACTER(len=2) :: ID_TOPO_FILE
       CHARACTER(len=9) :: FILENAME
@@ -11878,17 +11878,17 @@
 !
         DO J=JSTART,JEND-1
         DO I=ISTART,IEND-1
-          NEST_FIS_V_ON_PARENT(N)%DATA(I,J)=(NEST_FIS_ON_PARENT(N)%DATA(I,J)   &
-                                            +NEST_FIS_ON_PARENT(N)%DATA(I+1,J) &
-                                            +NEST_FIS_ON_PARENT(N)%DATA(I,J+1) &
-                                            +NEST_FIS_ON_PARENT(N)%DATA(I,J+1) &
+          NEST_FIS_V_ON_PARENT(N)%DATA(I,J)=(NEST_FIS_ON_PARENT(N)%DATA(I,J)     &
+                                            +NEST_FIS_ON_PARENT(N)%DATA(I+1,J)   &
+                                            +NEST_FIS_ON_PARENT(N)%DATA(I,J+1)   &
+                                            +NEST_FIS_ON_PARENT(N)%DATA(I+1,J+1) &
                                             )*0.25
         ENDDO
         ENDDO
 !                
 !-----------------------------------------------------------------------
 !***  The V row at J=J_END is north of the H row at J=J_END.  
-!***  The V column at I=I_END is east of the H row at I=I_END.
+!***  The V column at I=I_END is east of the H column at I=I_END.
 !***  This means we need to read in extra values to get those 
 !***  V points on the north and east edges of the parent tasks.
 !-----------------------------------------------------------------------
@@ -11912,8 +11912,8 @@
                                  ,count=(/I_COUNT_DATA,1/)))               !    on this parent task.
 !
           DO I=ISTART,IEND-1
-            NEST_FIS_V_ON_PARENT(N)%DATA(I,JEND)=(NEST_FIS_ON_PARENT(N)%DATA(I,JEND-1)    &
-                                                  +NEST_FIS_ON_PARENT(N)%DATA(I+1,JEND-1) &
+            NEST_FIS_V_ON_PARENT(N)%DATA(I,JEND)=(NEST_FIS_ON_PARENT(N)%DATA(I,JEND)    &
+                                                  +NEST_FIS_ON_PARENT(N)%DATA(I+1,JEND) &
                                                   +ROW(I)+ROW(I+1) )*0.25
           ENDDO
 !
@@ -11938,9 +11938,9 @@
                                  ,count=(/1,J_COUNT_DATA/)))               !    on this parent task.
 !
           DO J=JSTART,JEND-1
-            NEST_FIS_V_ON_PARENT(N)%DATA(IEND,J)=(NEST_FIS_ON_PARENT(N)%DATA(IEND,J) &
-                                                  +NEST_FIS_ON_PARENT(N)%DATA(I,J+1) &
-                                                  +COL(J)+COL(J+1) )*0.25
+            NEST_FIS_V_ON_PARENT(N)%DATA(IEND,J)=(NEST_FIS_ON_PARENT(N)%DATA(IEND,J)   &
+                                                 +NEST_FIS_ON_PARENT(N)%DATA(IEND,J+1) &
+                                                 +COL(J)+COL(J+1) )*0.25
           ENDDO
 !
         ELSE
@@ -11962,6 +11962,10 @@
 !
           NEST_FIS_V_ON_PARENT(N)%DATA(IEND,JEND)=(NEST_FIS_ON_PARENT(N)%DATA(IEND,JEND) &
                                                     +ROW(IEND)+COL(JEND)+VAL_NE)*0.25
+        ENDIF
+!
+        IF(ITE==IDE.AND.JTE==JDE)THEN
+          NEST_FIS_V_ON_PARENT(N)%DATA(IEND,JEND)=0.
         ENDIF
 !
 !-----------------------------------------------------------------------
