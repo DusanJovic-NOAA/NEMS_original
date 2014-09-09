@@ -104,7 +104,9 @@
      &                    ,T,Q,CW,O3                                    &
      &                    ,ALBEDO                                       &
      &                    ,F_ICE,F_RAIN                                 &
-     &                    ,QC,QS,F_QC,F_QS                              &
+     &                    ,QV,QC,QI,QS,QR,QG,NI                         &
+     &                    ,F_QV,F_QC,F_QI,F_QS,F_QR,F_QG,F_NI           &
+     &                    ,NUM_WATER                                    &
      &                    ,SM,CLDFRA                                    &
      &                    ,RLWTT,RSWTT                                  &
      &                    ,RLWIN,RSWIN                                  &
@@ -133,7 +135,8 @@
      &                     ,JME,JMS,JTE,JTS                             &
      &                     ,LM,MYPE                                     &
      &                     ,NTIMESTEP                                   &
-     &                     ,NPHS,NRADL,NRADS
+     &                     ,NPHS,NRADL,NRADS                            &
+     &                     ,NUM_WATER          
 !
       INTEGER,INTENT(IN) :: JDAT(8)
 !
@@ -167,8 +170,10 @@
                                                       ,CFRACM,CZMEAN    &
                                                       ,SIGT4
 !
-      LOGICAL,INTENT(IN) :: F_QC,F_QS
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QC,QS
+      LOGICAL,INTENT(IN) :: F_QC,F_QS                                   &
+     &                    ,F_QV,F_QI,F_QR,F_QG,F_NI 
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QC,QS       &
+     &                    ,QV,QI,QR,QG,NI 
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: CLDFRA
 !
@@ -246,7 +251,13 @@
 !
       real(kind=kind_phys),DIMENSION(LENIVEC,NFLUXR) :: FLUXR_V
 !
-      real(kind=kind_phys),DIMENSION(LENIVEC,LM,3) :: GR1   
+!     REAL*8,DIMENSION(1,LM,3) :: GR1
+!      GR1(LM,NUM_WATER+3): TRACER ARRAY (Ozone, empty, total condensate, then separate species: cloud water, ice, snow, rain, graupel) G. Thompson
+!..This cannot be hard-wired here for different physics.  This should be
+!.. defined by NUM_WATER elements for consistency and use with other
+!.. physics options.
+
+      real(kind=kind_phys),DIMENSION(LENIVEC,LM,NUM_WATER) :: GR1   
 !
       real(kind=kind_phys),DIMENSION(LENIVEC,LM) :: SWH, HLW
 !
@@ -906,12 +917,39 @@
 !
         GR1(1:im,L,2)=0.d0
         GR1(1:im,L,3)=CW(IRANGE,J,L)
+
+!..This is an awful way to deal with different physics having different
+!.. number of species.  Something must eventually be done to resolve this
+!.. section to be more flexible.  For now, we are directly passing each
+!.. species in the water array into the GR1 array for use in the RRTM
+!.. radiation scheme, but that requires a priori knowledge of which species
+!.. is which index number at some later time.  This is far from optimal,
+!.. but we proceed anyway.  Future developers be careful.
+!..If the WATER species include separate hydrometeor species, then
+!..fill in other elements even if unused.  Thompson microphysics
+!..will utilize certain elements when computing cloud optical depth.
+        IF (F_QC) THEN
+          GR1(1:im,L,4)=QC(IRANGE,J,L)
+        ENDIF
+        IF (F_QI) THEN
+          GR1(1:im,L,5)=QI(IRANGE,J,L)
+        ENDIF
+        IF (F_QS) THEN
+          GR1(1:im,L,6)=QS(IRANGE,J,L)
+        ENDIF
+        IF (F_QR) THEN
+          GR1(1:im,L,7)=QR(IRANGE,J,L)
+        ENDIF
+        IF (F_QG) THEN
+          GR1(1:im,L,8)=QG(IRANGE,J,L)
+        ENDIF
+        IF (F_NI) THEN
+          GR1(1:im,L,9)=NI(IRANGE,J,L)
+        ENDIF
         CLDCOV_V(1:im,L)=0.d0                !used for prognostic cloud
         F_ICEC(1:im,L)=F_ICE(IRANGE,J,L)
         F_RAINC(1:im,L)=F_RAIN(IRANGE,J,L)
         R_RIME(1:im,L)=F_RIMEF(IRANGE,J,L)
-        TAUCLOUDS(1:im,L)=TAUTOTAL(IRANGE,J,L)    !CLOUD OPTICAL DEPTH (ICWP==-1)
-        CLDF(1:im,L)=CLDFRA(IRANGE,J,L)           !CLOUD FRACTION (ICWP==-1)
 
 !-- Build in tiny amounts of subgrid-scale cloud when no cloud is
 !   present and RH > 95%
@@ -993,7 +1031,7 @@
              SINLAT,COSLAT,SOLHR, JDAT, SOLCON,                         &
              FHSWR ,NRADS,                                              &  ! extra input
              CV,CVT,CVB, F_ICEC, F_RAINC, R_RIME, FLGMIN_L,             &
-             ICSDSW,ICSDLW,NTCW,NCLDX,NTOZ,NTRAC,NFXR,                  &
+             ICSDSW,ICSDLW,NTCW,NCLDX,NTOZ,NUM_WATER,NFXR,                &
              DTLW,DTSW,LSSWR,LSLWR,LSSAV,                               &
              IBEG,jts, LENIVEC, im, LM, dpd, MYPE, LPRNT, 0, 0,         &  ! jm dpd is true for day, false for night
 !  ---  additional inputs:                                                 ! GFDL type

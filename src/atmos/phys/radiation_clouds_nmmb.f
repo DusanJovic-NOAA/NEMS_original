@@ -42,6 +42,14 @@
 !          outputs:                                                    !
 !            clouds,clds,mtop,mbot)                                    !
 !                                                                      !
+!       'progcld8'           --- Thompson prognostic cloud microphysics!
+!          inputs:                                                     !
+!           (plyr,plvl,tlyr,tvly,qlyr,qstl,rhly,                       !
+!            clw, qi, qs, ni, ! cloud water, cloud ice, snow, ice numb !
+!            IX, NLAY, NLP1,                                           !
+!          outputs:                                                    !
+!            clouds,clds,mtop,mbot)                                    !
+!                                                                      !
 !       'diagcld1'           --- diagnostic cloud calc routine         !
 !          inputs:                                                     !
 !           (plyr,plvl,tlyr,rhly,vvel,cv,cvt,cvb,                      !
@@ -128,6 +136,8 @@
       use physcons,            only : con_fvirt, con_ttp, con_rocp,     &
      &                                con_t0c, con_pi, con_g, con_rd
 
+      use module_mp_thompson,  only : Nt_c, calc_effectRad
+
 !BSF 20120319      use module_microphysics,    only : rsipath2
       use module_iounitdef,    only : NICLTUN
 !
@@ -204,7 +214,7 @@
       integer  :: iovr   = 1           ! cloud over lapping method for diagnostic 3-domain
                                        ! output calc (see iovrsw/iovrlw description)
 
-      public progcld1, progcld2, diagcld1, cld_init
+      public progcld1, progcld2, progcld8, diagcld1, cld_init
 
 
 ! =================
@@ -235,6 +245,7 @@
 !                     =1: model use prognostic cloud method             !
 !   icmphys         : =3: ferrier microphysics cloud scheme             !
 !                     =4: zhao/carr/sundqvist microphysics cloud        !
+!                     =8: Thompson microphysics cloud                   !
 !   iovrsw/iovrlw   : sw/lw control flag for cloud overlap              !
 !                     =0 random overlapping clouds                      !
 !                     =1 max/ran overlapping clouds                     !
@@ -301,6 +312,9 @@
           elseif (icmphys == 5) then
              print *,' - Using Diagnostic Cloud Method'
              print *, '   --- Old GFDL cloud'
+          elseif (icmphys == 8) then
+             print *,' - Using Prognostic Cloud Method'
+             print *, '   --- Thompson microphysics'
           else
             print *,'  !!! ERROR in cloud microphysc specification!!!', &
      &              '  icmphys (NP3D) =',icmphys
@@ -1290,6 +1304,208 @@
 !...................................
       end subroutine progcld2
 !-----------------------------------
+
+
+!+---+-----------------------------------------------------------------+
+
+      subroutine progcld8 (plyr, plvl, tlyr, qlyr, qc, qi, qs, ni,      &
+     &                     xlat,IX, NLAY, NLP1,                         &
+     &                     clouds,clds,mtop,mbot)
+
+
+! =================   subprogram documentation block   ================ !
+!                                                                       !
+! subprogram:    progcld8    computes cloud related quantities using    !
+!   Thompson's prognostic cloud microphysics scheme.                    !
+!                                                                       !
+! abstract:  this program computes cloud fractions from cloud           !
+!   condensates, calculates liquid/ice/snow radiative effective radius. !
+!                                                                       !
+! program history log:                                                  !
+!      22Jan2014    G. Thompson                                         !
+!                                                                       !
+!  ====================  definition of variables  ====================  !
+!                                                                       !
+! input variables:                                                      !
+!   plyr  (IX,NLAY) : model layer mean pressure in mb (100Pa)           !
+!   tlyr  (IX,NLAY) : model layer mean temperature in k                 !
+!   qlyr  (IX,NLAY) : layer specific humidity in gm/gm                  !
+!   qc    (IX,NLAY) : layer cloud water mixing ratio (kg/kg)            !
+!   qi    (IX,NLAY) : layer cloud ice mixing ratio (kg/kg)              !
+!   qs    (IX,NLAY) : layer snow mixing ratio (kg/kg)                   !
+!   ni    (IX,NLAY) : layer cloud ice number concentration (#/kg)       !
+!   xlat  (IX)      : grid latitude in radians                          !
+!   IX              : horizontal dimension                              !
+!   NLAY,NLP1       : vertical layer/level dimensions                   !
+!   iflip           : control flag for in/out vertical indexing         !
+!                     =0: index from toa to surface                     !
+!                     =1: index from surface to toa                     !
+!   iovr            : control flag for cloud overlap                    !
+!                     =0 random overlapping clouds                      !
+!                     =1 max/ran overlapping clouds                     !
+!                                                                       !
+! output variables:                                                     !
+!   clouds(IX,NLAY,NF_CLDS) : cloud profiles                            !
+!      clouds(I,K,1) - layer total cloud fraction                       !
+!      clouds(I,K,2) - layer cloud liq water path         (g/m**2)      !
+!      clouds(I,K,3) - mean eff radius for liq cloud      (micron)      !
+!      clouds(I,K,4) - layer cloud ice water path         (g/m**2)      !
+!      clouds(I,K,5) - mean eff radius for ice cloud      (micron)      !
+!      clouds(I,K,6) - layer rain drop water path         (g/m**2)      !
+!      clouds(I,K,7) - mean eff radius for rain drop      (micron)      !
+!      clouds(I,K,8) - layer snow flake water path        (g/m**2)      !
+!      clouds(I,K,9) - mean eff radius for snow flake     (micron)      !
+!   clds  (IX,5)    : fraction of clouds for low, mid, hi, tot, bl      !
+!   mtop  (IX,3)    : vertical indices for low, mid, hi cloud tops      !
+!   mbot  (IX,3)    : vertical indices for low, mid, hi cloud bases     !
+!                                                                       !
+! module variables:                                                     !
+!   ivflip          : control flag of vertical index direction          !
+!                     =0: index from toa to surface                     !
+!                     =1: index from surface to toa                     !
+!   lsashal         : control flag for shallow convection               !
+!   lcrick          : control flag for eliminating CRICK                !
+!   lcnorm          : control flag for in-cld condensate                !
+!   lnoprec         : control flag for no precip in rad                 !
+!                                                                       !
+!                                                                       !
+!  ====================    end of description    =====================  !
+!
+      implicit none
+
+!  ---  constants
+      real (kind=kind_phys), parameter :: EPSQ = 1.0e-12
+
+!  ---  inputs
+      integer,  intent(in) :: IX, NLAY, NLP1
+
+      real (kind=kind_phys), dimension(:,:), intent(in) :: plyr, plvl,  &
+     &       tlyr, qlyr, qc, qi, qs, ni
+      real (kind=kind_phys), dimension(:),   intent(in) :: xlat
+
+!  ---  outputs
+      real (kind=kind_phys), dimension(:,:,:), intent(out) :: clouds
+      real (kind=kind_phys), dimension(:,:),   intent(out) :: clds
+      integer,               dimension(:,:),   intent(out) :: mtop,mbot
+
+!  ---  local variables:
+      integer:: i, k, nf, id
+      real (kind=kind_phys), dimension(IX,NLAY) :: cldtot, cldcnv
+      double precision, dimension(NLAY):: re_qc1d, re_qi1d, re_qs1d
+      double precision, dimension(NLAY):: t1d, p1d, qv1d, qc1d,         &
+     &                        nc1d, qi1d, ni1d, qs1d
+      real (kind=kind_phys):: tem1, tem2
+      real (kind=kind_phys) :: ptop1(IX,NK_CLDS+1)
+      real (kind=kind_phys) :: rho_k, cpath, snow_mass_factor
+      logical:: is_any_clouds
+
+!+---+
+
+      do nf=1,NF_CLDS
+        do k = 1, NLAY
+          do i = 1, IX
+            clouds(i,k,nf) = 0.0
+          enddo
+        enddo
+      enddo
+      do k = 1, 5
+        do i = 1, IX
+          clds(i,k) = 0.0
+        enddo
+      enddo
+      do k = 1, NK_CLDS
+        do i = 1, IX
+          mbot(i,k) = 0.0
+          mtop(i,k) = 0.0
+        enddo
+      enddo
+      do k = 1, NLAY
+        do i = 1, IX
+          cldtot(i,k) = 0.0
+          cldcnv(i,k) = 0.0
+        enddo
+      enddo
+
+      do i = 1, IX
+        is_any_clouds = .false.
+        do k = 1, NLAY
+          t1d(k) = tlyr(i,k)
+          p1d(k) = plyr(i,k)*100.
+          qv1d(k) = MAX(1.E-8, qlyr(i,k)/(1.-qlyr(i,k)))
+          qc1d(k) = qc(i,k)
+          nc1d(k) = Nt_c
+          qi1d(k) = qi(i,k)
+          ni1d(k) = ni(i,k)
+          qs1d(k) = qs(i,k)
+          re_qc1d(k) = 2.501D-6
+          re_qi1d(k) = 10.01D-6
+          re_qs1d(k) = 25.01D-6
+          if ((qc1d(k)+qi1d(k)+qs1d(k)).gt.1.E-9) then
+            is_any_clouds = .true.
+            cldtot(i,k) = 1.0
+          endif
+        enddo
+
+        if (is_any_clouds) then
+          call calc_effectRad (t1d, p1d, qv1d, qc1d, nc1d, qi1d,        &
+     &                ni1d, qs1d, re_qc1d, re_qi1d, re_qs1d, 1, NLAY)
+
+!     do k = 1, NLAY
+!       if(cldtot(i,k).gt.0.) then
+!        write(*,*) ' DEBUG_GT, K, qc, re_qc, qi, re_qi, qs, re_qs ',   &
+!    &   k,qc1d(k)*1000.,re_qc1d(k)*1.E6,qi1d(k)*1000.,re_qi1d(k)*1.E6,qs1d(k)*1000.,re_qs1d(k)*1.E6
+!       endif
+!     enddo
+
+          do k = 1, NLAY
+            clouds(i,k,1) = cldtot(i,k)
+            rho_k = 0.622*p1d(k)/(287.05*t1d(k)*(qv1d(k)+0.622))
+            cpath = ABS(plvl(i,k+1)-plvl(i,k))*(100000.0/(rho_k*9.8))
+            clouds(i,k,2) = max(0.0, qc(i,k)) * cpath
+            clouds(i,k,3) = max(2.501, re_qc1d(k)*1.E6)
+            clouds(i,k,4) = max(0.0, qi(i,k)) * cpath
+            clouds(i,k,5) = max(10.01, re_qi1d(k)*1.E6)
+            clouds(i,k,8) = max(0.0, qs(i,k)) * cpath
+            clouds(i,k,9) = max(25.01, re_qs1d(k)*1.E6)
+            if (clouds(i,k,8).gt.0.0 .AND. clouds(i,k,9).gt.130.) then
+              snow_mass_factor = (130.0E-6/re_qs1d(k))*(130.0E-6/re_qs1d(k))
+              clouds(i,k,8) = snow_mass_factor*qs(i,k) * cpath
+              clouds(i,k,9) = 130.0
+            endif
+          enddo
+        endif
+      enddo
+
+
+!  ---  compute low, mid, high, total, and boundary layer cloud fractions
+!       and clouds top/bottom layer indices for low, mid, and high clouds.
+!       The three cloud domain boundaries are defined by ptopc.  The cloud
+!       overlapping method is defined by control flag 'iovr', which may
+!       be different for lw and sw radiation programs.
+
+!  ---  find top pressure for each cloud domain for given latitude
+!       ptopc(k,i): top presure of each cld domain (k=1-4 are sfc,L,m,h;
+!  ---  i=1,2 are low-lat (<45 degree) and pole regions)
+!       data ptopc / 1050., 650., 400., 0.0,  1050., 750., 500., 0.0 /
+
+      do id = 1, 4
+        tem1 = ptopc(id,2) - ptopc(id,1)
+
+        do i =1, IX
+          tem2 = max( 0.0, 4.0*abs(xlat(i))/con_pi-1.0 )
+          ptop1(i,id) = ptopc(id,1) + tem1*tem2
+        enddo
+      enddo
+
+      call gethml (plyr, ptop1, cldtot, cldcnv, IX,NLAY,                &
+     &       clds, mtop, mbot)
+
+
+      return
+
+      end subroutine progcld8
+
+!+---+-----------------------------------------------------------------+
 
 
 !-----------------------------------

@@ -27,7 +27,7 @@
 !.. Remaining values should probably be left alone.
 !..
 !..Author: Greg Thompson, NCAR-RAL, gthompsn@ucar.edu, 303-497-2805
-!..Last modified: 04 Feb 2013  nearly equivalent to WRF-ARW v3.4.1
+!..Last modified: 07 Feb 2014  nearly equivalent to WRF-ARW v3.5.1
 !+---+-----------------------------------------------------------------+
 !wrft:model_layer:physics
 !+---+-----------------------------------------------------------------+
@@ -38,6 +38,10 @@
       USE module_mp_radar
 
       IMPLICIT NONE
+
+
+      PUBLIC:: calc_effectRad
+
 
       LOGICAL, PARAMETER, PRIVATE:: iiwarm = .false.
       INTEGER, PARAMETER, PRIVATE:: IFDRY = 0
@@ -55,7 +59,7 @@
 !.. 300 per cc (300.E6 m^-3) for Continental.  Gamma shape parameter,
 !.. mu_c, calculated based on Nt_c is important in autoconversion
 !.. scheme.
-      REAL, PARAMETER, PRIVATE:: Nt_c = 100.E6
+      REAL, PARAMETER, PUBLIC:: Nt_c = 250.E6
 
 !..Generalized gamma distributions for rain, graupel and cloud ice.
 !.. N(D) = N_0 * D**mu * exp(-lamda*D);  mu=0 is exponential.
@@ -768,7 +772,9 @@
       REAL, DIMENSION(kts:kte):: &
                           qv1d, qc1d, qi1d, qr1d, qs1d, qg1d, ni1d, &
                           nr1d, nc1d, t1d, p1d, dz1d, dBZ
-      REAL, DIMENSION(kts:kte):: re_qc1d, re_qi1d, re_qs1d
+      DOUBLE PRECISION, DIMENSION(kts:kte):: re_qc1d, re_qi1d, re_qs1d
+      DOUBLE PRECISION, DIMENSION(kts:kte):: t1d_R8, p1d_R8, qv1d_R8,   &
+     &                qc1d_R8, nc1d_R8, qi1d_R8, ni1d_R8, qs1d_R8
       REAL, DIMENSION(its:ite, jts:jte):: pcp_ra, pcp_sn, pcp_gr, pcp_ic
       REAL:: dt, pptrain, pptsnow, pptgraul, pptice
       REAL:: qc_max, qr_max, qs_max, qi_max, qg_max, ni_max, nr_max
@@ -1004,18 +1010,26 @@
          IF (PRESENT(re_cloud).and.PRESENT(re_ice).and.PRESENT(re_snow) &
                  .and.has_reqc.eq.1.and.has_reqi.eq.1.and.has_reqs.eq.1) THEN
           do k = kts, kte
-             re_qc1d(k) = 2.51E-6
-             re_qi1d(k) = 5.01E-6
-             re_qs1d(k) = 10.E-6
-             nc1d(k) = Nt_c
+             re_qc1d(k) = 2.51D-6
+             re_qi1d(k) = 10.01D-6
+             re_qs1d(k) = 25.D-6
+             t1d_R8(k)  = t1d(k)
+             p1d_R8(k)  = p1d(k)
+             qv1d_R8(k) = qv1d(k)
+             qc1d_R8(k) = qc1d(k)
+             nc1d_R8(k) = Nt_c
+             qi1d_R8(k) = qi1d(k)
+             ni1d_R8(k) = ni1d(k)
+             qs1d_R8(k) = qs1d(k)
           enddo
-          call calc_effectRad (t1d, p1d, qv1d, qc1d, nc1d, qi1d, ni1d, qs1d,  &
-                      re_qc1d, re_qi1d, re_qs1d, kts, kte)
+          call calc_effectRad (t1d_R8, p1d_R8, qv1d_R8,                 &
+     &                qc1d_R8, nc1d_R8, qi1d_R8, ni1d_R8, qs1d_R8,      &
+     &                re_qc1d, re_qi1d, re_qs1d, kts, kte)
           do k = kts, kte
              kflip = kte - k + kts
              re_cloud(i,j,kflip) = MAX(2.51E-6, MIN(re_qc1d(k), 50.E-6))
-             re_ice(i,j,kflip)   = MAX(5.01E-6, MIN(re_qi1d(k), 125.E-6))
-             re_snow(i,j,kflip)  = MAX(10.E-6, MIN(re_qs1d(k), 999.E-6))
+             re_ice(i,j,kflip)   = MAX(10.01E-6, MIN(re_qi1d(k), 125.E-6))
+             re_snow(i,j,kflip)  = MAX(25.E-6, MIN(re_qs1d(k), 999.E-6))
           enddo
          ENDIF
 
@@ -1133,7 +1147,7 @@
       REAL:: r_frac, g_frac
       REAL:: Ef_rw, Ef_sw, Ef_gw, Ef_rr
       REAL:: dtsave, odts, odt, odzq
-      REAL:: xslw1, ygra1, zans1
+      REAL:: xslw1, ygra1, zans1, eva_factor
       INTEGER:: i, k, k2, n, nn, nstep, k_0, kbot, IT, iexfrq
       INTEGER, DIMENSION(4):: ksed1
       INTEGER:: nir, nis, nig, nii, nic
@@ -1146,7 +1160,7 @@
 !+---+
 
       debug_flag = .false.
-!     if (ii.eq.225 .and. jj.eq.125) debug_flag = .true.
+!!      if (ii.eq.225 .and. jj.eq.125) debug_flag = .true.
 
       no_micro = .true.
       dtsave = dt
@@ -1509,7 +1523,7 @@
 !-GT      if (mvd_r(k) .gt. 1500.0E-6) then
              Ef_rr = 2.0 - EXP(2300.0*(mvd_r(k)-1600.0E-6))
 !-GT      endif
-          pnr_rcr(k) = Ef_rr * 4.*nr(k)*rr(k)
+          pnr_rcr(k) = Ef_rr * 0.5*nr(k)*rr(k)
          endif
 
          mvd_c(k) = D0c
@@ -1781,6 +1795,8 @@
             prr_rcg(k) = tcg_racg(idx_g1,idx_g,idx_r1,idx_r)
             prr_rcg(k) = MIN(DBLE(rg(k)*odts), prr_rcg(k))
             prg_rcg(k) = -prr_rcg(k)
+!..Create explicit drop break-up due to graupel-rain collisions.
+            pnr_rcg(k) = -5.*tnr_gacr(idx_g1,idx_g,idx_r1,idx_r)            ! RAIN2M
            endif
           endif
          endif
@@ -1953,7 +1969,7 @@
            prr_sml(k) = prr_sml(k) + 4218.*olfus*tempc &
                                    * (prr_rcs(k)+prs_scw(k))
            prr_sml(k) = MIN(DBLE(rs(k)*odts), MAX(0.D0, prr_sml(k)))
-           pnr_sml(k) = smo0(k)/rs(k)*prr_sml(k) * 10.0**(-0.5*tempc)      ! RAIN2M
+           pnr_sml(k) = smo0(k)/rs(k)*prr_sml(k) * 10.0**(-0.75*tempc)     ! RAIN2M
            pnr_sml(k) = MIN(DBLE(smo0(k)*odts), pnr_sml(k))
            if (tempc.gt.3.5 .or. rs(k).lt.0.005E-3) pnr_sml(k)=0.0
 
@@ -1973,7 +1989,7 @@
 !-GT                               * (prr_rcg(k)+prg_gcw(k))
            prr_gml(k) = MIN(DBLE(rg(k)*odts), MAX(0.D0, prr_gml(k)))
            pnr_gml(k) = N0_g(k)*cgg(2)*ilamg(k)**cge(2) / rg(k)         &   ! RAIN2M
-                      * prr_gml(k) * 10.0**(-0.25*tempc)
+                      * prr_gml(k) * 10.0**(-1.25*tempc)
            if (tempc.gt.7.5 .or. rg(k).lt.0.005E-3) pnr_gml(k)=0.0
 
            if (ssati(k).lt. 0.) then
@@ -2478,6 +2494,16 @@
           rate_max = MIN((rr(k)/rho(k)*odts), (qvs(k)-qv(k))*odts)
           prv_rev(k) = MIN(DBLE(rate_max), prv_rev(k)/rho(k))
           endif
+!..TEST: G. Thompson  29 May 2013
+!..REDUCE the rain evaporation in same places as melting graupel occurs.
+!..Rationale: not much shedding of the water from the graupel so
+!..likely that the water-coated graupel evaporating much slower than
+!..if the water was immediately shed off.
+          IF (prr_gml(k).gt.0.0) THEN
+             eva_factor = MIN(1.0, 0.01+(0.99-0.01)*(tempc/20.0))
+             prv_rev(k) = prv_rev(k)*eva_factor
+          ENDIF
+
           pnr_rev(k) = MIN(DBLE(nr(k)*0.99/rho(k)*odts),                &   ! RAIN2M
                        prv_rev(k) * nr(k)/rr(k))
 
@@ -2663,14 +2689,14 @@
          do k = ksed1(1), kts, -1
             odzq = 1./dzq(k)
             orho = 1./rho(k)
-            qrten(k) = qrten(k) + (sed_r(k+1)-sed_r(k)) &
-                                               *odzq*onstep(1)*orho
-            nrten(k) = nrten(k) + (sed_n(k+1)-sed_n(k)) &
-                                               *odzq*onstep(1)*orho
-            rr(k) = MAX(R1, rr(k) + (sed_r(k+1)-sed_r(k)) &
-                                           *odzq*DT*onstep(1))
-            nr(k) = MAX(R2, nr(k) + (sed_n(k+1)-sed_n(k)) &
-                                           *odzq*DT*onstep(1))
+            qrten(k) = qrten(k) + (sed_r(k+1)-sed_r(k))                 &
+     &                                         *odzq*onstep(1)*orho
+            nrten(k) = nrten(k) + (sed_n(k+1)-sed_n(k))                 &
+     &                                         *odzq*onstep(1)*orho
+            rr(k) = MAX(R1, rr(k) + (sed_r(k+1)-sed_r(k))               &
+     &                                     *odzq*DT*onstep(1))
+            nr(k) = MAX(R2, nr(k) + (sed_n(k+1)-sed_n(k))               &
+     &                                     *odzq*DT*onstep(1))
          enddo
 
          if (rr(kts).gt.R1*10.) &
@@ -2695,14 +2721,14 @@
          do k = ksed1(2), kts, -1
             odzq = 1./dzq(k)
             orho = 1./rho(k)
-            qiten(k) = qiten(k) + (sed_i(k+1)-sed_i(k)) &
-                                               *odzq*onstep(2)*orho
-            niten(k) = niten(k) + (sed_n(k+1)-sed_n(k)) &
-                                               *odzq*onstep(2)*orho
-            ri(k) = MAX(R1, ri(k) + (sed_i(k+1)-sed_i(k)) &
-                                           *odzq*DT*onstep(2))
-            ni(k) = MAX(R2, ni(k) + (sed_n(k+1)-sed_n(k)) &
-                                           *odzq*DT*onstep(2))
+            qiten(k) = qiten(k) + (sed_i(k+1)-sed_i(k))                 &
+     &                                         *odzq*onstep(2)*orho
+            niten(k) = niten(k) + (sed_n(k+1)-sed_n(k))                 &
+     &                                         *odzq*onstep(2)*orho
+            ri(k) = MAX(R1, ri(k) + (sed_i(k+1)-sed_i(k))               &
+     &                                     *odzq*DT*onstep(2))
+            ni(k) = MAX(R2, ni(k) + (sed_n(k+1)-sed_n(k))               &
+     &                                     *odzq*DT*onstep(2))
          enddo
 
          if (ri(kts).gt.R1*10.) &
@@ -2724,10 +2750,10 @@
          do k = ksed1(3), kts, -1
             odzq = 1./dzq(k)
             orho = 1./rho(k)
-            qsten(k) = qsten(k) + (sed_s(k+1)-sed_s(k)) &
-                                               *odzq*onstep(3)*orho
-            rs(k) = MAX(R1, rs(k) + (sed_s(k+1)-sed_s(k)) &
-                                           *odzq*DT*onstep(3))
+            qsten(k) = qsten(k) + (sed_s(k+1)-sed_s(k))                 &
+     &                                         *odzq*onstep(3)*orho
+            rs(k) = MAX(R1, rs(k) + (sed_s(k+1)-sed_s(k))               &
+     &                                     *odzq*DT*onstep(3))
          enddo
 
          if (rs(kts).gt.R1*10.) &
@@ -2749,10 +2775,10 @@
          do k = ksed1(4), kts, -1
             odzq = 1./dzq(k)
             orho = 1./rho(k)
-            qgten(k) = qgten(k) + (sed_g(k+1)-sed_g(k)) &
-                                               *odzq*onstep(4)*orho
-            rg(k) = MAX(R1, rg(k) + (sed_g(k+1)-sed_g(k)) &
-                                           *odzq*DT*onstep(4))
+            qgten(k) = qgten(k) + (sed_g(k+1)-sed_g(k))                 &
+     &                                         *odzq*onstep(4)*orho
+            rg(k) = MAX(R1, rg(k) + (sed_g(k+1)-sed_g(k))               &
+     &                                     *odzq*DT*onstep(4))
          enddo
 
          if (rg(kts).gt.R1*10.) &
@@ -3686,16 +3712,17 @@
 !.. distribution, not the second part, which is the larger sizes.
 !+---+-----------------------------------------------------------------+
 
-      subroutine calc_effectRad (t1d, p1d, qv1d, qc1d, nc1d, qi1d, ni1d, qs1d,   &
-     &                re_qc1d, re_qi1d, re_qs1d, kts, kte)
+      subroutine calc_effectRad (t1d, p1d, qv1d, qc1d, nc1d, qi1d, ni1d,&
+     &              qs1d, re_qc1d, re_qi1d, re_qs1d, kts, kte)
 
       IMPLICIT NONE
 
 !..Sub arguments
       INTEGER, INTENT(IN):: kts, kte
-      REAL, DIMENSION(kts:kte), INTENT(IN):: &
+      DOUBLE PRECISION, DIMENSION(kts:kte), INTENT(IN)::                &
      &                    t1d, p1d, qv1d, qc1d, nc1d, qi1d, ni1d, qs1d
-      REAL, DIMENSION(kts:kte), INTENT(INOUT):: re_qc1d, re_qi1d, re_qs1d
+      DOUBLE PRECISION, DIMENSION(kts:kte), INTENT(INOUT)::             &
+     &                    re_qc1d, re_qi1d, re_qs1d
 !..Local variables
       INTEGER:: k
       REAL, DIMENSION(kts:kte):: rho, rc, nc, ri, ni, rs
@@ -3736,7 +3763,7 @@
       do k = kts, kte
          if (ri(k).le.R1 .or. ni(k).le.R2) CYCLE
          lami = (am_i*cig(2)*oig1*ni(k)/ri(k))**obmi
-         re_qi1d(k) = MAX(5.01E-6, MIN(SNGL(0.5D0 * DBLE(3.+mu_i)/lami), 125.E-6))
+         re_qi1d(k) = MAX(10.01E-6, MIN(SNGL(0.5D0 * DBLE(3.+mu_i)/lami), 125.E-6))
       enddo
       endif
 
@@ -3776,7 +3803,7 @@
      &        + sb(7)*tc0*tc0*cse(1) + sb(8)*tc0*cse(1)*cse(1) &
      &        + sb(9)*tc0*tc0*tc0 + sb(10)*cse(1)*cse(1)*cse(1)
          smoc = a_ * smo2**b_
-         re_qs1d(k) = MAX(10.E-6, MIN((3./Lam0) * (smoc/smob), 999.E-6))
+         re_qs1d(k) = MAX(25.E-6, MIN(0.5*(smoc/smob), 999.E-6))
       enddo
       endif
 
@@ -3792,7 +3819,7 @@
 !+---+-----------------------------------------------------------------+
 
       subroutine calc_refl10cm (qv1d, qc1d, qr1d, nr1d, qs1d, qg1d,     &
-                          t1d, p1d, dBZ, kts, kte, ii, jj)
+     &                          t1d, p1d, dBZ, kts, kte, ii, jj)
 
       IMPLICIT NONE
 

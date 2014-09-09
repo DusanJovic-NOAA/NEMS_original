@@ -625,6 +625,8 @@
                            ,int_state%PCPHR                             &
                            ,int_state%GFS                               &
                            ,int_state%MICROPHYSICS                      &
+                           ,int_state%SHORTWAVE                         &
+                           ,int_state%LONGWAVE                          &
                            ,int_state%LMPRATE                           &
                            ,int_state%LNSH, int_state%LNSV              &
                            ,RC)
@@ -1190,7 +1192,7 @@
         ENDDO
         ENDDO
         ENDDO
-!       IF (int_state%has_reqc.eq.1 .and. int_state%has_reqi.eq.1 .and. int_state%has_reqs.eq.1) THEN
+        IF (int_state%has_reqc.eq.1 .and. int_state%has_reqi.eq.1 .and. int_state%has_reqs.eq.1) THEN
         DO L=1,LM
         DO J=JMS,JME
         DO I=IMS,IME
@@ -1200,7 +1202,7 @@
         ENDDO
         ENDDO
         ENDDO
-!       ENDIF
+        ENDIF
 !
         DO N=1,NUM_DOMAINS_MAX
           int_state%NTSCM(N)=-999
@@ -4419,6 +4421,8 @@
         ELSE
           KSE1=KSE
         ENDIF
+
+!       write(6,*) 'DEBUG-GT: calling ADV2, kss,kse=',kss,kse1
 !
         CALL ADV2                                                       &
           (GLOBAL                                                       &
@@ -5101,6 +5105,7 @@
                        (CALL_SHORTWAVE .OR. CALL_LONGWAVE .OR.          &
                         CALL_TURBULENCE .OR. CALL_PRECIP) ) THEN
 !
+!          write(*,*) 'DEBUG-GT, now calling UPDATE_WATER'
            CALL UPDATE_WATER(int_state%CW                               &
                             ,int_state%F_ICE                            &
                             ,int_state%F_RAIN                           &
@@ -5176,6 +5181,7 @@
 !-----------------------------------------------------------------------
 !
           btim=timef()
+!         write(*,*) 'DEBUG-GT, now calling RADIATION ', btim
 !
 !-----------------------------------------------------------------------
 !***  Temporary switch between radiation schemes placed in SOLVER_RUN
@@ -5222,8 +5228,11 @@
                         ,int_state%THS,int_state%ALBEDO                 &
                         ,int_state%QV,int_state%QC,int_state%QR         &
                         ,int_state%QI,int_state%QS,int_state%QG         &
+                        ,int_state%NI                                   &
                         ,int_state%F_QV,int_state%F_QC,int_state%F_QR   &
                         ,int_state%F_QI,int_state%F_QS,int_state%F_QG   &
+                        ,int_state%F_NI                                 &
+                        ,int_state%NUM_WATER                            &
                         ,int_state%SM,int_state%CLDFRA                  &
                         ,int_state%RLWTT,int_state%RSWTT                &
                         ,int_state%RLWIN,int_state%RSWIN                &
@@ -5370,6 +5379,7 @@
         turbulence: IF(CALL_TURBULENCE)THEN
 !
           btim=timef()
+!         write(*,*) 'DEBUG-GT, now calling TURBL ', btim
 !
           DO L=1,NUM_SOIL_LAYERS
             DZSOIL(L)=SLDPTH(L)
@@ -5609,6 +5619,7 @@
         convection: IF(CALL_PRECIP.AND.int_state%CONVECTION/='none')THEN
 !
           btim=timef()
+!         write(*,*) 'DEBUG-GT, now calling CUCNVC ', btim
 !
 !-----------------------------------------------------------------------
           IF(int_state%CONVECTION=='bmj' .OR. &
@@ -5752,6 +5763,7 @@
         microphysics: IF(CALL_PRECIP)THEN
 !
           btim=timef()
+!         write(*,*) 'DEBUG-GT, now calling GSMDRIVE ', btim
 !
           CALL GSMDRIVE(NTIMESTEP,int_state%DT                             &
                        ,NPRECIP                                            &
@@ -5938,9 +5950,17 @@
           IF(int_state%F_NI) CALL HALO_EXCH(int_state%NI,LM,2,2)
           IF(int_state%F_NR) CALL HALO_EXCH(int_state%NR,LM,2,2)
         ENDIF
+
 !
         td%exch_tim=td%exch_tim+(timef()-btim)
 !
+!-----------------------------------------------------------------------
+!***  NOTE:  The Physics export state is fully updated now
+!***         because subroutine PHY_INITIALIZE inserted the
+!***         appropriate ESMF Fields into it.  Those Fields
+!***         contain pointers to the actual data and those
+!***         pointers are never re-directed.
+!-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
       ELSE gfs_phys_test                                                   !<-- Use GFS physics package
@@ -7021,6 +7041,8 @@
 !-----------------------------------------------------------------------
 !
       td%solver_phy_tim=td%solver_phy_tim+(timef()-btim0)
+
+!     write(*,*) 'DEBUG-GT,  ending SOLVER_RUN'
 !
 !-----------------------------------------------------------------------
 !
@@ -10648,7 +10670,6 @@
 
             CALL GPKAP    ! for ozone by using the unified RRTM from GFS
             CALL GPVS     ! for aerosol by using the unified RRTM from GFS
-
 !
 !-----------------------------------------------------------------------
 !***  For threading safe  (rad_initialize). Default value
@@ -10763,6 +10784,24 @@
 !==========================================================================
 !  Similar to GFS "GFS_Initialize_ESMFMod.f" line #1103
 !==========================================================================
+
+!..Special case for altering microphysics coupling with RRTM radiation
+!.. based on namelist settings.  The NP3Dx variable is incredibly convoluted
+!.. and renamed many times, including icmphys, np3d, and num_p3d.  Extremely
+!.. confusing and hard-wired and needs help to adapt to new physics couplings
+!.. and choices for full flexibility.   G. Thompson 06Feb2013
+
+!..SPECIAL TEST FOR THOMPSON MICROPHYSICS AND RRTM RADIATION.  It is strongly
+!.. advised against using GFDL or other radiation in combination with Thompson
+!.. microphysics because other schemes are not properly using the cloud data.
+
+            IF (TRIM(int_state%SHORTWAVE)=='rrtm' .AND.                 &
+     &          TRIM(int_state%MICROPHYSICS)=='thompson' ) THEN
+              NP3D = 8
+              ICICE_SW=4
+              ICICE_LW=4
+
+            ENDIF
 
             call rad_initialize_nmmb                                   &
 !        ---  inputs:
@@ -11072,7 +11111,7 @@
 !--  Local Variables
 !--------------------
 !
-      INTEGER :: I,J,K
+      INTEGER :: I,J,K, NW
       REAL :: FRACTION, LIQW, OLDCWM
       LOGICAL :: CLD_INIT
       LOGICAL :: deep_ice
@@ -11083,6 +11122,16 @@
 !
       IF(NTIMESTEP<=1)THEN
         CLD_INIT=.TRUE.
+!LPC - need to identify/initialize whatever arrays replaced "water"!
+!LPC        DO NW = 1, NUM_WATER
+!LPC        DO K=1,LM
+!LPC         DO J=JMS,JME
+!LPC          DO I=IMS,IME
+!LPC            WATER(I,J,K, NW)=0.0
+!LPC          ENDDO
+!LPC         ENDDO
+!LPC        ENDDO
+!LPC        ENDDO
       ELSE
         CLD_INIT=.FALSE.
       ENDIF
@@ -11358,9 +11407,9 @@
                 ENDDO
              ENDDO
           ELSE  spec_adv_thompson
-             write(0,*) 'WARNING: This option is STRONGLY DISCOURAGED'
-             write(0,*) '  please consider using full advection of all'
-             write(0,*) '  species when picking Thompson microphysics.'
+            ! write(0,*) 'WARNING: This option is STRONGLY DISCOURAGED'
+            ! write(0,*) '  please consider using full advection of all'
+            ! write(0,*) '  species when picking Thompson microphysics.'
              DO J=JMS,JME
              DO I=IMS,IME
                 DO K=LM,1,-1

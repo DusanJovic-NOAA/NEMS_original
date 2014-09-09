@@ -170,6 +170,7 @@
       use module_radlw_parameters_nmmb,  only : topflw_type, sfcflw_type,    &
      &                                     proflw_type, NBDLW
       use module_radlw_main_nmmb,        only : rlwinit,  lwrad
+
 !
       implicit   none
 !
@@ -189,6 +190,10 @@
 
 !  ---  lw surface air/ground interface temperature setting variable
       integer :: itsfc=0
+
+!     integer, parameter :: LTP = 0   ! do no add an extra top layer
+      integer, parameter :: LTP = 1   ! add an extra top layer
+      logical :: lextop = (LTP > 0)
 
       public radinit_gfs, grrad_gfs
 
@@ -828,8 +833,8 @@
       real (kind=kind_phys), dimension(IM,LM,NBDLW,NF_AELW) :: faerlw
       real (kind=kind_phys), dimension(IM,LM,NSPC-1) :: tau_gocart
 
-      real (kind=kind_phys), dimension(IM,LM) :: htswc
-      real (kind=kind_phys), dimension(IM,LM) :: htlwc
+      real (kind=kind_phys), dimension(IM,LM+LTP) :: htswc
+      real (kind=kind_phys), dimension(IM,LM+LTP) :: htlwc
 
 
 !! ---  may be used for optional sw/lw outputs:
@@ -847,6 +852,7 @@
 
       integer :: i, j, k, k1, lv, icec, itop, ibtc, nday, idxday(IM),   &
      &       mbota(IM,3), mtopa(IM,3), LP1, nb
+
 
 !  ---  for debug test use
 !     real (kind=kind_phys) :: temlon, temlat, alon, alat

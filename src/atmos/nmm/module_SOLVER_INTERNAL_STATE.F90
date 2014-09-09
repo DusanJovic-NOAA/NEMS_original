@@ -842,6 +842,10 @@
            int_state%has_reqc=1
            int_state%has_reqi=1
            int_state%has_reqs=1
+        ELSE
+           write(6,*) 'DEBUG-GT:  found Thompson MP but not RRTM radiation'
+           write(6,*) '     this is not advised. Should use RRTM radiation'
+           write(6,*) 'DEBUG-GT:  Long/short-wave set to: ', TRIM(int_state%LONGWAVE), TRIM(int_state%SHORTWAVE)
         ENDIF
       ELSEIF(TRIM(int_state%MICROPHYSICS)=='gfs')THEN
         int_state%NUM_WATER=1+3

@@ -452,6 +452,7 @@
 !           =1: input cld icep & reice, ebert & curry (1997)            !
 !           =2: input cld icep & reice, streamer (1996)                 !
 !           =3: input cld icep & reice, fu (1998)                       !
+!           =4: input cld icep & reice, cld snwp & resnw (Thompson)     !
 !   isubclw - sub-column cloud approximation control flag               !
 !           =0: no sub-col cld treatment, use grid-mean cld quantities  !
 !           =1: mcica sub-col, prescribed seeds to get random numbers   !
@@ -1454,11 +1455,12 @@
       real (kind=kind_phys), dimension(nbands,nlay),intent(out):: taucld
 
 !  ---  locals:
-      real (kind=kind_phys), dimension(nbands) :: tauliq, tauice
+      real (kind=kind_phys), dimension(nbands) :: tauliq,tauice,tausnow
       real (kind=kind_phys), dimension(nlay)   :: cldf
 
+      real (kind=kind_phys) :: csno, radsno
       real (kind=kind_phys) :: dgeice, factor, fint, tauran, tausnw,    &
-     &       cldliq, refliq, cldice, refice
+     &       cldliq, refliq, cldice, refice, dummy_tau
 
       logical :: lcloudy(ngptlw,nlay)
       integer :: ia, ib, ig, k, index
@@ -1485,18 +1487,31 @@
         lab_do_k : do k = 1, nlay
           lab_if_cld : if (cfrac(k) > cldmin) then
 
-            tauran = absrain * cdat1(k)                      ! ncar formula
-!!          tausnw = abssnow1 * cdat3(k)                     ! ncar formula
+            if (ilwcice < 4) then
+              tauran = absrain * cdat1(k)                      ! ncar formula
+!!            tausnw = abssnow1 * cdat3(k)                     ! ncar formula
 !  ---  if use fu's formula it needs to be normalized by snow density
 !       !not use snow density = 0.1 g/cm**3 = 0.1 g/(mu * m**2)
 !       use ice density = 0.9167 g/cm**3 = 0.9167 g/(mu * m**2)
 !       factor 1.5396=8/(3*sqrt(3)) converts reff to generalized ice particle size
 !       use newer factor value 1.0315
 !       1/(0.9167*1.0315) = 1.05756
-            if (cdat3(k)>f_zero .and. cdat4(k)>10.0_kind_phys) then
-              tausnw = abssnow0*1.05756*cdat3(k)/cdat4(k)      ! fu's formula
+              if (cdat3(k)>f_zero .and. cdat4(k)>10.0_kind_phys) then
+                tausnw = abssnow0*1.05756*cdat3(k)/cdat4(k)      ! fu's formula
+              else
+                tausnw = f_zero
+              endif
             else
-              tausnw = f_zero
+
+!  ===================================================================
+!  --- Extra input based on Greg
+!
+              csno = MAX(f_zero, cdat3(k))
+              radsno = max(25.e0, min(130.0e0, cdat4(k)))
+              tausnw = 0.0
+              tauran = 0.0
+!  ===================================================================
+
             endif
 
             cldliq = cliqp(k)
@@ -1577,12 +1592,58 @@
      &              + fint*(absice3(index+1,ib) - absice3(index,ib)) ))
                 enddo
 
+!  ===================================================================
+!  --- ... Based on  Greg's input
+
+              elseif ( ilwcice == 4 ) then
+
+                factor = (refice - 2.0) / 3.0
+                index  = max( 1, min( 42, int( factor ) ))
+                fint   = factor - float(index)
+
+                do ib = 1, nbands
+                  tauice(ib) = max(f_zero, cldice*(absice2(index,ib)    &
+     &              + fint*(absice2(index+1,ib) - absice2(index,ib)) ))
+                  tauice(ib) = MIN(35., tauice (ib))
+                enddo
+!  ===================================================================
+
               endif   ! end if_ilwcice_block
             endif   ! end if_cldice_block
 
-            do ib = 1, nbands
-              taucld(ib,k) = tauice(ib) + tauliq(ib) + tauran + tausnw
-            enddo
+!  ===================================================================
+!  --- Extra input based on Greg
+!
+            if (ilwcice == 4) then
+              if (csno > f_zero) then
+                factor = (radsno - 2.0) / 3.0
+                index  = max( 1, min( 42, int( factor ) ))
+                fint   = factor - float(index)
+
+                do ib = 1, nbands
+                  tausnow(ib) = max(f_zero, csno * (absice2(index,ib)   &
+     &              + fint*(absice2(index+1,ib) - absice2(index,ib)) ))
+                  tausnow(ib) = MIN(35., tausnow(ib))
+                enddo
+              else
+                do ib = 1, nbands
+                  tausnow(ib) = f_zero
+                enddo
+              endif
+            endif
+
+            if (ilwcice >= 4 ) then
+              do ib = 1, nbands
+                tauliq (ib) = MIN(35., tauliq (ib))
+                dummy_tau = MIN (tauliq (ib)+tauice(ib)+tausnow(ib),35.)
+                taucld(ib,k) = MAX(1.E-3,dummy_tau)
+              enddo
+            else
+!  ===================================================================
+              do ib = 1, nbands
+                taucld(ib,k) = tauice(ib) +tauliq(ib) +tauran +tausnw
+              enddo
+            endif
 
           endif  lab_if_cld
         enddo  lab_do_k

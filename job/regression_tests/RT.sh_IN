@@ -2683,6 +2683,7 @@ else
  #
  ###############################################################################
 
+ if [ 0 = 1 ] ; then # temporary turned off
  if [ $RT_FULL = true -o $CB_arg = nmm -o $CB_arg = all ] ; then
 
   export TEST_DESCR="Test NMMB-regional with THOMPSON microphysics scheme "
@@ -2705,6 +2706,7 @@ else
 #---------------------
 
  fi # endif test
+ fi # temporary turned off
 
  ###############################################################################
  #

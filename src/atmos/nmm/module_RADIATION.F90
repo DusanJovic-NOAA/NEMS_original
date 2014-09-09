@@ -67,8 +67,9 @@
      &                    ,DSG2,SGML2,SG2,PDSG1,PSGML1,PSG1,PT,PD       &
      &                    ,T,Q                                          &
      &                    ,THS,ALBEDO                                   &
-     &                    ,QV,QC,QR,QI,QS,QG                            &
-     &                    ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG                &
+     &                    ,QV,QC,QR,QI,QS,QG,NI                         &
+     &                    ,F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI           &
+     &                    ,NUM_WATER                                    &
      &                    ,SM,CLDFRA                                    &
      &                    ,RLWTT,RSWTT                                  &
      &                    ,RLWIN,RSWIN                                  &
@@ -131,7 +132,7 @@
 !
       INTEGER,INTENT(IN) :: LM,DT_INT                                   &
                            ,IHRST,ITIMESTEP,JULDAY,JULYR                &
-                           ,NPHS,NRADL,NRADS
+                           ,NPHS,NRADL,NRADS,NUM_WATER
 !
       INTEGER,INTENT(IN) :: JDAT(8)
 !
@@ -168,12 +169,13 @@
                                                     ,CFRACM,CZMEAN      &
                                                     ,SIGT4
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QV,QR,QG
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QV,QR,QG,NI
       REAL,DIMENSION(:,:,:),POINTER,INTENT(INOUT) :: QC,QI,QS
+
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: CLDFRA
 !
-      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
+      LOGICAL,INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG,F_NI
 !
       CHARACTER(99),INTENT(IN) :: LONGWAVE,SHORTWAVE
 !
@@ -318,6 +320,25 @@
       ENDDO
 !.......................................................................
 !$omp end parallel do 
+!.......................................................................
+!
+!-----------------------------------------------------------------------
+!***  SYNCHRONIZE MIXING RATIO IN WATER ARRAY WITH SPECIFIC HUMIDITY.
+!-----------------------------------------------------------------------
+!
+!.......................................................................
+!$omp parallel do                                                       &
+!$omp& private(i,j,k)
+!.......................................................................
+      DO K=1,LM                                            
+        DO J=JMS,JME                                      
+          DO I=IMS,IME                                   
+            QV(I,J,K)=Q(I,J,K)/(1.-Q(I,J,K))    
+          ENDDO                                        
+        ENDDO                                         
+      ENDDO                                          
+!.......................................................................
+!$omp end parallel do
 !.......................................................................
 !
 !-----------------------------------------------------------------------
@@ -517,7 +538,9 @@
                    ,T,Q,CW,O3                                       &
                    ,ALBEDO                                          &
                    ,F_ICE,F_RAIN                                    &
-                   ,QC,QS,F_QC,F_QS                                 &
+                 ,QV,QC,QI,QS,QR,QG,NI                              &
+                 ,F_QV,F_QC,F_QI,F_QS,F_QR,F_QG,F_NI                &
+                 ,NUM_WATER                                         &
                    ,SM,CLDFRA                                       &
                    ,RLWTT,RSWTT                                     &
                    ,RLWIN,RSWIN                                     &
@@ -569,7 +592,7 @@
                  ,RSWTOA=rswtoa,RLWTOA=rlwtoa,CZMEAN=czmean         &
                  ,THRATEN=thraten,THRATENLW=thratenlw               &
                  ,THRATENSW=thratensw                               &
-                 ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=lm+1  &
+                 ,IDS=ids,IDE=ide, JDS=jds,JDE=jde, KDS=1,KDE=lm+1  &     
                  ,IMS=ims,IME=ime, JMS=jms,JME=jme, KMS=1,KME=lm+1  &
                  ,ITS=iqs,ITE=iqe, JTS=jqs,JTE=jqe, KTS=1,KTE=lm    &
                                                                     )

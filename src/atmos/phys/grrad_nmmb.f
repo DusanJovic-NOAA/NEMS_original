@@ -169,7 +169,8 @@
       use module_radiation_surface_nmmb, only : NF_ALBD,sfc_init,setalb,&
      &                                     setemis
       use module_radiation_clouds_nmmb,  only : NF_CLDS, cld_init,      &
-     &                                     progcld1, progcld2, diagcld1
+     &                                     progcld1, progcld2, diagcld1 &
+     &                                   , progcld8
 
       use module_radsw_parameters,  only : topfsw_type, sfcfsw_type,    &
      &                                     profsw_type,cmpfsw_type,NBDSW
@@ -302,6 +303,7 @@
 !   NP3D             :=3: ferrier's microphysics cloud scheme           !
 !                     =4: zhao/carr/sundqvist microphysics cloud        !
 !                     =5: nmmb ferrier+bmj microphysics scheme          !
+!                     =8: Thompson microphysics scheme                  !
 !   isubcsw/isubclw  : sub-column cloud approx control flag (sw/lw rad) !
 !                     =0: with out sub-column cloud approximation       !
 !                     =1: mcica sub-col approx. prescribed random seed  !
@@ -683,7 +685,7 @@
 !                                                                     * !
 !    subprograms called:                                              * !
 !                  setalb, setemis, setaer, getozn, getgases,         * !
-!                  progcld1, progcld2, diagcds,                       * !
+!                  progcld1, progcld2, progcld8, diagcds,             * !
 !                  swrad, lwrad, fpvs                                 * !
 !                                                                     * !
 !    attributes:                                                      * !
@@ -738,6 +740,7 @@
 !                        =4 zhao/carr/sundqvist microphysics scheme     !
 !                        =5 external microphysics scheme provided bulk/ !
 !                           grey quantities of cloud fields. (nmmb vars)!
+!                        =8 Thompson microphysics scheme                !
 !      ntcw            : =0 no cloud condensate calculated              !
 !                        >0 array index location for cloud condensate   !
 !      ncld            : only used when ntcw .gt. 0                     !
@@ -1002,6 +1005,9 @@
       real (kind=kind_phys), dimension(CHK,LM+LTP)  ::          &
      &       plyr, tlyr, qlyr,                                          &
      &       olyr, rhly, qstl, vvel, clw, prslk1, tem2da, tem2db, tvly
+
+      real (kind=kind_phys), dimension(CHK,LM+LTP)  ::          &
+     &       qc2d, qi2d, qs2d, ni2d
 
       real (kind=kind_phys), dimension(CHK) :: tsfa, cvt1, cvb1, tem1d,  &
      &       sfcemis, tsfg, tskn
@@ -1286,14 +1292,18 @@ integer,external :: omp_get_thread_num
           prslk1(i,lyb) = fpkapx(plyr(i,lyb)*100.0) ! fpkapx in pa
         enddo
 
-       ! do j = 1, NTRAC     ! NTRAC=3 as defined in physpara_nmmb.f
-          do i = 1, IM
 !  ---  note: may need to take care the top layer mount
-            tracer1(i,lyb,1) = tracer1(i,lya,1)   ! ozone
-            tracer1(i,lyb,2) = tracer1(i,lya,2)
-            tracer1(i,lyb,3) = 0.                 ! no cloud above domain top
-          enddo
-       ! enddo
+
+         do i = 1, IM
+           tracer1(i,lyb,1) = tracer1(i,lya,1)    ! 1st tracer element is ozone
+         enddo
+
+         do j = 2, NTRAC     ! This loop variable should now be correct
+           do i = 1, IM
+             tracer1(i,lyb,j) = 0.       !  enforce no cloud above domain top
+           enddo
+         enddo
+
       endif
 !
 !======================================================================
@@ -1586,6 +1596,35 @@ integer,external :: omp_get_thread_num
           endif
 
           !============================================
+
+!..This is far from optimal!  The specific array element numbers are
+!.. potentially flexible for cloud water, cloud ice, snow mixing ratios
+!.. and cloud ice number concentration.  Therefore, numerical values of
+!.. 4, 5, 6, 9 are hard-wired when they should be made flexible.
+
+        elseif (np3d == 8) then            ! Thompson microphysics
+
+!         write(*,*) ' DEBUG-GT, double-check radiation flags ',iswcliq , iswcice, ilwcliq, ilwcice
+!         write(*,*) ' DEBUG-GT, double-check NTRAC number ', ntrac
+!         write(*,*) ' DEBUG-GT, double-check LMK (LM+LTP) ', LMK
+
+          do k = 1, LMK
+            do i = 1, IM
+              qc2d(i,k) = tracer1(i,k,4)
+              if (qc2d(i,k) .LE. EPSQ) qc2d(i,k)=0.0
+              qi2d(i,k) = tracer1(i,k,5)
+              if (qi2d(i,k) .LE. EPSQ) qi2d(i,k)=0.0
+              qs2d(i,k) = tracer1(i,k,6)
+              if (qs2d(i,k) .LE. EPSQ) qs2d(i,k)=0.0
+              ni2d(i,k) = MAX(1.E-8, tracer1(i,k,9))
+            enddo
+          enddo
+
+
+          call progcld8 (plyr,plvl, tlyr, qlyr, qc2d, qi2d, qs2d, ni2d, &
+     &                   xlat, IM, LMK, LMP,                            &
+     &                   clouds, cldsa, mtopa, mbota)
+
 
         endif                              ! end if_np3d
 !

@@ -1562,13 +1562,14 @@
 !  ---  locals:
       real (kind=kind_phys), dimension(nblow:nbhgh) :: tauliq, tauice,  &
      &       ssaliq, ssaice, ssaran, ssasnw, asyliq, asyice,            &
-     &       asyran, asysnw
+     &       asyran, asysnw, tausnow
       real (kind=kind_phys), dimension(nlay)       :: cldf
 
       real (kind=kind_phys) :: dgeice, factor, fint, tauran, tausnw,    &
      &       cldliq, refliq, cldice, refice, cldran, cldsnw, refsnw,    &
      &       extcoliq, ssacoliq, asycoliq, extcoice, ssacoice, asycoice,&
-     &       dgesnw
+     &       extcosno, ssacosno, asycosno,                              &
+     &       dgesnw, dummy_tau
 
       logical :: lcloudy(nlay,ngptsw)
       integer :: ia, ib, ig, jb, k, index
@@ -1598,26 +1599,30 @@
             refsnw = cdat4(k)
             dgesnw = 1.0315 * refsnw        ! for fu's snow formula
 
-            tauran = cldran * a0r
+            if (iswcice < 4) then
+
+              tauran = cldran * a0r
 !  ---  if use fu's formula it needs to be normalized by snow/ice density
 !       !not use snow density = 0.1 g/cm**3 = 0.1 g/(mu * m**2)
 !       use ice density = 0.9167 g/cm**3 = 0.9167 g/(mu * m**2)
 !       1/0.9167 = 1.09087
 !       factor 1.5396=8/(3*sqrt(3)) converts reff to generalized ice particle size
 !       use newer factor value 1.0315
-            if (cldsnw>f_zero .and. refsnw>10.0_kind_phys) then
-!             tausnw = cldsnw * (a0s + a1s/refsnw)
-              tausnw = cldsnw*1.09087*(a0s + a1s/dgesnw)     ! fu's formula
-            else
-              tausnw = f_zero
-            endif
+              if (cldsnw>f_zero .and. refsnw>10.0_kind_phys) then
+!               tausnw = cldsnw * (a0s + a1s/refsnw)
+                tausnw = cldsnw*1.09087*(a0s + a1s/dgesnw)     ! fu's formula
+              else
+                tausnw = f_zero
+              endif
 
-            do ib = nblow, nbhgh
-              ssaran(ib) = tauran * (f_one - b0r(ib))
-              ssasnw(ib) = tausnw * (f_one - (b0s(ib)+b1s(ib)*dgesnw))
-              asyran(ib) = ssaran(ib) * c0r(ib)
-              asysnw(ib) = ssasnw(ib) * c0s(ib)
-            enddo
+              do ib = nblow, nbhgh
+                ssaran(ib) = tauran * (f_one - b0r(ib))
+                ssasnw(ib) = tausnw * (f_one - (b0s(ib)+b1s(ib)*dgesnw))
+                asyran(ib) = ssaran(ib) * c0r(ib)
+                asysnw(ib) = ssasnw(ib) * c0s(ib)
+              enddo
+
+            endif
 
             cldliq = cliqp(k)
             cldice = cicep(k)
@@ -1735,15 +1740,92 @@
                   asyice(ib) = ssaice(ib) * asycoice
                 enddo
 
+              elseif ( iswcice == 4 ) then
+                dgeice = max( 10.1, min( 129.9, refice ))
+
+                factor = (dgeice - 2.0) / 3.0
+                index  = max( 1, min( 45, int( factor ) ))
+                fint   = factor - float(index)
+
+                do ib = nblow, nbhgh
+                  extcoice = max(f_zero,            extice3(index,ib)   &
+     &                + fint*(extice3(index+1,ib)-extice3(index,ib)) )
+                  ssacoice = max(f_zero, min(f_one, ssaice3(index,ib)   &
+     &                + fint*(ssaice3(index+1,ib)-ssaice3(index,ib)) ))
+                  asycoice = max(f_zero, min(f_one, asyice3(index,ib)   &
+     &                + fint*(asyice3(index+1,ib)-asyice3(index,ib)) ))
+
+                  tauice(ib) = cldice     * extcoice
+                  ssaice(ib) = tauice(ib) * ssacoice
+                  asyice(ib) = ssaice(ib) * asycoice
+                enddo
+
               endif   ! end if_iswcice_block
             endif   ! end if_cldice_block
 
-            do ib = 1, nbdsw
-              jb = nblow + ib - 1
-              taucw(k,ib) = tauliq(jb)+tauice(jb)+tauran+tausnw
-              ssacw(k,ib) = ssaliq(jb)+ssaice(jb)+ssaran(jb)+ssasnw(jb)
-              asycw(k,ib) = asyliq(jb)+asyice(jb)+asyran(jb)+asysnw(jb)
-            enddo
+!  ===================================================================
+!  --- Extra from Greg
+
+!+---+-----------------------------------------------------------------+
+!..Calculation of coefficients due to snow, new if iflagice=4.
+!.. Treated entirely same as cloud ice in effective radius and band
+!.. mode, and combined later as a linear sum.  G. Thompson
+!+---+-----------------------------------------------------------------+
+
+            if (iswcice == 4) then
+              if (cldsnw <= f_zero) then
+                do ib = nblow, nbhgh
+                  tausnow(ib) = f_zero
+                  ssasnw (ib) = f_zero
+                  asysnw (ib) = f_zero
+                enddo
+              else
+                dgesnw = max( 25.1, min( 129.9, refsnw ))
+
+                factor = (dgesnw - 2.0) / 3.0
+                index  = max( 1, min( 45, int( factor ) ))
+                fint   = factor - float(index)
+
+                do ib = nblow, nbhgh
+                  extcosno = max(f_zero,            extice3(index,ib)   &
+     &                + fint*(extice3(index+1,ib)-extice3(index,ib)) )
+                  ssacosno = max(f_zero, min(f_one, ssaice3(index,ib)   &
+     &                + fint*(ssaice3(index+1,ib)-ssaice3(index,ib)) ))
+                  asycosno = max(f_zero, min(f_one, asyice3(index,ib)   &
+     &                + fint*(asyice3(index+1,ib)-asyice3(index,ib)) ))
+
+                  tausnow(ib) = MIN(35., cldsnw * extcosno)
+                  ssasnw (ib) = tausnow(ib) * ssacosno
+                  asysnw (ib) = ssasnw (ib) * asycosno
+                enddo
+
+              endif
+            endif
+
+            if (iswcice==4 ) then
+
+              do ib = 1, nbdsw
+                jb = nblow + ib - 1
+                tauliq(jb) = MIN(35., tauliq(jb))
+                tauice(jb) = MIN(35., tauice(jb))
+                dummy_tau = MIN(tauliq(jb)+tauice(jb)+tausnow(jb),35.)
+                taucw(k,ib)=MAX(1.0E-3,dummy_tau)
+                ssacw(k,ib) = ssaliq(jb) + ssaice(jb) + ssasnw(jb)
+                asycw(k,ib) = asyliq(jb) + asyice(jb) + asysnw(jb)
+              enddo
+
+!  ===================================================================
+
+            else
+
+              do ib = 1, nbdsw
+                jb = nblow + ib - 1
+                taucw(k,ib) = tauliq(jb)+tauice(jb)+tauran+tausnw
+                ssacw(k,ib) = ssaliq(jb)+ssaice(jb)+ssaran(jb)+ssasnw(jb)
+                asycw(k,ib) = asyliq(jb)+asyice(jb)+asyran(jb)+asysnw(jb)
+              enddo
+
+            endif
 
           endif  lab_if_cld
         enddo  lab_do_k
