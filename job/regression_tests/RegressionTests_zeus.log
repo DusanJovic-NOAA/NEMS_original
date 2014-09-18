@@ -1,11 +1,11 @@
-Mon Sep  8 16:12:42 UTC 2014
+Mon Sep 15 17:59:38 UTC 2014
 Start Regression test
 
 
 
-Mon Sep  8 16:12:42 UTC 2014
+Mon Sep 15 17:59:38 UTC 2014
 Compilation ALL
-Mon Sep  8 16:47:16 UTC 2014
+Mon Sep 15 18:30:04 UTC 2014
 Test 1
 Compare NMMB-global results with previous trunk version
 
@@ -23,7 +23,7 @@ Checking test 1 results ....
 
 
 
- Original timing:  151.20  , test_glob timing:  91.565
+ Original timing:  151.20  , test_glob timing:  95.370
 
 
 Test 2
@@ -113,7 +113,7 @@ Checking test 7 results ....
 
 
 
- Original timing:  240.82  , test_reg timing:  176.32
+ Original timing:  240.82  , test_reg timing:  178.09
 
 
 Test 8
@@ -783,9 +783,9 @@ Checking test 42 results ....
  Comparing ngac.t00z.aerf12.........OK
  Comparing ngac.t00z.aerf24.........OK
  Test 42 passed 
-Tue Sep  9 04:06:15 UTC 2014
+Mon Sep 15 23:33:56 UTC 2014
 Compilation with POST
-Tue Sep  9 04:26:03 UTC 2014
+Mon Sep 15 23:53:13 UTC 2014
 Test 43
 GFS with POST
 GFS, 32 proc, 1 thread
@@ -850,7 +850,7 @@ Checking test 44 results ....
  Comparing NGAC3d.GrbF12.........OK
  Comparing NGAC3d.GrbF24.........OK
  Test 44 passed 
-Tue Sep  9 04:54:41 UTC 2014
+Tue Sep 16 00:07:02 UTC 2014
 Compilation only NMM
 Test 45
 Compare NMMB-global results with previous trunk version, only NMM compiled
@@ -867,5 +867,5 @@ Checking test 45 results ....
 
 
 
-Tue Sep  9 05:15:58 UTC 2014
+Tue Sep 16 00:20:57 UTC 2014
 REGRESSION TEST WAS SUCCESSFUL

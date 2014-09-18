@@ -12,9 +12,11 @@ GOCARTINCS = -I../../chem/gocart/${ARCH}/include/Chem_Base
 LIBRARY  = libphys.a
 
 MODULES_NMM      = module_BL_GFSPBL.o \
+                   module_BL_GFSPBLHUR.o \
                    module_BL_MYJPBL.o \
                    module_CU_BMJ.o \
                    module_CU_SAS.o \
+                   module_CU_SASHUR.o \
                    module_LS_LISS.o \
                    module_LS_NOAHLSM.o \
                    module_MP_ETANEW.o \
@@ -26,6 +28,7 @@ MODULES_NMM      = module_BL_GFSPBL.o \
                    module_RA_GFDL.o \
                    module_RA_RRTM.o \
                    module_SF_JSFC.o \
+                   module_SF_GFDL.o \
                    module_SF_URBAN.o
 
 MODULES_NMM_RRTM = grrad_nmmb.o                   \

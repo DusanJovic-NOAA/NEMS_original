@@ -15,6 +15,8 @@
 !   2009-10-26  Jovic - Remove WRF driver from TURBL
 !   2010-09-10  Weiguo Wang - add GFS PBL option
 !   2010-10-06  Weiguo Wang - add RSWTT, RLWTT, used by GFS PBL
+!   2014-06-24  Weiguo Wang - add GFDL surface layer
+!   2014-06-25  Weiguo Wang - add GFSPBL for Hurricane option
 !-----------------------------------------------------------------------
 !
       USE MODULE_INCLUDE
@@ -27,13 +29,16 @@
 !
       USE MODULE_CONSTANTS,ONLY : CP,ELIV,ELWV,EPSQ,EPSQ2               &
                                  ,G,P608,PI,PQ0,R_D,R_V,RHOWATER        &
-                                 ,STBOLT,CAPPA
+                                 ,STBOLT,CAPPA   &
+                                 ,EP_1,EP_2
 !
       USE MODULE_CONTROL,ONLY : NMMB_FINALIZE
 !
       USE MODULE_SF_JSFC,ONLY : JSFC
+      USE MODULE_SF_GFDL,ONLY : SF_GFDL
       USE MODULE_BL_MYJPBL,ONLY : MYJPBL
       USE MODULE_BL_GFSPBL,ONLY : GFSPBL
+      USE MODULE_BL_GFSPBLHUR,ONLY : GFSPBLHUR
 !
 !-----------------------------------------------------------------------
 !
@@ -53,6 +58,7 @@
 !
       INTEGER(kind=KINT),PARAMETER :: MYJPBLSCHEME=2
       INTEGER(kind=KINT),PARAMETER :: GFSPBLSCHEME=9
+      INTEGER(kind=KINT),PARAMETER :: GFSPBLHURSCHEME=93
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -60,7 +66,8 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-      INTEGER(kind=KINT),PARAMETER :: JSFCSCHEME=2
+      INTEGER(kind=KINT),PARAMETER :: JSFCSCHEME=2   &
+                                      ,GFDLSFCSCHEME=88
 !
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -69,7 +76,8 @@
 !-----------------------------------------------------------------------
 !
       INTEGER(kind=KINT),PARAMETER :: LSMSCHEME   =2                    &
-                                     ,LISSSCHEME  =101
+                                     ,LISSSCHEME  =101                  &
+                                     ,GFDLSLABSCHEME=0
 !
 !-----------------------------------------------------------------------
 !
@@ -114,6 +122,10 @@
                       ,MICROPHYSICS                                     &
                       ,LISS_RESTART                                     &
                       ,GLOBAL                                           &
+!!! HURRICANE PBL/SFCLAY
+                      ,VAR_RIC,COEF_RIC_L,COEF_RIC_S,DISHEAT            &
+                      ,ALPHA,SFENTH                                     &
+!!! HURRICANE 
                       ,IDS,IDE,JDS,JDE,LM                               &
                       ,IMS,IME,JMS,JME                                  &
                       ,ITS,ITE,JTS,JTE)
@@ -267,6 +279,13 @@
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: DDATA
       LOGICAL(kind=KLOG),INTENT(IN) :: F_QV,F_QC,F_QR,F_QI,F_QS,F_QG
       LOGICAL(kind=KLOG),INTENT(IN) :: GWDFLG,PCPFLG
+
+! FOR Hurricane PBL/SFCLAY
+      REAL(kind=KFPT),INTENT(IN) :: SFENTH, ALPHA,VAR_RIC, COEF_RIC_L  &
+                                   ,COEF_RIC_S ! from namelist
+      LOGICAL(kind=KLOG),INTENT(IN)  :: DISHEAT    ! should be from namelist
+
+
 !
 !---------------------
 !***  Local Variables
@@ -301,6 +320,17 @@
                                                    ,SFCEVPX,SFCZ,SNOW,SNOWH       &
                                                    ,TH2X,THLOW,TLOW               &
                                                    ,VGFRCK,XLAND
+
+!! added for hwrf, tentatively
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME) :: MZNT,WSPD,  &
+                                                    TAUX,TAUY   &
+                                                   ,RC2D
+      INTEGER(kind=KINT),DIMENSION(IMS:IME,JMS:JME) ::  KPBL2D
+      REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM) :: EXCH_M
+      INTEGER(kind=KINT) :: NTSFLG
+      
+!! hwrf
+
 !
       REAL(kind=KFPT),DIMENSION(IMS:IME,JMS:JME,1:LM) :: DELP                    &
                                                         ,DZ,EXNER,PHMID,RR,U_PHY,V_PHY,TH
@@ -365,11 +395,15 @@
 !***  the WRF surface and PBL drivers remain untouched.
 !-----------------------------------------------------------------------
 !
+
+ !       write(0,*)'select PBL=',TURBULENCE
       SELECT CASE (TRIM(TURBULENCE))
         CASE ('myj')
           PBL_PHYSICS=MYJPBLSCHEME
         CASE ('gfs')
           PBL_PHYSICS=GFSPBLSCHEME
+        CASE ('gfshur')
+          PBL_PHYSICS=GFSPBLHURSCHEME
         CASE DEFAULT
           WRITE(0,*)' User selected TURBULENCE=',TRIM(TURBULENCE)
           WRITE(0,*)' Improper selection of Turbulence scheme in TURBL'
@@ -381,6 +415,8 @@
           SFCLAY_PHYSICS=JSFCSCHEME
         CASE ('gfs')
           SFCLAY_PHYSICS=JSFCSCHEME
+        CASE ('gfdl')
+          SFCLAY_PHYSICS=GFDLSFCSCHEME
         CASE DEFAULT
           WRITE(0,*)' User selected SFC_LAYER=',TRIM(SFC_LAYER)
           WRITE(0,*)' Improper selection of Surface Layer scheme in TURBL'
@@ -392,6 +428,8 @@
           SURFACE_PHYSICS=LSMSCHEME
         case ('liss')
           surface_physics=LISSSCHEME
+        case ('gfdlslab')
+          surface_physics=GFDLSLABSCHEME
         CASE DEFAULT
           WRITE(0,*)' User selected LAND_SURFACE=',TRIM(LAND_SURFACE)
           WRITE(0,*)' Improper selection of Land Surface scheme in TURBL'
@@ -768,6 +806,42 @@
                         IMS,IME,JMS,JME,1,LM+1,                         &
                         ITS_B1,ITE_B1,JTS_B1,JTE_B1,1,LM)
  
+            CASE (GFDLSFCSCHEME)
+
+! not sure why this if-block is needed, just copied from hwrf
+              NTSFLG=0
+!20140813         if (SFCLAY_PHYSICS == 88 ) NTSFLG=1           
+!20140813 IF we use GFDL sfc, we have to set NTSFLG=1, meaning update TSK
+!20140813 IF NOT, then some other surface model may take care of updating TSK
+              if( surface_physics == GFDLSLABSCHEME ) NTSFLG=1 
+!
+              CALL SF_GFDL(U3D=U_PHY,V3D=V_PHY,T3D=T,QV3D=Q,            &
+                           P3D=PHMID,CP=CP, ROVCP=R_D/CP,R=R_D,         &
+                           XLV=XLV,PSFC=PSFC_OUT,CHS=CHS,CHS2=CHS2,     &
+                           CQS2=CQS2, CPM=CPM,    &
+                           DT=DTBL, SMOIS=SMC,num_soil_layers=NSOIL,      &
+                           ISLTYP=ISLTYP,ZNT=z0,                        &
+!#if (HWRF==1)
+                       MZNT=MZNT,                                       &
+!#endif
+                      UST=USTAR,PSIM=PSIM,PSIH=PSIH,                    &
+                      XLAND=XLAND,HFX=TWBS,QFX=QWBS,                   &
+                      TAUX=TAUX,TAUY=TAUY,LH=ELFLX,                    &
+                      GSW=RSW_DN_SFC,GLW=RLW_DN_SFC,TSK=TSFC,   &
+                      FLHC=FLHC,FLQC=FLQC,    & ! gopal's doingfor Ocean coupling
+                      QGH=QGH,QSFC=QSH,U10=U10,V10=V10,                 &
+                      GZ1OZ0=GZ1OZ0,WSPD=WSPD,BR=BR,ISFFLX=1,           &
+                      EP1=EP_1,EP2=EP_2,KARMAN=0.4,NTSFLG=NTSFLG,       &
+                      SFENTH=SFENTH,&
+                      ids=ids,ide=ide, jds=jds,jde=jde, kds=1,kde=LM,    &
+                      ims=ims,ime=ime, jms=jms,jme=jme, kms=1,kme=LM,    &
+                      its=its_B1,ite=ite_b1, jts=jts_b1,jte=jte_B1,      &
+                      kts=1,kte=LM                  )
+              DO I=its_B1,ite_B1
+               DO J=jts_b1,jte_B1
+              CHKLOWQ(I,J)=1.0
+               enddo
+              enddo
             CASE DEFAULT
 
               WRITE(0,*)'The sfclay option does not exist: SFCLAY_PHYSICS = ', SFCLAY_PHYSICS
@@ -887,6 +961,9 @@
                 ENDDO
               ENDIF  urban
 
+            CASE(GFDLSLABSCHEME)
+!            write(0,*)'GFDL SLAB LSM model is selected, whcih is included in GFDLSURFACE module'
+
             CASE DEFAULT
 
          WRITE(0,*) 'The surface option not exist: SURFACE_PHYSICS = ', SURFACE_PHYSICS
@@ -1002,6 +1079,49 @@
 
           END IF
 
+        CASE(GFSPBLHURSCHEME)
+         
+          IF (NTSD == 1 .OR. MOD(NTSD,NPHS) == 0) THEN
+!            write(0,*)'F_QC=',F_QC ,'QC=',maxval(QC),'QC=',QC(its_b1+2,jts_b1+2,30)
+!            write(0,*)'F_QS=',F_QS ,'QS=',maxval(QS),'QS=',QS(its_b1+2,jts_b1+2,30)
+!            write(0,*)'F_QI=',F_QI !,'QI=',maxval(QI),'QI=',QI(its_b1+2,jts_b1+2,30)
+           CALL GFSPBLHUR(U3D=U_PHY,V3D=V_PHY,TH3D=TH,T3D=T              &
+!                     ,QV3D=Q,QC3D=QC,QI3D=QI,P3D=PHMID,PI3D=EXNER    &
+! in Fer scheme, F_QI=false
+                         ,QV3D=Q,QC3D=QC,QI3D=QS*0.0,P3D=PHMID,PI3D=EXNER    &
+                         ,RUBLTEN=DUDT                                   &
+                         ,RVBLTEN=DVDT                                & 
+                         ,RTHBLTEN=RTHBLTEN  &
+                         ,RQVBLTEN=RQBLTEN   &
+                         ,RQCBLTEN=RQCBLTEN  &
+                         ,RQIBLTEN=RQIBLTEN  &
+                         ,CP=CP,G=G,ROVCP=CAPPA,R=R_D,ROVG=R_D/G   &
+                         ,F_QC=F_QC,F_QI=F_QI &
+
+                   ,dz8w=DZ,z=Z,PSFC=PSFC_OUT &
+
+                   ,UST=USTAR,PBL=PBLH,PSIM=PSIM,PSIH=PSIH &
+
+                   ,HFX=TWBS,QFX=QWBS,TSK=TSFC&
+                   ,GZ1OZ0=GZ1OZ0,WSPD=WSPD,BR=BR  &
+
+                   ,DT=DT*NPHS,KPBL2D=KPBL2D,EP1=EP_1,KARMAN=0.4  &
+
+!!#if (NMM_CORE==1)
+                   ,DISHEAT=DISHEAT  &
+                   ,ALPHA=ALPHA     &
+                   ,VAR_RIC=VAR_RIC &
+!!#endif
+                   ,U10=U10,V10=V10,ZNT=z0,MZNT=MZNT,rc2d=rc2d &
+                   ,DKU3D=EXCH_M,DKT3D=EXCH_H &
+                   ,coef_ric_l=coef_ric_l &
+                   ,coef_ric_s=coef_ric_s &
+                   ,xland=xland           &
+                   ,ids=ids,ide=ide, jds=jds,jde=jde, kds=1,kde=LM   &
+                   ,ims=ims,ime=ime, jms=jms,jme=jme, kms=1,kme=LM   &
+                   , its=its_b1,ite=ite_b1, jts=jts_b1,jte=jte_b1 &
+                   , kts=1,kte=LM )
+            ENDIF
 
         CASE DEFAULT
 

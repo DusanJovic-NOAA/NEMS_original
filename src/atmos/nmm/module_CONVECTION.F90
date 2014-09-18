@@ -14,6 +14,7 @@
 
       USE MODULE_CU_BMJ
       USE MODULE_CU_SAS
+      USE MODULE_CU_SASHUR
 !
 !-----------------------------------------------------------------------
 !
@@ -34,7 +35,8 @@
       INTEGER(KIND=KINT),PARAMETER :: KFETASCHEME=1                     &
                                      ,BMJSCHEME=2                       &
                                      ,GDSCHEME=3                        & 
-                                     ,SASSCHEME=4 
+                                     ,SASSCHEME=4     &
+                                     ,SASHURSCHEME=84
 !
 !-----------------------------------------------------------------------
 !
@@ -66,6 +68,11 @@
 !!!! added for SAS
                        ,SICE,QWBS,TWBS,PBLH,DUDT_PHY,DVDT_PHY           &
 !!!
+!!!  added for SAS-hurricane
+                      ,MOMMIX,PGCON,SAS_MASS_FLUX   &   ! hwrf,namelist
+                       ,SHALCONV,SHAL_PGCON          &   !hwrf,namelist
+                       ,W_TOT,PSGDT                  &   ! test w from omgalf vs W_tot
+!!
                        ,A2,A3,A4,CAPPA,CP,ELIV,ELWV,EPSQ,G              &
                        ,P608,PQ0,R_D,TIW                                &
                        ,IDS,IDE,JDS,JDE,LM                              &
@@ -88,6 +95,7 @@
 !   06-10-11  BLACK      - BUILT INTO UMO PHYSICS COMPONENT
 !   08-08     JANJIC     - Synchronize WATER array and Q.
 !   10-10-26  WEIGUO WANG - add GFS SAS convection
+!   14-06-19  WEIGUO WANG - add hurricane SAS (moved from hwrf)
 !     
 ! USAGE: CALL CUCNVC FROM PHY_RUN
 !
@@ -149,6 +157,12 @@
 !
       real(kind=kfpt),dimension(ims:ime,jms:jme),intent(in):: &
        sice,qwbs,twbs,pblh  !fOR SAS
+
+      REAL(kind=kfpt), OPTIONAL, INTENT(IN) :: &
+              PGCON,sas_mass_flux,shal_pgcon,mommix,shalconv         !sashur
+!!      INTEGER(kind=kint), OPTIONAL, INTENT(IN) :: shalconv  !sashur
+      real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in)::W_TOT
+      real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm-1),intent(in)::PSGDT !vertical mass flux
 !
       real(kind=kfpt),dimension(ims:ime,jms:jme,1:lm),intent(in):: &
        f_ice &
@@ -260,6 +274,7 @@
 !-----------------------------------------------------------------------
       IF(MOD(NTSD,NCNVC)/=0.AND.CONVECTION=='bmj')RETURN
       IF(MOD(NTSD,NCNVC)/=0.AND.CONVECTION=='sas')RETURN
+      IF(MOD(NTSD,NCNVC)/=0.AND.CONVECTION=='sashur')RETURN
 !-----------------------------------------------------------------------
 !
       RESTART=RESTRT
@@ -463,6 +478,31 @@
                       ,rqicuten, rqscuten &
                       ,rqgcuten  &
                       )
+!! 2014-06-19
+!! Weiguo Wang added SAS version from HWRF
+           CASE (SASHURSCHEME)
+           call sasdrv_hur( &
+                       ims,ime,jms,jme &
+                      ,its,ite,jts,jte,lm &
+                      ,dt,ntsd,ncnvc &
+                      ,th,t,sice,omgalf,twbs,qwbs,pblh,u_phy,v_phy & !zj orig u&v 
+                      ,q,qc,qr,qi,qs,qg &
+                      ,f_qc,f_qr,f_qi,f_qs,f_qg &
+                      ,phint,phmid,exner,rr,dz &
+                      ,xland,cu_act_flag &
+                      ,MOMMIX,PGCON,SAS_MASS_FLUX   &   ! hwrf,namelist
+                      ,SHALCONV,SHAL_PGCON          &   ! hwrf,namelist
+                      ,W_TOT,PSGDT                  &
+!                     ,PRATEC                       &   ! hwrf, useful??
+                      ,raincv,cutop,cubot &
+                      ,dudt_phy,dvdt_phy &
+                      ! optional
+                      ,rthcuten, rqcuten &
+                      ,rqccuten, rqrcuten &
+                      ,rqicuten, rqscuten &
+                      ,rqgcuten  &
+                      )
+!!2014-06-19
             CASE DEFAULT
 
               WRITE( 0 , * ) 'The cumulus option does not exist: cu_physics = ', cu_physics

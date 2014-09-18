@@ -6,7 +6,8 @@
 !
 !***  THE GFS PBL SCHEME
 !
-!     0910-2010    Created by Weiguo Wang to use GFS PBL 
+!     2010-0910    Created by Weiguo Wang to use GFS PBL 
+!     2014-0703    Weiguo Wang, use F_QI, in some MP, QI is not defined/used.
 !-----------------------------------------------------------------------
 !
       USE MODULE_INCLUDE
@@ -200,6 +201,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    
        if(lpr) write(0,*)'old qsfc,qz0,thz0,tsk',qsfc(35,17),qz0(35,17),thz0(35,17),tsk(35,17)         
+       !write(0,*)'JTS,JTE,its,ite,LM=',JTS,JTE,its,ite,LM
+       !write(0,*)'F_QC,F_QR,F_QI,F_QS,F_QG=',F_QC,F_QR,F_QI,F_QS,F_QG
+       !write(0,*)'Qc=',qc(5,5,LM)
+       !if(F_QI) write(0,*)'Qi=',qi(5,5,LM)
 !--------------------------------------------------------------
 !.......................................................................
 !$omp parallel do                &
@@ -209,7 +214,8 @@
       DO I=ITS,ITE
            K=LM
            QKLOW=Q(I,J,K)
-           CWMKLOW=QC(I,J,K)+QI(I,J,K)
+           CWMKLOW=QC(I,J,K)
+           IF(F_QI)CWMKLOW=QC(I,J,K)+QI(I,J,K)
            RHOKLOW=PHMID(I,J,K)/(RD99*T(I,J,K)*(1.+P608*QKLOW-CWMKLOW))
            THSK=TSK(I,J)*(1.E5/PHINT(I,J,LM+1))**CAPPA
 
@@ -284,7 +290,7 @@
               tgrs(1,K) = T(I,J,KFLIP)
               qgrs(1,K,1) = Q(I,J,KFLIP)
               qgrs(1,K,2) = QC(I,J,KFLIP)
-              qgrs(1,K,3) = QI(I,J,KFLIP)
+              if(F_QI) qgrs(1,K,3) = QI(I,J,KFLIP)
 
               del(1,K)  = DP(I,J,KFLIP)     !! pa
               prsl(1,K) = PHMID(I,J,KFLIP)  !! pa
@@ -351,7 +357,7 @@
         !!     RTHBLTEN(I,J,K) = dtdt(1,KFLIP)*prsik(1,1)/prslk(1,KFLIP)  !! /EXNER(I,J,K)
              RQBLTEN(I,J,K) = dqdt(1,KFLIP,1)
              RQCBLTEN(I,J,K) = dqdt(1,KFLIP,2)
-             RQIBLTEN(I,J,K) = dqdt(1,KFLIP,3)
+             if(F_QI) RQIBLTEN(I,J,K) = dqdt(1,KFLIP,3)
           ENDDO
 
              PBLH(I,J)  = hpbl(1)

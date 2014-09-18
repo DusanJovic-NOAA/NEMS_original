@@ -44,6 +44,7 @@
 !   2013-11-09 Xingren Wu - Adding DUSFCI/DVSFCI for GBPHYS call
 !   2014-03-28 Xingren Wu - Add "_CPL" field for GBPHYS call
 !   2014-05-14 J. Wang - Adding cgwf,prslrd0 and levr to gbphys call
+!   2014-06-26 Weiguo Wang -- Add HURRICANE PBL and SFCLAY calls
 !-----------------------------------------------------------------------
 !
       USE esmf_mod
@@ -90,11 +91,13 @@
       USE MODULE_RA_RRTM    ,ONLY : RRTM_INIT
       USE MODULE_TURBULENCE ,ONLY : TURBL
       USE MODULE_SF_JSFC    ,ONLY : JSFC_INIT
+      USE MODULE_SF_GFDL    ,ONLY : JSFC_INIT4GFDL
       USE MODULE_BL_MYJPBL  ,ONLY : MYJPBL_INIT
       USE MODULE_LS_NOAHLSM ,ONLY : DZSOIL,NOAH_LSM_INIT                &
                                    ,NUM_SOIL_LAYERS,SLDPTH
       USE MODULE_CU_BMJ     ,ONLY : BMJ_INIT
       USE MODULE_CU_SAS     ,ONLY : SAS_INIT
+      USE MODULE_CU_SASHUR  ,ONLY : SASHUR_INIT
       USE MODULE_CONVECTION ,ONLY : CUCNVC
 
       USE MODULE_MICROPHYSICS_NMM ,ONLY : GSMDRIVE                      &
@@ -1436,6 +1439,8 @@
 !
         btim=timef()
 !
+
+        write(0,*)'int_state%NEMSIO_INPUT=',int_state%NEMSIO_INPUT  !wang
         IF(.NOT.int_state%NEMSIO_INPUT)THEN
 !
           CALL READ_BINARY(INT_STATE                                    &
@@ -1459,6 +1464,7 @@
 !
         ELSE
 !
+         write(0,*) 'mype=',mype,'call read_nemsio'
           CALL READ_NEMSIO(int_state,MY_DOMAIN_ID,RC)
 !
           IF (RC /= 0) THEN
@@ -5460,6 +5466,12 @@
                     ,int_state%MICROPHYSICS                             &
                     ,int_state%LISS_RESTART                             &
                     ,int_state%GLOBAL                                   &
+ !!! HURRICANE PBL/SFCLAY
+                    ,int_state%VAR_RIC,int_state%COEF_RIC_L             &
+                    ,int_state%COEF_RIC_S,int_state%DISHEAT             &
+                    ,int_state%ALPHA,int_state%SFENTH                   &
+!!! HURRICANE
+
                     ,IDS,IDE,JDS,JDE,LM                                 &
                     ,IMS,IME,JMS,JME                                    &
                     ,ITS,ITE,JTS,JTE)
@@ -5623,7 +5635,8 @@
 !
 !-----------------------------------------------------------------------
           IF(int_state%CONVECTION=='bmj' .OR. &
-             int_state%CONVECTION=='sas') THEN
+             int_state%CONVECTION=='sas' .OR. & 
+             int_state%CONVECTION=='sashur') THEN
 !
             CALL CUCNVC(NTIMESTEP,int_state%DT,int_state%NPRECIP          &
                        ,int_state%NRADS,int_state%NRADL                   &
@@ -5660,6 +5673,12 @@
                        ,int_state%CONVECTION,int_state%CU_PHYSICS         &
                        ,int_state%SICE,int_state%QWBS,int_state%TWBS      &
                        ,int_state%PBLH,int_state%DUDT,int_state%DVDT      &
+!!!  added for SAS-hurricane
+                       ,int_state%SAS_MOMMIX,int_state%SAS_PGCON          &   !hwrf,namelist
+                       ,int_state%SAS_MASS_FLUX                           &   !hwrf,namelist
+                       ,int_state%SAS_SHALCONV,int_state%SAS_SHAL_PGCON   &   !hwrf,namelist
+                       ,int_state%W_TOT,int_state%PSGDT                    &
+!!!  SAS-huricane
                        ,A2,A3,A4,CAPPA,CP,ELIV,ELWV,EPSQ,G                &
                        ,P608,PQ0,R_D,TIW                                  &
                        ,IDS,IDE,JDS,JDE,LM                                &
@@ -10879,6 +10898,16 @@
                           ,IMS,IME,JMS,JME,1,LM+1                      &
                           ,ITS,ITE,JTS,JTE,1,LM                        &
                           ,MPI_COMM_COMP )
+          CASE ('gfdl')
+            CALL JSFC_INIT4GFDL(LOWLYR                                      &  !<-- Placeholder (computed in TURBULENCE)
+                          ,int_state%USTAR,int_state%Z0                &
+                          ,int_state%SM,int_state%SICE                 &
+                          ,int_state%IVGTYP,int_state%RESTART          &            
+                          ,ALLOWED_TO_READ                             &
+                          ,IDS,IDE,JDS,JDE,1,LM+1                      &
+                          ,IMS,IME,JMS,JME,1,LM+1                      &
+                          ,ITS,ITE,JTS,JTE,1,LM                        &
+                          ,MPI_COMM_COMP )
 !!!       CASE ('mm5')
 !!!         CALL SFCLYR_INIT
           CASE DEFAULT
@@ -10898,6 +10927,7 @@
           CASE ('gfs')
 !!!       CASE ('ysu')
 !!!         CALL YSU_INIT
+          CASE ('gfshur')
           CASE DEFAULT
             WRITE(0,*)' BAD SELECTION OF TURBULENCE SCHEME: INIT'
         END SELECT
@@ -10919,6 +10949,9 @@
                             ,ITS,ITE, JTS,JTE                          &
                             ,MYPE,MPI_COMM_COMP )
           CASE ('liss')
+
+          CASE ('gfdlslab')
+!            WRITE(0,*)'See GFDL Surface Layer SF_GFDL'
 
 !!!         CALL LSM_INIT
 
@@ -10944,6 +10977,9 @@
             int_state%CU_PHYSICS=4
             CALL SAS_INIT
 !
+          CASE ('sashur')
+            int_state%CU_PHYSICS=84
+            CALL SASHUR_INIT
           CASE('kf')
             int_state%CU_PHYSICS=1
 !           CALL KF_INIT

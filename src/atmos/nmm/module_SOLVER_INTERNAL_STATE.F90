@@ -380,6 +380,22 @@
                              ,SECADV                                    &
                              ,SPEC_ADV                                  &
                              ,USE_ALLREDUCE
+
+!! from HWRF, SASHUR, GFSPBLHUR
+        REAL(kind=KFPT) :: sas_pgcon=0.55    & !convectively forced pressure gradient factor,default=0.55
+                          ,sas_shal_pgcon=-1 & !convectively forced pressure gradient factor sas  shallow conv, -1 means use sas_pgcon
+                          ,sas_shalconv=1   & ! 1=enable shallow conv,better with gfspblhur scheme
+                          ,sas_mass_flux=9e9 & !mass flux limit,default=9e9
+                          ,sas_mommix=1.0        & ! SAS momentum mixing coef
+                          ,var_ric=1.0       &  !for gfspblhur
+                          ,coef_ric_l=0.16       &  !Regression coef for land Ric,default=0.16 
+                          ,coef_ric_s=0.16       &  !Regression coef for sea Ric,default=0.16 
+                          ,ALPHA=0.7             &  !adjustment coef for K in PBLHUR
+                          ,SFENTH=0.0               !GFDL surface-layer enhancement coef
+!        LOGICAL(kind=KLOG) :: RUN_TC=.true.          ! true='run hurricane'
+        LOGICAL(kind=KLOG) :: RUN_TC=.false.          ! false='run hurricane'
+        LOGICAL(kind=KLOG) :: DISHEAT=.true.          ! true='consider diss heating'
+!!
 !
 #ifdef ESMF_3
         TYPE(ESMF_Logical) :: MY_DOMAIN_MOVES

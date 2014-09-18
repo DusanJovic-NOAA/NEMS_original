@@ -785,6 +785,47 @@ integer,allocatable       :: reclev(:)
         enddo
       endif
 !
+!! FOR Hurricane application, U10, V10 at initial time are needed for running tracker
+! Weiguo Wang 2014-06-22
+ !        write(0,*)'read v10'
+ !        write(0,*)'int_state%RUN_TC=',int_state%RUN_TC 
+     if (int_state%RUN_TC) then
+!-----------------------------------------------------------------------
+!***  U10
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'u10','10 m above gnd',1,recn)
+       int_state%u10=0.0
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%U10(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+      call halo_exch(int_state%U10,1,2,2)
+     !    write(0,*)'read u10'
+     !    write(0,*)int_state%U10(1:10,5)
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!***  V10
+!-----------------------------------------------------------------------
+      call getrecn(recname,reclevtyp,reclev,nrec,'v10','10 m above gnd',1,recn)
+       int_state%v10=0.0
+      if(recn>0) then
+        fldst=(recn-1)*fldsize
+        do j=jts,jte
+          js=(j-jts)*(ite-its+1)
+          do i=its,ite
+            int_state%V10(i,j)=tmp(i-its+1+js+fldst)
+          enddo
+        enddo
+      endif
+      call halo_exch(int_state%v10,1,2,2)
+      !   write(0,*)'read v10'
+      !   write(0,*)int_state%v10(1:10,5)
+     endif   !  if hurricane
 !-----------------------------------------------------------------------
 !
         call nemsio_getheadvar(gfile,'dlmd',int_state%dlmd,ierr)
