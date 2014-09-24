@@ -1,0 +1,4 @@
+#!/bin/sh
+
+module purge
+module load ibmpe lsf ics/12.1 NetCDF/3.6.3

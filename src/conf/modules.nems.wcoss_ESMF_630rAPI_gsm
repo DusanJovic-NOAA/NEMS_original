@@ -1,0 +1,7 @@
+#!/bin/sh
+
+module purge
+module load ibmpe lsf ics/14.0.1 NetCDF/3.6.3
+
+export MKL_NUM_THREADS=1
+export MKL_CBWR=AVX

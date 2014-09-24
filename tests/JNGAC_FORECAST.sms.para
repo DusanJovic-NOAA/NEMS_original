@@ -1,0 +1,275 @@
+#!/bin/sh 
+set -xa
+
+##########################################################################
+# Runs NEMS GFS AEROSOL COMPONENT (NGAC) forecasts                       #
+# Author: Sarah Lu ; Dec 05 2011                                         #
+#                                                                        #
+# REVISION HISTORY:                                                      #
+# 15Jan2012 Sarah Lu    Add gocart_postout option                        #
+# 19Jan2012 Sarah Lu    Modify err_check and remove file copy            #
+# 02Feb2012 J. Wang     Add forecast run with grb2 post                  #
+# 29Mar2012 Sarah Lu    Add ngac_para_config                             #
+# 15Jun2012 Sarah Lu    Streamline the code to comply the NCO guideline  #
+# 05Dec2012 Sarah Lu    Correct typo FCST_SCRIP                          #
+# 03Aug2013 Sarah Lu    Specify MACHINE_ID and SCHEDULER                 #
+##########################################################################
+
+#
+# Specify whether the run is production or development
+#
+export RUN_ENVIR=${RUN_ENVIR:-prod}
+#
+#
+# Specify the platform
+#
+export MACHINE_ID=${MACHINE_ID:-wcoss}
+export SCHEDULER=${SCHEDULER:-lsf}
+
+################################################################
+# Specify NET and RUN Name and model
+################################################################
+export NET=${NET:-ngac}
+export RUN=${RUN:-ngac}
+
+################################################################
+# Run config file to get input parameters for the developers
+################################################################
+if [ $RUN_ENVIR != prod ]                     ### For Developers
+then
+
+  . ${PARA_CONFIG:-/global/save/wx23lu/NGAC/nwprod_2jif/parm/ngac_para_config}
+
+fi
+
+################################################################
+# This block can be modified for different test environment              
+################################################################
+if [ $RUN_ENVIR = prod -a $envir != prod ]; then
+  export SENDDBN=${SENDDBN:-NO}
+  export jlogfile=${jlogfile:-/com/logs/${envir}/jlogfile}
+  export utilexec=${utilexec:-/nw${envir}/util/exec}
+else
+  export LOGDIR=${LOGDIR:-${DATA_IN}/logs}
+  mkdir -m 775 -p $LOGDIR
+  export jlogfile=${jlogfile:-${LOGDIR}/jlogfile}
+fi
+
+if [[ $RUN_ENVIR = prod || ${DEV_SMS:-YES} = YES ]] ; then     
+   $SMSBIN/smsinit $LOADL_STEP_ID
+fi
+
+#
+
+################################################################
+# set up job name and environment
+################################################################
+export job=${job:-$RUN}
+export envir=${envir:-prod}
+export host=${host:-`hostname | cut -c1`}
+
+################################################################
+# SETUP NGAC PROCESSING VARIABLES
+################################################################
+export PS4='$SECONDS + '
+date
+
+################################################################
+# obtain unique process id (pid) and make temp directory
+################################################################
+export pid=${pid:-$$}
+export DATA_IN=${DATA_IN:-/tmpnwprd}
+export DATA=${DATA:-${DATA_IN}/${job}_${envir}}
+##rm -rf $DATA
+mkdir -p $DATA
+cd $DATA
+
+####################################
+# Specify NGAC version number
+####################################
+export NGAC_VERSION=${NGAC_VERSION:-${model_ver}}
+
+################################################################
+# Specify Execution Areas
+################################################################
+export HOMEngac=${HOMEngac:-/nw${envir}/ngac.${NGAC_VERSION}}
+export EXECngac=${EXECngac:-$HOMEngac/exec}
+export FIXngac=${FIXngac:-$HOMEngac/fix}
+export USHngac=${USHngac:-$HOMEngac/ush}
+export PARMngac=${PARMngac:-$HOMEngac/parm}
+export SCRIPTDIR=${SCRIPTDIR:-$HOMEngac/scripts}
+
+export HOMEGLOBAL=${HOMEGLOBAL:-/nw${envir}}
+export EXECGLOBAL=${EXECGLOBAL:-$HOMEGLOBAL/exec}
+export FIXGLOBAL=${FIXGLOBAL:-$HOMEGLOBAL/fix}
+export USHGLOBAL=${USHGLOBAL:-$HOMEGLOBAL/ush}
+export PARMGLOBAL=${PARMGLOBAL:-$HOMEGLOBAL/parm}
+
+################################################################
+# Specify CONFIG_FILE
+################################################################
+export CONFIG_FILE=${CONFIG_FILE:-$PARMngac/ngac_config}
+[[ $(dirname $CONFIG_FILE) = . ]]&&CONFIG_FILE=$(pwd)/$CONFIG_FILE
+if [[ ! -r $CONFIG_FILE ]];then
+  echo $0: inaccessible configuration file $CONFIG_FILE >&2
+  err_exit
+fi
+
+
+################################################################
+# Determine Job Output Name on System
+################################################################
+export cyc=${cyc:-00}
+export outid="LL$job"
+export jobid="${outid}.o${pid}"
+export pgmout="OUTPUT.${pid}"
+export pgmerr=errfile
+export cycle=t${cyc}z
+
+
+################################################################
+# SAVEGES  - Copy Files From TMPDIR to $GESdir
+# SENDSMS  - Flag Events on SMS
+# SENDCOM  - Copy Files From TMPDIR to $COMOUT
+# SENDDBN  - Issue DBNet Client Calls
+# RERUN    - Rerun prep from beginning (default no)
+# VERBOSE  - Specify Verbose Output 
+################################################################
+export SAVEGES=${SAVEGES:-YES}
+export SENDSMS=${SENDSMS:-YES}
+export SENDCOM=${SENDCOM:-YES}
+export SENDDBN=${SENDDBN:-NO}
+export RERUN=${RERUN:-NO}
+export VERBOSE=${VERBOSE:-YES}
+
+
+################################################################
+# Set up the UTILITIES
+################################################################
+export utilscript=${utilscript:-/nwprod/util/ush}
+export utilexec=${utilexec:-/nwprod/util/exec}
+
+export err_chk=${err_chk:-$utilscript/err_chk.sh}
+export startmsg=${startmsg:-$utilscript/startmsg.sh}
+export ERRSCRIPT=${ERRSCRIPT:-$err_chk}
+export LOGSCRIPT=${LOGSCRIPT:-$startmsg}
+
+################################################################
+# Run setup to initialize working directory and utility scripts
+################################################################
+sh $utilscript/setup.sh
+# export PDY=20120612
+################################################################
+# Run setpdy and initialize PDY variables
+################################################################
+sh $utilscript/setpdy.sh
+. ./PDY
+
+export CDATE=${CDATE:-${PDY}$cyc}
+
+################################################################
+# Get the variables setup from config script
+################################################################
+set -a; . $CONFIG_FILE; set +a
+
+env
+
+if [ $MACHINE_ID = wcoss -o $MACHINE_ID = ccs ] ; then
+  export MP_SHARED_MEMORY=yes
+fi
+export MP_SHARED_MEMORY=${MP_SHARED_MEMORY:-no}
+#
+################################################################
+# Define COM and GES directories
+################################################################
+export COM_IN=${COM_IN:-/com/${NET}/${envir}}
+export COM_OUT=${COM_OUT:-/com/${NET}/${envir}}
+export gespath=${gespath:-/nwges/${envir}}
+
+export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
+export COMOUT=${COMOUT:-$COM_OUT/${RUN}.${PDY}}
+export GESdir=${GESdir:-$gespath/${RUN}.${PDY}}
+
+mkdir -m 775 -p $COMOUT
+mkdir -m 775 -p $GESdir
+
+
+##### --------- fcst job starts here --------------------------------
+msg="NGAC_FCST HAS BEGUN on`hostname`"
+$DATA/postmsg "$jlogfile" "$msg"
+
+################################################################
+# Check if this is a restart
+# Define Initialization File Names
+################################################################
+export FHROT=00
+if [ -f $GESdir/grdr1 -a -f $GESdir/grdr2 -a -f $GESdir/sigr1 -a -f $GESdir/sigr2 -a -f $GESdir/sfcr ]; then
+    export GRDI=${GRDI:-$GESdir/grdr1}
+    export GRDI2=${GRDI2:-$GESdir/grdr2}
+    export SIGI=${SIGI:-$GESdir/sigr1}
+    export SIGI2=${SIGI2:-$GESdir/sigr2}
+    export SFCI=${SFCI:-$GESdir/sfcr}
+    export FHINI=${FHINI:-$($SIGHDR ${GRDI} NFHOUR |grep -i "NFHOUR" |awk -F"= " '{print $2}')}
+else
+    export GRDI=${GRDI:-$GESdir/${RUN}.${cycle}.gfsanl}
+    export SFCI=${SFCI:-$GESdir/${RUN}.${cycle}.sfcanl}
+    export FHINI=00
+fi
+
+################################################################
+# Define Output File Names
+################################################################
+export SIGO=$COMOUT/${RUN}.${cycle}.sigf'${FH}'
+export FLXO=$COMOUT/${RUN}.${cycle}.flxf'${FH}'
+export SFCO=$COMOUT/${RUN}.${cycle}.sfcf'${FH}'
+export AERO=$COMOUT/${RUN}.${cycle}.aerf'${FH}'
+export LOGO=$DATA/${RUN}.${cycle}.logf'${FH}'
+export NSTO=$DATA/${RUN}.${cycle}.nstf'${FH}'
+export D3DO=$DATA/${RUN}.${cycle}.d3df'${FH}'
+export G3DO=$DATA/${RUN}.${cycle}.g3df'${FH}'
+
+################################################################
+# Check Upstream Dependence: NGAC ICs
+################################################################
+if eval test -f $GRDI -a -f $SFCI
+then
+  msg="NGAC Forecast Starting with Initial Conditions"
+  postmsg "$jlogfile" "$msg"
+else
+  msg="NGAC Fcst Cannot Start/Initial Conditions Not Available"
+  postmsg "$jlogfile" "$msg"
+  export pgm=JNGAC_FCST
+  export err=1; err_chk
+fi
+
+################################################################
+# Change WRTPE_PER_GROUP for quilting/history writes
+################################################################
+if [ $WRITE_DOPOST = .true. ]; then
+ export WRTPE_PER_GROUP=${WRTPE_PER_GROUP:-4}
+fi
+
+################################################################
+# Execute the script
+################################################################
+msg="Submit NGAC Fcst Job"
+postmsg "$jlogfile" "$msg"
+export FCST_SCRIPT_DIR=${FCST_SCRIPT_DIR:-$SCRIPTDIR}
+export FCST_SCRIPT=${FCST_SCRIPT:-$FCST_SCRIPT_DIR/exngac_fcst.sh.sms}
+$FCST_SCRIPT
+
+##### --------- fcst job ends here --------------------------------
+
+
+###################################################
+# msg end of job and clean up temperary directory
+###################################################
+msg="ENDED NORMALLY."
+postmsg "$jlogfile" "$msg"
+
+#cd $DATA_IN
+# if [ ${RM_TMPDIR:-YES} = YES ] ; then rm -rf $DATA ; fi
+
+date
+
+if [[ $RUN_ENVIR = prod || ${DEV_SMS:-YES} = YES ]] ; then $SMSBIN/endt ; fi
