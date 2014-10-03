@@ -169,8 +169,8 @@
                                                     ,CFRACM,CZMEAN      &
                                                     ,SIGT4
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QV,QR,QG,NI
-      REAL,DIMENSION(:,:,:),POINTER,INTENT(INOUT) :: QC,QI,QS
+      REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(INOUT) :: QV,QR,QG
+      REAL,DIMENSION(:,:,:),POINTER,INTENT(INOUT) :: QC,QI,QS,NI
 
 !
       REAL,DIMENSION(IMS:IME,JMS:JME,1:LM),INTENT(OUT) :: CLDFRA

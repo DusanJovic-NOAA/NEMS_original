@@ -3,6 +3,8 @@
 # This script is responsible for loading modules that are compatible with
 # the NUOPC Layer version used in NEMS.
 
+. /usr/share/Modules/init/sh
+
 module purge
 #module load mpt intel esmf/6.3.0r
 # -> MOM5 needs a NetCDF enabled ESMF

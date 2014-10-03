@@ -35,8 +35,6 @@
 !***  LOCAL VARIABLES
 !-----------------------------------------------------------------------
 !
-      integer,PARAMETER :: NFD=11,NBND=6
-!
       integer N,NWTPG,IEOF,LCNTRL
       integer jts,jte
       integer,allocatable  :: jstagrp(:),jendgrp(:)
@@ -170,10 +168,9 @@
 !
       integer I,ii,J,jj,L,LL,K,N,N1,N2,NPOSN_1,NPOSN_2, LENGTH
       integer iim1,jm1,im1
-      integer NPOS_START,NPOS_END,indx_2d,indx_num,nfield,ierr,iret
+      integer NPOS_START,NPOS_END,indx_2d,nfield,ierr,iret
       character(ESMF_MAXSTR) :: NAME
-      CHARACTER(6)           :: FMT='(I2.2)'
-      CHARACTER(6)           :: model_level
+      CHARACTER(3)           :: model_level
       REAL :: FACT
       real degrad
       REAL,dimension(:,:),allocatable :: dummy,vlat,vlon,buf
@@ -320,31 +317,30 @@
 !        print *,'NPOS_START=',NPOS_START,'NPOS_END=',NPOS_END
         NAME=wrt_int_state%NAMES_R2D_STRING(NPOS_START:NPOS_END)
         INDX_2D=index(NAME,"_2D")
-        INDX_num=INDX_2D-2
-!        print *,'in set_postvars,nfield=',nfield,'name=',trim(NAME),' INDX_num=',INDX_num, &
+!        print *,'in set_postvars,nfield=',nfield,'name=',trim(NAME), &
 !          wrt_int_state%WRITE_SUBSET_R(1:2,jsta:jsta+2,NFIELD),  &
 !          maxval(wrt_int_state%WRITE_SUBSET_R(1:im,jsta:jend,NFIELD)), &
 !          minval(wrt_int_state%WRITE_SUBSET_R(1:im,jsta:jend,NFIELD))
 
         if (INDX_2D.gt.0) then
-           model_level=name(indx_2D-2:indx_2D-1)
-           LL=(ichar(model_level(1:1))-48)*10+ichar(model_level(2:2))-48
-           if(name(1:INDX_2d-4).eq.'CLDFRA') then
+           model_level=name(indx_2D-3:indx_2D-1)
+           LL=(ichar(model_level(1:1))-48)*100+(ichar(model_level(2:2))-48)*10+ichar(model_level(3:3))-48
+           if(name(1:INDX_2d-5).eq.'CLDFRA') then
              do j=jsta,jend
               cfr(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
            endif
-           if(name(1:INDX_2d-4).eq.'CW') then
+           if(name(1:INDX_2d-5).eq.'CW') then
              do j=jsta,jend
               cwm(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
            endif
-           if(name(1:INDX_2d-4).eq.'EXCH_H') then
+           if(name(1:INDX_2d-5).eq.'EXCH_H') then
              do j=jsta,jend
               exch_h(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
            endif
-           if(name(1:INDX_2d-4).eq.'Q') then
+           if(name(1:INDX_2d-5).eq.'Q') then
              do j=jsta,jend
               Q(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
@@ -352,7 +348,7 @@
 !               minval(Q(1:im,jsta:jend,LL)),  &
 !               wrt_int_state%WRITE_SUBSET_R(1:5,jsta+3,NFIELD)
            endif
-           if(name(1:INDX_2d-4).eq.'Q2') then
+           if(name(1:INDX_2d-5).eq.'Q2') then
              do j=jsta,jend
               Q2(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
@@ -360,7 +356,7 @@
 !               minval(Q2(1:im,jsta:jend,LL)),  &
 !               wrt_int_state%WRITE_SUBSET_R(1:5,jsta+3,NFIELD)
            endif
-           if(name(1:INDX_2d-4).eq.'PINT') then
+           if(name(1:INDX_2d-5).eq.'PINT') then
              do j=jsta,jend
               PINT(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
@@ -392,34 +388,34 @@
 !             print *,'in set_postvars,ll=',ll,'pint=',maxval(pint(1:im,jsta:jend,LL)),   &
 !               minval(pint(1:im,jsta:jend,LL))
            endif
-           if(name(1:INDX_2d-4).eq.'RLWTT') then
+           if(name(1:INDX_2d-5).eq.'RLWTT') then
              do j=jsta,jend
               RLWTT(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
            endif
-           if(name(1:INDX_2d-4).eq.'RSWTT') then
+           if(name(1:INDX_2d-5).eq.'RSWTT') then
              do j=jsta,jend
               RSWTT(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
            endif
-           if(name(1:INDX_2d-4).eq.'T') then
+           if(name(1:INDX_2d-5).eq.'T') then
              do j=jsta,jend
               T(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
 !             print *,'in set_postvars T=',maxval(T(1:im,jsta:jend,LL)),   &
 !               minval(T(1:im,jsta:jend,LL))
            endif
-           if(name(1:INDX_2d-4).eq.'TCUCN') then
+           if(name(1:INDX_2d-5).eq.'TCUCN') then
              do j=jsta,jend
               TCUCN(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
            endif
-           if(name(1:INDX_2d-4).eq.'TRAIN') then
+           if(name(1:INDX_2d-5).eq.'TRAIN') then
              do j=jsta,jend
               TRAIN(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
            endif
-           if(name(1:INDX_2d-4).eq.'U') then
+           if(name(1:INDX_2d-5).eq.'U') then
              do j=jsta,jend
               UH(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
               U(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
@@ -449,7 +445,7 @@
 !               minval(uh(1:im,jsta:jend,LL)),  &
 !               wrt_int_state%WRITE_SUBSET_R(1:5,jsta+3,NFIELD)
            endif
-           if(name(1:INDX_2d-4).eq.'V') then
+           if(name(1:INDX_2d-5).eq.'V') then
              do j=jsta,jend
               VH(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
               V(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
@@ -479,7 +475,7 @@
 !               minval(vh(1:im,jsta:jend,LL)),  &
 !               wrt_int_state%WRITE_SUBSET_R(1:5,jsta+3,NFIELD)
            endif
-           if(name(1:INDX_2d-4).eq.'W') then
+           if(name(1:INDX_2d-5).eq.'W') then
              do j=jsta,jend
               WH(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
@@ -488,40 +484,40 @@
 !               wrt_int_state%WRITE_SUBSET_R(1:5,jsta+3,NFIELD)
            endif
 
-           if(name(1:INDX_2d-4).eq.'XLEN_MIX') then
+           if(name(1:INDX_2d-5).eq.'XLEN_MIX') then
              do j=jsta,jend
 !             EL_MYJ(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
               EL_PBL(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
            endif
-           if(name(1:INDX_2d-4).eq.'F_ICE') then
+           if(name(1:INDX_2d-5).eq.'F_ICE') then
              do j=jsta,jend
               F_ICE(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
            endif
-           if(name(1:INDX_2d-4).eq.'F_RIMEF') then
+           if(name(1:INDX_2d-5).eq.'F_RIMEF') then
              do j=jsta,jend
               F_RimeF(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
 !            print *,'ll=',ll,'f_rimef=',maxval(f_rimef(1:im,jsta:jend,ll)), &
 !            minval(f_rimef(1:im,jsta:jend,ll))
            endif
-           if(name(1:INDX_2d-4).eq.'F_RAIN') then
+           if(name(1:INDX_2d-5).eq.'F_RAIN') then
              do j=jsta,jend
               F_RAIN(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
            endif
-           if(name(1:INDX_2d-4).eq.'SH2O') then
+           if(name(1:INDX_2d-5).eq.'SH2O') then
              do j=jsta,jend
               sh2o(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
            endif
-           if(name(1:INDX_2d-4).eq.'SMC') then
+           if(name(1:INDX_2d-5).eq.'SMC') then
              do j=jsta,jend
               smc(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo
            endif
-           if(name(1:INDX_2d-4).eq.'STC') then
+           if(name(1:INDX_2d-5).eq.'STC') then
              do j=jsta,jend
               stc(:,j,LL)=wrt_int_state%WRITE_SUBSET_R(:,j,NFIELD)
              enddo

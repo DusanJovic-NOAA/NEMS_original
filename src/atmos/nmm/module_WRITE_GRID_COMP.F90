@@ -1484,7 +1484,7 @@
                                 ,HST_FIRST=.TRUE.                       &
                                 ,RST_FIRST=.TRUE.
 !
-      CHARACTER(2)           :: MODEL_LEVEL
+      CHARACTER(3)           :: MODEL_LEVEL
       CHARACTER(ESMF_MAXSTR) :: FILENAME,GFNAME,NAME
 !
       TYPE(WRITE_WRAP)                   :: WRAP
@@ -4249,7 +4249,7 @@
 !***  Now loop through all the real Fields.
 !-----------------------------------------------------------------------
 !
-      WRITE(MODEL_LEVEL,'(I2.2)')wrt_int_state%LM(1)
+      WRITE(MODEL_LEVEL,'(I3.3)')wrt_int_state%LM(1)
 !
 !-----------------------------------------------------------------------
 !
@@ -5152,7 +5152,7 @@
 !***  Now loop through all the real Fields.
 !-----------------------------------------------------------------------
 !
-      WRITE(MODEL_LEVEL,'(I2.2)')wrt_int_state%LM(1)
+      WRITE(MODEL_LEVEL,'(I3.3)')wrt_int_state%LM(1)
 !
 !-----------------------------------------------------------------------
 !

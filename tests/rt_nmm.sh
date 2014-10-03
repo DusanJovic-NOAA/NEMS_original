@@ -166,7 +166,7 @@ if [ $SCHEDULER = 'moab' ]; then
 elif [ $SCHEDULER = 'pbs' ]; then
 
   status=`qstat -u ${USER} -n | grep ${JBNME} | awk '{print $"10"}'` ; status=${status:--}
-  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`grep Finished ${RUNDIR}/err | tail -1 | awk '{ print $10 }'` ; fi
+  if [ -f ${RUNDIR}/err ] ; then FnshHrs=`tail -100 ${RUNDIR}/err | grep Finished | tail -1 | awk '{ print $10 }'` ; fi
   FnshHrs=${FnshHrs:-0}
   if   [ $status = 'Q' ];  then echo $n "min. TEST ${TEST_NR} is waiting in a queue, Status: " $status
   elif [ $status = 'H' ];  then echo $n "min. TEST ${TEST_NR} is held in a queue,    Status: " $status

@@ -216,7 +216,7 @@ cat $TESTS_FILE | while read line; do
     source conf/modules.nems.${MACHINE_ID}                      >> $COMPILE_LOG 2>&1
     module list                                                 >> $COMPILE_LOG 2>&1
     gmake clean                                                 >> $COMPILE_LOG 2>&1
-    gmake ${NEMS_VER}                                           >> $COMPILE_LOG 2>&1
+    gmake ${NEMS_VER} J=-j8                                     >> $COMPILE_LOG 2>&1
     cd $PATHRT
 
     continue

@@ -388,8 +388,10 @@
 
       INTEGER :: LDIM1,LDIM2,LDIM3,LDIM4,UDIM1,UDIM2,UDIM3,UDIM4
 
-      CHARACTER(2)           :: MODEL_LEVEL,TRACERS_KIND
-      CHARACTER(6)           :: FMT='(I2.2)'
+      CHARACTER(3)           :: MODEL_LEVEL
+      CHARACTER(2)           :: TRACERS_KIND
+      CHARACTER(6)           :: FMT3='(I3.3)'
+      CHARACTER(6)           :: FMT2='(I2.2)'
       CHARACTER(ESMF_MAXSTR) :: VBL_NAME,VBL_NAME_X
 
       TYPE(ESMF_Field)       :: FIELD
@@ -711,7 +713,7 @@
           UDIM2=UBOUND(VARS(N)%R3D,2)
 !
           DO K=1,NDIM3
-            WRITE(MODEL_LEVEL,FMT)K
+            WRITE(MODEL_LEVEL,FMT3)K
             VBL_NAME=TRIM(VARS(N)%VBL_NAME)//'_'//MODEL_LEVEL//'_2D'
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -756,7 +758,7 @@
           UDIM2=UBOUND(VARS(N)%R3D,2)
 !
           DO K=1,NDIM3
-            WRITE(MODEL_LEVEL,FMT)K
+            WRITE(MODEL_LEVEL,FMT3)K
             VBL_NAME=TRIM(VARS(N)%VBL_NAME)//'_'//MODEL_LEVEL//'_2D'
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -827,8 +829,8 @@
 
           DO M=LDIM4,UDIM4                                                 !<-- Loop through the tracers (skip unallocated pointers)
           DO K=LDIM3,UDIM3                                                 !<-- Loop through the levels of the array
-            WRITE(TRACERS_KIND,FMT)M
-            WRITE(MODEL_LEVEL,FMT)K
+            WRITE(TRACERS_KIND,FMT2)M
+            WRITE(MODEL_LEVEL,FMT3)K
 !
             VBL_NAME=TRIM(VARS(N)%VBL_NAME)//'_'//TRACERS_KIND//'_'//MODEL_LEVEL//'_2D'
 !
@@ -883,8 +885,8 @@
 !
           DO M=LDIM4,UDIM4                                                 !<-- Loop through the tracers (skip unallocated pointers)
           DO K=LDIM3,UDIM3                                                 !<-- Loop through the levels of the array
-            WRITE(TRACERS_KIND,FMT)M
-            WRITE(MODEL_LEVEL,FMT)K
+            WRITE(TRACERS_KIND,FMT2)M
+            WRITE(MODEL_LEVEL,FMT3)K
 !
             VBL_NAME=TRIM(VARS(N)%VBL_NAME)//'_'//TRACERS_KIND//'_'//MODEL_LEVEL//'_2D'
 !

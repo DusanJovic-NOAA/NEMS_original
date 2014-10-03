@@ -4,5 +4,7 @@
 # the ESMF 5.2.0r API. ESMF releases 5.2.0r and later are backward compatible
 # with this API.
 
+. /usr/share/Modules/init/sh
+
 module purge
 module load mpt intel/13.0.079 esmf/5.2.0rp2 netcdf
