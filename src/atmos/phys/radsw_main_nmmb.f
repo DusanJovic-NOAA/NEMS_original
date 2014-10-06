@@ -647,27 +647,6 @@
 !
 !===> ... begin here
 
-#if 0
-      write(0,*)__LINE__,'nday NDAY ',nday,NDAY
-      SHOWSHAPE(__LINE__,plyr)
-      SHOWSHAPE(__LINE__,plvl)
-      SHOWSHAPE(__LINE__,tlyr)
-      SHOWSHAPE(__LINE__,tlvl)
-      SHOWSHAPE(__LINE__,qlyr)
-      SHOWSHAPE(__LINE__,olyr)
-      SHOWSHAPE(__LINE__,gasvmr)
-      SHOWSHAPE(__LINE__,clouds)
-      SHOWSHAPE(__LINE__,icseed)
-      SHOWSHAPE(__LINE__,aerosols)
-      SHOWSHAPE(__LINE__,sfcalb)
-      SHOWSHAPE(__LINE__,cosz)
-      SHOWSHAPE(__LINE__,solcon)
-      SHOWSHAPE(__LINE__,hswc)
-      SHOWSHAPE(__LINE__,topflx)
-      SHOWSHAPE(__LINE__,sfcflx)
-      SHOWSHAPE(__LINE__,fdncmp)
-#endif
-
 !
       IF ( NDAY .GT.  CHK      ) THEN
         write(0,*)'radsw_main: swrad aborting NDAY ',NDAY,             &
@@ -735,7 +714,7 @@
 # define NDAY CHK
 #endif
 
-      DO j1 = 1,nday
+      DO j1 = 1,NDAY
         cosz1(j1)  = cosz(j1)
         sntz1(j1)  = f_one / cosz(j1)
         ssolar(j1) = s0fac * cosz(j1)
@@ -757,7 +736,7 @@
 
           do k = 1, nlay
             kk = nlp1 - k
-      DO j1 = 1,nday
+      DO j1 = 1,NDAY
             pavel(j1,k) = plyr(j1,kk)
             tavel(j1,k) = tlyr(j1,kk)
             delp (j1,k) = plvl(j1,kk+1) - plvl(j1,kk)
@@ -791,7 +770,7 @@
           if (iswrgas > 0) then
             do k = 1, nlay
               kk = nlp1 - k
-      DO j1 = 1,nday
+      DO j1 = 1,NDAY
               colamt(j1,k,4)=                                           &
      &           max(temcol(j1,k),coldry(j1,k)*gasvmr(j1,kk,2))  ! n2o
               colamt(j1,k,5)=                                           &
@@ -804,7 +783,7 @@
             enddo
           else
             do k = 1, nlay
-      DO j1 = 1,nday
+      DO j1 = 1,NDAY
               colamt(j1,k,4) = temcol(j1,k)                                  ! n2o
               colamt(j1,k,5) = temcol(j1,k)                                  ! ch4
               colamt(j1,k,6) = temcol(j1,k)                                  ! o2
@@ -818,7 +797,7 @@
           do k = 1, nlay
             kk = nlp1 - k
             do ib = 1, nbdsw
-      DO j1 = 1,nday
+      DO j1 = 1,NDAY
               tauae(j1,k,ib) = aerosols(j1,kk,ib,1)
               ssaae(j1,k,ib) = aerosols(j1,kk,ib,2)
               asyae(j1,k,ib) = aerosols(j1,kk,ib,3)
@@ -829,7 +808,7 @@
           if (iswcliq > 0) then    ! use prognostic cloud method
             do k = 1, nlay
               kk = nlp1 - k
-      DO j1 = 1,nday
+      DO j1 = 1,NDAY
               cfrac(j1,k) = clouds(j1,kk,1)      ! cloud fraction
               cliqp(j1,k) = clouds(j1,kk,2)      ! cloud liq path
               reliq(j1,k) = clouds(j1,kk,3)      ! liq partical effctive radius
@@ -844,7 +823,7 @@
           else                     ! use diagnostic cloud method
             do k = 1, nlay
               kk = nlp1 - k
-      DO j1 = 1,nday
+      DO j1 = 1,NDAY
               cfrac(j1,k) = clouds(j1,kk,1)      ! cloud fraction
               cdat1(j1,k) = clouds(j1,kk,2)      ! cloud optical depth
               cdat2(j1,k) = clouds(j1,kk,3)      ! cloud single scattering albedo
@@ -859,7 +838,7 @@
           tem2 = 1.0e-20 * 1.0e3 * con_avgd
 
           do k = 1, nlay
-      DO j1 = 1,nday
+      DO j1 = 1,NDAY
             pavel(j1,k) = plyr(j1,k)
             tavel(j1,k) = tlyr(j1,k)
             delp (j1,k) = plvl(j1,k) - plvl(j1,k+1)
@@ -903,7 +882,7 @@
 
           if (iswrgas > 0) then
             do k = 1, nlay
-      DO j1 = 1,nday
+      DO j1 = 1,NDAY
               colamt(j1,k,4) =                                          &
      &            max(temcol(j1,k), coldry(j1,k)*gasvmr(j1,k,2))  ! n2o
               colamt(j1,k,5) =                                          &
@@ -916,7 +895,7 @@
       ENDDO
           else
             do k = 1, nlay
-      DO j1 = 1,nday
+      DO j1 = 1,NDAY
               colamt(j1,k,4) = temcol(j1,k)                                 ! n2o
               colamt(j1,k,5) = temcol(j1,k)                                 ! ch4
               colamt(j1,k,6) = temcol(j1,k)                                 ! o2
@@ -929,7 +908,7 @@
 
           do ib = 1, nbdsw
             do k = 1, nlay
-      DO j1 = 1,nday
+      DO j1 = 1,NDAY
               tauae(j1,k,ib) = aerosols(j1,k,ib,1)
               ssaae(j1,k,ib) = aerosols(j1,k,ib,2)
               asyae(j1,k,ib) = aerosols(j1,k,ib,3)
@@ -939,7 +918,7 @@
 
           if (iswcliq > 0) then    ! use prognostic cloud method
             do k = 1, nlay
-      DO j1 = 1,nday
+      DO j1 = 1,NDAY
               cfrac(j1,k) = clouds(j1,k,1)       ! cloud fraction
               cliqp(j1,k) = clouds(j1,k,2)       ! cloud liq path
               reliq(j1,k) = clouds(j1,k,3)       ! liq partical effctive radius
@@ -953,7 +932,7 @@
             enddo
           else                     ! use diagnostic cloud method
             do k = 1, nlay
-      DO j1 = 1,nday
+      DO j1 = 1,NDAY
               cfrac(j1,k) = clouds(j1,k,1)       ! cloud fraction
               cdat1(j1,k) = clouds(j1,k,2)       ! cloud optical depth
               cdat2(j1,k) = clouds(j1,k,3)       ! cloud single scattering albedo
@@ -971,7 +950,7 @@
 
         if (iovrsw == 0) then                    ! random overlapping
           do k = 1, nlay
-      DO j1 = 1,nday
+      DO j1 = 1,NDAY
             zcf0(j1) = zcf0(j1) * (f_one - cfrac(j1,k))
       ENDDO
           enddo
@@ -1038,26 +1017,6 @@
 !  --- ...  calculate optical depths for gaseous absorption and Rayleigh
 !           scattering
 
-#if 0
-      write(0,*)__LINE__,'nday NDAY ',nday,NDAY
-      SHOWSHAPE(__LINE__,colamt)
-      SHOWSHAPE(__LINE__,colmol)
-      SHOWSHAPE(__LINE__,fac00)
-      SHOWSHAPE(__LINE__,fac01)
-      SHOWSHAPE(__LINE__,fac10)
-      SHOWSHAPE(__LINE__,fac11)
-      SHOWSHAPE(__LINE__,jp)
-      SHOWSHAPE(__LINE__,jt)
-      SHOWSHAPE(__LINE__,jt1)
-      SHOWSHAPE(__LINE__,laytrop)
-      SHOWSHAPE(__LINE__,forfac)
-      SHOWSHAPE(__LINE__,forfrac)
-      SHOWSHAPE(__LINE__,indfor)
-      SHOWSHAPE(__LINE__,selffrac)
-      SHOWSHAPE(__LINE__,selffrac)
-      SHOWSHAPE(__LINE__,indself)
-#endif
-
         call taumol                                                     &
 !  ---  inputs:
      &     ( colamt,colmol,fac00,fac01,fac10,fac11,jp,jt,jt1,laytrop,   &
@@ -1067,27 +1026,6 @@
      &     )
 
 !  --- ...  call the 2-stream radiation transfer model
-
-#if 0
-      write(0,*)__LINE__,'nday NDAY ',nday,NDAY
-      SHOWSHAPE(__LINE__,cosz1)
-      SHOWSHAPE(__LINE__,sntz1)
-      SHOWSHAPE(__LINE__,zcf1)
-      SHOWSHAPE(__LINE__,zcf0)
-      SHOWSHAPE(__LINE__,albbm)
-      SHOWSHAPE(__LINE__,albdf)
-      SHOWSHAPE(__LINE__,ssolar)
-      SHOWSHAPE(__LINE__,cldfrc)
-      SHOWSHAPE(__LINE__,sfluxzen)
-      SHOWSHAPE(__LINE__,taug)
-      SHOWSHAPE(__LINE__,taur)
-      SHOWSHAPE(__LINE__,taucw)
-      SHOWSHAPE(__LINE__,ssacw)
-      SHOWSHAPE(__LINE__,asycw)
-      SHOWSHAPE(__LINE__,tauae)
-      SHOWSHAPE(__LINE__,ssaae)
-      SHOWSHAPE(__LINE__,asyae)
-#endif
 
         if ( isubcsw <= 0 ) then     ! use standard cloud scheme
           call spcvrtc                                                  &
@@ -2382,7 +2320,7 @@
       SHOWSHAPE(__LINE__,ssaae)
       SHOWSHAPE(__LINE__,asyae)
 #endif
-#if 1
+#if 0
       if ( nday < CHK ) then
 !jm      write(0,*)__LINE__,'nday+1:CHK ',nday+1,CHK
         cosz  (nday+1:CHK)    = cosz (nday)

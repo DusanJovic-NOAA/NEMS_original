@@ -9,6 +9,10 @@ gfsdir=atmos/$(gfs)
 
 #NETCDF_LIB  = /usrx/local/NetCDF/3.6.3/lib/libnetcdf.a
 
+NETCDF_INC  = -I$(NETCDF_INCLUDE)
+NETCDF_LIB  = -L$(NETCDF_LDFLAGS) -lnetcdff -lnetcdf
+
+
 NEMS_LIB_DATA=/home/michalak/NEMS-MIC/NEMS+LIBS_r19677/19677_libs
 NEMS_LIBS=/home/michalak/NEMS-MIC/NEMS+LIBS_r19677/19677_libs/../lib-snb
 NEMS_INC=/home/michalak/NEMS-MIC/NEMS+LIBS_r19677/19677_libs/../incmod-snb
@@ -65,7 +69,7 @@ FREE        = -free
 FIXED       = -fixed
 R8          = -r8
 
-FINCS       = $(ESMF_INC) $(NEMSIO_INC)
+FINCS       = $(ESMF_INC) $(NEMSIO_INC) $(NETCDF_INC)
 TRAPS       =
 #TRAPS       = -ftrapuv -check all -fp-stack-check -fpe0 -traceback
 #TRAPS       = -ftrapuv -check bounds -check format -check output_conversion -check pointers -check uninit -fp-stack-check

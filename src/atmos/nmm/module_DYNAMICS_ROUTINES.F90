@@ -2795,8 +2795,8 @@ real(kind=kfpt),dimension(ims:ime,jms:jme):: &
       vertical_loop_3: do l=1,lm
 !-----------------------------------------------------------------------
         if(l.gt.lpt2.and..not.hydro) then
-          do j=jts_b1,jte_b1
-            do i=its_b1,ite_b1
+          do j=jts_b1,jte_h2
+            do i=its_b1,ite_h2
               cilinx=sice(i-1,j).ne.sice(i,j) &
                  .or.sm  (i-1,j).ne.sm  (i,j)
               ciliny=sice(i,j-1).ne.sice(i,j) &

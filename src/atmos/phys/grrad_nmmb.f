@@ -1049,9 +1049,10 @@
       real (kind=kind_phys)::raddt,es(CHK),qs, delt, tem0d              &
      & ,SFCALBEDO(CHK), SMX(CHK)
 
+      integer j2
       integer :: i, j, k, k1, lv, icec, itop, ibtc, nday, idxday(CHK),   &
-     &       mbota(CHK,3), mtopa(CHK,3), LP1, nb, LMK, LMP, kd, lla, llb, &
-     &       lya, lyb, kt, kb, np3d
+     &      mbota(CHK,3), mtopa(CHK,3), LP1, nb, LMK, LMP, kd, lla, llb, &
+     &      lya, lyb, kt, kb, np3d
 
 !  ---  for debug test use
 !     real (kind=kind_phys) :: temlon, temlat, alon, alat
@@ -1065,7 +1066,7 @@
 !
       INTEGER :: IQ,JX(CHK)
 
-integer,external :: omp_get_thread_num
+      INTEGER,EXTERNAL :: omp_get_thread_num
 
  !     REAL (kind=kind_phys) :: ALBD0, ALVD1, ALND1
       REAL (kind=kind_phys) :: ZEN, DZEN, ALB1, ALB2
@@ -1789,6 +1790,40 @@ integer,external :: omp_get_thread_num
         if (isday) then
 
 !     print *,' in grrad : calling swrad'
+
+
+!jm pad out vector
+#if 1
+        if ( nday < CHK ) then
+          coszen_loc(nday+1:CHK) = coszen_loc(nday)
+          do k = 1,lmp
+            plvl   (nday+1:CHK,k)  = plvl  (nday,k)
+            tlvl   (nday+1:CHK,k)  = tlvl  (nday,k)
+          enddo
+          do k = 1,lmk
+            plyr   (nday+1:CHK,k)  = plyr  (nday,k)
+            tlyr   (nday+1:CHK,k)  = tlyr  (nday,k)
+            qlyr   (nday+1:CHK,k)  = qlyr  (nday,k)
+            olyr   (nday+1:CHK,k)  = olyr  (nday,k)
+          enddo
+          do j = 1,4
+            sfcalb (nday+1:CHK,j)  = sfcalb  (nday,j)
+          enddo
+          do j = 1,9
+            do k = 1,lmk
+              gasvmr    (nday+1:CHK,k,j)  = gasvmr  (nday,k,j)
+              clouds    (nday+1:CHK,k,j)  = clouds  (nday,k,j)
+            enddo
+          enddo
+          do j = 1,3
+            do j2 = 1,nbdsw
+              do k = 1,lmk
+                faersw (nday+1:CHK,k,j2,j)  = faersw (nday,k,j2,j)
+              enddo
+            enddo
+          enddo
+        endif
+#endif
 
           if ( present(htrswb) ) then
 
