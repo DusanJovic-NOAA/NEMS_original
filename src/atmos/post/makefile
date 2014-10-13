@@ -9,19 +9,19 @@ UTILINCSPOSTSTUB = -I../share
 
 LIBRARY  = libpost.a
 
-MODULE   = post_gfs.o post_nmm.o post_nems_routines.o
+MODULES      = post_gfs.o post_nmm.o post_nems_routines.o
 
 MODULES_STUB  = post_gfs_stub.o post_nmm_stub.o post_nems_routines_stub.o
 MODULES_GFS_STUB  = post_nmm.o post_gfs_stub.o post_nems_routines.o
 MODULES_NMM_STUB  = post_nmm_stub.o post_gfs.o post_nems_routines.o
 
-DEPEND_FILES = ${MODULE_POST:.o=.f}
+DEPEND_FILES = ${MODULES:.o=.F90}
 
 all default: depend
 	@gmake -f $(MAKEFILE) $(LIBRARY)
 
-$(LIBRARY): $(MODULE) 
-	$(AR) $(ARFLAGS) $@ $(MODULE)
+$(LIBRARY): $(MODULES)
+	$(AR) $(ARFLAGS) $@ $(MODULES)
 
 stub: $(MODULES_STUB)
 	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_STUB)
@@ -32,20 +32,20 @@ gfs_stub: $(MODULES_GFS_STUB)
 nmm_stub: $(MODULES_NMM_STUB)
 	$(AR) $(ARFLAGS) $(LIBRARY) $(MODULES_NMM_STUB)
 	
-$(MODULE): %.o: %.f
-	$(FC) $(FFLAGS_GFS) $(TRAPS) $(UTILINCSPOST) -c $*.f
+$(MODULES): %.o: %.f90
+	$(FC) $(FFLAGS_GFS) $(TRAPS) $(UTILINCSPOST) -c $*.f90
 
-$(MODULE_GFS_STUB): %.o: %.f
-	$(FC) $(FFLAGS) $(TRAPS) $(UTILINCSPOSTNMM) -c $*.f
+$(MODULES_GFS_STUB): %.o: %.f90
+	$(FC) $(FFLAGS) $(TRAPS) $(UTILINCSPOSTNMM) -c $*.f90
 
-$(MODULE_NMM_STUB): %.o: %.f
-	$(FC) $(FFLAGS_GFS) $(TRAPS) $(UTILINCSPOSTGFS) -c $*.f
+$(MODULES_NMM_STUB): %.o: %.f90
+	$(FC) $(FFLAGS_GFS) $(TRAPS) $(UTILINCSPOSTGFS) -c $*.f90
 
-$(MODULES_STUB): %.o: %.f
-	$(FC) $(FFLAGS) $(UTILINCSPOSTSTUB) -c $*.f
+$(MODULES_STUB): %.o: %.f90
+	$(FC) $(FFLAGS) $(UTILINCSPOSTSTUB) -c $*.f90
 
 clean:
-	$(RM) -f $(LIBRARY) *.o *.mod *.lst lm map depend
+	$(RM) -f $(LIBRARY) *.f90 *.o *.mod *.lst lm map depend
 
 MKDEPENDS = ../../../exe/mkDepends.pl
 

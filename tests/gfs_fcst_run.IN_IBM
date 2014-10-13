@@ -3,10 +3,11 @@
 set -x
 #
 #
- . /usrx/local/Modules/default/init/ksh
- module unload ics
- module load ics/14.0.1
- module list
+if [[ -e  _PATHTR_/src/conf/modules.nems ]]; then
+  source _PATHTR_/src/conf/modules.nems
+  module list
+fi
+
  export MKL_NUM_THREADS=1
  export MKL_CBWR=AVX
  export MP_MPILIB=pempi
@@ -355,8 +356,6 @@ if [ $SCHEDULER = 'moab' ]; then
    export FIXGLOBAL=${FIXGLOBAL}
    export FCST_LAUNCHER=aprun
 elif [ $SCHEDULER = 'pbs' ]; then
-   source _PATHTR_/src/conf/modules.nems.zeus
-   module list
 #  export FIXGLOBAL=${FIXGLOBAL:-/scratch2/portfolios/NCEPDEV/rstprod/nwprod/fix}
    export FIXGLOBAL=${FIXGLOBAL:-/scratch2/portfolios/NCEPDEV/global/save/Shrinivas.Moorthi/para/fix/fix_am}
    export OMP_NUM_THREADS=$NTHREADS

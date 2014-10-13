@@ -1,5 +1,3 @@
-#include "../../ESMFVersionDefine.h"
-
 !---------------------------------------------------------------------------
 !
       MODULE MODULE_DOMAIN_INTERNAL_STATE
@@ -9,7 +7,7 @@
 !***  internal state.
 !---------------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
 !
       USE module_INCLUDE
 !
@@ -51,17 +49,10 @@
         TYPE(ESMF_State) :: EXP_STATE_SOLVER                                   !<-- The export state of the Solver component
         TYPE(ESMF_State) :: EXP_STATE_WRITE                                    !<-- The export state of the write components
 !
-#ifdef ESMF_3
-        TYPE(ESMF_Logical) :: ALLCLEAR_FROM_PARENT                          &  !<-- Child can proceed after parent is free
-                             ,I_AM_A_NEST                                   &  !<-- Am I in a nested domain?
-                             ,I_AM_A_PARENT                                 &  !<-- Am I in a parent domain?
-                             ,RECV_ALL_CHILD_DATA                              !<-- Parent is free after all 2-way data recvd
-#else
         LOGICAL(kind=KLOG) :: ALLCLEAR_FROM_PARENT                          &  !<-- Child can proceed after parent is free
                              ,I_AM_A_NEST                                   &  !<-- Am I in a nested domain?
                              ,I_AM_A_PARENT                                 &  !<-- Am I in a parent domain?
                              ,RECV_ALL_CHILD_DATA                              !<-- Parent is free after all 2-way data recvd
-#endif
 !
         TYPE(ESMF_Alarm) :: ALARM_HISTORY                                   &  !<-- The ESMF Alarm for history output
                            ,ALARM_RESTART                                   &  !<-- The ESMF Alarm for restart output

@@ -310,7 +310,7 @@
 !       CASE DEFAULT
 !         WRITE(0,*)' User selected MICROPHYSICS=',MICROPHYSICS
 !         WRITE(0,*)' Improper selection of Microphysics scheme in GSMDRIVE'
-!!!       CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+!!!       CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
 !         CALL NMMB_FINALIZE
 !     END SELECT
 !

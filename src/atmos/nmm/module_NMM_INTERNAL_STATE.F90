@@ -1,5 +1,3 @@
-#include "../../ESMFVersionDefine.h"
-
 !-----------------------------------------------------------------------
 !
       MODULE module_NMM_INTERNAL_STATE
@@ -8,7 +6,7 @@
 !***  The NMM component's ESMF internal state.
 !-----------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
 !
       USE module_INCLUDE
 !
@@ -42,15 +40,9 @@
 !
         CHARACTER(len=5),DIMENSION(:),POINTER :: NEST_MODE                 !<-- Is the nesting 1-way or 2-way with the parent?
 !
-#ifdef ESMF_3
-        TYPE(ESMF_Logical),DIMENSION(:),POINTER :: I_AM_A_FCST_TASK     &  !<-- Is this task a fcst task on a given domain?
-                                                  ,I_AM_A_NEST          &  !<-- Is this task on a nested domain?
-                                                  ,I_AM_LEAD_FCST_TASK     !<-- Is this the lead fcst task on the domain?
-#else
         LOGICAL(kind=KLOG),DIMENSION(:),POINTER :: I_AM_A_FCST_TASK     &  !<-- Is this task a fcst task on a given domain?
                                                   ,I_AM_A_NEST          &  !<-- Is this task on a nested domain?
                                                   ,I_AM_LEAD_FCST_TASK     !<-- Is this the lead fcst task on the domain?
-#endif
 !
         TYPE(ESMF_GridComp),DIMENSION(:),POINTER :: DOMAIN_GRID_COMP       !<-- Gridded components of all domains
 !

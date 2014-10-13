@@ -1,5 +1,3 @@
-#include "../../ESMFVersionDefine.h"
-
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_WRITE_INTERNAL_STATE
@@ -27,7 +25,7 @@
 !
 !---------------------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
       USE MODULE_INCLUDE
       USE MODULE_DERIVED_TYPES,ONLY: BC_H_ALL,BC_V_ALL
 !
@@ -83,11 +81,7 @@
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: JDE
       INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: LM
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: GLOBAL
-#else
       LOGICAL(kind=KLOG) :: GLOBAL
-#endif
 !
 !----------------------------------------------------
 !***  The forecast or quilt tasks' intracommunicator

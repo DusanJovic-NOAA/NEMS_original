@@ -203,22 +203,23 @@ cat $TESTS_FILE | while read line; do
   [[ $line == \#* ]] && continue
 
   if [[ $line == COMPILE* ]] ; then
-    NEMS_VER=`echo $line | cut -d'|' -f2`
-    SET=`     echo $line | cut -d'|' -f3`
-    MACHINES=`echo $line | cut -d'|' -f4`
-    ESMF_VER=`echo $line | cut -d'|' -f5 | sed -e 's/^ *//' -e 's/ *$//'`
-    [[ $SET_ID != ' ' && $SET != *${SET_ID}* ]] && continue
-    [[ $MACHINES != ' ' && $MACHINES != *${MACHINE_ID}* ]] && continue
+    (
+      NEMS_VER=`echo $line | cut -d'|' -f2`
+      SET=`     echo $line | cut -d'|' -f3`
+      MACHINES=`echo $line | cut -d'|' -f4`
+      ESMF_VER=`echo $line | cut -d'|' -f5 | sed -e 's/^ *//' -e 's/ *$//'`
+      [[ $SET_ID != ' ' && $SET != *${SET_ID}* ]] && continue
+      [[ $MACHINES != ' ' && $MACHINES != *${MACHINE_ID}* ]] && continue
 
-    echo "Compiling $NEMS_VER $ESMF_VER"
-    cd $PATHTR/src
-    ./esmf_version ${ESMF_VER}_${MACHINE_ID}                     > $COMPILE_LOG 2>&1
-    source conf/modules.nems.${MACHINE_ID}                      >> $COMPILE_LOG 2>&1
-    module list                                                 >> $COMPILE_LOG 2>&1
-    gmake clean                                                 >> $COMPILE_LOG 2>&1
-    gmake ${NEMS_VER} J=-j8                                     >> $COMPILE_LOG 2>&1
-    cd $PATHRT
-
+      echo "Compiling $NEMS_VER $ESMF_VER"
+      cd $PATHTR/src
+      ./configure ${ESMF_VER}_${MACHINE_ID}                        > $COMPILE_LOG 2>&1
+      source conf/modules.nems                                    >> $COMPILE_LOG 2>&1
+      module list                                                 >> $COMPILE_LOG 2>&1
+      gmake clean                                                 >> $COMPILE_LOG 2>&1
+      gmake ${NEMS_VER} J=-j8                                     >> $COMPILE_LOG 2>&1
+      cd $PATHRT
+    )
     continue
   fi
 
@@ -232,14 +233,15 @@ cat $TESTS_FILE | while read line; do
     [[ $MACHINES != ' ' && $MACHINES != *${MACHINE_ID}* ]] && continue
     [[ $CREATE_BASELINE == true && $CB != *${CB_arg}* && 'all' != *${CB_arg}* ]] && continue
 
-    export RUNDIR=${RUNDIR_ROOT}/${TEST_NAME}
-    source tests/$TEST_NAME
     (( TEST_NR += 1 )) 
-    export JBNME=`basename $RUNDIR_ROOT`_${TEST_NR}
-    echo "Test ${TEST_NR} ${TEST_NAME} ${TEST_DESCR}" >> ${REGRESSIONTEST_LOG}
-    echo "Test ${TEST_NR} ${TEST_NAME} ${TEST_DESCR}"
-    ./${RUN_SCRIPT} || die "Test ${TEST_NR} ${TEST_NAME} ${TEST_DESCR} failed"
-
+    (
+      export RUNDIR=${RUNDIR_ROOT}/${TEST_NAME}
+      source tests/$TEST_NAME
+      export JBNME=`basename $RUNDIR_ROOT`_${TEST_NR}
+      echo "Test ${TEST_NR} ${TEST_NAME} ${TEST_DESCR}" >> ${REGRESSIONTEST_LOG}
+      echo "Test ${TEST_NR} ${TEST_NAME} ${TEST_DESCR}"
+      ./${RUN_SCRIPT} || die "Test ${TEST_NR} ${TEST_NAME} ${TEST_DESCR} failed"
+    )
     continue
   fi
 

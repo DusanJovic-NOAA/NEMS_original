@@ -1,6 +1,5 @@
-#!/bin/sh
 
 . /usrx/local/Modules/default/init/sh
 
 module purge
-module load ibmpe lsf ics/12.1 NetCDF/3.6.3
+module load ibmpe lsf ics/12.1 NetCDF/3.6.3 ESMF/630rp1

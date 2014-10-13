@@ -1,4 +1,4 @@
-Wed Oct  1 20:49:47 UTC 2014
+Sat Oct 11 13:12:29 UTC 2014
 Start Regression test
 
 
@@ -462,45 +462,15 @@ Checking test 29 results ....
 
 
 
-Test 30 gfs_gocart_nemsio GFS_GOCART with NEMSIO
+Test 30 gfs_32 Compare GFS results with previous trunk version
 Test 30
-GFS_GOCART with NEMSIO
-GFS, 64 proc, 1 thread
-
-
-
-
-Checking test 30 results ....
- Comparing ngac.t00z.sigf00.........OK
- Comparing ngac.t00z.sigf03.........OK
- Comparing ngac.t00z.sigf06.........OK
- Comparing ngac.t00z.sigf12.........OK
- Comparing ngac.t00z.sigf24.........OK
- Comparing ngac.t00z.sfcf00.........OK
- Comparing ngac.t00z.sfcf03.........OK
- Comparing ngac.t00z.sfcf06.........OK
- Comparing ngac.t00z.sfcf12.........OK
- Comparing ngac.t00z.sfcf24.........OK
- Comparing ngac.t00z.flxf00.........OK
- Comparing ngac.t00z.flxf03.........OK
- Comparing ngac.t00z.flxf06.........OK
- Comparing ngac.t00z.flxf12.........OK
- Comparing ngac.t00z.flxf24.........OK
- Comparing ngac.t00z.aerf00.........OK
- Comparing ngac.t00z.aerf03.........OK
- Comparing ngac.t00z.aerf06.........OK
- Comparing ngac.t00z.aerf12.........OK
- Comparing ngac.t00z.aerf24.........OK
- Test 30 passed 
-Test 31 gfs_32 Compare GFS results with previous trunk version
-Test 31
 Compare GFS results with previous trunk version
 GFS, 32 proc, 1 thread
 
 
 
 
-Checking test 31 results ....
+Checking test 30 results ....
  Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
@@ -519,10 +489,24 @@ Checking test 31 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 31 passed 
-Test 32 gfs_32_adiab Compare GFS adiabatic results with previous trunk version
-Test 32
+ Test 30 passed 
+Test 31 gfs_32_adiab Compare GFS adiabatic results with previous trunk version
+Test 31
 Compare GFS adiabatic results with previous trunk version
+GFS, 32 proc, 1 thread
+
+
+
+
+Checking test 31 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Test 31 passed 
+Test 32 gfs_32_48 Test GFS with 2-copy option
+Test 32
+Test GFS with 2-copy option
 GFS, 32 proc, 1 thread
 
 
@@ -533,11 +517,19 @@ Checking test 32 results ....
  Comparing sigf06.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
  Test 32 passed 
-Test 33 gfs_32_48 Test GFS with 2-copy option
+Test 33 gfs_decomp_restart Test GFS different decomposition and restart
 Test 33
-Test GFS with 2-copy option
-GFS, 32 proc, 1 thread
+Test GFS different decomposition and restart
+GFS, 48 proc, 1 thread
 
 
 
@@ -547,19 +539,20 @@ Checking test 33 results ....
  Comparing sigf06.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
+ Comparing sigf48.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
  Comparing flxf03.........OK
  Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
+ Comparing flxf48.........OK
  Test 33 passed 
-Test 34 gfs_decomp_restart Test GFS different decomposition and restart
+Test 34 gfs_16_32 Test GFS threads
 Test 34
-Test GFS different decomposition and restart
-GFS, 48 proc, 1 thread
+Test GFS threads
+GFS, 16 proc, 2 thread
 
 
 
@@ -569,44 +562,21 @@ Checking test 34 results ....
  Comparing sigf06.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
- Comparing sigf48.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
- Comparing sfcf48.........OK
- Comparing flxf03.........OK
  Comparing flxf06.........OK
- Comparing flxf48.........OK
  Test 34 passed 
-Test 35 gfs_16_32 Test GFS threads
+Test 35 gfs_32_noquilt GFS, 32 proc, 1 thread, no quilt, output every 4 timestep
 Test 35
-Test GFS threads
-GFS, 16 proc, 2 thread
-
-
-
-
-Checking test 35 results ....
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing flxf06.........OK
- Test 35 passed 
-Test 36 gfs_32_noquilt GFS, 32 proc, 1 thread, no quilt, output every 4 timestep
-Test 36
 GFS, 32 proc, 1 thread, no quilt, output every 4 timestep
 GFS, 32 proc, 1 thread
 
 
 
 
-Checking test 36 results ....
+Checking test 35 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
  Comparing sigf12.........OK
@@ -622,16 +592,16 @@ Checking test 36 results ....
  Comparing flxf12.........OK
  Comparing flxf24.........OK
  Comparing flxf48.........OK
- Test 36 passed 
-Test 37 gfs_16_48_noquilt_nsout Test GFS, 16 proc, 2 threads,no quilt, output every 2 time steps
-Test 37
+ Test 35 passed 
+Test 36 gfs_16_48_noquilt_nsout Test GFS, 16 proc, 2 threads,no quilt, output every 2 time steps
+Test 36
 Test GFS, 16 proc, 2 threads,no quilt, output every 2 time steps
 GFS, 16 proc, 2 thread
 
 
 
 
-Checking test 37 results ....
+Checking test 36 results ....
  Comparing sigf03.........OK
  Comparing sigf06.........OK
  Comparing sigf12.........OK
@@ -641,11 +611,34 @@ Checking test 37 results ....
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
  Comparing flxf06.........OK
- Test 37 passed 
-Test 38 gfs_46_48_noquilt_nsout Test GFS, 48 proc, 1 thread, no quilt
-Test 38
+ Test 36 passed 
+Test 37 gfs_46_48_noquilt_nsout Test GFS, 48 proc, 1 thread, no quilt
+Test 37
 Test GFS, 48 proc, 1 thread, no quilt
 GFS, 48 proc, 1 thread
+
+
+
+
+Checking test 37 results ....
+ Comparing sigf03.........OK
+ Comparing sigf06.........OK
+ Comparing sigf12.........OK
+ Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf03.........OK
+ Comparing sfcf06.........OK
+ Comparing sfcf12.........OK
+ Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf48.........OK
+ Test 37 passed 
+Test 38 gfs_32_16_dfi GFS,32 total proc (tasks), 1 thread, quilt, digital filter on reduced grid
+Test 38
+GFS,32 total proc (tasks), 1 thread, quilt, digital filter on reduced grid
+GFS, 32 proc, 1 thread
 
 
 
@@ -663,12 +656,14 @@ Checking test 38 results ....
  Comparing sfcf48.........OK
  Comparing flxf03.........OK
  Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 38 passed 
-Test 39 gfs_32_16_dfi GFS,32 total proc (tasks), 1 thread, quilt, digital filter on reduced grid
+Test 39 gfs_16_1_dfi GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
 Test 39
-GFS,32 total proc (tasks), 1 thread, quilt, digital filter on reduced grid
-GFS, 32 proc, 1 thread
+GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
+GFS, 16 proc, 2 thread
 
 
 
@@ -678,39 +673,42 @@ Checking test 39 results ....
  Comparing sigf06.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
- Comparing sigf48.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
- Comparing sfcf48.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
- Comparing flxf48.........OK
  Test 39 passed 
-Test 40 gfs_16_1_dfi GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
+Test 40 wam_gh_l150 WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting
 Test 40
-GFS,16 total proc (tasks), 2 thread, quilt,2x2 wrt pe, digital filter on reduced grid
-GFS, 16 proc, 2 thread
+WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting
+GFS, 32 proc, 1 thread
 
 
 
 
 Checking test 40 results ....
+ Comparing sigf00.........OK
  Comparing sigf03.........OK
  Comparing sigf06.........OK
  Comparing sigf12.........OK
  Comparing sigf24.........OK
+ Comparing sigf48.........OK
+ Comparing sfcf00.........OK
  Comparing sfcf03.........OK
  Comparing sfcf06.........OK
  Comparing sfcf12.........OK
  Comparing sfcf24.........OK
+ Comparing sfcf48.........OK
+ Comparing flxf00.........OK
+ Comparing flxf03.........OK
+ Comparing flxf06.........OK
+ Comparing flxf12.........OK
+ Comparing flxf24.........OK
+ Comparing flxf48.........OK
  Test 40 passed 
-Test 41 wam_gh_l150 WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting
+Test 41 wam_gh_l150_ndsl WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting with NDSL (non-iteration dimension-split semi-Lagragian advection)
 Test 41
-WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting
+WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting with NDSL (non-iteration dimension-split semi-Lagragian advection)
 GFS, 32 proc, 1 thread
 
 
@@ -736,9 +734,9 @@ Checking test 41 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 41 passed 
-Test 42 wam_gh_l150_ndsl WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting with NDSL (non-iteration dimension-split semi-Lagragian advection)
+Test 42 gfs_dfi_post GFS with POST
 Test 42
-WAM enthalpy on general hybrid 2loop 150levels,32 compute tasks / 1 thread ,no quilting with NDSL (non-iteration dimension-split semi-Lagragian advection)
+GFS with POST
 GFS, 32 proc, 1 thread
 
 
@@ -764,43 +762,15 @@ Checking test 42 results ....
  Comparing flxf24.........OK
  Comparing flxf48.........OK
  Test 42 passed 
-Test 43 gfs_dfi_post GFS with POST
+Test 43 gfs_gocart_post GFS_GOCART with POST
 Test 43
-GFS with POST
-GFS, 32 proc, 1 thread
-
-
-
-
-Checking test 43 results ....
- Comparing sigf00.........OK
- Comparing sigf03.........OK
- Comparing sigf06.........OK
- Comparing sigf12.........OK
- Comparing sigf24.........OK
- Comparing sigf48.........OK
- Comparing sfcf00.........OK
- Comparing sfcf03.........OK
- Comparing sfcf06.........OK
- Comparing sfcf12.........OK
- Comparing sfcf24.........OK
- Comparing sfcf48.........OK
- Comparing flxf00.........OK
- Comparing flxf03.........OK
- Comparing flxf06.........OK
- Comparing flxf12.........OK
- Comparing flxf24.........OK
- Comparing flxf48.........OK
- Test 43 passed 
-Test 44 gfs_gocart_post GFS_GOCART with POST
-Test 44
 GFS_GOCART with POST
 GFS, 64 proc, 1 thread
 
 
 
 
-Checking test 44 results ....
+Checking test 43 results ....
  Comparing ngac.t00z.sigf00.........OK
  Comparing ngac.t00z.sigf03.........OK
  Comparing ngac.t00z.sigf06.........OK
@@ -829,5 +799,35 @@ Checking test 44 results ....
  Comparing NGAC3d.GrbF06.........OK
  Comparing NGAC3d.GrbF12.........OK
  Comparing NGAC3d.GrbF24.........OK
+ Test 43 passed 
+Test 44 gfs_gocart_nemsio GFS_GOCART with NEMSIO
+Test 44
+GFS_GOCART with NEMSIO
+GFS, 64 proc, 1 thread
+
+
+
+
+Checking test 44 results ....
+ Comparing ngac.t00z.sigf00.........OK
+ Comparing ngac.t00z.sigf03.........OK
+ Comparing ngac.t00z.sigf06.........OK
+ Comparing ngac.t00z.sigf12.........OK
+ Comparing ngac.t00z.sigf24.........OK
+ Comparing ngac.t00z.sfcf00.........OK
+ Comparing ngac.t00z.sfcf03.........OK
+ Comparing ngac.t00z.sfcf06.........OK
+ Comparing ngac.t00z.sfcf12.........OK
+ Comparing ngac.t00z.sfcf24.........OK
+ Comparing ngac.t00z.flxf00.........OK
+ Comparing ngac.t00z.flxf03.........OK
+ Comparing ngac.t00z.flxf06.........OK
+ Comparing ngac.t00z.flxf12.........OK
+ Comparing ngac.t00z.flxf24.........OK
+ Comparing ngac.t00z.aerf00.........OK
+ Comparing ngac.t00z.aerf03.........OK
+ Comparing ngac.t00z.aerf06.........OK
+ Comparing ngac.t00z.aerf12.........OK
+ Comparing ngac.t00z.aerf24.........OK
  Test 44 passed 
 REGRESSION TEST WAS SUCCESSFUL

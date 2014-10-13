@@ -65,6 +65,7 @@ elif [ $SCHEDULER = 'lsf' ]; then
 
 cat nmm_conf/nmm_bsub.IN         | sed s:_JBNME_:${JBNME}:g   \
                                  | sed s:_ACCNR_:${ACCNR}:g   \
+                                 | sed s:_SRCD_:${PATHTR}:g   \
                                  | sed s:_WLCLK_:${WLCLK}:g   \
                                  | sed s:_TPN_:${TPN}:g       \
                                  | sed s:_TASKS_:${TASKS}:g   \
@@ -263,7 +264,7 @@ echo " Test ${TEST_NR} passed " >> ${REGRESSIONTEST_LOG}
 echo " Test ${TEST_NR} passed "
 
 sleep 4
-clear;echo;echo
+echo;echo
 
 ####################################################################################################
 # End test

@@ -1,11 +1,3 @@
-#include "../../ESMFVersionDefine.h"
-
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_PARENT_CHILD_CPL_COMP
@@ -38,7 +30,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
 !
       USE module_INCLUDE
 !
@@ -561,19 +553,11 @@
         TYPE(ESMF_FieldBundle) :: MOVE_BUNDLE_H
         TYPE(ESMF_FieldBundle) :: MOVE_BUNDLE_V
 !
-#ifdef ESMF_3
-        TYPE(ESMF_Logical) :: ALLCLEAR_SIGNAL_PRESENT                   &
-                             ,I_AM_A_FCST_TASK                          &
-                             ,I_AM_A_PARENT                             &
-                             ,MY_DOMAIN_MOVES                           &
-                             ,RECV_ALL_CHILD_DATA
-#else
         LOGICAL(kind=KLOG) :: ALLCLEAR_SIGNAL_PRESENT                   &
                              ,I_AM_A_FCST_TASK                          &
                              ,I_AM_A_PARENT                             &
                              ,MY_DOMAIN_MOVES                           &
                              ,RECV_ALL_CHILD_DATA
-#endif
 !
         REAL(kind=KDBL) :: cpl1_prelim_tim                              &
                           ,cpl1_south_h_tim,cpl1_south_v_tim            &
@@ -943,19 +927,11 @@
                                        ,MOVE_BUNDLE_H                   &
                                        ,MOVE_BUNDLE_V
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical),POINTER :: ALLCLEAR_SIGNAL_PRESENT             &
-                                   ,I_AM_A_FCST_TASK                    &
-                                   ,I_AM_A_PARENT                       &
-                                   ,MY_DOMAIN_MOVES                     &
-                                   ,RECV_ALL_CHILD_DATA
-#else
       LOGICAL(kind=KLOG),POINTER :: ALLCLEAR_SIGNAL_PRESENT             &
                                    ,I_AM_A_FCST_TASK                    &
                                    ,I_AM_A_PARENT                       &
                                    ,MY_DOMAIN_MOVES                     &
                                    ,RECV_ALL_CHILD_DATA
-#endif
 !
       REAL(kind=KDBL),POINTER :: cpl1_prelim_tim                        &
                                 ,cpl1_south_h_tim,cpl1_south_v_tim      &
@@ -1119,18 +1095,8 @@
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
                                     ,ESMF_METHOD_INITIALIZE             &  !<-- subroutineType
                                     ,PARENT_CHILD_CPL_INITIALIZE0       &  !<-- User's subroutineName
-#ifdef ESMF_3
-                                    ,1                                  &
-                                    ,RC)
-#else
-#ifdef ESMF_520r
                                     ,phase=1                            &
                                     ,rc=RC)
-#else
-                                    ,phase=1                            &
-                                    ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NEST_REG)
@@ -1144,18 +1110,8 @@
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
                                     ,ESMF_METHOD_INITIALIZE             &  !<-- subroutineType
                                     ,PARENT_CHILD_CPL_INITIALIZE1       &  !<-- User's subroutineName
-#ifdef ESMF_3
-                                    ,2                                  &
-                                    ,RC)
-#else
-#ifdef ESMF_520r
                                     ,phase=2                            &
                                     ,rc=RC)
-#else
-                                    ,phase=2                            &
-                                    ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NEST_REG)
@@ -1169,18 +1125,8 @@
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
                                     ,ESMF_METHOD_INITIALIZE             &  !<-- subroutineType
                                     ,PARENT_CHILD_CPL_INITIALIZE2       &  !<-- User's subroutineName
-#ifdef ESMF_3
-                                    ,3                                  &
-                                    ,RC)
-#else
-#ifdef ESMF_520r
                                     ,phase=3                            &
                                     ,rc=RC)
-#else
-                                    ,phase=3                            &
-                                    ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NEST_REG)
@@ -1216,18 +1162,8 @@
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
                                     ,ESMF_METHOD_RUN                    &  !<-- subroutineType
                                     ,CHECK_2WAY_SIGNALS                 &  !<-- User's subroutineName
-#ifdef ESMF_3
-                                    ,1                                  &
-                                    ,RC)
-#else
-#ifdef ESMF_520r
                                     ,phase=1                            &
                                     ,rc=RC)
-#else
-                                    ,phase=1                            &
-                                    ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NEST_REG)
@@ -1242,18 +1178,8 @@
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
                                     ,ESMF_METHOD_RUN                    &  !<-- subroutineType
                                     ,CHILDREN_RECV_PARENT_DATA          &  !<-- User's subroutineName
-#ifdef ESMF_3
-                                    ,2                                  &
-                                    ,RC)
-#else
-#ifdef ESMF_520r
                                     ,phase=2                            &
                                     ,rc=RC)
-#else
-                                    ,phase=2                            &
-                                    ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NEST_REG)
@@ -1267,18 +1193,8 @@
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
                                     ,ESMF_METHOD_RUN                    &  !<-- subroutineType
                                     ,PARENTS_RECV_CHILD_2WAY_DATA       &  !<-- User's subroutineName
-#ifdef ESMF_3
-                                    ,3                                  &
-                                    ,RC)
-#else
-#ifdef ESMF_520r
                                     ,phase=3                            &
                                     ,rc=RC)
-#else
-                                    ,phase=3                            &
-                                    ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NEST_REG)
@@ -1292,18 +1208,8 @@
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
                                     ,ESMF_METHOD_RUN                    &  !<-- subroutineType
                                     ,PARENTS_SEND_CHILD_DATA            &  !<-- User's subroutineName
-#ifdef ESMF_3
-                                    ,4                                  &
-                                    ,RC)
-#else
-#ifdef ESMF_520r
                                     ,phase=4                            &
                                     ,rc=RC)
-#else
-                                    ,phase=4                            &
-                                    ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NEST_REG)
@@ -1317,18 +1223,8 @@
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
                                     ,ESMF_METHOD_RUN                    &  !<-- subroutineType
                                     ,CHILDREN_SEND_PARENTS_2WAY_DATA    &  !<-- User's subroutineName
-#ifdef ESMF_3
-                                    ,5                                  &
-                                    ,RC)
-#else
-#ifdef ESMF_520r
                                     ,phase=5                            &
                                     ,rc=RC)
-#else
-                                    ,phase=5                            &
-                                    ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NEST_REG)
@@ -1346,18 +1242,8 @@
       CALL ESMF_CplCompSetEntryPoint(CPL_COMP                           &  !<-- The Parent-Child Coupler Component
                                     ,ESMF_METHOD_FINALIZE               &  !<-- subroutineType
                                     ,PARENT_CHILD_CPL_FINALIZE          &  !<-- User's subroutineName
-#ifdef ESMF_3
-                                    ,ESMF_SINGLEPHASE                   &
-                                    ,RC)
-#else
-#ifdef ESMF_520r
                                     ,phase=1                            &
                                     ,rc=RC)
-#else
-                                    ,phase=ESMF_SINGLEPHASE             &
-                                    ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NEST_REG)
@@ -1418,10 +1304,6 @@
       CHARACTER(len=2) :: INT_TO_CHAR
       CHARACTER(len=6) :: FMT='(I2.2)'
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: RESTART_ESMF
-!
-#endif
       TYPE(COMPOSITE),POINTER :: CC
 !
 !-----------------------------------------------------------------------
@@ -1563,11 +1445,7 @@
       I_AM_LEAD_FCST_TASK=>cc%I_AM_LEAD_FCST_TASK
       I_AM_LEAD_FCST_TASK=.FALSE.
 !
-#ifdef ESMF_3
-      IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
       IF(I_AM_A_FCST_TASK)THEN
-#endif
 !
         CALL MPI_COMM_RANK(COMM_FCST_TASKS,MYPE_X,IERR)
 !
@@ -1606,16 +1484,12 @@
 !***  and their domain IDs.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      IF(I_AM_A_FCST_TASK==ESMF_TRUE.AND.NUM_CHILDREN>0)THEN               !<-- Select parent fcst tasks for additional setup
-#else
       IF(I_AM_A_FCST_TASK.AND.NUM_CHILDREN>0)THEN                          !<-- Select parent fcst tasks for additional setup
-#endif
 !
         ALLOCATE(cc%COMM_TO_MY_CHILDREN(1:NUM_CHILDREN),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%COMM_TO_MY_CHILDREN stat=',ISTAT
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
         COMM_TO_MY_CHILDREN=>cc%COMM_TO_MY_CHILDREN
 !
@@ -1641,7 +1515,7 @@
         ALLOCATE(CC%MY_CHILDREN_ID(1:NUM_CHILDREN),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%MY_CHILDREN_ID stat=',ISTAT
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
 !
         MY_CHILDREN_ID=>cc%MY_CHILDREN_ID
@@ -1671,34 +1545,18 @@
 !
       RESTART=.FALSE.
 !
-#ifdef ESMF_3
-      IF(I_AM_A_FCST_TASK==ESMF_True)THEN
-#else
       IF(I_AM_A_FCST_TASK)THEN
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="P-C Init0: Extract Restart Flag from P-C Cpl Import State"
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-        CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The parent-child coupler import state
-                              ,name ='RESTART'                          &  !<-- Name of the attribute to extract
-                              ,value=RESTART_ESMF                       &  !<-- The restart flag (true or false)
-                              ,rc   =RC)
-!
-        IF(RESTART_ESMF==ESMF_True)THEN
-          RESTART=.TRUE.
-        ENDIF
-!
-#else
         CALL ESMF_AttributeGet(state=IMP_STATE                          &  !<-- The parent-child coupler import state
                               ,name ='RESTART'                          &  !<-- Name of the attribute to extract
                               ,value=RESTART                            &  !<-- The restart flag (true or false)
                               ,rc   =RC)
 !
-#endif
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1716,11 +1574,7 @@
         J_SW_PARENT_CURRENT=>cc%J_SW_PARENT_CURRENT
         LAST_STEP_MOVED=>cc%LAST_STEP_MOVED
 !
-#ifdef ESMF_3
-        IF(I_AM_A_FCST_TASK==ESMF_True)THEN
-#else
         IF(I_AM_A_FCST_TASK)THEN
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -1825,13 +1679,13 @@
         ALLOCATE(cc%I_PARENT_SW(1:NUM_CHILDREN),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%I_PARENT_SW stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
 !
         ALLOCATE(cc%J_PARENT_SW(1:NUM_CHILDREN),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%J_PARENT_SW stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
 !
 !
@@ -2020,7 +1874,7 @@
       ALLOCATE(cc%NTASKS_DOMAIN(1:NUM_DOMAINS),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%NTASKS_DOMAIN stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
 !
       NTASKS_DOMAIN=>cc%NTASKS_DOMAIN
@@ -2047,7 +1901,7 @@
       ALLOCATE(cc%FTASKS_DOMAIN(1:NUM_DOMAINS),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%FTASKS_DOMAIN stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
       FTASKS_DOMAIN=>cc%FTASKS_DOMAIN
 !
@@ -2083,11 +1937,7 @@
       NUM_MOVING_CHILDREN=0
 !
       MY_DOMAIN_MOVES=>cc%MY_DOMAIN_MOVES
-#ifdef ESMF_3
-      MY_DOMAIN_MOVES=ESMF_FALSE
-#else
       MY_DOMAIN_MOVES=.FALSE.
-#endif
 !
 !---------------------------
 !***  Domain IDs of Parents
@@ -2096,7 +1946,7 @@
       ALLOCATE(cc%ID_PARENTS(1:NUM_DOMAINS),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%ID_PARENTS stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
 !
       ID_PARENTS=>cc%ID_PARENTS
@@ -2198,7 +2048,7 @@
       ALLOCATE(cc%DT_DOMAIN(1:NUM_DOMAINS),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%DT_DOMAIN stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
       DT_DOMAIN=>cc%DT_DOMAIN
 !
@@ -2226,7 +2076,7 @@
         ALLOCATE(cc%COMM_TO_MY_CHILDREN(1:NUM_CHILDREN),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%COMM_TO_MY_CHILDREN stat=',ISTAT
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
         COMM_TO_MY_CHILDREN=>cc%COMM_TO_MY_CHILDREN
 !
@@ -2253,11 +2103,7 @@
 !
       I_AM_A_FCST_TASK=>cc%I_AM_A_FCST_TASK
 !
-#ifdef ESMF_3
-      IF(I_AM_A_FCST_TASK==ESMF_False)RETURN
-#else
       IF(.NOT.I_AM_A_FCST_TASK)RETURN
-#endif
 !
 !---------------------------------------------
 !***  The Tasks' Subdomain Integration Limits
@@ -2327,7 +2173,7 @@
       ALLOCATE(cc%LOCAL_ISTART(1:FTASKS_DOMAIN(MY_DOMAIN_ID)),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate LOCAL_ISTART for MY_DOMAIN_ID=',MY_DOMAIN_ID,' stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
 !
       ALLOCATE(cc%LOCAL_IEND  (1:FTASKS_DOMAIN(MY_DOMAIN_ID)))
@@ -2439,7 +2285,7 @@
       IF(N_BLEND_V>N_BLEND_H)THEN
         WRITE(0,*)' N_BLEND_V CANNOT EXCEED N_BLEND_H DUE TO PD AVERAGING!!!'
         WRITE(0,*)' ABORTING'
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
 !
 !--------------------------------------
@@ -2856,7 +2702,7 @@
       ALLOCATE(CC%PSGML1(1:LM),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%PSGML1 stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
 !
       PSGML1=>cc%PSGML1
@@ -2880,7 +2726,7 @@
       ALLOCATE(cc%SG1(1:LMP1),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%SG1 stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
 !
       SG1=>cc%SG1
@@ -2903,7 +2749,7 @@
       ALLOCATE(CC%SG2(1:LMP1),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%SG2 stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
 !
       SG2=>cc%SG2
@@ -2926,7 +2772,7 @@
       ALLOCATE(CC%SGML2(1:LM),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%SGML2 stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
 !
       SGML2=>cc%SGML2
@@ -2949,7 +2795,7 @@
       ALLOCATE(CC%DSG2(1:LM),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%DSG2 stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
 !
       DSG2=>cc%DSG2
@@ -2972,7 +2818,7 @@
       ALLOCATE(CC%PDSG1(1:LM),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%PDSG1 stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
 !
       PDSG1=>cc%PDSG1
@@ -3015,7 +2861,7 @@
       ALLOCATE(CC%DXH(JDS:JDE),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%DXH stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
 !
       DXH=>cc%DXH
@@ -3086,11 +2932,7 @@
 !***  many are on H points and on V points. 
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
       IF(I_AM_A_FCST_TASK)THEN
-#endif
 !
 !-----------------------------------------------------------------------
 !***  Begin with the Bundle of pointers to the variables specified
@@ -3282,19 +3124,11 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-          CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- The parent-child coupler import state
-                                ,name     ='LBND_4D'                    &  !<-- Extract Attribute with this name
-                                ,count    =NVARS_BC_4D_H                &  !<-- How many items?
-                                ,valueList=cc%LBND_4D                   &  !<-- Lower bounds of 4-D H-pt bndry vbls
-                                ,rc       =RC )
-#else
           CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- The parent-child coupler import state
                                 ,name     ='LBND_4D'                    &  !<-- Extract Attribute with this name
                                 ,itemCount=NVARS_BC_4D_H                &  !<-- How many items?
                                 ,valueList=cc%LBND_4D                   &  !<-- Lower bounds of 4-D H-pt bndry vbls
                                 ,rc       =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
@@ -3305,19 +3139,11 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-          CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- The parent-child coupler import state
-                                ,name     ='UBND_4D'                    &  !<-- Extract Attribute with this name
-                                ,count    =NVARS_BC_4D_H                &  !<-- How many items?
-                                ,valueList=cc%UBND_4D                   &  !<-- Upper bounds of 4-D H-pt bndry vbls
-                                ,rc       =RC )
-#else
           CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- The parent-child coupler import state
                                 ,name     ='UBND_4D'                    &  !<-- Extract Attribute with this name
                                 ,itemCount=NVARS_BC_4D_H                &  !<-- How many items?
                                 ,valueList=cc%UBND_4D                   &  !<-- Upper bounds of 4-D H-pt bndry vbls
                                 ,rc       =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
@@ -3337,7 +3163,7 @@
 22003     FORMAT(' # of V-pt nest BC variables is ',I4)
           WRITE(0,22004)
 22004     FORMAT(' They do not add up so ABORT!!')
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                 &
                             ,rc             =RC)
         ENDIF
 !
@@ -3684,25 +3510,13 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_ConfigGetAttribute(config=CF_MINE                     &  !<-- The child's config object
-
-
-#ifdef ESMF_3
-                                    ,value =DOMAIN_MOVES                &  !<-- The variable filled (fcst tasks in I direction)
-#else
                                     ,value =MY_DOMAIN_MOVES             &  !<-- The variable filled (Move flag)
-#endif
                                     ,label ='my_domain_moves:'          &  !<-- Give this label's value to the previous variable
                                     ,rc    =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-#ifdef ESMF_3
-        IF(DOMAIN_MOVES)THEN
-          MY_DOMAIN_MOVES=ESMF_TRUE
-        ENDIF
-#endif
 !
 !-----------------------------------------------------------------------
 !***  Moving nests must know if their parents move.
@@ -3711,11 +3525,7 @@
         MY_PARENT_MOVES=>cc%MY_PARENT_MOVES
         MY_PARENT_MOVES=.FALSE.
 !
-#ifdef ESMF_3
-        IF(MY_DOMAIN_MOVES==ESMF_TRUE)THEN
-#else
         IF(MY_DOMAIN_MOVES)THEN
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Parent-Child Init: Nest Checks If Parent Moves"
@@ -3775,11 +3585,7 @@
 !***  Moving nests must know the move type
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        IF(MY_DOMAIN_MOVES==ESMF_TRUE)THEN
-#else
         IF(MY_DOMAIN_MOVES)THEN
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract Move Type Flag from Nest's Configure File"
@@ -3803,7 +3609,7 @@
 
             IF(ISTAT/=0)THEN
               WRITE(0,*)' Failed to open ',PRESCRIBED_FILENAME,' stat=',ISTAT
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
             ENDIF
 
             READ(99,*)MOVE_INTERVAL_MINUTES
@@ -3959,7 +3765,7 @@
 15551       FORMAT(' Parent-Child space ratio=',I2 &
                      ,' but N_STENCIL_H=',I2)
             WRITE(0,*)' Aborting!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
 !
           IF(MOD(N_STENCIL_SFC_H,2)/=1)THEN
@@ -3968,7 +3774,7 @@
 15552       FORMAT(' Parent-Child space ratio=',I2 &
                      ,' but N_STENCIL_SFC_H=',I2)
             WRITE(0,*)' Aborting!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
 !
           IF(MOD(SPACE_RATIO_MY_PARENT,2)==1)THEN                          !<-- For odd parent-child space ratios
@@ -3979,7 +3785,7 @@
 15553         FORMAT(' Parent-Child space ratio=',I2 &
                        ,' but N_STENCIL_V=',I2)
               WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
             ENDIF
 !
             IF(MOD(N_STENCIL_SFC_V,2)/=0)THEN
@@ -3988,7 +3794,7 @@
 15554         FORMAT(' Parent-Child space ratio=',I2 &
                        ,' but N_STENCIL_SFC_V=',I2)
               WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
             ENDIF
 !
           ENDIF
@@ -4001,7 +3807,7 @@
 15555         FORMAT(' Parent-Child space ratio=',I2 &
                        ,' but N_STENCIL_V=',I2)
               WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
             ENDIF
 !
             IF(MOD(N_STENCIL_SFC_V,2)/=1)THEN
@@ -4010,7 +3816,7 @@
 15556         FORMAT(' Parent-Child space ratio=',I2 &
                        ,' but N_STENCIL_SFC_V=',I2)
               WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
             ENDIF
 !
           ENDIF
@@ -4045,7 +3851,7 @@
         ALLOCATE(CC%TIME_RATIO_MY_CHILDREN(1:NUM_CHILDREN),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%TIME_RATIO_MY_CHILDREN stat=',ISTAT
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
 !
         TIME_RATIO_MY_CHILDREN=>cc%TIME_RATIO_MY_CHILDREN
@@ -4079,7 +3885,7 @@
         ALLOCATE(cc%NSTEP_CHILD_RECV(1:NUM_CHILDREN),stat=ISTAT)           !<-- Children's timesteps at which they recv data
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%NSTEP_CHILD_RECV stat=',ISTAT
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
 !
         NSTEP_CHILD_RECV=>cc%NSTEP_CHILD_RECV
@@ -4096,70 +3902,70 @@
         ALLOCATE(cc%IM_CHILD(1:NUM_CHILDREN),stat=ISTAT)                   !<-- I extent of children's domains
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%IM_CHILD stat=',ISTAT
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
         IM_CHILD=>cc%IM_CHILD
 !
         ALLOCATE(cc%JM_CHILD(1:NUM_CHILDREN),stat=ISTAT)                   !<-- J extent of children's domains
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%JM_CHILD stat=',ISTAT
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
         JM_CHILD=>cc%JM_CHILD
 !
         ALLOCATE(cc%PARENT_CHILD_SPACE_RATIO(1:NUM_CHILDREN),stat=ISTAT)   !<-- Integer ratio of parent grid increment to children's
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%PARENT_CHILD_SPACE_RATIO stat=',ISTAT
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
         PARENT_CHILD_SPACE_RATIO=>cc%PARENT_CHILD_SPACE_RATIO
 !
         ALLOCATE(cc%CHILD_PARENT_SPACE_RATIO(1:NUM_CHILDREN),stat=ISTAT)   !<-- Inverse of PARENT_CHILD_SPACE_RATIO
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%CHILD_PARENT_SPACE_RATIO stat=',ISTAT
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
         CHILD_PARENT_SPACE_RATIO=>cc%CHILD_PARENT_SPACE_RATIO
 !
         ALLOCATE(cc%N_BLEND_H_CHILD(1:NUM_CHILDREN),stat=ISTAT)            !<-- Boundary blending width for child H points
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%N_BLEND_H_CHILD stat=',ISTAT
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
         N_BLEND_H_CHILD=>cc%N_BLEND_H_CHILD
 !
         ALLOCATE(cc%N_BLEND_V_CHILD(1:NUM_CHILDREN),stat=ISTAT)            !<-- Boundary blending width for child V points
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%N_BLEND_V_CHILD stat=',ISTAT
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
         N_BLEND_V_CHILD=>cc%N_BLEND_V_CHILD
 !
         ALLOCATE(cc%INC_FIX(1:NUM_CHILDREN),stat=ISTAT)                    !<-- See below where INC_FIX is filled
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%INC_FIX stat=',ISTAT
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
         INC_FIX=>cc%INC_FIX
 !
         ALLOCATE(cc%RANK_2WAY_CHILD(1:NUM_CHILDREN),stat=ISTAT)            !<-- Location of moving nests in list of all children
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%RANK_2WAY_CHILD stat=',ISTAT
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
         RANK_2WAY_CHILD=>cc%RANK_2WAY_CHILD
 !
         ALLOCATE(cc%RANK_MOVING_CHILD(1:NUM_CHILDREN),stat=ISTAT)          !<-- Location of moving nests in list of all children
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%RANK_MOVING_CHILD stat=',ISTAT
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
         RANK_MOVING_CHILD=>cc%RANK_MOVING_CHILD
 !
         ALLOCATE(cc%STATIC_OR_MOVING(1:NUM_CHILDREN),stat=ISTAT)           !<-- Are the individual children static or moving?
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%STATIC_OR_MOVING stat=',ISTAT
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
         STATIC_OR_MOVING=>cc%STATIC_OR_MOVING
 !
@@ -4218,7 +4024,7 @@
                      ,TRIM(CONFIG_FILE_NAME)                            &
                      ,' in PARENT_CHILD_CPL_INITIALIZE1'
             WRITE(0,*)' ABORTING!'
-            CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT               &
+            CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT               &
                               ,rc             =RC)
           ENDIF
 !
@@ -4271,7 +4077,7 @@
           IF(N_BLEND_V_CHILD(N)>N_BLEND_H_CHILD(N))THEN
             WRITE(0,*)' N_BLEND_V CANNOT EXCEED N_BLEND_H DUE TO PD AVERAGING!!!'
             WRITE(0,*)' ABORTING in child N=',N
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
 !
 !-----------------------------------------------------------------------
@@ -4367,17 +4173,13 @@
 !***  We do not allow moving parents to have static children for now.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-          IF(MY_DOMAIN_MOVES==ESMF_TRUE)THEN
-#else
           IF(MY_DOMAIN_MOVES)THEN
-#endif
             IF(NUM_MOVING_CHILDREN/=NUM_CHILDREN)THEN
               WRITE(0,*)' You have specified a moving parent with'      &
                        ,' static children.  This is not allowed. '
               WRITE(0,*)' Moving parents can have only moving children.'
               WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
             ENDIF
 !
           ENDIF
@@ -4494,7 +4296,7 @@
 20001     FORMAT(' Failed to allocate HANDLE_PACKET_S_H(',I2,')%CHILDREN(1:',I2,')')
           WRITE(0,*)' ISTAT=',ISTAT
           WRITE(0,*)' Aborting!'
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
         ALLOCATE(HANDLE_PACKET_S_V(MY_DOMAIN_ID)%CHILDREN(1:NUM_CHILDREN))
         ALLOCATE(HANDLE_PACKET_N_H(MY_DOMAIN_ID)%CHILDREN(1:NUM_CHILDREN))
@@ -4541,7 +4343,7 @@
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate INFO_SEND%CHILDREN stat=',ISTAT
           WRITE(0,*)' Aborting!'
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
         ENDIF
 !
         DO N=1,NUM_CHILDREN
@@ -4552,7 +4354,7 @@
           IF(ISTAT/=0)THEN
             WRITE(0,*)' Failed to allocate INFO for n=',n,' child ID=',CHILD_ID,' stat=',ISTAT
             WRITE(0,*)' Aborting!'
-            CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+            CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
           ENDIF
 !
           DO N3=1,8
@@ -4577,7 +4379,7 @@
         ALLOCATE(cc%FIS_CHILD_SOUTH(1:NUM_CHILDREN),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%FIS_CHILD_SOUTH stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         ALLOCATE(cc%FIS_CHILD_NORTH(1:NUM_CHILDREN),stat=ISTAT)
         ALLOCATE(cc%FIS_CHILD_WEST(1:NUM_CHILDREN),stat=ISTAT)
@@ -4648,7 +4450,7 @@
           IF(ISTAT/=0)THEN
             WRITE(0,*)' Failed to allocate HANDLE_PARENT_ITS(',MY_DOMAIN_ID,')%DATA'
             WRITE(0,*)' Aborting!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
           ALLOCATE(HANDLE_PARENT_ITE(MY_DOMAIN_ID)%DATA(1:NUM_CHILDREN))
           ALLOCATE(HANDLE_PARENT_JTS(MY_DOMAIN_ID)%DATA(1:NUM_CHILDREN))
@@ -4964,13 +4766,8 @@
 !
       LOGICAL(kind=KLOG) :: FOUND
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: I_AM_A_NEST                                 &
-                           ,INTEGRATE_TIMESTEP
-#else
       LOGICAL(kind=KLOG) :: I_AM_A_NEST                                 &
                            ,INTEGRATE_TIMESTEP
-#endif
 !
       CHARACTER(len=1) :: UPDATE_TYPE_CHAR
       CHARACTER(len=2) :: INT_TO_CHAR
@@ -4979,7 +4776,7 @@
 !
       TYPE(COMPOSITE),POINTER :: CC
 !
-      TYPE(ESMF_TypeKind) :: DATATYPE
+      TYPE(ESMF_TypeKind_Flag) :: DATATYPE
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
@@ -5043,7 +4840,7 @@
           ALLOCATE(cc%SIGNAL_2WAY_SEND_READY(1:NUM_2WAY_CHILDREN),stat=ISTAT)
           IF(ISTAT/=0)THEN
             WRITE(0,*)' Failed to allocate cpl_composite%SIGNAL_2WAY_SEND_READY stat=',ISTAT
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
           SIGNAL_2WAY_SEND_READY=>cc%SIGNAL_2WAY_SEND_READY
 !
@@ -5055,7 +4852,7 @@
         ALLOCATE(cc%HANDLE_SEND_ALLCLEAR(1:NUM_CHILDREN),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%HANDLE_SEND_ALLCLEAR stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         HANDLE_SEND_ALLCLEAR=>cc%HANDLE_SEND_ALLCLEAR
 !
@@ -5066,13 +4863,8 @@
         cc%KOUNT_2WAY_CHILDREN=0
 !
         cc%FIRST_CALL_RECV_2WAY=.TRUE.
-#ifdef ESMF_3
-        INTEGRATE_TIMESTEP=ESMF_True 
-        cc%RECV_ALL_CHILD_DATA=ESMF_True
-#else
         INTEGRATE_TIMESTEP=.TRUE.
         cc%RECV_ALL_CHILD_DATA=.TRUE.
-#endif
 !
         RECV_ALL_CHILD_DATA=>cc%RECV_ALL_CHILD_DATA
 !
@@ -5109,11 +4901,7 @@
 !***  is directly or indirectly related to the grid.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        IF(I_AM_A_FCST_TASK==ESMF_False)RETURN
-#else
         IF(.NOT.I_AM_A_FCST_TASK)RETURN
-#endif
 !
 !-----------------------------------------------------------------------
 !***  Allocate the pointers that will hold all of the interpolated
@@ -5173,7 +4961,7 @@
         ALLOCATE(cc%CHILD_BOUND_H_SOUTH(1:NUM_CHILDREN,1:2),stat=ISTAT)    !<-- 1-D bndry data string for child tasks with Sbndry H points
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%CHILD_BOUND_H_SOUTH stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         CHILD_BOUND_H_SOUTH=>cc%CHILD_BOUND_H_SOUTH
 !
@@ -5193,7 +4981,7 @@
         ALLOCATE(cc%PD_B_SOUTH(1:NUM_CHILDREN),stat=ISTAT)                 !<-- South boundary PD on H points
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%PD_B_SOUTH stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         PD_B_SOUTH=>cc%PD_B_SOUTH
 !
@@ -5258,7 +5046,7 @@
         ALLOCATE(cc%CHILD_BOUND_H_NORTH(1:NUM_CHILDREN,1:2),stat=ISTAT)    !<-- 1-D bndry data string for child tasks with Nbndry H points
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%CHILD_BOUND_H_NORTH stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         CHILD_BOUND_H_NORTH=>cc%CHILD_BOUND_H_NORTH
 !
@@ -5278,7 +5066,7 @@
         ALLOCATE(cc%PD_B_NORTH(1:NUM_CHILDREN),stat=ISTAT)                 !<-- North boundary PD on H points
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%PD_B_NORTH stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         PD_B_NORTH=>cc%PD_B_NORTH
 !
@@ -5290,7 +5078,7 @@
         ALLOCATE(cc%CHILD_BOUND_H_WEST(1:NUM_CHILDREN,1:2),stat=ISTAT)     !<-- 1-D bndry data string for child tasks with Wbndry H points
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%CHILD_BOUND_H_WEST stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         CHILD_BOUND_H_WEST=>cc%CHILD_BOUND_H_WEST
 !
@@ -5310,7 +5098,7 @@
         ALLOCATE(cc%PD_B_WEST(1:NUM_CHILDREN),stat=ISTAT)                  !<-- West boundary PD on H points
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%PD_B_WEST stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         PD_B_WEST=>cc%PD_B_WEST
 !
@@ -5322,7 +5110,7 @@
         ALLOCATE(cc%CHILD_BOUND_H_EAST(1:NUM_CHILDREN,1:2),stat=ISTAT)     !<-- 1-D bndry data string for child tasks with Ebndry H points
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%CHILD_BOUND_H_EAST stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         CHILD_BOUND_H_EAST=>cc%CHILD_BOUND_H_EAST
 !
@@ -5340,7 +5128,7 @@
         ALLOCATE(cc%PD_B_EAST(1:NUM_CHILDREN),stat=ISTAT)                  !<-- East boundary PD on H points
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%PD_B_EAST stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         PD_B_EAST=>cc%PD_B_EAST
 !
@@ -5404,7 +5192,7 @@
         ALLOCATE(cc%SEND_CHILD_DATA(1:NUM_CHILDREN),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%SEND_CHILD_DATA stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         SEND_CHILD_DATA=>cc%SEND_CHILD_DATA
 !
@@ -5429,7 +5217,7 @@
         ALLOCATE(cc%HANDLE_H_SOUTH(1:NUM_CHILDREN,1:2),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%HANDLE_H_SOUTH stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         HANDLE_H_SOUTH=>cc%HANDLE_H_SOUTH
 !
@@ -5498,7 +5286,7 @@
           ALLOCATE(cc%MOVE_FLAG(1:NUM_MOVING_CHILDREN),stat=ISTAT)
           IF(ISTAT/=0)THEN
             WRITE(0,*)' Failed to allocate cpl_composite%MOVE_FLAG stat=',ISTAT
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
           MOVE_FLAG=>cc%MOVE_FLAG
           MY_CHILDREN_ID=>cc%MY_CHILDREN_ID
@@ -5506,21 +5294,21 @@
           ALLOCATE(cc%HANDLE_BC_UPDATE(1:NUM_MOVING_CHILDREN),stat=ISTAT)
           IF(ISTAT/=0)THEN
             WRITE(0,*)' Failed to allocate cpl_composite%HANDLE_BC_UPDATE stat=',ISTAT
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
           HANDLE_BC_UPDATE=>cc%HANDLE_BC_UPDATE
 !
           ALLOCATE(cc%HANDLE_TIMESTEP(1:NUM_MOVING_CHILDREN),stat=ISTAT)
           IF(ISTAT/=0)THEN
             WRITE(0,*)' Failed to allocate cpl_composite%HANDLE_TIMESTEP stat=',ISTAT
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
           HANDLE_TIMESTEP=>cc%HANDLE_TIMESTEP
 !
           ALLOCATE(cc%HANDLE_MOVE_DATA(1:NUM_MOVING_CHILDREN),stat=ISTAT)
           IF(ISTAT/=0)THEN
             WRITE(0,*)' Failed to allocate cpl_composite%HANDLE_MOVE_DATA stat=',ISTAT
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
           HANDLE_MOVE_DATA=>cc%HANDLE_MOVE_DATA
 !
@@ -5541,14 +5329,14 @@
           ALLOCATE(cc%TASK_UPDATE_SPECS(1:NUM_MOVING_CHILDREN),stat=ISTAT)
           IF(ISTAT/=0)THEN
             WRITE(0,*)' Failed to allocate cpl_composite%TASK_UPDATE_SPECS stat=',ISTAT
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
           TASK_UPDATE_SPECS=>cc%TASK_UPDATE_SPECS
 !
           ALLOCATE(cc%MOVING_CHILD_UPDATE(1:NUM_MOVING_CHILDREN),stat=ISTAT)
           IF(ISTAT/=0)THEN
             WRITE(0,*)' Failed to allocate cpl_composite%MOVING_CHILD_UPDATE stat=',ISTAT
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
           MOVING_CHILD_UPDATE=>cc%MOVING_CHILD_UPDATE
 !
@@ -5562,7 +5350,7 @@
           ALLOCATE(cc%SHIFT_INFO_CHILDREN(1:3,1:NUM_MOVING_CHILDREN),stat=ISTAT)
           IF(ISTAT/=0)THEN
             WRITE(0,*)' Failed to allocate cpl_composite%SHIFT_INFO_CHILDREN stat=',ISTAT
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
           SHIFT_INFO_CHILDREN=>cc%SHIFT_INFO_CHILDREN
 !
@@ -5585,19 +5373,10 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-            CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- The Parent-Child coupler import state
-                                  ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- Name in import state
-!!!                               ,count    =NUM_MOVING_CHILDREN          &  !<-- # of words in array
-                                  ,count    =NUM_DOMAINS_MAX              &  !<-- # of words in array
-                                  ,valueList=cc%NTIMESTEP_CHILD_MOVES     &  !<-- The next timestep the moving children move
-                                  ,rc       =RC)
-#else
             CALL ESMF_AttributeGet(state    =IMP_STATE                    &  !<-- The Parent-Child coupler import state
                                   ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- Name in import state
                                   ,valueList=cc%NTIMESTEP_CHILD_MOVES     &  !<-- The next timestep the moving children move
                                   ,rc       =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CPL_INIT)
@@ -5624,7 +5403,7 @@
       ALLOCATE(cc%SHIFT_INFO_MINE(1:3),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%SHIFT_INFO_MINE stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
       SHIFT_INFO_MINE=>cc%SHIFT_INFO_MINE
 !
@@ -5634,18 +5413,10 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      I_AM_A_NEST=ESMF_TRUE
-#else
       I_AM_A_NEST=.TRUE.
-#endif
 !
       IF(COMM_TO_MY_PARENT==-999)THEN                                      !<-- The uppermost parent
-#ifdef ESMF_3
-        I_AM_A_NEST=ESMF_FALSE
-#else
         I_AM_A_NEST=.FALSE.
-#endif
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -5670,11 +5441,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      IF(I_AM_A_NEST==ESMF_TRUE)THEN
-#else
       IF(I_AM_A_NEST)THEN
-#endif
 !
 !-----------------------------------------------------------------------
 !***  If this child moves then a variety of motion-related issues
@@ -5801,13 +5568,8 @@
 !
       ENDIF
 !
-#ifdef ESMF_3
-!     ALLCLEAR=ESMF_True  
-      ALLCLEAR_SIGNAL_PRESENT=ESMF_False
-#else
 !     ALLCLEAR=.TRUE.
       ALLCLEAR_SIGNAL_PRESENT=.FALSE.
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="P-C Init2: Insert Initial ALLCLEAR Flag"
@@ -5830,11 +5592,7 @@
 !
       parents_and_moving: IF(NUM_MOVING_CHILDREN>0                      &  !<-- This is a parent of moving nests.
                                     .OR.                                &  !
-#ifdef ESMF_3
-                             MY_DOMAIN_MOVES==ESMF_TRUE)THEN               !<-- This is a moving nest.
-#else
                              MY_DOMAIN_MOVES)THEN                          !<-- This is a moving nest.
-#endif
 !
 !-----------------------------------------------------------------------
 !***  Extract the Bundle with the 2-D and 3-D arrays of Solver 
@@ -6123,7 +5881,7 @@
               IF(NROWS_P_UPD_X/=NROWS_P_UPD_W)THEN
                 WRITE(0,*)' Moving nests must have same values for NROWS_P_UPD_W!'
                 WRITE(0,*)' Aborting!'
-                CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+                CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
               ENDIF
             ENDIF
 !
@@ -6147,7 +5905,7 @@
               IF(NROWS_P_UPD_X/=NROWS_P_UPD_E)THEN
                 WRITE(0,*)' Moving nests must have same values for NROWS_P_UPD_E!'
                 WRITE(0,*)' Aborting!'
-                CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+                CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
               ENDIF
             ENDIF
 !
@@ -6171,7 +5929,7 @@
               IF(NROWS_P_UPD_X/=NROWS_P_UPD_S)THEN
                 WRITE(0,*)' Moving nests must have same values for NROWS_P_UPD_S!'
                 WRITE(0,*)' Aborting!'
-                CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+                CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
               ENDIF
             ENDIF
 !
@@ -6195,7 +5953,7 @@
               IF(NROWS_P_UPD_X/=NROWS_P_UPD_N)THEN
                 WRITE(0,*)' Moving nests must have same values for NROWS_P_UPD_N!'
                 WRITE(0,*)' Aborting!'
-                CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+                CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
               ENDIF
             ENDIF
 !
@@ -6307,11 +6065,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        IF(MY_DOMAIN_MOVES==ESMF_TRUE)THEN                                 !<-- Moving nests read their configure files
-#else
         IF(MY_DOMAIN_MOVES)THEN                                            !<-- Moving nests read their configure files
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -6438,21 +6192,21 @@
         ALLOCATE(cc%M_NEST_RATIO(1:NUM_MOVING_CHILDREN),stat=ISTAT)        !<-- Associate moving nests with list of different space ratios
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%M_NEST_RATIO stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         M_NEST_RATIO=>cc%M_NEST_RATIO
 !
         ALLOCATE(cc%LIST_OF_RATIOS(1:NUM_MOVING_CHILDREN),stat=ISTAT)      !<-- Keep a list of the different space ratios
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%LIST_OF_RATIOS stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         LIST_OF_RATIOS=>cc%LIST_OF_RATIOS
 !
         ALLOCATE(cc%LINK_MRANK_RATIO(1:NUM_MOVING_CHILDREN),stat=ISTAT)    !<-- Which different space ratio for each moving child
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%LINK_MRANK_RATIO stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         LINK_MRANK_RATIO=>cc%LINK_MRANK_RATIO
 !
@@ -6516,14 +6270,14 @@
         ALLOCATE(cc%NEST_FIS_ON_PARENT(1:NUM_SPACE_RATIOS_MVG),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%NEST_FIS_ON_PARENT stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         NEST_FIS_ON_PARENT=>cc%NEST_FIS_ON_PARENT
 !
         ALLOCATE(cc%NEST_FIS_V_ON_PARENT(1:NUM_SPACE_RATIOS_MVG),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%NEST_FIS_V_ON_PARENT stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         NEST_FIS_V_ON_PARENT=>cc%NEST_FIS_V_ON_PARENT
 !
@@ -6535,7 +6289,7 @@
         ALLOCATE(cc%NEST_FIS_ON_PARENT_BNDS(1:NUM_SPACE_RATIOS_MVG),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%NEST_FIS_ON_PARENT_BNDS stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         NEST_FIS_ON_PARENT_BNDS=>cc%NEST_FIS_ON_PARENT_BNDS
 !
@@ -6576,11 +6330,7 @@
 !***  we need to know how many Fields there are.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      IF(I_AM_A_FCST_TASK==ESMF_TRUE.AND.NEST_MODE=='2-way')THEN
-#else
       IF(I_AM_A_FCST_TASK.AND.NEST_MODE=='2-way')THEN
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract 2-way Bundle in P-C Init"
@@ -6789,11 +6539,7 @@
                            ,READY_TO_RECV                               &
                            ,TWOWAY_SIGNAL_IS_PRESENT
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: RECV_ALL_CHILD_DATA
-#else
       LOGICAL(kind=KLOG) :: RECV_ALL_CHILD_DATA
-#endif
 !
       integer(kind=kint) :: mype_local
 !-----------------------------------------------------------------------
@@ -6899,11 +6645,7 @@
                        .AND.                                            &
                    MOD(NTIMESTEP,TIME_RATIO_MY_PARENT)==0               &  !<-- Is this a timestep boundary of my parent?
                        .AND.                                            &
-#ifdef ESMF_3
-                   ALLCLEAR_SIGNAL_PRESENT==ESMF_False)THEN                !<-- Already recvd signal from parent this timestep?
-#else
                    .NOT.ALLCLEAR_SIGNAL_PRESENT)THEN                       !<-- Already recvd signal from parent this timestep?
-#endif
 !-----------------------------------------------------------------------
 !
         IF(I_AM_LEAD_FCST_TASK)THEN
@@ -6939,23 +6681,7 @@
                       ,IERR)
         cbcst_tim(my_domain_id)=cbcst_tim(my_domain_id)+(timef()-btim)
 !
-#ifdef ESMF_3
-        IF(ALLCLEAR_SIGNAL_IS_PRESENT)THEN
-          ALLCLEAR_SIGNAL_PRESENT=ESMF_True
-!         if(i_am_lead_fcst_task)then
-!           if(ncycle_child>3)then
-!           write(0,23331)ncycle_child,my_domain_id,ntimestep
-23331       format(' child cycled ',i5,' times  my_domain_id=',i2,' ntimestep=',i6)
-!           endif
-!           ncycle_child=0
-!         endif
-        ELSE
-          ALLCLEAR_SIGNAL_PRESENT=ESMF_False
-!         ncycle_child=ncycle_child+1
-        ENDIF
-#else
         ALLCLEAR_SIGNAL_PRESENT=ALLCLEAR_SIGNAL_IS_PRESENT
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="NMM_INTEGRATE: Child Inserts ALLCLEAR into Cpl Export State"
@@ -7067,11 +6793,7 @@
 !
         IF(READY_TO_RECV)THEN
 !
-#ifdef ESMF_3
-          RECV_ALL_CHILD_DATA=ESMF_True
-#else
           RECV_ALL_CHILD_DATA=.TRUE.
-#endif
 !         if(i_am_lead_fcst_task)then
 !           if(ncycle_parent>3)then
 !           write(0,24331)ncycle_parent,my_domain_id,ntimestep
@@ -7082,11 +6804,7 @@
 !
         ELSE
 !
-#ifdef ESMF_3
-          RECV_ALL_CHILD_DATA=ESMF_False
-#else
           RECV_ALL_CHILD_DATA=.FALSE.
-#endif
 !         ncycle_parent=ncycle_parent+1
 !
         ENDIF
@@ -7185,13 +6903,8 @@
 !
       LOGICAL(kind=KLOG) :: PARENT_SHIFT_IS_PRESENT
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: ALLCLEAR_SIGNAL_PRESENT                     &
-                           ,MOVE_NOW
-#else
       LOGICAL(kind=KLOG) :: ALLCLEAR_SIGNAL_PRESENT                     &
                            ,MOVE_NOW
-#endif
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -7274,19 +6987,11 @@
 !***  have the data needed to execute its shift.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      moving_children_a: IF(MY_DOMAIN_MOVES==ESMF_TRUE)THEN                !<-- Select the moving nests
-#else
       moving_children_a: IF(MY_DOMAIN_MOVES)THEN                           !<-- Select the moving nests
-#endif
 !        
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        MOVE_NOW=ESMF_FALSE
-#else
         MOVE_NOW=.FALSE.
-#endif
 !
 !-----------------------------------------------------------------------
 !***  If this is now the point in time at which the parent prepared
@@ -7391,11 +7096,7 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-          MOVE_NOW=ESMF_TRUE                                               !<-- Yes, the child moves at beginning of this timestep
-#else
           MOVE_NOW=.TRUE.                                                  !<-- Yes, the child moves at beginning of this timestep
-#endif
 !
           I_WANT_TO_MOVE=.FALSE.                                           !<-- Reset the 'move' flag
           MOVE_FLAG_SENT=.FALSE.                                           !<-- Reset the flag for ISending the move flag
@@ -7654,11 +7355,7 @@
 !***  its parent has moved.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      moving_children_b: IF(MY_DOMAIN_MOVES==ESMF_TRUE)THEN                !<-- Select the moving nests
-#else
       moving_children_b: IF(MY_DOMAIN_MOVES)THEN                           !<-- Select the moving nests
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -7714,7 +7411,7 @@
  
             WRITE(0,*)' Unknown move type :', TRIM(MOVE_TYPE)
             WRITE(0,*)' ABORTING!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
 
           ENDIF
 !
@@ -8919,11 +8616,7 @@
 !
       PARENT_MOVED=.FALSE.
 !
-#ifdef ESMF_3
-      parent_moves: IF(MY_DOMAIN_MOVES==ESMF_TRUE)THEN
-#else
       parent_moves: IF(MY_DOMAIN_MOVES)THEN                                !<-- Does this parent domain move?
-#endif
 !
 !-----------------------------------------------------------------------
 !***  The lead task on this parent domain notifies the lead tasks on
@@ -10067,7 +9760,7 @@
             WRITE(0,20001)ISTAT
 20001       FORMAT(' Failed to allocate VBL_ARRAY for 2-D variable  stat=',i4)
             WRITE(0,*)' Aborting!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
 !
           DO J=LB2,UB2
@@ -10287,7 +9980,7 @@
             WRITE(0,20002)ISTAT
 20002       FORMAT(' Failed to deallocate VBL_ARRAY stat=',i4)
             WRITE(0,*)' Aborting!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
         ENDIF
 !
@@ -10626,11 +10319,7 @@
       LOGICAL(kind=KLOG) :: READY_TO_RECV                               &
                            ,TWOWAY_SIGNAL_IS_PRESENT
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: ALLCLEAR_FROM_MY_PARENT
-#else
       LOGICAL(kind=KLOG) :: ALLCLEAR_FROM_MY_PARENT
-#endif
 !
       CHARACTER(len=99) :: FIELD_NAME
 !
@@ -10640,7 +10329,7 @@
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
-      TYPE(ESMF_TypeKind) :: DATATYPE
+      TYPE(ESMF_TypeKind_Flag) :: DATATYPE
 !
       integer(kind=kint),dimension(8) :: values
       integer(kind=kint) :: mype_intra
@@ -11275,15 +10964,11 @@
 !
       CHARACTER(len=99) :: FIELD_NAME
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: MOVE_NOW
-#else
       LOGICAL(kind=KLOG) :: MOVE_NOW
-#endif
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
-      TYPE(ESMF_TypeKind) :: DATATYPE
+      TYPE(ESMF_TypeKind_Flag) :: DATATYPE
 !
       TYPE(COMPOSITE),POINTER :: CC
 !
@@ -11336,11 +11021,7 @@
 !***  Did this domain move at the beginning of this timestep?
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      IF(MY_DOMAIN_MOVES==ESMF_TRUE.AND..NOT.FIRST_STEP_2WAY)THEN
-#else
       IF(MY_DOMAIN_MOVES.AND..NOT.FIRST_STEP_2WAY)THEN
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="CHILDREN_SEND_PARENTS_2WAY_DATA: Extract Move Flag"
@@ -11451,17 +11132,9 @@
 !
       IF(.NOT.CALLED_CHILD_2WAY_BOOKKEEPING                             &  !<-- All nests' first update of their parents.
                       .OR.                                              &
-#ifdef ESMF_3
-         MY_DOMAIN_MOVES==ESMF_True.AND.MOVE_NOW==ESMF_True             &  !<-- This child moved at the start of this parent timestep.
-#else
          MY_DOMAIN_MOVES.AND.MOVE_NOW                                   &  !<-- This child moved at the start of this parent timestep.
-#endif
                       .OR.                                              &
-#ifdef ESMF_3
-         MY_DOMAIN_MOVES==ESMF_True                                     &
-#else
          MY_DOMAIN_MOVES                                                &
-#endif
                .AND.                                                    &
          NTIMESTEP==PARENT_SHIFT(1)*TIME_RATIO_MY_PARENT                &  !<-- Parent moved at the start of 
                     +TIME_RATIO_MY_PARENT-1)THEN                           !<-- the current parent timestep.
@@ -11803,7 +11476,7 @@
             WRITE(0,10001)
 10001       FORMAT(' Not considering the use of Integer 2-way exchange variables')
             WRITE(0,*)' ABORT!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
 !
 !-----------------------------------------------------------------------
 !
@@ -11977,22 +11650,14 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      IF(I_AM_A_PARENT==ESMF_TRUE)THEN
-#else
       IF(I_AM_A_PARENT)THEN
-#endif
         WRITE(0,*)'   Cpl2 Parent Bookkeeping for Moving Nest='         &
                   ,parent_bookkeep_moving_tim*1.e-3
         WRITE(0,*)'   Cpl2 Parent Update for Moving Nest='              &
                   ,parent_update_moving_tim*1.e-3
       ENDIF
       WRITE(0,*)' '
-#ifdef ESMF_3
-      IF(MY_DOMAIN_MOVES==ESMF_TRUE)THEN
-#else
       IF(MY_DOMAIN_MOVES)THEN
-#endif
         WRITE(0,*)'   Cpl1 Moving Nest Bookkeeping='                    &
                   ,parent_bookkeep_moving_tim*1.e-3
         WRITE(0,*)'   Cpl1 Moving Nest Update='                         &
@@ -12114,11 +11779,7 @@
 !
       TYPE(ESMF_VM) :: VM_DOMAIN
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: RESTART
-#else
       LOGICAL(kind=KLOG) :: RESTART
-#endif
 !
       TYPE(WRAP_DOMAIN_INTERNAL_STATE) :: WRAP_DOMAIN
 !
@@ -12147,7 +11808,7 @@
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Parent-Child composite object already allocated!'
           WRITE(0,*)' ABORTING!'
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
       ENDIF
 !
@@ -12352,19 +12013,11 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-      CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler's import state
-                            ,name     ='NTASKS_DOMAIN'                  &  !<-- Number of fcst+quilt tasks on each domain
-                            ,count    =NUM_DOMAINS                      &  !<-- Number of domains
-                            ,valueList=NTASKS_DOMAIN                    &  !<-- Insert this into the import state
-                            ,rc       =RC)
-#else
       CALL ESMF_AttributeSet(state    =IMP_STATE_CPL_NEST               &  !<-- The Parent-Child Coupler's import state
                             ,name     ='NTASKS_DOMAIN'                  &  !<-- Number of fcst+quilt tasks on each domain
                             ,itemCount=NUM_DOMAINS                      &  !<-- Number of domains
                             ,valueList=NTASKS_DOMAIN                    &  !<-- Insert this into the import state
                             ,rc       =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
@@ -12564,11 +12217,7 @@
 !***  The write/quilt tasks are no longer needed.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      IF(I_AM_A_FCST_TASK==ESMF_FALSE)RETURN
-#else
       IF(.NOT.I_AM_A_FCST_TASK)RETURN
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -13033,8 +12682,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
-                        ,LISTWRAPPER(HOLD_FIELD)                  &  !<-- The Field to be inserted
+      CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
+                        ,(/HOLD_FIELD/)                  &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -13064,8 +12713,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
-                        ,LISTWRAPPER(HOLD_FIELD)                  &  !<-- The Field to be inserted
+      CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
+                        ,(/HOLD_FIELD/)                  &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -13095,8 +12744,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
-                        ,LISTWRAPPER(HOLD_FIELD)                  &  !<-- The Field to be inserted
+      CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
+                        ,(/HOLD_FIELD/)                  &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -13260,11 +12909,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      parents_only: IF(I_AM_A_PARENT==ESMF_TRUE)THEN             
-#else
       parents_only: IF(I_AM_A_PARENT)THEN             
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -13345,8 +12990,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
-                        ,LISTWRAPPER(HOLD_FIELD)                  &  !<-- The Field to be inserted
+      CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
+                        ,(/HOLD_FIELD/)                  &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -13376,8 +13021,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
-                        ,LISTWRAPPER(HOLD_FIELD)                  &  !<-- The Field to be inserted
+      CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
+                        ,(/HOLD_FIELD/)                  &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -13407,8 +13052,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
-                        ,LISTWRAPPER(HOLD_FIELD)                  &  !<-- The Field to be inserted
+      CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
+                        ,(/HOLD_FIELD/)                  &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -13438,8 +13083,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
-                        ,LISTWRAPPER(HOLD_FIELD)                  &  !<-- The Field to be inserted
+      CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
+                        ,(/HOLD_FIELD/)                  &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -13469,8 +13114,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
-                        ,LISTWRAPPER(HOLD_FIELD)                  &  !<-- The Field to be inserted
+      CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
+                        ,(/HOLD_FIELD/)                  &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -13500,8 +13145,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
-                        ,LISTWRAPPER(HOLD_FIELD)                  &  !<-- The Field to be inserted
+      CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
+                        ,(/HOLD_FIELD/)                  &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -13531,8 +13176,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
-                        ,LISTWRAPPER(HOLD_FIELD)                  &  !<-- The Field to be inserted
+      CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                       &  !<-- The Parent-Child Coupler's import state
+                        ,(/HOLD_FIELD/)                  &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -13638,11 +13283,7 @@
 !
       ID=MY_DOMAIN_ID
 !
-#ifdef ESMF_3
-      IF(I_AM_A_PARENT==ESMF_TRUE)THEN
-#else
       IF(I_AM_A_PARENT)THEN
-#endif
 !
         ALLOCATE(CTASK_LIMITS(ID)%CHILDREN(1:NUM_CHILDREN))
 !
@@ -13688,7 +13329,7 @@
         ALLOCATE(cc%NTIMESTEP_CHILD_MOVES(1:NUM_DOMAINS_MAX),stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate cpl_composite%NTIMESTEP_CHILD_MOVES stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         NTIMESTEP_CHILD_MOVES=>cc%NTIMESTEP_CHILD_MOVES
 !
@@ -13696,29 +13337,17 @@
           NTIMESTEP_CHILD_MOVES(N)=-999
         ENDDO
 !
-#ifdef ESMF_3
-        IF(RESTART==ESMF_True)THEN
-#else
         IF(RESTART)THEN
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract Next Move Timestep of Children from DOMAIN Export State"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-          CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN             &  !<-- The DOMAIN export state
-                                ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- The name of the Attribute
-                                ,count    =NUM_DOMAINS_MAX              &  !<-- The number of items
-                                ,valueList=NTIMESTEP_CHILD_MOVES        &  !<-- The Attribute to be retrieved
-                                ,rc       =RC)
-#else
           CALL ESMF_AttributeGet(state    =EXP_STATE_DOMAIN             &  !<-- The DOMAIN export state
                                 ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- The name of the Attribute
                                 ,valueList=NTIMESTEP_CHILD_MOVES        &  !<-- The Attribute to be retrieved
                                 ,rc       =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_NESTSET)
@@ -13752,11 +13381,7 @@
 !-----------------------------------------------------------------------
 !
 !
-#ifdef ESMF_3
-      get_bc_bundle: IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
       get_bc_bundle: IF(I_AM_A_FCST_TASK)THEN
-#endif
         BUNDLE_NESTBC=>cc%BUNDLE_NESTBC
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -13778,8 +13403,8 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_StateAdd(IMP_STATE_CPL_NEST                           &  !<-- The Parent-Child Coupler's import state
-                          ,LISTWRAPPER(BUNDLE_NESTBC)                   &  !<-- The Bundle of Solver int state pointers for nest BC vbls
+        CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                           &  !<-- The Parent-Child Coupler's import state
+                          ,(/BUNDLE_NESTBC/)                   &  !<-- The Bundle of Solver int state pointers for nest BC vbls
                           ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -13969,12 +13594,12 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(IMP_STATE_CPL_NEST                 &  !<-- The Parent-Child Coupler's import state
-                        ,LISTWRAPPER(MOVE_BUNDLE_H)         &  !<-- The Bundle of internal state H arrays to update
+      CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                 &  !<-- The Parent-Child Coupler's import state
+                        ,(/MOVE_BUNDLE_H/)         &  !<-- The Bundle of internal state H arrays to update
                         ,rc         =RC)
 !
-      CALL ESMF_StateAdd(IMP_STATE_CPL_NEST                 &  !<-- The Parent-Child Coupler's import state
-                        ,LISTWRAPPER(MOVE_BUNDLE_V)         &  !<-- The Bundle of internal state V arrays to update
+      CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                 &  !<-- The Parent-Child Coupler's import state
+                        ,(/MOVE_BUNDLE_V/)         &  !<-- The Bundle of internal state V arrays to update
                         ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -14013,8 +13638,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(IMP_STATE_CPL_NEST                 &  !<-- The Parent-Child Coupler's import state
-                        ,LISTWRAPPER(BUNDLE_2WAY)           &  !<-- The Bundle of Solver internal state pointers for 2-way exch
+      CALL ESMF_StateAddReplace(IMP_STATE_CPL_NEST                 &  !<-- The Parent-Child Coupler's import state
+                        ,(/BUNDLE_2WAY/)           &  !<-- The Bundle of Solver internal state pointers for 2-way exch
                         ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -14534,14 +14159,14 @@
       ALLOCATE(CC%PARENT_4_INDICES_H(1:NUM_CHILDREN),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%PARENT_4_INDICES_H stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
       PARENT_4_INDICES_H=>cc%PARENT_4_INDICES_H
 !
       ALLOCATE(CC%PARENT_4_INDICES_V(1:NUM_CHILDREN),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%PARENT_4_INDICES_V stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
       PARENT_4_INDICES_V=>cc%PARENT_4_INDICES_V
 !
@@ -14554,14 +14179,14 @@
       ALLOCATE(CC%PARENT_4_WEIGHTS_H(1:NUM_CHILDREN),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%PARENT_4_WEIGHTS_H stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
       PARENT_4_WEIGHTS_H=>CC%PARENT_4_WEIGHTS_H
 !
       ALLOCATE(CC%PARENT_4_WEIGHTS_V(1:NUM_CHILDREN))
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%PARENT_4_WEIGHTS_V stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
       PARENT_4_WEIGHTS_V=>CC%PARENT_4_WEIGHTS_V
 !
@@ -14574,7 +14199,7 @@
       ALLOCATE(cc%NUM_TASKS_SEND_H_S(1:NUM_CHILDREN),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%NUM_TASKS_SEND_H_S stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
       NUM_TASKS_SEND_H_S=>cc%NUM_TASKS_SEND_H_S
 !
@@ -14608,14 +14233,14 @@
       ALLOCATE(cc%CHILDTASK_BNDRY_H_RANKS(1:NUM_CHILDREN),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%CHILDTASK_BNDRY_H_RANKS stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
       CHILDTASK_BNDRY_H_RANKS=>cc%CHILDTASK_BNDRY_H_RANKS
 !
       ALLOCATE(cc%CHILDTASK_BNDRY_V_RANKS(1:NUM_CHILDREN),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%CHILDTASK_BNDRY_V_RANKS stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
       CHILDTASK_BNDRY_V_RANKS=>cc%CHILDTASK_BNDRY_V_RANKS
 !
@@ -14627,14 +14252,14 @@
       ALLOCATE(cc%CHILDTASK_H_SAVE(1:NUM_CHILDREN),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%CHILDTASK_H_SAVE stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
       CHILDTASK_H_SAVE=>cc%CHILDTASK_H_SAVE
 !
       ALLOCATE(cc%CHILDTASK_V_SAVE(1:NUM_CHILDREN),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate cpl_composite%CHILDTASK_V_SAVE stat=',ISTAT
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
       CHILDTASK_V_SAVE=>cc%CHILDTASK_V_SAVE
 !
@@ -15477,7 +15102,7 @@
               ,' boundary of domain #',I2)
 20222   FORMAT(' Parent J of child Sbndry=',e12.5,' parent jds=',i3,' flag_h_or_v=',a)
         WRITE(0,*)' ABORTING!!'
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
 !
       IF(PARENT_J_CHILD_NBND>=JDE-2)THEN
@@ -15487,7 +15112,7 @@
               ,' boundary of domain #',I2)
 20224   FORMAT(' Parent J of child Nbndry=',e12.5,' parent jde=',i3,' flag_h_or_v=',a)
         WRITE(0,*)' ABORTING!!'
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
 !
       IF(PARENT_I_CHILD_WBND<=IDS+2)THEN
@@ -15497,7 +15122,7 @@
               ,' boundary of domain #',I2)
 20226   FORMAT(' Parent I of child Wbndry=',e12.5,' parent ids=',i3,' flag_h_or_v=',a)
         WRITE(0,*)' ABORTING!!'
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
 !
       IF(PARENT_I_CHILD_EBND>=IDE+2)THEN
@@ -15507,7 +15132,7 @@
               ,' boundary of domain #',I2)
 20228   FORMAT(' Parent I of child Ebndry=',e12.5,' parent ide=',i3,' flag_h_or_v=',a)
         WRITE(0,*)' ABORTING!!'
-        CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -16140,7 +15765,7 @@
 11101       FORMAT(' POINT_INTERP_DATA_TO_MEMORY failed to allocate'    &
                   ,' BND_VAR(',I2,')%CHILD(',I2,')%TASKS(1:',I4,')'     &
                   ,' ISTAT=',I4)
-            CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT)
+            CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT)
           ENDIF
         ENDDO
 !
@@ -21388,7 +21013,7 @@
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
-      TYPE(ESMF_TypeKind) :: DATATYPE
+      TYPE(ESMF_TypeKind_Flag) :: DATATYPE
 !
 !-----------------------------------------------------------------------
 !***********************************************************************

@@ -1,12 +1,3 @@
-
-#include "../../ESMFVersionDefine.h"
-
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 
       MODULE MODULE_SOLVER_INTERNAL_STATE
@@ -20,7 +11,7 @@
 !***  variables, and the grid decomposition variables.
 !-----------------------------------------------------------------------
 !
-      USE ESMF_Mod
+      USE ESMF
 !
       USE module_INCLUDE
       USE module_DERIVED_TYPES,ONLY: BC_H_ALL,BC_V_ALL
@@ -397,11 +388,7 @@
         LOGICAL(kind=KLOG) :: DISHEAT=.true.          ! true='consider diss heating'
 !!
 !
-#ifdef ESMF_3
-        TYPE(ESMF_Logical) :: MY_DOMAIN_MOVES
-#else
         LOGICAL(kind=KLOG) :: MY_DOMAIN_MOVES
-#endif
 !
 !-----------------------------------------------------------------------
 !***  Distributed memory information.
@@ -593,11 +580,7 @@
         INTEGER(kind=KINT),DIMENSION(:),ALLOCATABLE :: LBND_4D          &  !<-- Lower/upper bounds of the count of the # of
                                                       ,UBND_4D             !    3-D arrays in the 4-D variables
 !
-#ifdef ESMF_3
-        TYPE(ESMF_Logical) :: I_AM_A_NEST                                  !<-- Am I in a nested domain?
-#else
         LOGICAL(kind=KLOG) :: I_AM_A_NEST                                  !<-- Am I in a nested domain?
-#endif
 !
 !-----------------------------------------------------------------------
 !***  Begin with the namelist variables.

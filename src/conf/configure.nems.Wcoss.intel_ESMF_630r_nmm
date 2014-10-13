@@ -1,8 +1,6 @@
 SHELL       = /bin/ksh
 
-#include /usrx/local/esmf-3.1.0rp5/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
-include /nems/save/Weiyu.Yang/ESMF_6_3_0r/esmf/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
-#
+include       $(ESMFMKFILE)
 ESMF_INC    = $(ESMF_F90COMPILEPATHS)
 ESMF_LIB    = $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_F90ESMFLINKLIBS)
 
@@ -32,9 +30,6 @@ G2_LIB      = -L/nwprod/lib -lg2tmpl -lg2_4 -ljasper -lpng -lz
 XML_LIB     = -L/nwprod/lib -lxmlparse
 SIGIO_LIB   = -L/nwprod/lib -lsigio_4
 SFCIO_LIB   = -L/nwprod/lib -lsfcio_4
-
-##FC          = mpiifort -g -traceback
-
 
 EXTLIBS     = $(NEMSIO_LIB) \
               $(W3_LIB) \

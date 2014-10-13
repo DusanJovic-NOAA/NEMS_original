@@ -1,10 +1,3 @@
-#include "../../ESMFVersionDefine.h"
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_NESTING
@@ -38,7 +31,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
       USE netcdf
 !
       USE module_INCLUDE
@@ -739,7 +732,7 @@
       ALLOCATE(COMMS_DOMAIN(1:NUM_DOMAINS_TOTAL),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate COMMS_DOMAIN!'
-        CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
       ENDIF
 !
       DO N=1,NUM_DOMAINS_TOTAL
@@ -749,7 +742,7 @@
       ALLOCATE(CHILD_RANKS(1:NUM_DOMAINS_TOTAL),stat=ISTAT)
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate CHILD_RANKS!'
-        CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
       ENDIF
 !
       DO N=1,NUM_DOMAINS_TOTAL
@@ -851,7 +844,7 @@
 !
           IF(ISTAT/=0)THEN
             WRITE(0,*)' Failed to allocate child_ranks%CHILDREN!'
-            CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
           ENDIF
 !
 !-----------------------------------------------------------------------
@@ -935,7 +928,7 @@
 !
                 WRITE(0,*)' ERROR: Child global task rank not found'
                 WRITE(0,*)' ABORTING!'
-                CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+                CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
               ENDDO
 !
             ENDDO child_loop2
@@ -2548,7 +2541,7 @@
                                 +WEIGHT_EAST*ARRAY_STAGE_PARENT(INDX_EAST,1,L)
             ELSE
               WRITE(0,*)" Attempting to use unknown interpolation method: ",METHOD
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
 !
             ENDIF
 !
@@ -2574,7 +2567,7 @@
                               +WEIGHT_NORTH*ARRAY_STAGE_PARENT(1,INDX_NORTH,L)
             ELSE
               WRITE(0,*)" Attempting to use unknown interpolation method: ",METHOD
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
 !
             ENDIF
 !
@@ -2668,7 +2661,7 @@
 !
               ELSE
                 WRITE(0,*)" Attempting to use unknown interpolation method: ",METHOD
-                CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+                CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
 !
               ENDIF assign
 !
@@ -4772,11 +4765,7 @@
 !
       INTEGER(kind=KINT),INTENT(OUT) :: LM                                 !<-- # of model layers
 !
-#ifdef ESMF_3
-      TYPE(ESMF_State),INTENT(IN) :: EXP_STATE_SOLVER                      !<-- Solver export state
-#else
       TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_SOLVER                   !<-- Solver export state
-#endif
 !
       TYPE(ESMF_State),INTENT(INOUT) :: EXP_STATE_DOMAIN                   !<-- DOMAIN export state into which fcst Arrays are transferred
 !
@@ -4807,18 +4796,14 @@
 !
       REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: ARRAY_4D
 !
-      TYPE(ESMF_StateItemType) :: STATEITEMTYPE
+      TYPE(ESMF_StateItem_Flag) :: STATEITEMTYPE
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
       TYPE(ESMF_Grid) :: GRID_X
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: RESTART
-#else
       LOGICAL(kind=KLOG) :: RESTART
 !
-#endif
       CHARACTER(len=8), DIMENSION(7) :: EXP_FIELD
 !
 !-----------------------------------------------------------------------
@@ -4881,17 +4866,10 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
         CALL ESMF_StateGet(              EXP_STATE_SOLVER               &  !<-- The Solver export state
                           ,              TRIM(EXP_FIELD(N))             &  !<-- Check presence of this Field
                           ,              STATEITEMTYPE                  &  !<-- ESMF Type of the Field
                           ,rc           =RC)
-#else
-        CALL ESMF_StateGet(state        =EXP_STATE_SOLVER               &  !<-- The Solver export state
-                          ,name         =TRIM(EXP_FIELD(N))             &  !<-- Check presence of this Field
-                          ,stateItemType=STATEITEMTYPE                  &  !<-- ESMF Type of the Field
-                          ,rc           =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_TRANS)
@@ -4930,8 +4908,8 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_StateAdd(      EXP_STATE_DOMAIN                       &  !<-- Insert PD into DOMAIN export state
-                          , LISTWRAPPER(HOLD_FIELD)                     &  !<-- The Field to be inserted
+        CALL ESMF_StateAddReplace(      EXP_STATE_DOMAIN                       &  !<-- Insert PD into DOMAIN export state
+                          , (/HOLD_FIELD/)                     &  !<-- The Field to be inserted
                           ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -5044,8 +5022,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(EXP_STATE_DOMAIN                               &  !<-- Insert FIS into DOMAIN export state
-                        ,LISTWRAPPER(HOLD_FIELD)                        &  !<-- The Field to be inserted
+      CALL ESMF_StateAddReplace(EXP_STATE_DOMAIN                               &  !<-- Insert FIS into DOMAIN export state
+                        ,(/HOLD_FIELD/)                        &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
       CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The DOMAIN export state
@@ -5080,8 +5058,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(EXP_STATE_DOMAIN                               &  !<-- Insert GLAT into DOMAIN export state
-                        ,LISTWRAPPER(HOLD_FIELD)                        &  !<-- The Field to be inserted
+      CALL ESMF_StateAddReplace(EXP_STATE_DOMAIN                               &  !<-- Insert GLAT into DOMAIN export state
+                        ,(/HOLD_FIELD/)                        &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
       CALL ESMF_StateGet(state       =EXP_STATE_DOMAIN                  &  !<-- The Domain export state
@@ -5116,8 +5094,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(EXP_STATE_DOMAIN                               &  !<-- Insert GLON into DOMAIN export state
-                        ,LISTWRAPPER(HOLD_FIELD)                        &  !<-- The Field to be inserted
+      CALL ESMF_StateAddReplace(EXP_STATE_DOMAIN                               &  !<-- Insert GLON into DOMAIN export state
+                        ,(/HOLD_FIELD/)                        &  !<-- The Field to be inserted
                         ,rc   =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -5528,13 +5506,8 @@
 !
       INTEGER(kind=KINT),INTENT(IN),OPTIONAL :: RATIO                      !<-- # of child timesteps per parent timestep          
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical),INTENT(IN),OPTIONAL :: NEST                    &  !<-- Is task on a nest domain?
-                                               ,PARENT                     !<-- Is task on a parent domain?
-#else
       LOGICAL(kind=KLOG),INTENT(IN),OPTIONAL :: NEST                    &  !<-- Is task on a nest domain?
                                                ,PARENT                     !<-- Is task on a parent domain?
-#endif
       TYPE(ESMF_State),INTENT(INOUT) :: STATE_IN                        &  !<-- Input ESMF State
                                        ,STATE_OUT                          !<-- Output ESMF State
 !
@@ -5563,21 +5536,11 @@
 !
       LOGICAL(kind=KLOG),SAVE :: EXTRACTED_FLAGS=.FALSE.
 !
-#ifdef ESMF_3
-!!!   TYPE(ESMF_Logical),SAVE :: I_AM_A_NEST                            &
-      TYPE(ESMF_Logical) :: I_AM_A_NEST                                 &
-                           ,MY_DOMAIN_MOVES
-#else
 !!!   LOGICAL(kind=KLOG),SAVE :: I_AM_A_NEST                            &
       LOGICAL(kind=KLOG) :: I_AM_A_NEST                                 &
                            ,MY_DOMAIN_MOVES
-#endif
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: MOVE_NOW
-#else
       LOGICAL(kind=KLOG) :: MOVE_NOW
-#endif
 !
       TYPE(SIDES_1D_REAL),SAVE :: BOUNDARY_H                            &
                                  ,BOUNDARY_V
@@ -5654,11 +5617,7 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-        IF(I_AM_A_NEST==ESMF_TRUE)THEN
-#else
         IF(I_AM_A_NEST)THEN
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract the Moving Nest Flag in BOUNDARY_DATA_STATE_TO_STATE"
@@ -5699,29 +5658,17 @@
 !
       IF(PRESENT(PARENT))THEN
 !
-#ifdef ESMF_3
-        IF(PARENT==ESMF_True)THEN
-#else
         IF(PARENT)THEN
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       MESSAGE_CHECK="Extract NTIMESTEP_CHILD_MOVES in BOUNDARY_DATA_STATE_TO_STATE"
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-          CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Look at the input state
-                                ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- Get this Attribute
-                                ,count    =NUM_DOMAINS_MAX              &  !<-- How many items?
-                                ,valueList=NTIMESTEP_CHILD_MOVES        &  !<-- What are the children's next move timesteps?
-                                ,rc       =RC )
-#else
           CALL ESMF_AttributeGet(state    =STATE_IN                     &  !<-- Look at the input state
                                 ,name     ='NEXT_TIMESTEP_CHILD_MOVES'  &  !<-- Get this Attribute
                                 ,valueList=NTIMESTEP_CHILD_MOVES        &  !<-- What are the children's next move timesteps?
                                 ,rc       =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_BND_MV)
@@ -5762,16 +5709,9 @@
 !***  true then both types are present and must be transfered.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      MOVE_NOW=ESMF_FALSE
-!
-      IF(I_AM_A_NEST==ESMF_TRUE.AND.MY_DOMAIN_MOVES==ESMF_TRUE          &
-         .AND..NOT.PRESENT(PARENT))THEN
-#else
       MOVE_NOW=.FALSE.
 !
       IF(I_AM_A_NEST.AND.MY_DOMAIN_MOVES.AND..NOT.PRESENT(PARENT))THEN
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract NEXT_MOVE_TIMESTEP in BOUNDARY_DATA_STATE_TO_STATE"
@@ -5920,11 +5860,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      IF(MOVE_NOW==ESMF_FALSE)THEN
-#else
       IF(.NOT.MOVE_NOW)THEN
-#endif
         LIMIT=1                                                            !<-- Only normal boundary data present at time N+1
       ELSE
         LIMIT=2                                                            !<-- Boundary data also present after move for time N
@@ -6485,11 +6421,7 @@
       CHARACTER(len=17) :: NAME_REAL
       CHARACTER(len=20) :: NAME_INTEGER
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: MOVE_NOW
-#else
       LOGICAL(kind=KLOG) :: MOVE_NOW
-#endif
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -6542,11 +6474,7 @@
 !***  coupler export state to the DOMAIN import state.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      move_check: IF(MOVE_NOW==ESMF_TRUE)THEN
-#else
       move_check: IF(MOVE_NOW)THEN
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -9007,13 +8935,9 @@
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
-      TYPE(ESMF_TypeKind) :: DATATYPE
+      TYPE(ESMF_TypeKind_Flag) :: DATATYPE
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: EXCH_NEEDED
-#else
       LOGICAL(kind=KLOG) :: EXCH_NEEDED
-#endif
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -9100,11 +9024,7 @@
 !***  Move to the next Field if a halo exchange is not needed.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        IF(EXCH_NEEDED==ESMF_FALSE)THEN
-#else
         IF(.NOT.EXCH_NEEDED)THEN
-#endif
           CYCLE field_loop
         ENDIF
 !
@@ -10040,7 +9960,7 @@
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
-      TYPE(ESMF_TypeKind) :: DATATYPE
+      TYPE(ESMF_TypeKind_Flag) :: DATATYPE
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -10132,7 +10052,7 @@
           IF(PTR_H%IL(3)>0)THEN                                            !<-- If true then there must be a 2nd update region.               
             IF(PTR_V%IL(3)<0)THEN
               WRITE(0,*)' A 2nd update region exists for H points but not V!!  ABORT!!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
             ENDIF
             NUM_ITER(N)=2                           
             NPOINTS_HORIZ_H=(PTR_H%IL(4)-PTR_H%IL(3)+1)                 &
@@ -10202,7 +10122,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
-                                ,FIELDNAME  ='PDO'//SUFFIX_MOVE         &  !<-- Get the Field with this name
+                                ,fieldName  ='PDO'//SUFFIX_MOVE         &  !<-- Get the Field with this name
                                 ,field      =HOLD_FIELD                 &  !<-- Put the Field here
                                 ,rc         =RC)
 !
@@ -10236,7 +10156,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_FieldBundleGet(FIELDBUNDLE=MOVE_BUNDLE                &  !<-- Bundle holding the arrays for move updates
-                                ,FIELDNAME  ='SM'//SUFFIX_MOVE          &  !<-- The parent's sea mask
+                                ,fieldName  ='SM'//SUFFIX_MOVE          &  !<-- The parent's sea mask
                                 ,field      =HOLD_FIELD                 &  !<-- Put the Field here
                                 ,rc         =RC)
 !
@@ -11379,7 +11299,7 @@
                     WRITE(0,*)' # of levels in 3-D variable is ',NUM_LEVELS
                     WRITE(0,*)' That is not midlayer, interface, or soil.'
                     WRITE(0,*)' ABORT!!'
-                    CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+                    CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
 !
                   ENDIF
 !
@@ -11834,7 +11754,7 @@
           WRITE(0,*)' User specified more than 9 different'            &
                    ,' moving nest resolutions!!!'
           WRITE(0,*)' ABORTING'
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
 !
         FILENAME='FIS_'//TRIM(ID_TOPO_FILE)//'.nc'
@@ -12224,7 +12144,7 @@
           IF(ISTAT/=0)THEN
             WRITE(0,*)' Failed to deallocate link #',KOUNT,' in 2-way linked list!'
             WRITE(0,*)' Aborting!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
         ENDIF
 !
@@ -12623,7 +12543,7 @@
             WRITE(0,11101)NTASKS_UPDATE_PARENT
 11101       FORMAT(' Child task is updating ',I3,' parent tasks which is > 4')
             WRITE(0,*)' Aborting!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
 !
           ID_PARENT_UPDATE_TASKS(NTASKS_UPDATE_PARENT)=N                   !<-- Local rank of the parent task.
@@ -12636,7 +12556,7 @@
               WRITE(0,11102)NTASKS_UPDATE_PARENT
 11102         FORMAT(' Failed to deallocate I_2WAY_UPDATE(',I1,')%DATA')
               WRITE(0,*)' Aborting!!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
             ENDIF
           ENDIF
 !
@@ -12646,7 +12566,7 @@
             WRITE(0,11103)NTASKS_UPDATE_PARENT
 11103       FORMAT(' Failed to allocate I_2WAY_UPDATE(',I1,')%DATA')
             WRITE(0,*)' Aborting!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
 !
           IF(ASSOCIATED(J_2WAY_UPDATE(NTASKS_UPDATE_PARENT)%DATA))THEN
@@ -12655,7 +12575,7 @@
               WRITE(0,11104)NTASKS_UPDATE_PARENT
 11104         FORMAT(' Failed to deallocate J_2WAY_UPDATE(',I1,')%DATA')
               WRITE(0,*)' Aborting!!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
             ENDIF
           ENDIF
 !
@@ -12665,7 +12585,7 @@
             WRITE(0,11105)NTASKS_UPDATE_PARENT
 11105       FORMAT(' Failed to allocate J_2WAY_UPDATE(',I1,')%DATA')
             WRITE(0,*)' Aborting!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
 !
 !-----------------------------------------------------------------------

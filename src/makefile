@@ -8,7 +8,7 @@ exist := $(wildcard ./conf/configure.nems)
 ifneq ($(strip $(exist)),)
   include ./conf/configure.nems
 else
-  $(error Error: !!!!!! Configure file is missing. Please create ./conf/configure.nems  by running ./esmf_version !!!!!!)
+  $(error Error: !!!!!! Configure file is missing. Please create ./conf/configure.nems  by running ./configure !!!!!!)
 endif
 
 # Need a variable that contains only a comma for some of the operations below
@@ -203,7 +203,7 @@ all:
 	@echo
 	@echo " gmake nmm_gsm ----------------------------- NMM and GSM - without the GOCART"
 	@echo " gmake gen --------------------------------- GEN "
-	@echo " gmake nmm_gsm_gen_post GOCART_MODE=full --- GEN, NMM and GSM - with the GOCART and post"
+	@echo " gmake gsm_gen_post GOCART_MODE=full ------- GEN and GSM - with the GOCART and post"
 	@echo " gmake nmm_gsm GOCART_MODE=full ------------ NMM and GSM - with the GOCART"
 	@echo " gmake nmm --------------------------------- NMM "
 	@echo " gmake nmm_post ---------------------------- NMM - with post"
@@ -255,14 +255,14 @@ nmm_post: nmm_post_libs $(OBJS) $(COBJS) $(MAIN)
 	@echo "$(TARGET) is created for NMM core."
 
 nmm_post_libs:
-	cd atmos/share         && gmake
-	cd atmos/phys          && gmake gocart_stub
-	cd atmos/nmm           && gmake
+	cd atmos/share         && gmake $(J)
+	cd atmos/phys          && gmake $(J) gocart_stub
+	cd atmos/nmm           && gmake $(J)
 	cd $(gfsdir)           && gmake stub
 	cd atmos/gen           && gmake stub
 	cd atmos/fim           && gmake stub
-	cd atmos/post          && gmake gfs_stub
-	cd atmos               && gmake
+	cd atmos/post          && gmake $(J) gfs_stub
+	cd atmos               && gmake $(J)
 	cd ENS_Cpl             && gmake stub
 
 ################################################################################
@@ -364,26 +364,26 @@ endif
 
 ################################################################################
 #
-# GEN, NMM and GSM with post
+# GEN and GSM with post
 #
 ################################################################################
 
-nmm_gsm_gen_post: nmm_gsm_gen_post_libs $(OBJS) $(COBJS) $(MAIN)
+gsm_gen_post: gsm_gen_post_libs $(OBJS) $(COBJS) $(MAIN)
 	$(FC) $(FFLAGS_GFS) $(SMP) -o $(TARGET) $(MAIN) $(OBJS) $(COBJS) $(LIBS) $(LIBGOCART) $(gfsdir)/phys/gfs_physics.a $(gfsdir)/dyn/gfs_dynamics.a $(EXTLIBS_POST)
-	@echo "nems.x is created for GEN, NMM and GSM core."
+	@echo "nems.x is created for GEN and GSM core."
 
-nmm_gsm_gen_post_libs:
+gsm_gen_post_libs:
 ifeq ($(GOCART_MODE),full)
 	cd chem/gocart/src     && gmake install GOCART_MODE=$(GOCART_MODE)
 endif
 	cd atmos/share         && gmake
 	cd atmos/phys          && gmake gocart_$(GOCART_MODE)
-	cd atmos/nmm           && gmake
+	cd atmos/nmm           && gmake stub
 	cd atmos/io            && gmake
 	cd $(gfsdir)           && gmake gocart_$(GOCART_MODE)
 	cd atmos/gen           && gmake
 	cd atmos/fim           && gmake stub
-	cd atmos/post          && gmake 
+	cd atmos/post          && gmake nmm_stub
 	cd atmos               && gmake
 	cd ENS_Cpl             && gmake
 

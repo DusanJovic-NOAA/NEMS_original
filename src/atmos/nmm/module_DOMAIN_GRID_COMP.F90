@@ -1,11 +1,3 @@
-#include "../../ESMFVersionDefine.h"
-
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 !
       MODULE module_DOMAIN_GRID_COMP
@@ -48,7 +40,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
       USE netcdf
 !
       USE MODULE_INCLUDE
@@ -141,9 +133,6 @@
 !
       REAL(kind=KFPT),SAVE :: SBD_1,TPH0D_1,TLM0D_1,WBD_1                  !<-- SW corner & center (degrees) of upper parent
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: QUILTING_ESMF
-#endif
       LOGICAL(kind=KLOG) :: QUILTING                                    &  !<-- Is asynchronous quilting specified?
                            ,WRITE_LAST_RESTART                          &  !<-- Write last restart file?
                            ,RESTARTED_RUN                                  !<-- Restarted run logical flag
@@ -166,11 +155,7 @@
 !
       TYPE(ESMF_Config),DIMENSION(99),SAVE :: CF                           !<-- The configure objects for all NMM domains
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical),SAVE :: PHYSICS_ON                                !<-- Is physics active?
-#else
       LOGICAL(kind=KLOG) :: PHYSICS_ON                                     !<-- Is physics active?
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -232,15 +217,9 @@
       LOGICAL(kind=KLOG),SAVE :: DOMAIN_MOVES                           &  !<-- Does my nested domain move?
                                 ,GLOBAL_TOP_PARENT                         !<-- Is the uppermost parent a global domain?
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical),SAVE :: I_AM_A_NEST                            &  !<-- Is the domain a nest?
-                                ,INPUT_READY                            &  !<-- If a nest, does its input file already exist?
-                                ,MY_DOMAIN_MOVES                           !<-- The ESMF equivalent of DOMAIN_MOVES.
-#else
       LOGICAL(kind=KLOG) :: I_AM_A_NEST                                 &  !<-- Is the domain a nest?
                            ,INPUT_READY                                 &  !<-- If a nest, does its input file already exist?
                            ,MY_DOMAIN_MOVES                                !<-- Does this domain move?
-#endif
 !
       CHARACTER(len=7) :: SFC_CONFLICT
 !
@@ -311,19 +290,8 @@
       CALL ESMF_GridCompSetEntryPoint(DOMAIN_GRID_COMP                  &  !<-- Domain gridded component
                                      ,ESMF_METHOD_INITIALIZE            &  !<-- Subroutine type (Initialize)
                                      ,DOMAIN_INITIALIZE                 &  !<-- User's subroutine name
-#ifdef ESMF_3
-                                     ,ESMF_SINGLEPHASE                  &
-                                     ,RC)
-#else
-#ifdef ESMF_520r
                                      ,phase=1                           &
                                      ,rc=RC)
-#else
-                                     ,phase=ESMF_SINGLEPHASE            &
-                                     ,rc=RC)
-#endif
-#endif
-
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -342,18 +310,8 @@
       CALL ESMF_GridCompSetEntryPoint(DOMAIN_GRID_COMP                  &  !<-- The Domain component
                                      ,ESMF_METHOD_RUN                   &  !<-- Subroutine type (Run)
                                      ,DOMAIN_RUN                        &  !<-- The user's subroutine name for primary integration
-#ifdef ESMF_3
-                                     ,1                                 &
-                                     ,RC)
-#else
-#ifdef ESMF_520r
                                      ,phase=1                           &
                                      ,rc=RC)
-#else
-                                     ,phase=1                           &
-                                     ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -367,18 +325,8 @@
       CALL ESMF_GridCompSetEntryPoint(DOMAIN_GRID_COMP                  &  !<-- The Domain component
                                      ,ESMF_METHOD_RUN                   &  !<-- Subroutine type (Run)
                                      ,NMM_FILTERING                     &  !<-- Routine to govern digital filtering each timestep
-#ifdef ESMF_3
-                                     ,2                                 &
-                                     ,RC)
-#else
-#ifdef ESMF_520r
                                      ,phase=2                           &
                                      ,rc=RC)
-#else
-                                     ,phase=2                           &
-                                     ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -392,18 +340,8 @@
       CALL ESMF_GridCompSetEntryPoint(DOMAIN_GRID_COMP                  &  !<-- The Domain component
                                      ,ESMF_METHOD_RUN                   &  !<-- Subroutine type (Run)
                                      ,CALL_WRITE_ASYNC                  &  !<-- Routine to call asynchronous output
-#ifdef ESMF_3
-                                     ,3                                 &
-                                     ,RC)
-#else
-#ifdef ESMF_520r
                                      ,phase=3                           &
                                      ,rc=RC)
-#else
-                                     ,phase=3                           &
-                                     ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -421,18 +359,8 @@
       CALL ESMF_GridCompSetEntryPoint(DOMAIN_GRID_COMP                  &  !<-- The Domain component
                                      ,ESMF_METHOD_FINALIZE              &  !<-- Subroutine type (Finalize)
                                      ,DOMAIN_FINALIZE                   &  !<-- User's subroutine name
-#ifdef ESMF_3
-                                     ,ESMF_SINGLEPHASE                  &
-                                     ,RC)
-#else
-#ifdef ESMF_520r
                                      ,phase=1                           &
                                      ,rc=RC)
-#else
-                                     ,phase=ESMF_SINGLEPHASE            &
-                                     ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -536,14 +464,8 @@
                            ,NEMSIO_INPUT                                &
                            ,OPENED
 !
-#ifdef ESMF_3
-      LOGICAL(kind=KLOG) :: INPUT_READY_FLAG
-      TYPE(ESMF_Logical) :: I_AM_A_FCST_TASK                            &
-                           ,I_AM_A_PARENT
-#else
       LOGICAL(kind=KLOG) :: I_AM_A_FCST_TASK                            &
                            ,I_AM_A_PARENT 
-#endif
 !
       CHARACTER(2)  :: INT_TO_CHAR
       CHARACTER(5)  :: NEST_MODE    
@@ -948,11 +870,7 @@
 !***  input file has already been generated by NPS.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      IF(I_AM_A_NEST==ESMF_TRUE)THEN
-#else
       IF(I_AM_A_NEST)THEN
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Parent-Child Time Ratio from Domain Import State"
@@ -973,22 +891,6 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-        CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)            &  !<-- The config object
-                                    ,value =INPUT_READY_FLAG            &  !<-- The variable filled (does nest input file exist?
-                                    ,label ='input_ready:'              &  !<-- The input datafile for this domain does or does not exist
-                                    ,rc    =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        IF(INPUT_READY_FLAG)THEN
-          INPUT_READY=ESMF_TRUE
-        ELSE
-          INPUT_READY=ESMF_FALSE
-        ENDIF
-#else
         CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)            &  !<-- The config object
                                     ,value =INPUT_READY                 &  !<-- The variable filled (does nest input file exist?
                                     ,label ='input_ready:'              &  !<-- The input datafile for this domain does or does not exist
@@ -997,7 +899,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Extract Parent-Child Space Ratio from Configure File"
@@ -1022,22 +923,6 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-        CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)            &  !<-- This domain's configure object
-                                    ,value =DOMAIN_MOVES                &  !<-- Does this domain move?
-                                    ,label ='my_domain_moves:'          &  !<-- The label in the configure file
-                                    ,rc    =rc)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        MY_DOMAIN_MOVES=ESMF_FALSE                                         !<-- Convert from Logical to ESMF_Logical
-!
-        IF(DOMAIN_MOVES)THEN
-          MY_DOMAIN_MOVES=ESMF_TRUE
-        ENDIF
-#else
         CALL ESMF_ConfigGetAttribute(config=CF(MY_DOMAIN_ID)            &  !<-- This domain's configure object
                                     ,value =MY_DOMAIN_MOVES             &  !<-- Does this domain move?
                                     ,label ='my_domain_moves:'          &  !<-- The label in the configure file
@@ -1046,8 +931,6 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -1159,7 +1042,7 @@
             WRITE(0,*)' Unable to open nemsio file '                    &
                      ,TRIM(RESTART_FILENAME),' in DOMAIN_INITIALIZE'
             WRITE(0,*)' ABORTING!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT               &
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT               &
                               ,rc             =RC)
           ENDIF
 !
@@ -1197,7 +1080,7 @@
             WRITE(0,*)' Unable to open pure binary file '               &
                      ,TRIM(RESTART_FILENAME),' in DOMAIN_INITIALIZE'
             WRITE(0,*)' ABORTING!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT               &
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT               &
                               ,rc             =RC)
           ENDIF
 !
@@ -1445,12 +1328,12 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
       domain_int_state%IMP_STATE_SOLVER=ESMF_StateCreate(                       &
-                                            STATENAME  ="Solver Import"         &  !<-- The Solver import state name
+                                            name  ="Solver Import"         &  !<-- The Solver import state name
                                            ,stateintent=ESMF_STATEINTENT_IMPORT &
                                            ,rc         =RC)
 !
       domain_int_state%EXP_STATE_SOLVER=ESMF_StateCreate(                       &
-                                            STATENAME  ="Solver Export"         &  !<-- The Solver export state name
+                                            name  ="Solver Export"         &  !<-- The Solver export state name
                                            ,stateintent=ESMF_STATEINTENT_EXPORT &
                                            ,rc         =RC)
 !
@@ -1603,19 +1486,11 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 ! 
-#ifdef ESMF_3
-      CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- The Solver component import state
-                            ,name     ='MY_NEB'                          &  !<-- Use this name inside the state
-                            ,count    =N8                                &  !<-- # of items in Attribute
-                            ,valueList=MY_NEB                            &  !<-- The scalar being inserted into the import state
-                            ,rc       =RC)
-#else
       CALL ESMF_AttributeSet(state    =domain_int_state%IMP_STATE_SOLVER &  !<-- The Solver component import state
                             ,name     ='MY_NEB'                          &  !<-- Use this name inside the state
                             ,itemCount=N8                                &  !<-- # of items in Attribute
                             ,valueList=MY_NEB                            &  !<-- The scalar being inserted into the import state
                             ,rc       =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -1626,19 +1501,11 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 ! 
-#ifdef ESMF_3
-      CALL ESMF_AttributeSet(state    =EXP_STATE                         &  !<-- The Domain component export state
-                            ,name     ='MY_NEB'                          &  !<-- Use this name inside the state
-                            ,count    =N8                                &  !<-- # of items in Attribute
-                            ,valueList=MY_NEB                            &  !<-- The scalar being inserted into the import state
-                            ,rc       =RC)
-#else
       CALL ESMF_AttributeSet(state    =EXP_STATE                         &  !<-- The Domain component export state
                             ,name     ='MY_NEB'                          &  !<-- Use this name inside the state
                             ,itemCount=N8                                &  !<-- # of items in Attribute
                             ,valueList=MY_NEB                            &  !<-- The scalar being inserted into the import state
                             ,rc       =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -1824,11 +1691,7 @@
 !***  Finally insert the flag indicating if the nest moves.
 !------------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      IF(I_AM_A_NEST==ESMF_TRUE)THEN
-#else
       IF(I_AM_A_NEST)THEN
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="DOMAIN_INIT: Add Parent-Child Time Ratio to the Solver Import State"
@@ -1907,21 +1770,10 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-      QUILTING_ESMF=ESMF_TRUE
-      IF(.NOT.QUILTING)THEN
-        QUILTING_ESMF=ESMF_FALSE
-      ENDIF
-      CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER  &  !<-- The Solver component import state
-                            ,name ='Quilting'                         &  !<-- Use this name inside the state
-                            ,value=QUILTING_ESMF                      &  !<-- Was quilting specified in the configure file?
-                            ,rc   =RC)
-#else
       CALL ESMF_AttributeSet(state=domain_int_state%IMP_STATE_SOLVER  &  !<-- The Solver component import state
                             ,name ='Quilting'                         &  !<-- Use this name inside the state
                             ,value=QUILTING                           &  !<-- Was quilting specified in the configure file?
                             ,rc   =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -1977,8 +1829,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(domain_int_state%IMP_STATE_SOLVER            &  !<-- The Solver component's import state
-                        ,LISTWRAPPER(domain_int_state%BUNDLE_NESTBC)  &  !<-- The Bundle of Solver int state pointers for nest BC vbls
+      CALL ESMF_StateAddReplace(domain_int_state%IMP_STATE_SOLVER            &  !<-- The Solver component's import state
+                        ,(/domain_int_state%BUNDLE_NESTBC/)  &  !<-- The Bundle of Solver int state pointers for nest BC vbls
                         ,rc =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2070,8 +1922,8 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_StateAdd(            EXP_STATE                        &  !<-- The Domain export state
-                          ,LISTWRAPPER(domain_int_state%BUNDLE_NESTBC)  &  !<-- Insert the nest BC Bundle into the state
+        CALL ESMF_StateAddReplace(            EXP_STATE                        &  !<-- The Domain export state
+                          ,(/domain_int_state%BUNDLE_NESTBC/)  &  !<-- Insert the nest BC Bundle into the state
                           ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2170,19 +2022,11 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-          CALL ESMF_AttributeSet(state    =EXP_STATE                    &  !<-- The Domain component export state
-                                ,name     ='LBND_4D'                    &  !<-- Use this name inside the state
-                                ,count    =NVARS_BC_4D_H                &  !<-- # of items in Attribute
-                                ,valueList=solver_int_state%LBND_4D     &  !<-- Lower bnds of 4-D H-pt boundary variables
-                                ,rc       =RC)
-#else
           CALL ESMF_AttributeSet(state    =EXP_STATE                    &  !<-- The Domain component export state
                                 ,name     ='LBND_4D'                    &  !<-- Use this name inside the state
                                 ,itemCount=NVARS_BC_4D_H                &  !<-- # of items in Attribute
                                 ,valueList=solver_int_state%LBND_4D     &  !<-- Lower bnds of 4-D H-pt boundary variablesmport state
                                 ,rc       =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -2193,19 +2037,11 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-          CALL ESMF_AttributeSet(state    =EXP_STATE                    &  !<-- The Domain component export state
-                                ,name     ='UBND_4D'                    &  !<-- Use this name inside the state
-                                ,count    =NVARS_BC_4D_H                &  !<-- # of items in Attribute
-                                ,valueList=solver_int_state%UBND_4D     &  !<-- Upper bnds of 4-D H-pt boundary variables
-                                ,rc       =RC)
-#else
           CALL ESMF_AttributeSet(state    =EXP_STATE                    &  !<-- The Domain component export state
                                 ,name     ='UBND_4D'                    &  !<-- Use this name inside the state
                                 ,itemCount=NVARS_BC_4D_H                &  !<-- # of items in Attribute
                                 ,valueList=solver_int_state%UBND_4D     &  !<-- Upper bnds of 4-D H-pt boundary variables
                                 ,rc       =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -2346,11 +2182,7 @@
 !***  export states.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      I_AM_A_FCST_TASK=ESMF_TRUE
-#else
       I_AM_A_FCST_TASK=.TRUE.
-#endif
 !
       IF(QUILTING)THEN
 !
@@ -2361,11 +2193,7 @@
 !
         IF(MYPE>=domain_int_state%NUM_PES_FCST)THEN
 !
-#ifdef ESMF_3
-          I_AM_A_FCST_TASK=ESMF_FALSE
-#else
           I_AM_A_FCST_TASK=.FALSE.
-#endif
 !
         ENDIF
 !
@@ -2476,15 +2304,9 @@
 !***  from the configure file.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      IF(I_AM_A_FCST_TASK==ESMF_TRUE.AND.I_AM_A_NEST==ESMF_TRUE)THEN
-!
-        IF(INPUT_READY==ESMF_False.AND..NOT.RESTARTED_RUN)THEN               !<-- If so then must get values from configure file.
-#else
       IF(I_AM_A_FCST_TASK.AND.I_AM_A_NEST)THEN
 !
         IF(.NOT.INPUT_READY.AND..NOT.RESTARTED_RUN)THEN                      !<-- If so then must get values from configure file.
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Domain Init: Child Gets SW Corner Point from Config File"
@@ -2518,11 +2340,7 @@
           J_PAR_STA=solver_int_state%J_PAR_STA
           NEXT_MOVE_TIMESTEP=solver_int_state%NMTS
 !
-#ifdef ESMF_3
-          IF(INPUT_READY==ESMF_True.AND..NOT.RESTARTED_RUN)THEN
-#else
           IF(INPUT_READY.AND..NOT.RESTARTED_RUN)THEN
-#endif
             solver_int_state%LAST_STEP_MOVED=0
 !
           ENDIF
@@ -2607,19 +2425,11 @@
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      I_AM_A_PARENT=ESMF_FALSE
-#else
       I_AM_A_PARENT=.FALSE.
-#endif
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      fcst_tasks_init: IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
       fcst_tasks_init: IF(I_AM_A_FCST_TASK)THEN
-#endif
 !
 !-----------------------------------------------------------------------
 !***  Extract fundamental meteorological variables from the Solver
@@ -2719,11 +2529,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        IF(MY_DOMAIN_MOVES==ESMF_TRUE)THEN
-#else
         IF(MY_DOMAIN_MOVES)THEN
-#endif
 !
           CALL_BUILD_MOVE_BUNDLE=.TRUE.
 !
@@ -2768,12 +2574,12 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_StateAdd(            EXP_STATE                        &  !<-- The Domain export state
-                          ,LISTWRAPPER(domain_int_state%MOVE_BUNDLE_H)  &  !<-- Insert H-point MOVE_BUNDLE into the state
+        CALL ESMF_StateAddReplace(            EXP_STATE                        &  !<-- The Domain export state
+                          ,(/domain_int_state%MOVE_BUNDLE_H/)  &  !<-- Insert H-point MOVE_BUNDLE into the state
                           ,rc         =RC)
 !
-        CALL ESMF_StateAdd(            EXP_STATE                        &  !<-- The Domain export state
-                          ,LISTWRAPPER(domain_int_state%MOVE_BUNDLE_V)  &  !<-- Insert V-point MOVE_BUNDLE into the state
+        CALL ESMF_StateAddReplace(            EXP_STATE                        &  !<-- The Domain export state
+                          ,(/domain_int_state%MOVE_BUNDLE_V/)  &  !<-- Insert V-point MOVE_BUNDLE into the state
                           ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -2791,11 +2597,7 @@
 !***  properly read those external files which span that domain.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        i_move: IF(MY_DOMAIN_MOVES==ESMF_TRUE)THEN
-#else
         i_move: IF(MY_DOMAIN_MOVES)THEN
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract Moving Child's Sfc File Ratio"
@@ -3108,7 +2910,7 @@
             WRITE(0,11113)ITE-ITS+1,JTE-JTS+1
             WRITE(0,*)' The user must reset the domain decomposition.'
             WRITE(0,*)' Aborting!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
 11111       FORMAT(' The halo width in I is ',I2,' and in J is ',I2)
 11112       FORMAT(4(1X,I2))
 11113       FORMAT(' The subdomain widths in I and J are ',I4,1X,I4)
@@ -3205,8 +3007,8 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        CALL ESMF_StateAdd(            EXP_STATE                        &  !<-- The Domain export state
-                          ,LISTWRAPPER(domain_int_state%BUNDLE_2WAY)    &  !<-- Insert BUNDLE of 2-way vbls into the state
+        CALL ESMF_StateAddReplace(            EXP_STATE                        &  !<-- The Domain export state
+                          ,(/domain_int_state%BUNDLE_2WAY/)    &  !<-- Insert BUNDLE of 2-way vbls into the state
                           ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -3223,11 +3025,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        I_AM_A_PARENT=ESMF_TRUE
-#else
         I_AM_A_PARENT=.TRUE.
-#endif
 !
 !-----------------------------------------------------------------------
 !***  Initialize the children's data directly from the parent if
@@ -3283,11 +3081,7 @@
 !***  values are were read from the restart file in Solver Init.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
         IF(I_AM_A_FCST_TASK)THEN
-#endif
 !
           NTIMESTEP_CHILD_MOVES=>solver_int_state%NTSCM
 !
@@ -3334,19 +3128,11 @@
 !***  values in those nest arrays with data from the external files.
 !-----------------------------------------------------------------------
 !   
-#ifdef ESMF_3
-      IF(MY_DOMAIN_MOVES==ESMF_TRUE                                     &
-            .AND.                                                       &
-         I_AM_A_FCST_TASK==ESMF_TRUE                                    &
-            .AND.                                                       &
-         INPUT_READY==ESMF_FALSE)THEN
-#else
       IF(MY_DOMAIN_MOVES                                                &
             .AND.                                                       &
          I_AM_A_FCST_TASK                                               &
             .AND.                                                       &
          .NOT.INPUT_READY)THEN
-#endif
 !
         CALL RESET_SFC_VARS(domain_int_state%SFC_FILE_RATIO             &
                            ,solver_int_state%GLAT                       &
@@ -3377,17 +3163,10 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_520r
         CALL ESMF_FieldBundleGet(FIELDBUNDLE=domain_int_state%MOVE_BUNDLE_H  &  !<-- Bundle holding the H arrays for move updates
-                                ,fieldname  =FIELD_NAME                      &  !<-- Name of the seamask Field in the Bundle
+                                ,fieldName  =FIELD_NAME                      &  !<-- Name of the seamask Field in the Bundle
                                 ,field      =HOLD_FIELD                      &  !<-- Field containing the seamask
                                 ,rc         =RC )
-#else
-        CALL ESMF_FieldBundleGet(bundle=domain_int_state%MOVE_BUNDLE_H       &  !<-- Bundle holding the H arrays for move updates
-                                ,name  =FIELD_NAME                           &  !<-- Name of the seamask Field in the Bundle
-                                ,field =HOLD_FIELD                           &  !<-- Field containing the seamask
-                                ,rc    =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -3398,17 +3177,10 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-        CALL ESMF_FieldGet(field  =HOLD_FIELD                           &  !<-- Field N_FIELD in the Bundle
-                          ,localDe=0                                    &
-                          ,farray =SEA_MASK                             &  !<-- Dummy 2-D array with Field's Real data
-                          ,rc     =RC )
-#else
         CALL ESMF_FieldGet(field    =HOLD_FIELD                         &  !<-- Field N_FIELD in the Bundle
                           ,localDe  =0                                  &
                           ,farrayPtr=SEA_MASK                           &  !<-- Dummy 2-D array with Field's Real data
                           ,rc       =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -3462,13 +3234,8 @@
       domain_int_state%TS_INITIALIZED=.FALSE.                              !<-- Note whether time series variables are initialized.
       domain_int_state%KOUNT_TIMESTEPS=0                                   !<-- Timestep counter
 !
-#ifdef ESMF_3
-      domain_int_state%RECV_ALL_CHILD_DATA=ESMF_False                      !<-- Parent has recvd 2-way data from all children
-      domain_int_state%ALLCLEAR_FROM_PARENT=ESMF_False                     !<-- Child told that parent has recvd all 2-way data
-#else
       domain_int_state%RECV_ALL_CHILD_DATA=.FALSE.                         !<-- Parent has recvd 2-way data from all children
       domain_int_state%ALLCLEAR_FROM_PARENT=.FALSE.                        !<-- Child told that parent has recvd all 2-way data
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -3479,11 +3246,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      IF(I_AM_A_FCST_TASK == ESMF_TRUE)THEN
-#else
       IF(I_AM_A_FCST_TASK)THEN
-#endif
 !
 !-----------------------------------------------------------------------
 !***  Create and fill the Filter Bundles.  Since the current task
@@ -3616,12 +3379,8 @@
       REAL(kind=KFPT),DIMENSION(1:2) :: SW_X
 !
       LOGICAL(kind=KLOG) :: E_BDY,N_BDY,S_BDY,W_BDY                        !<-- Are tasks on a domain boundary?
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: MOVE_NOW
-#else
       LOGICAL(kind=KLOG) :: MOVE_NOW
       INTEGER(kind=KINT) :: use_radar_default ! 520r-series work-around Attribute intent() issues
-#endif
 !
       TYPE(ESMF_TimeInterval) :: DT_ESMF
       TYPE(ESMF_Time) :: CURRTIME
@@ -3841,12 +3600,7 @@
 !***       the nest domain's pre-move footprint.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        nests: IF(domain_int_state%I_AM_A_NEST==ESMF_TRUE)THEN
-#else
         nests: IF(domain_int_state%I_AM_A_NEST)THEN
-#endif
-!         call print_memory()
 !
           CALL BOUNDARY_DATA_STATE_TO_STATE(s_bdy    =S_BDY                            &  !<-- This task lies on a south boundary?
                                            ,n_bdy    =N_BDY                            &  !<-- This task lies on a north boundary?
@@ -3857,15 +3611,10 @@
                                            ,ratio    =PARENT_CHILD_TIME_RATIO          &  !<-- # of child timesteps per parent timestep
                                            ,state_in =IMP_STATE                        &  !<-- Domain component's import state
                                            ,state_out=domain_int_state%IMP_STATE_SOLVER)  !<-- The Solver import state
-!         call print_memory()
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-          IF(MY_DOMAIN_MOVES==ESMF_TRUE)THEN                               !<-- Select the moving nests
-#else
           IF(MY_DOMAIN_MOVES)THEN                                          !<-- Select the moving nests
-#endif
 !
 !-----------------------------------------------------------------------
 !***  If a nest is moving in its next timestep then update the
@@ -3976,11 +3725,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-            IF(MOVE_NOW==ESMF_TRUE)THEN                                    !<-- Select moving nests that move this timestep
-#else
             IF(MOVE_NOW)THEN                                               !<-- Select moving nests that move this timestep
-#endif
 !
 !-----------------------------------------------------------------------
 !***  What are the nest's new transformed lat/lon of its south and
@@ -4175,11 +3920,7 @@
 !             CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-              MOVE_NOW=ESMF_FALSE
-#else
               MOVE_NOW=.FALSE.
-#endif
 !
               CALL ESMF_AttributeSet(state=IMP_STATE                    &  !<-- Domain component's import state
                                     ,name ='MOVE_NOW'                   &  !<-- Set Attribute with this name
@@ -4205,29 +3946,17 @@
 !***  Solver internal state in case it is needed for restart output.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        IF(domain_int_state%I_AM_A_PARENT==ESMF_True)THEN      
-#else
         IF(domain_int_state%I_AM_A_PARENT)THEN      
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="DOMAIN_RUN: Get NTIMESTEP_CHILD_MOVES from Import State"
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-          CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Domain component's import state
-                                ,name     ='NEXT_TIMESTEP_CHILD_MOVES'    &  !<-- Extract Attribute with this name
-                                ,count    =NUM_DOMAINS_MAX                &  !<-- How many items?
-                                ,valueList=NTIMESTEP_CHILD_MOVES          &  !<-- When do the children move again?
-                                ,rc       =RC )
-#else
           CALL ESMF_AttributeGet(state    =IMP_STATE                      &  !<-- Domain component's import state
                                 ,name     ='NEXT_TIMESTEP_CHILD_MOVES'    &  !<-- Extract Attribute with this name
                                 ,valueList=NTIMESTEP_CHILD_MOVES          &  !<-- When do the children move again?
                                 ,rc       =RC )
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
@@ -4247,7 +3976,6 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 !
-#ifdef ESMF_520r
 ! gjt: Found this to be an invalid attribute, which will cause an ESMF error if 
 !      no defaultvalue is provided. However, ESMF 3-series did not support the
 !      defaultvalue argument yet.
@@ -4258,14 +3986,6 @@
                               ,defaultvalue=use_radar_default  &  !<-- default value to quiet down ESMF if not set
                               ,rc   =RC)
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_RUN)
-#endif
-
-#ifdef ESMF_3
-        CALL ESMF_AttributeGet(state=IMP_STATE       &  !<-- The DOMAIN import state                 
-                              ,name ='Use_Radar'     &  !<-- Name of the attribute to extract                   
-                              ,value=USE_RADAR       &  
-                              ,rc   =RC)
-#endif
 
         solver_int_state%USE_RADAR=USE_RADAR
 
@@ -4382,11 +4102,7 @@
 !
       CHARACTER(50):: MODE
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: PHYSICS_ON
-#else
       LOGICAL(kind=KLOG) :: PHYSICS_ON
-#endif
 !
       TYPE(ESMF_Config) :: CF                                              !<-- The config object
 !
@@ -4438,15 +4154,6 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      IF(TRIM(MODE)=='TRUE')THEN
-        PHYSICS_ON=ESMF_FALSE
-        WRITE(0,*)' Finalize without physics coupling. '
-      ELSE
-        PHYSICS_ON=ESMF_TRUE
-        WRITE(0,*)' Finalize with physics coupling. '
-      ENDIF
-#else
       IF(TRIM(MODE)=='TRUE')THEN
         PHYSICS_ON=.FALSE.
         WRITE(0,*)' Finalize without physics coupling. '
@@ -4454,7 +4161,6 @@
         PHYSICS_ON=.TRUE.
         WRITE(0,*)' Finalize with physics coupling. '
       ENDIF
-#endif
 !
 !-----------------------------------------------------------------------
 !***  Retrieve the Domain component's internal state.
@@ -5448,11 +5154,7 @@
 !
       LOGICAL(kind=KINT) :: LAST_TIME                                      !<-- Test time logical
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: I_AM_A_FCST_TASK
-#else
       LOGICAL(kind=KLOG) :: I_AM_A_FCST_TASK
-#endif
 !
       TYPE(SOLVER_INTERNAL_STATE),POINTER :: SOLVER_INT_STATE
 !
@@ -5543,11 +5245,7 @@
 !***  output-related variables within it.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        fcst_tasks: IF(I_AM_A_FCST_TASK==ESMF_True)THEN
-#else
         fcst_tasks: IF(I_AM_A_FCST_TASK)THEN
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -5953,7 +5651,7 @@
 !
         IF(IOS/=0)THEN
           WRITE(0,*)' Failed to open ',FNAME_FILT,' so ABORT!'
-          CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+          CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                 &
                             ,rc             =RC)
         ENDIF
 
@@ -6042,7 +5740,7 @@
             WRITE(0,*)' SELECTED FILTER VARIABLE IS NOT 2-D,3-D or 4-D REAL'
             WRITE(0,*)' Variable name is ',VARS(N)%VBL_NAME,' for variable #',N
             WRITE(0,*)' ABORT!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
 
 
@@ -6058,7 +5756,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_FieldBundleAdd(FILT_BUNDLE_FILTER            &  !<-- The Filt Bundle for Filtered variables
-                                  ,LISTWRAPPER(FIELD_X)          &  !<-- Add this Field to the Bundle
+                                  ,(/FIELD_X/)          &  !<-- Add this Field to the Bundle
                                   ,rc    =RC )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -6106,7 +5804,7 @@
             WRITE(0,*)' SELECTED FILTER VARIABLE IS NOT 2-D OR 3-D REAL'
             WRITE(0,*)' Variable name is ',VARS(N)%VBL_NAME,' for variable #',N
             WRITE(0,*)' ABORT!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
 
 !-----------------------------------------------------------------------
@@ -6120,7 +5818,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_FieldBundleAdd(FILT_BUNDLE_RESTORE           &  !<-- The Filt Bundle for variables to be restored
-                                  ,LISTWRAPPER(FIELD_X)          &  !<-- Add this Field to the Bundle
+                                  ,(/FIELD_X/)          &  !<-- Add this Field to the Bundle
                                   ,rc    =RC )
 !         IF (MYPE == 0) THEN
 !           WRITE(0,*)' added variable ',trim(VARS(N)%VBL_NAME),' to Filt Bundle Restore'
@@ -6148,906 +5846,6 @@
 
 
       END SUBROUTINE BUILD_FILT_BUNDLE
-!
-!-----------------------------------------------------------------------
-!#######################################################################
-!-----------------------------------------------------------------------
-!
-      SUBROUTINE BUILD_BC_BUNDLE(GRID_DOMAIN                            &
-                                ,LNSH,LNSV                              &
-                                ,UBOUND_VARS                            &
-                                ,VARS                                   &
-                                ,MY_DOMAIN_ID                           &
-                                ,BUNDLE_BC                              &
-                                ,BND_VARS_H                             &
-                                ,BND_VARS_V                             &
-                                ,NVARS_BC_2D_H                          &
-                                ,NVARS_BC_3D_H                          &
-                                ,NVARS_BC_4D_H                          &
-                                ,NVARS_BC_2D_V                          &
-                                ,NVARS_BC_3D_V                          &
-                                ,NLEV_H                                 &
-                                ,NLEV_V                                 &
-                                ,N_BC_3D_H                              &
-                                   )
-!
-!-----------------------------------------------------------------------
-!***  This routine builds an ESMF Bundle for holding groups of pointers
-!***  to Solver internal state variables that are updated on the 
-!***  domain boundaries during the integration.
-!***  In addition the object that holds primary boundary information
-!***  is partially allocated and pointed at the relevant variables.
-!-----------------------------------------------------------------------
-!
-!------------------------
-!***  Argument Variables
-!------------------------
-!
-      INTEGER(kind=KINT),INTENT(IN) :: LNSH,LNSV                           !<-- Domain boundary blending width
-      INTEGER(kind=KINT),INTENT(IN) :: MY_DOMAIN_ID                     &  !<-- This domain's ID
-                                      ,UBOUND_VARS                         !<-- Upper dimension of the VARS array
-!
-      INTEGER(kind=KINT),DIMENSION(1:3),INTENT(OUT) :: N_BC_3D_H           !<-- Hold order of domain #1's BC vbls from boco files
-!
-      TYPE(ESMF_Grid),INTENT(IN) :: GRID_DOMAIN                            !<-- The ESMF Grid for this domain
-!
-      TYPE(VAR),DIMENSION(1:UBOUND_VARS),INTENT(INOUT) :: VARS             !<-- Variables in the Solver internal state
-!
-      TYPE(ESMF_FieldBundle),INTENT(INOUT) :: BUNDLE_BC                    !<-- The Bundle of Solver internal state vbls to be
-!                                                                          !    updated on the nest boundaries
-      INTEGER(kind=KINT),INTENT(OUT) :: NVARS_BC_2D_H                   &  !<-- # of 2-D,3-D,4-D H-pt variables
-                                       ,NVARS_BC_3D_H                   &  !    that are inserted
-                                       ,NVARS_BC_4D_H                      !    into the Bundle.
-!
-      INTEGER(kind=KINT),INTENT(OUT) :: NVARS_BC_2D_V                   &  !<-- # of 2-D,3-D V-pt variables
-                                       ,NVARS_BC_3D_V                      !    that are inserted into the Bundle.
-!
-      INTEGER(kind=KINT),INTENT(OUT) :: NLEV_H,NLEV_V                      !<-- # of model levels in all H-pt,V-pt variables used
-!
-      TYPE(BC_H_ALL),INTENT(OUT) :: BND_VARS_H                             !<-- Object holding H-pt variable info on domain boundaries
-      TYPE(BC_V_ALL),INTENT(OUT) :: BND_VARS_V                             !<-- Object holding V-pt variable info on domain boundaries
-!
-      TYPE(WRAP_SOLVER_INT_STATE) :: WRAP_SOLVER
-!
-!---------------------
-!***  Local Variables
-!---------------------
-!
-      INTEGER(kind=KINT) :: H_OR_V_INT,IOS,LB3,LB4                      &
-                           ,N,NSIZE,NUM_DIMS,NUM_FIELDS                 &
-                           ,UB3,UB4
-!
-      INTEGER(kind=KINT) :: KNT_2D_H,KNT_3D_H,KNT_4D_H                  &
-                           ,KNT_2D_V,KNT_3D_V
-!
-      INTEGER(kind=KINT) :: KNT_3D_DOM_01
-!
-      INTEGER(kind=KINT) :: ISTAT,RC,RC_CMB
-!
-      REAL(kind=KFPT),DIMENSION(:,:),POINTER :: ARRAY_2D=>NULL()
-      REAL(kind=KFPT),DIMENSION(:,:,:),POINTER :: ARRAY_3D=>NULL()
-      REAL(kind=KFPT),DIMENSION(:,:,:,:),POINTER :: ARRAY_4D=>NULL()
-!
-      CHARACTER(len=1) :: CH_2,CH_B,H_OR_V
-!           
-      CHARACTER(len=2) :: CH_M
-!           
-      CHARACTER(len=9),SAVE :: FNAME='nests.txt'
-!
-      CHARACTER(len=99) :: BUNDLE_NAME,FIELD_NAME,VBL_NAME
-!
-      CHARACTER(len=256) :: STRING
-!
-      LOGICAL(kind=KLOG) :: CASE_2WAY,CASE_NESTBC
-!
-      TYPE(ESMF_Field) :: FIELD_X
-!
-!-----------------------------------------------------------------------
-!***********************************************************************
-!-----------------------------------------------------------------------
-!
-      NVARS_BC_2D_H=0     
-      NVARS_BC_3D_H=0     
-      NVARS_BC_4D_H=0     
-!
-      NVARS_BC_2D_V=0     
-      NVARS_BC_3D_V=0     
-!
-      KNT_3D_DOM_01=0
-!
-      DO N=1,3
-        N_BC_3D_H(N)=-1
-      ENDDO
-!
-!-----------------------------------------------------------------------
-!***  Loop through all Solver internal state variables.
-!-----------------------------------------------------------------------
-!
-      OPEN(unit=10,file=FNAME,status='OLD',action='READ'                &  !<-- Open the text file with user specifications
-            ,iostat=IOS)
-!
-      IF(IOS/=0)THEN
-        WRITE(0,*)' Failed to open ',FNAME,' so ABORT!'
-        CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
-                          ,rc             =RC)
-      ENDIF
-!
-      NLEV_H=0                                                               !<-- Counter for total # of levels in all 2-way vbls
-      NLEV_V=0                                                               !<-- Counter for total # of levels in all 2-way vbls
-!
-!-----------------------------------------------------------------------
-      bundle_loop: DO
-!-----------------------------------------------------------------------
-!
-        READ(UNIT=10,FMT='(A)',iostat=IOS)STRING                           !<-- Read in the next specification line
-        IF(IOS/=0)EXIT                                                     !<-- Finished reading the specification lines
-!
-        IF(STRING(1:1)=='#'.OR.TRIM(STRING)=='')THEN
-          CYCLE                                                            !<-- Read past comments and blanks.
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Read the text line containing the H or V specification for 
-!***  variable N then find that variable's place within the VARS 
-!***  object.
-!-----------------------------------------------------------------------
-!
-        READ(UNIT=STRING,FMT=*,iostat=IOS)VBL_NAME                      &  !<-- The variable's name in the text file.
-                                         ,CH_B                          &  !<-- The flag for nest BC vbls in the text file.
-                                         ,CH_M                          &  !<-- Not relevant here (flag for moving nests)
-                                         ,CH_2                             !<-- Not relevant here (flag for 2-way vbls)
-!
-        CALL FIND_VAR_INDX(VBL_NAME,VARS,UBOUND_VARS,N)
-!
-        FIELD_NAME=TRIM(VARS(N)%VBL_NAME)//TRIM(SUFFIX_NESTBC)             !<-- Append the BC suffix to the Field
-!                                                                 
-!-----------------------------------------------------------------------
-!***  Check the Bundle's name to determine which column of user
-!***  specifications to read from the text file.
-!-----------------------------------------------------------------------
-!
-        H_OR_V=CH_B                                                        !<-- H-V flag for this nest BC variable
-!
-!-----------------------------------------------------------------------
-!***  Find the variables in the Solver internal state that have been
-!***  selected to be placed into the Bundle.  The user has specified
-!***  whether the variable lies on H points or V points.
-!***  Currently ESMF will not allow the use of Attributes that are
-!***  characters therefore we must translate the character codes from
-!***  the txt file into something that ESMF can use.  In this case
-!***  we will use integers:  H-->1 and V-->2 .
-!-----------------------------------------------------------------------
-!
-        IF(H_OR_V=='H')THEN
-          H_OR_V_INT=1                                                     !<-- H-pt variable
-        ELSEIF(H_OR_V=='V')THEN
-          H_OR_V_INT=2                                                     !<-- V-pt variable
-        ELSE
-          H_OR_V_INT=-999                                                  !<-- Variable not specified for use.
-        ENDIF
-!
-!-----------------------------------------------------------------------
-!
-        build_bundle: IF(H_OR_V=='H'                                    &
-                            .OR.                                        &
-                         H_OR_V=='V'                                    &
-                                     )THEN
-!
-!-----------------------------------------------------------------------
-!
-!-------------------
-!***  2-D Variables
-!-------------------
-!
-!-------------
-!***  Integer
-!-------------
-!
-          IF(ASSOCIATED(VARS(N)%I2D))THEN                                  !<-- 2-D integer array on mass points
-!
-!           FIELD_X=ESMF_FieldCreate(grid       =GRID_DOMAIN            &  !<-- The ESMF Grid for this domain
-!                                   ,farray     =VARS(N)%I2D            &  !<-- Nth variable in the VARS array
-!                                   ,totalUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
-!                                   ,totalLWidth=(/IHALO,JHALO/)        &  !<-- Lower bound of halo region
-!                                   ,name       =FIELD_NAME             &  !<-- The name of this variable
-!                                   ,indexFlag  =ESMF_INDEX_GLOBAL      &  !<-- The variable uses global indexing
-!                                   ,rc         =RC)
-            WRITE(0,*)' The scheme does not consider integers IN BC updates!!'
-            WRITE(0,*)' Variable name is ',VARS(N)%VBL_NAME,' for variable #',N
-            WRITE(0,*)' H_OR_V_INT=',H_OR_V_INT
-            WRITE(0,*)' ABORT!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-!
-!
-!----------
-!***  Real
-!----------
-!
-          ELSEIF(ASSOCIATED(VARS(N)%R2D))THEN                              !<-- 2-D real array on mass points
-!
-            FIELD_X=ESMF_FieldCreate(grid       =GRID_DOMAIN            &  !<-- The ESMF Grid for this domain
-                                    ,farray     =VARS(N)%R2D            &  !<-- Nth variable in the VARS array
-                                    ,totalUWidth=(/IHALO,JHALO/)        &  !<-- Upper bound of halo region
-                                    ,totalLWidth=(/IHALO,JHALO/)        &  !<-- Lower bound of halo region
-                                    ,name       =FIELD_NAME             &  !<-- The name of this variable
-                                    ,indexFlag  =ESMF_INDEX_GLOBAL      &  !<-- The variable uses global indexing
-                                    ,rc         =RC)
-!
-            IF(H_OR_V=='H')THEN
-              NVARS_BC_2D_H=NVARS_BC_2D_H+1                                !<-- Count # of 2-D H-pt variables
-              NLEV_H=NLEV_H+1                                              !<-- Sum all levels for H-pt variables
-            ELSEIF(H_OR_V=='V')THEN
-              NVARS_BC_2D_V=NVARS_BC_2D_V+1                                !<-- Count # of 2-D V-pt variables
-              NLEV_V=NLEV_V+1                                              !<-- Sum all levels for V-pt variables
-            ENDIF
-!
-!-------------------
-!***  3-D Variables
-!-------------------
-!
-!----------
-!***  Real
-!----------
-!
-          ELSEIF(ASSOCIATED(VARS(N)%R3D))THEN                              !<-- 3-D real array on mass points
-!
-            FIELD_X=ESMF_FieldCreate(grid           =GRID_DOMAIN                    &  !<-- The ESMF Grid for this domain
-                                    ,farray         =VARS(N)%R3D                    &  !<-- Nth variable in the VARS array
-                                    ,totalUWidth    =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
-                                    ,totalLWidth    =(/IHALO,JHALO/)                &  !<-- Lower bound of halo region
-                                    ,ungriddedLBound=(/lbound(VARS(N)%R3D,dim=3)/)  &
-                                    ,ungriddedUBound=(/ubound(VARS(N)%R3D,dim=3)/)  &
-                                    ,name           =FIELD_NAME                     &  !<-- The name of this variable
-                                    ,indexFlag      =ESMF_INDEX_GLOBAL              &  !<-- The variable uses global indexing
-                                    ,rc             =RC)
-!
-            LB3=LBOUND(VARS(N)%R3D,3)
-            UB3=UBOUND(VARS(N)%R3D,3)
-!
-            IF(H_OR_V=='H')THEN
-              NVARS_BC_3D_H=NVARS_BC_3D_H+1                                !<-- Count # of 3-D H-pt variables
-              NLEV_H=NLEV_H+(UB3-LB3+1)                                    !<-- Sum all levels for H-pt variables
-            ELSEIF(H_OR_V=='V')THEN
-              NVARS_BC_3D_V=NVARS_BC_3D_V+1                                !<-- Count # of 3-D V-pt variables
-              NLEV_V=NLEV_V+(UB3-LB3+1)                                    !<-- Sum all levels for V-pt variables
-            ENDIF
-!
-!-------------------
-!***  4-D Variables
-!-------------------
-!
-!----------
-!***  Real
-!----------
-!
-          ELSEIF(ASSOCIATED(VARS(N)%R4D))THEN                              !<-- 4-D real array on mass points
-!
-            LB4=LBOUND(VARS(N)%R4D,dim=4)
-            UB4=UBOUND(VARS(N)%R4D,dim=4)
-!
-            FIELD_X=ESMF_FieldCreate(grid           =GRID_DOMAIN                    &  !<-- The ESMF Grid for this domain
-                                    ,farray         =VARS(N)%R4D                    &  !<-- Nth variable in the VARS array
-                                    ,totalUWidth    =(/IHALO,JHALO/)                &  !<-- Upper bound of halo region
-                                    ,totalLWidth    =(/IHALO,JHALO/)                &  !<-- Lower bound of halo region
-                                    ,ungriddedLBound =(/ LBOUND(VARS(N)%R4D,dim=3),LB4 /) &
-                                    ,ungriddedUBound =(/ UBOUND(VARS(N)%R4D,dim=3),UB4 /) &
-                                    ,name           =FIELD_NAME                     &  !<-- The name of this variable
-                                    ,indexFlag      =ESMF_INDEX_GLOBAL              &  !<-- The variable uses global indexing
-                                    ,rc             =RC)
-!
-            LB3=LBOUND(VARS(N)%R4D,3)
-            UB3=UBOUND(VARS(N)%R4D,3)
-!
-            IF(H_OR_V=='H')THEN
-              NVARS_BC_4D_H=NVARS_BC_4D_H+1                                !<-- Count # of 4-D H-pt variables
-              NLEV_H=NLEV_H+(UB3-LB3+1)*(UB4-LB4+1)                        !<-- Sum all levels for H-pt variables
-            ENDIF
-!
-!----------------
-!***  All Others
-!----------------
-!
-          ELSE
-            WRITE(0,*)' SELECTED UPDATE H VARIABLE IS NOT 2,3,4-D REAL.'
-            WRITE(0,*)' Variable name is ',VARS(N)%VBL_NAME,' for variable #',N
-            WRITE(0,*)' H_OR_V_INT=',H_OR_V_INT
-            WRITE(0,*)' ABORT!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-!
-          ENDIF
-!
-!-----------------------------------------------------------------------
-!***  Attach the index of this variable within the Solver internal
-!***  state so it can be referenced w/r to the boundary objects.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Add Solver Int State Indx to Bundle Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_AttributeSet(field=FIELD_X                          &  !<-- The Field to be added to the Bundle
-                                ,name ='Solver Int State Indx'          &  !<-- The name of the Attribute to set
-                                ,value=N                                &  !<-- The index of the Solver internal state vbl
-                                ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Attach the specification flag to this Field that indicates
-!***  whether it is an H-pt or a V-pt variable.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Add H-or-V Specification Flag to Bundle Field"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_AttributeSet(field=FIELD_X                          &  !<-- The Field to be added to the Bundle
-                                ,name ='H_OR_V_INT'                     &  !<-- The name of the Attribute to set
-                                ,value=H_OR_V_INT                       &  !<-- H-pt or V-pt flag 
-                                ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!***  Add this Field to the Bundle that holds pointers to all
-!***  variables in the Solver internal state that have been
-!***  selected.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          MESSAGE_CHECK="Add Desired Field to the Bundle"
-!         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-          CALL ESMF_FieldBundleAdd(            BUNDLE_BC                &  !<-- The Bundle of Solver internal state BC variables
-                                  ,            LISTWRAPPER(FIELD_X)     &  !<-- Add this Field to the Bundle
-                                  ,rc         =RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-          CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------------------------------------------------
-!
-        ENDIF build_bundle
-!
-!-----------------------------------------------------------------------
-!
-      ENDDO bundle_loop
-!
-!-----------------------------------------------------------------------
-!***  Allocate the appropriate pieces of the boundary variable
-!***  objects.  All nests use the same set of boundary variables
-!***  that are specified by the user in the external text file.
-!
-!***  If the upper parent domain is regional then it uses its own set
-!***  of boundary variables updated from the BC files generated during
-!***  preprocessing.  They are currently hardwired to PD,T,Q,CW,U,V.
-!-----------------------------------------------------------------------
-!
-      IF(MY_DOMAIN_ID==1)THEN                                              !<-- The uppermost parent will hardwire its BC vbls
-!
-        NVARS_BC_2D_H=1                                                    !<-- PD
-        NVARS_BC_3D_H=3                                                    !<-- T,Q,CW
-        NVARS_BC_4D_H=0
-        NVARS_BC_2D_V=0
-        NVARS_BC_3D_V=2                                                    !<-- U,V
-!
-      ENDIF
-!
-      IF(NVARS_BC_2D_H>0)THEN
-        ALLOCATE(BND_VARS_H%VAR_2D(1:NVARS_BC_2D_H))                       !<-- All 2-D H-pt nest boundary variables
-      ENDIF
-!
-      IF(NVARS_BC_3D_H>0)THEN
-        ALLOCATE(BND_VARS_H%VAR_3D(1:NVARS_BC_3D_H))                       !<-- All 3-D H-pt nest boundary variables
-      ENDIF
-!
-      IF(NVARS_BC_4D_H>0)THEN
-        ALLOCATE(BND_VARS_H%VAR_4D(1:NVARS_BC_4D_H))                       !<-- All 4-D H-pt nest boundary variables
-      ENDIF
-!
-      IF(NVARS_BC_2D_V>0)THEN
-        ALLOCATE(BND_VARS_V%VAR_2D(1:NVARS_BC_2D_V))                       !<-- All 2-D V-pt nest boundary variables
-      ENDIF
-!
-      IF(NVARS_BC_3D_V>0)THEN
-        ALLOCATE(BND_VARS_V%VAR_3D(1:NVARS_BC_3D_V))                       !<-- All 3-D V-pt nest boundary variables
-      ENDIF
-!
-!-----------------------------------------------------------------------
-!***  We now need the Solver internal state so we can point the
-!***  user's selected BC variables at the appropriate arrays in
-!***  the BC Bundle.
-!-----------------------------------------------------------------------
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-     MESSAGE_CHECK="Domain_Init: Extract Solver Internal State"
-!    CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      CALL ESMF_GridCompGetInternalState(domain_int_state%SOLVER_GRID_COMP &  !<-- The Solver component
-                                        ,WRAP_SOLVER                  &
-                                        ,RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-      SOLVER_INT_STATE=>wrap_solver%INT_STATE
-!
-!-----------------------------------------------------------------------
-!***  Now go through the boundary Bundle's variables and point the
-!***  full variable pointer of the appropriate boundary object that
-!***  was allocated immediately above at that variable in the Bundle
-!***  in order to associate each piece of the boundary object with
-!***  the actual boundary variable.
-!-----------------------------------------------------------------------
-!
-      CALL ESMF_FieldBundleGet(FIELDBUNDLE=BUNDLE_BC                    &  !<-- Bundle holding the arrays for BC updates
-                              ,fieldCount =NUM_FIELDS                   &  !<-- Number of Fields in the Bundle
-                              ,rc         =RC )
-!
-!-----------------------------------------------------------------------
-!
-      KNT_2D_H=0
-      KNT_3D_H=0
-      KNT_4D_H=0
-      KNT_2D_V=0
-      KNT_3D_V=0
-!
-!-----------------------------------------------------------------------
-!
-      bc_fields: DO N=1,NUM_FIELDS
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract Field N from the Bundle"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_FieldBundleGet(FIELDBUNDLE=BUNDLE_BC                  &  !<-- Bundle holding the arrays for BC updates
-                                ,fieldIndex =N                          &  !<-- Index of the Field in the Bundle
-                                ,field      =FIELD_X                    &  !<-- Field N in the Bundle
-                                ,rc         =RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        MESSAGE_CHECK="Extract H_OR_V Flag from the Field"
-!       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-        CALL ESMF_AttributeGet(field=FIELD_X                            &  !<-- The Domain import state
-                              ,name ='H_OR_V_INT'                       &  !<-- Name of the Attribute
-                              ,value=H_OR_V_INT                         &  !<-- Is the Field on H or V points? (1 is H; 2 is V)
-                              ,rc   =RC)
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-        CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-!-----------------------------
-!***  H-pt boundary variables
-!-----------------------------
-!
-        h_v: IF(H_OR_V_INT==1)THEN                                         !<-- If true, it is an H-pt variable
-!
-          CALL ESMF_FieldGet(field   =FIELD_X                           &  !<-- Field N in the Bundle
-                            ,dimCount=NUM_DIMS                          &  !<-- How many dimensions?
-                            ,rc      =RC )
-!
-!--------------
-!***  2-D Real
-!--------------
-!
-          IF(NUM_DIMS==2)THEN
-!
-            KNT_2D_H=KNT_2D_H+1
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Extract the 2-D H-pt Array from the Field"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            CALL ESMF_FieldGet(field    =FIELD_X                        &  !<-- Field N in the Bundle
-                              ,localDe  =0                              &
-                              ,farrayPtr=ARRAY_2D                       &  !<-- Dummy 2-D array with Field's Real data
-                              ,rc       =RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            solver_int_state%BND_VARS_H%VAR_2D(KNT_2D_H)%FULL_VAR=>ARRAY_2D
-!
-            ALLOCATE(BND_VARS_H%VAR_2D(KNT_2D_H)%SOUTH(IMS:IME,1:LNSH,1:2) & !<-- 2-D H-pt boundary variable N on domain's south side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45001)ISTAT
-45001         FORMAT(' Failed to allocate BND_VARS_H%VAR_2D(N)%SOUTH  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            ALLOCATE(BND_VARS_H%VAR_2D(KNT_2D_H)%NORTH(IMS:IME,1:LNSH,1:2) & !<-- 2-D H-pt boundary variable N on domain's north side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45002)ISTAT
-45002         FORMAT(' Failed to allocate BND_VARS_H%VAR_2D(N)%NORTH  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            ALLOCATE(BND_VARS_H%VAR_2D(KNT_2D_H)%WEST(1:LNSH,JMS:JME,1:2)  & !<-- 2-D H-pt boundary variable N on domain's west side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45003)ISTAT
-45003         FORMAT(' Failed to allocate BND_VARS_H%VAR_2D(N)%WEST  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            ALLOCATE(BND_VARS_H%VAR_2D(KNT_2D_H)%EAST(1:LNSH,JMS:JME,1:2)  & !<-- 2-D H-pt boundary variable N on domain's east side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45004)ISTAT
-45004         FORMAT(' Failed to allocate BND_VARS_H%VAR_2D(N)%EasT  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            BND_VARS_H%VAR_2D(KNT_2D_H)%SOUTH=R4_IN
-            BND_VARS_H%VAR_2D(KNT_2D_H)%NORTH=R4_IN
-            BND_VARS_H%VAR_2D(KNT_2D_H)%WEST=R4_IN
-            BND_VARS_H%VAR_2D(KNT_2D_H)%EAST=R4_IN
-!
-!--------------
-!***  3-D Real
-!--------------
-!
-          ELSEIF(NUM_DIMS==3)THEN
-!
-            KNT_3D_H=KNT_3D_H+1
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Extract the 3-D H-pt Array from the Field"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            CALL ESMF_FieldGet(field    =FIELD_X                        &  !<-- Field N in the Bundle
-                              ,localDe  =0                              &
-                              ,farrayPtr=ARRAY_3D                       &  !<-- Dummy 3-D array with Field's Real data
-                              ,rc       =RC )
-!
-            CALL ESMF_FieldGet(field=FIELD_X                            &  !<-- Field N in the Bundle
-                              ,name =FIELD_NAME                         &  !<-- This Field's name
-                              ,rc   =RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            solver_int_state%BND_VARS_H%VAR_3D(KNT_3D_H)%FULL_VAR=>ARRAY_3D
-!
-            LB3=LBOUND(ARRAY_3D,3)
-            UB3=UBOUND(ARRAY_3D,3)
-!
-            ALLOCATE(BND_VARS_H%VAR_3D(KNT_3D_H)%SOUTH(IMS:IME,1:LNSH,LB3:UB3,1:2) & !<-- 3-D H-pt bndry vbl N on domain's south side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45011)ISTAT
-45011         FORMAT(' Failed to allocate BND_VARS_H%VAR_3D(N)%SOUTH  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            ALLOCATE(BND_VARS_H%VAR_3D(KNT_3D_H)%NORTH(IMS:IME,1:LNSH,LB3:UB3,1:2) & !<-- 3-D H-pt bndry vbl N on domain's north side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45012)ISTAT
-45012         FORMAT(' Failed to allocate BND_VARS_H%VAR_3D(N)%NORTH  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            ALLOCATE(BND_VARS_H%VAR_3D(KNT_3D_H)%WEST(1:LNSH,JMS:JME,LB3:UB3,1:2)  & !<-- 3-D H-pt bndry vbl N on domain's west side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45013)ISTAT
-45013         FORMAT(' Failed to allocate BND_VARS_H%VAR_3D(N)%WEST  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            ALLOCATE(BND_VARS_H%VAR_3D(KNT_3D_H)%EAST(1:LNSH,JMS:JME,LB3:UB3,1:2)  & !<-- 3-D H-pt bndry vbl N on domain's east side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45014)ISTAT
-45014         FORMAT(' Failed to allocate BND_VARS_H%VAR_3D(N)%EAST  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            BND_VARS_H%VAR_3D(KNT_3D_H)%SOUTH=R4_IN
-            BND_VARS_H%VAR_3D(KNT_3D_H)%NORTH=R4_IN
-            BND_VARS_H%VAR_3D(KNT_3D_H)%WEST=R4_IN
-            BND_VARS_H%VAR_3D(KNT_3D_H)%EAST=R4_IN
-!
-!-----------------------------------------------------------------------
-!***  Now some hardwiring is required.  The same boundary objects
-!***  are of course used by all domains but the arrays for the
-!***  upper domain will be read in from the external boco files
-!***  when that domain is not global.  The boundary objects store
-!***  the arrays in the order they are encountered in the nests.txt
-!***  file and in general that order will be different than the 
-!***  order they are read from the boco files.  Therefore we now
-!***  save the order of the three 3-D H-pt boundary arrays used
-!***  by the upper parent so they can be saved in the proper order
-!***  when they are read in subroutine READ_BC.  The order in which
-!***  READ_BC reads them from the boco files is T,Q,CW.
-!***  REGRETTABLY THIS IS DIRTY but is needed since all domains 
-!***  must use the same boundary objects but the dataread in
-!***  READ_BC is fixed in its order in NPS.
-!-----------------------------------------------------------------------
-!
-            IF(FIELD_NAME(1:1)=='T'                                     &
-                         .OR.                                           &
-               FIELD_NAME(1:1)=='Q'                                     &
-                         .OR.                                           &
-               FIELD_NAME(1:2)=='CW')THEN
-!
-              KNT_3D_DOM_01=KNT_3D_DOM_01+1
-!
-              IF(FIELD_NAME(1:1)=='T')THEN
-                N_BC_3D_H(1)=KNT_3D_DOM_01
-              ELSEIF(FIELD_NAME(1:1)=='Q')THEN
-                N_BC_3D_H(2)=KNT_3D_DOM_01
-              ELSEIF(FIELD_NAME(1:2)=='CW')THEN
-                N_BC_3D_H(3)=KNT_3D_DOM_01
-              ENDIF
-!
-            ENDIF
-!
-!--------------
-!***  4-D Real
-!--------------
-!
-          ELSEIF(NUM_DIMS==4)THEN
-!
-            KNT_4D_H=KNT_4D_H+1
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Extract the 4-D H-pt Array from the Field"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            CALL ESMF_FieldGet(field    =FIELD_X                        &  !<-- Field N in the Bundle
-                              ,localDe  =0                              &
-                              ,farrayPtr=ARRAY_4D                       &  !<-- Dummy 4-D array with Field's Real data
-                              ,rc       =RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            solver_int_state%BND_VARS_H%VAR_4D(KNT_4D_H)%FULL_VAR=>ARRAY_4D
-!
-            LB3=LBOUND(ARRAY_4D,3)
-            UB3=UBOUND(ARRAY_4D,3)
-            LB4=LBOUND(ARRAY_4D,4)
-            UB4=UBOUND(ARRAY_4D,4)
-!
-            ALLOCATE(BND_VARS_H%VAR_4D(KNT_4D_H)%SOUTH(IMS:IME,1:LNSH,LB4:UB4,1:2,LB4:UB4) & !<-- 4-D H-pt bndry vbl N on domain's south side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45021)ISTAT
-45021         FORMAT(' Failed to allocate BND_VARS_H%VAR_4D(N)%SOUTH  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            ALLOCATE(BND_VARS_H%VAR_4D(KNT_4D_H)%NORTH(IMS:IME,1:LNSH,LB3:UB3,1:2,LB4:UB4) & !<-- 4-D H-pt bndry vbl N on domain's north side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45022)ISTAT
-45022         FORMAT(' Failed to allocate BND_VARS_H%VAR_4D(N)%NORTH  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            ALLOCATE(BND_VARS_H%VAR_4D(KNT_4D_H)%WEST(1:LNSH,JMS:JME,LB3:UB3,1:2,LB4:UB4)  & !<-- 4-D H-pt bndry vbl N on domain's west side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45023)ISTAT
-45023         FORMAT(' Failed to allocate BND_VARS_H%VAR_4D(N)%WEST  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            ALLOCATE(BND_VARS_H%VAR_4D(KNT_4D_H)%EAST(1:LNSH,JMS:JME,LB3:UB3,1:2,LB4:UB4)  & !<-- 4-D H-pt bndry vbl N on domain's east side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45024)ISTAT
-45024         FORMAT(' Failed to allocate BND_VARS_H%VAR_4D(N)%EAST  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            BND_VARS_H%VAR_4D(KNT_4D_H)%SOUTH=R4_IN
-            BND_VARS_H%VAR_4D(KNT_4D_H)%NORTH=R4_IN
-            BND_VARS_H%VAR_4D(KNT_4D_H)%WEST=R4_IN
-            BND_VARS_H%VAR_4D(KNT_4D_H)%EAST=R4_IN
-!
-          ENDIF
-!
-!-----------------------------
-!***  V-pt boundary variables
-!-----------------------------
-!
-        ELSEIF(H_OR_V_INT==2)THEN
-!
-          CALL ESMF_FieldGet(field   =FIELD_X                           &  !<-- Field N in the Bundle
-                            ,dimCount=NUM_DIMS                          &  !<-- How many dimensions?
-                            ,rc      =RC )
-!
-!--------------
-!***  2-D Real
-!--------------
-!
-          IF(NUM_DIMS==2)THEN
-!
-            KNT_2D_V=KNT_2D_V+1
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Extract the 2-D V-pt Array from the Field"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            CALL ESMF_FieldGet(field    =FIELD_X                        &  !<-- Field N in the Bundle
-                              ,localDe  =0                              &
-                              ,farrayPtr=ARRAY_2D                       &  !<-- Dummy 2-D array with Field's Real data
-                              ,rc       =RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            solver_int_state%BND_VARS_V%VAR_2D(KNT_2D_V)%FULL_VAR=>ARRAY_2D
-!
-            ALLOCATE(BND_VARS_V%VAR_2D(KNT_2D_V)%SOUTH(IMS:IME,1:LNSV,1:2) & !<-- 2-D V-pt bndry vbl N on domain's south side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45041)ISTAT
-45041         FORMAT(' Failed to allocate BND_VARS_V%VAR_2D(N)%SOUTH  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            ALLOCATE(BND_VARS_V%VAR_2D(KNT_2D_V)%NORTH(IMS:IME,1:LNSV,1:2) & !<-- 2-D V-pt bndry vbl N on domain's north side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45042)ISTAT
-45042         FORMAT(' Failed to allocate BND_VARS_V%VAR_2D(N)%NORTH  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            ALLOCATE(BND_VARS_V%VAR_2D(KNT_2D_V)%WEST(1:LNSV,JMS:JME,1:2)  & !<-- 2-D V-pt bndry vbl N on domain's west side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45043)ISTAT
-45043         FORMAT(' Failed to allocate BND_VARS_V%VAR_2D(N)%WEST  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            ALLOCATE(BND_VARS_V%VAR_2D(KNT_2D_V)%EAST(1:LNSV,JMS:JME,1:2)  & !<-- 2-D V-pt bndry vbl N on domain's east side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45044)ISTAT
-45044         FORMAT(' Failed to allocate BND_VARS_V%VAR_2D(N)%EAST  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            BND_VARS_V%VAR_2D(KNT_2D_V)%SOUTH=R4_IN
-            BND_VARS_V%VAR_2D(KNT_2D_V)%NORTH=R4_IN
-            BND_VARS_V%VAR_2D(KNT_2D_V)%WEST=R4_IN
-            BND_VARS_V%VAR_2D(KNT_2D_V)%EAST=R4_IN
-!
-!--------------
-!***  3-D Real
-!--------------
-!
-          ELSEIF(NUM_DIMS==3)THEN
-!
-            KNT_3D_V=KNT_3D_V+1
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            MESSAGE_CHECK="Extract the 3-D V-pt Array from the Field"
-!           CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            CALL ESMF_FieldGet(field    =FIELD_X                        &  !<-- Field N in the Bundle
-                              ,localDe  =0                              &
-                              ,farrayPtr=ARRAY_3D                       &  !<-- Dummy 3-D array with Field's Real data
-                              ,rc       =RC )
-!
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-            CALL ERR_MSG(RC,MESSAGE_CHECK,RC_CMB)
-! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-!
-            solver_int_state%BND_VARS_V%VAR_3D(KNT_3D_V)%FULL_VAR=>ARRAY_3D
-!
-            LB3=LBOUND(ARRAY_3D,3)
-            UB3=UBOUND(ARRAY_3D,3)
-!
-            ALLOCATE(BND_VARS_V%VAR_3D(KNT_3D_V)%SOUTH(IMS:IME,1:LNSV,LB3:UB3,1:2) & !<-- 3-D V-pt bndry vbl N on domain's south side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45051)ISTAT
-45051         FORMAT(' Failed to allocate BND_VARS_V%VAR_3D(N)%SOUTH  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            ALLOCATE(BND_VARS_V%VAR_3D(KNT_3D_V)%NORTH(IMS:IME,1:LNSV,LB3:UB3,1:2) & !<-- 3-D V-pt bndry vbl N on domain's north side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45052)ISTAT
-45052         FORMAT(' Failed to allocate BND_VARS_V%VAR_3D(N)%NORTH  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            ALLOCATE(BND_VARS_V%VAR_3D(KNT_3D_V)%WEST(1:LNSV,JMS:JME,LB3:UB3,1:2)  & !<-- 3-D V-pt bndry vbl N on domain's west side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45053)ISTAT
-45053         FORMAT(' Failed to allocate BND_VARS_V%VAR_3D(N)%WEST  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            ALLOCATE(BND_VARS_V%VAR_3D(KNT_3D_V)%EAST(1:LNSV,JMS:JME,LB3:UB3,1:2)  & !<-- 3-D V-pt bndry vbl N on domain's east side
-                    ,stat=ISTAT)
-            IF(ISTAT/=0)THEN
-              WRITE(0,45054)ISTAT
-45054         FORMAT(' Failed to allocate BND_VARS_V%VAR_3D(N)%EAST  istat=',i5)
-              WRITE(0,*)' Aborting!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
-            ENDIF
-!
-            BND_VARS_V%VAR_3D(KNT_3D_V)%SOUTH=R4_IN
-            BND_VARS_V%VAR_3D(KNT_3D_V)%NORTH=R4_IN
-            BND_VARS_V%VAR_3D(KNT_3D_V)%WEST=R4_IN
-            BND_VARS_V%VAR_3D(KNT_3D_V)%EAST=R4_IN
-!
-          ENDIF
-!
-!-----------------------------------------------------------------------
-!
-        ENDIF h_v
-!
-!-----------------------------------------------------------------------
-!
-      ENDDO bc_fields
-!
-!-----------------------------------------------------------------------
-!
-      CLOSE(10)
-!
-!-----------------------------------------------------------------------
-!
-      END SUBROUTINE BUILD_BC_BUNDLE
 !
 !-----------------------------------------------------------------------
 !#######################################################################
@@ -7114,11 +5912,7 @@
 !
       TYPE(ESMF_Field) :: FIELD_X
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: EXCH_NEEDED
-#else
       LOGICAL(kind=KLOG) :: EXCH_NEEDED
-#endif
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -7133,7 +5927,7 @@
 !
       IF(IOS/=0)THEN
         WRITE(0,*)' Failed to open ',FNAME,' so ABORT!'
-        CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+        CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                   &
                           ,rc             =RC)
       ENDIF
 !
@@ -7199,19 +5993,11 @@
 !-----------------------------------------------------------------------
 !
         CHECK_EXCH=CH_M(2:2)
-#ifdef ESMF_3
-        IF(CHECK_EXCH=='x')THEN
-          EXCH_NEEDED=ESMF_True
-        ELSE
-          EXCH_NEEDED=ESMF_False
-        ENDIF
-#else
         IF(CHECK_EXCH=='x')THEN
           EXCH_NEEDED=.TRUE.
         ELSE
           EXCH_NEEDED=.FALSE.
         ENDIF
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -7302,7 +6088,7 @@
             WRITE(0,*)' Variable name is ',VARS(N)%VBL_NAME,' for variable #',N
             WRITE(0,*)' UPDATE_TYPE=',UPDATE_TYPE_CHAR
             WRITE(0,*)' ABORT!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
 !
           ENDIF
 !
@@ -7356,7 +6142,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_FieldBundleAdd(            MOVE_BUNDLE_H            &  !<-- The Move Bundle for H point variables
-                                  ,            LISTWRAPPER(FIELD_X)     &  !<-- Add this Field to the Bundle
+                                  ,            (/FIELD_X/)     &  !<-- Add this Field to the Bundle
                                   ,rc         =RC )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -7419,7 +6205,7 @@
 !
           ELSE
             WRITE(0,*)' SELECTED UPDATE V VARIABLE IS NOT 2-D OR 3-D.  ABORT!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
 !
           ENDIF
 !
@@ -7473,7 +6259,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_FieldBundleAdd(            MOVE_BUNDLE_V            &  !<-- The Move Bundle for V-point variables
-                                  ,            LISTWRAPPER(FIELD_X)     &  !<-- Add this Field to the Bundle
+                                  ,            (/FIELD_X/)     &  !<-- Add this Field to the Bundle
                                   ,rc         =RC )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -7561,7 +6347,7 @@
 !
       IF(IOS/=0)THEN
         WRITE(0,*)' Failed to open ',FNAME,' so ABORT!'
-        CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+        CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                   &
                           ,rc             =RC)
       ENDIF
 !
@@ -7646,7 +6432,7 @@
             WRITE(0,*)' Variable name is ',VARS(N)%VBL_NAME,' for variable #',N
             WRITE(0,*)' H_OR_V_INT=',H_OR_V_INT
             WRITE(0,*)' ABORT!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
 !
 !----------
 !***  Real
@@ -7701,7 +6487,7 @@
             WRITE(0,*)' Variable name is ',VARS(N)%VBL_NAME,' for variable #',N
             WRITE(0,*)' H_OR_V_INT=',H_OR_V_INT
             WRITE(0,*)' ABORT!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
 !
           ENDIF
 !
@@ -7736,7 +6522,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_FieldBundleAdd(            BUNDLE_2WAY              &  !<-- The Move Bundle for H point variables
-                                  ,            LISTWRAPPER(FIELD_X)     &  !<-- Add this Field to the Bundle
+                                  ,            (/FIELD_X/)     &  !<-- Add this Field to the Bundle
                                   ,rc         =RC )
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -8226,7 +7012,7 @@
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
-      TYPE(ESMF_TypeKind) :: DATATYPE
+      TYPE(ESMF_TypeKind_Flag) :: DATATYPE
 !
       integer(kind=kint),save :: kount_moves=0
 !-----------------------------------------------------------------------
@@ -8622,7 +7408,7 @@
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
-      TYPE(ESMF_TypeKind) :: DATATYPE
+      TYPE(ESMF_TypeKind_Flag) :: DATATYPE
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -9211,7 +7997,7 @@
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
-      TYPE(ESMF_TypeKind) :: DATATYPE
+      TYPE(ESMF_TypeKind_Flag) :: DATATYPE
 !-----------------------------------------------------------------------
 !***********************************************************************
 !-----------------------------------------------------------------------
@@ -9706,7 +8492,7 @@
       TYPE(ESMF_Field) :: HOLD_FIELD                                    &
                          ,HOLD_FIELD_X
 !
-      TYPE(ESMF_TypeKind) :: DATATYPE
+      TYPE(ESMF_TypeKind_Flag) :: DATATYPE
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -10779,7 +9565,7 @@
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
 !
-      TYPE(ESMF_TypeKind) :: DATATYPE
+      TYPE(ESMF_TypeKind_Flag) :: DATATYPE
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -11474,7 +10260,7 @@
         ALLOCATE(PTR,stat=ISTAT)
         IF(ISTAT/=0)THEN
           WRITE(0,*)' Failed to allocate search pointer  stat=',ISTAT
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT                 &
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT                 &
                             ,rc             =RC)
         ENDIF
 !
@@ -11625,7 +10411,7 @@
       LOGICAL(kind=KLOG) :: OPENED
 !
       TYPE(ESMF_Field) :: HOLD_FIELD
-      TYPE(ESMF_TypeKind) :: DATATYPE
+      TYPE(ESMF_TypeKind_Flag) :: DATATYPE
 !
 !-----------------------------------------------------------------------
 !***********************************************************************

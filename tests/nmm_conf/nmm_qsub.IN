@@ -1,4 +1,4 @@
-#!/bin/sh -l
+#!/bin/sh
 
 #PBS -o out
 #PBS -e err
@@ -11,7 +11,7 @@ export MPI_GROUP_MAX=96
 
 export ESMF_RUNTIME_COMPLIANCECHECK=ON:depth=4
 
-source _SRCD_/src/conf/modules.nems.zeus
+source _SRCD_/src/conf/modules.nems
 module list
 
 cd $PBS_O_WORKDIR

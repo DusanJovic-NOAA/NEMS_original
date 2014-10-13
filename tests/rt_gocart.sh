@@ -222,7 +222,7 @@ echo " Test ${TEST_NR} passed " >> ${REGRESSIONTEST_LOG}
 echo " Test ${TEST_NR} passed "
 
 sleep 4
-clear;echo;echo
+echo;echo
 
 ####################################################################################################
 # End test

@@ -1,9 +1,5 @@
-#!/bin/sh
 
 . /usrx/local/Modules/default/init/sh
 
 module purge
-module load ibmpe lsf ics/14.0.1 NetCDF/3.6.3
-
-export MKL_NUM_THREADS=1
-export MKL_CBWR=AVX
+module load EnvVars/1.0.0 ibmpe lsf ics/14.0.1 NetCDF/3.6.3 ESMF/630rp1

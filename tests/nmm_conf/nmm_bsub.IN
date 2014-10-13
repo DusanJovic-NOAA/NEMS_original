@@ -1,4 +1,4 @@
-#!/bin/bash -l
+#!/bin/sh
 
 #BSUB -oo out
 #BSUB -eo err
@@ -12,12 +12,9 @@
 #BSUB -P dev
 #BSUB -a poe
 
-. /usrx/local/Modules/default/init/bash
- module list
- module purge
- module list
- module load ibmpe lsf ics/14.0.1 NetCDF
- module list
+source _SRCD_/src/conf/modules.nems
+module list
+
  export KMP_STACKSIZE=1024m
  export OMP_NUM_THREADS=_THRD_
  export MP_MPILIB=mpich2

@@ -1,11 +1,3 @@
-#include "../../ESMFVersionDefine.h"
-
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 !
       MODULE module_NMM_GRID_COMP
@@ -25,7 +17,7 @@
 !   2012-07    Black - Modified for 'generational' task usage.
 !-----------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
 !
       USE module_INCLUDE
 !
@@ -176,15 +168,9 @@
 !
       LOGICAL(kind=KLOG) :: MY_DOMAIN_MOVES                                !<-- Does my domain move?
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical),POINTER :: I_AM_A_FCST_TASK                    &  !<-- Am I a forecast task?
-                                   ,I_AM_LEAD_FCST_TASK                 &  !<-- Am I the lead forecast task?
-                                   ,I_AM_A_NEST                            !<-- Am I in a nested domain?
-#else
       LOGICAL(kind=KLOG),POINTER :: I_AM_A_FCST_TASK                    &  !<-- Am I a forecast task?
                                    ,I_AM_LEAD_FCST_TASK                 &  !<-- Am I the lead forecast task?
                                    ,I_AM_A_NEST                            !<-- Am I in a nested domain?
-#endif
 !
       LOGICAL(kind=KLOG),DIMENSION(:),ALLOCATABLE,SAVE :: FREE_TO_INTEGRATE   & !<-- A yes/no flag for 2-way domains calling DOMAIN_RUN
                                                          ,GENERATION_FINISHED   !<-- Flag of when forecast is done per generation
@@ -262,19 +248,8 @@
       CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
                                      ,ESMF_METHOD_INITIALIZE            &
                                      ,NMM_INITIALIZE                    &
-#ifdef ESMF_3
-                                     ,ESMF_SINGLEPHASE                  &
-                                     ,RC)
-#else
-#ifdef ESMF_520r
                                      ,phase=1                           &
                                      ,rc=RC)
-#else
-                                     ,phase=ESMF_SINGLEPHASE            &
-                                     ,rc=RC)
-#endif
-#endif
-
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -290,18 +265,8 @@
       CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
                                      ,ESMF_METHOD_RUN                   &
                                      ,NMM_RUN                           &
-#ifdef ESMF_3
-                                     ,ESMF_SINGLEPHASE                  &
-                                     ,RC)
-#else
-#ifdef ESMF_520r
                                      ,phase=1                           &
                                      ,rc=RC)
-#else
-                                     ,phase=ESMF_SINGLEPHASE            &
-                                     ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -317,18 +282,8 @@
       CALL ESMF_GridCompSetEntryPoint(NMM_GRID_COMP                     &
                                      ,ESMF_METHOD_FINALIZE              &
                                      ,NMM_FINALIZE                      &
-#ifdef ESMF_3
-                                     ,ESMF_SINGLEPHASE                  &
-                                     ,RC)
-#else
-#ifdef ESMF_520r
                                      ,phase=1                           &
                                      ,rc=RC)
-#else
-                                     ,phase=ESMF_SINGLEPHASE            &
-                                     ,rc=RC)
-#endif
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       CALL ERR_MSG(RC,MESSAGE_CHECK,RC_REG)
@@ -423,11 +378,7 @@
       TYPE(ESMF_TimeInterval) :: TIMEINTERVAL_RECV_FROM_PARENT             !<-- ESMF time interval between Recv times from parent
       TYPE(ESMF_TimeInterval) :: ZERO_INTERVAL                             !<-- Zero time interval used in comparison of time step
 !                                                                          !    and restart interval.
-#ifdef ESMF_3
-      TYPE(ESMF_LOGICAL) :: PHYSICS_ON                                     !<-- Does the integration include physics?
-#else
       LOGICAL :: PHYSICS_ON                                                !<-- Does the integration include physics?
-#endif
 
       TYPE(ESMF_Config) :: CF_X                                            !<-- Working config object
 !
@@ -626,7 +577,7 @@
         WRITE(0,*)' But there are ',NUM_DOMAINS_X,' configure files present.'
         WRITE(0,*)' There must be one configure file per domain.'
         WRITE(0,*)' ABORTING!!'
-        CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
       ENDIF
 !
 !-----------------------------------------------------------------------
@@ -666,7 +617,7 @@
           IF(QUILTING.AND..NOT.QUILTING_1)THEN
             WRITE(0,*)' Conflicting quilting settings in configure files!'
             WRITE(0,*)' Aborting!!!'
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           ENDIF
         ENDIF
 !
@@ -903,12 +854,12 @@
               WRITE(0,*)' Generation ',N,' is using ',N_FCST_TASKS_GEN(N) &
                        ,' fcst tasks.'
               WRITE(0,*)' Aborting!!'
-              CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
+              CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
 !
             ELSEIF(N_FCST_TASKS_GEN(N)==0)THEN
               WRITE(0,*)' Generation ',N,' is using no tasks!!'
               WRITE(0,*)' Aborting!!'
-              CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
+              CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
 !
             ENDIF
 !
@@ -919,7 +870,7 @@
                      ,' to the run.'
             WRITE(0,*)' At least one generation must use all fcst tasks.'
             WRITE(0,*)' Aborting!!'
-            CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
           ENDIF
 !
           DEALLOCATE(N_FCST_TASKS_GEN)
@@ -1039,7 +990,7 @@
               WRITE(0,*)' Generation of that domain is ',GEN_X
               WRITE(0,*)' This task already has a domain ',MY_DOMAINS_IN_GENS(GEN_X),' in that generation!'
               WRITE(0,*)' Aborting!!'
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
             ELSE
               MY_DOMAINS_IN_GENS(GEN_X)=ID_DOM                             !<-- Save the task's domain ID in this generation
             ENDIF
@@ -1257,7 +1208,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         nmm_int_state%IMP_STATE_DOMAIN(ID_DOM)=ESMF_StateCreate(           &  !<-- DOMAIN import state
-                                       STATENAME  =STATE_NAME              &  !<-- DOMAIN import state name
+                                       name  =STATE_NAME              &  !<-- DOMAIN import state name
                                       ,stateintent=ESMF_STATEINTENT_IMPORT &
                                       ,rc         =RC)
 !
@@ -1273,7 +1224,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 ! 
         nmm_int_state%EXP_STATE_DOMAIN(ID_DOM)=ESMF_StateCreate(           &  !<-- DOMAIN export state
-                                       STATENAME  =STATE_NAME              &  !<-- DOMAIN export state name
+                                       name  =STATE_NAME              &  !<-- DOMAIN export state name
                                       ,stateintent=ESMF_STATEINTENT_EXPORT &
                                       ,rc         =RC )
 !
@@ -1527,7 +1478,7 @@
           WRITE(0,*)'Timestep of this domain does not divide evenly'    &
                    ,' into the restart interval!'
           WRITE(0,*)' ABORTING!'
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
 !
 !-----------------------------------------------------------------------
@@ -1652,15 +1603,9 @@
 !
       DO N=1,NUM_DOMAINS_TOTAL
 !
-#ifdef ESMF_3
-        nmm_int_state%I_AM_A_FCST_TASK(N)   =ESMF_FALSE
-        nmm_int_state%I_AM_LEAD_FCST_TASK(N)=ESMF_FALSE
-        nmm_int_state%I_AM_A_NEST(N)        =ESMF_FALSE
-#else
         nmm_int_state%I_AM_A_FCST_TASK(N)   =.FALSE.
         nmm_int_state%I_AM_LEAD_FCST_TASK(N)=.FALSE.
         nmm_int_state%I_AM_A_NEST(N)        =.FALSE.
-#endif
 !
         nmm_int_state%P_C_TIME_RATIO(N)=0.
         nmm_int_state%MY_DOMAIN_MOVES(N)=.FALSE.
@@ -1711,15 +1656,9 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-        CALL ESMF_GridCompSetServices(nmm_int_state%DOMAIN_GRID_COMP(ID_DOM) &  !<-- The DOMAIN component
-                                     ,DOMAIN_REGISTER                        &  !<-- User's subroutineName
-                                     ,RC)
-#else
         CALL ESMF_GridCompSetServices(nmm_int_state%DOMAIN_GRID_COMP(ID_DOM) &  !<-- The DOMAIN component
                                      ,DOMAIN_REGISTER                        &  !<-- User's subroutineName
                                      ,rc=RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -1802,15 +1741,6 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-        IF(TRIM(MODE)=='true')THEN
-          PHYSICS_ON = ESMF_FALSE
-          IF(MYPE==0) WRITE(0,*)' NMM will run without physics.'
-        ELSE
-          PHYSICS_ON = ESMF_TRUE
-          IF(MYPE==0) WRITE(0,*)' NMM will run with physics.'
-        ENDIF
-#else
         IF(TRIM(MODE)=='true')THEN
           PHYSICS_ON = .FALSE.
           IF(MYPE==0) WRITE(0,*)' NMM will run without physics.'
@@ -1818,7 +1748,6 @@
           PHYSICS_ON = .TRUE.
           IF(MYPE==0) WRITE(0,*)' NMM will run with physics.'
         ENDIF
-#endif
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Add Physics flag to the DOMAIN Import State"
@@ -1944,19 +1873,11 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-        IF(COMM_TO_MY_PARENT==-999)THEN
-          nmm_int_state%I_AM_A_NEST(ID_DOM)=ESMF_FALSE
-        ELSE
-          nmm_int_state%I_AM_A_NEST(ID_DOM)=ESMF_TRUE
-        ENDIF
-#else
         IF(COMM_TO_MY_PARENT==-999)THEN
           nmm_int_state%I_AM_A_NEST(ID_DOM)=.FALSE.
         ELSE
           nmm_int_state%I_AM_A_NEST(ID_DOM)=.TRUE.
         ENDIF
-#endif
 !
         I_AM_A_NEST=>nmm_int_state%I_AM_A_NEST(ID_DOM)
 !
@@ -2041,11 +1962,7 @@
           CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-          IF(I_AM_A_NEST==ESMF_TRUE)THEN
-#else
           IF(I_AM_A_NEST) THEN
-#endif
 !
             PARENT_CHILD_TIME_RATIO=>nmm_int_state%P_C_TIME_RATIO(ID_DOM)
 !
@@ -2088,7 +2005,7 @@
       IF(ISTAT/=0)THEN
         WRITE(0,*)' Failed to allocate TIMERS(1:',NUM_DOMAINS_TOTAL,') in NMM_Init.'
         WRITE(0,*)' Aborting!!'
-        CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
       ENDIF
 !
       DO N=1,NUM_DOMAINS_TOTAL
@@ -2220,7 +2137,7 @@
       IF(ISTAT/=0)THEN
         WRITE(0,*)' NMM_INIT failed to allocate INFO_SEND stat=',ISTAT
         WRITE(0,*)' Aborting!!'
-        CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
+        CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
       ENDIF
 !
       ALLOCATE(nmm_int_state%NUM_2WAY_CHILDREN(1:NUM_DOMAINS_TOTAL))       !<-- Object holding # of 2-way nests on each domain.
@@ -2252,11 +2169,11 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-        IMP_STATE_CPL_NEST=ESMF_StateCreate(STATENAME  ='Nesting Coupler Import' &  !<-- The P-C Coupler import state name
+        IMP_STATE_CPL_NEST=ESMF_StateCreate(name  ='Nesting Coupler Import' &  !<-- The P-C Coupler import state name
                                            ,stateintent= ESMF_STATEINTENT_IMPORT &
                                            ,rc         =RC)
 !
-        EXP_STATE_CPL_NEST=ESMF_StateCreate(STATENAME  ='Nesting Coupler Export' &  !<-- The P-C Coupler export state name
+        EXP_STATE_CPL_NEST=ESMF_StateCreate(name  ='Nesting Coupler Export' &  !<-- The P-C Coupler export state name
                                            ,stateintent= ESMF_STATEINTENT_EXPORT &
                                            ,rc         =RC)
 !
@@ -2290,15 +2207,9 @@
 !       CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-        CALL ESMF_CplCompSetServices(comp          =PARENT_CHILD_COUPLER_COMP &  ! <-- The Parent-Child Coupler component
-                                    ,subroutineName=PARENT_CHILD_CPL_REGISTER &  ! <-- The user's subroutineName
-                                    ,rc            =RC)
-#else
         CALL ESMF_CplCompSetServices(cplcomp       =PARENT_CHILD_COUPLER_COMP &  ! <-- The Nesting coupler component
                                     ,userRoutine   =PARENT_CHILD_CPL_REGISTER &  ! <-- The user's subroutineName
                                     ,rc            =RC)
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -2401,22 +2312,14 @@
 !***  Identify the lead forecast task on each domain.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
         IF(I_AM_A_FCST_TASK)THEN
-#endif
 !
           CALL MPI_COMM_RANK(comms_domain(MY_DOMAIN_ID)%TO_FCST_TASKS   &  !<-- Intracomm for fcst tasks on this domain
                             ,MYPE_X                                     &  !<-- Rank of this task in the intracommunicator
                             ,IERR)
 !
           IF(MYPE_X==0)THEN
-#ifdef ESMF_3
-            nmm_int_state%I_AM_LEAD_FCST_TASK(MY_DOMAIN_ID)=ESMF_True
-#else
             nmm_int_state%I_AM_LEAD_FCST_TASK(MY_DOMAIN_ID)=.TRUE.
-#endif
           ENDIF
 !
         ENDIF
@@ -2630,11 +2533,7 @@
 !
                 ELSE
 !
-#ifdef ESMF_3
-                  IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
                   IF(I_AM_A_FCST_TASK)THEN
-#endif
                     CALL MPI_RECV(CTASK_LIMITS(ID)%CHILDREN(N)%DATA(1:4,NT) &  !<-- Subdomain limits of child N's task NT
                                  ,4                                         &  !<-- Consists of 4 words
                                  ,MPI_INTEGER                               &  !<-- Data are integers
@@ -2690,11 +2589,7 @@
 !
           NUM_2WAY_CHILDREN=>nmm_int_state%NUM_2WAY_CHILDREN(MY_DOMAIN_ID)
 !
-#ifdef ESMF_3
-          IF(I_AM_A_FCST_TASK==ESMF_TRUE.AND.NUM_CHILDREN>0)THEN
-#else
           IF(I_AM_A_FCST_TASK.AND.NUM_CHILDREN>0)THEN
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             MESSAGE_CHECK="NMM_Init: Extract # of 2-Way Children from P-C Export State"
@@ -2847,11 +2742,7 @@
 !
         parent_waits_topo: IF(NUM_CHILDREN>0                            &  !<-- If so this task is on a parent domain in generation NN
                                  .AND.                                  &
-#ifdef ESMF_3
-                              I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
                               I_AM_A_FCST_TASK)THEN
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -2968,11 +2859,7 @@
         I_AM_A_FCST_TASK=nmm_int_state%I_AM_A_FCST_TASK(MY_DOMAIN_ID)
 !
         parent_waits_bc_info: IF(NUM_CHILDREN>0.AND.                    &  !<-- Select fcst tasks on all the parents
-#ifdef ESMF_3
-                                 I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
                                  I_AM_A_FCST_TASK)THEN
-#endif
 !
           ID=MY_DOMAIN_ID
 !
@@ -3651,11 +3538,7 @@
 !
           I_AM_LEAD_FCST_TASK=>nmm_int_state%I_AM_LEAD_FCST_TASK(MY_DOMAIN_ID) !<-- Is this the lead fcst task on this domain?
 !
-#ifdef ESMF_3
-          IF(I_AM_LEAD_FCST_TASK==ESMF_True)WRITE(0,*)' Beginning DFL Filter'
-#else
           IF(I_AM_LEAD_FCST_TASK)WRITE(0,*)' Beginning DFL Filter'
-#endif
 !
 !-----------------------------------------------------------------------
 !***  Extract the length of the half forward filter window
@@ -3708,7 +3591,7 @@
             WRITE(0,*)' nsecs_dfl in configure MUST be integer multiple of the timestep'
             WRITE(0,*)' User must reset the value'
             WRITE(0,*)' ABORTING!!'
-            CALL ESMF_Finalize(rc=RC,terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(rc=RC,endflag=ESMF_END_ABORT)
           ENDIF
 !
 !-----------------------------------------------------------------------
@@ -4010,11 +3893,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-          IF(I_AM_LEAD_FCST_TASK==ESMF_True) write(0,*) 'steps to increment for DFL: ', RESTVAL/DT(MY_DOMAIN_ID)
-#else
           IF(I_AM_LEAD_FCST_TASK) write(0,*) 'steps to increment for DFL: ', RESTVAL/DT(MY_DOMAIN_ID)
-#endif
 !
           NTIMESTEP_ESMF=NTIMESTEP_ESMF*(FILT_DT(MY_DOMAIN_ID)/DT(MY_DOMAIN_ID))+0.1
           NTIMESTEP_ESMF=NTIMESTEP_ESMF + (RESTVAL/DT(MY_DOMAIN_ID))
@@ -4026,11 +3905,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-          IF(I_AM_LEAD_FCST_TASK==ESMF_True)THEN
-#else
           IF(I_AM_LEAD_FCST_TASK)THEN
-#endif
             WRITE(0,*)' Completed filter method ',filter_method
             WRITE(0,*)' Now reset filter method to 0.'
           ENDIF
@@ -4063,11 +3938,7 @@
 !
           I_AM_LEAD_FCST_TASK=>nmm_int_state%I_AM_LEAD_FCST_TASK(MY_DOMAIN_ID) !<-- Is this the lead fcst task on this domain?
 !
-#ifdef ESMF_3
-          IF(I_AM_LEAD_FCST_TASK==ESMF_True)WRITE(0,*)' Beginning DDFI Filter'
-#else
           IF(I_AM_LEAD_FCST_TASK)WRITE(0,*)' Beginning DDFI Filter'
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -4121,7 +3992,7 @@
             WRITE(0,*)'nsecs_bckddfi in configure MUST be integer multiple of the timestep'
             WRITE(0,*)' User must reset the value'
             WRITE(0,*)' *** ABORTING MODEL RUN *** '
-            CALL ESMF_Finalize(RC=RC,terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(RC=RC,endflag=ESMF_END_ABORT)
           ENDIF
 !
 !-----------------------------------------------------------------------
@@ -4175,11 +4046,7 @@
 !
           IMP_STATE_DOMAIN=>nmm_int_state%IMP_STATE_DOMAIN(MY_DOMAIN_ID)
 !
-#ifdef ESMF_3
-          IF(I_AM_LEAD_FCST_TASK==ESMF_True)WRITE(0,*)' Set Clock direction to backward for DDFI'
-#else
           IF(I_AM_LEAD_FCST_TASK)WRITE(0,*)' Set Clock direction to backward for DDFI'
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="For DDFI Set Import State Attributes for Backward Integration"
@@ -4657,11 +4524,7 @@
             IF(ESMF_ClockIsStopTime(CLOCK_FILTER(MY_DOMAIN_ID),rc=RC))THEN
               GENERATION_FINISHED(N)=.TRUE.                                !<-- Generation N's filter has finished
 !
-#ifdef ESMF_3
-              IF(I_AM_LEAD_FCST_TASK==ESMF_True)THEN
-#else
               IF(I_AM_LEAD_FCST_TASK)THEN
-#endif
                 WRITE(0,*)' Completed filter method ',filter_method
                 WRITE(0,*)' Now reset filter method to 0.'
               ENDIF
@@ -4709,11 +4572,7 @@
 !
           I_AM_LEAD_FCST_TASK=>nmm_int_state%I_AM_LEAD_FCST_TASK(MY_DOMAIN_ID) !<-- Is this the lead fcst task on this domain?
 !
-#ifdef ESMF_3
-          IF(I_AM_LEAD_FCST_TASK==ESMF_True)WRITE(0,*)' Beginning TDFI Filter'
-#else
           IF(I_AM_LEAD_FCST_TASK)WRITE(0,*)' Beginning TDFI Filter'
-#endif
 !
 !-----------------------------------------------------------------------
 !
@@ -4762,7 +4621,7 @@
             WRITE(0,*)'nsecs_bcktdfi in configure MUST be integer multiple of the timestep'
             WRITE(0,*)' User must reset the value'
             WRITE(0,*)' *** ABORTING MODEL RUN *** '
-            CALL ESMF_Finalize(RC=RC,terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(RC=RC,endflag=ESMF_END_ABORT)
           ENDIF
 !
 !-----------------------------------------------------------------------
@@ -4788,13 +4647,8 @@
 !
           CALL ESMF_TimeGet(STARTTIME, dd=DD, h=H, m=M, s=S, rc=RC)
 !
-#ifdef ESMF_3
-          IF(I_AM_LEAD_FCST_TASK==ESMF_True)WRITE(0,*)' STARTTIME in TDFI DD H M S: ', DD, H, M, S
-          IF(I_AM_LEAD_FCST_TASK==ESMF_True)WRITE(0,*)' NDFISTEP=',NDFISTEP(MY_DOMAIN_ID),' DFIHR=',DFIHR
-#else
           IF(I_AM_LEAD_FCST_TASK)WRITE(0,*)' STARTTIME in TDFI DD H M S: ', DD, H, M, S
           IF(I_AM_LEAD_FCST_TASK)WRITE(0,*)' NDFISTEP=',NDFISTEP(MY_DOMAIN_ID),' DFIHR=',DFIHR
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Create the Clock for the TDFI Digital Filter."
@@ -4817,11 +4671,7 @@
 !
           IMP_STATE_DOMAIN=>nmm_int_state%IMP_STATE_DOMAIN(MY_DOMAIN_ID)   !<-- This domain's import state
 !
-#ifdef ESMF_3
-          IF(I_AM_LEAD_FCST_TASK==ESMF_True)WRITE(0,*)' Set Clock direction to backward for TDFI'
-#else
           IF(I_AM_LEAD_FCST_TASK)WRITE(0,*)' Set Clock direction to backward for TDFI'
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="For TDFI Set Import State Attributes for Backward Integration"
@@ -5316,11 +5166,7 @@
 !
             IF(ESMF_ClockIsStopTime(CLOCK_FILTER(MY_DOMAIN_ID),rc=RC))THEN
               GENERATION_FINISHED(N)=.TRUE.                                !<-- Generation N's filter has finished
-#ifdef ESMF_3
-              IF(I_AM_LEAD_FCST_TASK==ESMF_True)THEN
-#else
               IF(I_AM_LEAD_FCST_TASK)THEN
-#endif
                 WRITE(0,*)' Completed filter method ',filter_method
                 WRITE(0,*)' Now reset filter method to 0.'
               ENDIF

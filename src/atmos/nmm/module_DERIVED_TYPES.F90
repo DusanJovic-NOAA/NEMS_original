@@ -1,10 +1,4 @@
 #include "../../ESMFVersionDefine.h"
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_DERIVED_TYPES
@@ -26,7 +20,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
 !
       USE module_INCLUDE
 !

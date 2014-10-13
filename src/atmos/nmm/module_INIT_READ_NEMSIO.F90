@@ -3,7 +3,7 @@
 !-----------------------------------------------------------------------
                         module module_INIT_READ_NEMSIO
 !-----------------------------------------------------------------------
-use esmf_mod
+use ESMF
 use module_include
 use module_dm_parallel,only : ids,ide,jds,jde &
                              ,ims,ime,jms,jme &

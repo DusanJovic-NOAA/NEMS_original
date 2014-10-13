@@ -1,5 +1,3 @@
-#include "../../ESMFVersionDefine.h"
-
 !-----------------------------------------------------------------------
 !
       MODULE module_NMM_INTEGRATE
@@ -29,7 +27,7 @@
 !   2012-07     Black - Revised for 'generational' task usage.
 !-----------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
 !
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
 !
@@ -152,15 +150,9 @@
       CHARACTER(8) ,INTENT(IN) :: CLOCK_DIRECTION                          !<-- The direction of time in the Clock
       CHARACTER(12),INTENT(IN) :: TASK_MODE                                !<-- Task assignments unique per domain or generational?
 
-#ifdef ESMF_3
-      TYPE(ESMF_Logical),INTENT(IN) :: I_AM_A_FCST_TASK                 &  !<-- Am I in a forecast task?
-                                      ,I_AM_LEAD_FCST_TASK              &  !<-- Am I the first forecast task in the domain's comm?
-                                      ,I_AM_A_NEST                         !<-- Am I in a nested domain?
-#else
       LOGICAL(kind=KLOG),INTENT(IN) :: I_AM_A_FCST_TASK                 &  !<-- Am I in a forecast task?
                                       ,I_AM_LEAD_FCST_TASK              &  !<-- Am I the first forecast task in the domain's comm?
                                       ,I_AM_A_NEST                         !<-- Am I in a nested domain?
-#endif
 !
       TYPE(ESMF_TimeInterval),INTENT(IN)  :: TIMESTEP                      !<-- Fundamental timestep of this domain (ESMF) (s)
 !
@@ -227,13 +219,8 @@
       CHARACTER(2) :: INT_TO_CHAR
       CHARACTER(6) :: FMT
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: ALLCLEAR_FROM_PARENT                        &
-                           ,RECV_ALL_CHILD_DATA 
-#else
       LOGICAL(kind=KLOG) :: ALLCLEAR_FROM_PARENT                        &
                            ,RECV_ALL_CHILD_DATA 
-#endif
       LOGICAL(kind=KLOG) :: E_BDY,N_BDY,S_BDY,W_BDY                     &
                            ,FREE_TO_INTEGRATE                           &
                            ,INTEGRATED_SOLVER
@@ -336,11 +323,7 @@
 !***  on a boundary of the current domain.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-      IF(I_AM_A_FCST_TASK==ESMF_True)THEN
-#else
       IF(I_AM_A_FCST_TASK)THEN
-#endif
 !
         CALL ESMF_GridCompGetInternalState(domain_int_state%SOLVER_GRID_COMP &  !<-- The Solver component
                                           ,WRAP_SOLVER                       &  !<-- The F90 wrap of the Solver internal state
@@ -462,7 +445,7 @@
         IF(.NOT.PRESENT(LAST_GENERATION))THEN
           WRITE(0,*)' LAST_GENERATION must be supplied for 2-way nesting but was not.'
           WRITE(0,*)' Aborting!!!'
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
         ENDIF
         IF(.NOT.LAST_GENERATION)THEN
           LAST_STEP=FIRST_STEP                                             !<-- Most 2-way domains integrate one timestep at a time
@@ -517,11 +500,7 @@
 !
       check_2way: IF(NEST_MODE=='2-way'                                 &
                          .AND.                                          &
-#ifdef ESMF_3
-                     I_AM_A_FCST_TASK==ESMF_True)THEN     
-#else
                      I_AM_A_FCST_TASK)THEN     
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="Call Phase 1 Coupler Run: Check 2-Way Signals"
@@ -549,11 +528,7 @@
 !***  Is 2-way data ready for my parent from all its children?
 !--------------------------------------------------------------
 !
-#ifdef ESMF_3
-          IF(I_AM_A_NEST==ESMF_True)THEN
-#else
           IF(I_AM_A_NEST)THEN
-#endif
             IF(MOD(NSTEP_INTEGRATE,PAR_CHI_TIME_RATIO)==0)THEN
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
         MESSAGE_CHECK="NMM_INTEGRATE: Extract ALLCLEAR from P-C Exp State"
@@ -571,11 +546,7 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-              IF(domain_int_state%ALLCLEAR_FROM_PARENT==ESMF_False)THEN
-#else
               IF(.NOT.domain_int_state%ALLCLEAR_FROM_PARENT)THEN
-#endif
 !
                 RETURN                                                     !<-- All my siblings are not yet ready to send our parent
 !                                                                          !    their 2-way data.
@@ -605,11 +576,7 @@
 !
             domain_int_state%RECV_ALL_CHILD_DATA=RECV_ALL_CHILD_DATA
 !
-#ifdef ESMF_3
-            IF(domain_int_state%RECV_ALL_CHILD_DATA==ESMF_False)THEN
-#else
             IF(.NOT.domain_int_state%RECV_ALL_CHILD_DATA)THEN
-#endif
 !
               RETURN                                                       !<-- All my children are not yet ready to send me
 !                                                                          !    their 2-way data.
@@ -663,11 +630,7 @@
 !
         btim0=timef()
 !
-#ifdef ESMF_3
-        IF(I_AM_A_NEST==ESMF_TRUE.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
         IF(I_AM_A_NEST.AND.I_AM_A_FCST_TASK)THEN
-#endif
 !
           IF(MOD(KOUNT_STEPS,PAR_CHI_TIME_RATIO)==0)THEN                   !<-- Child is at the start of a parent timestep.
 !
@@ -744,11 +707,7 @@
 !
         btim0=timef()
 !
-#ifdef ESMF_3
-        IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
         IF(I_AM_A_FCST_TASK)THEN
-#endif
 !
           IF(NUM_2WAY_CHILDREN>0)THEN                                      !<-- Parents w/ 2way children call phase 3 of P-C coupler
 !
@@ -844,7 +803,7 @@
                                       ,IERR)
 !
             IF (IERR /= 0) THEN
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
             END IF
 !
             CALL TIMESERIES_RUN(SOLVER_INT_STATE                        &
@@ -852,7 +811,7 @@
                                ,IERR)
 !
             IF (IERR /= 0) THEN
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
             END IF
 !
           END IF
@@ -894,20 +853,11 @@
 !-----------------------------------------------------------------------
 !
         IF(NEST_MODE=='2-way')THEN                                         !<-- Reset these 2-way flags
-#ifdef ESMF_3
-          IF(I_AM_A_NEST==ESMF_TRUE.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-            domain_int_state%RECV_ALL_CHILD_DATA=ESMF_False
-#else
           IF(I_AM_A_NEST.AND.I_AM_A_FCST_TASK)THEN
             domain_int_state%RECV_ALL_CHILD_DATA=.FALSE. 
-#endif
 !
             IF(MOD(KOUNT_STEPS+1,PAR_CHI_TIME_RATIO)==0)THEN
-#ifdef ESMF_3
-              domain_int_state%ALLCLEAR_FROM_PARENT=ESMF_False
-#else
               domain_int_state%ALLCLEAR_FROM_PARENT=.FALSE.
-#endif
               ALLCLEAR_FROM_PARENT=domain_int_state%ALLCLEAR_FROM_PARENT
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -953,11 +903,7 @@
 !
         btim0=timef()
 !
-#ifdef ESMF_3
-        IF(NUM_CHILDREN>0.AND.I_AM_A_FCST_TASK==ESMF_True)THEN             !<-- Fcst tasks call the coupler if there are children
-#else
         IF(NUM_CHILDREN>0.AND.I_AM_A_FCST_TASK)THEN                        !<-- Fcst tasks call the coupler if there are children
-#endif
 !
 !-----------------------------------------------------------------------
 !***  Call the Run step for phase 4 of the Parent-Child coupler.
@@ -997,11 +943,7 @@
 !
         btim0=timef()
 !
-#ifdef ESMF_3
-        IF(I_AM_A_NEST==ESMF_TRUE.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
         IF(I_AM_A_NEST.AND.I_AM_A_FCST_TASK)THEN
-#endif
 !
           IF(NEST_MODE=='2-way')THEN
 !
@@ -1082,11 +1024,7 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INTEG)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-        IF(FILTER_METHOD > 0 .AND. I_AM_LEAD_FCST_TASK==ESMF_True ) THEN
-#else
         IF(FILTER_METHOD > 0 .AND. I_AM_LEAD_FCST_TASK ) THEN
-#endif
           WRITE(0,*)'Filter is running, KOUNT_STEPS= ',KOUNT_STEPS,' for method=',FILTER_METHOD
         ENDIF
 !
@@ -1112,7 +1050,7 @@
                              ,IERR)
 !
           IF (IERR /= 0) THEN
-            CALL ESMF_Finalize(terminationflag=ESMF_ABORT)
+            CALL ESMF_Finalize(endflag=ESMF_END_ABORT)
           END IF
 !
         END IF
@@ -1152,11 +1090,7 @@
 !***  Lead forecast task prints timestep information in free forecast.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        IF(I_AM_LEAD_FCST_TASK==ESMF_TRUE.AND.FILTER_METHOD==0)THEN
-#else
         IF(I_AM_LEAD_FCST_TASK.AND.FILTER_METHOD==0)THEN
-#endif
           WRITE(0,25)NTIMESTEP-1,MY_DOMAIN_ID,NTIMESTEP*DT/3600.,phase1_tim
    25     FORMAT(' Finished Timestep ',i5,' for domain ',i3,' ending at ' &
                  ,f7.3,' hours: elapsed integration time ',f9.5)
@@ -1227,11 +1161,7 @@
 !***  component's export state and print them.
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        IF(I_AM_A_NEST==ESMF_TRUE.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
         IF(I_AM_A_NEST.AND.I_AM_A_FCST_TASK)THEN
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract Cpl1 Recv Time from Parent-Child Cpl Export State"
@@ -1249,11 +1179,7 @@
 !
         ENDIF
 !
-#ifdef ESMF_3
-        IF(NUM_CHILDREN>0.AND.I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
         IF(NUM_CHILDREN>0.AND.I_AM_A_FCST_TASK)THEN
-#endif
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           MESSAGE_CHECK="Extract Cpl2 Wait Time from Parent-Child Cpl Export State"
@@ -1340,11 +1266,7 @@
 !
 !-----------------------------------------------------------------------
 !
-#ifdef ESMF_3
-        IF (I_AM_LEAD_FCST_TASK==ESMF_TRUE .AND. NESTING) WRITE(0,897)
-#else
         IF (I_AM_LEAD_FCST_TASK .AND. NESTING) WRITE(0,897)
-#endif
 !
         IF(.NOT. NESTING) THEN                                             !<-- Parent only run
           IF (td%domain_run_1 < 1.0) THEN                                  !<-- An I/O task
@@ -1361,11 +1283,7 @@
           ENDIF
 !
         ELSE
-#ifdef ESMF_3
-          IF(I_AM_A_FCST_TASK==ESMF_TRUE)THEN                               !<-- Nested run and a forecast task
-#else
           IF(I_AM_A_FCST_TASK)THEN                                          !<-- Nested run and a forecast task
-#endif
             IF(NUM_CHILDREN == 0)THEN                                       !<-- A nest with no children
               IF (td%cpl1_recv_tim > 1.0) THEN                              !<-- Child compute task on the boundary
                 IF (td%domain_run_2 > 1.0) THEN                             !<-- Digital filter
@@ -1396,17 +1314,9 @@
 !           WRITE(0,*)'   Total Cpl Phase 1=',pc_cpl_run_cpl1*1.e-3
 !
             IF(NUM_CHILDREN>0)THEN                                           !<-- Parent task that has a child nest
-#ifdef ESMF_3
-              IF (I_AM_LEAD_FCST_TASK==ESMF_True) WRITE(0,898)td%t0_recv_move_tim
-#else
               IF (I_AM_LEAD_FCST_TASK) WRITE(0,898)td%t0_recv_move_tim
-#endif
 !
-#ifdef ESMF_3
-              IF(I_AM_A_NEST==ESMF_TRUE)THEN
-#else
               IF(I_AM_A_NEST)THEN
-#endif
                 IF (td%cpl1_recv_tim > 1.0) THEN                           !<-- Child compute task that is on a boundary
                   IF (td%domain_run_2 > 1.0) THEN                          !<-- Digital filter
                     WRITE(0,902)td%domain_run_1                         &
@@ -1467,11 +1377,7 @@
             ENDIF
 !
             IF(NEST_MODE=='2-way')THEN
-#ifdef ESMF_3
-              IF(I_AM_A_NEST==ESMF_True)THEN
-#else
               IF(I_AM_A_NEST)THEN
-#endif
 !               WRITE(0,910)td%pc_cpl_run_cpl3
               ENDIF
             ENDIF
@@ -1570,11 +1476,7 @@
 
               parents_only: IF(NUM_CHILDREN>0                           &
                                    .AND.                                &
-#ifdef ESMF_3
-                               I_AM_A_FCST_TASK==ESMF_TRUE)THEN
-#else
                                I_AM_A_FCST_TASK)THEN
-#endif
 !
 !-----------------------------------------------------------------------
 !

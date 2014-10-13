@@ -1,11 +1,3 @@
-#include "../../ESMFVersionDefine.h"
-
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_WRITE_ROUTINES
@@ -44,7 +36,7 @@
 !
 !---------------------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
 !
       USE MODULE_WRITE_INTERNAL_STATE,ONLY: WRITE_INTERNAL_STATE        &
                                            ,WRITE_WRAP                  &
@@ -205,15 +197,11 @@
 !
       TYPE(WRITE_INTERNAL_STATE),POINTER :: WRT_INT_STATE
 !
-      TYPE(ESMF_TypeKind) :: DATATYPE
+      TYPE(ESMF_TypeKind_Flag) :: DATATYPE
 !
       TYPE(ESMF_Field) :: FIELD_WORK1
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: WORK_LOGICAL
-#else
       LOGICAL(kind=KLOG) :: WORK_LOGICAL
-#endif
 !
       TYPE(ESMF_VM) :: VM_DOMAIN
 !
@@ -496,25 +484,16 @@
 ! 
         CALL ESMF_AttributeGet(FIELDBUNDLE=OUTPUT_BUNDLE                &  !<-- The Bundle of output data
                               ,name       ='IM'                         &  !<-- Name of the Attribute to extract
-#ifdef ESMF_3
-                              ,count    =1                              &  !<-- Length of Attribute
-#endif
                               ,valueList  =wrt_int_state%IM             &  !<-- Extract this Attribute from History Bundle
                               ,rc         =RC)
 !
         CALL ESMF_AttributeGet(FIELDBUNDLE=OUTPUT_BUNDLE                &  !<-- The Bundle of output data
                               ,name       ='JM'                         &  !<-- Name of the Attribute to extract
-#ifdef ESMF_3
-                              ,count    =1                              &  !<-- Length of Attribute
-#endif
                               ,valueList  =wrt_int_state%JM             &  !<-- Extract this Attribute from History Bundle
                               ,rc         =RC)
 !
         CALL ESMF_AttributeGet(FIELDBUNDLE=OUTPUT_BUNDLE                &  !<-- The Bundle of output data
                               ,name       ='LM'                         &  !<-- Name of the Attribute to extract
-#ifdef ESMF_3
-                              ,count    =1                              &  !<-- Length of Attribute
-#endif
                               ,valueList  =wrt_int_state%LM             &  !<-- Extract this Attribute from History Bundle
                               ,rc         =RC)
 !
@@ -527,11 +506,7 @@
         CALL ERR_MSG(RC,MESSAGE_CHECK,RC_WRT)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-#ifdef ESMF_3
-        IF(wrt_int_state%GLOBAL == ESMF_TRUE) THEN                         !<-- Increase lateral dimensions by 2 for global runs
-#else
         IF(wrt_int_state%GLOBAL) THEN                                      !<-- Increase lateral dimensions by 2 for global runs
-#endif
           wrt_int_state%IM(1)=wrt_int_state%IM(1)+2
           wrt_int_state%JM(1)=wrt_int_state%JM(1)+2
         ENDIF
@@ -958,15 +933,7 @@
 !
             NAMES_LOG_STRING(NPOSN_START:NPOSN_END)=ATTRIB_NAME            !<-- Save the logical names
 !
-#ifdef ESMF_3
-            IF(WORK_LOGICAL == ESMF_TRUE) THEN
-              ALL_DATA_LOG(KOUNT_LOG_X)=.TRUE. 
-            ELSE
-              ALL_DATA_LOG(KOUNT_LOG_X)=.FALSE.
-            END IF
-#else
             ALL_DATA_LOG(KOUNT_LOG_X)=WORK_LOGICAL                         !<-- String together the logical data
-#endif
 !
           ENDIF
 !
@@ -1018,8 +985,8 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
         CALL ESMF_FieldBundleGet(              OUTPUT_BUNDLE            &  !<-- The write component's data Bundle
-                                ,FIELDNAMELIST=FIELD_NAME               &  !<-- Array of ESMF Field names in the Bundle
-                                ,FIELDCOUNT   =NUM_FIELD_NAMES          &  !<-- Number of Field names in the Bundle
+                                ,fieldNameList=FIELD_NAME               &  !<-- Array of ESMF Field names in the Bundle
+                                ,fieldCount   =NUM_FIELD_NAMES          &  !<-- Number of Field names in the Bundle
                                 ,rc           =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1053,7 +1020,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_FieldBundleGet(FIELDBUNDLE=OUTPUT_BUNDLE               &  !<-- The write component's data Bundle
-                                  ,FIELDNAME  =FIELD_NAME(N)               &  !<-- The ESMF Field's name
+                                  ,fieldName  =FIELD_NAME(N)               &  !<-- The ESMF Field's name
                                   ,field      =FIELD_WORK1                 &  !<-- The ESMF Field taken from the Bundle
                                   ,rc    =RC)
 !
@@ -1094,7 +1061,7 @@
             IF(KOUNT_R2D_X>MAX_DATA_R2D)THEN
               WRITE(0,*)' FATAL: YOU HAVE EXCEEDED MAX NUMBER OF REAL 2D FIELDS FOR OUTPUT'
               WRITE(0,*)' YOU MUST INCREASE VALUE OF MAX_DATA_R2D WHICH NOW EQUALS ',MAX_DATA_R2D
-              CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
+              CALL ESMF_Finalize(endflag=ESMF_END_ABORT             &
                                 ,rc             =RC )
             ENDIF
 !
@@ -1123,7 +1090,7 @@
         IF(NUM_WORDS_TOT>2147483647)THEN
           WRITE(0,*)' You have TOO MANY words in your datastring.'
           WRITE(0,*)' You must increase the number of tasks.'
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT                 &
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT                 &
                             ,rc             =RC  )
         ELSE
           NUM_WORDS_SEND_R2D=NUM_WORDS_TOT
@@ -1134,7 +1101,7 @@
               ALLOCATE(wrt_int_state%ALL_DATA_R2D(NUM_WORDS),stat=ISTAT)
               IF(ISTAT/=0)THEN
                 WRITE(0,*)' Fcst task FAILED to allocate ALL_DATA_R2D'
-                CALL ESMF_Finalize(terminationflag=ESMF_ABORT           &
+                CALL ESMF_Finalize(endflag=ESMF_END_ABORT           &
                                   ,rc             =RC  )
               ENDIF
               ALL_DATA_R2D=>wrt_int_state%ALL_DATA_R2D
@@ -1145,7 +1112,7 @@
               ALLOCATE(wrt_int_state%RST_ALL_DATA_R2D(NUM_WORDS),stat=ISTAT)
               IF(ISTAT/=0)THEN
                 WRITE(0,*)' Fcst task FAILED to allocate RST_ALL_DATA_R2D'
-                CALL ESMF_Finalize(terminationflag=ESMF_ABORT           &
+                CALL ESMF_Finalize(endflag=ESMF_END_ABORT           &
                                   ,rc             =RC  )
               ENDIF
               ALL_DATA_R2D=>wrt_int_state%RST_ALL_DATA_R2D
@@ -1165,7 +1132,7 @@
         IF(NUM_WORDS_TOT>2147483647)THEN
           WRITE(0,*)' You have TOO MANY words in your datastring.'
           WRITE(0,*)' You must increase the number of tasks.'
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT                 &
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT                 &
                             ,rc             =RC  )
         ELSE
           NUM_WORDS_SEND_I2D=NUM_WORDS_TOT
@@ -1176,7 +1143,7 @@
               ALLOCATE(wrt_int_state%ALL_DATA_I2D(NUM_WORDS),stat=ISTAT)
               IF(ISTAT/=0)THEN
                 WRITE(0,*)' Fcst task FAILED to allocate ALL_DATA_I2D'
-                CALL ESMF_Finalize(terminationflag=ESMF_ABORT           &
+                CALL ESMF_Finalize(endflag=ESMF_END_ABORT           &
                                   ,rc             =RC  )
               ENDIF
               ALL_DATA_I2D=>wrt_int_state%ALL_DATA_I2D
@@ -1187,7 +1154,7 @@
               ALLOCATE(wrt_int_state%RST_ALL_DATA_I2D(NUM_WORDS),stat=ISTAT)
               IF(ISTAT/=0)THEN
                 WRITE(0,*)' Fcst task FAILED to allocate RST_ALL_DATA_I2D'
-                CALL ESMF_Finalize(terminationflag=ESMF_ABORT           &
+                CALL ESMF_Finalize(endflag=ESMF_END_ABORT           &
                                   ,rc             =RC  )
               ENDIF
               ALL_DATA_I2D=>wrt_int_state%RST_ALL_DATA_I2D
@@ -1729,7 +1696,7 @@
               ALLOCATE(wrt_int_state%ALL_DATA_R2D(MAX_WORDS),stat=ISTAT)
               IF(ISTAT/=0)THEN
                 WRITE(0,*)' Write task FAILED to allocate ALL_DATA_R2D'
-                CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
+                CALL ESMF_Finalize(endflag=ESMF_END_ABORT             &
                                   ,rc             =RC  )
               ENDIF
               ALL_DATA_R2D=>wrt_int_state%ALL_DATA_R2D
@@ -1740,7 +1707,7 @@
               ALLOCATE(wrt_int_state%RST_ALL_DATA_R2D(MAX_WORDS),stat=ISTAT)
               IF(ISTAT/=0)THEN
                 WRITE(0,*)' Write task FAILED to allocate RST_ALL_DATA_R2D'
-                CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
+                CALL ESMF_Finalize(endflag=ESMF_END_ABORT             &
                                   ,rc             =RC  )
               ENDIF
               ALL_DATA_R2D=>wrt_int_state%RST_ALL_DATA_R2D
@@ -1790,7 +1757,7 @@
               ALLOCATE(wrt_int_state%ALL_DATA_I2D(MAX_WORDS),stat=ISTAT)
               IF(ISTAT/=0)THEN
                 WRITE(0,*)' Write task FAILED to allocate ALL_DATA_I2D'
-                CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
+                CALL ESMF_Finalize(endflag=ESMF_END_ABORT             &
                                   ,rc             =RC  )
               ENDIF
               ALL_DATA_I2D=>wrt_int_state%ALL_DATA_I2D
@@ -1801,7 +1768,7 @@
               ALLOCATE(wrt_int_state%RST_ALL_DATA_I2D(MAX_WORDS),stat=ISTAT)
               IF(ISTAT/=0)THEN
                 WRITE(0,*)' Write task FAILED to allocate RST_ALL_DATA_I2D'
-                CALL ESMF_Finalize(terminationflag=ESMF_ABORT             &
+                CALL ESMF_Finalize(endflag=ESMF_END_ABORT             &
                                   ,rc             =RC  )
               ENDIF
               ALL_DATA_I2D=>wrt_int_state%RST_ALL_DATA_I2D
@@ -2333,7 +2300,7 @@
           WRITE(0,*)' Failed to allocate working array of'              &
                    ,' internal state pointers!'
           WRITE(0,*)' ABORT!'
-          CALL ESMF_Finalize(terminationflag=ESMF_ABORT                 &
+          CALL ESMF_Finalize(endflag=ESMF_END_ABORT                 &
                             ,rc             =RC )
         ENDIF
 !
@@ -2888,9 +2855,6 @@
                                         ,importState=domain_int_state%IMP_STATE_WRITE  &  !<-- The Write import state
                                         ,exportState=domain_int_state%EXP_STATE_WRITE  &  !<-- The Write export state
                                         ,clock      =CLOCK_DOMAIN                      &  !<-- The ESMF clock of the DOMAIN component
-#ifndef ESMF_520r
-                                        ,phase      =ESMF_SINGLEPHASE                  &
-#endif
                                         ,rc         =RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
             CALL ERR_MSG(RC,MESSAGE_CHECK,RC_INIT)
@@ -3000,17 +2964,13 @@
 !
       REAL(kind=KFPT),DIMENSION(:),ALLOCATABLE :: WORK_ARRAY_REAL_ATT
 !
-#ifdef ESMF_3
-      TYPE(ESMF_Logical) :: WORK_LOGICAL
-#else
       LOGICAL(kind=KLOG) :: WORK_LOGICAL
-#endif
 !
       CHARACTER(len=14) :: BUNDLE_NAME
 !
       CHARACTER(ESMF_MAXSTR) :: ATTRIB_NAME
 !
-      TYPE(ESMF_TypeKind) :: DATATYPE
+      TYPE(ESMF_TypeKind_Flag) :: DATATYPE
 !
 !-----------------------------------------------------------------------
 !***********************************************************************
@@ -3474,9 +3434,6 @@
                                ,importState=domain_int_state%IMP_STATE_WRITE   &  !<-- Its import state
                                ,exportState=domain_int_state%EXP_STATE_WRITE   &  !<-- Its export state
                                ,clock      =CLOCK_DOMAIN                       &  !<-- The DOMAIN Clock
-#ifndef ESMF_520r
-                               ,phase      =ESMF_SINGLEPHASE                   &
-#endif
                                ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

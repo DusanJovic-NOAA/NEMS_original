@@ -1181,7 +1181,7 @@ real(kind=kfpt) :: &
 !
 !          if (abs(psdt(i,j)*dt) .ge. 5000.) then
 !            write(0,*) 'huge PD change...I,J, change: ', I,J, psdt(i,j)*dt
-!            call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!            call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !          endif
 !
 !          loc_npts=loc_npts+1

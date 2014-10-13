@@ -1,18 +1,10 @@
-! February 2011    Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
-!                              ESMF 5 library and the the ESMF 3.1.0rp2 library.
-! May      2011    Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
-! September 2011   Weiyu Yang, Modified for using the ESMF 5.2.0r library.
-!-------------------------------------------------------------------------------
-
-#include "../../ESMFVersionDefine.h"
-
 !-------------------------------------------------------------------------------
 
       MODULE MODULE_VARS_STATE
 
 !-------------------------------------------------------------------------------
 
-      USE esmf_mod
+      USE ESMF
       USE MODULE_VARS
       USE module_CONTROL,ONLY: TIMEF
 
@@ -47,7 +39,7 @@
       TYPE(ESMF_Grid),         INTENT(IN)    :: GRID
       TYPE(ESMF_State ),       INTENT(INOUT) :: STATE
 
-      TYPE(ESMF_StateItemType) :: stateItemType
+      TYPE(ESMF_StateItem_Flag):: stateItemType
       TYPE(ESMF_Field)         :: FIELD
       INTEGER                  :: KOUNT,N, RC
       INTEGER                  :: IHALO,JHALO
@@ -85,7 +77,7 @@
                                         ,name       =VARS(N)%VBL_NAME           &
                                         ,indexFlag  =ESMF_INDEX_GLOBAL          &
                                         ,rc         =RC)
-                CALL ESMF_StateAdd(STATE ,LISTWRAPPER(FIELD) ,rc=RC)
+                CALL ESMF_StateAddReplace(STATE ,(/FIELD/) ,rc=RC)
               ENDIF
             CASE(TKR_R3D)
               CALL ESMF_StateGet(STATE ,VARS(N)%VBL_NAME ,stateItemType, rc=RC)
@@ -99,7 +91,7 @@
                                         ,name            =VARS(N)%VBL_NAME                  &
                                         ,indexFlag       =ESMF_INDEX_GLOBAL                 &
                                         ,rc              =RC)
-                CALL ESMF_StateAdd(STATE ,LISTWRAPPER(FIELD) ,rc=RC)
+                CALL ESMF_StateAddReplace(STATE ,(/FIELD/) ,rc=RC)
               ENDIF
             CASE(TKR_R4D)
               CALL ESMF_StateGet(STATE ,VARS(N)%VBL_NAME ,stateItemType, rc=RC)
@@ -113,13 +105,13 @@
                                         ,name            =VARS(N)%VBL_NAME                  &
                                         ,indexFlag       =ESMF_INDEX_GLOBAL                 &
                                         ,rc              =RC)
-                CALL ESMF_StateAdd(STATE ,LISTWRAPPER(FIELD),rc=RC)
+                CALL ESMF_StateAddReplace(STATE ,(/FIELD/),rc=RC)
               ENDIF
             CASE DEFAULT
               write(0,*)' TKR = ', VARS(N)%TKR, TRIM(VARS(N)%VBL_NAME)
               write(0,*)' This TKR Case not available in PUT_VARS_IN_STATE'
               write(0,*)' ABORTING!'
-              CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                     &
+              CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                     &
                                 ,rc             =RC)
           END SELECT
 
@@ -144,11 +136,7 @@
       TYPE(VAR), DIMENSION(:), INTENT(INOUT) :: VARS
       INTEGER,                 INTENT(IN)    :: NUM_VARS
 
-#ifdef ESMF_3
-      TYPE(ESMF_State ),       INTENT(IN)    :: STATE
-#else
       TYPE(ESMF_State ),       INTENT(INOUT) :: STATE
-#endif
 
       TYPE(ESMF_Field) :: FIELD
       INTEGER :: KOUNT,N, RC
@@ -173,20 +161,20 @@
               if (rc/=ESMF_SUCCESS) then
                 write(0,*)' Unable to get VBL_NAME for CASE(TKR_I0D) in GET_VARS_FROM_STATE'
                 write(0,*)' ABORTING!'
-                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                   &
                                   ,rc             =RC)
               end if
             CASE(TKR_I1D)
               write(0,*)' not implemented TKR_I1D in GET_VARS_FROM_STATE '
               write(0,*)' ABORTING!'
-              CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                     &
+              CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                     &
                                 ,rc             =RC)
             CASE(TKR_I2D)
               CALL ESMF_StateGet(STATE ,VBL_NAME ,FIELD ,rc=RC)
               if (rc/=ESMF_SUCCESS) then
                 write(0,*)' Unable to get VBL_NAME for CASE(TKR_I2D) in GET_VARS_FROM_STATE'
                 write(0,*)' ABORTING!'
-                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                   &
                                   ,rc             =RC)
               end if
 
@@ -195,14 +183,14 @@
               if (rc/=ESMF_SUCCESS) then
                 write(0,*)' Unable to get 2D integer array from Field in GET_VARS_FROM_STATE'
                 write(0,*)' ABORTING!'
-                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                   &
                                   ,rc             =RC)
               end if
               IF (VARS(N)%OWNED ) THEN
                 if (size(VARS(N)%I2D) /= size(HOLD_I2D) ) then
                   write(0,*)' size(VARS(N)%I2D) /= size(HOLD_I2D) in GET_VARS_FROM_STATE'
                   write(0,*)' ABORTING!'
-                  CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+                  CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                 &
                                     ,rc             =RC)
                 end if
                 VARS(N)%I2D =  HOLD_I2D        !<-- Transfer data since multiply owned
@@ -214,7 +202,7 @@
               if (rc/=ESMF_SUCCESS) then
                 write(0,*)' Unable to get VBL_NAME for CASE(TKR_R0D) in GET_VARS_FROM_STATE'
                 write(0,*)' ABORTING!'
-                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                   &
                                   ,rc             =RC)
               end if
             CASE(TKR_R1D)
@@ -227,7 +215,7 @@
               if (rc/=ESMF_SUCCESS) then
                 write(0,*)' Unable to get ',trim(VBL_NAME),' for CASE(TKR_R2D) in GET_VARS_FROM_STATE'
                 write(0,*)' ABORTING!'
-                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                   &
                                   ,rc             =RC)
               end if
 
@@ -236,14 +224,14 @@
               if (rc/=ESMF_SUCCESS) then
                 write(0,*)' Unable to get 2D real array from Field in GET_VARS_FROM_STATE'
                 write(0,*)' ABORTING!'
-                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                   &
                                   ,rc             =RC)
               end if
               IF (VARS(N)%OWNED ) THEN
                 if (size(VARS(N)%R2D) /= size(HOLD_R2D) ) then
                   write(0,*)' size(VARS(N)%R2D) /= size(HOLD_R2D) in GET_VARS_FROM_STATE'
                   write(0,*)' ABORTING!'
-                  CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+                  CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                 &
                                     ,rc             =RC)
                 end if
                 VARS(N)%R2D =  HOLD_R2D         !<-- Transfer data since multiply owned
@@ -255,7 +243,7 @@
               if (rc/=ESMF_SUCCESS) then
                 write(0,*)' Unable to get VBL_NAME for CASE(TKR_R3D) in GET_VARS_FROM_STATE'
                 write(0,*)' ABORTING!'
-                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                   &
                                   ,rc             =RC)
               end if
 
@@ -264,7 +252,7 @@
               if (rc/=ESMF_SUCCESS) then
                 write(0,*)' Unable to get 3D real array from Field in GET_VARS_FROM_STATE'
                 write(0,*)' ABORTING!'
-                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                   &
                                   ,rc             =RC)
               end if
               IF (VARS(N)%OWNED ) THEN
@@ -274,7 +262,7 @@
                   write(0,*)TRIM(VARS(N)%VBL_NAME), 'ubound ',ubound(VARS(N)%R3D), ubound(HOLD_R3D)
                   write(0,*)' VARS(N)%R3D) /= size(HOLD_R3D in GET_VARS_FROM_STATE'
                   write(0,*)' ABORTING!'
-                  CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+                  CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                 &
                                     ,rc             =RC)
                 end if
                 VARS(N)%R3D =  HOLD_R3D         !<-- Transfer data since multiply owned
@@ -286,7 +274,7 @@
               if (rc/=ESMF_SUCCESS) then
                 write(0,*)' Unable to get VBL_NAME for CASE(TKR_R4D) in GET_VARS_FROM_STATE'
                 write(0,*)' ABORTING!'
-                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                   &
                                   ,rc             =RC)
               end if
 
@@ -295,7 +283,7 @@
               if (rc/=ESMF_SUCCESS) then
                 write(0,*)' Unable to get 4D real array from Field in GET_VARS_FROM_STATE'
                 write(0,*)' ABORTING!'
-                CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                   &
+                CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                   &
                                   ,rc             =RC)
               end if
               IF (VARS(N)%OWNED ) THEN
@@ -305,7 +293,7 @@
                   write(0,*)TRIM(VARS(N)%VBL_NAME), 'ubound ',ubound(VARS(N)%R4D), ubound(HOLD_R4D)
                   write(0,*)' size(VARS(N)%R4D) /= size(HOLD_R4D) in GET_VARS_FROM_STATE'
                   write(0,*)' ABORTING!'
-                  CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                 &
+                  CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                 &
                                     ,rc             =RC)
                 end if
                 VARS(N)%R4D =  HOLD_R4D         !<-- Transfer data since multiply owned
@@ -316,7 +304,7 @@
               write(0,*)' TKR = ', VARS(N)%TKR, TRIM(VARS(N)%VBL_NAME)
               write(0,*)' This TKR Case is not available in GET_VARS_FROM_STATE'
               write(0,*)' ABORTING!'
-              CALL ESMF_FINALIZE(terminationflag=ESMF_ABORT                     &
+              CALL ESMF_FINALIZE(endflag=ESMF_END_ABORT                     &
                                 ,rc             =RC)
           END SELECT
 
@@ -574,7 +562,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_FieldBundleAdd(            HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
-                                  ,            LISTWRAPPER(FIELD)       &  !<-- ESMF Field holding the 2D real array
+                                  ,            (/FIELD/)       &  !<-- ESMF Field holding the 2D real array
                                   ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -608,7 +596,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_FieldBundleAdd(            RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
-                                  ,            LISTWRAPPER(FIELD)       &  !<-- ESMF Field holding the 2D real array
+                                  ,            (/FIELD/)       &  !<-- ESMF Field holding the 2D real array
                                   ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -652,7 +640,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_FieldBundleAdd(            HISTORY_BUNDLE           &  !<-- The Write component output history Bundle
-                                  ,            LISTWRAPPER(FIELD)       &  !<-- ESMF Field holding the 2D real array
+                                  ,            (/FIELD/)       &  !<-- ESMF Field holding the 2D real array
                                   ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -686,7 +674,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
           CALL ESMF_FieldBundleAdd(            RESTART_BUNDLE           &  !<-- The Write component output restart Bundle
-                                  ,            LISTWRAPPER(FIELD)       &  !<-- ESMF Field holding the 2D real array
+                                  ,            (/FIELD/)       &  !<-- ESMF Field holding the 2D real array
                                   ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -740,7 +728,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             CALL ESMF_FieldBundleAdd(            HISTORY_BUNDLE         &  !<-- The Write component output history Bundle
-                                    ,            LISTWRAPPER(FIELD)     &  !<-- ESMF Field holding the 3D real array
+                                    ,            (/FIELD/)     &  !<-- ESMF Field holding the 3D real array
                                     ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -785,7 +773,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             CALL ESMF_FieldBundleAdd(            RESTART_BUNDLE         &  !<-- The Write component output restart Bundle
-                                    ,            LISTWRAPPER(FIELD)     &  !<-- ESMF Field holding the 3D real array
+                                    ,            (/FIELD/)     &  !<-- ESMF Field holding the 3D real array
                                     ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -858,7 +846,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             CALL ESMF_FieldBundleAdd(            HISTORY_BUNDLE         &  !<-- The Write component output history Bundle
-                                    ,            LISTWRAPPER(FIELD)     &  !<-- ESMF Field holding the 4D real array
+                                    ,            (/FIELD/)     &  !<-- ESMF Field holding the 4D real array
                                     ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -914,7 +902,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
             CALL ESMF_FieldBundleAdd(            RESTART_BUNDLE         &  !<-- The Write component output restart Bundle
-                                    ,            LISTWRAPPER(FIELD)     &  !<-- ESMF Field holding the 4D real array
+                                    ,            (/FIELD/)     &  !<-- ESMF Field holding the 4D real array
                                     ,rc         =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

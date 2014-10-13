@@ -1,11 +1,4 @@
 #include "../../ESMFVersionDefine.h"
-
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 !
       MODULE module_DIGITAL_FILTER_NMM
@@ -24,7 +17,7 @@
 ! July     2012    T Black, Modified for generational task usage.
 !----------------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
       use module_include
       use module_exchange,only: halo_exch
 
@@ -104,7 +97,7 @@
       if(istat/=0)then
         write(0,*)' DIGITAL_FILTER_DYN_INIT_NMM failed to allocate dolph_wgts stat=',istat
         write(0,*)' Aborting!!'
-        call esmf_finalize(rc=rc,terminationflag=esmf_abort)
+        call esmf_finalize(rc=rc,endflag=ESMF_END_ABORT)
       endif
 
       dt=float(dt_int)+float(dt_num)/float(dt_den)
@@ -170,7 +163,7 @@
         if(istat/=0)then
           write(0,*)' DIGITAL_FILTER_DYN_INIT_NMM failed to allocate array_save_2d stat=',istat
           write(0,*)' Aborting!!'
-          call esmf_finalize(rc=rc,terminationflag=esmf_abort)
+          call esmf_finalize(rc=rc,endflag=ESMF_END_ABORT)
         endif
       ENDIF
 !
@@ -179,7 +172,7 @@
         if(istat/=0)then
           write(0,*)' DIGITAL_FILTER_DYN_INIT_NMM failed to allocate array_save_3d stat=',istat
           write(0,*)' Aborting!!'
-          call esmf_finalize(rc=rc,terminationflag=esmf_abort)
+          call esmf_finalize(rc=rc,endflag=ESMF_END_ABORT)
         endif
       ENDIF
 !
@@ -188,7 +181,7 @@
         if(istat/=0)then
           write(0,*)' DIGITAL_FILTER_DYN_INIT_NMM failed to allocate array_save_4d stat=',istat
           write(0,*)' Aborting!!'
-          call esmf_finalize(rc=rc,terminationflag=esmf_abort)
+          call esmf_finalize(rc=rc,endflag=ESMF_END_ABORT)
         endif
       ENDIF
 !
@@ -302,7 +295,7 @@
 
 
           CALL ESMF_FieldBundleGet(FIELDBUNDLE    =FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                  ,FIELDNAME      =field_name          &
+                                  ,fieldName      =field_name          &
                                   ,field          =HOLD_FIELD          &
                                   ,rc             =rc)
 
@@ -325,7 +318,7 @@
           nullify(hold_3d)
 
           CALL ESMF_FieldBundleGet(FIELDBUNDLE = FILT_BUNDLE            &  !<-- The ESMF Bundle of arrays to be filtered
-                                  ,FIELDNAME   = field_name             &
+                                  ,fieldName   = field_name             &
                                   ,field       = HOLD_FIELD             &
                                   ,rc=rc)
 
@@ -357,7 +350,7 @@
           endif
 
           CALL ESMF_FieldBundleGet(FIELDBUNDLE  = FILT_BUNDLE           &  !<-- The ESMF Bundle of arrays to be filtered
-                                  ,FIELDNAME    = field_name            &
+                                  ,fieldName    = field_name            &
                                   ,field        = HOLD_FIELD            &
                                   ,rc           = rc)
 
@@ -495,7 +488,7 @@
 !         CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
           CALL ESMF_FieldBundleGet(FIELDBUNDLE        = FILT_BUNDLE        &  !<-- The ESMF Bundle of arrays to be filtered
-                                  ,FIELDNAME          = field_name         &
+                                  ,fieldName          = field_name         &
                                   ,field              = HOLD_FIELD         &
                                   ,rc=rc)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -536,7 +529,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
           CALL ESMF_FieldBundleGet(FIELDBUNDLE     = FILT_BUNDLE        &  !<-- The ESMF Bundle of arrays to be filtered
-                                  ,FIELDNAME       = field_name         &
+                                  ,fieldName       = field_name         &
                                   ,field           = HOLD_FIELD         &
                                   ,rc              = rc)
 !
@@ -584,7 +577,7 @@
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
           CALL ESMF_FieldBundleGet(FIELDBUNDLE     = FILT_BUNDLE        &  !<-- The ESMF Bundle of arrays to be filtered
-                                  ,FIELDNAME       = field_name         &
+                                  ,fieldName       = field_name         &
                                   ,field           = HOLD_FIELD         &
                                   ,rc              = RC)
 !
@@ -710,7 +703,7 @@
         if(istat/=0)then
           write(0,*)' DIGITAL_FILTER_PHY_INIT_NMM failed to allocate array_save_2d_phys stat=',istat
           write(0,*)' Aborting!!'
-          call esmf_finalize(rc=rc,terminationflag=esmf_abort)
+          call esmf_finalize(rc=rc,endflag=ESMF_END_ABORT)
         endif
         array_save_2d_phys=0.
       ENDIF
@@ -720,7 +713,7 @@
         if(istat/=0)then
           write(0,*)' DIGITAL_FILTER_PHY_INIT_NMM failed to allocate array_save_3d_phys stat=',istat
           write(0,*)' Aborting!!'
-          call esmf_finalize(rc=rc,terminationflag=esmf_abort)
+          call esmf_finalize(rc=rc,endflag=ESMF_END_ABORT)
         endif
         array_save_3d_phys=0.
       ENDIF
@@ -769,7 +762,7 @@
           nullify(hold_2d) 
 
           CALL ESMF_FieldBundleGet(FIELDBUNDLE    = FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                  ,FIELDNAME      = field_name          &
+                                  ,fieldName      = field_name          &
                                   ,field          = HOLD_FIELD          &
                                   ,rc=rc)
 
@@ -794,7 +787,7 @@
           nullify(hold_3d)
 
           CALL ESMF_FieldBundleGet(FIELDBUNDLE = FILT_BUNDLE            &  !<-- The ESMF Bundle of arrays to be filtered
-                                  ,FIELDNAME   = field_name             &
+                                  ,fieldName   = field_name             &
                                   ,field       = HOLD_FIELD             &
                                   ,rc=rc)
 
@@ -860,7 +853,7 @@
 !         NULLIFY(HOLD_2D)
 
           CALL ESMF_FieldBundleGet(FIELDBUNDLE = FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                ,FIELDNAME     = field_name          &
+                                ,fieldName     = field_name          &
                                 ,field         = HOLD_FIELD          &
                                 ,rc            = rc)
 
@@ -888,7 +881,7 @@
 
 
           CALL ESMF_FieldBundleGet(FIELDBUNDLE    = FILT_BUNDLE         &  !<-- The ESMF Bundle of arrays to be filtered
-                                   ,FIELDNAME     = field_name          &
+                                   ,fieldName     = field_name          &
                                    ,field         = HOLD_FIELD          &
                                    ,rc=rc)
 

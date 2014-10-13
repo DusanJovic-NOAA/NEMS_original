@@ -1,17 +1,3 @@
-!  February 2011     Weiyu Yang, Updated to use both the ESMF 4.0.0rp2 library,
-!                                ESMF 5 library and the the ESMF 3.1.0rp2 library.
-!  May      2011     Weiyu Yang, Modified for using the ESMF 5.2.0r_beta_snapshot_07.
-!  Feb      2012     Weiyu Yang, Modified for using the ESMF 5.2.0rp1 library.
-!---------------------------------------------------------------------------------
-
-#include "../../ESMFVersionDefine.h"
-
-#if (ESMF_MAJOR_VERSION < 5 || ESMF_MINOR_VERSION < 2)
-#undef ESMF_520r
-#else
-#define ESMF_520r
-#endif
-
 !-----------------------------------------------------------------------
 !
       MODULE MODULE_OUTPUT
@@ -21,7 +7,7 @@
 !***  Write import state for output.
 !-----------------------------------------------------------------------
 !
-      USE esmf_mod
+      USE ESMF
       USE MODULE_INCLUDE
       USE MODULE_SOLVER_INTERNAL_STATE,ONLY: SOLVER_INTERNAL_STATE 
       USE MODULE_ERR_MSG,ONLY: ERR_MSG,MESSAGE_CHECK
@@ -98,38 +84,6 @@
 !
       TYPE(ESMF_DataCopy_Flag)    :: COPYFLAG=ESMF_DATACOPY_REFERENCE
 !     TYPE(ESMF_DataCopy_Flag)    :: COPYFLAG=ESMF_DATA_COPY
-
-#ifdef ESMF_3
-
-!-----------------------------------------------------------------------
-!***  ESMF versions of the logicals in the Solver internal state.
-!-----------------------------------------------------------------------
-!
-      TYPE(ESMF_Logical),TARGET :: ADIABATIC_ESMF                       &
-                                  ,GLOBAL_ESMF                          &
-                                  ,RUN_ESMF,MPRATE_ESMF
-!
-!-----------------------------------------------------------------------
-!***********************************************************************
-!-----------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------
-!***  ESMF version of logicals needed for their insertion
-!***  into the history output Bundle of the Write component's
-!***  import state.
-!-----------------------------------------------------------------------
-!
-      RUN_ESMF      =ESMF_False
-      GLOBAL_ESMF   =ESMF_False
-      ADIABATIC_ESMF=ESMF_False
-      MPRATE_ESMF   =ESMF_False
-!
-      IF(int_state%RUN)RUN_ESMF=ESMF_True
-      IF(int_state%GLOBAL)GLOBAL_ESMF=ESMF_True
-      IF(int_state%ADIABATIC)ADIABATIC_ESMF=ESMF_True
-      IF(int_state%LMPRATE)MPRATE_ESMF=ESMF_True
-#endif
-
 !
 !-----------------------------------------------------------------------
 !
@@ -346,29 +300,17 @@
 
       CALL ESMF_AttributeSet(FIELDBUNDLE=HISTORY_BUNDLE                 &  !<-- The Write component output history Bundle
                             ,name       ='GLOBAL'                       &  !<-- Name of the logical
-#ifdef ESMF_3
-                            ,value      =GLOBAL_ESMF                    &  !<--
-#else
                             ,value      =int_state%GLOBAL               &  !<-- The logical being inserted into the Bundle
-#endif
                             ,rc         =RC)
 !
       CALL ESMF_AttributeSet(FIELDBUNDLE=HISTORY_BUNDLE                 &  !<-- The Write component output history Bundle
                             ,name       ='RUN'                          &  !<-- Name of the logical
-#ifdef ESMF_3
-                            ,value      =RUN_ESMF                       &  !<-- The logical being inserted into the Bundle
-#else
                             ,value      =int_state%RUN                  &  !<-- The logical being inserted into the Bundle
-#endif
                             ,rc         =RC)
 !
       CALL ESMF_AttributeSet(FIELDBUNDLE=HISTORY_BUNDLE                 &  !<-- The Write component output history Bundle
                             ,name       ='ADIABATIC'                    &  !<-- Name of the logical
-#ifdef ESMF_3
-                            ,value      =ADIABATIC_ESMF                 &  !<-- The logical being inserted into the Bundle
-#else
                             ,value      =int_state%ADIABATIC            &  !<-- The logical being inserted into the Bundle
-#endif
                             ,rc         =RC)
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -387,29 +329,17 @@
 
       CALL ESMF_AttributeSet(FIELDBUNDLE=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
                             ,name       ='GLOBAL'                       &  !<-- Name of the logical
-#ifdef ESMF_3
-                            ,value      =GLOBAL_ESMF                    &  !<--
-#else
                             ,value      =int_state%GLOBAL               &  !<-- The logical being inserted into the Bundle
-#endif
                             ,rc         =RC)
 !
       CALL ESMF_AttributeSet(FIELDBUNDLE=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
                             ,name       ='RUN'                          &  !<-- Name of the logical
-#ifdef ESMF_3
-                            ,value      =RUN_ESMF                       &  !<-- The logical being inserted into the Bundle
-#else
                             ,value      =int_state%RUN                  &  !<-- The logical being inserted into the Bundle
-#endif
                             ,rc         =RC)
 !
       CALL ESMF_AttributeSet(FIELDBUNDLE=RESTART_BUNDLE                 &  !<-- The Write component restart Bundle
                             ,name       ='ADIABATIC'                    &  !<-- Name of the logical
-#ifdef ESMF_3
-                            ,value      =ADIABATIC_ESMF                 &  !<-- The logical being inserted into the Bundle
-#else
                             ,value      =int_state%ADIABATIC            &  !<-- The logical being inserted into the Bundle
-#endif
                             ,rc         =RC)
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -465,11 +395,7 @@
 !insert lmprate to header
       CALL ESMF_AttributeSet(FIELDBUNDLE=HISTORY_BUNDLE                 &  !<-- The Write component history Bundle
                             ,name       ='MPRATE'                        &  !<-- Name of microphysics scheme variable
-#ifdef ESMF_3
-                            ,value      =MPRATE_ESMF                    &  !<-- The microphysics scheme integer specification
-#else
                             ,value      =int_state%LMPRATE              &
-#endif
                             ,rc         =RC)
 
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -548,11 +474,8 @@
 !     CALL ESMF_LogWrite(MESSAGE_CHECK,ESMF_LOGMSG_INFO,rc=RC)
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 !
-      CALL ESMF_StateAdd(state          =IMP_STATE_WRITE                     &  !<-- The Write component's import state
-                        ,fieldbundlelist=LISTWRAPPER(int_state%BUNDLE_ARRAY) &  !<-- Array holding the History/Restart Bundles
-#ifndef ESMF_520r
-                        ,count          =ITWO                                &  !<-- There are two Bundles in the array
-#endif
+      CALL ESMF_StateAddReplace(state          =IMP_STATE_WRITE                     &  !<-- The Write component's import state
+                        ,fieldbundlelist=(/int_state%BUNDLE_ARRAY/) &  !<-- Array holding the History/Restart Bundles
                         ,rc             =RC)
 !
 ! ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
