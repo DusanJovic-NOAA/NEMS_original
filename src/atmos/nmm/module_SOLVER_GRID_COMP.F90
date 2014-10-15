@@ -2645,7 +2645,7 @@
       REAL (kind=KDBL) ,DIMENSION(1)               :: XSIHFCS,XSICFCS,XSLPFCS,XTG3FCS,XVEGFCS,XVETFCS,XSOTFCS
       REAL (kind=KDBL) ,DIMENSION(1)               :: ALVSF,ALNSF,ALVWF,ALNWF,FACSF,FACWF
       REAL (kind=KDBL) ,DIMENSION(1)               :: WRK, DPSHC, GQ, RANNUM_V
-      REAL (kind=KDBL) ,DIMENSION(1)               :: ORO, EVAP, HFLX, CDQ, QSS, FSCAV
+      REAL (kind=KDBL) ,DIMENSION(1)               :: ORO, EVAP, HFLX, CDQ, QSS
       REAL (kind=KDBL) ,DIMENSION(:),ALLOCATABLE   :: CLDCOV_V,PRSL,PRSLK,GU,GV,GT,GR,VVEL,F_ICE,F_RAIN,R_RIME
       REAL (kind=KDBL) ,DIMENSION(:),ALLOCATABLE   :: ADT,ADU,ADV,PHIL
       REAL (kind=KDBL) ,DIMENSION(:,:),ALLOCATABLE :: GR3,ADR
@@ -6210,7 +6210,6 @@
               U1(1)           = 0.0D0
               V1(1)           = 0.0D0
               QSS(1)          = 0.0D0
-              FSCAV(1)        = 0.0D0
               CDQ(1)          = 0.0D0
               HFLX(1)         = 0.0D0
               EVAP(1)         = 0.0D0
@@ -6589,7 +6588,7 @@
            BKGD_VDIF_M, BKGD_VDIF_H, BKGD_VDIF_S, PSAUTCO, PRAUTCO, EVPCO,  &
            WMINCO,                                                          &
            FLIPV, OLD_MONIN, CNVGWD, SHAL_CNV, SASHAL, NEWSAS, CAL_PRE,     &
-           MOM4ICE, MSTRAT, TRANS_TRAC, NST_FCST, MOIST_ADJ, FSCAV,         &
+           MOM4ICE, MSTRAT, TRANS_TRAC, NST_FCST, MOIST_ADJ,                &
            THERMODYN_ID, SFCPRESS_ID, GEN_COORD_HYBRID, LEVR,               &
            XSIHFCS, XSICFCS, TISFC, TSEA, TPRCP, CV, CVB, CVT,              &
            SRFLAG, SNWDPH, WEASD, SNCOVR, ZORL, CANOPY,                     &

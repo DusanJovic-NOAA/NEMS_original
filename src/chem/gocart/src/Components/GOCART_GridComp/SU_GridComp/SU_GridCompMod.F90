@@ -58,6 +58,7 @@
 !  18May2006 da Silva  Removed ensure postive, now in GOCART_GridComp
 !  17Aug2010 S. Lu     Ensure postive for no3
 !  13Mar2013 Lu        Add NEMS option
+!  30Sep2014 Lu        Remove doing_fscav option
 
 !
 !EOP
@@ -84,7 +85,6 @@
         real, pointer :: so4_ship_src(:,:)
         real, pointer :: aircraft_fuel_src(:,:,:)
         real, pointer :: dmso_conc(:,:)
-        integer       :: doing_scav     ! compute tracer scavenging (NEMS option)
 !       Special handling for volcanic emissions
         logical :: volcanicDailyTables = .false.
         integer :: nvolcdaily = 0
@@ -198,7 +198,6 @@ CONTAINS
    integer :: i, j, k
    integer :: nTimes, begTime, incSecs
    integer, allocatable :: ier(:)
-   integer :: idoing_scav  ! NEMS option to re-activate convective removal 
    real, allocatable :: buffer(:,:)
    real :: qmax, qmin
 
@@ -436,30 +435,6 @@ CONTAINS
    end if
 
 !                          -------
-!  NEMS Option to compute convective rainout/washout in GOCART
-!  ---------------
-
-   gcSU%doing_scav = 0     ! Default is to compute convective
-!                          ! rainout/washout in GFS physics
-#ifdef NEMS
-   call i90_label ( 'doing_scav:', ier(1) )
-   idoing_scav                 = i90_gint ( ier(2) )
-   gcSU%doing_scav             = idoing_scav
-   if ( any(ier(1:2) /= 0) ) then
-      call final_(50)
-      return
-   end if
-
-!  invoke the option to compute convective removal in GOCART
-!  set fscav (scav used in GFS RAS) to 0.
-   if ( gcSU%doing_scav  == 1 ) then
-     do n = 1, nbins
-      w_c%reg%fscav(nbeg+n-1)   = 0.
-      w_c%qa(nbeg+n-1)%fscav    = 0.
-     end do
-   endif
-#endif
-
 !                          -------
 
 !  Check initial date of inventory emission/oxidant files
@@ -3752,9 +3727,7 @@ end subroutine getvolcexp
       qls(k) = -dqcond(i,j,k)*pls/pac*rhoa(i,j,k)
 !      qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
 #ifdef NEMS
-      if ( gcSU%doing_scav == 1 ) then
       qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
-      endif
 #endif
      end do
 	

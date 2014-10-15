@@ -55,6 +55,7 @@
 !
 !  16Sep2003 da Silva  First crack.
 !  13Mar2013 Lu        Add NEMS option
+!  30Sep2013 Lu        Remove doing_scav option
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -67,7 +68,6 @@
         real, pointer :: rLow(:)        ! lower radius of particle bin [um]
         real, pointer :: rUp(:)         ! upper radius of particle bin [um]
         real, pointer :: rhop(:)        ! dry salt particle density [kg m-3]
-        integer       :: doing_scav     ! compute tracer scavenging for NEMS
   end type SS_GridComp
 
   real, parameter :: OCEAN=0.0, LAND = 1.0, SEA_ICE = 2.0
@@ -126,7 +126,6 @@ CONTAINS
    real :: qmin, qmax
    real :: radius, rlow, rup, rmrat, rmin, rhop, fscav
    integer :: irhFlag
-   integer :: idoing_scav  ! NEMS option to re-activate convective removal 
    character(len=255) :: CARMA_Services = ' '
 
 
@@ -253,31 +252,6 @@ CONTAINS
       call final_(50)
       return
    end if
-
-!                          -------
-!  Option to compute convective rainout/washout in GOCART
-!  ---------------
-
-   gcSS%doing_scav = 0     ! Default is to compute convective
-!                          ! rainout/washout in GFS physics
-#ifdef NEMS
-   call i90_label ( 'doing_scav:', ier(1) )
-   idoing_scav                 = i90_gint ( ier(2) )
-   gcSS%doing_scav             = idoing_scav
-   if ( any(ier(1:2) /= 0) ) then
-      call final_(50)
-      return
-   end if
-
-!  invoke the option to compute convective removal in GOCART
-!  set fscav (scav used in GFS RAS) to 0.
-   if ( gcSS%doing_scav == 1 ) then
-     do n = 1, nbins
-      w_c%reg%fscav(n1+n-1)   = 0.
-      w_c%qa(n1+n-1)%fscav    = 0.
-     end do
-   endif
-#endif
 
 !                          -------
 
@@ -1202,9 +1176,7 @@ CONTAINS
       qls(k) = -dqcond(i,j,k)*pls/pac*rhoa(i,j,k)
 !      qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
 #ifdef NEMS
-      if ( gcSS%doing_scav == 1 ) then
       qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
-      endif
 #endif
      end do
 

@@ -24,7 +24,7 @@
 !           ldiag3d,lggfs3d,lgocart,lssav,lssav_cc,lssav_cpl            !
 !           xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,wminco,          !
 !           flipv,old_monin,cnvgwd,shal_cnv,sashal,newsas,cal_pre,      !
-!           mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,fscav,         !
+!           mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,               !
 !           thermodyn_id, sfcpress_id, gen_coord_hybrid,levr,           !
 !       input/outputs:                                                  !
 !           hice,fice,tisfc,tsea,tprcp,cv,cvb,cvt,                      !
@@ -129,7 +129,8 @@
 !      Jun  2014  - Xingren Wu  update net SW fluxes over the ocean     !
 !                               (no ice contamination)                  !
 !      Jul  2014  - Xingren Wu  add Sea/Land/Ice Mask - slmsk_cpl       !
-!                                                                       !
+!      Sep  2014  - Sarah Lu    disable the option to compute tracer    !
+!                               scavenging in GFS phys (set fscav=0.)   !           
 !  ====================  defination of variables  ====================  !
 !                                                                       !
 !  inputs:                                                       size   !
@@ -262,7 +263,6 @@
 !     nst_fcst  -integer, flag 0 for no nst, 1 for uncoupled nst        !
 !                          and 2 for coupled NST                   1    !
 !     moist_adj- logical, flag for moist convective adjustment     1    !
-!     fscav    - real, tracer convective scavenging coefficient ntrac-ncld-1!
 !     thermodyn_id - integer, valid for GFS only for get_prs/phi   1    !
 !     sfcpress_id  - integer, valid for GFS only for get_prs/phi   1    !
 !     gen_coord_hybrid - logical for Henry's gen coord             1    !
@@ -479,7 +479,7 @@
      &      ldiag3d,lggfs3d,lgocart,lssav,lssav_cc,lssav_cpl,           &
      &      xkzm_m,xkzm_h,xkzm_s,psautco,prautco,evpco,wminco,          &
      &      flipv,old_monin,cnvgwd,shal_cnv,sashal,newsas,cal_pre,      &
-     &      mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,fscav,         &
+     &      mom4ice,mstrat,trans_trac,nst_fcst,moist_adj,               &
      &      thermodyn_id, sfcpress_id, gen_coord_hybrid,levr,           &
 !  ---  input/outputs:
      &      hice,fice,tisfc,tsea,tprcp,cv,cvb,cvt,                      &
@@ -604,9 +604,6 @@
      &      xkzm_m,  xkzm_h, xkzm_s, psautco(2),   prautco(2), evpco,   &
      &      wminco(2), cgwf(2), prslrd0
 
-      real(kind=kind_phys), intent(in) ::  fscav(ntrac-ncld-1)
-
-
 !  ---  input/output:
       real(kind=kind_phys), dimension(im),            intent(inout) ::  &
      &      hice,   fice,    tisfc,  tsea,   tprcp,  cv,     cvb,  cvt, &
@@ -675,6 +672,7 @@
      &      gq0
 
 !  ---  local:
+      real(kind=kind_phys) ::  fscav(ntrac-ncld-1)
       real(kind=kind_phys), dimension(im)          :: ccwfac, garea,    &
      &      dlength, xncw,   cumabs, qmax,   cice,    zice,   tice,     &
 !    &      gflx,    rain,   rainc,  rainl,  rain1,   raincs, evapc,    &
@@ -744,6 +742,11 @@
 !       dxmax = dxmaxs ; dxmin = dxmins ; dxinv = dxinvs
 !     endif
         dxmax = dxmaxs ; dxmin = dxmins ; dxinv = dxinvs
+
+! The option to compute tracer scavenging in GSM is disabled
+      do i=1, ntrac-ncld-1
+        fscav(i) = 0.
+      enddo
  
 !  --- ...  set up check print point (for debugging)
 !
