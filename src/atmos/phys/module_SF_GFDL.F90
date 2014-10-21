@@ -280,7 +280,7 @@ CONTAINS
    KM=KTE-KTS+1
 
    WRITE(message,*)'WITHIN THE GFDL SCHEME, NTSFLG=1 FOR GFDL SLAB  2010 UPGRADS',NTSFLG
-   call wrf_debug(1,message)
+   !call wrf_debug(1,message)
 
     kflip=(kte+1)-kts  !NMMB input z is from top to bottom, !wang
 
@@ -544,9 +544,9 @@ CONTAINS
     if(j.eq.jds.or.j.eq.jde) then
 
     write(message,*) "TSFC in gfdl sf mod,dt, its,ite,jts,jts", dt,its,ite,jts,jte,ids,ide,jds,jde
-    call wrf_debug(1,message)
+    !call wrf_debug(1,message)
     write(message,*) "TSFC",  (TSK(i,j),i=its,ite)
-    call wrf_debug(1,message)
+    !call wrf_debug(1,message)
     endif
 
    ENDDO            ! FOR THE J LOOP I PRESUME

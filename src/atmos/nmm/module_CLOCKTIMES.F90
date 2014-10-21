@@ -78,7 +78,7 @@
 !
       TYPE(INTEGRATION_TIMERS),DIMENSION(:),ALLOCATABLE,TARGET :: TIMERS   !<-- Timers for each domain
 !
-      REAL(kind=KDBL),DIMENSION(5) :: cbcst_tim,pbcst_tim
+      REAL(kind=KDBL),DIMENSION(99) :: cbcst_tim,pbcst_tim
 !
 !-----------------------------------------------------------------------
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&

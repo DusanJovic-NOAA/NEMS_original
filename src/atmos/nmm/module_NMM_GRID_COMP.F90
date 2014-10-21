@@ -3087,7 +3087,7 @@
 !
       REAL(kind=KDBL) :: gentimer3
 !
-      REAL(kind=KDBL),DIMENSION(0:9) :: gentimer1,gentimer2
+      REAL(kind=KDBL),DIMENSION(99) :: gentimer1,gentimer2
 !
 !-----------------------------------------------------------------------
 !***********************************************************************

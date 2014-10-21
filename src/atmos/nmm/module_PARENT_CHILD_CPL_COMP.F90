@@ -998,7 +998,7 @@
 !
       INTEGER(kind=KINT),SAVE :: MOVE_TAG=1111                          &  !<-- Arbitrary tag used for child's move
                                 ,MOVING_BC_TAG=1112                     &  !<-- Arbitrary tag used for moving nests' BC updates
-                                ,PARENT_SHIFT_TAG=1113                     !<-- Arbitrary tag used for parent's move
+                                ,PARENT_SHIFT_TAG=1e8                      !<-- Arbitrary tag used for parent's move.
 !
       INTEGER(kind=KINT),SAVE :: MAX_FORCED_SHIFT=10                       !<-- # parent points a child forces its parent to shift
 !
