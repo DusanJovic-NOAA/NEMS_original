@@ -31,7 +31,7 @@ FC          = mpif90
 FPP         = -cpp
 FREE        = -ffree-form
 FIXED       = -ffixed-form
-R8          = -fdefault-real-8
+R8          = -fdefault-real-8 -fdefault-double-8
 
 FINCS       = $(ESMF_INC) $(NEMSIO_INC) $(NETCDF_INC)
 TRAPS       =

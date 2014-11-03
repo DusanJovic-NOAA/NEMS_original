@@ -4,6 +4,7 @@ set -x
 #
 #
 if [[ -e  _PATHTR_/src/conf/modules.nems ]]; then
+  source /usrx/local/Modules/default/init/ksh
   source _PATHTR_/src/conf/modules.nems
   module list
 fi

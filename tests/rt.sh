@@ -27,6 +27,7 @@ export dprefix1=""
 export dprefix2=""
 export MACHINE_ID=${MACHINE_ID:-wcoss}
 if [ $MACHINE_ID = wcoss ]; then
+  source /usrx/local/Modules/default/init/sh
   export CLASS=dev
   export ACCNR=dev
   export DISKNM=/meso
@@ -39,6 +40,7 @@ elif [ $MACHINE_ID = gaea ]; then
   export PTMP=/lustre/fs/scratch
   export SCHEDULER=moab
 elif [ $MACHINE_ID = zeus ]; then
+  source /usr/share/Modules/init/sh
   export ACCNR
   export dprefix1=/scratch1/portfolios/NCEPDEV
   export dprefix2=/scratch2/portfolios/NCEPDEV
